@@ -1,0 +1,43 @@
+#ifndef LWIPOPTS_H
+#define LWIPOPTS_H
+
+#define NO_SYS 1
+#define SYS_LIGHTWEIGHT_PROT 1
+
+#define MEM_ALIGNMENT 4
+#define MEM_SIZE (32 * 1024)
+
+#define LWIP_IPV4 1
+#define LWIP_IPV6 0
+#define LWIP_DHCP 1
+#define LWIP_DNS 1
+#define LWIP_ICMP 1
+#define LWIP_NETIF_HOSTNAME 1
+#define LWIP_NETIF_STATUS_CALLBACK 1
+#define LWIP_NETIF_LINK_CALLBACK 1
+#define LWIP_RAW 1
+#define LWIP_TCP 1
+#define LWIP_UDP 1
+
+#define LWIP_SOCKET 0
+#define LWIP_NETCONN 0
+
+#define MEMP_NUM_TCP_PCB 8
+#define MEMP_NUM_TCP_PCB_LISTEN 4
+#define MEMP_NUM_TCP_SEG 32
+#define PBUF_POOL_SIZE 24
+
+#define TCP_MSS 1460
+#define TCP_SND_BUF (4 * TCP_MSS)
+#define TCP_WND (4 * TCP_MSS)
+
+#define LWIP_TCP_KEEPALIVE 0
+#define LWIP_STATS 0
+#define LWIP_PROVIDE_ERRNO 1
+
+#define HTTPD_USE_CUSTOM_FSDATA 1
+#define LWIP_HTTPD_CUSTOM_FILES 1
+#define LWIP_HTTPD_DYNAMIC_FILE_READ 0
+#define LWIP_HTTPD_SUPPORT_POST 0
+
+#endif
