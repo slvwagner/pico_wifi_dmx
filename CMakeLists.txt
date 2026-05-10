@@ -74,6 +74,7 @@ pico_enable_stdio_usb(Micropython_Custom_C_extentions 1)
 # Add the standard library to the build
 target_link_libraries(Micropython_Custom_C_extentions
         pico_stdlib
+        pico_multicore
         pico_cyw43_arch_lwip_threadsafe_background
         pico_lwip_http)
 

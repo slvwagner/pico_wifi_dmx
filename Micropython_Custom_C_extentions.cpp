@@ -5,6 +5,7 @@
 #include "pico/stdlib.h"
 #include "pico/stdio_usb.h"
 #include "pico/sync.h"
+#include "pico/multicore.h"
 #include "pico/cyw43_arch.h"
 #include "lwip/apps/fs.h"
 #include "lwip/apps/httpd.h"
@@ -320,13 +321,9 @@ extern "C" void fs_close_custom(struct fs_file *file)
     (void)file;
 }
 
-int main()
+static void core1_network_log_server()
 {
-    critical_section_init(&log_lock);
-    stdio_init_all();
-    wait_for_usb_serial();
-
-    log_printf("Hello, from Pico 2W!\n");
+    log_printf("Core1 network/log server starting\n");
 
     if (WIFI_SSID[0] == '\0') {
         stay_alive_with_message("WIFI_SSID is not set. Reconfigure CMake with -DWIFI_SSID=your_ssid -DWIFI_PASSWORD=your_password");
@@ -370,4 +367,29 @@ int main()
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);
     }
+}
+
+static void core0_application_loop()
+{
+    uint32_t loop_count = 0;
+
+    while (true) {
+        if ((loop_count++ % 10) == 0) {
+            log_printf("Core0 main loop running\n");
+        }
+        sleep_ms(1000);
+    }
+}
+
+int main()
+{
+    critical_section_init(&log_lock);
+    stdio_init_all();
+    wait_for_usb_serial();
+
+    log_printf("Hello, from Pico 2W!\n");
+    log_printf("Starting network/log server on core1\n");
+
+    multicore_launch_core1(core1_network_log_server);
+    core0_application_loop();
 }
