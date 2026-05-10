@@ -8,7 +8,11 @@
 #define MEM_SIZE (32 * 1024)
 
 #define LWIP_IPV4 1
-#define LWIP_IPV6 0
+#define LWIP_IPV6 1
+#define LWIP_IPV6_AUTOCONFIG 1
+#define LWIP_IPV6_SEND_ROUTER_SOLICIT 1
+#define LWIP_IPV6_MLD 1
+#define LWIP_IPV6_DHCP6 0
 #define LWIP_DHCP 1
 #define LWIP_DNS 1
 #define LWIP_ICMP 1

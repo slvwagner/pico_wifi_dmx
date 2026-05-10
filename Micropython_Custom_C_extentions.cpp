@@ -10,6 +10,7 @@
 #include "lwip/apps/httpd.h"
 #include "lwip/netif.h"
 #include "lwip/ip4_addr.h"
+#include "lwip/ip6_addr.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
@@ -96,6 +97,73 @@ static const char *link_status_name(int status)
             return "BADAUTH";
         default:
             return "UNKNOWN";
+    }
+}
+
+static const char *ipv6_state_name(uint8_t state)
+{
+    if (ip6_addr_ispreferred(state)) {
+        return "preferred";
+    }
+    if (ip6_addr_isvalid(state)) {
+        return "valid";
+    }
+    if (ip6_addr_istentative(state)) {
+        return "tentative";
+    }
+    if (ip6_addr_isduplicated(state)) {
+        return "duplicated";
+    }
+    return "invalid";
+}
+
+static void start_ipv6_autoconfig()
+{
+    if (!netif_default) {
+        return;
+    }
+
+    cyw43_arch_lwip_begin();
+    netif_create_ip6_linklocal_address(netif_default, 1);
+    netif_set_ip6_autoconfig_enabled(netif_default, 1);
+    cyw43_arch_lwip_end();
+}
+
+static void log_ip_addresses()
+{
+    if (!netif_default) {
+        log_printf("No default network interface\n");
+        return;
+    }
+
+    char ipv4[16];
+    char ipv6[LWIP_IPV6_NUM_ADDRESSES][40];
+    uint8_t ipv6_state[LWIP_IPV6_NUM_ADDRESSES];
+    bool ipv6_is_browser_usable[LWIP_IPV6_NUM_ADDRESSES];
+
+    cyw43_arch_lwip_begin();
+    snprintf(ipv4, sizeof(ipv4), "%s", ip4addr_ntoa(netif_ip4_addr(netif_default)));
+    for (int i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
+        ip6addr_ntoa_r(netif_ip6_addr(netif_default, i), ipv6[i], sizeof(ipv6[i]));
+        ipv6_state[i] = netif_ip6_addr_state(netif_default, i);
+        ipv6_is_browser_usable[i] =
+            ip6_addr_isglobal(netif_ip6_addr(netif_default, i)) ||
+            ip6_addr_isuniquelocal(netif_ip6_addr(netif_default, i));
+    }
+    cyw43_arch_lwip_end();
+
+    log_printf("Open logs at http://%s/\n", ipv4);
+    for (int i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
+        if (ipv6_state[i] != IP6_ADDR_INVALID) {
+            log_printf("IPv6[%d]: %s (%s, state=0x%02x)\n",
+                       i,
+                       ipv6[i],
+                       ipv6_state_name(ipv6_state[i]),
+                       ipv6_state[i]);
+            if (ip6_addr_isvalid(ipv6_state[i]) && ipv6_is_browser_usable[i]) {
+                log_printf("Open logs over IPv6 at http://[%s]/\n", ipv6[i]);
+            }
+        }
     }
 }
 
@@ -284,9 +352,8 @@ int main()
 
     log_printf("Connected to Wi-Fi\n");
     log_printf("Approx free RAM: %u bytes\n", (unsigned)get_free_ram_bytes());
-    if (netif_default) {
-        log_printf("Open logs at http://%s/\n", ip4addr_ntoa(netif_ip4_addr(netif_default)));
-    }
+    start_ipv6_autoconfig();
+    log_ip_addresses();
 
     httpd_init();
     log_printf("HTTPD log server started on port 80\n");
@@ -297,6 +364,7 @@ int main()
         log_printf("Wi-Fi is connected\n");
         if ((loop_count++ % 10) == 0) {
             log_printf("Approx free RAM: %u bytes\n", (unsigned)get_free_ram_bytes());
+            log_ip_addresses();
         }
         sleep_ms(500);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
