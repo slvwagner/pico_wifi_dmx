@@ -32,8 +32,12 @@
 #endif
 
 #ifndef DMX_CHANNELS
-#define DMX_CHANNELS 512
+#define DMX_CHANNELS 46
 #endif
+
+#define DMX_STRINGIFY_VALUE(value) #value
+#define DMX_STRINGIFY(value) DMX_STRINGIFY_VALUE(value)
+#define DMX_CHANNELS_TEXT DMX_STRINGIFY(DMX_CHANNELS)
 
 #ifndef DMX_REFRESH_RATE
 #define DMX_REFRESH_RATE 44
@@ -312,14 +316,14 @@ static void build_dmx_page()
         "<body><main>"
         "<header><div><h1>Pico 2W DMX</h1><div class=\"status\" id=\"status\">Connecting...</div></div><div class=\"nav\"><a href=\"/\">Logs</a><a href=\"/status.json\">Status JSON</a></div></header>"
         "<section class=\"panel control\">"
-        "<div class=\"row\"><label>Channel<input id=\"ch\" type=\"number\" min=\"1\" max=\"512\" value=\"1\"></label><label>Value<input id=\"num\" type=\"number\" min=\"0\" max=\"255\" value=\"0\"></label></div>"
+        "<div class=\"row\"><label>Channel<input id=\"ch\" type=\"number\" min=\"1\" max=\"" DMX_CHANNELS_TEXT "\" value=\"1\"></label><label>Value<input id=\"num\" type=\"number\" min=\"0\" max=\"255\" value=\"0\"></label></div>"
         "<input id=\"slider\" type=\"range\" min=\"0\" max=\"255\" value=\"0\">"
         "<div class=\"value\" id=\"big\">0</div>"
         "<div class=\"buttons\"><button class=\"primary\" id=\"send\">Update channel</button><button id=\"zero\">Set selected to 0</button><button id=\"full\">Set selected to 255</button><button class=\"warn\" id=\"clear\">Clear all</button></div>"
         "</section>"
         "<section class=\"panel\"><div class=\"pager\"><button id=\"prev\">Previous 32</button><div class=\"range\" id=\"range\"></div><button id=\"next\">Next 32</button></div><div class=\"grid\" id=\"grid\"></div></section>"
         "<script>"
-        "let maxCh=512;const pageSize=32,known=Array(maxCh+1).fill(0);let active=1,pageStart=1;"
+        "const configuredMax=parseInt(document.getElementById('ch').max,10)||512;let maxCh=configuredMax;const pageSize=32,known=Array(configuredMax+1).fill(0);let active=1,pageStart=1;"
         "const ch=document.getElementById('ch'),num=document.getElementById('num'),slider=document.getElementById('slider'),big=document.getElementById('big'),grid=document.getElementById('grid'),statusEl=document.getElementById('status'),rangeEl=document.getElementById('range'),prev=document.getElementById('prev'),next=document.getElementById('next');"
         "function clamp(v,min,max){v=parseInt(v||0,10);return Math.max(min,Math.min(max,isNaN(v)?min:v));}"
         "function draw(){grid.innerHTML='';const end=Math.min(maxCh,pageStart+pageSize-1);rangeEl.textContent='Channels '+pageStart+'-'+end+' of '+maxCh;prev.disabled=pageStart<=1;next.disabled=end>=maxCh;for(let i=pageStart;i<=end;i++){const b=document.createElement('button');b.className='tile'+(i===active?' active':'');b.innerHTML='<span>CH '+i+'</span><b>'+known[i]+'</b>';b.onclick=()=>select(i);grid.appendChild(b);}}"
@@ -329,7 +333,7 @@ static void build_dmx_page()
         "function select(c){active=clamp(c,1,maxCh);ch.value=active;pageFor(active);sync(known[active]);}"
         "async function setValue(c,v){c=clamp(c,1,maxCh);v=clamp(v,0,255);const r=await fetch('/dmx/set/'+c+'/'+v,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();known[j.channel]=j.value;active=j.channel;ch.value=active;sync(j.value);statusEl.textContent='Updated channel '+j.channel+' to '+j.value;}"
         "async function loadValues(){try{const r=await fetch('/dmx/values/'+pageStart+'/'+pageSize,{cache:'no-store'});const j=await r.json();j.values.forEach((v,i)=>known[j.first+i]=v);sync(known[active]);}catch(e){draw();}}"
-        "async function refresh(){try{const r=await fetch('/status.json',{cache:'no-store'});const j=await r.json();maxCh=clamp(j.dmx.channels,1,512);ch.max=maxCh;statusEl.textContent=(j.dmx.running?'Running':'Stopped')+' - '+j.dmx.channels+' channels - frame '+j.dmx.frame_count;draw();}catch(e){statusEl.textContent='Status refresh failed';}}"
+        "async function refresh(){try{const r=await fetch('/status.json',{cache:'no-store'});const j=await r.json();maxCh=clamp(j.dmx.channels,1,configuredMax);ch.max=maxCh;active=clamp(active,1,maxCh);ch.value=active;pageStart=Math.floor((clamp(pageStart,1,maxCh)-1)/pageSize)*pageSize+1;statusEl.textContent=(j.dmx.running?'Running':'Stopped')+' - '+j.dmx.channels+' channels - frame '+j.dmx.frame_count;draw();}catch(e){statusEl.textContent='Status refresh failed';}}"
         "ch.onchange=()=>select(ch.value);num.oninput=()=>sync(num.value);slider.oninput=()=>sync(slider.value);"
         "prev.onclick=()=>showPage(pageStart-pageSize);next.onclick=()=>showPage(pageStart+pageSize);"
         "document.getElementById('send').onclick=()=>setValue(active,num.value).catch(e=>statusEl.textContent=e.message);"
