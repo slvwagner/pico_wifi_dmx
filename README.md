@@ -93,10 +93,10 @@ The page can update individual DMX channels and clear all channels. The same con
 ```text
 http://<pico-ip>/dmx/set/1/255
 http://<pico-ip>/dmx/clear
-http://<pico-ip>/dmx/values/1/32
+http://<pico-ip>/dmx/values/1/64
 ```
 
-Channel numbers are 1-based. The firmware endpoint requires values in the valid DMX range of `0` through `255`.
+Channel numbers are 1-based and can address the configured DMX universe, up to 512 channels by default. The firmware endpoint requires values in the valid DMX range of `0` through `255`. The values endpoint accepts a first channel and a count from `1` through `64`.
 
 ## Code Layout
 

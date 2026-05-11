@@ -36,7 +36,7 @@
 #endif
 
 #ifndef DMX_REFRESH_RATE
-#define DMX_REFRESH_RATE 43
+#define DMX_REFRESH_RATE 44
 #endif
 
 static critical_section_t log_lock;
@@ -302,8 +302,9 @@ static void build_dmx_page()
         "label{display:grid;gap:6px;color:var(--muted);font-size:13px}.row{display:grid;grid-template-columns:1fr 110px;gap:12px;align-items:end}"
         "input,button{font:inherit}input[type=number]{width:100%;padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}"
         "input[type=range]{width:100%;accent-color:var(--accent)}.value{font-size:42px;line-height:1;font-weight:700;color:var(--accent)}"
-        ".buttons{display:flex;gap:10px;flex-wrap:wrap}button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}"
+        ".buttons,.pager{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.pager{justify-content:space-between;margin-bottom:10px}button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}"
         "button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}"
+        "button:disabled{opacity:.45;cursor:not-allowed}.range{color:var(--muted);font-size:14px}"
         ".grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px}.tile{min-height:54px;padding:8px;border-radius:6px;border:1px solid var(--line);background:#10161b;color:var(--text);text-align:left}"
         ".tile.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}.tile span{display:block;color:var(--muted);font-size:12px}.tile b{font-size:18px}"
         "</style>"
@@ -316,18 +317,21 @@ static void build_dmx_page()
         "<div class=\"value\" id=\"big\">0</div>"
         "<div class=\"buttons\"><button class=\"primary\" id=\"send\">Update channel</button><button id=\"zero\">Set selected to 0</button><button id=\"full\">Set selected to 255</button><button class=\"warn\" id=\"clear\">Clear all</button></div>"
         "</section>"
-        "<section class=\"panel\"><div class=\"grid\" id=\"grid\"></div></section>"
+        "<section class=\"panel\"><div class=\"pager\"><button id=\"prev\">Previous 32</button><div class=\"range\" id=\"range\"></div><button id=\"next\">Next 32</button></div><div class=\"grid\" id=\"grid\"></div></section>"
         "<script>"
-        "const maxCh=512,known=Array(maxCh+1).fill(0);let active=1;"
-        "const ch=document.getElementById('ch'),num=document.getElementById('num'),slider=document.getElementById('slider'),big=document.getElementById('big'),grid=document.getElementById('grid'),statusEl=document.getElementById('status');"
+        "let maxCh=512;const pageSize=32,known=Array(maxCh+1).fill(0);let active=1,pageStart=1;"
+        "const ch=document.getElementById('ch'),num=document.getElementById('num'),slider=document.getElementById('slider'),big=document.getElementById('big'),grid=document.getElementById('grid'),statusEl=document.getElementById('status'),rangeEl=document.getElementById('range'),prev=document.getElementById('prev'),next=document.getElementById('next');"
         "function clamp(v,min,max){v=parseInt(v||0,10);return Math.max(min,Math.min(max,isNaN(v)?min:v));}"
-        "function draw(){grid.innerHTML='';for(let i=1;i<=32;i++){const b=document.createElement('button');b.className='tile'+(i===active?' active':'');b.innerHTML='<span>CH '+i+'</span><b>'+known[i]+'</b>';b.onclick=()=>select(i);grid.appendChild(b);}}"
+        "function draw(){grid.innerHTML='';const end=Math.min(maxCh,pageStart+pageSize-1);rangeEl.textContent='Channels '+pageStart+'-'+end+' of '+maxCh;prev.disabled=pageStart<=1;next.disabled=end>=maxCh;for(let i=pageStart;i<=end;i++){const b=document.createElement('button');b.className='tile'+(i===active?' active':'');b.innerHTML='<span>CH '+i+'</span><b>'+known[i]+'</b>';b.onclick=()=>select(i);grid.appendChild(b);}}"
+        "function showPage(start){pageStart=clamp(start,1,maxCh);pageStart=Math.floor((pageStart-1)/pageSize)*pageSize+1;draw();loadValues();}"
+        "function pageFor(c){const start=Math.floor((c-1)/pageSize)*pageSize+1;if(start!==pageStart){showPage(start);}else{draw();}}"
         "function sync(v){v=clamp(v,0,255);num.value=v;slider.value=v;big.textContent=v;known[active]=v;draw();}"
-        "function select(c){active=clamp(c,1,maxCh);ch.value=active;sync(known[active]);}"
+        "function select(c){active=clamp(c,1,maxCh);ch.value=active;pageFor(active);sync(known[active]);}"
         "async function setValue(c,v){c=clamp(c,1,maxCh);v=clamp(v,0,255);const r=await fetch('/dmx/set/'+c+'/'+v,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();known[j.channel]=j.value;active=j.channel;ch.value=active;sync(j.value);statusEl.textContent='Updated channel '+j.channel+' to '+j.value;}"
-        "async function loadValues(){try{const r=await fetch('/dmx/values/1/32',{cache:'no-store'});const j=await r.json();j.values.forEach((v,i)=>known[j.first+i]=v);sync(known[active]);}catch(e){draw();}}"
-        "async function refresh(){try{const r=await fetch('/status.json',{cache:'no-store'});const j=await r.json();statusEl.textContent=(j.dmx.running?'Running':'Stopped')+' - '+j.dmx.channels+' channels - frame '+j.dmx.frame_count;}catch(e){statusEl.textContent='Status refresh failed';}}"
+        "async function loadValues(){try{const r=await fetch('/dmx/values/'+pageStart+'/'+pageSize,{cache:'no-store'});const j=await r.json();j.values.forEach((v,i)=>known[j.first+i]=v);sync(known[active]);}catch(e){draw();}}"
+        "async function refresh(){try{const r=await fetch('/status.json',{cache:'no-store'});const j=await r.json();maxCh=clamp(j.dmx.channels,1,512);ch.max=maxCh;statusEl.textContent=(j.dmx.running?'Running':'Stopped')+' - '+j.dmx.channels+' channels - frame '+j.dmx.frame_count;draw();}catch(e){statusEl.textContent='Status refresh failed';}}"
         "ch.onchange=()=>select(ch.value);num.oninput=()=>sync(num.value);slider.oninput=()=>sync(slider.value);"
+        "prev.onclick=()=>showPage(pageStart-pageSize);next.onclick=()=>showPage(pageStart+pageSize);"
         "document.getElementById('send').onclick=()=>setValue(active,num.value).catch(e=>statusEl.textContent=e.message);"
         "document.getElementById('zero').onclick=()=>setValue(active,0).catch(e=>statusEl.textContent=e.message);"
         "document.getElementById('full').onclick=()=>setValue(active,255).catch(e=>statusEl.textContent=e.message);"
@@ -711,8 +715,9 @@ static void core1_network_log_server()
     uint32_t loop_count = 0;
     while (true) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        log_printf("Wi-Fi is connected\n");
+        
         if ((loop_count++ % 10) == 0) {
+            log_printf("Wi-Fi is connected\n");
             log_printf("Approx free RAM: %u bytes\n", (unsigned)get_free_ram_bytes());
             log_ip_addresses();
         }
@@ -763,7 +768,7 @@ static void core0_application_loop()
                        (unsigned long)status.frame_timeouts,
                        (unsigned long)status.auto_resyncs);
         }
-        sleep_ms(1);
+        sleep_us(50);
     }
 }
 
