@@ -320,7 +320,7 @@ static void build_dmx_page()
         "<input id=\"slider\" type=\"range\" min=\"0\" max=\"255\" value=\"0\">"
         "<div class=\"value\" id=\"big\">0</div>"
         "<div class=\"selection\" id=\"selection\">No channels selected</div>"
-        "<div class=\"buttons\"><button id=\"multi\">Multiselect off</button><button class=\"primary\" id=\"send\">Update selected</button><button id=\"zero\">Set selected to 0</button><button id=\"full\">Set selected to 255</button><button id=\"clearSel\">Clear selection</button><button class=\"warn\" id=\"clear\">Clear all</button></div>"
+        "<div class=\"buttons\"><button id=\"multi\">Multiselect off</button><button class=\"primary\" id=\"send\">Apply slider value</button><button id=\"zero\">Set to 0</button><button id=\"full\">Set to 255</button><button id=\"clearSel\">Clear selection</button><button class=\"warn\" id=\"clear\">Clear all</button></div>"
         "</section>"
         "<section class=\"panel\"><div class=\"pager\"><button id=\"prev\">Previous 32</button><div class=\"range\" id=\"range\"></div><button id=\"next\">Next 32</button></div><div class=\"grid\" id=\"grid\"></div></section>"
         "<script>"
