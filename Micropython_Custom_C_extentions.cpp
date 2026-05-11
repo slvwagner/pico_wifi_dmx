@@ -324,8 +324,8 @@ static void build_dmx_page()
         "function draw(){grid.innerHTML='';for(let i=1;i<=32;i++){const b=document.createElement('button');b.className='tile'+(i===active?' active':'');b.innerHTML='<span>CH '+i+'</span><b>'+known[i]+'</b>';b.onclick=()=>select(i);grid.appendChild(b);}}"
         "function sync(v){v=clamp(v,0,255);num.value=v;slider.value=v;big.textContent=v;known[active]=v;draw();}"
         "function select(c){active=clamp(c,1,maxCh);ch.value=active;sync(known[active]);}"
-        "async function setValue(c,v){c=clamp(c,1,maxCh);v=clamp(v,0,255);const r=await fetch('/dmx/set?ch='+c+'&value='+v,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();known[j.channel]=j.value;active=j.channel;ch.value=active;sync(j.value);statusEl.textContent='Updated channel '+j.channel+' to '+j.value;}"
-        "async function loadValues(){try{const r=await fetch('/dmx/values.json?first=1&count=32',{cache:'no-store'});const j=await r.json();j.values.forEach((v,i)=>known[j.first+i]=v);sync(known[active]);}catch(e){draw();}}"
+        "async function setValue(c,v){c=clamp(c,1,maxCh);v=clamp(v,0,255);const r=await fetch('/dmx/set/'+c+'/'+v,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();known[j.channel]=j.value;active=j.channel;ch.value=active;sync(j.value);statusEl.textContent='Updated channel '+j.channel+' to '+j.value;}"
+        "async function loadValues(){try{const r=await fetch('/dmx/values/1/32',{cache:'no-store'});const j=await r.json();j.values.forEach((v,i)=>known[j.first+i]=v);sync(known[active]);}catch(e){draw();}}"
         "async function refresh(){try{const r=await fetch('/status.json',{cache:'no-store'});const j=await r.json();statusEl.textContent=(j.dmx.running?'Running':'Stopped')+' - '+j.dmx.channels+' channels - frame '+j.dmx.frame_count;}catch(e){statusEl.textContent='Status refresh failed';}}"
         "ch.onchange=()=>select(ch.value);num.oninput=()=>sync(num.value);slider.oninput=()=>sync(slider.value);"
         "document.getElementById('send').onclick=()=>setValue(active,num.value).catch(e=>statusEl.textContent=e.message);"
@@ -401,7 +401,31 @@ static bool path_matches(const char *name, const char *path)
 {
     size_t path_len = strlen(path);
     return strncmp(name, path, path_len) == 0 &&
-           (name[path_len] == '\0' || name[path_len] == '?');
+           (name[path_len] == '\0' || name[path_len] == '?' || name[path_len] == '/');
+}
+
+static bool parse_path_u16_pair(const char *name, const char *prefix, uint16_t *first, uint16_t *second)
+{
+    size_t prefix_len = strlen(prefix);
+    if (strncmp(name, prefix, prefix_len) != 0 || name[prefix_len] != '/') {
+        return false;
+    }
+
+    char *end = NULL;
+    unsigned long parsed_first = strtoul(name + prefix_len + 1, &end, 10);
+    if (end == name + prefix_len + 1 || *end != '/' || parsed_first > 65535ul) {
+        return false;
+    }
+
+    const char *second_start = end + 1;
+    unsigned long parsed_second = strtoul(second_start, &end, 10);
+    if (end == second_start || (*end != '\0' && *end != '?') || parsed_second > 65535ul) {
+        return false;
+    }
+
+    *first = (uint16_t)parsed_first;
+    *second = (uint16_t)parsed_second;
+    return true;
 }
 
 static bool get_query_u16(const char *name, const char *key, uint16_t *value)
@@ -459,12 +483,17 @@ static void build_dmx_set_response(const char *name)
     dmx_engine_status_t status;
     dmx_engine_get_status(&status);
 
-    if (!get_query_u16(name, "ch", &channel) ||
-        !get_query_u16(name, "value", &value) ||
+    bool got_values = parse_path_u16_pair(name, "/dmx/set", &channel, &value);
+    if (!got_values) {
+        got_values = get_query_u16(name, "ch", &channel) &&
+                     get_query_u16(name, "value", &value);
+    }
+
+    if (!got_values ||
         channel < 1 ||
         channel > status.channels ||
         value > 255) {
-        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"Use /dmx/set?ch=1&value=255 with valid ranges\"}\n");
+        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"Use /dmx/set/1/255 with valid ranges\"}\n");
         return;
     }
 
@@ -509,7 +538,9 @@ static void build_dmx_values_response(const char *name)
     dmx_engine_status_t status;
     dmx_engine_get_status(&status);
 
-    if (get_query_u16(name, "first", &parsed)) {
+    if (parse_path_u16_pair(name, "/dmx/values", &first, &count)) {
+        parsed = 0;
+    } else if (get_query_u16(name, "first", &parsed)) {
         first = parsed;
     }
     if (get_query_u16(name, "count", &parsed)) {
@@ -579,6 +610,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     if (path_matches(name, "/dmx/values.json")) {
+        build_dmx_values_response(name);
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/values")) {
         build_dmx_values_response(name);
         file->data = http_dmx_json;
         file->len = (int)strlen(http_dmx_json);

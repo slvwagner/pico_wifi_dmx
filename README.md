@@ -91,9 +91,9 @@ http://<pico-ip>/dmx.html
 The page can update individual DMX channels and clear all channels. The same controls are also available as simple HTTP endpoints:
 
 ```text
-http://<pico-ip>/dmx/set?ch=1&value=255
+http://<pico-ip>/dmx/set/1/255
 http://<pico-ip>/dmx/clear
-http://<pico-ip>/dmx/values.json?first=1&count=32
+http://<pico-ip>/dmx/values/1/32
 ```
 
 Channel numbers are 1-based. The firmware endpoint requires values in the valid DMX range of `0` through `255`.
