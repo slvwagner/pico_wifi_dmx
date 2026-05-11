@@ -43,6 +43,14 @@ DMX defaults to GPIO 2 for output and GPIO 3 for the optional frame trigger/debu
 cmake -S . -B build -G Ninja -DDMX_TX_PIN=2 -DDMX_TRIGGER_PIN=3
 ```
 
+The DMX universe size is also a CMake cache setting. Set it at configure time when you want fewer than the default 512 channels:
+
+```powershell
+cmake -S . -B build -G Ninja -DDMX_CHANNELS=46
+```
+
+The value passed by CMake is compiled into both the DMX engine and the HTTP UI. If the build directory already exists, the cached `DMX_CHANNELS` value is reused until you reconfigure with a new `-DDMX_CHANNELS=...` value.
+
 ## Build
 
 If CMake is on your `PATH`:
@@ -96,7 +104,7 @@ http://<pico-ip>/dmx/clear
 http://<pico-ip>/dmx/values/1/64
 ```
 
-Channel numbers are 1-based and can address the configured DMX universe, up to 512 channels by default. The firmware endpoint requires values in the valid DMX range of `0` through `255`. The values endpoint accepts a first channel and a count from `1` through `64`.
+Channel numbers are 1-based and can address the configured DMX universe, up to 512 channels by default. The HTTP UI follows the compiled `DMX_CHANNELS` value, so `-DDMX_CHANNELS=46` limits the page navigation to channels 1 through 46. The firmware endpoint requires values in the valid DMX range of `0` through `255`. The values endpoint accepts a first channel and a count from `1` through `64`.
 
 ## Code Layout
 

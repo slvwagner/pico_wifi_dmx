@@ -32,7 +32,7 @@
 #endif
 
 #ifndef DMX_CHANNELS
-#define DMX_CHANNELS 46
+#define DMX_CHANNELS 512
 #endif
 
 #define DMX_STRINGIFY_VALUE(value) #value
@@ -40,7 +40,7 @@
 #define DMX_CHANNELS_TEXT DMX_STRINGIFY(DMX_CHANNELS)
 
 #ifndef DMX_REFRESH_RATE
-#define DMX_REFRESH_RATE 44
+#define DMX_REFRESH_RATE 40
 #endif
 
 static critical_section_t log_lock;
