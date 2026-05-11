@@ -4,11 +4,13 @@ Firmware project for a Raspberry Pi Pico 2 W. The current program connects to Wi
 
 ## Current Behavior
 
-- Core0 starts the program, initializes USB serial/logging, launches core1, then runs `core0_application_loop()`.
+- Core0 starts the program, initializes the HTTP log buffer, launches core1, then runs `core0_application_loop()`.
 - Core1 runs `core1_network_log_server()`, which initializes the Wi-Fi chip, connects to Wi-Fi, starts IPv6 autoconfig, logs IP addresses, and starts the lwIP HTTP server.
 - The HTTP log page is available at `http://<pico-ip>/`.
 - Raw logs are available at `http://<pico-ip>/logs.txt`.
-- USB serial output is enabled. UART output is disabled.
+- The DMX control page is available at `http://<pico-ip>/dmx.html`.
+- DMX channel values are held until changed through the HTTP UI or control endpoint.
+- USB serial and UART stdio output are disabled. Logs are exposed through the HTTP page.
 
 ## Requirements
 
@@ -35,10 +37,10 @@ $env:SSID_PW="your_password"
 cmake -S . -B build -G Ninja
 ```
 
-Optional USB serial wait time:
+DMX defaults to GPIO 2 for output and GPIO 3 for the optional frame trigger/debug signal, leaving GPIO 0/1 free for a Pico Debug Probe UART connection. Override them at configure time if your wiring needs different pins:
 
 ```powershell
-cmake -S . -B build -G Ninja -DUSB_SERIAL_WAIT_MS=5000
+cmake -S . -B build -G Ninja -DDMX_TX_PIN=2 -DDMX_TRIGGER_PIN=3
 ```
 
 ## Build
@@ -70,7 +72,7 @@ build/Micropython_Custom_C_extentions.uf2
 
 ## Finding The Log Page
 
-After Wi-Fi connects, the firmware logs the IPv4 address over USB serial and into the HTTP log buffer:
+After Wi-Fi connects, the firmware writes the IPv4 address into the HTTP log buffer:
 
 ```text
 Open logs at http://<pico-ip>/
@@ -78,9 +80,27 @@ Open logs at http://<pico-ip>/
 
 Open that address in a browser on the same network.
 
+## DMX HTTP Controls
+
+Open the DMX control page at:
+
+```text
+http://<pico-ip>/dmx.html
+```
+
+The page can update individual DMX channels and clear all channels. The same controls are also available as simple HTTP endpoints:
+
+```text
+http://<pico-ip>/dmx/set?ch=1&value=255
+http://<pico-ip>/dmx/clear
+http://<pico-ip>/dmx/values.json?first=1&count=32
+```
+
+Channel numbers are 1-based. The firmware endpoint requires values in the valid DMX range of `0` through `255`.
+
 ## Code Layout
 
-- `Micropython_Custom_C_extentions.cpp` contains the application, logging buffer, custom lwIP file callbacks, Wi-Fi setup, and core0/core1 entry points.
+- `Micropython_Custom_C_extentions.cpp` contains the application, logging buffer, DMX HTTP UI, custom lwIP file callbacks, Wi-Fi setup, and core0/core1 entry points.
 - `lwipopts.h` configures lwIP and enables custom HTTP file serving.
 - `fsdata_custom.c` enables lwIP custom file support.
 - `CMakeLists.txt` configures the Pico SDK target and links `pico_multicore`, `pico_cyw43_arch_lwip_threadsafe_background`, and `pico_lwip_http`.
