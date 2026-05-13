@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DMX 16-bit Prototype</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:20px;display:grid;gap:16px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:22px;margin:0}.status{color:var(--muted);font-size:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:14px}
+.toolbar,.buttons,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input,button,select{font:inherit}
+input,select{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=number]{width:96px}input[type=text]{min-width:170px}input[type=url]{min-width:260px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.fixture{border:1px solid var(--line);border-radius:8px;padding:14px;background:#10161b;display:grid;gap:12px}
+.fixture.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.fixture-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.fixture h2{font-size:18px;margin:0}.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
+.axis{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.axis-top{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.readout{font-size:30px;line-height:1;color:var(--accent);font-weight:700}
+.bytes{color:var(--muted);font-size:13px}
+.map{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:720px){main{padding:12px}.grid{grid-template-columns:1fr}.map{grid-template-columns:1fr}input[type=url],input[type=text]{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div>
+<h1>DMX 16-bit Pan/Tilt</h1>
+<div class="status" id="status">Ready</div>
+</div>
+<div class="toolbar">
+<label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+<label><input id="live" type="checkbox"> Live send</label>
+</div>
+</header>
+
+<section class="panel">
+<div class="toolbar">
+<label>Name<input id="fixtureName" type="text" value="Moving head"></label>
+<label>Pan coarse<input id="panCh" type="number" min="1" max="511" value="4"></label>
+<label>Tilt coarse<input id="tiltCh" type="number" min="1" max="511" value="6"></label>
+<button class="primary" id="addFixture">Add fixture</button>
+<button id="save">Save setup</button>
+<button class="warn" id="reset">Reset</button>
+</div>
+<div class="small">16-bit values are sent as coarse MSB on the selected channel and fine LSB on the next channel.</div>
+</section>
+
+<section class="grid" id="fixtures"></section>
+</main>
+
+<script>
+const maxDmx=512;
+let fixtures=[];
+let activeId=0;
+const baseUrl=document.getElementById('baseUrl');
+const live=document.getElementById('live');
+const statusEl=document.getElementById('status');
+const fixturesEl=document.getElementById('fixtures');
+
+function clamp(v,min,max){v=parseInt(v||0,10);return Math.max(min,Math.min(max,isNaN(v)?min:v));}
+function bytes16(v){v=clamp(v,0,65535);return {coarse:(v>>8)&255,fine:v&255};}
+function axisText(start){return 'CH '+start+' / '+(start+1);}
+function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
+function validPair(ch){return ch>=1&&ch<maxDmx;}
+function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
+
+async function sendChannel(ch,value){
+  const root=endpoint();
+  if(!root)throw new Error('Set Pico base URL first');
+  const url=root+'/dmx/set/'+ch+'/'+value;
+  if(location.protocol==='file:'||root!==location.origin){
+    await sendGetBeacon(url);
+    return {channel:ch,value};
+  }
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status+' on channel '+ch);
+  return r.json();
+}
+
+function sendGetBeacon(url){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const done=()=>resolve();
+    img.onload=done;
+    img.onerror=done;
+    img.src=url+'?t='+Date.now();
+    setTimeout(done,250);
+  });
+}
+
+async function sendAxis(fixture,axis){
+  const value=clamp(fixture[axis],0,65535);
+  const start=fixture[axis+'Ch'];
+  if(!validPair(start))throw new Error(axis+' channel must be 1-511');
+  const b=bytes16(value);
+  await sendChannel(start,b.coarse);
+  await sendChannel(start+1,b.fine);
+  setStatus(fixture.name+' '+axis+' sent: '+value+' -> '+axisText(start)+' = '+b.coarse+'/'+b.fine);
+}
+
+async function sendFixture(fixture){
+  await sendAxis(fixture,'pan');
+  await sendAxis(fixture,'tilt');
+}
+
+function saveLocal(){
+  localStorage.setItem('dmx16Fixtures',JSON.stringify({baseUrl:baseUrl.value,fixtures}));
+  setStatus('Setup saved');
+}
+
+function loadLocal(){
+  const raw=localStorage.getItem('dmx16Fixtures');
+  if(!raw)return false;
+  try{
+    const data=JSON.parse(raw);
+    baseUrl.value=data.baseUrl||'';
+    fixtures=Array.isArray(data.fixtures)?data.fixtures:[];
+    activeId=fixtures[0]?.id||0;
+    return fixtures.length>0;
+  }catch(e){return false;}
+}
+
+function addFixture(name,panCh,tiltCh){
+  const fixture={
+    id:Date.now()+Math.floor(Math.random()*1000),
+    name:name||'Moving head',
+    panCh:clamp(panCh,1,511),
+    tiltCh:clamp(tiltCh,1,511),
+    pan:32768,
+    tilt:32768
+  };
+  fixtures.push(fixture);
+  activeId=fixture.id;
+  draw();
+}
+
+function updateFixture(id,patch){
+  const fixture=fixtures.find(f=>f.id===id);
+  if(!fixture)return;
+  Object.assign(fixture,patch);
+  draw();
+}
+
+function removeFixture(id){
+  fixtures=fixtures.filter(f=>f.id!==id);
+  if(activeId===id)activeId=fixtures[0]?.id||0;
+  draw();
+}
+
+function axisControl(f,axis,label){
+  const start=f[axis+'Ch'];
+  const value=clamp(f[axis],0,65535);
+  const b=bytes16(value);
+  const warn=validPair(start)?'':' bad';
+  return `
+    <div class="axis">
+      <div class="axis-top">
+        <strong>${label}</strong>
+        <span class="readout" data-readout="${axis}" data-id="${f.id}">${value}</span>
+      </div>
+      <div class="map">
+        <label>${label} coarse channel
+          <input type="number" min="1" max="511" value="${start}" data-id="${f.id}" data-field="${axis}Ch">
+        </label>
+        <div class="bytes${warn}" data-bytes="${axis}" data-id="${f.id}">${axisText(start)} = ${b.coarse} / ${b.fine}</div>
+      </div>
+      <input type="range" min="0" max="65535" step="1" value="${value}" data-id="${f.id}" data-field="${axis}">
+      <div class="byte-sliders">
+        <label>Coarse byte <span data-coarse="${axis}" data-id="${f.id}">${b.coarse}</span>
+          <input type="range" min="0" max="255" step="1" value="${b.coarse}" data-id="${f.id}" data-byte="${axis}" data-part="coarse">
+        </label>
+        <label>Fine byte <span data-fine="${axis}" data-id="${f.id}">${b.fine}</span>
+          <input type="range" min="0" max="255" step="1" value="${b.fine}" data-id="${f.id}" data-byte="${axis}" data-part="fine">
+        </label>
+      </div>
+      <div class="row">
+        <input type="number" min="0" max="65535" value="${value}" data-id="${f.id}" data-field="${axis}">
+        <button data-send="${axis}" data-id="${f.id}">Send ${label}</button>
+        <button data-center="${axis}" data-id="${f.id}">Center</button>
+      </div>
+    </div>`;
+}
+
+function updateAxisDisplay(fixture,axis){
+  const value=clamp(fixture[axis],0,65535);
+  const b=bytes16(value);
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-readout="${axis}"]`).forEach(el=>el.textContent=value);
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-bytes="${axis}"]`).forEach(el=>el.textContent=axisText(fixture[axis+'Ch'])+' = '+b.coarse+' / '+b.fine);
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-coarse="${axis}"]`).forEach(el=>el.textContent=b.coarse);
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-fine="${axis}"]`).forEach(el=>el.textContent=b.fine);
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-field="${axis}"]`).forEach(el=>{if(el.value!=value)el.value=value;});
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-byte="${axis}"][data-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-byte="${axis}"][data-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+}
+
+function draw(){
+  fixturesEl.innerHTML='';
+  fixtures.forEach(f=>{
+    const card=document.createElement('article');
+    card.className='fixture'+(f.id===activeId?' active':'');
+    card.innerHTML=`
+      <div class="fixture-head">
+        <div>
+          <h2>${f.name}</h2>
+          <div class="small">Pan ${axisText(f.panCh)} · Tilt ${axisText(f.tiltCh)}</div>
+        </div>
+        <button class="warn" data-remove="${f.id}">Remove</button>
+      </div>
+      <label>Name<input type="text" value="${f.name}" data-id="${f.id}" data-field="name"></label>
+      ${axisControl(f,'pan','Pan')}
+      ${axisControl(f,'tilt','Tilt')}
+      <div class="buttons">
+        <button class="primary" data-send="fixture" data-id="${f.id}">Send Pan/Tilt</button>
+        <button data-center="fixture" data-id="${f.id}">Center Pan/Tilt</button>
+      </div>`;
+    fixturesEl.appendChild(card);
+  });
+}
+
+fixturesEl.addEventListener('input',e=>{
+  const id=parseInt(e.target.dataset.id,10);
+  const byteAxis=e.target.dataset.byte;
+  if(id&&byteAxis){
+    const fixture=fixtures.find(f=>f.id===id);
+    if(!fixture)return;
+    const current=bytes16(fixture[byteAxis]);
+    current[e.target.dataset.part]=clamp(e.target.value,0,255);
+    fixture[byteAxis]=(current.coarse<<8)|current.fine;
+    activeId=id;
+    if(live.checked)sendAxis(fixture,byteAxis).catch(err=>setStatus(err.message,true));
+    updateAxisDisplay(fixture,byteAxis);
+    return;
+  }
+  const field=e.target.dataset.field;
+  if(!id||!field)return;
+  const value=field==='name'?e.target.value:clamp(e.target.value,field.endsWith('Ch')?1:0,field.endsWith('Ch')?511:65535);
+  const fixture=fixtures.find(f=>f.id===id);
+  if(!fixture)return;
+  fixture[field]=value;
+  activeId=id;
+  if(live.checked&&(field==='pan'||field==='tilt')){
+    sendAxis(fixture,field).catch(err=>setStatus(err.message,true));
+  }
+  if(field==='pan'||field==='tilt'){
+    updateAxisDisplay(fixture,field);
+  }else{
+    draw();
+  }
+});
+
+fixturesEl.addEventListener('click',e=>{
+  const id=parseInt(e.target.dataset.id||e.target.dataset.remove,10);
+  if(!id)return;
+  activeId=id;
+  const fixture=fixtures.find(f=>f.id===id);
+  if(e.target.dataset.remove){removeFixture(id);return;}
+  if(e.target.dataset.center){
+    const axis=e.target.dataset.center;
+    if(axis==='fixture'){fixture.pan=32768;fixture.tilt=32768;}else{fixture[axis]=32768;}
+    draw();
+    return;
+  }
+  if(e.target.dataset.send){
+    const action=e.target.dataset.send;
+    const task=action==='fixture'?sendFixture(fixture):sendAxis(fixture,action);
+    task.catch(err=>setStatus(err.message,true));
+  }
+});
+
+document.getElementById('addFixture').onclick=()=>{
+  addFixture(
+    document.getElementById('fixtureName').value,
+    document.getElementById('panCh').value,
+    document.getElementById('tiltCh').value
+  );
+};
+document.getElementById('save').onclick=saveLocal;
+document.getElementById('reset').onclick=()=>{
+  localStorage.removeItem('dmx16Fixtures');
+  baseUrl.value='';
+  fixtures=[];
+  addFixture('Moving head',4,6);
+};
+
+if(!loadLocal())addFixture('Moving head',4,6);
+draw();
+</script>
+</body>
+</html>
