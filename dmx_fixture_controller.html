@@ -398,11 +398,26 @@ function autoFillControlChannels(){
   });
 }
 
+function defaultControlLabel(type){
+  return {
+    panTilt16:'Pan/Tilt 16-bit',
+    panTilt8:'Pan/Tilt 8-bit',
+    slider8:'8-bit slider',
+    slider16:'16-bit slider',
+    rgb:'RGB color',
+    rgbw:'RGBW color',
+    rgbwa:'RGBWA color',
+    cmy:'CMY color',
+    cmyk:'CMYK color',
+    wheel:'Wheel'
+  }[type]||'Control';
+}
+
 function resetControlEditor(){
   editingControlId=0;
   document.getElementById('addControl').textContent='Add control';
-  document.getElementById('controlLabel').value='Dimmer';
   document.getElementById('controlType').value='slider8';
+  document.getElementById('controlLabel').value=defaultControlLabel('slider8');
   updateControlChannelInputs(true);
 }
 
@@ -423,6 +438,7 @@ function loadControlEditor(control){
 function updateControlChannelInputs(fillChannels=false){
   const type=document.getElementById('controlType').value;
   if(fillChannels)autoFillControlChannels();
+  if(!editingControlId)document.getElementById('controlLabel').value=defaultControlLabel(type);
   const labels={
     panTilt16:['Pan coarse','Pan fine','Tilt coarse','Tilt fine'],
     panTilt8:['Pan','Tilt','',''],
