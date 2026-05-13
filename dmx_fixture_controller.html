@@ -277,7 +277,7 @@ function addControl(){
     if(index>=0)p.controls[index]=control;
     setStatus('Control updated');
   }else{
-  p.controls.push(control);draw();
+    p.controls.push(control);
     setStatus('Control added');
   }
   resetControlEditor();
@@ -335,7 +335,7 @@ function drawProfiles(){
     const item=document.createElement('div');item.className='item'+(p.id===activeProfileId?' active':'');
     item.innerHTML=`<div class="row"><strong>${p.name}</strong><span class="small">${p.mode} · ${p.channels}ch · ${p.controls.length} controls</span></div>
       <div class="buttons"><button data-profile="${p.id}">Select</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
-      <div class="small">${p.controls.map(c=>c.label+' ('+c.type+')').join(' · ')||'No controls yet'}</div>`;
+      <div class="list">${p.controls.map(c=>`<div class="row"><span class="small">${c.label} (${c.type})</span><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div>`).join('')||'<div class="small">No controls yet</div>'}</div>`;
     profilesEl.appendChild(item);
   });
   if(activeProfileId)patchProfile.value=activeProfileId;
@@ -358,7 +358,7 @@ function renderControl(f,c){
     const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)}/${absolute(f.start,c.pan)+1} · Tilt ${absolute(f.start,c.tilt)}/${absolute(f.start,c.tilt)+1}</span></div>
       <div class="xy-pad" data-xy-fixture="${f.id}" data-control="${c.id}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
-      <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-send-fixture="${f.id}" data-control="${c.id}">Send</button></div>
+      <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-center-pantilt="1" data-fixture="${f.id}" data-control="${c.id}">Center Pan/Tilt</button></div>
       <label>Pan fine position<input type="range" min="0" max="65535" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
       <div class="byte-sliders">
         <label>Pan coarse <span data-byte-readout="panCoarse" data-fixture="${f.id}" data-control="${c.id}">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="pan" data-byte-part="coarse"></label>
@@ -460,8 +460,28 @@ function draw(){drawProfiles();drawPatched();drawSurface();}
 profilesEl.onclick=e=>{
   const select=e.target.dataset.profile;
   const remove=e.target.dataset.removeProfile;
-  if(select){activeProfileId=parseInt(select,10);draw();}
-  if(remove){profiles=profiles.filter(p=>p.id!==parseInt(remove,10));fixtures=fixtures.filter(f=>f.profileId!==parseInt(remove,10));activeProfileId=profiles[0]?.id||0;draw();}
+  const editControl=e.target.dataset.editControl;
+  const removeControl=e.target.dataset.removeControl;
+  if(select){activeProfileId=parseInt(select,10);}
+  if(editControl){
+    const p=profiles.find(profile=>profile.id===parseInt(e.target.dataset.profile,10));
+    const c=p?.controls.find(control=>control.id===parseInt(editControl,10));
+    if(p&&c){activeProfileId=p.id;loadControlEditor(c);setStatus('Editing '+c.label);}
+    draw();
+    return;
+  }
+  if(removeControl){
+    const p=profiles.find(profile=>profile.id===parseInt(e.target.dataset.profile,10));
+    if(p){
+      p.controls=p.controls.filter(control=>control.id!==parseInt(removeControl,10));
+      if(editingControlId===parseInt(removeControl,10))resetControlEditor();
+      setStatus('Control removed');
+    }
+    draw();
+    return;
+  }
+  if(remove){profiles=profiles.filter(p=>p.id!==parseInt(remove,10));fixtures=fixtures.filter(f=>f.profileId!==parseInt(remove,10));activeProfileId=profiles[0]?.id||0;resetControlEditor();}
+  draw();
 };
 patchedEl.onclick=e=>{if(e.target.dataset.removeFixture){fixtures=fixtures.filter(f=>f.id!==parseInt(e.target.dataset.removeFixture,10));draw();}};
 
@@ -502,6 +522,12 @@ surfaceEl.onclick=e=>{
   const p=f&&fixtureProfile(f);
   const c=p&&p.controls.find(x=>x.id===parseInt(e.target.dataset.control,10));
   if(!f||!c)return;
+  if(e.target.dataset.centerPantilt){
+    setValue(f,c,{pan:32768,tilt:32768});
+    if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+    updateControlDisplay(f,c);
+    return;
+  }
   if(e.target.dataset.color){
     if(c.type==='rgb')setValue(f,c,hexToRgb(e.target.dataset.color));
     else if(c.type==='cmy')setValue(f,c,rgbToCmy(e.target.dataset.color));
@@ -535,6 +561,7 @@ function setXY(e,pad){
 
 document.getElementById('addProfile').onclick=addProfile;
 document.getElementById('addControl').onclick=addControl;
+document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('patchFixture').onclick=patchFixture;
 document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
 document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
