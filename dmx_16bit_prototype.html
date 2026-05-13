@@ -80,6 +80,19 @@ function bytes16(v){v=clamp(v,0,65535);return {coarse:(v>>8)&255,fine:v&255};}
 function axisText(start){return 'CH '+start+' / '+(start+1);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
 function validPair(ch){return ch>=1&&ch<maxDmx;}
+function pairChannels(ch){return [ch,ch+1];}
+function axisOverlap(fixture,axis){
+  const other=axis==='pan'?'tilt':'pan';
+  const own=pairChannels(fixture[axis+'Ch']);
+  const used=pairChannels(fixture[other+'Ch']);
+  return own.some(ch=>used.includes(ch));
+}
+function mappingError(fixture,axis){
+  const start=fixture[axis+'Ch'];
+  if(!validPair(start))return axis+' channel must be 1-511';
+  if(axisOverlap(fixture,axis))return 'Pan and Tilt channel pairs overlap';
+  return '';
+}
 function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
 
 async function sendChannel(ch,value){
@@ -109,7 +122,8 @@ function sendGetBeacon(url){
 async function sendAxis(fixture,axis){
   const value=clamp(fixture[axis],0,65535);
   const start=fixture[axis+'Ch'];
-  if(!validPair(start))throw new Error(axis+' channel must be 1-511');
+  const error=mappingError(fixture,axis);
+  if(error)throw new Error(error);
   const b=bytes16(value);
   await sendChannel(start,b.coarse);
   await sendChannel(start+1,b.fine);
@@ -126,13 +140,23 @@ function saveLocal(){
   setStatus('Setup saved');
 }
 
+function normalizeFixture(fixture){
+  fixture.name=fixture.name||'Moving head';
+  fixture.panCh=clamp(fixture.panCh,1,511);
+  fixture.tiltCh=clamp(fixture.tiltCh,1,511);
+  fixture.pan=clamp(fixture.pan,0,65535);
+  fixture.tilt=clamp(fixture.tilt,0,65535);
+  fixture.tiltCh=nextFreePair(fixture,'tiltCh',fixture.tiltCh);
+  return fixture;
+}
+
 function loadLocal(){
   const raw=localStorage.getItem('dmx16Fixtures');
   if(!raw)return false;
   try{
     const data=JSON.parse(raw);
     baseUrl.value=data.baseUrl||'';
-    fixtures=Array.isArray(data.fixtures)?data.fixtures:[];
+    fixtures=Array.isArray(data.fixtures)?data.fixtures.map(normalizeFixture):[];
     activeId=fixtures[0]?.id||0;
     return fixtures.length>0;
   }catch(e){return false;}
@@ -147,9 +171,22 @@ function addFixture(name,panCh,tiltCh){
     pan:32768,
     tilt:32768
   };
-  fixtures.push(fixture);
+  fixtures.push(normalizeFixture(fixture));
   activeId=fixture.id;
   draw();
+}
+
+function nextFreePair(fixture,field,wanted){
+  wanted=clamp(wanted,1,511);
+  const otherField=field==='panCh'?'tiltCh':'panCh';
+  const other=pairChannels(fixture[otherField]);
+  for(let offset=0;offset<511;offset++){
+    const up=wanted+offset;
+    if(up<=511&&!pairChannels(up).some(ch=>other.includes(ch)))return up;
+    const down=wanted-offset;
+    if(down>=1&&!pairChannels(down).some(ch=>other.includes(ch)))return down;
+  }
+  return wanted;
 }
 
 function updateFixture(id,patch){
@@ -169,7 +206,8 @@ function axisControl(f,axis,label){
   const start=f[axis+'Ch'];
   const value=clamp(f[axis],0,65535);
   const b=bytes16(value);
-  const warn=validPair(start)?'':' bad';
+  const error=mappingError(f,axis);
+  const warn=error?' bad':'';
   return `
     <div class="axis">
       <div class="axis-top">
@@ -180,7 +218,7 @@ function axisControl(f,axis,label){
         <label>${label} coarse channel
           <input type="number" min="1" max="511" value="${start}" data-id="${f.id}" data-field="${axis}Ch">
         </label>
-        <div class="bytes${warn}" data-bytes="${axis}" data-id="${f.id}">${axisText(start)} = ${b.coarse} / ${b.fine}</div>
+        <div class="bytes${warn}" data-bytes="${axis}" data-id="${f.id}">${error||axisText(start)+' = '+b.coarse+' / '+b.fine}</div>
       </div>
       <input type="range" min="0" max="65535" step="1" value="${value}" data-id="${f.id}" data-field="${axis}">
       <div class="byte-sliders">
@@ -202,8 +240,12 @@ function axisControl(f,axis,label){
 function updateAxisDisplay(fixture,axis){
   const value=clamp(fixture[axis],0,65535);
   const b=bytes16(value);
+  const error=mappingError(fixture,axis);
   document.querySelectorAll(`[data-id="${fixture.id}"][data-readout="${axis}"]`).forEach(el=>el.textContent=value);
-  document.querySelectorAll(`[data-id="${fixture.id}"][data-bytes="${axis}"]`).forEach(el=>el.textContent=axisText(fixture[axis+'Ch'])+' = '+b.coarse+' / '+b.fine);
+  document.querySelectorAll(`[data-id="${fixture.id}"][data-bytes="${axis}"]`).forEach(el=>{
+    el.textContent=error||axisText(fixture[axis+'Ch'])+' = '+b.coarse+' / '+b.fine;
+    el.classList.toggle('bad',!!error);
+  });
   document.querySelectorAll(`[data-id="${fixture.id}"][data-coarse="${axis}"]`).forEach(el=>el.textContent=b.coarse);
   document.querySelectorAll(`[data-id="${fixture.id}"][data-fine="${axis}"]`).forEach(el=>el.textContent=b.fine);
   document.querySelectorAll(`[data-id="${fixture.id}"][data-field="${axis}"]`).forEach(el=>{if(el.value!=value)el.value=value;});
@@ -304,7 +346,10 @@ fixturesEl.addEventListener('input',e=>{
   const value=field==='name'?e.target.value:clamp(e.target.value,field.endsWith('Ch')?1:0,field.endsWith('Ch')?511:65535);
   const fixture=fixtures.find(f=>f.id===id);
   if(!fixture)return;
-  fixture[field]=value;
+  fixture[field]=field.endsWith('Ch')?nextFreePair(fixture,field,value):value;
+  if(field.endsWith('Ch')&&fixture[field]!==value){
+    setStatus('Adjusted '+field+' to avoid overlapping channels');
+  }
   activeId=id;
   if(live.checked&&(field==='pan'||field==='tilt')){
     sendAxis(fixture,field).catch(err=>setStatus(err.message,true));
