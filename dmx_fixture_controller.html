@@ -71,16 +71,19 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <option value="slider8">8-bit slider</option>
 <option value="slider16">16-bit slider</option>
 <option value="rgb">RGB color</option>
+<option value="rgbw">RGBW color</option>
+<option value="rgbwa">RGBWA color</option>
 <option value="cmy">CMY color</option>
 <option value="cmyk">CMYK color</option>
 <option value="wheel">Wheel / indexed values</option>
 </select>
 </label>
 <label>Label<input id="controlLabel" type="text" value="Dimmer"></label>
-<label>Ch A<input id="controlA" type="number" min="1" max="512" value="1"></label>
-<label>Ch B<input id="controlB" type="number" min="1" max="512" value="3"></label>
-<label>Ch C<input id="controlC" type="number" min="1" max="512" value="0"></label>
-<label>Ch D<input id="controlD" type="number" min="1" max="512" value="0"></label>
+<label id="controlAWrap"><span id="controlALabel">Ch A</span><input id="controlA" type="number" min="1" max="512" value="1"></label>
+<label id="controlBWrap"><span id="controlBLabel">Ch B</span><input id="controlB" type="number" min="1" max="512" value="3"></label>
+<label id="controlCWrap"><span id="controlCLabel">Ch C</span><input id="controlC" type="number" min="1" max="512" value="0"></label>
+<label id="controlDWrap"><span id="controlDLabel">Ch D</span><input id="controlD" type="number" min="1" max="512" value="0"></label>
+<label id="controlEWrap"><span id="controlELabel">Ch E</span><input id="controlE" type="number" min="1" max="512" value="0"></label>
 <button class="primary" id="addControl">Add control</button>
 <button id="cancelEdit">Cancel edit</button>
 </div>
@@ -183,9 +186,9 @@ async function sendControl(f,c){
     if(!channelOk(f,c.pan,2)||!channelOk(f,c.tilt,2))throw new Error('Pan/Tilt channels out of range');
     const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
     await sendChannel(absolute(f.start,c.pan),pan.coarse);
-    await sendChannel(absolute(f.start,c.pan)+1,pan.fine);
+    await sendChannel(absolute(f.start,c.panFine??c.pan+1),pan.fine);
     await sendChannel(absolute(f.start,c.tilt),tilt.coarse);
-    await sendChannel(absolute(f.start,c.tilt)+1,tilt.fine);
+    await sendChannel(absolute(f.start,c.tiltFine??c.tilt+1),tilt.fine);
   }else if(c.type==='panTilt8'){
     const v=getValue(f,c,{pan:128,tilt:128});
     if(!channelOk(f,c.pan)||!channelOk(f,c.tilt))throw new Error('Pan/Tilt channels out of range');
@@ -193,15 +196,17 @@ async function sendControl(f,c){
     await sendChannel(absolute(f.start,c.tilt),v.tilt);
   }else if(c.type==='slider16'){
     const v=bytes16(getValue(f,c,0));
-    if(!channelOk(f,c.channel,2))throw new Error(c.label+' channels out of range');
+    if(!channelOk(f,c.channel)||!channelOk(f,c.fine??c.channel+1))throw new Error(c.label+' channels out of range');
     await sendChannel(absolute(f.start,c.channel),v.coarse);
-    await sendChannel(absolute(f.start,c.channel)+1,v.fine);
-  }else if(c.type==='rgb'||c.type==='cmy'||c.type==='cmyk'){
-    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:{a:0,b:0,c:0});
-    if(!channelOk(f,c.a)||!channelOk(f,c.b)||!channelOk(f,c.c)||(c.type==='cmyk'&&!channelOk(f,c.k)))throw new Error(c.label+' channels out of range');
+    await sendChannel(absolute(f.start,c.fine??c.channel+1),v.fine);
+  }else if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0})));
+    if(!channelOk(f,c.a)||!channelOk(f,c.b)||!channelOk(f,c.c)||((c.type==='rgbw'||c.type==='rgbwa')&&!channelOk(f,c.w))||(c.type==='rgbwa'&&!channelOk(f,c.amber))||(c.type==='cmyk'&&!channelOk(f,c.k)))throw new Error(c.label+' channels out of range');
     await sendChannel(absolute(f.start,c.a),v.a);
     await sendChannel(absolute(f.start,c.b),v.b);
     await sendChannel(absolute(f.start,c.c),v.c);
+    if(c.type==='rgbw'||c.type==='rgbwa')await sendChannel(absolute(f.start,c.w),v.w);
+    if(c.type==='rgbwa')await sendChannel(absolute(f.start,c.amber),v.amber);
     if(c.type==='cmyk')await sendChannel(absolute(f.start,c.k),v.k);
   }else{
     if(!channelOk(f,c.channel))throw new Error(c.label+' channel out of range');
@@ -242,20 +247,27 @@ function controlFromEditor(existingId=0){
   const b=clamp(document.getElementById('controlB').value,1,512);
   const c=clamp(document.getElementById('controlC').value,0,512);
   const d=clamp(document.getElementById('controlD').value,0,512);
+  const e=clamp(document.getElementById('controlE').value,0,512);
   let control={id:existingId||uid(),type,label};
-  if(type==='panTilt16'||type==='panTilt8')control={...control,pan:a,tilt:b};
+  if(type==='panTilt16')control={...control,pan:a,panFine:b,tilt:c||b+1,tiltFine:d||c+1||b+2};
+  else if(type==='panTilt8')control={...control,pan:a,tilt:b};
   else if(type==='rgb'||type==='cmy')control={...control,a,b,c:c||b+1};
+  else if(type==='rgbw')control={...control,a,b,c:c||b+1,w:d||c+1||b+2};
+  else if(type==='rgbwa')control={...control,a,b,c:c||b+1,w:d||c+1||b+2,amber:e||d+1||c+2||b+3};
   else if(type==='cmyk')control={...control,a,b,c:c||b+1,k:d||c+1||b+2};
   else if(type==='wheel')control={...control,channel:a,options:parseWheelOptions(document.getElementById('wheelOptions').value)};
+  else if(type==='slider16')control={...control,channel:a,fine:b};
   else control={...control,channel:a};
   return control;
 }
 
 function controlChannels(control){
-  if(control.type==='panTilt16')return [control.pan,control.pan+1,control.tilt,control.tilt+1];
+  if(control.type==='panTilt16')return [control.pan,control.panFine??control.pan+1,control.tilt,control.tiltFine??control.tilt+1];
   if(control.type==='panTilt8')return [control.pan,control.tilt];
-  if(control.type==='slider16')return [control.channel,control.channel+1];
+  if(control.type==='slider16')return [control.channel,control.fine??control.channel+1];
   if(control.type==='rgb'||control.type==='cmy')return [control.a,control.b,control.c];
+  if(control.type==='rgbw')return [control.a,control.b,control.c,control.w];
+  if(control.type==='rgbwa')return [control.a,control.b,control.c,control.w,control.amber];
   if(control.type==='cmyk')return [control.a,control.b,control.c,control.k];
   return [control.channel];
 }
@@ -285,6 +297,8 @@ function resetControlEditor(){
   document.getElementById('controlB').value=3;
   document.getElementById('controlC').value=0;
   document.getElementById('controlD').value=0;
+  document.getElementById('controlE').value=0;
+  updateControlChannelInputs();
 }
 
 function loadControlEditor(control){
@@ -293,10 +307,34 @@ function loadControlEditor(control){
   document.getElementById('controlType').value=control.type;
   document.getElementById('controlLabel').value=control.label;
   document.getElementById('controlA').value=control.pan||control.channel||control.a||1;
-  document.getElementById('controlB').value=control.tilt||control.b||3;
-  document.getElementById('controlC').value=control.c||0;
-  document.getElementById('controlD').value=control.k||0;
+  document.getElementById('controlB').value=control.panFine||control.fine||control.tilt||control.b||3;
+  document.getElementById('controlC').value=control.tilt||control.c||0;
+  document.getElementById('controlD').value=control.tiltFine||control.w||control.k||0;
+  document.getElementById('controlE').value=control.amber||0;
   document.getElementById('wheelOptions').value=(control.options||[]).map(o=>o.name+'='+o.value).join('\n')||document.getElementById('wheelOptions').value;
+  updateControlChannelInputs();
+}
+
+function updateControlChannelInputs(){
+  const type=document.getElementById('controlType').value;
+  const labels={
+    panTilt16:['Pan coarse','Pan fine','Tilt coarse','Tilt fine'],
+    panTilt8:['Pan','Tilt','',''],
+    slider16:['Coarse','Fine','',''],
+    slider8:['Channel','','',''],
+    wheel:['Channel','','',''],
+    rgb:['Red','Green','Blue','',''],
+    rgbw:['Red','Green','Blue','White',''],
+    rgbwa:['Red','Green','Blue','White','Amber'],
+    cmy:['Cyan','Magenta','Yellow',''],
+    cmyk:['Cyan','Magenta','Yellow','Key','']
+  }[type]||['Channel','','','',''];
+  ['A','B','C','D','E'].forEach((letter,index)=>{
+    const wrap=document.getElementById('control'+letter+'Wrap');
+    const label=document.getElementById('control'+letter+'Label');
+    wrap.style.display=labels[index]?'grid':'none';
+    label.textContent=labels[index]||('Ch '+letter);
+  });
 }
 
 function addControl(){
@@ -391,7 +429,7 @@ function renderControl(f,c){
   if(c.type==='panTilt16'){
     const v=getValue(f,c,{pan:32768,tilt:32768});
     const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)}/${absolute(f.start,c.pan)+1} · Tilt ${absolute(f.start,c.tilt)}/${absolute(f.start,c.tilt)+1}</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)}/${absolute(f.start,c.panFine??c.pan+1)} · Tilt ${absolute(f.start,c.tilt)}/${absolute(f.start,c.tiltFine??c.tilt+1)}</span></div>
       <div class="xy-pad" data-xy-fixture="${f.id}" data-control="${c.id}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
       <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-center-pantilt="1" data-fixture="${f.id}" data-control="${c.id}">Center Pan/Tilt</button></div>
       <label>Pan fine position<input type="range" min="0" max="65535" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
@@ -413,13 +451,17 @@ function renderControl(f,c){
       <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
       <label>Tilt<input type="range" min="0" max="255" step="1" value="${v.tilt}" data-fixture="${f.id}" data-control="${c.id}" data-axis="tilt"></label></div>`;
   }
-  if(c.type==='rgb'||c.type==='cmy'||c.type==='cmyk'){
-    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:{a:0,b:0,c:0});
-    const names=c.type==='rgb'?['Red','Green','Blue']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
-    const parts=c.type==='cmyk'?['a','b','c','k']:['a','b','c'];
-    const color=c.type==='rgb'?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0})));
+    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
+    const parts=c.type==='cmyk'?['a','b','c','k']:(c.type==='rgbw'?['a','b','c','w']:(c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c']));
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     const channels=c.type==='cmyk'
       ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.k)}`
+      : c.type==='rgbw'
+      ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.w)}`
+      : c.type==='rgbwa'
+      ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.w)} / ${absolute(f.start,c.amber)}`
       : `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)}`;
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${channels}</span></div>
       <label>Color picker<input type="color" value="${color}" data-fixture="${f.id}" data-control="${c.id}" data-color-picker="1"></label>
@@ -434,7 +476,7 @@ function renderControl(f,c){
   }
   const max=c.type==='slider16'?65535:255;
   const v=getValue(f,c,0);
-  const chText=c.type==='slider16'?absolute(f.start,c.channel)+'/'+(absolute(f.start,c.channel)+1):absolute(f.start,c.channel);
+  const chText=c.type==='slider16'?absolute(f.start,c.channel)+'/'+absolute(f.start,c.fine??c.channel+1):absolute(f.start,c.channel);
   const b=bytes16(v);
   const extra=c.type==='slider16'?`<div class="byte-sliders">
       <label>Coarse <span data-byte-readout="coarse" data-fixture="${f.id}" data-control="${c.id}">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-part="coarse"></label>
@@ -456,7 +498,7 @@ function drawSurface(){
 }
 
 function updateControlDisplay(f,c){
-  const v=getValue(f,c,c.type==='panTilt16'?{pan:32768,tilt:32768}:(c.type==='panTilt8'?{pan:128,tilt:128}:((c.type==='rgb'||c.type==='cmy')?{a:0,b:0,c:0}:(c.type==='cmyk'?{a:0,b:0,c:0,k:0}:0))));
+  const v=getValue(f,c,c.type==='panTilt16'?{pan:32768,tilt:32768}:(c.type==='panTilt8'?{pan:128,tilt:128}:((c.type==='rgb'||c.type==='cmy')?{a:0,b:0,c:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:(c.type==='cmyk'?{a:0,b:0,c:0,k:0}:0))))));
   if(c.type==='panTilt16'){
     const pad=document.querySelector(`[data-xy-fixture="${f.id}"][data-control="${c.id}"]`);
     const dot=pad?.querySelector('.xy-dot');
@@ -488,13 +530,13 @@ function updateControlDisplay(f,c){
     });
     return;
   }
-  if(c.type==='rgb'||c.type==='cmy'||c.type==='cmyk'){
-    const parts=c.type==='cmyk'?['a','b','c','k']:['a','b','c'];
+  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const parts=c.type==='cmyk'?['a','b','c','k']:(c.type==='rgbw'?['a','b','c','w']:(c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c']));
     parts.forEach(part=>{
       document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-color-value="${part}"]`).forEach(el=>el.textContent=v[part]);
       document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=v[part];});
     });
-    const color=c.type==='rgb'?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
     return;
   }
@@ -547,7 +589,11 @@ surfaceEl.oninput=e=>{
   const c=p&&p.controls.find(x=>x.id===parseInt(e.target.dataset.control,10));
   if(!f||!c)return;
   if(e.target.dataset.colorPicker){
-    if(c.type==='rgb')setValue(f,c,hexToRgb(e.target.value));
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){
+      const current=getValue(f,c,c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0}));
+      const rgb=hexToRgb(e.target.value);
+      setValue(f,c,{...current,a:rgb.a,b:rgb.b,c:rgb.c});
+    }
     else if(c.type==='cmy')setValue(f,c,rgbToCmy(e.target.value));
     else if(c.type==='cmyk')setValue(f,c,rgbToCmyk(e.target.value));
   }else if(e.target.dataset.bytePart){
@@ -586,7 +632,11 @@ surfaceEl.onclick=e=>{
     return;
   }
   if(e.target.dataset.color){
-    if(c.type==='rgb')setValue(f,c,hexToRgb(e.target.dataset.color));
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){
+      const current=getValue(f,c,c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0}));
+      const rgb=hexToRgb(e.target.dataset.color);
+      setValue(f,c,{...current,a:rgb.a,b:rgb.b,c:rgb.c});
+    }
     else if(c.type==='cmy')setValue(f,c,rgbToCmy(e.target.dataset.color));
     else if(c.type==='cmyk')setValue(f,c,rgbToCmyk(e.target.dataset.color));
     sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
@@ -620,9 +670,11 @@ function setXY(e,pad){
 document.getElementById('addProfile').onclick=addProfile;
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
+document.getElementById('controlType').onchange=updateControlChannelInputs;
 document.getElementById('patchFixture').onclick=patchFixture;
 document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
 document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
+updateControlChannelInputs();
 loadSetup().then(ok=>{if(!ok)addDefaultProfile();}).catch(()=>addDefaultProfile());
 </script>
 </body>
