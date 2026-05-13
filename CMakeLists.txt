@@ -60,7 +60,7 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(Micropython_Custom_C_extentions
-        Micropython_Custom_C_extentions.cpp
+        main.cpp
         dmx_engine.cpp
 )
 
