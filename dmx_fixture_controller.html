@@ -58,6 +58,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <label>Mode<input id="profileMode" type="text" value="16ch"></label>
 <label>Channels<input id="profileChannels" type="number" min="1" max="512" value="16"></label>
 <button class="primary" id="addProfile">Add profile</button>
+<button id="saveProfile">Save profile</button>
 </div>
 <div class="list" id="profiles"></div>
 </div>
@@ -265,6 +266,26 @@ function addDefaultProfile(){
 function addProfile(){
   const p={id:uid(),name:document.getElementById('profileName').value||'Fixture',mode:document.getElementById('profileMode').value||'mode',channels:clamp(document.getElementById('profileChannels').value,1,512),controls:[]};
   profiles.push(p);activeProfileId=p.id;draw();
+}
+
+function loadProfileEditor(profile){
+  document.getElementById('profileName').value=profile.name||'';
+  document.getElementById('profileMode').value=profile.mode||'';
+  document.getElementById('profileChannels').value=profile.channels||1;
+}
+
+function saveProfile(){
+  const profile=activeProfile();
+  if(!profile){showError('Select a profile first');return;}
+  const channels=clamp(document.getElementById('profileChannels').value,1,512);
+  const used=[...new Set(profile.controls.flatMap(controlChannels).filter(ch=>ch>=1))];
+  const highest=used.reduce((max,ch)=>Math.max(max,ch),0);
+  if(highest>channels){showError('Profile uses channel '+highest+', so channel count cannot be lower than '+highest);return;}
+  profile.name=document.getElementById('profileName').value||'Fixture';
+  profile.mode=document.getElementById('profileMode').value||'mode';
+  profile.channels=channels;
+  setStatus('Profile saved');
+  draw();
 }
 
 function controlFromEditor(existingId=0){
@@ -489,10 +510,10 @@ function drawProfiles(){
   profilesEl.innerHTML='';
   patchProfile.innerHTML='';
   profiles.forEach(p=>{
-    const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name+' '+p.mode;patchProfile.appendChild(opt);
+    const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name+' ('+p.mode+', '+p.channels+'ch)';patchProfile.appendChild(opt);
     const used=[...new Set(p.controls.flatMap(controlChannels).filter(ch=>ch>=1&&ch<=p.channels))].sort((a,b)=>a-b);
     const item=document.createElement('div');item.className='item'+(p.id===activeProfileId?' active':'');
-    item.innerHTML=`<div class="row"><strong>${p.name}</strong><span class="small">${p.mode} · ${p.channels}ch · ${p.controls.length} controls</span></div>
+    item.innerHTML=`<div class="row"><strong>${p.name}</strong><span class="small">Mode ${p.mode} · ${p.channels} channels · ${p.controls.length} controls</span></div>
       <div class="buttons"><button data-profile="${p.id}">Select</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
       <div class="small">Used channels: ${used.join(', ')||'none'}</div>
       <div class="list">${p.controls.map(c=>`<div class="row"><span class="small">${c.label} (${c.type})</span><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div>`).join('')||'<div class="small">No controls yet</div>'}</div>`;
@@ -650,12 +671,14 @@ profilesEl.onclick=e=>{
   const removeControl=e.target.dataset.removeControl;
   if(select){
     activeProfileId=parseInt(select,10);
+    const p=activeProfile();
+    if(p)loadProfileEditor(p);
     if(!editingControlId)updateControlChannelInputs(true);
   }
   if(editControl){
     const p=profiles.find(profile=>profile.id===parseInt(e.target.dataset.profile,10));
     const c=p?.controls.find(control=>control.id===parseInt(editControl,10));
-    if(p&&c){activeProfileId=p.id;loadControlEditor(c);setStatus('Editing '+c.label);}
+    if(p&&c){activeProfileId=p.id;loadProfileEditor(p);loadControlEditor(c);setStatus('Editing '+c.label);}
     draw();
     return;
   }
@@ -759,6 +782,7 @@ function setXY(e,pad){
 }
 
 document.getElementById('addProfile').onclick=addProfile;
+document.getElementById('saveProfile').onclick=saveProfile;
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
