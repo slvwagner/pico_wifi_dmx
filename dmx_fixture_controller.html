@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DMX Fixture Controller Prototype</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
+main{max-width:1260px;margin:0 auto;padding:20px;display:grid;gap:16px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
+.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
+.panel,.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.toolbar,.buttons,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input,button,select,textarea{font:inherit}
+input,select,textarea{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:260px}textarea{min-height:70px;min-width:260px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.list{display:grid;gap:8px}.item{border:1px solid var(--line);border-radius:8px;padding:10px;background:#10161b;display:grid;gap:8px}
+.item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
+.control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700}.bytes{color:var(--muted);font-size:13px}
+.byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.xy-pad{position:relative;aspect-ratio:1.55/1;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%;touch-action:none;cursor:crosshair}
+.xy-dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
+@media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div>
+<h1>DMX Fixture Controller</h1>
+<div class="status" id="status">Ready</div>
+</div>
+<div class="toolbar">
+<label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+<label><input id="live" type="checkbox" checked> Live send</label>
+<button id="save">Save setup</button>
+<button id="load">Load setup</button>
+</div>
+</header>
+
+<section class="columns">
+<div class="panel">
+<h2>Fixture Profiles</h2>
+<div class="toolbar">
+<label>Name<input id="profileName" type="text" value="Moving Head 16ch"></label>
+<label>Mode<input id="profileMode" type="text" value="16ch"></label>
+<label>Channels<input id="profileChannels" type="number" min="1" max="512" value="16"></label>
+<button class="primary" id="addProfile">Add profile</button>
+</div>
+<div class="list" id="profiles"></div>
+</div>
+
+<div class="panel">
+<h2>Add Control To Selected Profile</h2>
+<div class="toolbar">
+<label>Type
+<select id="controlType">
+<option value="panTilt16">Pan/Tilt 16-bit XY</option>
+<option value="slider8">8-bit slider</option>
+<option value="slider16">16-bit slider</option>
+<option value="rgb">RGB color</option>
+<option value="cmy">CMY color</option>
+<option value="cmyk">CMYK color</option>
+<option value="wheel">Wheel / indexed values</option>
+</select>
+</label>
+<label>Label<input id="controlLabel" type="text" value="Dimmer"></label>
+<label>Ch A<input id="controlA" type="number" min="1" max="512" value="1"></label>
+<label>Ch B<input id="controlB" type="number" min="1" max="512" value="3"></label>
+<label>Ch C<input id="controlC" type="number" min="1" max="512" value="0"></label>
+<label>Ch D<input id="controlD" type="number" min="1" max="512" value="0"></label>
+<button class="primary" id="addControl">Add control</button>
+<button id="cancelEdit">Cancel edit</button>
+</div>
+<label>Wheel options, one per line: name=value
+<textarea id="wheelOptions">Open=0
+Red=16
+Green=32
+Blue=48</textarea>
+</label>
+<div class="small">For Pan/Tilt 16-bit: Ch A is pan coarse, Ch B is tilt coarse. Fine channels are the following channels.</div>
+</div>
+</section>
+
+<section class="panel">
+<h2>Patch Fixtures</h2>
+<div class="toolbar">
+<label>Name<input id="fixtureName" type="text" value="Spot 1"></label>
+<label>Profile<select id="patchProfile"></select></label>
+<label>Start address<input id="fixtureStart" type="number" min="1" max="512" value="1"></label>
+<button class="primary" id="patchFixture">Patch fixture</button>
+</div>
+<div class="list" id="patched"></div>
+</section>
+
+<section class="panel">
+<h2>Control Surface</h2>
+<div class="surface" id="surface"></div>
+</section>
+</main>
+
+<script>
+const maxDmx=512;
+let profiles=[];
+let fixtures=[];
+let activeProfileId=0;
+let editingControlId=0;
+const values={};
+const baseUrl=document.getElementById('baseUrl');
+const live=document.getElementById('live');
+const statusEl=document.getElementById('status');
+const profilesEl=document.getElementById('profiles');
+const patchProfile=document.getElementById('patchProfile');
+const patchedEl=document.getElementById('patched');
+const surfaceEl=document.getElementById('surface');
+
+function clamp(v,min,max){v=parseInt(v||0,10);return Math.max(min,Math.min(max,isNaN(v)?min:v));}
+function uid(){return Date.now()+Math.floor(Math.random()*1000);}
+function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
+function bytes16(v){v=clamp(v,0,65535);return {coarse:(v>>8)&255,fine:v&255};}
+function hex2(n){return clamp(n,0,255).toString(16).padStart(2,'0');}
+function rgbHex(v){return '#'+hex2(v.a)+hex2(v.b)+hex2(v.c);}
+function cmyHex(v){return '#'+hex2(255-v.a)+hex2(255-v.b)+hex2(255-v.c);}
+function cmykHex(v){
+  return '#'+hex2(Math.round(255*(1-v.a/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.b/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.c/255)*(1-v.k/255)));
+}
+function hexToRgb(hex){
+  const m=(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);
+  const n=parseInt(m?m[1]:'000000',16);
+  return {a:(n>>16)&255,b:(n>>8)&255,c:n&255};
+}
+function rgbToCmy(hex){
+  const rgb=hexToRgb(hex);
+  return {a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};
+}
+function rgbToCmyk(hex){
+  const rgb=hexToRgb(hex);
+  const r=rgb.a/255,g=rgb.b/255,b=rgb.c/255;
+  const k=1-Math.max(r,g,b);
+  if(k>=1)return {a:0,b:0,c:0,k:255};
+  return {a:Math.round((1-r-k)/(1-k)*255),b:Math.round((1-g-k)/(1-k)*255),c:Math.round((1-b-k)/(1-k)*255),k:Math.round(k*255)};
+}
+function absolute(start,rel){return start+rel-1;}
+function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
+function controlKey(f,c){return f.id+':'+c.id;}
+function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
+function setValue(f,c,v){values[controlKey(f,c)]=v;}
+function fixtureProfile(f){return profiles.find(p=>p.id===f.profileId);}
+function channelOk(f,rel,width=1){const ch=absolute(f.start,rel);return ch>=1&&(ch+width-1)<=maxDmx;}
+
+async function sendChannel(ch,value){
+  const root=endpoint();
+  if(!root)throw new Error('Set Pico base URL first');
+  const url=root+'/dmx/set/'+ch+'/'+clamp(value,0,255);
+  if(root!==location.origin){
+    await new Promise(resolve=>{
+      const img=new Image();
+      img.onload=resolve; img.onerror=resolve;
+      img.src=url+'?t='+Date.now();
+      setTimeout(resolve,200);
+    });
+    return;
+  }
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status+' on channel '+ch);
+}
+
+async function sendControl(f,c){
+  if(c.type==='panTilt16'){
+    const v=getValue(f,c,{pan:32768,tilt:32768});
+    if(!channelOk(f,c.pan,2)||!channelOk(f,c.tilt,2))throw new Error('Pan/Tilt channels out of range');
+    const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
+    await sendChannel(absolute(f.start,c.pan),pan.coarse);
+    await sendChannel(absolute(f.start,c.pan)+1,pan.fine);
+    await sendChannel(absolute(f.start,c.tilt),tilt.coarse);
+    await sendChannel(absolute(f.start,c.tilt)+1,tilt.fine);
+  }else if(c.type==='slider16'){
+    const v=bytes16(getValue(f,c,0));
+    if(!channelOk(f,c.channel,2))throw new Error(c.label+' channels out of range');
+    await sendChannel(absolute(f.start,c.channel),v.coarse);
+    await sendChannel(absolute(f.start,c.channel)+1,v.fine);
+  }else if(c.type==='rgb'||c.type==='cmy'||c.type==='cmyk'){
+    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:{a:0,b:0,c:0});
+    if(!channelOk(f,c.a)||!channelOk(f,c.b)||!channelOk(f,c.c)||(c.type==='cmyk'&&!channelOk(f,c.k)))throw new Error(c.label+' channels out of range');
+    await sendChannel(absolute(f.start,c.a),v.a);
+    await sendChannel(absolute(f.start,c.b),v.b);
+    await sendChannel(absolute(f.start,c.c),v.c);
+    if(c.type==='cmyk')await sendChannel(absolute(f.start,c.k),v.k);
+  }else{
+    if(!channelOk(f,c.channel))throw new Error(c.label+' channel out of range');
+    await sendChannel(absolute(f.start,c.channel),getValue(f,c,0));
+  }
+  setStatus('Sent '+f.name+' '+c.label);
+}
+
+function parseWheelOptions(text){
+  return text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+    const parts=line.split('=');
+    return {name:(parts[0]||'Value').trim(),value:clamp(parts[1],0,255)};
+  });
+}
+
+function addDefaultProfile(){
+  const p={id:uid(),name:'Generic Moving Head',mode:'16ch',channels:16,controls:[
+    {id:uid(),type:'panTilt16',label:'Position',pan:1,tilt:3},
+    {id:uid(),type:'slider8',label:'Dimmer',channel:5},
+    {id:uid(),type:'wheel',label:'Color wheel',channel:6,options:[{name:'Open',value:0},{name:'Red',value:16},{name:'Green',value:32},{name:'Blue',value:48}]},
+    {id:uid(),type:'wheel',label:'Gobo wheel',channel:7,options:[{name:'Open',value:0},{name:'Gobo 1',value:24},{name:'Gobo 2',value:48}]},
+    {id:uid(),type:'slider8',label:'Strobe',channel:8},
+    {id:uid(),type:'slider8',label:'Prism',channel:9},
+    {id:uid(),type:'slider8',label:'Prism rotation',channel:10}
+  ]};
+  profiles.push(p);activeProfileId=p.id;draw();
+}
+
+function addProfile(){
+  const p={id:uid(),name:document.getElementById('profileName').value||'Fixture',mode:document.getElementById('profileMode').value||'mode',channels:clamp(document.getElementById('profileChannels').value,1,512),controls:[]};
+  profiles.push(p);activeProfileId=p.id;draw();
+}
+
+function controlFromEditor(existingId=0){
+  const type=document.getElementById('controlType').value;
+  const label=document.getElementById('controlLabel').value||type;
+  const a=clamp(document.getElementById('controlA').value,1,512);
+  const b=clamp(document.getElementById('controlB').value,1,512);
+  const c=clamp(document.getElementById('controlC').value,0,512);
+  const d=clamp(document.getElementById('controlD').value,0,512);
+  let control={id:existingId||uid(),type,label};
+  if(type==='panTilt16')control={...control,pan:a,tilt:b};
+  else if(type==='rgb'||type==='cmy')control={...control,a,b,c:c||b+1};
+  else if(type==='cmyk')control={...control,a,b,c:c||b+1,k:d||c+1||b+2};
+  else if(type==='wheel')control={...control,channel:a,options:parseWheelOptions(document.getElementById('wheelOptions').value)};
+  else control={...control,channel:a};
+  return control;
+}
+
+function resetControlEditor(){
+  editingControlId=0;
+  document.getElementById('addControl').textContent='Add control';
+  document.getElementById('controlLabel').value='Dimmer';
+  document.getElementById('controlType').value='slider8';
+  document.getElementById('controlA').value=1;
+  document.getElementById('controlB').value=3;
+  document.getElementById('controlC').value=0;
+  document.getElementById('controlD').value=0;
+}
+
+function loadControlEditor(control){
+  editingControlId=control.id;
+  document.getElementById('addControl').textContent='Save control';
+  document.getElementById('controlType').value=control.type;
+  document.getElementById('controlLabel').value=control.label;
+  document.getElementById('controlA').value=control.pan||control.channel||control.a||1;
+  document.getElementById('controlB').value=control.tilt||control.b||3;
+  document.getElementById('controlC').value=control.c||0;
+  document.getElementById('controlD').value=control.k||0;
+  document.getElementById('wheelOptions').value=(control.options||[]).map(o=>o.name+'='+o.value).join('\n')||document.getElementById('wheelOptions').value;
+}
+
+function addControl(){
+  const p=profiles.find(profile=>profile.id===activeProfileId);
+  if(!p){setStatus('Select a profile first',true);return;}
+  const control=controlFromEditor(editingControlId);
+  if(editingControlId){
+    const index=p.controls.findIndex(c=>c.id===editingControlId);
+    if(index>=0)p.controls[index]=control;
+    setStatus('Control updated');
+  }else{
+  p.controls.push(control);draw();
+    setStatus('Control added');
+  }
+  resetControlEditor();
+  draw();
+}
+
+function patchFixture(){
+  const profileId=parseInt(patchProfile.value,10);
+  const profile=profiles.find(p=>p.id===profileId);
+  if(!profile){setStatus('Add a profile first',true);return;}
+  const start=clamp(document.getElementById('fixtureStart').value,1,512);
+  if(start+profile.channels-1>maxDmx){setStatus('Fixture exceeds DMX channel 512',true);return;}
+  fixtures.push({id:uid(),name:document.getElementById('fixtureName').value||profile.name,profileId,start});
+  draw();
+}
+
+function saveData(){return {baseUrl:baseUrl.value,profiles,fixtures,values};}
+function applyData(data){
+  baseUrl.value=data?.baseUrl||'';
+  profiles=Array.isArray(data?.profiles)?data.profiles:[];
+  fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
+  Object.keys(values).forEach(k=>delete values[k]);
+  Object.assign(values,data?.values||{});
+  activeProfileId=profiles[0]?.id||0;
+  if(!profiles.length)addDefaultProfile();
+  draw();
+}
+
+async function saveSetup(){
+  localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    const r=await fetch('fixture_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(saveData())});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    setStatus('Setup saved to server');
+  }else setStatus('Setup saved in browser only');
+}
+
+async function loadSetup(){
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    const r=await fetch('fixture_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    if(r.ok&&j.ok&&j.exists){applyData(j.setup);setStatus('Setup loaded from server');return true;}
+  }
+  const raw=localStorage.getItem('dmxFixtureController');
+  if(raw){applyData(JSON.parse(raw));setStatus('Setup loaded from browser');return true;}
+  return false;
+}
+
+function drawProfiles(){
+  profilesEl.innerHTML='';
+  patchProfile.innerHTML='';
+  profiles.forEach(p=>{
+    const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name+' '+p.mode;patchProfile.appendChild(opt);
+    const item=document.createElement('div');item.className='item'+(p.id===activeProfileId?' active':'');
+    item.innerHTML=`<div class="row"><strong>${p.name}</strong><span class="small">${p.mode} · ${p.channels}ch · ${p.controls.length} controls</span></div>
+      <div class="buttons"><button data-profile="${p.id}">Select</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
+      <div class="small">${p.controls.map(c=>c.label+' ('+c.type+')').join(' · ')||'No controls yet'}</div>`;
+    profilesEl.appendChild(item);
+  });
+  if(activeProfileId)patchProfile.value=activeProfileId;
+}
+
+function drawPatched(){
+  patchedEl.innerHTML='';
+  fixtures.forEach(f=>{
+    const p=fixtureProfile(f);
+    const item=document.createElement('div');item.className='item';
+    item.innerHTML=`<strong>${f.name}</strong><div class="small">${p?.name||'Missing profile'} · start ${f.start} · channels ${f.start}-${f.start+(p?.channels||1)-1}</div>
+      <div class="buttons"><button class="warn" data-remove-fixture="${f.id}">Remove</button></div>`;
+    patchedEl.appendChild(item);
+  });
+}
+
+function renderControl(f,c){
+  if(c.type==='panTilt16'){
+    const v=getValue(f,c,{pan:32768,tilt:32768});
+    const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)}/${absolute(f.start,c.pan)+1} · Tilt ${absolute(f.start,c.tilt)}/${absolute(f.start,c.tilt)+1}</span></div>
+      <div class="xy-pad" data-xy-fixture="${f.id}" data-control="${c.id}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
+      <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-send-fixture="${f.id}" data-control="${c.id}">Send</button></div>
+      <label>Pan fine position<input type="range" min="0" max="65535" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
+      <div class="byte-sliders">
+        <label>Pan coarse <span data-byte-readout="panCoarse" data-fixture="${f.id}" data-control="${c.id}">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="pan" data-byte-part="coarse"></label>
+        <label>Pan fine <span data-byte-readout="panFine" data-fixture="${f.id}" data-control="${c.id}">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="pan" data-byte-part="fine"></label>
+      </div>
+      <label>Tilt fine position<input type="range" min="0" max="65535" step="1" value="${v.tilt}" data-fixture="${f.id}" data-control="${c.id}" data-axis="tilt"></label>
+      <div class="byte-sliders">
+        <label>Tilt coarse <span data-byte-readout="tiltCoarse" data-fixture="${f.id}" data-control="${c.id}">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="tilt" data-byte-part="coarse"></label>
+        <label>Tilt fine <span data-byte-readout="tiltFine" data-fixture="${f.id}" data-control="${c.id}">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="tilt" data-byte-part="fine"></label>
+      </div></div>`;
+  }
+  if(c.type==='rgb'||c.type==='cmy'||c.type==='cmyk'){
+    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:{a:0,b:0,c:0});
+    const names=c.type==='rgb'?['Red','Green','Blue']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
+    const parts=c.type==='cmyk'?['a','b','c','k']:['a','b','c'];
+    const color=c.type==='rgb'?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    const channels=c.type==='cmyk'
+      ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.k)}`
+      : `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)}`;
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${channels}</span></div>
+      <label>Color picker<input type="color" value="${color}" data-fixture="${f.id}" data-control="${c.id}" data-color-picker="1"></label>
+      ${parts.map((part,i)=>`<label>${names[i]} <span data-color-value="${part}" data-fixture="${f.id}" data-control="${c.id}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" data-fixture="${f.id}" data-control="${c.id}" data-part="${part}"></label>`).join('')}
+      <div class="swatches"><button class="swatch" style="background:#fff" data-color="#ffffff" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#f00" data-color="#ff0000" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#0f0" data-color="#00ff00" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#00f" data-color="#0000ff" data-fixture="${f.id}" data-control="${c.id}"></button></div></div>`;
+  }
+  if(c.type==='wheel'){
+    const v=getValue(f,c,0);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}</span></div>
+      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-wheel="${o.value}" data-fixture="${f.id}" data-control="${c.id}">${o.name}</button>`).join('')}</div>
+      <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>`;
+  }
+  const max=c.type==='slider16'?65535:255;
+  const v=getValue(f,c,0);
+  const chText=c.type==='slider16'?absolute(f.start,c.channel)+'/'+(absolute(f.start,c.channel)+1):absolute(f.start,c.channel);
+  const b=bytes16(v);
+  const extra=c.type==='slider16'?`<div class="byte-sliders">
+      <label>Coarse <span data-byte-readout="coarse" data-fixture="${f.id}" data-control="${c.id}">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-part="coarse"></label>
+      <label>Fine <span data-byte-readout="fine" data-fixture="${f.id}" data-control="${c.id}">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-fixture="${f.id}" data-control="${c.id}" data-byte-part="fine"></label>
+    </div>`:'';
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">${v}</span><span class="bytes">CH ${chText}</span></div>
+    <input type="range" min="0" max="${max}" step="1" value="${v}" data-fixture="${f.id}" data-control="${c.id}">${extra}</div>`;
+}
+
+function drawSurface(){
+  surfaceEl.innerHTML='';
+  fixtures.forEach(f=>{
+    const p=fixtureProfile(f);
+    if(!p)return;
+    const card=document.createElement('article');card.className='card';
+    card.innerHTML=`<div class="control-head"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>${p.controls.map(c=>renderControl(f,c)).join('')}`;
+    surfaceEl.appendChild(card);
+  });
+}
+
+function updateControlDisplay(f,c){
+  const v=getValue(f,c,c.type==='panTilt16'?{pan:32768,tilt:32768}:((c.type==='rgb'||c.type==='cmy')?{a:0,b:0,c:0}:(c.type==='cmyk'?{a:0,b:0,c:0,k:0}:0)));
+  if(c.type==='panTilt16'){
+    const pad=document.querySelector(`[data-xy-fixture="${f.id}"][data-control="${c.id}"]`);
+    const dot=pad?.querySelector('.xy-dot');
+    if(dot){
+      dot.style.left=(v.pan/65535*100)+'%';
+      dot.style.top=(100-v.tilt/65535*100)+'%';
+    }
+    document.querySelectorAll(`[data-readout-fixture="${f.id}"][data-readout-control="${c.id}"]`).forEach(el=>el.textContent='Pan '+v.pan+' · Tilt '+v.tilt);
+    ['pan','tilt'].forEach(axis=>{
+      const b=bytes16(v[axis]);
+      document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-axis="${axis}"]`).forEach(el=>{if(el.value!=v[axis])el.value=v[axis];});
+      document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-axis="${axis}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+      document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-axis="${axis}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+      document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-readout="${axis}Coarse"]`).forEach(el=>el.textContent=b.coarse);
+      document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-readout="${axis}Fine"]`).forEach(el=>el.textContent=b.fine);
+    });
+    return;
+  }
+  if(c.type==='rgb'||c.type==='cmy'||c.type==='cmyk'){
+    const parts=c.type==='cmyk'?['a','b','c','k']:['a','b','c'];
+    parts.forEach(part=>{
+      document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-color-value="${part}"]`).forEach(el=>el.textContent=v[part]);
+      document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=v[part];});
+    });
+    const color=c.type==='rgb'?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
+    return;
+  }
+  document.querySelectorAll(`[data-readout-fixture="${f.id}"][data-readout-control="${c.id}"]`).forEach(el=>{
+    el.textContent=c.type==='wheel'?'CH '+absolute(f.start,c.channel)+' · '+v:v;
+  });
+  document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"]:not([data-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='slider16'){
+    const b=bytes16(v);
+    document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+    document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+    document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-readout="coarse"]`).forEach(el=>el.textContent=b.coarse);
+    document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-readout="fine"]`).forEach(el=>el.textContent=b.fine);
+  }
+}
+
+function draw(){drawProfiles();drawPatched();drawSurface();}
+
+profilesEl.onclick=e=>{
+  const select=e.target.dataset.profile;
+  const remove=e.target.dataset.removeProfile;
+  if(select){activeProfileId=parseInt(select,10);draw();}
+  if(remove){profiles=profiles.filter(p=>p.id!==parseInt(remove,10));fixtures=fixtures.filter(f=>f.profileId!==parseInt(remove,10));activeProfileId=profiles[0]?.id||0;draw();}
+};
+patchedEl.onclick=e=>{if(e.target.dataset.removeFixture){fixtures=fixtures.filter(f=>f.id!==parseInt(e.target.dataset.removeFixture,10));draw();}};
+
+surfaceEl.oninput=e=>{
+  const f=fixtures.find(x=>x.id===parseInt(e.target.dataset.fixture,10));
+  const p=f&&fixtureProfile(f);
+  const c=p&&p.controls.find(x=>x.id===parseInt(e.target.dataset.control,10));
+  if(!f||!c)return;
+  if(e.target.dataset.colorPicker){
+    if(c.type==='rgb')setValue(f,c,hexToRgb(e.target.value));
+    else if(c.type==='cmy')setValue(f,c,rgbToCmy(e.target.value));
+    else if(c.type==='cmyk')setValue(f,c,rgbToCmyk(e.target.value));
+  }else if(e.target.dataset.bytePart){
+    if(c.type==='panTilt16'){
+      const axis=e.target.dataset.byteAxis;
+      const v=getValue(f,c,{pan:32768,tilt:32768});
+      const b=bytes16(v[axis]);
+      b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);
+      v[axis]=(b.coarse<<8)|b.fine;
+      setValue(f,c,v);
+    }else{
+      const b=bytes16(getValue(f,c,0));
+      b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);
+      setValue(f,c,(b.coarse<<8)|b.fine);
+    }
+  }else if(e.target.dataset.axis){
+    const v=getValue(f,c,{pan:32768,tilt:32768});
+    v[e.target.dataset.axis]=clamp(e.target.value,0,65535);
+    setValue(f,c,v);
+  }else if(e.target.dataset.part){
+    const v=getValue(f,c,{a:0,b:0,c:0});v[e.target.dataset.part]=clamp(e.target.value,0,255);setValue(f,c,v);
+  }else setValue(f,c,clamp(e.target.value,0,c.type==='slider16'?65535:255));
+  if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+  updateControlDisplay(f,c);
+};
+surfaceEl.onclick=e=>{
+  const f=fixtures.find(x=>x.id===parseInt(e.target.dataset.fixture||e.target.dataset.sendFixture,10));
+  const p=f&&fixtureProfile(f);
+  const c=p&&p.controls.find(x=>x.id===parseInt(e.target.dataset.control,10));
+  if(!f||!c)return;
+  if(e.target.dataset.color){
+    if(c.type==='rgb')setValue(f,c,hexToRgb(e.target.dataset.color));
+    else if(c.type==='cmy')setValue(f,c,rgbToCmy(e.target.dataset.color));
+    else if(c.type==='cmyk')setValue(f,c,rgbToCmyk(e.target.dataset.color));
+    sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
+  }
+  if(e.target.dataset.wheel!==undefined){
+    setValue(f,c,clamp(e.target.dataset.wheel,0,255));
+    if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
+  }
+  if(e.target.dataset.sendFixture)sendControl(f,c).catch(err=>setStatus(err.message,true));
+};
+surfaceEl.addEventListener('pointerdown',e=>{
+  const pad=e.target.closest('[data-xy-fixture]');if(!pad)return;pad.setPointerCapture(e.pointerId);setXY(e,pad);
+});
+surfaceEl.addEventListener('pointermove',e=>{
+  const pad=e.target.closest('[data-xy-fixture]');if(!pad||!pad.hasPointerCapture(e.pointerId))return;setXY(e,pad);
+});
+function setXY(e,pad){
+  const f=fixtures.find(x=>x.id===parseInt(pad.dataset.xyFixture,10));
+  const p=f&&fixtureProfile(f);
+  const c=p&&p.controls.find(x=>x.id===parseInt(pad.dataset.control,10));
+  if(!f||!c)return;
+  const r=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+  setValue(f,c,{pan:Math.round(x*65535),tilt:Math.round((1-y)*65535)});
+  if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+  updateControlDisplay(f,c);
+}
+
+document.getElementById('addProfile').onclick=addProfile;
+document.getElementById('addControl').onclick=addControl;
+document.getElementById('patchFixture').onclick=patchFixture;
+document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
+document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
+loadSetup().then(ok=>{if(!ok)addDefaultProfile();}).catch(()=>addDefaultProfile());
+</script>
+</body>
+</html>
