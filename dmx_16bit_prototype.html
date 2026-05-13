@@ -58,6 +58,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <label>Tilt coarse<input id="tiltCh" type="number" min="1" max="511" value="6"></label>
 <button class="primary" id="addFixture">Add fixture</button>
 <button id="save">Save setup</button>
+<button id="load">Load setup</button>
 <button class="warn" id="reset">Reset</button>
 </div>
 <div class="small">16-bit values are sent as coarse MSB on the selected channel and fine LSB on the next channel.</div>
@@ -135,9 +136,33 @@ async function sendFixture(fixture){
   await sendAxis(fixture,'tilt');
 }
 
+function setupData(){
+  return {baseUrl:baseUrl.value,fixtures};
+}
+
+function applySetup(data){
+  baseUrl.value=data?.baseUrl||'';
+  fixtures=Array.isArray(data?.fixtures)?data.fixtures.map(normalizeFixture):[];
+  activeId=fixtures[0]?.id||0;
+  if(!fixtures.length)addFixture('Moving head',4,6);
+  draw();
+}
+
 function saveLocal(){
-  localStorage.setItem('dmx16Fixtures',JSON.stringify({baseUrl:baseUrl.value,fixtures}));
-  setStatus('Setup saved');
+  localStorage.setItem('dmx16Fixtures',JSON.stringify(setupData()));
+}
+
+async function saveSetup(){
+  const data=setupData();
+  saveLocal();
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    const r=await fetch('dmx_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    setStatus('Setup saved to server');
+  }else{
+    setStatus('Setup saved in browser only');
+  }
 }
 
 function normalizeFixture(fixture){
@@ -155,11 +180,28 @@ function loadLocal(){
   if(!raw)return false;
   try{
     const data=JSON.parse(raw);
-    baseUrl.value=data.baseUrl||'';
-    fixtures=Array.isArray(data.fixtures)?data.fixtures.map(normalizeFixture):[];
-    activeId=fixtures[0]?.id||0;
+    applySetup(data);
     return fixtures.length>0;
   }catch(e){return false;}
+}
+
+async function loadSetup(){
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    const r=await fetch('dmx_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    if(j.exists&&j.setup){
+      applySetup(j.setup);
+      saveLocal();
+      setStatus('Setup loaded from server');
+      return true;
+    }
+  }
+  if(loadLocal()){
+    setStatus('Setup loaded from browser storage');
+    return true;
+  }
+  return false;
 }
 
 function addFixture(name,panCh,tiltCh){
@@ -387,7 +429,8 @@ document.getElementById('addFixture').onclick=()=>{
     document.getElementById('tiltCh').value
   );
 };
-document.getElementById('save').onclick=saveLocal;
+document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
+document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
 document.getElementById('reset').onclick=()=>{
   localStorage.removeItem('dmx16Fixtures');
   baseUrl.value='';
@@ -395,8 +438,9 @@ document.getElementById('reset').onclick=()=>{
   addFixture('Moving head',4,6);
 };
 
-if(!loadLocal())addFixture('Moving head',4,6);
-draw();
+loadSetup().then(ok=>{if(!ok)addFixture('Moving head',4,6);}).catch(()=>{
+  if(!loadLocal())addFixture('Moving head',4,6);
+});
 </script>
 </body>
 </html>
