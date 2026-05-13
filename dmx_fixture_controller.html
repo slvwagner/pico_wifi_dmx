@@ -320,6 +320,18 @@ function controlChannels(control){
   return [control.channel];
 }
 
+function controlChannelText(control){
+  if(control.type==='panTilt16')return 'Pan '+control.pan+'/'+(control.panFine??control.pan+1)+', Tilt '+control.tilt+'/'+(control.tiltFine??control.tilt+1);
+  if(control.type==='panTilt8')return 'Pan '+control.pan+', Tilt '+control.tilt;
+  if(control.type==='slider16')return (control.channel)+'/'+(control.fine??control.channel+1);
+  if(control.type==='rgb')return 'R '+control.a+', G '+control.b+', B '+control.c;
+  if(control.type==='rgbw')return 'R '+control.a+', G '+control.b+', B '+control.c+', W '+control.w;
+  if(control.type==='rgbwa')return 'R '+control.a+', G '+control.b+', B '+control.c+', W '+control.w+', A '+control.amber;
+  if(control.type==='cmy')return 'C '+control.a+', M '+control.b+', Y '+control.c;
+  if(control.type==='cmyk')return 'C '+control.a+', M '+control.b+', Y '+control.c+', K '+control.k;
+  return 'CH '+control.channel;
+}
+
 function validateControlChannels(profile,control){
   const channels=controlChannels(control).filter(ch=>ch>=1);
   const duplicateInControl=channels.find((ch,index)=>channels.indexOf(ch)!==index);
@@ -516,7 +528,7 @@ function drawProfiles(){
     item.innerHTML=`<div class="row"><strong>${p.name}</strong><span class="small">Mode ${p.mode} · ${p.channels} channels · ${p.controls.length} controls</span></div>
       <div class="buttons"><button data-profile="${p.id}">Select</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
       <div class="small">Used channels: ${used.join(', ')||'none'}</div>
-      <div class="list">${p.controls.map(c=>`<div class="row"><span class="small">${c.label} (${c.type})</span><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div>`).join('')||'<div class="small">No controls yet</div>'}</div>`;
+      <div class="list">${p.controls.map(c=>`<div class="row"><span class="small">${c.label} (${c.type}) · ${controlChannelText(c)}</span><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div>`).join('')||'<div class="small">No controls yet</div>'}</div>`;
     profilesEl.appendChild(item);
   });
   if(activeProfileId)patchProfile.value=activeProfileId;
