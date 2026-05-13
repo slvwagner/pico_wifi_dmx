@@ -52,21 +52,21 @@ endif()
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(Micropython_Custom_C_extentions C CXX ASM)
+project(pico_wifi_dmx C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(Micropython_Custom_C_extentions
+add_executable(pico_wifi_dmx
         main.cpp
         dmx_engine.cpp
 )
 
-pico_generate_pio_header(Micropython_Custom_C_extentions ${CMAKE_CURRENT_LIST_DIR}/dmx_native.pio)
+pico_generate_pio_header(pico_wifi_dmx ${CMAKE_CURRENT_LIST_DIR}/dmx_native.pio)
 
-target_compile_definitions(Micropython_Custom_C_extentions PRIVATE
+target_compile_definitions(pico_wifi_dmx PRIVATE
         WIFI_SSID="${WIFI_SSID}"
         WIFI_PASSWORD="${WIFI_PASSWORD}"
         DMX_TX_PIN=${DMX_TX_PIN}
@@ -75,15 +75,15 @@ target_compile_definitions(Micropython_Custom_C_extentions PRIVATE
         DMX_REFRESH_RATE=${DMX_REFRESH_RATE}
 )
 
-pico_set_program_name(Micropython_Custom_C_extentions "Micropython_Custom_C_extentions")
-pico_set_program_version(Micropython_Custom_C_extentions "0.1")
+pico_set_program_name(pico_wifi_dmx "pico-wifi-dmx")
+pico_set_program_version(pico_wifi_dmx "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(Micropython_Custom_C_extentions 0)
-pico_enable_stdio_usb(Micropython_Custom_C_extentions 0)
+pico_enable_stdio_uart(pico_wifi_dmx 0)
+pico_enable_stdio_usb(pico_wifi_dmx 0)
 
 # Add the standard library to the build
-target_link_libraries(Micropython_Custom_C_extentions
+target_link_libraries(pico_wifi_dmx
         pico_stdlib
         pico_multicore
         pico_cyw43_arch_lwip_threadsafe_background
@@ -92,14 +92,14 @@ target_link_libraries(Micropython_Custom_C_extentions
         hardware_pio)
 
 # Add the standard include files to the build
-target_include_directories(Micropython_Custom_C_extentions PRIVATE
+target_include_directories(pico_wifi_dmx PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
 # Add any user requested libraries
-target_link_libraries(Micropython_Custom_C_extentions 
+target_link_libraries(pico_wifi_dmx 
         
         )
 
-pico_add_extra_outputs(Micropython_Custom_C_extentions)
+pico_add_extra_outputs(pico_wifi_dmx)
 
