@@ -120,6 +120,7 @@ Blue=48</textarea>
 <label>Name<input id="fixtureName" type="text" value="Spot 1"></label>
 <label>Profile<select id="patchProfile"></select></label>
 <label>Start address<input id="fixtureStart" type="number" min="1" max="512" value="1"></label>
+<button id="nextFreeAddr">Next free</button>
 <button class="primary" id="patchFixture">Patch fixture</button>
 </div>
 <div class="list" id="patched"></div>
@@ -491,12 +492,32 @@ function addControl(){
   draw();
 }
 
+function fixtureAddressConflict(start,channels,excludeId){
+  const end=start+channels-1;
+  return fixtures.find(f=>{
+    if(f.id===excludeId)return false;
+    const p=fixtureProfile(f);
+    if(!p)return false;
+    return start<=f.start+p.channels-1&&end>=f.start;
+  });
+}
+function nextFreePatchAddress(channels){
+  for(let start=1;start+channels-1<=maxDmx;start++){
+    if(!fixtureAddressConflict(start,channels))return start;
+  }
+  return 1;
+}
 function patchFixture(){
   const profileId=parseInt(patchProfile.value,10);
   const profile=profiles.find(p=>p.id===profileId);
   if(!profile){showError('Add a profile first');return;}
   const start=clamp(document.getElementById('fixtureStart').value,1,512);
   if(start+profile.channels-1>maxDmx){showError('Fixture exceeds DMX channel 512');return;}
+  const conflict=fixtureAddressConflict(start,profile.channels);
+  if(conflict){
+    const cp=fixtureProfile(conflict);
+    showError('Address conflict: channels '+start+'\u2013'+(start+profile.channels-1)+' overlap with "'+conflict.name+'" ('+conflict.start+'\u2013'+(conflict.start+(cp?.channels||1)-1)+')');return;
+  }
   fixtures.push({id:uid(),name:document.getElementById('fixtureName').value||profile.name,profileId,start});
   draw();
 }
@@ -815,6 +836,17 @@ document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
 document.getElementById('patchFixture').onclick=patchFixture;
+document.getElementById('nextFreeAddr').onclick=()=>{
+  const profileId=parseInt(patchProfile.value,10);
+  const profile=profiles.find(p=>p.id===profileId);
+  if(!profile){setStatus('Select a profile first',true);return;}
+  document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
+};
+patchProfile.onchange=()=>{
+  const profileId=parseInt(patchProfile.value,10);
+  const profile=profiles.find(p=>p.id===profileId);
+  if(profile)document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
+};
 document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
 document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
 
