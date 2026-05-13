@@ -31,6 +31,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .xy-pad{position:relative;aspect-ratio:1.55/1;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%;touch-action:none;cursor:crosshair}
 .xy-dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
+.wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#fff;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 @media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
 </style>
 </head>
@@ -87,13 +88,28 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <button class="primary" id="addControl">Add control</button>
 <button id="cancelEdit">Cancel edit</button>
 </div>
+<div id="wheelEditorWrap">
 <label>Wheel options, one per line: name=value
 <textarea id="wheelOptions">Open=0
 Red=16
 Green=32
 Blue=48</textarea>
 </label>
-<div class="small">For Pan/Tilt 16-bit: Ch A is pan coarse, Ch B is tilt coarse. Fine channels are the following channels.</div>
+<div class="wheel-editor">
+<div class="toolbar">
+<label>Option name<input id="wheelName" type="text" value="Open"></label>
+<label>DMX value<input id="wheelValue" type="number" min="0" max="255" value="0"></label>
+<label>Color<input id="wheelColor" type="color" value="#ffffff"></label>
+<label>Upload image<input id="wheelImage" type="file" accept="image/*"></label>
+</div>
+<div class="toolbar">
+<canvas id="goboCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+<div class="buttons"><button id="clearGobo" type="button">Clear drawing</button><button id="addWheelOption" type="button">Add wheel option</button></div>
+</div>
+<div class="small">Wheel option format: Name=value|#color or Name=value|image-data. Uploaded images and drawings are saved inside the setup JSON.</div>
+</div>
+</div>
+<div class="small" id="controlHint"></div>
 </div>
 </section>
 
@@ -218,8 +234,17 @@ async function sendControl(f,c){
 function parseWheelOptions(text){
   return text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
     const parts=line.split('=');
-    return {name:(parts[0]||'Value').trim(),value:clamp(parts[1],0,255)};
+    const meta=(parts.slice(1).join('=')||'0').split('|');
+    const visual=(meta[1]||'').trim();
+    const option={name:(parts[0]||'Value').trim(),value:clamp(meta[0],0,255)};
+    if(visual.startsWith('#'))option.color=visual;
+    else if(visual.startsWith('data:image/'))option.image=visual;
+    return option;
   });
+}
+
+function wheelOptionsText(options){
+  return (options||[]).map(o=>o.name+'='+clamp(o.value,0,255)+(o.image?'|'+o.image:(o.color?'|'+o.color:''))).join('\n');
 }
 
 function addDefaultProfile(){
@@ -311,7 +336,7 @@ function loadControlEditor(control){
   document.getElementById('controlC').value=control.tilt||control.c||0;
   document.getElementById('controlD').value=control.tiltFine||control.w||control.k||0;
   document.getElementById('controlE').value=control.amber||0;
-  document.getElementById('wheelOptions').value=(control.options||[]).map(o=>o.name+'='+o.value).join('\n')||document.getElementById('wheelOptions').value;
+  document.getElementById('wheelOptions').value=wheelOptionsText(control.options)||document.getElementById('wheelOptions').value;
   updateControlChannelInputs();
 }
 
@@ -335,6 +360,20 @@ function updateControlChannelInputs(){
     wrap.style.display=labels[index]?'grid':'none';
     label.textContent=labels[index]||('Ch '+letter);
   });
+  const hints={
+    panTilt16:'Uses four channels: pan coarse, pan fine, tilt coarse, and tilt fine.',
+    panTilt8:'Uses two channels: pan and tilt.',
+    slider8:'Uses one channel for an 8-bit value from 0 to 255.',
+    slider16:'Uses two channels: coarse and fine for one 16-bit value.',
+    rgb:'Uses three channels: red, green, and blue. The color picker controls all three.',
+    rgbw:'Uses four channels: red, green, blue, and white. The color picker controls RGB; white is manual.',
+    rgbwa:'Uses five channels: red, green, blue, white, and amber. The color picker controls RGB; white and amber are manual.',
+    cmy:'Uses three channels: cyan, magenta, and yellow. The color picker converts RGB to CMY.',
+    cmyk:'Uses four channels: cyan, magenta, yellow, and key/black. The color picker converts RGB to CMYK.',
+    wheel:'Uses one channel with named indexed values. Add color swatches, uploaded images, or drawings for each value.'
+  };
+  document.getElementById('controlHint').textContent=hints[type]||'';
+  document.getElementById('wheelEditorWrap').style.display=type==='wheel'?'grid':'none';
 }
 
 function addControl(){
@@ -470,8 +509,9 @@ function renderControl(f,c){
   }
   if(c.type==='wheel'){
     const v=getValue(f,c,0);
+    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}</span></div>
-      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-wheel="${o.value}" data-fixture="${f.id}" data-control="${c.id}">${o.name}</button>`).join('')}</div>
+      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-wheel="${o.value}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${o.name}</button>`).join('')}</div>
       <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>`;
   }
   const max=c.type==='slider16'?65535:255;
@@ -674,7 +714,68 @@ document.getElementById('controlType').onchange=updateControlChannelInputs;
 document.getElementById('patchFixture').onclick=patchFixture;
 document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
 document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
+
+const goboCanvas=document.getElementById('goboCanvas');
+const goboCtx=goboCanvas.getContext('2d');
+let goboDrawing=false;
+let uploadedWheelImage='';
+let goboTouched=false;
+function clearGobo(){
+  goboCtx.fillStyle='#ffffff';
+  goboCtx.fillRect(0,0,goboCanvas.width,goboCanvas.height);
+  goboCtx.strokeStyle='#000000';
+  goboCtx.lineWidth=6;
+  goboCtx.lineCap='round';
+  uploadedWheelImage='';
+  goboTouched=false;
+}
+function drawGobo(e){
+  const rect=goboCanvas.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*goboCanvas.width/rect.width;
+  const y=(e.clientY-rect.top)*goboCanvas.height/rect.height;
+  if(!goboDrawing){
+    goboCtx.beginPath();
+    goboCtx.moveTo(x,y);
+    return;
+  }
+  goboCtx.lineTo(x,y);
+  goboCtx.stroke();
+  goboTouched=true;
+}
+goboCanvas.addEventListener('pointerdown',e=>{goboDrawing=true;goboCanvas.setPointerCapture(e.pointerId);drawGobo(e);});
+goboCanvas.addEventListener('pointermove',e=>{if(goboDrawing)drawGobo(e);});
+goboCanvas.addEventListener('pointerup',()=>{goboDrawing=false;uploadedWheelImage='';});
+goboCanvas.addEventListener('pointercancel',()=>{goboDrawing=false;});
+document.getElementById('clearGobo').onclick=clearGobo;
+document.getElementById('wheelImage').onchange=e=>{
+  const file=e.target.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      clearGobo();
+      goboCtx.drawImage(img,0,0,goboCanvas.width,goboCanvas.height);
+      uploadedWheelImage=goboCanvas.toDataURL('image/png');
+      goboTouched=true;
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+};
+document.getElementById('addWheelOption').onclick=()=>{
+  const name=document.getElementById('wheelName').value||'Value';
+  const value=clamp(document.getElementById('wheelValue').value,0,255);
+  const image=uploadedWheelImage||goboCanvas.toDataURL('image/png');
+  const color=document.getElementById('wheelColor').value;
+  const useImage=goboTouched&&image;
+  const visual=useImage?image:color;
+  const text=document.getElementById('wheelOptions');
+  text.value=(text.value.trim()?text.value.trim()+'\n':'')+name+'='+value+'|'+visual;
+  setStatus('Wheel option added');
+};
 updateControlChannelInputs();
+clearGobo();
 loadSetup().then(ok=>{if(!ok)addDefaultProfile();}).catch(()=>addDefaultProfile());
 </script>
 </body>
