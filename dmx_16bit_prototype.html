@@ -33,6 +33,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .bytes{color:var(--muted);font-size:13px}
 .map{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.xy-pad{position:relative;aspect-ratio:1.6/1;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%;touch-action:none;cursor:crosshair}
+.xy-dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
 @media(max-width:720px){main{padding:12px}.grid{grid-template-columns:1fr}.map{grid-template-columns:1fr}input[type=url],input[type=text]{min-width:0;width:100%}}
 </style>
 </head>
@@ -45,7 +47,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </div>
 <div class="toolbar">
 <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-<label><input id="live" type="checkbox"> Live send</label>
+<label><input id="live" type="checkbox" checked> Live send</label>
 </div>
 </header>
 
@@ -207,6 +209,13 @@ function updateAxisDisplay(fixture,axis){
   document.querySelectorAll(`[data-id="${fixture.id}"][data-field="${axis}"]`).forEach(el=>{if(el.value!=value)el.value=value;});
   document.querySelectorAll(`[data-id="${fixture.id}"][data-byte="${axis}"][data-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
   document.querySelectorAll(`[data-id="${fixture.id}"][data-byte="${axis}"][data-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+  const pad=document.querySelector(`[data-xy="${fixture.id}"]`);
+  const dot=pad?.querySelector('.xy-dot');
+  if(dot){
+    dot.style.left=(fixture.pan/65535*100)+'%';
+    dot.style.top=(100-fixture.tilt/65535*100)+'%';
+  }
+  document.querySelectorAll(`[data-xy-readout="${fixture.id}"]`).forEach(el=>el.textContent='Pan '+fixture.pan+' · Tilt '+fixture.tilt);
 }
 
 function draw(){
@@ -223,15 +232,58 @@ function draw(){
         <button class="warn" data-remove="${f.id}">Remove</button>
       </div>
       <label>Name<input type="text" value="${f.name}" data-id="${f.id}" data-field="name"></label>
+      <div class="axis">
+        <div class="axis-top">
+          <strong>Pan/Tilt XY</strong>
+          <span class="bytes" data-xy-readout="${f.id}">Pan ${f.pan} · Tilt ${f.tilt}</span>
+        </div>
+        <div class="xy-pad" data-xy="${f.id}">
+          <div class="xy-dot" style="left:${(f.pan/65535)*100}%;top:${100-(f.tilt/65535)*100}%"></div>
+        </div>
+        <div class="buttons">
+          <button data-send="fixture" data-id="${f.id}">Send Pan/Tilt</button>
+          <button data-center="fixture" data-id="${f.id}">Center Pan/Tilt</button>
+        </div>
+      </div>
       ${axisControl(f,'pan','Pan')}
       ${axisControl(f,'tilt','Tilt')}
-      <div class="buttons">
-        <button class="primary" data-send="fixture" data-id="${f.id}">Send Pan/Tilt</button>
-        <button data-center="fixture" data-id="${f.id}">Center Pan/Tilt</button>
-      </div>`;
+      `;
     fixturesEl.appendChild(card);
   });
 }
+
+function setXYFromPointer(e,pad){
+  const id=parseInt(pad.dataset.xy,10);
+  const fixture=fixtures.find(f=>f.id===id);
+  if(!fixture)return;
+  const rect=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+  const y=Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height));
+  fixture.pan=Math.round(x*65535);
+  fixture.tilt=Math.round((1-y)*65535);
+  activeId=id;
+  updateAxisDisplay(fixture,'pan');
+  updateAxisDisplay(fixture,'tilt');
+  const dot=pad.querySelector('.xy-dot');
+  if(dot){
+    dot.style.left=(x*100)+'%';
+    dot.style.top=(y*100)+'%';
+  }
+  if(live.checked)sendFixture(fixture).catch(err=>setStatus(err.message,true));
+}
+
+fixturesEl.addEventListener('pointerdown',e=>{
+  const pad=e.target.closest('[data-xy]');
+  if(!pad)return;
+  pad.setPointerCapture(e.pointerId);
+  setXYFromPointer(e,pad);
+});
+
+fixturesEl.addEventListener('pointermove',e=>{
+  const pad=e.target.closest('[data-xy]');
+  if(!pad||!pad.hasPointerCapture(e.pointerId))return;
+  setXYFromPointer(e,pad);
+});
 
 fixturesEl.addEventListener('input',e=>{
   const id=parseInt(e.target.dataset.id,10);
