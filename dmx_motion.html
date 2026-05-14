@@ -125,7 +125,7 @@ async function loadSetup(auto=false){
       const j=await r.json();
       if(r.ok&&j.ok&&j.exists){
         const json=JSON.stringify(j.setup);
-        if(json===lastSetupJson){return;}// no change
+        if(auto&&json===lastSetupJson){return;}// no change, skip silent poll
         lastSetupJson=json;setup=j.setup;applySetup();
         setStatus(auto?'Setup auto-updated from server':'Setup loaded from server');return;
       }
@@ -134,7 +134,7 @@ async function loadSetup(auto=false){
   try{
     const raw=localStorage.getItem('dmxFixtureController');
     if(raw){
-      if(raw===lastSetupJson){return;}// no change
+      if(auto&&raw===lastSetupJson){return;}// no change, skip silent poll
       lastSetupJson=raw;setup=JSON.parse(raw);applySetup();
       setStatus(auto?'Setup auto-updated from browser':'Setup loaded (browser cache)');return;
     }
@@ -153,12 +153,16 @@ function applySetup(){
     if(!c)return;
     const center=getStoredCenter(f,c);
     const ex=prev.get(f.id+':'+c.id);
+    // Only preserve a manually-adjusted center if the user actually changed it from
+    // the previously-loaded value; otherwise always take the fresh value from the setup.
+    const panCenter=ex&&ex.panCenter!==ex.loadedPanCenter?ex.panCenter:center.pan;
+    const tiltCenter=ex&&ex.tiltCenter!==ex.loadedTiltCenter?ex.tiltCenter:center.tilt;
     motionFixtures.push({
       fixture:f,control:c,
       enabled:ex?ex.enabled:true,
       phaseOffset:ex?ex.phaseOffset:0,
-      panCenter:ex?ex.panCenter:center.pan,
-      tiltCenter:ex?ex.tiltCenter:center.tilt
+      panCenter,tiltCenter,
+      loadedPanCenter:center.pan,loadedTiltCenter:center.tilt
     });
   });
   drawFixtureList();
@@ -377,7 +381,7 @@ function tick(){
 
 // ---- event wiring ----
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
-document.getElementById('reloadSetup').onclick=loadSetup;
+document.getElementById('reloadSetup').onclick=()=>loadSetup();
 document.getElementById('effectType').onchange=drawPathPreview;
 ['panAmp','tiltAmp','phaseSpread'].forEach(id=>{
   const el=document.getElementById(id);
