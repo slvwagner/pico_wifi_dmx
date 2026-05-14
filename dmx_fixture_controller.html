@@ -515,7 +515,7 @@ function patchFixture(){
   const profileId=parseInt(patchProfile.value,10);
   const profile=profiles.find(p=>p.id===profileId);
   if(!profile){showError('Add a profile first');return;}
-  const start=clamp(document.getElementById('fixtureStart').value,1,512);
+  let start=clamp(document.getElementById('fixtureStart').value,1,512);
   if(start+profile.channels-1>maxDmx){showError('Fixture exceeds DMX channel 512');return;}
   if(fixtureAddressConflict(start,profile.channels)){
     const free=nextFreePatchAddress(profile.channels);
