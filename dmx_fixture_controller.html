@@ -47,6 +47,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <label><input id="live" type="checkbox" checked> Live send</label>
 <button id="save">Save setup</button>
 <button id="load">Load setup</button>
+<button id="exportCsv">Export CSV</button>
 </div>
 </header>
 
@@ -836,6 +837,36 @@ document.getElementById('saveProfile').onclick=saveProfile;
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
+function csvEsc(v){v=String(v??'');return(v.includes(',')||v.includes('"')||v.includes('\n'))?'"'+v.replace(/"/g,'""')+'"':v;}
+function resolveDmxBytes(f,c){
+  const out=[];
+  if(c.type==='panTilt16'){const v=getValue(f,c,{pan:32768,tilt:32768});const pan=bytes16(v.pan),tilt=bytes16(v.tilt);out.push({ch:absolute(f.start,c.pan),val:pan.coarse,param:'Pan coarse'},{ch:absolute(f.start,c.panFine??c.pan+1),val:pan.fine,param:'Pan fine'},{ch:absolute(f.start,c.tilt),val:tilt.coarse,param:'Tilt coarse'},{ch:absolute(f.start,c.tiltFine??c.tilt+1),val:tilt.fine,param:'Tilt fine'});}
+  else if(c.type==='panTilt8'){const v=getValue(f,c,{pan:128,tilt:128});out.push({ch:absolute(f.start,c.pan),val:v.pan,param:'Pan'},{ch:absolute(f.start,c.tilt),val:v.tilt,param:'Tilt'});}
+  else if(c.type==='slider16'){const v=bytes16(getValue(f,c,0));out.push({ch:absolute(f.start,c.channel),val:v.coarse,param:'Coarse'},{ch:absolute(f.start,c.fine??c.channel+1),val:v.fine,param:'Fine'});}
+  else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const defVal=c.type==='cmyk'?{a:0,b:0,c:0,k:0}:c.type==='rgbw'?{a:0,b:0,c:0,w:0}:c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0};
+    const v=getValue(f,c,defVal);
+    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key'];
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach((p,i)=>out.push({ch:absolute(f.start,c[p]),val:v[p],param:names[i]}));
+  }
+  else out.push({ch:absolute(f.start,c.channel),val:getValue(f,c,0),param:c.type==='wheel'?'Wheel':'Value'});
+  return out;
+}
+function exportCsv(){
+  const rows=['Channel,Value,Fixture,Profile,Control,Parameter'];
+  fixtures.forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      resolveDmxBytes(f,c).forEach(({ch,val,param})=>{
+        rows.push([ch,val,csvEsc(f.name),csvEsc(p.name+' '+p.mode),csvEsc(c.label),csvEsc(param)].join(','));
+      });
+    });
+  });
+  const blob=new Blob([rows.join('\r\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_patch.csv';a.click();URL.revokeObjectURL(a.href);
+  setStatus('Exported '+( rows.length-1)+' channel'+(rows.length-1===1?'':'s')+' to CSV');
+}
 document.getElementById('patchFixture').onclick=patchFixture;
 document.getElementById('nextFreeAddr').onclick=()=>{
   const profileId=parseInt(patchProfile.value,10);
@@ -850,6 +881,7 @@ patchProfile.onchange=()=>{
 };
 document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
 document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
+document.getElementById('exportCsv').onclick=exportCsv;
 
 const goboCanvas=document.getElementById('goboCanvas');
 const goboCtx=goboCanvas.getContext('2d');
