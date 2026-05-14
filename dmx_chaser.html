@@ -681,6 +681,10 @@ document.getElementById('btnTap').onclick=()=>{
     const avg=(tapTimes[tapTimes.length-1]-tapTimes[0])/(tapTimes.length-1);
     const bpm=Math.round(Math.min(600,Math.max(1,60000/avg)));
     document.getElementById('bpmInput').value=bpm;
+    // apply new BPM to all step durations
+    const newDur=calcDefaultDuration();
+    steps.forEach(s=>s.duration=newDur);
+    drawStepList();
     setStatus('Tap BPM: '+bpm);
   }
 };
