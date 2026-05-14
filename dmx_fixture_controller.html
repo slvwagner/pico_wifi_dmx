@@ -48,6 +48,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <button id="save">Save setup</button>
 <button id="load">Load setup</button>
 <button id="exportCsv">Export CSV</button>
+<button id="exportJson">Export JSON</button>
 </div>
 </header>
 
@@ -882,6 +883,11 @@ patchProfile.onchange=()=>{
 document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
 document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
 document.getElementById('exportCsv').onclick=exportCsv;
+document.getElementById('exportJson').onclick=()=>{
+  const blob=new Blob([JSON.stringify(saveData(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fixture_setup.json';a.click();URL.revokeObjectURL(a.href);
+  setStatus('fixture_setup.json downloaded');
+};
 
 const goboCanvas=document.getElementById('goboCanvas');
 const goboCtx=goboCanvas.getContext('2d');
