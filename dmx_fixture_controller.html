@@ -49,6 +49,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <button id="load">Load setup</button>
 <button id="exportCsv">Export CSV</button>
 <button id="exportJson">Export JSON</button>
+<button id="importJson">Import JSON</button>
+<input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 </header>
 
@@ -887,6 +889,20 @@ document.getElementById('exportJson').onclick=()=>{
   const blob=new Blob([JSON.stringify(saveData(),null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fixture_setup.json';a.click();URL.revokeObjectURL(a.href);
   setStatus('fixture_setup.json downloaded');
+};
+document.getElementById('importJson').onclick=()=>document.getElementById('importJsonFile').click();
+document.getElementById('importJsonFile').onchange=e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      applyData(data);
+      setStatus('Setup imported from '+file.name);
+    }catch(err){showError('Invalid JSON: '+err.message);}
+    e.target.value='';
+  };
+  reader.readAsText(file);
 };
 
 const goboCanvas=document.getElementById('goboCanvas');
