@@ -86,7 +86,8 @@ a.nav:hover{color:var(--text)}
       </select>
     </label>
     <button id="btnTap">Tap tempo</button>
-    <label>Default fade (ms)<input id="globalFade" type="number" min="0" max="10000" value="0"></label>
+    <label>Default fade %<input id="globalFade" type="number" min="0" max="100" value="0"></label>
+    <button id="btnApplyFade" title="Apply default fade % to all steps">↓ All steps</button>
     <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
   </div>
   <div class="row" style="align-items:center">
@@ -136,7 +137,7 @@ a.nav:hover{color:var(--text)}
     <div class="toolbar">
       <label>Label<input id="edLabel" type="text" placeholder="Step label"></label>
       <label>Duration (ms)<input id="edDuration" type="number" min="0" max="60000" value="500"></label>
-      <label>Fade in (ms)<input id="edFade" type="number" min="0" max="10000" value="0"></label>
+      <label>Fade %<input id="edFade" type="number" min="0" max="100" value="0"></label>
       <button id="btnApplyMeta">Apply</button>
       <button id="btnCaptureToStep">⬇ Capture from FC</button>
       <label style="flex-direction:row;align-items:center;gap:6px;color:var(--muted);font-size:13px">
@@ -345,7 +346,7 @@ function drawStepList(){
       <div class="row" style="flex-wrap:nowrap;overflow:hidden">
         <span class="step-num${isActive?' playing':''}">${i+1}</span>
         <span style="flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isSel?'var(--warn)':'var(--text)'}">${s.label}</span>
-        <span class="small" style="white-space:nowrap;flex-shrink:0">${s.duration}ms · fade ${s.fade}ms</span>
+        <span class="small" style="white-space:nowrap;flex-shrink:0">${s.duration}ms · fade ${s.fade??0}%</span>
         <div class="buttons" style="flex-shrink:0;gap:4px">
           <button data-sel="${i}" style="padding:5px 9px;font-size:12px">Edit</button>
           <button data-dup="${i}" style="padding:5px 9px;font-size:12px">Dupe</button>
@@ -618,7 +619,7 @@ function playbackTick(){
   const now=performance.now();
   const step=steps[activeStepIdx];if(!step){stopPlayback();return;}
   const durMs=Math.max(1,step.duration??500);
-  const fadeMs=Math.min(step.fade??0,durMs);
+  const fadeMs=Math.round((clamp(step.fade??0,0,100)/100)*durMs);
   const elapsed=now-stepEnteredAt;
   const t=fadeMs>0?Math.min(1,elapsed/fadeMs):1;
   const ptList=getParticipatingList();
@@ -681,10 +682,7 @@ document.getElementById('btnTap').onclick=()=>{
     const avg=(tapTimes[tapTimes.length-1]-tapTimes[0])/(tapTimes.length-1);
     const bpm=Math.round(Math.min(600,Math.max(1,60000/avg)));
     document.getElementById('bpmInput').value=bpm;
-    // apply new BPM to all step durations
-    const newDur=calcDefaultDuration();
-    steps.forEach(s=>s.duration=newDur);
-    drawStepList();
+    applyBpmToSteps();
     setStatus('Tap BPM: '+bpm);
   }
 };
@@ -723,6 +721,10 @@ document.getElementById('btnPlay').onclick=()=>{
   else startPlayback();
 };
 document.getElementById('btnStop').onclick=stopPlayback;
+function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();}
+document.getElementById('bpmInput').oninput=applyBpmToSteps;
+document.getElementById('beatsPerStep').onchange=applyBpmToSteps;
+document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getElementById('globalFade').value,0,100);steps.forEach(s=>s.fade=f);drawStepList();setStatus('Fade '+f+'% applied to all steps');};
 document.getElementById('btnPrev').onclick=()=>manualStep(-1);
 document.getElementById('btnNext').onclick=()=>manualStep(1);
 document.getElementById('btnAddStep').onclick=()=>addStep();
