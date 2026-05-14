@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DMX Motion Effects</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
+main{max-width:1260px;margin:0 auto;padding:20px;display:grid;gap:16px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
+.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.toolbar,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input,button,select{font:inherit}
+input[type=number],input[type=url]{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=number]{width:90px}input[type=url]{min-width:220px}
+select{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=range]{width:150px;accent-color:var(--accent)}
+button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+button.stop{background:#3c1b1b;border-color:#763232;color:var(--bad);font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+.list{display:grid;gap:8px}
+.item{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
+.item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.xy-mini{position:relative;width:120px;height:120px;flex-shrink:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%}
+.xy-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
+.readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
+a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
+a.nav:hover{color:var(--text);border-color:var(--text)}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div>
+    <h1>DMX Motion Effects</h1>
+    <div class="status" id="status">Loading setup…</div>
+  </div>
+  <div class="toolbar">
+    <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <a class="nav" href="index.html">← Fixture Controller</a>
+    <button class="primary" id="startStop">▶ Start</button>
+  </div>
+</header>
+
+<section class="panel">
+  <h2>Effect Parameters</h2>
+  <div class="toolbar">
+    <label>Effect
+      <select id="effectType">
+        <option value="circle">Circle</option>
+        <option value="figure8">Figure-8</option>
+        <option value="panSwing">Pan Swing</option>
+        <option value="tiltSwing">Tilt Swing</option>
+      </select>
+    </label>
+    <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
+    <label>Pan amplitude <span id="panAmpVal">20</span>%<input id="panAmp" type="range" min="0" max="100" value="20"></label>
+    <label>Tilt amplitude <span id="tiltAmpVal">15</span>%<input id="tiltAmp" type="range" min="0" max="100" value="15"></label>
+    <label>Phase spread <span id="phaseSpreadVal">0</span>°<input id="phaseSpread" type="range" min="0" max="360" value="0"></label>
+    <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
+  </div>
+  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <div class="small" style="margin-bottom:6px">Motion path preview (normalized)</div>
+      <canvas id="pathCanvas" width="200" height="200" style="border:1px solid var(--line);border-radius:8px;background:#0a0d10;display:block"></canvas>
+    </div>
+    <div class="small" style="max-width:360px;align-self:center;line-height:1.7">
+      Center positions are loaded from the Fixture Controller setup. Adjust them per-fixture below without affecting the static setup.<br><br>
+      <b>Phase spread</b> offsets fixtures evenly around the cycle — e.g. 360° with 3 fixtures gives 0°, 120°, 240°, creating a wave effect. Individual phase offsets stack on top.
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Fixtures with Pan/Tilt</h2>
+  <div id="noFixtures" class="small" style="display:none">
+    No fixtures with Pan/Tilt controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first →</a>
+  </div>
+  <div class="list" id="fixtureList"></div>
+  <button id="reloadSetup" style="justify-self:start;margin-top:4px">↻ Reload from Fixture Controller</button>
+</section>
+
+</main>
+<script>
+// ---- helpers ----
+function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?lo:v));}
+function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
+function absolute(start,rel){return start+rel-1;}
+function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
+
+// ---- DMX send (fire-and-forget) ----
+const baseUrlEl=document.getElementById('baseUrl');
+function sendChannel(ch,value){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return;
+  const url=root+'/dmx/set/'+Math.round(ch)+'/'+Math.round(clamp(value,0,255));
+  if(root!==location.origin){new Image().src=url+'?t='+Date.now();return;}
+  fetch(url,{cache:'no-store'}).catch(()=>{});
+}
+
+// ---- setup loading ----
+let setup={};
+// motionFixtures: [{fixture, control, enabled, phaseOffset(deg), panCenter, tiltCenter}]
+let motionFixtures=[];
+
+function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
+
+function getStoredCenter(f,c){
+  const v=(setup.values||{})[f.id+':'+c.id];
+  if(c.type==='panTilt16')return v??{pan:32768,tilt:32768};
+  return v??{pan:128,tilt:128};
+}
+
+async function loadSetup(){
+  try{
+    if(location.protocol==='http:'||location.protocol==='https:'){
+      const r=await fetch('fixture_setup.php',{cache:'no-store'});
+      const j=await r.json();
+      if(r.ok&&j.ok&&j.exists){setup=j.setup;applySetup();setStatus('Setup loaded from server');return;}
+    }
+  }catch(_){}
+  try{
+    const raw=localStorage.getItem('dmxFixtureController');
+    if(raw){setup=JSON.parse(raw);applySetup();setStatus('Setup loaded (browser cache)');return;}
+  }catch(_){}
+  setStatus('No setup found — open Fixture Controller first',true);
+  drawFixtureList();
+}
+
+function applySetup(){
+  baseUrlEl.value=setup.baseUrl||'';
+  // rebuild motionFixtures, preserving user-edited values if fixture+control id matches
+  const prev=new Map(motionFixtures.map(mf=>[mf.fixture.id+':'+mf.control.id,mf]));
+  motionFixtures=[];
+  (setup.fixtures||[]).forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    const c=p.controls.find(cc=>cc.type==='panTilt16'||cc.type==='panTilt8');
+    if(!c)return;
+    const center=getStoredCenter(f,c);
+    const ex=prev.get(f.id+':'+c.id);
+    motionFixtures.push({
+      fixture:f,control:c,
+      enabled:ex?ex.enabled:true,
+      phaseOffset:ex?ex.phaseOffset:0,
+      panCenter:ex?ex.panCenter:center.pan,
+      tiltCenter:ex?ex.tiltCenter:center.tilt
+    });
+  });
+  drawFixtureList();
+  drawPathPreview();
+}
+
+// ---- fixture list UI ----
+const COLORS=['#37c4a4','#ffbc6b','#ff7a7a','#7ab4ff','#c4a437','#d37aff'];
+
+function drawFixtureList(){
+  const listEl=document.getElementById('fixtureList');
+  document.getElementById('noFixtures').style.display=motionFixtures.length?'none':'block';
+  listEl.innerHTML='';
+  motionFixtures.forEach((mf,i)=>{
+    const c=mf.control;
+    const max=c.type==='panTilt16'?65535:255;
+    const color=COLORS[i%COLORS.length];
+    const item=document.createElement('div');
+    item.className='item'+(mf.enabled?' active':'');
+    item.innerHTML=`
+      <div class="row" style="justify-content:space-between">
+        <label style="flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:14px">
+          <input type="checkbox" data-mf="${i}" data-f="enabled" ${mf.enabled?'checked':''} style="width:16px;height:16px;padding:0;accent-color:var(--accent)">
+          <strong style="border-left:3px solid ${color};padding-left:8px">${mf.fixture.name}</strong>
+        </label>
+        <span class="small">${c.type==='panTilt16'?'16-bit':'8-bit'} · start ch ${mf.fixture.start}</span>
+      </div>
+      <div class="toolbar">
+        <label>Phase offset <span id="phV${i}">${mf.phaseOffset}</span>°
+          <input type="range" min="-180" max="180" value="${mf.phaseOffset}" data-mf="${i}" data-f="phaseOffset">
+        </label>
+        <label>Center Pan <span id="cpV${i}">${Math.round(mf.panCenter)}</span>
+          <input type="range" min="0" max="${max}" value="${Math.round(mf.panCenter)}" data-mf="${i}" data-f="panCenter">
+        </label>
+        <label>Center Tilt <span id="ctV${i}">${Math.round(mf.tiltCenter)}</span>
+          <input type="range" min="0" max="${max}" value="${Math.round(mf.tiltCenter)}" data-mf="${i}" data-f="tiltCenter">
+        </label>
+      </div>
+      <div class="row">
+        <div class="xy-mini">
+          <div class="xy-dot" id="dot${i}" style="left:${mf.panCenter/max*100}%;top:${100-mf.tiltCenter/max*100}%;background:${color};box-shadow:0 0 0 1px ${color}"></div>
+        </div>
+        <div>
+          <div class="small">Live position</div>
+          <div class="readout" id="pos${i}" style="color:${color}">Pan ${Math.round(mf.panCenter)} · Tilt ${Math.round(mf.tiltCenter)}</div>
+        </div>
+      </div>`;
+    listEl.appendChild(item);
+  });
+
+  listEl.oninput=e=>{
+    const i=parseInt(e.target.dataset.mf,10);
+    if(isNaN(i))return;
+    const mf=motionFixtures[i];
+    const f=e.target.dataset.f;
+    if(f==='enabled'){
+      mf.enabled=e.target.checked;
+      e.target.closest('.item').className='item'+(mf.enabled?' active':'');
+      drawPathPreview();
+    }else if(f==='phaseOffset'){
+      mf.phaseOffset=parseFloat(e.target.value);
+      document.getElementById('phV'+i).textContent=mf.phaseOffset;
+      drawPathPreview();
+    }else if(f==='panCenter'){
+      mf.panCenter=parseFloat(e.target.value);
+      document.getElementById('cpV'+i).textContent=Math.round(mf.panCenter);
+    }else if(f==='tiltCenter'){
+      mf.tiltCenter=parseFloat(e.target.value);
+      document.getElementById('ctV'+i).textContent=Math.round(mf.tiltCenter);
+    }
+  };
+}
+
+// ---- path preview canvas ----
+const pathCanvas=document.getElementById('pathCanvas');
+const pathCtx=pathCanvas.getContext('2d');
+
+function effectOffset(t,type){
+  switch(type){
+    case 'circle':   return{pan:Math.cos(t),tilt:Math.sin(t)};
+    case 'figure8':  return{pan:Math.sin(t),tilt:Math.sin(2*t)};
+    case 'panSwing': return{pan:Math.sin(t),tilt:0};
+    case 'tiltSwing':return{pan:0,tilt:Math.sin(t)};
+    default:         return{pan:0,tilt:0};
+  }
+}
+
+function drawPathPreview(){
+  const w=pathCanvas.width,h=pathCanvas.height;
+  const type=document.getElementById('effectType').value;
+  const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
+  const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
+  const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
+  const enabled=motionFixtures.filter(mf=>mf.enabled);
+
+  pathCtx.clearRect(0,0,w,h);
+  pathCtx.fillStyle='#0a0d10';pathCtx.fillRect(0,0,w,h);
+
+  // grid
+  pathCtx.strokeStyle='#1e2c36';pathCtx.lineWidth=1;
+  [0.25,0.5,0.75].forEach(f=>{
+    pathCtx.beginPath();pathCtx.moveTo(f*w,0);pathCtx.lineTo(f*w,h);pathCtx.stroke();
+    pathCtx.beginPath();pathCtx.moveTo(0,f*h);pathCtx.lineTo(w,f*h);pathCtx.stroke();
+  });
+  // center cross
+  pathCtx.strokeStyle='#31404d';
+  pathCtx.beginPath();pathCtx.moveTo(w/2,0);pathCtx.lineTo(w/2,h);pathCtx.stroke();
+  pathCtx.beginPath();pathCtx.moveTo(0,h/2);pathCtx.lineTo(w,h/2);pathCtx.stroke();
+
+  if(!enabled.length){
+    pathCtx.fillStyle='#9cafbf';pathCtx.font='13px system-ui';
+    pathCtx.textAlign='center';pathCtx.textBaseline='middle';
+    pathCtx.fillText('No fixtures selected',w/2,h/2);
+    return;
+  }
+
+  enabled.forEach((mf,i)=>{
+    const autoPhase=enabled.length>1?spread*i/enabled.length:0;
+    const phase=mf.phaseOffset*Math.PI/180+autoPhase;
+    const color=COLORS[motionFixtures.indexOf(mf)%COLORS.length];
+    const STEPS=120;
+
+    // draw path
+    pathCtx.strokeStyle=color;pathCtx.lineWidth=2;pathCtx.globalAlpha=0.75;
+    pathCtx.beginPath();
+    for(let s=0;s<=STEPS;s++){
+      const t=s/STEPS*Math.PI*2+phase;
+      const off=effectOffset(t,type);
+      const px=(0.5+off.pan*pAmp*0.46)*w;
+      const py=(0.5-off.tilt*tAmp*0.46)*h;
+      s===0?pathCtx.moveTo(px,py):pathCtx.lineTo(px,py);
+    }
+    pathCtx.stroke();pathCtx.globalAlpha=1;
+
+    // start dot
+    const s0=effectOffset(phase,type);
+    const sx=(0.5+s0.pan*pAmp*0.46)*w;
+    const sy=(0.5-s0.tilt*tAmp*0.46)*h;
+    pathCtx.fillStyle=color;
+    pathCtx.beginPath();pathCtx.arc(sx,sy,4,0,Math.PI*2);pathCtx.fill();
+
+    // legend
+    pathCtx.fillStyle=color;pathCtx.font='11px system-ui';
+    pathCtx.textAlign='left';pathCtx.textBaseline='top';
+    pathCtx.fillText(mf.fixture.name,4,4+i*14);
+  });
+}
+
+// ---- motion loop ----
+let running=false;
+let intervalId=null;
+let startTime=null;
+
+function startMotion(){
+  if(!motionFixtures.some(mf=>mf.enabled)){setStatus('Enable at least one fixture',true);return;}
+  if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
+  running=true;
+  startTime=performance.now();
+  const hz=clamp(document.getElementById('updateRate').value,5,50);
+  document.getElementById('startStop').textContent='■ Stop';
+  document.getElementById('startStop').className='stop';
+  intervalId=setInterval(tick,1000/hz);
+  setStatus('Running…');
+}
+
+function stopMotion(){
+  running=false;
+  clearInterval(intervalId);
+  document.getElementById('startStop').textContent='▶ Start';
+  document.getElementById('startStop').className='primary';
+  setStatus('Stopped');
+}
+
+function tick(){
+  const elapsed=(performance.now()-startTime)/1000;
+  const bpm=clamp(document.getElementById('bpm').value,1,600);
+  const angle=elapsed*(bpm/60)*Math.PI*2;
+  const type=document.getElementById('effectType').value;
+  const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
+  const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
+  const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
+  const enabled=motionFixtures.filter(mf=>mf.enabled);
+
+  enabled.forEach((mf,i)=>{
+    const c=mf.control;
+    const f=mf.fixture;
+    const autoPhase=enabled.length>1?spread*i/enabled.length:0;
+    const phase=mf.phaseOffset*Math.PI/180+autoPhase;
+    const off=effectOffset(angle+phase,type);
+    const max=c.type==='panTilt16'?65535:255;
+    const half=max/2;
+    const newPan=clamp(mf.panCenter+off.pan*pAmp*half,0,max);
+    const newTilt=clamp(mf.tiltCenter+off.tilt*tAmp*half,0,max);
+
+    if(c.type==='panTilt16'){
+      const pan=bytes16(newPan),tilt=bytes16(newTilt);
+      sendChannel(absolute(f.start,c.pan),pan.coarse);
+      sendChannel(absolute(f.start,c.panFine??c.pan+1),pan.fine);
+      sendChannel(absolute(f.start,c.tilt),tilt.coarse);
+      sendChannel(absolute(f.start,c.tiltFine??c.tilt+1),tilt.fine);
+    }else{
+      sendChannel(absolute(f.start,c.pan),newPan);
+      sendChannel(absolute(f.start,c.tilt),newTilt);
+    }
+
+    // update mini XY pad
+    const idx=motionFixtures.indexOf(mf);
+    const dot=document.getElementById('dot'+idx);
+    if(dot){dot.style.left=(newPan/max*100)+'%';dot.style.top=(100-newTilt/max*100)+'%';}
+    const posEl=document.getElementById('pos'+idx);
+    if(posEl)posEl.textContent='Pan '+Math.round(newPan)+' · Tilt '+Math.round(newTilt);
+  });
+
+  setStatus('Running · '+elapsed.toFixed(1)+'s · '+Math.round(enabled.length*(document.getElementById('updateRate').value))+ ' ch/s');
+}
+
+// ---- event wiring ----
+document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
+document.getElementById('reloadSetup').onclick=loadSetup;
+document.getElementById('effectType').onchange=drawPathPreview;
+['panAmp','tiltAmp','phaseSpread'].forEach(id=>{
+  const el=document.getElementById(id);
+  const valEl=document.getElementById(id+'Val');
+  el.oninput=()=>{valEl.textContent=el.value;drawPathPreview();};
+});
+
+loadSetup();
+</script>
+</body>
+</html>
