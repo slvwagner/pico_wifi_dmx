@@ -527,9 +527,10 @@ function patchFixture(){
   draw();
 }
 
-function saveData(){return {baseUrl:baseUrl.value,profiles,fixtures,values};}
+function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures,values};}
 function applyData(data){
   baseUrl.value=data?.baseUrl||'';
+  if(data?.live!==undefined)live.checked=data.live;
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
   Object.keys(values).forEach(k=>delete values[k]);
