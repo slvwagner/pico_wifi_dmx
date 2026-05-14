@@ -106,6 +106,7 @@ function sendChannel(ch,value){
 
 // ---- setup loading ----
 let setup={};
+let lastSetupJson='';
 // motionFixtures: [{fixture, control, enabled, phaseOffset(deg), panCenter, tiltCenter}]
 let motionFixtures=[];
 
@@ -117,20 +118,28 @@ function getStoredCenter(f,c){
   return v??{pan:128,tilt:128};
 }
 
-async function loadSetup(){
+async function loadSetup(auto=false){
   try{
     if(location.protocol==='http:'||location.protocol==='https:'){
       const r=await fetch('fixture_setup.php',{cache:'no-store'});
       const j=await r.json();
-      if(r.ok&&j.ok&&j.exists){setup=j.setup;applySetup();setStatus('Setup loaded from server');return;}
+      if(r.ok&&j.ok&&j.exists){
+        const json=JSON.stringify(j.setup);
+        if(json===lastSetupJson){return;}// no change
+        lastSetupJson=json;setup=j.setup;applySetup();
+        setStatus(auto?'Setup auto-updated from server':'Setup loaded from server');return;
+      }
     }
   }catch(_){}
   try{
     const raw=localStorage.getItem('dmxFixtureController');
-    if(raw){setup=JSON.parse(raw);applySetup();setStatus('Setup loaded (browser cache)');return;}
+    if(raw){
+      if(raw===lastSetupJson){return;}// no change
+      lastSetupJson=raw;setup=JSON.parse(raw);applySetup();
+      setStatus(auto?'Setup auto-updated from browser':'Setup loaded (browser cache)');return;
+    }
   }catch(_){}
-  setStatus('No setup found — open Fixture Controller first',true);
-  drawFixtureList();
+  if(!auto){setStatus('No setup found — open Fixture Controller first',true);drawFixtureList();}
 }
 
 function applySetup(){
@@ -377,6 +386,10 @@ document.getElementById('effectType').onchange=drawPathPreview;
 });
 
 loadSetup();
+// Auto-reload when Fixture Controller saves to localStorage in another tab
+window.addEventListener('storage',e=>{if(e.key==='dmxFixtureController')loadSetup(true);});
+// Poll server every 3 seconds for changes saved from the Fixture Controller
+setInterval(()=>loadSetup(true),3000);
 </script>
 </body>
 </html>
