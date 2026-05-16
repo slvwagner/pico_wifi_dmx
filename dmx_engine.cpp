@@ -413,7 +413,7 @@ void dmx_engine_default_config(dmx_engine_config_t *config)
     config->tx_pin = 2;
     config->trigger_pin = 3;
     config->channels = DMX_ENGINE_MAX_CHANNELS;
-    config->refresh_rate = 43;
+    config->refresh_rate = 40;
     config->start_code = 0;
     config->sm_ctrl_id = 8;
     config->sm_data_id = 9;
