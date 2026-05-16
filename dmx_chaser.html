@@ -48,6 +48,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .step-num.playing{background:var(--accent);color:#06110e}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 a.nav:hover{color:var(--text)}
+.mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
+.mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}}
 </style>
 </head>
@@ -69,6 +71,9 @@ a.nav:hover{color:var(--text)}
 
 <!-- Playback bar -->
 <section class="panel">
+  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span class="mode-badge">🖥 Browser Playback</span>
+  </div>
   <div class="toolbar">
     <button class="primary" id="btnPlay">▶ Play</button>
     <button class="stop" id="btnStop" disabled>■ Stop</button>
@@ -150,6 +155,19 @@ a.nav:hover{color:var(--text)}
   <div class="surface" id="stepSurface"></div>
 </section>
 
+<!-- Pico realtime playback -->
+<section class="panel" id="picoPanel" style="border-color:rgba(55,196,164,.35)">
+  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="mode-badge mode-badge--pico">&#x2699; Pico Playback</span>
+    <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play on Pico</button>
+    <button class="stop" id="btnPicoStop">&#x25A0; Stop Pico</button>
+    <span style="display:flex;align-items:center;gap:6px;min-width:0">
+      <span id="picoStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+      <span id="picoStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
+    </span>
+  </div>
+</section>
+
 </main>
 <script>
 // ---- helpers ----
@@ -181,6 +199,43 @@ function sendChannel(ch,value){
   const url=root+'/dmx/set/'+Math.round(ch)+'/'+Math.round(clamp(value,0,255));
   if(root!==location.origin){new Image().src=url+'?t='+Date.now();return;}
   fetch(url,{cache:'no-store'}).catch(()=>{});
+}
+function sendBatch(map){
+  // Encode in URL path — lwIP httpd strips query strings before fs_open.
+  // Only transmit channels whose rounded value changed since the last send.
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return;
+  const pairs=Object.entries(map).reduce((acc,[ch,v])=>{
+    const c=Math.round(ch),rv=Math.round(clamp(v,0,255));
+    if(sentToPico[c]!==rv){sentToPico[c]=rv;acc.push(c+':'+rv);}
+    return acc;
+  },[]).join(',');
+  if(!pairs)return;
+  const url=root+'/dmx/b/'+pairs;
+  if(root!==location.origin){new Image().src=url;return;}
+  fetch(url,{cache:'no-store'}).catch(()=>{});
+}
+function collectChannels(f,c,val,map){
+  val=val??defaultValue(c);
+  if(c.type==='panTilt16'){
+    const pan=bytes16(val.pan??32768),tilt=bytes16(val.tilt??32768);
+    map[absolute(f.start,c.pan)]=pan.coarse;
+    map[absolute(f.start,c.panFine??c.pan+1)]=pan.fine;
+    map[absolute(f.start,c.tilt)]=tilt.coarse;
+    map[absolute(f.start,c.tiltFine??c.tilt+1)]=tilt.fine;
+  }else if(c.type==='panTilt8'){
+    map[absolute(f.start,c.pan)]=val.pan??128;
+    map[absolute(f.start,c.tilt)]=val.tilt??128;
+  }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(p=>{map[absolute(f.start,c[p])]=val[p]??0;});
+  }else if(c.type==='slider16'){
+    const b=bytes16(val??0);
+    map[absolute(f.start,c.channel)]=b.coarse;
+    map[absolute(f.start,c.fine??c.channel+1)]=b.fine;
+  }else{
+    map[absolute(f.start,c.channel)]=val??0;
+  }
 }
 function defaultValue(c){
   if(c.type==='panTilt16')return{pan:32768,tilt:32768};
@@ -575,14 +630,23 @@ let playIntervalId=null;
 let stepEnteredAt=null;
 let prevOutput={};
 let currentOutput={};
+let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
 
 function startPlayback(){
   if(!steps.length){setStatus('Add some steps first',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
+  // Stop any running Pico playback so it doesn't fight the browser
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(root){
+    fetch(root+'/chaser/stop').catch(()=>{});
+    fetch(root+'/motion/stop').catch(()=>{});
+    stopPicoStatusPoll();
+    setPicoStatus('Stopped (browser took over)','var(--muted)');
+  }
   playing=true;
   activeStepIdx=0;
   stepEnteredAt=performance.now();
-  prevOutput={};currentOutput={};
+  prevOutput={};currentOutput={};sentToPico={};
   document.getElementById('btnPlay').textContent='⏸ Pause';
   document.getElementById('btnStop').disabled=false;
   const hz=clamp(document.getElementById('updateRate').value,5,50);
@@ -624,14 +688,16 @@ function playbackTick(){
   const elapsed=now-stepEnteredAt;
   const t=fadeMs>0?Math.min(1,elapsed/fadeMs):1;
   const ptList=getParticipatingList();
+  const batchMap={};
   ptList.forEach(({f,c})=>{
     const k=controlKey(f,c);
     const toVal=step.values[k]??defaultValue(c);
     const fromVal=prevOutput[k]??defaultValue(c);
     const val=t>=1?toVal:interpolateValue(fromVal,toVal,t);
     currentOutput[k]=val;
-    sendControlValue(f,c,val);
+    collectChannels(f,c,val,batchMap);
   });
+  sendBatch(batchMap);
   const progress=Math.min(100,elapsed/durMs*100);
   document.getElementById('stepProgress').style.width=progress+'%';
   const remaining=Math.max(0,Math.round(durMs-elapsed));
@@ -667,7 +733,9 @@ function manualStep(dir){
   stepEnteredAt=performance.now();
   if(!playing){
     const step=steps[activeStepIdx];
-    ptList.forEach(({f,c})=>sendControlValue(f,c,step.values[controlKey(f,c)]??defaultValue(c)));
+    const batchMap={};
+    ptList.forEach(({f,c})=>collectChannels(f,c,step.values[controlKey(f,c)]??defaultValue(c),batchMap));
+    sendBatch(batchMap);
     setStatus('Step '+(activeStepIdx+1)+': '+step.label);
     document.getElementById('btnStop').disabled=false;
   }
@@ -749,6 +817,71 @@ document.getElementById('btnApplyMeta').onclick=()=>{
 };
 document.getElementById('btnSelAll').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=true);drawParticipation();drawStepEditor();};
 document.getElementById('btnSelNone').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=false);drawParticipation();drawStepEditor();};
+
+// ---- Pico realtime playback ----
+function serializeChaserForPico(){
+  const lines=[];
+  lines.push('LOOP '+(document.getElementById('loopCheck').checked?'1':'0'));
+  const ptList=getParticipatingList();
+  steps.forEach(step=>{
+    lines.push('STEP '+step.duration+' '+(step.fade??0));
+    const map={};
+    ptList.forEach(({f,c})=>collectChannels(f,c,step.values[controlKey(f,c)]??defaultValue(c),map));
+    Object.entries(map).forEach(([ch,val])=>lines.push('CH '+ch+' '+val));
+  });
+  lines.push('END');
+  return lines.join('\n');
+}
+
+let picoStatusTimer=null;
+function setPicoStatus(msg,color){
+  document.getElementById('picoStatus').textContent=msg;
+  document.getElementById('picoStatus').style.color=color||'var(--muted)';
+  document.getElementById('picoStatusDot').style.background=color||'var(--muted)';
+}
+function pollPicoStatus(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  fetch(root+'/chaser/status').then(r=>r.json()).then(j=>{
+    if(j.ok){
+      const s=j.playing?'Playing step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms)':'Stopped';
+      setPicoStatus(s,j.playing?'var(--accent)':'var(--muted)');
+    }
+  }).catch(()=>setPicoStatus('No response','var(--bad)'));
+}
+function startPicoStatusPoll(){
+  stopPicoStatusPoll();
+  picoStatusTimer=setInterval(pollPicoStatus,1000);
+  pollPicoStatus();
+}
+function stopPicoStatusPoll(){
+  if(picoStatusTimer){clearInterval(picoStatusTimer);picoStatusTimer=null;}
+}
+
+document.getElementById('btnPicoUploadPlay').onclick=async()=>{
+  if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
+  stopPlayback(); // stop browser playback so it doesn't fight Pico
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  const body=serializeChaserForPico();
+  setPicoStatus('Uploading…','var(--warn)');
+  try{
+    const r=await fetch(root+'/chaser/load',{method:'POST',body,headers:{'Content-Type':'text/plain'}});
+    const j=await r.json();
+    if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
+    const r2=await fetch(root+'/chaser/play');
+    const j2=await r2.json();
+    if(j2.ok){setPicoStatus('Playing on Pico','var(--accent)');startPicoStatusPoll();}
+    else{setPicoStatus('Play error','var(--bad)');}
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoStop').onclick=async()=>{
+  stopPicoStatusPoll();
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  try{
+    await fetch(root+'/chaser/stop');
+    setPicoStatus('Stopped','var(--muted)');
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
 
 // ---- init ----
 loadSetup();

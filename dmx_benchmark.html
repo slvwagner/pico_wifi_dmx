@@ -33,6 +33,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 a.nav:hover{color:var(--text)}
 canvas{display:block;border-radius:6px;background:#0a0d10;width:100%}
+.mode-badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;background:#1a2a20;color:var(--accent);border:1px solid var(--accent)}
+.mode-badge.batch{background:#2a221a;color:var(--warn);border-color:var(--warn)}
+.hint{color:var(--muted);font-size:12px;align-self:end;padding-bottom:11px}
 </style>
 </head>
 <body>
@@ -52,11 +55,13 @@ canvas{display:block;border-radius:6px;background:#0a0d10;width:100%}
 
 <section class="panel">
   <div class="toolbar">
-    <label>Channel<input id="channel" type="number" min="1" max="512" value="1"></label>
+    <label>Start channel<input id="channel" type="number" min="1" max="512" value="1"></label>
     <label>Value<input id="value" type="number" min="0" max="255" value="128"></label>
+    <label title="1 = single /dmx/set, 2+ = /dmx/b/ with N consecutive channels">Channels / request<input id="chPerReq" type="number" min="1" max="512" value="1"></label>
     <label>Request count<input id="reqCount" type="number" min="10" max="5000" value="200"></label>
     <button class="primary" id="btnStart">▶ Start</button>
     <button class="stop" id="btnStop" disabled>■ Stop</button>
+    <div class="hint" id="modeHint"></div>
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
 </section>
@@ -67,6 +72,11 @@ canvas{display:block;border-radius:6px;background:#0a0d10;width:100%}
       <div class="stat-label">Throughput</div>
       <div class="stat-value" id="statFps">—</div>
       <div class="stat-unit">req / s</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Channels / s</div>
+      <div class="stat-value" id="statChs">—</div>
+      <div class="stat-unit">effective DMX updates/s</div>
     </div>
     <div class="stat">
       <div class="stat-label">Avg latency</div>
@@ -105,10 +115,16 @@ try{const d=JSON.parse(localStorage.getItem('dmxFixtureController')||'{}');if(d.
 
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
 
-let running=false;
-let latencies=[];
-let errors=0;
-let testStart=0;
+function updateModeHint(){
+  const n=Math.max(1,parseInt(document.getElementById('chPerReq').value)||1);
+  const el=document.getElementById('modeHint');
+  if(n===1){el.innerHTML='<span class="mode-badge">single</span> /dmx/set/{ch}/{val}';}
+  else{el.innerHTML='<span class="mode-badge batch">batch ×'+n+'</span> /dmx/b/{ch}:{val},…';}
+}
+document.getElementById('chPerReq').oninput=updateModeHint;
+updateModeHint();
+
+let running=false,latencies=[],errors=0,testStart=0,testChPerReq=1;
 
 function updateStats(total){
   const n=latencies.length;
@@ -123,7 +139,9 @@ function updateStats(total){
   const min=Math.min(...latencies);
   const max=Math.max(...latencies);
   const fps=n/(elapsed/1000);
+  const chs=fps*testChPerReq;
   document.getElementById('statFps').textContent=fps.toFixed(1);
+  document.getElementById('statChs').textContent=Math.round(chs);
   const avgEl=document.getElementById('statAvg');
   avgEl.textContent=avg.toFixed(1);
   avgEl.className='stat-value'+(avg<20?'':avg<100?' warn':' bad');
@@ -162,26 +180,34 @@ function drawChart(){
   });
 }
 
+function buildUrl(root,ch,val,n){
+  if(n===1) return root+'/dmx/set/'+ch+'/'+val+'?t=';
+  const pairs=[];
+  for(let i=0;i<n;i++) pairs.push((ch+i)+':'+val);
+  return root+'/dmx/b/'+pairs.join(',')+'?t=';
+}
+
 async function runTest(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setStatus('Set Pico base URL first',true);return;}
-  const ch=Math.round(parseFloat(document.getElementById('channel').value)||1);
+  const ch=Math.max(1,Math.round(parseFloat(document.getElementById('channel').value)||1));
   const val=Math.round(parseFloat(document.getElementById('value').value)||128);
+  const n=Math.max(1,Math.round(parseFloat(document.getElementById('chPerReq').value)||1));
   const count=Math.max(1,parseInt(document.getElementById('reqCount').value)||200);
-  const url=root+'/dmx/set/'+ch+'/'+val;
+  const urlBase=buildUrl(root,ch,val,n);
+  testChPerReq=n;
   running=true;latencies=[];errors=0;testStart=performance.now();
   document.getElementById('btnStart').disabled=true;
   document.getElementById('btnStop').disabled=false;
   document.getElementById('progress').style.width='0%';
-  setStatus('Running — sending '+count+' requests sequentially…');
+  const modeLabel=n===1?'single /dmx/set':'batch ×'+n+' /dmx/b';
+  setStatus('Running '+modeLabel+' — '+count+' requests…');
   for(let i=0;i<count&&running;i++){
     const t0=performance.now();
     try{
-      await fetch(url+'?t='+Date.now(),{cache:'no-store',mode:'no-cors'});
+      await fetch(urlBase+Date.now(),{cache:'no-store',mode:'no-cors'});
       latencies.push(performance.now()-t0);
-    }catch(e){
-      errors++;
-    }
+    }catch(e){errors++;}
     if(i%10===0)updateStats(count);
   }
   running=false;
@@ -190,7 +216,8 @@ async function runTest(){
   updateStats(count);
   const avg=latencies.length?(latencies.reduce((a,b)=>a+b,0)/latencies.length).toFixed(1):'?';
   const fps=latencies.length?(latencies.length/((performance.now()-testStart)/1000)).toFixed(1):'?';
-  setStatus('Done — '+latencies.length+' requests · avg '+avg+'ms · '+fps+' req/s'+(errors?' · '+errors+' errors':''));
+  const chs=latencies.length?Math.round(parseFloat(fps)*n):'?';
+  setStatus('Done ('+(n===1?'single':'batch ×'+n)+') — '+latencies.length+' req · avg '+avg+'ms · '+fps+' req/s · '+chs+' ch/s'+(errors?' · '+errors+' errors':''));
 }
 
 document.getElementById('btnStart').onclick=runTest;

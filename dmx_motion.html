@@ -31,6 +31,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 a.nav:hover{color:var(--text);border-color:var(--text)}
+.mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
+.mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 </style>
 </head>
 <body>
@@ -43,12 +45,18 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <a class="nav" href="index.html">← Fixture Controller</a>  <a class="nav" href="dmx_chaser.html">Chaser →</a>    <button class="primary" id="startStop">▶ Start</button>
+    <a class="nav" href="index.html">← Fixture Controller</a>    <a class="nav" href="dmx_chaser.html">Chaser →</a>
   </div>
 </header>
 
 <section class="panel">
-  <h2>Effect Parameters</h2>
+  <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h2>Effect Parameters</h2>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span class="mode-badge">🖥 Browser</span>
+      <button class="primary" id="startStop">▶ Start</button>
+    </span>
+  </div>
   <div class="toolbar">
     <label>Effect
       <select id="effectType">
@@ -83,6 +91,19 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
   <div class="list" id="fixtureList"></div>
   <button id="reloadSetup" style="justify-self:start;margin-top:4px">↻ Reload from Fixture Controller</button>
+</section>
+
+<!-- Pico Motion FX -->
+<section class="panel" style="border-color:rgba(55,196,164,.35)">
+  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="mode-badge mode-badge--pico">&#x2699; Pico Motion</span>
+    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play on Pico</button>
+    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop Pico</button>
+    <span style="display:flex;align-items:center;gap:6px;min-width:0">
+      <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+      <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
+    </span>
+  </div>
 </section>
 
 </main>
@@ -314,12 +335,22 @@ function drawPathPreview(){
 let running=false;
 let intervalId=null;
 let startTime=null;
+let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
 
 function startMotion(){
   if(!motionFixtures.some(mf=>mf.enabled)){setStatus('Enable at least one fixture',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
+  // Stop any running Pico motion so it doesn't fight the browser
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(root){
+    fetch(root+'/motion/stop').catch(()=>{});
+    fetch(root+'/chaser/stop').catch(()=>{});
+    stopPicoMotionPoll();
+    setPicoMotionStatus('Stopped (browser took over)','var(--muted)');
+  }
   running=true;
   startTime=performance.now();
+  sentToPico={};
   const hz=clamp(document.getElementById('updateRate').value,5,50);
   document.getElementById('startStop').textContent='■ Stop';
   document.getElementById('startStop').className='stop';
@@ -335,6 +366,22 @@ function stopMotion(){
   setStatus('Stopped');
 }
 
+function sendBatch(map){
+  // Encode in URL path — lwIP httpd strips query strings before fs_open.
+  // Only transmit channels whose rounded value changed since the last send.
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return;
+  const pairs=Object.entries(map).reduce((acc,[ch,v])=>{
+    const c=Math.round(ch),rv=Math.round(clamp(v,0,255));
+    if(sentToPico[c]!==rv){sentToPico[c]=rv;acc.push(c+':'+rv);}
+    return acc;
+  },[]).join(',');
+  if(!pairs)return;
+  const url=root+'/dmx/b/'+pairs;
+  if(root!==location.origin){new Image().src=url;return;}
+  fetch(url,{cache:'no-store'}).catch(()=>{});
+}
+
 function tick(){
   const elapsed=(performance.now()-startTime)/1000;
   const bpm=clamp(document.getElementById('bpm').value,1,600);
@@ -344,6 +391,7 @@ function tick(){
   const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
+  const batchMap={};
 
   enabled.forEach((mf,i)=>{
     const c=mf.control;
@@ -358,13 +406,13 @@ function tick(){
 
     if(c.type==='panTilt16'){
       const pan=bytes16(newPan),tilt=bytes16(newTilt);
-      sendChannel(absolute(f.start,c.pan),pan.coarse);
-      sendChannel(absolute(f.start,c.panFine??c.pan+1),pan.fine);
-      sendChannel(absolute(f.start,c.tilt),tilt.coarse);
-      sendChannel(absolute(f.start,c.tiltFine??c.tilt+1),tilt.fine);
+      batchMap[absolute(f.start,c.pan)]=pan.coarse;
+      batchMap[absolute(f.start,c.panFine??c.pan+1)]=pan.fine;
+      batchMap[absolute(f.start,c.tilt)]=tilt.coarse;
+      batchMap[absolute(f.start,c.tiltFine??c.tilt+1)]=tilt.fine;
     }else{
-      sendChannel(absolute(f.start,c.pan),newPan);
-      sendChannel(absolute(f.start,c.tilt),newTilt);
+      batchMap[absolute(f.start,c.pan)]=newPan;
+      batchMap[absolute(f.start,c.tilt)]=newTilt;
     }
 
     // update mini XY pad
@@ -375,6 +423,7 @@ function tick(){
     if(posEl)posEl.textContent='Pan '+Math.round(newPan)+' · Tilt '+Math.round(newTilt);
   });
 
+  sendBatch(batchMap);
   setStatus('Running · '+elapsed.toFixed(1)+'s · '+Math.round(enabled.length*(document.getElementById('updateRate').value))+ ' ch/s');
 }
 
@@ -387,6 +436,76 @@ document.getElementById('effectType').onchange=drawPathPreview;
   const valEl=document.getElementById(id+'Val');
   el.oninput=()=>{valEl.textContent=el.value;drawPathPreview();};
 });
+
+// ---- Pico Motion FX ----
+const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3};
+function serializeMotionForPico(){
+  const type=document.getElementById('effectType').value;
+  const bpm=parseFloat(document.getElementById('bpm').value);
+  const panAmp=parseFloat(document.getElementById('panAmp').value)/100;
+  const tiltAmp=parseFloat(document.getElementById('tiltAmp').value)/100;
+  const spread=parseFloat(document.getElementById('phaseSpread').value);
+  const lines=[
+    'TYPE '+(typeMapPico[type]??0),
+    'BPM '+bpm.toFixed(4),
+    'PANAMP '+panAmp.toFixed(6),
+    'TILTAMP '+tiltAmp.toFixed(6),
+    'SPREAD '+spread.toFixed(4),
+  ];
+  motionFixtures.forEach(mf=>{
+    const c=mf.control,f=mf.fixture;
+    const is16=c.type==='panTilt16'?1:0;
+    const panCh=absolute(f.start,c.pan);
+    const panFine=is16?absolute(f.start,c.panFine??c.pan+1):0;
+    const tiltCh=absolute(f.start,c.tilt);
+    const tiltFine=is16?absolute(f.start,c.tiltFine??c.tilt+1):0;
+    lines.push('FIX '+(mf.enabled?1:0)+' '+panCh+' '+panFine+' '+tiltCh+' '+tiltFine+' '+is16+' '+
+      mf.panCenter.toFixed(2)+' '+mf.tiltCenter.toFixed(2)+' '+mf.phaseOffset.toFixed(2));
+  });
+  lines.push('END');
+  return lines.join('\n');
+}
+
+let picoMotionTimer=null;
+function setPicoMotionStatus(msg,color){
+  document.getElementById('picoMotionStatus').textContent=msg;
+  document.getElementById('picoMotionStatus').style.color=color||'var(--muted)';
+  document.getElementById('picoMotionStatusDot').style.background=color||'var(--muted)';
+}
+function pollPicoMotionStatus(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  fetch(root+'/motion/status').then(r=>r.json()).then(j=>{
+    if(j.ok){
+      const s=j.active?('Running · '+j.elapsed_s.toFixed(1)+'s · BPM '+j.bpm.toFixed(1)):'Stopped';
+      setPicoMotionStatus(s,j.active?'var(--accent)':'var(--muted)');
+    }
+  }).catch(()=>setPicoMotionStatus('No response','var(--bad)'));
+}
+function startPicoMotionPoll(){stopPicoMotionPoll();picoMotionTimer=setInterval(pollPicoMotionStatus,1000);pollPicoMotionStatus();}
+function stopPicoMotionPoll(){if(picoMotionTimer){clearInterval(picoMotionTimer);picoMotionTimer=null;}}
+
+document.getElementById('btnPicoMotionUpload').onclick=async()=>{
+  if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
+  stopMotion(); // stop browser motion so it doesn't fight Pico
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  const body=serializeMotionForPico();
+  setPicoMotionStatus('Uploading…','var(--warn)');
+  try{
+    const r=await fetch(root+'/motion/load',{method:'POST',body,headers:{'Content-Type':'text/plain'}});
+    const j=await r.json();
+    if(!j.ok){setPicoMotionStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
+    const r2=await fetch(root+'/motion/start');
+    const j2=await r2.json();
+    if(j2.ok){setPicoMotionStatus('Running on Pico','var(--accent)');startPicoMotionPoll();}
+    else{setPicoMotionStatus('Start error','var(--bad)');}
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+document.getElementById('btnPicoMotionStop').onclick=async()=>{
+  stopPicoMotionPoll();
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  try{await fetch(root+'/motion/stop');setPicoMotionStatus('Stopped','var(--muted)');}
+  catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
 
 loadSetup();
 // Auto-reload when Fixture Controller saves to localStorage in another tab

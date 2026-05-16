@@ -12,8 +12,11 @@
 #include "lwip/netif.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/ip6_addr.h"
+#include "lwip/pbuf.h"
 
 #include "dmx_engine.h"
+#include "pico_chaser.h"
+#include "pico_motion.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
@@ -51,8 +54,15 @@ static char http_page[12288];
 static char http_logs[6144];
 static char http_status_json[1024];
 static char http_dmx_json[1024];
+static char http_playback_json[512];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
+
+/* POST receive buffer */
+#define POST_BUFFER_MAX (12 * 1024)
+static char    post_buffer[POST_BUFFER_MAX];
+static size_t  post_length = 0;
+static enum { POST_NONE = 0, POST_CHASER, POST_MOTION } post_type = POST_NONE;
 
 extern char __StackLimit;
 
@@ -379,6 +389,7 @@ static void build_status_json()
         sizeof(http_status_json),
         "HTTP/1.0 200 OK\r\n"
         "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
@@ -486,6 +497,7 @@ static void build_dmx_json_response(unsigned status_code, const char *status_tex
         sizeof(http_dmx_json),
         "HTTP/1.0 %u %s\r\n"
         "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
@@ -493,6 +505,58 @@ static void build_dmx_json_response(unsigned status_code, const char *status_tex
         status_code,
         status_text,
         body);
+}
+
+// /dmx/b/<ch>:<val>,<ch>:<val>,…  — batch set, data encoded in path (no query string)
+// lwIP httpd strips query strings before fs_open, so we must use the path.
+static void build_dmx_b_response(const char *name)
+{
+    // name = "/dmx/b/1:255,2:128,..."  — skip the 7-char prefix "/dmx/b/"
+    const char *data = name + 7;
+    if (!*data) {
+        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"Use /dmx/b/ch:val,ch:val\"}\n");
+        return;
+    }
+
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+
+    uint16_t updated = 0;
+    const char *p = data;
+    while (*p) {
+        char *end_ch = NULL;
+        unsigned long ch = strtoul(p, &end_ch, 10);
+        if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= status.channels) {
+            char *end_val = NULL;
+            unsigned long val = strtoul(end_ch + 1, &end_val, 10);
+            if (end_val != end_ch + 1 && val <= 255) {
+                dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                critical_section_enter_blocking(&dmx_ui_lock);
+                dmx_ui_values[ch] = (uint8_t)val;
+                critical_section_exit(&dmx_ui_lock);
+                updated++;
+            }
+            p = end_val;
+        } else {
+            const char *next = strchr(p, ',');
+            if (!next) break;
+            p = next;
+        }
+        if (*p == ',') p++;
+        else break;
+    }
+
+    snprintf(
+        http_dmx_json,
+        sizeof(http_dmx_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"updated\":%u}\n",
+        updated);
 }
 
 static void build_dmx_set_response(const char *name)
@@ -530,6 +594,7 @@ static void build_dmx_set_response(const char *name)
         sizeof(http_dmx_json),
         "HTTP/1.0 200 OK\r\n"
         "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
@@ -608,10 +673,84 @@ static void build_dmx_values_response(const char *name)
     }
 }
 
+static void build_chaser_status_response()
+{
+    chaser_status_t s;
+    chaser_get_status(&s);
+    snprintf(http_playback_json, sizeof(http_playback_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"playing\":%s,\"loaded\":%s,\"loop\":%s,"
+        "\"step\":%u,\"step_count\":%u,\"elapsed_ms\":%lu}\n",
+        s.playing    ? "true" : "false",
+        s.loaded     ? "true" : "false",
+        s.loop       ? "true" : "false",
+        s.current_step,
+        s.step_count,
+        (unsigned long)s.elapsed_ms);
+}
+
+static void build_motion_status_response()
+{
+    mfx_status_t s;
+    mfx_get_status(&s);
+    snprintf(http_playback_json, sizeof(http_playback_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"active\":%s,\"loaded\":%s,\"type\":%d,"
+        "\"bpm\":%.2f,\"elapsed_s\":%.2f}\n",
+        s.active ? "true" : "false",
+        s.loaded ? "true" : "false",
+        s.type,
+        (double)s.bpm,
+        (double)s.elapsed_s);
+}
+
+static void build_playback_ok_response(const char *msg)
+{
+    snprintf(http_playback_json, sizeof(http_playback_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"msg\":\"%s\"}\n", msg);
+}
+
+static void build_playback_err_response(const char *msg)
+{
+    snprintf(http_playback_json, sizeof(http_playback_json),
+        "HTTP/1.0 400 Bad Request\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":false,\"error\":\"%s\"}\n", msg);
+}
+
 extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 {
     if (path_matches(name, "/dmx/set")) {
         build_dmx_set_response(name);
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/b")) {
+        build_dmx_b_response(name);
         file->data = http_dmx_json;
         file->len = (int)strlen(http_dmx_json);
         file->index = file->len;
@@ -664,6 +803,84 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    /* ----- Chaser endpoints ------------------------------------------- */
+    if (path_matches(name, "/chaser/play")) {
+        chaser_play();
+        build_playback_ok_response("chaser playing");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/chaser/stop")) {
+        chaser_stop();
+        build_playback_ok_response("chaser stopped");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/chaser/status")) {
+        build_chaser_status_response();
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    /* POST /chaser/load response — pre-built in httpd_post_finished */
+    if (path_matches(name, "/chaser/load_ok")) {
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    /* ----- Motion endpoints ------------------------------------------- */
+    if (path_matches(name, "/motion/start")) {
+        mfx_start();
+        build_playback_ok_response("motion started");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/stop")) {
+        mfx_stop();
+        build_playback_ok_response("motion stopped");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/status")) {
+        build_motion_status_response();
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    /* POST /motion/load response — pre-built in httpd_post_finished */
+    if (path_matches(name, "/motion/load_ok")) {
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     if (strcmp(name, "/dmx.html") == 0 ||
         strcmp(name, "/dmx") == 0) {
         build_dmx_page();
@@ -691,6 +908,85 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 extern "C" void fs_close_custom(struct fs_file *file)
 {
     (void)file;
+}
+
+/* ========================================================================
+ * lwIP HTTPD POST callbacks
+ * ====================================================================== */
+
+extern "C" err_t httpd_post_begin(void *connection,
+                                   const char *uri,
+                                   const char *http_request,
+                                   u16_t http_request_len,
+                                   int content_len,
+                                   char *response_uri,
+                                   u16_t response_uri_len,
+                                   u8_t *post_auto_wnd)
+{
+    (void)connection; (void)http_request; (void)http_request_len;
+    (void)response_uri; (void)response_uri_len;
+
+    post_length = 0;
+    *post_auto_wnd = 1;
+
+    if (content_len > (int)(POST_BUFFER_MAX - 1))
+        return ERR_VAL; /* body too large */
+
+    if (strcmp(uri, "/chaser/load") == 0) {
+        post_type = POST_CHASER;
+        return ERR_OK;
+    }
+    if (strcmp(uri, "/motion/load") == 0) {
+        post_type = POST_MOTION;
+        return ERR_OK;
+    }
+
+    post_type = POST_NONE;
+    return ERR_VAL;
+}
+
+extern "C" err_t httpd_post_receive_data(void *connection, struct pbuf *p)
+{
+    (void)connection;
+    struct pbuf *q = p;
+    while (q != NULL) {
+        uint16_t copy = q->len;
+        if (post_length + copy > POST_BUFFER_MAX - 1)
+            copy = (uint16_t)(POST_BUFFER_MAX - 1 - post_length);
+        if (copy > 0) {
+            memcpy(post_buffer + post_length, q->payload, copy);
+            post_length += copy;
+        }
+        q = q->next;
+    }
+    pbuf_free(p);
+    return ERR_OK;
+}
+
+extern "C" void httpd_post_finished(void *connection,
+                                     char *response_uri,
+                                     u16_t response_uri_len)
+{
+    (void)connection;
+    post_buffer[post_length] = '\0';
+
+    if (post_type == POST_CHASER) {
+        bool ok = chaser_load(post_buffer, post_length);
+        if (ok) build_playback_ok_response("chaser loaded");
+        else    build_playback_err_response("parse error");
+        snprintf(response_uri, response_uri_len, "/chaser/load_ok");
+    } else if (post_type == POST_MOTION) {
+        bool ok = mfx_load(post_buffer, post_length);
+        if (ok) build_playback_ok_response("motion loaded");
+        else    build_playback_err_response("parse error");
+        snprintf(response_uri, response_uri_len, "/motion/load_ok");
+    } else {
+        build_playback_err_response("unknown endpoint");
+        snprintf(response_uri, response_uri_len, "/chaser/load_ok");
+    }
+
+    post_type   = POST_NONE;
+    post_length = 0;
 }
 
 static void core1_network_log_server()
@@ -744,6 +1040,9 @@ static void core1_network_log_server()
 
 static void core0_application_loop()
 {
+    chaser_init();
+    mfx_init();
+
     dmx_engine_config_t dmx_config;
     dmx_engine_default_config(&dmx_config);
     dmx_config.tx_pin = DMX_TX_PIN;
@@ -770,9 +1069,17 @@ static void core0_application_loop()
     log_printf("Core0 DMX engine running\n");
 
     uint32_t loop_count = 0;
+    uint32_t last_playback_tick = 0;
 
     while (application_running) {
         dmx_engine_poll();
+
+        uint32_t now_us = time_us_32();
+        if (now_us - last_playback_tick >= 10000) {  /* 100 Hz */
+            chaser_tick(now_us);
+            mfx_tick(now_us);
+            last_playback_tick = now_us;
+        }
 
         if ((loop_count++ % 5000) == 0) {
             dmx_engine_status_t status;
