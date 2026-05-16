@@ -1,5 +1,4 @@
 #include "pico_motion.h"
-#include "dmx_engine.h"
 #include "pico/sync.h"
 #include <string.h>
 #include <stdlib.h>
@@ -39,8 +38,6 @@ typedef struct {
 } mfx_snap_t;
 
 static mfx_snap_t snaps[MFX_MAX_SLOTS]; /* snapshots taken under lock   */
-static uint8_t    dmx_scratch[513];     /* accumulated DMX values, ch 1-512 */
-static uint8_t    dmx_touched[513];     /* non-zero = channel was written   */
 
 /* ---------- init --------------------------------------------------------- */
 
@@ -184,11 +181,11 @@ static void effect_offset(float t, mfx_type_t type, float *pan_off, float *tilt_
 }
 
 /* Write 8-bit value to scratch with bigger-wins. */
-static inline void scratch8(uint16_t ch, uint8_t v)
+static inline void scratch8(uint16_t ch, uint8_t v, uint8_t *scratch, bool *touched)
 {
     if (ch < 1 || ch > 512) return;
-    if (!dmx_touched[ch] || v > dmx_scratch[ch]) dmx_scratch[ch] = v;
-    dmx_touched[ch] = 1;
+    if (!touched[ch] || v > scratch[ch]) scratch[ch] = v;
+    touched[ch] = true;
 }
 
 /*
@@ -197,24 +194,25 @@ static inline void scratch8(uint16_t ch, uint8_t v)
  * e.g. slot A=49920 (c=194,f=255) vs slot B=50001 (c=195,f=65):
  *   byte-by-byte max would give 50175 (wrong); 16-bit max gives 50001 (correct).
  */
-static inline void scratch16(uint16_t coarse_ch, uint16_t fine_ch, uint16_t v16)
+static inline void scratch16(uint16_t coarse_ch, uint16_t fine_ch, uint16_t v16,
+                             uint8_t *scratch, bool *touched)
 {
     if (coarse_ch < 1 || coarse_ch > 512) return;
-    uint16_t cur = dmx_touched[coarse_ch]
-        ? (((uint16_t)dmx_scratch[coarse_ch] << 8) |
-           (fine_ch >= 1 && fine_ch <= 512 ? dmx_scratch[fine_ch] : 0u))
+    uint16_t cur = touched[coarse_ch]
+        ? (((uint16_t)scratch[coarse_ch] << 8) |
+           (fine_ch >= 1 && fine_ch <= 512 ? scratch[fine_ch] : 0u))
         : 0u;
-    if (!dmx_touched[coarse_ch] || v16 > cur) {
-        dmx_scratch[coarse_ch] = (v16 >> 8) & 0xFF;
-        dmx_touched[coarse_ch] = 1;
+    if (!touched[coarse_ch] || v16 > cur) {
+        scratch[coarse_ch] = (v16 >> 8) & 0xFF;
+        touched[coarse_ch] = true;
         if (fine_ch >= 1 && fine_ch <= 512) {
-            dmx_scratch[fine_ch] = v16 & 0xFF;
-            dmx_touched[fine_ch] = 1;
+            scratch[fine_ch] = v16 & 0xFF;
+            touched[fine_ch] = true;
         }
     }
 }
 
-void mfx_tick(uint32_t now_us)
+void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 {
     /* ---- snapshot all active slots under lock ------------------------- */
     critical_section_enter_blocking(&mfx_lock);
@@ -246,8 +244,8 @@ void mfx_tick(uint32_t now_us)
     if (active_count == 0) return;
 
     /* ---- compute every active slot, accumulate with bigger-wins ------- */
-    memset(dmx_scratch, 0, sizeof(dmx_scratch));
-    memset(dmx_touched, 0, sizeof(dmx_touched));
+    /* NOTE: caller owns scratch/touched and clears them before the first
+     * tick call this cycle — do NOT clear here. */
 
     for (int si = 0; si < active_count; si++) {
         mfx_snap_t *sn   = &snaps[si];
@@ -278,25 +276,20 @@ void mfx_tick(uint32_t now_us)
                 float new_pan = f->pan_center + pan_off * sn->pan_amp * half;
                 if (new_pan < 0.0f)       new_pan = 0.0f;
                 if (new_pan > f->max_val) new_pan = f->max_val;
-                if (f->is_16bit) scratch16(f->pan_ch,  f->pan_fine_ch,  (uint16_t)new_pan);
-                else              scratch8 (f->pan_ch,                   (uint8_t) new_pan);
+                if (f->is_16bit) scratch16(f->pan_ch,  f->pan_fine_ch,  (uint16_t)new_pan,  scratch, touched);
+                else              scratch8 (f->pan_ch,                   (uint8_t) new_pan,  scratch, touched);
             }
             if (moves_tilt) {
                 float new_tilt = f->tilt_center + tilt_off * sn->tilt_amp * half;
                 if (new_tilt < 0.0f)       new_tilt = 0.0f;
                 if (new_tilt > f->max_val) new_tilt = f->max_val;
-                if (f->is_16bit) scratch16(f->tilt_ch, f->tilt_fine_ch, (uint16_t)new_tilt);
-                else              scratch8 (f->tilt_ch,                  (uint8_t) new_tilt);
+                if (f->is_16bit) scratch16(f->tilt_ch, f->tilt_fine_ch, (uint16_t)new_tilt, scratch, touched);
+                else              scratch8 (f->tilt_ch,                  (uint8_t) new_tilt, scratch, touched);
             }
             fi++;
         }
     }
-
-    /* ---- write accumulated values to the DMX engine ------------------- */
-    for (int ch = 1; ch <= 512; ch++) {
-        if (dmx_touched[ch])
-            dmx_engine_set_channel((uint16_t)ch, dmx_scratch[ch]);
-    }
+    /* DMX writes are done by the caller after all ticks accumulate. */
 }
 
 /* ---------- status ------------------------------------------------------- */

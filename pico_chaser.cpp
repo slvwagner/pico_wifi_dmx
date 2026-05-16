@@ -1,5 +1,4 @@
 #include "pico_chaser.h"
-#include "dmx_engine.h"
 #include "pico/sync.h"
 #include <string.h>
 #include <stdlib.h>
@@ -30,10 +29,6 @@ typedef struct {
 } chaser_play_state_t;
 
 static chaser_play_state_t play_state[CHASER_MAX_SLOTS];
-
-/* scratch for bigger-wins merge (written outside lock) */
-static uint8_t chaser_scratch[513];
-static bool    chaser_touched[513];
 
 static critical_section_t chaser_lock;
 
@@ -166,13 +161,13 @@ static inline uint8_t lerp8(uint8_t a, uint8_t b, float t)
     return (uint8_t)v;
 }
 
-void chaser_tick(uint32_t now_us)
+void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 {
     critical_section_enter_blocking(&chaser_lock);
 
     /* Build bigger-wins merged output for all active slots */
-    memset(chaser_scratch, 0, sizeof(chaser_scratch));
-    memset(chaser_touched, 0, sizeof(chaser_touched));
+    /* NOTE: caller owns scratch/touched; do NOT clear them here — other
+     * modules may have already accumulated values this tick. */
 
     for (uint8_t sl = 0; sl < CHASER_MAX_SLOTS; sl++) {
         chaser_play_state_t *ps = &play_state[sl];
@@ -202,9 +197,9 @@ void chaser_tick(uint32_t now_us)
             chaser_ch_t *e = &sd->channels[step.ch_start + i];
             uint8_t val = lerp8(ps->from_values[e->channel], e->value, t);
             /* bigger-wins: highest value across all active slots wins */
-            if (!chaser_touched[e->channel] || val > chaser_scratch[e->channel]) {
-                chaser_scratch[e->channel] = val;
-                chaser_touched[e->channel] = true;
+            if (!touched[e->channel] || val > scratch[e->channel]) {
+                scratch[e->channel] = val;
+                touched[e->channel] = true;
             }
         }
 
@@ -228,11 +223,7 @@ void chaser_tick(uint32_t now_us)
     }
 
     critical_section_exit(&chaser_lock);
-
-    /* Write merged values outside lock */
-    for (uint16_t ch = 1; ch <= 512; ch++)
-        if (chaser_touched[ch])
-            dmx_engine_set_channel(ch, chaser_scratch[ch]);
+    /* DMX writes are done by the caller after all ticks accumulate. */
 }
 
 /* ---------- status ------------------------------------------------------- */

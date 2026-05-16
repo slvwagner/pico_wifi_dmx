@@ -1216,13 +1216,27 @@ static void core0_application_loop()
     uint32_t loop_count = 0;
     uint32_t last_playback_tick = 0;
 
+    /* Shared cross-module bigger-wins scratch (indices 1-512). */
+    static uint8_t tick_scratch[513];
+    static bool    tick_touched[513];
+
     while (application_running) {
         dmx_engine_poll();
 
         uint32_t now_us = time_us_32();
         if (now_us - last_playback_tick >= 10000) {  /* 100 Hz */
-            chaser_tick(now_us);
-            mfx_tick(now_us);
+            /* Clear once per tick; all modules accumulate into the same buffers. */
+            memset(tick_scratch, 0, sizeof(tick_scratch));
+            memset(tick_touched, 0, sizeof(tick_touched));
+
+            chaser_tick(now_us, tick_scratch, tick_touched);
+            mfx_tick(now_us, tick_scratch, tick_touched);
+
+            /* Single engine write — bigger-wins already resolved in scratch. */
+            for (uint16_t ch = 1; ch <= 512; ch++)
+                if (tick_touched[ch])
+                    dmx_engine_set_channel(ch, tick_scratch[ch]);
+
             last_playback_tick = now_us;
         }
 

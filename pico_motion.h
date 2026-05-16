@@ -52,7 +52,7 @@ void mfx_start(uint8_t slot);     /* start one slot; others keep running */
 void mfx_stop(void);              /* stop ALL slots */
 void mfx_stop_slot(uint8_t slot); /* stop one slot only */
 void mfx_set_bpm(uint8_t slot, float bpm);  /* live BPM override */
-void mfx_tick(uint32_t now_us);
+void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched);     /* scratch/touched: [513], indices 1-512 */
 void mfx_get_status(mfx_status_t *out);
 void mfx_get_slot_info(uint8_t slot, mfx_slot_info_t *out);
 
