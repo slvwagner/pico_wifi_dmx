@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DMX Frame Rate Test</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px;display:grid;gap:16px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:22px;margin:0}h2{font-size:16px;margin:0}
+.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.toolbar,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input,button{font:inherit}
+input[type=number],input[type=url]{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=number]{width:100px}input[type=url]{min-width:220px}
+button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+button.stop{background:#3c1b1b;border-color:#763232;color:var(--bad);font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.stat{background:#0a0d10;border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.stat-label{color:var(--muted);font-size:12px;margin-bottom:4px}
+.stat-value{font-size:28px;font-weight:700;color:var(--accent);line-height:1}
+.stat-unit{color:var(--muted);font-size:12px;margin-top:2px}
+.stat-value.bad{color:var(--bad)}
+.stat-value.warn{color:var(--warn)}
+.progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.1s linear}
+a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
+a.nav:hover{color:var(--text)}
+canvas{display:block;border-radius:6px;background:#0a0d10;width:100%}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div>
+    <h1>DMX Frame Rate Test</h1>
+    <div class="status" id="status">Configure and press Start.</div>
+  </div>
+  <div class="toolbar">
+    <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <a class="nav" href="index.html">← Fixture Controller</a>
+    <a class="nav" href="dmx_chaser.html">Chaser</a>
+  </div>
+</header>
+
+<section class="panel">
+  <div class="toolbar">
+    <label>Channel<input id="channel" type="number" min="1" max="512" value="1"></label>
+    <label>Value<input id="value" type="number" min="0" max="255" value="128"></label>
+    <label>Request count<input id="reqCount" type="number" min="10" max="5000" value="200"></label>
+    <button class="primary" id="btnStart">▶ Start</button>
+    <button class="stop" id="btnStop" disabled>■ Stop</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+</section>
+
+<section class="panel">
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Throughput</div>
+      <div class="stat-value" id="statFps">—</div>
+      <div class="stat-unit">req / s</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Avg latency</div>
+      <div class="stat-value" id="statAvg">—</div>
+      <div class="stat-unit">ms / request</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Min latency</div>
+      <div class="stat-value" id="statMin">—</div>
+      <div class="stat-unit">ms</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Max latency</div>
+      <div class="stat-value" id="statMax">—</div>
+      <div class="stat-unit">ms</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value" id="statDone">—</div>
+      <div class="stat-unit" id="statDoneOf"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Errors</div>
+      <div class="stat-value bad" id="statErrors">0</div>
+      <div class="stat-unit">failed requests</div>
+    </div>
+  </div>
+  <canvas id="chart" height="180"></canvas>
+  <div class="small" style="text-align:center">Each bar = one request latency · <span style="color:var(--accent)">■</span> &lt;20ms · <span style="color:var(--warn)">■</span> 20–100ms · <span style="color:var(--bad)">■</span> &gt;100ms</div>
+</section>
+
+</main>
+<script>
+const baseUrlEl=document.getElementById('baseUrl');
+try{const d=JSON.parse(localStorage.getItem('dmxFixtureController')||'{}');if(d.baseUrl)baseUrlEl.value=d.baseUrl;}catch(_){}
+
+function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
+
+let running=false;
+let latencies=[];
+let errors=0;
+let testStart=0;
+
+function updateStats(total){
+  const n=latencies.length;
+  const elapsed=performance.now()-testStart;
+  document.getElementById('statDone').textContent=n;
+  document.getElementById('statDoneOf').textContent='of '+total;
+  document.getElementById('statErrors').textContent=errors;
+  document.getElementById('progress').style.width=(n/total*100)+'%';
+  if(!n)return;
+  const sum=latencies.reduce((a,b)=>a+b,0);
+  const avg=sum/n;
+  const min=Math.min(...latencies);
+  const max=Math.max(...latencies);
+  const fps=n/(elapsed/1000);
+  document.getElementById('statFps').textContent=fps.toFixed(1);
+  const avgEl=document.getElementById('statAvg');
+  avgEl.textContent=avg.toFixed(1);
+  avgEl.className='stat-value'+(avg<20?'':avg<100?' warn':' bad');
+  document.getElementById('statMin').textContent=min.toFixed(1);
+  const maxEl=document.getElementById('statMax');
+  maxEl.textContent=max.toFixed(1);
+  maxEl.className='stat-value'+(max<20?'':max<100?' warn':' bad');
+  drawChart();
+}
+
+function drawChart(){
+  const canvas=document.getElementById('chart');
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.offsetWidth||800;
+  const H=180;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  const n=latencies.length;if(!n)return;
+  const maxLat=Math.max(Math.max(...latencies)*1.1,10);
+  // gridlines
+  const gridLines=[5,10,20,50,100,200,500].filter(v=>v<maxLat);
+  ctx.strokeStyle='#31404d';ctx.lineWidth=1;ctx.font='10px system-ui';ctx.fillStyle='#9cafbf';
+  gridLines.forEach(ms=>{
+    const y=H-(ms/maxLat*H);
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+    ctx.fillText(ms+'ms',4,y-3);
+  });
+  // bars
+  const barW=Math.max(1,W/n);
+  latencies.forEach((lat,i)=>{
+    const h=Math.max(1,lat/maxLat*H);
+    ctx.fillStyle=lat<20?'#37c4a4':lat<100?'#ffbc6b':'#ff7a7a';
+    ctx.fillRect(i*barW,H-h,Math.max(0.5,barW-0.5),h);
+  });
+}
+
+async function runTest(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setStatus('Set Pico base URL first',true);return;}
+  const ch=Math.round(parseFloat(document.getElementById('channel').value)||1);
+  const val=Math.round(parseFloat(document.getElementById('value').value)||128);
+  const count=Math.max(1,parseInt(document.getElementById('reqCount').value)||200);
+  const url=root+'/dmx/set/'+ch+'/'+val;
+  running=true;latencies=[];errors=0;testStart=performance.now();
+  document.getElementById('btnStart').disabled=true;
+  document.getElementById('btnStop').disabled=false;
+  document.getElementById('progress').style.width='0%';
+  setStatus('Running — sending '+count+' requests sequentially…');
+  for(let i=0;i<count&&running;i++){
+    const t0=performance.now();
+    try{
+      await fetch(url+'?t='+Date.now(),{cache:'no-store',mode:'no-cors'});
+      latencies.push(performance.now()-t0);
+    }catch(e){
+      errors++;
+    }
+    if(i%10===0)updateStats(count);
+  }
+  running=false;
+  document.getElementById('btnStart').disabled=false;
+  document.getElementById('btnStop').disabled=true;
+  updateStats(count);
+  const avg=latencies.length?(latencies.reduce((a,b)=>a+b,0)/latencies.length).toFixed(1):'?';
+  const fps=latencies.length?(latencies.length/((performance.now()-testStart)/1000)).toFixed(1):'?';
+  setStatus('Done — '+latencies.length+' requests · avg '+avg+'ms · '+fps+' req/s'+(errors?' · '+errors+' errors':''));
+}
+
+document.getElementById('btnStart').onclick=runTest;
+document.getElementById('btnStop').onclick=()=>{running=false;};
+window.addEventListener('resize',()=>{if(latencies.length)drawChart();});
+</script>
+</body>
+</html>
