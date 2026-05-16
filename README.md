@@ -1,120 +1,188 @@
-# Micropython Custom C Extensions
+# pico_wifi_dmx
 
-Firmware project for a Raspberry Pi Pico 2 W. The current program connects to Wi-Fi, starts a small HTTP log page, and keeps that network/log work on core1 so core0 is free for the main application logic.
+WiFi-controlled DMX512 controller firmware for the Raspberry Pi Pico 2 W (RP2350). Provides real-time DMX output driven either from a browser-based UI or autonomously on the Pico itself, with no dependency on network latency for live playback.
 
-## Current Behavior
+---
 
-- Core0 starts the program, initializes the HTTP log buffer, launches core1, then runs `core0_application_loop()`.
-- Core1 runs `core1_network_log_server()`, which initializes the Wi-Fi chip, connects to Wi-Fi, starts IPv6 autoconfig, logs IP addresses, and starts the lwIP HTTP server.
-- The HTTP log page is available at `http://<pico-ip>/`.
-- Raw logs are available at `http://<pico-ip>/logs.txt`.
-- The DMX control page is available at `http://<pico-ip>/dmx.html`.
-- DMX channel values are held until changed through the HTTP UI or control endpoint.
-- USB serial and UART stdio output are disabled. Logs are exposed through the HTTP page.
+## Architecture
 
-## Requirements
+| Core | Responsibility |
+|------|----------------|
+| **Core 0** | DMX engine (continuous 250 kbaud frames), chaser sequencer tick, motion FX oscillator tick — runs at 100 Hz |
+| **Core 1** | WiFi (CYW43), lwIP TCP/IP stack, lwIP httpd (HTTP/1.0 API server) |
 
-- Raspberry Pi Pico SDK 2.2.0 or compatible
-- CMake and Ninja
-- ARM embedded GCC toolchain
-- Raspberry Pi Pico 2 W board
+Cross-core data access is protected by `critical_section_t` hardware spinlocks. DMX buffer writes from the HTTP handler (Core 1) and from the playback engines (Core 0) are coordinated so neither blocks the other.
 
-This project was generated for `PICO_BOARD=pico2_w`.
+---
 
-## Configure
+## Playback Modes
 
-Wi-Fi credentials can be supplied with CMake definitions:
+### Browser Playback
+The browser pages connect directly to the Pico's HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request (`/dmx/b/`). Two browser tabs can run simultaneously (e.g. chaser on dimmer channels + motion FX on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it doesn't own.
+
+### Pico Autonomous Playback
+The chaser and motion FX configurations are uploaded to the Pico via HTTP POST. After that the Pico plays back entirely on Core 0 — no further network traffic is needed. This eliminates WiFi latency jitter from the DMX output completely.
+
+Starting browser playback automatically stops any running Pico playback, and vice versa (mutual exclusion).
+
+---
+
+## HTTP API
+
+All endpoints return JSON with `Access-Control-Allow-Origin: *`.
+
+### DMX channel control
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
+| `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
+| `/dmx/clear` | GET | Zero all channels |
+| `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
+| `/dmx/values.json` | GET | Read all channel values |
+
+### Pico chaser
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/chaser/load` | POST | Upload chaser config (text protocol, see below) |
+| `/chaser/play` | GET | Start/resume Pico-side chaser |
+| `/chaser/stop` | GET | Stop Pico-side chaser |
+| `/chaser/status` | GET | `{"playing":bool,"step":N,"step_count":N,"elapsed_ms":N}` |
+
+Chaser text protocol (POST body):
+```
+LOOP 1
+STEP <duration_ms> <fade_percent>
+CH <channel> <value>
+CH <channel> <value>
+END
+STEP …
+END
+```
+
+### Pico motion FX
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/motion/load` | POST | Upload motion FX config (text protocol, see below) |
+| `/motion/start` | GET | Start Pico-side motion FX |
+| `/motion/stop` | GET | Stop Pico-side motion FX |
+| `/motion/status` | GET | `{"playing":bool,"type":N,"bpm":F}` |
+
+Motion FX text protocol (POST body):
+```
+TYPE <0=circle|1=figure8|2=panSwing|3=tiltSwing>
+BPM <float>
+PANAMP <0.0–1.0>
+TILTAMP <0.0–1.0>
+SPREAD <degrees>
+FIX <enabled> <pan_ch> <pan_fine_ch> <tilt_ch> <tilt_fine_ch> <is_16bit> <pan_center> <tilt_center> <phase_deg>
+END
+```
+
+---
+
+## Web UI
+
+The UI is served from a separate web server (XAMPP in development). All pages talk to the Pico via cross-origin HTTP requests using `new Image().src` for fire-and-forget GET calls.
+
+| Page | File | Description |
+|------|------|-------------|
+| Fixture Controller | `index.html` | Define fixture profiles, patch fixtures, set individual channels |
+| Chaser | `dmx_chaser.html` | Build and play step sequences with crossfade; upload to Pico for autonomous playback |
+| Motion FX | `dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); upload to Pico |
+| FPS Benchmark | `dmx_benchmark.html` | Measure round-trip request latency for single `/dmx/set` vs batch `/dmx/b/` |
+
+Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
+
+### Development sync
+
+HTML files are developed locally and synced to XAMPP with:
 
 ```powershell
-cmake -S . -B build -G Ninja -DWIFI_SSID="your_ssid" -DWIFI_PASSWORD="your_password"
+.\sync_fixture_controller_to_xampp.ps1
 ```
 
-You can also set environment variables before configuring:
+Target: `E:\Software\xampp\htdocs\dmx-fixtures\`
 
-```powershell
-$env:SSID="your_ssid"
-$env:SSID_PW="your_password"
-cmake -S . -B build -G Ninja
-```
-
-DMX defaults to GPIO 2 for output and GPIO 3 for the optional frame trigger/debug signal, leaving GPIO 0/1 free for a Pico Debug Probe UART connection. Override them at configure time if your wiring needs different pins:
-
-```powershell
-cmake -S . -B build -G Ninja -DDMX_TX_PIN=2 -DDMX_TRIGGER_PIN=3
-```
-
-The DMX universe size is also a CMake cache setting. Set it at configure time when you want fewer than the default 512 channels:
-
-```powershell
-cmake -S . -B build -G Ninja -DDMX_CHANNELS=46
-```
-
-The value passed by CMake is compiled into both the DMX engine and the HTTP UI. If the build directory already exists, the cached `DMX_CHANNELS` value is reused until you reconfigure with a new `-DDMX_CHANNELS=...` value.
-
-## Build
-
-If CMake is on your `PATH`:
-
-```powershell
-cmake --build build
-```
-
-With the Pico SDK extension layout used on this machine:
-
-```powershell
-& 'C:\Users\slvwa\.pico-sdk\cmake\v3.31.5\bin\cmake.exe' --build build
-```
-
-The UF2 firmware is generated at:
-
-```text
-build/Micropython_Custom_C_extentions.uf2
-```
-
-## Flash
-
-1. Hold the BOOTSEL button on the Pico 2 W.
-2. Plug it into USB.
-3. Copy `build/Micropython_Custom_C_extentions.uf2` to the mounted `RPI-RP2` drive.
-4. The board reboots and starts the firmware.
-
-## Finding The Log Page
-
-After Wi-Fi connects, the firmware writes the IPv4 address into the HTTP log buffer:
-
-```text
-Open logs at http://<pico-ip>/
-```
-
-Open that address in a browser on the same network.
-
-## DMX HTTP Controls
-
-Open the DMX control page at:
-
-```text
-http://<pico-ip>/dmx.html
-```
-
-The page can update individual DMX channels and clear all channels. The same controls are also available as simple HTTP endpoints:
-
-```text
-http://<pico-ip>/dmx/set/1/255
-http://<pico-ip>/dmx/clear
-http://<pico-ip>/dmx/values/1/64
-```
-
-Channel numbers are 1-based and can address the configured DMX universe, up to 512 channels by default. The HTTP UI follows the compiled `DMX_CHANNELS` value, so `-DDMX_CHANNELS=46` limits the page navigation to channels 1 through 46. The firmware endpoint requires values in the valid DMX range of `0` through `255`. The values endpoint accepts a first channel and a count from `1` through `64`.
+---
 
 ## Code Layout
 
-- `Micropython_Custom_C_extentions.cpp` contains the application, logging buffer, DMX HTTP UI, custom lwIP file callbacks, Wi-Fi setup, and core0/core1 entry points.
-- `lwipopts.h` configures lwIP and enables custom HTTP file serving.
-- `fsdata_custom.c` enables lwIP custom file support.
-- `CMakeLists.txt` configures the Pico SDK target and links `pico_multicore`, `pico_cyw43_arch_lwip_threadsafe_background`, and `pico_lwip_http`.
+| File | Description |
+|------|-------------|
+| `main.cpp` | Core 0/1 entry points, HTTP endpoint handlers, custom lwIP fs callbacks, DMX UI lock, POST callbacks for chaser/motion upload |
+| `dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, thread-safe set/get |
+| `dmx_native.pio` | PIO program for 250 kbaud DMX framing |
+| `pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
+| `pico_motion.cpp` / `.h` | Pico-side pan/tilt oscillator (sinf/cosf), 8-bit and 16-bit modes, 100 Hz tick |
+| `lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving |
+| `fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
+| `pico_sdk_import.cmake` | Pico SDK CMake integration |
+| `CMakeLists.txt` | Build target, source files, SDK libraries |
+
+---
+
+## Requirements
+
+- Raspberry Pi Pico 2 W (`PICO_BOARD=pico2_w`, RP2350)
+- Pico SDK 2.2.0
+- CMake 3.13+, Ninja, ARM embedded GCC toolchain
+
+---
+
+## Configure
+
+```powershell
+cmake -S . -B build -G Ninja `
+  -DWIFI_SSID="your_ssid" `
+  -DWIFI_PASSWORD="your_password"
+```
+
+Optional overrides:
+
+```powershell
+# DMX output pin (default 2) and frame-trigger debug pin (default 3)
+-DDMX_TX_PIN=2 -DDMX_TRIGGER_PIN=3
+
+# Universe size — limits channels in firmware and UI (default 512)
+-DDMX_CHANNELS=46
+```
+
+---
+
+## Build
+
+```powershell
+& "$env:USERPROFILE/.pico-sdk/ninja/v1.12.1/ninja.exe" -C build
+```
+
+Output: `build/pico_wifi_dmx.uf2`
+
+---
+
+## Flash
+
+Using picotool (Pico connected via USB in normal run mode):
+
+```powershell
+& "$env:USERPROFILE/.pico-sdk/picotool/2.2.0-a4/picotool/picotool.exe" load build/pico_wifi_dmx.elf -fx
+```
+
+Using OpenOCD + Picoprobe/CMSIS-DAP:
+
+```powershell
+& "$env:USERPROFILE/.pico-sdk/openocd/0.12.0+dev/openocd.exe" `
+  -s "$env:USERPROFILE/.pico-sdk/openocd/0.12.0+dev/scripts" `
+  -f interface/cmsis-dap.cfg -f target/rp2350.cfg `
+  -c "adapter speed 5000; program build/pico_wifi_dmx.elf verify reset exit"
+```
+
+---
 
 ## Notes
 
-- Keep lwIP and CYW43 calls protected with the existing Pico SDK thread-safe background APIs where needed.
-- `log_printf()` is safe to call from both cores because the shared log buffer is protected by a critical section.
-- Add your main application code inside or below `core0_application_loop()`.
+- The `/dmx/b/` batch endpoint encodes channel data in the **URL path** rather than a query string. lwIP httpd nulls the `?` in the URI before calling `fs_open_custom`, making query-string-based batch endpoints unreliable.
+- `dmx_engine_set_channel()` is called from both cores. Reads/writes to the DMX buffer are 8-bit aligned and the PIO reads the buffer independently, so no additional lock is needed for channel writes. The `dmx_ui_lock` critical section protects the secondary UI mirror array only.
+- Both `chaser_lock` and `mfx_lock` are module-local spinlocks. DMX writes are performed **outside** these locks (after releasing them) to avoid nested-lock deadlock.
