@@ -182,6 +182,38 @@ function sendChannel(ch,value){
   if(root!==location.origin){new Image().src=url+'?t='+Date.now();return;}
   fetch(url,{cache:'no-store'}).catch(()=>{});
 }
+function sendBatch(map){
+  // map: {channelNumber: byteValue}
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return;
+  const qs=Object.entries(map).map(([ch,v])=>Math.round(ch)+'='+Math.round(clamp(v,0,255))).join('&');
+  if(!qs)return;
+  const url=root+'/dmx/batch?'+qs;
+  if(root!==location.origin){new Image().src=url+'&t='+Date.now();return;}
+  fetch(url,{cache:'no-store'}).catch(()=>{});
+}
+function collectChannels(f,c,val,map){
+  val=val??defaultValue(c);
+  if(c.type==='panTilt16'){
+    const pan=bytes16(val.pan??32768),tilt=bytes16(val.tilt??32768);
+    map[absolute(f.start,c.pan)]=pan.coarse;
+    map[absolute(f.start,c.panFine??c.pan+1)]=pan.fine;
+    map[absolute(f.start,c.tilt)]=tilt.coarse;
+    map[absolute(f.start,c.tiltFine??c.tilt+1)]=tilt.fine;
+  }else if(c.type==='panTilt8'){
+    map[absolute(f.start,c.pan)]=val.pan??128;
+    map[absolute(f.start,c.tilt)]=val.tilt??128;
+  }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(p=>{map[absolute(f.start,c[p])]=val[p]??0;});
+  }else if(c.type==='slider16'){
+    const b=bytes16(val??0);
+    map[absolute(f.start,c.channel)]=b.coarse;
+    map[absolute(f.start,c.fine??c.channel+1)]=b.fine;
+  }else{
+    map[absolute(f.start,c.channel)]=val??0;
+  }
+}
 function defaultValue(c){
   if(c.type==='panTilt16')return{pan:32768,tilt:32768};
   if(c.type==='panTilt8')return{pan:128,tilt:128};
@@ -624,14 +656,16 @@ function playbackTick(){
   const elapsed=now-stepEnteredAt;
   const t=fadeMs>0?Math.min(1,elapsed/fadeMs):1;
   const ptList=getParticipatingList();
+  const batchMap={};
   ptList.forEach(({f,c})=>{
     const k=controlKey(f,c);
     const toVal=step.values[k]??defaultValue(c);
     const fromVal=prevOutput[k]??defaultValue(c);
     const val=t>=1?toVal:interpolateValue(fromVal,toVal,t);
     currentOutput[k]=val;
-    sendControlValue(f,c,val);
+    collectChannels(f,c,val,batchMap);
   });
+  sendBatch(batchMap);
   const progress=Math.min(100,elapsed/durMs*100);
   document.getElementById('stepProgress').style.width=progress+'%';
   const remaining=Math.max(0,Math.round(durMs-elapsed));
@@ -667,7 +701,9 @@ function manualStep(dir){
   stepEnteredAt=performance.now();
   if(!playing){
     const step=steps[activeStepIdx];
-    ptList.forEach(({f,c})=>sendControlValue(f,c,step.values[controlKey(f,c)]??defaultValue(c)));
+    const batchMap={};
+    ptList.forEach(({f,c})=>collectChannels(f,c,step.values[controlKey(f,c)]??defaultValue(c),batchMap));
+    sendBatch(batchMap);
     setStatus('Step '+(activeStepIdx+1)+': '+step.label);
     document.getElementById('btnStop').disabled=false;
   }

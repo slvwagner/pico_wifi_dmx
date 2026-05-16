@@ -495,6 +495,55 @@ static void build_dmx_json_response(unsigned status_code, const char *status_tex
         body);
 }
 
+static void build_dmx_batch_response(const char *name)
+{
+    const char *query = strchr(name, '?');
+    if (!query) {
+        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"No channels: use /dmx/batch?1=255&2=0\"}\n");
+        return;
+    }
+    query++;
+
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+
+    uint16_t updated = 0;
+    const char *p = query;
+    while (*p) {
+        char *end_key = NULL;
+        unsigned long ch = strtoul(p, &end_key, 10);
+        if (end_key != p && *end_key == '=' && ch >= 1 && ch <= status.channels) {
+            char *end_val = NULL;
+            unsigned long val = strtoul(end_key + 1, &end_val, 10);
+            if (end_val != end_key + 1 && val <= 255) {
+                dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                critical_section_enter_blocking(&dmx_ui_lock);
+                dmx_ui_values[ch] = (uint8_t)val;
+                critical_section_exit(&dmx_ui_lock);
+                updated++;
+            }
+            p = end_val;
+        } else {
+            const char *next = strchr(p, '&');
+            if (!next) break;
+            p = next;
+        }
+        if (*p == '&') p++;
+        else break;
+    }
+
+    snprintf(
+        http_dmx_json,
+        sizeof(http_dmx_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"updated\":%u}\n",
+        updated);
+}
+
 static void build_dmx_set_response(const char *name)
 {
     uint16_t channel = 0;
@@ -612,6 +661,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 {
     if (path_matches(name, "/dmx/set")) {
         build_dmx_set_response(name);
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/batch")) {
+        build_dmx_batch_response(name);
         file->data = http_dmx_json;
         file->len = (int)strlen(http_dmx_json);
         file->index = file->len;
