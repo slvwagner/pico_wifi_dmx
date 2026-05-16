@@ -32,17 +32,15 @@ typedef struct {
 
 /* Summary returned by mfx_get_status() */
 typedef struct {
-    bool     active;
-    bool     loaded;        /* active slot is loaded */
-    uint8_t  active_slot;
-    int      type;          /* mfx_type_t cast to int for C compat */
-    float    bpm;
-    float    elapsed_s;
+    uint8_t  active_mask;   /* bitmask: bit i = slot i is playing  */
+    uint8_t  loaded_mask;   /* bitmask: bit i = slot i is loaded   */
+    float    elapsed_s;     /* elapsed of the lowest active slot   */
 } mfx_status_t;
 
 /* Per-slot summary returned by mfx_get_slot_info() */
 typedef struct {
     bool     loaded;
+    bool     active;
     int      type;
     float    bpm;
     uint16_t fixture_count;
@@ -50,8 +48,9 @@ typedef struct {
 
 void mfx_init(void);
 bool mfx_load_slot(uint8_t slot, const char *body, size_t len);
-void mfx_start(uint8_t slot);
-void mfx_stop(void);
+void mfx_start(uint8_t slot);     /* start one slot; others keep running */
+void mfx_stop(void);              /* stop ALL slots */
+void mfx_stop_slot(uint8_t slot); /* stop one slot only */
 void mfx_set_bpm(uint8_t slot, float bpm);  /* live BPM override */
 void mfx_tick(uint32_t now_us);
 void mfx_get_status(mfx_status_t *out);

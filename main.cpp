@@ -734,13 +734,9 @@ static void build_motion_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active\":%s,\"loaded\":%s,"
-        "\"slot\":%u,\"type\":%d,\"bpm\":%.2f,\"elapsed_s\":%.2f}\n",
-        s.active ? "true" : "false",
-        s.loaded ? "true" : "false",
-        (unsigned)s.active_slot,
-        s.type,
-        (double)s.bpm,
+        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,\"elapsed_s\":%.2f}\n",
+        (unsigned)s.active_mask,
+        (unsigned)s.loaded_mask,
         (double)s.elapsed_s);
 }
 
@@ -758,10 +754,11 @@ static void build_motion_slots_response()
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"type\":%d,\"bpm\":%.2f,\"fixture_count\":%u}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"type\":%d,\"bpm\":%.2f,\"fixture_count\":%u}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded ? "true" : "false",
+            info.active ? "true" : "false",
             info.type,
             (double)info.bpm,
             info.fixture_count);
@@ -949,8 +946,16 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     if (path_matches(name, "/motion/stop")) {
-        mfx_stop();
-        build_playback_ok_response("motion stopped");
+        if (name[12] == '/') {
+            /* /motion/stop/<slot> — stop one slot only */
+            unsigned long s = strtoul(name + 13, NULL, 10);
+            if (s < MFX_MAX_SLOTS) mfx_stop_slot((uint8_t)s);
+            build_playback_ok_response("motion slot stopped");
+        } else {
+            /* /motion/stop — stop all slots */
+            mfx_stop();
+            build_playback_ok_response("motion stopped");
+        }
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;

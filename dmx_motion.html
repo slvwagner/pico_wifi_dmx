@@ -112,7 +112,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
     <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play</button>
     <button id="btnPicoMotionStartSlot">&#x25B6; Start Slot</button>
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
-    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop</button>
+    <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
+    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
   </div>
   <div style="display:flex;align-items:center;gap:6px;min-width:0">
     <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
@@ -490,11 +491,12 @@ function pollPicoMotionStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   fetch(root+'/motion/status').then(r=>r.json()).then(j=>{
     if(j.ok){
-      const slot=j.slot!==undefined?j.slot:0;
-      const s=j.active
-        ?'Slot '+slot+' running · '+j.elapsed_s.toFixed(1)+'s · BPM '+j.bpm.toFixed(1)
-        :'Slot '+slot+' loaded, stopped';
-      setPicoMotionStatus(s,j.active?'var(--accent)':'var(--muted)');
+      const activeSlots=[];
+      for(let i=0;i<8;i++) if(j.active_mask&(1<<i)) activeSlots.push(i);
+      const s=activeSlots.length>0
+        ?'Slots '+activeSlots.join(',')+' running \u00b7 '+j.elapsed_s.toFixed(1)+'s'
+        :'Stopped';
+      setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
     }
   }).catch(()=>setPicoMotionStatus('No response','var(--bad)'));
 }
@@ -542,6 +544,16 @@ document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
     const j=await r.json();
     if(j.ok)setPicoMotionStatus('BPM set to '+(bpm_x10/10).toFixed(1)+' on slot '+slot,'var(--accent)');
     else setPicoMotionStatus('BPM error','var(--bad)');
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoMotionStopSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  try{
+    await fetch(root+'/motion/stop/'+slot);
+    setPicoMotionStatus('Slot '+slot+' stopped','var(--muted)');
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
