@@ -97,6 +97,20 @@ a.nav:hover{color:var(--text)}
   </div>
 </section>
 
+<!-- Pico realtime playback -->
+<section class="panel" id="picoPanel" style="border-color:var(--accent)">
+  <div class="row" style="align-items:center;gap:12px;flex-wrap:wrap">
+    <h2 style="margin:0;color:var(--accent)">&#x2699; Pico Playback</h2>
+    <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play on Pico</button>
+    <button class="stop"    id="btnPicoStop">&#x25A0; Stop Pico</button>
+    <span id="picoStatus" class="small" style="color:var(--muted)">&#x2014; not started</span>
+  </div>
+  <div class="small" style="color:var(--muted)">
+    Serialises the current chaser, uploads to Pico via POST /chaser/load, then starts autonomous playback on Core 0.
+    Browser playback above is unaffected.
+  </div>
+</section>
+
 <!-- Participation + Step list -->
 <section class="columns">
   <div class="panel">
@@ -785,6 +799,70 @@ document.getElementById('btnApplyMeta').onclick=()=>{
 };
 document.getElementById('btnSelAll').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=true);drawParticipation();drawStepEditor();};
 document.getElementById('btnSelNone').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=false);drawParticipation();drawStepEditor();};
+
+// ---- Pico realtime playback ----
+function serializeChaserForPico(){
+  const lines=[];
+  lines.push('LOOP '+(document.getElementById('loopCheck').checked?'1':'0'));
+  const ptList=getParticipatingList();
+  steps.forEach(step=>{
+    lines.push('STEP '+step.duration+' '+(step.fade??0));
+    const map={};
+    ptList.forEach(({f,c})=>collectChannels(f,c,step.values[controlKey(f,c)]??defaultValue(c),map));
+    Object.entries(map).forEach(([ch,val])=>lines.push('CH '+ch+' '+val));
+  });
+  lines.push('END');
+  return lines.join('\n');
+}
+
+let picoStatusTimer=null;
+function setPicoStatus(msg,color){
+  const el=document.getElementById('picoStatus');
+  el.textContent=msg;
+  el.style.color=color||'var(--muted)';
+}
+function pollPicoStatus(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  fetch(root+'/chaser/status').then(r=>r.json()).then(j=>{
+    if(j.ok){
+      const s=j.playing?'Playing step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms)':'Stopped';
+      setPicoStatus(s,j.playing?'var(--accent)':'var(--muted)');
+    }
+  }).catch(()=>setPicoStatus('No response','var(--bad)'));
+}
+function startPicoStatusPoll(){
+  stopPicoStatusPoll();
+  picoStatusTimer=setInterval(pollPicoStatus,1000);
+  pollPicoStatus();
+}
+function stopPicoStatusPoll(){
+  if(picoStatusTimer){clearInterval(picoStatusTimer);picoStatusTimer=null;}
+}
+
+document.getElementById('btnPicoUploadPlay').onclick=async()=>{
+  if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  const body=serializeChaserForPico();
+  setPicoStatus('Uploading…','var(--warn)');
+  try{
+    const r=await fetch(root+'/chaser/load',{method:'POST',body,headers:{'Content-Type':'text/plain'}});
+    const j=await r.json();
+    if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
+    const r2=await fetch(root+'/chaser/play');
+    const j2=await r2.json();
+    if(j2.ok){setPicoStatus('Playing on Pico','var(--accent)');startPicoStatusPoll();}
+    else{setPicoStatus('Play error','var(--bad)');}
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoStop').onclick=async()=>{
+  stopPicoStatusPoll();
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  try{
+    await fetch(root+'/chaser/stop');
+    setPicoStatus('Stopped','var(--muted)');
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
 
 // ---- init ----
 loadSetup();

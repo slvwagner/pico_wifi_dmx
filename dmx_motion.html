@@ -85,6 +85,20 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   <button id="reloadSetup" style="justify-self:start;margin-top:4px">↻ Reload from Fixture Controller</button>
 </section>
 
+<!-- Pico Motion FX -->
+<section class="panel" style="border-color:var(--accent)">
+  <div class="row" style="align-items:center;gap:12px;flex-wrap:wrap">
+    <h2 style="margin:0;color:var(--accent)">&#x2699; Pico Motion</h2>
+    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Start on Pico</button>
+    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop Pico</button>
+    <span id="picoMotionStatus" class="small" style="color:var(--muted)">&#x2014; not started</span>
+  </div>
+  <div class="small" style="color:var(--muted)">
+    Uploads oscillator config to Pico via POST /motion/load, then runs autonomous motion on Core 0 at 100 Hz — no WiFi latency.
+    Browser motion above is unaffected.
+  </div>
+</section>
+
 </main>
 <script>
 // ---- helpers ----
@@ -387,6 +401,74 @@ document.getElementById('effectType').onchange=drawPathPreview;
   const valEl=document.getElementById(id+'Val');
   el.oninput=()=>{valEl.textContent=el.value;drawPathPreview();};
 });
+
+// ---- Pico Motion FX ----
+const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3};
+function serializeMotionForPico(){
+  const type=document.getElementById('effectType').value;
+  const bpm=parseFloat(document.getElementById('bpm').value);
+  const panAmp=parseFloat(document.getElementById('panAmp').value)/100;
+  const tiltAmp=parseFloat(document.getElementById('tiltAmp').value)/100;
+  const spread=parseFloat(document.getElementById('phaseSpread').value);
+  const lines=[
+    'TYPE '+(typeMapPico[type]??0),
+    'BPM '+bpm.toFixed(4),
+    'PANAMP '+panAmp.toFixed(6),
+    'TILTAMP '+tiltAmp.toFixed(6),
+    'SPREAD '+spread.toFixed(4),
+  ];
+  motionFixtures.forEach(mf=>{
+    const c=mf.control,f=mf.fixture;
+    const is16=c.type==='panTilt16'?1:0;
+    const panCh=absolute(f.start,c.pan);
+    const panFine=is16?absolute(f.start,c.panFine??c.pan+1):0;
+    const tiltCh=absolute(f.start,c.tilt);
+    const tiltFine=is16?absolute(f.start,c.tiltFine??c.tilt+1):0;
+    lines.push('FIX '+(mf.enabled?1:0)+' '+panCh+' '+panFine+' '+tiltCh+' '+tiltFine+' '+is16+' '+
+      mf.panCenter.toFixed(2)+' '+mf.tiltCenter.toFixed(2)+' '+mf.phaseOffset.toFixed(2));
+  });
+  lines.push('END');
+  return lines.join('\n');
+}
+
+let picoMotionTimer=null;
+function setPicoMotionStatus(msg,color){
+  const el=document.getElementById('picoMotionStatus');
+  el.textContent=msg;el.style.color=color||'var(--muted)';
+}
+function pollPicoMotionStatus(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  fetch(root+'/motion/status').then(r=>r.json()).then(j=>{
+    if(j.ok){
+      const s=j.active?('Running · '+j.elapsed_s.toFixed(1)+'s · BPM '+j.bpm.toFixed(1)):'Stopped';
+      setPicoMotionStatus(s,j.active?'var(--accent)':'var(--muted)');
+    }
+  }).catch(()=>setPicoMotionStatus('No response','var(--bad)'));
+}
+function startPicoMotionPoll(){stopPicoMotionPoll();picoMotionTimer=setInterval(pollPicoMotionStatus,1000);pollPicoMotionStatus();}
+function stopPicoMotionPoll(){if(picoMotionTimer){clearInterval(picoMotionTimer);picoMotionTimer=null;}}
+
+document.getElementById('btnPicoMotionUpload').onclick=async()=>{
+  if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  const body=serializeMotionForPico();
+  setPicoMotionStatus('Uploading…','var(--warn)');
+  try{
+    const r=await fetch(root+'/motion/load',{method:'POST',body,headers:{'Content-Type':'text/plain'}});
+    const j=await r.json();
+    if(!j.ok){setPicoMotionStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
+    const r2=await fetch(root+'/motion/start');
+    const j2=await r2.json();
+    if(j2.ok){setPicoMotionStatus('Running on Pico','var(--accent)');startPicoMotionPoll();}
+    else{setPicoMotionStatus('Start error','var(--bad)');}
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+document.getElementById('btnPicoMotionStop').onclick=async()=>{
+  stopPicoMotionPoll();
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  try{await fetch(root+'/motion/stop');setPicoMotionStatus('Stopped','var(--muted)');}
+  catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
 
 loadSetup();
 // Auto-reload when Fixture Controller saves to localStorage in another tab
