@@ -10,6 +10,7 @@ $apiSource = Join-Path $PSScriptRoot "fixture_setup.php"
 $motionSource = Join-Path $PSScriptRoot "dmx_motion.html"
 $chaserSource = Join-Path $PSScriptRoot "dmx_chaser.html"
 $benchSource = Join-Path $PSScriptRoot "dmx_benchmark.html"
+$benchTargetDir = Join-Path $XamppHtdocs "dmx\test"
 $fanSource       = Join-Path $PSScriptRoot "dmx_fan.html"
 $fanApiSource    = Join-Path $PSScriptRoot "fan_setup.php"
 $chaserApiSource = Join-Path $PSScriptRoot "chaser_setup.php"
@@ -19,7 +20,7 @@ $target = Join-Path $targetDir "index.html"
 $apiTarget = Join-Path $targetDir "fixture_setup.php"
 $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
-$benchTarget = Join-Path $targetDir "dmx_benchmark.html"
+$benchTarget = Join-Path $benchTargetDir "index.html"
 $fanTarget       = Join-Path $targetDir "dmx_fan.html"
 $fanApiTarget    = Join-Path $targetDir "fan_setup.php"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
@@ -45,6 +46,7 @@ if (Test-Path -LiteralPath $chaserSource) {
     Write-Host "Copied chaser to $chaserTarget"
 }
 if (Test-Path -LiteralPath $benchSource) {
+    New-Item -ItemType Directory -Force -Path $benchTargetDir | Out-Null
     Copy-Item -LiteralPath $benchSource -Destination $benchTarget -Force
     Write-Host "Copied benchmark to $benchTarget"
 }
