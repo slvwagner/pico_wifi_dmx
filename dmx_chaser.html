@@ -48,6 +48,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .step-num.playing{background:var(--accent);color:#06110e}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 a.nav:hover{color:var(--text)}
+.mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
+.mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}}
 </style>
 </head>
@@ -69,6 +71,9 @@ a.nav:hover{color:var(--text)}
 
 <!-- Playback bar -->
 <section class="panel">
+  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span class="mode-badge">🖥 Browser Playback</span>
+  </div>
   <div class="toolbar">
     <button class="primary" id="btnPlay">▶ Play</button>
     <button class="stop" id="btnStop" disabled>■ Stop</button>
@@ -94,20 +99,6 @@ a.nav:hover{color:var(--text)}
   <div class="row" style="align-items:center">
     <div class="progress-bar"><div class="progress-fill" id="stepProgress"></div></div>
     <span class="small" id="playbackInfo" style="white-space:nowrap;min-width:180px">Stopped</span>
-  </div>
-</section>
-
-<!-- Pico realtime playback -->
-<section class="panel" id="picoPanel" style="border-color:var(--accent)">
-  <div class="row" style="align-items:center;gap:12px;flex-wrap:wrap">
-    <h2 style="margin:0;color:var(--accent)">&#x2699; Pico Playback</h2>
-    <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play on Pico</button>
-    <button class="stop"    id="btnPicoStop">&#x25A0; Stop Pico</button>
-    <span id="picoStatus" class="small" style="color:var(--muted)">&#x2014; not started</span>
-  </div>
-  <div class="small" style="color:var(--muted)">
-    Serialises the current chaser, uploads to Pico via POST /chaser/load, then starts autonomous playback on Core 0.
-    Browser playback above is unaffected.
   </div>
 </section>
 
@@ -162,6 +153,19 @@ a.nav:hover{color:var(--text)}
   </div>
   <div id="editorHint" class="small">Select a step to edit its values.</div>
   <div class="surface" id="stepSurface"></div>
+</section>
+
+<!-- Pico realtime playback -->
+<section class="panel" id="picoPanel" style="border-color:rgba(55,196,164,.35)">
+  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="mode-badge mode-badge--pico">&#x2699; Pico Playback</span>
+    <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play on Pico</button>
+    <button class="stop" id="btnPicoStop">&#x25A0; Stop Pico</button>
+    <span style="display:flex;align-items:center;gap:6px;min-width:0">
+      <span id="picoStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+      <span id="picoStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
+    </span>
+  </div>
 </section>
 
 </main>
@@ -817,9 +821,9 @@ function serializeChaserForPico(){
 
 let picoStatusTimer=null;
 function setPicoStatus(msg,color){
-  const el=document.getElementById('picoStatus');
-  el.textContent=msg;
-  el.style.color=color||'var(--muted)';
+  document.getElementById('picoStatus').textContent=msg;
+  document.getElementById('picoStatus').style.color=color||'var(--muted)';
+  document.getElementById('picoStatusDot').style.background=color||'var(--muted)';
 }
 function pollPicoStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');

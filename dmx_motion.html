@@ -31,6 +31,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 a.nav:hover{color:var(--text);border-color:var(--text)}
+.mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
+.mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 </style>
 </head>
 <body>
@@ -43,12 +45,18 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <a class="nav" href="index.html">← Fixture Controller</a>  <a class="nav" href="dmx_chaser.html">Chaser →</a>    <button class="primary" id="startStop">▶ Start</button>
+    <a class="nav" href="index.html">← Fixture Controller</a>    <a class="nav" href="dmx_chaser.html">Chaser →</a>
   </div>
 </header>
 
 <section class="panel">
-  <h2>Effect Parameters</h2>
+  <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h2>Effect Parameters</h2>
+    <span style="display:flex;gap:8px;align-items:center">
+      <span class="mode-badge">🖥 Browser</span>
+      <button class="primary" id="startStop">▶ Start</button>
+    </span>
+  </div>
   <div class="toolbar">
     <label>Effect
       <select id="effectType">
@@ -86,16 +94,15 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 </section>
 
 <!-- Pico Motion FX -->
-<section class="panel" style="border-color:var(--accent)">
-  <div class="row" style="align-items:center;gap:12px;flex-wrap:wrap">
-    <h2 style="margin:0;color:var(--accent)">&#x2699; Pico Motion</h2>
-    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Start on Pico</button>
+<section class="panel" style="border-color:rgba(55,196,164,.35)">
+  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="mode-badge mode-badge--pico">&#x2699; Pico Motion</span>
+    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play on Pico</button>
     <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop Pico</button>
-    <span id="picoMotionStatus" class="small" style="color:var(--muted)">&#x2014; not started</span>
-  </div>
-  <div class="small" style="color:var(--muted)">
-    Uploads oscillator config to Pico via POST /motion/load, then runs autonomous motion on Core 0 at 100 Hz — no WiFi latency.
-    Browser motion above is unaffected.
+    <span style="display:flex;align-items:center;gap:6px;min-width:0">
+      <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+      <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
+    </span>
   </div>
 </section>
 
@@ -433,8 +440,9 @@ function serializeMotionForPico(){
 
 let picoMotionTimer=null;
 function setPicoMotionStatus(msg,color){
-  const el=document.getElementById('picoMotionStatus');
-  el.textContent=msg;el.style.color=color||'var(--muted)';
+  document.getElementById('picoMotionStatus').textContent=msg;
+  document.getElementById('picoMotionStatus').style.color=color||'var(--muted)';
+  document.getElementById('picoMotionStatusDot').style.background=color||'var(--muted)';
 }
 function pollPicoMotionStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
