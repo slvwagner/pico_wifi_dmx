@@ -174,12 +174,15 @@ a.nav:hover{color:var(--text)}
     <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play</button>
     <button id="btnPicoPlaySlot">&#x25B6; Play Slot</button>
     <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
-    <button class="stop" id="btnPicoStop">&#x25A0; Stop</button>
+    <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
+    <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
   </div>
   <div style="display:flex;align-items:center;gap:6px;min-width:0">
     <span id="picoStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
     <span id="picoStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
   </div>
+  <!-- Slot status strip -->
+  <div id="chaserSlotStrip" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px"></div>
 </section>
 
 </main>
@@ -856,18 +859,65 @@ function setPicoStatus(msg,color){
   document.getElementById('picoStatus').style.color=color||'var(--muted)';
   document.getElementById('picoStatusDot').style.background=color||'var(--muted)';
 }
-function pollPicoStatus(){
+let _lastChaserSlots = null;
+let _lastChaserActiveMask = 0;
+
+function renderChaserSlotStrip(slots, activeMask) {
+  const strip = document.getElementById('chaserSlotStrip');
+  if (!strip) return;
+  const selected = parseInt(document.getElementById('picoSlot').value) || 0;
+  strip.innerHTML = '';
+  slots.forEach(s => {
+    const alive  = !!(activeMask & (1 << s.slot));
+    const loaded = s.loaded;
+    const sel    = (s.slot === selected);
+    const d = document.createElement('div');
+    d.style.cssText = [
+      'background:#0a0d10',
+      'border:1.5px solid ' + (alive ? 'var(--accent)' : loaded ? 'var(--line)' : 'rgba(255,255,255,.07)'),
+      sel ? 'box-shadow:0 0 0 2px var(--accent)' : '',
+      'border-radius:7px','padding:7px 5px 6px','text-align:center',
+      'cursor:pointer','opacity:' + (loaded ? '1' : '0.45'),
+      'transition:border-color .15s,box-shadow .15s','user-select:none'
+    ].filter(Boolean).join(';');
+    const stepsLabel = loaded ? s.step_count + ' steps' : '\u2014';
+    d.innerHTML =
+      '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
+      '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
+      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
+      '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
+      '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' +
+        (alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
+      '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:' +
+        (alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
+        (alive ? 'LIVE' : loaded ? 'READY' : 'EMPTY') + '</span>' +
+      '</div>';
+    d.onclick = () => {
+      document.getElementById('picoSlot').value = s.slot;
+      renderChaserSlotStrip(slots, activeMask);
+    };
+    strip.appendChild(d);
+  });
+  _lastChaserSlots = slots;
+  _lastChaserActiveMask = activeMask;
+}
+
+async function pollPicoStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  fetch(root+'/chaser/status').then(r=>r.json()).then(j=>{
+  if(!root) return;
+  try{
+    const j=await fetch(root+'/chaser/status').then(r=>r.json());
     if(j.ok){
-      const slot=j.slot!==undefined?j.slot:0;
-      const speed=j.speed_mult!==undefined?(+j.speed_mult).toFixed(2)+'x':'';
-      const s=j.playing
-        ?'Slot '+slot+' playing – step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms) '+speed
-        :'Slot '+slot+' loaded, stopped '+speed;
-      setPicoStatus(s,j.playing?'var(--accent)':'var(--muted)');
+      const activeSlots=[];
+      for(let i=0;i<8;i++) if(j.active_mask&(1<<i)) activeSlots.push(i);
+      const s=activeSlots.length>0
+        ?'Slots '+activeSlots.join(',')+' running \u00b7 step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms)'
+        :'Stopped';
+      setPicoStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
+      const sl=await fetch(root+'/chaser/slots').then(r=>r.json());
+      if(sl.ok) renderChaserSlotStrip(sl.slots,j.active_mask);
     }
-  }).catch(()=>setPicoStatus('No response','var(--bad)'));
+  }catch(e){setPicoStatus('No response','var(--bad)');}
 }
 function startPicoStatusPoll(){
   stopPicoStatusPoll();
@@ -928,12 +978,32 @@ document.getElementById('btnPicoStop').onclick=async()=>{
   try{
     await fetch(root+'/chaser/stop');
     setPicoStatus('Stopped','var(--muted)');
-  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+    pollPicoStatus();
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');};
 };
+
+document.getElementById('btnPicoStopSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  try{
+    await fetch(root+'/chaser/stop/'+slot);
+    setPicoStatus('Slot '+slot+' stopped','var(--muted)');
+    pollPicoStatus();
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');};
+};
+
+document.getElementById('picoSlot').addEventListener('change',()=>{
+  try{if(_lastChaserSlots)renderChaserSlotStrip(_lastChaserSlots,_lastChaserActiveMask);}catch(_){}
+});
 
 // ---- init ----
 loadSetup();
 try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}
+try{
+  const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0}));
+  renderChaserSlotStrip(dummy,0);
+}catch(e){console.warn('chaserSlotStrip init error',e);}
 </script>
 </body>
 </html>

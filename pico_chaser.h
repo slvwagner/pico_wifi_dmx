@@ -25,19 +25,17 @@ typedef struct {
 
 /* Summary returned by chaser_get_status() */
 typedef struct {
-    bool     playing;
-    bool     loaded;        /* active slot is loaded */
-    bool     loop;
-    uint8_t  active_slot;
-    uint16_t current_step;
-    uint16_t step_count;
-    uint32_t elapsed_ms;
-    float    speed_mult;    /* current slot speed multiplier */
+    uint8_t  active_mask;   /* bitmask: bit i = slot i is playing  */
+    uint8_t  loaded_mask;   /* bitmask: bit i = slot i is loaded   */
+    uint16_t step;          /* current_step of the first active slot */
+    uint16_t step_count;    /* step_count  of the first active slot */
+    uint32_t elapsed_ms;    /* elapsed_ms  of the first active slot */
 } chaser_status_t;
 
 /* Per-slot summary returned by chaser_get_slot_info() */
 typedef struct {
     bool     loaded;
+    bool     active;
     bool     loop;
     uint16_t step_count;
     float    speed_mult;
@@ -47,6 +45,7 @@ void chaser_init(void);
 bool chaser_load_slot(uint8_t slot, const char *body, size_t len);
 void chaser_play(uint8_t slot);
 void chaser_stop(void);
+void chaser_stop_slot(uint8_t slot);
 void chaser_set_speed(uint8_t slot, float mult);  /* mult: 0.1–10.0, 1.0 = normal */
 void chaser_tick(uint32_t now_us);
 void chaser_get_status(chaser_status_t *out);

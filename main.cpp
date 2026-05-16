@@ -685,17 +685,13 @@ static void build_chaser_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"playing\":%s,\"loaded\":%s,\"loop\":%s,"
-        "\"slot\":%u,\"step\":%u,\"step_count\":%u,"
-        "\"elapsed_ms\":%lu,\"speed_mult\":%.2f}\n",
-        s.playing    ? "true" : "false",
-        s.loaded     ? "true" : "false",
-        s.loop       ? "true" : "false",
-        (unsigned)s.active_slot,
-        s.current_step,
+        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,"
+        "\"step\":%u,\"step_count\":%u,\"elapsed_ms\":%lu}\n",
+        (unsigned)s.active_mask,
+        (unsigned)s.loaded_mask,
+        s.step,
         s.step_count,
-        (unsigned long)s.elapsed_ms,
-        (double)s.speed_mult);
+        (unsigned long)s.elapsed_ms);
 }
 
 static void build_chaser_slots_response()
@@ -712,10 +708,11 @@ static void build_chaser_slots_response()
         chaser_slot_info_t info;
         chaser_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"loop\":%s,\"step_count\":%u,\"speed_mult\":%.2f}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"loop\":%s,\"step_count\":%u,\"speed_mult\":%.2f}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded     ? "true" : "false",
+            info.active     ? "true" : "false",
             info.loop       ? "true" : "false",
             info.step_count,
             (double)info.speed_mult);
@@ -874,8 +871,16 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     if (path_matches(name, "/chaser/stop")) {
-        chaser_stop();
-        build_playback_ok_response("chaser stopped");
+        if (name[12] == '/') {
+            /* /chaser/stop/<slot> — stop one slot only */
+            unsigned long s = strtoul(name + 13, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) chaser_stop_slot((uint8_t)s);
+            build_playback_ok_response("chaser slot stopped");
+        } else {
+            /* /chaser/stop — stop all slots */
+            chaser_stop();
+            build_playback_ok_response("chaser stopped");
+        }
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;

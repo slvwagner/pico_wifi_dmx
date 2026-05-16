@@ -43,12 +43,19 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 
 ### Pico chaser
 
+Up to **8 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, loop flag, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/chaser/load` | POST | Upload chaser config (text protocol, see below) |
-| `/chaser/play` | GET | Start/resume Pico-side chaser |
-| `/chaser/stop` | GET | Stop Pico-side chaser |
-| `/chaser/status` | GET | `{"playing":bool,"step":N,"step_count":N,"elapsed_ms":N}` |
+| `/chaser/load/<N>` | POST | Upload chaser config to slot N (0–7) |
+| `/chaser/play/<N>` | GET | Start slot N |
+| `/chaser/stop` | GET | Stop all slots |
+| `/chaser/stop/<N>` | GET | Stop slot N only |
+| `/chaser/speed/<N>/<mult_x100>` | GET | Set speed multiplier for slot N (100 = 1.0×) |
+| `/chaser/status` | GET | `{"ok":true,"active_mask":N,"loaded_mask":N,"step":N,"step_count":N,"elapsed_ms":N}` |
+| `/chaser/slots` | GET | `{"ok":true,"slots":[{"slot":N,"loaded":bool,"active":bool,"loop":bool,"step_count":N,"speed_mult":F},…]}` |
+
+`active_mask` and `loaded_mask` are bitmasks — bit *i* set means slot *i* is active/loaded.
 
 Chaser text protocol (POST body):
 ```
