@@ -177,6 +177,13 @@ a.nav:hover{color:var(--text)}
     <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
     <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
+    <button id="btnPicoRestoreAll">&#x21BA; Restore All Slots</button>
+  </div>
+  <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:4px">
+    <span style="font-size:12px;color:var(--muted);align-self:center">Saved slots:</span>
+    <button id="btnExportSlots">&#x2193; Export Slots</button>
+    <button id="btnImportSlots">&#x2191; Import Slots</button>
+    <input id="importSlotsFile" type="file" accept=".json,application/json" style="display:none">
   </div>
   <div style="display:flex;align-items:center;gap:6px;min-width:0">
     <span id="picoStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
@@ -785,11 +792,33 @@ function applyChaserData(data){
   selectedStepIdx=steps.length?0:-1;
   drawParticipation();drawStepList();drawStepEditor();
 }
-document.getElementById('btnSave').onclick=()=>{localStorage.setItem('dmxChaser',JSON.stringify(chaserData()));setStatus('Chaser saved');};
-document.getElementById('btnLoad').onclick=()=>{
-  const raw=localStorage.getItem('dmxChaser');
-  if(raw){applyChaserData(JSON.parse(raw));setStatus('Chaser loaded');}
-  else setStatus('No saved chaser found',true);
+async function saveChaserToServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
+  try{
+    const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserData())});
+    const j=await r.json();
+    if(j.ok)setStatus('Chaser saved to server');
+    else setStatus('Save failed: '+j.error,true);
+  }catch(err){setStatus('Save failed: '+err.message,true);}
+}
+async function loadChaserFromServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
+  try{
+    const r=await fetch('chaser_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    if(r.ok&&j.ok&&j.exists&&j.chaser){applyChaserData(j.chaser);return true;}
+  }catch(_){}
+  return false;
+}
+document.getElementById('btnSave').onclick=()=>saveChaserToServer();
+document.getElementById('btnLoad').onclick=async()=>{
+  const loaded=await loadChaserFromServer();
+  if(loaded){setStatus('Chaser loaded from server');}
+  else{
+    const raw=localStorage.getItem('dmxChaser');
+    if(raw){applyChaserData(JSON.parse(raw));setStatus('Chaser loaded (browser cache)');}
+    else setStatus('No saved chaser found',true);
+  }
 };
 document.getElementById('btnExport').onclick=()=>{
   const blob=new Blob([JSON.stringify(chaserData(),null,2)],{type:'application/json'});
@@ -801,6 +830,54 @@ document.getElementById('importFile').onchange=e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=()=>{try{applyChaserData(JSON.parse(reader.result));setStatus('Chaser imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';};
+  reader.readAsText(file);
+};
+document.getElementById('btnExportSlots').onclick=async()=>{
+  let j;
+  try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
+  if(!j.ok){setStatus('Export slots error',true);return;}
+  const exportData={pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots};
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chaser_slots.json';a.click();URL.revokeObjectURL(a.href);
+  setStatus('chaser_slots.json downloaded');
+};
+document.getElementById('btnImportSlots').onclick=()=>document.getElementById('importSlotsFile').click();
+document.getElementById('importSlotsFile').onchange=async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const slots=Array.isArray(data)?data:(data.pico_slots||[]);
+      if(!Array.isArray(slots)){alert('Invalid slots file: expected {pico_slots:[...]} or array');return;}
+      const current=baseUrlEl.value.replace(/\/+$/,'');
+      const fileUrl=(data.pico_url||'').replace(/\/+$/,'');
+      if(fileUrl&&current&&fileUrl!==current){
+        if(!confirm('This file was saved for Pico at "'+fileUrl+'"\nCurrent URL is "'+current+'"\nImport anyway?')){
+          e.target.value='';return;
+        }
+      }
+      const root=current;
+      let saved=0,pushed=0;
+      for(let i=0;i<slots.length;i++){
+        if(!slots[i])continue;
+        const params='slot='+i+(root?'&pico_url='+encodeURIComponent(root):'');
+        try{await fetch('chaser_setup.php?'+params,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});saved++;}catch(_){}
+        if(root){
+          try{
+            const r=await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
+            const j=await r.json();if(j.ok)pushed++;
+          }catch(_){}
+        }
+      }
+      const msg=root
+        ?saved+' slot(s) saved to server, '+pushed+' pushed to Pico'
+        :saved+' slot(s) saved to server (set Pico URL to also push)';
+      setStatus(msg);
+      if(root)pollPicoStatus();
+    }catch(err){alert('Invalid JSON: '+err.message);}
+    e.target.value='';
+  };
   reader.readAsText(file);
 };
 
@@ -929,6 +1006,32 @@ function stopPicoStatusPoll(){
   if(picoStatusTimer){clearInterval(picoStatusTimer);picoStatusTimer=null;}
 }
 
+async function saveChaserSlotToServer(slot, body){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  const url=baseUrlEl.value.replace(/\/+$/,'');
+  const params='slot='+slot+(url?'&pico_url='+encodeURIComponent(url):'');
+  try{await fetch('chaser_setup.php?'+params,{method:'POST',body,headers:{'Content-Type':'text/plain'}});}catch(_){}
+}
+async function restoreAllChaserSlots(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  let j;
+  try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setPicoStatus('Restore error: '+e.message,'var(--bad)');return;}
+  if(!j.ok){setPicoStatus('Restore error','var(--bad)');return;}
+  const slots=j.pico_slots||[];
+  let count=0;
+  for(let i=0;i<slots.length;i++){
+    if(!slots[i])continue;
+    try{
+      const r=await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
+      const rj=await r.json();
+      if(rj.ok)count++;
+    }catch(_){}
+  }
+  setPicoStatus(count+' slot(s) restored to Pico','var(--accent)');
+  pollPicoStatus();
+}
+
 document.getElementById('btnPicoUploadPlay').onclick=async()=>{
   if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
   stopPlayback(); // stop browser playback so it doesn't fight Pico
@@ -940,12 +1043,14 @@ document.getElementById('btnPicoUploadPlay').onclick=async()=>{
     const r=await fetch(root+'/chaser/load/'+slot,{method:'POST',body,headers:{'Content-Type':'text/plain'}});
     const j=await r.json();
     if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
+    saveChaserSlotToServer(slot, body); // persist to server (fire-and-forget)
     const r2=await fetch(root+'/chaser/play/'+slot);
     const j2=await r2.json();
     if(j2.ok){setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
     else{setPicoStatus('Play error','var(--bad)');}
-  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');};
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
+document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
 
 document.getElementById('btnPicoPlaySlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
@@ -1000,7 +1105,29 @@ document.getElementById('picoSlot').addEventListener('change',()=>{
 
 // ---- init ----
 loadSetup();
-try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}
+(async()=>{
+  const loaded=await loadChaserFromServer();
+  if(!loaded){try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}}
+  // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(root){
+    try{
+      const r=await fetch('chaser_setup.php?slots');
+      const j=await r.json();
+      if(j.ok){
+        const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
+        if(!savedUrl||savedUrl===root){
+          const slots=j.pico_slots||[];
+          for(let i=0;i<slots.length;i++){
+            if(!slots[i])continue;
+            try{await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
+          }
+          pollPicoStatus();
+        }
+      }
+    }catch(_){}
+  }
+})();
 try{
   const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0}));
   renderChaserSlotStrip(dummy,0);

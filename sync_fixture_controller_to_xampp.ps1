@@ -10,16 +10,20 @@ $apiSource = Join-Path $PSScriptRoot "fixture_setup.php"
 $motionSource = Join-Path $PSScriptRoot "dmx_motion.html"
 $chaserSource = Join-Path $PSScriptRoot "dmx_chaser.html"
 $benchSource = Join-Path $PSScriptRoot "dmx_benchmark.html"
-$fanSource    = Join-Path $PSScriptRoot "dmx_fan.html"
-$fanApiSource = Join-Path $PSScriptRoot "fan_setup.php"
+$fanSource       = Join-Path $PSScriptRoot "dmx_fan.html"
+$fanApiSource    = Join-Path $PSScriptRoot "fan_setup.php"
+$chaserApiSource = Join-Path $PSScriptRoot "chaser_setup.php"
+$motionApiSource = Join-Path $PSScriptRoot "motion_setup.php"
 $targetDir = Join-Path $XamppHtdocs $AppFolder
 $target = Join-Path $targetDir "index.html"
 $apiTarget = Join-Path $targetDir "fixture_setup.php"
 $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $targetDir "dmx_benchmark.html"
-$fanTarget    = Join-Path $targetDir "dmx_fan.html"
-$fanApiTarget = Join-Path $targetDir "fan_setup.php"
+$fanTarget       = Join-Path $targetDir "dmx_fan.html"
+$fanApiTarget    = Join-Path $targetDir "fan_setup.php"
+$chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
+$motionApiTarget = Join-Path $targetDir "motion_setup.php"
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Source file not found: $source"
@@ -51,6 +55,14 @@ if (Test-Path -LiteralPath $fanSource) {
 if (Test-Path -LiteralPath $fanApiSource) {
     Copy-Item -LiteralPath $fanApiSource -Destination $fanApiTarget -Force
     Write-Host "Copied fan API to $fanApiTarget"
+}
+if (Test-Path -LiteralPath $chaserApiSource) {
+    Copy-Item -LiteralPath $chaserApiSource -Destination $chaserApiTarget -Force
+    Write-Host "Copied chaser API to $chaserApiTarget"
+}
+if (Test-Path -LiteralPath $motionApiSource) {
+    Copy-Item -LiteralPath $motionApiSource -Destination $motionApiTarget -Force
+    Write-Host "Copied motion API to $motionApiTarget"
 }
 
 Write-Host "Copied fixture controller to $target"
