@@ -507,27 +507,29 @@ static void build_dmx_json_response(unsigned status_code, const char *status_tex
         body);
 }
 
-static void build_dmx_batch_response(const char *name)
+// /dmx/b/<ch>:<val>,<ch>:<val>,…  — batch set, data encoded in path (no query string)
+// lwIP httpd strips query strings before fs_open, so we must use the path.
+static void build_dmx_b_response(const char *name)
 {
-    const char *query = strchr(name, '?');
-    if (!query) {
-        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"No channels: use /dmx/batch?1=255&2=0\"}\n");
+    // name = "/dmx/b/1:255,2:128,..."  — skip the 7-char prefix "/dmx/b/"
+    const char *data = name + 7;
+    if (!*data) {
+        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"Use /dmx/b/ch:val,ch:val\"}\n");
         return;
     }
-    query++;
 
     dmx_engine_status_t status;
     dmx_engine_get_status(&status);
 
     uint16_t updated = 0;
-    const char *p = query;
+    const char *p = data;
     while (*p) {
-        char *end_key = NULL;
-        unsigned long ch = strtoul(p, &end_key, 10);
-        if (end_key != p && *end_key == '=' && ch >= 1 && ch <= status.channels) {
+        char *end_ch = NULL;
+        unsigned long ch = strtoul(p, &end_ch, 10);
+        if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= status.channels) {
             char *end_val = NULL;
-            unsigned long val = strtoul(end_key + 1, &end_val, 10);
-            if (end_val != end_key + 1 && val <= 255) {
+            unsigned long val = strtoul(end_ch + 1, &end_val, 10);
+            if (end_val != end_ch + 1 && val <= 255) {
                 dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
                 critical_section_enter_blocking(&dmx_ui_lock);
                 dmx_ui_values[ch] = (uint8_t)val;
@@ -536,11 +538,11 @@ static void build_dmx_batch_response(const char *name)
             }
             p = end_val;
         } else {
-            const char *next = strchr(p, '&');
+            const char *next = strchr(p, ',');
             if (!next) break;
             p = next;
         }
-        if (*p == '&') p++;
+        if (*p == ',') p++;
         else break;
     }
 
@@ -747,8 +749,8 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
-    if (path_matches(name, "/dmx/batch")) {
-        build_dmx_batch_response(name);
+    if (path_matches(name, "/dmx/b")) {
+        build_dmx_b_response(name);
         file->data = http_dmx_json;
         file->len = (int)strlen(http_dmx_json);
         file->index = file->len;

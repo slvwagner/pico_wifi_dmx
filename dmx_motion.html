@@ -364,6 +364,16 @@ function stopMotion(){
   setStatus('Stopped');
 }
 
+function sendBatch(map){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return;
+  const pairs=Object.entries(map).map(([ch,v])=>Math.round(ch)+':'+Math.round(clamp(v,0,255))).join(',');
+  if(!pairs)return;
+  const url=root+'/dmx/b/'+pairs;
+  if(root!==location.origin){new Image().src=url;return;}
+  fetch(url,{cache:'no-store'}).catch(()=>{});
+}
+
 function tick(){
   const elapsed=(performance.now()-startTime)/1000;
   const bpm=clamp(document.getElementById('bpm').value,1,600);
@@ -373,6 +383,7 @@ function tick(){
   const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
+  const batchMap={};
 
   enabled.forEach((mf,i)=>{
     const c=mf.control;
@@ -387,13 +398,13 @@ function tick(){
 
     if(c.type==='panTilt16'){
       const pan=bytes16(newPan),tilt=bytes16(newTilt);
-      sendChannel(absolute(f.start,c.pan),pan.coarse);
-      sendChannel(absolute(f.start,c.panFine??c.pan+1),pan.fine);
-      sendChannel(absolute(f.start,c.tilt),tilt.coarse);
-      sendChannel(absolute(f.start,c.tiltFine??c.tilt+1),tilt.fine);
+      batchMap[absolute(f.start,c.pan)]=pan.coarse;
+      batchMap[absolute(f.start,c.panFine??c.pan+1)]=pan.fine;
+      batchMap[absolute(f.start,c.tilt)]=tilt.coarse;
+      batchMap[absolute(f.start,c.tiltFine??c.tilt+1)]=tilt.fine;
     }else{
-      sendChannel(absolute(f.start,c.pan),newPan);
-      sendChannel(absolute(f.start,c.tilt),newTilt);
+      batchMap[absolute(f.start,c.pan)]=newPan;
+      batchMap[absolute(f.start,c.tilt)]=newTilt;
     }
 
     // update mini XY pad
@@ -404,6 +415,7 @@ function tick(){
     if(posEl)posEl.textContent='Pan '+Math.round(newPan)+' · Tilt '+Math.round(newTilt);
   });
 
+  sendBatch(batchMap);
   setStatus('Running · '+elapsed.toFixed(1)+'s · '+Math.round(enabled.length*(document.getElementById('updateRate').value))+ ' ch/s');
 }
 
