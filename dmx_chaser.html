@@ -629,6 +629,14 @@ let currentOutput={};
 function startPlayback(){
   if(!steps.length){setStatus('Add some steps first',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
+  // Stop any running Pico playback so it doesn't fight the browser
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(root){
+    fetch(root+'/chaser/stop').catch(()=>{});
+    fetch(root+'/motion/stop').catch(()=>{});
+    stopPicoStatusPoll();
+    setPicoStatus('Stopped (browser took over)','var(--muted)');
+  }
   playing=true;
   activeStepIdx=0;
   stepEnteredAt=performance.now();
@@ -845,6 +853,7 @@ function stopPicoStatusPoll(){
 
 document.getElementById('btnPicoUploadPlay').onclick=async()=>{
   if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
+  stopPlayback(); // stop browser playback so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   const body=serializeChaserForPico();
   setPicoStatus('Uploading…','var(--warn)');

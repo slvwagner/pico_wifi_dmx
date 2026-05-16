@@ -339,6 +339,14 @@ let startTime=null;
 function startMotion(){
   if(!motionFixtures.some(mf=>mf.enabled)){setStatus('Enable at least one fixture',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
+  // Stop any running Pico motion so it doesn't fight the browser
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(root){
+    fetch(root+'/motion/stop').catch(()=>{});
+    fetch(root+'/chaser/stop').catch(()=>{});
+    stopPicoMotionPoll();
+    setPicoMotionStatus('Stopped (browser took over)','var(--muted)');
+  }
   running=true;
   startTime=performance.now();
   const hz=clamp(document.getElementById('updateRate').value,5,50);
@@ -458,6 +466,7 @@ function stopPicoMotionPoll(){if(picoMotionTimer){clearInterval(picoMotionTimer)
 
 document.getElementById('btnPicoMotionUpload').onclick=async()=>{
   if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
+  stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   const body=serializeMotionForPico();
   setPicoMotionStatus('Uploading…','var(--warn)');
