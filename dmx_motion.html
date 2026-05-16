@@ -335,6 +335,7 @@ function drawPathPreview(){
 let running=false;
 let intervalId=null;
 let startTime=null;
+let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
 
 function startMotion(){
   if(!motionFixtures.some(mf=>mf.enabled)){setStatus('Enable at least one fixture',true);return;}
@@ -349,6 +350,7 @@ function startMotion(){
   }
   running=true;
   startTime=performance.now();
+  sentToPico={};
   const hz=clamp(document.getElementById('updateRate').value,5,50);
   document.getElementById('startStop').textContent='■ Stop';
   document.getElementById('startStop').className='stop';
@@ -365,9 +367,15 @@ function stopMotion(){
 }
 
 function sendBatch(map){
+  // Encode in URL path — lwIP httpd strips query strings before fs_open.
+  // Only transmit channels whose rounded value changed since the last send.
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
-  const pairs=Object.entries(map).map(([ch,v])=>Math.round(ch)+':'+Math.round(clamp(v,0,255))).join(',');
+  const pairs=Object.entries(map).reduce((acc,[ch,v])=>{
+    const c=Math.round(ch),rv=Math.round(clamp(v,0,255));
+    if(sentToPico[c]!==rv){sentToPico[c]=rv;acc.push(c+':'+rv);}
+    return acc;
+  },[]).join(',');
   if(!pairs)return;
   const url=root+'/dmx/b/'+pairs;
   if(root!==location.origin){new Image().src=url;return;}
