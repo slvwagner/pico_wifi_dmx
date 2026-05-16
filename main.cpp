@@ -62,7 +62,7 @@ static volatile bool application_running = true;
 #define POST_BUFFER_MAX (12 * 1024)
 static char    post_buffer[POST_BUFFER_MAX];
 static size_t  post_length = 0;
-static enum { POST_NONE = 0, POST_CHASER, POST_MOTION } post_type = POST_NONE;
+static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH } post_type = POST_NONE;
 static uint8_t post_slot = 0;
 
 extern char __StackLimit;
@@ -1003,6 +1003,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    /* POST /dmx/b response — pre-built in httpd_post_finished */
+    if (path_matches(name, "/dmx/b_post_ok")) {
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     /* POST /motion/load response — pre-built in httpd_post_finished */
     if (path_matches(name, "/motion/load_ok")) {
         file->data = http_playback_json;
@@ -1086,6 +1095,13 @@ extern "C" err_t httpd_post_begin(void *connection,
         return ERR_OK;
     }
 
+    /* POST /dmx/b  — batch DMX set with ch:val pairs in body */
+    if (strncmp(uri, "/dmx/b", 6) == 0 &&
+        (uri[6] == '\0' || uri[6] == '/' || uri[6] == '?')) {
+        post_type = POST_DMX_BATCH;
+        return ERR_OK;
+    }
+
     post_type = POST_NONE;
     return ERR_VAL;
 }
@@ -1125,6 +1141,43 @@ extern "C" void httpd_post_finished(void *connection,
         if (ok) build_playback_ok_response("motion loaded");
         else    build_playback_err_response("parse error");
         snprintf(response_uri, response_uri_len, "/motion/load_ok");
+    } else if (post_type == POST_DMX_BATCH) {
+        dmx_engine_status_t status;
+        dmx_engine_get_status(&status);
+        uint16_t updated = 0;
+        const char *p = post_buffer;
+        while (*p) {
+            char *end_ch = NULL;
+            unsigned long ch = strtoul(p, &end_ch, 10);
+            if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= status.channels) {
+                char *end_val = NULL;
+                unsigned long val = strtoul(end_ch + 1, &end_val, 10);
+                if (end_val != end_ch + 1 && val <= 255) {
+                    dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                    critical_section_enter_blocking(&dmx_ui_lock);
+                    dmx_ui_values[ch] = (uint8_t)val;
+                    critical_section_exit(&dmx_ui_lock);
+                    updated++;
+                }
+                p = end_val;
+            } else {
+                const char *next = strchr(p, ',');
+                if (!next) break;
+                p = next;
+            }
+            if (*p == ',') p++;
+            else break;
+        }
+        snprintf(http_dmx_json, sizeof(http_dmx_json),
+            "HTTP/1.0 200 OK\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n"
+            "Cache-Control: no-store\r\n"
+            "\r\n"
+            "{\"ok\":true,\"updated\":%u}\n",
+            updated);
+        snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
     } else {
         build_playback_err_response("unknown endpoint");
         snprintf(response_uri, response_uri_len, "/chaser/load_ok");
