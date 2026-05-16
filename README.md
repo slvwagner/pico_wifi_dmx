@@ -181,6 +181,13 @@ Using OpenOCD + Picoprobe/CMSIS-DAP:
 
 ---
 
+## Resource Usage
+
+| Resource | Value |
+|----------|-------|
+| Free RAM (stable, measured at runtime) | **385 024 bytes** (~376 KB) |
+| Total SRAM (RP2350) | 520 KB |
+
 ## Notes
 
 - The `/dmx/b/` batch endpoint encodes channel data in the **URL path** rather than a query string. lwIP httpd nulls the `?` in the URI before calling `fs_open_custom`, making query-string-based batch endpoints unreliable.
