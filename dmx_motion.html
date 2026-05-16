@@ -119,6 +119,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
     <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
     <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
   </div>
+  <!-- Slot status strip -->
+  <div id="motionSlotStrip" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px"></div>
 </section>
 
 </main>
@@ -131,6 +133,9 @@ function setStatus(t,bad=false){const el=document.getElementById('status');el.te
 
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
+// Persist Pico base URL across all pages
+(()=>{ const v=localStorage.getItem('dmxPicoBaseUrl'); if(v) baseUrlEl.value=v; })();
+baseUrlEl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrlEl.value));
 function sendChannel(ch,value){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
@@ -178,7 +183,8 @@ async function loadSetup(auto=false){
 }
 
 function applySetup(){
-  baseUrlEl.value=setup.baseUrl||'';
+  // URL: prefer what the user last explicitly set (shared key), then fall back to saved setup
+  baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';
   // rebuild motionFixtures, preserving user-edited values if fixture+control id matches
   const prev=new Map(motionFixtures.map(mf=>[mf.fixture.id+':'+mf.control.id,mf]));
   motionFixtures=[];
@@ -482,23 +488,77 @@ function serializeMotionForPico(){
 }
 
 let picoMotionTimer=null;
+const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing'];
+let _lastSlots=null; // cached for selection-highlight re-render
+let _lastActiveMask=0;
+
+function renderMotionSlotStrip(slots, activeMask){
+  _lastSlots=slots; _lastActiveMask=activeMask;
+  const strip=document.getElementById('motionSlotStrip');
+  const sel=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  strip.innerHTML='';
+  slots.forEach(s=>{
+    const alive=!!(activeMask&(1<<s.slot));
+    const loaded=s.loaded;
+    const selected=s.slot===sel;
+    const d=document.createElement('div');
+    d.style.cssText=[
+      'background:#0a0d10',
+      'border:1.5px solid '+(alive?'var(--accent)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
+      selected?'box-shadow:0 0 0 2px var(--accent)':'',
+      'border-radius:7px',
+      'padding:7px 5px 6px',
+      'text-align:center',
+      'cursor:pointer',
+      'opacity:'+(loaded?'1':'0.45'),
+      'transition:border-color .15s,box-shadow .15s',
+      'user-select:none'
+    ].filter(Boolean).join(';');
+    const typeName=loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    d.innerHTML=
+      '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
+      '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
+      (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
+      (loaded?'<div style="font-size:11px;color:var(--muted)">'+s.fixture_count+' fix</div>':'') +
+      '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
+        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
+        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
+      '</div>';
+    d.onclick=()=>{
+      document.getElementById('picoMotionSlot').value=s.slot;
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask);
+    };
+    strip.appendChild(d);
+  });
+}
+
+// Re-highlight selection when slot selector changes
+document.getElementById('picoMotionSlot').addEventListener('change',()=>{
+  try{ if(_lastSlots) renderMotionSlotStrip(_lastSlots,_lastActiveMask); }catch(_){}
+});
+
 function setPicoMotionStatus(msg,color){
   document.getElementById('picoMotionStatus').textContent=msg;
   document.getElementById('picoMotionStatus').style.color=color||'var(--muted)';
   document.getElementById('picoMotionStatusDot').style.background=color||'var(--muted)';
 }
-function pollPicoMotionStatus(){
+async function pollPicoMotionStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  fetch(root+'/motion/status').then(r=>r.json()).then(j=>{
-    if(j.ok){
+  if(!root) return;
+  try{
+    const st=await fetch(root+'/motion/status').then(r=>r.json());
+    if(st.ok){
       const activeSlots=[];
-      for(let i=0;i<8;i++) if(j.active_mask&(1<<i)) activeSlots.push(i);
+      for(let i=0;i<8;i++) if(st.active_mask&(1<<i)) activeSlots.push(i);
       const s=activeSlots.length>0
-        ?'Slots '+activeSlots.join(',')+' running \u00b7 '+j.elapsed_s.toFixed(1)+'s'
+        ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
         :'Stopped';
       setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
+      /* fetch slot details sequentially to avoid overwhelming the Pico */
+      const sl=await fetch(root+'/motion/slots').then(r=>r.json());
+      if(sl.ok) renderMotionSlotStrip(sl.slots,st.active_mask);
     }
-  }).catch(()=>setPicoMotionStatus('No response','var(--bad)'));
+  }catch(e){setPicoMotionStatus('No response','var(--bad)');}
 }
 function startPicoMotionPoll(){stopPicoMotionPoll();picoMotionTimer=setInterval(pollPicoMotionStatus,1000);pollPicoMotionStatus();}
 function stopPicoMotionPoll(){if(picoMotionTimer){clearInterval(picoMotionTimer);picoMotionTimer=null;}}
@@ -554,17 +614,29 @@ document.getElementById('btnPicoMotionStopSlot').onclick=async()=>{
   try{
     await fetch(root+'/motion/stop/'+slot);
     setPicoMotionStatus('Slot '+slot+' stopped','var(--muted)');
+    pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoMotionStop').onclick=async()=>{
   stopPicoMotionPoll();
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  try{await fetch(root+'/motion/stop');setPicoMotionStatus('Stopped','var(--muted)');}
-  catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+  try{
+    await fetch(root+'/motion/stop');
+    setPicoMotionStatus('Stopped','var(--muted)');
+    pollPicoMotionStatus();
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
-loadSetup();
+loadSetup().finally(()=>{
+  // Render placeholder strip only AFTER setup runs — ensures strip never blocks fixture loading
+  try{
+    const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0}));
+    renderMotionSlotStrip(dummy,0);
+  }catch(e){ console.warn('slot strip init error',e); }
+});
+// After setup loads (and baseUrl is restored from localStorage), auto-poll once
+setTimeout(()=>{ if(baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
 // Auto-reload when Fixture Controller saves to localStorage in another tab
 window.addEventListener('storage',e=>{if(e.key==='dmxFixtureController')loadSetup(true);});
 // Poll server every 3 seconds for changes saved from the Fixture Controller

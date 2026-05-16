@@ -207,6 +207,9 @@ function interpolateValue(from,to,t){
 
 // ---- DMX send ----
 const baseUrlEl=document.getElementById('baseUrl');
+// Persist Pico base URL across all pages
+(()=>{ const v=localStorage.getItem('dmxPicoBaseUrl'); if(v) baseUrlEl.value=v; })();
+baseUrlEl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrlEl.value));
 function sendChannel(ch,value){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
@@ -294,12 +297,12 @@ async function loadSetup(){
     if(location.protocol==='http:'||location.protocol==='https:'){
       const r=await fetch('fixture_setup.php',{cache:'no-store'});
       const j=await r.json();
-      if(r.ok&&j.ok&&j.exists){setup=j.setup;baseUrlEl.value=setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded from server');return;}
+      if(r.ok&&j.ok&&j.exists){setup=j.setup;baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded from server');return;}
     }
   }catch(_){}
   try{
     const raw=localStorage.getItem('dmxFixtureController');
-    if(raw){setup=JSON.parse(raw);baseUrlEl.value=setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded (browser cache)');return;}
+    if(raw){setup=JSON.parse(raw);baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded (browser cache)');return;}
   }catch(_){}
   setStatus('No setup found — open Fixture Controller first',true);
 }
