@@ -10,14 +10,16 @@ $apiSource = Join-Path $PSScriptRoot "fixture_setup.php"
 $motionSource = Join-Path $PSScriptRoot "dmx_motion.html"
 $chaserSource = Join-Path $PSScriptRoot "dmx_chaser.html"
 $benchSource = Join-Path $PSScriptRoot "dmx_benchmark.html"
-$fanSource = Join-Path $PSScriptRoot "dmx_fan.html"
+$fanSource    = Join-Path $PSScriptRoot "dmx_fan.html"
+$fanApiSource = Join-Path $PSScriptRoot "fan_setup.php"
 $targetDir = Join-Path $XamppHtdocs $AppFolder
 $target = Join-Path $targetDir "index.html"
 $apiTarget = Join-Path $targetDir "fixture_setup.php"
 $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $targetDir "dmx_benchmark.html"
-$fanTarget = Join-Path $targetDir "dmx_fan.html"
+$fanTarget    = Join-Path $targetDir "dmx_fan.html"
+$fanApiTarget = Join-Path $targetDir "fan_setup.php"
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Source file not found: $source"
@@ -45,6 +47,10 @@ if (Test-Path -LiteralPath $benchSource) {
 if (Test-Path -LiteralPath $fanSource) {
     Copy-Item -LiteralPath $fanSource -Destination $fanTarget -Force
     Write-Host "Copied fan out to $fanTarget"
+}
+if (Test-Path -LiteralPath $fanApiSource) {
+    Copy-Item -LiteralPath $fanApiSource -Destination $fanApiTarget -Force
+    Write-Host "Copied fan API to $fanApiTarget"
 }
 
 Write-Host "Copied fixture controller to $target"

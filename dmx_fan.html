@@ -80,6 +80,10 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
     <button id="btnRefreshBases" title="Read current Pico DMX values as base for all axes">&#x21ba; Refresh All Bases</button>
+    <button id="btnSave" title="Save fan groups to server">&#x1f4be; Save</button>
+    <button id="btnExport" title="Download fan groups as JSON">&#x2193; Export</button>
+    <button id="btnImport" title="Import fan groups from JSON file">&#x2191; Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
     <a class="nav" href="index.html">← Controller</a>
     <a class="nav" href="dmx_chaser.html">Chaser →</a>
     <a class="nav" href="dmx_motion.html">Motion →</a>
@@ -755,6 +759,65 @@ async function loadSetup() {
     setStatus('No setup found — configure fixtures in the Fixture Controller first', true);
 }
 
+// ---- persist fan groups ----
+async function saveFanGroups() {
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+        setStatus('Save to server not available on file:// — use Export instead', true);
+        return;
+    }
+    try {
+        const r = await fetch('fan_setup.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(groups)
+        });
+        const j = await r.json();
+        if (j.ok) setStatus('Fan groups saved to server');
+        else setStatus('Save failed: ' + j.error, true);
+    } catch (err) {
+        setStatus('Save failed: ' + err.message, true);
+    }
+}
+
+async function loadFanGroups() {
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') return false;
+    try {
+        const r = await fetch('fan_setup.php', { cache: 'no-store' });
+        const j = await r.json();
+        if (r.ok && j.ok && j.exists && Array.isArray(j.groups)) {
+            groups = j.groups;
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
+function exportJSON() {
+    const blob = new Blob([JSON.stringify(groups, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'fan_groups.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importJSON(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!Array.isArray(data)) throw new Error('Expected a JSON array');
+            groups = data;
+            renderGroups();
+            setStatus('Fan groups imported — remember to Save if you want to keep them');
+        } catch (err) {
+            setStatus('Import failed: ' + err.message, true);
+        }
+    };
+    reader.readAsText(file);
+}
+
 // ---- global base refresh ----
 async function refreshAllBases() {
     const root = baseUrlEl.value.replace(/\/+$/, '');
@@ -782,11 +845,17 @@ baseUrlEl.addEventListener('input', () => {
 });
 
 document.getElementById('btnRefreshBases').addEventListener('click', refreshAllBases);
+document.getElementById('btnSave').addEventListener('click', saveFanGroups);
+document.getElementById('btnExport').addEventListener('click', exportJSON);
+document.getElementById('btnImport').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e => {
+    if (e.target.files[0]) { importJSON(e.target.files[0]); e.target.value = ''; }
+});
 
-loadSetup().then(() => {
-    if (groups.length === 0) groups.push(newGroup());
+loadSetup().then(async () => {
+    const loaded = await loadFanGroups();
+    if (!loaded && groups.length === 0) groups.push(newGroup());
     renderGroups();
-    // Auto-snapshot from Pico if URL is already set
     if (baseUrlEl.value.trim()) refreshAllBases();
 });
 </script>
