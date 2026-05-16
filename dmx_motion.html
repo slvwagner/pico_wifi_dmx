@@ -95,14 +95,28 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 
 <!-- Pico Motion FX -->
 <section class="panel" style="border-color:rgba(55,196,164,.35)">
-  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
     <span class="mode-badge mode-badge--pico">&#x2699; Pico Motion</span>
-    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play on Pico</button>
-    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop Pico</button>
-    <span style="display:flex;align-items:center;gap:6px;min-width:0">
-      <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
-      <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
-    </span>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      Slot
+      <select id="picoMotionSlot" style="background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font:inherit">
+        <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+        <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      BPM
+      <input id="picoMotionBpm" type="number" min="0.1" max="600" step="1" value="30"
+             style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">
+    </label>
+    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play</button>
+    <button id="btnPicoMotionStartSlot">&#x25B6; Start Slot</button>
+    <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
+    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;min-width:0">
+    <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+    <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
   </div>
 </section>
 
@@ -476,7 +490,10 @@ function pollPicoMotionStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   fetch(root+'/motion/status').then(r=>r.json()).then(j=>{
     if(j.ok){
-      const s=j.active?('Running · '+j.elapsed_s.toFixed(1)+'s · BPM '+j.bpm.toFixed(1)):'Stopped';
+      const slot=j.slot!==undefined?j.slot:0;
+      const s=j.active
+        ?'Slot '+slot+' running · '+j.elapsed_s.toFixed(1)+'s · BPM '+j.bpm.toFixed(1)
+        :'Slot '+slot+' loaded, stopped';
       setPicoMotionStatus(s,j.active?'var(--accent)':'var(--muted)');
     }
   }).catch(()=>setPicoMotionStatus('No response','var(--bad)'));
@@ -488,18 +505,46 @@ document.getElementById('btnPicoMotionUpload').onclick=async()=>{
   if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const body=serializeMotionForPico();
-  setPicoMotionStatus('Uploading…','var(--warn)');
+  setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
-    const r=await fetch(root+'/motion/load',{method:'POST',body,headers:{'Content-Type':'text/plain'}});
+    const r=await fetch(root+'/motion/load/'+slot,{method:'POST',body,headers:{'Content-Type':'text/plain'}});
     const j=await r.json();
     if(!j.ok){setPicoMotionStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
-    const r2=await fetch(root+'/motion/start');
+    const r2=await fetch(root+'/motion/start/'+slot);
     const j2=await r2.json();
-    if(j2.ok){setPicoMotionStatus('Running on Pico','var(--accent)');startPicoMotionPoll();}
+    if(j2.ok){setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
     else{setPicoMotionStatus('Start error','var(--bad)');}
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
+
+document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  try{
+    const r=await fetch(root+'/motion/start/'+slot);
+    const j=await r.json();
+    if(j.ok){stopMotion();setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
+    else{setPicoMotionStatus('Start error: '+(j.error||'?'),'var(--bad)');}
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  const bpm=parseFloat(document.getElementById('picoMotionBpm').value)||30;
+  const bpm_x10=Math.round(Math.max(1,Math.min(6000,bpm*10)));
+  try{
+    const r=await fetch(root+'/motion/bpm/'+slot+'/'+bpm_x10);
+    const j=await r.json();
+    if(j.ok)setPicoMotionStatus('BPM set to '+(bpm_x10/10).toFixed(1)+' on slot '+slot,'var(--accent)');
+    else setPicoMotionStatus('BPM error','var(--bad)');
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+
 document.getElementById('btnPicoMotionStop').onclick=async()=>{
   stopPicoMotionPoll();
   const root=baseUrlEl.value.replace(/\/+$/,'');
