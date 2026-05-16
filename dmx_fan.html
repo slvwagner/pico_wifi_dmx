@@ -79,6 +79,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <button id="btnRefreshBases" title="Read current Pico DMX values as base for all axes">&#x21ba; Refresh All Bases</button>
     <a class="nav" href="index.html">← Controller</a>
     <a class="nav" href="dmx_chaser.html">Chaser →</a>
     <a class="nav" href="dmx_motion.html">Motion →</a>
@@ -667,15 +668,39 @@ async function loadSetup() {
     setStatus('No setup found — configure fixtures in the Fixture Controller first', true);
 }
 
+// ---- global base refresh ----
+async function refreshAllBases() {
+    const root = baseUrlEl.value.replace(/\/+$/, '');
+    if (!root) { setStatus('Set Pico base URL first', true); return; }
+    const tasks = [];
+    groups.forEach(g => g.lanes.forEach(lane => {
+        if (lane.controlKey && g.orderedFixtureIds.length > 0)
+            tasks.push(snapshotLaneBase(g, lane));
+    }));
+    if (tasks.length === 0) { setStatus('No axes configured yet', true); return; }
+    await Promise.all(tasks);
+    renderGroups();
+    groups.forEach(g => g.lanes.forEach(lane => sendLaneValues(g, lane)));
+}
+
 // ---- init ----
 const baseUrlEl = document.getElementById('baseUrl');
 (()=>{ const v = localStorage.getItem('dmxPicoBaseUrl'); if (v) baseUrlEl.value = v; })();
-baseUrlEl.addEventListener('input', () => localStorage.setItem('dmxPicoBaseUrl', baseUrlEl.value));
+
+let _urlDebounce;
+baseUrlEl.addEventListener('input', () => {
+    localStorage.setItem('dmxPicoBaseUrl', baseUrlEl.value);
+    clearTimeout(_urlDebounce);
+    _urlDebounce = setTimeout(() => refreshAllBases(), 800);
+});
+
+document.getElementById('btnRefreshBases').addEventListener('click', refreshAllBases);
 
 loadSetup().then(() => {
-    // Add a default empty group to get started
     if (groups.length === 0) groups.push(newGroup());
     renderGroups();
+    // Auto-snapshot from Pico if URL is already set
+    if (baseUrlEl.value.trim()) refreshAllBases();
 });
 </script>
 </body>
