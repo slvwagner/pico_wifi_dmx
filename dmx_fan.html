@@ -104,6 +104,12 @@ let groups = [];  // { id, orderedFixtureIds, lanes: [lane,...] }
 function uid() { return Date.now() + Math.floor(Math.random() * 9999); }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function lerp(a, b, t) { return a + (b - a) * t; }
+// Split a value into coarse (multiples of 256) + fine (0-255). Fine is always non-negative.
+function splitCoarseFine(val, is16bit) {
+    if (!is16bit) return { coarse: val, fine: 0 };
+    const coarse = Math.floor(val / 256) * 256;
+    return { coarse, fine: val - coarse };
+}
 function fixtureProfile(fix) { return profiles.find(p => p.id === fix.profileId); }
 function findGroup(gid) { return groups.find(g => g.id === +gid); }
 function findLane(g, lid) { return g?.lanes.find(l => l.id === +lid); }
@@ -413,30 +419,60 @@ function buildLaneSection(g, lane, ctrlOpts) {
     const slidersDiv = document.createElement('div');
     slidersDiv.className = 'slider-row';
     if (lane.mode === 'symmetric') {
-        const row = document.createElement('div');
-        row.className = 'slider-track';
         const spreadMax = info.maxVal;
-        row.innerHTML =
+        const { coarse: sc, fine: sf } = splitCoarseFine(clamp(lane.spread, 0, spreadMax), info.is16bit);
+        const coarseRow = document.createElement('div');
+        coarseRow.className = 'slider-track';
+        coarseRow.innerHTML =
             `<span style="font-size:13px;color:var(--muted);min-width:52px">Spread</span>` +
-            `<input type="range" min="0" max="${spreadMax}" step="${info.is16bit ? 256 : 1}" value="${clamp(lane.spread, 0, spreadMax)}" data-spread-group="${g.id}" data-spread-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
-            `<span class="val-badge">±${Math.round(clamp(lane.spread, 0, spreadMax) / 2)}</span>`;
-        slidersDiv.appendChild(row);
+            `<input type="range" min="0" max="${spreadMax}" step="${info.is16bit ? 256 : 1}" value="${sc}" data-spread-group="${g.id}" data-spread-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
+            `<span class="val-badge" data-spread-badge="${g.id}_${lane.id}">±${Math.round(clamp(lane.spread, 0, spreadMax) / 2)}</span>`;
+        slidersDiv.appendChild(coarseRow);
+        if (info.is16bit) {
+            const fineRow = document.createElement('div');
+            fineRow.className = 'slider-track';
+            fineRow.innerHTML =
+                `<span style="font-size:13px;color:var(--muted);min-width:52px;opacity:.65">Fine</span>` +
+                `<input type="range" min="0" max="255" step="1" value="${sf}" data-spread-fine-group="${g.id}" data-spread-fine-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px;accent-color:var(--muted)">` +
+                `<span class="val-badge" style="color:var(--muted)">+${sf}</span>`;
+            slidersDiv.appendChild(fineRow);
+        }
     } else {
         const ofMin = -halfMax, ofMax = halfMax;
+        const { coarse: fc, fine: ff } = splitCoarseFine(clamp(lane.fromOffset, ofMin, ofMax), info.is16bit);
+        const { coarse: tc, fine: tf } = splitCoarseFine(clamp(lane.toOffset,   ofMin, ofMax), info.is16bit);
         const fromRow = document.createElement('div');
         fromRow.className = 'slider-track';
         fromRow.innerHTML =
             `<span style="font-size:13px;color:var(--muted);min-width:52px">From</span>` +
-            `<input type="range" min="${ofMin}" max="${ofMax}" step="${info.is16bit ? 256 : 1}" value="${clamp(lane.fromOffset, ofMin, ofMax)}" data-from-group="${g.id}" data-from-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
-            `<span class="val-badge">${lane.fromOffset >= 0 ? '+' : ''}${Math.round(lane.fromOffset)}</span>`;
+            `<input type="range" min="${ofMin}" max="${ofMax}" step="${info.is16bit ? 256 : 1}" value="${fc}" data-from-group="${g.id}" data-from-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
+            `<span class="val-badge" data-from-badge="${g.id}_${lane.id}">${lane.fromOffset >= 0 ? '+' : ''}${Math.round(lane.fromOffset)}</span>`;
+        slidersDiv.appendChild(fromRow);
+        if (info.is16bit) {
+            const fromFineRow = document.createElement('div');
+            fromFineRow.className = 'slider-track';
+            fromFineRow.innerHTML =
+                `<span style="font-size:13px;color:var(--muted);min-width:52px;opacity:.65">Fine</span>` +
+                `<input type="range" min="0" max="255" step="1" value="${ff}" data-from-fine-group="${g.id}" data-from-fine-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px;accent-color:var(--muted)">` +
+                `<span class="val-badge" style="color:var(--muted)">+${ff}</span>`;
+            slidersDiv.appendChild(fromFineRow);
+        }
         const toRow = document.createElement('div');
         toRow.className = 'slider-track';
         toRow.innerHTML =
             `<span style="font-size:13px;color:var(--muted);min-width:52px">To</span>` +
-            `<input type="range" min="${ofMin}" max="${ofMax}" step="${info.is16bit ? 256 : 1}" value="${clamp(lane.toOffset, ofMin, ofMax)}" data-to-group="${g.id}" data-to-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
-            `<span class="val-badge">${lane.toOffset >= 0 ? '+' : ''}${Math.round(lane.toOffset)}</span>`;
-        slidersDiv.appendChild(fromRow);
+            `<input type="range" min="${ofMin}" max="${ofMax}" step="${info.is16bit ? 256 : 1}" value="${tc}" data-to-group="${g.id}" data-to-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
+            `<span class="val-badge" data-to-badge="${g.id}_${lane.id}">${lane.toOffset >= 0 ? '+' : ''}${Math.round(lane.toOffset)}</span>`;
         slidersDiv.appendChild(toRow);
+        if (info.is16bit) {
+            const toFineRow = document.createElement('div');
+            toFineRow.className = 'slider-track';
+            toFineRow.innerHTML =
+                `<span style="font-size:13px;color:var(--muted);min-width:52px;opacity:.65">Fine</span>` +
+                `<input type="range" min="0" max="255" step="1" value="${tf}" data-to-fine-group="${g.id}" data-to-fine-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px;accent-color:var(--muted)">` +
+                `<span class="val-badge" style="color:var(--muted)">+${tf}</span>`;
+            slidersDiv.appendChild(toFineRow);
+        }
     }
     sec.appendChild(slidersDiv);
 
@@ -600,40 +636,91 @@ document.addEventListener('change', e => {
 });
 
 document.addEventListener('input', e => {
-    // Spread slider
+    // Spread coarse
     const spreadEl = e.target.closest('[data-spread-group][data-spread-lane]');
     if (spreadEl) {
         const g    = findGroup(spreadEl.dataset.spreadGroup);
         const lane = findLane(g, spreadEl.dataset.spreadLane);
         if (!g || !lane) return;
-        lane.spread = +spreadEl.value;
-        const badge = spreadEl.closest('.slider-track')?.querySelector('.val-badge');
+        const fineEl = spreadEl.closest('.lane-section')?.querySelector('[data-spread-fine-lane]');
+        lane.spread = +spreadEl.value + (fineEl ? +fineEl.value : 0);
+        const badge = document.querySelector(`[data-spread-badge="${g.id}_${lane.id}"]`);
         if (badge) badge.textContent = '±' + Math.round(lane.spread / 2);
         updatePreview(g, lane);
         sendLaneValues(g, lane);
         return;
     }
-    // From offset
+    // Spread fine
+    const spreadFineEl = e.target.closest('[data-spread-fine-group][data-spread-fine-lane]');
+    if (spreadFineEl) {
+        const g    = findGroup(spreadFineEl.dataset.spreadFineGroup);
+        const lane = findLane(g, spreadFineEl.dataset.spreadFineLane);
+        if (!g || !lane) return;
+        const coarseEl = spreadFineEl.closest('.lane-section')?.querySelector('[data-spread-lane]');
+        lane.spread = (coarseEl ? +coarseEl.value : 0) + +spreadFineEl.value;
+        const fineBadge = spreadFineEl.closest('.slider-track')?.querySelector('.val-badge');
+        if (fineBadge) fineBadge.textContent = '+' + spreadFineEl.value;
+        const badge = document.querySelector(`[data-spread-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = '±' + Math.round(lane.spread / 2);
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // From coarse
     const fromEl = e.target.closest('[data-from-group][data-from-lane]');
     if (fromEl) {
         const g    = findGroup(fromEl.dataset.fromGroup);
         const lane = findLane(g, fromEl.dataset.fromLane);
         if (!g || !lane) return;
-        lane.fromOffset = +fromEl.value;
-        const badge = fromEl.closest('.slider-track')?.querySelector('.val-badge');
+        const fineEl = fromEl.closest('.lane-section')?.querySelector('[data-from-fine-lane]');
+        lane.fromOffset = +fromEl.value + (fineEl ? +fineEl.value : 0);
+        const badge = document.querySelector(`[data-from-badge="${g.id}_${lane.id}"]`);
         if (badge) badge.textContent = (lane.fromOffset >= 0 ? '+' : '') + lane.fromOffset;
         updatePreview(g, lane);
         sendLaneValues(g, lane);
         return;
     }
-    // To offset
+    // From fine
+    const fromFineEl = e.target.closest('[data-from-fine-group][data-from-fine-lane]');
+    if (fromFineEl) {
+        const g    = findGroup(fromFineEl.dataset.fromFineGroup);
+        const lane = findLane(g, fromFineEl.dataset.fromFineLane);
+        if (!g || !lane) return;
+        const coarseEl = fromFineEl.closest('.lane-section')?.querySelector('[data-from-lane]');
+        lane.fromOffset = (coarseEl ? +coarseEl.value : 0) + +fromFineEl.value;
+        const fineBadge = fromFineEl.closest('.slider-track')?.querySelector('.val-badge');
+        if (fineBadge) fineBadge.textContent = '+' + fromFineEl.value;
+        const badge = document.querySelector(`[data-from-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = (lane.fromOffset >= 0 ? '+' : '') + lane.fromOffset;
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // To coarse
     const toEl = e.target.closest('[data-to-group][data-to-lane]');
     if (toEl) {
         const g    = findGroup(toEl.dataset.toGroup);
         const lane = findLane(g, toEl.dataset.toLane);
         if (!g || !lane) return;
-        lane.toOffset = +toEl.value;
-        const badge = toEl.closest('.slider-track')?.querySelector('.val-badge');
+        const fineEl = toEl.closest('.lane-section')?.querySelector('[data-to-fine-lane]');
+        lane.toOffset = +toEl.value + (fineEl ? +fineEl.value : 0);
+        const badge = document.querySelector(`[data-to-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = (lane.toOffset >= 0 ? '+' : '') + lane.toOffset;
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // To fine
+    const toFineEl = e.target.closest('[data-to-fine-group][data-to-fine-lane]');
+    if (toFineEl) {
+        const g    = findGroup(toFineEl.dataset.toFineGroup);
+        const lane = findLane(g, toFineEl.dataset.toFineLane);
+        if (!g || !lane) return;
+        const coarseEl = toFineEl.closest('.lane-section')?.querySelector('[data-to-lane]');
+        lane.toOffset = (coarseEl ? +coarseEl.value : 0) + +toFineEl.value;
+        const fineBadge = toFineEl.closest('.slider-track')?.querySelector('.val-badge');
+        if (fineBadge) fineBadge.textContent = '+' + toFineEl.value;
+        const badge = document.querySelector(`[data-to-badge="${g.id}_${lane.id}"]`);
         if (badge) badge.textContent = (lane.toOffset >= 0 ? '+' : '') + lane.toOffset;
         updatePreview(g, lane);
         sendLaneValues(g, lane);

@@ -115,6 +115,40 @@ Both playback pages show a **Browser Playback** section and a **Pico Playback** 
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough.
 
+### Fan Out (`dmx_fan.html`)
+
+Spreads any DMX control as an interpolated offset across an ordered list of fixtures. Useful for creating a pan fan, tilt fan, zoom spread, dimmer gradient, etc.
+
+**Concepts:**
+
+- **Fan Group** — a set of fixtures ordered left-to-right (left = fan start, right = fan end). Each group can have multiple independent **Fan Axes**.
+- **Fan Axis** — one control (e.g. Pan, Tilt, Zoom) with its own spread slider. Pan and Tilt axes in the same group share the same fixture order but fan completely independently.
+- **Base** — the current DMX value of each fixture's channel, read from the Pico. The fan offset is added on top of the base so the spread always starts from wherever the fixture controller has positioned the lights.
+- **Spread** — total offset range. In Symmetric mode the fixtures are spread ±½·spread around their base. In Start→End mode independent From/To offsets interpolate linearly across the fixture list.
+
+**Preview bar** — shows each fixture's actual movement relative to its base. Center = no movement. Fill extends right for positive offsets, left for negative. Orange card + orange text = value was clamped at the DMX limit (reduce spread or snapshot a better base position).
+
+**Base defaults** — when no snapshot has been taken, base defaults to the channel midpoint (`32768` for 16-bit, `128` for 8-bit) so both directions of the fan have equal room without needing a prior snapshot.
+
+**Auto-snapshot** — bases are read from the Pico automatically:
+- On page load (if URL is already stored)
+- When the URL is entered/changed (800 ms debounce)
+- When a control is selected for an axis
+- When a fixture is added to a group
+
+**↺ Refresh All Bases** (header button) — re-reads current Pico values for every axis in every group and immediately re-sends all fan values. Use this after changing positions in the Fixture Controller.
+
+**Modes:**
+
+| Mode | Sliders | Behaviour |
+|------|---------|-----------|
+| Symmetric ± | Spread | Fixture 1 gets `base − spread/2`, last gets `base + spread/2`, others interpolate |
+| Start → End | From, To | Fixture 1 gets `base + From`, last gets `base + To`, others interpolate |
+
+Supports 8-bit and 16-bit controls. `panTilt16` controls expose Pan and Tilt as separate selectable axes. Multiple fan groups can run simultaneously (e.g. pan fan on group 1, tilt fan on group 2) — each group sends only its own channels so they never interfere.
+
+Uses existing Pico endpoints: `/dmx/values` (read) and `/dmx/b/` (write). No firmware changes required.
+
 ### Development sync
 
 HTML files are developed locally and synced to XAMPP with:
