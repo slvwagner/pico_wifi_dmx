@@ -33,6 +33,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 @media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
+.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
+#groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.card.selected{border-color:var(--accent)}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}.sel-btn.on{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
 </style>
 </head>
 <body>
@@ -134,10 +139,35 @@ Blue=48</textarea>
 </section>
 
 <section class="panel">
+<h2>Saved Groups</h2>
+<div class="toolbar">
+<button id="exportGroupsJson">Export JSON</button>
+<button id="importGroupsJson">Import JSON</button>
+<input id="importGroupsFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div id="savedGroupsList" class="list"><div class="small">No saved groups yet.</div></div>
+</section>
+
+<section class="panel">
 <h2>Control Surface</h2>
+<div id="groupBar" style="display:none"></div>
 <div class="surface" id="surface"></div>
 </section>
 </main>
+
+<div id="groupModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2 id="groupModalTitle">Group Edit</h2>
+<button id="closeGroupModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div id="groupModalBody" class="modal-body"></div>
+<div class="buttons" style="padding-top:4px">
+<button id="sendGroupBtn" class="primary">Send all to Pico</button>
+<button id="closeGroupModal2">Close</button>
+</div>
+</div>
+</div>
 
 <script>
 const maxDmx=512;
@@ -661,10 +691,12 @@ function drawSurface(){
   fixtures.forEach(f=>{
     const p=fixtureProfile(f);
     if(!p)return;
-    const card=document.createElement('article');card.className='card';
-    card.innerHTML=`<div class="control-head"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>${p.controls.map(c=>renderControl(f,c)).join('')}`;
+    const sel=selectedFixtureIds.has(f.id);
+    const card=document.createElement('article');card.className='card'+(sel?' selected':'');
+    card.innerHTML=`<div class="control-head"><div class="row"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button></div>${p.controls.map(c=>renderControl(f,c)).join('')}`;
     surfaceEl.appendChild(card);
   });
+  updateGroupBar();
 }
 
 function updateControlDisplay(f,c){
@@ -975,9 +1007,321 @@ document.getElementById('addWheelOption').onclick=()=>{
   text.value=(text.value.trim()?text.value.trim()+'\n':'')+name+'='+value+'|'+visual;
   setStatus('Wheel option added');
 };
+
+// ── Group-edit ────────────────────────────────────────────────────────
+let selectedFixtureIds=new Set();
+let groupValues={};
+function groupKey(c){return c.type+':'+c.label;}
+function defaultValueForControl(c){
+  if(c.type==='panTilt16')return{pan:32768,tilt:32768};
+  if(c.type==='panTilt8')return{pan:128,tilt:128};
+  if(c.type==='rgb')return{a:0,b:0,c:0};
+  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
+  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
+  if(c.type==='cmy')return{a:0,b:0,c:0};
+  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  return 0;
+}
+function findMatchingControl(f,key){
+  return(fixtureProfile(f)?.controls||[]).find(c=>groupKey(c)===key)||null;
+}
+function getGroupCommonControls(){
+  const fxList=[...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
+  if(fxList.length<2)return[];
+  const first=fixtureProfile(fxList[0])?.controls||[];
+  return first.filter(c=>fxList.every(f=>!!(fixtureProfile(f)?.controls||[]).find(cc=>groupKey(cc)===groupKey(c))));
+}
+function getGroupValue(c){
+  const key=groupKey(c);
+  if(groupValues[key]===undefined)groupValues[key]=defaultValueForControl(c);
+  return groupValues[key];
+}
+function setGroupValue(c,v){
+  groupValues[groupKey(c)]=v;
+  [...selectedFixtureIds].forEach(id=>{
+    const f=fixtures.find(fx=>fx.id===id);if(!f)return;
+    const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    setValue(f,fc,v);
+  });
+}
+async function sendGroupControl(c){
+  const root=endpoint();if(!root)throw new Error('Set Pico base URL first');
+  const pairs=[];
+  [...selectedFixtureIds].forEach(id=>{
+    const f=fixtures.find(fx=>fx.id===id);if(!f)return;
+    const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    resolveDmxBytes(f,fc).forEach(({ch,val})=>pairs.push(ch+':'+val));
+  });
+  if(!pairs.length)return;
+  await fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'});
+  setStatus('Group: sent '+pairs.length+' ch to '+selectedFixtureIds.size+' fixtures');
+}
+function updateGroupBar(){
+  const bar=document.getElementById('groupBar');
+  const n=selectedFixtureIds.size;
+  if(n<1){bar.style.display='none';return;}
+  bar.style.display='flex';
+  const common=getGroupCommonControls();
+  const note=n>1?(' · '+common.length+' common control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
+  bar.innerHTML=`<span><strong>${n} fixture${n>1?'s':''} selected</strong>${note}</span>${n>1&&common.length?`<button class="primary" id="openGroupEdit">Group Edit (${common.length})</button>`:''}<button id="saveGroupBtn">Save Group</button><button id="clearSelection">Deselect all</button>`;
+  if(n>1&&common.length)document.getElementById('openGroupEdit').onclick=openGroupModal;
+  document.getElementById('saveGroupBtn').onclick=saveCurrentGroup;
+  document.getElementById('clearSelection').onclick=()=>{selectedFixtureIds.clear();drawSurface();};
+}
+function renderGroupControl(c){
+  const key=groupKey(c);
+  const gca=`data-gc="${key}"`;
+  if(c.type==='panTilt16'){
+    const v=getGroupValue(c);const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 16-bit · all fixtures</span></div>
+      <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
+      <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
+      <label>Pan<input type="range" min="0" max="65535" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
+      <div class="byte-sliders">
+        <label>Pan coarse <span data-gc-byte="${key}" data-byte-part="panCoarse">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" ${gca} data-byte-axis="pan" data-byte-part="coarse"></label>
+        <label>Pan fine <span data-gc-byte="${key}" data-byte-part="panFine">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" ${gca} data-byte-axis="pan" data-byte-part="fine"></label>
+      </div>
+      <label>Tilt<input type="range" min="0" max="65535" step="1" value="${v.tilt}" ${gca} data-axis="tilt"></label>
+      <div class="byte-sliders">
+        <label>Tilt coarse <span data-gc-byte="${key}" data-byte-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
+        <label>Tilt fine <span data-gc-byte="${key}" data-byte-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
+      </div></div>`;
+  }
+  if(c.type==='panTilt8'){
+    const v=getGroupValue(c);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 8-bit · all fixtures</span></div>
+      <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
+      <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
+      <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
+      <label>Tilt<input type="range" min="0" max="255" step="1" value="${v.tilt}" ${gca} data-axis="tilt"></label></div>`;
+  }
+  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const v=getGroupValue(c);
+    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · all fixtures</span></div>
+      <label>Color picker<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
+      ${parts.map((part,i)=>`<label>${names[i]} <span data-gc-part="${key}" data-part="${part}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" ${gca} data-part="${part}"></label>`).join('')}
+      <div class="swatches"><button class="swatch" style="background:#fff" data-gc-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-gc-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-gc-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-gc-color="#0000ff" ${gca}></button></div></div>`;
+  }
+  if(c.type==='wheel'){
+    const v=getGroupValue(c);
+    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}</span></div>
+      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-gc-wheel="${o.value}" ${gca}>${icon(o)}${o.name}</button>`).join('')}</div>
+      <input type="range" min="0" max="255" value="${v}" ${gca}></div>`;
+  }
+  const max=c.type==='slider16'?65535:255;
+  const v=getGroupValue(c);const b=bytes16(v);
+  const extra=c.type==='slider16'?`<div class="byte-sliders">
+      <label>Coarse <span data-gc-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
+      <label>Fine <span data-gc-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
+    </div>`:'';
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-gc-readout="${key}">${v}</span><span class="bytes">${c.type} · all fixtures</span></div>
+    <input type="range" min="0" max="${max}" step="1" value="${v}" ${gca}>${extra}</div>`;
+}
+function updateGroupControlDisplay(c){
+  const key=groupKey(c);const v=getGroupValue(c);
+  if(c.type==='panTilt16'){
+    const pad=document.querySelector(`[data-gxy="${key}"]`);
+    const dot=pad?.querySelector('.xy-dot');
+    if(dot){dot.style.left=(v.pan/65535*100)+'%';dot.style.top=(100-v.tilt/65535*100)+'%';}
+    document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>el.textContent='Pan '+v.pan+' · Tilt '+v.tilt);
+    ['pan','tilt'].forEach(axis=>{
+      const b=bytes16(v[axis]);
+      document.querySelectorAll(`input[data-gc="${key}"][data-axis="${axis}"]`).forEach(el=>{if(el.value!=v[axis])el.value=v[axis];});
+      document.querySelectorAll(`input[data-gc="${key}"][data-byte-axis="${axis}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+      document.querySelectorAll(`input[data-gc="${key}"][data-byte-axis="${axis}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+      document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="${axis}Coarse"]`).forEach(el=>el.textContent=b.coarse);
+      document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="${axis}Fine"]`).forEach(el=>el.textContent=b.fine);
+    });return;
+  }
+  if(c.type==='panTilt8'){
+    const pad=document.querySelector(`[data-gxy="${key}"]`);
+    const dot=pad?.querySelector('.xy-dot');
+    if(dot){dot.style.left=(v.pan/255*100)+'%';dot.style.top=(100-v.tilt/255*100)+'%';}
+    document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>el.textContent='Pan '+v.pan+' · Tilt '+v.tilt);
+    ['pan','tilt'].forEach(axis=>document.querySelectorAll(`input[data-gc="${key}"][data-axis="${axis}"]`).forEach(el=>{if(el.value!=v[axis])el.value=v[axis];}));
+    return;
+  }
+  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(part=>{
+      document.querySelectorAll(`[data-gc-part="${key}"][data-part="${part}"]`).forEach(el=>el.textContent=v[part]);
+      document.querySelectorAll(`input[data-gc="${key}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=v[part];});
+    });
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    document.querySelectorAll(`input[data-gc="${key}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
+    return;
+  }
+  document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>el.textContent=c.type==='wheel'?'Wheel · '+v:v);
+  document.querySelectorAll(`input[data-gc="${key}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='slider16'){
+    const b=bytes16(v);
+    document.querySelectorAll(`input[data-gc="${key}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+    document.querySelectorAll(`input[data-gc="${key}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+    document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="coarse"]`).forEach(el=>el.textContent=b.coarse);
+    document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="fine"]`).forEach(el=>el.textContent=b.fine);
+  }
+}
+function openGroupModal(){
+  const common=getGroupCommonControls();if(!common.length)return;
+  const firstFx=fixtures.find(f=>selectedFixtureIds.has(f.id));
+  if(firstFx)common.forEach(c=>{const key=groupKey(c);if(groupValues[key]===undefined)groupValues[key]=getValue(firstFx,c,defaultValueForControl(c));});
+  const n=selectedFixtureIds.size;
+  document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' · '+common.length+' common control'+(common.length===1?'':'s');
+  document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
+  document.getElementById('groupModal').style.display='flex';
+}
+function closeGroupModal(){document.getElementById('groupModal').style.display='none';}
+document.getElementById('closeGroupModal').onclick=closeGroupModal;
+document.getElementById('closeGroupModal2').onclick=closeGroupModal;
+document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
+document.getElementById('sendGroupBtn').onclick=()=>{
+  const common=getGroupCommonControls();
+  Promise.all(common.map(c=>sendGroupControl(c))).catch(err=>setStatus(err.message,true));
+};
+const groupModalBody=document.getElementById('groupModalBody');
+groupModalBody.oninput=e=>{
+  const key=e.target.dataset.gc;if(!key)return;
+  const common=getGroupCommonControls();
+  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  let v=getGroupValue(c);
+  if(e.target.dataset.colorPicker){
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.value);v={...v,a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')v=rgbToCmy(e.target.value);
+    else if(c.type==='cmyk')v=rgbToCmyk(e.target.value);
+  }else if(e.target.dataset.bytePart){
+    if(c.type==='panTilt16'){const axis=e.target.dataset.byteAxis;const b=bytes16(v[axis]);b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);v={...v,[axis]:(b.coarse<<8)|b.fine};}
+    else{const b=bytes16(typeof v==='number'?v:0);b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);v=(b.coarse<<8)|b.fine;}
+  }else if(e.target.dataset.axis){
+    const is8=c.type==='panTilt8';
+    v={...(typeof v==='object'?v:{pan:is8?128:32768,tilt:is8?128:32768}),[e.target.dataset.axis]:clamp(e.target.value,0,is8?255:65535)};
+  }else if(e.target.dataset.part){
+    v={...(typeof v==='object'?v:{a:0,b:0,c:0}),[e.target.dataset.part]:clamp(e.target.value,0,255)};
+  }else{
+    v=clamp(e.target.value,0,c.type==='slider16'?65535:255);
+  }
+  setGroupValue(c,v);
+  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  updateGroupControlDisplay(c);
+};
+groupModalBody.addEventListener('click',e=>{
+  const key=e.target.dataset.gc;if(!key)return;
+  const common=getGroupCommonControls();
+  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  if(e.target.dataset.gcCenter){
+    const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
+    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+  }
+  if(e.target.dataset.gcColor!==undefined){
+    let v=getGroupValue(c);
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.gcColor);v={...(typeof v==='object'?v:{a:0,b:0,c:0}),a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.gcColor);
+    else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.gcColor);
+    setGroupValue(c,v);sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+  }
+  if(e.target.dataset.gcWheel!==undefined){
+    const v=clamp(e.target.dataset.gcWheel,0,255);
+    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+    document.querySelectorAll(`[data-gc="${key}"].tab`).forEach(btn=>btn.classList.toggle('active',parseInt(btn.dataset.gcWheel)===v));
+    updateGroupControlDisplay(c);return;
+  }
+});
+groupModalBody.addEventListener('pointerdown',e=>{
+  const pad=e.target.closest('[data-gxy]');if(!pad)return;
+  pad.setPointerCapture(e.pointerId);setGroupXY(e,pad);
+});
+groupModalBody.addEventListener('pointermove',e=>{
+  const pad=e.target.closest('[data-gxy]');if(!pad||!pad.hasPointerCapture(e.pointerId))return;
+  setGroupXY(e,pad);
+});
+function setGroupXY(e,pad){
+  const key=pad.dataset.gxy;
+  const common=getGroupCommonControls();
+  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  const r=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+  const max=c.type==='panTilt8'?255:65535;
+  const v={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
+  setGroupValue(c,v);
+  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  updateGroupControlDisplay(c);
+}
+// Capture-phase listener: intercepts Select buttons before surfaceEl.onclick fires
+surfaceEl.addEventListener('click',e=>{
+  const sel=e.target.closest('[data-select-fixture]');if(!sel)return;
+  e.stopPropagation();
+  const id=parseInt(sel.dataset.selectFixture,10);
+  if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
+  drawSurface();
+},true);
+// ── End group-edit ────────────────────────────────────────────────────
+
+// ── Saved Groups ─────────────────────────────────────────────────────
+let savedGroups=[];
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function loadSavedGroups(){
+  fetch('group_setup.php').then(r=>r.json()).then(d=>{
+    savedGroups=d.groups||[];renderSavedGroupsList();
+  }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
+}
+function saveSavedGroupsToServer(){
+  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({groups:savedGroups})})
+    .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
+    .catch(e=>setStatus('Groups save error: '+e.message));
+}
+function renderSavedGroupsList(){
+  const el=document.getElementById('savedGroupsList');if(!el)return;
+  if(!savedGroups.length){el.innerHTML='<div class="small">No saved groups yet. Select fixtures and click "Save Group".</div>';return;}
+  el.innerHTML=savedGroups.map((g,i)=>`<div class="item">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(g.name)}</strong><span class="small">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
+    <div class="buttons"><button onclick="loadGroup(${i})">Load</button><button class="warn" onclick="deleteGroup(${i})">Delete</button></div>
+  </div>`).join('');
+}
+function saveCurrentGroup(){
+  const name=(prompt('Group name:','Group '+(savedGroups.length+1))||'').trim();
+  if(!name)return;
+  savedGroups.push({id:'grp_'+Date.now(),name,fixtureIds:[...selectedFixtureIds],values:{...groupValues}});
+  renderSavedGroupsList();saveSavedGroupsToServer();
+}
+function loadGroup(i){
+  const g=savedGroups[i];if(!g)return;
+  selectedFixtureIds=new Set(g.fixtureIds.filter(id=>fixtures.some(f=>f.id===id)));
+  groupValues={...(g.values||{})};
+  drawSurface();setStatus('Loaded group: '+g.name+' ('+selectedFixtureIds.size+' of '+g.fixtureIds.length+' fixtures found)');
+}
+function deleteGroup(i){
+  if(!confirm('Delete group "'+savedGroups[i]?.name+'"?'))return;
+  savedGroups.splice(i,1);renderSavedGroupsList();saveSavedGroupsToServer();
+}
+function exportGroupsJson(){
+  const blob=new Blob([JSON.stringify({groups:savedGroups},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_groups.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importGroupsJson(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
+      savedGroups=data.groups;renderSavedGroupsList();saveSavedGroupsToServer();
+      setStatus('Imported '+savedGroups.length+' group(s)');
+    }catch(err){setStatus('Import failed: '+err.message);}
+  };
+  fr.readAsText(file);
+}
+document.getElementById('exportGroupsJson').onclick=exportGroupsJson;
+document.getElementById('importGroupsJson').onclick=()=>document.getElementById('importGroupsFile').click();
+document.getElementById('importGroupsFile').onchange=e=>{if(e.target.files[0])importGroupsJson(e.target.files[0]);e.target.value='';};
+// ── End saved-groups ──────────────────────────────────────────────────
+
 updateControlChannelInputs(true);
 clearGobo();
 loadSetup().then(ok=>{if(!ok)addDefaultProfile();}).catch(()=>addDefaultProfile());
+loadSavedGroups();
 </script>
 </body>
 </html>
