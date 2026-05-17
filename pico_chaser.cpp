@@ -9,6 +9,9 @@
 typedef struct {
     bool           loaded;
     bool           loop;
+    chaser_mode_t  mode;
+    chaser_direction_t direction;
+    uint16_t       loop_count;
     uint16_t       step_count;
     uint16_t       ch_total;
     chaser_step_t  steps[CHASER_MAX_STEPS];
@@ -22,8 +25,11 @@ static float              slot_speed[CHASER_MAX_SLOTS]; /* 1.0 = normal */
 
 typedef struct {
     bool     playing;
+    bool     paused;
     uint16_t current_step;
     uint32_t step_entered_us;
+    uint32_t paused_elapsed_us;
+    uint16_t completed_loops;
     uint8_t  from_values[513];  /* channel values at last step boundary */
     uint32_t last_elapsed_ms;
 } chaser_play_state_t;
@@ -31,6 +37,13 @@ typedef struct {
 static chaser_play_state_t play_state[CHASER_MAX_SLOTS];
 
 static critical_section_t chaser_lock;
+
+static uint16_t start_step_for_slot(const chaser_slot_data_t *sd)
+{
+    if (sd->direction == CHASER_DIR_REVERSE && sd->step_count > 0)
+        return (uint16_t)(sd->step_count - 1);
+    return 0;
+}
 
 /* ---------- init --------------------------------------------------------- */
 
@@ -52,6 +65,12 @@ bool chaser_load_slot(uint8_t slot, const char *body, size_t len)
     /* Parse into a temporary struct — no lock needed */
     chaser_slot_data_t tmp;
     memset(&tmp, 0, sizeof(tmp));
+    tmp.loop = true;
+    tmp.mode = CHASER_MODE_LOOP;
+    tmp.direction = CHASER_DIR_FORWARD;
+    tmp.loop_count = 1;
+    float tmp_speed = slot_speed[slot];
+    if (tmp_speed < 0.1f) tmp_speed = 1.0f;
 
     const char *p   = body;
     const char *end = body + len;
@@ -72,6 +91,30 @@ bool chaser_load_slot(uint8_t slot, const char *body, size_t len)
 
         if (strncmp(line, "LOOP ", 5) == 0) {
             tmp.loop = (atoi(line + 5) != 0);
+            tmp.mode = tmp.loop ? CHASER_MODE_LOOP : CHASER_MODE_SINGLE;
+        } else if (strncmp(line, "MODE ", 5) == 0) {
+            const char *mode = line + 5;
+            if (strcmp(mode, "single") == 0 || strcmp(mode, "once") == 0) {
+                tmp.mode = CHASER_MODE_SINGLE;
+                tmp.loop = false;
+            } else if (strcmp(mode, "loop_n") == 0 || strcmp(mode, "loopn") == 0) {
+                tmp.mode = CHASER_MODE_LOOP_N;
+                tmp.loop = true;
+            } else {
+                tmp.mode = CHASER_MODE_LOOP;
+                tmp.loop = true;
+            }
+        } else if (strncmp(line, "LOOPS ", 6) == 0) {
+            int loops = atoi(line + 6);
+            tmp.loop_count = (uint16_t)(loops < 1 ? 1 : (loops > 999 ? 999 : loops));
+        } else if (strncmp(line, "DIR ", 4) == 0) {
+            const char *dir = line + 4;
+            tmp.direction = (strcmp(dir, "reverse") == 0 || strcmp(dir, "rev") == 0) ? CHASER_DIR_REVERSE : CHASER_DIR_FORWARD;
+        } else if (strncmp(line, "SPEED ", 6) == 0) {
+            float speed = (float)atof(line + 6);
+            if (speed < 0.1f) speed = 0.1f;
+            if (speed > 10.0f) speed = 10.0f;
+            tmp_speed = speed;
         } else if (strncmp(line, "STEP ", 5) == 0) {
             if (tmp.step_count >= CHASER_MAX_STEPS) continue;
             step_idx = tmp.step_count++;
@@ -102,6 +145,7 @@ bool chaser_load_slot(uint8_t slot, const char *body, size_t len)
 
     critical_section_enter_blocking(&chaser_lock);
     memcpy(&slot_data[slot], &tmp, sizeof(chaser_slot_data_t));
+    slot_speed[slot] = tmp_speed;
     /* if this slot was playing, reset it */
     if (play_state[slot].playing)
         play_state[slot].playing = false;
@@ -117,19 +161,64 @@ void chaser_play(uint8_t slot)
     if (slot >= CHASER_MAX_SLOTS) return;
     critical_section_enter_blocking(&chaser_lock);
     if (slot_data[slot].loaded && slot_data[slot].step_count > 0) {
-        play_state[slot].current_step    = 0;
+        play_state[slot].current_step    = start_step_for_slot(&slot_data[slot]);
         play_state[slot].step_entered_us = 0;
+        play_state[slot].paused_elapsed_us = 0;
+        play_state[slot].completed_loops = 0;
         memset(play_state[slot].from_values, 0, sizeof(play_state[slot].from_values));
+        play_state[slot].paused          = false;
         play_state[slot].playing         = true;
     }
     critical_section_exit(&chaser_lock);
 }
 
+void chaser_pause(uint8_t slot)
+{
+    if (slot >= CHASER_MAX_SLOTS) return;
+    critical_section_enter_blocking(&chaser_lock);
+    if (play_state[slot].playing) {
+        play_state[slot].paused_elapsed_us = play_state[slot].last_elapsed_ms * 1000u;
+        play_state[slot].playing = false;
+        play_state[slot].paused = true;
+    }
+    critical_section_exit(&chaser_lock);
+}
+
+void chaser_resume(uint8_t slot)
+{
+    if (slot >= CHASER_MAX_SLOTS) return;
+    critical_section_enter_blocking(&chaser_lock);
+    if (slot_data[slot].loaded && play_state[slot].paused) {
+        play_state[slot].step_entered_us = 0;
+        play_state[slot].playing = true;
+        play_state[slot].paused = false;
+    }
+    critical_section_exit(&chaser_lock);
+}
+
+void chaser_pause_toggle(uint8_t slot)
+{
+    if (slot >= CHASER_MAX_SLOTS) return;
+    critical_section_enter_blocking(&chaser_lock);
+    bool playing = play_state[slot].playing;
+    bool paused = play_state[slot].paused;
+    critical_section_exit(&chaser_lock);
+    if (playing) chaser_pause(slot);
+    else if (paused) chaser_resume(slot);
+    else chaser_play(slot);
+}
+
 void chaser_stop(void)
 {
     critical_section_enter_blocking(&chaser_lock);
-    for (uint8_t i = 0; i < CHASER_MAX_SLOTS; i++)
+    for (uint8_t i = 0; i < CHASER_MAX_SLOTS; i++) {
         play_state[i].playing = false;
+        play_state[i].paused = false;
+        play_state[i].current_step = start_step_for_slot(&slot_data[i]);
+        play_state[i].step_entered_us = 0;
+        play_state[i].paused_elapsed_us = 0;
+        play_state[i].completed_loops = 0;
+    }
     critical_section_exit(&chaser_lock);
 }
 
@@ -138,6 +227,11 @@ void chaser_stop_slot(uint8_t slot)
     if (slot >= CHASER_MAX_SLOTS) return;
     critical_section_enter_blocking(&chaser_lock);
     play_state[slot].playing = false;
+    play_state[slot].paused = false;
+    play_state[slot].current_step = start_step_for_slot(&slot_data[slot]);
+    play_state[slot].step_entered_us = 0;
+    play_state[slot].paused_elapsed_us = 0;
+    play_state[slot].completed_loops = 0;
     critical_section_exit(&chaser_lock);
 }
 
@@ -179,8 +273,10 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             continue;
         }
 
-        if (ps->step_entered_us == 0)
-            ps->step_entered_us = now_us;
+        if (ps->step_entered_us == 0) {
+            ps->step_entered_us = now_us - ps->paused_elapsed_us;
+            ps->paused_elapsed_us = 0;
+        }
 
         float speed = slot_speed[sl];
         if (speed < 0.1f) speed = 0.1f;
@@ -207,16 +303,20 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             for (uint16_t i = 0; i < step.ch_count; i++)
                 ps->from_values[sd->channels[step.ch_start + i].channel] =
                     sd->channels[step.ch_start + i].value;
-            uint16_t next = ps->current_step + 1;
-            if (next >= sd->step_count) {
-                if (sd->loop) {
-                    next = 0;
+            int next = (int)ps->current_step + (sd->direction == CHASER_DIR_REVERSE ? -1 : 1);
+            bool cycle_done = next < 0 || next >= (int)sd->step_count;
+            if (cycle_done) {
+                ps->completed_loops++;
+                if (sd->mode == CHASER_MODE_LOOP ||
+                    (sd->mode == CHASER_MODE_LOOP_N && ps->completed_loops < sd->loop_count)) {
+                    next = (int)start_step_for_slot(sd);
                 } else {
                     ps->playing = false;
+                    ps->paused = false;
                     continue;
                 }
             }
-            ps->current_step    = next;
+            ps->current_step    = (uint16_t)next;
             ps->step_entered_us = now_us;
         }
         ps->last_elapsed_ms = elapsed / 1000;
@@ -243,6 +343,8 @@ void chaser_get_status(chaser_status_t *out)
                 out->elapsed_ms = play_state[i].last_elapsed_ms;
             }
         }
+        if (play_state[i].paused)
+            out->paused_mask |= (uint32_t)(1u << i);
     }
     critical_section_exit(&chaser_lock);
 }
@@ -253,7 +355,13 @@ void chaser_get_slot_info(uint8_t slot, chaser_slot_info_t *out)
     critical_section_enter_blocking(&chaser_lock);
     out->loaded     = slot_data[slot].loaded;
     out->active     = play_state[slot].playing;
+    out->paused     = play_state[slot].paused;
     out->loop       = slot_data[slot].loop;
+    out->mode       = slot_data[slot].mode;
+    out->direction  = slot_data[slot].direction;
+    out->loop_count = slot_data[slot].loop_count;
+    out->completed_loops = play_state[slot].completed_loops;
+    out->current_step = play_state[slot].current_step;
     out->step_count = slot_data[slot].step_count;
     out->speed_mult = slot_speed[slot];
     critical_section_exit(&chaser_lock);

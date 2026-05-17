@@ -23,10 +23,22 @@ typedef struct {
     uint16_t ch_count;
 } chaser_step_t;
 
+typedef enum {
+    CHASER_MODE_SINGLE = 0,
+    CHASER_MODE_LOOP,
+    CHASER_MODE_LOOP_N,
+} chaser_mode_t;
+
+typedef enum {
+    CHASER_DIR_FORWARD = 0,
+    CHASER_DIR_REVERSE,
+} chaser_direction_t;
+
 /* Summary returned by chaser_get_status() */
 typedef struct {
     uint32_t active_mask;   /* bitmask: bit i = slot i is playing  */
     uint32_t loaded_mask;   /* bitmask: bit i = slot i is loaded   */
+    uint32_t paused_mask;   /* bitmask: bit i = slot i is paused   */
     uint16_t step;          /* current_step of the first active slot */
     uint16_t step_count;    /* step_count  of the first active slot */
     uint32_t elapsed_ms;    /* elapsed_ms  of the first active slot */
@@ -36,7 +48,13 @@ typedef struct {
 typedef struct {
     bool     loaded;
     bool     active;
+    bool     paused;
     bool     loop;
+    chaser_mode_t mode;
+    chaser_direction_t direction;
+    uint16_t loop_count;
+    uint16_t completed_loops;
+    uint16_t current_step;
     uint16_t step_count;
     float    speed_mult;
 } chaser_slot_info_t;
@@ -44,6 +62,9 @@ typedef struct {
 void chaser_init(void);
 bool chaser_load_slot(uint8_t slot, const char *body, size_t len);
 void chaser_play(uint8_t slot);
+void chaser_pause(uint8_t slot);
+void chaser_resume(uint8_t slot);
+void chaser_pause_toggle(uint8_t slot);
 void chaser_stop(void);
 void chaser_stop_slot(uint8_t slot);
 void chaser_set_speed(uint8_t slot, float mult);  /* mult: 0.1–10.0, 1.0 = normal */

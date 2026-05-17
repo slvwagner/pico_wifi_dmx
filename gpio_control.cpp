@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "hardware/gpio.h"
+#include "hardware/adc.h"
 #include "pico/sync.h"
 
 #include "dmx_engine.h"
@@ -19,12 +20,19 @@ typedef struct {
     uint32_t       last_fire_ms;
 } gpio_runtime_t;
 
+typedef struct {
+    gpio_adc_mapping_t cfg;
+    uint16_t           last_rate_x100;
+} gpio_adc_runtime_t;
+
 static critical_section_t gpio_lock;
 static bool gpio_lock_ready = false;
 static bool gpio_enabled = true;
 static uint32_t gpio_reserved_mask = 0;
 static gpio_runtime_t gpio_maps[GPIO_CONTROL_MAX_MAPPINGS];
+static gpio_adc_runtime_t gpio_adc_maps[GPIO_CONTROL_MAX_ADC_MAPPINGS];
 static uint8_t gpio_map_count = 0;
+static uint8_t gpio_adc_map_count = 0;
 static uint32_t gpio_event_count = 0;
 static uint32_t gpio_last_event_ms = 0;
 static int gpio_last_pin = -1;
@@ -41,11 +49,20 @@ static const char *action_name(gpio_action_t action)
     case GPIO_ACTION_CHASER_PLAY:   return "chaser_play";
     case GPIO_ACTION_CHASER_STOP:   return "chaser_stop";
     case GPIO_ACTION_CHASER_TOGGLE: return "chaser_toggle";
+    case GPIO_ACTION_CHASER_PAUSE:  return "chaser_pause";
+    case GPIO_ACTION_CHASER_RESUME: return "chaser_resume";
+    case GPIO_ACTION_CHASER_PAUSE_TOGGLE: return "chaser_pause_toggle";
     case GPIO_ACTION_MOTION_START:  return "motion_start";
     case GPIO_ACTION_MOTION_STOP:   return "motion_stop";
     case GPIO_ACTION_MOTION_TOGGLE: return "motion_toggle";
     default:                        return "none";
     }
+}
+
+static const char *adc_action_name(gpio_adc_action_t action)
+{
+    if (action == GPIO_ADC_ACTION_CHASER_SPEED) return "chaser_speed";
+    return "none";
 }
 
 static const char *pull_name(gpio_pull_t pull)
@@ -116,6 +133,18 @@ static bool parse_action(const char *s, gpio_action_t *out)
         *out = GPIO_ACTION_CHASER_TOGGLE;
         return true;
     }
+    if (strcmp(s, "chaser_pause") == 0) {
+        *out = GPIO_ACTION_CHASER_PAUSE;
+        return true;
+    }
+    if (strcmp(s, "chaser_resume") == 0) {
+        *out = GPIO_ACTION_CHASER_RESUME;
+        return true;
+    }
+    if (strcmp(s, "chaser_pause_toggle") == 0) {
+        *out = GPIO_ACTION_CHASER_PAUSE_TOGGLE;
+        return true;
+    }
     if (strcmp(s, "motion_start") == 0) {
         *out = GPIO_ACTION_MOTION_START;
         return true;
@@ -131,10 +160,30 @@ static bool parse_action(const char *s, gpio_action_t *out)
     return false;
 }
 
+static bool parse_adc_action(const char *s, gpio_adc_action_t *out)
+{
+    if (strcmp(s, "chaser_speed") == 0) {
+        *out = GPIO_ADC_ACTION_CHASER_SPEED;
+        return true;
+    }
+    return false;
+}
+
 static bool pin_allowed(uint8_t pin)
 {
     if (pin > 28) return false;
     return (gpio_reserved_mask & (1u << pin)) == 0;
+}
+
+static bool adc_pin_allowed(uint8_t pin)
+{
+    if (pin < 26 || pin > 28) return false;
+    return (gpio_reserved_mask & (1u << pin)) == 0;
+}
+
+static uint8_t adc_input_for_pin(uint8_t pin)
+{
+    return (uint8_t)(pin - 26);
 }
 
 static void configure_pin(const gpio_mapping_t *m)
@@ -143,6 +192,11 @@ static void configure_pin(const gpio_mapping_t *m)
     gpio_set_dir(m->pin, GPIO_IN);
     if (m->pull == GPIO_PULL_DOWN) gpio_pull_down(m->pin);
     else gpio_pull_up(m->pin);
+}
+
+static void configure_adc_pin(const gpio_adc_mapping_t *m)
+{
+    adc_gpio_init(m->pin);
 }
 
 static bool slot_active_chaser(uint8_t slot)
@@ -186,6 +240,15 @@ static void run_action(gpio_action_t action, uint8_t slot)
             else chaser_play(slot);
         }
         break;
+    case GPIO_ACTION_CHASER_PAUSE:
+        if (slot < CHASER_MAX_SLOTS) chaser_pause(slot);
+        break;
+    case GPIO_ACTION_CHASER_RESUME:
+        if (slot < CHASER_MAX_SLOTS) chaser_resume(slot);
+        break;
+    case GPIO_ACTION_CHASER_PAUSE_TOGGLE:
+        if (slot < CHASER_MAX_SLOTS) chaser_pause_toggle(slot);
+        break;
     case GPIO_ACTION_MOTION_START:
         if (slot < MFX_MAX_SLOTS) mfx_start(slot);
         break;
@@ -212,7 +275,10 @@ void gpio_control_init(uint32_t reserved_pin_mask)
     gpio_reserved_mask = reserved_pin_mask;
     gpio_enabled = true;
     gpio_map_count = 0;
+    gpio_adc_map_count = 0;
     memset(gpio_maps, 0, sizeof(gpio_maps));
+    memset(gpio_adc_maps, 0, sizeof(gpio_adc_maps));
+    adc_init();
 }
 
 void gpio_control_set_dmx_clear_hook(gpio_control_dmx_clear_hook_t hook)
@@ -228,9 +294,13 @@ void gpio_control_set_dmx_output_clear_hook(gpio_control_dmx_clear_hook_t hook)
 bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t err_len)
 {
     gpio_runtime_t next[GPIO_CONTROL_MAX_MAPPINGS];
+    gpio_adc_runtime_t next_adc[GPIO_CONTROL_MAX_ADC_MAPPINGS];
     uint8_t next_count = 0;
+    uint8_t next_adc_count = 0;
     bool next_enabled = true;
+    uint32_t used_pin_mask = 0;
     memset(next, 0, sizeof(next));
+    memset(next_adc, 0, sizeof(next_adc));
 
     char line[160];
     size_t pos = 0;
@@ -254,6 +324,49 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             continue;
         }
 
+        int adc_pin = -1, adc_slot = 0, min_x100 = 10, max_x100 = 1000;
+        char adc_action_s[24] = {0};
+        int got_adc = sscanf(p, "ADC %d %23s %d %d %d", &adc_pin, adc_action_s, &adc_slot, &min_x100, &max_x100);
+        if (got_adc >= 4) {
+            if (next_adc_count >= GPIO_CONTROL_MAX_ADC_MAPPINGS) {
+                snprintf(err, err_len, "Too many ADC mappings, max %u", GPIO_CONTROL_MAX_ADC_MAPPINGS);
+                return false;
+            }
+            if (adc_pin < 0 || adc_pin > 28 || !adc_pin_allowed((uint8_t)adc_pin)) {
+                snprintf(err, err_len, "GPIO %d is not ADC-capable on Pico 2 W (use 26-28)", adc_pin);
+                return false;
+            }
+            if (used_pin_mask & (1u << adc_pin)) {
+                snprintf(err, err_len, "GPIO %d is already mapped", adc_pin);
+                return false;
+            }
+            gpio_adc_mapping_t m = {};
+            m.enabled = true;
+            m.pin = (uint8_t)adc_pin;
+            m.slot = adc_slot < 0 ? 0 : (uint8_t)adc_slot;
+            m.min_x100 = (uint16_t)(min_x100 < 10 ? 10 : (min_x100 > 1000 ? 1000 : min_x100));
+            m.max_x100 = (uint16_t)(max_x100 < 10 ? 10 : (max_x100 > 1000 ? 1000 : max_x100));
+            if (m.max_x100 < m.min_x100) {
+                uint16_t t = m.min_x100;
+                m.min_x100 = m.max_x100;
+                m.max_x100 = t;
+            }
+            if (!parse_adc_action(adc_action_s, &m.action)) {
+                snprintf(err, err_len, "Invalid ADC action on GPIO %d", adc_pin);
+                return false;
+            }
+            if (m.action == GPIO_ADC_ACTION_CHASER_SPEED && m.slot >= CHASER_MAX_SLOTS) {
+                snprintf(err, err_len, "Chaser slot %u out of range", m.slot);
+                return false;
+            }
+            configure_adc_pin(&m);
+            used_pin_mask |= (1u << m.pin);
+            next_adc[next_adc_count].cfg = m;
+            next_adc[next_adc_count].last_rate_x100 = 0;
+            next_adc_count++;
+            continue;
+        }
+
         int pin = -1, slot = 0, debounce = 30;
         char pull_s[16] = {0}, trigger_s[16] = {0}, action_s[24] = {0};
         int got = sscanf(p, "MAP %d %15s %15s %23s %d %d", &pin, pull_s, trigger_s, action_s, &slot, &debounce);
@@ -269,6 +382,10 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             snprintf(err, err_len, "GPIO %d is not allowed", pin);
             return false;
         }
+        if (used_pin_mask & (1u << pin)) {
+            snprintf(err, err_len, "GPIO %d is already mapped", pin);
+            return false;
+        }
         gpio_mapping_t m = {};
         m.enabled = true;
         m.pin = (uint8_t)pin;
@@ -280,7 +397,8 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             snprintf(err, err_len, "Invalid mapping tokens on GPIO %d", pin);
             return false;
         }
-        if ((m.action == GPIO_ACTION_CHASER_PLAY || m.action == GPIO_ACTION_CHASER_STOP || m.action == GPIO_ACTION_CHASER_TOGGLE) &&
+        if ((m.action == GPIO_ACTION_CHASER_PLAY || m.action == GPIO_ACTION_CHASER_STOP || m.action == GPIO_ACTION_CHASER_TOGGLE ||
+             m.action == GPIO_ACTION_CHASER_PAUSE || m.action == GPIO_ACTION_CHASER_RESUME || m.action == GPIO_ACTION_CHASER_PAUSE_TOGGLE) &&
             m.slot >= CHASER_MAX_SLOTS) {
             snprintf(err, err_len, "Chaser slot %u out of range", m.slot);
             return false;
@@ -291,6 +409,7 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             return false;
         }
         configure_pin(&m);
+        used_pin_mask |= (1u << m.pin);
         bool raw = gpio_get(m.pin);
         next[next_count].cfg = m;
         next[next_count].raw_state = raw;
@@ -301,7 +420,9 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
 
     critical_section_enter_blocking(&gpio_lock);
     memcpy(gpio_maps, next, sizeof(gpio_maps));
+    memcpy(gpio_adc_maps, next_adc, sizeof(gpio_adc_maps));
     gpio_map_count = next_count;
+    gpio_adc_map_count = next_adc_count;
     gpio_enabled = next_enabled;
     critical_section_exit(&gpio_lock);
     return true;
@@ -310,13 +431,17 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
 void gpio_control_poll(uint32_t now_ms)
 {
     gpio_runtime_t snapshot[GPIO_CONTROL_MAX_MAPPINGS];
+    gpio_adc_runtime_t adc_snapshot[GPIO_CONTROL_MAX_ADC_MAPPINGS];
     uint8_t count = 0;
+    uint8_t adc_count = 0;
     bool enabled = false;
 
     critical_section_enter_blocking(&gpio_lock);
     enabled = gpio_enabled;
     count = gpio_map_count;
+    adc_count = gpio_adc_map_count;
     memcpy(snapshot, gpio_maps, sizeof(snapshot));
+    memcpy(adc_snapshot, gpio_adc_maps, sizeof(adc_snapshot));
     critical_section_exit(&gpio_lock);
 
     if (!enabled) return;
@@ -350,6 +475,20 @@ void gpio_control_poll(uint32_t now_ms)
         }
     }
 
+    for (uint8_t i = 0; i < adc_count; i++) {
+        gpio_adc_runtime_t *m = &adc_snapshot[i];
+        if (!m->cfg.enabled) continue;
+        adc_select_input(adc_input_for_pin(m->cfg.pin));
+        uint16_t raw = adc_read();
+        uint16_t span = (uint16_t)(m->cfg.max_x100 - m->cfg.min_x100);
+        uint16_t rate_x100 = (uint16_t)(m->cfg.min_x100 + ((uint32_t)raw * span) / 4095u);
+        if (rate_x100 != m->last_rate_x100) {
+            if (m->cfg.action == GPIO_ADC_ACTION_CHASER_SPEED && m->cfg.slot < CHASER_MAX_SLOTS)
+                chaser_set_speed(m->cfg.slot, rate_x100 / 100.0f);
+            m->last_rate_x100 = rate_x100;
+        }
+    }
+
     critical_section_enter_blocking(&gpio_lock);
     for (uint8_t i = 0; i < count && i < gpio_map_count; i++) {
         gpio_maps[i].raw_state = snapshot[i].raw_state;
@@ -357,18 +496,24 @@ void gpio_control_poll(uint32_t now_ms)
         gpio_maps[i].changed_ms = snapshot[i].changed_ms;
         gpio_maps[i].last_fire_ms = snapshot[i].last_fire_ms;
     }
+    for (uint8_t i = 0; i < adc_count && i < gpio_adc_map_count; i++)
+        gpio_adc_maps[i].last_rate_x100 = adc_snapshot[i].last_rate_x100;
     critical_section_exit(&gpio_lock);
 }
 
 void gpio_control_write_config_json(char *out, size_t out_len)
 {
     gpio_runtime_t snapshot[GPIO_CONTROL_MAX_MAPPINGS];
+    gpio_adc_runtime_t adc_snapshot[GPIO_CONTROL_MAX_ADC_MAPPINGS];
     uint8_t count;
+    uint8_t adc_count;
     bool enabled;
     critical_section_enter_blocking(&gpio_lock);
     count = gpio_map_count;
+    adc_count = gpio_adc_map_count;
     enabled = gpio_enabled;
     memcpy(snapshot, gpio_maps, sizeof(snapshot));
+    memcpy(adc_snapshot, gpio_adc_maps, sizeof(adc_snapshot));
     critical_section_exit(&gpio_lock);
 
     size_t used = (size_t)snprintf(out, out_len, "{\"ok\":true,\"enabled\":%s,\"max_mappings\":%u,\"mappings\":[",
@@ -388,25 +533,44 @@ void gpio_control_write_config_json(char *out, size_t out_len)
         if (n < 0) break;
         used += (size_t)n;
     }
+    int n = snprintf(out + used, out_len - used, "],\"max_adc_mappings\":%u,\"adc_mappings\":[", GPIO_CONTROL_MAX_ADC_MAPPINGS);
+    if (n > 0) used += (size_t)n;
+    for (uint8_t i = 0; i < adc_count && used + 128 < out_len; i++) {
+        gpio_adc_mapping_t *m = &adc_snapshot[i].cfg;
+        n = snprintf(out + used, out_len - used,
+                     "%s{\"pin\":%u,\"action\":\"%s\",\"slot\":%u,\"min_x100\":%u,\"max_x100\":%u}",
+                     i ? "," : "",
+                     m->pin,
+                     adc_action_name(m->action),
+                     m->slot,
+                     m->min_x100,
+                     m->max_x100);
+        if (n < 0) break;
+        used += (size_t)n;
+    }
     snprintf(out + used, out_len - used, "]}\n");
 }
 
 void gpio_control_write_status_json(char *out, size_t out_len)
 {
     gpio_runtime_t snapshot[GPIO_CONTROL_MAX_MAPPINGS];
+    gpio_adc_runtime_t adc_snapshot[GPIO_CONTROL_MAX_ADC_MAPPINGS];
     uint8_t count;
+    uint8_t adc_count;
     bool enabled;
     uint32_t event_count, last_ms;
     int last_pin;
     gpio_action_t last_action;
     critical_section_enter_blocking(&gpio_lock);
     count = gpio_map_count;
+    adc_count = gpio_adc_map_count;
     enabled = gpio_enabled;
     event_count = gpio_event_count;
     last_ms = gpio_last_event_ms;
     last_pin = gpio_last_pin;
     last_action = gpio_last_action;
     memcpy(snapshot, gpio_maps, sizeof(snapshot));
+    memcpy(adc_snapshot, gpio_adc_maps, sizeof(adc_snapshot));
     critical_section_exit(&gpio_lock);
 
     size_t used = (size_t)snprintf(out, out_len,
@@ -425,6 +589,19 @@ void gpio_control_write_status_json(char *out, size_t out_len)
                          snapshot[i].cfg.pin,
                          snapshot[i].raw_state ? "true" : "false",
                          snapshot[i].stable_state ? "true" : "false");
+        if (n < 0) break;
+        used += (size_t)n;
+    }
+    int n = snprintf(out + used, out_len - used, "],\"adc_inputs\":[");
+    if (n > 0) used += (size_t)n;
+    for (uint8_t i = 0; i < adc_count && used + 128 < out_len; i++) {
+        n = snprintf(out + used, out_len - used,
+                     "%s{\"pin\":%u,\"action\":\"%s\",\"slot\":%u,\"rate_x100\":%u}",
+                     i ? "," : "",
+                     adc_snapshot[i].cfg.pin,
+                     adc_action_name(adc_snapshot[i].cfg.action),
+                     adc_snapshot[i].cfg.slot,
+                     adc_snapshot[i].last_rate_x100);
         if (n < 0) break;
         used += (size_t)n;
     }

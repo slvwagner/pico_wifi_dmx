@@ -186,8 +186,30 @@ a.nav:hover{color:var(--text)}
       <input id="picoSpeed" type="number" min="0.1" max="10" step="0.1" value="1.0"
              style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">x
     </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      Mode
+      <select id="picoChaserMode" style="background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font:inherit">
+        <option value="single">Single</option>
+        <option value="loop" selected>Loop</option>
+        <option value="loop_n">Loop N</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      Loops
+      <input id="picoLoopCount" type="number" min="1" max="999" step="1" value="2"
+             style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      Direction
+      <select id="picoDirection" style="background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font:inherit">
+        <option value="forward">Forward</option>
+        <option value="reverse">Reverse</option>
+      </select>
+    </label>
     <button class="primary" id="btnPicoUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
+    <button id="btnPicoPauseSlot">Pause</button>
+    <button id="btnPicoResumeSlot">Resume</button>
     <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
     <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
@@ -874,9 +896,24 @@ document.getElementById('btnTap').onclick=()=>{
 };
 
 // ---- save / load chaser ----
-function chaserData(){return{baseUrl:baseUrlEl.value,steps};}
+function picoPlaybackOptions(){
+  return {
+    mode:document.getElementById('picoChaserMode')?.value||'loop',
+    loopCount:clamp(document.getElementById('picoLoopCount')?.value||2,1,999),
+    direction:document.getElementById('picoDirection')?.value||'forward',
+    speed:clamp(document.getElementById('picoSpeed')?.value||1,0.1,10)
+  };
+}
+function applyPicoPlaybackOptions(opts={}){
+  if(opts.mode)document.getElementById('picoChaserMode').value=opts.mode;
+  if(opts.loopCount!==undefined)document.getElementById('picoLoopCount').value=clamp(opts.loopCount,1,999);
+  if(opts.direction)document.getElementById('picoDirection').value=opts.direction;
+  if(opts.speed!==undefined)document.getElementById('picoSpeed').value=clamp(opts.speed,0.1,10);
+}
+function chaserData(){return{baseUrl:baseUrlEl.value,playback:picoPlaybackOptions(),steps};}
 function applyChaserData(data){
   if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+  if(data?.playback)applyPicoPlaybackOptions(data.playback);
   if(Array.isArray(data?.steps))steps=data.steps;
   selectedStepIdx=steps.length?0:-1;
   drawParticipation();drawStepList();drawStepEditor();
@@ -1060,7 +1097,12 @@ document.getElementById('importPartFile').onchange=e=>{
 // ---- Pico realtime playback ----
 function serializeChaserForPico(){
   const lines=[];
-  lines.push('LOOP '+(document.getElementById('loopCheck').checked?'1':'0'));
+  const opts=picoPlaybackOptions();
+  lines.push('LOOP '+(opts.mode==='single'?'0':'1'));
+  lines.push('MODE '+opts.mode);
+  lines.push('LOOPS '+opts.loopCount);
+  lines.push('DIR '+opts.direction);
+  lines.push('SPEED '+opts.speed.toFixed(2));
   const ptList=getParticipatingList();
   steps.forEach(step=>{
     lines.push('STEP '+step.duration+' '+(step.fade??0));
@@ -1096,34 +1138,37 @@ function renderChaserSlotStrip(slots, activeMask) {
   const strip = document.getElementById('chaserSlotStrip');
   if (!strip) return;
   _lastChaserReportedSlotCount=slots.length;
-  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0,unsupported:i>=_lastChaserReportedSlotCount});
+  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,paused:false,loop:false,mode:1,direction:0,step_count:0,speed_mult:1.0,unsupported:i>=_lastChaserReportedSlotCount});
   const selected = selectedChaserSlot();
   strip.innerHTML = '';
   slots.forEach(s => {
     const alive  = !!(activeMask & (1 << s.slot));
+    const paused = !!s.paused;
     const loaded = s.loaded;
     const sel    = (s.slot === selected);
     const unsupported = !!s.unsupported;
     const d = document.createElement('div');
     d.style.cssText = [
       'background:#0a0d10',
-      'border:1.5px solid ' + (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : loaded ? 'var(--line)' : 'rgba(255,255,255,.07)'),
+      'border:1.5px solid ' + (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'var(--line)' : 'rgba(255,255,255,.07)'),
       sel ? 'box-shadow:0 0 0 2px var(--accent)' : '',
       'border-radius:7px','padding:7px 5px 6px','text-align:center',
       'cursor:pointer','opacity:' + (unsupported ? '0.35' : loaded ? '1' : '0.45'),
       'transition:border-color .15s,box-shadow .15s','user-select:none'
     ].filter(Boolean).join(';');
     const stepsLabel = unsupported ? 'FW old' : loaded ? s.step_count + ' steps' : '\u2014';
+    const modeLabel = s.mode===0?'single':s.mode===2?'loop '+(s.loop_count||1):'loop';
+    const dirLabel = s.direction===1?'rev':'fwd';
     d.innerHTML =
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
-      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
+      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + modeLabel + ' / ' + dirLabel + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
       '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' +
-        (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
+        (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
       '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:' +
-        (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
-        (unsupported ? 'NEEDS FW' : alive ? 'LIVE' : loaded ? 'READY' : 'EMPTY') + '</span>' +
+        (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
+        (unsupported ? 'NEEDS FW' : alive ? 'LIVE' : paused ? 'PAUSED' : loaded ? 'READY' : 'EMPTY') + '</span>' +
       '</div>';
     d.onclick = () => {
       if(unsupported){setPicoStatus('Flash the 16-slot firmware before using slot '+s.slot,'var(--warn)');return;}
@@ -1143,11 +1188,15 @@ async function pollPicoStatus(){
     const j=await fetch(root+'/chaser/status').then(r=>r.json());
     if(j.ok){
       const activeSlots=[];
+      const pausedSlots=[];
       for(let i=0;i<PICO_SLOT_COUNT;i++) if(j.active_mask&(1<<i)) activeSlots.push(i);
+      for(let i=0;i<PICO_SLOT_COUNT;i++) if(j.paused_mask&(1<<i)) pausedSlots.push(i);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms)'
+        :pausedSlots.length>0
+        ?'Slots '+pausedSlots.join(',')+' paused'
         :'Stopped';
-      setPicoStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
+      setPicoStatus(s,activeSlots.length>0?'var(--accent)':pausedSlots.length>0?'var(--warn)':'var(--muted)');
       const sl=await fetch(root+'/chaser/slots').then(r=>r.json());
       if(sl.ok) renderChaserSlotStrip(sl.slots,j.active_mask);
     }
@@ -1218,6 +1267,32 @@ document.getElementById('btnPicoPlaySlot').onclick=async()=>{
     const j=await r.json();
     if(j.ok){stopPlayback();setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
     else{setPicoStatus('Play error: '+(j.error||'?'),'var(--bad)');}
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoPauseSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureChaserSlotSupported())return;
+  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  try{
+    const r=await fetch(root+'/chaser/pause/'+slot);
+    const j=await r.json();
+    if(j.ok){setPicoStatus('Paused slot '+slot,'var(--warn)');pollPicoStatus();}
+    else{setPicoStatus('Pause error: '+(j.error||'?'),'var(--bad)');}
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoResumeSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureChaserSlotSupported())return;
+  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  try{
+    const r=await fetch(root+'/chaser/resume/'+slot);
+    const j=await r.json();
+    if(j.ok){setPicoStatus('Resumed slot '+slot,'var(--accent)');startPicoStatusPoll();}
+    else{setPicoStatus('Resume error: '+(j.error||'?'),'var(--bad)');}
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 

@@ -49,7 +49,10 @@ Up to **16 independent chaser slots** can be loaded and played simultaneously. E
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/chaser/load/<N>` | POST | Upload chaser config to slot N (0–15) |
-| `/chaser/play/<N>` | GET | Start slot N |
+| `/chaser/play/<N>` | GET | Start slot N from the beginning |
+| `/chaser/pause/<N>` | GET | Pause slot N at the current step/fade position |
+| `/chaser/resume/<N>` | GET | Resume paused slot N |
+| `/chaser/pause_toggle/<N>` | GET | Pause if running, resume if paused, otherwise start slot N |
 | `/chaser/stop` | GET | Stop all slots |
 | `/chaser/stop/<N>` | GET | Stop slot N only |
 | `/chaser/speed/<N>/<mult_x100>` | GET | Set speed multiplier for slot N (100 = 1.0×) |
@@ -61,6 +64,10 @@ Up to **16 independent chaser slots** can be loaded and played simultaneously. E
 Chaser text protocol (POST body):
 ```
 LOOP 1
+MODE loop
+LOOPS 1
+DIR forward
+SPEED 1.00
 STEP <duration_ms> <fade_percent>
 CH <channel> <value>
 CH <channel> <value>
@@ -68,6 +75,8 @@ END
 STEP …
 END
 ```
+
+`MODE` supports `single`, `loop`, and `loop_n`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
 
 ### Pico motion FX
 
@@ -127,6 +136,8 @@ The playback pages separate editable presets from the autonomous Pico slot memor
 - **Upload to Slot** — sends the current editable preset to the selected Pico slot and mirrors that slot payload on the XAMPP server. It does not start playback.
 - **Play Slot / Start Slot** — starts the already-loaded slot on the Pico.
 - **Restore Saved Slots to Pico** — re-sends the saved server-side slot payloads to the Pico after reboot or firmware upload.
+
+On the Chaser page, each uploaded Pico slot also stores its playback mode (`Single`, `Loop`, `Loop N`), loop count, direction, and speed. `Stop` resets the slot, while `Pause`/`Resume` keeps the current step and fade position.
 
 ### Chaser — Participating Controls
 
@@ -260,11 +271,13 @@ The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It
 
 - The page stores mappings locally in the browser and pushes the active mapping set to the Pico with `POST /gpio/config`.
 - **Export JSON / Import JSON** saves or restores the GPIO editor setup, including Pico base URL, enabled state, and all mappings.
+- Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
 - The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
 - Supported pulls: `pullup`, `pulldown`.
 - Supported triggers: `falling`, `rising`, `both`.
-- Supported actions: `dmx_clear`, `dmx_output_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `motion_start`, `motion_stop`, `motion_toggle`.
+- Supported digital actions: `dmx_clear`, `dmx_output_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `chaser_pause`, `chaser_resume`, `chaser_pause_toggle`, `motion_start`, `motion_stop`, `motion_toggle`.
+- ADC mappings are separate from digital button mappings and are limited to GPIO26, GPIO27, and GPIO28 on Pico 2 W. The first ADC action is `chaser_speed`, which maps the ADC value to a slot speed range.
 
 GPIO config is a line-based text protocol:
 
@@ -272,9 +285,11 @@ GPIO config is a line-based text protocol:
 ENABLE 1
 MAP 14 pullup falling dmx_clear 0 30
 MAP 15 pullup falling chaser_toggle 0 30
+ADC 26 chaser_speed 0 10 300
 ```
 
 Format: `MAP <pin> <pull> <trigger> <action> <slot> <debounce_ms>`.
+ADC format: `ADC <pin> <action> <slot> <min_x100> <max_x100>`.
 
 Use `dmx_clear` when the button should clear both output and the motion base buffer. Use `dmx_output_clear` when it should black out live output but keep the base buffer intact, so Motion FX can resume around the same stored center.
 
