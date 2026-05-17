@@ -412,9 +412,7 @@ function sendBatch(map){
     return acc;
   },[]).join(',');
   if(!pairs)return;
-  const url=root+'/dmx/b/'+pairs;
-  if(root!==location.origin){new Image().src=url;return;}
-  fetch(url,{cache:'no-store'}).catch(()=>{});
+  fetch(root+'/dmx/b',{method:'POST',body:pairs,cache:'no-store'}).catch(()=>{});
 }
 
 function tick(){

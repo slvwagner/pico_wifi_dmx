@@ -238,10 +238,7 @@ async function sendLaneValues(g, lane) {
         }
     });
 
-    const CHUNK = 50;
-    for (let i = 0; i < parts.length; i += CHUNK) {
-        await fetch(root + '/dmx/b/' + parts.slice(i, i + CHUNK).join(',')).catch(() => {});
-    }
+    await fetch(root+'/dmx/b',{method:'POST',body:parts.join(',')}).catch(()=>{});
     updatePreview(g, lane);
 }
 
