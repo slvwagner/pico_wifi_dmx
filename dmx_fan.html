@@ -194,11 +194,11 @@ function getControlOptions(orderedIds) {
     const opts = [];
     profile.controls.forEach(c => {
         if (c.type === 'panTilt16') {
-            opts.push({ key: c.label+':pan',   label: c.label+' › Pan',  is16bit: true });
-            opts.push({ key: c.label+':tilt',  label: c.label+' › Tilt', is16bit: true });
+            opts.push({ key: c.label+':pan',   label: 'Pan (16-bit)', is16bit: false });
+            opts.push({ key: c.label+':tilt',  label: 'Tilt (16-bit)', is16bit: false });
         } else if (c.type === 'panTilt8') {
-            opts.push({ key: c.label+':pan',   label: c.label+' › Pan',  is16bit: false });
-            opts.push({ key: c.label+':tilt',  label: c.label+' › Tilt', is16bit: false });
+            opts.push({ key: c.label+':pan',   label: 'Pan', is16bit: false });
+            opts.push({ key: c.label+':tilt',  label: 'Tilt', is16bit: false });
         } else if (c.type === 'slider16') {
             opts.push({ key: c.label+':value', label: c.label,            is16bit: true });
         } else if (c.channel >= 1) {
