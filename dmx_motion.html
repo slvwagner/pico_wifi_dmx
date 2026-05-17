@@ -570,13 +570,18 @@ function renderMotionSlotStrip(slots, activeMask){
       'border-radius:7px',
       'padding:7px 5px 6px',
       'text-align:center',
+      'position:relative',
       'cursor:pointer',
       'opacity:'+(unsupported?'0.35':loaded?'1':'0.45'),
       'transition:border-color .15s,box-shadow .15s',
       'user-select:none'
     ].filter(Boolean).join(';');
     const typeName=unsupported?'FW old':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    const deleteButton=loaded&&!unsupported
+      ? '<button type="button" data-delete-motion-slot="'+s.slot+'" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
+      : '';
     d.innerHTML=
+      deleteButton+
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
@@ -586,12 +591,42 @@ function renderMotionSlotStrip(slots, activeMask){
         '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
     d.onclick=()=>{
-      if(unsupported){setPicoMotionStatus('Flash the 16-slot firmware before using slot '+s.slot,'var(--warn)');return;}
+      if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask);
     };
+    const delBtn=d.querySelector('[data-delete-motion-slot]');
+    if(delBtn){
+      delBtn.onclick=ev=>{
+        ev.stopPropagation();
+        deleteMotionSlot(s.slot);
+      };
+    }
     strip.appendChild(d);
   });
+}
+
+async function deleteMotionSlot(slot){
+  if(!confirm('Delete motion slot '+slot+'?'))return;
+  try{
+    const r=await fetch('motion_setup.php?delete_slot='+slot,{method:'POST'});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'Delete failed');
+    const root=baseUrlEl.value.replace(/\/+$/,'');
+    if(root){
+      try{await fetch(root+'/motion/clear/'+slot,{cache:'no-store'});}catch(_){}
+      setPicoMotionStatus('Deleted slot '+slot,'var(--accent)');
+    }else{
+      setPicoMotionStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
+    }
+    if(_lastSlots){
+      _lastSlots[slot]={slot:slot,loaded:false,active:false,type:0,bpm:30,fixture_count:0};
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask & ~(1<<slot));
+    }
+    pollPicoMotionStatus();
+  }catch(e){
+    setPicoMotionStatus('Delete error: '+e.message,'var(--bad)');
+  }
 }
 
 // Re-highlight selection when slot selector changes

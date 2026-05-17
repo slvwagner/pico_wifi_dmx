@@ -156,6 +156,14 @@ void mfx_stop_slot(uint8_t slot)
     critical_section_exit(&mfx_lock);
 }
 
+void mfx_clear_slot(uint8_t slot)
+{
+    if (slot >= MFX_MAX_SLOTS) return;
+    critical_section_enter_blocking(&mfx_lock);
+    memset(&slot_data[slot], 0, sizeof(slot_data[slot]));
+    critical_section_exit(&mfx_lock);
+}
+
 void mfx_set_bpm(uint8_t slot, float bpm)
 {
     if (slot >= MFX_MAX_SLOTS) return;

@@ -1164,13 +1164,18 @@ function renderChaserSlotStrip(slots, activeMask) {
       'border:1.5px solid ' + (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'var(--line)' : 'rgba(255,255,255,.07)'),
       sel ? 'box-shadow:0 0 0 2px var(--accent)' : '',
       'border-radius:7px','padding:7px 5px 6px','text-align:center',
+      'position:relative',
       'cursor:pointer','opacity:' + (unsupported ? '0.35' : loaded ? '1' : '0.45'),
       'transition:border-color .15s,box-shadow .15s','user-select:none'
     ].filter(Boolean).join(';');
     const stepsLabel = unsupported ? 'FW old' : loaded ? s.step_count + ' steps' : '\u2014';
     const modeLabel = s.mode===0?'single':s.mode===2?'loop '+(s.loop_count||1):'loop';
     const dirLabel = s.direction===1?'rev':'fwd';
+    const deleteButton = loaded && !unsupported
+      ? '<button type="button" data-delete-chaser-slot="' + s.slot + '" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
+      : '';
     d.innerHTML =
+      deleteButton +
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
       (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + modeLabel + ' / ' + dirLabel + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
@@ -1182,14 +1187,44 @@ function renderChaserSlotStrip(slots, activeMask) {
         (unsupported ? 'NEEDS FW' : alive ? 'LIVE' : paused ? 'PAUSED' : loaded ? 'READY' : 'EMPTY') + '</span>' +
       '</div>';
     d.onclick = () => {
-      if(unsupported){setPicoStatus('Flash the 16-slot firmware before using slot '+s.slot,'var(--warn)');return;}
+      if(unsupported){setPicoStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
       document.getElementById('picoSlot').value = s.slot;
       renderChaserSlotStrip(slots, activeMask);
     };
+    const delBtn = d.querySelector('[data-delete-chaser-slot]');
+    if(delBtn){
+      delBtn.onclick = ev => {
+        ev.stopPropagation();
+        deleteChaserSlot(s.slot);
+      };
+    }
     strip.appendChild(d);
   });
   _lastChaserSlots = slots;
   _lastChaserActiveMask = activeMask;
+}
+
+async function deleteChaserSlot(slot){
+  if(!confirm('Delete chaser slot '+slot+'?'))return;
+  try{
+    const r=await fetch('chaser_setup.php?delete_slot='+slot,{method:'POST'});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'Delete failed');
+    const root=baseUrlEl.value.replace(/\/+$/,'');
+    if(root){
+      try{await fetch(root+'/chaser/clear/'+slot,{cache:'no-store'});}catch(_){}
+      setPicoStatus('Deleted slot '+slot,'var(--accent)');
+    }else{
+      setPicoStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
+    }
+    if(_lastChaserSlots){
+      _lastChaserSlots[slot]={slot:slot,loaded:false,active:false,paused:false,loop:false,mode:1,direction:0,step_count:0,speed_mult:1.0};
+      renderChaserSlotStrip(_lastChaserSlots,_lastChaserActiveMask & ~(1<<slot));
+    }
+    pollPicoStatus();
+  }catch(e){
+    setPicoStatus('Delete error: '+e.message,'var(--bad)');
+  }
 }
 
 async function pollPicoStatus(){

@@ -235,6 +235,16 @@ void chaser_stop_slot(uint8_t slot)
     critical_section_exit(&chaser_lock);
 }
 
+void chaser_clear_slot(uint8_t slot)
+{
+    if (slot >= CHASER_MAX_SLOTS) return;
+    critical_section_enter_blocking(&chaser_lock);
+    memset(&slot_data[slot], 0, sizeof(slot_data[slot]));
+    memset(&play_state[slot], 0, sizeof(play_state[slot]));
+    slot_speed[slot] = 1.0f;
+    critical_section_exit(&chaser_lock);
+}
+
 void chaser_set_speed(uint8_t slot, float mult)
 {
     if (slot >= CHASER_MAX_SLOTS) return;

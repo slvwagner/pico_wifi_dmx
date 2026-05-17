@@ -42,6 +42,30 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    // ?delete_slot=N — delete a saved Pico slot payload
+    if (isset($_GET['delete_slot'])) {
+        $slotIdx = (int)$_GET['delete_slot'];
+        if ($slotIdx < 0 || $slotIdx >= PICO_SLOT_COUNT) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'slot must be 0-' . (PICO_SLOT_COUNT - 1)]);
+            exit;
+        }
+        $existing = readDataFile($dataFile);
+        if (!isset($existing['pico_slots']) || !is_array($existing['pico_slots'])) {
+            $existing['pico_slots'] = array_fill(0, PICO_SLOT_COUNT, null);
+        }
+        $existing['pico_slots'] = array_pad($existing['pico_slots'], PICO_SLOT_COUNT, null);
+        $existing['pico_slots'][$slotIdx] = null;
+        $json = json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not write motion file']);
+            exit;
+        }
+        echo json_encode(['ok' => true]);
+        exit;
+    }
+
     // ?slot=N — save a single Pico slot payload (text/plain body)
     if (isset($_GET['slot'])) {
         $slotIdx = (int)$_GET['slot'];

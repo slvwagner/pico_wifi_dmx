@@ -53,6 +53,7 @@ Up to **32 independent chaser slots** can be loaded and played simultaneously. E
 | `/chaser/pause/<N>` | GET | Pause slot N at the current step/fade position |
 | `/chaser/resume/<N>` | GET | Resume paused slot N |
 | `/chaser/pause_toggle/<N>` | GET | Pause if running, resume if paused, otherwise start slot N |
+| `/chaser/clear/<N>` | GET | Clear/unload slot N without clearing global DMX output |
 | `/chaser/stop` | GET | Stop all slots |
 | `/chaser/stop/<N>` | GET | Stop slot N only |
 | `/chaser/speed/<N>/<mult_x100>` | GET | Set speed multiplier for slot N (100 = 1.0×) |
@@ -90,6 +91,7 @@ Up to **32 independent motion FX slots** can be loaded and played simultaneously
 | `/motion/load/<N>` | POST | Upload motion FX config to slot N (0–31) |
 | `/motion/start` | GET | Start slot 0 (backward compat) |
 | `/motion/start/<N>` | GET | Start slot N |
+| `/motion/clear/<N>` | GET | Clear/unload slot N without clearing global DMX output |
 | `/motion/stop` | GET | Stop all slots |
 | `/motion/stop/<N>` | GET | Stop slot N only |
 | `/motion/bpm/<N>/<bpm_x10>` | GET | Set BPM for slot N live (e.g. `/motion/bpm/0/1200` = 120.0 BPM) |
@@ -138,6 +140,7 @@ The playback pages separate editable presets from the autonomous Pico slot memor
 - **Upload to Slot** — sends the current editable preset to the selected Pico slot and mirrors that slot payload on the XAMPP server. It does not start playback.
 - **Play Slot / Start Slot** — starts the already-loaded slot on the Pico.
 - **Restore Saved Slots to Pico** — re-sends the saved server-side slot payloads to the Pico after reboot or firmware upload.
+- **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP slot payload and calls the Pico clear endpoint for that slot when the Pico base URL is set.
 
 On the Chaser page, each uploaded Pico slot also stores its playback mode (`Single`, `Loop`, `Loop N`), loop count, direction, and speed. `Stop` resets the slot, while `Pause`/`Resume` keeps the current step and fade position.
 
@@ -332,7 +335,7 @@ HTML files are developed locally and synced to XAMPP with:
 .\sync_fixture_controller_to_xampp.ps1
 ```
 
-Target: `E:\Software\xampp\htdocs\dmx-fixtures\`
+Target: `E:\Software\xampp\htdocs\dmx\`
 
 ---
 

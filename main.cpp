@@ -1020,6 +1020,21 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    if (path_matches(name, "/chaser/clear")) {
+        uint8_t slot = 0;
+        if (name[13] == '/') {
+            unsigned long s = strtoul(name + 14, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        chaser_clear_slot(slot);
+        build_playback_ok_response("chaser slot cleared");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     if (path_matches(name, "/chaser/pause")) {
         uint8_t slot = 0;
         if (name[13] == '/') {
@@ -1138,6 +1153,21 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
             mfx_stop();
             build_playback_ok_response("motion stopped");
         }
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/clear")) {
+        uint8_t slot = 0;
+        if (name[13] == '/') {
+            unsigned long s = strtoul(name + 14, NULL, 10);
+            if (s < MFX_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        mfx_clear_slot(slot);
+        build_playback_ok_response("motion slot cleared");
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;

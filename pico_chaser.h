@@ -67,6 +67,7 @@ void chaser_resume(uint8_t slot);
 void chaser_pause_toggle(uint8_t slot);
 void chaser_stop(void);
 void chaser_stop_slot(uint8_t slot);
+void chaser_clear_slot(uint8_t slot);
 void chaser_set_speed(uint8_t slot, float mult);  /* mult: 0.1–10.0, 1.0 = normal */
 void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched);  /* scratch/touched: [513], indices 1-512 */
 void chaser_get_status(chaser_status_t *out);
