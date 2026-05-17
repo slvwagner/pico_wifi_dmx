@@ -213,6 +213,12 @@ function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
+const PICO_SLOT_COUNT=16;
+function populatePicoSlotSelect(){
+  const sel=document.getElementById('picoSlot');
+  sel.innerHTML=Array.from({length:PICO_SLOT_COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join('');
+}
+populatePicoSlotSelect();
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
 function hex2(n){return clamp(n,0,255).toString(16).padStart(2,'0');}
 function rgbHex(v){return '#'+hex2(v.a)+hex2(v.b)+hex2(v.c);}
@@ -1072,38 +1078,53 @@ function setPicoStatus(msg,color){
 }
 let _lastChaserSlots = null;
 let _lastChaserActiveMask = 0;
+let _lastChaserReportedSlotCount = PICO_SLOT_COUNT;
+
+function selectedChaserSlot(){
+  return parseInt(document.getElementById('picoSlot').value)||0;
+}
+function ensureChaserSlotSupported(){
+  const slot=selectedChaserSlot();
+  if(slot<_lastChaserReportedSlotCount)return true;
+  setPicoStatus('Pico firmware reports only '+_lastChaserReportedSlotCount+' chaser slots; rebuild/flash firmware for slots 8-15','var(--warn)');
+  return false;
+}
 
 function renderChaserSlotStrip(slots, activeMask) {
   const strip = document.getElementById('chaserSlotStrip');
   if (!strip) return;
-  const selected = parseInt(document.getElementById('picoSlot').value) || 0;
+  _lastChaserReportedSlotCount=slots.length;
+  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0,unsupported:i>=_lastChaserReportedSlotCount});
+  const selected = selectedChaserSlot();
   strip.innerHTML = '';
   slots.forEach(s => {
     const alive  = !!(activeMask & (1 << s.slot));
     const loaded = s.loaded;
     const sel    = (s.slot === selected);
+    const unsupported = !!s.unsupported;
     const d = document.createElement('div');
     d.style.cssText = [
       'background:#0a0d10',
-      'border:1.5px solid ' + (alive ? 'var(--accent)' : loaded ? 'var(--line)' : 'rgba(255,255,255,.07)'),
+      'border:1.5px solid ' + (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : loaded ? 'var(--line)' : 'rgba(255,255,255,.07)'),
       sel ? 'box-shadow:0 0 0 2px var(--accent)' : '',
       'border-radius:7px','padding:7px 5px 6px','text-align:center',
-      'cursor:pointer','opacity:' + (loaded ? '1' : '0.45'),
+      'cursor:pointer','opacity:' + (unsupported ? '0.35' : loaded ? '1' : '0.45'),
       'transition:border-color .15s,box-shadow .15s','user-select:none'
     ].filter(Boolean).join(';');
-    const stepsLabel = loaded ? s.step_count + ' steps' : '\u2014';
+    const stepsLabel = unsupported ? 'FW old' : loaded ? s.step_count + ' steps' : '\u2014';
     d.innerHTML =
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
       (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
       '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' +
-        (alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
+        (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
       '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:' +
-        (alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
-        (alive ? 'LIVE' : loaded ? 'READY' : 'EMPTY') + '</span>' +
+        (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
+        (unsupported ? 'NEEDS FW' : alive ? 'LIVE' : loaded ? 'READY' : 'EMPTY') + '</span>' +
       '</div>';
     d.onclick = () => {
+      if(unsupported){setPicoStatus('Flash the 16-slot firmware before using slot '+s.slot,'var(--warn)');return;}
       document.getElementById('picoSlot').value = s.slot;
       renderChaserSlotStrip(slots, activeMask);
     };
@@ -1120,7 +1141,7 @@ async function pollPicoStatus(){
     const j=await fetch(root+'/chaser/status').then(r=>r.json());
     if(j.ok){
       const activeSlots=[];
-      for(let i=0;i<8;i++) if(j.active_mask&(1<<i)) activeSlots.push(i);
+      for(let i=0;i<PICO_SLOT_COUNT;i++) if(j.active_mask&(1<<i)) activeSlots.push(i);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms)'
         :'Stopped';
@@ -1167,6 +1188,7 @@ async function restoreAllChaserSlots(){
 
 document.getElementById('btnPicoUploadPlay').onclick=async()=>{
   if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
+  if(!ensureChaserSlotSupported())return;
   stopPlayback(); // stop browser playback so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
@@ -1188,6 +1210,7 @@ document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
 document.getElementById('btnPicoPlaySlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   try{
     const r=await fetch(root+'/chaser/play/'+slot);
@@ -1200,6 +1223,7 @@ document.getElementById('btnPicoPlaySlot').onclick=async()=>{
 document.getElementById('btnPicoSetSpeed').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   const mult=parseFloat(document.getElementById('picoSpeed').value)||1.0;
   const rate_x100=Math.round(Math.max(10,Math.min(1000,mult*100)));
@@ -1224,6 +1248,7 @@ document.getElementById('btnPicoStop').onclick=async()=>{
 document.getElementById('btnPicoStopSlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   try{
     await fetch(root+'/chaser/stop/'+slot);
@@ -1262,7 +1287,7 @@ loadSetup();
   }
 })();
 try{
-  const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0}));
+  const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0}));
   renderChaserSlotStrip(dummy,0);
 }catch(e){console.warn('chaserSlotStrip init error',e);}
 </script>

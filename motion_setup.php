@@ -5,6 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $dataFile = __DIR__ . DIRECTORY_SEPARATOR . 'motion_setup.json';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+const PICO_SLOT_COUNT = 16;
 
 function readDataFile(string $path): array {
     if (!is_file($path)) return [];
@@ -18,7 +19,7 @@ if ($method === 'GET') {
     if (isset($_GET['slots'])) {
         $data  = readDataFile($dataFile);
         $slots = isset($data['pico_slots']) && is_array($data['pico_slots'])
-                 ? $data['pico_slots'] : array_fill(0, 8, null);
+                 ? array_pad($data['pico_slots'], PICO_SLOT_COUNT, null) : array_fill(0, PICO_SLOT_COUNT, null);
         $url   = isset($data['pico_url']) ? $data['pico_url'] : null;
         echo json_encode(['ok' => true, 'pico_slots' => $slots, 'pico_url' => $url]);
         exit;
@@ -44,9 +45,9 @@ if ($method === 'POST') {
     // ?slot=N — save a single Pico slot payload (text/plain body)
     if (isset($_GET['slot'])) {
         $slotIdx = (int)$_GET['slot'];
-        if ($slotIdx < 0 || $slotIdx > 7) {
+        if ($slotIdx < 0 || $slotIdx >= PICO_SLOT_COUNT) {
             http_response_code(400);
-            echo json_encode(['ok' => false, 'error' => 'slot must be 0-7']);
+            echo json_encode(['ok' => false, 'error' => 'slot must be 0-' . (PICO_SLOT_COUNT - 1)]);
             exit;
         }
         $payload = file_get_contents('php://input');
@@ -57,8 +58,9 @@ if ($method === 'POST') {
         }
         $existing = readDataFile($dataFile);
         if (!isset($existing['pico_slots']) || !is_array($existing['pico_slots'])) {
-            $existing['pico_slots'] = array_fill(0, 8, null);
+            $existing['pico_slots'] = array_fill(0, PICO_SLOT_COUNT, null);
         }
+        $existing['pico_slots'] = array_pad($existing['pico_slots'], PICO_SLOT_COUNT, null);
         $existing['pico_slots'][$slotIdx] = $payload;
         // save the pico_url if provided
         if (isset($_GET['pico_url'])) {

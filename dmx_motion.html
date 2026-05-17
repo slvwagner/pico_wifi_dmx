@@ -169,6 +169,12 @@ function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
+const PICO_SLOT_COUNT=16;
+function populatePicoMotionSlotSelect(){
+  const sel=document.getElementById('picoMotionSlot');
+  sel.innerHTML=Array.from({length:PICO_SLOT_COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join('');
+}
+populatePicoMotionSlotSelect();
 
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
@@ -532,40 +538,55 @@ let picoMotionTimer=null;
 const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing'];
 let _lastSlots=null; // cached for selection-highlight re-render
 let _lastActiveMask=0;
+let _lastMotionReportedSlotCount=PICO_SLOT_COUNT;
+
+function selectedMotionSlot(){
+  return parseInt(document.getElementById('picoMotionSlot').value)||0;
+}
+function ensureMotionSlotSupported(){
+  const slot=selectedMotionSlot();
+  if(slot<_lastMotionReportedSlotCount)return true;
+  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' motion slots; rebuild/flash firmware for slots 8-15','var(--warn)');
+  return false;
+}
 
 function renderMotionSlotStrip(slots, activeMask){
+  _lastMotionReportedSlotCount=slots.length;
+  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
   _lastSlots=slots; _lastActiveMask=activeMask;
   const strip=document.getElementById('motionSlotStrip');
-  const sel=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  const sel=selectedMotionSlot();
   strip.innerHTML='';
   slots.forEach(s=>{
     const alive=!!(activeMask&(1<<s.slot));
     const loaded=s.loaded;
     const selected=s.slot===sel;
+    const unsupported=!!s.unsupported;
     const d=document.createElement('div');
     d.style.cssText=[
       'background:#0a0d10',
-      'border:1.5px solid '+(alive?'var(--accent)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
+      'border:1.5px solid '+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
       selected?'box-shadow:0 0 0 2px var(--accent)':'',
       'border-radius:7px',
       'padding:7px 5px 6px',
       'text-align:center',
       'cursor:pointer',
-      'opacity:'+(loaded?'1':'0.45'),
+      'opacity:'+(unsupported?'0.35':loaded?'1':'0.45'),
       'transition:border-color .15s,box-shadow .15s',
       'user-select:none'
     ].filter(Boolean).join(';');
-    const typeName=loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    const typeName=unsupported?'FW old':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
     d.innerHTML=
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
       (loaded?'<div style="font-size:11px;color:var(--muted)">'+s.fixture_count+' fix</div>':'') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
-        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
-        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
+        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
+        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
     d.onclick=()=>{
+      if(unsupported){setPicoMotionStatus('Flash the 16-slot firmware before using slot '+s.slot,'var(--warn)');return;}
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask);
     };
@@ -590,7 +611,7 @@ async function pollPicoMotionStatus(){
     const st=await fetch(root+'/motion/status').then(r=>r.json());
     if(st.ok){
       const activeSlots=[];
-      for(let i=0;i<8;i++) if(st.active_mask&(1<<i)) activeSlots.push(i);
+      for(let i=0;i<PICO_SLOT_COUNT;i++) if(st.active_mask&(1<<i)) activeSlots.push(i);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
         :'Stopped';
@@ -632,6 +653,7 @@ async function restoreAllMotionSlots(){
 
 document.getElementById('btnPicoMotionUpload').onclick=async()=>{
   if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
@@ -653,6 +675,7 @@ document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots
 document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   try{
     const r=await fetch(root+'/motion/start/'+slot);
@@ -665,6 +688,7 @@ document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
 document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const bpm=parseFloat(document.getElementById('picoMotionBpm').value)||30;
   const bpm_x10=Math.round(Math.max(1,Math.min(6000,bpm*10)));
@@ -679,6 +703,7 @@ document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
 document.getElementById('btnPicoMotionStopSlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   try{
     await fetch(root+'/motion/stop/'+slot);
@@ -827,7 +852,7 @@ document.getElementById('importMotionSlotsFile').onchange=async e=>{
 
 loadSetup().finally(async()=>{
   try{
-    const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0}));
+    const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0}));
     renderMotionSlotStrip(dummy,0);
   }catch(e){console.warn('slot strip init error',e);}
   await loadMotionFromServer();

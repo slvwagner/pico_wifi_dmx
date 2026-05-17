@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define MFX_MAX_SLOTS    8
+#define MFX_MAX_SLOTS    16
 #define MFX_MAX_FIXTURES 8
 
 typedef enum {
@@ -30,8 +30,8 @@ typedef struct {
 
 /* Summary returned by mfx_get_status() */
 typedef struct {
-    uint8_t  active_mask;   /* bitmask: bit i = slot i is playing  */
-    uint8_t  loaded_mask;   /* bitmask: bit i = slot i is loaded   */
+    uint32_t active_mask;   /* bitmask: bit i = slot i is playing  */
+    uint32_t loaded_mask;   /* bitmask: bit i = slot i is loaded   */
     float    elapsed_s;     /* elapsed of the lowest active slot   */
 } mfx_status_t;
 

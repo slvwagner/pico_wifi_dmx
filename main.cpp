@@ -55,7 +55,7 @@ static char http_logs[6144];
 static char http_status_json[1024];
 static char http_dmx_json[1024];
 static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
-static char http_playback_json[1024];
+static char http_playback_json[4096];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 
@@ -721,10 +721,10 @@ static void build_chaser_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,"
+        "{\"ok\":true,\"active_mask\":%lu,\"loaded_mask\":%lu,"
         "\"step\":%u,\"step_count\":%u,\"elapsed_ms\":%lu}\n",
-        (unsigned)s.active_mask,
-        (unsigned)s.loaded_mask,
+        (unsigned long)s.active_mask,
+        (unsigned long)s.loaded_mask,
         s.step,
         s.step_count,
         (unsigned long)s.elapsed_ms);
@@ -767,9 +767,9 @@ static void build_motion_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,\"elapsed_s\":%.2f}\n",
-        (unsigned)s.active_mask,
-        (unsigned)s.loaded_mask,
+        "{\"ok\":true,\"active_mask\":%lu,\"loaded_mask\":%lu,\"elapsed_s\":%.2f}\n",
+        (unsigned long)s.active_mask,
+        (unsigned long)s.loaded_mask,
         (double)s.elapsed_s);
 }
 

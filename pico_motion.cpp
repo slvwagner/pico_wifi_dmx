@@ -311,11 +311,11 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 void mfx_get_status(mfx_status_t *out)
 {
     critical_section_enter_blocking(&mfx_lock);
-    uint8_t amask = 0, lmask = 0;
+    uint32_t amask = 0, lmask = 0;
     float   elapsed = 0.0f;
     for (int i = 0; i < MFX_MAX_SLOTS; i++) {
-        if (slot_data[i].active) amask |= (uint8_t)(1u << i);
-        if (slot_data[i].loaded) lmask |= (uint8_t)(1u << i);
+        if (slot_data[i].active) amask |= (uint32_t)(1u << i);
+        if (slot_data[i].loaded) lmask |= (uint32_t)(1u << i);
     }
     for (int i = 0; i < MFX_MAX_SLOTS; i++) { /* elapsed of lowest active slot */
         if (slot_data[i].active) { elapsed = slot_data[i].last_elapsed_s; break; }
