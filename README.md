@@ -191,9 +191,9 @@ A floating, draggable, collapsible **Scene Toolbox** overlays the fixture contro
 - **Recall scene** — sends all stored channel values back to the Pico in one batch request.
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
 - **Clear all channels** — the red `×` icon next to the scene JSON import/export buttons asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
-- Slots are stored server-side in `scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
-- Toolbox position (drag) and collapsed state are persisted per-page to `ui_state.json` via `ui_state.php`.
-- Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
+- Slots are stored server-side in `data/scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
+- Toolbox position (drag) and collapsed state are persisted per-page to `data/ui_state.json` via `ui_state.php`.
+- Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `data/fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
 
 ### Motion FX — Scene Center Toolbox
 
@@ -313,17 +313,19 @@ This first prototype does not persist GPIO mappings on the Pico after reboot; sa
 
 ### Server-side Persistence
 
-All persistent data is stored as JSON files on the PHP web server. No database is required.
+All persistent data is stored as JSON files in the PHP web server's `data/` folder. No database is required. The sync script migrates existing root-level JSON files into `data/` and writes a `.htaccess` file that denies direct browser access to the folder.
 
 | PHP handler | JSON file | Contents |
 |-------------|-----------|----------|
-| `fixture_setup.php` | `fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
-| `fixture_setup.php?livevalues` | `fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
-| `scene_setup.php` | `scene_setup.json` | Named scene snapshots, slot grid dimensions |
-| `group_setup.php` | `group_setup.json` | Fixture group definitions |
-| `chaser_setup.php` | `chaser_setup.json` | Chaser step sequences and slot config |
-| `chaser_setup.php?participating` | `chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
-| `ui_state.php` | `ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
+| `fixture_setup.php` | `data/fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
+| `fixture_setup.php?livevalues` | `data/fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
+| `scene_setup.php` | `data/scene_setup.json` | Named scene snapshots, slot grid dimensions |
+| `group_setup.php` | `data/group_setup.json` | Fixture group definitions |
+| `fan_setup.php` | `data/fan_setup.json` | Fan Out groups and Pico base URL |
+| `chaser_setup.php` | `data/chaser_setup.json` | Chaser step sequences and slot config |
+| `chaser_setup.php?participating` | `data/chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
+| `motion_setup.php` | `data/motion_setup.json` | Motion FX browser setup and saved Pico slot payloads |
+| `ui_state.php` | `data/ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
 
@@ -353,11 +355,11 @@ Target: `E:\Software\xampp\htdocs\dmx\`
 | `fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
 | `pico_sdk_import.cmake` | Pico SDK CMake integration |
 | `CMakeLists.txt` | Build target, source files, SDK libraries |
-| `fixture_setup.php` | REST handler — save/load fixture setup (`fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`fixture_live_values.json`) |
-| `scene_setup.php` | REST handler — save/load scenes and slot grid config (`scene_setup.json`) |
-| `group_setup.php` | REST handler — save/load fixture groups (`group_setup.json`) |
-| `chaser_setup.php` | REST handler — save/load chaser step sequences (`chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
-| `ui_state.php` | REST handler — per-page UI state persistence (`ui_state.json`); merges partial state on POST |
+| `fixture_setup.php` | REST handler — save/load fixture setup (`data/fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`data/fixture_live_values.json`) |
+| `scene_setup.php` | REST handler — save/load scenes and slot grid config (`data/scene_setup.json`) |
+| `group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
+| `chaser_setup.php` | REST handler — save/load chaser step sequences (`data/chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
+| `ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
 | `sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
 
 ---

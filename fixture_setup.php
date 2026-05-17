@@ -3,13 +3,17 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
-$dataFile = __DIR__ . DIRECTORY_SEPARATOR . 'fixture_setup.json';
+$dataDir = __DIR__ . DIRECTORY_SEPARATOR . 'data';
+if (!is_dir($dataDir)) {
+    mkdir($dataDir, 0775, true);
+}
+$dataFile = $dataDir . DIRECTORY_SEPARATOR . 'fixture_setup.json';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($method === 'GET') {
     // ?livevalues — return the last written live control values
     if (isset($_GET['livevalues'])) {
-        $lvFile = __DIR__ . DIRECTORY_SEPARATOR . 'fixture_live_values.json';
+        $lvFile = $dataDir . DIRECTORY_SEPARATOR . 'fixture_live_values.json';
         if (!is_file($lvFile)) {
             echo json_encode(['ok' => true, 'exists' => false, 'values' => null]);
             exit;
@@ -40,7 +44,7 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     // ?livevalues — save the current live control values snapshot
     if (isset($_GET['livevalues'])) {
-        $lvFile = __DIR__ . DIRECTORY_SEPARATOR . 'fixture_live_values.json';
+        $lvFile = $dataDir . DIRECTORY_SEPARATOR . 'fixture_live_values.json';
         $raw = file_get_contents('php://input');
         $vals = json_decode($raw === false ? '' : $raw, true);
         if (!is_array($vals)) {

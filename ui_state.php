@@ -1,6 +1,10 @@
 <?php
 header('Content-Type: application/json');
-$file = __DIR__ . '/ui_state.json';
+$dataDir = __DIR__ . '/data';
+if (!is_dir($dataDir)) {
+    mkdir($dataDir, 0775, true);
+}
+$file = $dataDir . '/ui_state.json';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = json_decode(file_get_contents('php://input'), true);
