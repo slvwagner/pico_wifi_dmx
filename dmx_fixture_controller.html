@@ -34,6 +34,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .xy-dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
+#addControlBody{display:grid;gap:10px}
 @media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
@@ -101,6 +102,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <button id="addControlCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
 <div id="addControlBody">
+<div id="typeChannelsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px">
+<div style="font-size:13px;font-weight:600;color:var(--text)">Type, Label &amp; Channels</div>
 <div class="toolbar">
 <label>Type
 <select id="controlType">
@@ -122,8 +125,6 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <label id="controlCWrap"><span id="controlCLabel">Ch C</span><input id="controlC" type="number" min="1" max="512" value="0"></label>
 <label id="controlDWrap"><span id="controlDLabel">Ch D</span><input id="controlD" type="number" min="1" max="512" value="0"></label>
 <label id="controlEWrap"><span id="controlELabel">Ch E</span><input id="controlE" type="number" min="1" max="512" value="0"></label>
-<button class="primary" id="addControl">Add control</button>
-<button id="cancelEdit">Cancel edit</button>
 </div>
 <div id="wheelEditorWrap">
 <label>Wheel options, one per line: name=value
@@ -147,6 +148,41 @@ Blue=48</textarea>
 </div>
 </div>
 <div class="small" id="controlHint"></div>
+</div>
+<div id="defBlkCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:12px">
+<div style="font-size:13px;font-weight:600;color:var(--text)">Default &amp; Blackout</div>
+<div style="display:grid;gap:6px">
+<div style="font-size:12px;color:var(--muted)">Default</div>
+<div class="toolbar">
+<label style="display:flex;flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="defNone"> None</label>
+<label id="defPanWrap">Pan<input id="defPan" type="number" min="0" max="65535" value="32768"></label>
+<label id="defTiltWrap">Tilt<input id="defTilt" type="number" min="0" max="65535" value="32768"></label>
+<label id="defNumWrap">Value<input id="defNum" type="number" min="0" max="65535" value="127"></label>
+<label id="defColorWrap">Color<input id="defColor" type="color" value="#7f7f7f"></label>
+<label id="defExtraWrap"><span id="defExtraLabel">W</span><input id="defExtra" type="number" min="0" max="255" value="127"></label>
+<label id="defAmberWrap">Amber<input id="defAmber" type="number" min="0" max="255" value="0"></label>
+</div>
+<div id="defXYPadWrap" style="display:none">
+<div id="defXYPad" class="xy-pad" style="width:200px;aspect-ratio:1.55/1;max-width:100%"><div id="defXYDot" class="xy-dot"></div></div>
+</div>
+</div>
+<div style="display:grid;gap:6px">
+<div style="font-size:12px;color:var(--muted)">Blackout</div>
+<div class="toolbar">
+<label style="display:flex;flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="blkNone"> None</label>
+<label id="blkPanWrap">Pan<input id="blkPan" type="number" min="0" max="65535" value="0"></label>
+<label id="blkTiltWrap">Tilt<input id="blkTilt" type="number" min="0" max="65535" value="0"></label>
+<label id="blkNumWrap">Value<input id="blkNum" type="number" min="0" max="65535" value="0"></label>
+</div>
+<div id="blkXYPadWrap" style="display:none">
+<div id="blkXYPad" class="xy-pad" style="width:200px;aspect-ratio:1.55/1;max-width:100%"><div id="blkXYDot" class="xy-dot"></div></div>
+</div>
+</div>
+</div>
+<div id="actionsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<button class="primary" id="addControl">Add control</button>
+<button id="cancelEdit">Cancel edit</button>
+</div>
 </div>
 </div>
 </section>
@@ -407,6 +443,33 @@ function controlFromEditor(existingId=0){
   else if(type==='wheel')control={...control,channel:a,options:parseWheelOptions(document.getElementById('wheelOptions').value)};
   else if(type==='slider16')control={...control,channel:a,fine:b};
   else control={...control,channel:a};
+  // Default value (all types, nullable)
+  const is16bit=type==='panTilt16'||type==='slider16';
+  const isPanTiltType=type==='panTilt16'||type==='panTilt8';
+  const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const ptMax=is16bit?65535:255;
+  if(document.getElementById('defNone').checked){
+    control.defaultValue=null;
+  }else if(isPanTiltType){
+    control.defaultValue={pan:Math.round(clamp(parseInt(document.getElementById('defPan').value)||0,0,ptMax)),tilt:Math.round(clamp(parseInt(document.getElementById('defTilt').value)||0,0,ptMax))};
+  }else if(isColorType){
+    const hex=document.getElementById('defColor').value;
+    if(type==='rgb')control.defaultValue=hexToRgb(hex);
+    else if(type==='cmy')control.defaultValue=rgbToCmy(hex);
+    else if(type==='cmyk'){const ck=rgbToCmyk(hex);ck.k=clamp(parseInt(document.getElementById('defExtra').value)||0,0,255);control.defaultValue=ck;}
+    else if(type==='rgbw'){const rgb=hexToRgb(hex);control.defaultValue={...rgb,w:clamp(parseInt(document.getElementById('defExtra').value)||0,0,255)};}
+    else if(type==='rgbwa'){const rgb=hexToRgb(hex);control.defaultValue={...rgb,w:clamp(parseInt(document.getElementById('defExtra').value)||0,0,255),amber:clamp(parseInt(document.getElementById('defAmber').value)||0,0,255)};}
+  }else{
+    control.defaultValue=Math.round(clamp(parseFloat(document.getElementById('defNum').value)||0,0,is16bit?65535:255));
+  }
+  // Blackout value (all types, nullable)
+  if(document.getElementById('blkNone').checked){
+    control.blackoutValue=null;
+  }else if(isPanTiltType){
+    control.blackoutValue={pan:Math.round(clamp(parseInt(document.getElementById('blkPan').value)||0,0,ptMax)),tilt:Math.round(clamp(parseInt(document.getElementById('blkTilt').value)||0,0,ptMax))};
+  }else{
+    control.blackoutValue=Math.round(clamp(parseFloat(document.getElementById('blkNum').value)||0,0,is16bit?65535:255));
+  }
   return control;
 }
 
@@ -514,6 +577,41 @@ function defaultControlLabel(type){
   }[type]||'Control';
 }
 
+function updateEditorXYDot(panId,dotId,tiltId){
+  const maxV=parseInt(document.getElementById(panId).max)||255;
+  const dot=document.getElementById(dotId);
+  const px=Math.max(0,Math.min(maxV,parseInt(document.getElementById(panId).value)||0));
+  const ty=Math.max(0,Math.min(maxV,parseInt(document.getElementById(tiltId).value)||0));
+  dot.style.left=(px/maxV*100)+'%';dot.style.top=((1-ty/maxV)*100)+'%';
+}
+function updateEditorXYDots(){
+  updateEditorXYDot('defPan','defXYDot','defTilt');
+  updateEditorXYDot('blkPan','blkXYDot','blkTilt');
+}
+function setupEditorXYPad(padId,dotId,panId,tiltId){
+  const pad=document.getElementById(padId);
+  let down=false;
+  function update(e){
+    e.preventDefault();
+    const r=pad.getBoundingClientRect();
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    const x=Math.max(0,Math.min(1,(cx-r.left)/r.width));
+    const y=Math.max(0,Math.min(1,(cy-r.top)/r.height));
+    const maxV=parseInt(document.getElementById(panId).max)||255;
+    document.getElementById(panId).value=Math.round(x*maxV);
+    document.getElementById(tiltId).value=Math.round((1-y)*maxV);
+    updateEditorXYDot(panId,dotId,tiltId);
+  }
+  pad.addEventListener('mousedown',e=>{down=true;update(e);});
+  document.addEventListener('mousemove',e=>{if(down)update(e);});
+  document.addEventListener('mouseup',()=>down=false);
+  pad.addEventListener('touchstart',e=>{down=true;update(e);},{passive:false});
+  pad.addEventListener('touchmove',e=>{if(down)update(e);},{passive:false});
+  pad.addEventListener('touchend',()=>down=false,{passive:false});
+  document.getElementById(panId).addEventListener('input',()=>updateEditorXYDot(panId,dotId,tiltId));
+  document.getElementById(tiltId).addEventListener('input',()=>updateEditorXYDot(panId,dotId,tiltId));
+}
 function resetControlEditor(){
   editingControlId=0;
   document.getElementById('addControl').textContent='Add control';
@@ -533,7 +631,44 @@ function loadControlEditor(control){
   document.getElementById('controlD').value=control.tiltFine||control.w||control.k||0;
   document.getElementById('controlE').value=control.amber||0;
   document.getElementById('wheelOptions').value=wheelOptionsText(control.options)||document.getElementById('wheelOptions').value;
+  document.getElementById('defNone').checked=(control.defaultValue===null||control.defaultValue===undefined);
+  document.getElementById('blkNone').checked=(control.blackoutValue===null||control.blackoutValue===undefined);
   updateControlChannelInputs();
+  const isPanTiltType=control.type==='panTilt16'||control.type==='panTilt8';
+  const is16bitType=control.type==='panTilt16'||control.type==='slider16';
+  const ptMax=is16bitType?65535:255;
+  // Load default value
+  if(control.defaultValue!=null){
+    const dv=control.defaultValue;
+    if(isPanTiltType){
+      const pan=typeof dv==='object'?(dv.pan??Math.round(ptMax/2)):dv;
+      const tilt=typeof dv==='object'?(dv.tilt??Math.round(ptMax/2)):dv;
+      document.getElementById('defPan').value=pan;
+      document.getElementById('defTilt').value=tilt;
+    }else{
+      const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type);
+      if(isColorType){
+        if(control.type==='rgb'||control.type==='rgbw'||control.type==='rgbwa')
+          document.getElementById('defColor').value=rgbHex(dv);
+        else if(control.type==='cmy')document.getElementById('defColor').value=cmyHex(dv);
+        else if(control.type==='cmyk'){document.getElementById('defColor').value=cmykHex(dv);document.getElementById('defExtra').value=dv.k??0;}
+        if(control.type==='rgbw'||control.type==='rgbwa')document.getElementById('defExtra').value=dv.w??0;
+        if(control.type==='rgbwa')document.getElementById('defAmber').value=dv.amber??0;
+      }else{
+        document.getElementById('defNum').value=dv;
+      }
+    }
+  }
+  if(control.blackoutValue!=null){
+    if(isPanTiltType){
+      const bv=control.blackoutValue;
+      document.getElementById('blkPan').value=typeof bv==='object'?(bv.pan??0):bv;
+      document.getElementById('blkTilt').value=typeof bv==='object'?(bv.tilt??0):bv;
+    }else{
+      document.getElementById('blkNum').value=control.blackoutValue;
+    }
+  }
+  updateEditorXYDots();
 }
 
 function updateControlChannelInputs(fillChannels=false){
@@ -572,6 +707,50 @@ function updateControlChannelInputs(fillChannels=false){
   };
   document.getElementById('controlHint').textContent=hints[type]||'';
   document.getElementById('wheelEditorWrap').style.display=type==='wheel'?'grid':'none';
+
+  // Default / blackout field visibility and presets
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const is16bit=type==='panTilt16'||type==='slider16';
+  const ptMax=is16bit?65535:255;
+  document.getElementById('defExtraLabel').textContent=type==='cmyk'?'K':'W';
+  document.getElementById('defNum').max=is16bit?65535:255;
+  document.getElementById('blkNum').max=is16bit?65535:255;
+  ['defPan','defTilt','blkPan','blkTilt'].forEach(id=>document.getElementById(id).max=ptMax);
+  if(fillChannels){
+    document.getElementById('defNone').checked=false;
+    document.getElementById('blkNone').checked=false;
+    if(type==='panTilt16'){document.getElementById('defPan').value=32768;document.getElementById('defTilt').value=32768;document.getElementById('blkPan').value=32768;document.getElementById('blkTilt').value=32768;}
+    else if(type==='panTilt8'){document.getElementById('defPan').value=127;document.getElementById('defTilt').value=127;document.getElementById('blkPan').value=127;document.getElementById('blkTilt').value=127;}
+    else if(type==='slider8'){document.getElementById('defNum').value=127;document.getElementById('blkNum').value=0;}
+    else if(type==='slider16'){document.getElementById('defNum').value=32768;document.getElementById('blkNum').value=0;}
+    else if(type==='wheel'){document.getElementById('defNum').value=0;document.getElementById('blkNum').value=0;}
+    else if(type==='rgb'){document.getElementById('defColor').value='#7f7f7f';document.getElementById('blkNum').value=0;}
+    else if(type==='rgbw'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=127;document.getElementById('blkNum').value=0;}
+    else if(type==='rgbwa'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=127;document.getElementById('defAmber').value=0;document.getElementById('blkNum').value=0;}
+    else if(type==='cmy'){document.getElementById('defColor').value='#7f7f7f';document.getElementById('blkNum').value=0;}
+    else if(type==='cmyk'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=0;document.getElementById('blkNum').value=0;}
+  }
+  updateEditorXYDots();
+  applyNoneCheckboxes();
+}
+
+function applyNoneCheckboxes(){
+  const type=document.getElementById('controlType').value;
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const isPanTilt=type==='panTilt16'||type==='panTilt8';
+  const defNone=document.getElementById('defNone').checked;
+  const blkNone=document.getElementById('blkNone').checked;
+  document.getElementById('defPanWrap').style.display=(!defNone&&isPanTilt)?'grid':'none';
+  document.getElementById('defTiltWrap').style.display=(!defNone&&isPanTilt)?'grid':'none';
+  document.getElementById('defXYPadWrap').style.display=(!defNone&&isPanTilt)?'block':'none';
+  document.getElementById('defNumWrap').style.display=(!defNone&&!isColor&&!isPanTilt)?'grid':'none';
+  document.getElementById('defColorWrap').style.display=(!defNone&&isColor)?'grid':'none';
+  document.getElementById('defExtraWrap').style.display=(!defNone&&(type==='rgbw'||type==='rgbwa'||type==='cmyk'))?'grid':'none';
+  document.getElementById('defAmberWrap').style.display=(!defNone&&type==='rgbwa')?'grid':'none';
+  document.getElementById('blkPanWrap').style.display=(!blkNone&&isPanTilt)?'grid':'none';
+  document.getElementById('blkTiltWrap').style.display=(!blkNone&&isPanTilt)?'grid':'none';
+  document.getElementById('blkXYPadWrap').style.display=(!blkNone&&isPanTilt)?'block':'none';
+  document.getElementById('blkNumWrap').style.display=(!blkNone&&!isPanTilt)?'grid':'none';
 }
 
 function addControl(){
@@ -941,6 +1120,10 @@ document.getElementById('saveProfile').onclick=saveProfile;
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
+document.getElementById('defNone').onchange=applyNoneCheckboxes;
+document.getElementById('blkNone').onchange=applyNoneCheckboxes;
+setupEditorXYPad('defXYPad','defXYDot','defPan','defTilt');
+setupEditorXYPad('blkXYPad','blkXYDot','blkPan','blkTilt');
 function csvEsc(v){v=String(v??'');return(v.includes(',')||v.includes('"')||v.includes('\n'))?'"'+v.replace(/"/g,'""')+'"':v;}
 function resolveDmxBytes(f,c){
   const out=[];
