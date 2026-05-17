@@ -128,7 +128,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Motion FX | `dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); save editable presets; upload the current preset to up to 32 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Fan Out | `dmx_fan.html` | Spread any DMX control (pan, tilt, zoom, dimmer, …) as an offset fan across an ordered fixture list — see below |
 | GPIO Control | `dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
-| FPS Benchmark | `dmx_benchmark.html` | Measure round-trip request latency for single `/dmx/set` vs batch `/dmx/b/` |
+| FPS Benchmark | `dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
 Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
