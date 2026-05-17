@@ -268,17 +268,6 @@ function drawFixtureList(){
         </label>
         <span class="small">${c.type==='panTilt16'?'16-bit':'8-bit'} · start ch ${mf.fixture.start}</span>
       </div>
-      <div class="toolbar">
-        <label>Phase offset <span id="phV${i}">${mf.phaseOffset}</span>°
-          <input type="range" min="-180" max="180" value="${mf.phaseOffset}" data-mf="${i}" data-f="phaseOffset">
-        </label>
-        <label>Center Pan <span id="cpV${i}">${Math.round(mf.panCenter)}</span>
-          <input type="range" min="0" max="${max}" value="${Math.round(mf.panCenter)}" data-mf="${i}" data-f="panCenter">
-        </label>
-        <label>Center Tilt <span id="ctV${i}">${Math.round(mf.tiltCenter)}</span>
-          <input type="range" min="0" max="${max}" value="${Math.round(mf.tiltCenter)}" data-mf="${i}" data-f="tiltCenter">
-        </label>
-      </div>
       <div class="row">
         <div class="xy-mini">
           <div class="xy-dot" id="dot${i}" style="left:${mf.panCenter/max*100}%;top:${100-mf.tiltCenter/max*100}%;background:${color};box-shadow:0 0 0 1px ${color}"></div>
@@ -300,16 +289,6 @@ function drawFixtureList(){
       mf.enabled=e.target.checked;
       e.target.closest('.item').className='item'+(mf.enabled?' active':'');
       drawPathPreview();
-    }else if(f==='phaseOffset'){
-      mf.phaseOffset=parseFloat(e.target.value);
-      document.getElementById('phV'+i).textContent=mf.phaseOffset;
-      drawPathPreview();
-    }else if(f==='panCenter'){
-      mf.panCenter=parseFloat(e.target.value);
-      document.getElementById('cpV'+i).textContent=Math.round(mf.panCenter);
-    }else if(f==='tiltCenter'){
-      mf.tiltCenter=parseFloat(e.target.value);
-      document.getElementById('ctV'+i).textContent=Math.round(mf.tiltCenter);
     }
   };
 }

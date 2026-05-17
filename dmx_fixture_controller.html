@@ -1403,8 +1403,8 @@ let slotCols=4,slotRows=4;
   if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}
   if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}
 })();
-document.getElementById('slotCols').addEventListener('change',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotCols',slotCols);renderSlotMatrix();});
-document.getElementById('slotRows').addEventListener('change',e=>{slotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();});
+document.getElementById('slotCols').addEventListener('change',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotRows').addEventListener('change',e=>{slotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
 function renderSlotMatrix(){
   const grid=document.getElementById('slotMatrix');
   const total=slotCols*slotRows;
