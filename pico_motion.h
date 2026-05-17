@@ -24,8 +24,6 @@ typedef struct {
     uint16_t pan_fine_ch;
     uint16_t tilt_ch;
     uint16_t tilt_fine_ch;
-    float    pan_center;        /* 0-65535 */
-    float    tilt_center;       /* 0-65535 */
     float    phase_offset_deg;  /* -180 ... +180 */
     float    max_val;           /* 255.0 or 65535.0 */
 } mfx_fixture_t;

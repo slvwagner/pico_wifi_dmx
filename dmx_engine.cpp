@@ -115,6 +115,11 @@ static dmx_engine_state_t dmx_state = {
     .dirty_last = -1,
 };
 
+/* Scene base buffer — written by scenes/chaser/direct browser writes.
+ * Motion FX reads from this instead of a fixed stored center so effects
+ * are always relative to the current live position.  Indices 1-512. */
+static uint8_t dmx_base_frame[DMX_ENGINE_FRAME_SLOTS];
+
 static inline uint8_t encode_value(uint8_t value)
 {
     return dmx_state.invert_data_bits ? (uint8_t)(value ^ 0xffu) : value;
@@ -570,6 +575,19 @@ uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count)
     return count;
 }
 
+bool dmx_engine_set_base_channel(uint16_t channel, uint8_t value)
+{
+    if (channel < 1 || channel > DMX_ENGINE_MAX_CHANNELS) return false;
+    dmx_base_frame[channel] = value;
+    return true;
+}
+
+uint8_t dmx_engine_get_base_channel(uint16_t channel)
+{
+    if (channel < 1 || channel > DMX_ENGINE_MAX_CHANNELS) return 0;
+    return dmx_base_frame[channel];
+}
+
 void dmx_engine_clear(void)
 {
     if (!dmx_state.initialized) {
@@ -584,6 +602,9 @@ void dmx_engine_clear(void)
     dmx_state.dirty_last = dmx_state.channels;
     dmx_state.data_version += 1;
     critical_section_exit(&dmx_state.lock);
+
+    /* Also clear the scene base buffer. */
+    memset(dmx_base_frame, 0, sizeof(dmx_base_frame));
 }
 
 void dmx_engine_get_status(dmx_engine_status_t *status)

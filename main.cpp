@@ -532,6 +532,7 @@ static void build_dmx_b_response(const char *name)
             unsigned long val = strtoul(end_ch + 1, &end_val, 10);
             if (end_val != end_ch + 1 && val <= 255) {
                 dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
                 critical_section_enter_blocking(&dmx_ui_lock);
                 dmx_ui_values[ch] = (uint8_t)val;
                 critical_section_exit(&dmx_ui_lock);
@@ -585,6 +586,7 @@ static void build_dmx_set_response(const char *name)
         build_dmx_json_response(500, "Internal Server Error", "{\"ok\":false,\"error\":\"DMX channel update failed\"}\n");
         return;
     }
+    dmx_engine_set_base_channel(channel, (uint8_t)value);
 
     critical_section_enter_blocking(&dmx_ui_lock);
     dmx_ui_values[channel] = (uint8_t)value;
@@ -1154,6 +1156,7 @@ extern "C" void httpd_post_finished(void *connection,
                 unsigned long val = strtoul(end_ch + 1, &end_val, 10);
                 if (end_val != end_ch + 1 && val <= 255) {
                     dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                    dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
                     critical_section_enter_blocking(&dmx_ui_lock);
                     dmx_ui_values[ch] = (uint8_t)val;
                     critical_section_exit(&dmx_ui_lock);
@@ -1269,26 +1272,33 @@ static void core0_application_loop()
     uint32_t loop_count = 0;
     uint32_t last_playback_tick = 0;
 
-    /* Shared cross-module bigger-wins scratch (indices 1-512). */
-    static uint8_t tick_scratch[513];
-    static bool    tick_touched[513];
-
     while (application_running) {
         dmx_engine_poll();
 
         uint32_t now_us = time_us_32();
         if (now_us - last_playback_tick >= 10000) {  /* 100 Hz */
-            /* Clear once per tick; all modules accumulate into the same buffers. */
-            memset(tick_scratch, 0, sizeof(tick_scratch));
-            memset(tick_touched, 0, sizeof(tick_touched));
+            /* Phase 1: chaser — results update the scene base buffer AND the output. */
+            static uint8_t chaser_scratch[513];
+            static bool    chaser_touched[513];
+            memset(chaser_scratch, 0, sizeof(chaser_scratch));
+            memset(chaser_touched, 0, sizeof(chaser_touched));
+            chaser_tick(now_us, chaser_scratch, chaser_touched);
+            for (uint16_t ch = 1; ch <= 512; ch++) {
+                if (chaser_touched[ch]) {
+                    dmx_engine_set_base_channel(ch, chaser_scratch[ch]);
+                    dmx_engine_set_channel(ch, chaser_scratch[ch]);
+                }
+            }
 
-            chaser_tick(now_us, tick_scratch, tick_touched);
-            mfx_tick(now_us, tick_scratch, tick_touched);
-
-            /* Single engine write — bigger-wins already resolved in scratch. */
+            /* Phase 2: motion FX — reads base buffer internally, writes output only. */
+            static uint8_t mfx_scratch[513];
+            static bool    mfx_touched[513];
+            memset(mfx_scratch, 0, sizeof(mfx_scratch));
+            memset(mfx_touched, 0, sizeof(mfx_touched));
+            mfx_tick(now_us, mfx_scratch, mfx_touched);
             for (uint16_t ch = 1; ch <= 512; ch++)
-                if (tick_touched[ch])
-                    dmx_engine_set_channel(ch, tick_scratch[ch]);
+                if (mfx_touched[ch])
+                    dmx_engine_set_channel(ch, mfx_scratch[ch]);
 
             last_playback_tick = now_us;
         }
