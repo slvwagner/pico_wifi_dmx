@@ -2,6 +2,8 @@
 
 WiFi-controlled DMX512 controller firmware for the Raspberry Pi Pico 2 W (RP2350). Provides real-time DMX output driven either from a browser-based UI or autonomously on the Pico itself, with no dependency on network latency for live playback.
 
+License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
+
 ---
 
 ## Architecture
