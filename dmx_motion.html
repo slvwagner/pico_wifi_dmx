@@ -44,7 +44,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .mslot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:default;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
 .mslot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);cursor:pointer}
 .mslot.filled:hover{background:#1a3b32}
-.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;overflow-y:auto;min-height:0}
+#fxPanel{display:flex;flex-direction:column;max-height:70vh}
 </style>
 </head>
 <body>
@@ -96,13 +97,13 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
 </section>
 
-<section class="panel">
+<section class="panel" id="fxPanel">
   <h2>Fixtures with Pan/Tilt</h2>
   <div id="noFixtures" class="small" style="display:none">
     No fixtures with Pan/Tilt controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first →</a>
   </div>
-  <div class="fx-grid" id="fixtureList"></div>
-  <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:4px">
+  <div class="fx-grid" id="fixtureList" style="flex:1"></div>
+  <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;flex-shrink:0">
     <button id="reloadSetup">&#x21BB; Reload from Fixture Controller</button>
     <button id="btnMotionSave">&#x1F4BE; Save</button>
     <button id="btnMotionLoad">Load</button>
