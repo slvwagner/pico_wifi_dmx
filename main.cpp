@@ -54,6 +54,7 @@ static char http_page[12288];
 static char http_logs[6144];
 static char http_status_json[1024];
 static char http_dmx_json[1024];
+static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
 static char http_playback_json[1024];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
@@ -617,6 +618,39 @@ static void build_dmx_clear_response()
     build_dmx_json_response(200, "OK", "{\"ok\":true,\"cleared\":true}\n");
 }
 
+static void build_dmx_base_response(void)
+{
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+
+    size_t used = (size_t)snprintf(
+        http_dmx_base_json,
+        sizeof(http_dmx_base_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "[");
+
+    for (uint16_t ch = 1; ch <= status.channels; ch++) {
+        int written = snprintf(
+            http_dmx_base_json + used,
+            sizeof(http_dmx_base_json) - used,
+            "%s%u",
+            ch == 1 ? "" : ",",
+            dmx_engine_get_base_channel(ch));
+        if (written < 0) break;
+        used += (size_t)written;
+    }
+
+    if (used + 2 < sizeof(http_dmx_base_json)) {
+        snprintf(http_dmx_base_json + used, sizeof(http_dmx_base_json) - used, "]\n");
+    } else {
+        http_dmx_base_json[sizeof(http_dmx_base_json) - 1] = '\0';
+    }
+}
+
 static void build_dmx_values_response(const char *name)
 {
     uint16_t first = 1;
@@ -813,6 +847,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         build_dmx_clear_response();
         file->data = http_dmx_json;
         file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/base")) {
+        build_dmx_base_response();
+        file->data = http_dmx_base_json;
+        file->len = (int)strlen(http_dmx_base_json);
         file->index = file->len;
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
         return 1;

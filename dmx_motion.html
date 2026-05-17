@@ -205,7 +205,7 @@ async function loadSetup(auto=false){
       if(r.ok&&j.ok&&j.exists){
         const json=JSON.stringify(j.setup);
         if(auto&&json===lastSetupJson){return;}// no change, skip silent poll
-        lastSetupJson=json;setup=j.setup;applySetup();
+        lastSetupJson=json;setup=j.setup;applySetup();await syncBaseFromPico();
         setStatus(auto?'Setup auto-updated from server':'Setup loaded from server');return;
       }
     }
@@ -214,7 +214,7 @@ async function loadSetup(auto=false){
     const raw=localStorage.getItem('dmxFixtureController');
     if(raw){
       if(auto&&raw===lastSetupJson){return;}// no change, skip silent poll
-      lastSetupJson=raw;setup=JSON.parse(raw);applySetup();
+      lastSetupJson=raw;setup=JSON.parse(raw);applySetup();await syncBaseFromPico();
       setStatus(auto?'Setup auto-updated from browser':'Setup loaded (browser cache)');return;
     }
   }catch(_){}
@@ -243,6 +243,33 @@ function applySetup(){
   });
   drawFixtureList();
   drawPathPreview();
+}
+
+/* Fetch dmx_base_frame from the Pico and seed basePan/baseTilt for every
+ * fixture card. Safe to call at any time; silently no-ops if no URL is set. */
+async function syncBaseFromPico(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return;
+  try{
+    const r=await fetch(root+'/dmx/base.json',{cache:'no-store'});
+    const vals=await r.json();
+    if(!Array.isArray(vals))return;
+    motionFixtures.forEach(mf=>{
+      const c=mf.control,f=mf.fixture;
+      if(c.type==='panTilt16'){
+        const panIdx  =absolute(f.start,c.pan)-1;
+        const fineIdx =absolute(f.start,c.panFine??c.pan+1)-1;
+        const tiltIdx =absolute(f.start,c.tilt)-1;
+        const tfineIdx=absolute(f.start,c.tiltFine??c.tilt+1)-1;
+        mf.basePan =(((vals[panIdx]??0)<<8)|(vals[fineIdx]??0));
+        mf.baseTilt=(((vals[tiltIdx]??0)<<8)|(vals[tfineIdx]??0));
+      }else{
+        mf.basePan =vals[absolute(f.start,c.pan) -1]??128;
+        mf.baseTilt=vals[absolute(f.start,c.tilt)-1]??128;
+      }
+    });
+    drawFixtureList();
+  }catch(_){}
 }
 
 // ---- fixture list UI ----
@@ -383,30 +410,8 @@ async function startMotion(){
     stopPicoMotionPoll();
     setPicoMotionStatus('Stopped (browser took over)','var(--muted)');
   }
-  // Fetch current live DMX values from Pico to use as motion base
-  if(root){
-    try{
-      const r=await fetch(root+'/dmx/values.json',{cache:'no-store'});
-      const vals=await r.json();
-      if(Array.isArray(vals)){
-        motionFixtures.forEach(mf=>{
-          const c=mf.control,f=mf.fixture;
-          if(c.type==='panTilt16'){
-            const panIdx=absolute(f.start,c.pan)-1;
-            const panFineIdx=absolute(f.start,c.panFine??c.pan+1)-1;
-            const tiltIdx=absolute(f.start,c.tilt)-1;
-            const tiltFineIdx=absolute(f.start,c.tiltFine??c.tilt+1)-1;
-            mf.basePan=(((vals[panIdx]??0)<<8)|(vals[panFineIdx]??0));
-            mf.baseTilt=(((vals[tiltIdx]??0)<<8)|(vals[tiltFineIdx]??0));
-          }else{
-            mf.basePan=vals[absolute(f.start,c.pan)-1]??128;
-            mf.baseTilt=vals[absolute(f.start,c.tilt)-1]??128;
-          }
-        });
-        drawFixtureList();
-      }
-    }catch(_){}
-  }
+  // Fetch current live base values from Pico to use as motion center
+  if(root) await syncBaseFromPico();
   running=true;
   startTime=performance.now();
   sentToPico={};
