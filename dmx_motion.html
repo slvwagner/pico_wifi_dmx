@@ -105,8 +105,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   <div class="fx-grid" id="fixtureList" style="flex:1"></div>
   <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;flex-shrink:0">
     <button id="reloadSetup">&#x21BB; Reload from Fixture Controller</button>
-    <button id="btnMotionSave">&#x1F4BE; Save</button>
-    <button id="btnMotionLoad">Load</button>
+    <button id="btnMotionSave" title="Save editable motion preset on the server">Save Preset</button>
+    <button id="btnMotionLoad" title="Load editable motion preset from the server">Load Preset</button>
     <button id="btnMotionExport" class="icon-btn" title="Export motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <button id="btnMotionImport" class="icon-btn" title="Import motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
@@ -129,15 +129,15 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
       <input id="picoMotionBpm" type="number" min="0.1" max="600" step="1" value="30"
              style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">
     </label>
-    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play</button>
-    <button id="btnPicoMotionStartSlot">&#x25B6; Start Slot</button>
+    <button class="primary" id="btnPicoMotionUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
+    <button id="btnPicoMotionStartSlot" title="Run the already-loaded selected Pico slot">&#x25B6; Start Slot</button>
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
     <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
-    <button id="btnPicoMotionRestoreAll">&#x21BA; Restore All Slots</button>
+    <button id="btnPicoMotionRestoreAll">&#x21BA; Restore Saved Slots to Pico</button>
   </div>
   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:4px">
-    <span style="font-size:12px;color:var(--muted);align-self:center">Saved slots:</span>
+    <span style="font-size:12px;color:var(--muted);align-self:center">Pico slots:</span>
     <button id="btnExportMotionSlots" class="icon-btn" title="Export Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <button id="btnImportMotionSlots" class="icon-btn" title="Import Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <input id="importMotionSlotsFile" type="file" accept=".json,application/json" style="display:none">
@@ -656,6 +656,7 @@ document.getElementById('btnPicoMotionUpload').onclick=async()=>{
   if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const body=serializeMotionForPico();
   setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
@@ -664,10 +665,8 @@ document.getElementById('btnPicoMotionUpload').onclick=async()=>{
     const j=await r.json();
     if(!j.ok){setPicoMotionStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
     saveMotionSlotToServer(slot, body); // persist to server (fire-and-forget)
-    const r2=await fetch(root+'/motion/start/'+slot);
-    const j2=await r2.json();
-    if(j2.ok){setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
-    else{setPicoMotionStatus('Start error','var(--bad)');}
+    setPicoMotionStatus('Uploaded current preset to slot '+slot,'var(--accent)');
+    pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;

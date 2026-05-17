@@ -142,8 +142,8 @@ a.nav:hover{color:var(--text)}
     </div>
     <div class="list" id="stepList"></div>
     <div class="row" style="flex-wrap:wrap">
-      <button id="btnSave">Save chaser</button>
-      <button id="btnLoad">Load chaser</button>
+      <button id="btnSave" title="Save editable chaser preset on the server">Save Preset</button>
+      <button id="btnLoad" title="Load editable chaser preset from the server">Load Preset</button>
       <button id="btnExport" class="icon-btn" title="Export chaser JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
       <button id="btnImport" class="icon-btn" title="Import chaser JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
       <input id="importFile" type="file" accept=".json,application/json" style="display:none">
@@ -186,15 +186,15 @@ a.nav:hover{color:var(--text)}
       <input id="picoSpeed" type="number" min="0.1" max="10" step="0.1" value="1.0"
              style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">x
     </label>
-    <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play</button>
-    <button id="btnPicoPlaySlot">&#x25B6; Play Slot</button>
+    <button class="primary" id="btnPicoUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
+    <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
     <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
     <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
-    <button id="btnPicoRestoreAll">&#x21BA; Restore All Slots</button>
+    <button id="btnPicoRestoreAll">&#x21BA; Restore Saved Slots to Pico</button>
   </div>
   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:4px">
-    <span style="font-size:12px;color:var(--muted);align-self:center">Saved slots:</span>
+    <span style="font-size:12px;color:var(--muted);align-self:center">Pico slots:</span>
     <button id="btnExportSlots">&#x2193; Export Slots</button>
     <button id="btnImportSlots">&#x2191; Import Slots</button>
     <input id="importSlotsFile" type="file" accept=".json,application/json" style="display:none">
@@ -1188,11 +1188,12 @@ async function restoreAllChaserSlots(){
   pollPicoStatus();
 }
 
-document.getElementById('btnPicoUploadPlay').onclick=async()=>{
+document.getElementById('btnPicoUpload').onclick=async()=>{
   if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   stopPlayback(); // stop browser playback so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   const body=serializeChaserForPico();
   setPicoStatus('Uploading to slot '+slot+'…','var(--warn)');
@@ -1201,10 +1202,8 @@ document.getElementById('btnPicoUploadPlay').onclick=async()=>{
     const j=await r.json();
     if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
     saveChaserSlotToServer(slot, body); // persist to server (fire-and-forget)
-    const r2=await fetch(root+'/chaser/play/'+slot);
-    const j2=await r2.json();
-    if(j2.ok){setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
-    else{setPicoStatus('Play error','var(--bad)');}
+    setPicoStatus('Uploaded current preset to slot '+slot,'var(--accent)');
+    pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
