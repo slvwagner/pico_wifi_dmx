@@ -30,11 +30,13 @@ static uint32_t gpio_last_event_ms = 0;
 static int gpio_last_pin = -1;
 static gpio_action_t gpio_last_action = GPIO_ACTION_NONE;
 static gpio_control_dmx_clear_hook_t gpio_dmx_clear_hook = NULL;
+static gpio_control_dmx_clear_hook_t gpio_dmx_output_clear_hook = NULL;
 
 static const char *action_name(gpio_action_t action)
 {
     switch (action) {
     case GPIO_ACTION_DMX_CLEAR:     return "dmx_clear";
+    case GPIO_ACTION_DMX_OUTPUT_CLEAR: return "dmx_output_clear";
     case GPIO_ACTION_STOP_ALL:      return "stop_all";
     case GPIO_ACTION_CHASER_PLAY:   return "chaser_play";
     case GPIO_ACTION_CHASER_STOP:   return "chaser_stop";
@@ -92,6 +94,10 @@ static bool parse_action(const char *s, gpio_action_t *out)
 {
     if (strcmp(s, "dmx_clear") == 0 || strcmp(s, "clear") == 0 || strcmp(s, "blackout") == 0) {
         *out = GPIO_ACTION_DMX_CLEAR;
+        return true;
+    }
+    if (strcmp(s, "dmx_output_clear") == 0 || strcmp(s, "output_clear") == 0 || strcmp(s, "clear_output") == 0) {
+        *out = GPIO_ACTION_DMX_OUTPUT_CLEAR;
         return true;
     }
     if (strcmp(s, "stop_all") == 0) {
@@ -160,6 +166,10 @@ static void run_action(gpio_action_t action, uint8_t slot)
         if (gpio_dmx_clear_hook) gpio_dmx_clear_hook();
         else dmx_engine_clear();
         break;
+    case GPIO_ACTION_DMX_OUTPUT_CLEAR:
+        if (gpio_dmx_output_clear_hook) gpio_dmx_output_clear_hook();
+        else dmx_engine_clear_output();
+        break;
     case GPIO_ACTION_STOP_ALL:
         chaser_stop();
         mfx_stop();
@@ -208,6 +218,11 @@ void gpio_control_init(uint32_t reserved_pin_mask)
 void gpio_control_set_dmx_clear_hook(gpio_control_dmx_clear_hook_t hook)
 {
     gpio_dmx_clear_hook = hook;
+}
+
+void gpio_control_set_dmx_output_clear_hook(gpio_control_dmx_clear_hook_t hook)
+{
+    gpio_dmx_output_clear_hook = hook;
 }
 
 bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t err_len)

@@ -12,6 +12,7 @@ extern "C" {
 typedef enum {
     GPIO_ACTION_NONE = 0,
     GPIO_ACTION_DMX_CLEAR,
+    GPIO_ACTION_DMX_OUTPUT_CLEAR,
     GPIO_ACTION_STOP_ALL,
     GPIO_ACTION_CHASER_PLAY,
     GPIO_ACTION_CHASER_STOP,
@@ -46,6 +47,7 @@ typedef void (*gpio_control_dmx_clear_hook_t)(void);
 
 void gpio_control_init(uint32_t reserved_pin_mask);
 void gpio_control_set_dmx_clear_hook(gpio_control_dmx_clear_hook_t hook);
+void gpio_control_set_dmx_output_clear_hook(gpio_control_dmx_clear_hook_t hook);
 bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t err_len);
 void gpio_control_poll(uint32_t now_ms);
 void gpio_control_write_config_json(char *out, size_t out_len);

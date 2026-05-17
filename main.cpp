@@ -646,6 +646,20 @@ static void gpio_clear_dmx_and_ui()
     critical_section_exit(&dmx_ui_lock);
 }
 
+static void gpio_clear_dmx_output_and_ui()
+{
+    dmx_engine_clear_output();
+    critical_section_enter_blocking(&dmx_ui_lock);
+    memset(dmx_ui_values, 0, sizeof(dmx_ui_values));
+    critical_section_exit(&dmx_ui_lock);
+}
+
+static void build_dmx_output_clear_response()
+{
+    gpio_clear_dmx_output_and_ui();
+    build_dmx_json_response(200, "OK", "{\"ok\":true,\"cleared\":true,\"base_preserved\":true}\n");
+}
+
 static void build_dmx_base_response(void)
 {
     dmx_engine_status_t status;
@@ -873,6 +887,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 
     if (path_matches(name, "/dmx/clear")) {
         build_dmx_clear_response();
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/output_clear") || path_matches(name, "/dmx/clear_output")) {
+        build_dmx_output_clear_response();
         file->data = http_dmx_json;
         file->len = (int)strlen(http_dmx_json);
         file->index = file->len;
@@ -1360,6 +1383,7 @@ static void core0_application_loop()
     mfx_init();
     gpio_control_init((1u << DMX_TX_PIN) | (1u << DMX_TRIGGER_PIN));
     gpio_control_set_dmx_clear_hook(gpio_clear_dmx_and_ui);
+    gpio_control_set_dmx_output_clear_hook(gpio_clear_dmx_output_and_ui);
 
     dmx_engine_config_t dmx_config;
     dmx_engine_default_config(&dmx_config);

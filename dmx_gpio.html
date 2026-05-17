@@ -99,7 +99,7 @@ function normalize(m){
     pin:clamp(m.pin,0,28),
     pull:m.pull==='pulldown'?'pulldown':'pullup',
     trigger:['falling','rising','both'].includes(m.trigger)?m.trigger:'falling',
-    action:['dmx_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','motion_start','motion_stop','motion_toggle'].includes(m.action)?m.action:'dmx_clear',
+    action:['dmx_clear','dmx_output_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','motion_start','motion_stop','motion_toggle'].includes(m.action)?m.action:'dmx_clear',
     slot:clamp(m.slot,0,PICO_SLOT_COUNT-1),
     debounce_ms:clamp(m.debounce_ms,5,1000)
   };
@@ -107,12 +107,19 @@ function normalize(m){
 function loadLocal(){
   try{
     const raw=localStorage.getItem('dmxGPIOConfig');
-    mappings=raw?JSON.parse(raw).map(normalize):DEFAULT_MAPPINGS.map(normalize);
+    const data=raw?JSON.parse(raw):null;
+    if(data&&Array.isArray(data.mappings)){
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
+      mappings=data.mappings.map(normalize);
+      document.getElementById('gpioEnabled').checked=data.enabled!==false;
+    }else{
+      mappings=Array.isArray(data)?data.map(normalize):DEFAULT_MAPPINGS.map(normalize);
+    }
   }catch(_){mappings=DEFAULT_MAPPINGS.map(normalize);}
-  document.getElementById('gpioEnabled').checked=localStorage.getItem('dmxGPIOEnabled')!=='0';
+  if(localStorage.getItem('dmxGPIOEnabled')!==null)document.getElementById('gpioEnabled').checked=localStorage.getItem('dmxGPIOEnabled')!=='0';
 }
 function saveLocal(){
-  localStorage.setItem('dmxGPIOConfig',JSON.stringify(mappings));
+  localStorage.setItem('dmxGPIOConfig',JSON.stringify({baseUrl:baseUrl.value,enabled:document.getElementById('gpioEnabled').checked,mappings}));
   localStorage.setItem('dmxGPIOEnabled',document.getElementById('gpioEnabled').checked?'1':'0');
   setStatus('GPIO config saved locally');
 }
@@ -133,7 +140,7 @@ function render(){
         <label>Pull<select data-field="pull"><option value="pullup"${m.pull==='pullup'?' selected':''}>Pull-up</option><option value="pulldown"${m.pull==='pulldown'?' selected':''}>Pull-down</option></select></label>
         <label>Trigger<select data-field="trigger"><option value="falling"${m.trigger==='falling'?' selected':''}>Falling</option><option value="rising"${m.trigger==='rising'?' selected':''}>Rising</option><option value="both"${m.trigger==='both'?' selected':''}>Both</option></select></label>
         <label>Action<select data-field="action">
-          ${['dmx_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','motion_start','motion_stop','motion_toggle'].map(a=>`<option value="${a}"${m.action===a?' selected':''}>${a.replace(/_/g,' ')}</option>`).join('')}
+          ${['dmx_clear','dmx_output_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','motion_start','motion_stop','motion_toggle'].map(a=>`<option value="${a}"${m.action===a?' selected':''}>${a.replace(/_/g,' ')}</option>`).join('')}
         </select></label>
         <label>Slot<input type="number" min="0" max="${PICO_SLOT_COUNT-1}" value="${m.slot}" data-field="slot" ${slotDisabled}></label>
         <label>Debounce ms<input type="number" min="5" max="1000" value="${m.debounce_ms}" data-field="debounce_ms"></label>
