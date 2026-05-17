@@ -38,6 +38,17 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 .card.selected{border-color:var(--accent)}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}.sel-btn.on{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+#sceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
+#sceneBoxHdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;background:#1a2530;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
+#sceneBoxHdr:active{cursor:grabbing}
+#sceneBox.collapsed #sceneBoxHdr{border-radius:10px;border-bottom:none}
+#sceneBox.collapsed #sceneBoxBody{display:none}
+#sceneBoxBody{padding:12px;display:grid;gap:10px}
+#slotMatrix{display:grid;gap:5px;overflow-x:auto}
+.slot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:pointer;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
+.slot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text)}
+.slot.filled:hover{background:#1a3b32}
+.slot:not(.filled):hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -166,6 +177,26 @@ Blue=48</textarea>
 <button id="sendGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeGroupModal2">Close</button>
 </div>
+</div>
+</div>
+
+<div id="sceneBox">
+<div id="sceneBoxHdr">
+<span style="font-weight:700;font-size:13px">Scenes</span>
+<button id="sceneBoxToggle" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">—</button>
+</div>
+<div id="sceneBoxBody">
+<div class="buttons">
+<button id="saveSceneBtn" class="primary">Save Scene</button>
+<button id="exportScenesBtn">Export JSON</button>
+<button id="importScenesBtn">Import JSON</button>
+<input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="slotRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+</div>
+<div id="slotMatrix"></div>
 </div>
 </div>
 
@@ -1322,6 +1353,151 @@ updateControlChannelInputs(true);
 clearGobo();
 loadSetup().then(ok=>{if(!ok)addDefaultProfile();}).catch(()=>addDefaultProfile());
 loadSavedGroups();
+
+// ── Scene Toolbox ─────────────────────────────────────────────────────
+let scenes=[];
+let slotCols=4,slotRows=4;
+(()=>{
+  const sc=localStorage.getItem('sceneSlotCols'),sr=localStorage.getItem('sceneSlotRows');
+  if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}
+  if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}
+})();
+document.getElementById('slotCols').addEventListener('change',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotCols',slotCols);renderSlotMatrix();});
+document.getElementById('slotRows').addEventListener('change',e=>{slotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();});
+function renderSlotMatrix(){
+  const grid=document.getElementById('slotMatrix');
+  const total=slotCols*slotRows;
+  grid.style.gridTemplateColumns='repeat('+slotCols+',54px)';
+  let html='';
+  for(let i=0;i<total;i++){
+    const s=scenes.find(sc=>sc.slot===i);
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall · Double-click: clear">${escHtml(s.name)}</div>`;
+    else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.slot').forEach(el=>{
+    const idx=parseInt(el.dataset.slot);
+    el.addEventListener('click',()=>slotClick(idx));
+    el.addEventListener('dblclick',()=>slotDblClick(idx));
+  });
+}
+function slotClick(idx){
+  const s=scenes.find(sc=>sc.slot===idx);
+  if(s){recallScene(s);return;}
+  const name=(prompt('Scene name:','Scene '+(idx+1))||'').trim();
+  if(!name)return;
+  saveSceneToSlot(idx,name);
+}
+function slotDblClick(idx){
+  const s=scenes.find(sc=>sc.slot===idx);if(!s)return;
+  if(!confirm('Clear slot "'+s.name+'"?'))return;
+  scenes.splice(scenes.indexOf(s),1);
+  renderSlotMatrix();saveScenesServer();
+}
+function saveSceneToSlot(idx,name){
+  const ei=scenes.findIndex(sc=>sc.slot===idx);
+  if(ei>=0)scenes.splice(ei,1);
+  scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:JSON.parse(JSON.stringify(values))});
+  renderSlotMatrix();saveScenesServer();
+  setStatus('Scene "'+name+'" saved to slot '+(idx+1));
+}
+function recallScene(s){
+  Object.assign(values,s.values);
+  drawSurface();
+  if(live.checked){
+    const root=endpoint();
+    if(root){
+      const pairs=[];
+      fixtures.forEach(f=>{const p=fixtureProfile(f);if(!p)return;p.controls.forEach(c=>resolveDmxBytes(f,c).forEach(({ch,val})=>pairs.push(ch+':'+val)));});
+      if(pairs.length)fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'}).catch(err=>setStatus(err.message,true));
+    }
+  }
+  setStatus('Recalled scene: "'+s.name+'"');
+}
+document.getElementById('saveSceneBtn').onclick=()=>{
+  const total=slotCols*slotRows;
+  let free=-1;
+  for(let i=0;i<total;i++){if(!scenes.find(s=>s.slot===i)){free=i;break;}}
+  const name=(prompt('Scene name:','Scene '+(free>=0?free+1:scenes.length+1))||'').trim();
+  if(!name)return;
+  if(free>=0){saveSceneToSlot(free,name);return;}
+  slotRows++;
+  document.getElementById('slotRows').value=slotRows;
+  localStorage.setItem('sceneSlotRows',slotRows);
+  saveSceneToSlot(slotCols*(slotRows-1),name);
+};
+function saveScenesServer(){
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Scenes save error: '+e.message,true));
+}
+function loadScenesServer(){
+  fetch('scene_setup.php').then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){
+      scenes=d.scenes||[];
+      if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('sceneSlotCols',slotCols);}
+      if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('sceneSlotRows',slotRows);}
+    }else{scenes=[];}
+    renderSlotMatrix();
+  }).catch(()=>{scenes=[];renderSlotMatrix();});
+}
+function exportScenesJson(){
+  const blob=new Blob([JSON.stringify({scenes,slotCols,slotRows},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importScenesJson(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.scenes))throw new Error('Expected {scenes:[...]}');
+      scenes=data.scenes;
+      if(data.slotCols){slotCols=data.slotCols;document.getElementById('slotCols').value=slotCols;}
+      if(data.slotRows){slotRows=data.slotRows;document.getElementById('slotRows').value=slotRows;}
+      renderSlotMatrix();saveScenesServer();
+      setStatus('Imported '+scenes.length+' scene(s)');
+    }catch(err){setStatus('Import failed: '+err.message,true);}
+  };
+  fr.readAsText(file);
+}
+document.getElementById('exportScenesBtn').onclick=exportScenesJson;
+document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
+document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
+const sceneBox=document.getElementById('sceneBox');
+const sceneBoxHdr=document.getElementById('sceneBoxHdr');
+let _dragOff={x:0,y:0};
+sceneBoxHdr.addEventListener('pointerdown',e=>{
+  if(e.target.closest('button'))return;
+  sceneBoxHdr.setPointerCapture(e.pointerId);
+  const r=sceneBox.getBoundingClientRect();
+  _dragOff={x:e.clientX-r.left,y:e.clientY-r.top};
+  sceneBoxHdr.style.cursor='grabbing';
+});
+sceneBoxHdr.addEventListener('pointermove',e=>{
+  if(!sceneBoxHdr.hasPointerCapture(e.pointerId))return;
+  let x=e.clientX-_dragOff.x,y=e.clientY-_dragOff.y;
+  x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,x));
+  y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,y));
+  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
+  localStorage.setItem('sceneBoxPos',JSON.stringify({x,y}));
+});
+sceneBoxHdr.addEventListener('pointerup',()=>sceneBoxHdr.style.cursor='grab');
+const _sbPos=JSON.parse(localStorage.getItem('sceneBoxPos')||'null');
+if(_sbPos){sceneBox.style.left=_sbPos.x+'px';sceneBox.style.top=_sbPos.y+'px';sceneBox.style.right='auto';}
+function clampSceneBox(){
+  const x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,parseInt(sceneBox.style.left)||0));
+  const y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,parseInt(sceneBox.style.top)||0));
+  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
+}
+window.addEventListener('resize',clampSceneBox);
+document.getElementById('sceneBoxToggle').onclick=()=>{
+  const c=sceneBox.classList.toggle('collapsed');
+  document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
+  localStorage.setItem('sceneBoxCollapsed',c?'1':'');
+};
+if(localStorage.getItem('sceneBoxCollapsed')==='1'){sceneBox.classList.add('collapsed');document.getElementById('sceneBoxToggle').textContent='+';}
+loadScenesServer();
+// ── End scene toolbox ─────────────────────────────────────────────────
 </script>
 </body>
 </html>

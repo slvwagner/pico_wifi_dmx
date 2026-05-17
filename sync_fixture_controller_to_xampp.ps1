@@ -16,6 +16,7 @@ $fanApiSource    = Join-Path $PSScriptRoot "fan_setup.php"
 $chaserApiSource = Join-Path $PSScriptRoot "chaser_setup.php"
 $motionApiSource = Join-Path $PSScriptRoot "motion_setup.php"
 $groupApiSource  = Join-Path $PSScriptRoot "group_setup.php"
+$sceneApiSource  = Join-Path $PSScriptRoot "scene_setup.php"
 $targetDir = Join-Path $XamppHtdocs $AppFolder
 $target = Join-Path $targetDir "index.html"
 $apiTarget = Join-Path $targetDir "fixture_setup.php"
@@ -27,6 +28,7 @@ $fanApiTarget    = Join-Path $targetDir "fan_setup.php"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
 $groupApiTarget  = Join-Path $targetDir "group_setup.php"
+$sceneApiTarget  = Join-Path $targetDir "scene_setup.php"
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Source file not found: $source"
@@ -71,6 +73,10 @@ if (Test-Path -LiteralPath $motionApiSource) {
 if (Test-Path -LiteralPath $groupApiSource) {
     Copy-Item -LiteralPath $groupApiSource -Destination $groupApiTarget -Force
     Write-Host "Copied groups API to $groupApiTarget"
+}
+if (Test-Path -LiteralPath $sceneApiSource) {
+    Copy-Item -LiteralPath $sceneApiSource -Destination $sceneApiTarget -Force
+    Write-Host "Copied scenes API to $sceneApiTarget"
 }
 
 Write-Host "Copied fixture controller to $target"
