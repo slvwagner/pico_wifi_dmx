@@ -105,7 +105,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 
 | Page | File | Description |
 |------|------|-------------|
-| Fixture Controller | `index.html` | Define fixture profiles, patch fixtures, set individual channels |
+| Fixture Controller | `index.html` | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
 | Chaser | `dmx_chaser.html` | Build and play step sequences with crossfade; upload to Pico for autonomous playback; upload to up to 8 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 8 slots |
 | Motion FX | `dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); upload to up to 8 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 8 slots |
 | Fan Out | `dmx_fan.html` | Spread any DMX control (pan, tilt, zoom, dimmer, …) as an offset fan across an ordered fixture list — see below |
@@ -114,6 +114,38 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough.
+
+### Fixture Controller — Groups
+
+Fixtures can be organised into named **Saved Groups** (stored server-side via `group_setup.php`).
+
+- Create a group and assign any subset of patched fixtures to it.
+- A collapsible **Group Bar** appears above the fixture list; clicking a group instantly selects all its fixtures and scrolls to the first one.
+- Groups can be edited (rename, change member list) or deleted from the Saved Groups panel.
+- Export / import the whole group store as JSON using the toolbar icon buttons.
+
+### Fixture Controller — Scene Toolbox
+
+A floating, draggable, collapsible **Scene Toolbox** overlays the fixture controller page.
+
+- The toolbox shows a configurable grid of slots (rows × columns adjustable with spinners).
+- **Save scene** — snapshots every channel value for every patched fixture into a named slot.
+- **Recall scene** — sends all stored channel values back to the Pico in one batch request.
+- Slots are stored server-side in `scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
+- Toolbox position (drag) and collapsed state are persisted per-page to `ui_state.json` via `ui_state.php`.
+
+### Motion FX — Scene Center Toolbox
+
+The Motion FX page has a read-only companion to the Scene Toolbox.
+
+- Loads the same scenes from `scene_setup.php`; renders them as a clickable slot grid.
+- Clicking a filled slot reads the pan/tilt channel values stored in that scene and applies them as the **center position** for every matching fixture in the motion FX list.
+- This lets you aim all moving lights at a target position in the Fixture Controller, save it as a scene, then instantly recall it as the oscillation center on the Motion FX page without re-entering numbers.
+- The toolbox is draggable, collapsible, and its state is persisted server-side.
+
+### Motion FX — Fixture Card Grid
+
+Fixture cards in the Motion FX page are displayed in a responsive CSS auto-fill grid (minimum card width 220 px) rather than a single vertical list. The fixture panel is capped at 70 vh with internal scrolling — the panel heading and action buttons remain visible outside the scroll area.
 
 ### Fan Out (`dmx_fan.html`)
 
@@ -149,6 +181,19 @@ Supports 8-bit and 16-bit controls. `panTilt16` controls expose Pan and Tilt as 
 
 Uses existing Pico endpoints: `/dmx/values` (read) and `/dmx/b/` (write). No firmware changes required.
 
+### Server-side Persistence
+
+All persistent data is stored as JSON files on the PHP web server. No database is required.
+
+| PHP handler | JSON file | Contents |
+|-------------|-----------|----------|
+| `fixture_setup.php` | `fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
+| `scene_setup.php` | `scene_setup.json` | Named scene snapshots, slot grid dimensions |
+| `group_setup.php` | `group_setup.json` | Fixture group definitions |
+| `ui_state.php` | `ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
+
+All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
+
 ### Development sync
 
 HTML files are developed locally and synced to XAMPP with:
@@ -174,6 +219,11 @@ Target: `E:\Software\xampp\htdocs\dmx-fixtures\`
 | `fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
 | `pico_sdk_import.cmake` | Pico SDK CMake integration |
 | `CMakeLists.txt` | Build target, source files, SDK libraries |
+| `fixture_setup.php` | REST handler — save/load fixture setup (`fixture_setup.json`) |
+| `scene_setup.php` | REST handler — save/load scenes and slot grid config (`scene_setup.json`) |
+| `group_setup.php` | REST handler — save/load fixture groups (`group_setup.json`) |
+| `ui_state.php` | REST handler — per-page UI state persistence (`ui_state.json`); merges partial state on POST |
+| `sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
 
 ---
 
