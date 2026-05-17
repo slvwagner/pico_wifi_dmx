@@ -140,6 +140,22 @@ function duplicatePins(){
   });
   return dup;
 }
+function usedPinMap(exceptKey){
+  const used=new Map();
+  mappings.map(normalize).forEach((m,i)=>{const key='D'+i;if(key!==exceptKey)used.set(m.pin,'Mapping '+(i+1));});
+  adcMappings.map(normalizeAdc).forEach((m,i)=>{const key='A'+i;if(key!==exceptKey)used.set(m.pin,'ADC Speed '+(i+1));});
+  return used;
+}
+function gpioPinOptions(current, exceptKey){
+  const used=usedPinMap(exceptKey);
+  return Array.from({length:29},(_,pin)=>pin)
+    .filter(pin=>!RESERVED_PINS.includes(pin))
+    .map(pin=>{
+      const isUsed=used.has(pin);
+      const label='GPIO'+pin+(isUsed?' - used by '+used.get(pin):'');
+      return `<option value="${pin}"${pin===current?' selected':''}${isUsed?' disabled':''}>${label}</option>`;
+    }).join('');
+}
 function duplicatePinMessage(){
   const counts={};
   mappings.map(normalize).forEach(m=>counts[m.pin]=(counts[m.pin]||0)+1);
@@ -228,7 +244,7 @@ function render(){
     return `<div class="mapping${dups.has('D'+i)?' dup':''}" data-idx="${i}">
       <div class="mapping-head"><strong>Mapping ${i+1}</strong><button class="danger" data-remove="${i}">Remove</button></div>
       <div class="mapping-fields">
-        <label>GPIO pin<input type="number" min="0" max="28" value="${m.pin}" data-field="pin"></label>
+        <label>GPIO pin<select data-field="pin">${gpioPinOptions(m.pin,'D'+i)}</select></label>
         <label>Pull<select data-field="pull"><option value="pullup"${m.pull==='pullup'?' selected':''}>Pull-up</option><option value="pulldown"${m.pull==='pulldown'?' selected':''}>Pull-down</option></select></label>
         <label>Trigger<select data-field="trigger"><option value="falling"${m.trigger==='falling'?' selected':''}>Falling</option><option value="rising"${m.trigger==='rising'?' selected':''}>Rising</option><option value="both"${m.trigger==='both'?' selected':''}>Both</option></select></label>
         <label>Action<select data-field="action">

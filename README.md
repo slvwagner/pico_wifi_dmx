@@ -272,6 +272,7 @@ The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It
 - The page stores mappings locally in the browser and pushes the active mapping set to the Pico with `POST /gpio/config`.
 - **Export JSON / Import JSON** saves or restores the GPIO editor setup, including Pico base URL, enabled state, and all mappings.
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
+- Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`) and disables pins already used by another mapping.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
 - The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
 - Supported pulls: `pullup`, `pulldown`.
