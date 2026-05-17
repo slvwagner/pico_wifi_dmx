@@ -203,7 +203,6 @@ Blue=48</textarea>
 </div>
 <div id="sceneBoxBody">
 <div class="buttons">
-<button id="saveSceneBtn" class="primary">Save Scene</button>
 <button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
@@ -1455,18 +1454,6 @@ function recallScene(s){
   }
   setStatus('Recalled scene: "'+s.name+'"');
 }
-document.getElementById('saveSceneBtn').onclick=()=>{
-  const total=slotCols*slotRows;
-  let free=-1;
-  for(let i=0;i<total;i++){if(!scenes.find(s=>s.slot===i)){free=i;break;}}
-  const name=(prompt('Scene name:','Scene '+(free>=0?free+1:scenes.length+1))||'').trim();
-  if(!name)return;
-  if(free>=0){saveSceneToSlot(free,name);return;}
-  slotRows++;
-  document.getElementById('slotRows').value=slotRows;
-  localStorage.setItem('sceneSlotRows',slotRows);
-  saveSceneToSlot(slotCols*(slotRows-1),name);
-};
 function saveScenesServer(){
   fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
