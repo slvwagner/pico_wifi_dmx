@@ -39,8 +39,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 .card.selected{border-color:var(--accent)}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}.sel-btn.on{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
 #sceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
-#sceneBoxHdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
-#sceneBoxHdr:active{cursor:grabbing}
+#sceneBoxHdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;touch-action:none;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
+#sceneBoxHdr:active{cursor:grabbing;touch-action:none}
 #sceneBox.collapsed #sceneBoxHdr{border-radius:10px;border-bottom:none}
 #sceneBox.collapsed #sceneBoxBody{display:none}
 #sceneBoxBody{padding:12px;display:grid;gap:10px}
