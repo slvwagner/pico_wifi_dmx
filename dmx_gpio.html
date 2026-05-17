@@ -59,6 +59,9 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
     <button id="pushConfig">Push to Pico</button>
     <button id="pullConfig">Read from Pico</button>
     <button id="saveLocal">Save local</button>
+    <button id="exportConfig" title="Export GPIO config JSON">Export JSON</button>
+    <button id="importConfig" title="Import GPIO config JSON">Import JSON</button>
+    <input id="importConfigFile" type="file" accept=".json,application/json" style="display:none">
     <button id="clearLocal" class="danger">Clear local</button>
   </div>
   <div id="mappingList" class="grid"></div>
@@ -119,9 +122,44 @@ function loadLocal(){
   if(localStorage.getItem('dmxGPIOEnabled')!==null)document.getElementById('gpioEnabled').checked=localStorage.getItem('dmxGPIOEnabled')!=='0';
 }
 function saveLocal(){
-  localStorage.setItem('dmxGPIOConfig',JSON.stringify({baseUrl:baseUrl.value,enabled:document.getElementById('gpioEnabled').checked,mappings}));
+  localStorage.setItem('dmxGPIOConfig',JSON.stringify(gpioData()));
   localStorage.setItem('dmxGPIOEnabled',document.getElementById('gpioEnabled').checked?'1':'0');
   setStatus('GPIO config saved locally');
+}
+function gpioData(){
+  return {
+    baseUrl:baseUrl.value,
+    enabled:document.getElementById('gpioEnabled').checked,
+    mappings:mappings.map(normalize)
+  };
+}
+function applyGPIOData(data){
+  const src=Array.isArray(data)?{mappings:data}:data;
+  if(!src||!Array.isArray(src.mappings))throw new Error('Invalid GPIO JSON');
+  if(src.baseUrl){
+    baseUrl.value=src.baseUrl;
+    localStorage.setItem('dmxPicoBaseUrl',baseUrl.value);
+  }
+  document.getElementById('gpioEnabled').checked=src.enabled!==false;
+  mappings=src.mappings.map(normalize);
+}
+function exportGPIOConfig(){
+  const blob=new Blob([JSON.stringify(gpioData(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='gpio_config.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  setStatus('GPIO config exported');
+}
+async function importGPIOConfig(file){
+  try{
+    const data=JSON.parse(await file.text());
+    applyGPIOData(data);
+    saveLocal();
+    render();
+    setStatus('GPIO config imported');
+  }catch(e){setStatus('Import failed: '+e.message,true);}
 }
 function configText(){
   const lines=['ENABLE '+(document.getElementById('gpioEnabled').checked?'1':'0')];
@@ -200,6 +238,13 @@ document.getElementById('addMapping').onclick=()=>{mappings.push(normalize({pin:
 document.getElementById('pushConfig').onclick=pushConfig;
 document.getElementById('pullConfig').onclick=pullConfig;
 document.getElementById('saveLocal').onclick=()=>{saveLocal();render();};
+document.getElementById('exportConfig').onclick=exportGPIOConfig;
+document.getElementById('importConfig').onclick=()=>document.getElementById('importConfigFile').click();
+document.getElementById('importConfigFile').addEventListener('change',e=>{
+  const file=e.target.files&&e.target.files[0];
+  e.target.value='';
+  if(file)importGPIOConfig(file);
+});
 document.getElementById('clearLocal').onclick=()=>{if(confirm('Clear local GPIO mappings?')){mappings=[];saveLocal();render();}};
 document.getElementById('gpioEnabled').addEventListener('change',render);
 document.getElementById('mappingList').addEventListener('change',e=>{

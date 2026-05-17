@@ -259,6 +259,7 @@ The red **Clear all DMX channels** icon in the Fan Out scene toolbox calls `/dmx
 The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
 
 - The page stores mappings locally in the browser and pushes the active mapping set to the Pico with `POST /gpio/config`.
+- **Export JSON / Import JSON** saves or restores the GPIO editor setup, including Pico base URL, enabled state, and all mappings.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
 - The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
 - Supported pulls: `pullup`, `pulldown`.
@@ -285,7 +286,7 @@ Firmware endpoints:
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
 | `/gpio/status` | GET | Return input states, event count, and last fired action |
 
-This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
+This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page or export a JSON backup and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
 
 ### Server-side Persistence
 
