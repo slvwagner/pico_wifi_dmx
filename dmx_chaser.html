@@ -52,6 +52,14 @@ a.nav:hover{color:var(--text)}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}}
 .icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
+.card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card.collapsed .control{display:none}
+.ctrl-summary{display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:2px}
+.card.collapsed .ctrl-summary{display:flex}
+.item.collapsed label{display:none}
+.item.collapsed .ctrl-summary{display:flex}
+.ctrl-chip{font-size:12px;color:var(--muted);background:#22303a;border:1px solid var(--line);border-radius:4px;padding:3px 8px;white-space:nowrap}
+.collapse-btn{padding:4px 10px;font-size:15px;line-height:1;min-width:28px;align-self:start;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -341,8 +349,13 @@ function drawParticipation(){
   el.innerHTML='';
   (setup.fixtures||[]).forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
-    const item=document.createElement('div');item.className='item';
-    item.innerHTML=`<div class="small" style="font-weight:700;color:var(--text)">${f.name} <span style="font-weight:400;color:var(--muted)">${p.name} · start ch ${f.start}</span></div>`;
+    const isCollapsed=collapsedPartFixtures.has(f.id);
+    const item=document.createElement('div');item.className='item'+(isCollapsed?' collapsed':'');item.dataset.fixId=f.id;
+    const checkedChips=p.controls.filter(c=>participating[controlKey(f,c)]).map(c=>`<span class="ctrl-chip">${c.label}</span>`).join('')||`<span class="ctrl-chip" style="color:var(--bad)">none</span>`;
+    item.innerHTML=
+      `<div class="card-hdr"><div class="small" style="font-weight:700;color:var(--text)">${f.name} <span style="font-weight:400;color:var(--muted)">${p.name} · start ch ${f.start}</span></div>`+
+      `<button class="collapse-btn" data-part-collapse="${f.id}">${isCollapsed?'+':'−'}</button></div>`+
+      `<div class="ctrl-summary">${checkedChips}</div>`;
     p.controls.forEach(c=>{
       const k=controlKey(f,c);
       const lbl=document.createElement('label');
@@ -353,13 +366,39 @@ function drawParticipation(){
     el.appendChild(item);
   });
   el.oninput=e=>{
-    if(e.target.dataset.key){participating[e.target.dataset.key]=e.target.checked;drawStepEditor();}
+    if(e.target.dataset.key){
+      participating[e.target.dataset.key]=e.target.checked;
+      drawStepEditor();
+      const item=e.target.closest('.item');
+      if(item){
+        const fid=parseInt(item.dataset.fixId);
+        const f=(setup.fixtures||[]).find(x=>x.id===fid);
+        const p=f&&fixtureProfile(f);
+        if(p){
+          const chips=p.controls.filter(c=>participating[controlKey(f,c)]).map(c=>`<span class="ctrl-chip">${c.label}</span>`).join('')||`<span class="ctrl-chip" style="color:var(--bad)">none</span>`;
+          item.querySelector('.ctrl-summary').innerHTML=chips;
+        }
+      }
+    }
+  };
+  el.onclick=e=>{
+    const colBtn=e.target.closest('[data-part-collapse]');
+    if(colBtn){
+      const fid=parseInt(colBtn.dataset.partCollapse);
+      const item=colBtn.closest('.item');
+      const nowCollapsed=item.classList.toggle('collapsed');
+      colBtn.textContent=nowCollapsed?'+':'−';
+      if(nowCollapsed)collapsedPartFixtures.add(fid);else collapsedPartFixtures.delete(fid);
+      localStorage.setItem('chaserPartCollapsedFix',JSON.stringify([...collapsedPartFixtures]));
+    }
   };
 }
 
 // ---- steps ----
 let steps=[];
 let selectedStepIdx=-1;
+let collapsedFixtures=new Set(JSON.parse(localStorage.getItem('chaserCollapsedFix')||'[]'));
+let collapsedPartFixtures=new Set(JSON.parse(localStorage.getItem('chaserPartCollapsedFix')||'[]'));
 
 function calcDefaultDuration(){
   const bpm=parseFloat(document.getElementById('bpmInput').value)||120;
@@ -475,8 +514,14 @@ function drawStepEditor(){
   ptList.forEach(({f,c})=>{if(!byFixture.has(f.id))byFixture.set(f.id,{f,controls:[]});byFixture.get(f.id).controls.push(c);});
   byFixture.forEach(({f,controls})=>{
     const p=fixtureProfile(f);if(!p)return;
-    const card=document.createElement('article');card.className='card';
-    card.innerHTML=`<div class="control-head"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>${controls.map(c=>renderStepControl(f,c)).join('')}`;
+    const isCollapsed=collapsedFixtures.has(f.id);
+    const card=document.createElement('article');card.className='card'+(isCollapsed?' collapsed':'');
+    const summary=controls.map(c=>controlSummaryHtml(f,c)).join('');
+    card.innerHTML=
+      `<div class="card-hdr"><div><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>`+
+      `<button class="collapse-btn" data-collapse-fix="${f.id}">${isCollapsed?'+':'−'}</button></div>`+
+      `<div class="ctrl-summary">${summary}</div>`+
+      controls.map(c=>renderStepControl(f,c)).join('');
     surface.appendChild(card);
   });
   // attach XY pad pointer events
@@ -485,7 +530,19 @@ function drawStepEditor(){
     pad.addEventListener('pointermove',e=>{if(pad.hasPointerCapture(e.pointerId))handleXY(e,pad);});
   });
   surface.oninput=handleStepInput;
-  surface.onclick=handleStepClick;
+  surface.onclick=e=>{
+    const colBtn=e.target.closest('[data-collapse-fix]');
+    if(colBtn){
+      const fid=parseInt(colBtn.dataset.collapseFix);
+      const card=colBtn.closest('.card');
+      const nowCollapsed=card.classList.toggle('collapsed');
+      colBtn.textContent=nowCollapsed?'+':'−';
+      if(nowCollapsed)collapsedFixtures.add(fid);else collapsedFixtures.delete(fid);
+      localStorage.setItem('chaserCollapsedFix',JSON.stringify([...collapsedFixtures]));
+      return;
+    }
+    handleStepClick(e);
+  };
 }
 
 function handleXY(e,pad){
@@ -594,6 +651,18 @@ function updateStepDisplay(f,c){
     document.querySelectorAll(`[data-fi="${fi}"][data-ci="${ci}"][data-bro="coarse"]`).forEach(el=>el.textContent=b.coarse);
     document.querySelectorAll(`[data-fi="${fi}"][data-ci="${ci}"][data-bro="fine"]`).forEach(el=>el.textContent=b.fine);
   }
+}
+
+function controlSummaryHtml(f,c){
+  const v=getStepVal(f,c)??defaultValue(c);
+  if(c.type==='panTilt16'||c.type==='panTilt8')
+    return `<span class="ctrl-chip">${c.label}: ${Math.round(v.pan??0)} / ${Math.round(v.tilt??0)}</span>`;
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const col=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    return `<span class="ctrl-chip">${c.label} <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${col};vertical-align:middle;border:1px solid var(--line)"></span></span>`;
+  }
+  if(c.type==='wheel'){const wv=v??0;const opt=(c.options||[]).find(o=>o.value===wv);return `<span class="ctrl-chip">${c.label}: ${opt?opt.name:wv}</span>`;}
+  return `<span class="ctrl-chip">${c.label}: ${v??0}</span>`;
 }
 
 function renderStepControl(f,c){
