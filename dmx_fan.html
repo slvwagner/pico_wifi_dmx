@@ -67,6 +67,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .preview-bar-center{position:absolute;top:0;left:50%;width:1px;height:100%;background:rgba(255,255,255,.25);transform:translateX(-50%)}
 .preview-card.clamped-card{border-color:rgba(255,188,107,.5)}
 .preview-offset{font-size:10px;color:var(--muted);margin-top:3px}
+.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
@@ -81,8 +82,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
     <button id="btnRefreshBases" title="Read current Pico DMX values as base for all axes">&#x21ba; Refresh All Bases</button>
     <button id="btnSave" title="Save fan groups to server">&#x1f4be; Save</button>
-    <button id="btnExport" title="Download fan groups as JSON">&#x2193; Export</button>
-    <button id="btnImport" title="Import fan groups from JSON file">&#x2191; Import</button>
+    <button id="btnExport" class="icon-btn" title="Download fan groups as JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnImport" class="icon-btn" title="Import fan groups from JSON file"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <input type="file" id="importFile" accept=".json" style="display:none">
     <a class="nav" href="index.html">← Controller</a>
     <a class="nav" href="dmx_chaser.html">Chaser →</a>
