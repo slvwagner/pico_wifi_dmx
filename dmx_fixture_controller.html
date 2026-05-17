@@ -237,6 +237,8 @@ Blue=48</textarea>
 </div>
 <div id="groupModalBody" class="modal-body"></div>
 <div class="buttons" style="padding-top:4px">
+<button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default all</button>
+<button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout all</button>
 <button id="sendGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeGroupModal2">Close</button>
 </div>
@@ -313,6 +315,7 @@ function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
+function cloneValue(v){return v&&typeof v==='object'?JSON.parse(JSON.stringify(v)):v;}
 let _writeLiveValuesTimer=null;
 function writeLiveValues(immediate=false){
   const doWrite=()=>{
@@ -1037,7 +1040,7 @@ async function recallFixtureValues(fixtureId,which){
   for(const c of p.controls){
     const v=c[which];
     if(v===null||v===undefined)continue;
-    setValue(f,c,v);
+    setValue(f,c,cloneValue(v));
     try{await sendControl(f,c,true);}catch(err){errors.push(err.message);}
     updateControlDisplay(f,c);
   }
@@ -1340,6 +1343,11 @@ function setGroupValue(c,v){
     setValue(f,fc,v);
   });
 }
+function syncGroupValuesFromFirstSelected(common=getGroupCommonControls()){
+  const firstFx=fixtures.find(f=>selectedFixtureIds.has(f.id));
+  if(!firstFx)return;
+  common.forEach(c=>{groupValues[groupKey(c)]=cloneValue(getValue(firstFx,c,defaultValueForControl(c)));});
+}
 async function sendGroupControl(c){
   const root=endpoint();if(!root)throw new Error('Set Pico base URL first');
   const pairs=[];
@@ -1474,6 +1482,33 @@ function closeGroupModal(){document.getElementById('groupModal').style.display='
 document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
+async function recallGroupFixtureValues(which){
+  const ids=[...selectedFixtureIds];
+  const errors=[];
+  let controls=0;
+  for(const id of ids){
+    const f=fixtures.find(fx=>fx.id===id);if(!f)continue;
+    const p=fixtureProfile(f);if(!p)continue;
+    for(const c of p.controls){
+      const v=c[which];
+      if(v===null||v===undefined)continue;
+      controls++;
+      setValue(f,c,cloneValue(v));
+      try{await sendControl(f,c,true);}catch(err){errors.push(f.name+' '+c.label+': '+err.message);}
+      updateControlDisplay(f,c);
+    }
+  }
+  writeLiveValues();
+  const common=getGroupCommonControls();
+  syncGroupValuesFromFirstSelected(common);
+  common.forEach(c=>updateGroupControlDisplay(c));
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!controls){setStatus('No '+label+' values configured for selected fixtures',true);return;}
+  if(errors.length)setStatus(errors.slice(0,3).join(', ')+(errors.length>3?' ...':''),true);
+  else setStatus('Group '+label+' recalled for '+ids.length+' fixture'+(ids.length===1?'':'s'));
+}
+document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue');
+document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
 document.getElementById('sendGroupBtn').onclick=()=>{
   const common=getGroupCommonControls();
   Promise.all(common.map(c=>sendGroupControl(c))).catch(err=>setStatus(err.message,true));

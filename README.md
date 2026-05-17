@@ -139,6 +139,7 @@ Fixtures can be organised into named **Saved Groups** (stored server-side via `g
 
 - Create a group and assign any subset of patched fixtures to it.
 - A collapsible **Group Bar** appears above the fixture list; clicking a group instantly selects all its fixtures and scrolls to the first one.
+- The **Group Edit** modal can recall **Default all** or **Blackout all** for every selected fixture at once, using each fixture profile's own stored default/blackout values.
 - Groups can be edited (rename, change member list) or deleted from the Saved Groups panel.
 - Export / import the whole group store as JSON using the toolbar icon buttons.
 
