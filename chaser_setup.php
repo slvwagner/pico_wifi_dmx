@@ -122,6 +122,11 @@ if ($method === 'POST') {
     if (isset($existing['pico_slots'])) {
         $data['pico_slots'] = $existing['pico_slots'];
     }
+    if (isset($data['baseUrl']) && trim((string)$data['baseUrl']) !== '') {
+        $data['pico_url'] = trim((string)$data['baseUrl']);
+    } elseif (isset($existing['pico_url'])) {
+        $data['pico_url'] = $existing['pico_url'];
+    }
     if (isset($existing['participating'])) {
         $data['participating'] = $existing['participating'];
     }

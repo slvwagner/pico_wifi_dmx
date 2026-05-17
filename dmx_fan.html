@@ -815,7 +815,7 @@ async function saveFanGroups() {
         const r = await fetch('fan_setup.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(groups)
+            body: JSON.stringify({baseUrl:baseUrlEl.value,groups})
         });
         const j = await r.json();
         if (j.ok) setStatus('Fan groups saved to server');
@@ -831,6 +831,7 @@ async function loadFanGroups() {
         const r = await fetch('fan_setup.php', { cache: 'no-store' });
         const j = await r.json();
         if (r.ok && j.ok && j.exists && Array.isArray(j.groups)) {
+            if(j.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=j.baseUrl;
             groups = j.groups;
             return true;
         }
@@ -839,7 +840,7 @@ async function loadFanGroups() {
 }
 
 function exportJSON() {
-    const blob = new Blob([JSON.stringify(groups, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({baseUrl:baseUrlEl.value,groups}, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href = url;
@@ -853,8 +854,10 @@ function importJSON(file) {
     reader.onload = e => {
         try {
             const data = JSON.parse(e.target.result);
-            if (!Array.isArray(data)) throw new Error('Expected a JSON array');
-            groups = data;
+            const importedGroups=Array.isArray(data)?data:data.groups;
+            if (!Array.isArray(importedGroups)) throw new Error('Expected a JSON array or {groups:[...]}');
+            if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+            groups = importedGroups;
             renderGroups();
             setStatus('Fan groups imported — remember to Save if you want to keep them');
         } catch (err) {
@@ -1043,13 +1046,14 @@ async function clearAllChannels(){
   }
 }
 function saveScenesServer(){
-  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrlEl.value,scenes,slotCols,slotRows})})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
     .catch(e=>setStatus('Scenes save error: '+e.message,true));
 }
 function loadScenesServer(){
   fetch('scene_setup.php').then(r=>r.json()).then(d=>{
     if(d.ok&&d.exists){
+      if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=d.baseUrl;
       scenes=d.scenes||[];
       if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('fanSceneSlotCols',slotCols);}
       if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('fanSceneSlotRows',slotRows);}
@@ -1058,7 +1062,7 @@ function loadScenesServer(){
   }).catch(()=>{scenes=[];renderSlotMatrix();});
 }
 document.getElementById('exportScenesBtn').onclick=()=>{
-  const blob=new Blob([JSON.stringify({scenes,slotCols,slotRows},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({baseUrl:baseUrlEl.value,scenes,slotCols,slotRows},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
 };
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
@@ -1069,6 +1073,7 @@ document.getElementById('importScenesFile').onchange=e=>{
     try{
       const data=JSON.parse(ev.target.result);
       if(!Array.isArray(data.scenes))throw new Error('Expected {scenes:[...]}');
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
       scenes=data.scenes;
       if(data.slotCols){slotCols=data.slotCols;document.getElementById('slotCols').value=slotCols;}
       if(data.slotRows){slotRows=data.slotRows;document.getElementById('slotRows').value=slotRows;}

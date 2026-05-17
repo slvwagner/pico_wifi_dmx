@@ -874,8 +874,9 @@ document.getElementById('btnTap').onclick=()=>{
 };
 
 // ---- save / load chaser ----
-function chaserData(){return{steps};}
+function chaserData(){return{baseUrl:baseUrlEl.value,steps};}
 function applyChaserData(data){
+  if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   if(Array.isArray(data?.steps))steps=data.steps;
   selectedStepIdx=steps.length?0:-1;
   drawParticipation();drawStepList();drawStepEditor();

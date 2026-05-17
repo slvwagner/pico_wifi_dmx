@@ -89,6 +89,11 @@ if ($method === 'POST') {
     if (isset($existing['pico_slots'])) {
         $data['pico_slots'] = $existing['pico_slots'];
     }
+    if (isset($data['baseUrl']) && trim((string)$data['baseUrl']) !== '') {
+        $data['pico_url'] = trim((string)$data['baseUrl']);
+    } elseif (isset($existing['pico_url'])) {
+        $data['pico_url'] = $existing['pico_url'];
+    }
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
         http_response_code(500);

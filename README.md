@@ -38,6 +38,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 | `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
 | `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
 | `/dmx/clear` | GET | Zero all channels and clear the scene base buffer |
+| `/dmx/output_clear` | GET | Zero live DMX output channels only; preserve the scene base buffer |
 | `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
 | `/dmx/values.json` | GET | Read all channel values |
 
@@ -253,7 +254,7 @@ The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It
 - The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
 - Supported pulls: `pullup`, `pulldown`.
 - Supported triggers: `falling`, `rising`, `both`.
-- Supported actions: `dmx_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `motion_start`, `motion_stop`, `motion_toggle`.
+- Supported actions: `dmx_clear`, `dmx_output_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `motion_start`, `motion_stop`, `motion_toggle`.
 
 GPIO config is a line-based text protocol:
 
@@ -264,6 +265,8 @@ MAP 15 pullup falling chaser_toggle 0 30
 ```
 
 Format: `MAP <pin> <pull> <trigger> <action> <slot> <debounce_ms>`.
+
+Use `dmx_clear` when the button should clear both output and the motion base buffer. Use `dmx_output_clear` when it should black out live output but keep the base buffer intact, so Motion FX can resume around the same stored center.
 
 Firmware endpoints:
 

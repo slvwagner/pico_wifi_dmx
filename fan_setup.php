@@ -20,7 +20,8 @@ if ($method === 'GET') {
         exit;
     }
 
-    echo json_encode(['ok' => true, 'exists' => true, 'groups' => $data]);
+    $groups = array_key_exists('groups', $data) && is_array($data['groups']) ? $data['groups'] : $data;
+    echo json_encode(['ok' => true, 'exists' => true, 'groups' => $groups, 'baseUrl' => $data['baseUrl'] ?? null]);
     exit;
 }
 
@@ -29,7 +30,15 @@ if ($method === 'POST') {
     $data = json_decode($raw === false ? '' : $raw, true);
     if (!is_array($data)) {
         http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'Request body must be a JSON array']);
+        echo json_encode(['ok' => false, 'error' => 'Request body must be JSON']);
+        exit;
+    }
+    if (!array_key_exists('groups', $data)) {
+        $data = ['baseUrl' => null, 'groups' => $data];
+    }
+    if (!isset($data['groups']) || !is_array($data['groups'])) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Request body must include a groups array']);
         exit;
     }
 

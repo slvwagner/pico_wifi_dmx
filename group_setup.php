@@ -20,7 +20,7 @@ if ($method === 'GET') {
         exit;
     }
 
-    echo json_encode(['ok' => true, 'exists' => true, 'groups' => $data['groups'] ?? []]);
+    echo json_encode(['ok' => true, 'exists' => true, 'groups' => $data['groups'] ?? [], 'baseUrl' => $data['baseUrl'] ?? null]);
     exit;
 }
 

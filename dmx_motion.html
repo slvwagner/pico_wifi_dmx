@@ -725,6 +725,7 @@ document.getElementById('btnPicoMotionStop').onclick=async()=>{
 // ---- motion data serialization ----
 function motionData(){
   return{
+    baseUrl:baseUrlEl.value,
     params:{
       effectType:document.getElementById('effectType').value,
       bpm:+document.getElementById('bpm').value,
@@ -742,6 +743,7 @@ function motionData(){
 }
 function applyMotionData(data){
   if(!data)return;
+  if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   const p=data.params;
   if(p){
     if(p.effectType!==undefined)document.getElementById('effectType').value=p.effectType;

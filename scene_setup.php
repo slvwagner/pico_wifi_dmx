@@ -24,6 +24,7 @@ if ($method === 'GET') {
         'scenes'   => $data['scenes']   ?? [],
         'slotCols' => $data['slotCols'] ?? 4,
         'slotRows' => $data['slotRows'] ?? 4,
+        'baseUrl'  => $data['baseUrl']  ?? null,
     ]);
     exit;
 }

@@ -1610,11 +1610,12 @@ let savedGroups=[];
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function loadSavedGroups(){
   fetch('group_setup.php').then(r=>r.json()).then(d=>{
+    if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
     savedGroups=d.groups||[];renderSavedGroupsList();
   }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
 }
 function saveSavedGroupsToServer(){
-  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({groups:savedGroups})})
+  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups})})
     .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
     .catch(e=>setStatus('Groups save error: '+e.message));
 }
@@ -1643,7 +1644,7 @@ function deleteGroup(i){
   savedGroups.splice(i,1);renderSavedGroupsList();saveSavedGroupsToServer();
 }
 function exportGroupsJson(){
-  const blob=new Blob([JSON.stringify({groups:savedGroups},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_groups.json';a.click();URL.revokeObjectURL(a.href);
 }
 function importGroupsJson(file){
@@ -1652,6 +1653,7 @@ function importGroupsJson(file){
     try{
       const data=JSON.parse(e.target.result);
       if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
       savedGroups=data.groups;renderSavedGroupsList();saveSavedGroupsToServer();
       setStatus('Imported '+savedGroups.length+' group(s)');
     }catch(err){setStatus('Import failed: '+err.message);}
@@ -1786,13 +1788,14 @@ async function clearAllChannels(){
   }
 }
 function saveScenesServer(){
-  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,scenes,slotCols,slotRows})})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
     .catch(e=>setStatus('Scenes save error: '+e.message,true));
 }
 function loadScenesServer(){
   fetch('scene_setup.php').then(r=>r.json()).then(d=>{
     if(d.ok&&d.exists){
+      if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
       scenes=d.scenes||[];
       if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('sceneSlotCols',slotCols);}
       if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('sceneSlotRows',slotRows);}
@@ -1801,7 +1804,7 @@ function loadScenesServer(){
   }).catch(()=>{scenes=[];renderSlotMatrix();});
 }
 function exportScenesJson(){
-  const blob=new Blob([JSON.stringify({scenes,slotCols,slotRows},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,scenes,slotCols,slotRows},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
 }
 function importScenesJson(file){
@@ -1810,6 +1813,7 @@ function importScenesJson(file){
     try{
       const data=JSON.parse(e.target.result);
       if(!Array.isArray(data.scenes))throw new Error('Expected {scenes:[...]}');
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
       scenes=data.scenes;
       if(data.slotCols){slotCols=data.slotCols;document.getElementById('slotCols').value=slotCols;}
       if(data.slotRows){slotRows=data.slotRows;document.getElementById('slotRows').value=slotRows;}
