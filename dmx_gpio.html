@@ -310,7 +310,11 @@ async function pollStatus(){
     document.getElementById('onlineDot').classList.add('on');
     document.getElementById('onlineText').textContent='connected';
     const inputs=(j.inputs||[]).map(i=>'GPIO '+i.pin+': raw '+(i.value?'HIGH':'LOW')+', stable '+(i.stable?'HIGH':'LOW')).join('<br>');
-    const adc=(j.adc_inputs||[]).map(i=>'ADC GPIO '+i.pin+': '+(i.rate_x100/100).toFixed(2)+'x on '+i.action+' slot '+i.slot).join('<br>');
+    const adc=(j.adc_inputs||[]).map(i=>{
+      const raw=i.raw??0;
+      const pct=Math.round(raw/4095*100);
+      return 'ADC GPIO '+i.pin+': raw '+raw+' / 4095 ('+pct+'%), '+(i.rate_x100/100).toFixed(2)+'x on '+i.action+' slot '+i.slot;
+    }).join('<br>');
     document.getElementById('gpioStatus').innerHTML=
       'Enabled: '+j.enabled+'<br>Mappings: '+j.mapping_count+'<br>Events: '+j.event_count+
       '<br>Last: GPIO '+j.last_pin+' '+j.last_action+' @ '+j.last_event_ms+' ms'+

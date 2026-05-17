@@ -22,6 +22,7 @@ typedef struct {
 
 typedef struct {
     gpio_adc_mapping_t cfg;
+    uint16_t           raw_value;
     uint16_t           last_rate_x100;
 } gpio_adc_runtime_t;
 
@@ -482,6 +483,7 @@ void gpio_control_poll(uint32_t now_ms)
         uint16_t raw = adc_read();
         uint16_t span = (uint16_t)(m->cfg.max_x100 - m->cfg.min_x100);
         uint16_t rate_x100 = (uint16_t)(m->cfg.min_x100 + ((uint32_t)raw * span) / 4095u);
+        m->raw_value = raw;
         if (rate_x100 != m->last_rate_x100) {
             if (m->cfg.action == GPIO_ADC_ACTION_CHASER_SPEED && m->cfg.slot < CHASER_MAX_SLOTS)
                 chaser_set_speed(m->cfg.slot, rate_x100 / 100.0f);
@@ -496,8 +498,10 @@ void gpio_control_poll(uint32_t now_ms)
         gpio_maps[i].changed_ms = snapshot[i].changed_ms;
         gpio_maps[i].last_fire_ms = snapshot[i].last_fire_ms;
     }
-    for (uint8_t i = 0; i < adc_count && i < gpio_adc_map_count; i++)
+    for (uint8_t i = 0; i < adc_count && i < gpio_adc_map_count; i++) {
+        gpio_adc_maps[i].raw_value = adc_snapshot[i].raw_value;
         gpio_adc_maps[i].last_rate_x100 = adc_snapshot[i].last_rate_x100;
+    }
     critical_section_exit(&gpio_lock);
 }
 
@@ -596,11 +600,12 @@ void gpio_control_write_status_json(char *out, size_t out_len)
     if (n > 0) used += (size_t)n;
     for (uint8_t i = 0; i < adc_count && used + 128 < out_len; i++) {
         n = snprintf(out + used, out_len - used,
-                     "%s{\"pin\":%u,\"action\":\"%s\",\"slot\":%u,\"rate_x100\":%u}",
+                     "%s{\"pin\":%u,\"action\":\"%s\",\"slot\":%u,\"raw\":%u,\"rate_x100\":%u}",
                      i ? "," : "",
                      adc_snapshot[i].cfg.pin,
                      adc_action_name(adc_snapshot[i].cfg.action),
                      adc_snapshot[i].cfg.slot,
+                     adc_snapshot[i].raw_value,
                      adc_snapshot[i].last_rate_x100);
         if (n < 0) break;
         used += (size_t)n;

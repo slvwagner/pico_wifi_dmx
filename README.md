@@ -300,7 +300,7 @@ Firmware endpoints:
 |----------|--------|-------------|
 | `/gpio/config` | GET | Return current volatile GPIO config as JSON |
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
-| `/gpio/status` | GET | Return input states, event count, and last fired action |
+| `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
 
 This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page or export a JSON backup and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
 
