@@ -48,7 +48,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #sceneBoxBody{padding:12px;display:grid;gap:10px}
 #slotMatrix{display:grid;gap:5px;overflow-x:auto}
 .slot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:pointer;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
-.slot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text)}
+.slot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);position:relative}
+.slot-del{position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:var(--accent);opacity:.6;cursor:pointer}
+.slot-del:hover{background:rgba(55,196,164,.18);border-color:var(--accent);opacity:1}
 .slot.filled:hover{background:#1a3b32}
 .slot:not(.filled):hover{border-color:var(--accent);color:var(--accent)}
 .icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
@@ -1427,7 +1429,7 @@ function renderSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall · Double-click: clear">${escHtml(s.name)}</div>`;
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button>${escHtml(s.name)}</div>`;
     else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1435,6 +1437,16 @@ function renderSlotMatrix(){
     const idx=parseInt(el.dataset.slot);
     el.addEventListener('click',()=>slotClick(idx));
     el.addEventListener('dblclick',()=>slotDblClick(idx));
+  });
+  grid.querySelectorAll('.slot-del').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const idx=parseInt(btn.dataset.delSlot);
+      const s=scenes.find(sc=>sc.slot===idx);if(!s)return;
+      if(!confirm('Delete scene "'+s.name+'"?'))return;
+      scenes.splice(scenes.indexOf(s),1);
+      renderSlotMatrix();saveScenesServer();
+    });
   });
 }
 function slotClick(idx){
