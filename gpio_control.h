@@ -21,9 +21,11 @@ typedef enum {
     GPIO_ACTION_CHASER_PAUSE,
     GPIO_ACTION_CHASER_RESUME,
     GPIO_ACTION_CHASER_PAUSE_TOGGLE,
+    GPIO_ACTION_CHASER_TAP,
     GPIO_ACTION_MOTION_START,
     GPIO_ACTION_MOTION_STOP,
     GPIO_ACTION_MOTION_TOGGLE,
+    GPIO_ACTION_MOTION_TAP,
 } gpio_action_t;
 
 typedef enum {
@@ -40,6 +42,7 @@ typedef enum {
 typedef enum {
     GPIO_ADC_ACTION_NONE = 0,
     GPIO_ADC_ACTION_CHASER_SPEED,
+    GPIO_ADC_ACTION_MOTION_BPM,
 } gpio_adc_action_t;
 
 typedef struct {
@@ -49,6 +52,7 @@ typedef struct {
     gpio_trigger_t trigger;
     gpio_action_t  action;
     uint8_t        slot;
+    uint8_t        beat_div;
     uint16_t       debounce_ms;
 } gpio_mapping_t;
 

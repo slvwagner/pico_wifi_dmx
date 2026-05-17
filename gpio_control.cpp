@@ -20,6 +20,7 @@ typedef struct {
     bool           stable_state;
     uint32_t       changed_ms;
     uint32_t       last_fire_ms;
+    uint32_t       last_tap_ms;
 } gpio_runtime_t;
 
 typedef struct {
@@ -58,9 +59,11 @@ static const char *action_name(gpio_action_t action)
     case GPIO_ACTION_CHASER_PAUSE:  return "chaser_pause";
     case GPIO_ACTION_CHASER_RESUME: return "chaser_resume";
     case GPIO_ACTION_CHASER_PAUSE_TOGGLE: return "chaser_pause_toggle";
+    case GPIO_ACTION_CHASER_TAP:    return "chaser_tap";
     case GPIO_ACTION_MOTION_START:  return "motion_start";
     case GPIO_ACTION_MOTION_STOP:   return "motion_stop";
     case GPIO_ACTION_MOTION_TOGGLE: return "motion_toggle";
+    case GPIO_ACTION_MOTION_TAP:    return "motion_tap";
     default:                        return "none";
     }
 }
@@ -68,6 +71,7 @@ static const char *action_name(gpio_action_t action)
 static const char *adc_action_name(gpio_adc_action_t action)
 {
     if (action == GPIO_ADC_ACTION_CHASER_SPEED) return "chaser_speed";
+    if (action == GPIO_ADC_ACTION_MOTION_BPM) return "motion_bpm";
     return "none";
 }
 
@@ -151,6 +155,10 @@ static bool parse_action(const char *s, gpio_action_t *out)
         *out = GPIO_ACTION_CHASER_PAUSE_TOGGLE;
         return true;
     }
+    if (strcmp(s, "chaser_tap") == 0) {
+        *out = GPIO_ACTION_CHASER_TAP;
+        return true;
+    }
     if (strcmp(s, "motion_start") == 0) {
         *out = GPIO_ACTION_MOTION_START;
         return true;
@@ -163,6 +171,10 @@ static bool parse_action(const char *s, gpio_action_t *out)
         *out = GPIO_ACTION_MOTION_TOGGLE;
         return true;
     }
+    if (strcmp(s, "motion_tap") == 0) {
+        *out = GPIO_ACTION_MOTION_TAP;
+        return true;
+    }
     return false;
 }
 
@@ -170,6 +182,10 @@ static bool parse_adc_action(const char *s, gpio_adc_action_t *out)
 {
     if (strcmp(s, "chaser_speed") == 0) {
         *out = GPIO_ADC_ACTION_CHASER_SPEED;
+        return true;
+    }
+    if (strcmp(s, "motion_bpm") == 0) {
+        *out = GPIO_ADC_ACTION_MOTION_BPM;
         return true;
     }
     return false;
@@ -255,6 +271,8 @@ static void run_action(gpio_action_t action, uint8_t slot)
     case GPIO_ACTION_CHASER_PAUSE_TOGGLE:
         if (slot < CHASER_MAX_SLOTS) chaser_pause_toggle(slot);
         break;
+    case GPIO_ACTION_CHASER_TAP:
+        break;
     case GPIO_ACTION_MOTION_START:
         if (slot < MFX_MAX_SLOTS) mfx_start(slot);
         break;
@@ -267,8 +285,30 @@ static void run_action(gpio_action_t action, uint8_t slot)
             else mfx_start(slot);
         }
         break;
+    case GPIO_ACTION_MOTION_TAP:
+        break;
     default:
         break;
+    }
+}
+
+static bool action_is_tap(gpio_action_t action)
+{
+    return action == GPIO_ACTION_CHASER_TAP || action == GPIO_ACTION_MOTION_TAP;
+}
+
+static void run_tap_action(gpio_runtime_t *m, uint32_t now_ms)
+{
+    uint32_t interval_ms = m->last_tap_ms ? now_ms - m->last_tap_ms : 0;
+    m->last_tap_ms = now_ms;
+    if (interval_ms < 120u || interval_ms > 4000u) return;
+    uint8_t beat_div = m->cfg.beat_div ? m->cfg.beat_div : 1;
+    if (m->cfg.action == GPIO_ACTION_CHASER_TAP && m->cfg.slot < CHASER_MAX_SLOTS) {
+        chaser_set_tap_interval(m->cfg.slot, interval_ms, beat_div);
+    } else if (m->cfg.action == GPIO_ACTION_MOTION_TAP && m->cfg.slot < MFX_MAX_SLOTS) {
+        float bpm = 60000.0f / (float)interval_ms;
+        bpm *= (float)beat_div;
+        mfx_set_bpm(m->cfg.slot, bpm);
     }
 }
 
@@ -350,8 +390,13 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             m.enabled = true;
             m.pin = (uint8_t)adc_pin;
             m.slot = adc_slot < 0 ? 0 : (uint8_t)adc_slot;
-            m.min_x100 = (uint16_t)(min_x100 < 10 ? 10 : (min_x100 > 1000 ? 1000 : min_x100));
-            m.max_x100 = (uint16_t)(max_x100 < 10 ? 10 : (max_x100 > 1000 ? 1000 : max_x100));
+            if (strcmp(adc_action_s, "motion_bpm") == 0) {
+                m.min_x100 = (uint16_t)(min_x100 < 100 ? 100 : (min_x100 > 30000 ? 30000 : min_x100));
+                m.max_x100 = (uint16_t)(max_x100 < 100 ? 100 : (max_x100 > 30000 ? 30000 : max_x100));
+            } else {
+                m.min_x100 = (uint16_t)(min_x100 < 10 ? 10 : (min_x100 > 1000 ? 1000 : min_x100));
+                m.max_x100 = (uint16_t)(max_x100 < 10 ? 10 : (max_x100 > 1000 ? 1000 : max_x100));
+            }
             if (m.max_x100 < m.min_x100) {
                 uint16_t t = m.min_x100;
                 m.min_x100 = m.max_x100;
@@ -365,6 +410,10 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
                 snprintf(err, err_len, "Chaser slot %u out of range", m.slot);
                 return false;
             }
+            if (m.action == GPIO_ADC_ACTION_MOTION_BPM && m.slot >= MFX_MAX_SLOTS) {
+                snprintf(err, err_len, "Motion slot %u out of range", m.slot);
+                return false;
+            }
             configure_adc_pin(&m);
             used_pin_mask |= (1u << m.pin);
             next_adc[next_adc_count].cfg = m;
@@ -376,9 +425,9 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             continue;
         }
 
-        int pin = -1, slot = 0, debounce = 30;
+        int pin = -1, slot = 0, debounce = 30, beat_div = 1;
         char pull_s[16] = {0}, trigger_s[16] = {0}, action_s[24] = {0};
-        int got = sscanf(p, "MAP %d %15s %15s %23s %d %d", &pin, pull_s, trigger_s, action_s, &slot, &debounce);
+        int got = sscanf(p, "MAP %d %15s %15s %23s %d %d %d", &pin, pull_s, trigger_s, action_s, &slot, &debounce, &beat_div);
         if (got < 5) {
             snprintf(err, err_len, "Invalid line: %s", p);
             return false;
@@ -399,6 +448,8 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
         m.enabled = true;
         m.pin = (uint8_t)pin;
         m.slot = slot < 0 ? 0 : (uint8_t)slot;
+        if (beat_div != 1 && beat_div != 2 && beat_div != 4 && beat_div != 8 && beat_div != 16) beat_div = 1;
+        m.beat_div = (uint8_t)beat_div;
         m.debounce_ms = debounce < 5 ? 5 : (uint16_t)debounce;
         if (!parse_pull(pull_s, &m.pull) ||
             !parse_trigger(trigger_s, &m.trigger) ||
@@ -412,8 +463,16 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             snprintf(err, err_len, "Chaser slot %u out of range", m.slot);
             return false;
         }
+        if (m.action == GPIO_ACTION_CHASER_TAP && m.slot >= CHASER_MAX_SLOTS) {
+            snprintf(err, err_len, "Chaser slot %u out of range", m.slot);
+            return false;
+        }
         if ((m.action == GPIO_ACTION_MOTION_START || m.action == GPIO_ACTION_MOTION_STOP || m.action == GPIO_ACTION_MOTION_TOGGLE) &&
             m.slot >= MFX_MAX_SLOTS) {
+            snprintf(err, err_len, "Motion slot %u out of range", m.slot);
+            return false;
+        }
+        if (m.action == GPIO_ACTION_MOTION_TAP && m.slot >= MFX_MAX_SLOTS) {
             snprintf(err, err_len, "Motion slot %u out of range", m.slot);
             return false;
         }
@@ -424,6 +483,7 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
         next[next_count].raw_state = raw;
         next[next_count].stable_state = raw;
         next[next_count].changed_ms = 0;
+        next[next_count].last_tap_ms = 0;
         next_count++;
     }
 
@@ -472,7 +532,8 @@ void gpio_control_poll(uint32_t now_ms)
                         (m->cfg.trigger == GPIO_TRIGGER_FALLING && falling) ||
                         (m->cfg.trigger == GPIO_TRIGGER_RISING && rising);
             if (fire && now_ms - m->last_fire_ms >= m->cfg.debounce_ms) {
-                run_action(m->cfg.action, m->cfg.slot);
+                if (action_is_tap(m->cfg.action)) run_tap_action(m, now_ms);
+                else run_action(m->cfg.action, m->cfg.slot);
                 m->last_fire_ms = now_ms;
                 critical_section_enter_blocking(&gpio_lock);
                 gpio_event_count++;
@@ -507,6 +568,8 @@ void gpio_control_poll(uint32_t now_ms)
         if (rate_x100 != m->last_rate_x100) {
             if (m->cfg.action == GPIO_ADC_ACTION_CHASER_SPEED && m->cfg.slot < CHASER_MAX_SLOTS)
                 chaser_set_speed(m->cfg.slot, rate_x100 / 100.0f);
+            else if (m->cfg.action == GPIO_ADC_ACTION_MOTION_BPM && m->cfg.slot < MFX_MAX_SLOTS)
+                mfx_set_bpm(m->cfg.slot, rate_x100 / 100.0f);
             m->last_rate_x100 = rate_x100;
         }
     }
@@ -517,6 +580,7 @@ void gpio_control_poll(uint32_t now_ms)
         gpio_maps[i].stable_state = snapshot[i].stable_state;
         gpio_maps[i].changed_ms = snapshot[i].changed_ms;
         gpio_maps[i].last_fire_ms = snapshot[i].last_fire_ms;
+        gpio_maps[i].last_tap_ms = snapshot[i].last_tap_ms;
     }
     for (uint8_t i = 0; i < adc_count && i < gpio_adc_map_count; i++) {
         gpio_adc_maps[i].raw_value = adc_snapshot[i].raw_value;
@@ -549,13 +613,14 @@ void gpio_control_write_config_json(char *out, size_t out_len)
     for (uint8_t i = 0; i < count && used + 160 < out_len; i++) {
         gpio_mapping_t *m = &snapshot[i].cfg;
         int n = snprintf(out + used, out_len - used,
-                         "%s{\"pin\":%u,\"pull\":\"%s\",\"trigger\":\"%s\",\"action\":\"%s\",\"slot\":%u,\"debounce_ms\":%u}",
+                         "%s{\"pin\":%u,\"pull\":\"%s\",\"trigger\":\"%s\",\"action\":\"%s\",\"slot\":%u,\"beat_div\":%u,\"debounce_ms\":%u}",
                          i ? "," : "",
                          m->pin,
                          pull_name(m->pull),
                          trigger_name(m->trigger),
                          action_name(m->action),
                          m->slot,
+                         m->beat_div ? m->beat_div : 1,
                          m->debounce_ms);
         if (n < 0) break;
         used += (size_t)n;

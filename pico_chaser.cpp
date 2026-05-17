@@ -255,6 +255,27 @@ void chaser_set_speed(uint8_t slot, float mult)
     critical_section_exit(&chaser_lock);
 }
 
+void chaser_set_tap_interval(uint8_t slot, uint32_t interval_ms, uint8_t beat_div)
+{
+    if (slot >= CHASER_MAX_SLOTS || interval_ms == 0) return;
+    if (beat_div < 1) beat_div = 1;
+    if (beat_div > 16) beat_div = 16;
+    critical_section_enter_blocking(&chaser_lock);
+    if (slot_data[slot].loaded && slot_data[slot].step_count > 0) {
+        uint16_t step_idx = play_state[slot].playing ? play_state[slot].current_step : start_step_for_slot(&slot_data[slot]);
+        if (step_idx >= slot_data[slot].step_count) step_idx = 0;
+        uint32_t step_ms = slot_data[slot].steps[step_idx].duration_ms;
+        if (step_ms > 0) {
+            float target_ms = (float)interval_ms / (float)beat_div;
+            float mult = target_ms > 1.0f ? (float)step_ms / target_ms : 10.0f;
+            if (mult < 0.1f) mult = 0.1f;
+            if (mult > 10.0f) mult = 10.0f;
+            slot_speed[slot] = mult;
+        }
+    }
+    critical_section_exit(&chaser_lock);
+}
+
 /* ---------- tick (called from core0 at ~100 Hz) ------------------------- */
 
 static inline uint8_t lerp8(uint8_t a, uint8_t b, float t)

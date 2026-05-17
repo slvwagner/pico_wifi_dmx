@@ -57,7 +57,7 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
   <div class="toolbar">
     <label><input id="gpioEnabled" type="checkbox" checked> GPIO polling enabled</label>
     <button id="addMapping" class="primary">Add mapping</button>
-    <button id="addAdcMapping" class="primary">Add ADC speed</button>
+    <button id="addAdcMapping" class="primary">Add ADC speed/BPM</button>
     <button id="pushConfig">Push to Pico</button>
     <button id="pullConfig">Read from Pico</button>
     <button id="saveLocal">Save local</button>
@@ -92,8 +92,8 @@ const DEFAULT_MAPPINGS=[
 ];
 const DEFAULT_ADC_MAPPINGS=[];
 const RESERVED_PINS=[2,3];
-const DIGITAL_ACTIONS=['dmx_clear','dmx_output_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','chaser_pause','chaser_resume','chaser_pause_toggle','motion_start','motion_stop','motion_toggle'];
-const ADC_ACTIONS=['chaser_speed'];
+const DIGITAL_ACTIONS=['dmx_clear','dmx_output_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','chaser_pause','chaser_resume','chaser_pause_toggle','chaser_tap','motion_start','motion_stop','motion_toggle','motion_tap'];
+const ADC_ACTIONS=['chaser_speed','motion_bpm'];
 let mappings=[];
 let adcMappings=[];
 const baseUrl=document.getElementById('baseUrl');
@@ -104,6 +104,7 @@ function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function clamp(v,lo,hi){v=parseInt(v);return Math.max(lo,Math.min(hi,isNaN(v)?lo:v));}
 function actionNeedsSlot(a){return a.startsWith('chaser_')||a.startsWith('motion_');}
+function actionIsTap(a){return a==='chaser_tap'||a==='motion_tap';}
 function normalize(m){
   return {
     pin:clamp(m.pin,0,28),
@@ -111,17 +112,22 @@ function normalize(m){
     trigger:['falling','rising','both'].includes(m.trigger)?m.trigger:'falling',
     action:DIGITAL_ACTIONS.includes(m.action)?m.action:'dmx_clear',
     slot:clamp(m.slot,0,PICO_SLOT_COUNT-1),
+    beat_div:[1,2,4,8,16].includes(parseInt(m.beat_div))?parseInt(m.beat_div):1,
     debounce_ms:clamp(m.debounce_ms,5,1000)
   };
 }
 function normalizeAdc(m){
-  const minRaw=m.min_speed!==undefined?Math.round(parseFloat(m.min_speed)*100):(m.min_x100??10);
-  const maxRaw=m.max_speed!==undefined?Math.round(parseFloat(m.max_speed)*100):(m.max_x100??1000);
-  const min=clamp(minRaw,10,1000);
-  const max=clamp(maxRaw,10,1000);
+  const action=ADC_ACTIONS.includes(m.action)?m.action:'chaser_speed';
+  const minValue=m.min_bpm!==undefined?m.min_bpm:m.min_speed;
+  const maxValue=m.max_bpm!==undefined?m.max_bpm:m.max_speed;
+  const def=action==='motion_bpm'?{min:1000,max:12000,lo:100,hi:30000}:{min:10,max:1000,lo:10,hi:1000};
+  const minRaw=minValue!==undefined?Math.round(parseFloat(minValue)*100):(m.min_x100??def.min);
+  const maxRaw=maxValue!==undefined?Math.round(parseFloat(maxValue)*100):(m.max_x100??def.max);
+  const min=clamp(minRaw,def.lo,def.hi);
+  const max=clamp(maxRaw,def.lo,def.hi);
   return {
     pin:[26,27,28].includes(parseInt(m.pin))?parseInt(m.pin):26,
-    action:ADC_ACTIONS.includes(m.action)?m.action:'chaser_speed',
+    action,
     slot:clamp(m.slot,0,PICO_SLOT_COUNT-1),
     min_x100:Math.min(min,max),
     max_x100:Math.max(min,max)
@@ -233,7 +239,11 @@ async function importGPIOConfig(file){
 }
 function configText(){
   const lines=['ENABLE '+(document.getElementById('gpioEnabled').checked?'1':'0')];
-  mappings.map(normalize).forEach(m=>lines.push(['MAP',m.pin,m.pull,m.trigger,m.action,m.slot,m.debounce_ms].join(' ')));
+  mappings.map(normalize).forEach(m=>{
+    const parts=['MAP',m.pin,m.pull,m.trigger,m.action,m.slot,m.debounce_ms];
+    if(actionIsTap(m.action))parts.push(m.beat_div);
+    lines.push(parts.join(' '));
+  });
   adcMappings.map(normalizeAdc).forEach(m=>lines.push(['ADC',m.pin,m.action,m.slot,m.min_x100,m.max_x100].join(' ')));
   return lines.join('\n')+'\n';
 }
@@ -243,6 +253,9 @@ function render(){
   const digitalHtml=mappings.map((m,i)=>{
     m=normalize(m);
     const slotDisabled=actionNeedsSlot(m.action)?'':'disabled';
+    const beatControl=actionIsTap(m.action)
+      ? `<label>Beat<select data-field="beat_div"><option value="1"${m.beat_div===1?' selected':''}>1 beat</option><option value="2"${m.beat_div===2?' selected':''}>1/2 beat</option><option value="4"${m.beat_div===4?' selected':''}>1/4 beat</option><option value="8"${m.beat_div===8?' selected':''}>1/8 beat</option><option value="16"${m.beat_div===16?' selected':''}>1/16 beat</option></select></label>`
+      : '';
     return `<div class="mapping${dups.has('D'+i)?' dup':''}" data-idx="${i}">
       <div class="mapping-head"><strong>Mapping ${i+1}</strong><button class="danger" data-remove="${i}">Remove</button></div>
       <div class="mapping-fields">
@@ -253,20 +266,27 @@ function render(){
           ${DIGITAL_ACTIONS.map(a=>`<option value="${a}"${m.action===a?' selected':''}>${a.replace(/_/g,' ')}</option>`).join('')}
         </select></label>
         <label>Slot<input type="number" min="0" max="${PICO_SLOT_COUNT-1}" value="${m.slot}" data-field="slot" ${slotDisabled}></label>
+        ${beatControl}
         <label>Debounce ms<input type="number" min="5" max="1000" value="${m.debounce_ms}" data-field="debounce_ms"></label>
       </div>
     </div>`;
   }).join('');
   const adcHtml=adcMappings.map((m,i)=>{
     m=normalizeAdc(m);
+    const isBpm=m.action==='motion_bpm';
+    const minLabel=isBpm?'Min BPM':'Min multiplier';
+    const maxLabel=isBpm?'Max BPM':'Max multiplier';
+    const step=isBpm?'0.1':'0.01';
+    const minAttr=isBpm?'1':'0.1';
+    const maxAttr=isBpm?'300':'10';
     return `<div class="mapping${dups.has('A'+i)?' dup':''}" data-adc-idx="${i}">
-      <div class="mapping-head"><strong>ADC Speed ${i+1}</strong><button class="danger" data-remove-adc="${i}">Remove</button></div>
+      <div class="mapping-head"><strong>ADC ${isBpm?'BPM':'Speed'} ${i+1}</strong><button class="danger" data-remove-adc="${i}">Remove</button></div>
       <div class="mapping-fields">
         <label>ADC GPIO<select data-adc-field="pin"><option value="26"${m.pin===26?' selected':''}>GPIO26 / ADC0</option><option value="27"${m.pin===27?' selected':''}>GPIO27 / ADC1</option><option value="28"${m.pin===28?' selected':''}>GPIO28 / ADC2</option></select></label>
         <label>Action<select data-adc-field="action">${ADC_ACTIONS.map(a=>`<option value="${a}"${m.action===a?' selected':''}>${a.replace(/_/g,' ')}</option>`).join('')}</select></label>
         <label>Slot<input type="number" min="0" max="${PICO_SLOT_COUNT-1}" value="${m.slot}" data-adc-field="slot"></label>
-        <label>Min multiplier<input type="number" min="0.1" max="10" step="0.01" value="${(m.min_x100/100).toFixed(2)}" data-adc-field="min_speed"></label>
-        <label>Max multiplier<input type="number" min="0.1" max="10" step="0.01" value="${(m.max_x100/100).toFixed(2)}" data-adc-field="max_speed"></label>
+        <label>${minLabel}<input type="number" min="${minAttr}" max="${maxAttr}" step="${step}" value="${(m.min_x100/100).toFixed(isBpm?1:2)}" data-adc-field="${isBpm?'min_bpm':'min_speed'}"></label>
+        <label>${maxLabel}<input type="number" min="${minAttr}" max="${maxAttr}" step="${step}" value="${(m.max_x100/100).toFixed(isBpm?1:2)}" data-adc-field="${isBpm?'max_bpm':'max_speed'}"></label>
       </div>
     </div>`;
   }).join('');
@@ -318,6 +338,9 @@ async function pollStatus(){
       const min=((i.min_x100??0)/100).toFixed(2);
       const max=((i.max_x100??0)/100).toFixed(2);
       const filter=i.filter_ms??0;
+      if(i.action==='motion_bpm'){
+        return 'ADC GPIO '+i.pin+': avg '+raw+' / 4095 ('+pct+'%, '+filter+' ms), BPM '+(i.rate_x100/100).toFixed(1)+', range '+parseFloat(min).toFixed(1)+'-'+parseFloat(max).toFixed(1)+' BPM on slot '+i.slot;
+      }
       return 'ADC GPIO '+i.pin+': avg '+raw+' / 4095 ('+pct+'%, '+filter+' ms), multiplier '+(i.rate_x100/100).toFixed(2)+'x, range '+min+'x-'+max+'x on '+i.action+' slot '+i.slot;
     }).join('<br>');
     document.getElementById('gpioStatus').innerHTML=
@@ -337,7 +360,7 @@ baseUrl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseU
 document.getElementById('addMapping').onclick=()=>{
   const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin),RESERVED_PINS));
   const pin=Array.from({length:29},(_,i)=>i).find(p=>!used.has(p))??14;
-  mappings.push(normalize({pin,pull:'pullup',trigger:'falling',action:'dmx_clear',slot:0,debounce_ms:30}));
+  mappings.push(normalize({pin,pull:'pullup',trigger:'falling',action:'dmx_clear',slot:0,beat_div:1,debounce_ms:30}));
   render();
 };
 document.getElementById('addAdcMapping').onclick=()=>{
@@ -369,6 +392,14 @@ document.getElementById('mappingList').addEventListener('change',e=>{
   const card=e.target.closest('[data-adc-idx]');if(!card)return;
   const i=parseInt(card.dataset.adcIdx);const field=e.target.dataset.adcField;if(!field)return;
   adcMappings[i][field]=e.target.value;
+  if(field==='action'){
+    delete adcMappings[i].min_speed;
+    delete adcMappings[i].max_speed;
+    delete adcMappings[i].min_bpm;
+    delete adcMappings[i].max_bpm;
+    if(e.target.value==='motion_bpm'){adcMappings[i].min_x100=1000;adcMappings[i].max_x100=12000;}
+    else {adcMappings[i].min_x100=10;adcMappings[i].max_x100=300;}
+  }
   adcMappings[i]=normalizeAdc(adcMappings[i]);
   render();
 });
