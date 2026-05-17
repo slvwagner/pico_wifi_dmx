@@ -932,8 +932,10 @@ function drawSurface(){
     if(!p)return;
     const sel=selectedFixtureIds.has(f.id);
     const coll=collapsedFixtureIds.has(f.id);
+    const hasDefault=p.controls.some(c=>c.defaultValue!=null);
+    const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
     const card=document.createElement('article');card.className='card'+(sel?' selected':'');
-    card.innerHTML=`<div class="control-head"><div class="row"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="row" style="gap:6px"><button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button><button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    card.innerHTML=`<div class="control-head"><div class="row"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="row" style="gap:6px">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button><button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   updateGroupBar();
@@ -995,6 +997,23 @@ function updateControlDisplay(f,c){
   }
 }
 
+async function recallFixtureValues(fixtureId,which){
+  const f=fixtures.find(fx=>fx.id===fixtureId);
+  if(!f)return;
+  const p=fixtureProfile(f);
+  if(!p)return;
+  const errors=[];
+  for(const c of p.controls){
+    const v=c[which];
+    if(v===null||v===undefined)continue;
+    setValue(f,c,v);
+    try{await sendControl(f,c);}catch(err){errors.push(err.message);}
+    updateControlDisplay(f,c);
+  }
+  writeLiveValues();
+  if(errors.length)setStatus(errors.join(', '),true);
+  else setStatus(f.name+' '+(which==='defaultValue'?'default':'blackout')+' recalled');
+}
 function draw(){drawProfiles();drawPatched();drawSurface();}
 
 profilesEl.onclick=e=>{
@@ -1498,7 +1517,7 @@ function setGroupXY(e,pad){
   updateGroupControlDisplay(c);
   writeLiveValues();
 }
-// Capture-phase listener: intercepts Select + Collapse buttons before surfaceEl.onclick fires
+// Capture-phase listener: intercepts Select + Collapse + Recall buttons before surfaceEl.onclick fires
 surfaceEl.addEventListener('click',e=>{
   const col=e.target.closest('[data-collapse-fixture]');
   if(col){
@@ -1509,6 +1528,8 @@ surfaceEl.addEventListener('click',e=>{
     saveUiStateServer('fixtureCardCollapsed',[...collapsedFixtureIds]);
     drawSurface();return;
   }
+  const rec=e.target.closest('[data-recall-fixture]');
+  if(rec){e.stopPropagation();recallFixtureValues(parseInt(rec.dataset.recallFixture,10),rec.dataset.recallWhich);return;}
   const sel=e.target.closest('[data-select-fixture]');if(!sel)return;
   e.stopPropagation();
   const id=parseInt(sel.dataset.selectFixture,10);
