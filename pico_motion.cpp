@@ -1,5 +1,4 @@
 #include "pico_motion.h"
-#include "dmx_engine.h"
 #include "pico/sync.h"
 #include <string.h>
 #include <stdlib.h>
@@ -10,55 +9,55 @@
 #define MFX_PI 3.14159265358979f
 #endif
 
-/* ---------- state -------------------------------------------------------- */
+/* ---------- slot storage (each slot owns its own playback state) -------- */
 
-static critical_section_t mfx_lock;
-
-static struct {
+typedef struct {
     bool           loaded;
-    bool           active;
+    bool           active;        /* playing right now */
     mfx_type_t     type;
     float          bpm;
-    float          pan_amp;     /* 0.0–1.0 */
-    float          tilt_amp;    /* 0.0–1.0 */
-    float          spread_deg;  /* 0.0–360.0 */
-    uint32_t       start_us;    /* 0 = set on first tick */
+    float          pan_amp;       /* 0.0–1.0 */
+    float          tilt_amp;      /* 0.0–1.0 */
+    float          spread_deg;    /* 0.0–360.0 */
+    uint32_t       start_us;      /* 0 = set on first tick */
+    float          last_elapsed_s;
     uint16_t       fixture_count;
     mfx_fixture_t  fixtures[MFX_MAX_FIXTURES];
-    float          last_elapsed_s;
-} ms;
+} mfx_slot_data_t;
+
+static mfx_slot_data_t  slot_data[MFX_MAX_SLOTS];
+static critical_section_t mfx_lock;
+
+/* Scratch buffers for multi-slot bigger-wins accumulation (static = off stack) */
+typedef struct {
+    mfx_type_t    type;
+    float         bpm, pan_amp, tilt_amp, spread_deg, elapsed_s;
+    int           enabled_count;
+    uint16_t      fixture_count;
+    mfx_fixture_t fixtures[MFX_MAX_FIXTURES];
+} mfx_snap_t;
+
+static mfx_snap_t snaps[MFX_MAX_SLOTS]; /* snapshots taken under lock   */
 
 /* ---------- init --------------------------------------------------------- */
 
 void mfx_init(void)
 {
     critical_section_init(&mfx_lock);
-    memset(&ms, 0, sizeof(ms));
-    ms.bpm      = 30.0f;
-    ms.pan_amp  = 0.2f;
-    ms.tilt_amp = 0.15f;
+    memset(slot_data, 0, sizeof(slot_data));
+    /* sensible defaults for slot 0 */
+    slot_data[0].bpm      = 30.0f;
+    slot_data[0].pan_amp  = 0.2f;
+    slot_data[0].tilt_amp = 0.15f;
 }
 
-/* ---------- load (called from core1 / lwIP context) --------------------- */
-/*
- * Text protocol:
- *   TYPE 0          (0=circle 1=figure8 2=panSwing 3=tiltSwing)
- *   BPM 30.000
- *   PANAMP 0.200
- *   TILTAMP 0.150
- *   SPREAD 90.000
- *   FIX enabled pan_ch pan_fine_ch tilt_ch tilt_fine_ch is_16bit pan_center tilt_center phase_deg
- *   END
- */
-bool mfx_load(const char *body, size_t len)
+/* ---------- load --------------------------------------------------------- */
+
+bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
 {
-    struct {
-        bool          loaded;
-        mfx_type_t    type;
-        float         bpm, pan_amp, tilt_amp, spread_deg;
-        uint16_t      fixture_count;
-        mfx_fixture_t fixtures[MFX_MAX_FIXTURES];
-    } tmp;
+    if (slot >= MFX_MAX_SLOTS) return false;
+
+    mfx_slot_data_t tmp;
     memset(&tmp, 0, sizeof(tmp));
     tmp.bpm      = 30.0f;
     tmp.pan_amp  = 0.2f;
@@ -82,19 +81,14 @@ bool mfx_load(const char *body, size_t len)
 
         if (strncmp(line, "TYPE ", 5) == 0) {
             tmp.type = (mfx_type_t)atoi(line + 5);
-
         } else if (strncmp(line, "BPM ", 4) == 0) {
             tmp.bpm = strtof(line + 4, NULL);
-
         } else if (strncmp(line, "PANAMP ", 7) == 0) {
             tmp.pan_amp = strtof(line + 7, NULL);
-
         } else if (strncmp(line, "TILTAMP ", 8) == 0) {
             tmp.tilt_amp = strtof(line + 8, NULL);
-
         } else if (strncmp(line, "SPREAD ", 7) == 0) {
             tmp.spread_deg = strtof(line + 7, NULL);
-
         } else if (strncmp(line, "FIX ", 4) == 0 && tmp.fixture_count < MFX_MAX_FIXTURES) {
             mfx_fixture_t *f = &tmp.fixtures[tmp.fixture_count];
             int  enabled = 0, is_16bit = 0;
@@ -105,50 +99,44 @@ bool mfx_load(const char *body, size_t len)
                              &tilt_ch, &tilt_fine, &is_16bit,
                              &pan_c, &tilt_c, &phase);
             if (got == 9) {
-                f->enabled         = (enabled  != 0);
-                f->is_16bit        = (is_16bit != 0);
-                f->pan_ch          = (uint16_t)pan_ch;
-                f->pan_fine_ch     = (uint16_t)pan_fine;
-                f->tilt_ch         = (uint16_t)tilt_ch;
-                f->tilt_fine_ch    = (uint16_t)tilt_fine;
-                f->pan_center      = pan_c;
-                f->tilt_center     = tilt_c;
-                f->phase_offset_deg= phase;
-                f->max_val         = is_16bit ? 65535.0f : 255.0f;
+                f->enabled          = (enabled  != 0);
+                f->is_16bit         = (is_16bit != 0);
+                f->pan_ch           = (uint16_t)pan_ch;
+                f->pan_fine_ch      = (uint16_t)pan_fine;
+                f->tilt_ch          = (uint16_t)tilt_ch;
+                f->tilt_fine_ch     = (uint16_t)tilt_fine;
+                f->pan_center       = pan_c;
+                f->tilt_center      = tilt_c;
+                f->phase_offset_deg = phase;
+                f->max_val          = is_16bit ? 65535.0f : 255.0f;
                 tmp.fixture_count++;
             }
-
         } else if (strncmp(line, "END", 3) == 0) {
             break;
         }
     }
 
     if (tmp.fixture_count == 0) return false;
+    tmp.loaded = true;
 
     critical_section_enter_blocking(&mfx_lock);
-    ms.loaded        = true;
-    ms.active        = false;
-    ms.type          = tmp.type;
-    ms.bpm           = tmp.bpm;
-    ms.pan_amp       = tmp.pan_amp;
-    ms.tilt_amp      = tmp.tilt_amp;
-    ms.spread_deg    = tmp.spread_deg;
-    ms.fixture_count = tmp.fixture_count;
-    ms.start_us      = 0;
-    memcpy(ms.fixtures, tmp.fixtures, tmp.fixture_count * sizeof(mfx_fixture_t));
+    tmp.active   = false;   /* re-upload stops the slot */
+    tmp.start_us = 0;
+    memcpy(&slot_data[slot], &tmp, sizeof(mfx_slot_data_t));
     critical_section_exit(&mfx_lock);
 
     return true;
 }
 
-/* ---------- start / stop ------------------------------------------------- */
+/* ---------- start / stop / bpm ------------------------------------------ */
 
-void mfx_start(void)
+void mfx_start(uint8_t slot)
 {
+    if (slot >= MFX_MAX_SLOTS) return;
     critical_section_enter_blocking(&mfx_lock);
-    if (ms.loaded) {
-        ms.start_us = 0; /* set on first tick */
-        ms.active   = true;
+    if (slot_data[slot].loaded) {
+        slot_data[slot].start_us = 0; /* reset phase on each start */
+        slot_data[slot].active   = true;
     }
     critical_section_exit(&mfx_lock);
 }
@@ -156,7 +144,26 @@ void mfx_start(void)
 void mfx_stop(void)
 {
     critical_section_enter_blocking(&mfx_lock);
-    ms.active = false;
+    for (int i = 0; i < MFX_MAX_SLOTS; i++)
+        slot_data[i].active = false;
+    critical_section_exit(&mfx_lock);
+}
+
+void mfx_stop_slot(uint8_t slot)
+{
+    if (slot >= MFX_MAX_SLOTS) return;
+    critical_section_enter_blocking(&mfx_lock);
+    slot_data[slot].active = false;
+    critical_section_exit(&mfx_lock);
+}
+
+void mfx_set_bpm(uint8_t slot, float bpm)
+{
+    if (slot >= MFX_MAX_SLOTS) return;
+    if (bpm < 0.1f)  bpm = 0.1f;
+    if (bpm > 600.0f) bpm = 600.0f;
+    critical_section_enter_blocking(&mfx_lock);
+    slot_data[slot].bpm = bpm;
     critical_section_exit(&mfx_lock);
 }
 
@@ -165,79 +172,124 @@ void mfx_stop(void)
 static void effect_offset(float t, mfx_type_t type, float *pan_off, float *tilt_off)
 {
     switch (type) {
-        case MFX_CIRCLE:     *pan_off = cosf(t); *tilt_off = sinf(t);     break;
-        case MFX_FIGURE8:    *pan_off = sinf(t); *tilt_off = sinf(2.0f*t);break;
-        case MFX_PAN_SWING:  *pan_off = sinf(t); *tilt_off = 0.0f;        break;
-        case MFX_TILT_SWING: *pan_off = 0.0f;    *tilt_off = sinf(t);     break;
-        default:             *pan_off = 0.0f;    *tilt_off = 0.0f;        break;
+        case MFX_CIRCLE:     *pan_off = cosf(t); *tilt_off = sinf(t);      break;
+        case MFX_FIGURE8:    *pan_off = sinf(t); *tilt_off = sinf(2.0f*t); break;
+        case MFX_PAN_SWING:  *pan_off = sinf(t); *tilt_off = 0.0f;         break;
+        case MFX_TILT_SWING: *pan_off = 0.0f;    *tilt_off = sinf(t);      break;
+        default:             *pan_off = 0.0f;    *tilt_off = 0.0f;         break;
     }
 }
 
-void mfx_tick(uint32_t now_us)
+/* Write 8-bit value to scratch with bigger-wins. */
+static inline void scratch8(uint16_t ch, uint8_t v, uint8_t *scratch, bool *touched)
 {
-    critical_section_enter_blocking(&mfx_lock);
+    if (ch < 1 || ch > 512) return;
+    if (!touched[ch] || v > scratch[ch]) scratch[ch] = v;
+    touched[ch] = true;
+}
 
-    if (!ms.active || ms.fixture_count == 0) {
-        critical_section_exit(&mfx_lock);
-        return;
+/*
+ * Write a 16-bit value (coarse+fine channel pair) to scratch with bigger-wins.
+ * Comparison is done on the full 16-bit value to avoid byte-split carry artifacts.
+ * e.g. slot A=49920 (c=194,f=255) vs slot B=50001 (c=195,f=65):
+ *   byte-by-byte max would give 50175 (wrong); 16-bit max gives 50001 (correct).
+ */
+static inline void scratch16(uint16_t coarse_ch, uint16_t fine_ch, uint16_t v16,
+                             uint8_t *scratch, bool *touched)
+{
+    if (coarse_ch < 1 || coarse_ch > 512) return;
+    uint16_t cur = touched[coarse_ch]
+        ? (((uint16_t)scratch[coarse_ch] << 8) |
+           (fine_ch >= 1 && fine_ch <= 512 ? scratch[fine_ch] : 0u))
+        : 0u;
+    if (!touched[coarse_ch] || v16 > cur) {
+        scratch[coarse_ch] = (v16 >> 8) & 0xFF;
+        touched[coarse_ch] = true;
+        if (fine_ch >= 1 && fine_ch <= 512) {
+            scratch[fine_ch] = v16 & 0xFF;
+            touched[fine_ch] = true;
+        }
     }
+}
 
-    if (ms.start_us == 0) ms.start_us = now_us;
+void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
+{
+    /* ---- snapshot all active slots under lock ------------------------- */
+    critical_section_enter_blocking(&mfx_lock);
+    int active_count = 0;
+    for (int i = 0; i < MFX_MAX_SLOTS; i++) {
+        mfx_slot_data_t *sd = &slot_data[i];
+        if (!sd->active || !sd->loaded || sd->fixture_count == 0) continue;
+        if (sd->start_us == 0) sd->start_us = now_us;
+        float elapsed_s    = (float)((uint32_t)(now_us - sd->start_us)) / 1e6f;
+        sd->last_elapsed_s = elapsed_s;
 
-    float elapsed_s = (float)((uint32_t)(now_us - ms.start_us)) / 1e6f;
-    float angle     = elapsed_s * (ms.bpm / 60.0f) * (2.0f * MFX_PI);
-    float spread_rad= ms.spread_deg * MFX_PI / 180.0f;
-
-    /* count enabled fixtures for phase-spread calculation */
-    int enabled_count = 0;
-    for (int i = 0; i < ms.fixture_count; i++)
-        if (ms.fixtures[i].enabled) enabled_count++;
-
-    /* snapshot config */
-    mfx_fixture_t  snap[MFX_MAX_FIXTURES];
-    uint16_t       fcount = ms.fixture_count;
-    mfx_type_t     type   = ms.type;
-    float          pamp   = ms.pan_amp;
-    float          tamp   = ms.tilt_amp;
-    memcpy(snap, ms.fixtures, fcount * sizeof(mfx_fixture_t));
-
-    ms.last_elapsed_s = elapsed_s;
+        mfx_snap_t *sn = &snaps[active_count];
+        sn->type          = sd->type;
+        sn->bpm           = sd->bpm;
+        sn->pan_amp       = sd->pan_amp;
+        sn->tilt_amp      = sd->tilt_amp;
+        sn->spread_deg    = sd->spread_deg;
+        sn->elapsed_s     = elapsed_s;
+        sn->fixture_count = sd->fixture_count;
+        memcpy(sn->fixtures, sd->fixtures, sd->fixture_count * sizeof(mfx_fixture_t));
+        int ec = 0;
+        for (int j = 0; j < (int)sd->fixture_count; j++)
+            if (sd->fixtures[j].enabled) ec++;
+        sn->enabled_count = ec;
+        active_count++;
+    }
     critical_section_exit(&mfx_lock);
 
-    /* ---- compute + write outside the lock ------------------------------ */
-    int fi = 0;
-    for (int i = 0; i < (int)fcount; i++) {
-        mfx_fixture_t *f = &snap[i];
-        if (!f->enabled) continue;
+    if (active_count == 0) return;
 
-        float auto_phase = (enabled_count > 1)
-                           ? spread_rad * fi / (float)enabled_count
-                           : 0.0f;
-        float phase      = f->phase_offset_deg * MFX_PI / 180.0f + auto_phase;
-        float pan_off, tilt_off;
-        effect_offset(angle + phase, type, &pan_off, &tilt_off);
+    /* ---- compute every active slot, accumulate with bigger-wins ------- */
+    /* NOTE: caller owns scratch/touched and clears them before the first
+     * tick call this cycle — do NOT clear here. */
 
-        float half     = f->max_val / 2.0f;
-        float new_pan  = f->pan_center  + pan_off  * pamp * half;
-        float new_tilt = f->tilt_center + tilt_off * tamp * half;
-        if (new_pan  < 0.0f)         new_pan  = 0.0f;
-        if (new_pan  > f->max_val)   new_pan  = f->max_val;
-        if (new_tilt < 0.0f)         new_tilt = 0.0f;
-        if (new_tilt > f->max_val)   new_tilt = f->max_val;
+    for (int si = 0; si < active_count; si++) {
+        mfx_snap_t *sn   = &snaps[si];
+        float angle      = sn->elapsed_s * (sn->bpm / 60.0f) * (2.0f * MFX_PI);
+        float spread_rad = sn->spread_deg * MFX_PI / 180.0f;
 
-        if (f->is_16bit) {
-            uint16_t p16 = (uint16_t)new_pan;
-            uint16_t t16 = (uint16_t)new_tilt;
-            dmx_engine_set_channel(f->pan_ch,      (p16 >> 8) & 0xFF);
-            dmx_engine_set_channel(f->pan_fine_ch,  p16 & 0xFF);
-            dmx_engine_set_channel(f->tilt_ch,     (t16 >> 8) & 0xFF);
-            dmx_engine_set_channel(f->tilt_fine_ch, t16 & 0xFF);
-        } else {
-            dmx_engine_set_channel(f->pan_ch,  (uint8_t)new_pan);
-            dmx_engine_set_channel(f->tilt_ch, (uint8_t)new_tilt);
+        int fi = 0;
+        for (int i = 0; i < (int)sn->fixture_count; i++) {
+            mfx_fixture_t *f = &sn->fixtures[i];
+            if (!f->enabled) continue;
+
+            float auto_phase = (sn->enabled_count > 1)
+                               ? spread_rad * fi / (float)sn->enabled_count
+                               : 0.0f;
+            float phase = f->phase_offset_deg * MFX_PI / 180.0f + auto_phase;
+            float pan_off, tilt_off;
+            effect_offset(angle + phase, sn->type, &pan_off, &tilt_off);
+
+            /* Only write axes that this effect type actually animates.
+             * Writing a static center value for an idle axis would corrupt
+             * bigger-wins accumulation when another slot animates that axis. */
+            bool moves_pan  = (sn->type != MFX_TILT_SWING);
+            bool moves_tilt = (sn->type != MFX_PAN_SWING);
+
+            float half = f->max_val / 2.0f;
+
+            if (moves_pan) {
+                float new_pan = f->pan_center + pan_off * sn->pan_amp * half;
+                if (new_pan < 0.0f)       new_pan = 0.0f;
+                if (new_pan > f->max_val) new_pan = f->max_val;
+                if (f->is_16bit) scratch16(f->pan_ch,  f->pan_fine_ch,  (uint16_t)new_pan,  scratch, touched);
+                else              scratch8 (f->pan_ch,                   (uint8_t) new_pan,  scratch, touched);
+            }
+            if (moves_tilt) {
+                float new_tilt = f->tilt_center + tilt_off * sn->tilt_amp * half;
+                if (new_tilt < 0.0f)       new_tilt = 0.0f;
+                if (new_tilt > f->max_val) new_tilt = f->max_val;
+                if (f->is_16bit) scratch16(f->tilt_ch, f->tilt_fine_ch, (uint16_t)new_tilt, scratch, touched);
+                else              scratch8 (f->tilt_ch,                  (uint8_t) new_tilt, scratch, touched);
+            }
+            fi++;
         }
-        fi++;
     }
+    /* DMX writes are done by the caller after all ticks accumulate. */
 }
 
 /* ---------- status ------------------------------------------------------- */
@@ -245,10 +297,29 @@ void mfx_tick(uint32_t now_us)
 void mfx_get_status(mfx_status_t *out)
 {
     critical_section_enter_blocking(&mfx_lock);
-    out->active    = ms.active;
-    out->loaded    = ms.loaded;
-    out->type      = (int)ms.type;
-    out->bpm       = ms.bpm;
-    out->elapsed_s = ms.last_elapsed_s;
+    uint8_t amask = 0, lmask = 0;
+    float   elapsed = 0.0f;
+    for (int i = 0; i < MFX_MAX_SLOTS; i++) {
+        if (slot_data[i].active) amask |= (uint8_t)(1u << i);
+        if (slot_data[i].loaded) lmask |= (uint8_t)(1u << i);
+    }
+    for (int i = 0; i < MFX_MAX_SLOTS; i++) { /* elapsed of lowest active slot */
+        if (slot_data[i].active) { elapsed = slot_data[i].last_elapsed_s; break; }
+    }
+    out->active_mask = amask;
+    out->loaded_mask = lmask;
+    out->elapsed_s   = elapsed;
+    critical_section_exit(&mfx_lock);
+}
+
+void mfx_get_slot_info(uint8_t slot, mfx_slot_info_t *out)
+{
+    if (slot >= MFX_MAX_SLOTS) { memset(out, 0, sizeof(*out)); return; }
+    critical_section_enter_blocking(&mfx_lock);
+    out->loaded        = slot_data[slot].loaded;
+    out->active        = slot_data[slot].active;
+    out->type          = (int)slot_data[slot].type;
+    out->bpm           = slot_data[slot].bpm;
+    out->fixture_count = slot_data[slot].fixture_count;
     critical_section_exit(&mfx_lock);
 }

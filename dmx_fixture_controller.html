@@ -6,14 +6,16 @@
 <title>DMX Fixture Controller Prototype</title>
 <style>
 :root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
-main{max-width:1260px;margin:0 auto;padding:20px;display:grid;gap:16px}
+*{box-sizing:border-box}html{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif;height:100%;overflow:hidden}
+main{max-width:1260px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px;height:100%;overflow:hidden}
 header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
 .status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
 .panel,.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
 .toolbar,.buttons,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+#controlSurfacePanel{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:8px}
+#surface{flex:1;overflow-y:auto;min-height:0}
 label{display:grid;gap:6px;color:var(--muted);font-size:13px}
 input,button,select,textarea{font:inherit}
 input,select,textarea{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
@@ -33,6 +35,24 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 @media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
+.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
+#groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.card.selected{border-color:var(--accent)}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}.sel-btn.on{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+#sceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
+#sceneBoxHdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;touch-action:none;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
+#sceneBoxHdr:active{cursor:grabbing;touch-action:none}
+#sceneBox.collapsed #sceneBoxHdr{border-radius:10px;border-bottom:none}
+#sceneBox.collapsed #sceneBoxBody{display:none}
+#sceneBoxBody{padding:12px;display:grid;gap:10px}
+#slotMatrix{display:grid;gap:5px;overflow-x:auto}
+.slot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:pointer;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
+.slot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);position:relative}
+.slot-del{position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.6;cursor:pointer}
+.slot-del:hover{background:rgba(1,255,230,.18);border-color:#01ffe6;opacity:1}
+.slot.filled:hover{background:#1a3b32}
+.slot:not(.filled):hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -49,17 +69,21 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <button id="load">Load setup</button>
 <a href="dmx_motion.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">Motion FX →</a>
 <a href="dmx_chaser.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">Chaser →</a>
-<a href="dmx_benchmark.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">FPS Test</a>
+<a href="dmx_fan.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">Fan Out →</a>
 <button id="exportCsv">Export CSV</button>
-<button id="exportJson">Export JSON</button>
-<button id="importJson">Import JSON</button>
+<button id="exportJson" class="icon-btn" title="Export setup JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="importJson" class="icon-btn" title="Import setup JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 </header>
 
 <section class="columns">
 <div class="panel">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Fixture Profiles</h2>
+<button id="profilesCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+</div>
+<div id="profilesBody">
 <div class="toolbar">
 <label>Name<input id="profileName" type="text" value="Moving Head 16ch"></label>
 <label>Mode<input id="profileMode" type="text" value="16ch"></label>
@@ -69,9 +93,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </div>
 <div class="list" id="profiles"></div>
 </div>
+</div>
 
 <div class="panel">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Add Control To Selected Profile</h2>
+<button id="addControlCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+</div>
+<div id="addControlBody">
 <div class="toolbar">
 <label>Type
 <select id="controlType">
@@ -119,10 +148,15 @@ Blue=48</textarea>
 </div>
 <div class="small" id="controlHint"></div>
 </div>
+</div>
 </section>
 
-<section class="panel">
+<section class="panel" id="patchSection">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Patch Fixtures</h2>
+<button id="patchCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+</div>
+<div id="patchBody">
 <div class="toolbar">
 <label>Name<input id="fixtureName" type="text" value="Spot 1"></label>
 <label>Profile<select id="patchProfile"></select></label>
@@ -131,13 +165,58 @@ Blue=48</textarea>
 <button class="primary" id="patchFixture">Patch fixture</button>
 </div>
 <div class="list" id="patched"></div>
+</div>
 </section>
 
 <section class="panel">
+<h2>Saved Groups</h2>
+<div class="toolbar">
+<button id="exportGroupsJson" class="icon-btn" title="Export groups JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="importGroupsJson" class="icon-btn" title="Import groups JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<input id="importGroupsFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div id="savedGroupsList" class="list"><div class="small">No saved groups yet.</div></div>
+</section>
+
+<section class="panel" id="controlSurfacePanel">
 <h2>Control Surface</h2>
+<div id="groupBar" style="display:none"></div>
 <div class="surface" id="surface"></div>
 </section>
 </main>
+
+<div id="groupModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2 id="groupModalTitle">Group Edit</h2>
+<button id="closeGroupModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div id="groupModalBody" class="modal-body"></div>
+<div class="buttons" style="padding-top:4px">
+<button id="sendGroupBtn" class="primary">Send all to Pico</button>
+<button id="closeGroupModal2">Close</button>
+</div>
+</div>
+</div>
+
+<div id="sceneBox">
+<div id="sceneBoxHdr">
+<span style="font-weight:700;font-size:13px">Scenes</span>
+<button id="sceneBoxToggle" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">—</button>
+</div>
+<div id="sceneBoxBody">
+<div class="buttons">
+<button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="slotRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+</div>
+<div id="slotMatrix"></div>
+</div>
+</div>
 
 <script>
 const maxDmx=512;
@@ -147,6 +226,9 @@ let activeProfileId=0;
 let editingControlId=0;
 const values={};
 const baseUrl=document.getElementById('baseUrl');
+// Persist Pico base URL across all pages
+(()=>{ const v=localStorage.getItem('dmxPicoBaseUrl'); if(v) baseUrl.value=v; })();
+baseUrl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrl.value));
 const live=document.getElementById('live');
 const statusEl=document.getElementById('status');
 const profilesEl=document.getElementById('profiles');
@@ -186,6 +268,17 @@ function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
+let _writeLiveValuesTimer=null;
+function writeLiveValues(immediate=false){
+  const doWrite=()=>{
+    localStorage.setItem('dmxFCLiveValues',JSON.stringify(values));
+    if(location.protocol==='http:'||location.protocol==='https:')
+      fetch('fixture_setup.php?livevalues',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(values)}).catch(()=>{});
+  };
+  if(immediate){doWrite();return;}
+  clearTimeout(_writeLiveValuesTimer);
+  _writeLiveValuesTimer=setTimeout(doWrite,300);
+}
 function fixtureProfile(f){return profiles.find(p=>p.id===f.profileId);}
 function activeProfile(){return profiles.find(profile=>profile.id===activeProfileId);}
 function channelOk(f,rel,width=1){const ch=absolute(f.start,rel);return ch>=1&&(ch+width-1)<=maxDmx;}
@@ -530,9 +623,9 @@ function patchFixture(){
   draw();
 }
 
-function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures,values};}
+function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures};}
 function applyData(data){
-  baseUrl.value=data?.baseUrl||'';
+  baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
   if(data?.live!==undefined)live.checked=data.live;
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
@@ -658,10 +751,13 @@ function drawSurface(){
   fixtures.forEach(f=>{
     const p=fixtureProfile(f);
     if(!p)return;
-    const card=document.createElement('article');card.className='card';
-    card.innerHTML=`<div class="control-head"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>${p.controls.map(c=>renderControl(f,c)).join('')}`;
+    const sel=selectedFixtureIds.has(f.id);
+    const coll=collapsedFixtureIds.has(f.id);
+    const card=document.createElement('article');card.className='card'+(sel?' selected':'');
+    card.innerHTML=`<div class="control-head"><div class="row"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="row" style="gap:6px"><button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button><button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
+  updateGroupBar();
 }
 
 function updateControlDisplay(f,c){
@@ -791,6 +887,7 @@ surfaceEl.oninput=e=>{
   }else setValue(f,c,clamp(e.target.value,0,c.type==='slider16'?65535:255));
   if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
   updateControlDisplay(f,c);
+  writeLiveValues();
 };
 surfaceEl.onclick=e=>{
   const f=fixtures.find(x=>x.id===parseInt(e.target.dataset.fixture||e.target.dataset.sendFixture,10));
@@ -972,9 +1069,552 @@ document.getElementById('addWheelOption').onclick=()=>{
   text.value=(text.value.trim()?text.value.trim()+'\n':'')+name+'='+value+'|'+visual;
   setStatus('Wheel option added');
 };
+
+// ── Group-edit ────────────────────────────────────────────────────────
+let selectedFixtureIds=new Set();
+let collapsedFixtureIds=new Set(JSON.parse(localStorage.getItem('fixtureCardCollapsed')||'[]'));
+let groupValues={};
+function groupKey(c){return c.type+':'+c.label;}
+function defaultValueForControl(c){
+  if(c.type==='panTilt16')return{pan:32768,tilt:32768};
+  if(c.type==='panTilt8')return{pan:128,tilt:128};
+  if(c.type==='rgb')return{a:0,b:0,c:0};
+  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
+  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
+  if(c.type==='cmy')return{a:0,b:0,c:0};
+  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  return 0;
+}
+function findMatchingControl(f,key){
+  return(fixtureProfile(f)?.controls||[]).find(c=>groupKey(c)===key)||null;
+}
+function getGroupCommonControls(){
+  const fxList=[...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
+  if(fxList.length<2)return[];
+  const first=fixtureProfile(fxList[0])?.controls||[];
+  return first.filter(c=>fxList.every(f=>!!(fixtureProfile(f)?.controls||[]).find(cc=>groupKey(cc)===groupKey(c))));
+}
+function getGroupValue(c){
+  const key=groupKey(c);
+  if(groupValues[key]===undefined)groupValues[key]=defaultValueForControl(c);
+  return groupValues[key];
+}
+function setGroupValue(c,v){
+  groupValues[groupKey(c)]=v;
+  [...selectedFixtureIds].forEach(id=>{
+    const f=fixtures.find(fx=>fx.id===id);if(!f)return;
+    const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    setValue(f,fc,v);
+  });
+}
+async function sendGroupControl(c){
+  const root=endpoint();if(!root)throw new Error('Set Pico base URL first');
+  const pairs=[];
+  [...selectedFixtureIds].forEach(id=>{
+    const f=fixtures.find(fx=>fx.id===id);if(!f)return;
+    const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    resolveDmxBytes(f,fc).forEach(({ch,val})=>pairs.push(ch+':'+val));
+  });
+  if(!pairs.length)return;
+  await fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'});
+  setStatus('Group: sent '+pairs.length+' ch to '+selectedFixtureIds.size+' fixtures');
+}
+function updateGroupBar(){
+  const bar=document.getElementById('groupBar');
+  const n=selectedFixtureIds.size;
+  if(n<1){bar.style.display='none';return;}
+  bar.style.display='flex';
+  const common=getGroupCommonControls();
+  const note=n>1?(' · '+common.length+' common control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
+  bar.innerHTML=`<span><strong>${n} fixture${n>1?'s':''} selected</strong>${note}</span>${n>1&&common.length?`<button class="primary" id="openGroupEdit">Group Edit</button>`:''}<button id="saveGroupBtn">Save Group</button><button id="clearSelection">Deselect all</button>`;
+  if(n>1&&common.length)document.getElementById('openGroupEdit').onclick=openGroupModal;
+  document.getElementById('saveGroupBtn').onclick=saveCurrentGroup;
+  document.getElementById('clearSelection').onclick=()=>{selectedFixtureIds.clear();drawSurface();};
+}
+function renderGroupControl(c){
+  const key=groupKey(c);
+  const gca=`data-gc="${key}"`;
+  if(c.type==='panTilt16'){
+    const v=getGroupValue(c);const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 16-bit · all fixtures</span></div>
+      <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
+      <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
+      <label>Pan<input type="range" min="0" max="65535" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
+      <div class="byte-sliders">
+        <label>Pan coarse <span data-gc-byte="${key}" data-byte-part="panCoarse">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" ${gca} data-byte-axis="pan" data-byte-part="coarse"></label>
+        <label>Pan fine <span data-gc-byte="${key}" data-byte-part="panFine">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" ${gca} data-byte-axis="pan" data-byte-part="fine"></label>
+      </div>
+      <label>Tilt<input type="range" min="0" max="65535" step="1" value="${v.tilt}" ${gca} data-axis="tilt"></label>
+      <div class="byte-sliders">
+        <label>Tilt coarse <span data-gc-byte="${key}" data-byte-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
+        <label>Tilt fine <span data-gc-byte="${key}" data-byte-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
+      </div></div>`;
+  }
+  if(c.type==='panTilt8'){
+    const v=getGroupValue(c);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 8-bit · all fixtures</span></div>
+      <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
+      <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
+      <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
+      <label>Tilt<input type="range" min="0" max="255" step="1" value="${v.tilt}" ${gca} data-axis="tilt"></label></div>`;
+  }
+  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const v=getGroupValue(c);
+    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · all fixtures</span></div>
+      <label>Color picker<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
+      ${parts.map((part,i)=>`<label>${names[i]} <span data-gc-part="${key}" data-part="${part}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" ${gca} data-part="${part}"></label>`).join('')}
+      <div class="swatches"><button class="swatch" style="background:#fff" data-gc-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-gc-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-gc-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-gc-color="#0000ff" ${gca}></button></div></div>`;
+  }
+  if(c.type==='wheel'){
+    const v=getGroupValue(c);
+    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}</span></div>
+      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-gc-wheel="${o.value}" ${gca}>${icon(o)}${o.name}</button>`).join('')}</div>
+      <input type="range" min="0" max="255" value="${v}" ${gca}></div>`;
+  }
+  const max=c.type==='slider16'?65535:255;
+  const v=getGroupValue(c);const b=bytes16(v);
+  const extra=c.type==='slider16'?`<div class="byte-sliders">
+      <label>Coarse <span data-gc-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
+      <label>Fine <span data-gc-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
+    </div>`:'';
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-gc-readout="${key}">${v}</span><span class="bytes">${c.type} · all fixtures</span></div>
+    <input type="range" min="0" max="${max}" step="1" value="${v}" ${gca}>${extra}</div>`;
+}
+function updateGroupControlDisplay(c){
+  const key=groupKey(c);const v=getGroupValue(c);
+  if(c.type==='panTilt16'){
+    const pad=document.querySelector(`[data-gxy="${key}"]`);
+    const dot=pad?.querySelector('.xy-dot');
+    if(dot){dot.style.left=(v.pan/65535*100)+'%';dot.style.top=(100-v.tilt/65535*100)+'%';}
+    document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>el.textContent='Pan '+v.pan+' · Tilt '+v.tilt);
+    ['pan','tilt'].forEach(axis=>{
+      const b=bytes16(v[axis]);
+      document.querySelectorAll(`input[data-gc="${key}"][data-axis="${axis}"]`).forEach(el=>{if(el.value!=v[axis])el.value=v[axis];});
+      document.querySelectorAll(`input[data-gc="${key}"][data-byte-axis="${axis}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+      document.querySelectorAll(`input[data-gc="${key}"][data-byte-axis="${axis}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+      document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="${axis}Coarse"]`).forEach(el=>el.textContent=b.coarse);
+      document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="${axis}Fine"]`).forEach(el=>el.textContent=b.fine);
+    });return;
+  }
+  if(c.type==='panTilt8'){
+    const pad=document.querySelector(`[data-gxy="${key}"]`);
+    const dot=pad?.querySelector('.xy-dot');
+    if(dot){dot.style.left=(v.pan/255*100)+'%';dot.style.top=(100-v.tilt/255*100)+'%';}
+    document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>el.textContent='Pan '+v.pan+' · Tilt '+v.tilt);
+    ['pan','tilt'].forEach(axis=>document.querySelectorAll(`input[data-gc="${key}"][data-axis="${axis}"]`).forEach(el=>{if(el.value!=v[axis])el.value=v[axis];}));
+    return;
+  }
+  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(part=>{
+      document.querySelectorAll(`[data-gc-part="${key}"][data-part="${part}"]`).forEach(el=>el.textContent=v[part]);
+      document.querySelectorAll(`input[data-gc="${key}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=v[part];});
+    });
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    document.querySelectorAll(`input[data-gc="${key}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
+    return;
+  }
+  document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>el.textContent=c.type==='wheel'?'Wheel · '+v:v);
+  document.querySelectorAll(`input[data-gc="${key}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='slider16'){
+    const b=bytes16(v);
+    document.querySelectorAll(`input[data-gc="${key}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+    document.querySelectorAll(`input[data-gc="${key}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+    document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="coarse"]`).forEach(el=>el.textContent=b.coarse);
+    document.querySelectorAll(`[data-gc-byte="${key}"][data-byte-part="fine"]`).forEach(el=>el.textContent=b.fine);
+  }
+}
+function openGroupModal(){
+  const common=getGroupCommonControls();if(!common.length)return;
+  const firstFx=fixtures.find(f=>selectedFixtureIds.has(f.id));
+  if(firstFx)common.forEach(c=>{const key=groupKey(c);if(groupValues[key]===undefined)groupValues[key]=getValue(firstFx,c,defaultValueForControl(c));});
+  const n=selectedFixtureIds.size;
+  document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' · '+common.length+' common control'+(common.length===1?'':'s');
+  document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
+  document.getElementById('groupModal').style.display='flex';
+}
+function closeGroupModal(){document.getElementById('groupModal').style.display='none';drawSurface();}
+document.getElementById('closeGroupModal').onclick=closeGroupModal;
+document.getElementById('closeGroupModal2').onclick=closeGroupModal;
+document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
+document.getElementById('sendGroupBtn').onclick=()=>{
+  const common=getGroupCommonControls();
+  Promise.all(common.map(c=>sendGroupControl(c))).catch(err=>setStatus(err.message,true));
+};
+const groupModalBody=document.getElementById('groupModalBody');
+groupModalBody.oninput=e=>{
+  const key=e.target.dataset.gc;if(!key)return;
+  const common=getGroupCommonControls();
+  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  let v=getGroupValue(c);
+  if(e.target.dataset.colorPicker){
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.value);v={...v,a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')v=rgbToCmy(e.target.value);
+    else if(c.type==='cmyk')v=rgbToCmyk(e.target.value);
+  }else if(e.target.dataset.bytePart){
+    if(c.type==='panTilt16'){const axis=e.target.dataset.byteAxis;const b=bytes16(v[axis]);b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);v={...v,[axis]:(b.coarse<<8)|b.fine};}
+    else{const b=bytes16(typeof v==='number'?v:0);b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);v=(b.coarse<<8)|b.fine;}
+  }else if(e.target.dataset.axis){
+    const is8=c.type==='panTilt8';
+    v={...(typeof v==='object'?v:{pan:is8?128:32768,tilt:is8?128:32768}),[e.target.dataset.axis]:clamp(e.target.value,0,is8?255:65535)};
+  }else if(e.target.dataset.part){
+    v={...(typeof v==='object'?v:{a:0,b:0,c:0}),[e.target.dataset.part]:clamp(e.target.value,0,255)};
+  }else{
+    v=clamp(e.target.value,0,c.type==='slider16'?65535:255);
+  }
+  setGroupValue(c,v);
+  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  updateGroupControlDisplay(c);
+  writeLiveValues();
+};
+groupModalBody.addEventListener('click',e=>{
+  const key=e.target.dataset.gc;if(!key)return;
+  const common=getGroupCommonControls();
+  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  if(e.target.dataset.gcCenter){
+    const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
+    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+  }
+  if(e.target.dataset.gcColor!==undefined){
+    let v=getGroupValue(c);
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.gcColor);v={...(typeof v==='object'?v:{a:0,b:0,c:0}),a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.gcColor);
+    else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.gcColor);
+    setGroupValue(c,v);sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+  }
+  if(e.target.dataset.gcWheel!==undefined){
+    const v=clamp(e.target.dataset.gcWheel,0,255);
+    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+    document.querySelectorAll(`[data-gc="${key}"].tab`).forEach(btn=>btn.classList.toggle('active',parseInt(btn.dataset.gcWheel)===v));
+    updateGroupControlDisplay(c);return;
+  }
+});
+groupModalBody.addEventListener('pointerdown',e=>{
+  const pad=e.target.closest('[data-gxy]');if(!pad)return;
+  pad.setPointerCapture(e.pointerId);setGroupXY(e,pad);
+});
+groupModalBody.addEventListener('pointermove',e=>{
+  const pad=e.target.closest('[data-gxy]');if(!pad||!pad.hasPointerCapture(e.pointerId))return;
+  setGroupXY(e,pad);
+});
+function setGroupXY(e,pad){
+  const key=pad.dataset.gxy;
+  const common=getGroupCommonControls();
+  const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  const r=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+  const max=c.type==='panTilt8'?255:65535;
+  const v={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
+  setGroupValue(c,v);
+  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  updateGroupControlDisplay(c);
+  writeLiveValues();
+}
+// Capture-phase listener: intercepts Select + Collapse buttons before surfaceEl.onclick fires
+surfaceEl.addEventListener('click',e=>{
+  const col=e.target.closest('[data-collapse-fixture]');
+  if(col){
+    e.stopPropagation();
+    const id=parseInt(col.dataset.collapseFixture,10);
+    if(collapsedFixtureIds.has(id))collapsedFixtureIds.delete(id);else collapsedFixtureIds.add(id);
+    localStorage.setItem('fixtureCardCollapsed',JSON.stringify([...collapsedFixtureIds]));
+    saveUiStateServer('fixtureCardCollapsed',[...collapsedFixtureIds]);
+    drawSurface();return;
+  }
+  const sel=e.target.closest('[data-select-fixture]');if(!sel)return;
+  e.stopPropagation();
+  const id=parseInt(sel.dataset.selectFixture,10);
+  if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
+  drawSurface();
+},true);
+// ── End group-edit ────────────────────────────────────────────────────
+
+// ── Saved Groups ─────────────────────────────────────────────────────
+let savedGroups=[];
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function loadSavedGroups(){
+  fetch('group_setup.php').then(r=>r.json()).then(d=>{
+    savedGroups=d.groups||[];renderSavedGroupsList();
+  }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
+}
+function saveSavedGroupsToServer(){
+  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({groups:savedGroups})})
+    .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
+    .catch(e=>setStatus('Groups save error: '+e.message));
+}
+function renderSavedGroupsList(){
+  const el=document.getElementById('savedGroupsList');if(!el)return;
+  if(!savedGroups.length){el.innerHTML='<div class="small">No saved groups yet. Select fixtures and click "Save Group".</div>';return;}
+  el.innerHTML=savedGroups.map((g,i)=>`<div class="item">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(g.name)}</strong><span class="small">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
+    <div class="buttons"><button onclick="loadGroup(${i})">Load</button><button class="warn" onclick="deleteGroup(${i})">Delete</button></div>
+  </div>`).join('');
+}
+function saveCurrentGroup(){
+  const name=(prompt('Group name:','Group '+(savedGroups.length+1))||'').trim();
+  if(!name)return;
+  savedGroups.push({id:'grp_'+Date.now(),name,fixtureIds:[...selectedFixtureIds],values:{...groupValues}});
+  renderSavedGroupsList();saveSavedGroupsToServer();
+}
+function loadGroup(i){
+  const g=savedGroups[i];if(!g)return;
+  selectedFixtureIds=new Set(g.fixtureIds.filter(id=>fixtures.some(f=>f.id===id)));
+  groupValues={...(g.values||{})};
+  drawSurface();setStatus('Loaded group: '+g.name+' ('+selectedFixtureIds.size+' of '+g.fixtureIds.length+' fixtures found)');
+}
+function deleteGroup(i){
+  if(!confirm('Delete group "'+savedGroups[i]?.name+'"?'))return;
+  savedGroups.splice(i,1);renderSavedGroupsList();saveSavedGroupsToServer();
+}
+function exportGroupsJson(){
+  const blob=new Blob([JSON.stringify({groups:savedGroups},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_groups.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importGroupsJson(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
+      savedGroups=data.groups;renderSavedGroupsList();saveSavedGroupsToServer();
+      setStatus('Imported '+savedGroups.length+' group(s)');
+    }catch(err){setStatus('Import failed: '+err.message);}
+  };
+  fr.readAsText(file);
+}
+document.getElementById('exportGroupsJson').onclick=exportGroupsJson;
+document.getElementById('importGroupsJson').onclick=()=>document.getElementById('importGroupsFile').click();
+document.getElementById('importGroupsFile').onchange=e=>{if(e.target.files[0])importGroupsJson(e.target.files[0]);e.target.value='';};
+// ── End saved-groups ──────────────────────────────────────────────────
+
 updateControlChannelInputs(true);
 clearGobo();
-loadSetup().then(ok=>{if(!ok)addDefaultProfile();}).catch(()=>addDefaultProfile());
+loadSetup().then(ok=>{
+  if(!ok){addDefaultProfile();return;}
+  // Auto-collapse setup panels on first load when a saved setup exists
+  [
+    ['patchCollapseBtn','patchBody','patchCollapsed'],
+    ['profilesCollapseBtn','profilesBody','profilesCollapsed'],
+    ['addControlCollapseBtn','addControlBody','addControlCollapsed'],
+  ].forEach(([btnId,bodyId,key])=>{
+    if(localStorage.getItem(key)!==null)return; // user preference already set
+    localStorage.setItem(key,'1');
+    const body=document.getElementById(bodyId),btn=document.getElementById(btnId);
+    if(body)body.style.display='none';
+    if(btn)btn.textContent='+';
+  });
+}).catch(()=>addDefaultProfile());
+loadSavedGroups();
+
+// ── Scene Toolbox ─────────────────────────────────────────────────────
+let scenes=[];
+let slotCols=4,slotRows=4;
+(()=>{
+  const sc=localStorage.getItem('sceneSlotCols'),sr=localStorage.getItem('sceneSlotRows');
+  if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}
+  if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}
+})();
+document.getElementById('slotCols').addEventListener('input',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotRows').addEventListener('input',e=>{slotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+function renderSlotMatrix(){
+  const grid=document.getElementById('slotMatrix');
+  const total=slotCols*slotRows;
+  grid.style.gridTemplateColumns='repeat('+slotCols+',54px)';
+  let html='';
+  for(let i=0;i<total;i++){
+    const s=scenes.find(sc=>sc.slot===i);
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button>${escHtml(s.name)}</div>`;
+    else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.slot').forEach(el=>{
+    const idx=parseInt(el.dataset.slot);
+    el.addEventListener('click',()=>slotClick(idx));
+    el.addEventListener('dblclick',()=>slotDblClick(idx));
+  });
+  grid.querySelectorAll('.slot-del').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const idx=parseInt(btn.dataset.delSlot);
+      const s=scenes.find(sc=>sc.slot===idx);if(!s)return;
+      if(!confirm('Delete scene "'+s.name+'"?'))return;
+      scenes.splice(scenes.indexOf(s),1);
+      renderSlotMatrix();saveScenesServer();
+    });
+  });
+}
+function slotClick(idx){
+  const s=scenes.find(sc=>sc.slot===idx);
+  if(s){recallScene(s);return;}
+  const name=(prompt('Scene name:','Scene '+(idx+1))||'').trim();
+  if(!name)return;
+  saveSceneToSlot(idx,name);
+}
+function slotDblClick(idx){
+  const s=scenes.find(sc=>sc.slot===idx);if(!s)return;
+  if(!confirm('Clear slot "'+s.name+'"?'))return;
+  scenes.splice(scenes.indexOf(s),1);
+  renderSlotMatrix();saveScenesServer();
+}
+function saveSceneToSlot(idx,name){
+  const ei=scenes.findIndex(sc=>sc.slot===idx);
+  if(ei>=0)scenes.splice(ei,1);
+  scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:JSON.parse(JSON.stringify(values))});
+  renderSlotMatrix();saveScenesServer();
+  setStatus('Scene "'+name+'" saved to slot '+(idx+1));
+}
+function recallScene(s){
+  Object.assign(values,s.values);
+  drawSurface();
+  writeLiveValues(true);
+  if(live.checked){
+    const root=endpoint();
+    if(root){
+      const pairs=[];
+      fixtures.forEach(f=>{const p=fixtureProfile(f);if(!p)return;p.controls.forEach(c=>resolveDmxBytes(f,c).forEach(({ch,val})=>pairs.push(ch+':'+val)));});
+      if(pairs.length)fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'}).catch(err=>setStatus(err.message,true));
+    }
+  }
+  setStatus('Recalled scene: "'+s.name+'"');
+}
+function saveScenesServer(){
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Scenes save error: '+e.message,true));
+}
+function loadScenesServer(){
+  fetch('scene_setup.php').then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){
+      scenes=d.scenes||[];
+      if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('sceneSlotCols',slotCols);}
+      if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('sceneSlotRows',slotRows);}
+    }else{scenes=[];}
+    renderSlotMatrix();
+  }).catch(()=>{scenes=[];renderSlotMatrix();});
+}
+function exportScenesJson(){
+  const blob=new Blob([JSON.stringify({scenes,slotCols,slotRows},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importScenesJson(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.scenes))throw new Error('Expected {scenes:[...]}');
+      scenes=data.scenes;
+      if(data.slotCols){slotCols=data.slotCols;document.getElementById('slotCols').value=slotCols;}
+      if(data.slotRows){slotRows=data.slotRows;document.getElementById('slotRows').value=slotRows;}
+      renderSlotMatrix();saveScenesServer();
+      setStatus('Imported '+scenes.length+' scene(s)');
+    }catch(err){setStatus('Import failed: '+err.message,true);}
+  };
+  fr.readAsText(file);
+}
+document.getElementById('exportScenesBtn').onclick=exportScenesJson;
+document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
+document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
+const sceneBox=document.getElementById('sceneBox');
+const sceneBoxHdr=document.getElementById('sceneBoxHdr');
+let _dragOff={x:0,y:0};
+sceneBoxHdr.addEventListener('pointerdown',e=>{
+  if(e.target.closest('button'))return;
+  sceneBoxHdr.setPointerCapture(e.pointerId);
+  const r=sceneBox.getBoundingClientRect();
+  _dragOff={x:e.clientX-r.left,y:e.clientY-r.top};
+  sceneBoxHdr.style.cursor='grabbing';
+});
+sceneBoxHdr.addEventListener('pointermove',e=>{
+  if(!sceneBoxHdr.hasPointerCapture(e.pointerId))return;
+  let x=e.clientX-_dragOff.x,y=e.clientY-_dragOff.y;
+  x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,x));
+  y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,y));
+  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
+  localStorage.setItem('sceneBoxPos',JSON.stringify({x,y}));
+});
+sceneBoxHdr.addEventListener('pointerup',()=>{sceneBoxHdr.style.cursor='grab';saveUiStateServer('sceneBoxPos',{x:parseInt(sceneBox.style.left)||0,y:parseInt(sceneBox.style.top)||0});});
+const _sbPos=JSON.parse(localStorage.getItem('sceneBoxPos')||'null');
+if(_sbPos){sceneBox.style.left=_sbPos.x+'px';sceneBox.style.top=_sbPos.y+'px';sceneBox.style.right='auto';}
+function clampSceneBox(){
+  const x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,parseInt(sceneBox.style.left)||0));
+  const y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,parseInt(sceneBox.style.top)||0));
+  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
+}
+window.addEventListener('resize',clampSceneBox);
+document.getElementById('sceneBoxToggle').onclick=()=>{
+  const c=sceneBox.classList.toggle('collapsed');
+  document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
+  localStorage.setItem('sceneBoxCollapsed',c?'1':'');
+  saveUiStateServer('sceneBoxCollapsed',c);
+};
+if(localStorage.getItem('sceneBoxCollapsed')==='1'){sceneBox.classList.add('collapsed');document.getElementById('sceneBoxToggle').textContent='+';}
+loadScenesServer();
+// ── End scene toolbox ─────────────────────────────────────────────────
+
+// ── Collapsible sections ──────────────────────────────────────────────
+[
+  ['patchCollapseBtn',      'patchBody',       'patchCollapsed'],
+  ['profilesCollapseBtn',   'profilesBody',    'profilesCollapsed'],
+  ['addControlCollapseBtn', 'addControlBody',  'addControlCollapsed'],
+].forEach(([btnId, bodyId, storageKey])=>{
+  const btn=document.getElementById(btnId);
+  const body=document.getElementById(bodyId);
+  if(!btn||!body)return;
+  if(localStorage.getItem(storageKey)==='1'){body.style.display='none';btn.textContent='+';}
+  btn.addEventListener('click',()=>{
+    const hide=body.style.display!=='none';
+    body.style.display=hide?'none':'';
+    btn.textContent=hide?'+':'\u2212';
+    localStorage.setItem(storageKey,hide?'1':'');
+    saveUiStateServer(storageKey,hide);
+  });
+});
+// ── UI State server sync ──────────────────────────────────────────────
+function saveUiStateServer(key,val){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({page:'fixture',state:{[key]:val}})}).catch(()=>{});
+}
+(async()=>{
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  try{
+    const r=await fetch('ui_state.php',{cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok||!j.exists)return;
+    const st=j.state.fixture||{};
+    if(st.sceneBoxCollapsed!==undefined){
+      const c=!!st.sceneBoxCollapsed;
+      localStorage.setItem('sceneBoxCollapsed',c?'1':'');
+      sceneBox.classList.toggle('collapsed',c);
+      document.getElementById('sceneBoxToggle').textContent=c?'+':'\u2014';
+    }
+    if(st.sceneBoxPos){
+      localStorage.setItem('sceneBoxPos',JSON.stringify(st.sceneBoxPos));
+      sceneBox.style.left=st.sceneBoxPos.x+'px';sceneBox.style.top=st.sceneBoxPos.y+'px';sceneBox.style.right='auto';
+      clampSceneBox();
+    }
+    [['patchCollapsed','patchBody','patchCollapseBtn'],
+     ['profilesCollapsed','profilesBody','profilesCollapseBtn'],
+     ['addControlCollapsed','addControlBody','addControlCollapseBtn']].forEach(([key,bodyId,btnId])=>{
+      if(st[key]===undefined)return;
+      const c=!!st[key];
+      localStorage.setItem(key,c?'1':'');
+      const body=document.getElementById(bodyId),btn=document.getElementById(btnId);
+      if(body)body.style.display=c?'none':'';
+      if(btn)btn.textContent=c?'+':'\u2212';
+    });
+    if(Array.isArray(st.fixtureCardCollapsed)){
+      localStorage.setItem('fixtureCardCollapsed',JSON.stringify(st.fixtureCardCollapsed));
+      collapsedFixtureIds=new Set(st.fixtureCardCollapsed);
+      drawSurface();
+    }
+  }catch(_){}
+})();
 </script>
 </body>
 </html>

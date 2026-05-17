@@ -51,6 +51,15 @@ a.nav:hover{color:var(--text)}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}}
+.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
+.card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card.collapsed .control{display:none}
+.ctrl-summary{display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:2px}
+.card.collapsed .ctrl-summary{display:flex}
+.item.collapsed label{display:none}
+.item.collapsed .ctrl-summary{display:flex}
+.ctrl-chip{font-size:12px;color:var(--muted);background:#22303a;border:1px solid var(--line);border-radius:4px;padding:3px 8px;white-space:nowrap}
+.collapse-btn{padding:4px 10px;font-size:15px;line-height:1;min-width:28px;align-self:start;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -65,7 +74,7 @@ a.nav:hover{color:var(--text)}
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
     <a class="nav" href="index.html">← Fixture Controller</a>
     <a class="nav" href="dmx_motion.html">Motion FX</a>
-    <a class="nav" href="dmx_benchmark.html">FPS Test</a>
+    <a class="nav" href="dmx_fan.html">Fan Out →</a>
   </div>
 </header>
 
@@ -110,6 +119,11 @@ a.nav:hover{color:var(--text)}
       <div class="buttons">
         <button id="btnSelAll" style="padding:6px 10px;font-size:12px">All</button>
         <button id="btnSelNone" style="padding:6px 10px;font-size:12px">None</button>
+        <button id="btnSavePart" style="padding:6px 10px;font-size:12px">Save</button>
+        <button id="btnLoadPart" style="padding:6px 10px;font-size:12px">Load</button>
+        <button id="btnExportPart" class="icon-btn" title="Export participating JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+        <button id="btnImportPart" class="icon-btn" title="Import participating JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+        <input id="importPartFile" type="file" accept=".json,application/json" style="display:none">
       </div>
     </div>
     <div class="list" id="participationList"></div>
@@ -129,8 +143,8 @@ a.nav:hover{color:var(--text)}
     <div class="row" style="flex-wrap:wrap">
       <button id="btnSave">Save chaser</button>
       <button id="btnLoad">Load chaser</button>
-      <button id="btnExport">Export JSON</button>
-      <button id="btnImport">Import JSON</button>
+      <button id="btnExport" class="icon-btn" title="Export chaser JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+      <button id="btnImport" class="icon-btn" title="Import chaser JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
       <input id="importFile" type="file" accept=".json,application/json" style="display:none">
     </div>
   </div>
@@ -157,15 +171,39 @@ a.nav:hover{color:var(--text)}
 
 <!-- Pico realtime playback -->
 <section class="panel" id="picoPanel" style="border-color:rgba(55,196,164,.35)">
-  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
     <span class="mode-badge mode-badge--pico">&#x2699; Pico Playback</span>
-    <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play on Pico</button>
-    <button class="stop" id="btnPicoStop">&#x25A0; Stop Pico</button>
-    <span style="display:flex;align-items:center;gap:6px;min-width:0">
-      <span id="picoStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
-      <span id="picoStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
-    </span>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      Slot
+      <select id="picoSlot" style="background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font:inherit">
+        <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+        <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      Speed
+      <input id="picoSpeed" type="number" min="0.1" max="10" step="0.1" value="1.0"
+             style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">x
+    </label>
+    <button class="primary" id="btnPicoUploadPlay">&#x2B06; Upload &amp; Play</button>
+    <button id="btnPicoPlaySlot">&#x25B6; Play Slot</button>
+    <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
+    <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
+    <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
+    <button id="btnPicoRestoreAll">&#x21BA; Restore All Slots</button>
   </div>
+  <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:4px">
+    <span style="font-size:12px;color:var(--muted);align-self:center">Saved slots:</span>
+    <button id="btnExportSlots">&#x2193; Export Slots</button>
+    <button id="btnImportSlots">&#x2191; Import Slots</button>
+    <input id="importSlotsFile" type="file" accept=".json,application/json" style="display:none">
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;min-width:0">
+    <span id="picoStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+    <span id="picoStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
+  </div>
+  <!-- Slot status strip -->
+  <div id="chaserSlotStrip" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px"></div>
 </section>
 
 </main>
@@ -193,6 +231,9 @@ function interpolateValue(from,to,t){
 
 // ---- DMX send ----
 const baseUrlEl=document.getElementById('baseUrl');
+// Persist Pico base URL across all pages
+(()=>{ const v=localStorage.getItem('dmxPicoBaseUrl'); if(v) baseUrlEl.value=v; })();
+baseUrlEl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrlEl.value));
 function sendChannel(ch,value){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
@@ -211,9 +252,7 @@ function sendBatch(map){
     return acc;
   },[]).join(',');
   if(!pairs)return;
-  const url=root+'/dmx/b/'+pairs;
-  if(root!==location.origin){new Image().src=url;return;}
-  fetch(url,{cache:'no-store'}).catch(()=>{});
+  fetch(root+'/dmx/b',{method:'POST',body:pairs,cache:'no-store'}).catch(()=>{});
 }
 function collectChannels(f,c,val,map){
   val=val??defaultValue(c);
@@ -280,12 +319,12 @@ async function loadSetup(){
     if(location.protocol==='http:'||location.protocol==='https:'){
       const r=await fetch('fixture_setup.php',{cache:'no-store'});
       const j=await r.json();
-      if(r.ok&&j.ok&&j.exists){setup=j.setup;baseUrlEl.value=setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded from server');return;}
+      if(r.ok&&j.ok&&j.exists){setup=j.setup;baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded from server');return;}
     }
   }catch(_){}
   try{
     const raw=localStorage.getItem('dmxFixtureController');
-    if(raw){setup=JSON.parse(raw);baseUrlEl.value=setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded (browser cache)');return;}
+    if(raw){setup=JSON.parse(raw);baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded (browser cache)');return;}
   }catch(_){}
   setStatus('No setup found — open Fixture Controller first',true);
 }
@@ -315,8 +354,13 @@ function drawParticipation(){
   el.innerHTML='';
   (setup.fixtures||[]).forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
-    const item=document.createElement('div');item.className='item';
-    item.innerHTML=`<div class="small" style="font-weight:700;color:var(--text)">${f.name} <span style="font-weight:400;color:var(--muted)">${p.name} · start ch ${f.start}</span></div>`;
+    const isCollapsed=collapsedPartFixtures.has(f.id);
+    const item=document.createElement('div');item.className='item'+(isCollapsed?' collapsed':'');item.dataset.fixId=f.id;
+    const checkedChips=p.controls.filter(c=>participating[controlKey(f,c)]).map(c=>`<span class="ctrl-chip">${c.label}</span>`).join('')||`<span class="ctrl-chip" style="color:var(--bad)">none</span>`;
+    item.innerHTML=
+      `<div class="card-hdr"><div class="small" style="font-weight:700;color:var(--text)">${f.name} <span style="font-weight:400;color:var(--muted)">${p.name} · start ch ${f.start}</span></div>`+
+      `<button class="collapse-btn" data-part-collapse="${f.id}">${isCollapsed?'+':'−'}</button></div>`+
+      `<div class="ctrl-summary">${checkedChips}</div>`;
     p.controls.forEach(c=>{
       const k=controlKey(f,c);
       const lbl=document.createElement('label');
@@ -327,13 +371,39 @@ function drawParticipation(){
     el.appendChild(item);
   });
   el.oninput=e=>{
-    if(e.target.dataset.key){participating[e.target.dataset.key]=e.target.checked;drawStepEditor();}
+    if(e.target.dataset.key){
+      participating[e.target.dataset.key]=e.target.checked;
+      drawStepEditor();
+      const item=e.target.closest('.item');
+      if(item){
+        const fid=parseInt(item.dataset.fixId);
+        const f=(setup.fixtures||[]).find(x=>x.id===fid);
+        const p=f&&fixtureProfile(f);
+        if(p){
+          const chips=p.controls.filter(c=>participating[controlKey(f,c)]).map(c=>`<span class="ctrl-chip">${c.label}</span>`).join('')||`<span class="ctrl-chip" style="color:var(--bad)">none</span>`;
+          item.querySelector('.ctrl-summary').innerHTML=chips;
+        }
+      }
+    }
+  };
+  el.onclick=e=>{
+    const colBtn=e.target.closest('[data-part-collapse]');
+    if(colBtn){
+      const fid=parseInt(colBtn.dataset.partCollapse);
+      const item=colBtn.closest('.item');
+      const nowCollapsed=item.classList.toggle('collapsed');
+      colBtn.textContent=nowCollapsed?'+':'−';
+      if(nowCollapsed)collapsedPartFixtures.add(fid);else collapsedPartFixtures.delete(fid);
+      localStorage.setItem('chaserPartCollapsedFix',JSON.stringify([...collapsedPartFixtures]));
+    }
   };
 }
 
 // ---- steps ----
 let steps=[];
 let selectedStepIdx=-1;
+let collapsedFixtures=new Set(JSON.parse(localStorage.getItem('chaserCollapsedFix')||'[]'));
+let collapsedPartFixtures=new Set(JSON.parse(localStorage.getItem('chaserPartCollapsedFix')||'[]'));
 
 function calcDefaultDuration(){
   const bpm=parseFloat(document.getElementById('bpmInput').value)||120;
@@ -376,12 +446,22 @@ function moveStep(idx,dir){
   drawStepList();
 }
 
-function captureFromFC(stepIdx){
+async function captureFromFC(stepIdx){
   const step=steps[stepIdx];if(!step)return;
   try{
-    const raw=localStorage.getItem('dmxFixtureController');
-    const data=raw?JSON.parse(raw):{};
-    const vals=data.values||{};
+    let vals=null;
+    if(location.protocol==='http:'||location.protocol==='https:'){
+      try{
+        const r=await fetch('fixture_setup.php?livevalues',{cache:'no-store'});
+        const j=await r.json();
+        if(j.ok&&j.exists&&j.values)vals=j.values;
+      }catch(_){}
+    }
+    if(!vals){
+      const raw=localStorage.getItem('dmxFCLiveValues');
+      if(raw)vals=JSON.parse(raw);
+    }
+    if(!vals){setStatus('No live values from FC — open Fixture Controller and recall a scene or adjust a control first',true);return;}
     getParticipatingList().forEach(({f,c})=>{const k=controlKey(f,c);if(vals[k]!==undefined)step.values[k]=vals[k];});
     if(stepIdx===selectedStepIdx)drawStepEditor();
     setStatus('FC values captured into step '+(stepIdx+1));
@@ -449,8 +529,14 @@ function drawStepEditor(){
   ptList.forEach(({f,c})=>{if(!byFixture.has(f.id))byFixture.set(f.id,{f,controls:[]});byFixture.get(f.id).controls.push(c);});
   byFixture.forEach(({f,controls})=>{
     const p=fixtureProfile(f);if(!p)return;
-    const card=document.createElement('article');card.className='card';
-    card.innerHTML=`<div class="control-head"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>${controls.map(c=>renderStepControl(f,c)).join('')}`;
+    const isCollapsed=collapsedFixtures.has(f.id);
+    const card=document.createElement('article');card.className='card'+(isCollapsed?' collapsed':'');
+    const summary=controls.map(c=>controlSummaryHtml(f,c)).join('');
+    card.innerHTML=
+      `<div class="card-hdr"><div><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>`+
+      `<button class="collapse-btn" data-collapse-fix="${f.id}">${isCollapsed?'+':'−'}</button></div>`+
+      `<div class="ctrl-summary">${summary}</div>`+
+      controls.map(c=>renderStepControl(f,c)).join('');
     surface.appendChild(card);
   });
   // attach XY pad pointer events
@@ -459,7 +545,19 @@ function drawStepEditor(){
     pad.addEventListener('pointermove',e=>{if(pad.hasPointerCapture(e.pointerId))handleXY(e,pad);});
   });
   surface.oninput=handleStepInput;
-  surface.onclick=handleStepClick;
+  surface.onclick=e=>{
+    const colBtn=e.target.closest('[data-collapse-fix]');
+    if(colBtn){
+      const fid=parseInt(colBtn.dataset.collapseFix);
+      const card=colBtn.closest('.card');
+      const nowCollapsed=card.classList.toggle('collapsed');
+      colBtn.textContent=nowCollapsed?'+':'−';
+      if(nowCollapsed)collapsedFixtures.add(fid);else collapsedFixtures.delete(fid);
+      localStorage.setItem('chaserCollapsedFix',JSON.stringify([...collapsedFixtures]));
+      return;
+    }
+    handleStepClick(e);
+  };
 }
 
 function handleXY(e,pad){
@@ -568,6 +666,18 @@ function updateStepDisplay(f,c){
     document.querySelectorAll(`[data-fi="${fi}"][data-ci="${ci}"][data-bro="coarse"]`).forEach(el=>el.textContent=b.coarse);
     document.querySelectorAll(`[data-fi="${fi}"][data-ci="${ci}"][data-bro="fine"]`).forEach(el=>el.textContent=b.fine);
   }
+}
+
+function controlSummaryHtml(f,c){
+  const v=getStepVal(f,c)??defaultValue(c);
+  if(c.type==='panTilt16'||c.type==='panTilt8')
+    return `<span class="ctrl-chip">${c.label}: ${Math.round(v.pan??0)} / ${Math.round(v.tilt??0)}</span>`;
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const col=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    return `<span class="ctrl-chip">${c.label} <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${col};vertical-align:middle;border:1px solid var(--line)"></span></span>`;
+  }
+  if(c.type==='wheel'){const wv=v??0;const opt=(c.options||[]).find(o=>o.value===wv);return `<span class="ctrl-chip">${c.label}: ${opt?opt.name:wv}</span>`;}
+  return `<span class="ctrl-chip">${c.label}: ${v??0}</span>`;
 }
 
 function renderStepControl(f,c){
@@ -757,18 +867,65 @@ document.getElementById('btnTap').onclick=()=>{
 };
 
 // ---- save / load chaser ----
-function chaserData(){return{steps,participating};}
+function chaserData(){return{steps};}
 function applyChaserData(data){
   if(Array.isArray(data?.steps))steps=data.steps;
-  if(data?.participating)Object.assign(participating,data.participating);
   selectedStepIdx=steps.length?0:-1;
   drawParticipation();drawStepList();drawStepEditor();
 }
-document.getElementById('btnSave').onclick=()=>{localStorage.setItem('dmxChaser',JSON.stringify(chaserData()));setStatus('Chaser saved');};
-document.getElementById('btnLoad').onclick=()=>{
-  const raw=localStorage.getItem('dmxChaser');
-  if(raw){applyChaserData(JSON.parse(raw));setStatus('Chaser loaded');}
-  else setStatus('No saved chaser found',true);
+function applyParticipatingData(data){
+  if(data&&typeof data==='object')Object.assign(participating,data);
+  drawParticipation();drawStepEditor();
+}
+async function saveChaserToServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
+  try{
+    const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserData())});
+    const j=await r.json();
+    if(j.ok)setStatus('Chaser steps saved to server');
+    else setStatus('Save failed: '+j.error,true);
+  }catch(err){setStatus('Save failed: '+err.message,true);}
+}
+async function saveParticipatingToServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
+  try{
+    const r=await fetch('chaser_setup.php?participating',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(participating)});
+    const j=await r.json();
+    if(j.ok)setStatus('Participating controls saved');
+    else setStatus('Save failed: '+j.error,true);
+  }catch(err){setStatus('Save failed: '+err.message,true);}
+}
+async function loadChaserFromServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
+  try{
+    const r=await fetch('chaser_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    if(r.ok&&j.ok&&j.exists&&j.chaser){
+      applyChaserData(j.chaser);
+      if(j.chaser.participating)applyParticipatingData(j.chaser.participating);
+      return true;
+    }
+  }catch(_){}
+  return false;
+}
+async function loadParticipatingFromServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
+  try{
+    const r=await fetch('chaser_setup.php?participating',{cache:'no-store'});
+    const j=await r.json();
+    if(r.ok&&j.ok&&j.exists&&j.participating){applyParticipatingData(j.participating);return true;}
+  }catch(_){}
+  return false;
+}
+document.getElementById('btnSave').onclick=()=>saveChaserToServer();
+document.getElementById('btnLoad').onclick=async()=>{
+  const loaded=await loadChaserFromServer();
+  if(loaded){setStatus('Chaser loaded from server');}
+  else{
+    const raw=localStorage.getItem('dmxChaser');
+    if(raw){applyChaserData(JSON.parse(raw));setStatus('Chaser loaded (browser cache)');}
+    else setStatus('No saved chaser found',true);
+  }
 };
 document.getElementById('btnExport').onclick=()=>{
   const blob=new Blob([JSON.stringify(chaserData(),null,2)],{type:'application/json'});
@@ -780,6 +937,54 @@ document.getElementById('importFile').onchange=e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=()=>{try{applyChaserData(JSON.parse(reader.result));setStatus('Chaser imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';};
+  reader.readAsText(file);
+};
+document.getElementById('btnExportSlots').onclick=async()=>{
+  let j;
+  try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
+  if(!j.ok){setStatus('Export slots error',true);return;}
+  const exportData={pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots};
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chaser_slots.json';a.click();URL.revokeObjectURL(a.href);
+  setStatus('chaser_slots.json downloaded');
+};
+document.getElementById('btnImportSlots').onclick=()=>document.getElementById('importSlotsFile').click();
+document.getElementById('importSlotsFile').onchange=async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const slots=Array.isArray(data)?data:(data.pico_slots||[]);
+      if(!Array.isArray(slots)){alert('Invalid slots file: expected {pico_slots:[...]} or array');return;}
+      const current=baseUrlEl.value.replace(/\/+$/,'');
+      const fileUrl=(data.pico_url||'').replace(/\/+$/,'');
+      if(fileUrl&&current&&fileUrl!==current){
+        if(!confirm('This file was saved for Pico at "'+fileUrl+'"\nCurrent URL is "'+current+'"\nImport anyway?')){
+          e.target.value='';return;
+        }
+      }
+      const root=current;
+      let saved=0,pushed=0;
+      for(let i=0;i<slots.length;i++){
+        if(!slots[i])continue;
+        const params='slot='+i+(root?'&pico_url='+encodeURIComponent(root):'');
+        try{await fetch('chaser_setup.php?'+params,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});saved++;}catch(_){}
+        if(root){
+          try{
+            const r=await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
+            const j=await r.json();if(j.ok)pushed++;
+          }catch(_){}
+        }
+      }
+      const msg=root
+        ?saved+' slot(s) saved to server, '+pushed+' pushed to Pico'
+        :saved+' slot(s) saved to server (set Pico URL to also push)';
+      setStatus(msg);
+      if(root)pollPicoStatus();
+    }catch(err){alert('Invalid JSON: '+err.message);}
+    e.target.value='';
+  };
   reader.readAsText(file);
 };
 
@@ -797,9 +1002,10 @@ document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getE
 document.getElementById('btnPrev').onclick=()=>manualStep(-1);
 document.getElementById('btnNext').onclick=()=>manualStep(1);
 document.getElementById('btnAddStep').onclick=()=>addStep();
-document.getElementById('btnCaptureNew').onclick=()=>{
+document.getElementById('btnCaptureNew').onclick=async()=>{
   const s=makeStep();steps.push(s);selectedStepIdx=steps.length-1;
-  captureFromFC(selectedStepIdx);drawStepList();drawStepEditor();
+  drawStepList();drawStepEditor();
+  await captureFromFC(selectedStepIdx);
 };
 document.getElementById('btnCaptureToStep').onclick=()=>captureFromFC(selectedStepIdx);
 document.getElementById('btnClearAll').onclick=()=>{
@@ -817,6 +1023,31 @@ document.getElementById('btnApplyMeta').onclick=()=>{
 };
 document.getElementById('btnSelAll').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=true);drawParticipation();drawStepEditor();};
 document.getElementById('btnSelNone').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=false);drawParticipation();drawStepEditor();};
+document.getElementById('btnSavePart').onclick=()=>saveParticipatingToServer();
+document.getElementById('btnLoadPart').onclick=async()=>{
+  const loaded=await loadParticipatingFromServer();
+  if(loaded)setStatus('Participating controls loaded from server');
+  else setStatus('No saved participating controls found',true);
+};
+document.getElementById('btnExportPart').onclick=()=>{
+  const blob=new Blob([JSON.stringify({participating},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_participating.json';a.click();URL.revokeObjectURL(a.href);
+  setStatus('dmx_participating.json downloaded');
+};
+document.getElementById('btnImportPart').onclick=()=>document.getElementById('importPartFile').click();
+document.getElementById('importPartFile').onchange=e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      applyParticipatingData(data.participating??data);
+      setStatus('Participating controls imported from '+file.name);
+    }catch(err){alert('Invalid JSON: '+err.message);}
+    e.target.value='';
+  };
+  reader.readAsText(file);
+};
 
 // ---- Pico realtime playback ----
 function serializeChaserForPico(){
@@ -839,14 +1070,65 @@ function setPicoStatus(msg,color){
   document.getElementById('picoStatus').style.color=color||'var(--muted)';
   document.getElementById('picoStatusDot').style.background=color||'var(--muted)';
 }
-function pollPicoStatus(){
+let _lastChaserSlots = null;
+let _lastChaserActiveMask = 0;
+
+function renderChaserSlotStrip(slots, activeMask) {
+  const strip = document.getElementById('chaserSlotStrip');
+  if (!strip) return;
+  const selected = parseInt(document.getElementById('picoSlot').value) || 0;
+  strip.innerHTML = '';
+  slots.forEach(s => {
+    const alive  = !!(activeMask & (1 << s.slot));
+    const loaded = s.loaded;
+    const sel    = (s.slot === selected);
+    const d = document.createElement('div');
+    d.style.cssText = [
+      'background:#0a0d10',
+      'border:1.5px solid ' + (alive ? 'var(--accent)' : loaded ? 'var(--line)' : 'rgba(255,255,255,.07)'),
+      sel ? 'box-shadow:0 0 0 2px var(--accent)' : '',
+      'border-radius:7px','padding:7px 5px 6px','text-align:center',
+      'cursor:pointer','opacity:' + (loaded ? '1' : '0.45'),
+      'transition:border-color .15s,box-shadow .15s','user-select:none'
+    ].filter(Boolean).join(';');
+    const stepsLabel = loaded ? s.step_count + ' steps' : '\u2014';
+    d.innerHTML =
+      '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
+      '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
+      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
+      '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
+      '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' +
+        (alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
+      '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:' +
+        (alive ? 'var(--accent)' : loaded ? 'rgba(255,255,255,.6)' : 'rgba(255,255,255,.25)') + '">' +
+        (alive ? 'LIVE' : loaded ? 'READY' : 'EMPTY') + '</span>' +
+      '</div>';
+    d.onclick = () => {
+      document.getElementById('picoSlot').value = s.slot;
+      renderChaserSlotStrip(slots, activeMask);
+    };
+    strip.appendChild(d);
+  });
+  _lastChaserSlots = slots;
+  _lastChaserActiveMask = activeMask;
+}
+
+async function pollPicoStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  fetch(root+'/chaser/status').then(r=>r.json()).then(j=>{
+  if(!root) return;
+  try{
+    const j=await fetch(root+'/chaser/status').then(r=>r.json());
     if(j.ok){
-      const s=j.playing?'Playing step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms)':'Stopped';
-      setPicoStatus(s,j.playing?'var(--accent)':'var(--muted)');
+      const activeSlots=[];
+      for(let i=0;i<8;i++) if(j.active_mask&(1<<i)) activeSlots.push(i);
+      const s=activeSlots.length>0
+        ?'Slots '+activeSlots.join(',')+' running \u00b7 step '+(j.step+1)+'/'+j.step_count+' ('+j.elapsed_ms+'ms)'
+        :'Stopped';
+      setPicoStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
+      const sl=await fetch(root+'/chaser/slots').then(r=>r.json());
+      if(sl.ok) renderChaserSlotStrip(sl.slots,j.active_mask);
     }
-  }).catch(()=>setPicoStatus('No response','var(--bad)'));
+  }catch(e){setPicoStatus('No response','var(--bad)');}
 }
 function startPicoStatusPoll(){
   stopPicoStatusPoll();
@@ -857,20 +1139,75 @@ function stopPicoStatusPoll(){
   if(picoStatusTimer){clearInterval(picoStatusTimer);picoStatusTimer=null;}
 }
 
+async function saveChaserSlotToServer(slot, body){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  const url=baseUrlEl.value.replace(/\/+$/,'');
+  const params='slot='+slot+(url?'&pico_url='+encodeURIComponent(url):'');
+  try{await fetch('chaser_setup.php?'+params,{method:'POST',body,headers:{'Content-Type':'text/plain'}});}catch(_){}
+}
+async function restoreAllChaserSlots(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  let j;
+  try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setPicoStatus('Restore error: '+e.message,'var(--bad)');return;}
+  if(!j.ok){setPicoStatus('Restore error','var(--bad)');return;}
+  const slots=j.pico_slots||[];
+  let count=0;
+  for(let i=0;i<slots.length;i++){
+    if(!slots[i])continue;
+    try{
+      const r=await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
+      const rj=await r.json();
+      if(rj.ok)count++;
+    }catch(_){}
+  }
+  setPicoStatus(count+' slot(s) restored to Pico','var(--accent)');
+  pollPicoStatus();
+}
+
 document.getElementById('btnPicoUploadPlay').onclick=async()=>{
   if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
   stopPlayback(); // stop browser playback so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
+  const slot=parseInt(document.getElementById('picoSlot').value)||0;
   const body=serializeChaserForPico();
-  setPicoStatus('Uploading…','var(--warn)');
+  setPicoStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
-    const r=await fetch(root+'/chaser/load',{method:'POST',body,headers:{'Content-Type':'text/plain'}});
+    const r=await fetch(root+'/chaser/load/'+slot,{method:'POST',body,headers:{'Content-Type':'text/plain'}});
     const j=await r.json();
     if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
-    const r2=await fetch(root+'/chaser/play');
+    saveChaserSlotToServer(slot, body); // persist to server (fire-and-forget)
+    const r2=await fetch(root+'/chaser/play/'+slot);
     const j2=await r2.json();
-    if(j2.ok){setPicoStatus('Playing on Pico','var(--accent)');startPicoStatusPoll();}
+    if(j2.ok){setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
     else{setPicoStatus('Play error','var(--bad)');}
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
+document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
+
+document.getElementById('btnPicoPlaySlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  try{
+    const r=await fetch(root+'/chaser/play/'+slot);
+    const j=await r.json();
+    if(j.ok){stopPlayback();setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
+    else{setPicoStatus('Play error: '+(j.error||'?'),'var(--bad)');}
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoSetSpeed').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  const mult=parseFloat(document.getElementById('picoSpeed').value)||1.0;
+  const rate_x100=Math.round(Math.max(10,Math.min(1000,mult*100)));
+  try{
+    const r=await fetch(root+'/chaser/speed/'+slot+'/'+rate_x100);
+    const j=await r.json();
+    if(j.ok)setPicoStatus('Speed set to '+(rate_x100/100).toFixed(2)+'x on slot '+slot,'var(--accent)');
+    else setPicoStatus('Speed error','var(--bad)');
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 
@@ -880,12 +1217,54 @@ document.getElementById('btnPicoStop').onclick=async()=>{
   try{
     await fetch(root+'/chaser/stop');
     setPicoStatus('Stopped','var(--muted)');
-  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
+    pollPicoStatus();
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');};
 };
+
+document.getElementById('btnPicoStopSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  try{
+    await fetch(root+'/chaser/stop/'+slot);
+    setPicoStatus('Slot '+slot+' stopped','var(--muted)');
+    pollPicoStatus();
+  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');};
+};
+
+document.getElementById('picoSlot').addEventListener('change',()=>{
+  try{if(_lastChaserSlots)renderChaserSlotStrip(_lastChaserSlots,_lastChaserActiveMask);}catch(_){}
+});
 
 // ---- init ----
 loadSetup();
-try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}
+(async()=>{
+  const loaded=await loadChaserFromServer();
+  if(!loaded){try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}}
+  // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(root){
+    try{
+      const r=await fetch('chaser_setup.php?slots');
+      const j=await r.json();
+      if(j.ok){
+        const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
+        if(!savedUrl||savedUrl===root){
+          const slots=j.pico_slots||[];
+          for(let i=0;i<slots.length;i++){
+            if(!slots[i])continue;
+            try{await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
+          }
+          pollPicoStatus();
+        }
+      }
+    }catch(_){}
+  }
+})();
+try{
+  const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0}));
+  renderChaserSlotStrip(dummy,0);
+}catch(e){console.warn('chaserSlotStrip init error',e);}
 </script>
 </body>
 </html>

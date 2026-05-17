@@ -1,0 +1,1124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DMX Fan Out</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:16px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:22px;margin:0}h2{font-size:16px;margin:0;font-weight:600}
+.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.toolbar,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input,button,select{font:inherit}
+input[type=number],input[type=url]{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=number]{width:90px}input[type=url]{min-width:220px}
+select{padding:8px 10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=range]{accent-color:var(--accent);cursor:pointer}
+button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:8px 14px;border-radius:6px;cursor:pointer;white-space:nowrap}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+button.danger{background:#3c1b1b;border-color:#763232;color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:8px 14px;border-radius:6px}
+a.nav:hover{color:var(--text);border-color:var(--text)}
+
+/* Fan group card */
+.fan-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px}
+.fan-card-header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.fan-section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+
+/* Fixture chips */
+.fix-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fix-chip{display:inline-flex;align-items:center;gap:4px;background:#22303a;border:1.5px solid var(--line);border-radius:20px;padding:4px 8px 4px 12px;font-size:13px;font-weight:500}
+.fix-chip.first-chip{border-color:var(--accent)}
+.fix-chip .chip-idx{font-size:10px;color:var(--muted);margin-right:2px}
+.chip-btn{background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--muted);border-radius:4px;line-height:1}
+.chip-btn:hover{color:var(--text);background:rgba(255,255,255,.1)}
+
+/* Mode & sliders */
+.mode-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.mode-opt{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px}
+.slider-row{display:grid;gap:8px}
+.slider-track{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.slider-track input[type=range]{flex:1;min-width:160px;max-width:400px}
+.val-badge{min-width:72px;font-size:13px;font-weight:600;color:var(--accent);text-align:right;flex-shrink:0}
+.base-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.base-item{background:#0a0d10;border:1px solid var(--line);border-radius:5px;padding:3px 8px}
+
+/* Lane sections */
+.lanes-container{display:grid;gap:10px}
+.lane-section{background:#0a0d10;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px}
+.lane-header{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:28px}
+
+/* Preview strip */
+.preview-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px}
+.preview-card{background:#0a0d10;border:1px solid var(--line);border-radius:7px;padding:8px 7px 7px;text-align:center;transition:border-color .15s}
+.preview-card.active{border-color:rgba(55,196,164,.5)}
+.preview-name{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
+.preview-val{font-size:14px;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1}
+.preview-bar-wrap{position:relative;height:9px;display:flex;align-items:center}
+.preview-bar-bg{height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;width:100%;position:relative}
+.preview-bar-fill{position:absolute;top:0;height:100%;background:var(--accent);transition:left .1s,width .1s}
+.preview-bar-fill.clamped{background:var(--warn)}
+.preview-bar-center{position:absolute;top:0;left:50%;width:1px;height:100%;background:rgba(255,255,255,.25);transform:translateX(-50%)}
+.preview-card.clamped-card{border-color:rgba(255,188,107,.5)}
+.preview-offset{font-size:10px;color:var(--muted);margin-top:3px}
+.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
+#sceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
+#sceneBoxHdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;touch-action:none;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
+#sceneBoxHdr:active{cursor:grabbing;touch-action:none}
+#sceneBox.collapsed #sceneBoxHdr{border-radius:10px;border-bottom:none}
+#sceneBox.collapsed #sceneBoxBody{display:none}
+#sceneBoxBody{padding:12px;display:grid;gap:10px}
+#slotMatrix{display:grid;gap:5px;overflow-x:auto}
+.slot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:pointer;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
+.slot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);position:relative}
+.slot-del{position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.6;cursor:pointer}
+.slot-del:hover{background:rgba(1,255,230,.18);border-color:#01ffe6;opacity:1}
+.slot.filled:hover{background:#1a3b32}
+.slot:not(.filled):hover{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div>
+    <h1>DMX Fan Out</h1>
+    <div class="status" id="status">Loading setup…</div>
+  </div>
+  <div class="toolbar">
+    <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <button id="btnRefreshBases" title="Read current Pico DMX values as base for all axes">&#x21ba; Refresh All Bases</button>
+    <button id="btnSave" title="Save fan groups to server">&#x1f4be; Save</button>
+    <button id="btnExport" class="icon-btn" title="Download fan groups as JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnImport" class="icon-btn" title="Import fan groups from JSON file"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+    <a class="nav" href="index.html">← Controller</a>
+    <a class="nav" href="dmx_chaser.html">Chaser →</a>
+    <a class="nav" href="dmx_motion.html">Motion →</a>
+  </div>
+</header>
+
+<div id="fanGroupsContainer" style="display:grid;gap:14px"></div>
+
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <button class="primary" id="btnAddGroup">+ Add Fan Group</button>
+  <select id="fromSavedGroupSel" style="padding:8px"><option value="">— from saved group… —</option></select>
+</div>
+
+</main>
+
+<div id="sceneBox">
+<div id="sceneBoxHdr">
+<span style="font-weight:700;font-size:13px">Scenes</span>
+<button id="sceneBoxToggle" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">—</button>
+</div>
+<div id="sceneBoxBody">
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="slotRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+</div>
+<div id="slotMatrix"></div>
+</div>
+</div>
+
+<script>
+'use strict';
+// ---- state ----
+let profiles = [], fixturesAll = [];
+let groups = [];  // { id, orderedFixtureIds, lanes: [lane,...] }
+let ctrlGroups = []; // saved groups from fixture controller
+                  // lane: { id, controlKey, mode, spread, fromOffset, toOffset, bases }
+
+// ---- helpers ----
+function uid() { return Date.now() + Math.floor(Math.random() * 9999); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+// Split a value into coarse (multiples of 256) + fine (0-255). Fine is always non-negative.
+function splitCoarseFine(val, is16bit) {
+    if (!is16bit) return { coarse: val, fine: 0 };
+    const coarse = Math.floor(val / 256) * 256;
+    return { coarse, fine: val - coarse };
+}
+function fixtureProfile(fix) { return profiles.find(p => p.id === fix.profileId); }
+function findGroup(gid) { return groups.find(g => g.id === +gid); }
+function findLane(g, lid) { return g?.lanes.find(l => l.id === +lid); }
+
+// Resolve absolute DMX channels for a fixture+controlKey pair.
+// controlKey = "controlLabel:axis" where axis is pan|tilt|value
+// Returns { coarse, fine (nullable), is16bit, maxVal } or null.
+function resolveChannels(fix, controlKey) {
+    const ci = controlKey.lastIndexOf(':');
+    if (ci < 0) return null;
+    const label = controlKey.slice(0, ci);
+    const axis  = controlKey.slice(ci + 1);
+    const profile = fixtureProfile(fix);
+    if (!profile) return null;
+    const ctrl = profile.controls.find(c => c.label === label);
+    if (!ctrl) return null;
+    const s = fix.start;
+
+    if (ctrl.type === 'panTilt16') {
+        if (axis === 'pan')
+            return { coarse: s+ctrl.pan-1, fine: s+(ctrl.panFine??ctrl.pan+1)-1, is16bit: true, maxVal: 65535 };
+        if (axis === 'tilt')
+            return { coarse: s+ctrl.tilt-1, fine: s+(ctrl.tiltFine??ctrl.tilt+1)-1, is16bit: true, maxVal: 65535 };
+    }
+    if (ctrl.type === 'panTilt8') {
+        if (axis === 'pan')  return { coarse: s+ctrl.pan-1,  fine: null, is16bit: false, maxVal: 255 };
+        if (axis === 'tilt') return { coarse: s+ctrl.tilt-1, fine: null, is16bit: false, maxVal: 255 };
+    }
+    if (ctrl.type === 'slider16') {
+        return { coarse: s+ctrl.channel-1, fine: s+(ctrl.fine??ctrl.channel+1)-1, is16bit: true, maxVal: 65535 };
+    }
+    // single-channel fallback: slider8, dimmer, zoom, gobo, etc.
+    if (ctrl.channel >= 1) {
+        return { coarse: s+ctrl.channel-1, fine: null, is16bit: false, maxVal: 255 };
+    }
+    return null;
+}
+
+// Build dropdown options for a group based on the first selected fixture's profile.
+function getControlOptions(orderedIds) {
+    if (orderedIds.length === 0) return [];
+    const first = fixturesAll.find(f => f.id === orderedIds[0]);
+    if (!first) return [];
+    const profile = fixtureProfile(first);
+    if (!profile) return [];
+    const opts = [];
+    profile.controls.forEach(c => {
+        if (c.type === 'panTilt16') {
+            opts.push({ key: c.label+':pan',   label: 'Pan (16-bit)', is16bit: false });
+            opts.push({ key: c.label+':tilt',  label: 'Tilt (16-bit)', is16bit: false });
+        } else if (c.type === 'panTilt8') {
+            opts.push({ key: c.label+':pan',   label: 'Pan', is16bit: false });
+            opts.push({ key: c.label+':tilt',  label: 'Tilt', is16bit: false });
+        } else if (c.type === 'slider16') {
+            opts.push({ key: c.label+':value', label: c.label,            is16bit: true });
+        } else if (c.channel >= 1) {
+            opts.push({ key: c.label+':value', label: c.label,            is16bit: false });
+        }
+    });
+    return opts;
+}
+
+// Control info for a lane.
+function laneControlInfo(g, lane) {
+    if (!lane.controlKey || g.orderedFixtureIds.length === 0) return { is16bit: false, maxVal: 255 };
+    const fix = fixturesAll.find(f => f.id === g.orderedFixtureIds[0]);
+    if (!fix) return { is16bit: false, maxVal: 255 };
+    const ch = resolveChannels(fix, lane.controlKey);
+    return ch ? { is16bit: ch.is16bit, maxVal: ch.maxVal } : { is16bit: false, maxVal: 255 };
+}
+
+// Group / lane factories.
+function newLane() {
+    return { id: uid(), controlKey: '', mode: 'symmetric', spread: 0, fromOffset: 0, toOffset: 0, bases: {} };
+}
+function newGroup() {
+    return { id: uid(), orderedFixtureIds: [], lanes: [newLane()] };
+}
+
+// Calculate final DMX values for one lane.
+function calcLaneValues(g, lane) {
+    const fixList = g.orderedFixtureIds
+        .map(id => fixturesAll.find(f => f.id === id))
+        .filter(Boolean);
+    if (fixList.length === 0 || !lane.controlKey) return [];
+
+    const n = fixList.length;
+    let fromOffset, toOffset;
+    if (lane.mode === 'symmetric') {
+        fromOffset = -lane.spread / 2;
+        toOffset   = +lane.spread / 2;
+    } else {
+        fromOffset = lane.fromOffset;
+        toOffset   = lane.toOffset;
+    }
+
+    return fixList.map((fix, i) => {
+        const ch = resolveChannels(fix, lane.controlKey);
+        if (!ch) return null;
+        const t        = n > 1 ? i / (n - 1) : 0;
+        const offset   = lerp(fromOffset, toOffset, t);
+        const base     = lane.bases[fix.id] ?? Math.round(ch.maxVal / 2);
+        const finalVal = clamp(Math.round(base + offset), 0, ch.maxVal);
+        return { fixture: fix, ch, finalVal, offset: Math.round(offset), base };
+    }).filter(Boolean);
+}
+
+// Send one lane's values to Pico.
+async function sendLaneValues(g, lane) {
+    const vals = calcLaneValues(g, lane);
+    if (vals.length === 0) return;
+    const root = document.getElementById('baseUrl').value.replace(/\/+$/, '');
+    if (!root) return;
+
+    const parts = [];
+    vals.forEach(({ ch, finalVal }) => {
+        if (ch.is16bit) {
+            parts.push(ch.coarse + ':' + ((finalVal >> 8) & 0xFF));
+            if (ch.fine >= 1) parts.push(ch.fine + ':' + (finalVal & 0xFF));
+        } else {
+            parts.push(ch.coarse + ':' + finalVal);
+        }
+    });
+
+    await fetch(root+'/dmx/b',{method:'POST',body:parts.join(',')}).catch(()=>{});
+    updatePreview(g, lane);
+}
+
+// Fetch current channel values and store as base for one lane.
+async function snapshotLaneBase(g, lane) {
+    const root = document.getElementById('baseUrl').value.replace(/\/+$/, '');
+    if (!root || !lane.controlKey) { setStatus('Set Pico base URL first', true); return; }
+    setStatus('Snapshotting base values…');
+    const fixList = g.orderedFixtureIds
+        .map(id => fixturesAll.find(f => f.id === id))
+        .filter(Boolean);
+
+    for (const fix of fixList) {
+        const ch = resolveChannels(fix, lane.controlKey);
+        if (!ch) continue;
+        try {
+            if (ch.is16bit && ch.fine >= 1) {
+                const lo    = Math.min(ch.coarse, ch.fine);
+                const hi    = Math.max(ch.coarse, ch.fine);
+                const count = Math.min(hi - lo + 1, 64);
+                const j = await fetch(root + `/dmx/values?first=${lo}&count=${count}`).then(r => r.json());
+                if (j.ok) {
+                    lane.bases[fix.id] = (j.values[ch.coarse - lo] ?? 0) << 8 | (j.values[ch.fine - lo] ?? 0);
+                }
+            } else {
+                const j = await fetch(root + `/dmx/values?first=${ch.coarse}&count=1`).then(r => r.json());
+                if (j.ok) lane.bases[fix.id] = j.values[0] ?? 0;
+            }
+        } catch (_) {}
+    }
+    setStatus('Base snapshot done');
+    renderGroups();
+}
+
+// ---- rendering ----
+function renderGroups() {
+    const container = document.getElementById('fanGroupsContainer');
+    container.innerHTML = '';
+    groups.forEach((g, gi) => container.appendChild(buildGroupCard(g, gi)));
+}
+
+function buildGroupCard(g, gi) {
+    const ctrlOpts = getControlOptions(g.orderedFixtureIds);
+
+    const card = document.createElement('div');
+    card.className = 'fan-card';
+    card.dataset.groupId = g.id;
+
+    // header
+    const header = document.createElement('div');
+    header.className = 'fan-card-header';
+    header.innerHTML =
+        `<h2>Fan Group ${gi + 1}</h2>` +
+        `<button class="danger" data-remove-group="${g.id}">&#x2715; Remove</button>`;
+    card.appendChild(header);
+
+    // fixtures section
+    const fixLabel = document.createElement('div');
+    fixLabel.className = 'fan-section-label';
+    fixLabel.textContent = 'Fixtures (left → right = fan start → end)';
+    card.appendChild(fixLabel);
+
+    const chips = document.createElement('div');
+    chips.className = 'fix-chips';
+    g.orderedFixtureIds.forEach((fid, idx) => {
+        const fix = fixturesAll.find(f => f.id === fid);
+        if (!fix) return;
+        const chip = document.createElement('div');
+        chip.className = 'fix-chip' + (idx === 0 ? ' first-chip' : '');
+        chip.innerHTML =
+            `<span class="chip-idx">${idx + 1}</span>` +
+            `<span>${fix.name}</span>` +
+            (idx > 0 ? `<button class="chip-btn" data-move-fix="${fid}" data-group="${g.id}" data-dir="-1" title="Move left">&#x25C4;</button>` : '') +
+            (idx < g.orderedFixtureIds.length - 1 ? `<button class="chip-btn" data-move-fix="${fid}" data-group="${g.id}" data-dir="1" title="Move right">&#x25BA;</button>` : '') +
+            `<button class="chip-btn" data-remove-fix="${fid}" data-group="${g.id}" title="Remove">&#x2715;</button>`;
+        chips.appendChild(chip);
+    });
+    const addSel = document.createElement('select');
+    addSel.dataset.addFixTo = g.id;
+    addSel.innerHTML = '<option value="">+ Add fixture…</option>' +
+        fixturesAll
+            .filter(f => !g.orderedFixtureIds.includes(f.id))
+            .map(f => `<option value="${f.id}">${f.name} (ch${f.start})</option>`)
+            .join('');
+    chips.appendChild(addSel);
+    card.appendChild(chips);
+
+    // lanes
+    const lanesDiv = document.createElement('div');
+    lanesDiv.className = 'lanes-container';
+    g.lanes.forEach(lane => lanesDiv.appendChild(buildLaneSection(g, lane, ctrlOpts)));
+    card.appendChild(lanesDiv);
+
+    // add lane button
+    const addLaneBtn = document.createElement('button');
+    addLaneBtn.textContent = '+ Add Fan Axis';
+    addLaneBtn.dataset.addLaneGroup = g.id;
+    addLaneBtn.style.alignSelf = 'start';
+    card.appendChild(addLaneBtn);
+
+    return card;
+}
+
+function buildLaneSection(g, lane, ctrlOpts) {
+    const info    = laneControlInfo(g, lane);
+    const halfMax = Math.round(info.maxVal / 2);
+
+    const sec = document.createElement('div');
+    sec.className = 'lane-section';
+    sec.dataset.laneId = lane.id;
+
+    // lane header
+    const laneHeader = document.createElement('div');
+    laneHeader.className = 'lane-header';
+    const laneLabel = document.createElement('span');
+    laneLabel.className = 'fan-section-label';
+    laneLabel.style.margin = '0';
+    laneLabel.textContent = lane.controlKey
+        ? (ctrlOpts.find(o => o.key === lane.controlKey)?.label ?? lane.controlKey)
+        : 'Axis ' + (g.lanes.indexOf(lane) + 1);
+    laneHeader.appendChild(laneLabel);
+    if (g.lanes.length > 1) {
+        const remBtn = document.createElement('button');
+        remBtn.className = 'danger';
+        remBtn.style.cssText = 'padding:4px 10px;font-size:12px';
+        remBtn.innerHTML = '&#x2715; Remove axis';
+        remBtn.dataset.removeLane      = lane.id;
+        remBtn.dataset.removeLaneGroup = g.id;
+        laneHeader.appendChild(remBtn);
+    }
+    sec.appendChild(laneHeader);
+
+    // control row
+    const ctrlRow = document.createElement('div');
+    ctrlRow.className = 'row';
+    const ctrlLabel = document.createElement('label');
+    ctrlLabel.textContent = 'Control';
+    const ctrlSel = document.createElement('select');
+    ctrlSel.dataset.ctrlGroup = g.id;
+    ctrlSel.dataset.ctrlLane  = lane.id;
+    ctrlSel.innerHTML = '<option value="">— select —</option>' +
+        ctrlOpts.map(o => `<option value="${o.key}"${lane.controlKey === o.key ? ' selected' : ''}>${o.label}${o.is16bit ? ' (16-bit)' : ''}</option>`).join('');
+    ctrlLabel.appendChild(ctrlSel);
+    ctrlRow.appendChild(ctrlLabel);
+    const snapBtn = document.createElement('button');
+    snapBtn.textContent = '↺ Snapshot Base';
+    snapBtn.dataset.snapshotGroup = g.id;
+    snapBtn.dataset.snapshotLane  = lane.id;
+    snapBtn.title = 'Read current Pico DMX values as base positions';
+    ctrlRow.appendChild(snapBtn);
+    sec.appendChild(ctrlRow);
+
+    // base values
+    if (lane.controlKey && g.orderedFixtureIds.length > 0) {
+        const baseRow = document.createElement('div');
+        baseRow.className = 'base-row';
+        baseRow.appendChild(Object.assign(document.createElement('span'), { textContent: 'Base:' }));
+        g.orderedFixtureIds.forEach(fid => {
+            const fix = fixturesAll.find(f => f.id === fid);
+            if (!fix) return;
+            const span = document.createElement('span');
+            span.className = 'base-item';
+            span.textContent = fix.name + ' = ' + (lane.bases[fid] !== undefined ? lane.bases[fid] : `~${Math.round(info.maxVal / 2)}`);
+            baseRow.appendChild(span);
+        });
+        sec.appendChild(baseRow);
+    }
+
+    // mode row
+    const modeRow = document.createElement('div');
+    modeRow.className = 'mode-row';
+    modeRow.innerHTML =
+        `<span class="fan-section-label" style="margin:0">Mode:</span>` +
+        `<label class="mode-opt"><input type="radio" name="mode_${g.id}_${lane.id}" value="symmetric"${lane.mode === 'symmetric' ? ' checked' : ''} data-mode-group="${g.id}" data-mode-lane="${lane.id}"> Symmetric (spread ±)</label>` +
+        `<label class="mode-opt"><input type="radio" name="mode_${g.id}_${lane.id}" value="startend"${lane.mode === 'startend' ? ' checked' : ''} data-mode-group="${g.id}" data-mode-lane="${lane.id}"> Start → End</label>`;
+    sec.appendChild(modeRow);
+
+    // sliders
+    const slidersDiv = document.createElement('div');
+    slidersDiv.className = 'slider-row';
+    if (lane.mode === 'symmetric') {
+        const spreadMax = info.maxVal;
+        const { coarse: sc, fine: sf } = splitCoarseFine(clamp(lane.spread, 0, spreadMax), info.is16bit);
+        const coarseRow = document.createElement('div');
+        coarseRow.className = 'slider-track';
+        coarseRow.innerHTML =
+            `<span style="font-size:13px;color:var(--muted);min-width:52px">Spread</span>` +
+            `<input type="range" min="0" max="${spreadMax}" step="${info.is16bit ? 256 : 1}" value="${sc}" data-spread-group="${g.id}" data-spread-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
+            `<span class="val-badge" data-spread-badge="${g.id}_${lane.id}">±${Math.round(clamp(lane.spread, 0, spreadMax) / 2)}</span>`;
+        slidersDiv.appendChild(coarseRow);
+        if (info.is16bit) {
+            const fineRow = document.createElement('div');
+            fineRow.className = 'slider-track';
+            fineRow.innerHTML =
+                `<span style="font-size:13px;color:var(--muted);min-width:52px;opacity:.65">Fine</span>` +
+                `<input type="range" min="0" max="255" step="1" value="${sf}" data-spread-fine-group="${g.id}" data-spread-fine-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px;accent-color:var(--muted)">` +
+                `<span class="val-badge" style="color:var(--muted)">+${sf}</span>`;
+            slidersDiv.appendChild(fineRow);
+        }
+    } else {
+        const ofMin = -halfMax, ofMax = halfMax;
+        const { coarse: fc, fine: ff } = splitCoarseFine(clamp(lane.fromOffset, ofMin, ofMax), info.is16bit);
+        const { coarse: tc, fine: tf } = splitCoarseFine(clamp(lane.toOffset,   ofMin, ofMax), info.is16bit);
+        const fromRow = document.createElement('div');
+        fromRow.className = 'slider-track';
+        fromRow.innerHTML =
+            `<span style="font-size:13px;color:var(--muted);min-width:52px">From</span>` +
+            `<input type="range" min="${ofMin}" max="${ofMax}" step="${info.is16bit ? 256 : 1}" value="${fc}" data-from-group="${g.id}" data-from-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
+            `<span class="val-badge" data-from-badge="${g.id}_${lane.id}">${lane.fromOffset >= 0 ? '+' : ''}${Math.round(lane.fromOffset)}</span>`;
+        slidersDiv.appendChild(fromRow);
+        if (info.is16bit) {
+            const fromFineRow = document.createElement('div');
+            fromFineRow.className = 'slider-track';
+            fromFineRow.innerHTML =
+                `<span style="font-size:13px;color:var(--muted);min-width:52px;opacity:.65">Fine</span>` +
+                `<input type="range" min="0" max="255" step="1" value="${ff}" data-from-fine-group="${g.id}" data-from-fine-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px;accent-color:var(--muted)">` +
+                `<span class="val-badge" style="color:var(--muted)">+${ff}</span>`;
+            slidersDiv.appendChild(fromFineRow);
+        }
+        const toRow = document.createElement('div');
+        toRow.className = 'slider-track';
+        toRow.innerHTML =
+            `<span style="font-size:13px;color:var(--muted);min-width:52px">To</span>` +
+            `<input type="range" min="${ofMin}" max="${ofMax}" step="${info.is16bit ? 256 : 1}" value="${tc}" data-to-group="${g.id}" data-to-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px">` +
+            `<span class="val-badge" data-to-badge="${g.id}_${lane.id}">${lane.toOffset >= 0 ? '+' : ''}${Math.round(lane.toOffset)}</span>`;
+        slidersDiv.appendChild(toRow);
+        if (info.is16bit) {
+            const toFineRow = document.createElement('div');
+            toFineRow.className = 'slider-track';
+            toFineRow.innerHTML =
+                `<span style="font-size:13px;color:var(--muted);min-width:52px;opacity:.65">Fine</span>` +
+                `<input type="range" min="0" max="255" step="1" value="${tf}" data-to-fine-group="${g.id}" data-to-fine-lane="${lane.id}" style="flex:1;min-width:160px;max-width:480px;accent-color:var(--muted)">` +
+                `<span class="val-badge" style="color:var(--muted)">+${tf}</span>`;
+            slidersDiv.appendChild(toFineRow);
+        }
+    }
+    sec.appendChild(slidersDiv);
+
+    // preview
+    if (g.orderedFixtureIds.length > 0 && lane.controlKey) {
+        const previewLabel = document.createElement('div');
+        previewLabel.className = 'fan-section-label';
+        previewLabel.textContent = 'Preview';
+        sec.appendChild(previewLabel);
+        const strip = document.createElement('div');
+        strip.className = 'preview-strip';
+        strip.id = `preview_${g.id}_${lane.id}`;
+        sec.appendChild(strip);
+        fillPreview(strip, g, lane, info);
+    }
+
+    return sec;
+}
+
+function fillPreview(strip, g, lane, info) {
+    const vals = calcLaneValues(g, lane);
+    strip.innerHTML = '';
+    if (vals.length === 0) return;
+    const halfMax = info.maxVal / 2;
+    vals.forEach(({ fixture, finalVal, offset, base }) => {
+        // Bar shows actual movement from base (center = no movement).
+        // relVal is clamped, so a fully-clamped fixture shows an empty bar.
+        const relVal    = finalVal - base;
+        const fillWidth = Math.min(Math.abs(relVal) / halfMax * 50, 50).toFixed(2);
+        const fillLeft  = relVal < 0 ? (50 - +fillWidth).toFixed(2) : '50';
+        const isClamped = Math.round(base + offset) !== finalVal;
+        const d = document.createElement('div');
+        d.className = 'preview-card active' + (isClamped ? ' clamped-card' : '');
+        d.innerHTML =
+            `<div class="preview-name" title="${fixture.name}">${fixture.name}</div>` +
+            `<div class="preview-val" style="${isClamped ? 'color:var(--warn)' : ''}">${finalVal}</div>` +
+            `<div class="preview-bar-wrap"><div class="preview-bar-bg">` +
+              `<div class="preview-bar-fill${isClamped ? ' clamped' : ''}" style="left:${fillLeft}%;width:${fillWidth}%"></div>` +
+              `<div class="preview-bar-center"></div>` +
+            `</div></div>` +
+            `<div class="preview-offset" style="${isClamped ? 'color:var(--warn)' : ''}">${offset >= 0 ? '+' : ''}${offset}</div>`;
+        strip.appendChild(d);
+    });
+}
+
+function updatePreview(g, lane) {
+    const strip = document.getElementById(`preview_${g.id}_${lane.id}`);
+    if (!strip) return;
+    fillPreview(strip, g, lane, laneControlInfo(g, lane));
+}
+
+// ---- event delegation ----
+document.addEventListener('click', async e => {
+    // Remove group
+    const rmGroup = e.target.closest('[data-remove-group]');
+    if (rmGroup) {
+        groups = groups.filter(g => g.id !== +rmGroup.dataset.removeGroup);
+        renderGroups();
+        return;
+    }
+    // Remove lane
+    const rmLane = e.target.closest('[data-remove-lane]');
+    if (rmLane) {
+        const g = findGroup(rmLane.dataset.removeLaneGroup);
+        if (g) g.lanes = g.lanes.filter(l => l.id !== +rmLane.dataset.removeLane);
+        renderGroups();
+        return;
+    }
+    // Add lane
+    const addLaneBtn = e.target.closest('[data-add-lane-group]');
+    if (addLaneBtn) {
+        const g = findGroup(addLaneBtn.dataset.addLaneGroup);
+        if (g) { g.lanes.push(newLane()); renderGroups(); }
+        return;
+    }
+    // Move fixture
+    const moveBtn = e.target.closest('[data-move-fix]');
+    if (moveBtn) {
+        const g = findGroup(moveBtn.dataset.group);
+        if (!g) return;
+        const fid = +moveBtn.dataset.moveFix;
+        const dir = +moveBtn.dataset.dir;
+        const idx = g.orderedFixtureIds.indexOf(fid);
+        if (idx < 0) return;
+        const ni = idx + dir;
+        if (ni < 0 || ni >= g.orderedFixtureIds.length) return;
+        g.orderedFixtureIds.splice(idx, 1);
+        g.orderedFixtureIds.splice(ni, 0, fid);
+        renderGroups();
+        g.lanes.forEach(lane => sendLaneValues(g, lane));
+        return;
+    }
+    // Remove fixture
+    const rmFix = e.target.closest('[data-remove-fix]');
+    if (rmFix) {
+        const g = findGroup(rmFix.dataset.group);
+        if (!g) return;
+        const fid = +rmFix.dataset.removeFix;
+        g.orderedFixtureIds = g.orderedFixtureIds.filter(id => id !== fid);
+        g.lanes.forEach(l => delete l.bases[fid]);
+        renderGroups();
+        return;
+    }
+    // Snapshot base
+    const snapBtn = e.target.closest('[data-snapshot-group][data-snapshot-lane]');
+    if (snapBtn) {
+        const g    = findGroup(snapBtn.dataset.snapshotGroup);
+        const lane = findLane(g, snapBtn.dataset.snapshotLane);
+        if (g && lane) await snapshotLaneBase(g, lane);
+        return;
+    }
+    // Add group
+    if (e.target.id === 'btnAddGroup') {
+        groups.push(newGroup());
+        renderGroups();
+        return;
+    }
+});
+
+document.addEventListener('change', e => {
+    // Add fixture
+    const addSel = e.target.closest('[data-add-fix-to]');
+    if (addSel && addSel.value) {
+        const g = findGroup(addSel.dataset.addFixTo);
+        if (g) {
+            const fid = +addSel.value;
+            if (!g.orderedFixtureIds.includes(fid)) {
+                g.orderedFixtureIds.push(fid);
+                const root = document.getElementById('baseUrl').value.replace(/\/+$/, '');
+                if (root) {
+                    Promise.all(g.lanes.filter(l => l.controlKey).map(l => snapshotLaneBase(g, l)))
+                        .then(() => renderGroups());
+                } else renderGroups();
+            }
+        }
+        return;
+    }
+    // Control key changed
+    const ctrlSel = e.target.closest('[data-ctrl-group][data-ctrl-lane]');
+    if (ctrlSel) {
+        const g    = findGroup(ctrlSel.dataset.ctrlGroup);
+        const lane = findLane(g, ctrlSel.dataset.ctrlLane);
+        if (g && lane) {
+            lane.controlKey = ctrlSel.value;
+            lane.spread = 0; lane.fromOffset = 0; lane.toOffset = 0; lane.bases = {};
+            const root = document.getElementById('baseUrl').value.replace(/\/+$/, '');
+            if (root && lane.controlKey && g.orderedFixtureIds.length > 0) {
+                snapshotLaneBase(g, lane).then(() => { renderGroups(); sendLaneValues(g, lane); });
+            } else renderGroups();
+        }
+        return;
+    }
+    // Mode changed
+    const modeRadio = e.target.closest('[data-mode-group][data-mode-lane]');
+    if (modeRadio) {
+        const g    = findGroup(modeRadio.dataset.modeGroup);
+        const lane = findLane(g, modeRadio.dataset.modeLane);
+        if (g && lane) { lane.mode = modeRadio.value; renderGroups(); sendLaneValues(g, lane); }
+        return;
+    }
+});
+
+document.addEventListener('input', e => {
+    // Spread coarse
+    const spreadEl = e.target.closest('[data-spread-group][data-spread-lane]');
+    if (spreadEl) {
+        const g    = findGroup(spreadEl.dataset.spreadGroup);
+        const lane = findLane(g, spreadEl.dataset.spreadLane);
+        if (!g || !lane) return;
+        const fineEl = spreadEl.closest('.lane-section')?.querySelector('[data-spread-fine-lane]');
+        lane.spread = +spreadEl.value + (fineEl ? +fineEl.value : 0);
+        const badge = document.querySelector(`[data-spread-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = '±' + Math.round(lane.spread / 2);
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // Spread fine
+    const spreadFineEl = e.target.closest('[data-spread-fine-group][data-spread-fine-lane]');
+    if (spreadFineEl) {
+        const g    = findGroup(spreadFineEl.dataset.spreadFineGroup);
+        const lane = findLane(g, spreadFineEl.dataset.spreadFineLane);
+        if (!g || !lane) return;
+        const coarseEl = spreadFineEl.closest('.lane-section')?.querySelector('[data-spread-lane]');
+        lane.spread = (coarseEl ? +coarseEl.value : 0) + +spreadFineEl.value;
+        const fineBadge = spreadFineEl.closest('.slider-track')?.querySelector('.val-badge');
+        if (fineBadge) fineBadge.textContent = '+' + spreadFineEl.value;
+        const badge = document.querySelector(`[data-spread-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = '±' + Math.round(lane.spread / 2);
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // From coarse
+    const fromEl = e.target.closest('[data-from-group][data-from-lane]');
+    if (fromEl) {
+        const g    = findGroup(fromEl.dataset.fromGroup);
+        const lane = findLane(g, fromEl.dataset.fromLane);
+        if (!g || !lane) return;
+        const fineEl = fromEl.closest('.lane-section')?.querySelector('[data-from-fine-lane]');
+        lane.fromOffset = +fromEl.value + (fineEl ? +fineEl.value : 0);
+        const badge = document.querySelector(`[data-from-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = (lane.fromOffset >= 0 ? '+' : '') + lane.fromOffset;
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // From fine
+    const fromFineEl = e.target.closest('[data-from-fine-group][data-from-fine-lane]');
+    if (fromFineEl) {
+        const g    = findGroup(fromFineEl.dataset.fromFineGroup);
+        const lane = findLane(g, fromFineEl.dataset.fromFineLane);
+        if (!g || !lane) return;
+        const coarseEl = fromFineEl.closest('.lane-section')?.querySelector('[data-from-lane]');
+        lane.fromOffset = (coarseEl ? +coarseEl.value : 0) + +fromFineEl.value;
+        const fineBadge = fromFineEl.closest('.slider-track')?.querySelector('.val-badge');
+        if (fineBadge) fineBadge.textContent = '+' + fromFineEl.value;
+        const badge = document.querySelector(`[data-from-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = (lane.fromOffset >= 0 ? '+' : '') + lane.fromOffset;
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // To coarse
+    const toEl = e.target.closest('[data-to-group][data-to-lane]');
+    if (toEl) {
+        const g    = findGroup(toEl.dataset.toGroup);
+        const lane = findLane(g, toEl.dataset.toLane);
+        if (!g || !lane) return;
+        const fineEl = toEl.closest('.lane-section')?.querySelector('[data-to-fine-lane]');
+        lane.toOffset = +toEl.value + (fineEl ? +fineEl.value : 0);
+        const badge = document.querySelector(`[data-to-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = (lane.toOffset >= 0 ? '+' : '') + lane.toOffset;
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+    // To fine
+    const toFineEl = e.target.closest('[data-to-fine-group][data-to-fine-lane]');
+    if (toFineEl) {
+        const g    = findGroup(toFineEl.dataset.toFineGroup);
+        const lane = findLane(g, toFineEl.dataset.toFineLane);
+        if (!g || !lane) return;
+        const coarseEl = toFineEl.closest('.lane-section')?.querySelector('[data-to-lane]');
+        lane.toOffset = (coarseEl ? +coarseEl.value : 0) + +toFineEl.value;
+        const fineBadge = toFineEl.closest('.slider-track')?.querySelector('.val-badge');
+        if (fineBadge) fineBadge.textContent = '+' + toFineEl.value;
+        const badge = document.querySelector(`[data-to-badge="${g.id}_${lane.id}"]`);
+        if (badge) badge.textContent = (lane.toOffset >= 0 ? '+' : '') + lane.toOffset;
+        updatePreview(g, lane);
+        sendLaneValues(g, lane);
+        return;
+    }
+});
+
+// ---- status helpers ----
+function setStatus(msg, bad = false) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status' + (bad ? ' bad' : '');
+}
+
+// ---- setup loading ----
+function applySetup(data) {
+    profiles    = Array.isArray(data?.profiles) ? data.profiles : [];
+    fixturesAll = Array.isArray(data?.fixtures) ? data.fixtures : [];
+    baseUrlEl.value = localStorage.getItem('dmxPicoBaseUrl') || data?.baseUrl || '';
+}
+
+async function loadSetup() {
+    try {
+        if (location.protocol === 'http:' || location.protocol === 'https:') {
+            const r = await fetch('fixture_setup.php', { cache: 'no-store' });
+            const j = await r.json();
+            if (r.ok && j.ok && j.exists) { applySetup(j.setup); setStatus('Setup loaded from server'); return; }
+        }
+    } catch (_) {}
+    const raw = localStorage.getItem('dmxFixtureController');
+    if (raw) { try { applySetup(JSON.parse(raw)); setStatus('Setup loaded from browser'); return; } catch (_) {} }
+    setStatus('No setup found — configure fixtures in the Fixture Controller first', true);
+}
+
+// ---- load fixture controller saved groups ----
+async function loadCtrlGroups() {
+    try {
+        const d = await fetch('group_setup.php', { cache: 'no-store' }).then(r => r.json());
+        ctrlGroups = (d.ok && d.groups) ? d.groups : [];
+    } catch (_) { ctrlGroups = []; }
+    const sel = document.getElementById('fromSavedGroupSel');
+    sel.innerHTML = '<option value="">— from saved group… —</option>' +
+        ctrlGroups.map(g => `<option value="${g.id}">${escHtml(g.name)} (${g.fixtureIds.length})</option>`).join('');
+}
+
+// ---- persist fan groups ----
+async function saveFanGroups() {
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+        setStatus('Save to server not available on file:// — use Export instead', true);
+        return;
+    }
+    try {
+        const r = await fetch('fan_setup.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(groups)
+        });
+        const j = await r.json();
+        if (j.ok) setStatus('Fan groups saved to server');
+        else setStatus('Save failed: ' + j.error, true);
+    } catch (err) {
+        setStatus('Save failed: ' + err.message, true);
+    }
+}
+
+async function loadFanGroups() {
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') return false;
+    try {
+        const r = await fetch('fan_setup.php', { cache: 'no-store' });
+        const j = await r.json();
+        if (r.ok && j.ok && j.exists && Array.isArray(j.groups)) {
+            groups = j.groups;
+            return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
+function exportJSON() {
+    const blob = new Blob([JSON.stringify(groups, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'fan_groups.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importJSON(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!Array.isArray(data)) throw new Error('Expected a JSON array');
+            groups = data;
+            renderGroups();
+            setStatus('Fan groups imported — remember to Save if you want to keep them');
+        } catch (err) {
+            setStatus('Import failed: ' + err.message, true);
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ---- global base refresh ----
+async function refreshAllBases() {
+    const root = baseUrlEl.value.replace(/\/+$/, '');
+    if (!root) { setStatus('Set Pico base URL first', true); return; }
+    const tasks = [];
+    groups.forEach(g => g.lanes.forEach(lane => {
+        if (lane.controlKey && g.orderedFixtureIds.length > 0)
+            tasks.push(snapshotLaneBase(g, lane));
+    }));
+    if (tasks.length === 0) { setStatus('No axes configured yet', true); return; }
+    await Promise.all(tasks);
+    renderGroups();
+    groups.forEach(g => g.lanes.forEach(lane => sendLaneValues(g, lane)));
+}
+
+// ---- init ----
+const baseUrlEl = document.getElementById('baseUrl');
+(()=>{ const v = localStorage.getItem('dmxPicoBaseUrl'); if (v) baseUrlEl.value = v; })();
+
+let _urlDebounce;
+baseUrlEl.addEventListener('input', () => {
+    localStorage.setItem('dmxPicoBaseUrl', baseUrlEl.value);
+    clearTimeout(_urlDebounce);
+    _urlDebounce = setTimeout(() => refreshAllBases(), 800);
+});
+
+document.getElementById('btnRefreshBases').addEventListener('click', refreshAllBases);
+document.getElementById('btnSave').addEventListener('click', saveFanGroups);
+document.getElementById('btnExport').addEventListener('click', exportJSON);
+document.getElementById('btnImport').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e => {
+    if (e.target.files[0]) { importJSON(e.target.files[0]); e.target.value = ''; }
+});
+
+loadSetup().then(async () => {
+    const loaded = await loadFanGroups();
+    if (!loaded && groups.length === 0) groups.push(newGroup());
+    renderGroups();
+    if (baseUrlEl.value.trim()) refreshAllBases();
+    await loadCtrlGroups();
+});
+
+document.getElementById('fromSavedGroupSel').addEventListener('change', e => {
+    const id = e.target.value;
+    if (!id) return;
+    const cg = ctrlGroups.find(g => g.id === id);
+    if (!cg) return;
+    const ng = newGroup();
+    ng.orderedFixtureIds = (cg.fixtureIds || []).filter(fid => fixturesAll.find(f => f.id === fid));
+    groups.push(ng);
+    renderGroups();
+    saveFanGroups();
+    e.target.value = '';
+});
+
+// ── Scene Toolbox ─────────────────────────────────────────────────────
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+let scenes=[];let slotCols=4,slotRows=4;
+(()=>{const sc=localStorage.getItem('fanSceneSlotCols'),sr=localStorage.getItem('fanSceneSlotRows');if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}})();
+document.getElementById('slotCols').addEventListener('input',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('fanSceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotRows').addEventListener('input',e=>{slotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('fanSceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+function renderSlotMatrix(){
+  const grid=document.getElementById('slotMatrix');
+  const total=slotCols*slotRows;
+  grid.style.gridTemplateColumns='repeat('+slotCols+',54px)';
+  let html='';
+  for(let i=0;i<total;i++){
+    const s=scenes.find(sc=>sc.slot===i);
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button>${escHtml(s.name)}</div>`;
+    else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.slot').forEach(el=>{const idx=parseInt(el.dataset.slot);el.addEventListener('click',()=>slotClick(idx));el.addEventListener('dblclick',()=>slotDblClick(idx));});
+  grid.querySelectorAll('.slot-del').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const idx=parseInt(btn.dataset.delSlot);
+      const s=scenes.find(sc=>sc.slot===idx);if(!s)return;
+      if(!confirm('Delete scene "'+s.name+'"?'))return;
+      scenes.splice(scenes.indexOf(s),1);
+      renderSlotMatrix();saveScenesServer();
+    });
+  });
+}
+function slotClick(idx){
+  const s=scenes.find(sc=>sc.slot===idx);
+  if(s){recallScene(s);return;}
+  const name=(prompt('Scene name:','Scene '+(idx+1))||'').trim();
+  if(!name)return;
+  saveSceneToSlot(idx,name);
+}
+function slotDblClick(idx){
+  const s=scenes.find(sc=>sc.slot===idx);if(!s)return;
+  if(!confirm('Clear slot "'+s.name+'"?'))return;
+  scenes.splice(scenes.indexOf(s),1);
+  renderSlotMatrix();saveScenesServer();
+}
+async function saveSceneToSlot(idx,name){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setStatus('Set Pico base URL first',true);return;}
+  try{
+    const r=await fetch(root+'/dmx/values.json',{cache:'no-store'});
+    const arr=await r.json();
+    const sv={};
+    fixturesAll.forEach(fix=>{
+      const prof=fixtureProfile(fix);if(!prof)return;
+      prof.controls.forEach(ctrl=>{
+        const key=fix.id+':'+ctrl.id;
+        const s=fix.start-1;
+        if(ctrl.type==='panTilt16'){
+          const panC=arr[s+ctrl.pan-1]??0,panF=arr[s+(ctrl.panFine??ctrl.pan+1)-1]??0;
+          const tltC=arr[s+ctrl.tilt-1]??0,tltF=arr[s+(ctrl.tiltFine??ctrl.tilt+1)-1]??0;
+          sv[key]={pan:(panC<<8)|panF,tilt:(tltC<<8)|tltF};
+        }else if(ctrl.type==='panTilt8'){
+          sv[key]={pan:arr[s+ctrl.pan-1]??0,tilt:arr[s+ctrl.tilt-1]??0};
+        }else if(ctrl.type==='slider16'){
+          const c2=arr[s+ctrl.channel-1]??0,f2=arr[s+(ctrl.fine??ctrl.channel+1)-1]??0;
+          sv[key]=(c2<<8)|f2;
+        }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(ctrl.type)){
+          const obj={};['a','b','c','k','w','amber'].forEach(part=>{if(ctrl[part]>=1)obj[part]=arr[s+ctrl[part]-1]??0;});
+          sv[key]=obj;
+        }else{if(ctrl.channel>=1)sv[key]=arr[s+ctrl.channel-1]??0;}
+      });
+    });
+    const ei=scenes.findIndex(sc=>sc.slot===idx);if(ei>=0)scenes.splice(ei,1);
+    scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:sv});
+    renderSlotMatrix();saveScenesServer();
+    setStatus('Scene "'+name+'" saved to slot '+(idx+1));
+  }catch(err){setStatus('Failed to read Pico: '+err.message,true);}
+}
+function recallScene(s){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setStatus('Set Pico base URL first',true);return;}
+  const pairs=[];
+  fixturesAll.forEach(fix=>{
+    const prof=fixtureProfile(fix);if(!prof)return;
+    prof.controls.forEach(ctrl=>{
+      const key=fix.id+':'+ctrl.id;
+      if(!(key in s.values))return;
+      const v=s.values[key];const st=fix.start;
+      if(ctrl.type==='panTilt16'){
+        const pan=v.pan??32768,tlt=v.tilt??32768;
+        pairs.push((st+ctrl.pan-1)+':'+((pan>>8)&0xff));
+        pairs.push((st+(ctrl.panFine??ctrl.pan+1)-1)+':'+(pan&0xff));
+        pairs.push((st+ctrl.tilt-1)+':'+((tlt>>8)&0xff));
+        pairs.push((st+(ctrl.tiltFine??ctrl.tilt+1)-1)+':'+(tlt&0xff));
+      }else if(ctrl.type==='panTilt8'){
+        pairs.push((st+ctrl.pan-1)+':'+(v.pan??128));
+        pairs.push((st+ctrl.tilt-1)+':'+(v.tilt??128));
+      }else if(ctrl.type==='slider16'){
+        pairs.push((st+ctrl.channel-1)+':'+((v>>8)&0xff));
+        pairs.push((st+(ctrl.fine??ctrl.channel+1)-1)+':'+(v&0xff));
+      }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(ctrl.type)){
+        ['a','b','c','k','w','amber'].forEach(part=>{if(ctrl[part]>=1&&v[part]!==undefined)pairs.push((st+ctrl[part]-1)+':'+clamp(v[part],0,255));});
+      }else{if(ctrl.channel>=1)pairs.push((st+ctrl.channel-1)+':'+clamp(v,0,255));}
+    });
+  });
+  if(!pairs.length){setStatus('No matching fixtures in scene',true);return;}
+  fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'})
+    .then(()=>{setStatus('Recalled scene: "'+s.name+'"');setTimeout(refreshAllBases,400);})
+    .catch(err=>setStatus(err.message,true));
+}
+function saveScenesServer(){
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Scenes save error: '+e.message,true));
+}
+function loadScenesServer(){
+  fetch('scene_setup.php').then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){
+      scenes=d.scenes||[];
+      if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('fanSceneSlotCols',slotCols);}
+      if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('fanSceneSlotRows',slotRows);}
+    }else{scenes=[];}
+    renderSlotMatrix();
+  }).catch(()=>{scenes=[];renderSlotMatrix();});
+}
+document.getElementById('exportScenesBtn').onclick=()=>{
+  const blob=new Blob([JSON.stringify({scenes,slotCols,slotRows},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
+};
+document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
+document.getElementById('importScenesFile').onchange=e=>{
+  if(!e.target.files[0])return;
+  const fr=new FileReader();fr.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!Array.isArray(data.scenes))throw new Error('Expected {scenes:[...]}');
+      scenes=data.scenes;
+      if(data.slotCols){slotCols=data.slotCols;document.getElementById('slotCols').value=slotCols;}
+      if(data.slotRows){slotRows=data.slotRows;document.getElementById('slotRows').value=slotRows;}
+      renderSlotMatrix();saveScenesServer();
+      setStatus('Imported '+scenes.length+' scene(s)');
+    }catch(err){setStatus('Import failed: '+err.message,true);}
+  };fr.readAsText(e.target.files[0]);e.target.value='';
+};
+const sceneBox=document.getElementById('sceneBox');
+const sceneBoxHdr=document.getElementById('sceneBoxHdr');
+let _dragOff={x:0,y:0};
+sceneBoxHdr.addEventListener('pointerdown',e=>{
+  if(e.target.closest('button'))return;
+  sceneBoxHdr.setPointerCapture(e.pointerId);
+  const r=sceneBox.getBoundingClientRect();
+  _dragOff={x:e.clientX-r.left,y:e.clientY-r.top};
+  sceneBoxHdr.style.cursor='grabbing';
+});
+sceneBoxHdr.addEventListener('pointermove',e=>{
+  if(!sceneBoxHdr.hasPointerCapture(e.pointerId))return;
+  let x=e.clientX-_dragOff.x,y=e.clientY-_dragOff.y;
+  x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,x));
+  y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,y));
+  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
+  localStorage.setItem('fanSceneBoxPos',JSON.stringify({x,y}));
+});
+sceneBoxHdr.addEventListener('pointerup',()=>{sceneBoxHdr.style.cursor='grab';saveUiStateServer('sceneBoxPos',{x:parseInt(sceneBox.style.left)||0,y:parseInt(sceneBox.style.top)||0});});
+const _sbPos=JSON.parse(localStorage.getItem('fanSceneBoxPos')||'null');
+if(_sbPos){sceneBox.style.left=_sbPos.x+'px';sceneBox.style.top=_sbPos.y+'px';sceneBox.style.right='auto';}
+function clampSceneBox(){
+  const x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,parseInt(sceneBox.style.left)||0));
+  const y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,parseInt(sceneBox.style.top)||0));
+  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
+}
+window.addEventListener('resize',clampSceneBox);
+document.getElementById('sceneBoxToggle').onclick=()=>{
+  const c=sceneBox.classList.toggle('collapsed');
+  document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
+  localStorage.setItem('fanSceneBoxCollapsed',c?'1':'');
+  saveUiStateServer('sceneBoxCollapsed',c);
+};
+if(localStorage.getItem('fanSceneBoxCollapsed')==='1'){sceneBox.classList.add('collapsed');document.getElementById('sceneBoxToggle').textContent='+';}
+function saveUiStateServer(key,val){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({page:'fan',state:{[key]:val}})}).catch(()=>{});
+}
+(async()=>{
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  try{
+    const r=await fetch('ui_state.php',{cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok||!j.exists)return;
+    const st=j.state.fan||{};
+    if(st.sceneBoxCollapsed!==undefined){
+      const c=!!st.sceneBoxCollapsed;
+      localStorage.setItem('fanSceneBoxCollapsed',c?'1':'');
+      sceneBox.classList.toggle('collapsed',c);
+      document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
+    }
+    if(st.sceneBoxPos){
+      localStorage.setItem('fanSceneBoxPos',JSON.stringify(st.sceneBoxPos));
+      sceneBox.style.left=st.sceneBoxPos.x+'px';sceneBox.style.top=st.sceneBoxPos.y+'px';sceneBox.style.right='auto';
+      clampSceneBox();
+    }
+  }catch(_){}
+})();
+loadScenesServer();
+// ── End scene toolbox ─────────────────────────────────────────────────
+</script>
+</body>
+</html>

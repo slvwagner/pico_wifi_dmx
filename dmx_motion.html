@@ -33,6 +33,19 @@ a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid va
 a.nav:hover{color:var(--text);border-color:var(--text)}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
+.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
+#motionSceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:380px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
+#motionSceneBox .msc-hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;touch-action:none;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
+#motionSceneBox .msc-hdr:active{cursor:grabbing;touch-action:none}
+#motionSceneBox.collapsed .msc-hdr{border-radius:10px;border-bottom:none}
+#motionSceneBox.collapsed .msc-body{display:none}
+#motionSceneBox .msc-body{padding:12px;display:grid;gap:10px}
+#motionSlotGrid{display:grid;gap:5px;overflow-x:auto}
+.mslot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:default;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
+.mslot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);cursor:pointer}
+.mslot.filled:hover{background:#1a3b32}
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;overflow-y:auto;min-height:0}
+#fxPanel{display:flex;flex-direction:column;max-height:70vh}
 </style>
 </head>
 <body>
@@ -45,7 +58,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <a class="nav" href="index.html">← Fixture Controller</a>    <a class="nav" href="dmx_chaser.html">Chaser →</a>
+    <a class="nav" href="index.html">← Fixture Controller</a>    <a class="nav" href="dmx_chaser.html">Chaser →</a>    <a class="nav" href="dmx_fan.html">Fan Out →</a>
   </div>
 </header>
 
@@ -84,29 +97,72 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
 </section>
 
-<section class="panel">
+<section class="panel" id="fxPanel">
   <h2>Fixtures with Pan/Tilt</h2>
   <div id="noFixtures" class="small" style="display:none">
     No fixtures with Pan/Tilt controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first →</a>
   </div>
-  <div class="list" id="fixtureList"></div>
-  <button id="reloadSetup" style="justify-self:start;margin-top:4px">↻ Reload from Fixture Controller</button>
+  <div class="fx-grid" id="fixtureList" style="flex:1"></div>
+  <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;flex-shrink:0">
+    <button id="reloadSetup">&#x21BB; Reload from Fixture Controller</button>
+    <button id="btnMotionSave">&#x1F4BE; Save</button>
+    <button id="btnMotionLoad">Load</button>
+    <button id="btnMotionExport" class="icon-btn" title="Export motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnMotionImport" class="icon-btn" title="Import motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
+  </div>
 </section>
 
 <!-- Pico Motion FX -->
 <section class="panel" style="border-color:rgba(55,196,164,.35)">
-  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">
+  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
     <span class="mode-badge mode-badge--pico">&#x2699; Pico Motion</span>
-    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play on Pico</button>
-    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop Pico</button>
-    <span style="display:flex;align-items:center;gap:6px;min-width:0">
-      <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
-      <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
-    </span>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      Slot
+      <select id="picoMotionSlot" style="background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font:inherit">
+        <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+        <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      BPM
+      <input id="picoMotionBpm" type="number" min="0.1" max="600" step="1" value="30"
+             style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">
+    </label>
+    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play</button>
+    <button id="btnPicoMotionStartSlot">&#x25B6; Start Slot</button>
+    <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
+    <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
+    <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
+    <button id="btnPicoMotionRestoreAll">&#x21BA; Restore All Slots</button>
   </div>
+  <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:4px">
+    <span style="font-size:12px;color:var(--muted);align-self:center">Saved slots:</span>
+    <button id="btnExportMotionSlots" class="icon-btn" title="Export Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnImportMotionSlots" class="icon-btn" title="Import Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <input id="importMotionSlotsFile" type="file" accept=".json,application/json" style="display:none">
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;min-width:0">
+    <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+    <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
+  </div>
+  <!-- Slot status strip -->
+  <div id="motionSlotStrip" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px"></div>
 </section>
 
 </main>
+
+<div id="motionSceneBox">
+<div class="msc-hdr" id="motionSceneHdr">
+  <span style="font-weight:700;font-size:13px">Scenes</span>
+  <button id="motionSceneBoxToggle" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">—</button>
+</div>
+<div class="msc-body">
+  <div class="small" style="color:var(--muted)">Click a scene to use as motion center</div>
+  <div id="motionSlotGrid"></div>
+</div>
+</div>
+
 <script>
 // ---- helpers ----
 function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?lo:v));}
@@ -116,6 +172,9 @@ function setStatus(t,bad=false){const el=document.getElementById('status');el.te
 
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
+// Persist Pico base URL across all pages
+(()=>{ const v=localStorage.getItem('dmxPicoBaseUrl'); if(v) baseUrlEl.value=v; })();
+baseUrlEl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrlEl.value));
 function sendChannel(ch,value){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
@@ -163,7 +222,8 @@ async function loadSetup(auto=false){
 }
 
 function applySetup(){
-  baseUrlEl.value=setup.baseUrl||'';
+  // URL: prefer what the user last explicitly set (shared key), then fall back to saved setup
+  baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';
   // rebuild motionFixtures, preserving user-edited values if fixture+control id matches
   const prev=new Map(motionFixtures.map(mf=>[mf.fixture.id+':'+mf.control.id,mf]));
   motionFixtures=[];
@@ -210,17 +270,6 @@ function drawFixtureList(){
         </label>
         <span class="small">${c.type==='panTilt16'?'16-bit':'8-bit'} · start ch ${mf.fixture.start}</span>
       </div>
-      <div class="toolbar">
-        <label>Phase offset <span id="phV${i}">${mf.phaseOffset}</span>°
-          <input type="range" min="-180" max="180" value="${mf.phaseOffset}" data-mf="${i}" data-f="phaseOffset">
-        </label>
-        <label>Center Pan <span id="cpV${i}">${Math.round(mf.panCenter)}</span>
-          <input type="range" min="0" max="${max}" value="${Math.round(mf.panCenter)}" data-mf="${i}" data-f="panCenter">
-        </label>
-        <label>Center Tilt <span id="ctV${i}">${Math.round(mf.tiltCenter)}</span>
-          <input type="range" min="0" max="${max}" value="${Math.round(mf.tiltCenter)}" data-mf="${i}" data-f="tiltCenter">
-        </label>
-      </div>
       <div class="row">
         <div class="xy-mini">
           <div class="xy-dot" id="dot${i}" style="left:${mf.panCenter/max*100}%;top:${100-mf.tiltCenter/max*100}%;background:${color};box-shadow:0 0 0 1px ${color}"></div>
@@ -242,16 +291,6 @@ function drawFixtureList(){
       mf.enabled=e.target.checked;
       e.target.closest('.item').className='item'+(mf.enabled?' active':'');
       drawPathPreview();
-    }else if(f==='phaseOffset'){
-      mf.phaseOffset=parseFloat(e.target.value);
-      document.getElementById('phV'+i).textContent=mf.phaseOffset;
-      drawPathPreview();
-    }else if(f==='panCenter'){
-      mf.panCenter=parseFloat(e.target.value);
-      document.getElementById('cpV'+i).textContent=Math.round(mf.panCenter);
-    }else if(f==='tiltCenter'){
-      mf.tiltCenter=parseFloat(e.target.value);
-      document.getElementById('ctV'+i).textContent=Math.round(mf.tiltCenter);
     }
   };
 }
@@ -377,9 +416,7 @@ function sendBatch(map){
     return acc;
   },[]).join(',');
   if(!pairs)return;
-  const url=root+'/dmx/b/'+pairs;
-  if(root!==location.origin){new Image().src=url;return;}
-  fetch(url,{cache:'no-store'}).catch(()=>{});
+  fetch(root+'/dmx/b',{method:'POST',body:pairs,cache:'no-store'}).catch(()=>{});
 }
 
 function tick(){
@@ -467,47 +504,437 @@ function serializeMotionForPico(){
 }
 
 let picoMotionTimer=null;
+const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing'];
+let _lastSlots=null; // cached for selection-highlight re-render
+let _lastActiveMask=0;
+
+function renderMotionSlotStrip(slots, activeMask){
+  _lastSlots=slots; _lastActiveMask=activeMask;
+  const strip=document.getElementById('motionSlotStrip');
+  const sel=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  strip.innerHTML='';
+  slots.forEach(s=>{
+    const alive=!!(activeMask&(1<<s.slot));
+    const loaded=s.loaded;
+    const selected=s.slot===sel;
+    const d=document.createElement('div');
+    d.style.cssText=[
+      'background:#0a0d10',
+      'border:1.5px solid '+(alive?'var(--accent)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
+      selected?'box-shadow:0 0 0 2px var(--accent)':'',
+      'border-radius:7px',
+      'padding:7px 5px 6px',
+      'text-align:center',
+      'cursor:pointer',
+      'opacity:'+(loaded?'1':'0.45'),
+      'transition:border-color .15s,box-shadow .15s',
+      'user-select:none'
+    ].filter(Boolean).join(';');
+    const typeName=loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    d.innerHTML=
+      '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
+      '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
+      (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
+      (loaded?'<div style="font-size:11px;color:var(--muted)">'+s.fixture_count+' fix</div>':'') +
+      '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
+        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
+        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
+      '</div>';
+    d.onclick=()=>{
+      document.getElementById('picoMotionSlot').value=s.slot;
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask);
+    };
+    strip.appendChild(d);
+  });
+}
+
+// Re-highlight selection when slot selector changes
+document.getElementById('picoMotionSlot').addEventListener('change',()=>{
+  try{ if(_lastSlots) renderMotionSlotStrip(_lastSlots,_lastActiveMask); }catch(_){}
+});
+
 function setPicoMotionStatus(msg,color){
   document.getElementById('picoMotionStatus').textContent=msg;
   document.getElementById('picoMotionStatus').style.color=color||'var(--muted)';
   document.getElementById('picoMotionStatusDot').style.background=color||'var(--muted)';
 }
-function pollPicoMotionStatus(){
+async function pollPicoMotionStatus(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  fetch(root+'/motion/status').then(r=>r.json()).then(j=>{
-    if(j.ok){
-      const s=j.active?('Running · '+j.elapsed_s.toFixed(1)+'s · BPM '+j.bpm.toFixed(1)):'Stopped';
-      setPicoMotionStatus(s,j.active?'var(--accent)':'var(--muted)');
+  if(!root) return;
+  try{
+    const st=await fetch(root+'/motion/status').then(r=>r.json());
+    if(st.ok){
+      const activeSlots=[];
+      for(let i=0;i<8;i++) if(st.active_mask&(1<<i)) activeSlots.push(i);
+      const s=activeSlots.length>0
+        ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
+        :'Stopped';
+      setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
+      /* fetch slot details sequentially to avoid overwhelming the Pico */
+      const sl=await fetch(root+'/motion/slots').then(r=>r.json());
+      if(sl.ok) renderMotionSlotStrip(sl.slots,st.active_mask);
     }
-  }).catch(()=>setPicoMotionStatus('No response','var(--bad)'));
+  }catch(e){setPicoMotionStatus('No response','var(--bad)');}
 }
 function startPicoMotionPoll(){stopPicoMotionPoll();picoMotionTimer=setInterval(pollPicoMotionStatus,1000);pollPicoMotionStatus();}
 function stopPicoMotionPoll(){if(picoMotionTimer){clearInterval(picoMotionTimer);picoMotionTimer=null;}}
+
+async function saveMotionSlotToServer(slot, body){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  const url=baseUrlEl.value.replace(/\/+$/,'');
+  const params='slot='+slot+(url?'&pico_url='+encodeURIComponent(url):'');
+  try{await fetch('motion_setup.php?'+params,{method:'POST',body,headers:{'Content-Type':'text/plain'}});}catch(_){}
+}
+async function restoreAllMotionSlots(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  let j;
+  try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setPicoMotionStatus('Restore error: '+e.message,'var(--bad)');return;}
+  if(!j.ok){setPicoMotionStatus('Restore error','var(--bad)');return;}
+  const slots=j.pico_slots||[];
+  let count=0;
+  for(let i=0;i<slots.length;i++){
+    if(!slots[i])continue;
+    try{
+      const r=await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
+      const rj=await r.json();
+      if(rj.ok)count++;
+    }catch(_){}
+  }
+  setPicoMotionStatus(count+' slot(s) restored to Pico','var(--accent)');
+  pollPicoMotionStatus();
+}
 
 document.getElementById('btnPicoMotionUpload').onclick=async()=>{
   if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const body=serializeMotionForPico();
-  setPicoMotionStatus('Uploading…','var(--warn)');
+  setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
-    const r=await fetch(root+'/motion/load',{method:'POST',body,headers:{'Content-Type':'text/plain'}});
+    const r=await fetch(root+'/motion/load/'+slot,{method:'POST',body,headers:{'Content-Type':'text/plain'}});
     const j=await r.json();
     if(!j.ok){setPicoMotionStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
-    const r2=await fetch(root+'/motion/start');
+    saveMotionSlotToServer(slot, body); // persist to server (fire-and-forget)
+    const r2=await fetch(root+'/motion/start/'+slot);
     const j2=await r2.json();
-    if(j2.ok){setPicoMotionStatus('Running on Pico','var(--accent)');startPicoMotionPoll();}
+    if(j2.ok){setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
     else{setPicoMotionStatus('Start error','var(--bad)');}
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
+document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;
+
+document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  try{
+    const r=await fetch(root+'/motion/start/'+slot);
+    const j=await r.json();
+    if(j.ok){stopMotion();setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
+    else{setPicoMotionStatus('Start error: '+(j.error||'?'),'var(--bad)');}
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  const bpm=parseFloat(document.getElementById('picoMotionBpm').value)||30;
+  const bpm_x10=Math.round(Math.max(1,Math.min(6000,bpm*10)));
+  try{
+    const r=await fetch(root+'/motion/bpm/'+slot+'/'+bpm_x10);
+    const j=await r.json();
+    if(j.ok)setPicoMotionStatus('BPM set to '+(bpm_x10/10).toFixed(1)+' on slot '+slot,'var(--accent)');
+    else setPicoMotionStatus('BPM error','var(--bad)');
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoMotionStopSlot').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  try{
+    await fetch(root+'/motion/stop/'+slot);
+    setPicoMotionStatus('Slot '+slot+' stopped','var(--muted)');
+    pollPicoMotionStatus();
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+
 document.getElementById('btnPicoMotionStop').onclick=async()=>{
   stopPicoMotionPoll();
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  try{await fetch(root+'/motion/stop');setPicoMotionStatus('Stopped','var(--muted)');}
-  catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+  try{
+    await fetch(root+'/motion/stop');
+    setPicoMotionStatus('Stopped','var(--muted)');
+    pollPicoMotionStatus();
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
-loadSetup();
+// ---- motion data serialization ----
+function motionData(){
+  return{
+    params:{
+      effectType:document.getElementById('effectType').value,
+      bpm:+document.getElementById('bpm').value,
+      panAmp:+document.getElementById('panAmp').value,
+      tiltAmp:+document.getElementById('tiltAmp').value,
+      phaseSpread:+document.getElementById('phaseSpread').value,
+      updateRate:+document.getElementById('updateRate').value,
+    },
+    fixtures:motionFixtures.map(mf=>({
+      fixtureId:mf.fixture.id,controlId:mf.control.id,
+      enabled:mf.enabled,phaseOffset:mf.phaseOffset,
+      panCenter:mf.panCenter,tiltCenter:mf.tiltCenter,
+    }))
+  };
+}
+function applyMotionData(data){
+  if(!data)return;
+  const p=data.params;
+  if(p){
+    if(p.effectType!==undefined)document.getElementById('effectType').value=p.effectType;
+    if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
+    if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
+    if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
+    if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
+    if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
+  }
+  if(Array.isArray(data.fixtures)){
+    data.fixtures.forEach(saved=>{
+      const mf=motionFixtures.find(m=>m.fixture.id===saved.fixtureId&&m.control.id===saved.controlId);
+      if(!mf)return;
+      if(saved.enabled!==undefined)mf.enabled=saved.enabled;
+      if(saved.phaseOffset!==undefined)mf.phaseOffset=saved.phaseOffset;
+      if(saved.panCenter!==undefined)mf.panCenter=saved.panCenter;
+      if(saved.tiltCenter!==undefined)mf.tiltCenter=saved.tiltCenter;
+    });
+  }
+  drawFixtureList();drawPathPreview();
+}
+async function saveMotionToServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
+  try{
+    const r=await fetch('motion_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(motionData())});
+    const j=await r.json();
+    if(j.ok)setStatus('Motion setup saved to server');
+    else setStatus('Save failed: '+j.error,true);
+  }catch(err){setStatus('Save failed: '+err.message,true);}
+}
+async function loadMotionFromServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
+  try{
+    const r=await fetch('motion_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    if(r.ok&&j.ok&&j.exists&&j.motion){applyMotionData(j.motion);return true;}
+  }catch(_){}
+  return false;
+}
+document.getElementById('btnMotionSave').onclick=()=>saveMotionToServer();
+document.getElementById('btnMotionLoad').onclick=async()=>{
+  const loaded=await loadMotionFromServer();
+  if(loaded)setStatus('Motion setup loaded from server');
+  else setStatus('No saved motion setup found on server',true);
+};
+document.getElementById('btnMotionExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(motionData(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_motion.json';a.click();URL.revokeObjectURL(a.href);
+  setStatus('dmx_motion.json downloaded');
+};
+document.getElementById('btnMotionImport').onclick=()=>document.getElementById('motionImportFile').click();
+document.getElementById('motionImportFile').onchange=e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{try{applyMotionData(JSON.parse(reader.result));setStatus('Motion setup imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';}
+  reader.readAsText(file);
+};
+document.getElementById('btnExportMotionSlots').onclick=async()=>{
+  let j;
+  try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
+  if(!j.ok){setStatus('Export slots error',true);return;}
+  const exportData={pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots};
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='motion_slots.json';a.click();URL.revokeObjectURL(a.href);
+  setStatus('motion_slots.json downloaded');
+};
+document.getElementById('btnImportMotionSlots').onclick=()=>document.getElementById('importMotionSlotsFile').click();
+document.getElementById('importMotionSlotsFile').onchange=async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const slots=Array.isArray(data)?data:(data.pico_slots||[]);
+      if(!Array.isArray(slots)){alert('Invalid slots file: expected {pico_slots:[...]} or array');return;}
+      const current=baseUrlEl.value.replace(/\/+$/,'');
+      const fileUrl=(data.pico_url||'').replace(/\/+$/,'');
+      if(fileUrl&&current&&fileUrl!==current){
+        if(!confirm('This file was saved for Pico at "'+fileUrl+'"\nCurrent URL is "'+current+'"\nImport anyway?')){
+          e.target.value='';return;
+        }
+      }
+      const root=current;
+      let saved=0,pushed=0;
+      for(let i=0;i<slots.length;i++){
+        if(!slots[i])continue;
+        const params='slot='+i+(root?'&pico_url='+encodeURIComponent(root):'');
+        try{await fetch('motion_setup.php?'+params,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});saved++;}catch(_){}
+        if(root){
+          try{
+            const r=await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
+            const j=await r.json();if(j.ok)pushed++;
+          }catch(_){}
+        }
+      }
+      const msg=root
+        ?saved+' slot(s) saved to server, '+pushed+' pushed to Pico'
+        :saved+' slot(s) saved to server (set Pico URL to also push)';
+      setStatus(msg);
+      if(root)pollPicoMotionStatus();
+    }catch(err){alert('Invalid JSON: '+err.message);}
+    e.target.value='';
+  };
+  reader.readAsText(file);
+};
+
+loadSetup().finally(async()=>{
+  try{
+    const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0}));
+    renderMotionSlotStrip(dummy,0);
+  }catch(e){console.warn('slot strip init error',e);}
+  await loadMotionFromServer();
+  // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(root){
+    try{
+      const r=await fetch('motion_setup.php?slots');
+      const j=await r.json();
+      if(j.ok){
+        const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
+        if(!savedUrl||savedUrl===root){
+          const slots=j.pico_slots||[];
+          for(let i=0;i<slots.length;i++){
+            if(!slots[i])continue;
+            try{await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
+          }
+          pollPicoMotionStatus();
+        }
+      }
+    }catch(_){}
+  }
+});
+// ── Scene Recall Panel (read-only) ─────────────────────────────────────
+let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
+function escMotionHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderMotionSlotGrid(){
+  const grid=document.getElementById('motionSlotGrid');
+  const total=motionSlotCols*motionSlotRows;
+  grid.style.gridTemplateColumns='repeat('+motionSlotCols+',54px)';
+  let html='';
+  for(let i=0;i<total;i++){
+    const s=motionScenes.find(sc=>sc.slot===i);
+    if(s)html+=`<div class="mslot filled" data-mslot="${i}" title="${escMotionHtml(s.name)}">${escMotionHtml(s.name)}</div>`;
+    else html+=`<div class="mslot">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.mslot.filled').forEach(el=>{
+    const idx=parseInt(el.dataset.mslot);
+    el.addEventListener('click',()=>{const s=motionScenes.find(sc=>sc.slot===idx);if(s)applySceneAsCenter(s);});
+  });
+}
+function applySceneAsCenter(s){
+  motionFixtures.forEach(mf=>{
+    const v=(s.values||{})[mf.fixture.id+':'+mf.control.id];
+    if(v==null)return;
+    const max=mf.control.type==='panTilt16'?32768:128;
+    mf.panCenter=typeof v==='object'?(v.pan??max):max;
+    mf.tiltCenter=typeof v==='object'?(v.tilt??max):max;
+  });
+  drawFixtureList();drawPathPreview();
+  setStatus('Motion centers set from scene "'+s.name+'"');
+}
+function loadMotionScenesServer(){
+  fetch('scene_setup.php').then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){motionScenes=d.scenes||[];if(d.slotCols)motionSlotCols=d.slotCols;if(d.slotRows)motionSlotRows=d.slotRows;}
+    else motionScenes=[];
+    renderMotionSlotGrid();
+  }).catch(()=>{motionScenes=[];renderMotionSlotGrid();});
+}
+(()=>{
+  const box=document.getElementById('motionSceneBox');
+  const hdr=document.getElementById('motionSceneHdr');
+  const tog=document.getElementById('motionSceneBoxToggle');
+  const _pos=JSON.parse(localStorage.getItem('motionSceneBoxPos')||'null');
+  if(_pos){box.style.left=_pos.x+'px';box.style.top=_pos.y+'px';box.style.right='auto';}
+  if(localStorage.getItem('motionSceneBoxCollapsed')==='1'){box.classList.add('collapsed');tog.textContent='+';}
+  let _dragOff={x:0,y:0};
+  hdr.addEventListener('pointerdown',e=>{
+    if(e.target===tog)return;
+    hdr.setPointerCapture(e.pointerId);
+    const r=box.getBoundingClientRect();
+    _dragOff={x:e.clientX-r.left,y:e.clientY-r.top};
+    hdr.style.cursor='grabbing';
+  });
+  hdr.addEventListener('pointermove',e=>{
+    if(!hdr.hasPointerCapture(e.pointerId))return;
+    const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
+    box.style.left=Math.max(0,Math.min(mw-bw,e.clientX-_dragOff.x))+'px';
+    box.style.top=Math.max(0,Math.min(mh-bh,e.clientY-_dragOff.y))+'px';
+    box.style.right='auto';
+    localStorage.setItem('motionSceneBoxPos',JSON.stringify({x:parseInt(box.style.left)||0,y:parseInt(box.style.top)||0}));
+  });
+  hdr.addEventListener('pointerup',()=>{
+    hdr.style.cursor='grab';
+    const x=parseInt(box.style.left)||0,y=parseInt(box.style.top)||0;
+    saveUiStateServer('sceneBoxPos',{x,y});
+  });
+  window.addEventListener('resize',()=>{
+    const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
+    box.style.left=Math.max(0,Math.min(mw-bw,box.offsetLeft))+'px';
+    box.style.top=Math.max(0,Math.min(mh-bh,box.offsetTop))+'px';
+    box.style.right='auto';box.style.bottom='auto';
+  });
+  tog.addEventListener('click',()=>{
+    const c=box.classList.toggle('collapsed');tog.textContent=c?'+':'—';
+    localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
+    saveUiStateServer('sceneBoxCollapsed',c);
+  });
+})();
+loadMotionScenesServer();
+// ── UI State persistence ─────────────────────────────────────────────────────────
+function saveUiStateServer(key,val){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({page:'motion',state:{[key]:val}})}).catch(()=>{});
+}
+(async()=>{
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  try{
+    const r=await fetch('ui_state.php',{cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok||!j.exists)return;
+    const st=j.state.motion||{};
+    const box=document.getElementById('motionSceneBox');
+    const tog=document.getElementById('motionSceneBoxToggle');
+    if(st.sceneBoxCollapsed!==undefined){
+      const c=!!st.sceneBoxCollapsed;
+      localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
+      box.classList.toggle('collapsed',c);
+      tog.textContent=c?'+':'\u2014';
+    }
+    if(st.sceneBoxPos){
+      localStorage.setItem('motionSceneBoxPos',JSON.stringify(st.sceneBoxPos));
+      box.style.left=st.sceneBoxPos.x+'px';box.style.top=st.sceneBoxPos.y+'px';box.style.right='auto';
+      const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
+      box.style.left=Math.max(0,Math.min(mw-bw,parseInt(box.style.left)||0))+'px';
+      box.style.top=Math.max(0,Math.min(mh-bh,parseInt(box.style.top)||0))+'px';
+    }
+  }catch(_){}
+})();
+
+// After setup loads (and baseUrl is restored from localStorage), auto-poll once
+setTimeout(()=>{ if(baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
 // Auto-reload when Fixture Controller saves to localStorage in another tab
 window.addEventListener('storage',e=>{if(e.key==='dmxFixtureController')loadSetup(true);});
 // Poll server every 3 seconds for changes saved from the Fixture Controller

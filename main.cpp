@@ -54,7 +54,7 @@ static char http_page[12288];
 static char http_logs[6144];
 static char http_status_json[1024];
 static char http_dmx_json[1024];
-static char http_playback_json[512];
+static char http_playback_json[1024];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 
@@ -62,7 +62,8 @@ static volatile bool application_running = true;
 #define POST_BUFFER_MAX (12 * 1024)
 static char    post_buffer[POST_BUFFER_MAX];
 static size_t  post_length = 0;
-static enum { POST_NONE = 0, POST_CHASER, POST_MOTION } post_type = POST_NONE;
+static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH } post_type = POST_NONE;
+static uint8_t post_slot = 0;
 
 extern char __StackLimit;
 
@@ -684,14 +685,39 @@ static void build_chaser_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"playing\":%s,\"loaded\":%s,\"loop\":%s,"
+        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,"
         "\"step\":%u,\"step_count\":%u,\"elapsed_ms\":%lu}\n",
-        s.playing    ? "true" : "false",
-        s.loaded     ? "true" : "false",
-        s.loop       ? "true" : "false",
-        s.current_step,
+        (unsigned)s.active_mask,
+        (unsigned)s.loaded_mask,
+        s.step,
         s.step_count,
         (unsigned long)s.elapsed_ms);
+}
+
+static void build_chaser_slots_response()
+{
+    int used = snprintf(http_playback_json, sizeof(http_playback_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"slots\":[");
+    for (uint8_t i = 0; i < CHASER_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 80; i++) {
+        chaser_slot_info_t info;
+        chaser_get_slot_info(i, &info);
+        used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"loop\":%s,\"step_count\":%u,\"speed_mult\":%.2f}",
+            i == 0 ? "" : ",",
+            (unsigned)i,
+            info.loaded     ? "true" : "false",
+            info.active     ? "true" : "false",
+            info.loop       ? "true" : "false",
+            info.step_count,
+            (double)info.speed_mult);
+    }
+    snprintf(http_playback_json + used, sizeof(http_playback_json) - used, "]}\n");
 }
 
 static void build_motion_status_response()
@@ -705,13 +731,36 @@ static void build_motion_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active\":%s,\"loaded\":%s,\"type\":%d,"
-        "\"bpm\":%.2f,\"elapsed_s\":%.2f}\n",
-        s.active ? "true" : "false",
-        s.loaded ? "true" : "false",
-        s.type,
-        (double)s.bpm,
+        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,\"elapsed_s\":%.2f}\n",
+        (unsigned)s.active_mask,
+        (unsigned)s.loaded_mask,
         (double)s.elapsed_s);
+}
+
+static void build_motion_slots_response()
+{
+    int used = snprintf(http_playback_json, sizeof(http_playback_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"slots\":[");
+    for (uint8_t i = 0; i < MFX_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 80; i++) {
+        mfx_slot_info_t info;
+        mfx_get_slot_info(i, &info);
+        used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"type\":%d,\"bpm\":%.2f,\"fixture_count\":%u}",
+            i == 0 ? "" : ",",
+            (unsigned)i,
+            info.loaded ? "true" : "false",
+            info.active ? "true" : "false",
+            info.type,
+            (double)info.bpm,
+            info.fixture_count);
+    }
+    snprintf(http_playback_json + used, sizeof(http_playback_json) - used, "]}\n");
 }
 
 static void build_playback_ok_response(const char *msg)
@@ -804,8 +853,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     /* ----- Chaser endpoints ------------------------------------------- */
+    /* /chaser/play        — play slot 0 (backward compat)
+       /chaser/play/<N>    — play slot N */
     if (path_matches(name, "/chaser/play")) {
-        chaser_play();
+        uint8_t slot = 0;
+        if (name[12] == '/') {
+            unsigned long s = strtoul(name + 13, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        chaser_play(slot);
         build_playback_ok_response("chaser playing");
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
@@ -815,8 +871,16 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     if (path_matches(name, "/chaser/stop")) {
-        chaser_stop();
-        build_playback_ok_response("chaser stopped");
+        if (name[12] == '/') {
+            /* /chaser/stop/<slot> — stop one slot only */
+            unsigned long s = strtoul(name + 13, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) chaser_stop_slot((uint8_t)s);
+            build_playback_ok_response("chaser slot stopped");
+        } else {
+            /* /chaser/stop — stop all slots */
+            chaser_stop();
+            build_playback_ok_response("chaser stopped");
+        }
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;
@@ -826,6 +890,32 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 
     if (path_matches(name, "/chaser/status")) {
         build_chaser_status_response();
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/chaser/slots")) {
+        build_chaser_slots_response();
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    /* /chaser/speed/<slot>/<rate_x100>  e.g. /chaser/speed/0/200 = slot 0 at 2.0x */
+    if (path_matches(name, "/chaser/speed")) {
+        uint16_t slot_u = 0, rate_x100 = 100;
+        if (parse_path_u16_pair(name, "/chaser/speed", &slot_u, &rate_x100) &&
+            slot_u < CHASER_MAX_SLOTS && rate_x100 >= 10 && rate_x100 <= 1000) {
+            chaser_set_speed((uint8_t)slot_u, rate_x100 / 100.0f);
+            build_playback_ok_response("speed set");
+        } else {
+            build_playback_err_response("Use /chaser/speed/slot/rate_x100 (10..1000)");
+        }
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;
@@ -843,8 +933,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     /* ----- Motion endpoints ------------------------------------------- */
+    /* /motion/start        — start slot 0 (backward compat)
+       /motion/start/<N>    — start slot N */
     if (path_matches(name, "/motion/start")) {
-        mfx_start();
+        uint8_t slot = 0;
+        if (name[13] == '/') {
+            unsigned long s = strtoul(name + 14, NULL, 10);
+            if (s < MFX_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        mfx_start(slot);
         build_playback_ok_response("motion started");
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
@@ -854,8 +951,16 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     if (path_matches(name, "/motion/stop")) {
-        mfx_stop();
-        build_playback_ok_response("motion stopped");
+        if (name[12] == '/') {
+            /* /motion/stop/<slot> — stop one slot only */
+            unsigned long s = strtoul(name + 13, NULL, 10);
+            if (s < MFX_MAX_SLOTS) mfx_stop_slot((uint8_t)s);
+            build_playback_ok_response("motion slot stopped");
+        } else {
+            /* /motion/stop — stop all slots */
+            mfx_stop();
+            build_playback_ok_response("motion stopped");
+        }
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;
@@ -867,6 +972,41 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         build_motion_status_response();
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/slots")) {
+        build_motion_slots_response();
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    /* /motion/bpm/<slot>/<bpm_x10>  e.g. /motion/bpm/0/1200 = slot 0 at 120.0 BPM */
+    if (path_matches(name, "/motion/bpm")) {
+        uint16_t slot_u = 0, bpm_x10 = 300;
+        if (parse_path_u16_pair(name, "/motion/bpm", &slot_u, &bpm_x10) &&
+            slot_u < MFX_MAX_SLOTS && bpm_x10 >= 1 && bpm_x10 <= 6000) {
+            mfx_set_bpm((uint8_t)slot_u, bpm_x10 / 10.0f);
+            build_playback_ok_response("bpm set");
+        } else {
+            build_playback_err_response("Use /motion/bpm/slot/bpm_x10 (1..6000)");
+        }
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    /* POST /dmx/b response — pre-built in httpd_post_finished */
+    if (path_matches(name, "/dmx/b_post_ok")) {
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
         file->index = file->len;
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
         return 1;
@@ -932,12 +1072,33 @@ extern "C" err_t httpd_post_begin(void *connection,
     if (content_len > (int)(POST_BUFFER_MAX - 1))
         return ERR_VAL; /* body too large */
 
-    if (strcmp(uri, "/chaser/load") == 0) {
+    /* /chaser/load or /chaser/load/<slot> */
+    if (strncmp(uri, "/chaser/load", 12) == 0 &&
+        (uri[12] == '\0' || uri[12] == '/')) {
         post_type = POST_CHASER;
+        post_slot = 0;
+        if (uri[12] == '/') {
+            unsigned long s = strtoul(uri + 13, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) post_slot = (uint8_t)s;
+        }
         return ERR_OK;
     }
-    if (strcmp(uri, "/motion/load") == 0) {
+    /* /motion/load or /motion/load/<slot> */
+    if (strncmp(uri, "/motion/load", 12) == 0 &&
+        (uri[12] == '\0' || uri[12] == '/')) {
         post_type = POST_MOTION;
+        post_slot = 0;
+        if (uri[12] == '/') {
+            unsigned long s = strtoul(uri + 13, NULL, 10);
+            if (s < MFX_MAX_SLOTS) post_slot = (uint8_t)s;
+        }
+        return ERR_OK;
+    }
+
+    /* POST /dmx/b  — batch DMX set with ch:val pairs in body */
+    if (strncmp(uri, "/dmx/b", 6) == 0 &&
+        (uri[6] == '\0' || uri[6] == '/' || uri[6] == '?')) {
+        post_type = POST_DMX_BATCH;
         return ERR_OK;
     }
 
@@ -971,15 +1132,52 @@ extern "C" void httpd_post_finished(void *connection,
     post_buffer[post_length] = '\0';
 
     if (post_type == POST_CHASER) {
-        bool ok = chaser_load(post_buffer, post_length);
+        bool ok = chaser_load_slot(post_slot, post_buffer, post_length);
         if (ok) build_playback_ok_response("chaser loaded");
         else    build_playback_err_response("parse error");
         snprintf(response_uri, response_uri_len, "/chaser/load_ok");
     } else if (post_type == POST_MOTION) {
-        bool ok = mfx_load(post_buffer, post_length);
+        bool ok = mfx_load_slot(post_slot, post_buffer, post_length);
         if (ok) build_playback_ok_response("motion loaded");
         else    build_playback_err_response("parse error");
         snprintf(response_uri, response_uri_len, "/motion/load_ok");
+    } else if (post_type == POST_DMX_BATCH) {
+        dmx_engine_status_t status;
+        dmx_engine_get_status(&status);
+        uint16_t updated = 0;
+        const char *p = post_buffer;
+        while (*p) {
+            char *end_ch = NULL;
+            unsigned long ch = strtoul(p, &end_ch, 10);
+            if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= status.channels) {
+                char *end_val = NULL;
+                unsigned long val = strtoul(end_ch + 1, &end_val, 10);
+                if (end_val != end_ch + 1 && val <= 255) {
+                    dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                    critical_section_enter_blocking(&dmx_ui_lock);
+                    dmx_ui_values[ch] = (uint8_t)val;
+                    critical_section_exit(&dmx_ui_lock);
+                    updated++;
+                }
+                p = end_val;
+            } else {
+                const char *next = strchr(p, ',');
+                if (!next) break;
+                p = next;
+            }
+            if (*p == ',') p++;
+            else break;
+        }
+        snprintf(http_dmx_json, sizeof(http_dmx_json),
+            "HTTP/1.0 200 OK\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n"
+            "Cache-Control: no-store\r\n"
+            "\r\n"
+            "{\"ok\":true,\"updated\":%u}\n",
+            updated);
+        snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
     } else {
         build_playback_err_response("unknown endpoint");
         snprintf(response_uri, response_uri_len, "/chaser/load_ok");
@@ -1071,13 +1269,27 @@ static void core0_application_loop()
     uint32_t loop_count = 0;
     uint32_t last_playback_tick = 0;
 
+    /* Shared cross-module bigger-wins scratch (indices 1-512). */
+    static uint8_t tick_scratch[513];
+    static bool    tick_touched[513];
+
     while (application_running) {
         dmx_engine_poll();
 
         uint32_t now_us = time_us_32();
         if (now_us - last_playback_tick >= 10000) {  /* 100 Hz */
-            chaser_tick(now_us);
-            mfx_tick(now_us);
+            /* Clear once per tick; all modules accumulate into the same buffers. */
+            memset(tick_scratch, 0, sizeof(tick_scratch));
+            memset(tick_touched, 0, sizeof(tick_touched));
+
+            chaser_tick(now_us, tick_scratch, tick_touched);
+            mfx_tick(now_us, tick_scratch, tick_touched);
+
+            /* Single engine write — bigger-wins already resolved in scratch. */
+            for (uint16_t ch = 1; ch <= 512; ch++)
+                if (tick_touched[ch])
+                    dmx_engine_set_channel(ch, tick_scratch[ch]);
+
             last_playback_tick = now_us;
         }
 
