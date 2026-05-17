@@ -34,6 +34,16 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 .icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
+#motionSceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:380px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
+#motionSceneBox .msc-hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
+#motionSceneBox .msc-hdr:active{cursor:grabbing}
+#motionSceneBox.collapsed .msc-hdr{border-radius:10px;border-bottom:none}
+#motionSceneBox.collapsed .msc-body{display:none}
+#motionSceneBox .msc-body{padding:12px;display:grid;gap:10px}
+#motionSlotGrid{display:grid;gap:5px;overflow-x:auto}
+.mslot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:default;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
+.mslot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);cursor:pointer}
+.mslot.filled:hover{background:#1a3b32}
 </style>
 </head>
 <body>
@@ -139,6 +149,18 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 </section>
 
 </main>
+
+<div id="motionSceneBox">
+<div class="msc-hdr" id="motionSceneHdr">
+  <span style="font-weight:700;font-size:13px">Scenes</span>
+  <button id="motionSceneBoxToggle" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">—</button>
+</div>
+<div class="msc-body">
+  <div class="small" style="color:var(--muted)">Click a scene to use as motion center</div>
+  <div id="motionSlotGrid"></div>
+</div>
+</div>
+
 <script>
 // ---- helpers ----
 function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?lo:v));}
@@ -821,6 +843,67 @@ loadSetup().finally(async()=>{
     }catch(_){}
   }
 });
+// ── Scene Recall Panel (read-only) ─────────────────────────────────────
+let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
+function escMotionHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderMotionSlotGrid(){
+  const grid=document.getElementById('motionSlotGrid');
+  const total=motionSlotCols*motionSlotRows;
+  grid.style.gridTemplateColumns='repeat('+motionSlotCols+',54px)';
+  let html='';
+  for(let i=0;i<total;i++){
+    const s=motionScenes.find(sc=>sc.slot===i);
+    if(s)html+=`<div class="mslot filled" data-mslot="${i}" title="${escMotionHtml(s.name)}">${escMotionHtml(s.name)}</div>`;
+    else html+=`<div class="mslot">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.mslot.filled').forEach(el=>{
+    const idx=parseInt(el.dataset.mslot);
+    el.addEventListener('click',()=>{const s=motionScenes.find(sc=>sc.slot===idx);if(s)applySceneAsCenter(s);});
+  });
+}
+function applySceneAsCenter(s){
+  motionFixtures.forEach(mf=>{
+    const v=(s.values||{})[mf.fixture.id+':'+mf.control.id];
+    if(v==null)return;
+    const max=mf.control.type==='panTilt16'?32768:128;
+    mf.panCenter=typeof v==='object'?(v.pan??max):max;
+    mf.tiltCenter=typeof v==='object'?(v.tilt??max):max;
+  });
+  drawFixtureList();drawPathPreview();
+  setStatus('Motion centers set from scene "'+s.name+'"');
+}
+function loadMotionScenesServer(){
+  fetch('scene_setup.php').then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){motionScenes=d.scenes||[];if(d.slotCols)motionSlotCols=d.slotCols;if(d.slotRows)motionSlotRows=d.slotRows;}
+    else motionScenes=[];
+    renderMotionSlotGrid();
+  }).catch(()=>{motionScenes=[];renderMotionSlotGrid();});
+}
+(()=>{
+  const box=document.getElementById('motionSceneBox');
+  const hdr=document.getElementById('motionSceneHdr');
+  const tog=document.getElementById('motionSceneBoxToggle');
+  let ox=0,oy=0,dragging=false;
+  hdr.addEventListener('mousedown',e=>{if(e.target===tog)return;dragging=true;ox=e.clientX-box.offsetLeft;oy=e.clientY-box.offsetTop;e.preventDefault();});
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
+    box.style.left=Math.max(0,Math.min(mw-bw,e.clientX-ox))+'px';
+    box.style.top=Math.max(0,Math.min(mh-bh,e.clientY-oy))+'px';
+    box.style.right='auto';box.style.bottom='auto';
+  });
+  document.addEventListener('mouseup',()=>{dragging=false;});
+  window.addEventListener('resize',()=>{
+    const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
+    box.style.left=Math.max(0,Math.min(mw-bw,box.offsetLeft))+'px';
+    box.style.top=Math.max(0,Math.min(mh-bh,box.offsetTop))+'px';
+    box.style.right='auto';box.style.bottom='auto';
+  });
+  tog.addEventListener('click',()=>{const c=box.classList.toggle('collapsed');tog.textContent=c?'+':'—';});
+})();
+loadMotionScenesServer();
+
 // After setup loads (and baseUrl is restored from localStorage), auto-poll once
 setTimeout(()=>{ if(baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
 // Auto-reload when Fixture Controller saves to localStorage in another tab

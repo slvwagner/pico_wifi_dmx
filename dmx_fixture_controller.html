@@ -610,7 +610,7 @@ function patchFixture(){
   draw();
 }
 
-function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures,values};}
+function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures};}
 function applyData(data){
   baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
   if(data?.live!==undefined)live.checked=data.live;
