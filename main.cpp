@@ -17,6 +17,7 @@
 #include "dmx_engine.h"
 #include "pico_chaser.h"
 #include "pico_motion.h"
+#include "gpio_control.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
@@ -56,6 +57,8 @@ static char http_status_json[1024];
 static char http_dmx_json[1024];
 static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
 static char http_playback_json[4096];
+static char http_gpio_json[4096];
+static char http_gpio_body[3072];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 
@@ -63,7 +66,7 @@ static volatile bool application_running = true;
 #define POST_BUFFER_MAX (12 * 1024)
 static char    post_buffer[POST_BUFFER_MAX];
 static size_t  post_length = 0;
-static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH } post_type = POST_NONE;
+static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_GPIO_CONFIG } post_type = POST_NONE;
 static uint8_t post_slot = 0;
 
 extern char __StackLimit;
@@ -509,6 +512,23 @@ static void build_dmx_json_response(unsigned status_code, const char *status_tex
         body);
 }
 
+static void build_gpio_json_response(unsigned status_code, const char *status_text, const char *body)
+{
+    snprintf(
+        http_gpio_json,
+        sizeof(http_gpio_json),
+        "HTTP/1.0 %u %s\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "%s",
+        status_code,
+        status_text,
+        body);
+}
+
 // /dmx/b/<ch>:<val>,<ch>:<val>,…  — batch set, data encoded in path (no query string)
 // lwIP httpd strips query strings before fs_open, so we must use the path.
 static void build_dmx_b_response(const char *name)
@@ -616,6 +636,14 @@ static void build_dmx_clear_response()
     critical_section_exit(&dmx_ui_lock);
 
     build_dmx_json_response(200, "OK", "{\"ok\":true,\"cleared\":true}\n");
+}
+
+static void gpio_clear_dmx_and_ui()
+{
+    dmx_engine_clear();
+    critical_section_enter_blocking(&dmx_ui_lock);
+    memset(dmx_ui_values, 0, sizeof(dmx_ui_values));
+    critical_section_exit(&dmx_ui_lock);
 }
 
 static void build_dmx_base_response(void)
@@ -897,6 +925,35 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    /* ----- GPIO control endpoints ------------------------------------- */
+    if (path_matches(name, "/gpio/config")) {
+        gpio_control_write_config_json(http_gpio_body, sizeof(http_gpio_body));
+        build_gpio_json_response(200, "OK", http_gpio_body);
+        file->data = http_gpio_json;
+        file->len = (int)strlen(http_gpio_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/gpio/status")) {
+        gpio_control_write_status_json(http_gpio_body, sizeof(http_gpio_body));
+        build_gpio_json_response(200, "OK", http_gpio_body);
+        file->data = http_gpio_json;
+        file->len = (int)strlen(http_gpio_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/gpio/config_ok")) {
+        file->data = http_gpio_json;
+        file->len = (int)strlen(http_gpio_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     /* ----- Chaser endpoints ------------------------------------------- */
     /* /chaser/play        — play slot 0 (backward compat)
        /chaser/play/<N>    — play slot N */
@@ -1117,6 +1174,11 @@ extern "C" err_t httpd_post_begin(void *connection,
     if (content_len > (int)(POST_BUFFER_MAX - 1))
         return ERR_VAL; /* body too large */
 
+    if (strcmp(uri, "/gpio/config") == 0) {
+        post_type = POST_GPIO_CONFIG;
+        return ERR_OK;
+    }
+
     /* /chaser/load or /chaser/load/<slot> */
     if (strncmp(uri, "/chaser/load", 12) == 0 &&
         (uri[12] == '\0' || uri[12] == '/')) {
@@ -1186,6 +1248,16 @@ extern "C" void httpd_post_finished(void *connection,
         if (ok) build_playback_ok_response("motion loaded");
         else    build_playback_err_response("parse error");
         snprintf(response_uri, response_uri_len, "/motion/load_ok");
+    } else if (post_type == POST_GPIO_CONFIG) {
+        char err[160] = {0};
+        bool ok = gpio_control_configure_text(post_buffer, post_length, err, sizeof(err));
+        if (ok) {
+            build_gpio_json_response(200, "OK", "{\"ok\":true,\"message\":\"gpio config loaded\"}\n");
+        } else {
+            snprintf(http_gpio_body, sizeof(http_gpio_body), "{\"ok\":false,\"error\":\"%s\"}\n", err[0] ? err : "parse error");
+            build_gpio_json_response(400, "Bad Request", http_gpio_body);
+        }
+        snprintf(response_uri, response_uri_len, "/gpio/config_ok");
     } else if (post_type == POST_DMX_BATCH) {
         dmx_engine_status_t status;
         dmx_engine_get_status(&status);
@@ -1286,6 +1358,8 @@ static void core0_application_loop()
 {
     chaser_init();
     mfx_init();
+    gpio_control_init((1u << DMX_TX_PIN) | (1u << DMX_TRIGGER_PIN));
+    gpio_control_set_dmx_clear_hook(gpio_clear_dmx_and_ui);
 
     dmx_engine_config_t dmx_config;
     dmx_engine_default_config(&dmx_config);
@@ -1314,6 +1388,7 @@ static void core0_application_loop()
 
     uint32_t loop_count = 0;
     uint32_t last_playback_tick = 0;
+    uint32_t last_gpio_poll_ms = 0;
 
     while (application_running) {
         dmx_engine_poll();
@@ -1344,6 +1419,12 @@ static void core0_application_loop()
                     dmx_engine_set_channel(ch, mfx_scratch[ch]);
 
             last_playback_tick = now_us;
+        }
+
+        uint32_t now_ms = to_ms_since_boot(get_absolute_time());
+        if (now_ms != last_gpio_poll_ms) {
+            gpio_control_poll(now_ms);
+            last_gpio_poll_ms = now_ms;
         }
 
         if ((loop_count++ % 5000) == 0) {

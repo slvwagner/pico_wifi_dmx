@@ -12,6 +12,7 @@ $chaserSource = Join-Path $PSScriptRoot "dmx_chaser.html"
 $benchSource = Join-Path $PSScriptRoot "dmx_benchmark.html"
 $benchTargetDir = Join-Path $XamppHtdocs "dmx\test"
 $fanSource       = Join-Path $PSScriptRoot "dmx_fan.html"
+$gpioSource      = Join-Path $PSScriptRoot "dmx_gpio.html"
 $fanApiSource    = Join-Path $PSScriptRoot "fan_setup.php"
 $chaserApiSource = Join-Path $PSScriptRoot "chaser_setup.php"
 $motionApiSource = Join-Path $PSScriptRoot "motion_setup.php"
@@ -25,6 +26,7 @@ $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $benchTargetDir "index.html"
 $fanTarget       = Join-Path $targetDir "dmx_fan.html"
+$gpioTarget      = Join-Path $targetDir "dmx_gpio.html"
 $fanApiTarget    = Join-Path $targetDir "fan_setup.php"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
@@ -59,6 +61,10 @@ if (Test-Path -LiteralPath $benchSource) {
 if (Test-Path -LiteralPath $fanSource) {
     Copy-Item -LiteralPath $fanSource -Destination $fanTarget -Force
     Write-Host "Copied fan out to $fanTarget"
+}
+if (Test-Path -LiteralPath $gpioSource) {
+    Copy-Item -LiteralPath $gpioSource -Destination $gpioTarget -Force
+    Write-Host "Copied GPIO control to $gpioTarget"
 }
 if (Test-Path -LiteralPath $fanApiSource) {
     Copy-Item -LiteralPath $fanApiSource -Destination $fanApiTarget -Force

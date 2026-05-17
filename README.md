@@ -111,6 +111,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Chaser | `dmx_chaser.html` | Build and play step sequences with crossfade; upload to Pico for autonomous playback; upload to up to 16 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 16 slots |
 | Motion FX | `dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); upload to up to 16 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 16 slots |
 | Fan Out | `dmx_fan.html` | Spread any DMX control (pan, tilt, zoom, dimmer, …) as an offset fan across an ordered fixture list — see below |
+| GPIO Control | `dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | FPS Benchmark | `dmx_benchmark.html` | Measure round-trip request latency for single `/dmx/set` vs batch `/dmx/b/` |
 
 Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
@@ -243,6 +244,37 @@ The Fan Out page also has a **Scene Toolbox** (same slot grid as the Fixture Con
 
 The red **Clear all DMX channels** icon in the Fan Out scene toolbox calls `/dmx/clear` on the Pico and resets all configured Fan Out lane base values to `0`. This keeps the fan previews and offsets aligned with the cleared hardware state instead of continuing from stale base snapshots.
 
+### GPIO Control Prototype (`dmx_gpio.html`)
+
+The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
+
+- The page stores mappings locally in the browser and pushes the active mapping set to the Pico with `POST /gpio/config`.
+- The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
+- The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
+- Supported pulls: `pullup`, `pulldown`.
+- Supported triggers: `falling`, `rising`, `both`.
+- Supported actions: `dmx_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `motion_start`, `motion_stop`, `motion_toggle`.
+
+GPIO config is a line-based text protocol:
+
+```text
+ENABLE 1
+MAP 14 pullup falling dmx_clear 0 30
+MAP 15 pullup falling chaser_toggle 0 30
+```
+
+Format: `MAP <pin> <pull> <trigger> <action> <slot> <debounce_ms>`.
+
+Firmware endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/gpio/config` | GET | Return current volatile GPIO config as JSON |
+| `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
+| `/gpio/status` | GET | Return input states, event count, and last fired action |
+
+This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
+
 ### Server-side Persistence
 
 All persistent data is stored as JSON files on the PHP web server. No database is required.
@@ -280,6 +312,7 @@ Target: `E:\Software\xampp\htdocs\dmx-fixtures\`
 | `dmx_native.pio` | PIO program for 250 kbaud DMX framing |
 | `pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
 | `pico_motion.cpp` / `.h` | Pico-side pan/tilt oscillator — **16 independent slots**, simultaneous playback with bigger-wins channel merge, axes-only writes (pan-swing never touches tilt channels and vice versa), 100 Hz tick, hardware spinlock |
+| `gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |
 | `lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving |
 | `fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
 | `pico_sdk_import.cmake` | Pico SDK CMake integration |
