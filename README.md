@@ -142,6 +142,18 @@ Fixtures can be organised into named **Saved Groups** (stored server-side via `g
 - Groups can be edited (rename, change member list) or deleted from the Saved Groups panel.
 - Export / import the whole group store as JSON using the toolbar icon buttons.
 
+### Fixture Controller — Default and Blackout Values
+
+Each control in a fixture profile can store optional **Default** and **Blackout** values. These are configured in the **Default & Blackout** card while adding or editing a control.
+
+- **None** — disables the stored value for that control. Disabled values are skipped during recall.
+- **Pan/Tilt** — stores pan and tilt together; 16-bit controls use `0–65535`, 8-bit controls use `0–255`.
+- **Slider / wheel controls** — store one numeric DMX value. 16-bit sliders use `0–65535`; 8-bit sliders and wheels use `0–255`.
+- **RGB / RGBW / RGBWA** — use a color picker for RGB. RGBW also stores a manual `W` channel; RGBWA stores manual `W` and `Amber` channels.
+- **CMY / CMYK** — use the color picker converted to CMY/CMYK. CMYK also stores a manual `K` channel.
+
+On each patched fixture card, **Default** and **Blackout** buttons are shown when at least one control in that fixture's profile has the corresponding value enabled. Clicking one recalls all enabled values for that fixture, updates the on-screen controls, writes the live-value snapshot used by Chaser capture, and sends the resulting DMX values to the Pico when live send is enabled.
+
 ### Fixture Controller — Scene Toolbox
 
 A floating, draggable, collapsible **Scene Toolbox** overlays the fixture controller page.
