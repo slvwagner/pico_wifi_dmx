@@ -15,7 +15,7 @@ h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0
 .toolbar,.buttons,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
 #controlSurfacePanel{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:8px}
-#surface{flex:1;overflow-y:auto;min-height:0}
+#surface{flex:1;overflow-y:auto;min-height:0;scrollbar-gutter:stable}
 label{display:grid;gap:6px;color:var(--muted);font-size:13px}
 input,button,select,textarea{font:inherit}
 input,select,textarea{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
@@ -336,7 +336,7 @@ async function sendChannel(ch,value){
   if(!r.ok)throw new Error('HTTP '+r.status+' on channel '+ch);
 }
 
-async function sendControl(f,c){
+async function sendControl(f,c,silent=false){
   if(c.type==='panTilt16'){
     const v=getValue(f,c,{pan:32768,tilt:32768});
     if(!channelOk(f,c.pan,2)||!channelOk(f,c.tilt,2))throw new Error('Pan/Tilt channels out of range');
@@ -368,7 +368,7 @@ async function sendControl(f,c){
     if(!channelOk(f,c.channel))throw new Error(c.label+' channel out of range');
     await sendChannel(absolute(f.start,c.channel),getValue(f,c,0));
   }
-  setStatus('Sent '+f.name+' '+c.label);
+  if(!silent)setStatus('Sent '+f.name+' '+c.label);
 }
 
 function parseWheelOptions(text){
@@ -1007,7 +1007,7 @@ async function recallFixtureValues(fixtureId,which){
     const v=c[which];
     if(v===null||v===undefined)continue;
     setValue(f,c,v);
-    try{await sendControl(f,c);}catch(err){errors.push(err.message);}
+    try{await sendControl(f,c,true);}catch(err){errors.push(err.message);}
     updateControlDisplay(f,c);
   }
   writeLiveValues();
