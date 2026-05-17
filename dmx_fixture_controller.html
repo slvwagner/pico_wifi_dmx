@@ -267,6 +267,17 @@ function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
+let _writeLiveValuesTimer=null;
+function writeLiveValues(immediate=false){
+  const doWrite=()=>{
+    localStorage.setItem('dmxFCLiveValues',JSON.stringify(values));
+    if(location.protocol==='http:'||location.protocol==='https:')
+      fetch('fixture_setup.php?livevalues',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(values)}).catch(()=>{});
+  };
+  if(immediate){doWrite();return;}
+  clearTimeout(_writeLiveValuesTimer);
+  _writeLiveValuesTimer=setTimeout(doWrite,300);
+}
 function fixtureProfile(f){return profiles.find(p=>p.id===f.profileId);}
 function activeProfile(){return profiles.find(profile=>profile.id===activeProfileId);}
 function channelOk(f,rel,width=1){const ch=absolute(f.start,rel);return ch>=1&&(ch+width-1)<=maxDmx;}
@@ -875,6 +886,7 @@ surfaceEl.oninput=e=>{
   }else setValue(f,c,clamp(e.target.value,0,c.type==='slider16'?65535:255));
   if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
   updateControlDisplay(f,c);
+  writeLiveValues();
 };
 surfaceEl.onclick=e=>{
   const f=fixtures.find(x=>x.id===parseInt(e.target.dataset.fixture||e.target.dataset.sendFixture,10));
@@ -1256,6 +1268,7 @@ groupModalBody.oninput=e=>{
   setGroupValue(c,v);
   if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
   updateGroupControlDisplay(c);
+  writeLiveValues();
 };
 groupModalBody.addEventListener('click',e=>{
   const key=e.target.dataset.gc;if(!key)return;
@@ -1299,6 +1312,7 @@ function setGroupXY(e,pad){
   setGroupValue(c,v);
   if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
   updateGroupControlDisplay(c);
+  writeLiveValues();
 }
 // Capture-phase listener: intercepts Select + Collapse buttons before surfaceEl.onclick fires
 surfaceEl.addEventListener('click',e=>{
@@ -1446,6 +1460,7 @@ function saveSceneToSlot(idx,name){
 function recallScene(s){
   Object.assign(values,s.values);
   drawSurface();
+  writeLiveValues(true);
   if(live.checked){
     const root=endpoint();
     if(root){

@@ -446,12 +446,22 @@ function moveStep(idx,dir){
   drawStepList();
 }
 
-function captureFromFC(stepIdx){
+async function captureFromFC(stepIdx){
   const step=steps[stepIdx];if(!step)return;
   try{
-    const raw=localStorage.getItem('dmxFixtureController');
-    const data=raw?JSON.parse(raw):{};
-    const vals=data.values||{};
+    let vals=null;
+    if(location.protocol==='http:'||location.protocol==='https:'){
+      try{
+        const r=await fetch('fixture_setup.php?livevalues',{cache:'no-store'});
+        const j=await r.json();
+        if(j.ok&&j.exists&&j.values)vals=j.values;
+      }catch(_){}
+    }
+    if(!vals){
+      const raw=localStorage.getItem('dmxFCLiveValues');
+      if(raw)vals=JSON.parse(raw);
+    }
+    if(!vals){setStatus('No live values from FC — open Fixture Controller and recall a scene or adjust a control first',true);return;}
     getParticipatingList().forEach(({f,c})=>{const k=controlKey(f,c);if(vals[k]!==undefined)step.values[k]=vals[k];});
     if(stepIdx===selectedStepIdx)drawStepEditor();
     setStatus('FC values captured into step '+(stepIdx+1));
@@ -992,9 +1002,10 @@ document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getE
 document.getElementById('btnPrev').onclick=()=>manualStep(-1);
 document.getElementById('btnNext').onclick=()=>manualStep(1);
 document.getElementById('btnAddStep').onclick=()=>addStep();
-document.getElementById('btnCaptureNew').onclick=()=>{
+document.getElementById('btnCaptureNew').onclick=async()=>{
   const s=makeStep();steps.push(s);selectedStepIdx=steps.length-1;
-  captureFromFC(selectedStepIdx);drawStepList();drawStepEditor();
+  drawStepList();drawStepEditor();
+  await captureFromFC(selectedStepIdx);
 };
 document.getElementById('btnCaptureToStep').onclick=()=>captureFromFC(selectedStepIdx);
 document.getElementById('btnClearAll').onclick=()=>{
