@@ -1307,6 +1307,7 @@ surfaceEl.addEventListener('click',e=>{
     const id=parseInt(col.dataset.collapseFixture,10);
     if(collapsedFixtureIds.has(id))collapsedFixtureIds.delete(id);else collapsedFixtureIds.add(id);
     localStorage.setItem('fixtureCardCollapsed',JSON.stringify([...collapsedFixtureIds]));
+    saveUiStateServer('fixtureCardCollapsed',[...collapsedFixtureIds]);
     drawSurface();return;
   }
   const sel=e.target.closest('[data-select-fixture]');if(!sel)return;
@@ -1521,7 +1522,7 @@ sceneBoxHdr.addEventListener('pointermove',e=>{
   sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
   localStorage.setItem('sceneBoxPos',JSON.stringify({x,y}));
 });
-sceneBoxHdr.addEventListener('pointerup',()=>sceneBoxHdr.style.cursor='grab');
+sceneBoxHdr.addEventListener('pointerup',()=>{sceneBoxHdr.style.cursor='grab';saveUiStateServer('sceneBoxPos',{x:parseInt(sceneBox.style.left)||0,y:parseInt(sceneBox.style.top)||0});});
 const _sbPos=JSON.parse(localStorage.getItem('sceneBoxPos')||'null');
 if(_sbPos){sceneBox.style.left=_sbPos.x+'px';sceneBox.style.top=_sbPos.y+'px';sceneBox.style.right='auto';}
 function clampSceneBox(){
@@ -1534,6 +1535,7 @@ document.getElementById('sceneBoxToggle').onclick=()=>{
   const c=sceneBox.classList.toggle('collapsed');
   document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
   localStorage.setItem('sceneBoxCollapsed',c?'1':'');
+  saveUiStateServer('sceneBoxCollapsed',c);
 };
 if(localStorage.getItem('sceneBoxCollapsed')==='1'){sceneBox.classList.add('collapsed');document.getElementById('sceneBoxToggle').textContent='+';}
 loadScenesServer();
@@ -1554,8 +1556,50 @@ loadScenesServer();
     body.style.display=hide?'none':'';
     btn.textContent=hide?'+':'\u2212';
     localStorage.setItem(storageKey,hide?'1':'');
+    saveUiStateServer(storageKey,hide);
   });
 });
+// ── UI State server sync ──────────────────────────────────────────────
+function saveUiStateServer(key,val){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({page:'fixture',state:{[key]:val}})}).catch(()=>{});
+}
+(async()=>{
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  try{
+    const r=await fetch('ui_state.php',{cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok||!j.exists)return;
+    const st=j.state.fixture||{};
+    if(st.sceneBoxCollapsed!==undefined){
+      const c=!!st.sceneBoxCollapsed;
+      localStorage.setItem('sceneBoxCollapsed',c?'1':'');
+      sceneBox.classList.toggle('collapsed',c);
+      document.getElementById('sceneBoxToggle').textContent=c?'+':'\u2014';
+    }
+    if(st.sceneBoxPos){
+      localStorage.setItem('sceneBoxPos',JSON.stringify(st.sceneBoxPos));
+      sceneBox.style.left=st.sceneBoxPos.x+'px';sceneBox.style.top=st.sceneBoxPos.y+'px';sceneBox.style.right='auto';
+      clampSceneBox();
+    }
+    [['patchCollapsed','patchBody','patchCollapseBtn'],
+     ['profilesCollapsed','profilesBody','profilesCollapseBtn'],
+     ['addControlCollapsed','addControlBody','addControlCollapseBtn']].forEach(([key,bodyId,btnId])=>{
+      if(st[key]===undefined)return;
+      const c=!!st[key];
+      localStorage.setItem(key,c?'1':'');
+      const body=document.getElementById(bodyId),btn=document.getElementById(btnId);
+      if(body)body.style.display=c?'none':'';
+      if(btn)btn.textContent=c?'+':'\u2212';
+    });
+    if(Array.isArray(st.fixtureCardCollapsed)){
+      localStorage.setItem('fixtureCardCollapsed',JSON.stringify(st.fixtureCardCollapsed));
+      collapsedFixtureIds=new Set(st.fixtureCardCollapsed);
+      drawSurface();
+    }
+  }catch(_){}
+})();
 </script>
 </body>
 </html>

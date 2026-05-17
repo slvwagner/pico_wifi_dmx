@@ -17,6 +17,7 @@ $chaserApiSource = Join-Path $PSScriptRoot "chaser_setup.php"
 $motionApiSource = Join-Path $PSScriptRoot "motion_setup.php"
 $groupApiSource  = Join-Path $PSScriptRoot "group_setup.php"
 $sceneApiSource  = Join-Path $PSScriptRoot "scene_setup.php"
+$uiStateSource   = Join-Path $PSScriptRoot "ui_state.php"
 $targetDir = Join-Path $XamppHtdocs $AppFolder
 $target = Join-Path $targetDir "index.html"
 $apiTarget = Join-Path $targetDir "fixture_setup.php"
@@ -29,6 +30,7 @@ $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
 $groupApiTarget  = Join-Path $targetDir "group_setup.php"
 $sceneApiTarget  = Join-Path $targetDir "scene_setup.php"
+$uiStateTarget   = Join-Path $targetDir "ui_state.php"
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Source file not found: $source"
@@ -77,6 +79,10 @@ if (Test-Path -LiteralPath $groupApiSource) {
 if (Test-Path -LiteralPath $sceneApiSource) {
     Copy-Item -LiteralPath $sceneApiSource -Destination $sceneApiTarget -Force
     Write-Host "Copied scenes API to $sceneApiTarget"
+}
+if (Test-Path -LiteralPath $uiStateSource) {
+    Copy-Item -LiteralPath $uiStateSource -Destination $uiStateTarget -Force
+    Write-Host "Copied UI state API to $uiStateTarget"
 }
 
 Write-Host "Copied fixture controller to $target"

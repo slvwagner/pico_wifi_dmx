@@ -884,6 +884,9 @@ function loadMotionScenesServer(){
   const box=document.getElementById('motionSceneBox');
   const hdr=document.getElementById('motionSceneHdr');
   const tog=document.getElementById('motionSceneBoxToggle');
+  const _pos=JSON.parse(localStorage.getItem('motionSceneBoxPos')||'null');
+  if(_pos){box.style.left=_pos.x+'px';box.style.top=_pos.y+'px';box.style.right='auto';}
+  if(localStorage.getItem('motionSceneBoxCollapsed')==='1'){box.classList.add('collapsed');tog.textContent='+';}
   let ox=0,oy=0,dragging=false;
   hdr.addEventListener('mousedown',e=>{if(e.target===tog)return;dragging=true;ox=e.clientX-box.offsetLeft;oy=e.clientY-box.offsetTop;e.preventDefault();});
   document.addEventListener('mousemove',e=>{
@@ -893,16 +896,55 @@ function loadMotionScenesServer(){
     box.style.top=Math.max(0,Math.min(mh-bh,e.clientY-oy))+'px';
     box.style.right='auto';box.style.bottom='auto';
   });
-  document.addEventListener('mouseup',()=>{dragging=false;});
+  document.addEventListener('mouseup',()=>{
+    if(!dragging)return;dragging=false;
+    const x=parseInt(box.style.left)||0,y=parseInt(box.style.top)||0;
+    localStorage.setItem('motionSceneBoxPos',JSON.stringify({x,y}));
+    saveUiStateServer('sceneBoxPos',{x,y});
+  });
   window.addEventListener('resize',()=>{
     const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
     box.style.left=Math.max(0,Math.min(mw-bw,box.offsetLeft))+'px';
     box.style.top=Math.max(0,Math.min(mh-bh,box.offsetTop))+'px';
     box.style.right='auto';box.style.bottom='auto';
   });
-  tog.addEventListener('click',()=>{const c=box.classList.toggle('collapsed');tog.textContent=c?'+':'—';});
+  tog.addEventListener('click',()=>{
+    const c=box.classList.toggle('collapsed');tog.textContent=c?'+':'—';
+    localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
+    saveUiStateServer('sceneBoxCollapsed',c);
+  });
 })();
 loadMotionScenesServer();
+// ── UI State persistence ─────────────────────────────────────────────────────────
+function saveUiStateServer(key,val){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({page:'motion',state:{[key]:val}})}).catch(()=>{});
+}
+(async()=>{
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
+  try{
+    const r=await fetch('ui_state.php',{cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok||!j.exists)return;
+    const st=j.state.motion||{};
+    const box=document.getElementById('motionSceneBox');
+    const tog=document.getElementById('motionSceneBoxToggle');
+    if(st.sceneBoxCollapsed!==undefined){
+      const c=!!st.sceneBoxCollapsed;
+      localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
+      box.classList.toggle('collapsed',c);
+      tog.textContent=c?'+':'\u2014';
+    }
+    if(st.sceneBoxPos){
+      localStorage.setItem('motionSceneBoxPos',JSON.stringify(st.sceneBoxPos));
+      box.style.left=st.sceneBoxPos.x+'px';box.style.top=st.sceneBoxPos.y+'px';box.style.right='auto';
+      const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
+      box.style.left=Math.max(0,Math.min(mw-bw,parseInt(box.style.left)||0))+'px';
+      box.style.top=Math.max(0,Math.min(mh-bh,parseInt(box.style.top)||0))+'px';
+    }
+  }catch(_){}
+})();
 
 // After setup loads (and baseUrl is restored from localStorage), auto-poll once
 setTimeout(()=>{ if(baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
