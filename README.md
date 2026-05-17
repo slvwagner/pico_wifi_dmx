@@ -37,7 +37,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 |----------|--------|-------------|
 | `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
 | `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
-| `/dmx/clear` | GET | Zero all channels |
+| `/dmx/clear` | GET | Zero all channels and clear the scene base buffer |
 | `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
 | `/dmx/values.json` | GET | Read all channel values |
 
@@ -162,6 +162,7 @@ A floating, draggable, collapsible **Scene Toolbox** overlays the fixture contro
 - **Save scene** — snapshots every channel value for every patched fixture into a named slot.
 - **Recall scene** — sends all stored channel values back to the Pico in one batch request.
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
+- **Clear all channels** — the red `×` icon next to the scene JSON import/export buttons asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
 - Slots are stored server-side in `scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
 - Toolbox position (drag) and collapsed state are persisted per-page to `ui_state.json` via `ui_state.php`.
 - Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
@@ -238,6 +239,8 @@ Spreads any DMX control as an interpolated offset across an ordered list of fixt
 Supports 8-bit and 16-bit controls. `panTilt16` controls expose Pan and Tilt as separate selectable axes. Multiple fan groups can run simultaneously (e.g. pan fan on group 1, tilt fan on group 2) — each group sends only its own channels so they never interfere.
 
 The Fan Out page also has a **Scene Toolbox** (same slot grid as the Fixture Controller) for saving and recalling scenes, including the ability to delete individual scenes from their slot with the `×` button.
+
+The red **Clear all DMX channels** icon in the Fan Out scene toolbox calls `/dmx/clear` on the Pico and resets all configured Fan Out lane base values to `0`. This keeps the fan previews and offsets aligned with the cleared hardware state instead of continuing from stale base snapshots.
 
 ### Server-side Persistence
 
