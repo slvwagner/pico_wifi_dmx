@@ -23,7 +23,7 @@ input,select,textarea{padding:10px;background:#0a0d10;color:var(--text);border:1
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:260px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
 button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}button.danger{background:#3a2226;border-color:#7a3a42;color:var(--bad)}
 button:disabled{opacity:.45;cursor:not-allowed}
 .list{display:grid;gap:8px}.item{border:1px solid var(--line);border-radius:8px;padding:10px;background:#10161b;display:grid;gap:8px}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
@@ -252,6 +252,7 @@ Blue=48</textarea>
 <div class="buttons">
 <button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -1716,6 +1717,38 @@ function recallScene(s){
   }
   setStatus('Recalled scene: "'+s.name+'"');
 }
+function zeroValueForControl(c){
+  if(c.type==='panTilt16'||c.type==='panTilt8')return{pan:0,tilt:0};
+  if(c.type==='rgb')return{a:0,b:0,c:0};
+  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
+  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
+  if(c.type==='cmy')return{a:0,b:0,c:0};
+  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  return 0;
+}
+async function clearAllChannels(){
+  if(!confirm('Clear all DMX channels and controller values?'))return;
+  Object.keys(values).forEach(k=>delete values[k]);
+  fixtures.forEach(f=>{
+    const p=fixtureProfile(f);
+    if(!p)return;
+    p.controls.forEach(c=>setValue(f,c,zeroValueForControl(c)));
+  });
+  drawSurface();
+  writeLiveValues(true);
+  const root=endpoint();
+  if(!root){
+    setStatus('Local controller values cleared; set Pico base URL to clear hardware');
+    return;
+  }
+  try{
+    const r=await fetch(root+'/dmx/clear',{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    setStatus('All DMX channels cleared');
+  }catch(err){
+    setStatus('Local values cleared; Pico clear failed: '+err.message,true);
+  }
+}
 function saveScenesServer(){
   fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
@@ -1752,6 +1785,7 @@ function importScenesJson(file){
 }
 document.getElementById('exportScenesBtn').onclick=exportScenesJson;
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
+document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
 document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
 const sceneBox=document.getElementById('sceneBox');
 const sceneBoxHdr=document.getElementById('sceneBoxHdr');
