@@ -24,6 +24,18 @@ if ($method === 'GET') {
         exit;
     }
 
+    // ?participating — return just participating controls
+    if (isset($_GET['participating'])) {
+        if (!is_file($dataFile)) {
+            echo json_encode(['ok' => true, 'exists' => false, 'participating' => null]);
+            exit;
+        }
+        $data = readDataFile($dataFile);
+        $p = isset($data['participating']) ? $data['participating'] : null;
+        echo json_encode(['ok' => true, 'exists' => $p !== null, 'participating' => $p]);
+        exit;
+    }
+
     if (!is_file($dataFile)) {
         echo json_encode(['ok' => true, 'exists' => false, 'chaser' => null]);
         exit;
@@ -75,7 +87,28 @@ if ($method === 'POST') {
         exit;
     }
 
-    // default POST — save browser state (preserve existing pico_slots)
+    // ?participating — save just participating controls
+    if (isset($_GET['participating'])) {
+        $raw = file_get_contents('php://input');
+        $data = json_decode($raw === false ? '' : $raw, true);
+        if (!is_array($data)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'Request body must be a JSON object']);
+            exit;
+        }
+        $existing = readDataFile($dataFile);
+        $existing['participating'] = $data;
+        $json = json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not write chaser file']);
+            exit;
+        }
+        echo json_encode(['ok' => true]);
+        exit;
+    }
+
+    // default POST — save browser state (preserve existing pico_slots and participating)
     $raw  = file_get_contents('php://input');
     $data = json_decode($raw === false ? '' : $raw, true);
     if (!is_array($data)) {
@@ -86,6 +119,9 @@ if ($method === 'POST') {
     $existing = readDataFile($dataFile);
     if (isset($existing['pico_slots'])) {
         $data['pico_slots'] = $existing['pico_slots'];
+    }
+    if (isset($existing['participating'])) {
+        $data['participating'] = $existing['participating'];
     }
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {

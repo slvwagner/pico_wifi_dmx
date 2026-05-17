@@ -119,6 +119,11 @@ a.nav:hover{color:var(--text)}
       <div class="buttons">
         <button id="btnSelAll" style="padding:6px 10px;font-size:12px">All</button>
         <button id="btnSelNone" style="padding:6px 10px;font-size:12px">None</button>
+        <button id="btnSavePart" style="padding:6px 10px;font-size:12px">Save</button>
+        <button id="btnLoadPart" style="padding:6px 10px;font-size:12px">Load</button>
+        <button id="btnExportPart" class="icon-btn" title="Export participating JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+        <button id="btnImportPart" class="icon-btn" title="Import participating JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+        <input id="importPartFile" type="file" accept=".json,application/json" style="display:none">
       </div>
     </div>
     <div class="list" id="participationList"></div>
@@ -852,19 +857,31 @@ document.getElementById('btnTap').onclick=()=>{
 };
 
 // ---- save / load chaser ----
-function chaserData(){return{steps,participating};}
+function chaserData(){return{steps};}
 function applyChaserData(data){
   if(Array.isArray(data?.steps))steps=data.steps;
-  if(data?.participating)Object.assign(participating,data.participating);
   selectedStepIdx=steps.length?0:-1;
   drawParticipation();drawStepList();drawStepEditor();
+}
+function applyParticipatingData(data){
+  if(data&&typeof data==='object')Object.assign(participating,data);
+  drawParticipation();drawStepEditor();
 }
 async function saveChaserToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
   try{
     const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserData())});
     const j=await r.json();
-    if(j.ok)setStatus('Chaser saved to server');
+    if(j.ok)setStatus('Chaser steps saved to server');
+    else setStatus('Save failed: '+j.error,true);
+  }catch(err){setStatus('Save failed: '+err.message,true);}
+}
+async function saveParticipatingToServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
+  try{
+    const r=await fetch('chaser_setup.php?participating',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(participating)});
+    const j=await r.json();
+    if(j.ok)setStatus('Participating controls saved');
     else setStatus('Save failed: '+j.error,true);
   }catch(err){setStatus('Save failed: '+err.message,true);}
 }
@@ -873,7 +890,20 @@ async function loadChaserFromServer(){
   try{
     const r=await fetch('chaser_setup.php',{cache:'no-store'});
     const j=await r.json();
-    if(r.ok&&j.ok&&j.exists&&j.chaser){applyChaserData(j.chaser);return true;}
+    if(r.ok&&j.ok&&j.exists&&j.chaser){
+      applyChaserData(j.chaser);
+      if(j.chaser.participating)applyParticipatingData(j.chaser.participating);
+      return true;
+    }
+  }catch(_){}
+  return false;
+}
+async function loadParticipatingFromServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
+  try{
+    const r=await fetch('chaser_setup.php?participating',{cache:'no-store'});
+    const j=await r.json();
+    if(r.ok&&j.ok&&j.exists&&j.participating){applyParticipatingData(j.participating);return true;}
   }catch(_){}
   return false;
 }
@@ -982,6 +1012,31 @@ document.getElementById('btnApplyMeta').onclick=()=>{
 };
 document.getElementById('btnSelAll').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=true);drawParticipation();drawStepEditor();};
 document.getElementById('btnSelNone').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=false);drawParticipation();drawStepEditor();};
+document.getElementById('btnSavePart').onclick=()=>saveParticipatingToServer();
+document.getElementById('btnLoadPart').onclick=async()=>{
+  const loaded=await loadParticipatingFromServer();
+  if(loaded)setStatus('Participating controls loaded from server');
+  else setStatus('No saved participating controls found',true);
+};
+document.getElementById('btnExportPart').onclick=()=>{
+  const blob=new Blob([JSON.stringify({participating},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_participating.json';a.click();URL.revokeObjectURL(a.href);
+  setStatus('dmx_participating.json downloaded');
+};
+document.getElementById('btnImportPart').onclick=()=>document.getElementById('importPartFile').click();
+document.getElementById('importPartFile').onchange=e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      applyParticipatingData(data.participating??data);
+      setStatus('Participating controls imported from '+file.name);
+    }catch(err){alert('Invalid JSON: '+err.message);}
+    e.target.value='';
+  };
+  reader.readAsText(file);
+};
 
 // ---- Pico realtime playback ----
 function serializeChaserForPico(){
