@@ -12,6 +12,8 @@
 #include "pico_chaser.h"
 #include "pico_motion.h"
 
+#define GPIO_ADC_FILTER_MS 10u
+
 typedef struct {
     gpio_mapping_t cfg;
     bool           raw_state;
@@ -24,6 +26,9 @@ typedef struct {
     gpio_adc_mapping_t cfg;
     uint16_t           raw_value;
     uint16_t           last_rate_x100;
+    uint32_t           sample_sum;
+    uint16_t           sample_count;
+    uint32_t           window_started_ms;
 } gpio_adc_runtime_t;
 
 static critical_section_t gpio_lock;
@@ -364,6 +369,9 @@ bool gpio_control_configure_text(const char *body, size_t len, char *err, size_t
             used_pin_mask |= (1u << m.pin);
             next_adc[next_adc_count].cfg = m;
             next_adc[next_adc_count].last_rate_x100 = 0;
+            next_adc[next_adc_count].sample_sum = 0;
+            next_adc[next_adc_count].sample_count = 0;
+            next_adc[next_adc_count].window_started_ms = 0;
             next_adc_count++;
             continue;
         }
@@ -481,6 +489,18 @@ void gpio_control_poll(uint32_t now_ms)
         if (!m->cfg.enabled) continue;
         adc_select_input(adc_input_for_pin(m->cfg.pin));
         uint16_t raw = adc_read();
+        if (m->window_started_ms == 0) {
+            m->window_started_ms = now_ms;
+        }
+        m->sample_sum += raw;
+        m->sample_count++;
+        if (now_ms - m->window_started_ms < GPIO_ADC_FILTER_MS) {
+            continue;
+        }
+        raw = (uint16_t)(m->sample_sum / m->sample_count);
+        m->sample_sum = 0;
+        m->sample_count = 0;
+        m->window_started_ms = now_ms;
         uint16_t span = (uint16_t)(m->cfg.max_x100 - m->cfg.min_x100);
         uint16_t rate_x100 = (uint16_t)(m->cfg.min_x100 + ((uint32_t)raw * span) / 4095u);
         m->raw_value = raw;
@@ -501,6 +521,9 @@ void gpio_control_poll(uint32_t now_ms)
     for (uint8_t i = 0; i < adc_count && i < gpio_adc_map_count; i++) {
         gpio_adc_maps[i].raw_value = adc_snapshot[i].raw_value;
         gpio_adc_maps[i].last_rate_x100 = adc_snapshot[i].last_rate_x100;
+        gpio_adc_maps[i].sample_sum = adc_snapshot[i].sample_sum;
+        gpio_adc_maps[i].sample_count = adc_snapshot[i].sample_count;
+        gpio_adc_maps[i].window_started_ms = adc_snapshot[i].window_started_ms;
     }
     critical_section_exit(&gpio_lock);
 }
@@ -600,13 +623,16 @@ void gpio_control_write_status_json(char *out, size_t out_len)
     if (n > 0) used += (size_t)n;
     for (uint8_t i = 0; i < adc_count && used + 128 < out_len; i++) {
         n = snprintf(out + used, out_len - used,
-                     "%s{\"pin\":%u,\"action\":\"%s\",\"slot\":%u,\"raw\":%u,\"rate_x100\":%u}",
+                     "%s{\"pin\":%u,\"action\":\"%s\",\"slot\":%u,\"raw\":%u,\"filter_ms\":%u,\"rate_x100\":%u,\"min_x100\":%u,\"max_x100\":%u}",
                      i ? "," : "",
                      adc_snapshot[i].cfg.pin,
                      adc_action_name(adc_snapshot[i].cfg.action),
                      adc_snapshot[i].cfg.slot,
                      adc_snapshot[i].raw_value,
-                     adc_snapshot[i].last_rate_x100);
+                     GPIO_ADC_FILTER_MS,
+                     adc_snapshot[i].last_rate_x100,
+                     adc_snapshot[i].cfg.min_x100,
+                     adc_snapshot[i].cfg.max_x100);
         if (n < 0) break;
         used += (size_t)n;
     }

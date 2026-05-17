@@ -278,7 +278,7 @@ The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It
 - Supported pulls: `pullup`, `pulldown`.
 - Supported triggers: `falling`, `rising`, `both`.
 - Supported digital actions: `dmx_clear`, `dmx_output_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `chaser_pause`, `chaser_resume`, `chaser_pause_toggle`, `motion_start`, `motion_stop`, `motion_toggle`.
-- ADC mappings are separate from digital button mappings and are limited to GPIO26, GPIO27, and GPIO28 on Pico 2 W. The first ADC action is `chaser_speed`, which maps the ADC value to a slot speed range.
+- ADC mappings are separate from digital button mappings and are limited to GPIO26, GPIO27, and GPIO28 on Pico 2 W. The first ADC action is `chaser_speed`, which maps the ADC value to a chaser speed multiplier range.
 
 GPIO config is a line-based text protocol:
 
@@ -291,6 +291,8 @@ ADC 26 chaser_speed 0 10 300
 
 Format: `MAP <pin> <pull> <trigger> <action> <slot> <debounce_ms>`.
 ADC format: `ADC <pin> <action> <slot> <min_x100> <max_x100>`.
+The web editor shows ADC ranges as normal speed multipliers, e.g. `0.10` to `6.00`; the generated firmware line stores the same values as `10` to `600`.
+ADC readback and multiplier updates use a 10 ms mean filter to reduce ripple from pots and long wires.
 
 Use `dmx_clear` when the button should clear both output and the motion base buffer. Use `dmx_output_clear` when it should black out live output but keep the base buffer intact, so Motion FX can resume around the same stored center.
 
