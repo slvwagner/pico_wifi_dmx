@@ -234,10 +234,10 @@ void chaser_get_status(chaser_status_t *out)
     memset(out, 0, sizeof(*out));
     for (uint8_t i = 0; i < CHASER_MAX_SLOTS; i++) {
         if (slot_data[i].loaded)
-            out->loaded_mask |= (uint8_t)(1u << i);
+            out->loaded_mask |= (uint32_t)(1u << i);
         if (play_state[i].playing) {
-            out->active_mask |= (uint8_t)(1u << i);
-            if (out->active_mask == (uint8_t)(1u << i)) { /* first active slot */
+            out->active_mask |= (uint32_t)(1u << i);
+            if (out->active_mask == (uint32_t)(1u << i)) { /* first active slot */
                 out->step       = play_state[i].current_step;
                 out->step_count = slot_data[i].step_count;
                 out->elapsed_ms = play_state[i].last_elapsed_ms;

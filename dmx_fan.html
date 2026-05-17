@@ -122,6 +122,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
 <button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -1024,6 +1025,22 @@ function recallScene(s){
     .then(()=>{setStatus('Recalled scene: "'+s.name+'"');setTimeout(refreshAllBases,400);})
     .catch(err=>setStatus(err.message,true));
 }
+async function clearAllChannels(){
+  if(!confirm('Clear all DMX channels and Fan Out base values?'))return;
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setStatus('Set Pico base URL first',true);return;}
+  try{
+    const r=await fetch(root+'/dmx/clear',{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    groups.forEach(g=>g.lanes.forEach(lane=>{
+      g.orderedFixtureIds.forEach(fid=>{lane.bases[fid]=0;});
+    }));
+    renderGroups();
+    setStatus('All DMX channels cleared');
+  }catch(err){
+    setStatus('Clear failed: '+err.message,true);
+  }
+}
 function saveScenesServer(){
   fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
@@ -1044,6 +1061,7 @@ document.getElementById('exportScenesBtn').onclick=()=>{
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
 };
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
+document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
 document.getElementById('importScenesFile').onchange=e=>{
   if(!e.target.files[0])return;
   const fr=new FileReader();fr.onload=ev=>{

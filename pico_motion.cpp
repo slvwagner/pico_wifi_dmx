@@ -1,4 +1,5 @@
 #include "pico_motion.h"
+#include "dmx_engine.h"
 #include "pico/sync.h"
 #include <string.h>
 #include <stdlib.h>
@@ -93,20 +94,18 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
             mfx_fixture_t *f = &tmp.fixtures[tmp.fixture_count];
             int  enabled = 0, is_16bit = 0;
             unsigned pan_ch = 0, pan_fine = 0, tilt_ch = 0, tilt_fine = 0;
-            float pan_c = 0.0f, tilt_c = 0.0f, phase = 0.0f;
-            int got = sscanf(line + 4, "%d %u %u %u %u %d %f %f %f",
+            float phase = 0.0f;
+            int got = sscanf(line + 4, "%d %u %u %u %u %d %f",
                              &enabled, &pan_ch, &pan_fine,
                              &tilt_ch, &tilt_fine, &is_16bit,
-                             &pan_c, &tilt_c, &phase);
-            if (got == 9) {
+                             &phase);
+            if (got == 7) {
                 f->enabled          = (enabled  != 0);
                 f->is_16bit         = (is_16bit != 0);
                 f->pan_ch           = (uint16_t)pan_ch;
                 f->pan_fine_ch      = (uint16_t)pan_fine;
                 f->tilt_ch          = (uint16_t)tilt_ch;
                 f->tilt_fine_ch     = (uint16_t)tilt_fine;
-                f->pan_center       = pan_c;
-                f->tilt_center      = tilt_c;
                 f->phase_offset_deg = phase;
                 f->max_val          = is_16bit ? 65535.0f : 255.0f;
                 tmp.fixture_count++;
@@ -273,14 +272,29 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             float half = f->max_val / 2.0f;
 
             if (moves_pan) {
-                float new_pan = f->pan_center + pan_off * sn->pan_amp * half;
+                /* Read center from scene base buffer — relative to live position. */
+                float base_pan;
+                if (f->is_16bit) {
+                    base_pan = (float)(((uint16_t)dmx_engine_get_base_channel(f->pan_ch) << 8) |
+                                       dmx_engine_get_base_channel(f->pan_fine_ch));
+                } else {
+                    base_pan = (float)dmx_engine_get_base_channel(f->pan_ch);
+                }
+                float new_pan = base_pan + pan_off * sn->pan_amp * half;
                 if (new_pan < 0.0f)       new_pan = 0.0f;
                 if (new_pan > f->max_val) new_pan = f->max_val;
                 if (f->is_16bit) scratch16(f->pan_ch,  f->pan_fine_ch,  (uint16_t)new_pan,  scratch, touched);
                 else              scratch8 (f->pan_ch,                   (uint8_t) new_pan,  scratch, touched);
             }
             if (moves_tilt) {
-                float new_tilt = f->tilt_center + tilt_off * sn->tilt_amp * half;
+                float base_tilt;
+                if (f->is_16bit) {
+                    base_tilt = (float)(((uint16_t)dmx_engine_get_base_channel(f->tilt_ch) << 8) |
+                                        dmx_engine_get_base_channel(f->tilt_fine_ch));
+                } else {
+                    base_tilt = (float)dmx_engine_get_base_channel(f->tilt_ch);
+                }
+                float new_tilt = base_tilt + tilt_off * sn->tilt_amp * half;
                 if (new_tilt < 0.0f)       new_tilt = 0.0f;
                 if (new_tilt > f->max_val) new_tilt = f->max_val;
                 if (f->is_16bit) scratch16(f->tilt_ch, f->tilt_fine_ch, (uint16_t)new_tilt, scratch, touched);
@@ -297,11 +311,11 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 void mfx_get_status(mfx_status_t *out)
 {
     critical_section_enter_blocking(&mfx_lock);
-    uint8_t amask = 0, lmask = 0;
+    uint32_t amask = 0, lmask = 0;
     float   elapsed = 0.0f;
     for (int i = 0; i < MFX_MAX_SLOTS; i++) {
-        if (slot_data[i].active) amask |= (uint8_t)(1u << i);
-        if (slot_data[i].loaded) lmask |= (uint8_t)(1u << i);
+        if (slot_data[i].active) amask |= (uint32_t)(1u << i);
+        if (slot_data[i].loaded) lmask |= (uint32_t)(1u << i);
     }
     for (int i = 0; i < MFX_MAX_SLOTS; i++) { /* elapsed of lowest active slot */
         if (slot_data[i].active) { elapsed = slot_data[i].last_elapsed_s; break; }

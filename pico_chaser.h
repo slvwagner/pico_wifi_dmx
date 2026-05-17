@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define CHASER_MAX_SLOTS      8
+#define CHASER_MAX_SLOTS      16
 #define CHASER_MAX_STEPS      32
 #define CHASER_MAX_CH_TOTAL   1024   /* total ch entries per slot */
 
@@ -25,8 +25,8 @@ typedef struct {
 
 /* Summary returned by chaser_get_status() */
 typedef struct {
-    uint8_t  active_mask;   /* bitmask: bit i = slot i is playing  */
-    uint8_t  loaded_mask;   /* bitmask: bit i = slot i is loaded   */
+    uint32_t active_mask;   /* bitmask: bit i = slot i is playing  */
+    uint32_t loaded_mask;   /* bitmask: bit i = slot i is loaded   */
     uint16_t step;          /* current_step of the first active slot */
     uint16_t step_count;    /* step_count  of the first active slot */
     uint32_t elapsed_ms;    /* elapsed_ms  of the first active slot */

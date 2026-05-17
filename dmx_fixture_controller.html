@@ -9,32 +9,38 @@
 *{box-sizing:border-box}html{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif;height:100%;overflow:hidden}
 main{max-width:1260px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px;height:100%;overflow:hidden}
 header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+header>div:first-child{flex:1 1 220px;min-width:220px;max-width:100%}
 h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
-.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
-.panel,.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.status,.small{color:var(--muted);font-size:13px}.status{min-height:18px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bad{color:var(--bad)}
+.panel,.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;align-content:start}
 .toolbar,.buttons,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
 #controlSurfacePanel{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:8px}
-#surface{flex:1;overflow-y:auto;min-height:0}
+#surface{flex:1;overflow-y:auto;min-height:0;scrollbar-gutter:stable}
 label{display:grid;gap:6px;color:var(--muted);font-size:13px}
 input,button,select,textarea{font:inherit}
 input,select,textarea{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:260px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
 button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}button.danger{background:#3a2226;border-color:#7a3a42;color:var(--bad)}
 button:disabled{opacity:.45;cursor:not-allowed}
 .list{display:grid;gap:8px}.item{border:1px solid var(--line);border-radius:8px;padding:10px;background:#10161b;display:grid;gap:8px}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-.readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700}.bytes{color:var(--muted);font-size:13px}
+.fixture-head{display:grid;gap:6px;align-items:start;height:58px;overflow:hidden}
+.fixture-title{display:flex;gap:8px;align-items:baseline;min-width:0;flex-wrap:nowrap;height:24px;overflow:hidden}
+.fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
+.readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}.bytes{color:var(--muted);font-size:13px}
 .byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .xy-pad{position:relative;aspect-ratio:1.55/1;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%;touch-action:none;cursor:crosshair}
 .xy-dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
-@media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
+#addControlBody{display:grid;gap:10px}
+@media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
@@ -101,6 +107,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <button id="addControlCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
 <div id="addControlBody">
+<div id="typeChannelsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px">
+<div style="font-size:13px;font-weight:600;color:var(--text)">Type, Label &amp; Channels</div>
 <div class="toolbar">
 <label>Type
 <select id="controlType">
@@ -122,8 +130,6 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <label id="controlCWrap"><span id="controlCLabel">Ch C</span><input id="controlC" type="number" min="1" max="512" value="0"></label>
 <label id="controlDWrap"><span id="controlDLabel">Ch D</span><input id="controlD" type="number" min="1" max="512" value="0"></label>
 <label id="controlEWrap"><span id="controlELabel">Ch E</span><input id="controlE" type="number" min="1" max="512" value="0"></label>
-<button class="primary" id="addControl">Add control</button>
-<button id="cancelEdit">Cancel edit</button>
 </div>
 <div id="wheelEditorWrap">
 <label>Wheel options, one per line: name=value
@@ -147,6 +153,44 @@ Blue=48</textarea>
 </div>
 </div>
 <div class="small" id="controlHint"></div>
+</div>
+<div id="defBlkCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:12px">
+<div style="font-size:13px;font-weight:600;color:var(--text)">Default &amp; Blackout</div>
+<div style="display:grid;gap:6px">
+<div style="font-size:12px;color:var(--muted)">Default</div>
+<div class="toolbar">
+<label style="display:flex;flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="defNone"> None</label>
+<label id="defPanWrap">Pan<input id="defPan" type="number" min="0" max="65535" value="32768"></label>
+<label id="defTiltWrap">Tilt<input id="defTilt" type="number" min="0" max="65535" value="32768"></label>
+<label id="defNumWrap">Value<input id="defNum" type="number" min="0" max="65535" value="127"></label>
+<label id="defColorWrap">Color<input id="defColor" type="color" value="#7f7f7f"></label>
+<label id="defExtraWrap"><span id="defExtraLabel">W</span><input id="defExtra" type="number" min="0" max="255" value="127"></label>
+<label id="defAmberWrap">Amber<input id="defAmber" type="number" min="0" max="255" value="0"></label>
+</div>
+<div id="defXYPadWrap" style="display:none">
+<div id="defXYPad" class="xy-pad" style="width:200px;aspect-ratio:1.55/1;max-width:100%"><div id="defXYDot" class="xy-dot"></div></div>
+</div>
+</div>
+<div style="display:grid;gap:6px">
+<div style="font-size:12px;color:var(--muted)">Blackout</div>
+<div class="toolbar">
+<label style="display:flex;flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="blkNone"> None</label>
+<label id="blkPanWrap">Pan<input id="blkPan" type="number" min="0" max="65535" value="0"></label>
+<label id="blkTiltWrap">Tilt<input id="blkTilt" type="number" min="0" max="65535" value="0"></label>
+<label id="blkNumWrap">Value<input id="blkNum" type="number" min="0" max="65535" value="0"></label>
+<label id="blkColorWrap">Color<input id="blkColor" type="color" value="#000000"></label>
+<label id="blkExtraWrap"><span id="blkExtraLabel">W</span><input id="blkExtra" type="number" min="0" max="255" value="0"></label>
+<label id="blkAmberWrap">Amber<input id="blkAmber" type="number" min="0" max="255" value="0"></label>
+</div>
+<div id="blkXYPadWrap" style="display:none">
+<div id="blkXYPad" class="xy-pad" style="width:200px;aspect-ratio:1.55/1;max-width:100%"><div id="blkXYDot" class="xy-dot"></div></div>
+</div>
+</div>
+</div>
+<div id="actionsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<button class="primary" id="addControl">Add control</button>
+<button id="cancelEdit">Cancel edit</button>
+</div>
 </div>
 </div>
 </section>
@@ -193,6 +237,8 @@ Blue=48</textarea>
 </div>
 <div id="groupModalBody" class="modal-body"></div>
 <div class="buttons" style="padding-top:4px">
+<button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default all</button>
+<button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout all</button>
 <button id="sendGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeGroupModal2">Close</button>
 </div>
@@ -208,6 +254,7 @@ Blue=48</textarea>
 <div class="buttons">
 <button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -268,6 +315,7 @@ function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
+function cloneValue(v){return v&&typeof v==='object'?JSON.parse(JSON.stringify(v)):v;}
 let _writeLiveValuesTimer=null;
 function writeLiveValues(immediate=false){
   const doWrite=()=>{
@@ -300,7 +348,7 @@ async function sendChannel(ch,value){
   if(!r.ok)throw new Error('HTTP '+r.status+' on channel '+ch);
 }
 
-async function sendControl(f,c){
+async function sendControl(f,c,silent=false){
   if(c.type==='panTilt16'){
     const v=getValue(f,c,{pan:32768,tilt:32768});
     if(!channelOk(f,c.pan,2)||!channelOk(f,c.tilt,2))throw new Error('Pan/Tilt channels out of range');
@@ -332,7 +380,7 @@ async function sendControl(f,c){
     if(!channelOk(f,c.channel))throw new Error(c.label+' channel out of range');
     await sendChannel(absolute(f.start,c.channel),getValue(f,c,0));
   }
-  setStatus('Sent '+f.name+' '+c.label);
+  if(!silent)setStatus('Sent '+f.name+' '+c.label);
 }
 
 function parseWheelOptions(text){
@@ -407,6 +455,40 @@ function controlFromEditor(existingId=0){
   else if(type==='wheel')control={...control,channel:a,options:parseWheelOptions(document.getElementById('wheelOptions').value)};
   else if(type==='slider16')control={...control,channel:a,fine:b};
   else control={...control,channel:a};
+  // Default value (all types, nullable)
+  const is16bit=type==='panTilt16'||type==='slider16';
+  const isPanTiltType=type==='panTilt16'||type==='panTilt8';
+  const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const ptMax=is16bit?65535:255;
+  if(document.getElementById('defNone').checked){
+    control.defaultValue=null;
+  }else if(isPanTiltType){
+    control.defaultValue={pan:Math.round(clamp(parseInt(document.getElementById('defPan').value)||0,0,ptMax)),tilt:Math.round(clamp(parseInt(document.getElementById('defTilt').value)||0,0,ptMax))};
+  }else if(isColorType){
+    const hex=document.getElementById('defColor').value;
+    if(type==='rgb')control.defaultValue=hexToRgb(hex);
+    else if(type==='cmy')control.defaultValue=rgbToCmy(hex);
+    else if(type==='cmyk'){const ck=rgbToCmyk(hex);ck.k=clamp(parseInt(document.getElementById('defExtra').value)||0,0,255);control.defaultValue=ck;}
+    else if(type==='rgbw'){const rgb=hexToRgb(hex);control.defaultValue={...rgb,w:clamp(parseInt(document.getElementById('defExtra').value)||0,0,255)};}
+    else if(type==='rgbwa'){const rgb=hexToRgb(hex);control.defaultValue={...rgb,w:clamp(parseInt(document.getElementById('defExtra').value)||0,0,255),amber:clamp(parseInt(document.getElementById('defAmber').value)||0,0,255)};}
+  }else{
+    control.defaultValue=Math.round(clamp(parseFloat(document.getElementById('defNum').value)||0,0,is16bit?65535:255));
+  }
+  // Blackout value (all types, nullable)
+  if(document.getElementById('blkNone').checked){
+    control.blackoutValue=null;
+  }else if(isPanTiltType){
+    control.blackoutValue={pan:Math.round(clamp(parseInt(document.getElementById('blkPan').value)||0,0,ptMax)),tilt:Math.round(clamp(parseInt(document.getElementById('blkTilt').value)||0,0,ptMax))};
+  }else if(isColorType){
+    const hex=document.getElementById('blkColor').value;
+    if(type==='rgb')control.blackoutValue=hexToRgb(hex);
+    else if(type==='cmy')control.blackoutValue=rgbToCmy(hex);
+    else if(type==='cmyk'){const ck=rgbToCmyk(hex);ck.k=clamp(parseInt(document.getElementById('blkExtra').value)||0,0,255);control.blackoutValue=ck;}
+    else if(type==='rgbw'){const rgb=hexToRgb(hex);control.blackoutValue={...rgb,w:clamp(parseInt(document.getElementById('blkExtra').value)||0,0,255)};}
+    else if(type==='rgbwa'){const rgb=hexToRgb(hex);control.blackoutValue={...rgb,w:clamp(parseInt(document.getElementById('blkExtra').value)||0,0,255),amber:clamp(parseInt(document.getElementById('blkAmber').value)||0,0,255)};}
+  }else{
+    control.blackoutValue=Math.round(clamp(parseFloat(document.getElementById('blkNum').value)||0,0,is16bit?65535:255));
+  }
   return control;
 }
 
@@ -514,6 +596,41 @@ function defaultControlLabel(type){
   }[type]||'Control';
 }
 
+function updateEditorXYDot(panId,dotId,tiltId){
+  const maxV=parseInt(document.getElementById(panId).max)||255;
+  const dot=document.getElementById(dotId);
+  const px=Math.max(0,Math.min(maxV,parseInt(document.getElementById(panId).value)||0));
+  const ty=Math.max(0,Math.min(maxV,parseInt(document.getElementById(tiltId).value)||0));
+  dot.style.left=(px/maxV*100)+'%';dot.style.top=((1-ty/maxV)*100)+'%';
+}
+function updateEditorXYDots(){
+  updateEditorXYDot('defPan','defXYDot','defTilt');
+  updateEditorXYDot('blkPan','blkXYDot','blkTilt');
+}
+function setupEditorXYPad(padId,dotId,panId,tiltId){
+  const pad=document.getElementById(padId);
+  let down=false;
+  function update(e){
+    e.preventDefault();
+    const r=pad.getBoundingClientRect();
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    const x=Math.max(0,Math.min(1,(cx-r.left)/r.width));
+    const y=Math.max(0,Math.min(1,(cy-r.top)/r.height));
+    const maxV=parseInt(document.getElementById(panId).max)||255;
+    document.getElementById(panId).value=Math.round(x*maxV);
+    document.getElementById(tiltId).value=Math.round((1-y)*maxV);
+    updateEditorXYDot(panId,dotId,tiltId);
+  }
+  pad.addEventListener('mousedown',e=>{down=true;update(e);});
+  document.addEventListener('mousemove',e=>{if(down)update(e);});
+  document.addEventListener('mouseup',()=>down=false);
+  pad.addEventListener('touchstart',e=>{down=true;update(e);},{passive:false});
+  pad.addEventListener('touchmove',e=>{if(down)update(e);},{passive:false});
+  pad.addEventListener('touchend',()=>down=false,{passive:false});
+  document.getElementById(panId).addEventListener('input',()=>updateEditorXYDot(panId,dotId,tiltId));
+  document.getElementById(tiltId).addEventListener('input',()=>updateEditorXYDot(panId,dotId,tiltId));
+}
 function resetControlEditor(){
   editingControlId=0;
   document.getElementById('addControl').textContent='Add control';
@@ -533,7 +650,55 @@ function loadControlEditor(control){
   document.getElementById('controlD').value=control.tiltFine||control.w||control.k||0;
   document.getElementById('controlE').value=control.amber||0;
   document.getElementById('wheelOptions').value=wheelOptionsText(control.options)||document.getElementById('wheelOptions').value;
+  document.getElementById('defNone').checked=(control.defaultValue===null||control.defaultValue===undefined);
+  document.getElementById('blkNone').checked=(control.blackoutValue===null||control.blackoutValue===undefined);
   updateControlChannelInputs();
+  const isPanTiltType=control.type==='panTilt16'||control.type==='panTilt8';
+  const is16bitType=control.type==='panTilt16'||control.type==='slider16';
+  const ptMax=is16bitType?65535:255;
+  // Load default value
+  if(control.defaultValue!=null){
+    const dv=control.defaultValue;
+    if(isPanTiltType){
+      const pan=typeof dv==='object'?(dv.pan??Math.round(ptMax/2)):dv;
+      const tilt=typeof dv==='object'?(dv.tilt??Math.round(ptMax/2)):dv;
+      document.getElementById('defPan').value=pan;
+      document.getElementById('defTilt').value=tilt;
+    }else{
+      const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type);
+      if(isColorType){
+        if(control.type==='rgb'||control.type==='rgbw'||control.type==='rgbwa')
+          document.getElementById('defColor').value=rgbHex(dv);
+        else if(control.type==='cmy')document.getElementById('defColor').value=cmyHex(dv);
+        else if(control.type==='cmyk'){document.getElementById('defColor').value=cmykHex(dv);document.getElementById('defExtra').value=dv.k??0;}
+        if(control.type==='rgbw'||control.type==='rgbwa')document.getElementById('defExtra').value=dv.w??0;
+        if(control.type==='rgbwa')document.getElementById('defAmber').value=dv.amber??0;
+      }else{
+        document.getElementById('defNum').value=dv;
+      }
+    }
+  }
+  if(control.blackoutValue!=null){
+    if(isPanTiltType){
+      const bv=control.blackoutValue;
+      document.getElementById('blkPan').value=typeof bv==='object'?(bv.pan??0):bv;
+      document.getElementById('blkTilt').value=typeof bv==='object'?(bv.tilt??0):bv;
+    }else{
+      const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type);
+      const bv=control.blackoutValue;
+      if(isColorType&&typeof bv==='object'){
+        if(control.type==='rgb'||control.type==='rgbw'||control.type==='rgbwa')
+          document.getElementById('blkColor').value=rgbHex(bv);
+        else if(control.type==='cmy')document.getElementById('blkColor').value=cmyHex(bv);
+        else if(control.type==='cmyk'){document.getElementById('blkColor').value=cmykHex(bv);document.getElementById('blkExtra').value=bv.k??0;}
+        if(control.type==='rgbw'||control.type==='rgbwa')document.getElementById('blkExtra').value=bv.w??0;
+        if(control.type==='rgbwa')document.getElementById('blkAmber').value=bv.amber??0;
+      }else{
+        document.getElementById('blkNum').value=bv;
+      }
+    }
+  }
+  updateEditorXYDots();
 }
 
 function updateControlChannelInputs(fillChannels=false){
@@ -572,6 +737,54 @@ function updateControlChannelInputs(fillChannels=false){
   };
   document.getElementById('controlHint').textContent=hints[type]||'';
   document.getElementById('wheelEditorWrap').style.display=type==='wheel'?'grid':'none';
+
+  // Default / blackout field visibility and presets
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const is16bit=type==='panTilt16'||type==='slider16';
+  const ptMax=is16bit?65535:255;
+  document.getElementById('defExtraLabel').textContent=type==='cmyk'?'K':'W';
+  document.getElementById('blkExtraLabel').textContent=type==='cmyk'?'K':'W';
+  document.getElementById('defNum').max=is16bit?65535:255;
+  document.getElementById('blkNum').max=is16bit?65535:255;
+  ['defPan','defTilt','blkPan','blkTilt'].forEach(id=>document.getElementById(id).max=ptMax);
+  if(fillChannels){
+    document.getElementById('defNone').checked=false;
+    document.getElementById('blkNone').checked=false;
+    if(type==='panTilt16'){document.getElementById('defPan').value=32768;document.getElementById('defTilt').value=32768;document.getElementById('blkPan').value=32768;document.getElementById('blkTilt').value=32768;}
+    else if(type==='panTilt8'){document.getElementById('defPan').value=127;document.getElementById('defTilt').value=127;document.getElementById('blkPan').value=127;document.getElementById('blkTilt').value=127;}
+    else if(type==='slider8'){document.getElementById('defNum').value=127;document.getElementById('blkNum').value=0;}
+    else if(type==='slider16'){document.getElementById('defNum').value=32768;document.getElementById('blkNum').value=0;}
+    else if(type==='wheel'){document.getElementById('defNum').value=0;document.getElementById('blkNum').value=0;}
+    else if(type==='rgb'){document.getElementById('defColor').value='#7f7f7f';document.getElementById('blkColor').value='#000000';}
+    else if(type==='rgbw'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=127;document.getElementById('blkColor').value='#000000';document.getElementById('blkExtra').value=0;}
+    else if(type==='rgbwa'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=127;document.getElementById('defAmber').value=0;document.getElementById('blkColor').value='#000000';document.getElementById('blkExtra').value=0;document.getElementById('blkAmber').value=0;}
+    else if(type==='cmy'){document.getElementById('defColor').value='#7f7f7f';document.getElementById('blkColor').value='#000000';}
+    else if(type==='cmyk'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=0;document.getElementById('blkColor').value='#000000';document.getElementById('blkExtra').value=0;}
+  }
+  updateEditorXYDots();
+  applyNoneCheckboxes();
+}
+
+function applyNoneCheckboxes(){
+  const type=document.getElementById('controlType').value;
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const isPanTilt=type==='panTilt16'||type==='panTilt8';
+  const defNone=document.getElementById('defNone').checked;
+  const blkNone=document.getElementById('blkNone').checked;
+  document.getElementById('defPanWrap').style.display=(!defNone&&isPanTilt)?'grid':'none';
+  document.getElementById('defTiltWrap').style.display=(!defNone&&isPanTilt)?'grid':'none';
+  document.getElementById('defXYPadWrap').style.display=(!defNone&&isPanTilt)?'block':'none';
+  document.getElementById('defNumWrap').style.display=(!defNone&&!isColor&&!isPanTilt)?'grid':'none';
+  document.getElementById('defColorWrap').style.display=(!defNone&&isColor)?'grid':'none';
+  document.getElementById('defExtraWrap').style.display=(!defNone&&(type==='rgbw'||type==='rgbwa'||type==='cmyk'))?'grid':'none';
+  document.getElementById('defAmberWrap').style.display=(!defNone&&type==='rgbwa')?'grid':'none';
+  document.getElementById('blkPanWrap').style.display=(!blkNone&&isPanTilt)?'grid':'none';
+  document.getElementById('blkTiltWrap').style.display=(!blkNone&&isPanTilt)?'grid':'none';
+  document.getElementById('blkXYPadWrap').style.display=(!blkNone&&isPanTilt)?'block':'none';
+  document.getElementById('blkNumWrap').style.display=(!blkNone&&!isColor&&!isPanTilt)?'grid':'none';
+  document.getElementById('blkColorWrap').style.display=(!blkNone&&isColor)?'grid':'none';
+  document.getElementById('blkExtraWrap').style.display=(!blkNone&&(type==='rgbw'||type==='rgbwa'||type==='cmyk'))?'grid':'none';
+  document.getElementById('blkAmberWrap').style.display=(!blkNone&&type==='rgbwa')?'grid':'none';
 }
 
 function addControl(){
@@ -753,8 +966,10 @@ function drawSurface(){
     if(!p)return;
     const sel=selectedFixtureIds.has(f.id);
     const coll=collapsedFixtureIds.has(f.id);
+    const hasDefault=p.controls.some(c=>c.defaultValue!=null);
+    const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
     const card=document.createElement('article');card.className='card'+(sel?' selected':'');
-    card.innerHTML=`<div class="control-head"><div class="row"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="row" style="gap:6px"><button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button><button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button><button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   updateGroupBar();
@@ -816,6 +1031,23 @@ function updateControlDisplay(f,c){
   }
 }
 
+async function recallFixtureValues(fixtureId,which){
+  const f=fixtures.find(fx=>fx.id===fixtureId);
+  if(!f)return;
+  const p=fixtureProfile(f);
+  if(!p)return;
+  const errors=[];
+  for(const c of p.controls){
+    const v=c[which];
+    if(v===null||v===undefined)continue;
+    setValue(f,c,cloneValue(v));
+    try{await sendControl(f,c,true);}catch(err){errors.push(err.message);}
+    updateControlDisplay(f,c);
+  }
+  writeLiveValues();
+  if(errors.length)setStatus(errors.join(', '),true);
+  else setStatus(f.name+' '+(which==='defaultValue'?'default':'blackout')+' recalled');
+}
 function draw(){drawProfiles();drawPatched();drawSurface();}
 
 profilesEl.onclick=e=>{
@@ -941,6 +1173,10 @@ document.getElementById('saveProfile').onclick=saveProfile;
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
+document.getElementById('defNone').onchange=applyNoneCheckboxes;
+document.getElementById('blkNone').onchange=applyNoneCheckboxes;
+setupEditorXYPad('defXYPad','defXYDot','defPan','defTilt');
+setupEditorXYPad('blkXYPad','blkXYDot','blkPan','blkTilt');
 function csvEsc(v){v=String(v??'');return(v.includes(',')||v.includes('"')||v.includes('\n'))?'"'+v.replace(/"/g,'""')+'"':v;}
 function resolveDmxBytes(f,c){
   const out=[];
@@ -1107,6 +1343,11 @@ function setGroupValue(c,v){
     setValue(f,fc,v);
   });
 }
+function syncGroupValuesFromFirstSelected(common=getGroupCommonControls()){
+  const firstFx=fixtures.find(f=>selectedFixtureIds.has(f.id));
+  if(!firstFx)return;
+  common.forEach(c=>{groupValues[groupKey(c)]=cloneValue(getValue(firstFx,c,defaultValueForControl(c)));});
+}
 async function sendGroupControl(c){
   const root=endpoint();if(!root)throw new Error('Set Pico base URL first');
   const pairs=[];
@@ -1241,6 +1482,33 @@ function closeGroupModal(){document.getElementById('groupModal').style.display='
 document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
+async function recallGroupFixtureValues(which){
+  const ids=[...selectedFixtureIds];
+  const errors=[];
+  let controls=0;
+  for(const id of ids){
+    const f=fixtures.find(fx=>fx.id===id);if(!f)continue;
+    const p=fixtureProfile(f);if(!p)continue;
+    for(const c of p.controls){
+      const v=c[which];
+      if(v===null||v===undefined)continue;
+      controls++;
+      setValue(f,c,cloneValue(v));
+      try{await sendControl(f,c,true);}catch(err){errors.push(f.name+' '+c.label+': '+err.message);}
+      updateControlDisplay(f,c);
+    }
+  }
+  writeLiveValues();
+  const common=getGroupCommonControls();
+  syncGroupValuesFromFirstSelected(common);
+  common.forEach(c=>updateGroupControlDisplay(c));
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!controls){setStatus('No '+label+' values configured for selected fixtures',true);return;}
+  if(errors.length)setStatus(errors.slice(0,3).join(', ')+(errors.length>3?' ...':''),true);
+  else setStatus('Group '+label+' recalled for '+ids.length+' fixture'+(ids.length===1?'':'s'));
+}
+document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue');
+document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
 document.getElementById('sendGroupBtn').onclick=()=>{
   const common=getGroupCommonControls();
   Promise.all(common.map(c=>sendGroupControl(c))).catch(err=>setStatus(err.message,true));
@@ -1315,7 +1583,7 @@ function setGroupXY(e,pad){
   updateGroupControlDisplay(c);
   writeLiveValues();
 }
-// Capture-phase listener: intercepts Select + Collapse buttons before surfaceEl.onclick fires
+// Capture-phase listener: intercepts Select + Collapse + Recall buttons before surfaceEl.onclick fires
 surfaceEl.addEventListener('click',e=>{
   const col=e.target.closest('[data-collapse-fixture]');
   if(col){
@@ -1326,6 +1594,8 @@ surfaceEl.addEventListener('click',e=>{
     saveUiStateServer('fixtureCardCollapsed',[...collapsedFixtureIds]);
     drawSurface();return;
   }
+  const rec=e.target.closest('[data-recall-fixture]');
+  if(rec){e.stopPropagation();recallFixtureValues(parseInt(rec.dataset.recallFixture,10),rec.dataset.recallWhich);return;}
   const sel=e.target.closest('[data-select-fixture]');if(!sel)return;
   e.stopPropagation();
   const id=parseInt(sel.dataset.selectFixture,10);
@@ -1482,6 +1752,38 @@ function recallScene(s){
   }
   setStatus('Recalled scene: "'+s.name+'"');
 }
+function zeroValueForControl(c){
+  if(c.type==='panTilt16'||c.type==='panTilt8')return{pan:0,tilt:0};
+  if(c.type==='rgb')return{a:0,b:0,c:0};
+  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
+  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
+  if(c.type==='cmy')return{a:0,b:0,c:0};
+  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  return 0;
+}
+async function clearAllChannels(){
+  if(!confirm('Clear all DMX channels and controller values?'))return;
+  Object.keys(values).forEach(k=>delete values[k]);
+  fixtures.forEach(f=>{
+    const p=fixtureProfile(f);
+    if(!p)return;
+    p.controls.forEach(c=>setValue(f,c,zeroValueForControl(c)));
+  });
+  drawSurface();
+  writeLiveValues(true);
+  const root=endpoint();
+  if(!root){
+    setStatus('Local controller values cleared; set Pico base URL to clear hardware');
+    return;
+  }
+  try{
+    const r=await fetch(root+'/dmx/clear',{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    setStatus('All DMX channels cleared');
+  }catch(err){
+    setStatus('Local values cleared; Pico clear failed: '+err.message,true);
+  }
+}
 function saveScenesServer(){
   fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes,slotCols,slotRows})})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
@@ -1518,6 +1820,7 @@ function importScenesJson(file){
 }
 document.getElementById('exportScenesBtn').onclick=exportScenesJson;
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
+document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
 document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
 const sceneBox=document.getElementById('sceneBox');
 const sceneBoxHdr=document.getElementById('sceneBoxHdr');

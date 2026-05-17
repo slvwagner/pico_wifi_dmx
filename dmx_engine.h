@@ -40,3 +40,9 @@ bool dmx_engine_set_channel(uint16_t channel, uint8_t value);
 uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count);
 void dmx_engine_clear(void);
 void dmx_engine_get_status(dmx_engine_status_t *status);
+
+/* Scene base buffer — position layer written by scenes/chaser/direct writes.
+ * Motion FX reads from this buffer instead of a stored fixed center so that
+ * effects are always relative to the current live position. */
+bool    dmx_engine_set_base_channel(uint16_t channel, uint8_t value);
+uint8_t dmx_engine_get_base_channel(uint16_t channel);

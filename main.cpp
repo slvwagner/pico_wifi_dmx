@@ -54,7 +54,8 @@ static char http_page[12288];
 static char http_logs[6144];
 static char http_status_json[1024];
 static char http_dmx_json[1024];
-static char http_playback_json[1024];
+static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
+static char http_playback_json[4096];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 
@@ -532,6 +533,7 @@ static void build_dmx_b_response(const char *name)
             unsigned long val = strtoul(end_ch + 1, &end_val, 10);
             if (end_val != end_ch + 1 && val <= 255) {
                 dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
                 critical_section_enter_blocking(&dmx_ui_lock);
                 dmx_ui_values[ch] = (uint8_t)val;
                 critical_section_exit(&dmx_ui_lock);
@@ -585,6 +587,7 @@ static void build_dmx_set_response(const char *name)
         build_dmx_json_response(500, "Internal Server Error", "{\"ok\":false,\"error\":\"DMX channel update failed\"}\n");
         return;
     }
+    dmx_engine_set_base_channel(channel, (uint8_t)value);
 
     critical_section_enter_blocking(&dmx_ui_lock);
     dmx_ui_values[channel] = (uint8_t)value;
@@ -613,6 +616,39 @@ static void build_dmx_clear_response()
     critical_section_exit(&dmx_ui_lock);
 
     build_dmx_json_response(200, "OK", "{\"ok\":true,\"cleared\":true}\n");
+}
+
+static void build_dmx_base_response(void)
+{
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+
+    size_t used = (size_t)snprintf(
+        http_dmx_base_json,
+        sizeof(http_dmx_base_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "[");
+
+    for (uint16_t ch = 1; ch <= status.channels; ch++) {
+        int written = snprintf(
+            http_dmx_base_json + used,
+            sizeof(http_dmx_base_json) - used,
+            "%s%u",
+            ch == 1 ? "" : ",",
+            dmx_engine_get_base_channel(ch));
+        if (written < 0) break;
+        used += (size_t)written;
+    }
+
+    if (used + 2 < sizeof(http_dmx_base_json)) {
+        snprintf(http_dmx_base_json + used, sizeof(http_dmx_base_json) - used, "]\n");
+    } else {
+        http_dmx_base_json[sizeof(http_dmx_base_json) - 1] = '\0';
+    }
 }
 
 static void build_dmx_values_response(const char *name)
@@ -685,10 +721,10 @@ static void build_chaser_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,"
+        "{\"ok\":true,\"active_mask\":%lu,\"loaded_mask\":%lu,"
         "\"step\":%u,\"step_count\":%u,\"elapsed_ms\":%lu}\n",
-        (unsigned)s.active_mask,
-        (unsigned)s.loaded_mask,
+        (unsigned long)s.active_mask,
+        (unsigned long)s.loaded_mask,
         s.step,
         s.step_count,
         (unsigned long)s.elapsed_ms);
@@ -731,9 +767,9 @@ static void build_motion_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active_mask\":%u,\"loaded_mask\":%u,\"elapsed_s\":%.2f}\n",
-        (unsigned)s.active_mask,
-        (unsigned)s.loaded_mask,
+        "{\"ok\":true,\"active_mask\":%lu,\"loaded_mask\":%lu,\"elapsed_s\":%.2f}\n",
+        (unsigned long)s.active_mask,
+        (unsigned long)s.loaded_mask,
         (double)s.elapsed_s);
 }
 
@@ -811,6 +847,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         build_dmx_clear_response();
         file->data = http_dmx_json;
         file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/base")) {
+        build_dmx_base_response();
+        file->data = http_dmx_base_json;
+        file->len = (int)strlen(http_dmx_base_json);
         file->index = file->len;
         file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
         return 1;
@@ -1154,6 +1199,7 @@ extern "C" void httpd_post_finished(void *connection,
                 unsigned long val = strtoul(end_ch + 1, &end_val, 10);
                 if (end_val != end_ch + 1 && val <= 255) {
                     dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                    dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
                     critical_section_enter_blocking(&dmx_ui_lock);
                     dmx_ui_values[ch] = (uint8_t)val;
                     critical_section_exit(&dmx_ui_lock);
@@ -1269,26 +1315,33 @@ static void core0_application_loop()
     uint32_t loop_count = 0;
     uint32_t last_playback_tick = 0;
 
-    /* Shared cross-module bigger-wins scratch (indices 1-512). */
-    static uint8_t tick_scratch[513];
-    static bool    tick_touched[513];
-
     while (application_running) {
         dmx_engine_poll();
 
         uint32_t now_us = time_us_32();
         if (now_us - last_playback_tick >= 10000) {  /* 100 Hz */
-            /* Clear once per tick; all modules accumulate into the same buffers. */
-            memset(tick_scratch, 0, sizeof(tick_scratch));
-            memset(tick_touched, 0, sizeof(tick_touched));
+            /* Phase 1: chaser — results update the scene base buffer AND the output. */
+            static uint8_t chaser_scratch[513];
+            static bool    chaser_touched[513];
+            memset(chaser_scratch, 0, sizeof(chaser_scratch));
+            memset(chaser_touched, 0, sizeof(chaser_touched));
+            chaser_tick(now_us, chaser_scratch, chaser_touched);
+            for (uint16_t ch = 1; ch <= 512; ch++) {
+                if (chaser_touched[ch]) {
+                    dmx_engine_set_base_channel(ch, chaser_scratch[ch]);
+                    dmx_engine_set_channel(ch, chaser_scratch[ch]);
+                }
+            }
 
-            chaser_tick(now_us, tick_scratch, tick_touched);
-            mfx_tick(now_us, tick_scratch, tick_touched);
-
-            /* Single engine write — bigger-wins already resolved in scratch. */
+            /* Phase 2: motion FX — reads base buffer internally, writes output only. */
+            static uint8_t mfx_scratch[513];
+            static bool    mfx_touched[513];
+            memset(mfx_scratch, 0, sizeof(mfx_scratch));
+            memset(mfx_touched, 0, sizeof(mfx_touched));
+            mfx_tick(now_us, mfx_scratch, mfx_touched);
             for (uint16_t ch = 1; ch <= 512; ch++)
-                if (tick_touched[ch])
-                    dmx_engine_set_channel(ch, tick_scratch[ch]);
+                if (mfx_touched[ch])
+                    dmx_engine_set_channel(ch, mfx_scratch[ch]);
 
             last_playback_tick = now_us;
         }

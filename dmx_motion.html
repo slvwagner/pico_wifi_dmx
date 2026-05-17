@@ -169,6 +169,12 @@ function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
+const PICO_SLOT_COUNT=16;
+function populatePicoMotionSlotSelect(){
+  const sel=document.getElementById('picoMotionSlot');
+  sel.innerHTML=Array.from({length:PICO_SLOT_COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join('');
+}
+populatePicoMotionSlotSelect();
 
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
@@ -186,7 +192,7 @@ function sendChannel(ch,value){
 // ---- setup loading ----
 let setup={};
 let lastSetupJson='';
-// motionFixtures: [{fixture, control, enabled, phaseOffset(deg), panCenter, tiltCenter}]
+// motionFixtures: [{fixture, control, enabled, phaseOffset(deg), basePan, baseTilt}]
 let motionFixtures=[];
 
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
@@ -205,7 +211,7 @@ async function loadSetup(auto=false){
       if(r.ok&&j.ok&&j.exists){
         const json=JSON.stringify(j.setup);
         if(auto&&json===lastSetupJson){return;}// no change, skip silent poll
-        lastSetupJson=json;setup=j.setup;applySetup();
+        lastSetupJson=json;setup=j.setup;applySetup();await syncBaseFromPico();
         setStatus(auto?'Setup auto-updated from server':'Setup loaded from server');return;
       }
     }
@@ -214,7 +220,7 @@ async function loadSetup(auto=false){
     const raw=localStorage.getItem('dmxFixtureController');
     if(raw){
       if(auto&&raw===lastSetupJson){return;}// no change, skip silent poll
-      lastSetupJson=raw;setup=JSON.parse(raw);applySetup();
+      lastSetupJson=raw;setup=JSON.parse(raw);applySetup();await syncBaseFromPico();
       setStatus(auto?'Setup auto-updated from browser':'Setup loaded (browser cache)');return;
     }
   }catch(_){}
@@ -233,20 +239,43 @@ function applySetup(){
     if(!c)return;
     const center=getStoredCenter(f,c);
     const ex=prev.get(f.id+':'+c.id);
-    // Only preserve a manually-adjusted center if the user actually changed it from
-    // the previously-loaded value; otherwise always take the fresh value from the setup.
-    const panCenter=ex&&ex.panCenter!==ex.loadedPanCenter?ex.panCenter:center.pan;
-    const tiltCenter=ex&&ex.tiltCenter!==ex.loadedTiltCenter?ex.tiltCenter:center.tilt;
     motionFixtures.push({
       fixture:f,control:c,
       enabled:ex?ex.enabled:true,
       phaseOffset:ex?ex.phaseOffset:0,
-      panCenter,tiltCenter,
-      loadedPanCenter:center.pan,loadedTiltCenter:center.tilt
+      basePan:ex?ex.basePan:center.pan,
+      baseTilt:ex?ex.baseTilt:center.tilt
     });
   });
   drawFixtureList();
   drawPathPreview();
+}
+
+/* Fetch dmx_base_frame from the Pico and seed basePan/baseTilt for every
+ * fixture card. Safe to call at any time; silently no-ops if no URL is set. */
+async function syncBaseFromPico(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return;
+  try{
+    const r=await fetch(root+'/dmx/base.json',{cache:'no-store'});
+    const vals=await r.json();
+    if(!Array.isArray(vals))return;
+    motionFixtures.forEach(mf=>{
+      const c=mf.control,f=mf.fixture;
+      if(c.type==='panTilt16'){
+        const panIdx  =absolute(f.start,c.pan)-1;
+        const fineIdx =absolute(f.start,c.panFine??c.pan+1)-1;
+        const tiltIdx =absolute(f.start,c.tilt)-1;
+        const tfineIdx=absolute(f.start,c.tiltFine??c.tilt+1)-1;
+        mf.basePan =(((vals[panIdx]??0)<<8)|(vals[fineIdx]??0));
+        mf.baseTilt=(((vals[tiltIdx]??0)<<8)|(vals[tfineIdx]??0));
+      }else{
+        mf.basePan =vals[absolute(f.start,c.pan) -1]??128;
+        mf.baseTilt=vals[absolute(f.start,c.tilt)-1]??128;
+      }
+    });
+    drawFixtureList();
+  }catch(_){}
 }
 
 // ---- fixture list UI ----
@@ -272,11 +301,11 @@ function drawFixtureList(){
       </div>
       <div class="row">
         <div class="xy-mini">
-          <div class="xy-dot" id="dot${i}" style="left:${mf.panCenter/max*100}%;top:${100-mf.tiltCenter/max*100}%;background:${color};box-shadow:0 0 0 1px ${color}"></div>
+          <div class="xy-dot" id="dot${i}" style="left:${mf.basePan/max*100}%;top:${100-mf.baseTilt/max*100}%;background:${color};box-shadow:0 0 0 1px ${color}"></div>
         </div>
         <div>
           <div class="small">Live position</div>
-          <div class="readout" id="pos${i}" style="color:${color}">Pan ${Math.round(mf.panCenter)} · Tilt ${Math.round(mf.tiltCenter)}</div>
+          <div class="readout" id="pos${i}" style="color:${color}">Pan ${Math.round(mf.basePan)} · Tilt ${Math.round(mf.baseTilt)}</div>
         </div>
       </div>`;
     listEl.appendChild(item);
@@ -376,7 +405,7 @@ let intervalId=null;
 let startTime=null;
 let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
 
-function startMotion(){
+async function startMotion(){
   if(!motionFixtures.some(mf=>mf.enabled)){setStatus('Enable at least one fixture',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
   // Stop any running Pico motion so it doesn't fight the browser
@@ -387,6 +416,8 @@ function startMotion(){
     stopPicoMotionPoll();
     setPicoMotionStatus('Stopped (browser took over)','var(--muted)');
   }
+  // Fetch current live base values from Pico to use as motion center
+  if(root) await syncBaseFromPico();
   running=true;
   startTime=performance.now();
   sentToPico={};
@@ -438,8 +469,8 @@ function tick(){
     const off=effectOffset(angle+phase,type);
     const max=c.type==='panTilt16'?65535:255;
     const half=max/2;
-    const newPan=clamp(mf.panCenter+off.pan*pAmp*half,0,max);
-    const newTilt=clamp(mf.tiltCenter+off.tilt*tAmp*half,0,max);
+    const newPan=clamp(mf.basePan+off.pan*pAmp*half,0,max);
+    const newTilt=clamp(mf.baseTilt+off.tilt*tAmp*half,0,max);
 
     if(c.type==='panTilt16'){
       const pan=bytes16(newPan),tilt=bytes16(newTilt);
@@ -497,7 +528,7 @@ function serializeMotionForPico(){
     const tiltCh=absolute(f.start,c.tilt);
     const tiltFine=is16?absolute(f.start,c.tiltFine??c.tilt+1):0;
     lines.push('FIX '+(mf.enabled?1:0)+' '+panCh+' '+panFine+' '+tiltCh+' '+tiltFine+' '+is16+' '+
-      mf.panCenter.toFixed(2)+' '+mf.tiltCenter.toFixed(2)+' '+mf.phaseOffset.toFixed(2));
+      mf.phaseOffset.toFixed(2));
   });
   lines.push('END');
   return lines.join('\n');
@@ -507,40 +538,55 @@ let picoMotionTimer=null;
 const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing'];
 let _lastSlots=null; // cached for selection-highlight re-render
 let _lastActiveMask=0;
+let _lastMotionReportedSlotCount=PICO_SLOT_COUNT;
+
+function selectedMotionSlot(){
+  return parseInt(document.getElementById('picoMotionSlot').value)||0;
+}
+function ensureMotionSlotSupported(){
+  const slot=selectedMotionSlot();
+  if(slot<_lastMotionReportedSlotCount)return true;
+  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' motion slots; rebuild/flash firmware for slots 8-15','var(--warn)');
+  return false;
+}
 
 function renderMotionSlotStrip(slots, activeMask){
+  _lastMotionReportedSlotCount=slots.length;
+  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
   _lastSlots=slots; _lastActiveMask=activeMask;
   const strip=document.getElementById('motionSlotStrip');
-  const sel=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  const sel=selectedMotionSlot();
   strip.innerHTML='';
   slots.forEach(s=>{
     const alive=!!(activeMask&(1<<s.slot));
     const loaded=s.loaded;
     const selected=s.slot===sel;
+    const unsupported=!!s.unsupported;
     const d=document.createElement('div');
     d.style.cssText=[
       'background:#0a0d10',
-      'border:1.5px solid '+(alive?'var(--accent)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
+      'border:1.5px solid '+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
       selected?'box-shadow:0 0 0 2px var(--accent)':'',
       'border-radius:7px',
       'padding:7px 5px 6px',
       'text-align:center',
       'cursor:pointer',
-      'opacity:'+(loaded?'1':'0.45'),
+      'opacity:'+(unsupported?'0.35':loaded?'1':'0.45'),
       'transition:border-color .15s,box-shadow .15s',
       'user-select:none'
     ].filter(Boolean).join(';');
-    const typeName=loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    const typeName=unsupported?'FW old':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
     d.innerHTML=
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
       (loaded?'<div style="font-size:11px;color:var(--muted)">'+s.fixture_count+' fix</div>':'') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
-        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
-        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
+        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
+        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
     d.onclick=()=>{
+      if(unsupported){setPicoMotionStatus('Flash the 16-slot firmware before using slot '+s.slot,'var(--warn)');return;}
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask);
     };
@@ -565,7 +611,7 @@ async function pollPicoMotionStatus(){
     const st=await fetch(root+'/motion/status').then(r=>r.json());
     if(st.ok){
       const activeSlots=[];
-      for(let i=0;i<8;i++) if(st.active_mask&(1<<i)) activeSlots.push(i);
+      for(let i=0;i<PICO_SLOT_COUNT;i++) if(st.active_mask&(1<<i)) activeSlots.push(i);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
         :'Stopped';
@@ -607,6 +653,7 @@ async function restoreAllMotionSlots(){
 
 document.getElementById('btnPicoMotionUpload').onclick=async()=>{
   if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
@@ -628,6 +675,7 @@ document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots
 document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   try{
     const r=await fetch(root+'/motion/start/'+slot);
@@ -640,6 +688,7 @@ document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
 document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const bpm=parseFloat(document.getElementById('picoMotionBpm').value)||30;
   const bpm_x10=Math.round(Math.max(1,Math.min(6000,bpm*10)));
@@ -654,6 +703,7 @@ document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
 document.getElementById('btnPicoMotionStopSlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   try{
     await fetch(root+'/motion/stop/'+slot);
@@ -686,7 +736,7 @@ function motionData(){
     fixtures:motionFixtures.map(mf=>({
       fixtureId:mf.fixture.id,controlId:mf.control.id,
       enabled:mf.enabled,phaseOffset:mf.phaseOffset,
-      panCenter:mf.panCenter,tiltCenter:mf.tiltCenter,
+      basePan:mf.basePan,baseTilt:mf.baseTilt,
     }))
   };
 }
@@ -707,8 +757,10 @@ function applyMotionData(data){
       if(!mf)return;
       if(saved.enabled!==undefined)mf.enabled=saved.enabled;
       if(saved.phaseOffset!==undefined)mf.phaseOffset=saved.phaseOffset;
-      if(saved.panCenter!==undefined)mf.panCenter=saved.panCenter;
-      if(saved.tiltCenter!==undefined)mf.tiltCenter=saved.tiltCenter;
+      if(saved.basePan!==undefined)mf.basePan=saved.basePan;
+      else if(saved.panCenter!==undefined)mf.basePan=saved.panCenter;  // backwards compat
+      if(saved.baseTilt!==undefined)mf.baseTilt=saved.baseTilt;
+      else if(saved.tiltCenter!==undefined)mf.baseTilt=saved.tiltCenter;  // backwards compat
     });
   }
   drawFixtureList();drawPathPreview();
@@ -800,7 +852,7 @@ document.getElementById('importMotionSlotsFile').onchange=async e=>{
 
 loadSetup().finally(async()=>{
   try{
-    const dummy=Array.from({length:8},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0}));
+    const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0}));
     renderMotionSlotStrip(dummy,0);
   }catch(e){console.warn('slot strip init error',e);}
   await loadMotionFromServer();
@@ -844,15 +896,30 @@ function renderMotionSlotGrid(){
   });
 }
 function applySceneAsCenter(s){
+  const batchMap={};
   motionFixtures.forEach(mf=>{
     const v=(s.values||{})[mf.fixture.id+':'+mf.control.id];
     if(v==null)return;
     const max=mf.control.type==='panTilt16'?32768:128;
-    mf.panCenter=typeof v==='object'?(v.pan??max):max;
-    mf.tiltCenter=typeof v==='object'?(v.tilt??max):max;
+    mf.basePan =typeof v==='object'?(v.pan??max):max;
+    mf.baseTilt=typeof v==='object'?(v.tilt??max):max;
+    const c=mf.control,f=mf.fixture;
+    if(c.type==='panTilt16'){
+      const panCh=absolute(f.start,c.pan);
+      const panFineCh=absolute(f.start,c.panFine??c.pan+1);
+      const tiltCh=absolute(f.start,c.tilt);
+      const tiltFineCh=absolute(f.start,c.tiltFine??c.tilt+1);
+      const panB=bytes16(mf.basePan),tiltB=bytes16(mf.baseTilt);
+      batchMap[panCh]=panB.coarse;batchMap[panFineCh]=panB.fine;
+      batchMap[tiltCh]=tiltB.coarse;batchMap[tiltFineCh]=tiltB.fine;
+    }else{
+      batchMap[absolute(f.start,c.pan)]=mf.basePan;
+      batchMap[absolute(f.start,c.tilt)]=mf.baseTilt;
+    }
   });
+  sendBatch(batchMap);
   drawFixtureList();drawPathPreview();
-  setStatus('Motion centers set from scene "'+s.name+'"');
+  setStatus('Motion base set from scene "'+s.name+'"');
 }
 function loadMotionScenesServer(){
   fetch('scene_setup.php').then(r=>r.json()).then(d=>{
