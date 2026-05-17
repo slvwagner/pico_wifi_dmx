@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define CHASER_MAX_SLOTS      16
+#define CHASER_MAX_SLOTS      32
 #define CHASER_MAX_STEPS      32
 #define CHASER_MAX_CH_TOTAL   1024   /* total ch entries per slot */
 

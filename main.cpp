@@ -56,7 +56,7 @@ static char http_logs[6144];
 static char http_status_json[1024];
 static char http_dmx_json[1024];
 static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
-static char http_playback_json[4096];
+static char http_playback_json[12288];
 static char http_gpio_json[4096];
 static char http_gpio_body[3072];
 static uint8_t dmx_ui_values[513];
@@ -783,7 +783,7 @@ static void build_chaser_slots_response()
         "Cache-Control: no-store\r\n"
         "\r\n"
         "{\"ok\":true,\"slots\":[");
-    for (uint8_t i = 0; i < CHASER_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 80; i++) {
+    for (uint8_t i = 0; i < CHASER_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 256; i++) {
         chaser_slot_info_t info;
         chaser_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
@@ -832,7 +832,7 @@ static void build_motion_slots_response()
         "Cache-Control: no-store\r\n"
         "\r\n"
         "{\"ok\":true,\"slots\":[");
-    for (uint8_t i = 0; i < MFX_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 80; i++) {
+    for (uint8_t i = 0; i < MFX_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 160; i++) {
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,

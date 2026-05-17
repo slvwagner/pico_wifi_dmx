@@ -5,7 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $dataFile = __DIR__ . DIRECTORY_SEPARATOR . 'chaser_setup.json';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-const PICO_SLOT_COUNT = 16;
+const PICO_SLOT_COUNT = 32;
 
 function readDataFile(string $path): array {
     if (!is_file($path)) return [];

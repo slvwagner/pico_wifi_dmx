@@ -169,7 +169,7 @@ function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
-const PICO_SLOT_COUNT=16;
+const PICO_SLOT_COUNT=32;
 function populatePicoMotionSlotSelect(){
   const sel=document.getElementById('picoMotionSlot');
   sel.innerHTML=Array.from({length:PICO_SLOT_COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join('');
@@ -546,7 +546,7 @@ function selectedMotionSlot(){
 function ensureMotionSlotSupported(){
   const slot=selectedMotionSlot();
   if(slot<_lastMotionReportedSlotCount)return true;
-  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' motion slots; rebuild/flash firmware for slots 8-15','var(--warn)');
+  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' motion slots; rebuild/flash firmware for higher slots','var(--warn)');
   return false;
 }
 

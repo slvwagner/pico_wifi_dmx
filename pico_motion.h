@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define MFX_MAX_SLOTS    16
+#define MFX_MAX_SLOTS    32
 #define MFX_MAX_FIXTURES 8
 
 typedef enum {
