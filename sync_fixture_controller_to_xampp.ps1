@@ -1,6 +1,6 @@
 param(
     [string]$XamppHtdocs = "E:\Software\xampp\htdocs",
-    [string]$AppFolder = "dmx-fixtures"
+    [string]$AppFolder = "dmx"
 )
 
 $ErrorActionPreference = "Stop"

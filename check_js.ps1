@@ -1,4 +1,4 @@
-$html = Get-Content "E:\Software\xampp\htdocs\dmx-fixtures\dmx_motion.html" -Raw
+$html = Get-Content "E:\Software\xampp\htdocs\dmx\dmx_motion.html" -Raw
 $start = $html.IndexOf("<script>") + 8
 $end = $html.LastIndexOf("</script>")
 $js = $html.Substring($start, $end - $start)
