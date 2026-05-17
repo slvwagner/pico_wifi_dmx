@@ -1126,7 +1126,7 @@ function updateGroupBar(){
   bar.style.display='flex';
   const common=getGroupCommonControls();
   const note=n>1?(' · '+common.length+' common control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
-  bar.innerHTML=`<span><strong>${n} fixture${n>1?'s':''} selected</strong>${note}</span>${n>1&&common.length?`<button class="primary" id="openGroupEdit">Group Edit (${common.length})</button>`:''}<button id="saveGroupBtn">Save Group</button><button id="clearSelection">Deselect all</button>`;
+  bar.innerHTML=`<span><strong>${n} fixture${n>1?'s':''} selected</strong>${note}</span>${n>1&&common.length?`<button class="primary" id="openGroupEdit">Group Edit</button>`:''}<button id="saveGroupBtn">Save Group</button><button id="clearSelection">Deselect all</button>`;
   if(n>1&&common.length)document.getElementById('openGroupEdit').onclick=openGroupModal;
   document.getElementById('saveGroupBtn').onclick=saveCurrentGroup;
   document.getElementById('clearSelection').onclick=()=>{selectedFixtureIds.clear();drawSurface();};
