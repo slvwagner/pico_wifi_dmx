@@ -115,6 +115,22 @@ Both playback pages show a **Browser Playback** section and a **Pico Playback** 
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough.
 
+### Chaser — Participating Controls
+
+The **Participating Controls** panel defines which fixture+control pairs are written by the chaser. It is stored separately from the step list:
+
+- **Save / Load** — persisted to `chaser_setup.json` via `chaser_setup.php?participating`, independently of steps. Changing steps does not overwrite the control selection.
+- **Export (↓) / Import (↑)** — download or upload the participating map as a standalone JSON file. Useful for copying a control selection between chaser presets.
+
+### Chaser — Capture from Fixture Controller
+
+**Capture + Add** and **Capture from FC** read the current live values from the Fixture Controller:
+
+1. Tries `fixture_setup.php?livevalues` (server-side snapshot written by the FC page whenever any control is moved or a scene is recalled).
+2. Falls back to `localStorage` key `dmxFCLiveValues` if the server is unavailable.
+
+This means capture works correctly even when the Chaser and FC pages are open in different browser windows or tabs.
+
 ### Fixture Controller — Groups
 
 Fixtures can be organised into named **Saved Groups** (stored server-side via `group_setup.php`).
@@ -131,8 +147,10 @@ A floating, draggable, collapsible **Scene Toolbox** overlays the fixture contro
 - The toolbox shows a configurable grid of slots (rows × columns adjustable with spinners).
 - **Save scene** — snapshots every channel value for every patched fixture into a named slot.
 - **Recall scene** — sends all stored channel values back to the Pico in one batch request.
+- **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
 - Slots are stored server-side in `scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
 - Toolbox position (drag) and collapsed state are persisted per-page to `ui_state.json` via `ui_state.php`.
+- Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
 
 ### Motion FX — Scene Center Toolbox
 
@@ -142,6 +160,8 @@ The Motion FX page has a read-only companion to the Scene Toolbox.
 - Clicking a filled slot reads the pan/tilt channel values stored in that scene and applies them as the **center position** for every matching fixture in the motion FX list.
 - This lets you aim all moving lights at a target position in the Fixture Controller, save it as a scene, then instantly recall it as the oscillation center on the Motion FX page without re-entering numbers.
 - The toolbox is draggable, collapsible, and its state is persisted server-side.
+- The scene toolbox on the Motion FX page is **read-only** — it does not save or delete scenes. Scene management (save, delete) is only available on the Fixture Controller and Fan Out pages.
+- The **↺ Reload from Fixture Controller** button re-fetches `fixture_setup.php` (fixture definitions, not live values) to refresh the fixture list in case fixtures were added or changed.
 
 ### Motion FX — Fixture Card Grid
 
@@ -179,7 +199,7 @@ Spreads any DMX control as an interpolated offset across an ordered list of fixt
 
 Supports 8-bit and 16-bit controls. `panTilt16` controls expose Pan and Tilt as separate selectable axes. Multiple fan groups can run simultaneously (e.g. pan fan on group 1, tilt fan on group 2) — each group sends only its own channels so they never interfere.
 
-Uses existing Pico endpoints: `/dmx/values` (read) and `/dmx/b/` (write). No firmware changes required.
+The Fan Out page also has a **Scene Toolbox** (same slot grid as the Fixture Controller) for saving and recalling scenes, including the ability to delete individual scenes from their slot with the `×` button.
 
 ### Server-side Persistence
 
@@ -188,8 +208,11 @@ All persistent data is stored as JSON files on the PHP web server. No database i
 | PHP handler | JSON file | Contents |
 |-------------|-----------|----------|
 | `fixture_setup.php` | `fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
+| `fixture_setup.php?livevalues` | `fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
 | `scene_setup.php` | `scene_setup.json` | Named scene snapshots, slot grid dimensions |
 | `group_setup.php` | `group_setup.json` | Fixture group definitions |
+| `chaser_setup.php` | `chaser_setup.json` | Chaser step sequences and slot config |
+| `chaser_setup.php?participating` | `chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
 | `ui_state.php` | `ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
@@ -219,9 +242,10 @@ Target: `E:\Software\xampp\htdocs\dmx-fixtures\`
 | `fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
 | `pico_sdk_import.cmake` | Pico SDK CMake integration |
 | `CMakeLists.txt` | Build target, source files, SDK libraries |
-| `fixture_setup.php` | REST handler — save/load fixture setup (`fixture_setup.json`) |
+| `fixture_setup.php` | REST handler — save/load fixture setup (`fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`fixture_live_values.json`) |
 | `scene_setup.php` | REST handler — save/load scenes and slot grid config (`scene_setup.json`) |
 | `group_setup.php` | REST handler — save/load fixture groups (`group_setup.json`) |
+| `chaser_setup.php` | REST handler — save/load chaser step sequences (`chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
 | `ui_state.php` | REST handler — per-page UI state persistence (`ui_state.json`); merges partial state on POST |
 | `sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
 
