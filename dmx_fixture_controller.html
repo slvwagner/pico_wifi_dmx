@@ -1174,7 +1174,7 @@ function openGroupModal(){
   document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
   document.getElementById('groupModal').style.display='flex';
 }
-function closeGroupModal(){document.getElementById('groupModal').style.display='none';}
+function closeGroupModal(){document.getElementById('groupModal').style.display='none';drawSurface();}
 document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
