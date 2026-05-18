@@ -41,8 +41,26 @@ function Convert-InlineMarkdown {
     return $html
 }
 
+function New-HeadingId {
+    param([string]$Text)
+    $slug = $Text.ToLowerInvariant()
+    $slug = [regex]::Replace($slug, '`([^`]+)`', '$1')
+    $slug = [regex]::Replace($slug, '\*\*([^*]+)\*\*', '$1')
+    $slug = [regex]::Replace($slug, '[^a-z0-9]+', '-').Trim('-')
+    if ([string]::IsNullOrWhiteSpace($slug)) { $slug = "section" }
+    $base = $slug
+    $i = 2
+    while ($script:headingIds.ContainsKey($slug)) {
+        $slug = "$base-$i"
+        $i++
+    }
+    $script:headingIds[$slug] = $true
+    return $slug
+}
+
 $lines = Get-Content -LiteralPath $mdFull
 $body = [System.Collections.Generic.List[string]]::new()
+$headingIds = @{}
 $inCode = $false
 $inUl = $false
 $inOl = $false
@@ -111,8 +129,9 @@ foreach ($line in $lines) {
     if ($line -match '^(#{1,6})\s+(.+)$') {
         Close-Lists
         $level = $matches[1].Length
+        $id = New-HeadingId $matches[2]
         $text = Convert-InlineMarkdown $matches[2]
-        $body.Add("<h$level>$text</h$level>")
+        $body.Add("<h$level id=`"$id`">$text</h$level>")
         continue
     }
 
