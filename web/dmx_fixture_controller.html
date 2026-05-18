@@ -7,14 +7,15 @@
 <link rel="stylesheet" href="assets/dmx-ui.css">
 <script src="assets/dmx-common.js"></script>
 <style>
-html{height:100%}body{height:100%;overflow:hidden}
-main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;height:100%;overflow:hidden}
+html{min-height:100%}body{min-height:100%;overflow-y:auto}
+main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
 header>div:first-child{flex:1 1 220px;min-width:220px;max-width:100%}
+header{position:sticky;top:0;z-index:90;background:var(--bg);padding:0 0 10px;border-bottom:1px solid var(--line)}
 .status{min-height:18px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .panel,.card{align-content:start}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
-#controlSurfacePanel{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:8px}
-#surface{flex:1;overflow-y:auto;min-height:0;scrollbar-gutter:stable}
+#controlSurfacePanel{display:flex;flex-direction:column;gap:8px}
+#surface{scrollbar-gutter:stable}
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:220px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
@@ -196,13 +197,18 @@ Blue=48</textarea>
 </section>
 
 <section class="panel">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Saved Groups</h2>
+<button id="savedGroupsCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+</div>
+<div id="savedGroupsBody">
 <div class="toolbar">
 <button id="exportGroupsJson" class="icon-btn export-btn" title="Export groups JSON"></button>
 <button id="importGroupsJson" class="icon-btn import-btn" title="Import groups JSON"></button>
 <input id="importGroupsFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div id="savedGroupsList" class="list"><div class="small">No saved groups yet.</div></div>
+</div>
 </section>
 
 <section class="panel" id="controlSurfacePanel">
@@ -395,7 +401,7 @@ function addDefaultProfile(){
 
 function addProfile(){
   const p={id:uid(),name:document.getElementById('profileName').value||'Fixture',mode:document.getElementById('profileMode').value||'mode',channels:clamp(document.getElementById('profileChannels').value,1,512),controls:[]};
-  profiles.push(p);activeProfileId=p.id;draw();
+  profiles.push(p);activeProfileId=p.id;draw();scheduleSetupAutosave();
 }
 
 function loadProfileEditor(profile){
@@ -415,7 +421,7 @@ function saveProfile(){
   profile.mode=document.getElementById('profileMode').value||'mode';
   profile.channels=channels;
   setStatus('Profile saved');
-  draw();
+  draw();scheduleSetupAutosave();
 }
 
 function controlFromEditor(existingId=0){
@@ -784,6 +790,7 @@ function addControl(){
   }
   resetControlEditor();
   draw();
+  scheduleSetupAutosave();
 }
 
 function fixtureAddressConflict(start,channels,excludeId){
@@ -814,7 +821,7 @@ function patchFixture(){
     start=free;
   }
   fixtures.push({id:uid(),name:document.getElementById('fixtureName').value||profile.name,profileId,start});
-  draw();
+  draw();scheduleSetupAutosave();
 }
 
 function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures};}
@@ -838,6 +845,16 @@ async function saveSetup(){
     if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
     setStatus('Setup saved to server');
   }else setStatus('Setup saved in browser only');
+}
+let setupAutosaveTimer=null;
+function scheduleSetupAutosave(){
+  localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
+  clearTimeout(setupAutosaveTimer);
+  setupAutosaveTimer=setTimeout(()=>{
+    saveSetup()
+      .then(()=>setStatus('Autosaved'))
+      .catch(err=>setStatus('Autosave failed: '+err.message,true));
+  },800);
 }
 
 async function loadSetup(){
@@ -1055,14 +1072,15 @@ profilesEl.onclick=e=>{
       p.controls=p.controls.filter(control=>control.id!==parseInt(removeControl,10));
       if(editingControlId===parseInt(removeControl,10))resetControlEditor();
       setStatus('Control removed');
+      scheduleSetupAutosave();
     }
     draw();
     return;
   }
-  if(remove){profiles=profiles.filter(p=>p.id!==parseInt(remove,10));fixtures=fixtures.filter(f=>f.profileId!==parseInt(remove,10));activeProfileId=profiles[0]?.id||0;resetControlEditor();}
+  if(remove){profiles=profiles.filter(p=>p.id!==parseInt(remove,10));fixtures=fixtures.filter(f=>f.profileId!==parseInt(remove,10));activeProfileId=profiles[0]?.id||0;resetControlEditor();scheduleSetupAutosave();}
   draw();
 };
-patchedEl.onclick=e=>{if(e.target.dataset.removeFixture){fixtures=fixtures.filter(f=>f.id!==parseInt(e.target.dataset.removeFixture,10));draw();}};
+patchedEl.onclick=e=>{if(e.target.dataset.removeFixture){fixtures=fixtures.filter(f=>f.id!==parseInt(e.target.dataset.removeFixture,10));draw();scheduleSetupAutosave();}};
 
 surfaceEl.oninput=e=>{
   const f=fixtures.find(x=>x.id===parseInt(e.target.dataset.fixture,10));
@@ -1202,6 +1220,8 @@ patchProfile.onchange=()=>{
 };
 document.getElementById('save').onclick=()=>saveSetup().catch(err=>setStatus(err.message,true));
 document.getElementById('load').onclick=()=>loadSetup().then(ok=>{if(!ok)setStatus('No saved setup found',true);}).catch(err=>setStatus(err.message,true));
+baseUrl.addEventListener('input',scheduleSetupAutosave);
+live.addEventListener('change',scheduleSetupAutosave);
 document.getElementById('exportCsv').onclick=exportCsv;
 document.getElementById('exportJson').onclick=()=>{
   const blob=new Blob([JSON.stringify(saveData(),null,2)],{type:'application/json'});
@@ -1217,6 +1237,7 @@ document.getElementById('importJsonFile').onchange=e=>{
       const data=JSON.parse(reader.result);
       applyData(data);
       setStatus('Setup imported from '+file.name);
+      scheduleSetupAutosave();
     }catch(err){showError('Invalid JSON: '+err.message);}
     e.target.value='';
   };
@@ -1604,7 +1625,7 @@ function renderSavedGroupsList(){
   if(!savedGroups.length){el.innerHTML='<div class="small">No saved groups yet. Select fixtures and click "Save Group".</div>';return;}
   el.innerHTML=savedGroups.map((g,i)=>`<div class="item">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(g.name)}</strong><span class="small">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
-    <div class="buttons"><button onclick="loadGroup(${i})">Load</button><button class="warn" onclick="deleteGroup(${i})">Delete</button></div>
+    <div class="buttons"><button onclick="loadGroup(${i})">Select</button><button onclick="renameGroup(${i})">Rename</button><button class="warn" onclick="deleteGroup(${i})">Delete</button></div>
   </div>`).join('');
 }
 function saveCurrentGroup(){
@@ -1622,6 +1643,13 @@ function loadGroup(i){
 function deleteGroup(i){
   if(!confirm('Delete group "'+savedGroups[i]?.name+'"?'))return;
   savedGroups.splice(i,1);renderSavedGroupsList();saveSavedGroupsToServer();
+}
+function renameGroup(i){
+  const g=savedGroups[i];if(!g)return;
+  const name=(prompt('Group name:',g.name||('Group '+(i+1)))||'').trim();
+  if(!name||name===g.name)return;
+  g.name=name;
+  renderSavedGroupsList();saveSavedGroupsToServer();
 }
 function exportGroupsJson(){
   const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups},null,2)],{type:'application/json'});
@@ -1654,6 +1682,7 @@ loadSetup().then(ok=>{
     ['patchCollapseBtn','patchBody','patchCollapsed'],
     ['profilesCollapseBtn','profilesBody','profilesCollapsed'],
     ['addControlCollapseBtn','addControlBody','addControlCollapsed'],
+    ['savedGroupsCollapseBtn','savedGroupsBody','savedGroupsCollapsed'],
   ].forEach(([btnId,bodyId,key])=>{
     if(localStorage.getItem(key)!==null)return; // user preference already set
     localStorage.setItem(key,'1');
@@ -1825,6 +1854,7 @@ loadScenesServer();
   ['patchCollapseBtn',      'patchBody',       'patchCollapsed'],
   ['profilesCollapseBtn',   'profilesBody',    'profilesCollapsed'],
   ['addControlCollapseBtn', 'addControlBody',  'addControlCollapsed'],
+  ['savedGroupsCollapseBtn','savedGroupsBody', 'savedGroupsCollapsed'],
 ].forEach(([btnId, bodyId, storageKey])=>{
   const btn=document.getElementById(btnId);
   const body=document.getElementById(bodyId);
@@ -1856,7 +1886,8 @@ function saveUiStateServer(key,val){
     }
     [['patchCollapsed','patchBody','patchCollapseBtn'],
      ['profilesCollapsed','profilesBody','profilesCollapseBtn'],
-     ['addControlCollapsed','addControlBody','addControlCollapseBtn']].forEach(([key,bodyId,btnId])=>{
+     ['addControlCollapsed','addControlBody','addControlCollapseBtn'],
+     ['savedGroupsCollapsed','savedGroupsBody','savedGroupsCollapseBtn']].forEach(([key,bodyId,btnId])=>{
       if(st[key]===undefined)return;
       const c=!!st[key];
       localStorage.setItem(key,c?'1':'');
