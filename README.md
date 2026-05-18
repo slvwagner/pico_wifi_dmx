@@ -41,6 +41,8 @@ Browser-based user interface with the following features:
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
+User-facing operating instructions are in [docs/user-manual.md](docs/user-manual.md).
+
 ---
 
 ## Architecture
@@ -547,7 +549,7 @@ Using OpenOCD + Picoprobe/CMSIS-DAP:
 
 | Resource | Value |
 |----------|-------|
-| Free RAM (stable, measured at runtime) | **385 024 bytes** (~376 KB) |
+| Free RAM (stable, measured at runtime) | **385 024 bytes** (~195 KB) |
 | Total SRAM (RP2350) | 520 KB |
 
 ## Notes
