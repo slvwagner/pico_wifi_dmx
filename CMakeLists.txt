@@ -60,14 +60,14 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(pico_wifi_dmx
-        main.cpp
-        dmx_engine.cpp
-        pico_chaser.cpp
-        pico_motion.cpp
-        gpio_control.cpp
+        firmware/main.cpp
+        firmware/dmx_engine.cpp
+        firmware/pico_chaser.cpp
+        firmware/pico_motion.cpp
+        firmware/gpio_control.cpp
 )
 
-pico_generate_pio_header(pico_wifi_dmx ${CMAKE_CURRENT_LIST_DIR}/dmx_native.pio)
+pico_generate_pio_header(pico_wifi_dmx ${CMAKE_CURRENT_LIST_DIR}/firmware/dmx_native.pio)
 
 target_compile_definitions(pico_wifi_dmx PRIVATE
         WIFI_SSID="${WIFI_SSID}"
@@ -97,7 +97,7 @@ target_link_libraries(pico_wifi_dmx
 
 # Add the standard include files to the build
 target_include_directories(pico_wifi_dmx PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/firmware
 )
 
 # Add any user requested libraries
