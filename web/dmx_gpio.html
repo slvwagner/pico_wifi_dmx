@@ -4,24 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX GPIO Control</title>
+<link rel="stylesheet" href="assets/dmx-ui.css">
 <style>
-:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
 main{max-width:1160px;margin:0 auto;padding:20px;display:grid;gap:16px}
-header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-h1{font-size:22px;margin:0}h2{font-size:16px;margin:0}.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
-.toolbar,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-label{display:grid;gap:6px;color:var(--muted);font-size:13px}
-input,button,select{font:inherit}
-input,select{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
-input[type=number]{width:86px}input[type=url]{min-width:260px}
-button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
-button.danger{background:#3c1b1b;border-color:#763232;color:var(--bad)}
-button:disabled{opacity:.45;cursor:not-allowed}
-a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
-a.nav:hover{color:var(--text)}
+h2{font-size:16px}
+input[type=number]{width:86px}input[type=url]{min-width:220px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
 .mapping{background:#10161b;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px}
 .mapping.dup{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}

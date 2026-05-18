@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $webDir = Join-Path $repoRoot "web"
+$assetsDir = Join-Path $webDir "assets"
 $apiDir = Join-Path $repoRoot "api"
 $docsDir = Join-Path $repoRoot "docs"
 
@@ -27,6 +28,7 @@ $manualSource    = Join-Path $docsDir "user-manual.html"
 $manualPdfSource = Join-Path $docsDir "user-manual.pdf"
 $manualScreenshotsSource = Join-Path $docsDir "screenshots"
 $targetDir = Join-Path $XamppHtdocs $AppFolder
+$assetsTargetDir = Join-Path $targetDir "assets"
 $benchTargetDir = Join-Path $targetDir "test"
 $dataTargetDir = Join-Path $targetDir "data"
 $target = Join-Path $targetDir "index.html"
@@ -55,9 +57,14 @@ if (-not (Test-Path -LiteralPath $apiSource)) {
 }
 
 New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+New-Item -ItemType Directory -Force -Path $assetsTargetDir | Out-Null
 New-Item -ItemType Directory -Force -Path $dataTargetDir | Out-Null
 Copy-Item -LiteralPath $source -Destination $target -Force
 Copy-Item -LiteralPath $apiSource -Destination $apiTarget -Force
+if (Test-Path -LiteralPath $assetsDir) {
+    Copy-Item -Path (Join-Path $assetsDir "*") -Destination $assetsTargetDir -Force
+    Write-Host "Copied web assets to $assetsTargetDir"
+}
 if (Test-Path -LiteralPath $motionSource) {
     Copy-Item -LiteralPath $motionSource -Destination $motionTarget -Force
     Write-Host "Copied motion effects to $motionTarget"

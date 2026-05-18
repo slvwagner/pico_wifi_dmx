@@ -4,28 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
+<link rel="stylesheet" href="assets/dmx-ui.css">
 <style>
-:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
-*{box-sizing:border-box}html{height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif;height:100%;overflow:hidden}
+html{height:100%}body{height:100%;overflow:hidden}
 main{max-width:1260px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px;height:100%;overflow:hidden}
-header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 header>div:first-child{flex:1 1 220px;min-width:220px;max-width:100%}
-h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
-.status,.small{color:var(--muted);font-size:13px}.status{min-height:18px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bad{color:var(--bad)}
-.panel,.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;align-content:start}
-.toolbar,.buttons,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.status{min-height:18px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel,.card{align-content:start}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
 #controlSurfacePanel{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:8px}
 #surface{flex:1;overflow-y:auto;min-height:0;scrollbar-gutter:stable}
-label{display:grid;gap:6px;color:var(--muted);font-size:13px}
-input,button,select,textarea{font:inherit}
-input,select,textarea{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
-input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:260px}textarea{min-height:70px;min-width:260px}
+input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:220px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
-button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}button.danger{background:#3a2226;border-color:#7a3a42;color:var(--bad)}
-button:disabled{opacity:.45;cursor:not-allowed}
-.list{display:grid;gap:8px}.item{border:1px solid var(--line);border-radius:8px;padding:10px;background:#10161b;display:grid;gap:8px}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
@@ -40,25 +30,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
-@media(max-width:900px){main{padding:12px}.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}input[type=url],input[type=text],textarea{min-width:0;width:100%}}
+@media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 .card.selected{border-color:var(--accent)}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}.sel-btn.on{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
-#sceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
-#sceneBoxHdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;touch-action:none;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
-#sceneBoxHdr:active{cursor:grabbing;touch-action:none}
-#sceneBox.collapsed #sceneBoxHdr{border-radius:10px;border-bottom:none}
-#sceneBox.collapsed #sceneBoxBody{display:none}
-#sceneBoxBody{padding:12px;display:grid;gap:10px}
-#slotMatrix{display:grid;gap:5px;overflow-x:auto}
-.slot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:pointer;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
-.slot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);position:relative}
-.slot-del{position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.6;cursor:pointer}
-.slot-del:hover{background:rgba(1,255,230,.18);border-color:#01ffe6;opacity:1}
-.slot.filled:hover{background:#1a3b32}
-.slot:not(.filled):hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -70,20 +47,25 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </div>
 <div class="toolbar">
 <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+<a class="nav" href="dmx_motion.html">Motion FX</a>
+<a class="nav" href="dmx_chaser.html">Chaser</a>
+<a class="nav" href="dmx_fan.html">Fan Out</a>
+<a class="nav" href="dmx_gpio.html">GPIO</a>
+<a class="nav" href="user-manual.html#1-fixture-controller" target="_blank">Manual</a>
+</div>
+</header>
+
+<section class="panel">
+<div class="toolbar">
 <label><input id="live" type="checkbox" checked> Live send</label>
 <button id="save">Save setup</button>
 <button id="load">Load setup</button>
-<a href="dmx_motion.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">Motion FX →</a>
-<a href="dmx_chaser.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">Chaser →</a>
-<a href="dmx_fan.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">Fan Out →</a>
-<a href="dmx_gpio.html" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">GPIO →</a>
-<a href="user-manual.html#1-fixture-controller" target="_blank" style="border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer;text-decoration:none;font:inherit">Manual</a>
 <button id="exportCsv">Export CSV</button>
 <button id="exportJson" class="icon-btn" title="Export setup JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <button id="importJson" class="icon-btn" title="Import setup JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
 </div>
-</header>
+</section>
 
 <section class="columns">
 <div class="panel">
@@ -247,12 +229,12 @@ Blue=48</textarea>
 </div>
 </div>
 
-<div id="sceneBox">
-<div id="sceneBoxHdr">
+<div id="sceneBox" class="scene-toolbox">
+<div id="sceneBoxHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Scenes</span>
-<button id="sceneBoxToggle" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">—</button>
+<button id="sceneBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
-<div id="sceneBoxBody">
+<div id="sceneBoxBody" class="scene-toolbox__body">
 <div class="buttons">
 <button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
 <button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
@@ -263,7 +245,7 @@ Blue=48</textarea>
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="slotRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
 </div>
-<div id="slotMatrix"></div>
+<div id="slotMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
 

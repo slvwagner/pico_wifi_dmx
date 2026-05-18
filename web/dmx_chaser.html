@@ -4,29 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
+<link rel="stylesheet" href="assets/dmx-ui.css">
 <style>
-:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
-main{max-width:1260px;margin:0 auto;padding:20px;display:grid;gap:16px}
-header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
-.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
-.toolbar,.buttons,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-label{display:grid;gap:6px;color:var(--muted);font-size:13px}
-input,button,select{font:inherit}
-input[type=number],input[type=url],input[type=text]{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
-input[type=number]{width:90px}input[type=url]{min-width:220px}input[type=text]{min-width:120px}
 input[type=range]{width:120px;accent-color:var(--accent)}
 input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1px solid var(--line);border-radius:6px;cursor:pointer}
-select{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
-button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
-button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}
-button.stop{background:#3c1b1b;border-color:#763232;color:var(--bad);font-weight:700}
-button:disabled{opacity:.45;cursor:not-allowed}
-.list{display:grid;gap:6px}
-.item{border:1px solid var(--line);border-radius:8px;padding:10px;background:#10161b;display:grid;gap:8px}
 .item.active-step{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .item.edit-step{border-color:var(--warn)}
 .item.active-step.edit-step{border-color:var(--accent)}
@@ -46,12 +27,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.05s linear}
 .step-num{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:5px;background:#22303a;font-weight:700;font-size:12px;flex-shrink:0;padding:0 4px}
 .step-num.playing{background:var(--accent);color:#06110e}
-a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
-a.nav:hover{color:var(--text)}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}}
-.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
 .card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .card.collapsed .control{display:none}
 .ctrl-summary{display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:2px}
@@ -72,10 +50,10 @@ a.nav:hover{color:var(--text)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <a class="nav" href="index.html">← Fixture Controller</a>
+    <a class="nav" href="index.html">Fixture Controller</a>
     <a class="nav" href="dmx_motion.html">Motion FX</a>
-    <a class="nav" href="dmx_fan.html">Fan Out →</a>
-    <a class="nav" href="dmx_gpio.html">GPIO →</a>
+    <a class="nav" href="dmx_fan.html">Fan Out</a>
+    <a class="nav" href="dmx_gpio.html">GPIO</a>
     <a class="nav" href="user-manual.html#4-chaser" target="_blank">Manual</a>
   </div>
 </header>

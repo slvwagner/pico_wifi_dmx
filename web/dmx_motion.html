@@ -4,46 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Motion Effects</title>
+<link rel="stylesheet" href="assets/dmx-ui.css">
 <style>
-:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
-main{max-width:1260px;margin:0 auto;padding:20px;display:grid;gap:16px}
-header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
-.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
-.toolbar,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-label{display:grid;gap:6px;color:var(--muted);font-size:13px}
-input,button,select{font:inherit}
-input[type=number],input[type=url]{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
-input[type=number]{width:90px}input[type=url]{min-width:220px}
-select{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
 input[type=range]{width:150px;accent-color:var(--accent)}
-button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
-button.stop{background:#3c1b1b;border-color:#763232;color:var(--bad);font-weight:700}
-button:disabled{opacity:.45;cursor:not-allowed}
-.list{display:grid;gap:8px}
-.item{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
+.item{padding:12px;gap:10px}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .xy-mini{position:relative;width:120px;height:120px;flex-shrink:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%}
 .xy-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
 .readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
-a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
-a.nav:hover{color:var(--text);border-color:var(--text)}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
-.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center}
-#motionSceneBox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:380px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
-#motionSceneBox .msc-hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;touch-action:none;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
-#motionSceneBox .msc-hdr:active{cursor:grabbing;touch-action:none}
-#motionSceneBox.collapsed .msc-hdr{border-radius:10px;border-bottom:none}
-#motionSceneBox.collapsed .msc-body{display:none}
-#motionSceneBox .msc-body{padding:12px;display:grid;gap:10px}
-#motionSlotGrid{display:grid;gap:5px;overflow-x:auto}
-.mslot{width:54px;height:54px;border:1px dashed var(--line);border-radius:6px;background:#0a0d10;cursor:default;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;word-break:break-word;line-height:1.2}
-.mslot.filled{border:1px solid var(--accent);background:#225a50;color:var(--text);cursor:pointer}
-.mslot.filled:hover{background:#1a3b32}
 .fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;overflow-y:auto;min-height:0}
 #fxPanel{display:flex;flex-direction:column;max-height:70vh}
 </style>
@@ -58,7 +28,11 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <a class="nav" href="index.html">← Fixture Controller</a>    <a class="nav" href="dmx_chaser.html">Chaser →</a>    <a class="nav" href="dmx_fan.html">Fan Out →</a>    <a class="nav" href="dmx_gpio.html">GPIO →</a>    <a class="nav" href="user-manual.html#5-motion-fx" target="_blank">Manual</a>
+    <a class="nav" href="index.html">Fixture Controller</a>
+    <a class="nav" href="dmx_chaser.html">Chaser</a>
+    <a class="nav" href="dmx_fan.html">Fan Out</a>
+    <a class="nav" href="dmx_gpio.html">GPIO</a>
+    <a class="nav" href="user-manual.html#5-motion-fx" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -100,7 +74,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 <section class="panel" id="fxPanel">
   <h2>Fixtures with Pan/Tilt</h2>
   <div id="noFixtures" class="small" style="display:none">
-    No fixtures with Pan/Tilt controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first →</a>
+    No fixtures with Pan/Tilt controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first</a>
   </div>
   <div class="fx-grid" id="fixtureList" style="flex:1"></div>
   <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;flex-shrink:0">
@@ -152,14 +126,14 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 
 </main>
 
-<div id="motionSceneBox">
-<div class="msc-hdr" id="motionSceneHdr">
+<div id="motionSceneBox" class="scene-toolbox scene-toolbox--narrow">
+<div class="scene-toolbox__header" id="motionSceneHdr">
   <span style="font-weight:700;font-size:13px">Scenes</span>
-  <button id="motionSceneBoxToggle" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">—</button>
+  <button id="motionSceneBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
-<div class="msc-body">
+<div class="scene-toolbox__body">
   <div class="small" style="color:var(--muted)">Click a scene to use as motion center</div>
-  <div id="motionSlotGrid"></div>
+  <div id="motionSlotGrid" class="scene-slot-matrix"></div>
 </div>
 </div>
 
@@ -922,11 +896,11 @@ function renderMotionSlotGrid(){
   let html='';
   for(let i=0;i<total;i++){
     const s=motionScenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="mslot filled" data-mslot="${i}" title="${escMotionHtml(s.name)}">${escMotionHtml(s.name)}</div>`;
-    else html+=`<div class="mslot">${i+1}</div>`;
+    if(s)html+=`<div class="slot filled" data-mslot="${i}" title="${escMotionHtml(s.name)}">${escMotionHtml(s.name)}</div>`;
+    else html+=`<div class="slot readonly">${i+1}</div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('.mslot.filled').forEach(el=>{
+  grid.querySelectorAll('.slot.filled').forEach(el=>{
     const idx=parseInt(el.dataset.mslot);
     el.addEventListener('click',()=>{const s=motionScenes.find(sc=>sc.slot===idx);if(s)applySceneAsCenter(s);});
   });
