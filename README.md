@@ -169,43 +169,55 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 
 ### Screenshots
 
-The screenshots below show the main pages as served from XAMPP during development.
+The screenshots below show the main pages as served from XAMPP during development and explain how the software is used in practice.
 
 **Fixture Controller**
 
 ![Fixture Controller page](docs/screenshots/fixture-controller.png)
 
-Defines fixture profiles, patched fixtures, groups, live controls, default/blackout values, and scene recall/save slots.
+The Fixture Controller is the main setup and live-control page. It defines fixture profiles, patches real fixtures to DMX start addresses, and renders the controls for each fixture card. Fixture profiles describe the channel layout, for example dimmer, pan/tilt, RGB, RGBW, RGBWA, wheels, sliders, and 16-bit channels.
+
+From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
 **Chaser**
 
 ![Chaser page](docs/screenshots/chaser.png)
 
-Builds chase steps from participating fixture controls, captures live values from the Fixture Controller, and uploads saved chasers to Pico slots.
+The Chaser page builds step-based sequences. A chase is made from multiple steps; each step stores DMX channel values plus timing and fade settings. The participating-controls panel decides which fixture controls are part of the chase, so editing a chase does not accidentally touch unrelated channels.
+
+Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
 
 **Motion FX**
 
 ![Motion FX page](docs/screenshots/motion-fx.png)
 
-Creates pan/tilt motion effects relative to scene positions and uploads independent Motion FX slots to the Pico.
+The Motion FX page creates continuous pan/tilt movement effects for moving lights. Effects such as circle, figure-8, pan swing, and tilt swing are calculated relative to the current scene position instead of using a fixed center point.
+
+This means the normal workflow is: recall or set a position first, then start the effect. The firmware reads the center from the scene base buffer and the motion oscillator moves around that position. Motion FX can also be uploaded into one of 32 Pico slots so multiple effects can run directly on the Pico without browser timing jitter.
 
 **Fan Out**
 
 ![Fan Out page](docs/screenshots/fan-out.png)
 
-Spreads one control value across ordered fixture groups, with base snapshots and scene toolbox integration.
+The Fan Out page spreads one selected control across an ordered fixture group. It is useful for moving-light looks such as pan fans, tilt fans, zoom spreads, dimmer gradients, or any other offset across multiple fixtures.
+
+Each fan axis starts from a base snapshot of the current Pico values and adds an offset on top. This keeps the fan relative to the actual fixture position instead of forcing all fixtures to a hard-coded value. Fan Out also includes the scene toolbox, so scenes can be saved, recalled, deleted, and used together with fan positions.
 
 **GPIO Control**
 
 ![GPIO Control page](docs/screenshots/gpio-control.png)
 
-Maps Pico GPIO and ADC inputs to DMX clear, chaser, motion, tap tempo, speed, and BPM actions.
+The GPIO Control page maps physical Pico inputs to lighting actions. Digital GPIO pins can trigger actions such as DMX clear, output-only clear, chaser play/stop/toggle, pause/resume, motion start/stop/toggle, and tap tempo. ADC pins can be mapped to continuous values such as chaser speed multiplier or Motion FX BPM.
+
+The page protects reserved hardware pins and already-used pins, then sends the mapping to the Pico with `POST /gpio/config`. Once uploaded, the Pico polls the inputs on Core 0 and runs the actions directly, so the browser does not need to stay open during operation.
 
 **Benchmark**
 
 ![Benchmark page](docs/screenshots/benchmark.png)
 
-Measures Pico HTTP/DMX update performance with presets, latency percentiles, jitter, history, and CSV export.
+The Benchmark page measures how fast the Pico HTTP API can accept DMX updates. It can test single-channel updates, scene-sized batch updates, stress tests, and longer soak tests. The result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
+
+This page is mainly for checking whether a change in firmware, WiFi, API format, or browser behavior affects real-time control performance. The CSV export makes it possible to compare test runs later.
 
 Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
