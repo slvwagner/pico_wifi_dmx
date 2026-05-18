@@ -179,6 +179,18 @@ The Fixture Controller is the main setup and live-control page. It defines fixtu
 
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
+![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
+
+The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. The right side edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed.
+
+![Fixture live control cards](docs/screenshots/fixture-controller-live-controls.png)
+
+The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. The Default and Blackout buttons recall the stored values for one fixture, while Select adds the fixture to group editing.
+
+![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
+
+The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows only controls that exist on all selected fixtures, so one slider or XY pad can update every fixture in the group at once. The modal can also recall Default all, Blackout all, or send the current group values to the Pico.
+
 **Chaser**
 
 ![Chaser page](docs/screenshots/chaser.png)
