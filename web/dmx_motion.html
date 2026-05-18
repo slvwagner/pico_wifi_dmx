@@ -80,8 +80,8 @@ main{max-width:none;width:100%;margin:0}
     <button id="reloadSetup">&#x21BB; Reload from Fixture Controller</button>
     <button id="btnMotionSave" title="Save editable motion preset on the server">Save Preset</button>
     <button id="btnMotionLoad" title="Load editable motion preset from the server">Load Preset</button>
-    <button id="btnMotionExport" class="icon-btn" title="Export motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-    <button id="btnMotionImport" class="icon-btn" title="Import motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnMotionExport" class="icon-btn export-btn" title="Export motion JSON"></button>
+    <button id="btnMotionImport" class="icon-btn import-btn" title="Import motion JSON"></button>
     <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
   </div>
 </section>
@@ -110,8 +110,8 @@ main{max-width:none;width:100%;margin:0}
   </div>
   <div class="pico-actions">
     <span class="pico-slots-label">Pico slots:</span>
-    <button id="btnExportMotionSlots" class="icon-btn" title="Export Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-    <button id="btnImportMotionSlots" class="icon-btn" title="Import Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnExportMotionSlots" class="icon-btn export-btn" title="Export Pico motion slots JSON"></button>
+    <button id="btnImportMotionSlots" class="icon-btn import-btn" title="Import Pico motion slots JSON"></button>
     <input id="importMotionSlotsFile" type="file" accept=".json,application/json" style="display:none">
   </div>
   <div class="pico-status">

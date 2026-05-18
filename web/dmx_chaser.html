@@ -100,8 +100,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <button id="btnSelNone" style="padding:6px 10px;font-size:12px">None</button>
         <button id="btnSavePart" style="padding:6px 10px;font-size:12px">Save</button>
         <button id="btnLoadPart" style="padding:6px 10px;font-size:12px">Load</button>
-        <button id="btnExportPart" class="icon-btn" title="Export participating JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-        <button id="btnImportPart" class="icon-btn" title="Import participating JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+        <button id="btnExportPart" class="icon-btn export-btn" title="Export participating JSON"></button>
+        <button id="btnImportPart" class="icon-btn import-btn" title="Import participating JSON"></button>
         <input id="importPartFile" type="file" accept=".json,application/json" style="display:none">
       </div>
     </div>
@@ -122,8 +122,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <div class="row" style="flex-wrap:wrap">
       <button id="btnSave" title="Save editable chaser preset on the server">Save Preset</button>
       <button id="btnLoad" title="Load editable chaser preset from the server">Load Preset</button>
-      <button id="btnExport" class="icon-btn" title="Export chaser JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-      <button id="btnImport" class="icon-btn" title="Import chaser JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+      <button id="btnExport" class="icon-btn export-btn" title="Export chaser JSON"></button>
+      <button id="btnImport" class="icon-btn import-btn" title="Import chaser JSON"></button>
       <input id="importFile" type="file" accept=".json,application/json" style="display:none">
     </div>
   </div>
@@ -193,8 +193,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
   </div>
   <div class="pico-actions">
     <span class="pico-slots-label">Pico slots:</span>
-    <button id="btnExportSlots" class="icon-btn" title="Export Pico chaser slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-    <button id="btnImportSlots" class="icon-btn" title="Import Pico chaser slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnExportSlots" class="icon-btn export-btn" title="Export Pico chaser slots JSON"></button>
+    <button id="btnImportSlots" class="icon-btn import-btn" title="Import Pico chaser slots JSON"></button>
     <input id="importSlotsFile" type="file" accept=".json,application/json" style="display:none">
   </div>
   <div class="pico-status">

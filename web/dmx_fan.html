@@ -77,8 +77,8 @@ button{white-space:nowrap}
   <div class="toolbar">
     <button id="btnRefreshBases" title="Read current Pico DMX values as base for all axes">&#x21ba; Refresh All Bases</button>
     <button id="btnSave" title="Save fan groups to server">&#x1f4be; Save</button>
-    <button id="btnExport" class="icon-btn" title="Download fan groups as JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-    <button id="btnImport" class="icon-btn" title="Import fan groups from JSON file"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+    <button id="btnExport" class="icon-btn export-btn" title="Download fan groups as JSON"></button>
+    <button id="btnImport" class="icon-btn import-btn" title="Import fan groups from JSON file"></button>
     <input type="file" id="importFile" accept=".json" style="display:none">
   </div>
 </section>
@@ -99,8 +99,8 @@ button{white-space:nowrap}
 </div>
 <div id="sceneBoxBody" class="scene-toolbox__body">
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-<button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-<button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="exportScenesBtn" class="icon-btn export-btn" title="Export scenes JSON"></button>
+<button id="importScenesBtn" class="icon-btn import-btn" title="Import scenes JSON"></button>
 <button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>

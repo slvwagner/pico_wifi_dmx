@@ -59,9 +59,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label><input id="live" type="checkbox" checked> Live send</label>
 <button id="save">Save setup</button>
 <button id="load">Load setup</button>
-<button id="exportCsv" class="icon-btn" title="Export patch CSV"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-<button id="exportJson" class="icon-btn" title="Export setup JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-<button id="importJson" class="icon-btn" title="Import setup JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="exportCsv" class="icon-btn export-btn" title="Export patch CSV"></button>
+<button id="exportJson" class="icon-btn export-btn" title="Export setup JSON"></button>
+<button id="importJson" class="icon-btn import-btn" title="Import setup JSON"></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 </section>
@@ -198,8 +198,8 @@ Blue=48</textarea>
 <section class="panel">
 <h2>Saved Groups</h2>
 <div class="toolbar">
-<button id="exportGroupsJson" class="icon-btn" title="Export groups JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-<button id="importGroupsJson" class="icon-btn" title="Import groups JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="exportGroupsJson" class="icon-btn export-btn" title="Export groups JSON"></button>
+<button id="importGroupsJson" class="icon-btn import-btn" title="Import groups JSON"></button>
 <input id="importGroupsFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div id="savedGroupsList" class="list"><div class="small">No saved groups yet.</div></div>
@@ -235,8 +235,8 @@ Blue=48</textarea>
 </div>
 <div id="sceneBoxBody" class="scene-toolbox__body">
 <div class="buttons">
-<button id="exportScenesBtn" class="icon-btn" title="Export scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
-<button id="importScenesBtn" class="icon-btn" title="Import scenes JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
+<button id="exportScenesBtn" class="icon-btn export-btn" title="Export scenes JSON"></button>
+<button id="importScenesBtn" class="icon-btn import-btn" title="Import scenes JSON"></button>
 <button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
