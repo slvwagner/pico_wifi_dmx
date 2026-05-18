@@ -38,7 +38,7 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 1. Open `http://localhost/dmx/`.
 2. Enter the Pico base URL, for example `http://192.168.0.24/`.
 3. Enable **Live send** when you want control changes to be sent immediately to the Pico.
-4. Use **Save setup** to store the fixture setup on the XAMPP server.
+4. Fixture setup changes are autosaved to the XAMPP server. Use JSON export before large changes when you want an extra backup.
 
 ### Create a Fixture Profile
 
