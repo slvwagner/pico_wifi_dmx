@@ -41,7 +41,7 @@ Browser-based user interface with the following features:
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
-User-facing operating instructions are in [docs/user-manual.md](docs/user-manual.md).
+User-facing operating instructions are in [docs/user-manual.md](docs/user-manual.md). A dark-mode PDF version is available at [docs/user-manual.pdf](docs/user-manual.pdf).
 
 ---
 
