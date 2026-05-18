@@ -94,137 +94,141 @@ try {
 
     Eval-Js @"
 (async()=>{
-  ['profiles','patch'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
-  ['profilesCollapseBtn','patchCollapseBtn'].forEach(id=>{
-    const btn=document.getElementById(id);
-    if(btn && btn.textContent.trim()==='+') btn.click();
-  });
-  const addBody=document.getElementById('addControlBody');
-  if(addBody) addBody.style.display='';
+  window.docShots={
+    wait(ms=500){return new Promise(r=>setTimeout(r,ms));},
+    setSection(btnId,bodyId,collapsed){
+      const btn=document.getElementById(btnId);
+      const body=document.getElementById(bodyId);
+      if(body) body.style.display=collapsed?'none':'';
+      if(btn) btn.textContent=collapsed?'+':'−';
+    },
+    setSetupSections({profiles=false,patch=false,savedGroups=false}={}){
+      this.setSection('profilesCollapseBtn','profilesBody',profiles);
+      this.setSection(null,'addControlBody',profiles);
+      this.setSection('patchCollapseBtn','patchBody',patch);
+      this.setSection('savedGroupsCollapseBtn','savedGroupsBody',savedGroups);
+    },
+    setSceneBox({visible=true,open=true}={}){
+      const box=document.querySelector('#sceneBox');
+      const toggle=document.querySelector('#sceneBoxToggle');
+      if(!box)return;
+      box.style.display=visible?'':'none';
+      if(open && box.classList.contains('collapsed') && toggle) toggle.click();
+      if(!open && !box.classList.contains('collapsed') && toggle) toggle.click();
+    },
+    clearGroupFilter(){
+      if(typeof clearGroupSelection==='function') clearGroupSelection();
+      else {
+        if(typeof selectedFixtureIds!=='undefined') selectedFixtureIds.clear();
+        if(typeof activeSavedGroupIds!=='undefined') activeSavedGroupIds.clear();
+        if(typeof renderSavedGroupsList==='function') renderSavedGroupsList();
+        if(typeof drawSurface==='function') drawSurface();
+      }
+    },
+    ensureDemoGroups(){
+      const fixtureIds=(Array.isArray(fixtures)?fixtures.slice(0,4).map(f=>f.id):[]);
+      if(Array.isArray(savedGroups) && !savedGroups.length && fixtureIds.length){
+        savedGroups=[
+          {id:'doc_group_front',name:'Front movers',fixtureIds:fixtureIds.slice(0,2),values:{}},
+          {id:'doc_group_back',name:'Back movers',fixtureIds:fixtureIds.slice(2,4),values:{}},
+          {id:'doc_group_all',name:'All movers',fixtureIds:fixtureIds,values:{}}
+        ];
+      }
+      if(typeof renderSavedGroupsList==='function') renderSavedGroupsList();
+    },
+    selectDemoGroups(){
+      this.ensureDemoGroups();
+      if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length){
+        if(typeof activeSavedGroupIds!=='undefined') activeSavedGroupIds.clear();
+        loadGroup(0);
+        if(savedGroups.length>1) loadGroup(1);
+      }
+    },
+    expandFixtureCards(){
+      if(typeof collapsedFixtureIds!=='undefined') collapsedFixtureIds.clear();
+      if(typeof drawSurface==='function') drawSurface();
+      document.querySelectorAll('[data-collapse-fixture]').forEach(btn=>{
+        if(btn.textContent.trim()==='▶') btn.click();
+      });
+    }
+  };
+
+  docShots.setSetupSections({profiles:false,patch:false,savedGroups:false});
+  ['profiles','patch','savedGroups'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
   localStorage.setItem('fixtureCardCollapsed','[]');
-  document.querySelectorAll('[data-collapse-fixture]').forEach(btn=>{
-    if(btn.textContent.trim()==='▶') btn.click();
-  });
+  docShots.expandFixtureCards();
   document.querySelector('main')?.scrollTo(0,0);
-  await new Promise(r=>setTimeout(r,500));
+  await docShots.wait();
 })()
 "@
     Save-Screenshot "fixture-controller-expanded.png"
 
     Eval-Js @"
 (async()=>{
-  ['profilesCollapseBtn'].forEach(id=>{
-    const btn=document.getElementById(id);
-    if(btn && btn.textContent.trim()==='+') btn.click();
-  });
-  const addBody=document.getElementById('addControlBody');
-  if(addBody) addBody.style.display='';
+  docShots.setSetupSections({profiles:false,patch:true,savedGroups:true});
+  docShots.setSceneBox({visible:false});
   const panel=document.querySelector('#profileList') || document.querySelector('#profileForm') || document.body;
   document.querySelector('main')?.scrollTo(0,70);
-  await new Promise(r=>setTimeout(r,500));
+  await docShots.wait();
 })()
 "@
     Save-Screenshot "fixture-controller-profile-controls.png"
 
     Eval-Js @"
 (async()=>{
-  const fixtureIds=(Array.isArray(fixtures)?fixtures.slice(0,4).map(f=>f.id):[]);
-  if(Array.isArray(savedGroups) && !savedGroups.length && fixtureIds.length){
-    savedGroups=[
-      {id:'doc_group_front',name:'Front movers',fixtureIds:fixtureIds.slice(0,2),values:{}},
-      {id:'doc_group_back',name:'Back movers',fixtureIds:fixtureIds.slice(2,4),values:{}},
-      {id:'doc_group_all',name:'All movers',fixtureIds:fixtureIds,values:{}}
-    ];
-  }
-  if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length){
-    loadGroup(0);
-    if(savedGroups.length>1) loadGroup(1);
-  }
-  if(typeof renderSavedGroupsList==='function') renderSavedGroupsList();
-  const saved=document.querySelector('#savedGroupsCollapseBtn');
-  if(saved && saved.textContent.trim()==='+') saved.click();
+  docShots.setSetupSections({profiles:true,patch:true,savedGroups:false});
+  docShots.setSceneBox({visible:false});
+  docShots.selectDemoGroups();
   document.getElementById('savedGroupsBody')?.scrollIntoView({block:'start'});
-  await new Promise(r=>setTimeout(r,500));
+  await docShots.wait();
 })()
 "@
     Save-Screenshot "fixture-controller-saved-groups.png"
 
     Eval-Js @"
 (async()=>{
-  ['profilesCollapseBtn','patchCollapseBtn'].forEach(id=>{
-    const btn=document.getElementById(id);
-    if(btn && btn.textContent.trim()==='−') btn.click();
-  });
-  const addBody=document.getElementById('addControlBody');
-  if(addBody) addBody.style.display='none';
-  const savedGroupsBtn=document.getElementById('savedGroupsCollapseBtn');
-  if(savedGroupsBtn && savedGroupsBtn.textContent.trim()==='+') savedGroupsBtn.click();
-  if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length){
-    if(typeof activeSavedGroupIds!=='undefined') activeSavedGroupIds.clear();
-    loadGroup(0);
-    if(savedGroups.length>1) loadGroup(1);
-  }
-  if(typeof collapsedFixtureIds!=='undefined') collapsedFixtureIds.clear();
-  if(typeof drawSurface==='function') drawSurface();
+  docShots.setSetupSections({profiles:true,patch:true,savedGroups:false});
+  docShots.selectDemoGroups();
+  docShots.expandFixtureCards();
   document.getElementById('savedGroupsBody')?.scrollIntoView({block:'start'});
   window.scrollBy(0,-130);
-  const sceneBox=document.querySelector('#sceneBox');
-  const toggle=document.querySelector('#sceneBoxToggle');
-  if(sceneBox) sceneBox.style.display='';
-  if(sceneBox && sceneBox.classList.contains('collapsed') && toggle) toggle.click();
-  await new Promise(r=>setTimeout(r,500));
+  docShots.setSceneBox({visible:true,open:true});
+  await docShots.wait();
 })()
 "@
     Save-Screenshot "fixture-controller-scene-box.png"
 
     Eval-Js @"
 (async()=>{
-  ['profilesCollapseBtn','patchCollapseBtn'].forEach(id=>{
-    const btn=document.getElementById(id);
-    if(btn && btn.textContent.trim()==='−') btn.click();
-  });
-  const addBody=document.getElementById('addControlBody');
-  if(addBody) addBody.style.display='none';
-  if(typeof clearGroupSelection==='function') clearGroupSelection();
-  else {
-    if(typeof selectedFixtureIds!=='undefined') selectedFixtureIds.clear();
-    if(typeof activeSavedGroupIds!=='undefined') activeSavedGroupIds.clear();
-    if(typeof renderSavedGroupsList==='function') renderSavedGroupsList();
-  }
-  const savedGroupsBtn=document.getElementById('savedGroupsCollapseBtn');
-  if(savedGroupsBtn && savedGroupsBtn.textContent.trim()==='−') savedGroupsBtn.click();
-  const sceneBox=document.querySelector('#sceneBox');
-  const sceneToggle=document.querySelector('#sceneBoxToggle');
-  if(sceneBox && !sceneBox.classList.contains('collapsed') && sceneToggle) sceneToggle.click();
-  if(sceneBox) sceneBox.style.display='none';
+  docShots.setSetupSections({profiles:true,patch:true,savedGroups:true});
+  docShots.clearGroupFilter();
+  docShots.setSceneBox({visible:false});
   const status=document.getElementById('status');
   if(status) status.textContent='Live fixture control';
-  if(typeof collapsedFixtureIds!=='undefined') collapsedFixtureIds.clear();
-  if(typeof drawSurface==='function') drawSurface();
-  await new Promise(r=>setTimeout(r,300));
-  document.querySelectorAll('[data-collapse-fixture]').forEach(btn=>{
-    if(btn.textContent.trim()==='▶') btn.click();
-  });
+  docShots.expandFixtureCards();
+  await docShots.wait(300);
   document.querySelector('#controlSurfacePanel')?.scrollIntoView({block:'start'});
   window.scrollBy(0,-80);
-  await new Promise(r=>setTimeout(r,500));
+  await docShots.wait();
 })()
 "@
     Save-Screenshot "fixture-controller-live-controls.png"
 
     Eval-Js @"
 (async()=>{
-  if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length) {
-    loadGroup(0);
-  } else {
+  docShots.setSetupSections({profiles:true,patch:true,savedGroups:true});
+  docShots.setSceneBox({visible:false});
+  docShots.ensureDemoGroups();
+  if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length) loadGroup(0);
+  else {
     selectedFixtureIds = new Set(fixtures.slice(0,2).map(f=>f.id));
     groupValues = {};
     drawSurface();
   }
-  await new Promise(r=>setTimeout(r,500));
+  await docShots.wait();
   if(typeof openGroupModal==='function') openGroupModal();
   else document.querySelector('#openGroupEdit')?.click();
-  await new Promise(r=>setTimeout(r,600));
+  await docShots.wait(600);
 })()
 "@
     Save-Screenshot "fixture-controller-group-modal.png"

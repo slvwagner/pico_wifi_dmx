@@ -5,7 +5,7 @@ WiFi-controlled DMX512 controller firmware for the Raspberry Pi Pico 2 W (RP2350
 Browser-based user interface with the following features:
 
 - Fixture definition
-- Fixture patching
+- Fixture patching, including multi-fixture patch runs with automatic numbering and optional Saved Group creation
 - Fixture groups with saved group selection, multi-select filtering, rename, delete, and compact group matrix layout
 - Scene editing and saving to palettes
 - Fan Out tool to spread values, for example moving-light positions across fixture groups
@@ -156,6 +156,10 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 
 The screenshots below show the main pages as served from XAMPP during development and explain how the software is used in practice.
 
+Run `scripts/update_user_manual.ps1` after UI or documentation changes. It syncs the current web app to XAMPP, captures deterministic screenshots, rebuilds the dark-mode HTML/PDF manual, syncs the result back to XAMPP, and verifies the deployed manual.
+
+The controller screenshots are generated with deterministic per-shot setup states: each screenshot explicitly opens or collapses the relevant sections, sets the scene toolbox visibility, clears or selects group filters, and expands fixture cards as needed. This avoids stale browser collapse state leaking into the documentation images.
+
 **Fixture Controller**
 
 ![Fixture Controller page](docs/screenshots/fixture-controller.png)
@@ -163,6 +167,8 @@ The screenshots below show the main pages as served from XAMPP during developmen
 The Fixture Controller is the main setup and live-control page. It defines fixture profiles, patches real fixtures to DMX start addresses, and renders the controls for each fixture card. Fixture profiles describe the channel layout, for example dimmer, pan/tilt, RGB, RGBW, RGBWA, wheels, sliders, and 16-bit channels.
 
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
+
+Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 

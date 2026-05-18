@@ -9,6 +9,7 @@
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
+.panel{align-content:start}
 input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1px solid var(--line);border-radius:6px;cursor:pointer}
 .item.active-step{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .item.edit-step{border-color:var(--warn)}
@@ -23,17 +24,24 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
-.columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+#participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+#stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
 .progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.05s linear}
 .step-num{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:5px;background:#22303a;font-weight:700;font-size:12px;flex-shrink:0;padding:0 4px}
 .step-num.playing{background:var(--accent);color:#06110e}
-@media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}}
+.step-card-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start}
+.step-card-title{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.step-card-meta{font-size:12px;color:var(--muted);white-space:nowrap}
+.step-actions-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.step-actions-grid button{width:100%;min-width:0;padding:5px 7px;font-size:12px;line-height:1.1}
+@media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}#participationList,#stepList{grid-template-columns:1fr}}
 .card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .card.collapsed .control{display:none}
 .ctrl-summary{display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:2px}
 .card.collapsed .ctrl-summary{display:flex}
-.item.collapsed label{display:none}
+#participationList .item.collapsed label{display:none!important}
 .item.collapsed .ctrl-summary{display:flex}
 .ctrl-chip{font-size:12px;color:var(--muted);background:#22303a;border:1px solid var(--line);border-radius:4px;padding:3px 8px;white-space:nowrap}
 .collapse-btn{padding:4px 10px;font-size:15px;line-height:1;min-width:28px;align-self:start;flex-shrink:0}
@@ -369,7 +377,7 @@ function drawParticipation(){
     p.controls.forEach(c=>{
       const k=controlKey(f,c);
       const lbl=document.createElement('label');
-      lbl.style.cssText='flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer';
+      lbl.style.cssText='display:flex;flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer';
       lbl.innerHTML=`<input type="checkbox" data-key="${k}" ${participating[k]?'checked':''} style="accent-color:var(--accent)"> ${c.label} <span style="opacity:.6">(${c.type})</span>`;
       item.appendChild(lbl);
     });
@@ -483,23 +491,29 @@ function drawStepList(){
   document.getElementById('btnAddStep').disabled=atMax;
   document.getElementById('btnCaptureNew').disabled=atMax;
   el.innerHTML='';
+  if(!steps.length){
+    el.innerHTML='<div class="small">No steps yet. Use Add step or Capture + Add.</div>';
+    return;
+  }
   steps.forEach((s,i)=>{
     const isActive=i===activeStepIdx;
     const isSel=i===selectedStepIdx;
     const item=document.createElement('div');
     item.className='item'+(isActive?' active-step':'')+(isSel?' edit-step':'');
     item.innerHTML=`
-      <div class="row" style="flex-wrap:nowrap;overflow:hidden">
+      <div class="step-card-head">
         <span class="step-num${isActive?' playing':''}">${i+1}</span>
-        <span style="flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isSel?'var(--warn)':'var(--text)'}">${s.label}</span>
-        <span class="small" style="white-space:nowrap;flex-shrink:0">${s.duration}ms · fade ${s.fade??0}%</span>
-        <div class="buttons" style="flex-shrink:0;gap:4px">
-          <button data-sel="${i}" style="padding:5px 9px;font-size:12px">Edit</button>
-          <button data-dup="${i}" style="padding:5px 9px;font-size:12px">Dupe</button>
-          <button data-up="${i}" style="padding:5px 7px;font-size:12px">↑</button>
-          <button data-dn="${i}" style="padding:5px 7px;font-size:12px">↓</button>
-          <button class="warn" data-del="${i}" style="padding:5px 9px;font-size:12px">✕</button>
+        <div style="min-width:0">
+          <div class="step-card-title" style="color:${isSel?'var(--warn)':'var(--text)'}">${s.label}</div>
+          <div class="step-card-meta">${s.duration}ms · fade ${s.fade??0}%</div>
         </div>
+      </div>
+      <div class="step-actions-grid">
+        <button data-sel="${i}">Edit</button>
+        <button data-dup="${i}">Dupe</button>
+        <button class="warn" data-del="${i}">Delete</button>
+        <button data-up="${i}">Up</button>
+        <button data-dn="${i}">Down</button>
       </div>`;
     el.appendChild(item);
   });

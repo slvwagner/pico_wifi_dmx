@@ -138,7 +138,7 @@ strong { color: #ffffff; }
 <li>Open <code>http://localhost/dmx/</code>.</li>
 <li>Enter the Pico base URL, for example <code>http://192.168.0.24/</code>.</li>
 <li>Enable <strong>Live send</strong> when you want control changes to be sent immediately to the Pico.</li>
-<li>Use <strong>Save setup</strong> to store the fixture setup on the XAMPP server.</li>
+<li>Fixture setup changes are autosaved to the XAMPP server. Use JSON export before large changes when you want an extra backup.</li>
 </ol>
 <h3 id="create-a-fixture-profile">Create a Fixture Profile</h3>
 <p><img src="screenshots/fixture-controller-profile-controls.png" alt="Fixture profile and control editor"></p>
@@ -182,9 +182,13 @@ strong { color: #ffffff; }
 <li>Enter a fixture name.</li>
 <li>Select the fixture profile.</li>
 <li>Enter the DMX start address.</li>
+<li>Set <strong>Count</strong> to the number of fixtures you want to patch.</li>
 <li>Click <strong>Patch fixture</strong>.</li>
 </ol>
 <p>Use <strong>Next free</strong> to find the next available address after already patched fixtures.</p>
+<p>When <strong>Count</strong> is greater than 1, the controller creates a numbered run of fixtures. For example, name <code>RGB Spot</code> with count <code>10</code> creates <code>RGB Spot 1</code> through <code>RGB Spot 10</code>. The first fixture uses the start address you entered. The following fixtures are spaced by the channel count of the selected fixture profile.</p>
+<p>After a multi-fixture patch, the controller asks whether to create a Saved Group for the newly patched fixtures. The suggested group name is the patch name. Press <strong>Cancel</strong> to skip group creation, or enter a name to save the new fixtures as a group.</p>
+<p>The patched fixture list is shown as rows of compact cards. Each row represents one consecutive run of the same fixture profile, so two separate MAC runs remain visually separate even when they use the same profile.</p>
 <h3 id="live-fixture-control">Live Fixture Control</h3>
 <p><img src="screenshots/fixture-controller-live-controls.png" alt="Fixture live control cards"></p>
 <p>The <strong>Control Surface</strong> shows one card per patched fixture.</p>

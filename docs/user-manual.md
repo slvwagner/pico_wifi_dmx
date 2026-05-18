@@ -89,9 +89,16 @@ Patch fixtures after the profile is ready.
 2. Enter a fixture name.
 3. Select the fixture profile.
 4. Enter the DMX start address.
-5. Click **Patch fixture**.
+5. Set **Count** to the number of fixtures you want to patch.
+6. Click **Patch fixture**.
 
 Use **Next free** to find the next available address after already patched fixtures.
+
+When **Count** is greater than 1, the controller creates a numbered run of fixtures. For example, name `RGB Spot` with count `10` creates `RGB Spot 1` through `RGB Spot 10`. The first fixture uses the start address you entered. The following fixtures are spaced by the channel count of the selected fixture profile.
+
+After a multi-fixture patch, the controller asks whether to create a Saved Group for the newly patched fixtures. The suggested group name is the patch name. Press **Cancel** to skip group creation, or enter a name to save the new fixtures as a group.
+
+The patched fixture list is shown as rows of compact cards. Each row represents one consecutive run of the same fixture profile, so two separate MAC runs remain visually separate even when they use the same profile.
 
 ### Live Fixture Control
 
