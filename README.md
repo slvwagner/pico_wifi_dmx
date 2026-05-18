@@ -123,12 +123,12 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 
 | Page | File | Description |
 |------|------|-------------|
-| Fixture Controller | `index.html` | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
-| Chaser | `dmx_chaser.html` | Build and play step sequences with crossfade; save editable presets; upload the current preset to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
-| Motion FX | `dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); save editable presets; upload the current preset to up to 32 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
-| Fan Out | `dmx_fan.html` | Spread any DMX control (pan, tilt, zoom, dimmer, …) as an offset fan across an ordered fixture list — see below |
-| GPIO Control | `dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
-| FPS Benchmark | `dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
+| Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
+| Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save editable presets; upload the current preset to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
+| Motion FX | `web/dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); save editable presets; upload the current preset to up to 32 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
+| Fan Out | `web/dmx_fan.html` | Spread any DMX control (pan, tilt, zoom, dimmer, …) as an offset fan across an ordered fixture list — see below |
+| GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
+| FPS Benchmark | `web/dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
 Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
@@ -236,7 +236,7 @@ Because motion FX never writes back to the base buffer, the oscillation center s
 
 When browser motion starts, the page fetches `/dmx/values.json` from the Pico and seeds the browser-side base from the live channel values, so the browser and firmware bases are always in sync.
 
-### Fan Out (`dmx_fan.html`)
+### Fan Out (`web/dmx_fan.html`)
 
 Spreads any DMX control as an interpolated offset across an ordered list of fixtures. Useful for creating a pan fan, tilt fan, zoom spread, dimmer gradient, etc.
 
@@ -272,7 +272,7 @@ The Fan Out page also has a **Scene Toolbox** (same slot grid as the Fixture Con
 
 The red **Clear all DMX channels** icon in the Fan Out scene toolbox calls `/dmx/clear` on the Pico and resets all configured Fan Out lane base values to `0`. This keeps the fan previews and offsets aligned with the cleared hardware state instead of continuing from stale base snapshots.
 
-### GPIO Control Prototype (`dmx_gpio.html`)
+### GPIO Control Prototype (`web/dmx_gpio.html`)
 
 The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
 
@@ -341,7 +341,7 @@ All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges parti
 HTML files are developed locally and synced to XAMPP with:
 
 ```powershell
-.\sync_fixture_controller_to_xampp.ps1
+.\scripts\sync_fixture_controller_to_xampp.ps1
 ```
 
 Target: `E:\Software\xampp\htdocs\dmx\`
@@ -350,24 +350,38 @@ Target: `E:\Software\xampp\htdocs\dmx\`
 
 ## Code Layout
 
+The repository is split by responsibility:
+
+| Folder | Contents |
+|--------|----------|
+| `firmware/` | Pico C/C++ firmware, DMX engine, playback engines, GPIO mapper, PIO program, lwIP config |
+| `web/` | Browser UI pages copied to XAMPP |
+| `api/` | PHP persistence endpoints copied to XAMPP |
+| `scripts/` | Local helper/deployment scripts |
+| `build/` | Generated CMake/Ninja output, ignored by git |
+
+The root `CMakeLists.txt` remains the Pico build entry point and references sources under `firmware/`.
+
 | File | Description |
 |------|-------------|
-| `main.cpp` | Core 0/1 entry points, HTTP endpoint handlers, custom lwIP fs callbacks, DMX UI lock, POST callbacks for chaser/motion upload |
-| `dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
-| `dmx_native.pio` | PIO program for 250 kbaud DMX framing |
-| `pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
-| `pico_motion.cpp` / `.h` | Pico-side pan/tilt oscillator — **32 independent slots**, simultaneous playback with bigger-wins channel merge, axes-only writes (pan-swing never touches tilt channels and vice versa), 100 Hz tick, hardware spinlock |
-| `gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |
-| `lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving |
-| `fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
+| `firmware/main.cpp` | Core 0/1 entry points, HTTP endpoint handlers, custom lwIP fs callbacks, DMX UI lock, POST callbacks for chaser/motion upload |
+| `firmware/dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
+| `firmware/dmx_native.pio` | PIO program for 250 kbaud DMX framing |
+| `firmware/pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
+| `firmware/pico_motion.cpp` / `.h` | Pico-side pan/tilt oscillator — **32 independent slots**, simultaneous playback with bigger-wins channel merge, axes-only writes (pan-swing never touches tilt channels and vice versa), 100 Hz tick, hardware spinlock |
+| `firmware/gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |
+| `firmware/lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving |
+| `firmware/fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
 | `pico_sdk_import.cmake` | Pico SDK CMake integration |
 | `CMakeLists.txt` | Build target, source files, SDK libraries |
-| `fixture_setup.php` | REST handler — save/load fixture setup (`data/fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`data/fixture_live_values.json`) |
-| `scene_setup.php` | REST handler — save/load scenes and slot grid config (`data/scene_setup.json`) |
-| `group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
-| `chaser_setup.php` | REST handler — save/load chaser step sequences (`data/chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
-| `ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
-| `sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
+| `api/fixture_setup.php` | REST handler — save/load fixture setup (`data/fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`data/fixture_live_values.json`) |
+| `api/scene_setup.php` | REST handler — save/load scenes and slot grid config (`data/scene_setup.json`) |
+| `api/group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
+| `api/fan_setup.php` | REST handler — save/load fan groups (`data/fan_setup.json`) |
+| `api/chaser_setup.php` | REST handler — save/load chaser step sequences (`data/chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
+| `api/motion_setup.php` | REST handler — save/load Motion FX setup and mirrored Pico slot payloads (`data/motion_setup.json`) |
+| `api/ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
+| `scripts/sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
 
 ---
 
