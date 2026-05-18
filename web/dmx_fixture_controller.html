@@ -27,6 +27,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
 #savedGroupsList{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
 #savedGroupsList .item{align-content:start}
+#patched{display:grid;gap:12px}
+#patchBody>#patched{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+#patched .patched-row{display:grid;gap:8px}
+#patched .patched-row-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600}
+#patched .patched-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+#patched .item{align-content:start}
+.patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
+.patch-actions-grid button{width:100%;min-width:0}
+.patch-actions-grid .minor{padding:3px 8px;font-size:12px;line-height:1.1;min-height:0}
 .group-actions-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .group-actions-grid button{width:100%;min-width:0}
 .group-actions-grid .minor{padding:3px 8px;font-size:12px;line-height:1.1;min-height:0}
@@ -190,9 +199,10 @@ Blue=48</textarea>
 </div>
 <div id="patchBody">
 <div class="toolbar">
-<label>Name<input id="fixtureName" type="text" value="Spot 1"></label>
+<label>Name<input id="fixtureName" type="text" value="Fixture"></label>
 <label>Profile<select id="patchProfile"></select></label>
 <label>Start address<input id="fixtureStart" type="number" min="1" max="512" value="1"></label>
+<label>Count<input id="fixtureCount" type="number" min="1" max="512" value="1"></label>
 <button id="nextFreeAddr">Next free</button>
 <button class="primary" id="patchFixture">Patch fixture</button>
 </div>
@@ -798,8 +808,11 @@ function addControl(){
 }
 
 function fixtureAddressConflict(start,channels,excludeId){
+  return fixtureAddressConflictInList(start,channels,fixtures,excludeId);
+}
+function fixtureAddressConflictInList(start,channels,list,excludeId){
   const end=start+channels-1;
-  return fixtures.find(f=>{
+  return list.find(f=>{
     if(f.id===excludeId)return false;
     const p=fixtureProfile(f);
     if(!p)return false;
@@ -812,20 +825,43 @@ function nextFreePatchAddress(channels){
   }
   return 1;
 }
+function nextFreePatchBlockAddress(channels,count){
+  const total=channels*count;
+  for(let start=1;start+total-1<=maxDmx;start++){
+    let conflict=false;
+    for(let i=0;i<count;i++){
+      if(fixtureAddressConflict(start+(i*channels),channels)){conflict=true;break;}
+    }
+    if(!conflict)return start;
+  }
+  return maxDmx+1;
+}
 function patchFixture(){
   const profileId=parseInt(patchProfile.value,10);
   const profile=profiles.find(p=>p.id===profileId);
   if(!profile){showError('Add a profile first');return;}
+  const count=clamp(document.getElementById('fixtureCount').value,1,Math.floor(maxDmx/profile.channels));
   let start=clamp(document.getElementById('fixtureStart').value,1,512);
-  if(start+profile.channels-1>maxDmx){showError('Fixture exceeds DMX channel 512');return;}
-  if(fixtureAddressConflict(start,profile.channels)){
-    const free=nextFreePatchAddress(profile.channels);
-    if(free+profile.channels-1>maxDmx){showError('No free address range for '+profile.channels+' channels in the universe');return;}
+  const totalChannels=profile.channels*count;
+  if(start+totalChannels-1>maxDmx){showError(count+' fixture'+(count===1?'':'s')+' exceed DMX channel 512');return;}
+  let hasConflict=false;
+  for(let i=0;i<count;i++){
+    if(fixtureAddressConflict(start+(i*profile.channels),profile.channels)){hasConflict=true;break;}
+  }
+  if(hasConflict){
+    const free=nextFreePatchBlockAddress(profile.channels,count);
+    if(free+totalChannels-1>maxDmx){showError('No free address range for '+count+' fixture'+(count===1?'':'s')+' using '+profile.channels+' channels each');return;}
     document.getElementById('fixtureStart').value=free;
     start=free;
   }
-  fixtures.push({id:uid(),name:document.getElementById('fixtureName').value||profile.name,profileId,start});
-  draw();scheduleSetupAutosave();
+  const baseName=(document.getElementById('fixtureName').value||profile.name).trim();
+  for(let i=0;i<count;i++){
+    fixtures.push({id:uid(),name:count>1?baseName+' '+(i+1):baseName,profileId,start:start+(i*profile.channels)});
+  }
+  setStatus('Patched '+count+' fixture'+(count===1?'':'s')+' from channel '+start);
+  draw();
+  document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
+  scheduleSetupAutosave();
 }
 
 function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures};}
@@ -873,6 +909,7 @@ async function loadSetup(){
 }
 
 function drawProfiles(){
+  const selectedPatchProfileId=parseInt(patchProfile.value,10);
   profilesEl.innerHTML='';
   patchProfile.innerHTML='';
   profiles.forEach(p=>{
@@ -885,17 +922,33 @@ function drawProfiles(){
       <div class="list">${p.controls.map(c=>`<div class="row"><span class="small">${c.label} (${c.type}) · ${controlChannelText(c)}</span><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div>`).join('')||'<div class="small">No controls yet</div>'}</div>`;
     profilesEl.appendChild(item);
   });
-  if(activeProfileId)patchProfile.value=activeProfileId;
+  if(profiles.some(p=>p.id===selectedPatchProfileId))patchProfile.value=selectedPatchProfileId;
+  else if(activeProfileId)patchProfile.value=activeProfileId;
 }
 
 function drawPatched(){
   patchedEl.innerHTML='';
+  let rows=[];
   fixtures.forEach(f=>{
-    const p=fixtureProfile(f);
-    const item=document.createElement('div');item.className='item';
-    item.innerHTML=`<strong>${f.name}</strong><div class="small">${p?.name||'Missing profile'} · start ${f.start} · channels ${f.start}-${f.start+(p?.channels||1)-1}</div>
-      <div class="buttons"><button class="warn" data-remove-fixture="${f.id}">Remove</button></div>`;
-    patchedEl.appendChild(item);
+    const last=rows[rows.length-1];
+    if(!last||last.profileId!==f.profileId)rows.push({profileId:f.profileId,fixtures:[]});
+    rows[rows.length-1].fixtures.push(f);
+  });
+  rows.forEach(row=>{
+    const p=profiles.find(profile=>profile.id===row.profileId);
+    const rowEl=document.createElement('div');rowEl.className='patched-row';
+    const grid=document.createElement('div');grid.className='patched-row-grid';
+    row.fixtures.forEach(f=>{
+      const fp=fixtureProfile(f);
+      const item=document.createElement('div');item.className='item';
+      item.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(f.name)}</strong><span class="small">start ${f.start}</span></div>
+        <div class="small">${escHtml(fp?.name||'Missing profile')} · channels ${f.start}-${f.start+(fp?.channels||1)-1}</div>
+        <div class="patch-actions-grid"><button class="minor warn" data-remove-fixture="${f.id}">Remove</button></div>`;
+      grid.appendChild(item);
+    });
+    rowEl.innerHTML=`<div class="patched-row-head"><span>${escHtml(p?.name||'Missing profile')}</span><span>${row.fixtures.length} fixture${row.fixtures.length===1?'':'s'}</span></div>`;
+    rowEl.appendChild(grid);
+    patchedEl.appendChild(rowEl);
   });
 }
 
