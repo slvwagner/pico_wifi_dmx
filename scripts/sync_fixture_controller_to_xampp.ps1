@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $webDir = Join-Path $repoRoot "web"
 $apiDir = Join-Path $repoRoot "api"
+$docsDir = Join-Path $repoRoot "docs"
 
 $source = Join-Path $webDir "dmx_fixture_controller.html"
 $apiSource = Join-Path $apiDir "fixture_setup.php"
@@ -22,6 +23,9 @@ $motionApiSource = Join-Path $apiDir "motion_setup.php"
 $groupApiSource  = Join-Path $apiDir "group_setup.php"
 $sceneApiSource  = Join-Path $apiDir "scene_setup.php"
 $uiStateSource   = Join-Path $apiDir "ui_state.php"
+$manualSource    = Join-Path $docsDir "user-manual.html"
+$manualPdfSource = Join-Path $docsDir "user-manual.pdf"
+$manualScreenshotsSource = Join-Path $docsDir "screenshots"
 $targetDir = Join-Path $XamppHtdocs $AppFolder
 $benchTargetDir = Join-Path $targetDir "test"
 $dataTargetDir = Join-Path $targetDir "data"
@@ -38,6 +42,9 @@ $motionApiTarget = Join-Path $targetDir "motion_setup.php"
 $groupApiTarget  = Join-Path $targetDir "group_setup.php"
 $sceneApiTarget  = Join-Path $targetDir "scene_setup.php"
 $uiStateTarget   = Join-Path $targetDir "ui_state.php"
+$manualTarget    = Join-Path $targetDir "user-manual.html"
+$manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
+$manualScreenshotsTarget = Join-Path $targetDir "screenshots"
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Source file not found: $source"
@@ -95,6 +102,19 @@ if (Test-Path -LiteralPath $sceneApiSource) {
 if (Test-Path -LiteralPath $uiStateSource) {
     Copy-Item -LiteralPath $uiStateSource -Destination $uiStateTarget -Force
     Write-Host "Copied UI state API to $uiStateTarget"
+}
+if (Test-Path -LiteralPath $manualSource) {
+    Copy-Item -LiteralPath $manualSource -Destination $manualTarget -Force
+    Write-Host "Copied user manual to $manualTarget"
+}
+if (Test-Path -LiteralPath $manualPdfSource) {
+    Copy-Item -LiteralPath $manualPdfSource -Destination $manualPdfTarget -Force
+    Write-Host "Copied user manual PDF to $manualPdfTarget"
+}
+if (Test-Path -LiteralPath $manualScreenshotsSource) {
+    New-Item -ItemType Directory -Force -Path $manualScreenshotsTarget | Out-Null
+    Copy-Item -Path (Join-Path $manualScreenshotsSource "*") -Destination $manualScreenshotsTarget -Force
+    Write-Host "Copied user manual screenshots to $manualScreenshotsTarget"
 }
 
 $dataFiles = @(

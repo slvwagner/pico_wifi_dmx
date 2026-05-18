@@ -1,6 +1,6 @@
 param(
     [string]$MarkdownPath = "docs/user-manual.md",
-    [string]$HtmlPath = "docs/user-manual-print.html",
+    [string]$HtmlPath = "docs/user-manual.html",
     [string]$PdfPath = "docs/user-manual.pdf",
     [int]$Port = 9230
 )
