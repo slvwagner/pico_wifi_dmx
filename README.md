@@ -2,6 +2,25 @@
 
 WiFi-controlled DMX512 controller firmware for the Raspberry Pi Pico 2 W (RP2350). Provides real-time DMX output driven either from a browser-based UI or autonomously on the Pico itself, with no dependency on network latency for live playback.
 
+Browser-based user interface with the following features:
+
+- Fixture definition
+- Fixture patching
+- Fixture groups
+- Scene editing and saving to palettes
+- Fan Out tool to spread values, for example moving-light positions across fixture groups
+- Effect creation, such as swing, circle, and figure-8
+- Effects are relative to the scene position
+- 32 effects can be saved on the Pico and run simultaneously
+- Chaser tool to create chases, add, edit, duplicate steps, and capture channel values to create steps
+- Participating fixture controls can be defined for chases, which helps edit only the intended controls and channels
+- 32 chasers with 32 steps each can be saved to the Pico
+- Preview for all tools
+- Real-time running of all chaser and effect slots on the Pico hardware
+- Real-time GPIO control to run, stop, set speed, and pause chases and effects
+- Simple user interface to define each GPIO pin by choosing a pin and assigning an action
+- All data is stored server-side and can be exported or imported as JSON files
+
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
 ---
