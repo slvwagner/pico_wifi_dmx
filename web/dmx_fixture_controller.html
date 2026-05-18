@@ -853,11 +853,15 @@ function patchFixture(){
     start=free;
   }
   const baseName=(document.getElementById('fixtureName').value||profile.name).trim();
+  const patchedIds=[];
   for(let i=0;i<count;i++){
-    fixtures.push({id:uid(),name:count>1?baseName+' '+(i+1):baseName,profileId,start:start+(i*profile.channels)});
+    const fixture={id:uid(),name:count>1?baseName+' '+(i+1):baseName,profileId,start:start+(i*profile.channels)};
+    fixtures.push(fixture);
+    patchedIds.push(fixture.id);
   }
   setStatus('Patched '+count+' fixture'+(count===1?'':'s')+' from channel '+start);
   draw();
+  if(count>1)askCreateGroupForPatchedFixtures(baseName,patchedIds);
   document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
   scheduleSetupAutosave();
 }
@@ -1709,6 +1713,11 @@ function saveSavedGroupsToServer(){
     .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
     .catch(e=>setStatus('Groups save error: '+e.message));
 }
+function createSavedGroup(name,fixtureIds,values={}){
+  savedGroups.push({id:'grp_'+Date.now()+'_'+Math.floor(Math.random()*1000),name,fixtureIds:[...fixtureIds],values:{...values}});
+  renderSavedGroupsList();
+  saveSavedGroupsToServer();
+}
 function renderSavedGroupsList(){
   const el=document.getElementById('savedGroupsList');if(!el)return;
   if(!savedGroups.length){el.innerHTML='<div class="small">No saved groups yet. Select fixtures and click "Save Group".</div>';return;}
@@ -1723,8 +1732,15 @@ function renderSavedGroupsList(){
 function saveCurrentGroup(){
   const name=(prompt('Group name:','Group '+(savedGroups.length+1))||'').trim();
   if(!name)return;
-  savedGroups.push({id:'grp_'+Date.now(),name,fixtureIds:[...selectedFixtureIds],values:{...groupValues}});
-  renderSavedGroupsList();saveSavedGroupsToServer();
+  createSavedGroup(name,[...selectedFixtureIds],groupValues);
+}
+function askCreateGroupForPatchedFixtures(suggestedName,fixtureIds){
+  const name=prompt('Create a saved group for these patched fixtures?',suggestedName);
+  if(name===null)return;
+  const trimmed=name.trim();
+  if(!trimmed)return;
+  createSavedGroup(trimmed,fixtureIds,{});
+  setStatus('Patched '+fixtureIds.length+' fixtures and created group: '+trimmed);
 }
 function loadGroup(i){
   const g=savedGroups[i];if(!g)return;
