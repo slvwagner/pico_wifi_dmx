@@ -87,20 +87,19 @@ main{max-width:none;width:100%;margin:0}
 </section>
 
 <!-- Pico Motion FX -->
-<section class="panel" style="border-color:rgba(55,196,164,.35)">
-  <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+<section class="panel pico-panel">
+  <div class="pico-controls">
     <span class="mode-badge mode-badge--pico">&#x2699; Pico Motion</span>
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+    <label class="pico-field">
       Slot
-      <select id="picoMotionSlot" style="background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:5px 8px;font:inherit">
+      <select id="picoMotionSlot">
         <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
         <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
       </select>
     </label>
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+    <label class="pico-field">
       BPM
-      <input id="picoMotionBpm" type="number" min="0.1" max="600" step="1" value="30"
-             style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">
+      <input id="picoMotionBpm" class="pico-number" type="number" min="0.1" max="600" step="1" value="30">
     </label>
     <button class="primary" id="btnPicoMotionUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoMotionStartSlot" title="Run the already-loaded selected Pico slot">&#x25B6; Start Slot</button>
@@ -109,18 +108,18 @@ main{max-width:none;width:100%;margin:0}
     <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
     <button id="btnPicoMotionRestoreAll">&#x21BA; Restore Saved Slots to Pico</button>
   </div>
-  <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:4px">
-    <span style="font-size:12px;color:var(--muted);align-self:center">Pico slots:</span>
+  <div class="pico-actions">
+    <span class="pico-slots-label">Pico slots:</span>
     <button id="btnExportMotionSlots" class="icon-btn" title="Export Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <button id="btnImportMotionSlots" class="icon-btn" title="Import Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <input id="importMotionSlotsFile" type="file" accept=".json,application/json" style="display:none">
   </div>
-  <div style="display:flex;align-items:center;gap:6px;min-width:0">
-    <span id="picoMotionStatusDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
-    <span id="picoMotionStatus" class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#x2014; not started</span>
+  <div class="pico-status">
+    <span id="picoMotionStatusDot" class="pico-status-dot"></span>
+    <span id="picoMotionStatus" class="small pico-status-text">&#x2014; not started</span>
   </div>
   <!-- Slot status strip -->
-  <div id="motionSlotStrip" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px"></div>
+  <div id="motionSlotStrip" class="pico-slot-strip"></div>
 </section>
 
 </main>

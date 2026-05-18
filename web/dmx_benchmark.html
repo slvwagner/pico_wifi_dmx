@@ -64,7 +64,7 @@ th{color:var(--muted);font-weight:600}
     <label>Duration s<input id="durationSec" type="number" min="0" max="3600" value="0"></label>
     <button class="primary" id="btnStart">▶ Start</button>
     <button class="stop" id="btnStop" disabled>■ Stop</button>
-    <button id="btnExport" disabled>Export CSV</button>
+    <button id="btnExport" class="icon-btn" title="Export benchmark CSV" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <div class="hint" id="modeHint"></div>
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>

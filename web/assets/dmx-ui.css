@@ -35,6 +35,18 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .xy-pad{aspect-ratio:1.55/1;touch-action:none;cursor:crosshair}
 .xy-mini{width:120px;height:120px;flex-shrink:0}
 .xy-dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
+.pico-panel{border-color:rgba(55,196,164,.35)}
+.pico-controls,.pico-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pico-controls{margin-bottom:8px}
+.pico-actions{gap:8px;margin-bottom:4px}
+.pico-field{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.pico-field input[type=number],.pico-field select{width:auto;min-width:0;padding:5px 8px;border-radius:5px}
+.pico-number{width:68px!important}
+.pico-slots-label{font-size:12px;color:var(--muted);align-self:center}
+.pico-status{display:flex;align-items:center;gap:6px;min-width:0}
+.pico-status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.pico-status-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pico-slot-strip{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px}
 .scene-toolbox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
 .scene-toolbox--narrow{max-width:380px}
 .scene-toolbox__header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:grab;touch-action:none;background:#460f49;border-radius:10px 10px 0 0;border-bottom:1px solid var(--line);gap:8px}
