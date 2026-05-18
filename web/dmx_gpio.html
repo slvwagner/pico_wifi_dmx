@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX GPIO Control</title>
 <link rel="stylesheet" href="assets/dmx-ui.css">
+<script src="assets/dmx-common.js"></script>
 <style>
 main{max-width:1160px;margin:0 auto;padding:20px;display:grid;gap:16px}
 h2{font-size:16px}
@@ -32,7 +33,7 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Motion</a>
-    <a class="nav" href="dmx_fan.html">Fan Out</a>
+    <a class="nav" href="dmx_fan.html">Fan</a>
     <a class="nav" href="user-manual.html#7-gpio-control" target="_blank">Manual</a>
   </div>
 </header>
@@ -89,8 +90,8 @@ const statusEl=document.getElementById('status');
 
 function setStatus(msg,bad=false){statusEl.textContent=msg;statusEl.className=bad?'status bad':'status';}
 function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function clamp(v,lo,hi){v=parseInt(v);return Math.max(lo,Math.min(hi,isNaN(v)?lo:v));}
+function esc(s){return DmxCommon.escapeHtml(s);}
+function clamp(v,lo,hi){return DmxCommon.clampInt(v,lo,hi);}
 function actionNeedsSlot(a){return a.startsWith('chaser_')||a.startsWith('motion_');}
 function actionIsTap(a){return a==='chaser_tap'||a==='motion_tap';}
 function normalize(m){
@@ -343,8 +344,7 @@ async function pollStatus(){
   }
 }
 
-baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||'';
-baseUrl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrl.value));
+DmxCommon.bindBaseUrl(baseUrl,{fallback:baseUrl.value});
 document.getElementById('addMapping').onclick=()=>{
   const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin),RESERVED_PINS));
   const pin=Array.from({length:29},(_,i)=>i).find(p=>!used.has(p))??14;

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
 <link rel="stylesheet" href="assets/dmx-ui.css">
+<script src="assets/dmx-common.js"></script>
 <style>
 html{height:100%}body{height:100%;overflow:hidden}
 main{max-width:1260px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px;height:100%;overflow:hidden}
@@ -25,8 +26,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
 .readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}.bytes{color:var(--muted);font-size:13px}
 .byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.xy-pad{position:relative;aspect-ratio:1.55/1;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%;touch-action:none;cursor:crosshair}
-.xy-dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
@@ -47,9 +46,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div class="toolbar">
 <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-<a class="nav" href="dmx_motion.html">Motion FX</a>
+<a class="nav" href="dmx_motion.html">Motion</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_fan.html">Fan Out</a>
+<a class="nav" href="dmx_fan.html">Fan</a>
 <a class="nav" href="dmx_gpio.html">GPIO</a>
 <a class="nav" href="user-manual.html#1-fixture-controller" target="_blank">Manual</a>
 </div>
@@ -257,9 +256,7 @@ let activeProfileId=0;
 let editingControlId=0;
 const values={};
 const baseUrl=document.getElementById('baseUrl');
-// Persist Pico base URL across all pages
-(()=>{ const v=localStorage.getItem('dmxPicoBaseUrl'); if(v) baseUrl.value=v; })();
-baseUrl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrl.value));
+DmxCommon.bindBaseUrl(baseUrl);
 const live=document.getElementById('live');
 const statusEl=document.getElementById('status');
 const profilesEl=document.getElementById('profiles');
@@ -267,7 +264,7 @@ const patchProfile=document.getElementById('patchProfile');
 const patchedEl=document.getElementById('patched');
 const surfaceEl=document.getElementById('surface');
 
-function clamp(v,min,max){v=parseInt(v||0,10);return Math.max(min,Math.min(max,isNaN(v)?min:v));}
+function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
 function showError(text){setStatus(text,true);alert(text);}
@@ -1590,7 +1587,7 @@ surfaceEl.addEventListener('click',e=>{
 
 // ── Saved Groups ─────────────────────────────────────────────────────
 let savedGroups=[];
-function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escHtml(s){return DmxCommon.escapeHtml(s);}
 function loadSavedGroups(){
   fetch('group_setup.php').then(r=>r.json()).then(d=>{
     if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
@@ -1810,40 +1807,16 @@ document.getElementById('exportScenesBtn').onclick=exportScenesJson;
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
 document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
 document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
-const sceneBox=document.getElementById('sceneBox');
-const sceneBoxHdr=document.getElementById('sceneBoxHdr');
-let _dragOff={x:0,y:0};
-sceneBoxHdr.addEventListener('pointerdown',e=>{
-  if(e.target.closest('button'))return;
-  sceneBoxHdr.setPointerCapture(e.pointerId);
-  const r=sceneBox.getBoundingClientRect();
-  _dragOff={x:e.clientX-r.left,y:e.clientY-r.top};
-  sceneBoxHdr.style.cursor='grabbing';
+const sceneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'sceneBox',
+  headerId:'sceneBoxHdr',
+  toggleId:'sceneBoxToggle',
+  posStorageKey:'sceneBoxPos',
+  collapsedStorageKey:'sceneBoxCollapsed',
+  uiStatePage:'fixture'
 });
-sceneBoxHdr.addEventListener('pointermove',e=>{
-  if(!sceneBoxHdr.hasPointerCapture(e.pointerId))return;
-  let x=e.clientX-_dragOff.x,y=e.clientY-_dragOff.y;
-  x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,x));
-  y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,y));
-  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
-  localStorage.setItem('sceneBoxPos',JSON.stringify({x,y}));
-});
-sceneBoxHdr.addEventListener('pointerup',()=>{sceneBoxHdr.style.cursor='grab';saveUiStateServer('sceneBoxPos',{x:parseInt(sceneBox.style.left)||0,y:parseInt(sceneBox.style.top)||0});});
-const _sbPos=JSON.parse(localStorage.getItem('sceneBoxPos')||'null');
-if(_sbPos){sceneBox.style.left=_sbPos.x+'px';sceneBox.style.top=_sbPos.y+'px';sceneBox.style.right='auto';}
-function clampSceneBox(){
-  const x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,parseInt(sceneBox.style.left)||0));
-  const y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,parseInt(sceneBox.style.top)||0));
-  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
-}
-window.addEventListener('resize',clampSceneBox);
-document.getElementById('sceneBoxToggle').onclick=()=>{
-  const c=sceneBox.classList.toggle('collapsed');
-  document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
-  localStorage.setItem('sceneBoxCollapsed',c?'1':'');
-  saveUiStateServer('sceneBoxCollapsed',c);
-};
-if(localStorage.getItem('sceneBoxCollapsed')==='1'){sceneBox.classList.add('collapsed');document.getElementById('sceneBoxToggle').textContent='+';}
+const sceneBox=sceneToolbox.box;
+function clampSceneBox(){sceneToolbox.clamp();}
 loadScenesServer();
 // ── End scene toolbox ─────────────────────────────────────────────────
 
@@ -1867,27 +1840,19 @@ loadScenesServer();
 });
 // ── UI State server sync ──────────────────────────────────────────────
 function saveUiStateServer(key,val){
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
-  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({page:'fixture',state:{[key]:val}})}).catch(()=>{});
+  DmxCommon.saveUiState('fixture',key,val);
 }
 (async()=>{
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
   try{
-    const r=await fetch('ui_state.php',{cache:'no-store'});
-    const j=await r.json();
-    if(!j.ok||!j.exists)return;
-    const st=j.state.fixture||{};
+    const st=await DmxCommon.loadUiState('fixture');
     if(st.sceneBoxCollapsed!==undefined){
       const c=!!st.sceneBoxCollapsed;
       localStorage.setItem('sceneBoxCollapsed',c?'1':'');
-      sceneBox.classList.toggle('collapsed',c);
-      document.getElementById('sceneBoxToggle').textContent=c?'+':'\u2014';
+      sceneToolbox.setCollapsed(c,false);
     }
     if(st.sceneBoxPos){
       localStorage.setItem('sceneBoxPos',JSON.stringify(st.sceneBoxPos));
-      sceneBox.style.left=st.sceneBoxPos.x+'px';sceneBox.style.top=st.sceneBoxPos.y+'px';sceneBox.style.right='auto';
-      clampSceneBox();
+      sceneToolbox.applyPosition(st.sceneBoxPos);
     }
     [['patchCollapsed','patchBody','patchCollapseBtn'],
      ['profilesCollapsed','profilesBody','profilesCollapseBtn'],

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fan Out</title>
 <link rel="stylesheet" href="assets/dmx-ui.css">
+<script src="assets/dmx-common.js"></script>
 <style>
 main{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:16px}
 h2{font-size:16px;font-weight:600}
@@ -861,14 +862,7 @@ async function refreshAllBases() {
 
 // ---- init ----
 const baseUrlEl = document.getElementById('baseUrl');
-(()=>{ const v = localStorage.getItem('dmxPicoBaseUrl'); if (v) baseUrlEl.value = v; })();
-
-let _urlDebounce;
-baseUrlEl.addEventListener('input', () => {
-    localStorage.setItem('dmxPicoBaseUrl', baseUrlEl.value);
-    clearTimeout(_urlDebounce);
-    _urlDebounce = setTimeout(() => refreshAllBases(), 800);
-});
+DmxCommon.bindBaseUrl(baseUrlEl,{onInput:refreshAllBases,debounceMs:800});
 
 document.getElementById('btnRefreshBases').addEventListener('click', refreshAllBases);
 document.getElementById('btnSave').addEventListener('click', saveFanGroups);
@@ -900,7 +894,7 @@ document.getElementById('fromSavedGroupSel').addEventListener('change', e => {
 });
 
 // ── Scene Toolbox ─────────────────────────────────────────────────────
-function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escHtml(s){return DmxCommon.escapeHtml(s);}
 let scenes=[];let slotCols=4,slotRows=4;
 (()=>{const sc=localStorage.getItem('fanSceneSlotCols'),sr=localStorage.getItem('fanSceneSlotRows');if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}})();
 document.getElementById('slotCols').addEventListener('input',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('fanSceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
@@ -1059,62 +1053,28 @@ document.getElementById('importScenesFile').onchange=e=>{
     }catch(err){setStatus('Import failed: '+err.message,true);}
   };fr.readAsText(e.target.files[0]);e.target.value='';
 };
-const sceneBox=document.getElementById('sceneBox');
-const sceneBoxHdr=document.getElementById('sceneBoxHdr');
-let _dragOff={x:0,y:0};
-sceneBoxHdr.addEventListener('pointerdown',e=>{
-  if(e.target.closest('button'))return;
-  sceneBoxHdr.setPointerCapture(e.pointerId);
-  const r=sceneBox.getBoundingClientRect();
-  _dragOff={x:e.clientX-r.left,y:e.clientY-r.top};
-  sceneBoxHdr.style.cursor='grabbing';
+const sceneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'sceneBox',
+  headerId:'sceneBoxHdr',
+  toggleId:'sceneBoxToggle',
+  posStorageKey:'fanSceneBoxPos',
+  collapsedStorageKey:'fanSceneBoxCollapsed',
+  uiStatePage:'fan'
 });
-sceneBoxHdr.addEventListener('pointermove',e=>{
-  if(!sceneBoxHdr.hasPointerCapture(e.pointerId))return;
-  let x=e.clientX-_dragOff.x,y=e.clientY-_dragOff.y;
-  x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,x));
-  y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,y));
-  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
-  localStorage.setItem('fanSceneBoxPos',JSON.stringify({x,y}));
-});
-sceneBoxHdr.addEventListener('pointerup',()=>{sceneBoxHdr.style.cursor='grab';saveUiStateServer('sceneBoxPos',{x:parseInt(sceneBox.style.left)||0,y:parseInt(sceneBox.style.top)||0});});
-const _sbPos=JSON.parse(localStorage.getItem('fanSceneBoxPos')||'null');
-if(_sbPos){sceneBox.style.left=_sbPos.x+'px';sceneBox.style.top=_sbPos.y+'px';sceneBox.style.right='auto';}
-function clampSceneBox(){
-  const x=Math.max(0,Math.min(window.innerWidth-sceneBox.offsetWidth,parseInt(sceneBox.style.left)||0));
-  const y=Math.max(0,Math.min(window.innerHeight-sceneBox.offsetHeight,parseInt(sceneBox.style.top)||0));
-  sceneBox.style.left=x+'px';sceneBox.style.top=y+'px';sceneBox.style.right='auto';
-}
-window.addEventListener('resize',clampSceneBox);
-document.getElementById('sceneBoxToggle').onclick=()=>{
-  const c=sceneBox.classList.toggle('collapsed');
-  document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
-  localStorage.setItem('fanSceneBoxCollapsed',c?'1':'');
-  saveUiStateServer('sceneBoxCollapsed',c);
-};
-if(localStorage.getItem('fanSceneBoxCollapsed')==='1'){sceneBox.classList.add('collapsed');document.getElementById('sceneBoxToggle').textContent='+';}
 function saveUiStateServer(key,val){
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
-  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({page:'fan',state:{[key]:val}})}).catch(()=>{});
+  DmxCommon.saveUiState('fan',key,val);
 }
 (async()=>{
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
   try{
-    const r=await fetch('ui_state.php',{cache:'no-store'});
-    const j=await r.json();
-    if(!j.ok||!j.exists)return;
-    const st=j.state.fan||{};
+    const st=await DmxCommon.loadUiState('fan');
     if(st.sceneBoxCollapsed!==undefined){
       const c=!!st.sceneBoxCollapsed;
       localStorage.setItem('fanSceneBoxCollapsed',c?'1':'');
-      sceneBox.classList.toggle('collapsed',c);
-      document.getElementById('sceneBoxToggle').textContent=c?'+':'—';
+      sceneToolbox.setCollapsed(c,false);
     }
     if(st.sceneBoxPos){
       localStorage.setItem('fanSceneBoxPos',JSON.stringify(st.sceneBoxPos));
-      sceneBox.style.left=st.sceneBoxPos.x+'px';sceneBox.style.top=st.sceneBoxPos.y+'px';sceneBox.style.right='auto';
-      clampSceneBox();
+      sceneToolbox.applyPosition(st.sceneBoxPos);
     }
   }catch(_){}
 })();

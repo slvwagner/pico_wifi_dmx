@@ -5,15 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Motion Effects</title>
 <link rel="stylesheet" href="assets/dmx-ui.css">
+<script src="assets/dmx-common.js"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 .item{padding:12px;gap:10px}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.xy-mini{position:relative;width:120px;height:120px;flex-shrink:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%}
-.xy-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #06110e;box-shadow:0 0 0 1px var(--accent);transform:translate(-50%,-50%);pointer-events:none}
+.xy-dot{width:12px;height:12px}
 .readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
-.mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
-.mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 .fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;overflow-y:auto;min-height:0}
 #fxPanel{display:flex;flex-direction:column;max-height:70vh}
 </style>
@@ -28,9 +26,9 @@ input[type=range]{width:150px;accent-color:var(--accent)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <a class="nav" href="index.html">Fixture Controller</a>
+    <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_fan.html">Fan Out</a>
+    <a class="nav" href="dmx_fan.html">Fan</a>
     <a class="nav" href="dmx_gpio.html">GPIO</a>
     <a class="nav" href="user-manual.html#5-motion-fx" target="_blank">Manual</a>
   </div>
@@ -139,7 +137,7 @@ input[type=range]{width:150px;accent-color:var(--accent)}
 
 <script>
 // ---- helpers ----
-function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?lo:v));}
+function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
@@ -152,9 +150,7 @@ populatePicoMotionSlotSelect();
 
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
-// Persist Pico base URL across all pages
-(()=>{ const v=localStorage.getItem('dmxPicoBaseUrl'); if(v) baseUrlEl.value=v; })();
-baseUrlEl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrlEl.value));
+DmxCommon.bindBaseUrl(baseUrlEl);
 function sendChannel(ch,value){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
@@ -888,7 +884,7 @@ loadSetup().finally(async()=>{
 });
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
-function escMotionHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escMotionHtml(s){return DmxCommon.escapeHtml(s);}
 function renderMotionSlotGrid(){
   const grid=document.getElementById('motionSlotGrid');
   const total=motionSlotCols*motionSlotRows;
@@ -938,74 +934,30 @@ function loadMotionScenesServer(){
     renderMotionSlotGrid();
   }).catch(()=>{motionScenes=[];renderMotionSlotGrid();});
 }
-(()=>{
-  const box=document.getElementById('motionSceneBox');
-  const hdr=document.getElementById('motionSceneHdr');
-  const tog=document.getElementById('motionSceneBoxToggle');
-  const _pos=JSON.parse(localStorage.getItem('motionSceneBoxPos')||'null');
-  if(_pos){box.style.left=_pos.x+'px';box.style.top=_pos.y+'px';box.style.right='auto';}
-  if(localStorage.getItem('motionSceneBoxCollapsed')==='1'){box.classList.add('collapsed');tog.textContent='+';}
-  let _dragOff={x:0,y:0};
-  hdr.addEventListener('pointerdown',e=>{
-    if(e.target===tog)return;
-    hdr.setPointerCapture(e.pointerId);
-    const r=box.getBoundingClientRect();
-    _dragOff={x:e.clientX-r.left,y:e.clientY-r.top};
-    hdr.style.cursor='grabbing';
-  });
-  hdr.addEventListener('pointermove',e=>{
-    if(!hdr.hasPointerCapture(e.pointerId))return;
-    const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
-    box.style.left=Math.max(0,Math.min(mw-bw,e.clientX-_dragOff.x))+'px';
-    box.style.top=Math.max(0,Math.min(mh-bh,e.clientY-_dragOff.y))+'px';
-    box.style.right='auto';
-    localStorage.setItem('motionSceneBoxPos',JSON.stringify({x:parseInt(box.style.left)||0,y:parseInt(box.style.top)||0}));
-  });
-  hdr.addEventListener('pointerup',()=>{
-    hdr.style.cursor='grab';
-    const x=parseInt(box.style.left)||0,y=parseInt(box.style.top)||0;
-    saveUiStateServer('sceneBoxPos',{x,y});
-  });
-  window.addEventListener('resize',()=>{
-    const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
-    box.style.left=Math.max(0,Math.min(mw-bw,box.offsetLeft))+'px';
-    box.style.top=Math.max(0,Math.min(mh-bh,box.offsetTop))+'px';
-    box.style.right='auto';box.style.bottom='auto';
-  });
-  tog.addEventListener('click',()=>{
-    const c=box.classList.toggle('collapsed');tog.textContent=c?'+':'—';
-    localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
-    saveUiStateServer('sceneBoxCollapsed',c);
-  });
-})();
+const motionSceneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'motionSceneBox',
+  headerId:'motionSceneHdr',
+  toggleId:'motionSceneBoxToggle',
+  posStorageKey:'motionSceneBoxPos',
+  collapsedStorageKey:'motionSceneBoxCollapsed',
+  uiStatePage:'motion'
+});
 loadMotionScenesServer();
 // ── UI State persistence ─────────────────────────────────────────────────────────
 function saveUiStateServer(key,val){
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
-  fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({page:'motion',state:{[key]:val}})}).catch(()=>{});
+  DmxCommon.saveUiState('motion',key,val);
 }
 (async()=>{
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return;
   try{
-    const r=await fetch('ui_state.php',{cache:'no-store'});
-    const j=await r.json();
-    if(!j.ok||!j.exists)return;
-    const st=j.state.motion||{};
-    const box=document.getElementById('motionSceneBox');
-    const tog=document.getElementById('motionSceneBoxToggle');
+    const st=await DmxCommon.loadUiState('motion');
     if(st.sceneBoxCollapsed!==undefined){
       const c=!!st.sceneBoxCollapsed;
       localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');
-      box.classList.toggle('collapsed',c);
-      tog.textContent=c?'+':'\u2014';
+      motionSceneToolbox.setCollapsed(c,false);
     }
     if(st.sceneBoxPos){
       localStorage.setItem('motionSceneBoxPos',JSON.stringify(st.sceneBoxPos));
-      box.style.left=st.sceneBoxPos.x+'px';box.style.top=st.sceneBoxPos.y+'px';box.style.right='auto';
-      const mw=window.innerWidth,mh=window.innerHeight,bw=box.offsetWidth,bh=box.offsetHeight;
-      box.style.left=Math.max(0,Math.min(mw-bw,parseInt(box.style.left)||0))+'px';
-      box.style.top=Math.max(0,Math.min(mh-bh,parseInt(box.style.top)||0))+'px';
+      motionSceneToolbox.applyPosition(st.sceneBoxPos);
     }
   }catch(_){}
 })();

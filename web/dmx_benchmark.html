@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Frame Rate Test</title>
 <link rel="stylesheet" href="../assets/dmx-ui.css">
+<script src="../assets/dmx-common.js"></script>
 <style>
 main{max-width:1160px;margin:0 auto;padding:20px;display:grid;gap:16px}
 h2{font-size:16px}
@@ -41,7 +42,7 @@ th{color:var(--muted);font-weight:600}
     <a class="nav" href="../index.html">Controller</a>
     <a class="nav" href="../dmx_chaser.html">Chaser</a>
     <a class="nav" href="../dmx_motion.html">Motion</a>
-    <a class="nav" href="../dmx_fan.html">Fan Out</a>
+    <a class="nav" href="../dmx_fan.html">Fan</a>
     <a class="nav" href="../dmx_gpio.html">GPIO</a>
     <a class="nav" href="../user-manual.html#8-benchmark" target="_blank">Manual</a>
   </div>
@@ -140,9 +141,9 @@ th{color:var(--muted);font-weight:600}
 </main>
 <script>
 const baseUrlEl=document.getElementById('baseUrl');
-baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||'';
-try{const d=JSON.parse(localStorage.getItem('dmxFixtureController')||'{}');if(d.baseUrl)baseUrlEl.value=d.baseUrl;}catch(_){}
-baseUrlEl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrlEl.value));
+let benchmarkFallbackUrl='';
+try{const d=JSON.parse(localStorage.getItem('dmxFixtureController')||'{}');benchmarkFallbackUrl=d.baseUrl||'';}catch(_){}
+DmxCommon.bindBaseUrl(baseUrlEl,{fallback:benchmarkFallbackUrl});
 
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
 
