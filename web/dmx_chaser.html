@@ -247,6 +247,15 @@ function interpolateValue(from,to,t){
 // ---- DMX send ----
 const baseUrlEl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl);
+let chaserGroupsBox=null;
+chaserGroupsBox=DmxCommon.initGroupsToolbox({
+  page:'chaser',
+  idPrefix:'chaserGroups',
+  title:'Groups',
+  baseUrlInput:baseUrlEl,
+  onStatus:setStatus,
+  onSelectionChange:()=>applyChaserGroupSelection(true)
+});
 function sendChannel(ch,value){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
@@ -349,7 +358,23 @@ function rebuildParticipation(){
     p.controls.forEach(c=>{const k=controlKey(f,c);newP[k]=participating[k]??true;});
   });
   participating=newP;
+  applyChaserGroupSelection(false);
   drawParticipation();
+}
+
+function applyChaserGroupSelection(redraw=true){
+  const selected=chaserGroupsBox?.selectedGroups?.()||[];
+  if(!selected.length)return;
+  const selectedFixtureIds=new Set(selected.flatMap(g=>g.fixtureIds||[]));
+  (setup.fixtures||[]).forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{participating[controlKey(f,c)]=selectedFixtureIds.has(f.id);});
+  });
+  if(redraw){
+    drawParticipation();
+    drawStepEditor();
+    setStatus('Chaser participation set from '+selected.length+' group'+(selected.length===1?'':'s'));
+  }
 }
 
 function getParticipatingList(){

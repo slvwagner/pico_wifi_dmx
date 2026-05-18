@@ -25,8 +25,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-title{display:flex;gap:8px;align-items:baseline;min-width:0;flex-wrap:nowrap;height:24px;overflow:hidden}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
-#savedGroupsList{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+#savedGroupsList{display:grid;gap:8px;align-content:start}
 #savedGroupsList .item{align-content:start}
+#savedGroupsList .group-empty{min-height:94px;border:1px dashed var(--line);border-radius:8px;background:#0a0d10;opacity:.45}
 #patched{display:grid;gap:12px}
 #patchBody>#patched{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 #patched .patched-row{display:grid;gap:8px}
@@ -36,9 +37,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .patch-actions-grid button{width:100%;min-width:0}
 .patch-actions-grid .minor{padding:3px 8px;font-size:12px;line-height:1.1;min-height:0}
-.group-actions-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-.group-actions-grid button{width:100%;min-width:0}
-.group-actions-grid .minor{padding:3px 8px;font-size:12px;line-height:1.1;min-height:0}
+#savedGroupsList .item{cursor:pointer}
+#savedGroupsList .item:hover{border-color:var(--accent)}
 .readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}.bytes{color:var(--muted);font-size:13px}
 .byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
@@ -208,21 +208,6 @@ Blue=48</textarea>
 </div>
 </section>
 
-<section class="panel">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-<h2>Saved Groups</h2>
-<button id="savedGroupsCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
-</div>
-<div id="savedGroupsBody">
-<div class="toolbar">
-<button id="exportGroupsJson" class="icon-btn export-btn" title="Export groups JSON"></button>
-<button id="importGroupsJson" class="icon-btn import-btn" title="Import groups JSON"></button>
-<input id="importGroupsFile" type="file" accept=".json,application/json" style="display:none">
-</div>
-<div id="savedGroupsList" class="list"><div class="small">No saved groups yet.</div></div>
-</div>
-</section>
-
 <section class="panel" id="controlSurfacePanel">
 <h2>Control Surface</h2>
 <div id="groupBar" style="display:none"></div>
@@ -243,6 +228,28 @@ Blue=48</textarea>
 <button id="sendGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeGroupModal2">Close</button>
 </div>
+</div>
+</div>
+
+<div id="groupsBox" class="scene-toolbox scene-toolbox--groups">
+<div id="groupsBoxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Groups</span>
+<button id="groupsBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="groupsBoxBody" class="scene-toolbox__body">
+<div class="groups-toolbar">
+<button id="exportGroupsJson" class="icon-btn export-btn" title="Export groups JSON"></button>
+<button id="importGroupsJson" class="icon-btn import-btn" title="Import groups JSON"></button>
+<button id="renameSelectedGroup" class="icon-btn" title="Rename selected group">Aa</button>
+<button id="deleteSelectedGroups" class="icon-btn danger" title="Delete selected groups">×</button>
+<button id="editSelectedGroups" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>
+<input id="importGroupsFile" type="file" accept=".json,application/json" style="display:none">
+<div class="groups-layout-controls">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="groupCols" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="groupRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+</div>
+</div>
+<div id="savedGroupsList" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
 </div>
 </div>
 
@@ -1428,14 +1435,14 @@ function updateGroupBar(){
   const bar=document.getElementById('groupBar');
   const n=selectedFixtureIds.size;
   const activeGroups=selectedSavedGroups();
-  if(n<1&&!activeGroups.length){bar.style.display='none';return;}
   bar.style.display='flex';
   const common=getGroupCommonControls();
   const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:'';
   const note=n>1?(' · '+common.length+' common control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
-  bar.innerHTML=`<span><strong>${n} fixture${n>1?'s':''} selected</strong>${note}</span>${scope}${n>1&&common.length?`<button class="primary" id="openGroupEdit">Group Edit</button>`:''}${n?'<button id="saveGroupBtn">Save Group</button>':''}<button id="clearSelection">${activeGroups.length?'Show all':'Deselect all'}</button>`;
-  if(n>1&&common.length)document.getElementById('openGroupEdit').onclick=openGroupModal;
-  if(n)document.getElementById('saveGroupBtn').onclick=saveCurrentGroup;
+  const label=n?`<strong>${n} fixture${n>1?'s':''} selected</strong>${note}`:'<strong>No fixtures selected</strong>';
+  bar.innerHTML=`<span>${label}</span>${scope}<button class="primary" id="openGroupEdit"${n>1&&common.length?'':' disabled'}>Group Edit</button><button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
+  document.getElementById('openGroupEdit').onclick=()=>{if(n>1&&common.length)openGroupModal();};
+  document.getElementById('saveGroupBtn').onclick=()=>{if(n)saveCurrentGroup();};
   document.getElementById('clearSelection').onclick=clearGroupSelection;
 }
 function clearGroupSelection(){
@@ -1681,6 +1688,7 @@ surfaceEl.addEventListener('click',e=>{
 // ── Saved Groups ─────────────────────────────────────────────────────
 let savedGroups=[];
 let activeSavedGroupIds=new Set();
+let groupCols=2,groupRows=4;
 function escHtml(s){return DmxCommon.escapeHtml(s);}
 function savedGroupKey(g,i){return g.id||('group_'+i);}
 function normalizeSavedGroups(groups){
@@ -1708,6 +1716,55 @@ function loadSavedGroups(){
     savedGroups=normalizeSavedGroups(d.groups);renderSavedGroupsList();
   }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
 }
+function clampGroupLayout(){
+  const groupCount=savedGroups.length;
+  groupCols=Math.max(1,Math.min(8,parseInt(groupCols)||2));
+  groupRows=Math.max(1,Math.min(12,parseInt(groupRows)||4));
+  if(groupCount&&groupCols*groupRows<groupCount){
+    const rowsNeeded=Math.ceil(groupCount/groupCols);
+    if(rowsNeeded<=12)groupRows=rowsNeeded;
+    else groupCols=Math.min(8,Math.ceil(groupCount/groupRows));
+  }
+}
+function applyGroupsBoxLayout(){
+  clampGroupLayout();
+  const list=document.getElementById('savedGroupsList');
+  if(list)list.style.gridTemplateColumns='repeat('+groupCols+',minmax(170px,1fr))';
+  const box=document.getElementById('groupsBox');
+  if(box){
+    const width=Math.max(280,groupCols*178+24);
+    box.style.width=Math.min(Math.max(280,window.innerWidth-24),width)+'px';
+  }
+  const colsInput=document.getElementById('groupCols');
+  const rowsInput=document.getElementById('groupRows');
+  if(colsInput){
+    colsInput.min=Math.max(1,Math.ceil(savedGroups.length/groupRows));
+    colsInput.value=groupCols;
+  }
+  if(rowsInput){
+    rowsInput.min=Math.max(1,Math.ceil(savedGroups.length/groupCols));
+    rowsInput.value=groupRows;
+  }
+}
+function saveGroupsBoxLayout(){
+  clampGroupLayout();
+  localStorage.setItem('groupsBoxCols',groupCols);
+  localStorage.setItem('groupsBoxRows',groupRows);
+  DmxCommon.saveUiState('fixture','groupsBoxCols',groupCols);
+  DmxCommon.saveUiState('fixture','groupsBoxRows',groupRows);
+}
+function selectedSavedGroupEntries(){
+  return savedGroups.map((g,i)=>({g,i,key:savedGroupKey(g,i)})).filter(entry=>activeSavedGroupIds.has(entry.key));
+}
+function updateGroupActionButtons(){
+  const selected=selectedSavedGroupEntries();
+  const renameBtn=document.getElementById('renameSelectedGroup');
+  const deleteBtn=document.getElementById('deleteSelectedGroups');
+  const editBtn=document.getElementById('editSelectedGroups');
+  if(renameBtn)renameBtn.disabled=selected.length!==1;
+  if(deleteBtn)deleteBtn.disabled=selected.length===0;
+  if(editBtn)editBtn.disabled=selected.length===0||selectedFixtureIds.size<2||!getGroupCommonControls().length;
+}
 function saveSavedGroupsToServer(){
   fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups})})
     .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
@@ -1720,14 +1777,27 @@ function createSavedGroup(name,fixtureIds,values={}){
 }
 function renderSavedGroupsList(){
   const el=document.getElementById('savedGroupsList');if(!el)return;
-  if(!savedGroups.length){el.innerHTML='<div class="small">No saved groups yet. Select fixtures and click "Save Group".</div>';return;}
-  el.innerHTML=savedGroups.map((g,i)=>{
+  applyGroupsBoxLayout();
+  if(!savedGroups.length){
+    el.innerHTML='<div class="small">No saved groups yet. Select fixtures and click "Save Group".</div>';
+    updateGroupActionButtons();
+    return;
+  }
+  const total=savedGroups.length?groupCols*groupRows:0;
+  let html='';
+  for(let i=0;i<total;i++){
+    const g=savedGroups[i];
+    if(!g){
+      html+='<div class="group-empty" title="Empty group slot"></div>';
+      continue;
+    }
     const active=activeSavedGroupIds.has(savedGroupKey(g,i));
-    return `<div class="item${active?' active':''}">
+    html+=`<div class="item${active?' active':''}" onclick="toggleGroup(${i})" title="Select or deselect group">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(g.name)}</strong><span class="small">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
-    <div class="group-actions-grid"><button onclick="loadGroup(${i})">Select</button><button onclick="deselectGroup(${i})"${active?'':' disabled'}>Deselect</button><button class="minor" onclick="renameGroup(${i})">Rename</button><button class="minor warn" onclick="deleteGroup(${i})">Delete</button></div>
   </div>`;
-  }).join('');
+  }
+  el.innerHTML=html;
+  updateGroupActionButtons();
 }
 function saveCurrentGroup(){
   const name=(prompt('Group name:','Group '+(savedGroups.length+1))||'').trim();
@@ -1742,6 +1812,14 @@ function askCreateGroupForPatchedFixtures(suggestedName,fixtureIds){
   createSavedGroup(trimmed,fixtureIds,{});
   setStatus('Patched '+fixtureIds.length+' fixtures and created group: '+trimmed);
 }
+function toggleGroup(i){
+  const g=savedGroups[i];if(!g)return;
+  const key=savedGroupKey(g,i);
+  if(activeSavedGroupIds.has(key))activeSavedGroupIds.delete(key);else activeSavedGroupIds.add(key);
+  rebuildSelectionFromSavedGroups();
+  renderSavedGroupsList();
+  drawSurface();setStatus('Selected '+activeSavedGroupIds.size+' group'+(activeSavedGroupIds.size===1?'':'s')+' ('+selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' found)');
+}
 function loadGroup(i){
   const g=savedGroups[i];if(!g)return;
   activeSavedGroupIds.add(savedGroupKey(g,i));
@@ -1749,26 +1827,36 @@ function loadGroup(i){
   renderSavedGroupsList();
   drawSurface();setStatus('Selected '+activeSavedGroupIds.size+' group'+(activeSavedGroupIds.size===1?'':'s')+' ('+selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' found)');
 }
-function deselectGroup(i){
-  const g=savedGroups[i];if(!g)return;
-  activeSavedGroupIds.delete(savedGroupKey(g,i));
-  rebuildSelectionFromSavedGroups();
-  renderSavedGroupsList();
-  drawSurface();setStatus(activeSavedGroupIds.size?'Selected '+activeSavedGroupIds.size+' group'+(activeSavedGroupIds.size===1?'':'s'):'Group filter cleared');
-}
-function deleteGroup(i){
-  if(!confirm('Delete group "'+savedGroups[i]?.name+'"?'))return;
-  activeSavedGroupIds.delete(savedGroupKey(savedGroups[i],i));
-  savedGroups.splice(i,1);renderSavedGroupsList();saveSavedGroupsToServer();
+function deleteSelectedGroups(){
+  const selected=selectedSavedGroupEntries();
+  if(!selected.length)return;
+  const names=selected.map(({g})=>g.name).join(', ');
+  if(!confirm('Delete '+selected.length+' selected group'+(selected.length===1?'':'s')+'?\n\n'+names))return;
+  const keys=new Set(selected.map(entry=>entry.key));
+  savedGroups=savedGroups.filter((g,i)=>!keys.has(savedGroupKey(g,i)));
+  activeSavedGroupIds.clear();
+  renderSavedGroupsList();saveSavedGroupsToServer();
   rebuildSelectionFromSavedGroups();
   drawSurface();
+  setStatus('Deleted '+selected.length+' group'+(selected.length===1?'':'s'));
 }
-function renameGroup(i){
-  const g=savedGroups[i];if(!g)return;
+function renameSelectedGroup(){
+  const selected=selectedSavedGroupEntries();
+  if(selected.length!==1)return;
+  const {g,i}=selected[0];
   const name=(prompt('Group name:',g.name||('Group '+(i+1)))||'').trim();
   if(!name||name===g.name)return;
   g.name=name;
   renderSavedGroupsList();saveSavedGroupsToServer();
+}
+function editSelectedGroups(){
+  if(selectedSavedGroupEntries().length<1)return;
+  const common=getGroupCommonControls();
+  if(selectedFixtureIds.size<2||!common.length){
+    setStatus('Select a group with at least two fixtures and common controls to edit',true);
+    return;
+  }
+  openGroupModal();
 }
 function exportGroupsJson(){
   const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups},null,2)],{type:'application/json'});
@@ -1790,6 +1878,38 @@ function importGroupsJson(file){
 document.getElementById('exportGroupsJson').onclick=exportGroupsJson;
 document.getElementById('importGroupsJson').onclick=()=>document.getElementById('importGroupsFile').click();
 document.getElementById('importGroupsFile').onchange=e=>{if(e.target.files[0])importGroupsJson(e.target.files[0]);e.target.value='';};
+document.getElementById('renameSelectedGroup').onclick=renameSelectedGroup;
+document.getElementById('deleteSelectedGroups').onclick=deleteSelectedGroups;
+document.getElementById('editSelectedGroups').onclick=editSelectedGroups;
+(()=>{
+  const gc=localStorage.getItem('groupsBoxCols'),gr=localStorage.getItem('groupsBoxRows');
+  if(gc)groupCols=parseInt(gc)||groupCols;
+  if(gr)groupRows=parseInt(gr)||groupRows;
+  applyGroupsBoxLayout();
+})();
+document.getElementById('groupCols').addEventListener('input',e=>{
+  groupCols=e.target.value;
+  applyGroupsBoxLayout();
+  renderSavedGroupsList();
+  saveGroupsBoxLayout();
+});
+document.getElementById('groupRows').addEventListener('input',e=>{
+  groupRows=e.target.value;
+  applyGroupsBoxLayout();
+  renderSavedGroupsList();
+  saveGroupsBoxLayout();
+});
+const groupsToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'groupsBox',
+  headerId:'groupsBoxHdr',
+  toggleId:'groupsBoxToggle',
+  posStorageKey:'groupsBoxPos',
+  collapsedStorageKey:'groupsBoxCollapsed',
+  uiStatePage:'fixture',
+  uiStatePosKey:'groupsBoxPos',
+  uiStateCollapsedKey:'groupsBoxCollapsed'
+});
+const groupsBox=groupsToolbox.box;
 // ── End saved-groups ──────────────────────────────────────────────────
 
 updateControlChannelInputs(true);
@@ -1800,7 +1920,6 @@ loadSetup().then(ok=>{
   [
     ['patchCollapseBtn','patchBody','patchCollapsed'],
     ['profilesCollapseBtn','profilesBody','profilesCollapsed'],
-    ['savedGroupsCollapseBtn','savedGroupsBody','savedGroupsCollapsed'],
   ].forEach(([btnId,bodyId,key])=>{
     if(localStorage.getItem(key)!==null)return; // user preference already set
     localStorage.setItem(key,'1');
@@ -1972,7 +2091,6 @@ loadScenesServer();
 [
   ['patchCollapseBtn',      'patchBody',       'patchCollapsed'],
   ['profilesCollapseBtn',   'profilesBody',    'profilesCollapsed'],
-  ['savedGroupsCollapseBtn','savedGroupsBody', 'savedGroupsCollapsed'],
 ].forEach(([btnId, bodyId, storageKey])=>{
   const btn=document.getElementById(btnId);
   const body=document.getElementById(bodyId);
@@ -2017,9 +2135,29 @@ function saveUiStateServer(key,val){
       localStorage.setItem('sceneBoxPos',JSON.stringify(st.sceneBoxPos));
       sceneToolbox.applyPosition(st.sceneBoxPos);
     }
+    if(st.groupsBoxCollapsed!==undefined){
+      const c=!!st.groupsBoxCollapsed;
+      localStorage.setItem('groupsBoxCollapsed',c?'1':'');
+      groupsToolbox.setCollapsed(c,false);
+    }
+    if(st.groupsBoxPos){
+      localStorage.setItem('groupsBoxPos',JSON.stringify(st.groupsBoxPos));
+      groupsToolbox.applyPosition(st.groupsBoxPos);
+    }
+    if(st.groupsBoxCols!==undefined){
+      groupCols=st.groupsBoxCols;
+      localStorage.setItem('groupsBoxCols',groupCols);
+    }
+    if(st.groupsBoxRows!==undefined){
+      groupRows=st.groupsBoxRows;
+      localStorage.setItem('groupsBoxRows',groupRows);
+    }
+    if(st.groupsBoxCols!==undefined||st.groupsBoxRows!==undefined){
+      applyGroupsBoxLayout();
+      renderSavedGroupsList();
+    }
     [['patchCollapsed','patchBody','patchCollapseBtn'],
-     ['profilesCollapsed','profilesBody','profilesCollapseBtn'],
-     ['savedGroupsCollapsed','savedGroupsBody','savedGroupsCollapseBtn']].forEach(([key,bodyId,btnId])=>{
+     ['profilesCollapsed','profilesBody','profilesCollapseBtn']].forEach(([key,bodyId,btnId])=>{
       if(st[key]===undefined)return;
       const c=!!st[key];
       localStorage.setItem(key,c?'1':'');

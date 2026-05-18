@@ -151,6 +151,15 @@ populatePicoMotionSlotSelect();
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl);
+let motionGroupsBox=null;
+motionGroupsBox=DmxCommon.initGroupsToolbox({
+  page:'motion',
+  idPrefix:'motionGroups',
+  title:'Groups',
+  baseUrlInput:baseUrlEl,
+  onStatus:setStatus,
+  onSelectionChange:()=>applyMotionGroupSelection(true)
+});
 function sendChannel(ch,value){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root)return;
@@ -217,8 +226,21 @@ function applySetup(){
       baseTilt:ex?ex.baseTilt:center.tilt
     });
   });
+  applyMotionGroupSelection(false);
   drawFixtureList();
   drawPathPreview();
+}
+
+function applyMotionGroupSelection(redraw=true){
+  const selected=motionGroupsBox?.selectedGroups?.()||[];
+  if(!selected.length)return;
+  const selectedFixtureIds=new Set(selected.flatMap(g=>g.fixtureIds||[]));
+  motionFixtures.forEach(mf=>{mf.enabled=selectedFixtureIds.has(mf.fixture.id);});
+  if(redraw){
+    drawFixtureList();
+    drawPathPreview();
+    setStatus('Motion fixtures set from '+selected.length+' group'+(selected.length===1?'':'s'));
+  }
 }
 
 /* Fetch dmx_base_frame from the Pico and seed basePan/baseTilt for every

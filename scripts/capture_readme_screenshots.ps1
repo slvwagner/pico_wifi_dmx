@@ -102,15 +102,22 @@ try {
       if(body) body.style.display=collapsed?'none':'';
       if(btn) btn.textContent=collapsed?'+':'−';
     },
-    setSetupSections({profiles=false,patch=false,savedGroups=false}={}){
+    setSetupSections({profiles=false,patch=false}={}){
       this.setSection('profilesCollapseBtn','profilesBody',profiles);
       this.setSection(null,'addControlBody',profiles);
       this.setSection('patchCollapseBtn','patchBody',patch);
-      this.setSection('savedGroupsCollapseBtn','savedGroupsBody',savedGroups);
     },
     setSceneBox({visible=true,open=true}={}){
       const box=document.querySelector('#sceneBox');
       const toggle=document.querySelector('#sceneBoxToggle');
+      if(!box)return;
+      box.style.display=visible?'':'none';
+      if(open && box.classList.contains('collapsed') && toggle) toggle.click();
+      if(!open && !box.classList.contains('collapsed') && toggle) toggle.click();
+    },
+    setGroupsBox({visible=true,open=true}={}){
+      const box=document.querySelector('#groupsBox');
+      const toggle=document.querySelector('#groupsBoxToggle');
       if(!box)return;
       box.style.display=visible?'':'none';
       if(open && box.classList.contains('collapsed') && toggle) toggle.click();
@@ -153,8 +160,10 @@ try {
     }
   };
 
-  docShots.setSetupSections({profiles:false,patch:false,savedGroups:false});
-  ['profiles','patch','savedGroups'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
+  docShots.setSetupSections({profiles:false,patch:false});
+  docShots.setGroupsBox({visible:true,open:true});
+  ['profiles','patch'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
+  localStorage.setItem('groupsBoxCollapsed','0');
   localStorage.setItem('fixtureCardCollapsed','[]');
   docShots.expandFixtureCards();
   document.querySelector('main')?.scrollTo(0,0);
@@ -165,8 +174,9 @@ try {
 
     Eval-Js @"
 (async()=>{
-  docShots.setSetupSections({profiles:false,patch:true,savedGroups:true});
+  docShots.setSetupSections({profiles:false,patch:true});
   docShots.setSceneBox({visible:false});
+  docShots.setGroupsBox({visible:false});
   const panel=document.querySelector('#profileList') || document.querySelector('#profileForm') || document.body;
   document.querySelector('main')?.scrollTo(0,70);
   await docShots.wait();
@@ -176,10 +186,10 @@ try {
 
     Eval-Js @"
 (async()=>{
-  docShots.setSetupSections({profiles:true,patch:true,savedGroups:false});
+  docShots.setSetupSections({profiles:true,patch:true});
   docShots.setSceneBox({visible:false});
+  docShots.setGroupsBox({visible:true,open:true});
   docShots.selectDemoGroups();
-  document.getElementById('savedGroupsBody')?.scrollIntoView({block:'start'});
   await docShots.wait();
 })()
 "@
@@ -187,12 +197,12 @@ try {
 
     Eval-Js @"
 (async()=>{
-  docShots.setSetupSections({profiles:true,patch:true,savedGroups:false});
+  docShots.setSetupSections({profiles:true,patch:true});
   docShots.selectDemoGroups();
   docShots.expandFixtureCards();
-  document.getElementById('savedGroupsBody')?.scrollIntoView({block:'start'});
   window.scrollBy(0,-130);
   docShots.setSceneBox({visible:true,open:true});
+  docShots.setGroupsBox({visible:true,open:true});
   await docShots.wait();
 })()
 "@
@@ -200,9 +210,10 @@ try {
 
     Eval-Js @"
 (async()=>{
-  docShots.setSetupSections({profiles:true,patch:true,savedGroups:true});
+  docShots.setSetupSections({profiles:true,patch:true});
   docShots.clearGroupFilter();
   docShots.setSceneBox({visible:false});
+  docShots.setGroupsBox({visible:false});
   const status=document.getElementById('status');
   if(status) status.textContent='Live fixture control';
   docShots.expandFixtureCards();
@@ -216,8 +227,9 @@ try {
 
     Eval-Js @"
 (async()=>{
-  docShots.setSetupSections({profiles:true,patch:true,savedGroups:true});
+  docShots.setSetupSections({profiles:true,patch:true});
   docShots.setSceneBox({visible:false});
+  docShots.setGroupsBox({visible:false});
   docShots.ensureDemoGroups();
   if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length) loadGroup(0);
   else {

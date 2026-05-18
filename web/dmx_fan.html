@@ -863,6 +863,18 @@ async function refreshAllBases() {
 // ---- init ----
 const baseUrlEl = document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl,{onInput:refreshAllBases,debounceMs:800});
+DmxCommon.initGroupsToolbox({
+    page:'fan',
+    idPrefix:'fanGroupsToolbox',
+    title:'Groups',
+    baseUrlInput:baseUrlEl,
+    onStatus:setStatus,
+    onSelectionChange:selected=>{
+        setStatus(selected.length
+            ? selected.length+' controller group'+(selected.length===1?'':'s')+' selected'
+            : 'Controller group selection cleared');
+    }
+});
 
 document.getElementById('btnRefreshBases').addEventListener('click', refreshAllBases);
 document.getElementById('btnSave').addEventListener('click', saveFanGroups);
