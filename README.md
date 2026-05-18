@@ -167,6 +167,46 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | FPS Benchmark | `web/dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
+### Screenshots
+
+The screenshots below show the main pages as served from XAMPP during development.
+
+**Fixture Controller**
+
+![Fixture Controller page](docs/screenshots/fixture-controller.png)
+
+Defines fixture profiles, patched fixtures, groups, live controls, default/blackout values, and scene recall/save slots.
+
+**Chaser**
+
+![Chaser page](docs/screenshots/chaser.png)
+
+Builds chase steps from participating fixture controls, captures live values from the Fixture Controller, and uploads saved chasers to Pico slots.
+
+**Motion FX**
+
+![Motion FX page](docs/screenshots/motion-fx.png)
+
+Creates pan/tilt motion effects relative to scene positions and uploads independent Motion FX slots to the Pico.
+
+**Fan Out**
+
+![Fan Out page](docs/screenshots/fan-out.png)
+
+Spreads one control value across ordered fixture groups, with base snapshots and scene toolbox integration.
+
+**GPIO Control**
+
+![GPIO Control page](docs/screenshots/gpio-control.png)
+
+Maps Pico GPIO and ADC inputs to DMX clear, chaser, motion, tap tempo, speed, and BPM actions.
+
+**Benchmark**
+
+![Benchmark page](docs/screenshots/benchmark.png)
+
+Measures Pico HTTP/DMX update performance with presets, latency percentiles, jitter, history, and CSV export.
+
 Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough.
