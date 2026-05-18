@@ -94,11 +94,13 @@ try {
 
     Eval-Js @"
 (async()=>{
-  ['profiles','addControl','patch'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
-  ['profilesCollapseBtn','addControlCollapseBtn','patchCollapseBtn'].forEach(id=>{
+  ['profiles','patch'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
+  ['profilesCollapseBtn','patchCollapseBtn'].forEach(id=>{
     const btn=document.getElementById(id);
     if(btn && btn.textContent.trim()==='+') btn.click();
   });
+  const addBody=document.getElementById('addControlBody');
+  if(addBody) addBody.style.display='';
   localStorage.setItem('fixtureCardCollapsed','[]');
   document.querySelectorAll('[data-collapse-fixture]').forEach(btn=>{
     if(btn.textContent.trim()==='▶') btn.click();
@@ -111,10 +113,12 @@ try {
 
     Eval-Js @"
 (async()=>{
-  ['profilesCollapseBtn','addControlCollapseBtn'].forEach(id=>{
+  ['profilesCollapseBtn'].forEach(id=>{
     const btn=document.getElementById(id);
     if(btn && btn.textContent.trim()==='+') btn.click();
   });
+  const addBody=document.getElementById('addControlBody');
+  if(addBody) addBody.style.display='';
   const panel=document.querySelector('#profileList') || document.querySelector('#profileForm') || document.body;
   document.querySelector('main')?.scrollTo(0,70);
   await new Promise(r=>setTimeout(r,500));
@@ -124,9 +128,49 @@ try {
 
     Eval-Js @"
 (async()=>{
-  document.querySelector('main')?.scrollTo(0,0);
+  const fixtureIds=(Array.isArray(fixtures)?fixtures.slice(0,4).map(f=>f.id):[]);
+  if(Array.isArray(savedGroups) && !savedGroups.length && fixtureIds.length){
+    savedGroups=[
+      {id:'doc_group_front',name:'Front movers',fixtureIds:fixtureIds.slice(0,2),values:{}},
+      {id:'doc_group_back',name:'Back movers',fixtureIds:fixtureIds.slice(2,4),values:{}},
+      {id:'doc_group_all',name:'All movers',fixtureIds:fixtureIds,values:{}}
+    ];
+  }
+  if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length){
+    loadGroup(0);
+    if(savedGroups.length>1) loadGroup(1);
+  }
+  if(typeof renderSavedGroupsList==='function') renderSavedGroupsList();
+  const saved=document.querySelector('#savedGroupsCollapseBtn');
+  if(saved && saved.textContent.trim()==='+') saved.click();
+  document.getElementById('savedGroupsBody')?.scrollIntoView({block:'start'});
+  await new Promise(r=>setTimeout(r,500));
+})()
+"@
+    Save-Screenshot "fixture-controller-saved-groups.png"
+
+    Eval-Js @"
+(async()=>{
+  ['profilesCollapseBtn','patchCollapseBtn'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn && btn.textContent.trim()==='−') btn.click();
+  });
+  const addBody=document.getElementById('addControlBody');
+  if(addBody) addBody.style.display='none';
+  const savedGroupsBtn=document.getElementById('savedGroupsCollapseBtn');
+  if(savedGroupsBtn && savedGroupsBtn.textContent.trim()==='+') savedGroupsBtn.click();
+  if(typeof loadGroup==='function' && Array.isArray(savedGroups) && savedGroups.length){
+    if(typeof activeSavedGroupIds!=='undefined') activeSavedGroupIds.clear();
+    loadGroup(0);
+    if(savedGroups.length>1) loadGroup(1);
+  }
+  if(typeof collapsedFixtureIds!=='undefined') collapsedFixtureIds.clear();
+  if(typeof drawSurface==='function') drawSurface();
+  document.getElementById('savedGroupsBody')?.scrollIntoView({block:'start'});
+  window.scrollBy(0,-130);
   const sceneBox=document.querySelector('#sceneBox');
   const toggle=document.querySelector('#sceneBoxToggle');
+  if(sceneBox) sceneBox.style.display='';
   if(sceneBox && sceneBox.classList.contains('collapsed') && toggle) toggle.click();
   await new Promise(r=>setTimeout(r,500));
 })()
@@ -135,17 +179,34 @@ try {
 
     Eval-Js @"
 (async()=>{
-  ['profilesCollapseBtn','addControlCollapseBtn','patchCollapseBtn'].forEach(id=>{
+  ['profilesCollapseBtn','patchCollapseBtn'].forEach(id=>{
     const btn=document.getElementById(id);
     if(btn && btn.textContent.trim()==='−') btn.click();
   });
+  const addBody=document.getElementById('addControlBody');
+  if(addBody) addBody.style.display='none';
+  if(typeof clearGroupSelection==='function') clearGroupSelection();
+  else {
+    if(typeof selectedFixtureIds!=='undefined') selectedFixtureIds.clear();
+    if(typeof activeSavedGroupIds!=='undefined') activeSavedGroupIds.clear();
+    if(typeof renderSavedGroupsList==='function') renderSavedGroupsList();
+  }
+  const savedGroupsBtn=document.getElementById('savedGroupsCollapseBtn');
+  if(savedGroupsBtn && savedGroupsBtn.textContent.trim()==='−') savedGroupsBtn.click();
+  const sceneBox=document.querySelector('#sceneBox');
+  const sceneToggle=document.querySelector('#sceneBoxToggle');
+  if(sceneBox && !sceneBox.classList.contains('collapsed') && sceneToggle) sceneToggle.click();
+  if(sceneBox) sceneBox.style.display='none';
+  const status=document.getElementById('status');
+  if(status) status.textContent='Live fixture control';
   if(typeof collapsedFixtureIds!=='undefined') collapsedFixtureIds.clear();
   if(typeof drawSurface==='function') drawSurface();
   await new Promise(r=>setTimeout(r,300));
   document.querySelectorAll('[data-collapse-fixture]').forEach(btn=>{
     if(btn.textContent.trim()==='▶') btn.click();
   });
-  document.querySelector('#surface')?.scrollTo(0,0);
+  document.querySelector('#controlSurfacePanel')?.scrollIntoView({block:'start'});
+  window.scrollBy(0,-80);
   await new Promise(r=>setTimeout(r,500));
 })()
 "@

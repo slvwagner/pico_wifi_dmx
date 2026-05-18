@@ -2,29 +2,11 @@
 
 WiFi-controlled DMX512 controller firmware for the Raspberry Pi Pico 2 W (RP2350). Can contoll a full DMX universe per unit. Provides real-time DMX output driven either from a browser-based UI or autonomously on the Pico itself, with no dependency on network latency for live playback.
 
-Browserbased user interface with the following features.
-  -- Fixture definition
-  -- Fixture Patch 
-  -- Fixture groupes
-  -- Scene edit and save to pallete
-  -- Fan out tool to spread values. Used to spread out moving light position over groups of Fixtures
-  -- Effect creation such as swing, circle, 8-figure 
-  -- Effect are relative to sene position 
-  -- 32 Effects can be saved on the pico and run simultainiusly 
-  -- Chaser tool to create chases, add ,edit, duplicate steps, Capture channel values to create steps
-  -- To create chases the participating fixture controls can be defined, this helps a lot to only edit intended controls (channels).
-  -- 32 Chasers with 32SSteps can be save to pico 
-  -- Preview for all tools
-  -- Realtime running of all Chaser and Effect slots on the pico hardware
-  -- Realtime use of GPIO to runs, stop, set speed, pause chases and effects
-  -- Simple user interface to define the use of each GPIO Pin. Simply choose from al list and set an action for it. 
-  -- All date is stored serverbased and can be exported and imported via json file
-
 Browser-based user interface with the following features:
 
 - Fixture definition
 - Fixture patching
-- Fixture groups
+- Fixture groups with saved group selection, multi-select filtering, rename, delete, and compact group matrix layout
 - Scene editing and saving to palettes
 - Fan Out tool to spread values, for example moving-light positions across fixture groups
 - Effect creation, such as swing, circle, and figure-8
@@ -38,6 +20,7 @@ Browser-based user interface with the following features:
 - Real-time GPIO control to run, stop, set speed, and pause chases and effects
 - Simple user interface to define each GPIO pin by choosing a pin and assigning an action
 - All data is stored server-side and can be exported or imported as JSON files
+- Fixture profile controls support add and edit workflows in one editor. Editing a control automatically opens the Add / Edit Control card.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
@@ -183,11 +166,15 @@ From this page you can move individual controls live, save and recall scenes, or
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
-The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. The right side edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed.
+The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. The Add / Edit Control card edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed. Clicking Edit on an existing control opens this editor automatically. Collapsing Fixture Profiles also hides the Add / Edit Control card.
 
 ![Fixture live control cards](docs/screenshots/fixture-controller-live-controls.png)
 
 The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. The Default and Blackout buttons recall the stored values for one fixture, while Select adds the fixture to group editing.
+
+![Saved Groups matrix](docs/screenshots/fixture-controller-saved-groups.png)
+
+Saved Groups are shown in a compact matrix. Each group has Select and Deselect on the top row, with smaller Rename and Delete buttons below. Selecting a saved group filters the control surface to that group's fixtures. Multiple groups can be selected at the same time; the surface shows the union of all selected group fixtures, and Show all clears the filter.
 
 ![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
 

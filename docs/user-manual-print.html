@@ -112,14 +112,14 @@ strong { color: #ffffff; }
 </head>
 <body>
 <main>
-<h1>Pico WiFi DMX User Manual</h1>
+<h1 id="pico-wifi-dmx-user-manual">Pico WiFi DMX User Manual</h1>
 <p>This manual explains how to use the browser-based DMX controller with the Pico firmware. It is written for daily operation: creating fixtures, controlling lights, saving scenes, building chasers, creating motion effects, and using GPIO buttons or ADC inputs.</p>
 <p>The web interface is normally opened from XAMPP:</p>
 <pre><code>http://localhost/dmx/</code></pre>
 <p>The Pico itself is controlled over the network with its base URL, for example:</p>
 <pre><code>http://192.168.0.24/</code></pre>
 <p>Enter the Pico base URL once in any page. The browser stores it and shares it with the other pages.</p>
-<h2>Main Pages</h2>
+<h2 id="main-pages">Main Pages</h2>
 <table>
 <thead><tr><th>Page</th><th>Purpose</th></tr></thead><tbody>
 <tr><td>Fixture Controller</td><td>Fixture profiles, patching, live control, groups, scenes, default and blackout values</td></tr>
@@ -130,17 +130,17 @@ strong { color: #ffffff; }
 <tr><td>Benchmark</td><td>Test Pico HTTP/DMX update performance</td></tr>
 </tbody>
 </table>
-<h2>1. Fixture Controller</h2>
+<h2 id="1-fixture-controller">1. Fixture Controller</h2>
 <p><img src="screenshots/fixture-controller.png" alt="Fixture Controller"></p>
 <p>The Fixture Controller is the central page. Use it first when setting up a new show or fixture set.</p>
-<h3>Set the Pico Base URL</h3>
+<h3 id="set-the-pico-base-url">Set the Pico Base URL</h3>
 <ol>
 <li>Open <code>http://localhost/dmx/</code>.</li>
 <li>Enter the Pico base URL, for example <code>http://192.168.0.24/</code>.</li>
 <li>Enable <strong>Live send</strong> when you want control changes to be sent immediately to the Pico.</li>
 <li>Use <strong>Save setup</strong> to store the fixture setup on the XAMPP server.</li>
 </ol>
-<h3>Create a Fixture Profile</h3>
+<h3 id="create-a-fixture-profile">Create a Fixture Profile</h3>
 <p><img src="screenshots/fixture-controller-profile-controls.png" alt="Fixture profile and control editor"></p>
 <p>A fixture profile describes the DMX personality of one fixture type.</p>
 <ol>
@@ -148,7 +148,7 @@ strong { color: #ffffff; }
 <li>Enter a profile name, mode name, and channel count.</li>
 <li>Click <strong>Add profile</strong>.</li>
 <li>Select the profile.</li>
-<li>Use <strong>Add Control To Selected Profile</strong> to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.</li>
+<li>Use <strong>Add / Edit Control</strong> to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.</li>
 </ol>
 <p>Each control stores its own DMX channel mapping. For example, a moving head can have:</p>
 <ul>
@@ -157,7 +157,8 @@ strong { color: #ffffff; }
 <li>RGBWA color on channels 6-10</li>
 <li>Gobo wheel on channel 12</li>
 </ul>
-<h3>Default and Blackout Values</h3>
+<p>To change an existing control, click <strong>Edit</strong> in the Fixture Profiles list. The <strong>Add / Edit Control</strong> card opens automatically and loads the selected control. After editing, click <strong>Save control</strong>. The <strong>Fixture Profiles</strong> collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.</p>
+<h3 id="default-and-blackout-values">Default and Blackout Values</h3>
 <p>Each control can store a <strong>Default</strong> value and a <strong>Blackout</strong> value.</p>
 <p>Default values are useful for a normal starting look, for example:</p>
 <ul>
@@ -174,7 +175,7 @@ strong { color: #ffffff; }
 <li>Pan/Tilt at a safe position if needed</li>
 </ul>
 <p>For RGB, RGBW, and RGBWA controls, use the color picker for RGB. White and amber channels are edited separately when the fixture type has them.</p>
-<h3>Patch Fixtures</h3>
+<h3 id="patch-fixtures">Patch Fixtures</h3>
 <p>Patch fixtures after the profile is ready.</p>
 <ol>
 <li>Open <strong>Patch Fixtures</strong>.</li>
@@ -184,7 +185,7 @@ strong { color: #ffffff; }
 <li>Click <strong>Patch fixture</strong>.</li>
 </ol>
 <p>Use <strong>Next free</strong> to find the next available address after already patched fixtures.</p>
-<h3>Live Fixture Control</h3>
+<h3 id="live-fixture-control">Live Fixture Control</h3>
 <p><img src="screenshots/fixture-controller-live-controls.png" alt="Fixture live control cards"></p>
 <p>The <strong>Control Surface</strong> shows one card per patched fixture.</p>
 <p>Each fixture card contains the controls from its profile:</p>
@@ -197,7 +198,8 @@ strong { color: #ffffff; }
 </ul>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> on a fixture card to recall the stored values for that fixture only.</p>
 <p>Use <strong>Select</strong> to include a fixture in group editing.</p>
-<h2>2. Scenes</h2>
+<p>When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Saved Groups card to filter the control surface.</p>
+<h2 id="2-scenes">2. Scenes</h2>
 <p><img src="screenshots/fixture-controller-scene-box.png" alt="Scene Toolbox"></p>
 <p>The Scene Toolbox is available on the Fixture Controller and Fan Out pages.</p>
 <p>Use scenes to store complete looks.</p>
@@ -210,17 +212,28 @@ strong { color: #ffffff; }
 </ol>
 <p>Scene recall sends the stored DMX values to the Pico in one batch and updates the live-value snapshot used by the Chaser page.</p>
 <p>The red <strong>Clear all DMX channels</strong> button clears controller values and calls <code>/dmx/clear</code> on the Pico. This clears both live DMX output and the motion base buffer.</p>
-<h2>3. Groups</h2>
+<h2 id="3-groups">3. Groups</h2>
 <p><img src="screenshots/fixture-controller-group-modal.png" alt="Fixture group edit modal"></p>
 <p>Groups let you control multiple fixtures at once.</p>
-<h3>Create a Group</h3>
+<h3 id="create-a-group">Create a Group</h3>
 <ol>
 <li>Select two or more fixture cards.</li>
 <li>Click <strong>Save Group</strong>.</li>
 <li>Enter a group name.</li>
 <li>The group appears in <strong>Saved Groups</strong>.</li>
 </ol>
-<h3>Edit a Group</h3>
+<h3 id="saved-group-selection">Saved Group Selection</h3>
+<p><img src="screenshots/fixture-controller-saved-groups.png" alt="Saved Groups matrix"></p>
+<p>The Saved Groups card shows groups in a compact matrix. Each group has four actions:</p>
+<ul>
+<li><strong>Select</strong> adds the group to the active group filter.</li>
+<li><strong>Deselect</strong> removes only that group from the active filter.</li>
+<li><strong>Rename</strong> changes the saved group name.</li>
+<li><strong>Delete</strong> removes the saved group.</li>
+</ul>
+<p>More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.</p>
+<p>The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use <strong>Show all</strong> to clear the saved-group filter and return to the full fixture list.</p>
+<h3 id="edit-a-group">Edit a Group</h3>
 <ol>
 <li>Load a saved group or select multiple fixtures.</li>
 <li>Click <strong>Group Edit</strong>.</li>
@@ -229,10 +242,10 @@ strong { color: #ffffff; }
 </ol>
 <p>The Group Edit modal only shows controls that exist on all selected fixtures. This prevents accidentally sending values to fixtures with incompatible control layouts.</p>
 <p>Use <strong>Default all</strong> or <strong>Blackout all</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
-<h2>4. Chaser</h2>
+<h2 id="4-chaser">4. Chaser</h2>
 <p><img src="screenshots/chaser.png" alt="Chaser"></p>
 <p>The Chaser page creates step-based sequences.</p>
-<h3>Basic Workflow</h3>
+<h3 id="basic-workflow">Basic Workflow</h3>
 <ol>
 <li>Open <strong>Chaser</strong>.</li>
 <li>Select participating fixture controls.</li>
@@ -242,10 +255,10 @@ strong { color: #ffffff; }
 <li>Upload the preset to a Pico slot.</li>
 <li>Play the slot from the Pico.</li>
 </ol>
-<h3>Participating Controls</h3>
+<h3 id="participating-controls">Participating Controls</h3>
 <p>Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.</p>
 <p>For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.</p>
-<h3>Capture From Fixture Controller</h3>
+<h3 id="capture-from-fixture-controller">Capture From Fixture Controller</h3>
 <p>Use <strong>Capture from FC</strong> or <strong>Capture + Add</strong> to read the current Fixture Controller live values and use them as chase step values.</p>
 <p>This is useful when you want to build a chase visually:</p>
 <ol>
@@ -254,7 +267,7 @@ strong { color: #ffffff; }
 <li>Change the look.</li>
 <li>Capture the next step.</li>
 </ol>
-<h3>Pico Slot Playback</h3>
+<h3 id="pico-slot-playback">Pico Slot Playback</h3>
 <p>Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open.</p>
 <p>Supported playback options:</p>
 <ul>
@@ -266,7 +279,7 @@ strong { color: #ffffff; }
 <li>Pause and resume</li>
 </ul>
 <p>Each chaser slot supports up to 32 steps.</p>
-<h2>5. Motion FX</h2>
+<h2 id="5-motion-fx">5. Motion FX</h2>
 <p><img src="screenshots/motion-fx.png" alt="Motion FX"></p>
 <p>Motion FX creates continuous movement for moving lights.</p>
 <p>Supported effects include:</p>
@@ -277,7 +290,7 @@ strong { color: #ffffff; }
 <li>Tilt swing</li>
 </ul>
 <p>Motion FX is relative to the current scene position. This means the effect moves around the position that was last written into the Pico base buffer.</p>
-<h3>Recommended Workflow</h3>
+<h3 id="recommended-workflow">Recommended Workflow</h3>
 <ol>
 <li>Use the Fixture Controller to position the fixtures.</li>
 <li>Save or recall a scene.</li>
@@ -288,7 +301,7 @@ strong { color: #ffffff; }
 <li>Start the slot.</li>
 </ol>
 <p>The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.</p>
-<h2>6. Fan Out</h2>
+<h2 id="6-fan-out">6. Fan Out</h2>
 <p><img src="screenshots/fan-out.png" alt="Fan Out"></p>
 <p>Fan Out spreads one selected control across an ordered fixture group.</p>
 <p>Typical uses:</p>
@@ -299,7 +312,7 @@ strong { color: #ffffff; }
 <li>Dimmer gradient</li>
 <li>Any other offset across fixtures</li>
 </ul>
-<h3>Basic Workflow</h3>
+<h3 id="basic-workflow-2">Basic Workflow</h3>
 <ol>
 <li>Open <strong>Fan Out</strong>.</li>
 <li>Create or select a fan group.</li>
@@ -310,7 +323,7 @@ strong { color: #ffffff; }
 </ol>
 <p>Fan Out adds offsets on top of the current base values. This keeps the fan relative to the current fixture positions.</p>
 <p>The Fan Out page also includes the scene toolbox, so fan looks can be saved and recalled as scenes.</p>
-<h2>7. GPIO Control</h2>
+<h2 id="7-gpio-control">7. GPIO Control</h2>
 <p><img src="screenshots/gpio-control.png" alt="GPIO Control"></p>
 <p>GPIO Control maps physical Pico inputs to lighting actions.</p>
 <p>Digital GPIO pins can trigger:</p>
@@ -329,7 +342,7 @@ strong { color: #ffffff; }
 <li>Motion FX BPM</li>
 </ul>
 <p>Only GPIO26, GPIO27, and GPIO28 support ADC input on the Pico 2 W.</p>
-<h3>Add a Digital Button Mapping</h3>
+<h3 id="add-a-digital-button-mapping">Add a Digital Button Mapping</h3>
 <ol>
 <li>Open <strong>GPIO Control</strong>.</li>
 <li>Click <strong>Add mapping</strong>.</li>
@@ -340,7 +353,7 @@ strong { color: #ffffff; }
 <li>Upload the config to the Pico.</li>
 </ol>
 <p>The page disables reserved pins and pins already used by other mappings.</p>
-<h3>Add an ADC Mapping</h3>
+<h3 id="add-an-adc-mapping">Add an ADC Mapping</h3>
 <ol>
 <li>Add an ADC mapping.</li>
 <li>Select GPIO26, GPIO27, or GPIO28.</li>
@@ -350,7 +363,7 @@ strong { color: #ffffff; }
 <li>Upload the config.</li>
 </ol>
 <p>ADC values are filtered on the firmware side with a short mean filter to reduce ripple.</p>
-<h3>Tap Tempo</h3>
+<h3 id="tap-tempo">Tap Tempo</h3>
 <p>Tap actions use the time between button presses.</p>
 <p>The beat divider can be set to:</p>
 <ul>
@@ -361,7 +374,7 @@ strong { color: #ffffff; }
 <li>1/16 beat</li>
 </ul>
 <p>The firmware ignores very long gaps between taps so stopping for a while does not create an extremely slow tempo when tapping resumes.</p>
-<h2>8. Benchmark</h2>
+<h2 id="8-benchmark">8. Benchmark</h2>
 <p><img src="screenshots/benchmark.png" alt="Benchmark"></p>
 <p>The Benchmark page tests Pico HTTP and DMX update performance.</p>
 <p>Use it to compare:</p>
@@ -382,7 +395,7 @@ strong { color: #ffffff; }
 <li>Errors</li>
 </ul>
 <p>Use <strong>Export CSV</strong> to save results for later comparison.</p>
-<h2>9. Backup and Import</h2>
+<h2 id="9-backup-and-import">9. Backup and Import</h2>
 <p>Most setup data is stored as JSON files on the XAMPP server in the <code>data/</code> folder.</p>
 <p>The UI also offers export/import buttons for:</p>
 <ul>
@@ -395,7 +408,7 @@ strong { color: #ffffff; }
 <li>GPIO setup</li>
 </ul>
 <p>Use JSON export before large changes so a known-good setup can be restored later.</p>
-<h2>10. Clear Functions</h2>
+<h2 id="10-clear-functions">10. Clear Functions</h2>
 <p>There are two different clear actions:</p>
 <table>
 <thead><tr><th>Action</th><th>What it clears</th><th>When to use</th></tr></thead><tbody>
@@ -404,34 +417,34 @@ strong { color: #ffffff; }
 </tbody>
 </table>
 <p>Use output-only clear when you want Motion FX to resume around the same stored center after the blackout.</p>
-<h2>Troubleshooting</h2>
-<h3>The UI does not control the Pico</h3>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="the-ui-does-not-control-the-pico">The UI does not control the Pico</h3>
 <ul>
 <li>Check that the Pico is powered and connected to WiFi.</li>
 <li>Open the Pico URL directly in a browser, for example <code>http://192.168.0.24/</code>.</li>
 <li>Make sure the base URL in the UI ends with <code>/</code>.</li>
 <li>Enable <strong>Live send</strong> on the Fixture Controller.</li>
 </ul>
-<h3>Chaser capture does not contain the expected values</h3>
+<h3 id="chaser-capture-does-not-contain-the-expected-values">Chaser capture does not contain the expected values</h3>
 <ul>
 <li>Move or recall the values on the Fixture Controller first.</li>
 <li>Make sure the participating controls include the controls you want to capture.</li>
 <li>Save or reload the Fixture Controller setup if fixtures were changed recently.</li>
 </ul>
-<h3>Motion FX moves around the wrong center</h3>
+<h3 id="motion-fx-moves-around-the-wrong-center">Motion FX moves around the wrong center</h3>
 <ul>
 <li>Recall the desired scene first.</li>
 <li>On the Motion FX page, click the same scene in the scene toolbox.</li>
 <li>Then start the motion slot.</li>
 </ul>
-<h3>GPIO mapping does not react</h3>
+<h3 id="gpio-mapping-does-not-react">GPIO mapping does not react</h3>
 <ul>
 <li>Check <code>/gpio/status</code> or the status panel on the GPIO page.</li>
 <li>Confirm that the selected pin is not reserved or already used.</li>
 <li>Check pull mode and trigger edge.</li>
 <li>For ADC, use only GPIO26, GPIO27, or GPIO28.</li>
 </ul>
-<h3>A chaser has more than 32 steps</h3>
+<h3 id="a-chaser-has-more-than-32-steps">A chaser has more than 32 steps</h3>
 <p>The firmware supports 32 steps per chaser slot. Keep the UI preset within this limit before uploading to the Pico.</p>
 </main>
 </body>

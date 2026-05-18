@@ -50,7 +50,7 @@ A fixture profile describes the DMX personality of one fixture type.
 2. Enter a profile name, mode name, and channel count.
 3. Click **Add profile**.
 4. Select the profile.
-5. Use **Add Control To Selected Profile** to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.
+5. Use **Add / Edit Control** to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.
 
 Each control stores its own DMX channel mapping. For example, a moving head can have:
 
@@ -58,6 +58,8 @@ Each control stores its own DMX channel mapping. For example, a moving head can 
 - Pan/Tilt 16-bit on channels 2/3 and 4/5
 - RGBWA color on channels 6-10
 - Gobo wheel on channel 12
+
+To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
 
 ### Default and Blackout Values
 
@@ -109,6 +111,8 @@ Use **Default** or **Blackout** on a fixture card to recall the stored values fo
 
 Use **Select** to include a fixture in group editing.
 
+When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Saved Groups card to filter the control surface.
+
 ## 2. Scenes
 
 ![Scene Toolbox](screenshots/fixture-controller-scene-box.png)
@@ -139,6 +143,21 @@ Groups let you control multiple fixtures at once.
 2. Click **Save Group**.
 3. Enter a group name.
 4. The group appears in **Saved Groups**.
+
+### Saved Group Selection
+
+![Saved Groups matrix](screenshots/fixture-controller-saved-groups.png)
+
+The Saved Groups card shows groups in a compact matrix. Each group has four actions:
+
+- **Select** adds the group to the active group filter.
+- **Deselect** removes only that group from the active filter.
+- **Rename** changes the saved group name.
+- **Delete** removes the saved group.
+
+More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.
+
+The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use **Show all** to clear the saved-group filter and return to the full fixture list.
 
 ### Edit a Group
 

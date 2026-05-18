@@ -148,7 +148,7 @@ strong { color: #ffffff; }
 <li>Enter a profile name, mode name, and channel count.</li>
 <li>Click <strong>Add profile</strong>.</li>
 <li>Select the profile.</li>
-<li>Use <strong>Add Control To Selected Profile</strong> to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.</li>
+<li>Use <strong>Add / Edit Control</strong> to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.</li>
 </ol>
 <p>Each control stores its own DMX channel mapping. For example, a moving head can have:</p>
 <ul>
@@ -157,6 +157,7 @@ strong { color: #ffffff; }
 <li>RGBWA color on channels 6-10</li>
 <li>Gobo wheel on channel 12</li>
 </ul>
+<p>To change an existing control, click <strong>Edit</strong> in the Fixture Profiles list. The <strong>Add / Edit Control</strong> card opens automatically and loads the selected control. After editing, click <strong>Save control</strong>. The <strong>Fixture Profiles</strong> collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.</p>
 <h3 id="default-and-blackout-values">Default and Blackout Values</h3>
 <p>Each control can store a <strong>Default</strong> value and a <strong>Blackout</strong> value.</p>
 <p>Default values are useful for a normal starting look, for example:</p>
@@ -197,6 +198,7 @@ strong { color: #ffffff; }
 </ul>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> on a fixture card to recall the stored values for that fixture only.</p>
 <p>Use <strong>Select</strong> to include a fixture in group editing.</p>
+<p>When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Saved Groups card to filter the control surface.</p>
 <h2 id="2-scenes">2. Scenes</h2>
 <p><img src="screenshots/fixture-controller-scene-box.png" alt="Scene Toolbox"></p>
 <p>The Scene Toolbox is available on the Fixture Controller and Fan Out pages.</p>
@@ -220,6 +222,17 @@ strong { color: #ffffff; }
 <li>Enter a group name.</li>
 <li>The group appears in <strong>Saved Groups</strong>.</li>
 </ol>
+<h3 id="saved-group-selection">Saved Group Selection</h3>
+<p><img src="screenshots/fixture-controller-saved-groups.png" alt="Saved Groups matrix"></p>
+<p>The Saved Groups card shows groups in a compact matrix. Each group has four actions:</p>
+<ul>
+<li><strong>Select</strong> adds the group to the active group filter.</li>
+<li><strong>Deselect</strong> removes only that group from the active filter.</li>
+<li><strong>Rename</strong> changes the saved group name.</li>
+<li><strong>Delete</strong> removes the saved group.</li>
+</ul>
+<p>More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.</p>
+<p>The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use <strong>Show all</strong> to clear the saved-group filter and return to the full fixture list.</p>
 <h3 id="edit-a-group">Edit a Group</h3>
 <ol>
 <li>Load a saved group or select multiple fixtures.</li>
