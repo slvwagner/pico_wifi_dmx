@@ -3,9 +3,13 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
-$dataFile = __DIR__ . DIRECTORY_SEPARATOR . 'chaser_setup.json';
+$dataDir = __DIR__ . DIRECTORY_SEPARATOR . 'data';
+if (!is_dir($dataDir)) {
+    mkdir($dataDir, 0775, true);
+}
+$dataFile = $dataDir . DIRECTORY_SEPARATOR . 'chaser_setup.json';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-const PICO_SLOT_COUNT = 16;
+const PICO_SLOT_COUNT = 32;
 
 function readDataFile(string $path): array {
     if (!is_file($path)) return [];
@@ -54,6 +58,30 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    // ?delete_slot=N — delete a saved Pico slot payload
+    if (isset($_GET['delete_slot'])) {
+        $slotIdx = (int)$_GET['delete_slot'];
+        if ($slotIdx < 0 || $slotIdx >= PICO_SLOT_COUNT) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'slot must be 0-' . (PICO_SLOT_COUNT - 1)]);
+            exit;
+        }
+        $existing = readDataFile($dataFile);
+        if (!isset($existing['pico_slots']) || !is_array($existing['pico_slots'])) {
+            $existing['pico_slots'] = array_fill(0, PICO_SLOT_COUNT, null);
+        }
+        $existing['pico_slots'] = array_pad($existing['pico_slots'], PICO_SLOT_COUNT, null);
+        $existing['pico_slots'][$slotIdx] = null;
+        $json = json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not write chaser file']);
+            exit;
+        }
+        echo json_encode(['ok' => true]);
+        exit;
+    }
+
     // ?slot=N — save a single Pico slot payload (text/plain body)
     if (isset($_GET['slot'])) {
         $slotIdx = (int)$_GET['slot'];
@@ -121,6 +149,11 @@ if ($method === 'POST') {
     $existing = readDataFile($dataFile);
     if (isset($existing['pico_slots'])) {
         $data['pico_slots'] = $existing['pico_slots'];
+    }
+    if (isset($data['baseUrl']) && trim((string)$data['baseUrl']) !== '') {
+        $data['pico_url'] = trim((string)$data['baseUrl']);
+    } elseif (isset($existing['pico_url'])) {
+        $data['pico_url'] = $existing['pico_url'];
     }
     if (isset($existing['participating'])) {
         $data['participating'] = $existing['participating'];

@@ -588,7 +588,7 @@ uint8_t dmx_engine_get_base_channel(uint16_t channel)
     return dmx_base_frame[channel];
 }
 
-void dmx_engine_clear(void)
+void dmx_engine_clear_output(void)
 {
     if (!dmx_state.initialized) {
         return;
@@ -602,7 +602,11 @@ void dmx_engine_clear(void)
     dmx_state.dirty_last = dmx_state.channels;
     dmx_state.data_version += 1;
     critical_section_exit(&dmx_state.lock);
+}
 
+void dmx_engine_clear(void)
+{
+    dmx_engine_clear_output();
     /* Also clear the scene base buffer. */
     memset(dmx_base_frame, 0, sizeof(dmx_base_frame));
 }

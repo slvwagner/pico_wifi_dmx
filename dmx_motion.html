@@ -58,7 +58,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <a class="nav" href="index.html">← Fixture Controller</a>    <a class="nav" href="dmx_chaser.html">Chaser →</a>    <a class="nav" href="dmx_fan.html">Fan Out →</a>
+    <a class="nav" href="index.html">← Fixture Controller</a>    <a class="nav" href="dmx_chaser.html">Chaser →</a>    <a class="nav" href="dmx_fan.html">Fan Out →</a>    <a class="nav" href="dmx_gpio.html">GPIO →</a>
   </div>
 </header>
 
@@ -105,8 +105,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
   <div class="fx-grid" id="fixtureList" style="flex:1"></div>
   <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;flex-shrink:0">
     <button id="reloadSetup">&#x21BB; Reload from Fixture Controller</button>
-    <button id="btnMotionSave">&#x1F4BE; Save</button>
-    <button id="btnMotionLoad">Load</button>
+    <button id="btnMotionSave" title="Save editable motion preset on the server">Save Preset</button>
+    <button id="btnMotionLoad" title="Load editable motion preset from the server">Load Preset</button>
     <button id="btnMotionExport" class="icon-btn" title="Export motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <button id="btnMotionImport" class="icon-btn" title="Import motion JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
@@ -129,15 +129,15 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
       <input id="picoMotionBpm" type="number" min="0.1" max="600" step="1" value="30"
              style="width:68px;padding:5px 8px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit">
     </label>
-    <button class="primary" id="btnPicoMotionUpload">&#x2B06; Upload &amp; Play</button>
-    <button id="btnPicoMotionStartSlot">&#x25B6; Start Slot</button>
+    <button class="primary" id="btnPicoMotionUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
+    <button id="btnPicoMotionStartSlot" title="Run the already-loaded selected Pico slot">&#x25B6; Start Slot</button>
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
     <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
-    <button id="btnPicoMotionRestoreAll">&#x21BA; Restore All Slots</button>
+    <button id="btnPicoMotionRestoreAll">&#x21BA; Restore Saved Slots to Pico</button>
   </div>
   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:4px">
-    <span style="font-size:12px;color:var(--muted);align-self:center">Saved slots:</span>
+    <span style="font-size:12px;color:var(--muted);align-self:center">Pico slots:</span>
     <button id="btnExportMotionSlots" class="icon-btn" title="Export Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="10"/><polyline points="5 7 8 10 11 7"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <button id="btnImportMotionSlots" class="icon-btn" title="Import Pico motion slots JSON"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="10" x2="8" y2="2"/><polyline points="5 5 8 2 11 5"/><line x1="3" y1="14" x2="13" y2="14"/></svg></button>
     <input id="importMotionSlotsFile" type="file" accept=".json,application/json" style="display:none">
@@ -169,7 +169,7 @@ function clamp(v,lo,hi){v=parseFloat(v);return Math.max(lo,Math.min(hi,isNaN(v)?
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
-const PICO_SLOT_COUNT=16;
+const PICO_SLOT_COUNT=32;
 function populatePicoMotionSlotSelect(){
   const sel=document.getElementById('picoMotionSlot');
   sel.innerHTML=Array.from({length:PICO_SLOT_COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join('');
@@ -546,7 +546,7 @@ function selectedMotionSlot(){
 function ensureMotionSlotSupported(){
   const slot=selectedMotionSlot();
   if(slot<_lastMotionReportedSlotCount)return true;
-  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' motion slots; rebuild/flash firmware for slots 8-15','var(--warn)');
+  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' motion slots; rebuild/flash firmware for higher slots','var(--warn)');
   return false;
 }
 
@@ -570,13 +570,18 @@ function renderMotionSlotStrip(slots, activeMask){
       'border-radius:7px',
       'padding:7px 5px 6px',
       'text-align:center',
+      'position:relative',
       'cursor:pointer',
       'opacity:'+(unsupported?'0.35':loaded?'1':'0.45'),
       'transition:border-color .15s,box-shadow .15s',
       'user-select:none'
     ].filter(Boolean).join(';');
     const typeName=unsupported?'FW old':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    const deleteButton=loaded&&!unsupported
+      ? '<button type="button" data-delete-motion-slot="'+s.slot+'" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
+      : '';
     d.innerHTML=
+      deleteButton+
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
@@ -586,12 +591,42 @@ function renderMotionSlotStrip(slots, activeMask){
         '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
     d.onclick=()=>{
-      if(unsupported){setPicoMotionStatus('Flash the 16-slot firmware before using slot '+s.slot,'var(--warn)');return;}
+      if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask);
     };
+    const delBtn=d.querySelector('[data-delete-motion-slot]');
+    if(delBtn){
+      delBtn.onclick=ev=>{
+        ev.stopPropagation();
+        deleteMotionSlot(s.slot);
+      };
+    }
     strip.appendChild(d);
   });
+}
+
+async function deleteMotionSlot(slot){
+  if(!confirm('Delete motion slot '+slot+'?'))return;
+  try{
+    const r=await fetch('motion_setup.php?delete_slot='+slot,{method:'POST'});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'Delete failed');
+    const root=baseUrlEl.value.replace(/\/+$/,'');
+    if(root){
+      try{await fetch(root+'/motion/clear/'+slot,{cache:'no-store'});}catch(_){}
+      setPicoMotionStatus('Deleted slot '+slot,'var(--accent)');
+    }else{
+      setPicoMotionStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
+    }
+    if(_lastSlots){
+      _lastSlots[slot]={slot:slot,loaded:false,active:false,type:0,bpm:30,fixture_count:0};
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask & ~(1<<slot));
+    }
+    pollPicoMotionStatus();
+  }catch(e){
+    setPicoMotionStatus('Delete error: '+e.message,'var(--bad)');
+  }
 }
 
 // Re-highlight selection when slot selector changes
@@ -656,6 +691,7 @@ document.getElementById('btnPicoMotionUpload').onclick=async()=>{
   if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const body=serializeMotionForPico();
   setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
@@ -664,10 +700,8 @@ document.getElementById('btnPicoMotionUpload').onclick=async()=>{
     const j=await r.json();
     if(!j.ok){setPicoMotionStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
     saveMotionSlotToServer(slot, body); // persist to server (fire-and-forget)
-    const r2=await fetch(root+'/motion/start/'+slot);
-    const j2=await r2.json();
-    if(j2.ok){setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
-    else{setPicoMotionStatus('Start error','var(--bad)');}
+    setPicoMotionStatus('Uploaded current preset to slot '+slot,'var(--accent)');
+    pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;
@@ -725,6 +759,7 @@ document.getElementById('btnPicoMotionStop').onclick=async()=>{
 // ---- motion data serialization ----
 function motionData(){
   return{
+    baseUrl:baseUrlEl.value,
     params:{
       effectType:document.getElementById('effectType').value,
       bpm:+document.getElementById('bpm').value,
@@ -742,6 +777,7 @@ function motionData(){
 }
 function applyMotionData(data){
   if(!data)return;
+  if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   const p=data.params;
   if(p){
     if(p.effectType!==undefined)document.getElementById('effectType').value=p.effectType;

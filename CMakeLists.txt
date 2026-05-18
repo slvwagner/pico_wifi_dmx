@@ -64,6 +64,7 @@ add_executable(pico_wifi_dmx
         dmx_engine.cpp
         pico_chaser.cpp
         pico_motion.cpp
+        gpio_control.cpp
 )
 
 pico_generate_pio_header(pico_wifi_dmx ${CMAKE_CURRENT_LIST_DIR}/dmx_native.pio)
@@ -90,6 +91,7 @@ target_link_libraries(pico_wifi_dmx
         pico_multicore
         pico_cyw43_arch_lwip_threadsafe_background
         pico_lwip_http
+        hardware_adc
         hardware_dma
         hardware_pio)
 

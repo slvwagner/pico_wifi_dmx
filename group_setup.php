@@ -3,7 +3,11 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
-$dataFile = __DIR__ . DIRECTORY_SEPARATOR . 'group_setup.json';
+$dataDir = __DIR__ . DIRECTORY_SEPARATOR . 'data';
+if (!is_dir($dataDir)) {
+    mkdir($dataDir, 0775, true);
+}
+$dataFile = $dataDir . DIRECTORY_SEPARATOR . 'group_setup.json';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($method === 'GET') {
@@ -20,7 +24,7 @@ if ($method === 'GET') {
         exit;
     }
 
-    echo json_encode(['ok' => true, 'exists' => true, 'groups' => $data['groups'] ?? []]);
+    echo json_encode(['ok' => true, 'exists' => true, 'groups' => $data['groups'] ?? [], 'baseUrl' => $data['baseUrl'] ?? null]);
     exit;
 }
 

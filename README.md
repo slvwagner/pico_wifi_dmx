@@ -20,6 +20,8 @@ Browserbased user interface with the following features.
   -- Simple user interface to define the use of each GPIO Pin. Simply choose from al list and set an action for it. 
   -- All date is stored serverbased and can be exported and imported via json file
 
+License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
+
 ---
 
 ## Architecture
@@ -56,17 +58,22 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 | `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
 | `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
 | `/dmx/clear` | GET | Zero all channels and clear the scene base buffer |
+| `/dmx/output_clear` | GET | Zero live DMX output channels only; preserve the scene base buffer |
 | `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
 | `/dmx/values.json` | GET | Read all channel values |
 
 ### Pico chaser
 
-Up to **16 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, loop flag, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+Up to **32 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, loop flag, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/chaser/load/<N>` | POST | Upload chaser config to slot N (0–15) |
-| `/chaser/play/<N>` | GET | Start slot N |
+| `/chaser/load/<N>` | POST | Upload chaser config to slot N (0–31) |
+| `/chaser/play/<N>` | GET | Start slot N from the beginning |
+| `/chaser/pause/<N>` | GET | Pause slot N at the current step/fade position |
+| `/chaser/resume/<N>` | GET | Resume paused slot N |
+| `/chaser/pause_toggle/<N>` | GET | Pause if running, resume if paused, otherwise start slot N |
+| `/chaser/clear/<N>` | GET | Clear/unload slot N without clearing global DMX output |
 | `/chaser/stop` | GET | Stop all slots |
 | `/chaser/stop/<N>` | GET | Stop slot N only |
 | `/chaser/speed/<N>/<mult_x100>` | GET | Set speed multiplier for slot N (100 = 1.0×) |
@@ -78,6 +85,10 @@ Up to **16 independent chaser slots** can be loaded and played simultaneously. E
 Chaser text protocol (POST body):
 ```
 LOOP 1
+MODE loop
+LOOPS 1
+DIR forward
+SPEED 1.00
 STEP <duration_ms> <fade_percent>
 CH <channel> <value>
 CH <channel> <value>
@@ -86,16 +97,21 @@ STEP …
 END
 ```
 
+`MODE` supports `single`, `loop`, and `loop_n`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
+
+Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforces the same limit so browser playback and Pico playback use the same preset shape.
+
 ### Pico motion FX
 
-Up to **16 independent motion FX slots** can be loaded and played simultaneously. Each slot has its own effect type, BPM, fixture list and phase offsets. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+Up to **32 independent motion FX slots** can be loaded and played simultaneously. Each slot has its own effect type, BPM, fixture list and phase offsets. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/motion/load` | POST | Upload motion FX config to slot 0 (backward compat) |
-| `/motion/load/<N>` | POST | Upload motion FX config to slot N (0–15) |
+| `/motion/load/<N>` | POST | Upload motion FX config to slot N (0–31) |
 | `/motion/start` | GET | Start slot 0 (backward compat) |
 | `/motion/start/<N>` | GET | Start slot N |
+| `/motion/clear/<N>` | GET | Clear/unload slot N without clearing global DMX output |
 | `/motion/stop` | GET | Stop all slots |
 | `/motion/stop/<N>` | GET | Stop slot N only |
 | `/motion/bpm/<N>/<bpm_x10>` | GET | Set BPM for slot N live (e.g. `/motion/bpm/0/1200` = 120.0 BPM) |
@@ -126,20 +142,33 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Page | File | Description |
 |------|------|-------------|
 | Fixture Controller | `index.html` | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
-| Chaser | `dmx_chaser.html` | Build and play step sequences with crossfade; upload to Pico for autonomous playback; upload to up to 16 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 16 slots |
-| Motion FX | `dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); upload to up to 16 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 16 slots |
+| Chaser | `dmx_chaser.html` | Build and play step sequences with crossfade; save editable presets; upload the current preset to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
+| Motion FX | `dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); save editable presets; upload the current preset to up to 32 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Fan Out | `dmx_fan.html` | Spread any DMX control (pan, tilt, zoom, dimmer, …) as an offset fan across an ordered fixture list — see below |
-| FPS Benchmark | `dmx_benchmark.html` | Measure round-trip request latency for single `/dmx/set` vs batch `/dmx/b/` |
+| GPIO Control | `dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
+| FPS Benchmark | `dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
 Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough.
 
+### Chaser / Motion FX — Presets and Pico Slots
+
+The playback pages separate editable presets from the autonomous Pico slot memory:
+
+- **Save Preset / Load Preset** — store and restore the editable page setup on the XAMPP server JSON file.
+- **Upload to Slot** — sends the current editable preset to the selected Pico slot and mirrors that slot payload on the XAMPP server. It does not start playback.
+- **Play Slot / Start Slot** — starts the already-loaded slot on the Pico.
+- **Restore Saved Slots to Pico** — re-sends the saved server-side slot payloads to the Pico after reboot or firmware upload.
+- **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP slot payload and calls the Pico clear endpoint for that slot when the Pico base URL is set.
+
+On the Chaser page, each uploaded Pico slot also stores its playback mode (`Single`, `Loop`, `Loop N`), loop count, direction, and speed. `Stop` resets the slot, while `Pause`/`Resume` keeps the current step and fade position.
+
 ### Chaser — Participating Controls
 
 The **Participating Controls** panel defines which fixture+control pairs are written by the chaser. It is stored separately from the step list:
 
-- **Save / Load** — persisted to `chaser_setup.json` via `chaser_setup.php?participating`, independently of steps. Changing steps does not overwrite the control selection.
+- **Save / Load** — persisted to `chaser_setup.json` via `chaser_setup.php?participating`, independently of steps. Changing presets does not overwrite the control selection.
 - **Export (↓) / Import (↑)** — download or upload the participating map as a standalone JSON file. Useful for copying a control selection between chaser presets.
 
 ### Chaser — Capture from Fixture Controller
@@ -182,9 +211,9 @@ A floating, draggable, collapsible **Scene Toolbox** overlays the fixture contro
 - **Recall scene** — sends all stored channel values back to the Pico in one batch request.
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
 - **Clear all channels** — the red `×` icon next to the scene JSON import/export buttons asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
-- Slots are stored server-side in `scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
-- Toolbox position (drag) and collapsed state are persisted per-page to `ui_state.json` via `ui_state.php`.
-- Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
+- Slots are stored server-side in `data/scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
+- Toolbox position (drag) and collapsed state are persisted per-page to `data/ui_state.json` via `ui_state.php`.
+- Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `data/fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
 
 ### Motion FX — Scene Center Toolbox
 
@@ -261,19 +290,67 @@ The Fan Out page also has a **Scene Toolbox** (same slot grid as the Fixture Con
 
 The red **Clear all DMX channels** icon in the Fan Out scene toolbox calls `/dmx/clear` on the Pico and resets all configured Fan Out lane base values to `0`. This keeps the fan previews and offsets aligned with the cleared hardware state instead of continuing from stale base snapshots.
 
+### GPIO Control Prototype (`dmx_gpio.html`)
+
+The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
+
+- The page stores mappings locally in the browser and pushes the active mapping set to the Pico with `POST /gpio/config`.
+- **Export JSON / Import JSON** saves or restores the GPIO editor setup, including Pico base URL, enabled state, and all mappings.
+- Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
+- Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`) and disables pins already used by another mapping.
+- The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
+- The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
+- Supported pulls: `pullup`, `pulldown`.
+- Supported triggers: `falling`, `rising`, `both`.
+- Supported digital actions: `dmx_clear`, `dmx_output_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `chaser_pause`, `chaser_resume`, `chaser_pause_toggle`, `chaser_tap`, `motion_start`, `motion_stop`, `motion_toggle`, `motion_tap`.
+- ADC mappings are separate from digital button mappings and are limited to GPIO26, GPIO27, and GPIO28 on Pico 2 W. ADC actions include `chaser_speed`, which maps the ADC value to a chaser speed multiplier range, and `motion_bpm`, which maps the ADC value to a Motion FX BPM range.
+
+GPIO config is a line-based text protocol:
+
+```text
+ENABLE 1
+MAP 14 pullup falling dmx_clear 0 30
+MAP 15 pullup falling chaser_toggle 0 30
+MAP 16 pullup falling motion_tap 0 30 1
+MAP 17 pullup falling chaser_tap 0 30 2
+ADC 26 chaser_speed 0 10 300
+ADC 27 motion_bpm 0 1000 12000
+```
+
+Format: `MAP <pin> <pull> <trigger> <action> <slot> <debounce_ms> [beat_div]`.
+ADC format: `ADC <pin> <action> <slot> <min_x100> <max_x100>`.
+The web editor shows `chaser_speed` ranges as normal speed multipliers, e.g. `0.10` to `6.00`, and `motion_bpm` ranges as BPM, e.g. `10.0` to `120.0`. The generated firmware line stores both as value ×100.
+ADC readback and speed/BPM updates use a 10 ms mean filter to reduce ripple from pots and long wires.
+
+Tap actions use the interval between two valid button presses. `motion_tap` writes Motion FX BPM directly. `chaser_tap` converts the tapped interval into a chaser speed multiplier using the selected slot's current step duration. Optional `beat_div` supports `1`, `2`, `4`, `8`, and `16`, where `2` means a half-beat target, `4` a quarter-beat target, and so on.
+
+Use `dmx_clear` when the button should clear both output and the motion base buffer. Use `dmx_output_clear` when it should black out live output but keep the base buffer intact, so Motion FX can resume around the same stored center.
+
+Firmware endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/gpio/config` | GET | Return current volatile GPIO config as JSON |
+| `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
+| `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
+
+This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page or export a JSON backup and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
+
 ### Server-side Persistence
 
-All persistent data is stored as JSON files on the PHP web server. No database is required.
+All persistent data is stored as JSON files in the PHP web server's `data/` folder. No database is required. The sync script migrates existing root-level JSON files into `data/` and writes a `.htaccess` file that denies direct browser access to the folder.
 
 | PHP handler | JSON file | Contents |
 |-------------|-----------|----------|
-| `fixture_setup.php` | `fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
-| `fixture_setup.php?livevalues` | `fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
-| `scene_setup.php` | `scene_setup.json` | Named scene snapshots, slot grid dimensions |
-| `group_setup.php` | `group_setup.json` | Fixture group definitions |
-| `chaser_setup.php` | `chaser_setup.json` | Chaser step sequences and slot config |
-| `chaser_setup.php?participating` | `chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
-| `ui_state.php` | `ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
+| `fixture_setup.php` | `data/fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
+| `fixture_setup.php?livevalues` | `data/fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
+| `scene_setup.php` | `data/scene_setup.json` | Named scene snapshots, slot grid dimensions |
+| `group_setup.php` | `data/group_setup.json` | Fixture group definitions |
+| `fan_setup.php` | `data/fan_setup.json` | Fan Out groups and Pico base URL |
+| `chaser_setup.php` | `data/chaser_setup.json` | Chaser step sequences and slot config |
+| `chaser_setup.php?participating` | `data/chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
+| `motion_setup.php` | `data/motion_setup.json` | Motion FX browser setup and saved Pico slot payloads |
+| `ui_state.php` | `data/ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
 
@@ -285,7 +362,7 @@ HTML files are developed locally and synced to XAMPP with:
 .\sync_fixture_controller_to_xampp.ps1
 ```
 
-Target: `E:\Software\xampp\htdocs\dmx-fixtures\`
+Target: `E:\Software\xampp\htdocs\dmx\`
 
 ---
 
@@ -297,16 +374,17 @@ Target: `E:\Software\xampp\htdocs\dmx-fixtures\`
 | `dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
 | `dmx_native.pio` | PIO program for 250 kbaud DMX framing |
 | `pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
-| `pico_motion.cpp` / `.h` | Pico-side pan/tilt oscillator — **16 independent slots**, simultaneous playback with bigger-wins channel merge, axes-only writes (pan-swing never touches tilt channels and vice versa), 100 Hz tick, hardware spinlock |
+| `pico_motion.cpp` / `.h` | Pico-side pan/tilt oscillator — **32 independent slots**, simultaneous playback with bigger-wins channel merge, axes-only writes (pan-swing never touches tilt channels and vice versa), 100 Hz tick, hardware spinlock |
+| `gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |
 | `lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving |
 | `fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
 | `pico_sdk_import.cmake` | Pico SDK CMake integration |
 | `CMakeLists.txt` | Build target, source files, SDK libraries |
-| `fixture_setup.php` | REST handler — save/load fixture setup (`fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`fixture_live_values.json`) |
-| `scene_setup.php` | REST handler — save/load scenes and slot grid config (`scene_setup.json`) |
-| `group_setup.php` | REST handler — save/load fixture groups (`group_setup.json`) |
-| `chaser_setup.php` | REST handler — save/load chaser step sequences (`chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
-| `ui_state.php` | REST handler — per-page UI state persistence (`ui_state.json`); merges partial state on POST |
+| `fixture_setup.php` | REST handler — save/load fixture setup (`data/fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`data/fixture_live_values.json`) |
+| `scene_setup.php` | REST handler — save/load scenes and slot grid config (`data/scene_setup.json`) |
+| `group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
+| `chaser_setup.php` | REST handler — save/load chaser step sequences (`data/chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
+| `ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
 | `sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
 
 ---

@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DMX GPIO Control</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1115;--panel:#161c22;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
+main{max-width:1160px;margin:0 auto;padding:20px;display:grid;gap:16px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:22px;margin:0}h2{font-size:16px;margin:0}.status,.small{color:var(--muted);font-size:13px}.bad{color:var(--bad)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.toolbar,.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+label{display:grid;gap:6px;color:var(--muted);font-size:13px}
+input,button,select{font:inherit}
+input,select{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=number]{width:86px}input[type=url]{min-width:260px}
+button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+button.danger{background:#3c1b1b;border-color:#763232;color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
+a.nav:hover{color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.mapping{background:#10161b;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px}
+.mapping.dup{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
+.mapping-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.mapping-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--muted);font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.on{background:var(--accent)}
+pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    <h1>GPIO Control</h1>
+    <div class="status" id="status">Ready</div>
+  </div>
+  <div class="toolbar">
+    <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <a class="nav" href="index.html">Controller</a>
+    <a class="nav" href="dmx_chaser.html">Chaser</a>
+    <a class="nav" href="dmx_motion.html">Motion</a>
+    <a class="nav" href="dmx_fan.html">Fan Out</a>
+  </div>
+</header>
+
+<section class="panel">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h2>GPIO Mappings</h2>
+    <span class="pill"><span class="dot" id="onlineDot"></span><span id="onlineText">not connected</span></span>
+  </div>
+  <div class="toolbar">
+    <label><input id="gpioEnabled" type="checkbox" checked> GPIO polling enabled</label>
+    <button id="addMapping" class="primary">Add mapping</button>
+    <button id="addAdcMapping" class="primary">Add ADC speed/BPM</button>
+    <button id="pushConfig">Push to Pico</button>
+    <button id="pullConfig">Read from Pico</button>
+    <button id="saveLocal">Save local</button>
+    <button id="exportConfig" title="Export GPIO config JSON">Export JSON</button>
+    <button id="importConfig" title="Import GPIO config JSON">Import JSON</button>
+    <input id="importConfigFile" type="file" accept=".json,application/json" style="display:none">
+    <button id="clearLocal" class="danger">Clear local</button>
+  </div>
+  <div id="mappingList" class="grid"></div>
+</section>
+
+<section class="panel">
+  <h2>Status</h2>
+  <div class="grid">
+    <div class="mapping">
+      <div class="small">Pico GPIO status</div>
+      <div id="gpioStatus" class="small">No status yet.</div>
+    </div>
+    <div class="mapping">
+      <div class="small">Generated config body</div>
+      <pre id="configPreview"></pre>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+const PICO_SLOT_COUNT=32;
+const DEFAULT_MAPPINGS=[
+  {pin:14,pull:'pullup',trigger:'falling',action:'dmx_clear',slot:0,debounce_ms:30},
+  {pin:15,pull:'pullup',trigger:'falling',action:'chaser_toggle',slot:0,debounce_ms:30}
+];
+const DEFAULT_ADC_MAPPINGS=[];
+const RESERVED_PINS=[2,3];
+const DIGITAL_ACTIONS=['dmx_clear','dmx_output_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','chaser_pause','chaser_resume','chaser_pause_toggle','chaser_tap','motion_start','motion_stop','motion_toggle','motion_tap'];
+const ADC_ACTIONS=['chaser_speed','motion_bpm'];
+let mappings=[];
+let adcMappings=[];
+const baseUrl=document.getElementById('baseUrl');
+const statusEl=document.getElementById('status');
+
+function setStatus(msg,bad=false){statusEl.textContent=msg;statusEl.className=bad?'status bad':'status';}
+function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function clamp(v,lo,hi){v=parseInt(v);return Math.max(lo,Math.min(hi,isNaN(v)?lo:v));}
+function actionNeedsSlot(a){return a.startsWith('chaser_')||a.startsWith('motion_');}
+function actionIsTap(a){return a==='chaser_tap'||a==='motion_tap';}
+function normalize(m){
+  return {
+    pin:clamp(m.pin,0,28),
+    pull:m.pull==='pulldown'?'pulldown':'pullup',
+    trigger:['falling','rising','both'].includes(m.trigger)?m.trigger:'falling',
+    action:DIGITAL_ACTIONS.includes(m.action)?m.action:'dmx_clear',
+    slot:clamp(m.slot,0,PICO_SLOT_COUNT-1),
+    beat_div:[1,2,4,8,16].includes(parseInt(m.beat_div))?parseInt(m.beat_div):1,
+    debounce_ms:clamp(m.debounce_ms,5,1000)
+  };
+}
+function normalizeAdc(m){
+  const action=ADC_ACTIONS.includes(m.action)?m.action:'chaser_speed';
+  const minValue=m.min_bpm!==undefined?m.min_bpm:m.min_speed;
+  const maxValue=m.max_bpm!==undefined?m.max_bpm:m.max_speed;
+  const def=action==='motion_bpm'?{min:1000,max:12000,lo:100,hi:30000}:{min:10,max:1000,lo:10,hi:1000};
+  const minRaw=minValue!==undefined?Math.round(parseFloat(minValue)*100):(m.min_x100??def.min);
+  const maxRaw=maxValue!==undefined?Math.round(parseFloat(maxValue)*100):(m.max_x100??def.max);
+  const min=clamp(minRaw,def.lo,def.hi);
+  const max=clamp(maxRaw,def.lo,def.hi);
+  return {
+    pin:[26,27,28].includes(parseInt(m.pin))?parseInt(m.pin):26,
+    action,
+    slot:clamp(m.slot,0,PICO_SLOT_COUNT-1),
+    min_x100:Math.min(min,max),
+    max_x100:Math.max(min,max)
+  };
+}
+function duplicatePins(){
+  const seen=new Map();
+  const dup=new Set();
+  mappings.map(normalize).forEach((m,i)=>{
+    const key='D'+i;
+    if(seen.has(m.pin)){dup.add(key);dup.add(seen.get(m.pin));}
+    else seen.set(m.pin,key);
+  });
+  adcMappings.map(normalizeAdc).forEach((m,i)=>{
+    const key='A'+i;
+    if(seen.has(m.pin)){dup.add(key);dup.add(seen.get(m.pin));}
+    else seen.set(m.pin,key);
+  });
+  return dup;
+}
+function usedPinMap(exceptKey){
+  const used=new Map();
+  mappings.map(normalize).forEach((m,i)=>{const key='D'+i;if(key!==exceptKey)used.set(m.pin,'Mapping '+(i+1));});
+  adcMappings.map(normalizeAdc).forEach((m,i)=>{const key='A'+i;if(key!==exceptKey)used.set(m.pin,'ADC Speed '+(i+1));});
+  return used;
+}
+function gpioPinOptions(current, exceptKey){
+  const used=usedPinMap(exceptKey);
+  return Array.from({length:29},(_,pin)=>pin)
+    .filter(pin=>!RESERVED_PINS.includes(pin))
+    .map(pin=>{
+      const isUsed=used.has(pin);
+      const label='GPIO'+pin+(isUsed?' - used by '+used.get(pin):'');
+      return `<option value="${pin}"${pin===current?' selected':''}${isUsed?' disabled':''}>${label}</option>`;
+    }).join('');
+}
+function duplicatePinMessage(){
+  const counts={};
+  mappings.map(normalize).forEach(m=>counts[m.pin]=(counts[m.pin]||0)+1);
+  adcMappings.map(normalizeAdc).forEach(m=>counts[m.pin]=(counts[m.pin]||0)+1);
+  const pins=Object.keys(counts).filter(p=>counts[p]>1).sort((a,b)=>a-b);
+  return pins.length?'GPIO '+pins.join(', ')+' already mapped':'';
+}
+function validatePins(){
+  const msg=duplicatePinMessage();
+  if(msg){setStatus(msg,true);return false;}
+  return true;
+}
+function loadLocal(){
+  try{
+    const raw=localStorage.getItem('dmxGPIOConfig');
+    const data=raw?JSON.parse(raw):null;
+    if(data&&Array.isArray(data.mappings)){
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
+      mappings=data.mappings.map(normalize);
+      adcMappings=Array.isArray(data.adcMappings)?data.adcMappings.map(normalizeAdc):DEFAULT_ADC_MAPPINGS.map(normalizeAdc);
+      document.getElementById('gpioEnabled').checked=data.enabled!==false;
+    }else{
+      mappings=Array.isArray(data)?data.map(normalize):DEFAULT_MAPPINGS.map(normalize);
+      adcMappings=DEFAULT_ADC_MAPPINGS.map(normalizeAdc);
+    }
+  }catch(_){mappings=DEFAULT_MAPPINGS.map(normalize);adcMappings=DEFAULT_ADC_MAPPINGS.map(normalizeAdc);}
+  if(localStorage.getItem('dmxGPIOEnabled')!==null)document.getElementById('gpioEnabled').checked=localStorage.getItem('dmxGPIOEnabled')!=='0';
+}
+function saveLocal(){
+  if(!validatePins())return false;
+  localStorage.setItem('dmxGPIOConfig',JSON.stringify(gpioData()));
+  localStorage.setItem('dmxGPIOEnabled',document.getElementById('gpioEnabled').checked?'1':'0');
+  setStatus('GPIO config saved locally');
+  return true;
+}
+function gpioData(){
+  return {
+    baseUrl:baseUrl.value,
+    enabled:document.getElementById('gpioEnabled').checked,
+    mappings:mappings.map(normalize),
+    adcMappings:adcMappings.map(normalizeAdc)
+  };
+}
+function applyGPIOData(data){
+  const src=Array.isArray(data)?{mappings:data}:data;
+  if(!src||!Array.isArray(src.mappings))throw new Error('Invalid GPIO JSON');
+  if(src.baseUrl){
+    baseUrl.value=src.baseUrl;
+    localStorage.setItem('dmxPicoBaseUrl',baseUrl.value);
+  }
+  document.getElementById('gpioEnabled').checked=src.enabled!==false;
+  mappings=src.mappings.map(normalize);
+  adcMappings=Array.isArray(src.adcMappings)?src.adcMappings.map(normalizeAdc):[];
+}
+function exportGPIOConfig(){
+  if(!validatePins())return;
+  const blob=new Blob([JSON.stringify(gpioData(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='gpio_config.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  setStatus('GPIO config exported');
+}
+async function importGPIOConfig(file){
+  try{
+    const data=JSON.parse(await file.text());
+    applyGPIOData(data);
+    render();
+    if(!saveLocal())return;
+    setStatus('GPIO config imported');
+  }catch(e){setStatus('Import failed: '+e.message,true);}
+}
+function configText(){
+  const lines=['ENABLE '+(document.getElementById('gpioEnabled').checked?'1':'0')];
+  mappings.map(normalize).forEach(m=>{
+    const parts=['MAP',m.pin,m.pull,m.trigger,m.action,m.slot,m.debounce_ms];
+    if(actionIsTap(m.action))parts.push(m.beat_div);
+    lines.push(parts.join(' '));
+  });
+  adcMappings.map(normalizeAdc).forEach(m=>lines.push(['ADC',m.pin,m.action,m.slot,m.min_x100,m.max_x100].join(' ')));
+  return lines.join('\n')+'\n';
+}
+function render(){
+  const list=document.getElementById('mappingList');
+  const dups=duplicatePins();
+  const digitalHtml=mappings.map((m,i)=>{
+    m=normalize(m);
+    const slotDisabled=actionNeedsSlot(m.action)?'':'disabled';
+    const beatControl=actionIsTap(m.action)
+      ? `<label>Beat<select data-field="beat_div"><option value="1"${m.beat_div===1?' selected':''}>1 beat</option><option value="2"${m.beat_div===2?' selected':''}>1/2 beat</option><option value="4"${m.beat_div===4?' selected':''}>1/4 beat</option><option value="8"${m.beat_div===8?' selected':''}>1/8 beat</option><option value="16"${m.beat_div===16?' selected':''}>1/16 beat</option></select></label>`
+      : '';
+    return `<div class="mapping${dups.has('D'+i)?' dup':''}" data-idx="${i}">
+      <div class="mapping-head"><strong>Mapping ${i+1}</strong><button class="danger" data-remove="${i}">Remove</button></div>
+      <div class="mapping-fields">
+        <label>GPIO pin<select data-field="pin">${gpioPinOptions(m.pin,'D'+i)}</select></label>
+        <label>Pull<select data-field="pull"><option value="pullup"${m.pull==='pullup'?' selected':''}>Pull-up</option><option value="pulldown"${m.pull==='pulldown'?' selected':''}>Pull-down</option></select></label>
+        <label>Trigger<select data-field="trigger"><option value="falling"${m.trigger==='falling'?' selected':''}>Falling</option><option value="rising"${m.trigger==='rising'?' selected':''}>Rising</option><option value="both"${m.trigger==='both'?' selected':''}>Both</option></select></label>
+        <label>Action<select data-field="action">
+          ${DIGITAL_ACTIONS.map(a=>`<option value="${a}"${m.action===a?' selected':''}>${a.replace(/_/g,' ')}</option>`).join('')}
+        </select></label>
+        <label>Slot<input type="number" min="0" max="${PICO_SLOT_COUNT-1}" value="${m.slot}" data-field="slot" ${slotDisabled}></label>
+        ${beatControl}
+        <label>Debounce ms<input type="number" min="5" max="1000" value="${m.debounce_ms}" data-field="debounce_ms"></label>
+      </div>
+    </div>`;
+  }).join('');
+  const adcHtml=adcMappings.map((m,i)=>{
+    m=normalizeAdc(m);
+    const isBpm=m.action==='motion_bpm';
+    const minLabel=isBpm?'Min BPM':'Min multiplier';
+    const maxLabel=isBpm?'Max BPM':'Max multiplier';
+    const step=isBpm?'0.1':'0.01';
+    const minAttr=isBpm?'1':'0.1';
+    const maxAttr=isBpm?'300':'10';
+    return `<div class="mapping${dups.has('A'+i)?' dup':''}" data-adc-idx="${i}">
+      <div class="mapping-head"><strong>ADC ${isBpm?'BPM':'Speed'} ${i+1}</strong><button class="danger" data-remove-adc="${i}">Remove</button></div>
+      <div class="mapping-fields">
+        <label>ADC GPIO<select data-adc-field="pin"><option value="26"${m.pin===26?' selected':''}>GPIO26 / ADC0</option><option value="27"${m.pin===27?' selected':''}>GPIO27 / ADC1</option><option value="28"${m.pin===28?' selected':''}>GPIO28 / ADC2</option></select></label>
+        <label>Action<select data-adc-field="action">${ADC_ACTIONS.map(a=>`<option value="${a}"${m.action===a?' selected':''}>${a.replace(/_/g,' ')}</option>`).join('')}</select></label>
+        <label>Slot<input type="number" min="0" max="${PICO_SLOT_COUNT-1}" value="${m.slot}" data-adc-field="slot"></label>
+        <label>${minLabel}<input type="number" min="${minAttr}" max="${maxAttr}" step="${step}" value="${(m.min_x100/100).toFixed(isBpm?1:2)}" data-adc-field="${isBpm?'min_bpm':'min_speed'}"></label>
+        <label>${maxLabel}<input type="number" min="${minAttr}" max="${maxAttr}" step="${step}" value="${(m.max_x100/100).toFixed(isBpm?1:2)}" data-adc-field="${isBpm?'max_bpm':'max_speed'}"></label>
+      </div>
+    </div>`;
+  }).join('');
+  list.innerHTML=digitalHtml+adcHtml;
+  document.getElementById('configPreview').textContent=configText();
+  const msg=duplicatePinMessage();
+  if(msg)setStatus(msg,true);
+  else if(statusEl.classList.contains('bad')&&statusEl.textContent.includes('already mapped'))setStatus('Ready');
+}
+async function pushConfig(){
+  const root=endpoint();
+  if(!root){setStatus('Set Pico base URL first',true);return;}
+  if(!validatePins())return;
+  try{
+    const r=await fetch(root+'/gpio/config',{method:'POST',body:configText(),headers:{'Content-Type':'text/plain'},cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||'GPIO config failed');
+    if(!saveLocal())return;
+    setStatus('GPIO config pushed to Pico');
+    pollStatus();
+  }catch(e){setStatus(e.message,true);}
+}
+async function pullConfig(){
+  const root=endpoint();
+  if(!root){setStatus('Set Pico base URL first',true);return;}
+  try{
+    const j=await fetch(root+'/gpio/config',{cache:'no-store'}).then(r=>r.json());
+    if(!j.ok)throw new Error(j.error||'GPIO config failed');
+    document.getElementById('gpioEnabled').checked=!!j.enabled;
+    mappings=(j.mappings||[]).map(normalize);
+    adcMappings=(j.adc_mappings||[]).map(m=>normalizeAdc({pin:m.pin,action:m.action,slot:m.slot,min_x100:m.min_x100,max_x100:m.max_x100}));
+    if(!saveLocal())return;
+    render();
+    setStatus('GPIO config read from Pico');
+  }catch(e){setStatus(e.message,true);}
+}
+async function pollStatus(){
+  const root=endpoint();
+  if(!root)return;
+  try{
+    const j=await fetch(root+'/gpio/status',{cache:'no-store'}).then(r=>r.json());
+    if(!j.ok)throw new Error(j.error||'status failed');
+    document.getElementById('onlineDot').classList.add('on');
+    document.getElementById('onlineText').textContent='connected';
+    const inputs=(j.inputs||[]).map(i=>'GPIO '+i.pin+': raw '+(i.value?'HIGH':'LOW')+', stable '+(i.stable?'HIGH':'LOW')).join('<br>');
+    const adc=(j.adc_inputs||[]).map(i=>{
+      const raw=Math.max(0,Math.min(4095,parseInt(i.raw??0)));
+      const pct=Math.max(0,Math.min(100,Math.round(raw/4095*100)));
+      const min=((i.min_x100??0)/100).toFixed(2);
+      const max=((i.max_x100??0)/100).toFixed(2);
+      const filter=i.filter_ms??0;
+      if(i.action==='motion_bpm'){
+        return 'ADC GPIO '+i.pin+': avg '+raw+' / 4095 ('+pct+'%, '+filter+' ms), BPM '+(i.rate_x100/100).toFixed(1)+', range '+parseFloat(min).toFixed(1)+'-'+parseFloat(max).toFixed(1)+' BPM on slot '+i.slot;
+      }
+      return 'ADC GPIO '+i.pin+': avg '+raw+' / 4095 ('+pct+'%, '+filter+' ms), multiplier '+(i.rate_x100/100).toFixed(2)+'x, range '+min+'x-'+max+'x on '+i.action+' slot '+i.slot;
+    }).join('<br>');
+    document.getElementById('gpioStatus').innerHTML=
+      'Enabled: '+j.enabled+'<br>Mappings: '+j.mapping_count+'<br>Events: '+j.event_count+
+      '<br>Last: GPIO '+j.last_pin+' '+j.last_action+' @ '+j.last_event_ms+' ms'+
+      (inputs?'<br><br>'+inputs:'')+
+      (adc?'<br><br>'+adc:'');
+  }catch(e){
+    document.getElementById('onlineDot').classList.remove('on');
+    document.getElementById('onlineText').textContent='not connected';
+    document.getElementById('gpioStatus').textContent=e.message;
+  }
+}
+
+baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||'';
+baseUrl.addEventListener('input',()=>localStorage.setItem('dmxPicoBaseUrl',baseUrl.value));
+document.getElementById('addMapping').onclick=()=>{
+  const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin),RESERVED_PINS));
+  const pin=Array.from({length:29},(_,i)=>i).find(p=>!used.has(p))??14;
+  mappings.push(normalize({pin,pull:'pullup',trigger:'falling',action:'dmx_clear',slot:0,beat_div:1,debounce_ms:30}));
+  render();
+};
+document.getElementById('addAdcMapping').onclick=()=>{
+  const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin)));
+  const pin=[26,27,28].find(p=>!used.has(p))||26;
+  adcMappings.push(normalizeAdc({pin,action:'chaser_speed',slot:0,min_x100:10,max_x100:300}));
+  render();
+};
+document.getElementById('pushConfig').onclick=pushConfig;
+document.getElementById('pullConfig').onclick=pullConfig;
+document.getElementById('saveLocal').onclick=()=>{saveLocal();render();};
+document.getElementById('exportConfig').onclick=exportGPIOConfig;
+document.getElementById('importConfig').onclick=()=>document.getElementById('importConfigFile').click();
+document.getElementById('importConfigFile').addEventListener('change',e=>{
+  const file=e.target.files&&e.target.files[0];
+  e.target.value='';
+  if(file)importGPIOConfig(file);
+});
+document.getElementById('clearLocal').onclick=()=>{if(confirm('Clear local GPIO mappings?')){mappings=[];saveLocal();render();}};
+document.getElementById('gpioEnabled').addEventListener('change',render);
+document.getElementById('mappingList').addEventListener('change',e=>{
+  const card=e.target.closest('[data-idx]');if(!card)return;
+  const i=parseInt(card.dataset.idx);const field=e.target.dataset.field;if(!field)return;
+  mappings[i][field]=e.target.value;
+  mappings[i]=normalize(mappings[i]);
+  render();
+});
+document.getElementById('mappingList').addEventListener('change',e=>{
+  const card=e.target.closest('[data-adc-idx]');if(!card)return;
+  const i=parseInt(card.dataset.adcIdx);const field=e.target.dataset.adcField;if(!field)return;
+  adcMappings[i][field]=e.target.value;
+  if(field==='action'){
+    delete adcMappings[i].min_speed;
+    delete adcMappings[i].max_speed;
+    delete adcMappings[i].min_bpm;
+    delete adcMappings[i].max_bpm;
+    if(e.target.value==='motion_bpm'){adcMappings[i].min_x100=1000;adcMappings[i].max_x100=12000;}
+    else {adcMappings[i].min_x100=10;adcMappings[i].max_x100=300;}
+  }
+  adcMappings[i]=normalizeAdc(adcMappings[i]);
+  render();
+});
+document.getElementById('mappingList').addEventListener('click',e=>{
+  const rem=e.target.dataset.remove;if(rem===undefined)return;
+  mappings.splice(parseInt(rem),1);
+  render();
+});
+document.getElementById('mappingList').addEventListener('click',e=>{
+  const rem=e.target.dataset.removeAdc;if(rem===undefined)return;
+  adcMappings.splice(parseInt(rem),1);
+  render();
+});
+loadLocal();
+render();
+setInterval(pollStatus,1000);
+pollStatus();
+</script>
+</body>
+</html>

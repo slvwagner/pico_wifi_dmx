@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define MFX_MAX_SLOTS    16
+#define MFX_MAX_SLOTS    32
 #define MFX_MAX_FIXTURES 8
 
 typedef enum {
@@ -49,6 +49,7 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len);
 void mfx_start(uint8_t slot);     /* start one slot; others keep running */
 void mfx_stop(void);              /* stop ALL slots */
 void mfx_stop_slot(uint8_t slot); /* stop one slot only */
+void mfx_clear_slot(uint8_t slot);
 void mfx_set_bpm(uint8_t slot, float bpm);  /* live BPM override */
 void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched);     /* scratch/touched: [513], indices 1-512 */
 void mfx_get_status(mfx_status_t *out);

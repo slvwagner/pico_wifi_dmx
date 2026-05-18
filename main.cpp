@@ -17,6 +17,7 @@
 #include "dmx_engine.h"
 #include "pico_chaser.h"
 #include "pico_motion.h"
+#include "gpio_control.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
@@ -55,7 +56,9 @@ static char http_logs[6144];
 static char http_status_json[1024];
 static char http_dmx_json[1024];
 static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
-static char http_playback_json[4096];
+static char http_playback_json[12288];
+static char http_gpio_json[4096];
+static char http_gpio_body[3072];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 
@@ -63,7 +66,7 @@ static volatile bool application_running = true;
 #define POST_BUFFER_MAX (12 * 1024)
 static char    post_buffer[POST_BUFFER_MAX];
 static size_t  post_length = 0;
-static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH } post_type = POST_NONE;
+static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_GPIO_CONFIG } post_type = POST_NONE;
 static uint8_t post_slot = 0;
 
 extern char __StackLimit;
@@ -509,6 +512,23 @@ static void build_dmx_json_response(unsigned status_code, const char *status_tex
         body);
 }
 
+static void build_gpio_json_response(unsigned status_code, const char *status_text, const char *body)
+{
+    snprintf(
+        http_gpio_json,
+        sizeof(http_gpio_json),
+        "HTTP/1.0 %u %s\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "%s",
+        status_code,
+        status_text,
+        body);
+}
+
 // /dmx/b/<ch>:<val>,<ch>:<val>,…  — batch set, data encoded in path (no query string)
 // lwIP httpd strips query strings before fs_open, so we must use the path.
 static void build_dmx_b_response(const char *name)
@@ -618,6 +638,28 @@ static void build_dmx_clear_response()
     build_dmx_json_response(200, "OK", "{\"ok\":true,\"cleared\":true}\n");
 }
 
+static void gpio_clear_dmx_and_ui()
+{
+    dmx_engine_clear();
+    critical_section_enter_blocking(&dmx_ui_lock);
+    memset(dmx_ui_values, 0, sizeof(dmx_ui_values));
+    critical_section_exit(&dmx_ui_lock);
+}
+
+static void gpio_clear_dmx_output_and_ui()
+{
+    dmx_engine_clear_output();
+    critical_section_enter_blocking(&dmx_ui_lock);
+    memset(dmx_ui_values, 0, sizeof(dmx_ui_values));
+    critical_section_exit(&dmx_ui_lock);
+}
+
+static void build_dmx_output_clear_response()
+{
+    gpio_clear_dmx_output_and_ui();
+    build_dmx_json_response(200, "OK", "{\"ok\":true,\"cleared\":true,\"base_preserved\":true}\n");
+}
+
 static void build_dmx_base_response(void)
 {
     dmx_engine_status_t status;
@@ -722,9 +764,10 @@ static void build_chaser_status_response()
         "Cache-Control: no-store\r\n"
         "\r\n"
         "{\"ok\":true,\"active_mask\":%lu,\"loaded_mask\":%lu,"
-        "\"step\":%u,\"step_count\":%u,\"elapsed_ms\":%lu}\n",
+        "\"paused_mask\":%lu,\"step\":%u,\"step_count\":%u,\"elapsed_ms\":%lu}\n",
         (unsigned long)s.active_mask,
         (unsigned long)s.loaded_mask,
+        (unsigned long)s.paused_mask,
         s.step,
         s.step_count,
         (unsigned long)s.elapsed_ms);
@@ -740,16 +783,22 @@ static void build_chaser_slots_response()
         "Cache-Control: no-store\r\n"
         "\r\n"
         "{\"ok\":true,\"slots\":[");
-    for (uint8_t i = 0; i < CHASER_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 80; i++) {
+    for (uint8_t i = 0; i < CHASER_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 256; i++) {
         chaser_slot_info_t info;
         chaser_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"loop\":%s,\"step_count\":%u,\"speed_mult\":%.2f}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"paused\":%s,\"loop\":%s,\"mode\":%u,\"direction\":%u,\"loop_count\":%u,\"completed_loops\":%u,\"current_step\":%u,\"step_count\":%u,\"speed_mult\":%.2f}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded     ? "true" : "false",
             info.active     ? "true" : "false",
+            info.paused     ? "true" : "false",
             info.loop       ? "true" : "false",
+            (unsigned)info.mode,
+            (unsigned)info.direction,
+            info.loop_count,
+            info.completed_loops,
+            info.current_step,
             info.step_count,
             (double)info.speed_mult);
     }
@@ -783,7 +832,7 @@ static void build_motion_slots_response()
         "Cache-Control: no-store\r\n"
         "\r\n"
         "{\"ok\":true,\"slots\":[");
-    for (uint8_t i = 0; i < MFX_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 80; i++) {
+    for (uint8_t i = 0; i < MFX_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 160; i++) {
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
@@ -852,6 +901,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    if (path_matches(name, "/dmx/output_clear") || path_matches(name, "/dmx/clear_output")) {
+        build_dmx_output_clear_response();
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     if (path_matches(name, "/dmx/base")) {
         build_dmx_base_response();
         file->data = http_dmx_base_json;
@@ -897,6 +955,35 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    /* ----- GPIO control endpoints ------------------------------------- */
+    if (path_matches(name, "/gpio/config")) {
+        gpio_control_write_config_json(http_gpio_body, sizeof(http_gpio_body));
+        build_gpio_json_response(200, "OK", http_gpio_body);
+        file->data = http_gpio_json;
+        file->len = (int)strlen(http_gpio_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/gpio/status")) {
+        gpio_control_write_status_json(http_gpio_body, sizeof(http_gpio_body));
+        build_gpio_json_response(200, "OK", http_gpio_body);
+        file->data = http_gpio_json;
+        file->len = (int)strlen(http_gpio_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/gpio/config_ok")) {
+        file->data = http_gpio_json;
+        file->len = (int)strlen(http_gpio_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     /* ----- Chaser endpoints ------------------------------------------- */
     /* /chaser/play        — play slot 0 (backward compat)
        /chaser/play/<N>    — play slot N */
@@ -926,6 +1013,66 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
             chaser_stop();
             build_playback_ok_response("chaser stopped");
         }
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/chaser/clear")) {
+        uint8_t slot = 0;
+        if (name[13] == '/') {
+            unsigned long s = strtoul(name + 14, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        chaser_clear_slot(slot);
+        build_playback_ok_response("chaser slot cleared");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/chaser/pause")) {
+        uint8_t slot = 0;
+        if (name[13] == '/') {
+            unsigned long s = strtoul(name + 14, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        chaser_pause(slot);
+        build_playback_ok_response("chaser paused");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/chaser/resume")) {
+        uint8_t slot = 0;
+        if (name[14] == '/') {
+            unsigned long s = strtoul(name + 15, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        chaser_resume(slot);
+        build_playback_ok_response("chaser resumed");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/chaser/pause_toggle")) {
+        uint8_t slot = 0;
+        if (name[20] == '/') {
+            unsigned long s = strtoul(name + 21, NULL, 10);
+            if (s < CHASER_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        chaser_pause_toggle(slot);
+        build_playback_ok_response("chaser pause toggled");
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;
@@ -1006,6 +1153,21 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
             mfx_stop();
             build_playback_ok_response("motion stopped");
         }
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/clear")) {
+        uint8_t slot = 0;
+        if (name[13] == '/') {
+            unsigned long s = strtoul(name + 14, NULL, 10);
+            if (s < MFX_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        mfx_clear_slot(slot);
+        build_playback_ok_response("motion slot cleared");
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;
@@ -1117,6 +1279,11 @@ extern "C" err_t httpd_post_begin(void *connection,
     if (content_len > (int)(POST_BUFFER_MAX - 1))
         return ERR_VAL; /* body too large */
 
+    if (strcmp(uri, "/gpio/config") == 0) {
+        post_type = POST_GPIO_CONFIG;
+        return ERR_OK;
+    }
+
     /* /chaser/load or /chaser/load/<slot> */
     if (strncmp(uri, "/chaser/load", 12) == 0 &&
         (uri[12] == '\0' || uri[12] == '/')) {
@@ -1186,6 +1353,16 @@ extern "C" void httpd_post_finished(void *connection,
         if (ok) build_playback_ok_response("motion loaded");
         else    build_playback_err_response("parse error");
         snprintf(response_uri, response_uri_len, "/motion/load_ok");
+    } else if (post_type == POST_GPIO_CONFIG) {
+        char err[160] = {0};
+        bool ok = gpio_control_configure_text(post_buffer, post_length, err, sizeof(err));
+        if (ok) {
+            build_gpio_json_response(200, "OK", "{\"ok\":true,\"message\":\"gpio config loaded\"}\n");
+        } else {
+            snprintf(http_gpio_body, sizeof(http_gpio_body), "{\"ok\":false,\"error\":\"%s\"}\n", err[0] ? err : "parse error");
+            build_gpio_json_response(400, "Bad Request", http_gpio_body);
+        }
+        snprintf(response_uri, response_uri_len, "/gpio/config_ok");
     } else if (post_type == POST_DMX_BATCH) {
         dmx_engine_status_t status;
         dmx_engine_get_status(&status);
@@ -1286,6 +1463,9 @@ static void core0_application_loop()
 {
     chaser_init();
     mfx_init();
+    gpio_control_init((1u << DMX_TX_PIN) | (1u << DMX_TRIGGER_PIN));
+    gpio_control_set_dmx_clear_hook(gpio_clear_dmx_and_ui);
+    gpio_control_set_dmx_output_clear_hook(gpio_clear_dmx_output_and_ui);
 
     dmx_engine_config_t dmx_config;
     dmx_engine_default_config(&dmx_config);
@@ -1314,6 +1494,7 @@ static void core0_application_loop()
 
     uint32_t loop_count = 0;
     uint32_t last_playback_tick = 0;
+    uint32_t last_gpio_poll_ms = 0;
 
     while (application_running) {
         dmx_engine_poll();
@@ -1344,6 +1525,12 @@ static void core0_application_loop()
                     dmx_engine_set_channel(ch, mfx_scratch[ch]);
 
             last_playback_tick = now_us;
+        }
+
+        uint32_t now_ms = to_ms_since_boot(get_absolute_time());
+        if (now_ms != last_gpio_poll_ms) {
+            gpio_control_poll(now_ms);
+            last_gpio_poll_ms = now_ms;
         }
 
         if ((loop_count++ % 5000) == 0) {
