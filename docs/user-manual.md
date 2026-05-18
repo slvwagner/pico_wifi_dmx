@@ -111,6 +111,8 @@ Use **Select** to include a fixture in group editing.
 
 ## 2. Scenes
 
+![Scene Toolbox](screenshots/fixture-controller-scene-box.png)
+
 The Scene Toolbox is available on the Fixture Controller and Fan Out pages.
 
 Use scenes to store complete looks.

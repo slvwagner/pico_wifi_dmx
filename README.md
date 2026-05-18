@@ -193,6 +193,10 @@ The live control surface shows patched fixtures as cards. Each card contains the
 
 The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows only controls that exist on all selected fixtures, so one slider or XY pad can update every fixture in the group at once. The modal can also recall Default all, Blackout all, or send the current group values to the Pico.
 
+![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
+
+The Scene Toolbox is a floating panel for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set.
+
 **Chaser**
 
 ![Chaser page](docs/screenshots/chaser.png)

@@ -124,6 +124,17 @@ try {
 
     Eval-Js @"
 (async()=>{
+  document.querySelector('main')?.scrollTo(0,0);
+  const sceneBox=document.querySelector('#sceneBox');
+  const toggle=document.querySelector('#sceneBoxToggle');
+  if(sceneBox && sceneBox.classList.contains('collapsed') && toggle) toggle.click();
+  await new Promise(r=>setTimeout(r,500));
+})()
+"@
+    Save-Screenshot "fixture-controller-scene-box.png"
+
+    Eval-Js @"
+(async()=>{
   ['profilesCollapseBtn','addControlCollapseBtn','patchCollapseBtn'].forEach(id=>{
     const btn=document.getElementById(id);
     if(btn && btn.textContent.trim()==='−') btn.click();
