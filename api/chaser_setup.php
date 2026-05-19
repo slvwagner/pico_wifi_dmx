@@ -158,6 +158,15 @@ if ($method === 'POST') {
     if (isset($existing['participating'])) {
         $data['participating'] = $existing['participating'];
     }
+    if (!isset($data['chases']) && isset($existing['chases'])) {
+        $data['chases'] = $existing['chases'];
+    }
+    if (!isset($data['chaseSlotCols']) && isset($existing['chaseSlotCols'])) {
+        $data['chaseSlotCols'] = $existing['chaseSlotCols'];
+    }
+    if (!isset($data['chaseSlotRows']) && isset($existing['chaseSlotRows'])) {
+        $data['chaseSlotRows'] = $existing['chaseSlotRows'];
+    }
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
         http_response_code(500);

@@ -33,6 +33,15 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 #chaserGroupModal input[type=range]{width:100%}
 #chaserGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #chaserGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+#chaseBox{top:20px;right:20px;min-width:220px;max-width:320px}
+#chaserGroupsBox{right:300px}
+#stepsBox{top:110px;left:20px;right:auto;width:380px;height:520px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);resize:both;overflow:hidden}
+#browserPlaybackBox{top:620px;left:20px;right:auto;width:430px;max-width:calc(100vw - 40px)}
+#chaseBox .scene-toolbox__header,#stepsBox .scene-toolbox__header,#browserPlaybackBox .scene-toolbox__header{background:#8d3a7e}
+#stepsBox .scene-toolbox__body{height:calc(100% - 43px);max-height:none;overflow:auto;align-content:start}
+#stepsBoxBody>.buttons:first-child{position:sticky;top:0;z-index:2;background:var(--panel);border-bottom:1px solid var(--line);padding-bottom:10px;margin:-12px -12px 0;padding:12px}
+#browserPlaybackBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto}
+#browserPlaybackBox .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
@@ -122,29 +131,34 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     </div>
   </div>
 
-  <div class="panel">
-    <div class="row" style="justify-content:space-between;flex-wrap:wrap;align-items:center">
-      <h2>Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</h2>
-      <div class="buttons">
+  <div id="stepsBox" class="scene-toolbox">
+    <div id="stepsBoxHdr" class="scene-toolbox__header">
+      <span style="font-weight:700;font-size:13px">Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
+      <button id="stepsBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+    <div id="stepsBoxBody" class="scene-toolbox__body">
+      <div class="buttons" style="justify-content:flex-start">
         <button class="primary" id="btnAddStep">+ Add step</button>
         <button id="btnCaptureNew">⬇ Capture + Add</button>
         <button class="warn" id="btnClearAll">Clear all</button>
       </div>
-    </div>
-    <div class="list" id="stepList"></div>
-    <div class="row" style="flex-wrap:wrap">
-      <button id="btnSave" title="Save editable chaser preset on the server">Save Preset</button>
-      <button id="btnLoad" title="Load editable chaser preset from the server">Load Preset</button>
-      <button id="btnExport" class="icon-btn export-btn" title="Export chaser JSON"></button>
-      <button id="btnImport" class="icon-btn import-btn" title="Import chaser JSON"></button>
-      <input id="importFile" type="file" accept=".json,application/json" style="display:none">
+      <div class="list" id="stepList"></div>
+      <div class="row" style="flex-wrap:wrap">
+        <button id="btnSave" title="Save editable chaser preset on the server">Save Preset</button>
+        <button id="btnLoad" title="Load editable chaser preset from the server">Load Preset</button>
+        <button id="btnExport" class="icon-btn export-btn" title="Export chaser JSON"></button>
+        <button id="btnImport" class="icon-btn import-btn" title="Import chaser JSON"></button>
+        <input id="importFile" type="file" accept=".json,application/json" style="display:none">
+      </div>
     </div>
   </div>
 
-  <section class="panel" id="browserPlaybackPanel">
-    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:4px">
-      <span class="mode-badge">🖥 Browser Playback</span>
+  <section id="browserPlaybackBox" class="scene-toolbox">
+    <div id="browserPlaybackBoxHdr" class="scene-toolbox__header">
+      <span style="font-weight:700;font-size:13px">Browser Playback</span>
+      <button id="browserPlaybackBoxToggle" class="scene-toolbox__toggle">—</button>
     </div>
+    <div id="browserPlaybackBoxBody" class="scene-toolbox__body">
     <div class="toolbar">
       <button class="primary" id="btnPlay">▶ Play</button>
       <button class="stop" id="btnStop" disabled>■ Stop</button>
@@ -171,6 +185,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <div class="row" style="align-items:center">
       <div class="progress-bar"><div class="progress-fill" id="stepProgress"></div></div>
       <span class="small" id="playbackInfo" style="white-space:nowrap;min-width:180px">Stopped</span>
+    </div>
     </div>
   </section>
 
@@ -245,6 +260,25 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div class="buttons">
 <button id="closeChaserGroupModal2">Close</button>
 </div>
+</div>
+</div>
+
+<div id="chaseBox" class="scene-toolbox">
+<div id="chaseBoxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Chases</span>
+<button id="chaseBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="chaseBoxBody" class="scene-toolbox__body">
+<div class="buttons">
+<button id="exportChasesBtn" class="icon-btn export-btn" title="Export chases JSON"></button>
+<button id="importChasesBtn" class="icon-btn import-btn" title="Import chases JSON"></button>
+<input id="importChasesFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaseSlotCols" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+</div>
+<div id="chaseSlotMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
 
@@ -1279,7 +1313,7 @@ function applyPicoPlaybackOptions(opts={}){
   if(opts.speed!==undefined)document.getElementById('picoSpeed').value=clamp(opts.speed,0.1,10);
 }
 function chaserData(){return{baseUrl:baseUrlEl.value,playback:picoPlaybackOptions(),steps};}
-function applyChaserData(data){
+function applyChaserData(data,redraw=true){
   if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   if(data?.playback)applyPicoPlaybackOptions(data.playback);
   if(Array.isArray(data?.steps)){
@@ -1287,9 +1321,190 @@ function applyChaserData(data){
     if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported preset was trimmed to '+CHASER_MAX_STEPS+' steps',true);
   }
   selectedStepIdx=steps.length?0:-1;
-  drawParticipation();drawStepList();drawStepEditor();
+  if(redraw){drawParticipation();drawStepList();drawStepEditor();}
 }
-function applyParticipatingData(data){
+
+// ---- floating chase toolbox ----
+let savedChases=[];
+let chaseSlotCols=4,chaseSlotRows=4;
+(()=>{
+  const sc=localStorage.getItem('chaseSlotCols'),sr=localStorage.getItem('chaseSlotRows');
+  if(sc){chaseSlotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;}
+  if(sr){chaseSlotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
+})();
+function currentChaseSlotData(){
+  return{
+    baseUrl:baseUrlEl.value,
+    playback:picoPlaybackOptions(),
+    steps:JSON.parse(JSON.stringify(steps)),
+    participating:JSON.parse(JSON.stringify(participating))
+  };
+}
+function renderChaseSlotMatrix(){
+  const grid=document.getElementById('chaseSlotMatrix');
+  const total=chaseSlotCols*chaseSlotRows;
+  grid.style.gridTemplateColumns='repeat('+chaseSlotCols+',54px)';
+  let html='';
+  for(let i=0;i<total;i++){
+    const chase=savedChases.find(c=>c.slot===i);
+    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase"><button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button>${DmxCommon.escapeHtml(chase.name)}</div>`;
+    else html+=`<div class="slot" data-chase-slot="${i}" title="Click to save chase here">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.slot').forEach(el=>el.addEventListener('click',()=>chaseSlotClick(parseInt(el.dataset.chaseSlot))));
+  grid.querySelectorAll('.slot-del').forEach(btn=>btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    const idx=parseInt(btn.dataset.delChaseSlot);
+    const chase=savedChases.find(c=>c.slot===idx);if(!chase)return;
+    if(!confirm('Delete chase "'+chase.name+'"?'))return;
+    savedChases.splice(savedChases.indexOf(chase),1);
+    renderChaseSlotMatrix();saveChasesServer();
+  }));
+}
+function chaseSlotClick(idx){
+  const chase=savedChases.find(c=>c.slot===idx);
+  if(chase){loadChaseSlot(chase);return;}
+  const name=(prompt('Chase name:','Chase '+(idx+1))||'').trim();
+  if(!name)return;
+  saveChaseToSlot(idx,name);
+}
+function saveChaseToSlot(idx,name){
+  const existing=savedChases.findIndex(c=>c.slot===idx);
+  if(existing>=0)savedChases.splice(existing,1);
+  savedChases.push({id:'chase_'+Date.now(),name,slot:idx,data:currentChaseSlotData()});
+  renderChaseSlotMatrix();saveChasesServer();
+  setStatus('Chase "'+name+'" saved to slot '+(idx+1));
+}
+function loadChaseSlot(chase){
+  if(!chase?.data)return;
+  applyChaserData(chase.data,false);
+  chaserGroupsBox?.clearSelection?.();
+  if(steps[selectedStepIdx])applyStepParticipating(steps[selectedStepIdx]);
+  else if(chase.data.participating)applyParticipatingData(chase.data.participating,false);
+  drawParticipation();drawStepList();drawStepEditor();
+  setStatus('Loaded chase: "'+chase.name+'"');
+}
+async function saveChasesServer(){
+  try{
+    const body={...chaserData(),chases:savedChases,chaseSlotCols,chaseSlotRows};
+    const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!j.ok)setStatus('Chases save failed: '+j.error,true);
+  }catch(err){setStatus('Chases save error: '+err.message,true);}
+}
+async function loadChasesServer(){
+  try{
+    const r=await fetch('chaser_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    const data=j.chaser||{};
+    savedChases=Array.isArray(data.chases)?data.chases:[];
+    if(data.chaseSlotCols){chaseSlotCols=Math.max(1,Math.min(12,parseInt(data.chaseSlotCols)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;localStorage.setItem('chaseSlotCols',chaseSlotCols);}
+    if(data.chaseSlotRows){chaseSlotRows=Math.max(1,Math.min(12,parseInt(data.chaseSlotRows)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;localStorage.setItem('chaseSlotRows',chaseSlotRows);}
+  }catch(_){savedChases=[];}
+  renderChaseSlotMatrix();
+}
+function exportChasesJson(){
+  const blob=new Blob([JSON.stringify({baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_chases.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importChasesJson(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.chases))throw new Error('Expected {chases:[...]}');
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+      savedChases=data.chases;
+      if(data.chaseSlotCols){chaseSlotCols=Math.max(1,Math.min(12,parseInt(data.chaseSlotCols)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;}
+      if(data.chaseSlotRows){chaseSlotRows=Math.max(1,Math.min(12,parseInt(data.chaseSlotRows)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
+      renderChaseSlotMatrix();saveChasesServer();
+      setStatus('Imported '+savedChases.length+' chase(s)');
+    }catch(err){setStatus('Import failed: '+err.message,true);}
+  };
+  fr.readAsText(file);
+}
+document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotCols',chaseSlotCols);renderChaseSlotMatrix();saveChasesServer();});
+document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
+document.getElementById('exportChasesBtn').onclick=exportChasesJson;
+document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile').click();
+document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
+const chaseToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'chaseBox',
+  headerId:'chaseBoxHdr',
+  toggleId:'chaseBoxToggle',
+  posStorageKey:'chaseBoxPos',
+  collapsedStorageKey:'chaseBoxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'chaseBoxPos',
+  uiStateCollapsedKey:'chaseBoxCollapsed'
+});
+const stepsToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'stepsBox',
+  headerId:'stepsBoxHdr',
+  toggleId:'stepsBoxToggle',
+  posStorageKey:'stepsBoxPos',
+  collapsedStorageKey:'stepsBoxCollapsed',
+  sizeStorageKey:'stepsBoxSize',
+  uiStatePage:'chaser',
+  uiStatePosKey:'stepsBoxPos',
+  uiStateCollapsedKey:'stepsBoxCollapsed',
+  uiStateSizeKey:'stepsBoxSize',
+  resizable:true,
+  minWidth:300,
+  minHeight:240
+});
+const browserPlaybackToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'browserPlaybackBox',
+  headerId:'browserPlaybackBoxHdr',
+  toggleId:'browserPlaybackBoxToggle',
+  posStorageKey:'browserPlaybackBoxPos',
+  collapsedStorageKey:'browserPlaybackBoxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'browserPlaybackBoxPos',
+  uiStateCollapsedKey:'browserPlaybackBoxCollapsed'
+});
+function rectsOverlap(a,b){
+  return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+}
+function placeInitialChaseToolbox(){
+  const box=document.getElementById('chaseBox');
+  const groups=document.getElementById('chaserGroupsBox');
+  if(!box||!groups)return;
+  const savedLocal=!!localStorage.getItem('chaseBoxPos');
+  DmxCommon.loadUiState('chaser').then(st=>{
+    if(!savedLocal&&st.chaseBoxPos)chaseToolbox.applyPosition(st.chaseBoxPos);
+    setTimeout(()=>{
+      const br=box.getBoundingClientRect();
+      const gr=groups.getBoundingClientRect();
+      if(!rectsOverlap(br,gr))return;
+      const x=gr.left-box.offsetWidth-20;
+      let pos;
+      if(x>=0){
+        pos={x,y:Math.max(0,Math.round(gr.top))};
+      }else{
+        const y=Math.min(Math.max(0,Math.round(gr.bottom+16)),Math.max(0,window.innerHeight-box.offsetHeight));
+        pos={x:Math.max(0,window.innerWidth-box.offsetWidth-20),y};
+      }
+      chaseToolbox.applyPosition(pos);
+      localStorage.setItem('chaseBoxPos',JSON.stringify(pos));
+      DmxCommon.saveUiState('chaser','chaseBoxPos',pos);
+    },300);
+  }).catch(()=>{});
+}
+placeInitialChaseToolbox();
+function restoreFloatingToolbox(toolbox,posKey,sizeKey){
+  const savedLocal=!!localStorage.getItem(posKey);
+  const savedSizeLocal=sizeKey&&!!localStorage.getItem(sizeKey);
+  DmxCommon.loadUiState('chaser').then(st=>{
+    if(!savedLocal&&st[posKey])toolbox.applyPosition(st[posKey]);
+    if(sizeKey&&!savedSizeLocal&&st[sizeKey])toolbox.applySize(st[sizeKey]);
+  }).catch(()=>{});
+}
+restoreFloatingToolbox(stepsToolbox,'stepsBoxPos','stepsBoxSize');
+restoreFloatingToolbox(browserPlaybackToolbox,'browserPlaybackBoxPos');
+loadChasesServer();
+
+function applyParticipatingData(data,redraw=true){
   if(data&&typeof data==='object'){
     const next={};
     (setup.fixtures||[]).forEach(f=>{
@@ -1301,7 +1516,7 @@ function applyParticipatingData(data){
     });
     participating=next;
   }
-  drawParticipation();drawStepEditor();
+  if(redraw){drawParticipation();drawStepEditor();}
 }
 
 async function saveSelectedStepAsScene(){
