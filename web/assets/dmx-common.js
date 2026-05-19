@@ -395,7 +395,13 @@
       render();
     }).catch(()=>{});
     loadGroups();
-    return {box,toolbox,loadGroups,render,selectedGroups,get groups(){return groups;}};
+    function clearSelection(){
+      if(!selectedIds.size)return;
+      selectedIds.clear();
+      render();
+      notify();
+    }
+    return {box,toolbox,loadGroups,render,selectedGroups,clearSelection,get groups(){return groups;}};
   }
 
   window.DmxCommon={

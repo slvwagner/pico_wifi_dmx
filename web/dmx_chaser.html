@@ -25,6 +25,14 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 .columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+.chaser-card-rows{display:grid;gap:16px}
+.panel.collapsed-panel .panel-body{display:none}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
+.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
+#chaserGroupModal input[type=range]{width:100%}
+#chaserGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
+#chaserGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
@@ -65,56 +73,53 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
   </div>
 </header>
 
-<!-- Playback bar -->
-<section class="panel">
-  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:4px">
-    <span class="mode-badge">🖥 Browser Playback</span>
-  </div>
-  <div class="toolbar">
-    <button class="primary" id="btnPlay">▶ Play</button>
-    <button class="stop" id="btnStop" disabled>■ Stop</button>
-    <button id="btnPrev">◀ Prev</button>
-    <button id="btnNext">Next ▶</button>
-    <label><input id="loopCheck" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Loop</label>
-    <label>BPM<input id="bpmInput" type="number" min="1" max="600" value="120"></label>
-    <label>Beats/step
-      <select id="beatsPerStep">
-        <option value="0.25">1/4</option>
-        <option value="0.5">1/2</option>
-        <option value="1" selected>1</option>
-        <option value="2">2</option>
-        <option value="4">4</option>
-        <option value="8">8</option>
-      </select>
-    </label>
-    <button id="btnTap">Tap tempo</button>
-    <label>Default fade %<input id="globalFade" type="number" min="0" max="100" value="0"></label>
-    <button id="btnApplyFade" title="Apply default fade % to all steps">↓ All steps</button>
-    <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
-  </div>
-  <div class="row" style="align-items:center">
-    <div class="progress-bar"><div class="progress-fill" id="stepProgress"></div></div>
-    <span class="small" id="playbackInfo" style="white-space:nowrap;min-width:180px">Stopped</span>
-  </div>
-</section>
-
-<!-- Participation + Step list -->
-<section class="columns">
-  <div class="panel">
-    <div class="row" style="justify-content:space-between;align-items:center">
-      <h2>Participating Controls</h2>
-      <div class="buttons">
-        <button id="btnSelAll" style="padding:6px 10px;font-size:12px">All</button>
-        <button id="btnSelNone" style="padding:6px 10px;font-size:12px">None</button>
-        <button id="btnSavePart" style="padding:6px 10px;font-size:12px">Save</button>
-        <button id="btnLoadPart" style="padding:6px 10px;font-size:12px">Load</button>
-        <button id="btnExportPart" class="icon-btn export-btn" title="Export participating JSON"></button>
-        <button id="btnImportPart" class="icon-btn import-btn" title="Import participating JSON"></button>
-        <input id="importPartFile" type="file" accept=".json,application/json" style="display:none">
+<!-- Participation + Step editing -->
+<section class="chaser-card-rows">
+    <div class="panel" id="participationPanel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2>Participating Controls</h2>
+        <div class="buttons">
+          <button id="btnSavePart" style="padding:6px 10px;font-size:12px">Save</button>
+          <button id="btnLoadPart" style="padding:6px 10px;font-size:12px">Load</button>
+          <button id="btnExportPart" class="icon-btn export-btn" title="Export participating JSON"></button>
+          <button id="btnImportPart" class="icon-btn import-btn" title="Import participating JSON"></button>
+          <input id="importPartFile" type="file" accept=".json,application/json" style="display:none">
+          <button class="collapse-btn" data-panel-toggle="participationPanel" title="Collapse Participating Controls">−</button>
+        </div>
+      </div>
+      <div class="panel-body">
+      <div class="toolbar" id="groupControlTools">
+        <button id="btnSelAll">All</button>
+        <button id="btnSelNone">None</button>
+        <label>Group control
+          <select id="groupControlSelect"></select>
+        </label>
+        <button id="btnGroupControlOnly">Only</button>
+        <button id="btnGroupControlAdd">Add</button>
+        <span class="small" id="groupControlHint">Select a group to filter by control.</span>
+      </div>
+      <div class="list" id="participationList"></div>
+      <div class="small">Only selected controls are shown in the step editor and sent during playback.</div>
       </div>
     </div>
-    <div class="list" id="participationList"></div>
-    <div class="small">Only selected controls are shown in the step editor and sent during playback.</div>
+
+  <div class="panel" id="stepEditorSection">
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;align-items:center">
+      <h2>Edit Step <span id="editorTitle" style="color:var(--warn)"></span></h2>
+      <button class="collapse-btn" data-panel-toggle="stepEditorSection" title="Collapse Edit Step">−</button>
+    </div>
+    <div class="panel-body">
+      <div class="toolbar">
+        <label>Label<input id="edLabel" type="text" placeholder="Step label"></label>
+        <label>Duration (ms)<input id="edDuration" type="number" min="0" max="60000" value="500"></label>
+        <label>Fade %<input id="edFade" type="number" min="0" max="100" value="0"></label>
+        <button id="btnApplyMeta">Apply</button>
+        <button id="btnCaptureToStep">⬇ Capture from FC</button>
+        <button id="btnSaveStepScene">Save as Scene</button>
+      </div>
+    <div id="editorHint" class="small">Select a step to edit its values.</div>
+    <div class="surface" id="stepSurface"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -135,25 +140,40 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       <input id="importFile" type="file" accept=".json,application/json" style="display:none">
     </div>
   </div>
-</section>
 
-<!-- Step editor -->
-<section class="panel" id="stepEditorSection">
-  <div class="row" style="justify-content:space-between;flex-wrap:wrap;align-items:center">
-    <h2>Edit Step <span id="editorTitle" style="color:var(--warn)"></span></h2>
-    <div class="toolbar">
-      <label>Label<input id="edLabel" type="text" placeholder="Step label"></label>
-      <label>Duration (ms)<input id="edDuration" type="number" min="0" max="60000" value="500"></label>
-      <label>Fade %<input id="edFade" type="number" min="0" max="100" value="0"></label>
-      <button id="btnApplyMeta">Apply</button>
-      <button id="btnCaptureToStep">⬇ Capture from FC</button>
-      <label style="flex-direction:row;align-items:center;gap:6px;color:var(--muted);font-size:13px">
-        <input id="livePreview" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;padding:0"> Live preview
-      </label>
+  <section class="panel" id="browserPlaybackPanel">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span class="mode-badge">🖥 Browser Playback</span>
     </div>
-  </div>
-  <div id="editorHint" class="small">Select a step to edit its values.</div>
-  <div class="surface" id="stepSurface"></div>
+    <div class="toolbar">
+      <button class="primary" id="btnPlay">▶ Play</button>
+      <button class="stop" id="btnStop" disabled>■ Stop</button>
+      <button id="btnPrev">◀ Prev</button>
+      <button id="btnNext">Next ▶</button>
+      <label><input id="loopCheck" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Loop</label>
+      <label><input id="livePreview" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Live preview</label>
+      <label>BPM<input id="bpmInput" type="number" min="1" max="600" value="120"></label>
+      <label>Beats/step
+        <select id="beatsPerStep">
+          <option value="0.25">1/4</option>
+          <option value="0.5">1/2</option>
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="4">4</option>
+          <option value="8">8</option>
+        </select>
+      </label>
+      <button id="btnTap">Tap tempo</button>
+      <label>Default fade %<input id="globalFade" type="number" min="0" max="100" value="0"></label>
+      <button id="btnApplyFade" title="Apply default fade % to all steps">↓ All steps</button>
+      <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
+    </div>
+    <div class="row" style="align-items:center">
+      <div class="progress-bar"><div class="progress-fill" id="stepProgress"></div></div>
+      <span class="small" id="playbackInfo" style="white-space:nowrap;min-width:180px">Stopped</span>
+    </div>
+  </section>
+
 </section>
 
 <!-- Pico realtime playback -->
@@ -214,6 +234,20 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </section>
 
 </main>
+
+<div id="chaserGroupModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div class="row" style="justify-content:space-between;align-items:center">
+<h2 id="chaserGroupModalTitle">Group Edit</h2>
+<button id="closeChaserGroupModal" class="collapse-btn">x</button>
+</div>
+<div id="chaserGroupModalBody" class="modal-body"></div>
+<div class="buttons">
+<button id="closeChaserGroupModal2">Close</button>
+</div>
+</div>
+</div>
+
 <script>
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
@@ -222,6 +256,10 @@ function absolute(start,rel){return start+rel-1;}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
 const PICO_SLOT_COUNT=32;
 const CHASER_MAX_STEPS=32;
+let steps=[];
+let selectedStepIdx=-1;
+let collapsedFixtures=new Set(JSON.parse(localStorage.getItem('chaserCollapsedFix')||'[]'));
+let collapsedPartFixtures=new Set(JSON.parse(localStorage.getItem('chaserPartCollapsedFix')||'[]'));
 function populatePicoSlotSelect(){
   const sel=document.getElementById('picoSlot');
   sel.innerHTML=Array.from({length:PICO_SLOT_COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join('');
@@ -252,8 +290,11 @@ chaserGroupsBox=DmxCommon.initGroupsToolbox({
   page:'chaser',
   idPrefix:'chaserGroups',
   title:'Groups',
+  showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
+  canEdit:()=>selectedStepIdx>=0&&getChaserGroupCommonControls().length>0,
+  onEdit:()=>openChaserGroupModal(),
   onSelectionChange:()=>applyChaserGroupSelection(true)
 });
 function sendChannel(ch,value){
@@ -364,22 +405,212 @@ function rebuildParticipation(){
 
 function applyChaserGroupSelection(redraw=true){
   const selected=chaserGroupsBox?.selectedGroups?.()||[];
-  if(!selected.length)return;
-  const selectedFixtureIds=new Set(selected.flatMap(g=>g.fixtureIds||[]));
-  (setup.fixtures||[]).forEach(f=>{
-    const p=fixtureProfile(f);if(!p)return;
-    p.controls.forEach(c=>{participating[controlKey(f,c)]=selectedFixtureIds.has(f.id);});
-  });
   if(redraw){
     drawParticipation();
     drawStepEditor();
-    setStatus('Chaser participation set from '+selected.length+' group'+(selected.length===1?'':'s'));
+    setStatus(selected.length?'Chaser filtered to '+selected.length+' group'+(selected.length===1?'':'s'):'Chaser group filter cleared');
   }
+}
+
+function selectedChaserGroupFixtureIds(){
+  const selected=chaserGroupsBox?.selectedGroups?.()||[];
+  if(!selected.length)return null;
+  return new Set(selected.flatMap(g=>g.fixtureIds||[]));
+}
+
+function selectedChaserGroupFixtures(){
+  const ids=selectedChaserGroupFixtureIds();
+  if(!ids)return[];
+  return(setup.fixtures||[]).filter(f=>ids.has(f.id));
+}
+
+function chaserGroupKey(c){return c.label+'|'+c.type;}
+function chaserGroupDataKey(c){return encodeURIComponent(chaserGroupKey(c));}
+function findChaserGroupControl(f,key){
+  return(fixtureProfile(f)?.controls||[]).find(c=>chaserGroupKey(c)===key)||null;
+}
+function getChaserGroupCommonControls(){
+  const fx=selectedChaserGroupFixtures();
+  if(!fx.length)return[];
+  const first=(fixtureProfile(fx[0])?.controls||[]);
+  return first.filter(c=>fx.every(f=>!!findChaserGroupControl(f,chaserGroupKey(c))));
+}
+function chaserGroupControlByDataKey(dataKey){
+  const key=decodeURIComponent(dataKey||'');
+  return getChaserGroupCommonControls().find(c=>chaserGroupKey(c)===key)||null;
+}
+function getChaserGroupValue(c){
+  const key=chaserGroupKey(c);
+  const fx=selectedChaserGroupFixtures();
+  for(const f of fx){
+    const mc=findChaserGroupControl(f,key);
+    if(!mc)continue;
+    const v=getStepVal(f,mc);
+    if(v!==undefined)return JSON.parse(JSON.stringify(v));
+  }
+  return defaultValue(c);
+}
+function setChaserGroupValue(c,val){
+  const key=chaserGroupKey(c);
+  selectedChaserGroupFixtures().forEach(f=>{
+    const mc=findChaserGroupControl(f,key);
+    if(mc)setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
+  });
+}
+function renderChaserGroupControl(c){
+  const key=chaserGroupDataKey(c),gca=`data-cg="${key}"`;
+  const v=getChaserGroupValue(c);
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const max=c.type==='panTilt8'?255:65535;
+    const pan=bytes16(v.pan??Math.round(max/2)),tilt=bytes16(v.tilt??Math.round(max/2));
+    const bytes=c.type==='panTilt16'?`<div class="byte-sliders">
+      <label>Pan coarse <span data-cg-byte="${key}" data-part="panCoarse">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" ${gca} data-byte-axis="pan" data-byte-part="coarse"></label>
+      <label>Pan fine <span data-cg-byte="${key}" data-part="panFine">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" ${gca} data-byte-axis="pan" data-byte-part="fine"></label>
+      <label>Tilt coarse <span data-cg-byte="${key}" data-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
+      <label>Tilt fine <span data-cg-byte="${key}" data-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
+    </div>`:'';
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · selected group</span></div>
+      <div class="xy-pad" data-cgxy="${key}"><div class="xy-dot" style="left:${(v.pan??Math.round(max/2))/max*100}%;top:${100-(v.tilt??Math.round(max/2))/max*100}%"></div></div>
+      <div class="row"><span class="readout" data-cg-readout="${key}">Pan ${Math.round(v.pan??Math.round(max/2))} · Tilt ${Math.round(v.tilt??Math.round(max/2))}</span><button ${gca} data-cg-center="1">Center</button></div>
+      <label>Pan<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.pan??Math.round(max/2))}" ${gca} data-axis="pan"></label>
+      <label>Tilt<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.tilt??Math.round(max/2))}" ${gca} data-axis="tilt"></label>
+      ${bytes}</div>`;
+  }
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · selected group</span></div>
+      <label>Color<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
+      ${parts.map((part,i)=>`<label>${names[i]} <span data-cg-part="${key}" data-part="${part}">${Math.round(v[part]??0)}</span><input type="range" min="0" max="255" value="${Math.round(v[part]??0)}" ${gca} data-part="${part}"></label>`).join('')}
+      <div class="swatches"><button class="swatch" style="background:#fff" data-cg-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-cg-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-cg-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-cg-color="#0000ff" ${gca}></button></div></div>`;
+  }
+  if(c.type==='wheel'){
+    const wv=v??0;
+    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}</span></div>
+      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab${o.value===wv?' active':''}" data-cg-wheel="${o.value}" ${gca}>${icon(o)}${o.name}</button>`).join('')}</div>
+      <input type="range" min="0" max="255" value="${wv}" ${gca}></div>`;
+  }
+  const max=c.type==='slider16'?65535:255;
+  const sv=v??0,b=bytes16(sv);
+  const extra=c.type==='slider16'?`<div class="byte-sliders">
+      <label>Coarse <span data-cg-byte="${key}" data-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
+      <label>Fine <span data-cg-byte="${key}" data-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
+    </div>`:'';
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · selected group</span></div>
+    <input type="range" min="0" max="${max}" step="1" value="${Math.round(sv)}" ${gca}>${extra}</div>`;
+}
+function updateChaserGroupControlDisplay(c){
+  const key=chaserGroupDataKey(c),v=getChaserGroupValue(c);
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const max=c.type==='panTilt8'?255:65535;
+    const dot=document.querySelector(`[data-cgxy="${key}"] .xy-dot`);
+    if(dot){dot.style.left=((v.pan??0)/max*100)+'%';dot.style.top=(100-(v.tilt??0)/max*100)+'%';}
+    document.querySelectorAll(`[data-cg-readout="${key}"]`).forEach(el=>el.textContent='Pan '+Math.round(v.pan??0)+' · Tilt '+Math.round(v.tilt??0));
+    ['pan','tilt'].forEach(axis=>{
+      document.querySelectorAll(`input[data-cg="${key}"][data-axis="${axis}"]`).forEach(el=>{if(el.value!=v[axis])el.value=Math.round(v[axis]??0);});
+      if(c.type==='panTilt16'){
+        const b=bytes16(v[axis]??0);
+        document.querySelectorAll(`input[data-cg="${key}"][data-byte-axis="${axis}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+        document.querySelectorAll(`input[data-cg="${key}"][data-byte-axis="${axis}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+        document.querySelectorAll(`[data-cg-byte="${key}"][data-part="${axis}Coarse"]`).forEach(el=>el.textContent=b.coarse);
+        document.querySelectorAll(`[data-cg-byte="${key}"][data-part="${axis}Fine"]`).forEach(el=>el.textContent=b.fine);
+      }
+    });
+    return;
+  }
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(part=>{
+      document.querySelectorAll(`[data-cg-part="${key}"][data-part="${part}"]`).forEach(el=>el.textContent=Math.round(v[part]??0));
+      document.querySelectorAll(`input[data-cg="${key}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=Math.round(v[part]??0);});
+    });
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    document.querySelectorAll(`input[data-cg="${key}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
+    return;
+  }
+  document.querySelectorAll(`[data-cg-readout="${key}"]`).forEach(el=>el.textContent=c.type==='wheel'?'Wheel · '+Math.round(v??0):Math.round(v??0));
+  document.querySelectorAll(`input[data-cg="${key}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=Math.round(v??0);});
+  if(c.type==='slider16'){
+    const b=bytes16(v??0);
+    document.querySelectorAll(`input[data-cg="${key}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+    document.querySelectorAll(`input[data-cg="${key}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+    document.querySelectorAll(`[data-cg-byte="${key}"][data-part="coarse"]`).forEach(el=>el.textContent=b.coarse);
+    document.querySelectorAll(`[data-cg-byte="${key}"][data-part="fine"]`).forEach(el=>el.textContent=b.fine);
+  }
+}
+function openChaserGroupModal(){
+  if(selectedStepIdx<0){setStatus('Select a step before editing a group',true);return;}
+  const common=getChaserGroupCommonControls();
+  if(!common.length){setStatus('Select a group with common controls first',true);return;}
+  const n=selectedChaserGroupFixtures().length;
+  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s');
+  document.getElementById('chaserGroupModalBody').innerHTML=common.map(c=>renderChaserGroupControl(c)).join('');
+  document.getElementById('chaserGroupModal').style.display='flex';
+}
+function closeChaserGroupModal(){document.getElementById('chaserGroupModal').style.display='none';drawStepEditor();}
+
+function groupControlKey(c){return c.label+'|'+c.type;}
+function groupControlOptions(){
+  const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  if(!selectedFixtureIds)return[];
+  const opts=new Map();
+  (setup.fixtures||[]).forEach(f=>{
+    if(!selectedFixtureIds.has(f.id))return;
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      const key=groupControlKey(c);
+      if(!opts.has(key))opts.set(key,{key,label:c.label,type:c.type,count:0});
+      opts.get(key).count++;
+    });
+  });
+  return[...opts.values()].sort((a,b)=>a.label.localeCompare(b.label)||a.type.localeCompare(b.type));
+}
+
+function drawGroupControlTools(){
+  const sel=document.getElementById('groupControlSelect');
+  const hint=document.getElementById('groupControlHint');
+  const onlyBtn=document.getElementById('btnGroupControlOnly');
+  const addBtn=document.getElementById('btnGroupControlAdd');
+  const selectedGroups=chaserGroupsBox?.selectedGroups?.()||[];
+  const opts=groupControlOptions();
+  const old=sel.value;
+  sel.innerHTML=opts.map(o=>`<option value="${o.key}">${o.label} (${o.type})</option>`).join('');
+  if(opts.some(o=>o.key===old))sel.value=old;
+  const enabled=selectedGroups.length>0&&opts.length>0;
+  sel.disabled=!enabled;onlyBtn.disabled=!enabled;addBtn.disabled=!enabled;
+  hint.textContent=selectedGroups.length
+    ?(opts.length?'Apply one control to '+selectedGroups.length+' selected group'+(selectedGroups.length===1?'':'s'):'Selected groups have no controls.')
+    :'Select one or more groups first.';
+}
+
+function applyGroupControlSelection(mode){
+  const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const wanted=document.getElementById('groupControlSelect').value;
+  if(!selectedFixtureIds||!wanted){setStatus('Select a group and a control first',true);return;}
+  if(mode==='only')Object.keys(participating).forEach(k=>participating[k]=false);
+  let changed=0;
+  (setup.fixtures||[]).forEach(f=>{
+    if(!selectedFixtureIds.has(f.id))return;
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      if(groupControlKey(c)!==wanted)return;
+      participating[controlKey(f,c)]=true;
+      changed++;
+    });
+  });
+  drawParticipation();
+  drawStepEditor();
+  const label=document.getElementById('groupControlSelect').selectedOptions[0]?.textContent||'control';
+  setStatus((mode==='only'?'Selected only ':'Added ')+label+' for '+changed+' fixture control'+(changed===1?'':'s'));
 }
 
 function getParticipatingList(){
   const result=[];
+  const selectedFixtureIds=selectedChaserGroupFixtureIds();
   (setup.fixtures||[]).forEach(f=>{
+    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return;
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{if(participating[controlKey(f,c)])result.push({f,c});});
   });
@@ -390,7 +621,22 @@ function getParticipatingList(){
 function drawParticipation(){
   const el=document.getElementById('participationList');
   el.innerHTML='';
-  (setup.fixtures||[]).forEach(f=>{
+  drawGroupControlTools();
+  const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const fixtures=(setup.fixtures||[]).filter(f=>{
+    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return false;
+    const p=fixtureProfile(f);if(!p)return false;
+    return p.controls.some(c=>participating[controlKey(f,c)]);
+  });
+  if(selectedFixtureIds&&!fixtures.length){
+    el.innerHTML='<div class="small">Selected groups have no participating controls in this setup.</div>';
+    return;
+  }
+  if(!fixtures.length){
+    el.innerHTML='<div class="small">No participating controls selected.</div>';
+    return;
+  }
+  fixtures.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
     const isCollapsed=collapsedPartFixtures.has(f.id);
     const item=document.createElement('div');item.className='item'+(isCollapsed?' collapsed':'');item.dataset.fixId=f.id;
@@ -438,11 +684,6 @@ function drawParticipation(){
 }
 
 // ---- steps ----
-let steps=[];
-let selectedStepIdx=-1;
-let collapsedFixtures=new Set(JSON.parse(localStorage.getItem('chaserCollapsedFix')||'[]'));
-let collapsedPartFixtures=new Set(JSON.parse(localStorage.getItem('chaserPartCollapsedFix')||'[]'));
-
 function calcDefaultDuration(){
   const bpm=parseFloat(document.getElementById('bpmInput').value)||120;
   const beats=parseFloat(document.getElementById('beatsPerStep').value)||1;
@@ -453,11 +694,37 @@ function calcDefaultFade(){return parseInt(document.getElementById('globalFade')
 function makeStep(label,vals){
   return{id:uid(),label:label||('Step '+(steps.length+1)),duration:calcDefaultDuration(),fade:calcDefaultFade(),values:vals||{}};
 }
+function validControlKeySet(){
+  const keys=new Set();
+  (setup.fixtures||[]).forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>keys.add(controlKey(f,c)));
+  });
+  return keys;
+}
+function involvedChaserValueKeys(){
+  const keys=new Set();
+  steps.forEach(step=>Object.keys(step?.values||{}).forEach(k=>keys.add(k)));
+  return keys;
+}
+function applyStepParticipating(step){
+  const valid=validControlKeySet();
+  const next={};
+  valid.forEach(k=>{next[k]=false;});
+  involvedChaserValueKeys().forEach(k=>{if(valid.has(k))next[k]=true;});
+  participating=next;
+  const before=Object.keys(step?.values||{}).length;
+  Object.keys(step?.values||{}).forEach(k=>{if(!valid.has(k))delete step.values[k];});
+  return{active:Object.values(next).filter(Boolean).length,removed:before-Object.keys(step?.values||{}).length};
+}
 function addStep(vals){
   if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
-  const s=makeStep(null,vals);
+  const initial=vals||{};
+  if(!vals)getParticipatingList().forEach(({f,c})=>{initial[controlKey(f,c)]=defaultValue(c);});
+  const s=makeStep(null,initial);
   steps.push(s);
   selectedStepIdx=steps.length-1;
+  applyStepParticipating(s);
   drawStepList();drawStepEditor();
   setStatus('Step '+(steps.length)+' added');
 }
@@ -544,12 +811,22 @@ function drawStepList(){
   });
   el.onclick=e=>{
     const s=e.target.dataset.sel,d=e.target.dataset.dup,x=e.target.dataset.del,u=e.target.dataset.up,dn=e.target.dataset.dn;
-    if(s!==undefined){selectedStepIdx=parseInt(s);drawStepList();drawStepEditor();}
+    if(s!==undefined){selectStepForEdit(parseInt(s));}
     else if(d!==undefined)duplicateStep(parseInt(d));
     else if(x!==undefined)deleteStep(parseInt(x));
     else if(u!==undefined)moveStep(parseInt(u),-1);
     else if(dn!==undefined)moveStep(parseInt(dn),1);
   };
+}
+
+async function selectStepForEdit(idx){
+  selectedStepIdx=idx;
+  chaserGroupsBox?.clearSelection?.();
+  const result=applyStepParticipating(steps[idx]);
+  drawStepList();
+  drawParticipation();
+  drawStepEditor();
+  setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
 }
 
 // ---- step editor ----
@@ -673,6 +950,77 @@ function handleStepClick(e){
   }
   if(e.target.dataset.wheel!==undefined){setStepVal(f,c,clamp(e.target.dataset.wheel,0,255));updateStepDisplay(f,c);return;}
 }
+
+function handleChaserGroupInput(e){
+  const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
+  let v=getChaserGroupValue(c);
+  if(e.target.dataset.colorPicker){
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.value);v={...v,a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')v=rgbToCmy(e.target.value);
+    else if(c.type==='cmyk')v=rgbToCmyk(e.target.value);
+  }else if(e.target.dataset.axis){
+    v={...v,[e.target.dataset.axis]:clamp(e.target.value,0,c.type==='panTilt8'?255:65535)};
+  }else if(e.target.dataset.byteAxis){
+    const axis=e.target.dataset.byteAxis,b=bytes16(v[axis]??0);
+    b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);
+    v={...v,[axis]:(b.coarse<<8)|b.fine};
+  }else if(e.target.dataset.bytePart){
+    const b=bytes16(v??0);
+    b[e.target.dataset.bytePart]=clamp(e.target.value,0,255);
+    v=(b.coarse<<8)|b.fine;
+  }else if(e.target.dataset.part){
+    v={...v,[e.target.dataset.part]:clamp(e.target.value,0,255)};
+  }else{
+    v=clamp(e.target.value,0,c.type==='slider16'?65535:255);
+  }
+  setChaserGroupValue(c,v);
+  updateChaserGroupControlDisplay(c);
+  drawStepEditor();
+}
+
+function handleChaserGroupClick(e){
+  const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
+  if(e.target.dataset.cgCenter){
+    const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
+    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();return;
+  }
+  if(e.target.dataset.cgColor){
+    let v=getChaserGroupValue(c);
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.cgColor);v={...v,a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.cgColor);
+    else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.cgColor);
+    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();return;
+  }
+  if(e.target.dataset.cgWheel!==undefined){
+    setChaserGroupValue(c,clamp(e.target.dataset.cgWheel,0,255));updateChaserGroupControlDisplay(c);drawStepEditor();
+  }
+}
+
+function setChaserGroupXY(e,pad){
+  const c=chaserGroupControlByDataKey(pad.dataset.cgxy);if(!c)return;
+  const r=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+  const max=c.type==='panTilt8'?255:65535;
+  setChaserGroupValue(c,{pan:Math.round(x*max),tilt:Math.round((1-y)*max)});
+  updateChaserGroupControlDisplay(c);
+  drawStepEditor();
+}
+
+document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
+document.getElementById('closeChaserGroupModal2').onclick=closeChaserGroupModal;
+document.getElementById('chaserGroupModal').addEventListener('click',e=>{if(e.target===document.getElementById('chaserGroupModal'))closeChaserGroupModal();});
+const chaserGroupModalBody=document.getElementById('chaserGroupModalBody');
+chaserGroupModalBody.oninput=handleChaserGroupInput;
+chaserGroupModalBody.onclick=handleChaserGroupClick;
+chaserGroupModalBody.addEventListener('pointerdown',e=>{
+  const pad=e.target.closest('[data-cgxy]');if(!pad)return;
+  pad.setPointerCapture(e.pointerId);setChaserGroupXY(e,pad);
+});
+chaserGroupModalBody.addEventListener('pointermove',e=>{
+  const pad=e.target.closest('[data-cgxy]');if(!pad||!pad.hasPointerCapture(e.pointerId))return;
+  setChaserGroupXY(e,pad);
+});
 
 function updateStepDisplay(f,c){
   const fi=f.id,ci=c.id;
@@ -942,8 +1290,40 @@ function applyChaserData(data){
   drawParticipation();drawStepList();drawStepEditor();
 }
 function applyParticipatingData(data){
-  if(data&&typeof data==='object')Object.assign(participating,data);
+  if(data&&typeof data==='object'){
+    const next={};
+    (setup.fixtures||[]).forEach(f=>{
+      const p=fixtureProfile(f);if(!p)return;
+      p.controls.forEach(c=>{
+        const k=controlKey(f,c);
+        next[k]=data[k]===true;
+      });
+    });
+    participating=next;
+  }
   drawParticipation();drawStepEditor();
+}
+
+async function saveSelectedStepAsScene(){
+  const step=steps[selectedStepIdx];
+  if(!step){setStatus('Select a step before saving a scene',true);return;}
+  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Scene save needs the XAMPP server',true);return;}
+  try{
+    const r=await fetch('scene_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    const scenes=(j.ok&&j.exists&&Array.isArray(j.scenes))?j.scenes:[];
+    const slotCols=j.slotCols||4,slotRows=j.slotRows||4,total=slotCols*slotRows;
+    let slot=0;
+    while(slot<total&&scenes.some(s=>s.slot===slot))slot++;
+    if(slot>=total){setStatus('No free scene slot available',true);return;}
+    const name=prompt('Scene name','Chaser '+(selectedStepIdx+1)+' - '+(step.label||'Step'));
+    if(!name)return;
+    scenes.push({id:'scene_'+Date.now(),name,slot,values:JSON.parse(JSON.stringify(step.values||{}))});
+    const wr=await fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrlEl.value,scenes,slotCols,slotRows})});
+    const wj=await wr.json();
+    if(wj.ok)setStatus('Saved scene "'+name+'" to slot '+(slot+1));
+    else setStatus('Scene save failed: '+wj.error,true);
+  }catch(err){setStatus('Scene save failed: '+err.message,true);}
 }
 async function saveChaserToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
@@ -1090,8 +1470,35 @@ document.getElementById('btnApplyMeta').onclick=()=>{
   document.getElementById('editorTitle').textContent='#'+(selectedStepIdx+1)+' – '+step.label;
   setStatus('Step meta updated');
 };
-document.getElementById('btnSelAll').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=true);drawParticipation();drawStepEditor();};
-document.getElementById('btnSelNone').onclick=()=>{Object.keys(participating).forEach(k=>participating[k]=false);drawParticipation();drawStepEditor();};
+document.getElementById('btnSaveStepScene').onclick=()=>saveSelectedStepAsScene();
+document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
+  const panel=document.getElementById(btn.dataset.panelToggle);
+  const key='chaserPanelCollapsed_'+btn.dataset.panelToggle;
+  const setCollapsed=collapsed=>{
+    panel.classList.toggle('collapsed-panel',collapsed);
+    btn.textContent=collapsed?'+':'−';
+    btn.title=(collapsed?'Expand ':'Collapse ')+panel.querySelector('h2')?.textContent.trim();
+    localStorage.setItem(key,collapsed?'1':'');
+  };
+  setCollapsed(localStorage.getItem(key)==='1');
+  btn.onclick=()=>setCollapsed(!panel.classList.contains('collapsed-panel'));
+});
+document.getElementById('btnSelAll').onclick=()=>{
+  Object.keys(participating).forEach(k=>participating[k]=true);
+  collapsedPartFixtures.clear();
+  localStorage.setItem('chaserPartCollapsedFix','[]');
+  drawParticipation();
+  drawStepEditor();
+};
+document.getElementById('btnSelNone').onclick=()=>{
+  Object.keys(participating).forEach(k=>participating[k]=false);
+  collapsedPartFixtures=new Set((setup.fixtures||[]).map(f=>f.id));
+  localStorage.setItem('chaserPartCollapsedFix',JSON.stringify([...collapsedPartFixtures]));
+  drawParticipation();
+  drawStepEditor();
+};
+document.getElementById('btnGroupControlOnly').onclick=()=>applyGroupControlSelection('only');
+document.getElementById('btnGroupControlAdd').onclick=()=>applyGroupControlSelection('add');
 document.getElementById('btnSavePart').onclick=()=>saveParticipatingToServer();
 document.getElementById('btnLoadPart').onclick=async()=>{
   const loaded=await loadParticipatingFromServer();
