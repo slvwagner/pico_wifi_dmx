@@ -307,6 +307,33 @@ async function sendLaneValues(g, lane) {
     updatePreview(g, lane);
 }
 
+async function readCurrentPanTiltValue(root, fix, ctrl) {
+    const max = ctrl.type === 'panTilt8' ? 255 : 65535;
+    const fallback = { pan: Math.round(max / 2), tilt: Math.round(max / 2) };
+    if (!root) return fallback;
+    const st = fix.start;
+    const channels = ctrl.type === 'panTilt16'
+        ? [st + ctrl.pan - 1, st + (ctrl.panFine ?? ctrl.pan + 1) - 1, st + ctrl.tilt - 1, st + (ctrl.tiltFine ?? ctrl.tilt + 1) - 1]
+        : [st + ctrl.pan - 1, st + ctrl.tilt - 1];
+    const first = Math.min(...channels);
+    const last = Math.max(...channels);
+    try {
+        const j = await fetch(root + `/dmx/values?first=${first}&count=${last - first + 1}`, { cache: 'no-store' }).then(r => r.json());
+        if (!j.ok || !Array.isArray(j.values)) return fallback;
+        const at = ch => j.values[ch - first] ?? 0;
+        if (ctrl.type === 'panTilt16') {
+            const panC = st + ctrl.pan - 1;
+            const panF = st + (ctrl.panFine ?? ctrl.pan + 1) - 1;
+            const tiltC = st + ctrl.tilt - 1;
+            const tiltF = st + (ctrl.tiltFine ?? ctrl.tilt + 1) - 1;
+            return { pan: (at(panC) << 8) | at(panF), tilt: (at(tiltC) << 8) | at(tiltF) };
+        }
+        return { pan: at(st + ctrl.pan - 1), tilt: at(st + ctrl.tilt - 1) };
+    } catch (_) {
+        return fallback;
+    }
+}
+
 // Fetch current channel values and store as base for one lane.
 async function snapshotLaneBase(g, lane) {
     const root = document.getElementById('baseUrl').value.replace(/\/+$/, '');
@@ -1038,21 +1065,24 @@ function slotDblClick(idx){
 }
 async function saveSceneToSlot(idx,name){
   try{
+    const root=baseUrlEl.value.replace(/\/+$/,'');
     const sv={};
-    groups.forEach(g=>g.lanes.forEach(lane=>{
-      calcLaneValues(g,lane).forEach(({fixture,finalVal})=>{
+    for(const g of groups){
+      for(const lane of g.lanes){
+        for(const {fixture,finalVal} of calcLaneValues(g,lane)){
         const resolved=resolveControlForLane(fixture,lane.controlKey);
-        if(!resolved)return;
+        if(!resolved)continue;
         const {ctrl,axis}=resolved;
         const key=fixture.id+':'+ctrl.id;
         if(ctrl.type==='panTilt16'||ctrl.type==='panTilt8'){
-          const cur=(sv[key]&&typeof sv[key]==='object')?sv[key]:{};
+          const cur=(sv[key]&&typeof sv[key]==='object')?sv[key]:await readCurrentPanTiltValue(root,fixture,ctrl);
           if(axis==='pan'||axis==='tilt')sv[key]={...cur,[axis]:finalVal};
         }else{
           sv[key]=finalVal;
         }
-      });
-    }));
+        }
+      }
+    }
     if(!Object.keys(sv).length){setStatus('No configured Fan Out values to save as scene',true);return;}
     const ei=scenes.findIndex(sc=>sc.slot===idx);if(ei>=0)scenes.splice(ei,1);
     scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:sv});

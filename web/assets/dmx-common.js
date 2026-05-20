@@ -65,6 +65,7 @@
   }
 
   const TOOLBOX_ORDER_KEY='toolboxRailOrder';
+  const TOOLBOX_WIDTH_KEY='toolboxRailWidth';
   const DEFAULT_TOOLBOX_ORDER=['groups','scenes','chases','steps','browserPlayback'];
 
   function normalizeToolboxOrder(order,types){
@@ -105,22 +106,99 @@
     saveUiState('toolboxes',TOOLBOX_ORDER_KEY,merged);
   }
 
+  function clampToolboxRailWidth(value){
+    const min=300;
+    const max=Math.max(min,Math.min(760,window.innerWidth-360));
+    return Math.max(min,Math.min(max,parseInt(value,10)||0));
+  }
+
+  function setToolboxRailWidth(value,{save=false}={}){
+    if(window.matchMedia&&window.matchMedia('(max-width:1100px)').matches)return;
+    const width=clampToolboxRailWidth(value);
+    document.documentElement.style.setProperty('--toolbox-rail-width',width+'px');
+    if(save){
+      localStorage.setItem(TOOLBOX_WIDTH_KEY,String(width));
+      saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,width);
+    }
+  }
+
+  async function applySharedToolboxRailWidth(){
+    const local=parseInt(localStorage.getItem(TOOLBOX_WIDTH_KEY)||'',10);
+    if(local)setToolboxRailWidth(local);
+    const shared=await loadUiState('toolboxes');
+    if(shared[TOOLBOX_WIDTH_KEY]){
+      localStorage.setItem(TOOLBOX_WIDTH_KEY,String(shared[TOOLBOX_WIDTH_KEY]));
+      setToolboxRailWidth(shared[TOOLBOX_WIDTH_KEY]);
+    }
+  }
+
+  function initToolboxRailResize(rail){
+    if(!rail||rail.querySelector('.toolbox-rail-resizer'))return;
+    const handle=document.createElement('div');
+    handle.className='toolbox-rail-resizer';
+    handle.title='Drag to resize toolboxes';
+    rail.prepend(handle);
+    let active=false;
+    const onMove=e=>{
+      if(!active)return;
+      setToolboxRailWidth(window.innerWidth-e.clientX);
+    };
+    const onUp=e=>{
+      if(!active)return;
+      active=false;
+      document.body.classList.remove('toolbox-rail-resizing');
+      handle.releasePointerCapture?.(e.pointerId);
+      setToolboxRailWidth(window.innerWidth-e.clientX,{save:true});
+      window.removeEventListener('pointermove',onMove);
+      window.removeEventListener('pointerup',onUp);
+      window.removeEventListener('pointercancel',onUp);
+    };
+    handle.addEventListener('pointerdown',e=>{
+      if(window.matchMedia&&window.matchMedia('(max-width:1100px)').matches)return;
+      active=true;
+      document.body.classList.add('toolbox-rail-resizing');
+      handle.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+      window.addEventListener('pointermove',onMove);
+      window.addEventListener('pointerup',onUp);
+      window.addEventListener('pointercancel',onUp);
+    });
+    handle.addEventListener('dblclick',()=>{
+      localStorage.removeItem(TOOLBOX_WIDTH_KEY);
+      document.documentElement.style.removeProperty('--toolbox-rail-width');
+      saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,null);
+    });
+  }
+
+  function configureToolboxRailDragHandle(box){
+    if(!box)return;
+    box.draggable=false;
+    const header=box.querySelector('.scene-toolbox__header');
+    if(!header)return;
+    header.draggable=true;
+    header.dataset.toolboxDragHandle='1';
+    header.title=header.title||'Drag to reorder toolbox';
+  }
+
   function initToolboxRail(rail,entries){
     if(!rail)return;
+    initToolboxRailResize(rail);
+    applySharedToolboxRailWidth().catch(()=>{});
     (entries||[]).forEach(entry=>{
       const box=typeof entry.box==='string'?document.getElementById(entry.box):entry.box;
       if(!box)return;
       box.dataset.toolboxType=entry.type||box.id;
-      box.draggable=true;
+      configureToolboxRailDragHandle(box);
       rail.appendChild(box);
     });
-    rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(box=>{box.draggable=true;});
+    rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(configureToolboxRailDragHandle);
     applySharedToolboxOrder(rail).catch(()=>{});
     if(rail.dataset.toolboxRailInit==='1')return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
     rail.dataset.toolboxRailInit='1';
 
     rail.addEventListener('dragstart',e=>{
-      const box=e.target.closest('.scene-toolbox[data-toolbox-type]');
+      const handle=e.target.closest('.scene-toolbox__header[data-toolbox-drag-handle="1"]');
+      const box=handle?.closest('.scene-toolbox[data-toolbox-type]');
       if(!box||e.target.closest('button,input,select,textarea,a')){e.preventDefault();return;}
       box.classList.add('toolbox-dragging');
       e.dataTransfer.effectAllowed='move';

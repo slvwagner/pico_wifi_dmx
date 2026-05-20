@@ -2023,8 +2023,27 @@ function saveSceneToSlot(idx,name){
   renderSlotMatrix();saveScenesServer();
   setStatus('Scene "'+name+'" saved to slot '+(idx+1));
 }
+function normalizedSceneValues(sceneValues){
+  const out=JSON.parse(JSON.stringify(sceneValues||{}));
+  fixtures.forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      if(c.type!=='panTilt16'&&c.type!=='panTilt8')return;
+      const key=controlKey(f,c);
+      const v=out[key];
+      if(!v||typeof v!=='object')return;
+      const current=getValue(f,c,defaultValueForControl(c));
+      const fallback=defaultValueForControl(c);
+      out[key]={
+        pan:v.pan!==undefined?v.pan:(current.pan!==undefined?current.pan:fallback.pan),
+        tilt:v.tilt!==undefined?v.tilt:(current.tilt!==undefined?current.tilt:fallback.tilt)
+      };
+    });
+  });
+  return out;
+}
 function recallScene(s){
-  Object.assign(values,s.values);
+  Object.assign(values,normalizedSceneValues(s.values));
   drawSurface();
   writeLiveValues(true);
   if(live.checked){
