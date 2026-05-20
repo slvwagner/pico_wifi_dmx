@@ -112,8 +112,14 @@ button{white-space:nowrap}
 </div>
 </div>
 
+<aside id="fanToolboxRail" class="toolbox-rail" aria-label="Fan out toolboxes"></aside>
+
 <script>
 'use strict';
+document.body.classList.add('toolbox-rail-layout');
+const fanToolboxRail=document.getElementById('fanToolboxRail');
+const fanSceneBox=document.getElementById('sceneBox');
+if(fanSceneBox&&fanToolboxRail)fanToolboxRail.appendChild(fanSceneBox);
 // ---- state ----
 let profiles = [], fixturesAll = [];
 let groups = [];  // { id, orderedFixtureIds, lanes: [lane,...] }
@@ -867,6 +873,7 @@ DmxCommon.initGroupsToolbox({
     page:'fan',
     idPrefix:'fanGroupsToolbox',
     title:'Groups',
+    host:fanToolboxRail||document.body,
     baseUrlInput:baseUrlEl,
     onStatus:setStatus,
     onSelectionChange:selected=>{
@@ -908,13 +915,41 @@ document.getElementById('fromSavedGroupSel').addEventListener('change', e => {
 // ── Scene Toolbox ─────────────────────────────────────────────────────
 function escHtml(s){return DmxCommon.escapeHtml(s);}
 let scenes=[];let slotCols=4,slotRows=4;
+function requiredSceneSlots(){
+  return scenes.reduce((max,s)=>Math.max(max,(parseInt(s.slot,10)||0)+1),0);
+}
+function normalizeSceneGrid(priority='cols'){
+  const needed=requiredSceneSlots();
+  slotCols=Math.max(1,Math.min(12,parseInt(slotCols)||4));
+  slotRows=Math.max(1,Math.min(12,parseInt(slotRows)||4));
+  if(needed&&slotCols*slotRows<needed){
+    if(priority==='rows'){
+      slotCols=Math.max(slotCols,Math.ceil(needed/slotRows));
+      if(slotCols>12){slotCols=12;slotRows=Math.ceil(needed/slotCols);}
+    }else{
+      slotRows=Math.max(slotRows,Math.ceil(needed/slotCols));
+      if(slotRows>12){slotRows=12;slotCols=Math.ceil(needed/slotRows);}
+    }
+  }
+  const colsInput=document.getElementById('slotCols');
+  const rowsInput=document.getElementById('slotRows');
+  if(colsInput){
+    colsInput.min=Math.max(1,Math.ceil(needed/slotRows));
+    colsInput.value=slotCols;
+  }
+  if(rowsInput){
+    rowsInput.min=Math.max(1,Math.ceil(needed/slotCols));
+    rowsInput.value=slotRows;
+  }
+}
 (()=>{const sc=localStorage.getItem('fanSceneSlotCols'),sr=localStorage.getItem('fanSceneSlotRows');if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}})();
-document.getElementById('slotCols').addEventListener('input',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('fanSceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
-document.getElementById('slotRows').addEventListener('input',e=>{slotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('fanSceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotCols').addEventListener('input',e=>{slotCols=e.target.value;normalizeSceneGrid('cols');localStorage.setItem('fanSceneSlotCols',slotCols);localStorage.setItem('fanSceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotRows').addEventListener('input',e=>{slotRows=e.target.value;normalizeSceneGrid('rows');localStorage.setItem('fanSceneSlotCols',slotCols);localStorage.setItem('fanSceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
 function renderSlotMatrix(){
   const grid=document.getElementById('slotMatrix');
+  normalizeSceneGrid('cols');
   const total=slotCols*slotRows;
-  grid.style.gridTemplateColumns='repeat('+slotCols+',54px)';
+  grid.style.gridTemplateColumns='repeat('+slotCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);

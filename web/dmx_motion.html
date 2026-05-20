@@ -155,7 +155,13 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
+<aside id="motionToolboxRail" class="toolbox-rail" aria-label="Motion effects toolboxes"></aside>
+
 <script>
+document.body.classList.add('toolbox-rail-layout');
+const motionToolboxRail=document.getElementById('motionToolboxRail');
+const motionSceneBox=document.getElementById('motionSceneBox');
+if(motionSceneBox&&motionToolboxRail)motionToolboxRail.appendChild(motionSceneBox);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -176,6 +182,7 @@ motionGroupsBox=DmxCommon.initGroupsToolbox({
   page:'motion',
   idPrefix:'motionGroups',
   title:'Groups',
+  host:motionToolboxRail||document.body,
   showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
@@ -1087,11 +1094,23 @@ loadSetup().finally(async()=>{
 });
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
+function requiredMotionSceneSlots(){
+  return motionScenes.reduce((max,s)=>Math.max(max,(parseInt(s.slot,10)||0)+1),0);
+}
+function normalizeMotionSceneGrid(){
+  const needed=requiredMotionSceneSlots();
+  motionSlotCols=Math.max(1,parseInt(motionSlotCols)||4);
+  motionSlotRows=Math.max(1,parseInt(motionSlotRows)||4);
+  if(needed&&motionSlotCols*motionSlotRows<needed){
+    motionSlotRows=Math.ceil(needed/motionSlotCols);
+  }
+}
 function escMotionHtml(s){return DmxCommon.escapeHtml(s);}
 function renderMotionSlotGrid(){
   const grid=document.getElementById('motionSlotGrid');
+  normalizeMotionSceneGrid();
   const total=motionSlotCols*motionSlotRows;
-  grid.style.gridTemplateColumns='repeat('+motionSlotCols+',54px)';
+  grid.style.gridTemplateColumns='repeat('+motionSlotCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const s=motionScenes.find(sc=>sc.slot===i);

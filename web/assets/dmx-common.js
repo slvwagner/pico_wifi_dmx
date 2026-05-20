@@ -275,18 +275,22 @@
 
     function key(g,i){return g.id||('idx_'+i);}
     function selectedGroups(){return groups.filter((g,i)=>selectedIds.has(key(g,i)));}
-    function clampLayout(){
+    function clampLayout(priority='cols'){
       const count=groups.length;
       cols=Math.max(1,Math.min(8,parseInt(cols)||2));
       rows=Math.max(1,Math.min(12,parseInt(rows)||4));
       if(count&&cols*rows<count){
-        const neededRows=Math.ceil(count/cols);
-        if(neededRows<=12)rows=neededRows;
-        else cols=Math.min(8,Math.ceil(count/rows));
+        if(priority==='rows'){
+          cols=Math.max(cols,Math.ceil(count/rows));
+          if(cols>8){cols=8;rows=Math.ceil(count/cols);}
+        }else{
+          rows=Math.max(rows,Math.ceil(count/cols));
+          if(rows>12){rows=12;cols=Math.ceil(count/rows);}
+        }
       }
     }
-    function applyLayout(){
-      clampLayout();
+    function applyLayout(priority='cols'){
+      clampLayout(priority);
       const list=document.getElementById(listId);
       if(list)list.style.gridTemplateColumns='repeat('+cols+',minmax(170px,1fr))';
       if(box){
@@ -304,8 +308,8 @@
         rowsInput.value=rows;
       }
     }
-    function saveLayout(){
-      clampLayout();
+    function saveLayout(priority='cols'){
+      clampLayout(priority);
       localStorage.setItem(statePrefix+'Cols',cols);
       localStorage.setItem(statePrefix+'Rows',rows);
       saveUiState(page,statePrefix+'Cols',cols);
@@ -410,8 +414,8 @@
     };
     const edit=document.getElementById(idPrefix+'Edit');
     if(edit)edit.onclick=()=>{const selected=selectedGroups();if(selected.length)options.onEdit?.(selected);};
-    document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout();render();saveLayout();});
-    document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout();render();saveLayout();});
+    document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout('cols');render();saveLayout('cols');});
+    document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout('rows');render();saveLayout('rows');});
     loadUiState(page).then(st=>{
       if(st[statePrefix+'Collapsed']!==undefined)toolbox.setCollapsed(!!st[statePrefix+'Collapsed'],false);
       if(st[statePrefix+'Pos'])toolbox.applyPosition(st[statePrefix+'Pos']);

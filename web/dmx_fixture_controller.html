@@ -270,7 +270,15 @@ Blue=48</textarea>
 </div>
 </div>
 
+<aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
+
 <script>
+document.body.classList.add('toolbox-rail-layout');
+const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
+['groupsBox','sceneBox'].forEach(id=>{
+  const box=document.getElementById(id);
+  if(box&&fixtureToolboxRail)fixtureToolboxRail.appendChild(box);
+});
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
@@ -1713,18 +1721,22 @@ function loadSavedGroups(){
     savedGroups=normalizeSavedGroups(d.groups);renderSavedGroupsList();
   }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
 }
-function clampGroupLayout(){
+function clampGroupLayout(priority='cols'){
   const groupCount=savedGroups.length;
   groupCols=Math.max(1,Math.min(8,parseInt(groupCols)||2));
   groupRows=Math.max(1,Math.min(12,parseInt(groupRows)||4));
   if(groupCount&&groupCols*groupRows<groupCount){
-    const rowsNeeded=Math.ceil(groupCount/groupCols);
-    if(rowsNeeded<=12)groupRows=rowsNeeded;
-    else groupCols=Math.min(8,Math.ceil(groupCount/groupRows));
+    if(priority==='rows'){
+      groupCols=Math.max(groupCols,Math.ceil(groupCount/groupRows));
+      if(groupCols>8){groupCols=8;groupRows=Math.ceil(groupCount/groupCols);}
+    }else{
+      groupRows=Math.max(groupRows,Math.ceil(groupCount/groupCols));
+      if(groupRows>12){groupRows=12;groupCols=Math.ceil(groupCount/groupRows);}
+    }
   }
 }
-function applyGroupsBoxLayout(){
-  clampGroupLayout();
+function applyGroupsBoxLayout(priority='cols'){
+  clampGroupLayout(priority);
   const list=document.getElementById('savedGroupsList');
   if(list)list.style.gridTemplateColumns='repeat('+groupCols+',minmax(170px,1fr))';
   const box=document.getElementById('groupsBox');
@@ -1886,13 +1898,13 @@ document.getElementById('editSelectedGroups').onclick=editSelectedGroups;
 })();
 document.getElementById('groupCols').addEventListener('input',e=>{
   groupCols=e.target.value;
-  applyGroupsBoxLayout();
+  applyGroupsBoxLayout('cols');
   renderSavedGroupsList();
   saveGroupsBoxLayout();
 });
 document.getElementById('groupRows').addEventListener('input',e=>{
   groupRows=e.target.value;
-  applyGroupsBoxLayout();
+  applyGroupsBoxLayout('rows');
   renderSavedGroupsList();
   saveGroupsBoxLayout();
 });
@@ -1932,17 +1944,45 @@ loadSavedGroups();
 let scenes=[];
 let slotCols=4,slotRows=4;
 const SCENE_SLOT_GRID_MAX=32;
+function requiredSceneSlots(){
+  return scenes.reduce((max,s)=>Math.max(max,(parseInt(s.slot,10)||0)+1),0);
+}
+function normalizeSceneGrid(priority='cols'){
+  const needed=requiredSceneSlots();
+  slotCols=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(slotCols)||4));
+  slotRows=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(slotRows)||4));
+  if(needed&&slotCols*slotRows<needed){
+    if(priority==='rows'){
+      slotCols=Math.max(slotCols,Math.ceil(needed/slotRows));
+      if(slotCols>SCENE_SLOT_GRID_MAX){slotCols=SCENE_SLOT_GRID_MAX;slotRows=Math.ceil(needed/slotCols);}
+    }else{
+      slotRows=Math.max(slotRows,Math.ceil(needed/slotCols));
+      if(slotRows>SCENE_SLOT_GRID_MAX){slotRows=SCENE_SLOT_GRID_MAX;slotCols=Math.ceil(needed/slotRows);}
+    }
+  }
+  const colsInput=document.getElementById('slotCols');
+  const rowsInput=document.getElementById('slotRows');
+  if(colsInput){
+    colsInput.min=Math.max(1,Math.ceil(needed/slotRows));
+    colsInput.value=slotCols;
+  }
+  if(rowsInput){
+    rowsInput.min=Math.max(1,Math.ceil(needed/slotCols));
+    rowsInput.value=slotRows;
+  }
+}
 (()=>{
   const sc=localStorage.getItem('sceneSlotCols'),sr=localStorage.getItem('sceneSlotRows');
   if(sc){slotCols=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}
   if(sr){slotRows=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}
 })();
-document.getElementById('slotCols').addEventListener('input',e=>{slotCols=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
-document.getElementById('slotRows').addEventListener('input',e=>{slotRows=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotCols').addEventListener('input',e=>{slotCols=e.target.value;normalizeSceneGrid('cols');localStorage.setItem('sceneSlotCols',slotCols);localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotRows').addEventListener('input',e=>{slotRows=e.target.value;normalizeSceneGrid('rows');localStorage.setItem('sceneSlotCols',slotCols);localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
 function renderSlotMatrix(){
   const grid=document.getElementById('slotMatrix');
+  normalizeSceneGrid('cols');
   const total=slotCols*slotRows;
-  grid.style.gridTemplateColumns='repeat('+slotCols+',54px)';
+  grid.style.gridTemplateColumns='repeat('+slotCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
