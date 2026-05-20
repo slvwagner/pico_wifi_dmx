@@ -207,7 +207,11 @@ The Chaser page uses several floating boxes:
 
 Loading a chase from the **Chases** box updates the step list, participating controls, and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
-The position, collapse state, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.
+The **All** button is only shown on **Steps** and **Browser Playback**. It switches those two boxes into a compact mode: the box whose **All** button was pressed stays in place, the other box is pulled next to it, and both boxes collapse to their headers. In compact mode, dragging either header moves both boxes together as one pair. Press **All** again to restore their previous positions and reopen both boxes.
+
+The **Chases** box stays independent and does not have an **All** button.
+
+The position, collapse state, compact-pair state, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.
 
 ### Participating Controls
 

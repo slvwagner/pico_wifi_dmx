@@ -276,6 +276,7 @@ try {
     if(btn)btn.textContent='−';
   }
 
+  localStorage.removeItem('chaserCompactState');
   expandPanel('participationPanel');
   expandPanel('stepEditorSection');
   ['stepsBox','browserPlaybackBox','chaseBox'].forEach(openToolbox);

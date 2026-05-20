@@ -42,6 +42,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 #stepsBoxBody>.buttons:first-child{position:sticky;top:0;z-index:2;background:var(--panel);border-bottom:1px solid var(--line);padding-bottom:10px;margin:-12px -12px 0;padding:12px}
 #browserPlaybackBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto}
 #browserPlaybackBox .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end}
+.chaser-toolbox-actions{display:flex;gap:6px;align-items:center}
+.chaser-collapse-all{padding:3px 8px;font-size:12px;line-height:1;min-width:32px}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
@@ -134,7 +136,10 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
   <div id="stepsBox" class="scene-toolbox">
     <div id="stepsBoxHdr" class="scene-toolbox__header">
       <span style="font-weight:700;font-size:13px">Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
-      <button id="stepsBoxToggle" class="scene-toolbox__toggle">—</button>
+      <div class="chaser-toolbox-actions">
+        <button class="chaser-collapse-all" data-anchor-box="stepsBox" title="Toggle compact Steps and Browser Playback boxes">All</button>
+        <button id="stepsBoxToggle" class="scene-toolbox__toggle">—</button>
+      </div>
     </div>
     <div id="stepsBoxBody" class="scene-toolbox__body">
       <div class="buttons" style="justify-content:flex-start">
@@ -156,7 +161,10 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
   <section id="browserPlaybackBox" class="scene-toolbox">
     <div id="browserPlaybackBoxHdr" class="scene-toolbox__header">
       <span style="font-weight:700;font-size:13px">Browser Playback</span>
-      <button id="browserPlaybackBoxToggle" class="scene-toolbox__toggle">—</button>
+      <div class="chaser-toolbox-actions">
+        <button class="chaser-collapse-all" data-anchor-box="browserPlaybackBox" title="Toggle compact Steps and Browser Playback boxes">All</button>
+        <button id="browserPlaybackBoxToggle" class="scene-toolbox__toggle">—</button>
+      </div>
     </div>
     <div id="browserPlaybackBoxBody" class="scene-toolbox__body">
     <div class="toolbar">
@@ -266,7 +274,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div id="chaseBox" class="scene-toolbox">
 <div id="chaseBoxHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Chases</span>
+<div class="chaser-toolbox-actions">
 <button id="chaseBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
 </div>
 <div id="chaseBoxBody" class="scene-toolbox__body">
 <div class="buttons">
@@ -1483,6 +1493,139 @@ const browserPlaybackToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'browserPlaybackBoxPos',
   uiStateCollapsedKey:'browserPlaybackBoxCollapsed'
 });
+const chaserCompactBoxes=[
+  {id:'stepsBox',toolbox:stepsToolbox,posKey:'stepsBoxPos',collapsedKey:'stepsBoxCollapsed',sizeKey:'stepsBoxSize'},
+  {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox,posKey:'browserPlaybackBoxPos',collapsedKey:'browserPlaybackBoxCollapsed'}
+];
+function boxSnapshot(cfg){
+  const box=document.getElementById(cfg.id);
+  if(!box)return null;
+  const snap={
+    id:cfg.id,
+    collapsed:box.classList.contains('collapsed'),
+    pos:{x:parseInt(box.style.left)||Math.round(box.offsetLeft)||0,y:parseInt(box.style.top)||Math.round(box.offsetTop)||0}
+  };
+  if(cfg.sizeKey)snap.size={w:Math.round(box.offsetWidth),h:Math.round(box.offsetHeight)};
+  return snap;
+}
+function saveToolboxPosition(cfg,pos){
+  cfg.toolbox?.applyPosition?.(pos);
+  localStorage.setItem(cfg.posKey,JSON.stringify(pos));
+  DmxCommon.saveUiState('chaser',cfg.posKey,pos);
+}
+function compactNeighborPosition(anchorBox,otherBox){
+  const gap=8;
+  const ar=anchorBox.getBoundingClientRect();
+  const or=otherBox.getBoundingClientRect();
+  const acx=ar.left+ar.width/2,acy=ar.top+ar.height/2;
+  const ocx=or.left+or.width/2,ocy=or.top+or.height/2;
+  let x=ar.left,y=ar.top;
+  if(Math.abs(ocx-acx)>Math.abs(ocy-acy)){
+    x=ocx>=acx?ar.right+gap:ar.left-otherBox.offsetWidth-gap;
+    y=ar.top;
+  }else{
+    x=ar.left;
+    y=ocy>=acy?ar.bottom+gap:ar.top-otherBox.offsetHeight-gap;
+  }
+  return{
+    x:Math.max(0,Math.min(window.innerWidth-otherBox.offsetWidth,Math.round(x))),
+    y:Math.max(0,Math.min(window.innerHeight-otherBox.offsetHeight,Math.round(y)))
+  };
+}
+function restoreChaserCompactState(saved){
+  if(!saved?.boxes)return;
+  saved.boxes.forEach(s=>{
+    const cfg=chaserCompactBoxes.find(b=>b.id===s.id);
+    if(!cfg)return;
+    if(s.size&&cfg.sizeKey)cfg.toolbox?.applySize?.(s.size);
+    if(s.pos)saveToolboxPosition(cfg,s.pos);
+    cfg.toolbox?.setCollapsed?.(false,true);
+  });
+  localStorage.removeItem('chaserCompactState');
+  DmxCommon.saveUiState('chaser','chaserCompactState',null);
+}
+function toggleChaserCompact(anchorId){
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){}
+  if(saved){restoreChaserCompactState(saved);return;}
+  const snapshot={anchorId,boxes:chaserCompactBoxes.map(boxSnapshot).filter(Boolean)};
+  localStorage.setItem('chaserCompactState',JSON.stringify(snapshot));
+  DmxCommon.saveUiState('chaser','chaserCompactState',snapshot);
+
+  const anchorCfg=chaserCompactBoxes.find(b=>b.id===anchorId)||chaserCompactBoxes[0];
+  const otherCfg=chaserCompactBoxes.find(b=>b.id!==anchorCfg.id);
+  const anchorBox=document.getElementById(anchorCfg.id);
+  const otherBox=document.getElementById(otherCfg?.id);
+  anchorCfg.toolbox?.setCollapsed?.(true,true);
+  otherCfg?.toolbox?.setCollapsed?.(true,true);
+  if(anchorBox&&otherBox&&otherCfg){
+    const pos=compactNeighborPosition(anchorBox,otherBox);
+    saveToolboxPosition(otherCfg,pos);
+  }
+}
+document.querySelectorAll('.chaser-collapse-all').forEach(btn=>btn.addEventListener('click',()=>toggleChaserCompact(btn.dataset.anchorBox)));
+function initCompactPairDrag(){
+  let drag=null;
+  function compactActive(){
+    try{return !!JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){return false;}
+  }
+  function pairSnapshot(){
+    return chaserCompactBoxes.map(cfg=>{
+      const box=document.getElementById(cfg.id);
+      return box?{cfg,box,x:parseInt(box.style.left)||box.offsetLeft||0,y:parseInt(box.style.top)||box.offsetTop||0}:null;
+    }).filter(Boolean);
+  }
+  function clampPos(box,x,y){
+    return{
+      x:Math.max(0,Math.min(window.innerWidth-box.offsetWidth,Math.round(x))),
+      y:Math.max(0,Math.min(window.innerHeight-box.offsetHeight,Math.round(y)))
+    };
+  }
+  function moveDrag(e){
+    if(!drag)return;
+    e.preventDefault();
+    e.stopImmediatePropagation?.();
+    const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
+    drag.boxes.forEach(({box,x,y})=>{
+      const p=clampPos(box,x+dx,y+dy);
+      box.style.left=p.x+'px';
+      box.style.top=p.y+'px';
+      box.style.right='auto';
+    });
+  }
+  function endDrag(e){
+    if(!drag)return;
+    e.preventDefault();
+    e.stopImmediatePropagation?.();
+    drag.boxes.forEach(({cfg,box})=>saveToolboxPosition(cfg,{x:parseInt(box.style.left)||0,y:parseInt(box.style.top)||0}));
+    const header=drag.header;
+    drag=null;
+    if(header)header.style.cursor='grab';
+  }
+  ['stepsBoxHdr','browserPlaybackBoxHdr'].forEach(headerId=>{
+    const header=document.getElementById(headerId);
+    if(!header)return;
+    header.addEventListener('pointerdown',e=>{
+      if(!compactActive()||e.target.closest('button'))return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      try{header.setPointerCapture(e.pointerId);}catch(_){}
+      drag={id:e.pointerId,startX:e.clientX,startY:e.clientY,boxes:pairSnapshot(),header};
+      header.style.cursor='grabbing';
+    },true);
+    header.addEventListener('pointermove',e=>{
+      if(!drag||drag.id!==e.pointerId)return;
+      moveDrag(e);
+    },true);
+    header.addEventListener('pointerup',e=>{
+      if(!drag||drag.id!==e.pointerId)return;
+      endDrag(e);
+    },true);
+  });
+  window.addEventListener('pointermove',e=>{if(drag&&drag.id===e.pointerId)moveDrag(e);},true);
+  window.addEventListener('pointerup',e=>{if(drag&&drag.id===e.pointerId)endDrag(e);},true);
+}
+initCompactPairDrag();
 function rectsOverlap(a,b){
   return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
 }
