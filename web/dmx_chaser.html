@@ -1312,10 +1312,29 @@ function applyPicoPlaybackOptions(opts={}){
   if(opts.direction)document.getElementById('picoDirection').value=opts.direction;
   if(opts.speed!==undefined)document.getElementById('picoSpeed').value=clamp(opts.speed,0.1,10);
 }
-function chaserData(){return{baseUrl:baseUrlEl.value,playback:picoPlaybackOptions(),steps};}
+function browserPlaybackOptions(){
+  return {
+    loop:!!document.getElementById('loopCheck')?.checked,
+    livePreview:!!document.getElementById('livePreview')?.checked,
+    bpm:clamp(document.getElementById('bpmInput')?.value||120,1,600),
+    beatsPerStep:clamp(document.getElementById('beatsPerStep')?.value||1,0.25,8),
+    defaultFade:clamp(document.getElementById('globalFade')?.value||0,0,100),
+    updateRate:clamp(document.getElementById('updateRate')?.value||25,5,50)
+  };
+}
+function applyBrowserPlaybackOptions(opts={}){
+  if(opts.loop!==undefined)document.getElementById('loopCheck').checked=!!opts.loop;
+  if(opts.livePreview!==undefined)document.getElementById('livePreview').checked=!!opts.livePreview;
+  if(opts.bpm!==undefined)document.getElementById('bpmInput').value=clamp(opts.bpm,1,600);
+  if(opts.beatsPerStep!==undefined)document.getElementById('beatsPerStep').value=String(clamp(opts.beatsPerStep,0.25,8));
+  if(opts.defaultFade!==undefined)document.getElementById('globalFade').value=clamp(opts.defaultFade,0,100);
+  if(opts.updateRate!==undefined)document.getElementById('updateRate').value=clamp(opts.updateRate,5,50);
+}
+function chaserData(){return{baseUrl:baseUrlEl.value,playback:picoPlaybackOptions(),browserPlayback:browserPlaybackOptions(),steps};}
 function applyChaserData(data,redraw=true){
   if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   if(data?.playback)applyPicoPlaybackOptions(data.playback);
+  if(data?.browserPlayback)applyBrowserPlaybackOptions(data.browserPlayback);
   if(Array.isArray(data?.steps)){
     steps=data.steps.slice(0,CHASER_MAX_STEPS);
     if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported preset was trimmed to '+CHASER_MAX_STEPS+' steps',true);
@@ -1336,6 +1355,7 @@ function currentChaseSlotData(){
   return{
     baseUrl:baseUrlEl.value,
     playback:picoPlaybackOptions(),
+    browserPlayback:browserPlaybackOptions(),
     steps:JSON.parse(JSON.stringify(steps)),
     participating:JSON.parse(JSON.stringify(participating))
   };
@@ -1540,12 +1560,12 @@ async function saveSelectedStepAsScene(){
     else setStatus('Scene save failed: '+wj.error,true);
   }catch(err){setStatus('Scene save failed: '+err.message,true);}
 }
-async function saveChaserToServer(){
+async function saveChaserToServer(silent=false){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
   try{
     const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserData())});
     const j=await r.json();
-    if(j.ok)setStatus('Chaser steps saved to server');
+    if(j.ok){if(!silent)setStatus('Chaser steps saved to server');}
     else setStatus('Save failed: '+j.error,true);
   }catch(err){setStatus('Save failed: '+err.message,true);}
 }
@@ -1658,10 +1678,20 @@ document.getElementById('btnPlay').onclick=()=>{
   else startPlayback();
 };
 document.getElementById('btnStop').onclick=stopPlayback;
-function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();}
+let browserPlaybackAutosaveTimer=0;
+function scheduleBrowserPlaybackAutosave(){
+  clearTimeout(browserPlaybackAutosaveTimer);
+  browserPlaybackAutosaveTimer=setTimeout(()=>saveChaserToServer(true),800);
+}
+function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();scheduleBrowserPlaybackAutosave();}
 document.getElementById('bpmInput').oninput=applyBpmToSteps;
 document.getElementById('beatsPerStep').onchange=applyBpmToSteps;
-document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getElementById('globalFade').value,0,100);steps.forEach(s=>s.fade=f);drawStepList();setStatus('Fade '+f+'% applied to all steps');};
+['loopCheck','livePreview','globalFade','updateRate'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('input',scheduleBrowserPlaybackAutosave);
+  if(el)el.addEventListener('change',scheduleBrowserPlaybackAutosave);
+});
+document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getElementById('globalFade').value,0,100);steps.forEach(s=>s.fade=f);drawStepList();scheduleBrowserPlaybackAutosave();setStatus('Fade '+f+'% applied to all steps');};
 document.getElementById('btnPrev').onclick=()=>manualStep(-1);
 document.getElementById('btnNext').onclick=()=>manualStep(1);
 document.getElementById('btnAddStep').onclick=()=>addStep();

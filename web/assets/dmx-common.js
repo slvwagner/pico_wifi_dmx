@@ -111,7 +111,7 @@
       const w=parseInt(size.w||size.width);
       const h=parseInt(size.h||size.height);
       if(w)box.style.width=Math.max(minWidth,w)+'px';
-      if(h)box.style.height=Math.max(minHeight,h)+'px';
+      if(h&&!box.classList.contains('collapsed'))box.style.height=Math.max(minHeight,h)+'px';
       clampBox();
     }
 
@@ -137,10 +137,35 @@
     function setCollapsed(collapsed,save){
       if(!box)return;
       const c=!!collapsed;
+      if(c&&!box.classList.contains('collapsed')){
+        box.style.width=(box.offsetWidth||parseInt(box.style.width)||minWidth)+'px';
+      }
+      if(resizable){
+        if(c&&!box.classList.contains('collapsed')){
+          const size=currentSize();
+          if(size){
+            if(sizeKey)localStorage.setItem(sizeKey,JSON.stringify(size));
+            if(save&&page)saveUiState(page,uiSizeKey,size);
+          }
+          box.dataset.expandedHeight=box.style.height||box.offsetHeight+'px';
+          box.style.height='auto';
+          box.style.resize='none';
+        }else if(!c){
+          box.classList.remove('collapsed');
+          box.style.resize='both';
+          let size=null;
+          if(sizeKey){
+            try{size=JSON.parse(localStorage.getItem(sizeKey)||'null');}catch(_){}
+          }
+          if(size)applySize(size);
+          else if(box.dataset.expandedHeight)box.style.height=box.dataset.expandedHeight;
+        }
+      }
       box.classList.toggle('collapsed',c);
       if(toggle)toggle.textContent=c?'+':'\u2014';
       if(collapsedKey)localStorage.setItem(collapsedKey,c?'1':'');
       if(save&&page)saveUiState(page,uiCollapsedKey,c);
+      clampBox();
     }
 
     if(box&&posKey){
