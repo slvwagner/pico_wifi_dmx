@@ -285,8 +285,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <input id="importChasesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaseSlotCols" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaseSlotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 </div>
 <div id="chaseSlotMatrix" class="scene-slot-matrix"></div>
 </div>
@@ -576,6 +576,11 @@ function updateChaserGroupControlDisplay(c){
   }
   document.querySelectorAll(`[data-cg-readout="${key}"]`).forEach(el=>el.textContent=c.type==='wheel'?'Wheel · '+Math.round(v??0):Math.round(v??0));
   document.querySelectorAll(`input[data-cg="${key}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=Math.round(v??0);});
+  if(c.type==='wheel'){
+    document.querySelectorAll(`button[data-cg="${key}"][data-cg-wheel]`).forEach(el=>{
+      el.classList.toggle('active',Number(el.dataset.cgWheel)===Number(v??0));
+    });
+  }
   if(c.type==='slider16'){
     const b=bytes16(v??0);
     document.querySelectorAll(`input[data-cg="${key}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
@@ -1100,6 +1105,11 @@ function updateStepDisplay(f,c){
   const sv=v??0;
   document.querySelectorAll(`input[data-fi="${fi}"][data-ci="${ci}"]:not([data-part])`).forEach(el=>{if(el.value!=sv)el.value=Math.round(sv);});
   document.querySelectorAll(`[data-readoutf="${fi}"][data-readoutc="${ci}"]`).forEach(el=>{el.textContent=c.type==='wheel'?'CH '+absolute(f.start,c.channel)+' · '+Math.round(sv):Math.round(sv);});
+  if(c.type==='wheel'){
+    document.querySelectorAll(`button[data-fi="${fi}"][data-ci="${ci}"][data-wheel]`).forEach(el=>{
+      el.classList.toggle('active',Number(el.dataset.wheel)===Number(sv));
+    });
+  }
   if(c.type==='slider16'){
     const b=bytes16(sv);
     document.querySelectorAll(`input[data-fi="${fi}"][data-ci="${ci}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
@@ -1356,10 +1366,11 @@ function applyChaserData(data,redraw=true){
 // ---- floating chase toolbox ----
 let savedChases=[];
 let chaseSlotCols=4,chaseSlotRows=4;
+const CHASE_SLOT_GRID_MAX=32;
 (()=>{
   const sc=localStorage.getItem('chaseSlotCols'),sr=localStorage.getItem('chaseSlotRows');
-  if(sc){chaseSlotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;}
-  if(sr){chaseSlotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
+  if(sc){chaseSlotCols=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(sc)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;}
+  if(sr){chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(sr)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
 })();
 function currentChaseSlotData(){
   return{
@@ -1428,8 +1439,8 @@ async function loadChasesServer(){
     const j=await r.json();
     const data=j.chaser||{};
     savedChases=Array.isArray(data.chases)?data.chases:[];
-    if(data.chaseSlotCols){chaseSlotCols=Math.max(1,Math.min(12,parseInt(data.chaseSlotCols)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;localStorage.setItem('chaseSlotCols',chaseSlotCols);}
-    if(data.chaseSlotRows){chaseSlotRows=Math.max(1,Math.min(12,parseInt(data.chaseSlotRows)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;localStorage.setItem('chaseSlotRows',chaseSlotRows);}
+    if(data.chaseSlotCols){chaseSlotCols=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(data.chaseSlotCols)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;localStorage.setItem('chaseSlotCols',chaseSlotCols);}
+    if(data.chaseSlotRows){chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(data.chaseSlotRows)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;localStorage.setItem('chaseSlotRows',chaseSlotRows);}
   }catch(_){savedChases=[];}
   renderChaseSlotMatrix();
 }
@@ -1445,16 +1456,16 @@ function importChasesJson(file){
       if(!Array.isArray(data.chases))throw new Error('Expected {chases:[...]}');
       if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
       savedChases=data.chases;
-      if(data.chaseSlotCols){chaseSlotCols=Math.max(1,Math.min(12,parseInt(data.chaseSlotCols)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;}
-      if(data.chaseSlotRows){chaseSlotRows=Math.max(1,Math.min(12,parseInt(data.chaseSlotRows)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
+      if(data.chaseSlotCols){chaseSlotCols=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(data.chaseSlotCols)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;}
+      if(data.chaseSlotRows){chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(data.chaseSlotRows)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
       renderChaseSlotMatrix();saveChasesServer();
       setStatus('Imported '+savedChases.length+' chase(s)');
     }catch(err){setStatus('Import failed: '+err.message,true);}
   };
   fr.readAsText(file);
 }
-document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotCols',chaseSlotCols);renderChaseSlotMatrix();saveChasesServer();});
-document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
+document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotCols',chaseSlotCols);renderChaseSlotMatrix();saveChasesServer();});
+document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('exportChasesBtn').onclick=exportChasesJson;
 document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile').click();
 document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};

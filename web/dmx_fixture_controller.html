@@ -263,8 +263,8 @@ Blue=48</textarea>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="slotRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="slotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 </div>
 <div id="slotMatrix" class="scene-slot-matrix"></div>
 </div>
@@ -1931,13 +1931,14 @@ loadSavedGroups();
 // ── Scene Toolbox ─────────────────────────────────────────────────────
 let scenes=[];
 let slotCols=4,slotRows=4;
+const SCENE_SLOT_GRID_MAX=32;
 (()=>{
   const sc=localStorage.getItem('sceneSlotCols'),sr=localStorage.getItem('sceneSlotRows');
-  if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}
-  if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}
+  if(sc){slotCols=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}
+  if(sr){slotRows=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}
 })();
-document.getElementById('slotCols').addEventListener('input',e=>{slotCols=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
-document.getElementById('slotRows').addEventListener('input',e=>{slotRows=Math.max(1,Math.min(12,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotCols').addEventListener('input',e=>{slotCols=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotCols',slotCols);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotRows').addEventListener('input',e=>{slotRows=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
 function renderSlotMatrix(){
   const grid=document.getElementById('slotMatrix');
   const total=slotCols*slotRows;
@@ -2041,8 +2042,8 @@ function loadScenesServer(){
     if(d.ok&&d.exists){
       if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
       scenes=d.scenes||[];
-      if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('sceneSlotCols',slotCols);}
-      if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('sceneSlotRows',slotRows);}
+      if(d.slotCols){slotCols=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(d.slotCols)||4));document.getElementById('slotCols').value=slotCols;localStorage.setItem('sceneSlotCols',slotCols);}
+      if(d.slotRows){slotRows=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(d.slotRows)||4));document.getElementById('slotRows').value=slotRows;localStorage.setItem('sceneSlotRows',slotRows);}
     }else{scenes=[];}
     renderSlotMatrix();
   }).catch(()=>{scenes=[];renderSlotMatrix();});
@@ -2059,8 +2060,8 @@ function importScenesJson(file){
       if(!Array.isArray(data.scenes))throw new Error('Expected {scenes:[...]}');
       if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
       scenes=data.scenes;
-      if(data.slotCols){slotCols=data.slotCols;document.getElementById('slotCols').value=slotCols;}
-      if(data.slotRows){slotRows=data.slotRows;document.getElementById('slotRows').value=slotRows;}
+      if(data.slotCols){slotCols=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(data.slotCols)||4));document.getElementById('slotCols').value=slotCols;}
+      if(data.slotRows){slotRows=Math.max(1,Math.min(SCENE_SLOT_GRID_MAX,parseInt(data.slotRows)||4));document.getElementById('slotRows').value=slotRows;}
       renderSlotMatrix();saveScenesServer();
       setStatus('Imported '+scenes.length+' scene(s)');
     }catch(err){setStatus('Import failed: '+err.message,true);}
