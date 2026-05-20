@@ -270,7 +270,9 @@ strong { color: #ffffff; }
 <li><strong>Browser Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico.</li>
 </ul>
 <p>Loading a chase from the <strong>Chases</strong> box updates the step list, participating controls, and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
-<p>The position, collapse state, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
+<p>The <strong>Compact</strong> button is only shown on <strong>Steps</strong> and <strong>Browser Playback</strong>. It switches those two boxes into a compact mode: the box whose <strong>Compact</strong> button was pressed stays in place, the other box is pulled next to it, and both boxes collapse to their headers. In compact mode, dragging either header moves both boxes together as one pair. Press <strong>Compact</strong> again to restore their previous positions and reopen both boxes.</p>
+<p>The <strong>Chases</strong> box stays independent and does not have a <strong>Compact</strong> button.</p>
+<p>The position, collapse state, compact-pair state, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
 <h3 id="participating-controls">Participating Controls</h3>
 <p>Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.</p>
 <p>For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.</p>

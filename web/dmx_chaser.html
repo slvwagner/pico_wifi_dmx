@@ -43,7 +43,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 #browserPlaybackBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto}
 #browserPlaybackBox .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end}
 .chaser-toolbox-actions{display:flex;gap:6px;align-items:center}
-.chaser-collapse-all{padding:3px 8px;font-size:12px;line-height:1;min-width:32px}
+.chaser-collapse-all{padding:3px 8px;font-size:12px;line-height:1;min-width:64px}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
@@ -137,7 +137,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <div id="stepsBoxHdr" class="scene-toolbox__header">
       <span style="font-weight:700;font-size:13px">Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="stepsBox" title="Toggle compact Steps and Browser Playback boxes">All</button>
+        <button class="chaser-collapse-all" data-anchor-box="stepsBox" title="Toggle compact layout for Steps and Browser Playback">Compact</button>
         <button id="stepsBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -162,7 +162,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <div id="browserPlaybackBoxHdr" class="scene-toolbox__header">
       <span style="font-weight:700;font-size:13px">Browser Playback</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="browserPlaybackBox" title="Toggle compact Steps and Browser Playback boxes">All</button>
+        <button class="chaser-collapse-all" data-anchor-box="browserPlaybackBox" title="Toggle compact layout for Steps and Browser Playback">Compact</button>
         <button id="browserPlaybackBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -1544,6 +1544,42 @@ function restoreChaserCompactState(saved){
   localStorage.removeItem('chaserCompactState');
   DmxCommon.saveUiState('chaser','chaserCompactState',null);
 }
+function exitChaserCompactModeWithCurrentLayout(){
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){}
+  if(!saved)return;
+  chaserCompactBoxes.forEach(cfg=>{
+    const box=document.getElementById(cfg.id);
+    if(!box)return;
+    saveToolboxPosition(cfg,{x:parseInt(box.style.left)||box.offsetLeft||0,y:parseInt(box.style.top)||box.offsetTop||0});
+    DmxCommon.saveUiState('chaser',cfg.collapsedKey,box.classList.contains('collapsed'));
+  });
+  localStorage.removeItem('chaserCompactState');
+  DmxCommon.saveUiState('chaser','chaserCompactState',null);
+}
+function moveOtherCompactBoxBelowOpened(openedId){
+  const openedCfg=chaserCompactBoxes.find(cfg=>cfg.id===openedId);
+  const otherCfg=chaserCompactBoxes.find(cfg=>cfg.id!==openedId);
+  const opened=document.getElementById(openedCfg?.id);
+  const other=document.getElementById(otherCfg?.id);
+  if(!opened||!other||!otherCfg)return;
+  const ar=opened.getBoundingClientRect();
+  const or=other.getBoundingClientRect();
+  if(!rectsOverlap(ar,or))return;
+  const gap=8;
+  let x=ar.left;
+  let y=ar.bottom+gap;
+  if(y+other.offsetHeight>window.innerHeight)y=ar.top-other.offsetHeight-gap;
+  const pos={
+    x:Math.max(0,Math.min(window.innerWidth-other.offsetWidth,Math.round(x))),
+    y:Math.max(0,Math.min(window.innerHeight-other.offsetHeight,Math.round(y)))
+  };
+  saveToolboxPosition(otherCfg,pos);
+}
+function exitChaserCompactModeAfterOpening(openedId){
+  moveOtherCompactBoxBelowOpened(openedId);
+  exitChaserCompactModeWithCurrentLayout();
+}
 function toggleChaserCompact(anchorId){
   let saved=null;
   try{saved=JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){}
@@ -1564,6 +1600,17 @@ function toggleChaserCompact(anchorId){
   }
 }
 document.querySelectorAll('.chaser-collapse-all').forEach(btn=>btn.addEventListener('click',()=>toggleChaserCompact(btn.dataset.anchorBox)));
+['stepsBoxToggle','browserPlaybackBoxToggle'].forEach(toggleId=>{
+  const toggle=document.getElementById(toggleId);
+  if(!toggle)return;
+  toggle.addEventListener('click',()=>{
+    setTimeout(()=>{
+      const openedId=toggleId.replace('Toggle','');
+      const box=document.getElementById(openedId);
+      if(box&&!box.classList.contains('collapsed'))exitChaserCompactModeAfterOpening(openedId);
+    },80);
+  });
+});
 function initCompactPairDrag(){
   let drag=null;
   function compactActive(){
