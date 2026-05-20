@@ -74,8 +74,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .toolbox-rail-layout{overflow-x:hidden}
 .toolbox-rail-layout main{width:calc(100% - var(--toolbox-rail-width,max(340px,33vw)));max-width:none;margin:0;padding-right:20px;box-sizing:border-box}
 .toolbox-rail{position:fixed;top:0;right:0;width:var(--toolbox-rail-width,max(340px,33vw));height:100vh;z-index:180;display:flex;flex-direction:column;gap:12px;padding:20px 16px 20px 12px;box-sizing:border-box;overflow:auto;background:linear-gradient(180deg,rgba(10,13,16,.98),rgba(13,18,22,.96));border-left:1px solid var(--line);box-shadow:-12px 0 30px rgba(0,0,0,.38)}
-.toolbox-rail-resizer{position:absolute;top:0;bottom:0;left:-5px;width:10px;cursor:ew-resize;z-index:2;touch-action:none}
-.toolbox-rail-resizer::after{content:"";position:absolute;top:0;bottom:0;left:4px;width:1px;background:transparent}
+.toolbox-rail-resizer{position:absolute;top:0;bottom:0;left:-7px;width:14px;cursor:ew-resize;z-index:2;touch-action:none}
+.toolbox-rail-resizer::after{content:"";position:absolute;top:0;bottom:0;left:5px;width:3px;background:rgba(139,154,166,.45)}
 .toolbox-rail-resizer:hover::after,.toolbox-rail-resizing .toolbox-rail-resizer::after{background:var(--accent)}
 .toolbox-rail-resizing{cursor:ew-resize;user-select:none}
 .toolbox-rail::before{content:'Toolboxes';color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:0 4px 2px}
