@@ -275,10 +275,7 @@ Blue=48</textarea>
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
-['groupsBox','sceneBox'].forEach(id=>{
-  const box=document.getElementById(id);
-  if(box&&fixtureToolboxRail)fixtureToolboxRail.appendChild(box);
-});
+DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'}]);
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
@@ -1755,12 +1752,12 @@ function applyGroupsBoxLayout(priority='cols'){
     rowsInput.value=groupRows;
   }
 }
-function saveGroupsBoxLayout(){
-  clampGroupLayout();
+function saveGroupsBoxLayout(priority='cols'){
+  clampGroupLayout(priority);
   localStorage.setItem('groupsBoxCols',groupCols);
   localStorage.setItem('groupsBoxRows',groupRows);
-  DmxCommon.saveUiState('fixture','groupsBoxCols',groupCols);
-  DmxCommon.saveUiState('fixture','groupsBoxRows',groupRows);
+  DmxCommon.saveUiState('toolboxes','groupsBoxCols',groupCols);
+  DmxCommon.saveUiState('toolboxes','groupsBoxRows',groupRows);
 }
 function selectedSavedGroupEntries(){
   return savedGroups.map((g,i)=>({g,i,key:savedGroupKey(g,i)})).filter(entry=>activeSavedGroupIds.has(entry.key));
@@ -1784,9 +1781,9 @@ function createSavedGroup(name,fixtureIds,values={}){
   renderSavedGroupsList();
   saveSavedGroupsToServer();
 }
-function renderSavedGroupsList(){
+function renderSavedGroupsList(priority='cols'){
   const el=document.getElementById('savedGroupsList');if(!el)return;
-  applyGroupsBoxLayout();
+  applyGroupsBoxLayout(priority);
   if(!savedGroups.length){
     el.innerHTML='<div class="small">No saved groups yet. Select fixtures and click "Save Group".</div>';
     updateGroupActionButtons();
@@ -1899,14 +1896,14 @@ document.getElementById('editSelectedGroups').onclick=editSelectedGroups;
 document.getElementById('groupCols').addEventListener('input',e=>{
   groupCols=e.target.value;
   applyGroupsBoxLayout('cols');
-  renderSavedGroupsList();
-  saveGroupsBoxLayout();
+  renderSavedGroupsList('cols');
+  saveGroupsBoxLayout('cols');
 });
 document.getElementById('groupRows').addEventListener('input',e=>{
   groupRows=e.target.value;
   applyGroupsBoxLayout('rows');
-  renderSavedGroupsList();
-  saveGroupsBoxLayout();
+  renderSavedGroupsList('rows');
+  saveGroupsBoxLayout('rows');
 });
 const groupsToolbox=DmxCommon.initFloatingToolbox({
   boxId:'groupsBox',
@@ -2164,6 +2161,7 @@ function saveUiStateServer(key,val){
 (async()=>{
   try{
     const st=await DmxCommon.loadUiState('fixture');
+    const shared=await DmxCommon.loadUiState('toolboxes');
     if(st.sceneBoxCollapsed!==undefined){
       const c=!!st.sceneBoxCollapsed;
       localStorage.setItem('sceneBoxCollapsed',c?'1':'');
@@ -2182,15 +2180,21 @@ function saveUiStateServer(key,val){
       localStorage.setItem('groupsBoxPos',JSON.stringify(st.groupsBoxPos));
       groupsToolbox.applyPosition(st.groupsBoxPos);
     }
-    if(st.groupsBoxCols!==undefined){
+    if(shared.groupsBoxCols!==undefined){
+      groupCols=shared.groupsBoxCols;
+      localStorage.setItem('groupsBoxCols',groupCols);
+    }else if(st.groupsBoxCols!==undefined){
       groupCols=st.groupsBoxCols;
       localStorage.setItem('groupsBoxCols',groupCols);
     }
-    if(st.groupsBoxRows!==undefined){
+    if(shared.groupsBoxRows!==undefined){
+      groupRows=shared.groupsBoxRows;
+      localStorage.setItem('groupsBoxRows',groupRows);
+    }else if(st.groupsBoxRows!==undefined){
       groupRows=st.groupsBoxRows;
       localStorage.setItem('groupsBoxRows',groupRows);
     }
-    if(st.groupsBoxCols!==undefined||st.groupsBoxRows!==undefined){
+    if(shared.groupsBoxCols!==undefined||shared.groupsBoxRows!==undefined||st.groupsBoxCols!==undefined||st.groupsBoxRows!==undefined){
       applyGroupsBoxLayout();
       renderSavedGroupsList();
     }

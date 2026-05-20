@@ -64,6 +64,90 @@
     }
   }
 
+  const TOOLBOX_ORDER_KEY='toolboxRailOrder';
+  const DEFAULT_TOOLBOX_ORDER=['groups','scenes','chases','steps','browserPlayback'];
+
+  function normalizeToolboxOrder(order,types){
+    const known=Array.isArray(order)?order:[];
+    const allTypes=Array.from(new Set([...(known||[]),...DEFAULT_TOOLBOX_ORDER,...types]));
+    return allTypes.filter(t=>types.includes(t));
+  }
+
+  function savedToolboxOrder(types){
+    let local=null;
+    try{local=JSON.parse(localStorage.getItem(TOOLBOX_ORDER_KEY)||'null');}catch(_){}
+    return normalizeToolboxOrder(local,types);
+  }
+
+  async function applySharedToolboxOrder(rail){
+    if(!rail)return;
+    const boxes=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'));
+    const types=boxes.map(box=>box.dataset.toolboxType).filter(Boolean);
+    let order=savedToolboxOrder(types);
+    const shared=await loadUiState('toolboxes');
+    if(Array.isArray(shared[TOOLBOX_ORDER_KEY])){
+      order=normalizeToolboxOrder(shared[TOOLBOX_ORDER_KEY],types);
+      localStorage.setItem(TOOLBOX_ORDER_KEY,JSON.stringify(shared[TOOLBOX_ORDER_KEY]));
+    }
+    order.forEach(type=>{
+      const box=boxes.find(b=>b.dataset.toolboxType===type);
+      if(box)rail.appendChild(box);
+    });
+  }
+
+  function saveSharedToolboxOrder(rail){
+    if(!rail)return;
+    const order=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'))
+      .map(box=>box.dataset.toolboxType)
+      .filter(Boolean);
+    const merged=normalizeToolboxOrder(order,DEFAULT_TOOLBOX_ORDER);
+    localStorage.setItem(TOOLBOX_ORDER_KEY,JSON.stringify(merged));
+    saveUiState('toolboxes',TOOLBOX_ORDER_KEY,merged);
+  }
+
+  function initToolboxRail(rail,entries){
+    if(!rail)return;
+    (entries||[]).forEach(entry=>{
+      const box=typeof entry.box==='string'?document.getElementById(entry.box):entry.box;
+      if(!box)return;
+      box.dataset.toolboxType=entry.type||box.id;
+      box.draggable=true;
+      rail.appendChild(box);
+    });
+    rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(box=>{box.draggable=true;});
+    applySharedToolboxOrder(rail).catch(()=>{});
+    if(rail.dataset.toolboxRailInit==='1')return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
+    rail.dataset.toolboxRailInit='1';
+
+    rail.addEventListener('dragstart',e=>{
+      const box=e.target.closest('.scene-toolbox[data-toolbox-type]');
+      if(!box||e.target.closest('button,input,select,textarea,a')){e.preventDefault();return;}
+      box.classList.add('toolbox-dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',box.dataset.toolboxType||box.id);
+    });
+    rail.addEventListener('dragend',e=>{
+      const box=e.target.closest('.scene-toolbox[data-toolbox-type]');
+      if(box)box.classList.remove('toolbox-dragging');
+      rail.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(el=>el.classList.remove('toolbox-drop-before','toolbox-drop-after'));
+      saveSharedToolboxOrder(rail);
+    });
+    rail.addEventListener('dragover',e=>{
+      const dragging=rail.querySelector('.toolbox-dragging');
+      if(!dragging)return;
+      const target=e.target.closest('.scene-toolbox[data-toolbox-type]');
+      if(!target||target===dragging)return;
+      e.preventDefault();
+      const rect=target.getBoundingClientRect();
+      const before=e.clientY<rect.top+rect.height/2;
+      target.classList.toggle('toolbox-drop-before',before);
+      target.classList.toggle('toolbox-drop-after',!before);
+      if(before)rail.insertBefore(dragging,target);
+      else rail.insertBefore(dragging,target.nextSibling);
+    });
+    return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
+  }
+
   function initFloatingToolbox(options){
     const box=document.getElementById(options.boxId);
     const header=document.getElementById(options.headerId);
@@ -178,6 +262,7 @@
 
     if(box&&header){
       header.addEventListener('pointerdown',e=>{
+        if(box.closest('.toolbox-rail'))return;
         if(e.target.closest('button'))return;
         header.setPointerCapture(e.pointerId);
         const r=box.getBoundingClientRect();
@@ -185,6 +270,7 @@
         header.style.cursor='grabbing';
       });
       header.addEventListener('pointermove',e=>{
+        if(box.closest('.toolbox-rail'))return;
         if(!header.hasPointerCapture(e.pointerId))return;
         let x=e.clientX-dragOffset.x;
         let y=e.clientY-dragOffset.y;
@@ -196,6 +282,7 @@
         if(posKey)localStorage.setItem(posKey,JSON.stringify({x,y}));
       });
       header.addEventListener('pointerup',()=>{
+        if(box.closest('.toolbox-rail'))return;
         header.style.cursor='grab';
         const pos={x:parseInt(box.style.left)||0,y:parseInt(box.style.top)||0};
         if(page)saveUiState(page,uiPosKey,pos);
@@ -234,14 +321,16 @@
     const rowsId=idPrefix+'Rows';
     const importFileId=idPrefix+'ImportFile';
     const statePrefix=idPrefix;
+    const layoutPrefix=options.layoutStoragePrefix||'groupsBox';
     let groups=[];
     let selectedIds=new Set();
-    let cols=parseInt(localStorage.getItem(statePrefix+'Cols'))||2;
-    let rows=parseInt(localStorage.getItem(statePrefix+'Rows'))||4;
+    let cols=parseInt(localStorage.getItem(layoutPrefix+'Cols')||localStorage.getItem(statePrefix+'Cols'))||2;
+    let rows=parseInt(localStorage.getItem(layoutPrefix+'Rows')||localStorage.getItem(statePrefix+'Rows'))||4;
 
     const box=document.createElement('div');
     box.id=boxId;
     box.className='scene-toolbox scene-toolbox--groups';
+    box.dataset.toolboxType=options.toolboxType||'groups';
     box.innerHTML=`
       <div id="${headerId}" class="scene-toolbox__header">
         <span style="font-weight:700;font-size:13px">${escapeHtml(title)}</span>
@@ -263,6 +352,9 @@
         <div id="${listId}" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
       </div>`;
     host.appendChild(box);
+    if(host.classList?.contains('toolbox-rail')){
+      initToolboxRail(host,[]);
+    }
 
     const toolbox=initFloatingToolbox({
       boxId,headerId,toggleId,
@@ -310,10 +402,10 @@
     }
     function saveLayout(priority='cols'){
       clampLayout(priority);
-      localStorage.setItem(statePrefix+'Cols',cols);
-      localStorage.setItem(statePrefix+'Rows',rows);
-      saveUiState(page,statePrefix+'Cols',cols);
-      saveUiState(page,statePrefix+'Rows',rows);
+      localStorage.setItem(layoutPrefix+'Cols',cols);
+      localStorage.setItem(layoutPrefix+'Rows',rows);
+      saveUiState('toolboxes',layoutPrefix+'Cols',cols);
+      saveUiState('toolboxes',layoutPrefix+'Rows',rows);
     }
     function updateActions(){
       const selected=selectedGroups();
@@ -328,10 +420,10 @@
       options.onSelectionChange?.(selectedGroups(),groups);
       updateActions();
     }
-    function render(){
+    function render(priority='cols'){
       const list=document.getElementById(listId);
       if(!list)return;
-      applyLayout();
+      applyLayout(priority);
       if(!groups.length){
         list.innerHTML='<div class="small">No saved groups yet.</div>';
         updateActions();
@@ -379,7 +471,7 @@
           if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
           if(data.baseUrl&&options.baseUrlInput&&!localStorage.getItem(BASE_URL_KEY))options.baseUrlInput.value=data.baseUrl;
           groups=data.groups.map((g,i)=>({...g,id:g.id||('grp_'+Date.now()+'_'+i),fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],values:g.values||{}}));
-          selectedIds.clear();render();notify();saveGroups();
+          selectedIds.clear();render('cols');notify();saveGroups();
           options.onStatus?.('Imported '+groups.length+' group(s)');
         }catch(err){options.onStatus?.('Import failed: '+err.message,true);}
       };
@@ -393,7 +485,7 @@
       const g=groups[i];if(!g)return;
       const k=key(g,i);
       if(selectedIds.has(k))selectedIds.delete(k);else selectedIds.add(k);
-      render();notify();
+      render('cols');notify();
     });
     document.getElementById(idPrefix+'Export').onclick=exportGroups;
     document.getElementById(idPrefix+'Import').onclick=()=>document.getElementById(importFileId).click();
@@ -403,24 +495,26 @@
       const g=selected[0];
       const name=(prompt('Group name:',g.name||'Group')||'').trim();
       if(!name||name===g.name)return;
-      g.name=name;render();saveGroups();
+      g.name=name;render('cols');saveGroups();
     };
     document.getElementById(idPrefix+'Delete').onclick=()=>{
       const selected=selectedGroups();if(!selected.length)return;
       const ids=new Set(selected.map(g=>g.id));
       if(!confirm('Delete '+selected.length+' selected group'+(selected.length===1?'':'s')+'?\n\n'+selected.map(g=>g.name).join(', ')))return;
       groups=groups.filter(g=>!ids.has(g.id));
-      selectedIds.clear();render();notify();saveGroups();
+      selectedIds.clear();render('cols');notify();saveGroups();
     };
     const edit=document.getElementById(idPrefix+'Edit');
     if(edit)edit.onclick=()=>{const selected=selectedGroups();if(selected.length)options.onEdit?.(selected);};
-    document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout('cols');render();saveLayout('cols');});
-    document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout('rows');render();saveLayout('rows');});
-    loadUiState(page).then(st=>{
+    document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout('cols');render('cols');saveLayout('cols');});
+    document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout('rows');render('rows');saveLayout('rows');});
+    Promise.all([loadUiState(page),loadUiState('toolboxes')]).then(([st,shared])=>{
       if(st[statePrefix+'Collapsed']!==undefined)toolbox.setCollapsed(!!st[statePrefix+'Collapsed'],false);
       if(st[statePrefix+'Pos'])toolbox.applyPosition(st[statePrefix+'Pos']);
-      if(st[statePrefix+'Cols']!==undefined)cols=st[statePrefix+'Cols'];
-      if(st[statePrefix+'Rows']!==undefined)rows=st[statePrefix+'Rows'];
+      if(shared[layoutPrefix+'Cols']!==undefined)cols=shared[layoutPrefix+'Cols'];
+      else if(st[statePrefix+'Cols']!==undefined)cols=st[statePrefix+'Cols'];
+      if(shared[layoutPrefix+'Rows']!==undefined)rows=shared[layoutPrefix+'Rows'];
+      else if(st[statePrefix+'Rows']!==undefined)rows=st[statePrefix+'Rows'];
       render();
     }).catch(()=>{});
     loadGroups();
@@ -444,6 +538,7 @@
     preferStoredBaseUrl,
     saveUiState,
     loadUiState,
+    initToolboxRail,
     initFloatingToolbox,
     initGroupsToolbox
   };

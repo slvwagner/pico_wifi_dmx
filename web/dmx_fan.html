@@ -118,8 +118,7 @@ button{white-space:nowrap}
 'use strict';
 document.body.classList.add('toolbox-rail-layout');
 const fanToolboxRail=document.getElementById('fanToolboxRail');
-const fanSceneBox=document.getElementById('sceneBox');
-if(fanSceneBox&&fanToolboxRail)fanToolboxRail.appendChild(fanSceneBox);
+DmxCommon.initToolboxRail(fanToolboxRail,[{box:'sceneBox',type:'scenes'}]);
 // ---- state ----
 let profiles = [], fixturesAll = [];
 let groups = [];  // { id, orderedFixtureIds, lanes: [lane,...] }
@@ -174,6 +173,15 @@ function resolveChannels(fix, controlKey) {
     return null;
 }
 
+function resolveControlForLane(fix, controlKey) {
+    const ci = controlKey.lastIndexOf(':');
+    if (ci < 0) return null;
+    const label = controlKey.slice(0, ci);
+    const axis  = controlKey.slice(ci + 1);
+    const ctrl = fixtureProfile(fix)?.controls.find(c => c.label === label);
+    return ctrl ? { ctrl, axis } : null;
+}
+
 // Build dropdown options for a group based on the first selected fixture's profile.
 function getControlOptions(orderedIds) {
     if (orderedIds.length === 0) return [];
@@ -213,6 +221,41 @@ function newLane() {
 }
 function newGroup() {
     return { id: uid(), orderedFixtureIds: [], lanes: [newLane()] };
+}
+
+let fanSaveTimer = null;
+function fanSavePayload() {
+    return { baseUrl: baseUrlEl?.value || '', groups };
+}
+function saveFanLocalBackup() {
+    try { localStorage.setItem('dmxFanGroups', JSON.stringify(fanSavePayload())); } catch (_) {}
+}
+async function persistFanGroups({ silent = true } = {}) {
+    saveFanLocalBackup();
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+        if (!silent) setStatus('Save to server not available on file:// — use Export instead', true);
+        return;
+    }
+    try {
+        const r = await fetch('fan_setup.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fanSavePayload())
+        });
+        const j = await r.json();
+        if (!j.ok) {
+            if (!silent) setStatus('Save failed: ' + j.error, true);
+            return;
+        }
+        if (!silent) setStatus('Fan groups saved to server');
+    } catch (err) {
+        if (!silent) setStatus('Save failed: ' + err.message, true);
+    }
+}
+function scheduleFanSave() {
+    saveFanLocalBackup();
+    clearTimeout(fanSaveTimer);
+    fanSaveTimer = setTimeout(() => persistFanGroups({ silent: true }), 600);
 }
 
 // Calculate final DMX values for one lane.
@@ -554,6 +597,7 @@ document.addEventListener('click', async e => {
     if (rmGroup) {
         groups = groups.filter(g => g.id !== +rmGroup.dataset.removeGroup);
         renderGroups();
+        scheduleFanSave();
         return;
     }
     // Remove lane
@@ -562,13 +606,14 @@ document.addEventListener('click', async e => {
         const g = findGroup(rmLane.dataset.removeLaneGroup);
         if (g) g.lanes = g.lanes.filter(l => l.id !== +rmLane.dataset.removeLane);
         renderGroups();
+        scheduleFanSave();
         return;
     }
     // Add lane
     const addLaneBtn = e.target.closest('[data-add-lane-group]');
     if (addLaneBtn) {
         const g = findGroup(addLaneBtn.dataset.addLaneGroup);
-        if (g) { g.lanes.push(newLane()); renderGroups(); }
+        if (g) { g.lanes.push(newLane()); renderGroups(); scheduleFanSave(); }
         return;
     }
     // Move fixture
@@ -585,6 +630,7 @@ document.addEventListener('click', async e => {
         g.orderedFixtureIds.splice(idx, 1);
         g.orderedFixtureIds.splice(ni, 0, fid);
         renderGroups();
+        scheduleFanSave();
         g.lanes.forEach(lane => sendLaneValues(g, lane));
         return;
     }
@@ -597,6 +643,7 @@ document.addEventListener('click', async e => {
         g.orderedFixtureIds = g.orderedFixtureIds.filter(id => id !== fid);
         g.lanes.forEach(l => delete l.bases[fid]);
         renderGroups();
+        scheduleFanSave();
         return;
     }
     // Snapshot base
@@ -605,12 +652,14 @@ document.addEventListener('click', async e => {
         const g    = findGroup(snapBtn.dataset.snapshotGroup);
         const lane = findLane(g, snapBtn.dataset.snapshotLane);
         if (g && lane) await snapshotLaneBase(g, lane);
+        scheduleFanSave();
         return;
     }
     // Add group
     if (e.target.id === 'btnAddGroup') {
         groups.push(newGroup());
         renderGroups();
+        scheduleFanSave();
         return;
     }
 });
@@ -627,8 +676,8 @@ document.addEventListener('change', e => {
                 const root = document.getElementById('baseUrl').value.replace(/\/+$/, '');
                 if (root) {
                     Promise.all(g.lanes.filter(l => l.controlKey).map(l => snapshotLaneBase(g, l)))
-                        .then(() => renderGroups());
-                } else renderGroups();
+                        .then(() => { renderGroups(); scheduleFanSave(); });
+                } else { renderGroups(); scheduleFanSave(); }
             }
         }
         return;
@@ -643,8 +692,8 @@ document.addEventListener('change', e => {
             lane.spread = 0; lane.fromOffset = 0; lane.toOffset = 0; lane.bases = {};
             const root = document.getElementById('baseUrl').value.replace(/\/+$/, '');
             if (root && lane.controlKey && g.orderedFixtureIds.length > 0) {
-                snapshotLaneBase(g, lane).then(() => { renderGroups(); sendLaneValues(g, lane); });
-            } else renderGroups();
+                snapshotLaneBase(g, lane).then(() => { renderGroups(); sendLaneValues(g, lane); scheduleFanSave(); });
+            } else { renderGroups(); scheduleFanSave(); }
         }
         return;
     }
@@ -653,7 +702,7 @@ document.addEventListener('change', e => {
     if (modeRadio) {
         const g    = findGroup(modeRadio.dataset.modeGroup);
         const lane = findLane(g, modeRadio.dataset.modeLane);
-        if (g && lane) { lane.mode = modeRadio.value; renderGroups(); sendLaneValues(g, lane); }
+        if (g && lane) { lane.mode = modeRadio.value; renderGroups(); sendLaneValues(g, lane); scheduleFanSave(); }
         return;
     }
 });
@@ -671,6 +720,7 @@ document.addEventListener('input', e => {
         if (badge) badge.textContent = '±' + Math.round(lane.spread / 2);
         updatePreview(g, lane);
         sendLaneValues(g, lane);
+        scheduleFanSave();
         return;
     }
     // Spread fine
@@ -687,6 +737,7 @@ document.addEventListener('input', e => {
         if (badge) badge.textContent = '±' + Math.round(lane.spread / 2);
         updatePreview(g, lane);
         sendLaneValues(g, lane);
+        scheduleFanSave();
         return;
     }
     // From coarse
@@ -701,6 +752,7 @@ document.addEventListener('input', e => {
         if (badge) badge.textContent = (lane.fromOffset >= 0 ? '+' : '') + lane.fromOffset;
         updatePreview(g, lane);
         sendLaneValues(g, lane);
+        scheduleFanSave();
         return;
     }
     // From fine
@@ -717,6 +769,7 @@ document.addEventListener('input', e => {
         if (badge) badge.textContent = (lane.fromOffset >= 0 ? '+' : '') + lane.fromOffset;
         updatePreview(g, lane);
         sendLaneValues(g, lane);
+        scheduleFanSave();
         return;
     }
     // To coarse
@@ -731,6 +784,7 @@ document.addEventListener('input', e => {
         if (badge) badge.textContent = (lane.toOffset >= 0 ? '+' : '') + lane.toOffset;
         updatePreview(g, lane);
         sendLaneValues(g, lane);
+        scheduleFanSave();
         return;
     }
     // To fine
@@ -747,6 +801,7 @@ document.addEventListener('input', e => {
         if (badge) badge.textContent = (lane.toOffset >= 0 ? '+' : '') + lane.toOffset;
         updatePreview(g, lane);
         sendLaneValues(g, lane);
+        scheduleFanSave();
         return;
     }
 });
@@ -791,22 +846,8 @@ async function loadCtrlGroups() {
 
 // ---- persist fan groups ----
 async function saveFanGroups() {
-    if (location.protocol !== 'http:' && location.protocol !== 'https:') {
-        setStatus('Save to server not available on file:// — use Export instead', true);
-        return;
-    }
-    try {
-        const r = await fetch('fan_setup.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({baseUrl:baseUrlEl.value,groups})
-        });
-        const j = await r.json();
-        if (j.ok) setStatus('Fan groups saved to server');
-        else setStatus('Save failed: ' + j.error, true);
-    } catch (err) {
-        setStatus('Save failed: ' + err.message, true);
-    }
+    clearTimeout(fanSaveTimer);
+    await persistFanGroups({ silent: false });
 }
 
 async function loadFanGroups() {
@@ -820,6 +861,18 @@ async function loadFanGroups() {
             return true;
         }
     } catch (_) {}
+    const raw = localStorage.getItem('dmxFanGroups');
+    if (raw) {
+        try {
+            const data = JSON.parse(raw);
+            const storedGroups = Array.isArray(data) ? data : data.groups;
+            if (Array.isArray(storedGroups)) {
+                if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+                groups = storedGroups;
+                return true;
+            }
+        } catch (_) {}
+    }
     return false;
 }
 
@@ -843,7 +896,8 @@ function importJSON(file) {
             if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
             groups = importedGroups;
             renderGroups();
-            setStatus('Fan groups imported — remember to Save if you want to keep them');
+            scheduleFanSave();
+            setStatus('Fan groups imported');
         } catch (err) {
             setStatus('Import failed: ' + err.message, true);
         }
@@ -942,9 +996,9 @@ function normalizeSceneGrid(priority='cols'){
     rowsInput.value=slotRows;
   }
 }
-(()=>{const sc=localStorage.getItem('fanSceneSlotCols'),sr=localStorage.getItem('fanSceneSlotRows');if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}})();
-document.getElementById('slotCols').addEventListener('input',e=>{slotCols=e.target.value;normalizeSceneGrid('cols');localStorage.setItem('fanSceneSlotCols',slotCols);localStorage.setItem('fanSceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
-document.getElementById('slotRows').addEventListener('input',e=>{slotRows=e.target.value;normalizeSceneGrid('rows');localStorage.setItem('fanSceneSlotCols',slotCols);localStorage.setItem('fanSceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+(()=>{const sc=localStorage.getItem('sceneSlotCols'),sr=localStorage.getItem('sceneSlotRows');if(sc){slotCols=Math.max(1,Math.min(12,parseInt(sc)||4));document.getElementById('slotCols').value=slotCols;}if(sr){slotRows=Math.max(1,Math.min(12,parseInt(sr)||4));document.getElementById('slotRows').value=slotRows;}})();
+document.getElementById('slotCols').addEventListener('input',e=>{slotCols=e.target.value;normalizeSceneGrid('cols');localStorage.setItem('sceneSlotCols',slotCols);localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
+document.getElementById('slotRows').addEventListener('input',e=>{slotRows=e.target.value;normalizeSceneGrid('rows');localStorage.setItem('sceneSlotCols',slotCols);localStorage.setItem('sceneSlotRows',slotRows);renderSlotMatrix();saveScenesServer();});
 function renderSlotMatrix(){
   const grid=document.getElementById('slotMatrix');
   normalizeSceneGrid('cols');
@@ -983,37 +1037,28 @@ function slotDblClick(idx){
   renderSlotMatrix();saveScenesServer();
 }
 async function saveSceneToSlot(idx,name){
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setStatus('Set Pico base URL first',true);return;}
   try{
-    const r=await fetch(root+'/dmx/values.json',{cache:'no-store'});
-    const arr=await r.json();
     const sv={};
-    fixturesAll.forEach(fix=>{
-      const prof=fixtureProfile(fix);if(!prof)return;
-      prof.controls.forEach(ctrl=>{
-        const key=fix.id+':'+ctrl.id;
-        const s=fix.start-1;
-        if(ctrl.type==='panTilt16'){
-          const panC=arr[s+ctrl.pan-1]??0,panF=arr[s+(ctrl.panFine??ctrl.pan+1)-1]??0;
-          const tltC=arr[s+ctrl.tilt-1]??0,tltF=arr[s+(ctrl.tiltFine??ctrl.tilt+1)-1]??0;
-          sv[key]={pan:(panC<<8)|panF,tilt:(tltC<<8)|tltF};
-        }else if(ctrl.type==='panTilt8'){
-          sv[key]={pan:arr[s+ctrl.pan-1]??0,tilt:arr[s+ctrl.tilt-1]??0};
-        }else if(ctrl.type==='slider16'){
-          const c2=arr[s+ctrl.channel-1]??0,f2=arr[s+(ctrl.fine??ctrl.channel+1)-1]??0;
-          sv[key]=(c2<<8)|f2;
-        }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(ctrl.type)){
-          const obj={};['a','b','c','k','w','amber'].forEach(part=>{if(ctrl[part]>=1)obj[part]=arr[s+ctrl[part]-1]??0;});
-          sv[key]=obj;
-        }else{if(ctrl.channel>=1)sv[key]=arr[s+ctrl.channel-1]??0;}
+    groups.forEach(g=>g.lanes.forEach(lane=>{
+      calcLaneValues(g,lane).forEach(({fixture,finalVal})=>{
+        const resolved=resolveControlForLane(fixture,lane.controlKey);
+        if(!resolved)return;
+        const {ctrl,axis}=resolved;
+        const key=fixture.id+':'+ctrl.id;
+        if(ctrl.type==='panTilt16'||ctrl.type==='panTilt8'){
+          const cur=(sv[key]&&typeof sv[key]==='object')?sv[key]:{};
+          if(axis==='pan'||axis==='tilt')sv[key]={...cur,[axis]:finalVal};
+        }else{
+          sv[key]=finalVal;
+        }
       });
-    });
+    }));
+    if(!Object.keys(sv).length){setStatus('No configured Fan Out values to save as scene',true);return;}
     const ei=scenes.findIndex(sc=>sc.slot===idx);if(ei>=0)scenes.splice(ei,1);
     scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:sv});
     renderSlotMatrix();saveScenesServer();
     setStatus('Scene "'+name+'" saved to slot '+(idx+1));
-  }catch(err){setStatus('Failed to read Pico: '+err.message,true);}
+  }catch(err){setStatus('Scene save failed: '+err.message,true);}
 }
 function recallScene(s){
   const root=baseUrlEl.value.replace(/\/+$/,'');
@@ -1026,14 +1071,19 @@ function recallScene(s){
       if(!(key in s.values))return;
       const v=s.values[key];const st=fix.start;
       if(ctrl.type==='panTilt16'){
-        const pan=v.pan??32768,tlt=v.tilt??32768;
-        pairs.push((st+ctrl.pan-1)+':'+((pan>>8)&0xff));
-        pairs.push((st+(ctrl.panFine??ctrl.pan+1)-1)+':'+(pan&0xff));
-        pairs.push((st+ctrl.tilt-1)+':'+((tlt>>8)&0xff));
-        pairs.push((st+(ctrl.tiltFine??ctrl.tilt+1)-1)+':'+(tlt&0xff));
+        if(v.pan!==undefined){
+          const pan=v.pan;
+          pairs.push((st+ctrl.pan-1)+':'+((pan>>8)&0xff));
+          pairs.push((st+(ctrl.panFine??ctrl.pan+1)-1)+':'+(pan&0xff));
+        }
+        if(v.tilt!==undefined){
+          const tlt=v.tilt;
+          pairs.push((st+ctrl.tilt-1)+':'+((tlt>>8)&0xff));
+          pairs.push((st+(ctrl.tiltFine??ctrl.tilt+1)-1)+':'+(tlt&0xff));
+        }
       }else if(ctrl.type==='panTilt8'){
-        pairs.push((st+ctrl.pan-1)+':'+(v.pan??128));
-        pairs.push((st+ctrl.tilt-1)+':'+(v.tilt??128));
+        if(v.pan!==undefined)pairs.push((st+ctrl.pan-1)+':'+v.pan);
+        if(v.tilt!==undefined)pairs.push((st+ctrl.tilt-1)+':'+v.tilt);
       }else if(ctrl.type==='slider16'){
         pairs.push((st+ctrl.channel-1)+':'+((v>>8)&0xff));
         pairs.push((st+(ctrl.fine??ctrl.channel+1)-1)+':'+(v&0xff));
@@ -1073,8 +1123,8 @@ function loadScenesServer(){
     if(d.ok&&d.exists){
       if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=d.baseUrl;
       scenes=d.scenes||[];
-      if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('fanSceneSlotCols',slotCols);}
-      if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('fanSceneSlotRows',slotRows);}
+      if(d.slotCols){slotCols=d.slotCols;document.getElementById('slotCols').value=slotCols;localStorage.setItem('sceneSlotCols',slotCols);}
+      if(d.slotRows){slotRows=d.slotRows;document.getElementById('slotRows').value=slotRows;localStorage.setItem('sceneSlotRows',slotRows);}
     }else{scenes=[];}
     renderSlotMatrix();
   }).catch(()=>{scenes=[];renderSlotMatrix();});

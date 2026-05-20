@@ -297,10 +297,11 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <script>
 document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
 const chaserToolboxRail=document.getElementById('chaserToolboxRail');
-['chaseBox','stepsBox','browserPlaybackBox'].forEach(id=>{
-  const box=document.getElementById(id);
-  if(box&&chaserToolboxRail)chaserToolboxRail.appendChild(box);
-});
+DmxCommon.initToolboxRail(chaserToolboxRail,[
+  {box:'chaseBox',type:'chases'},
+  {box:'stepsBox',type:'steps'},
+  {box:'browserPlaybackBox',type:'browserPlayback'}
+]);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
