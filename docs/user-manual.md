@@ -181,23 +181,41 @@ Use **Default all** or **Blackout all** to recall the stored default or blackout
 
 ![Chaser](screenshots/chaser.png)
 
-The Chaser page creates step-based sequences.
+The Chaser page creates step-based sequences. The main page stays focused on **Participating Controls** and **Edit Step**, while the repeated working tools sit in floating hover boxes.
+
+The Chaser screenshot is captured with the important boxes open on purpose: **Steps**, **Browser Playback**, **Chases**, and the collapsed **Groups** header. These boxes can be dragged, collapsed, and reopened. The Steps box can also be resized; its action buttons stay sticky at the top while the step list scrolls.
 
 ### Basic Workflow
 
 1. Open **Chaser**.
 2. Select participating fixture controls.
 3. Create steps manually or capture values from the Fixture Controller.
-4. Set step duration and fade.
-5. Save the preset.
-6. Upload the preset to a Pico slot.
-7. Play the slot from the Pico.
+4. Set step duration and fade in **Edit Step**.
+5. Store the chase in the **Chases** hover box if you want quick recall.
+6. Test timing in **Browser Playback**.
+7. Upload the preset to a Pico slot.
+8. Play the slot from the Pico.
+
+### Chaser Hover Boxes
+
+The Chaser page uses several floating boxes:
+
+- **Groups** filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.
+- **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
+- **Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
+- **Browser Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico.
+
+Loading a chase from the **Chases** box updates the step list, participating controls, and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
+
+The position, collapse state, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.
 
 ### Participating Controls
 
 Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.
 
 For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.
+
+If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups hover box, only fixtures from those groups are shown. The **All**, **None**, **Only**, and **Add** tools let you quickly build a participating-control set for the selected group.
 
 ### Capture From Fixture Controller
 

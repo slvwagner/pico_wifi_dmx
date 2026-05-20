@@ -244,6 +244,58 @@ try {
 })()
 "@
     Save-Screenshot "fixture-controller-group-modal.png"
+
+    $chaserUrl = $BaseUrl.TrimEnd('/') + "/dmx_chaser.html"
+    Send-Cdp "Page.navigate" @{ url = $chaserUrl } | Out-Null
+    Start-Sleep -Seconds 2
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=500)=>new Promise(r=>setTimeout(r,ms));
+  function openToolbox(id){
+    const box=document.getElementById(id);
+    const toggle=document.getElementById(id+'Toggle');
+    if(!box)return;
+    box.style.display='';
+    if(box.classList.contains('collapsed')&&toggle)toggle.click();
+  }
+  function position(id,x,y,w,h){
+    const box=document.getElementById(id);
+    if(!box)return;
+    box.style.left=x+'px';
+    box.style.top=y+'px';
+    box.style.right='auto';
+    if(w)box.style.width=w+'px';
+    if(h)box.style.height=h+'px';
+  }
+  function expandPanel(id){
+    const panel=document.getElementById(id);
+    const btn=document.querySelector('[data-panel-toggle="'+id+'"]');
+    if(!panel)return;
+    panel.classList.remove('collapsed-panel');
+    if(btn)btn.textContent='−';
+  }
+
+  expandPanel('participationPanel');
+  expandPanel('stepEditorSection');
+  ['stepsBox','browserPlaybackBox','chaseBox'].forEach(openToolbox);
+  const groups=document.getElementById('chaserGroupsBox');
+  const groupsToggle=document.getElementById('chaserGroupsToggle');
+  if(groups){
+    groups.style.display='';
+    if(!groups.classList.contains('collapsed')&&groupsToggle)groupsToggle.click();
+    position('chaserGroupsBox',760,20,380);
+  }
+  position('stepsBox',20,110,380,520);
+  position('browserPlaybackBox',625,600,430);
+  position('chaseBox',1165,265,255);
+  if(typeof drawStepList==='function')drawStepList();
+  if(typeof drawParticipation==='function')drawParticipation();
+  if(typeof drawStepEditor==='function')drawStepEditor();
+  await wait(800);
+})()
+"@
+    Save-Screenshot "chaser.png"
 }
 finally {
     if ($socket) { $socket.Dispose() }
