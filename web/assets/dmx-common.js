@@ -418,8 +418,8 @@
         <div class="groups-toolbar">
           <button id="${idPrefix}Export" class="icon-btn export-btn" title="Export groups JSON"></button>
           <button id="${idPrefix}Import" class="icon-btn import-btn" title="Import groups JSON"></button>
-          <button id="${idPrefix}Rename" class="icon-btn" title="Rename selected group">Aa</button>
-          <button id="${idPrefix}Delete" class="icon-btn danger" title="Delete selected groups">×</button>
+          <button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
+          <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>
           ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
           <input id="${importFileId}" type="file" accept=".json,application/json" style="display:none">
           <div class="groups-layout-controls">

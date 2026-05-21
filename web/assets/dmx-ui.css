@@ -28,7 +28,7 @@ button.stop{font-weight:700}
 button:disabled{opacity:.45;cursor:not-allowed}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 a.nav:hover{color:var(--text);border-color:var(--text)}
-.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center;min-width:36px;min-height:32px}
+.icon-btn{padding:7px 9px;display:inline-flex;align-items:center;justify-content:center;width:36px;min-width:36px;height:32px;min-height:32px}
 .icon-btn::before{content:"";width:16px;height:16px;background:currentColor;display:none}
 .icon-btn.export-btn::before{display:block;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='8' y1='2' x2='8' y2='10'/%3E%3Cpolyline points='5 7 8 10 11 7'/%3E%3Cline x1='3' y1='14' x2='13' y2='14'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='8' y1='2' x2='8' y2='10'/%3E%3Cpolyline points='5 7 8 10 11 7'/%3E%3Cline x1='3' y1='14' x2='13' y2='14'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat}
 .icon-btn.import-btn::before{display:block;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='8' y1='10' x2='8' y2='2'/%3E%3Cpolyline points='5 5 8 2 11 5'/%3E%3Cline x1='3' y1='14' x2='13' y2='14'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='8' y1='10' x2='8' y2='2'/%3E%3Cpolyline points='5 5 8 2 11 5'/%3E%3Cline x1='3' y1='14' x2='13' y2='14'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat}
@@ -56,8 +56,9 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox--narrow{max-width:380px}
 .scene-toolbox--groups{right:430px;min-width:280px;max-width:calc(100vw - 24px);overflow:visible}
 .scene-toolbox--groups .scene-toolbox__header{background:#075b66}
-.groups-toolbar{display:grid;grid-template-columns:repeat(4,auto) minmax(70px,auto);grid-template-rows:auto auto;gap:8px;align-items:start}
+.groups-toolbar{display:grid;grid-template-columns:36px 36px auto auto minmax(70px,auto);grid-template-rows:auto auto;gap:8px;align-items:start;justify-content:start}
 .groups-toolbar .icon-btn{align-self:start}
+.groups-toolbar>button:not(.groups-edit-btn){min-height:32px;height:32px;padding:7px 10px;align-self:start}
 .groups-layout-controls{grid-column:1/5;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .groups-edit-btn{grid-column:5;grid-row:1/3;align-self:stretch;padding:4px 12px;line-height:1.1;min-height:74px}
 .groups-matrix{display:grid;gap:8px;align-content:start}

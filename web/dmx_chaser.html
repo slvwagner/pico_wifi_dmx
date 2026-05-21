@@ -46,6 +46,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .chaser-collapse-all{padding:3px 8px;font-size:12px;line-height:1;min-width:64px}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+#stepList .item{cursor:pointer}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
 .progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.05s linear}
 .step-num{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:5px;background:#22303a;font-weight:700;font-size:12px;flex-shrink:0;padding:0 4px}
@@ -55,6 +56,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .step-card-meta{font-size:12px;color:var(--muted);white-space:nowrap}
 .step-actions-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
 .step-actions-grid button{width:100%;min-width:0;padding:5px 7px;font-size:12px;line-height:1.1}
+.step-common-actions{border-top:1px solid var(--line);padding-top:10px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}#participationList,#stepList{grid-template-columns:1fr}}
 .card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .card.collapsed .control{display:none}
@@ -146,6 +148,12 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <button class="primary" id="btnAddStep">+ Add step</button>
         <button id="btnCaptureNew">⬇ Capture + Add</button>
         <button class="warn" id="btnClearAll">Clear all</button>
+      </div>
+      <div class="buttons step-common-actions" style="justify-content:flex-start">
+        <button id="btnStepDuplicate" disabled>Dupe</button>
+        <button id="btnStepUp" disabled>Up</button>
+        <button id="btnStepDown" disabled>Down</button>
+        <button class="warn" id="btnStepDelete" disabled>Delete</button>
       </div>
       <div class="list" id="stepList"></div>
       <div class="row" style="flex-wrap:wrap">
@@ -841,6 +849,11 @@ function drawStepList(){
   const atMax=steps.length>=CHASER_MAX_STEPS;
   document.getElementById('btnAddStep').disabled=atMax;
   document.getElementById('btnCaptureNew').disabled=atMax;
+  const hasSelection=selectedStepIdx>=0&&selectedStepIdx<steps.length;
+  document.getElementById('btnStepDuplicate').disabled=!hasSelection||atMax;
+  document.getElementById('btnStepUp').disabled=!hasSelection||selectedStepIdx<=0;
+  document.getElementById('btnStepDown').disabled=!hasSelection||selectedStepIdx>=steps.length-1;
+  document.getElementById('btnStepDelete').disabled=!hasSelection;
   el.innerHTML='';
   if(!steps.length){
     el.innerHTML='<div class="small">No steps yet. Use Add step or Capture + Add.</div>';
@@ -851,6 +864,7 @@ function drawStepList(){
     const isSel=i===selectedStepIdx;
     const item=document.createElement('div');
     item.className='item'+(isActive?' active-step':'')+(isSel?' edit-step':'');
+    item.dataset.stepIndex=i;
     item.innerHTML=`
       <div class="step-card-head">
         <span class="step-num${isActive?' playing':''}">${i+1}</span>
@@ -859,22 +873,12 @@ function drawStepList(){
           <div class="step-card-meta">${s.duration}ms · fade ${s.fade??0}%</div>
         </div>
       </div>
-      <div class="step-actions-grid">
-        <button data-sel="${i}">Edit</button>
-        <button data-dup="${i}">Dupe</button>
-        <button class="warn" data-del="${i}">Delete</button>
-        <button data-up="${i}">Up</button>
-        <button data-dn="${i}">Down</button>
-      </div>`;
+      `;
     el.appendChild(item);
   });
   el.onclick=e=>{
-    const s=e.target.dataset.sel,d=e.target.dataset.dup,x=e.target.dataset.del,u=e.target.dataset.up,dn=e.target.dataset.dn;
-    if(s!==undefined){selectStepForEdit(parseInt(s));}
-    else if(d!==undefined)duplicateStep(parseInt(d));
-    else if(x!==undefined)deleteStep(parseInt(x));
-    else if(u!==undefined)moveStep(parseInt(u),-1);
-    else if(dn!==undefined)moveStep(parseInt(dn),1);
+    const item=e.target.closest('[data-step-index]');
+    if(item)selectStepForEdit(parseInt(item.dataset.stepIndex));
   };
 }
 
@@ -1934,6 +1938,10 @@ document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getE
 document.getElementById('btnPrev').onclick=()=>manualStep(-1);
 document.getElementById('btnNext').onclick=()=>manualStep(1);
 document.getElementById('btnAddStep').onclick=()=>addStep();
+document.getElementById('btnStepDuplicate').onclick=()=>{if(selectedStepIdx>=0)duplicateStep(selectedStepIdx);};
+document.getElementById('btnStepUp').onclick=()=>{if(selectedStepIdx>=0)moveStep(selectedStepIdx,-1);};
+document.getElementById('btnStepDown').onclick=()=>{if(selectedStepIdx>=0)moveStep(selectedStepIdx,1);};
+document.getElementById('btnStepDelete').onclick=()=>{if(selectedStepIdx>=0)deleteStep(selectedStepIdx);};
 document.getElementById('btnCaptureNew').onclick=async()=>{
   if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
   const s=makeStep();steps.push(s);selectedStepIdx=steps.length-1;
