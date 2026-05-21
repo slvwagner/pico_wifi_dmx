@@ -216,6 +216,7 @@ strong { color: #ffffff; }
 </ol>
 <p>Scene recall sends the stored DMX values to the Pico in one batch and updates the live-value snapshot used by the Chaser page.</p>
 <p>The red <strong>Clear all DMX channels</strong> button clears controller values and calls <code>/dmx/clear</code> on the Pico. This clears both live DMX output and the motion base buffer.</p>
+<p>The Scene Toolbox sits in the shared <strong>Toolboxes</strong> sidebar. Its slot grid follows the configured rows and columns, and the tile size expands to the available sidebar width while keeping the old minimum slot size.</p>
 <h2 id="3-groups">3. Groups</h2>
 <p><img src="screenshots/fixture-controller-group-modal.png" alt="Fixture group edit modal"></p>
 <p>Groups let you control multiple fixtures at once.</p>
@@ -248,21 +249,29 @@ strong { color: #ffffff; }
 <p>Use <strong>Default all</strong> or <strong>Blackout all</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
 <h2 id="4-chaser">4. Chaser</h2>
 <p><img src="screenshots/chaser.png" alt="Chaser"></p>
-<p>The Chaser page creates step-based sequences. The main page stays focused on <strong>Participating Controls</strong> and <strong>Edit Step</strong>, while the repeated working tools sit in floating hover boxes.</p>
-<p>The Chaser screenshot is captured with the important boxes open on purpose: <strong>Steps</strong>, <strong>Browser Playback</strong>, <strong>Chases</strong>, and the collapsed <strong>Groups</strong> header. These boxes can be dragged, collapsed, and reopened. The Steps box can also be resized; its action buttons stay sticky at the top while the step list scrolls.</p>
+<p>The Chaser page creates step-based sequences. The main page stays focused on <strong>Participating Controls</strong> and <strong>Edit Step</strong>, while the repeated working tools sit in the <strong>Toolboxes</strong> sidebar.</p>
+<p>The Chaser screenshot is captured with the important boxes visible on purpose: <strong>Groups</strong>, <strong>Chases</strong>, <strong>Steps</strong>, and <strong>Browser Playback</strong>. Toolbox headers can be dragged up or down to reorder them in the sidebar. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.</p>
 <h3 id="basic-workflow">Basic Workflow</h3>
 <ol>
 <li>Open <strong>Chaser</strong>.</li>
 <li>Select participating fixture controls.</li>
 <li>Create steps manually or capture values from the Fixture Controller.</li>
 <li>Set step duration and fade in <strong>Edit Step</strong>.</li>
-<li>Store the chase in the <strong>Chases</strong> hover box if you want quick recall.</li>
+<li>Store the chase in the <strong>Chases</strong> toolbox if you want quick recall.</li>
 <li>Test timing in <strong>Browser Playback</strong>.</li>
 <li>Upload the preset to a Pico slot.</li>
 <li>Play the slot from the Pico.</li>
 </ol>
-<h3 id="chaser-hover-boxes">Chaser Hover Boxes</h3>
-<p>The Chaser page uses several floating boxes:</p>
+<h3 id="toolbox-sidebar">Toolbox Sidebar</h3>
+<p>Controller, Chaser, Motion FX, and Fan Out use a shared right-side toolbox sidebar on desktop-sized screens.</p>
+<ul>
+<li>Drag the vertical resize line on the left edge of the sidebar to change its width.</li>
+<li>The sidebar width is shared across all toolbox pages.</li>
+<li>Double-click the resize line to reset the default width.</li>
+<li>Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens.</li>
+<li>On narrow screens, the sidebar changes into a bottom toolbox drawer.</li>
+</ul>
+<p>The Chaser page uses several toolboxes:</p>
 <ul>
 <li><strong>Groups</strong> filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.</li>
 <li><strong>Chases</strong> stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.</li>
@@ -270,13 +279,11 @@ strong { color: #ffffff; }
 <li><strong>Browser Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico.</li>
 </ul>
 <p>Loading a chase from the <strong>Chases</strong> box updates the step list, participating controls, and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
-<p>The <strong>Compact</strong> button is only shown on <strong>Steps</strong> and <strong>Browser Playback</strong>. It switches those two boxes into a compact mode: the box whose <strong>Compact</strong> button was pressed stays in place, the other box is pulled next to it, and both boxes collapse to their headers. In compact mode, dragging either header moves both boxes together as one pair. Press <strong>Compact</strong> again to restore their previous positions and reopen both boxes.</p>
-<p>The <strong>Chases</strong> box stays independent and does not have a <strong>Compact</strong> button.</p>
-<p>The position, collapse state, compact-pair state, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
+<p>The collapse state, toolbox order, shared sidebar width, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
 <h3 id="participating-controls">Participating Controls</h3>
 <p>Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.</p>
 <p>For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.</p>
-<p>If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups hover box, only fixtures from those groups are shown. The <strong>All</strong>, <strong>None</strong>, <strong>Only</strong>, and <strong>Add</strong> tools let you quickly build a participating-control set for the selected group.</p>
+<p>If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown. The <strong>All</strong>, <strong>None</strong>, <strong>Only</strong>, and <strong>Add</strong> tools let you quickly build a participating-control set for the selected group.</p>
 <h3 id="capture-from-fixture-controller">Capture From Fixture Controller</h3>
 <p>Use <strong>Capture from FC</strong> or <strong>Capture + Add</strong> to read the current Fixture Controller live values and use them as chase step values.</p>
 <p>This is useful when you want to build a chase visually:</p>

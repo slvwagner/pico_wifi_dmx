@@ -188,7 +188,7 @@ The Group Edit modal appears when multiple compatible fixtures are selected or w
 
 ![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
 
-The Scene Toolbox is a floating panel for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set.
+The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set.
 
 **Chaser**
 
@@ -197,6 +197,8 @@ The Scene Toolbox is a floating panel for saving, recalling, deleting, exporting
 The Chaser page builds step-based sequences. A chase is made from multiple steps; each step stores DMX channel values plus timing and fade settings. The participating-controls panel decides which fixture controls are part of the chase, so editing a chase does not accidentally touch unrelated channels.
 
 Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
+
+The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, and drag toolbox headers to reorder them. Sidebar width and toolbox order are shared across Controller, Chaser, Motion FX, and Fan Out.
 
 **Motion FX**
 
@@ -286,7 +288,7 @@ On each patched fixture card, **Default** and **Blackout** buttons are shown whe
 
 ### Fixture Controller — Scene Toolbox
 
-A floating, draggable, collapsible **Scene Toolbox** overlays the fixture controller page.
+The **Scene Toolbox** sits in the shared right-side Toolboxes sidebar.
 
 - The toolbox shows a configurable grid of slots (rows × columns adjustable with spinners).
 - **Save scene** — snapshots every channel value for every patched fixture into a named slot.
@@ -294,7 +296,7 @@ A floating, draggable, collapsible **Scene Toolbox** overlays the fixture contro
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
 - **Clear all channels** — the red `×` icon next to the scene JSON import/export buttons asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
 - Slots are stored server-side in `data/scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
-- Toolbox position (drag) and collapsed state are persisted per-page to `data/ui_state.json` via `ui_state.php`.
+- Sidebar width and toolbox order are shared across toolbox pages via `data/ui_state.json`; collapsed state is also persisted.
 - Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `data/fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
 
 ### Motion FX — Scene Center Toolbox
@@ -304,7 +306,7 @@ The Motion FX page has a read-only companion to the Scene Toolbox.
 - Loads the same scenes from `scene_setup.php`; renders them as a clickable slot grid.
 - Clicking a filled slot reads the pan/tilt channel values stored in that scene, **sends them to the Pico** as a DMX batch (updating `dmx_base_frame`), and stores them as `basePan`/`baseTilt` in the browser's motion fixture state.
 - The effect then oscillates **relative to that position** rather than around any fixed stored center. Moving lights to a new position (via a scene) and starting motion will always orbit where they are now.
-- The toolbox is draggable, collapsible, and its state is persisted server-side.
+- The toolbox lives in the shared sidebar. Drag its colored header to reorder it, and use the sidebar resize line to adjust the shared toolbox width.
 - The scene toolbox on the Motion FX page is **read-only** — it does not save or delete scenes. Scene management (save, delete) is only available on the Fixture Controller and Fan Out pages.
 - The **↺ Reload from Fixture Controller** button re-fetches `fixture_setup.php` (fixture definitions, not live values) to refresh the fixture list in case fixtures were added or changed.
 
@@ -432,7 +434,7 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `chaser_setup.php` | `data/chaser_setup.json` | Chaser step sequences and slot config |
 | `chaser_setup.php?participating` | `data/chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
 | `motion_setup.php` | `data/motion_setup.json` | Motion FX browser setup and saved Pico slot payloads |
-| `ui_state.php` | `data/ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
+| `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, and toolbox collapse state |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
 
