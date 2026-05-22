@@ -246,6 +246,15 @@ strong { color: #ffffff; }
 <li>The Control Surface is filtered to the fixtures involved in the palette.</li>
 <li>If <strong>Live send</strong> is enabled, only the recalled palette controls are sent to the Pico.</li>
 </ul>
+<p>Filled palette slots recall palettes. Merging is done with the separate <strong>Merge</strong> button so recall and edit actions stay distinct.</p>
+<p>Use <strong>Merge</strong> when you have a current fixture selection or active Fan Out result:</p>
+<ul>
+<li>The controller asks which saved palette slot should receive the current scoped values.</li>
+<li>If the current scope matches the saved palette scope, the values are merged and the palette keeps its scope.</li>
+<li>This allows one <strong>Color</strong> palette to contain RGB controls, color wheels, and RGBWA controls from different fixture types while still remaining a Color palette.</li>
+<li>If the current scope differs from the saved palette scope, the controller asks whether to change the saved palette to <strong>All controls</strong> and merge.</li>
+<li>If you cancel a merge prompt, the palette is not changed.</li>
+</ul>
 <h2 id="2-scenes-and-palettes">2. Scenes And Palettes</h2>
 <p><img src="screenshots/fixture-controller-scene-box.png" alt="Scene Toolbox"></p>
 <p>The Scene Toolbox is available on the Fixture Controller and Fan Out pages.</p>

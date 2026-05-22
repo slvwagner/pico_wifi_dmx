@@ -283,6 +283,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="buttons">
 <button id="exportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
 <button id="importPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
+<button id="mergePaletteBtn" class="palette-merge-btn" title="Merge current scoped values into an existing palette">Merge</button>
 <input id="importPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <label>Scope<select id="paletteScope">
@@ -2659,8 +2660,53 @@ function paletteSlotClick(idx){
   if(!name)return;
   savePaletteToSlot(idx,name);
 }
+function currentPaletteScope(){
+  return document.getElementById('paletteScope')?.value||'position';
+}
+function paletteCanBuildCurrentValues(){
+  return fanAffectedKeys.size>0||selectedFixtureIds.size>0;
+}
+function mergePaletteButtonClick(){
+  if(!palettes.length){setStatus('No saved palettes to merge into',true);return;}
+  if(!paletteCanBuildCurrentValues()){showError('Select fixtures or apply Fan Out before merging a palette.');return;}
+  const list=palettes
+    .slice()
+    .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+    .map(p=>(p.slot+1)+': '+p.name+' ('+paletteScopeLabel(p.scope||'all')+')')
+    .join('\n');
+  const answer=(prompt('Merge current '+paletteScopeLabel(currentPaletteScope())+' values into palette slot:\n'+list,'1')||'').trim();
+  if(!answer)return;
+  const slot=(parseInt(answer,10)||1)-1;
+  const p=palettes.find(pl=>pl.slot===slot);
+  if(!p){setStatus('Palette slot '+(slot+1)+' is empty',true);return;}
+  mergeIntoPalette(p);
+}
+function mergeIntoPalette(p){
+  const currentScope=currentPaletteScope();
+  const savedScope=p.scope||'all';
+  if(savedScope===currentScope||savedScope==='all'){
+    if(confirm('Merge current '+paletteScopeLabel(currentScope)+' values into palette "'+p.name+'"?')){
+      mergePaletteValues(p,savedScope==='all'?'all':currentScope);
+    }
+    return;
+  }
+  if(confirm('Palette "'+p.name+'" is '+paletteScopeLabel(savedScope)+', but the current scope is '+paletteScopeLabel(currentScope)+'.\n\nChange this palette scope to All controls and merge?')){
+    mergePaletteValues(p,'all');
+  }
+}
+function mergePaletteValues(p,nextScope){
+  const paletteValues=currentPaletteSaveValues();
+  if(!paletteValues)return;
+  const fixtureCount=sceneFixtureIdsFromValues(paletteValues).length;
+  if(!fixtureCount){showError('Current palette scope has no matching fixture values to merge.');return;}
+  p.values={...(p.values||{}),...paletteValues};
+  p.scope=nextScope;
+  renderPaletteMatrix();
+  savePalettesServer();
+  setStatus('Merged '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+' into palette "'+p.name+'"');
+}
 function savePaletteToSlot(idx,name){
-  const scope=document.getElementById('paletteScope')?.value||'position';
+  const scope=currentPaletteScope();
   const paletteValues=currentPaletteSaveValues();
   if(!paletteValues)return;
   const fixtureCount=sceneFixtureIdsFromValues(paletteValues).length;
@@ -2672,7 +2718,7 @@ function savePaletteToSlot(idx,name){
   setStatus('Palette "'+name+'" saved to slot '+(idx+1)+' ('+paletteScopeLabel(scope)+', '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');
 }
 function paletteScopeLabel(scope){
-  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',all:'All controls'}[scope]||'Palette';
+  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',all:'All controls',fan:'Fan Out'}[scope]||'Palette';
 }
 function recallPalette(p){
   const paletteValues=normalizedSceneValues(p.values);
@@ -2742,6 +2788,7 @@ function importPalettesJson(file){
 }
 document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile').click();
+document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
 document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
 const paletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'paletteBox',
