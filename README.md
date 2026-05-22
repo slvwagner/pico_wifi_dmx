@@ -8,6 +8,7 @@ Browser-based user interface with the following features:
 - Fixture patching, including multi-fixture patch runs with automatic numbering and optional Saved Group creation
 - Fixture groups with saved group selection, multi-select filtering, rename, delete, and compact group matrix layout
 - Scene editing and saving to palettes
+- Fan Out toolbox on the Fixture Controller to shape selected groups directly into scene values with affected controls highlighted
 - Fan Out tool to spread values, for example moving-light positions across fixture groups
 - Effect creation, such as swing, circle, and figure-8
 - Effects are relative to the scene position
@@ -170,6 +171,8 @@ From this page you can move individual controls live, save and recall scenes, or
 
 Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
 
+The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
+
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
 The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. The Add / Edit Control card edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed. Clicking Edit on an existing control opens this editor automatically. Collapsing Fixture Profiles also hides the Add / Edit Control card.
@@ -292,7 +295,7 @@ The **Scene Toolbox** sits in the shared right-side Toolboxes sidebar.
 
 - The toolbox shows a configurable grid of slots (rows × columns adjustable with spinners).
 - **Save scene** — snapshots every channel value for every patched fixture into a named slot.
-- **Recall scene** — sends all stored channel values back to the Pico in one batch request.
+- **Recall scene** — clears the active group/fixture selection, restores all stored controller values, updates the Chaser live-value snapshot, and sends the values to the Pico in one batch request when Live send is enabled.
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
 - **Clear all channels** — the red `×` icon next to the scene JSON import/export buttons asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
 - Slots are stored server-side in `data/scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.

@@ -114,11 +114,29 @@ Each fixture card contains the controls from its profile:
 - Wheel buttons for indexed wheel values
 - Coarse/fine sliders for 16-bit channels
 
+Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing.
+
 Use **Default** or **Blackout** on a fixture card to recall the stored values for that fixture only.
 
 Use **Select** to include a fixture in group editing.
 
 When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Saved Groups card to filter the control surface.
+
+### Fan Out Toolbox
+
+The Fixture Controller includes a **Fan Out** toolbox in the shared Toolboxes sidebar. It shapes the current controller values for the selected group or selected fixture cards, so the result can immediately be saved as a scene.
+
+1. Select one or more Saved Groups, or select fixture cards manually.
+2. In **Fan Out**, choose the control to shape, for example Dimmer, Pan, Tilt, or another compatible single-value control.
+3. Click **Snapshot** to use the current controller values as the fan base.
+4. Adjust **Spread**, or use **Start to end** mode with From/To offsets.
+5. The Control Surface updates continuously while you change the fan values.
+6. The affected fixture controls are highlighted in the Control Surface.
+7. Save the resulting look with the Scene Toolbox if you want to keep the actual DMX look.
+
+The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand. If **Live send** is enabled, the changed DMX values are also sent to the Pico.
+
+Use **Save** in the Fan Out toolbox to store the fan setup itself: selected group or fixture IDs, selected control, mode, spread, and From/To offsets. Use **Recall** to restore that fan setup later. Recalling a Fan Out preset reapplies the fan to the controller values; it does not create a scene by itself. Use the Scene Toolbox when you want to store the resulting lighting look.
 
 ## 2. Scenes
 
@@ -126,7 +144,7 @@ When you manually select fixture cards, the control surface stays visible so you
 
 The Scene Toolbox is available on the Fixture Controller and Fan Out pages.
 
-Use scenes to store complete looks.
+Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.
 
 1. Set your desired fixture values.
 2. Click an empty scene slot.
@@ -134,9 +152,27 @@ Use scenes to store complete looks.
 4. Click a filled slot once to recall it.
 5. Use the small `x` on a filled slot to delete it.
 
+### Scene Save Rules
+
+Scene saving uses the current working scope:
+
+- If Fan Out is active, the scene saves only the fixtures affected by Fan Out.
+- For each Fan Out fixture, the scene saves all controls of that fixture, not only the fanned control. This keeps related values such as Tilt stable when saving a Pan fan.
+- If Fan Out is not active and fixtures are selected, the scene saves only the selected fixtures.
+- Selected Saved Groups count as selected fixtures, so a group-filtered scene saves only the fixtures in the selected groups.
+- If a scene was recalled and the control surface is filtered to that scene's involved fixtures, saving again uses those involved fixtures.
+- If nothing is selected, the controller asks before saving all patched fixtures.
+- If you cancel that prompt, no scene is saved.
+
+This means a scene is normally scoped to the fixtures you are actually working with. It does not silently save unrelated fixtures unless you explicitly confirm the all-fixtures fallback.
+
+### Scene Recall Rules
+
 Scene recall loads the stored values back into the Fixture Controller, redraws the fixture cards, and updates the live-value snapshot used by the Chaser page.
 
 When **Live send** is enabled and a Pico base URL is set, scene recall also sends the recalled DMX values to the Pico in one batch. When **Live send** is disabled, the scene is recalled in the browser only.
+
+Recalling a scene clears the active group selection and shared group filter. It then selects the fixtures involved in the recalled scene and filters the Control Surface to only those fixtures. This makes the recalled scene visible without leaving an old group filter active, and without showing unrelated fixtures.
 
 If a saved scene was created before fixtures were repatched, the controller tries to remap old fixture IDs to the current patch by matching the same fixture profile in DMX start-address order. This lets older scenes continue to recall after a fixture run was recreated, as long as the fixture profiles and control IDs still match.
 
@@ -171,6 +207,8 @@ The Saved Groups card shows groups in a compact matrix. Each group has four acti
 More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.
 
 The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use **Show all** to clear the saved-group filter and return to the full fixture list.
+
+Group selection is shared across toolbox pages that use the Groups toolbox. It is a working filter: selecting groups limits the visible fixtures for controller editing, Fan Out targeting, and Chaser participating-control setup. Recalling a scene, editing a saved chase step, or loading a saved chase clears the group filter because the recalled data itself becomes the source of truth.
 
 ### Edit a Group
 
@@ -323,6 +361,8 @@ The Motion FX page also has a read-only scene toolbox. Clicking a scene sends th
 
 Fan Out spreads one selected control across an ordered fixture group.
 
+The preferred daily workflow is now the **Fan Out** toolbox on the Fixture Controller page, because it shows the affected controls directly in the live control surface and lets the Scene Toolbox save the finished look immediately. The separate Fan Out page remains available for the larger dedicated editor and saved fan-group setup.
+
 Typical uses:
 
 - Pan fan
@@ -343,6 +383,8 @@ Typical uses:
 Fan Out adds offsets on top of the current base values. This keeps the fan relative to the current fixture positions.
 
 The Fan Out page also includes the scene toolbox, so fan looks can be saved and recalled as scenes.
+
+When a Fan Out result is saved as a scene, only the affected Fan Out fixtures are saved. The saved scene includes all controls for those fixtures, so a fan created on Pan still preserves Tilt and the other fixture values for the same fixtures. This avoids saving unrelated fixtures while keeping each involved fixture complete enough to recall safely.
 
 ## 7. GPIO Control
 

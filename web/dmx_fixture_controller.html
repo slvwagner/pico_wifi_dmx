@@ -41,6 +41,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
+.control.fan-affected{border-color:rgba(244,114,182,.85);box-shadow:0 0 0 1px rgba(244,114,182,.35) inset;background:rgba(244,114,182,.07)}
+.fan-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
+.fan-preview-card{border:1px solid var(--line);border-radius:7px;background:#0a0d10;padding:7px;text-align:center}
+.fan-preview-card.active{border-color:rgba(244,114,182,.75)}
+.fan-preview-card strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
@@ -268,12 +274,39 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="fanToolbox" class="scene-toolbox scene-toolbox--fan">
+<div id="fanToolboxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Fan Out</span>
+<button id="fanToolboxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="fanToolboxBody" class="scene-toolbox__body">
+<div style="display:grid;gap:10px">
+<div class="small" id="fanScopeHint">Select a group to fan fixtures.</div>
+<label>Control<select id="fanControlSelect"></select></label>
+<label>Mode<select id="fanMode"><option value="symmetric">Symmetric spread</option><option value="range">Start to end</option></select></label>
+<label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
+<div id="fanRangeWrap" style="display:none;gap:8px">
+<label>From<input id="fanFrom" type="number" value="0"></label>
+<label>To<input id="fanTo" type="number" value="0"></label>
+</div>
+<div class="buttons">
+<button id="fanSave">Save</button>
+<button id="fanRecall">Recall</button>
+<button id="fanSnapshot">Snapshot</button>
+<button class="primary" id="fanApply">Apply</button>
+<button id="fanClear">Clear</button>
+</div>
+<div id="fanPreview" class="fan-preview"></div>
+</div>
+</div>
+</div>
+
 <aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
-DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'}]);
+DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'fanToolbox',type:'fan'}]);
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
@@ -288,6 +321,7 @@ const profilesEl=document.getElementById('profiles');
 const patchProfile=document.getElementById('patchProfile');
 const patchedEl=document.getElementById('patched');
 const surfaceEl=document.getElementById('surface');
+let sceneFixtureFilterActive=false;
 
 function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
@@ -336,6 +370,10 @@ function writeLiveValues(immediate=false){
 function fixtureProfile(f){return profiles.find(p=>p.id===f.profileId);}
 function activeProfile(){return profiles.find(profile=>profile.id===activeProfileId);}
 function channelOk(f,rel,width=1){const ch=absolute(f.start,rel);return ch>=1&&(ch+width-1)<=maxDmx;}
+const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,bases:{}};
+let fanAffectedKeys=new Set();
+let fanPresets=[];
+function controlClass(f,c){return 'control'+(fanAffectedKeys.has(controlKey(f,c))?' fan-affected':'');}
 
 async function sendChannel(ch,value){
   const root=endpoint();
@@ -403,6 +441,18 @@ function parseWheelOptions(text){
 
 function wheelOptionsText(options){
   return (options||[]).map(o=>o.name+'='+clamp(o.value,0,255)+(o.image?'|'+o.image:(o.color?'|'+o.color:''))).join('\n');
+}
+
+function duplicateWheelOptionValueError(options){
+  const seen=new Map();
+  for(const option of options||[]){
+    const value=clamp(option.value,0,255);
+    if(seen.has(value)){
+      return 'Wheel option DMX value '+value+' is used by "'+seen.get(value)+'" and "'+(option.name||'Value')+'". Each wheel option needs a unique DMX value.';
+    }
+    seen.set(value,option.name||'Value');
+  }
+  return '';
 }
 
 function addDefaultProfile(){
@@ -797,6 +847,14 @@ function addControl(){
   const p=profiles.find(profile=>profile.id===activeProfileId);
   if(!p){showError('Select a profile first');return;}
   const control=controlFromEditor(editingControlId);
+  if(control.type==='wheel'){
+    const duplicateError=duplicateWheelOptionValueError(control.options);
+    if(duplicateError){
+      showError(duplicateError);
+      document.getElementById('wheelOptions').focus();
+      return;
+    }
+  }
   const channelError=validateControlChannels(p,control);
   if(channelError){showError(channelError);return;}
   if(editingControlId){
@@ -965,7 +1023,7 @@ function renderControl(f,c){
   if(c.type==='panTilt16'){
     const v=getValue(f,c,{pan:32768,tilt:32768});
     const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)}/${absolute(f.start,c.panFine??c.pan+1)} · Tilt ${absolute(f.start,c.tilt)}/${absolute(f.start,c.tiltFine??c.tilt+1)}</span></div>
+    return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)}/${absolute(f.start,c.panFine??c.pan+1)} · Tilt ${absolute(f.start,c.tilt)}/${absolute(f.start,c.tiltFine??c.tilt+1)}</span></div>
       <div class="xy-pad" data-xy-fixture="${f.id}" data-control="${c.id}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
       <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-center-pantilt="1" data-fixture="${f.id}" data-control="${c.id}">Center Pan/Tilt</button></div>
       <label>Pan fine position<input type="range" min="0" max="65535" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
@@ -981,7 +1039,7 @@ function renderControl(f,c){
   }
   if(c.type==='panTilt8'){
     const v=getValue(f,c,{pan:128,tilt:128});
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)} · Tilt ${absolute(f.start,c.tilt)}</span></div>
+    return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)} · Tilt ${absolute(f.start,c.tilt)}</span></div>
       <div class="xy-pad" data-xy-fixture="${f.id}" data-control="${c.id}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
       <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-center-pantilt="1" data-fixture="${f.id}" data-control="${c.id}">Center Pan/Tilt</button></div>
       <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
@@ -999,7 +1057,7 @@ function renderControl(f,c){
       : c.type==='rgbwa'
       ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.w)} / ${absolute(f.start,c.amber)}`
       : `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)}`;
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${channels}</span></div>
+    return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${channels}</span></div>
       <label>Color picker<input type="color" value="${color}" data-fixture="${f.id}" data-control="${c.id}" data-color-picker="1"></label>
       ${parts.map((part,i)=>`<label>${names[i]} <span data-color-value="${part}" data-fixture="${f.id}" data-control="${c.id}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" data-fixture="${f.id}" data-control="${c.id}" data-part="${part}"></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-color="#ffffff" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#f00" data-color="#ff0000" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#0f0" data-color="#00ff00" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#00f" data-color="#0000ff" data-fixture="${f.id}" data-control="${c.id}"></button></div></div>`;
@@ -1007,7 +1065,7 @@ function renderControl(f,c){
   if(c.type==='wheel'){
     const v=getValue(f,c,0);
     const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}</span></div>
+    return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}</span></div>
       <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-wheel="${o.value}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${o.name}</button>`).join('')}</div>
       <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>`;
   }
@@ -1019,16 +1077,17 @@ function renderControl(f,c){
       <label>Coarse <span data-byte-readout="coarse" data-fixture="${f.id}" data-control="${c.id}">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-part="coarse"></label>
       <label>Fine <span data-byte-readout="fine" data-fixture="${f.id}" data-control="${c.id}">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-fixture="${f.id}" data-control="${c.id}" data-byte-part="fine"></label>
     </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">${v}</span><span class="bytes">CH ${chText}</span></div>
+  return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">${v}</span><span class="bytes">CH ${chText}</span></div>
     <input type="range" min="0" max="${max}" step="1" value="${v}" data-fixture="${f.id}" data-control="${c.id}">${extra}</div>`;
 }
 
 function drawSurface(){
   surfaceEl.innerHTML='';
   const groupFilterActive=activeSavedGroupIds.size>0;
-  const visibleFixtures=groupFilterActive?fixtures.filter(f=>selectedFixtureIds.has(f.id)):fixtures;
-  if(groupFilterActive&&!visibleFixtures.length){
-    surfaceEl.innerHTML='<div class="small">Selected groups have no patched fixtures in this setup. <button onclick="clearGroupSelection()">Show all</button></div>';
+  const selectionFilterActive=groupFilterActive||sceneFixtureFilterActive;
+  const visibleFixtures=selectionFilterActive?fixtures.filter(f=>selectedFixtureIds.has(f.id)):fixtures;
+  if(selectionFilterActive&&!visibleFixtures.length){
+    surfaceEl.innerHTML='<div class="small">'+(groupFilterActive?'Selected groups':'Recalled scene')+' have no patched fixtures in this setup. <button onclick="clearGroupSelection()">Show all</button></div>';
   }
   visibleFixtures.forEach(f=>{
     const p=fixtureProfile(f);
@@ -1042,6 +1101,7 @@ function drawSurface(){
     surfaceEl.appendChild(card);
   });
   updateGroupBar();
+  renderFanToolbox();
 }
 
 function updateControlDisplay(f,c){
@@ -1118,6 +1178,208 @@ async function recallFixtureValues(fixtureId,which){
   else setStatus(f.name+' '+(which==='defaultValue'?'default':'blackout')+' recalled');
 }
 function draw(){drawProfiles();drawPatched();drawSurface();}
+
+function fanFixtureOrder(){
+  const ids=[];
+  selectedSavedGroups().forEach(g=>(g.fixtureIds||[]).forEach(id=>{if(!ids.includes(id))ids.push(id);}));
+  if(!ids.length)[...selectedFixtureIds].forEach(id=>{if(!ids.includes(id))ids.push(id);});
+  return ids.map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
+}
+function fanControlOptions(){
+  const ordered=fanFixtureOrder();
+  const first=ordered[0];
+  const profile=first&&fixtureProfile(first);
+  if(!profile)return[];
+  const opts=[];
+  profile.controls.forEach(c=>{
+    const add=(axis,label,max)=>{
+      if(ordered.every(f=>findFanControl(f,c.id,axis)))opts.push({key:c.id+':'+axis,label,max});
+    };
+    if(c.type==='panTilt16'){add('pan',c.label+' Pan',65535);add('tilt',c.label+' Tilt',65535);}
+    else if(c.type==='panTilt8'){add('pan',c.label+' Pan',255);add('tilt',c.label+' Tilt',255);}
+    else if(c.type==='slider16')add('value',c.label,65535);
+    else if(c.channel>=1)add('value',c.label,255);
+  });
+  return opts;
+}
+function findFanControl(f,controlId,axis){
+  const c=fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===String(controlId));
+  if(!c)return null;
+  if((axis==='pan'||axis==='tilt')&&(c.type==='panTilt16'||c.type==='panTilt8'))return c;
+  if(axis==='value'&&(c.type==='slider16'||c.channel>=1))return c;
+  return null;
+}
+function parseFanControlKey(key=fanState.controlKey){
+  const parts=String(key||'').split(':');
+  return{controlId:parts[0],axis:parts[1]||'value'};
+}
+function fanMaxValue(){
+  const opt=fanControlOptions().find(o=>o.key===fanState.controlKey);
+  return opt?.max||255;
+}
+function fanGetValue(f,c,axis){
+  if(axis==='pan'||axis==='tilt'){
+    const max=c.type==='panTilt8'?255:65535;
+    return getValue(f,c,{pan:Math.round(max/2),tilt:Math.round(max/2)})[axis];
+  }
+  return getValue(f,c,0);
+}
+function fanSetValue(f,c,axis,val){
+  val=clamp(Math.round(val),0,fanMaxValue());
+  if(axis==='pan'||axis==='tilt'){
+    const max=c.type==='panTilt8'?255:65535;
+    const cur={...getValue(f,c,{pan:Math.round(max/2),tilt:Math.round(max/2)})};
+    cur[axis]=val;
+    setValue(f,c,cur);
+  }else setValue(f,c,val);
+}
+function snapshotFanBases(){
+  const ordered=fanFixtureOrder();
+  const {controlId,axis}=parseFanControlKey();
+  fanState.bases={};
+  ordered.forEach(f=>{
+    const c=findFanControl(f,controlId,axis);
+    if(c)fanState.bases[f.id]=fanGetValue(f,c,axis);
+  });
+  renderFanToolbox();
+}
+function ensureFanBases(){
+  const ordered=fanFixtureOrder();
+  const {controlId,axis}=parseFanControlKey();
+  ordered.forEach(f=>{
+    if(fanState.bases[f.id]!==undefined)return;
+    const c=findFanControl(f,controlId,axis);
+    if(c)fanState.bases[f.id]=fanGetValue(f,c,axis);
+  });
+}
+function fanComputedValues(){
+  const ordered=fanFixtureOrder();
+  const max=fanMaxValue();
+  const count=ordered.length;
+  const from=fanState.mode==='range'?parseFloat(fanState.fromOffset)||0:-(parseFloat(fanState.spread)||0)/2;
+  const to=fanState.mode==='range'?parseFloat(fanState.toOffset)||0:(parseFloat(fanState.spread)||0)/2;
+  return ordered.map((f,i)=>{
+    const t=count>1?i/(count-1):0;
+    const base=fanState.bases[f.id]??Math.round(max/2);
+    const offset=from+(to-from)*t;
+    return{fixture:f,base,offset,finalVal:clamp(Math.round(base+offset),0,max)};
+  });
+}
+function renderFanToolbox(){
+  const hint=document.getElementById('fanScopeHint');if(!hint)return;
+  const ordered=fanFixtureOrder();
+  const opts=fanControlOptions();
+  const sel=document.getElementById('fanControlSelect');
+  const old=fanState.controlKey||sel.value;
+  sel.innerHTML=opts.map(o=>`<option value="${o.key}">${escHtml(o.label)}</option>`).join('');
+  if(opts.some(o=>o.key===old))sel.value=old;
+  else if(opts[0]){sel.value=opts[0].key;fanState.controlKey=opts[0].key;fanState.bases={};}
+  const max=fanMaxValue();
+  document.getElementById('fanSpread').max=max;
+  document.getElementById('fanSpread').step=max>255?256:1;
+  document.getElementById('fanSpread').value=clamp(fanState.spread,0,max);
+  document.getElementById('fanSpreadReadout').textContent=Math.round(fanState.spread||0);
+  document.getElementById('fanMode').value=fanState.mode;
+  document.getElementById('fanRangeWrap').style.display=fanState.mode==='range'?'flex':'none';
+  document.getElementById('fanFrom').value=Math.round(fanState.fromOffset||0);
+  document.getElementById('fanTo').value=Math.round(fanState.toOffset||0);
+  hint.textContent=ordered.length?('Affecting '+ordered.length+' fixture'+(ordered.length===1?'':'s')+' in selected order'):'Select a saved group or fixture cards first.';
+  ['fanControlSelect','fanSpread','fanMode','fanFrom','fanTo','fanSnapshot','fanApply','fanSave','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ordered.length||!opts.length;});
+  document.getElementById('fanRecall').disabled=!fanPresets.length;
+  const preview=document.getElementById('fanPreview');
+  ensureFanBases();
+  preview.innerHTML=fanComputedValues().map(v=>`<div class="fan-preview-card active"><strong>${escHtml(v.fixture.name)}</strong><span>${v.base} → ${v.finalVal}</span></div>`).join('')||'<div class="small">No fan preview.</div>';
+}
+function applyFanToController(options={}){
+  const ordered=fanFixtureOrder();
+  const {controlId,axis}=parseFanControlKey();
+  if(!ordered.length||!controlId){setStatus('Select a group and fan control first',true);return;}
+  ensureFanBases();
+  fanAffectedKeys=new Set();
+  fanComputedValues().forEach(({fixture,finalVal})=>{
+    const c=findFanControl(fixture,controlId,axis);if(!c)return;
+    fanSetValue(fixture,c,axis,finalVal);
+    fanAffectedKeys.add(controlKey(fixture,c));
+  });
+  drawSurface();
+  writeLiveValues(true);
+  if(live.checked){
+    const root=endpoint();
+    if(root){
+      const pairs=[];
+      fanComputedValues().forEach(({fixture})=>{
+        const c=findFanControl(fixture,controlId,axis);if(!c)return;
+        resolveDmxBytes(fixture,c).forEach(({ch,val})=>pairs.push(ch+':'+val));
+      });
+      if(pairs.length)fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'}).catch(err=>setStatus(err.message,true));
+    }
+  }
+  if(!options.silent)setStatus('Fan Out applied to '+ordered.length+' fixture'+(ordered.length===1?'':'s'));
+}
+function liveFanUpdate(){
+  renderFanToolbox();
+  applyFanToController({silent:true});
+}
+function fanPresetPayload(name){
+  return{
+    id:'fan_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+    name,
+    groupIds:selectedSavedGroupIds(),
+    fixtureIds:[...selectedFixtureIds],
+    state:{
+      controlKey:fanState.controlKey,
+      mode:fanState.mode,
+      spread:fanState.spread,
+      fromOffset:fanState.fromOffset,
+      toOffset:fanState.toOffset
+    }
+  };
+}
+function saveFanPresets(){
+  DmxCommon.saveUiState('fixture','fanOutPresets',fanPresets);
+}
+async function loadFanPresets(){
+  try{
+    const st=await DmxCommon.loadUiState('fixture');
+    fanPresets=Array.isArray(st.fanOutPresets)?st.fanOutPresets:[];
+  }catch(_){fanPresets=[];}
+  renderFanToolbox();
+}
+function saveFanPreset(){
+  if(!fanFixtureOrder().length){setStatus('Select a group or fixtures before saving Fan Out',true);return;}
+  const name=(prompt('Fan Out preset name:','Fan '+(fanPresets.length+1))||'').trim();
+  if(!name)return;
+  const existing=fanPresets.findIndex(p=>p.name===name);
+  const preset=fanPresetPayload(name);
+  if(existing>=0)fanPresets.splice(existing,1,preset);else fanPresets.push(preset);
+  saveFanPresets();
+  renderFanToolbox();
+  setStatus('Fan Out preset saved: '+name);
+}
+function recallFanPreset(){
+  if(!fanPresets.length){setStatus('No saved Fan Out presets',true);return;}
+  const label=fanPresets.map((p,i)=>(i+1)+': '+p.name).join('\n');
+  const answer=(prompt('Recall Fan Out preset number:\n'+label,'1')||'').trim();
+  if(!answer)return;
+  const idx=Math.max(0,Math.min(fanPresets.length-1,(parseInt(answer,10)||1)-1));
+  const preset=fanPresets[idx];if(!preset)return;
+  if(Array.isArray(preset.groupIds)&&preset.groupIds.length){
+    applySharedGroupSelection(preset.groupIds);
+    DmxCommon.saveSharedGroupSelection(preset.groupIds);
+  }
+  if(!selectedFixtureIds.size&&Array.isArray(preset.fixtureIds)){
+    activeSavedGroupIds.clear();
+    selectedFixtureIds=new Set(preset.fixtureIds.filter(id=>fixtures.some(f=>f.id===id)));
+    DmxCommon.saveSharedGroupSelection([]);
+  }
+  Object.assign(fanState,preset.state||{});
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  renderSavedGroupsList();
+  snapshotFanBases();
+  liveFanUpdate();
+  setStatus('Fan Out preset recalled: '+preset.name);
+}
 
 profilesEl.onclick=e=>{
   const select=e.target.dataset.profile;
@@ -1448,6 +1710,9 @@ function updateGroupBar(){
 function clearGroupSelection(){
   selectedFixtureIds.clear();
   activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
+  fanState.bases={};
+  fanAffectedKeys.clear();
   DmxCommon.saveSharedGroupSelection([]);
   renderSavedGroupsList();
   drawSurface();
@@ -1681,6 +1946,7 @@ surfaceEl.addEventListener('click',e=>{
   const id=parseInt(sel.dataset.selectFixture,10);
   if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
   activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
   renderSavedGroupsList();
   drawSurface();
 },true);
@@ -1709,7 +1975,9 @@ function selectedSavedGroupIds(){
 function applySharedGroupSelection(ids){
   const wanted=new Set((Array.isArray(ids)?ids:[]).filter(Boolean).map(String));
   activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
   savedGroups.forEach((g,i)=>{if(wanted.has(String(g.id)))activeSavedGroupIds.add(savedGroupKey(g,i));});
+  fanState.bases={};
   rebuildSelectionFromSavedGroups();
 }
 function rebuildSelectionFromSavedGroups(){
@@ -1831,6 +2099,8 @@ function toggleGroup(i){
   const g=savedGroups[i];if(!g)return;
   const key=savedGroupKey(g,i);
   if(activeSavedGroupIds.has(key))activeSavedGroupIds.delete(key);else activeSavedGroupIds.add(key);
+  sceneFixtureFilterActive=false;
+  fanState.bases={};
   rebuildSelectionFromSavedGroups();
   DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
   renderSavedGroupsList();
@@ -1839,6 +2109,8 @@ function toggleGroup(i){
 function loadGroup(i){
   const g=savedGroups[i];if(!g)return;
   activeSavedGroupIds.add(savedGroupKey(g,i));
+  sceneFixtureFilterActive=false;
+  fanState.bases={};
   rebuildSelectionFromSavedGroups();
   DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
   renderSavedGroupsList();
@@ -2036,12 +2308,47 @@ function slotDblClick(idx){
   scenes.splice(scenes.indexOf(s),1);
   renderSlotMatrix();saveScenesServer();
 }
+function sceneValuesForFixtureIds(fixtureIds){
+  const wanted=new Set((fixtureIds||[]).map(String));
+  const out={};
+  fixtures.forEach(f=>{
+    if(!wanted.has(String(f.id)))return;
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      const key=controlKey(f,c);
+      out[key]=cloneValue(getValue(f,c,defaultValueForControl(c)));
+    });
+  });
+  return out;
+}
+function currentSceneSaveValues(){
+  if(fanAffectedKeys.size){
+    const fixtureIds=[];
+    fanAffectedKeys.forEach(key=>{
+      const fixtureId=String(key).split(':')[0];
+      if(!fixtureIds.includes(fixtureId))fixtureIds.push(fixtureId);
+    });
+    return sceneValuesForFixtureIds(fixtureIds);
+  }
+  const selectedIds=[...selectedFixtureIds].filter(id=>fixtures.some(f=>String(f.id)===String(id)));
+  if(selectedIds.length)return sceneValuesForFixtureIds(selectedIds);
+  if(activeSavedGroupIds.size){
+    showError('Selected groups have no patched fixtures to save.');
+    return null;
+  }
+  if(!confirm('No fixtures are selected. Save values for all patched fixtures?'))return null;
+  return sceneValuesForFixtureIds(fixtures.map(f=>f.id));
+}
 function saveSceneToSlot(idx,name){
   const ei=scenes.findIndex(sc=>sc.slot===idx);
   if(ei>=0)scenes.splice(ei,1);
-  scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:JSON.parse(JSON.stringify(values))});
+  const sceneValues=currentSceneSaveValues();
+  if(!sceneValues)return;
+  const fixtureCount=sceneFixtureIdsFromValues(sceneValues).length;
+  if(!fixtureCount){showError('Scene has no fixture values to save.');return;}
+  scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:sceneValues});
   renderSlotMatrix();saveScenesServer();
-  setStatus('Scene "'+name+'" saved to slot '+(idx+1));
+  setStatus('Scene "'+name+'" saved to slot '+(idx+1)+' ('+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');
 }
 function profileForControlId(controlId){
   return profiles.find(p=>(p.controls||[]).some(c=>String(c.id)===String(controlId)));
@@ -2100,8 +2407,26 @@ function normalizedSceneValues(sceneValues){
   });
   return out;
 }
+function sceneFixtureIdsFromValues(sceneValues){
+  const ids=[];
+  Object.keys(sceneValues||{}).forEach(key=>{
+    const fixtureId=String(key).split(':')[0];
+    const fixture=fixtures.find(f=>String(f.id)===fixtureId);
+    if(fixture&&!ids.includes(fixture.id))ids.push(fixture.id);
+  });
+  return ids;
+}
 function recallScene(s){
-  Object.assign(values,normalizedSceneValues(s.values));
+  const recalledValues=normalizedSceneValues(s.values);
+  selectedFixtureIds.clear();
+  activeSavedGroupIds.clear();
+  sceneFixtureIdsFromValues(recalledValues).forEach(id=>selectedFixtureIds.add(id));
+  sceneFixtureFilterActive=selectedFixtureIds.size>0;
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  Object.assign(values,recalledValues);
   drawSurface();
   writeLiveValues(true);
   if(live.checked){
@@ -2198,6 +2523,35 @@ const sceneBox=sceneToolbox.box;
 function clampSceneBox(){sceneToolbox.clamp();}
 loadScenesServer();
 // ── End scene toolbox ─────────────────────────────────────────────────
+
+const fanToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'fanToolbox',
+  headerId:'fanToolboxHdr',
+  toggleId:'fanToolboxToggle',
+  posStorageKey:'fanToolboxPos',
+  collapsedStorageKey:'fanToolboxCollapsed',
+  uiStatePage:'fixture',
+  uiStatePosKey:'fanToolboxPos',
+  uiStateCollapsedKey:'fanToolboxCollapsed'
+});
+document.getElementById('fanControlSelect').addEventListener('change',e=>{
+  fanState.controlKey=e.target.value;
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  snapshotFanBases();
+  drawSurface();
+});
+document.getElementById('fanMode').addEventListener('change',e=>{fanState.mode=e.target.value;liveFanUpdate();});
+document.getElementById('fanSpread').addEventListener('input',e=>{fanState.spread=clamp(e.target.value,0,fanMaxValue());liveFanUpdate();});
+document.getElementById('fanFrom').addEventListener('input',e=>{fanState.fromOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
+document.getElementById('fanTo').addEventListener('input',e=>{fanState.toOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
+document.getElementById('fanSnapshot').onclick=()=>{snapshotFanBases();setStatus('Fan Out bases snapshotted');};
+document.getElementById('fanApply').onclick=applyFanToController;
+document.getElementById('fanSave').onclick=saveFanPreset;
+document.getElementById('fanRecall').onclick=recallFanPreset;
+document.getElementById('fanClear').onclick=()=>{fanAffectedKeys.clear();fanState.bases={};drawSurface();setStatus('Fan Out highlight cleared');};
+loadFanPresets();
+// ── End Fan Out toolbox ───────────────────────────────────────────────
 
 // ── Collapsible sections ──────────────────────────────────────────────
 [
