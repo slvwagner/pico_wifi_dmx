@@ -66,6 +66,7 @@
 
   const TOOLBOX_ORDER_KEY='toolboxRailOrder';
   const TOOLBOX_WIDTH_KEY='toolboxRailWidth';
+  const GROUP_SELECTION_KEY='selectedGroupIds';
   const DEFAULT_TOOLBOX_ORDER=['groups','scenes','chases','steps','browserPlayback'];
 
   function normalizeToolboxOrder(order,types){
@@ -104,6 +105,27 @@
     const merged=normalizeToolboxOrder(order,DEFAULT_TOOLBOX_ORDER);
     localStorage.setItem(TOOLBOX_ORDER_KEY,JSON.stringify(merged));
     saveUiState('toolboxes',TOOLBOX_ORDER_KEY,merged);
+  }
+
+  function normalizeGroupSelection(ids){
+    return Array.isArray(ids)?[...new Set(ids.filter(Boolean).map(String))]:[];
+  }
+
+  function saveSharedGroupSelection(ids){
+    const selected=normalizeGroupSelection(ids);
+    localStorage.setItem(GROUP_SELECTION_KEY,JSON.stringify(selected));
+    saveUiState('toolboxes',GROUP_SELECTION_KEY,selected);
+  }
+
+  async function loadSharedGroupSelection(){
+    let selected=[];
+    try{selected=normalizeGroupSelection(JSON.parse(localStorage.getItem(GROUP_SELECTION_KEY)||'[]'));}catch(_){}
+    const shared=await loadUiState('toolboxes');
+    if(Array.isArray(shared[GROUP_SELECTION_KEY])){
+      selected=normalizeGroupSelection(shared[GROUP_SELECTION_KEY]);
+      localStorage.setItem(GROUP_SELECTION_KEY,JSON.stringify(selected));
+    }
+    return selected;
   }
 
   function clampToolboxRailWidth(value){
@@ -445,6 +467,12 @@
 
     function key(g,i){return g.id||('idx_'+i);}
     function selectedGroups(){return groups.filter((g,i)=>selectedIds.has(key(g,i)));}
+    function selectedGroupIds(){return selectedGroups().map(g=>g.id).filter(Boolean);}
+    function applySharedSelection(ids){
+      const wanted=new Set(normalizeGroupSelection(ids));
+      selectedIds.clear();
+      groups.forEach((g,i)=>{if(wanted.has(String(g.id)))selectedIds.add(key(g,i));});
+    }
     function clampLayout(priority='cols'){
       const count=groups.length;
       cols=Math.max(1,Math.min(8,parseInt(cols)||2));
@@ -533,7 +561,7 @@
         if(d.baseUrl&&options.baseUrlInput&&!localStorage.getItem(BASE_URL_KEY))options.baseUrlInput.value=d.baseUrl;
         groups=Array.isArray(d.groups)?d.groups.map((g,i)=>({...g,id:g.id||('grp_'+Date.now()+'_'+i),fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],values:g.values||{}})):[];
       }catch(_){groups=[];}
-      selectedIds.clear();
+      applySharedSelection(await loadSharedGroupSelection());
       render();
       notify();
     }
@@ -549,7 +577,7 @@
           if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
           if(data.baseUrl&&options.baseUrlInput&&!localStorage.getItem(BASE_URL_KEY))options.baseUrlInput.value=data.baseUrl;
           groups=data.groups.map((g,i)=>({...g,id:g.id||('grp_'+Date.now()+'_'+i),fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],values:g.values||{}}));
-          selectedIds.clear();render('cols');notify();saveGroups();
+          selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
           options.onStatus?.('Imported '+groups.length+' group(s)');
         }catch(err){options.onStatus?.('Import failed: '+err.message,true);}
       };
@@ -563,6 +591,7 @@
       const g=groups[i];if(!g)return;
       const k=key(g,i);
       if(selectedIds.has(k))selectedIds.delete(k);else selectedIds.add(k);
+      saveSharedGroupSelection(selectedGroupIds());
       render('cols');notify();
     });
     document.getElementById(idPrefix+'Export').onclick=exportGroups;
@@ -580,7 +609,7 @@
       const ids=new Set(selected.map(g=>g.id));
       if(!confirm('Delete '+selected.length+' selected group'+(selected.length===1?'':'s')+'?\n\n'+selected.map(g=>g.name).join(', ')))return;
       groups=groups.filter(g=>!ids.has(g.id));
-      selectedIds.clear();render('cols');notify();saveGroups();
+      selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
     };
     const edit=document.getElementById(idPrefix+'Edit');
     if(edit)edit.onclick=()=>{const selected=selectedGroups();if(selected.length)options.onEdit?.(selected);};
@@ -596,9 +625,14 @@
       render();
     }).catch(()=>{});
     loadGroups();
+    window.addEventListener('storage',e=>{
+      if(e.key!==GROUP_SELECTION_KEY)return;
+      try{applySharedSelection(JSON.parse(e.newValue||'[]'));render();notify();}catch(_){}
+    });
     function clearSelection(){
       if(!selectedIds.size)return;
       selectedIds.clear();
+      saveSharedGroupSelection([]);
       render();
       notify();
     }
@@ -616,6 +650,8 @@
     preferStoredBaseUrl,
     saveUiState,
     loadUiState,
+    saveSharedGroupSelection,
+    loadSharedGroupSelection,
     initToolboxRail,
     initFloatingToolbox,
     initGroupsToolbox

@@ -436,6 +436,7 @@ function sendControlValue(f,c,val){
 // ---- setup loading ----
 let setup={};
 let participating={};
+let activeStepValueKeys=null;
 function controlKey(f,c){return f.id+':'+c.id;}
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
 
@@ -653,6 +654,7 @@ function drawGroupControlTools(){
 }
 
 function applyGroupControlSelection(mode){
+  activeStepValueKeys=null;
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   const wanted=document.getElementById('groupControlSelect').value;
   if(!selectedFixtureIds||!wanted){setStatus('Select a group and a control first',true);return;}
@@ -676,12 +678,28 @@ function applyGroupControlSelection(mode){
 function getParticipatingList(){
   const result=[];
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
   (setup.fixtures||[]).forEach(f=>{
     if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return;
     const p=fixtureProfile(f);if(!p)return;
-    p.controls.forEach(c=>{if(participating[controlKey(f,c)])result.push({f,c});});
+    p.controls.forEach(c=>{
+      const k=controlKey(f,c);
+      if(activeKeys&&!activeKeys.has(k))return;
+      if(participating[k])result.push({f,c});
+    });
   });
   return result;
+}
+
+function scopedParticipationFixtures(){
+  const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
+  return (setup.fixtures||[]).filter(f=>{
+    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return false;
+    const p=fixtureProfile(f);if(!p)return false;
+    if(activeKeys)return p.controls.some(c=>activeKeys.has(controlKey(f,c))&&participating[controlKey(f,c)]);
+    return true;
+  });
 }
 
 // ---- participation UI ----
@@ -690,11 +708,8 @@ function drawParticipation(){
   el.innerHTML='';
   drawGroupControlTools();
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
-  const fixtures=(setup.fixtures||[]).filter(f=>{
-    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return false;
-    const p=fixtureProfile(f);if(!p)return false;
-    return p.controls.some(c=>participating[controlKey(f,c)]);
-  });
+  const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
+  const fixtures=scopedParticipationFixtures();
   if(selectedFixtureIds&&!fixtures.length){
     el.innerHTML='<div class="small">Selected groups have no participating controls in this setup.</div>';
     return;
@@ -714,6 +729,7 @@ function drawParticipation(){
       `<div class="ctrl-summary">${checkedChips}</div>`;
     p.controls.forEach(c=>{
       const k=controlKey(f,c);
+      if(activeKeys&&!activeKeys.has(k))return;
       const lbl=document.createElement('label');
       lbl.style.cssText='display:flex;flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer';
       lbl.innerHTML=`<input type="checkbox" data-key="${k}" ${participating[k]?'checked':''} style="accent-color:var(--accent)"> ${c.label} <span style="opacity:.6">(${c.type})</span>`;
@@ -723,6 +739,7 @@ function drawParticipation(){
   });
   el.oninput=e=>{
     if(e.target.dataset.key){
+      if(activeStepValueKeys instanceof Set)activeStepValueKeys.add(e.target.dataset.key);
       participating[e.target.dataset.key]=e.target.checked;
       drawStepEditor();
       const item=e.target.closest('.item');
@@ -774,6 +791,58 @@ function involvedChaserValueKeys(){
   steps.forEach(step=>Object.keys(step?.values||{}).forEach(k=>keys.add(k)));
   return keys;
 }
+function profileForControlId(controlId){
+  return (setup.profiles||[]).find(p=>(p.controls||[]).some(c=>String(c.id)===String(controlId)));
+}
+function currentFixtureById(id){
+  return (setup.fixtures||[]).find(f=>String(f.id)===String(id));
+}
+function remapChaserKeysForCurrentSetup(data){
+  if(!data||!Array.isArray(data.steps))return data;
+  const oldFixtureIdsByProfile=new Map();
+  const rememberKey=k=>{
+    const parts=String(k).split(':');
+    if(parts.length!==2||currentFixtureById(parts[0]))return;
+    const profile=profileForControlId(parts[1]);
+    if(!profile)return;
+    const pid=String(profile.id);
+    if(!oldFixtureIdsByProfile.has(pid))oldFixtureIdsByProfile.set(pid,[]);
+    const ids=oldFixtureIdsByProfile.get(pid);
+    if(!ids.includes(parts[0]))ids.push(parts[0]);
+  };
+  data.steps.forEach(step=>Object.keys(step?.values||{}).forEach(rememberKey));
+  Object.keys(data.participating||{}).forEach(rememberKey);
+  if(!oldFixtureIdsByProfile.size)return data;
+  const remap=new Map();
+  oldFixtureIdsByProfile.forEach((oldIds,pid)=>{
+    const fixtures=(setup.fixtures||[])
+      .filter(f=>String(f.profileId)===pid)
+      .slice()
+      .sort((a,b)=>(parseInt(a.start)||0)-(parseInt(b.start)||0));
+    oldIds.forEach((oldId,i)=>{
+      if(fixtures[i])remap.set(oldId,String(fixtures[i].id));
+    });
+  });
+  if(!remap.size)return data;
+  const mapKey=k=>{
+    const parts=String(k).split(':');
+    if(parts.length!==2)return k;
+    const nextFixtureId=remap.get(parts[0]);
+    return nextFixtureId?nextFixtureId+':'+parts[1]:k;
+  };
+  data.steps.forEach(step=>{
+    if(!step?.values)return;
+    const next={};
+    Object.entries(step.values).forEach(([k,v])=>{next[mapKey(k)]=v;});
+    step.values=next;
+  });
+  if(data.participating&&typeof data.participating==='object'){
+    const next={};
+    Object.entries(data.participating).forEach(([k,v])=>{next[mapKey(k)]=v;});
+    data.participating=next;
+  }
+  return data;
+}
 function applyStepParticipating(step){
   const valid=validControlKeySet();
   const next={};
@@ -782,6 +851,7 @@ function applyStepParticipating(step){
   participating=next;
   const before=Object.keys(step?.values||{}).length;
   Object.keys(step?.values||{}).forEach(k=>{if(!valid.has(k))delete step.values[k];});
+  activeStepValueKeys=new Set(Object.keys(step?.values||{}).filter(k=>valid.has(k)));
   return{active:Object.values(next).filter(Boolean).length,removed:before-Object.keys(step?.values||{}).length};
 }
 function addStep(vals){
@@ -792,7 +862,7 @@ function addStep(vals){
   steps.push(s);
   selectedStepIdx=steps.length-1;
   applyStepParticipating(s);
-  drawStepList();drawStepEditor();
+  drawParticipation();drawStepList();drawStepEditor();
   setStatus('Step '+(steps.length)+' added');
 }
 function duplicateStep(idx){
@@ -801,13 +871,15 @@ function duplicateStep(idx){
   const copy={...s,id:uid(),label:s.label+' copy',values:{...s.values}};
   steps.splice(idx+1,0,copy);
   selectedStepIdx=idx+1;
-  drawStepList();drawStepEditor();
+  applyStepParticipating(copy);
+  drawParticipation();drawStepList();drawStepEditor();
 }
 function deleteStep(idx){
   steps.splice(idx,1);
   if(selectedStepIdx>=steps.length)selectedStepIdx=steps.length-1;
   if(activeStepIdx>=steps.length)activeStepIdx=steps.length-1;
-  drawStepList();drawStepEditor();
+  if(steps[selectedStepIdx])applyStepParticipating(steps[selectedStepIdx]);else activeStepValueKeys=null;
+  drawParticipation();drawStepList();drawStepEditor();
 }
 function moveStep(idx,dir){
   const ni=idx+dir;
@@ -818,6 +890,12 @@ function moveStep(idx,dir){
   if(activeStepIdx===idx)activeStepIdx=ni;
   else if(activeStepIdx===ni)activeStepIdx=idx;
   drawStepList();
+}
+
+async function clearChaserGroupSelectionForLoadedStep(){
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+  await new Promise(resolve=>setTimeout(resolve,0));
 }
 
 async function captureFromFC(stepIdx){
@@ -884,7 +962,7 @@ function drawStepList(){
 
 async function selectStepForEdit(idx){
   selectedStepIdx=idx;
-  chaserGroupsBox?.clearSelection?.();
+  await clearChaserGroupSelectionForLoadedStep();
   const result=applyStepParticipating(steps[idx]);
   drawStepList();
   drawParticipation();
@@ -1366,6 +1444,7 @@ function applyBrowserPlaybackOptions(opts={}){
 }
 function chaserData(){return{baseUrl:baseUrlEl.value,playback:picoPlaybackOptions(),browserPlayback:browserPlaybackOptions(),steps};}
 function applyChaserData(data,redraw=true){
+  data=remapChaserKeysForCurrentSetup(data);
   if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   if(data?.playback)applyPicoPlaybackOptions(data.playback);
   if(data?.browserPlayback)applyBrowserPlaybackOptions(data.browserPlayback);
@@ -1374,6 +1453,15 @@ function applyChaserData(data,redraw=true){
     if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported preset was trimmed to '+CHASER_MAX_STEPS+' steps',true);
   }
   selectedStepIdx=steps.length?0:-1;
+  if(steps[selectedStepIdx]){
+    applyStepParticipating(steps[selectedStepIdx]);
+    if(activeStepValueKeys&&activeStepValueKeys.size===0&&data?.participating){
+      applyParticipatingData(data.participating,false);
+    }
+  }else{
+    activeStepValueKeys=null;
+    if(data?.participating)applyParticipatingData(data.participating,false);
+  }
   if(redraw){drawParticipation();drawStepList();drawStepEditor();}
 }
 
@@ -1458,12 +1546,10 @@ function saveChaseToSlot(idx,name){
   renderChaseSlotMatrix();saveChasesServer();
   setStatus('Chase "'+name+'" saved to slot '+(idx+1));
 }
-function loadChaseSlot(chase){
+async function loadChaseSlot(chase){
   if(!chase?.data)return;
+  await clearChaserGroupSelectionForLoadedStep();
   applyChaserData(chase.data,false);
-  chaserGroupsBox?.clearSelection?.();
-  if(steps[selectedStepIdx])applyStepParticipating(steps[selectedStepIdx]);
-  else if(chase.data.participating)applyParticipatingData(chase.data.participating,false);
   drawParticipation();drawStepList();drawStepEditor();
   setStatus('Loaded chase: "'+chase.name+'"');
 }
@@ -1779,6 +1865,7 @@ function applyParticipatingData(data,redraw=true){
     });
     participating=next;
   }
+  activeStepValueKeys=null;
   if(redraw){drawParticipation();drawStepEditor();}
 }
 
@@ -1828,7 +1915,7 @@ async function loadChaserFromServer(){
     const j=await r.json();
     if(r.ok&&j.ok&&j.exists&&j.chaser){
       applyChaserData(j.chaser);
-      if(j.chaser.participating)applyParticipatingData(j.chaser.participating);
+      if(!steps.length&&j.chaser.participating)applyParticipatingData(j.chaser.participating);
       return true;
     }
   }catch(_){}
@@ -1976,6 +2063,7 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
   btn.onclick=()=>setCollapsed(!panel.classList.contains('collapsed-panel'));
 });
 document.getElementById('btnSelAll').onclick=()=>{
+  activeStepValueKeys=null;
   Object.keys(participating).forEach(k=>participating[k]=true);
   collapsedPartFixtures.clear();
   localStorage.setItem('chaserPartCollapsedFix','[]');
@@ -1983,6 +2071,7 @@ document.getElementById('btnSelAll').onclick=()=>{
   drawStepEditor();
 };
 document.getElementById('btnSelNone').onclick=()=>{
+  activeStepValueKeys=null;
   Object.keys(participating).forEach(k=>participating[k]=false);
   collapsedPartFixtures=new Set((setup.fixtures||[]).map(f=>f.id));
   localStorage.setItem('chaserPartCollapsedFix',JSON.stringify([...collapsedPartFixtures]));

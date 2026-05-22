@@ -227,6 +227,39 @@ For example, a dimmer chase might include only dimmer controls. A color chase mi
 
 If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown. The **All**, **None**, **Only**, and **Add** tools let you quickly build a participating-control set for the selected group.
 
+### Chaser Selection Rules
+
+The Chaser page has two different selection modes: defining a new participating-control set, and editing or recalling an existing step. They intentionally behave differently.
+
+When you define participating controls manually:
+
+- If no group is selected, the Participating Controls panel shows all patched fixtures.
+- If one or more groups are selected, the panel is filtered to the fixtures in those groups.
+- **All** selects every currently visible control.
+- **None** clears the participating-control selection and collapses the fixture list.
+- The control dropdown plus **Only** selects one matching control type for the selected groups and clears all other controls.
+- The control dropdown plus **Add** adds one matching control type for the selected groups without clearing existing participating controls.
+
+When you click a step in the **Steps** toolbox:
+
+- The selected Groups filter is cleared first.
+- The step values are checked against the current fixture setup.
+- Invalid fixture/control references are removed from the edited step.
+- The Participating Controls panel is rebuilt from the chase values.
+- Only fixtures and controls that are actually stored in the selected step are shown.
+- The Edit Step card shows the same scoped fixture/control set, so editing Step 2 cannot accidentally show or edit unrelated controls from another group or old filter.
+
+When you click a saved chase in the **Chases** toolbox:
+
+- The selected Groups filter is cleared first.
+- The saved steps, playback settings, and browser playback settings are loaded.
+- The first step becomes the edited step.
+- Participating Controls and Edit Step are rebuilt from that loaded step.
+- If the saved chase was made before fixtures were repatched, the page tries to remap old fixture IDs to the current setup by matching the same fixture profile in DMX start-address order.
+- If no valid step values can be found, the page falls back to the saved participating-control map stored with the chase.
+
+This means group selection is a tool for building or filtering a new participating-control set. Once you edit a saved step or recall a saved chase, the step data itself becomes the source of truth.
+
 ### Capture From Fixture Controller
 
 Use **Capture from FC** or **Capture + Add** to read the current Fixture Controller live values and use them as chase step values.

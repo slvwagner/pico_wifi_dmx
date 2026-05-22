@@ -125,10 +125,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="wheelEditorWrap">
 <label>Wheel options, one per line: name=value
-<textarea id="wheelOptions">Open=0
-Red=16
-Green=32
-Blue=48</textarea>
+<textarea id="wheelOptions">Open=0</textarea>
 </label>
 <div class="wheel-editor">
 <div class="toolbar">
@@ -1450,6 +1447,7 @@ function updateGroupBar(){
 function clearGroupSelection(){
   selectedFixtureIds.clear();
   activeSavedGroupIds.clear();
+  DmxCommon.saveSharedGroupSelection([]);
   renderSavedGroupsList();
   drawSurface();
 }
@@ -1704,6 +1702,15 @@ function normalizeSavedGroups(groups){
 function selectedSavedGroups(){
   return savedGroups.filter((g,i)=>activeSavedGroupIds.has(savedGroupKey(g,i)));
 }
+function selectedSavedGroupIds(){
+  return selectedSavedGroups().map(g=>g.id).filter(Boolean);
+}
+function applySharedGroupSelection(ids){
+  const wanted=new Set((Array.isArray(ids)?ids:[]).filter(Boolean).map(String));
+  activeSavedGroupIds.clear();
+  savedGroups.forEach((g,i)=>{if(wanted.has(String(g.id)))activeSavedGroupIds.add(savedGroupKey(g,i));});
+  rebuildSelectionFromSavedGroups();
+}
 function rebuildSelectionFromSavedGroups(){
   selectedFixtureIds.clear();
   groupValues={};
@@ -1715,7 +1722,8 @@ function rebuildSelectionFromSavedGroups(){
 function loadSavedGroups(){
   fetch('group_setup.php').then(r=>r.json()).then(d=>{
     if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
-    savedGroups=normalizeSavedGroups(d.groups);renderSavedGroupsList();
+    savedGroups=normalizeSavedGroups(d.groups);
+    DmxCommon.loadSharedGroupSelection().then(ids=>{applySharedGroupSelection(ids);renderSavedGroupsList();drawSurface();});
   }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
 }
 function clampGroupLayout(priority='cols'){
@@ -1823,6 +1831,7 @@ function toggleGroup(i){
   const key=savedGroupKey(g,i);
   if(activeSavedGroupIds.has(key))activeSavedGroupIds.delete(key);else activeSavedGroupIds.add(key);
   rebuildSelectionFromSavedGroups();
+  DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
   renderSavedGroupsList();
   drawSurface();setStatus('Selected '+activeSavedGroupIds.size+' group'+(activeSavedGroupIds.size===1?'':'s')+' ('+selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' found)');
 }
@@ -1830,6 +1839,7 @@ function loadGroup(i){
   const g=savedGroups[i];if(!g)return;
   activeSavedGroupIds.add(savedGroupKey(g,i));
   rebuildSelectionFromSavedGroups();
+  DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
   renderSavedGroupsList();
   drawSurface();setStatus('Selected '+activeSavedGroupIds.size+' group'+(activeSavedGroupIds.size===1?'':'s')+' ('+selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' found)');
 }
@@ -1841,6 +1851,7 @@ function deleteSelectedGroups(){
   const keys=new Set(selected.map(entry=>entry.key));
   savedGroups=savedGroups.filter((g,i)=>!keys.has(savedGroupKey(g,i)));
   activeSavedGroupIds.clear();
+  DmxCommon.saveSharedGroupSelection([]);
   renderSavedGroupsList();saveSavedGroupsToServer();
   rebuildSelectionFromSavedGroups();
   drawSurface();
@@ -1875,7 +1886,7 @@ function importGroupsJson(file){
       const data=JSON.parse(e.target.result);
       if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
       if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
-      savedGroups=normalizeSavedGroups(data.groups);renderSavedGroupsList();saveSavedGroupsToServer();
+      savedGroups=normalizeSavedGroups(data.groups);activeSavedGroupIds.clear();DmxCommon.saveSharedGroupSelection([]);renderSavedGroupsList();saveSavedGroupsToServer();
       setStatus('Imported '+savedGroups.length+' group(s)');
     }catch(err){setStatus('Import failed: '+err.message);}
   };
@@ -1936,6 +1947,14 @@ loadSetup().then(ok=>{
   });
 }).catch(()=>addDefaultProfile());
 loadSavedGroups();
+window.addEventListener('storage',e=>{
+  if(e.key!=='selectedGroupIds')return;
+  try{
+    applySharedGroupSelection(JSON.parse(e.newValue||'[]'));
+    renderSavedGroupsList();
+    drawSurface();
+  }catch(_){}
+});
 
 // ── Scene Toolbox ─────────────────────────────────────────────────────
 let scenes=[];
