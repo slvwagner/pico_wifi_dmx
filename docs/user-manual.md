@@ -138,7 +138,38 @@ The Fan Out toolbox only shows controls that are available on every fixture in t
 
 Use **Save** in the Fan Out toolbox to store the fan setup itself: selected group or fixture IDs, selected control, mode, spread, and From/To offsets. Use **Recall** to restore that fan setup later. Recalling a Fan Out preset reapplies the fan to the controller values; it does not create a scene by itself. Use the Scene Toolbox when you want to store the resulting lighting look.
 
-## 2. Scenes
+### Palette Toolbox
+
+The Fixture Controller also includes a **Palettes** toolbox. Palettes are reusable value fragments, while scenes are complete looks for their saved scope.
+
+Use palettes for building blocks such as:
+
+- Positions
+- Colors
+- Gobos
+- Dimmer levels
+- Fan Out results that you want to reuse as an overlay
+
+Palette save rules:
+
+- If Fan Out is active, the palette saves only the Fan Out affected controls.
+- If Fan Out is not active and fixtures are selected, the palette saves only the selected **Scope** for those fixtures.
+- **Position** saves pan/tilt or position controls.
+- **Color** saves RGB, RGBW, RGBWA, CMY, CMYK, and controls labeled as color-related.
+- **Beam / Gobo** saves controls labeled as gobo, beam, prism, zoom, focus, iris, frost, strobe, or shutter.
+- **Dimmer** saves controls labeled as dimmer, intensity, or shutter.
+- **All controls** saves every control on the selected fixtures and should be used deliberately.
+- If nothing is selected, the palette is not saved; select fixtures or apply Fan Out first.
+
+Palette recall rules:
+
+- Recalling a palette applies only the stored values.
+- Unrelated controller values are left unchanged.
+- The active group filter is cleared.
+- The Control Surface is filtered to the fixtures involved in the palette.
+- If **Live send** is enabled, only the recalled palette controls are sent to the Pico.
+
+## 2. Scenes And Palettes
 
 ![Scene Toolbox](screenshots/fixture-controller-scene-box.png)
 
@@ -480,6 +511,7 @@ The UI also offers export/import buttons for:
 - Fixture setup
 - Groups
 - Scenes
+- Palettes
 - Chaser setup
 - Motion FX setup
 - Fan Out setup

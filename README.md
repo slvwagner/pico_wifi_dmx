@@ -8,6 +8,7 @@ Browser-based user interface with the following features:
 - Fixture patching, including multi-fixture patch runs with automatic numbering and optional Saved Group creation
 - Fixture groups with saved group selection, multi-select filtering, rename, delete, and compact group matrix layout
 - Scene editing and saving to palettes
+- Palette toolbox for reusable partial looks that recall as overlays
 - Fan Out toolbox on the Fixture Controller to shape selected groups directly into scene values with affected controls highlighted
 - Fan Out tool to spread values, for example moving-light positions across fixture groups
 - Effect creation, such as swing, circle, and figure-8

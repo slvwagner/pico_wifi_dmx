@@ -274,6 +274,33 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="paletteBox" class="scene-toolbox scene-toolbox--palettes">
+<div id="paletteBoxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Palettes</span>
+<button id="paletteBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="paletteBoxBody" class="scene-toolbox__body">
+<div class="buttons">
+<button id="exportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
+<button id="importPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
+<input id="importPalettesFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<label>Scope<select id="paletteScope">
+<option value="position">Position</option>
+<option value="color">Color</option>
+<option value="beam">Beam / Gobo</option>
+<option value="dimmer">Dimmer</option>
+<option value="all">All controls</option>
+</select></label>
+<div class="small">Empty slot saves the selected scope. Filled slot recalls as an overlay.</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="paletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="paletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+</div>
+<div id="paletteMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
 <div id="fanToolbox" class="scene-toolbox scene-toolbox--fan">
 <div id="fanToolboxHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Fan Out</span>
@@ -306,7 +333,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
-DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'fanToolbox',type:'fan'}]);
+DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'fanToolbox',type:'fan'}]);
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
@@ -2339,6 +2366,48 @@ function currentSceneSaveValues(){
   if(!confirm('No fixtures are selected. Save values for all patched fixtures?'))return null;
   return sceneValuesForFixtureIds(fixtures.map(f=>f.id));
 }
+function currentPaletteSaveValues(){
+  const scope=document.getElementById('paletteScope')?.value||'position';
+  if(fanAffectedKeys.size){
+    const out={};
+    fanAffectedKeys.forEach(key=>{
+      const parts=String(key).split(':');
+      if(parts.length!==2)return;
+      const f=fixtures.find(fx=>String(fx.id)===parts[0]);
+      const p=f&&fixtureProfile(f);
+      const c=p&&p.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+      if(f&&c)out[controlKey(f,c)]=cloneValue(getValue(f,c,defaultValueForControl(c)));
+    });
+    return out;
+  }
+  const selectedIds=[...selectedFixtureIds].filter(id=>fixtures.some(f=>String(f.id)===String(id)));
+  if(selectedIds.length)return paletteValuesForFixtureIds(selectedIds,scope);
+  showError('Select fixtures or apply Fan Out before saving a palette.');
+  return null;
+}
+function paletteControlMatchesScope(c,scope){
+  const label=String(c.label||'').toLowerCase();
+  if(scope==='all')return true;
+  if(scope==='position')return c.type==='panTilt16'||c.type==='panTilt8'||/\b(pan|tilt|position|pos)\b/.test(label);
+  if(scope==='color')return ['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)||/colou?r|rgb|cmy|white|amber/.test(label);
+  if(scope==='dimmer')return /dimmer|intensity|shutter/.test(label);
+  if(scope==='beam')return /gobo|beam|prism|zoom|focus|iris|frost|strobe|shutter/.test(label);
+  return false;
+}
+function paletteValuesForFixtureIds(fixtureIds,scope){
+  const wanted=new Set((fixtureIds||[]).map(String));
+  const out={};
+  fixtures.forEach(f=>{
+    if(!wanted.has(String(f.id)))return;
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      if(!paletteControlMatchesScope(c,scope))return;
+      const key=controlKey(f,c);
+      out[key]=cloneValue(getValue(f,c,defaultValueForControl(c)));
+    });
+  });
+  return out;
+}
 function saveSceneToSlot(idx,name){
   const ei=scenes.findIndex(sc=>sc.slot===idx);
   if(ei>=0)scenes.splice(ei,1);
@@ -2523,6 +2592,169 @@ const sceneBox=sceneToolbox.box;
 function clampSceneBox(){sceneToolbox.clamp();}
 loadScenesServer();
 // ── End scene toolbox ─────────────────────────────────────────────────
+
+// ── Palette Toolbox ───────────────────────────────────────────────────
+let palettes=[];
+let paletteCols=4,paletteRows=4;
+const PALETTE_SLOT_GRID_MAX=32;
+function requiredPaletteSlots(){
+  return palettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
+}
+function normalizePaletteGrid(priority='cols'){
+  const needed=requiredPaletteSlots();
+  paletteCols=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(paletteCols)||4));
+  paletteRows=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(paletteRows)||4));
+  if(needed&&paletteCols*paletteRows<needed){
+    if(priority==='rows'){
+      paletteCols=Math.max(paletteCols,Math.ceil(needed/paletteRows));
+      if(paletteCols>PALETTE_SLOT_GRID_MAX){paletteCols=PALETTE_SLOT_GRID_MAX;paletteRows=Math.ceil(needed/paletteCols);}
+    }else{
+      paletteRows=Math.max(paletteRows,Math.ceil(needed/paletteCols));
+      if(paletteRows>PALETTE_SLOT_GRID_MAX){paletteRows=PALETTE_SLOT_GRID_MAX;paletteCols=Math.ceil(needed/paletteRows);}
+    }
+  }
+  const colsInput=document.getElementById('paletteCols');
+  const rowsInput=document.getElementById('paletteRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/paletteRows));colsInput.value=paletteCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/paletteCols));rowsInput.value=paletteRows;}
+}
+(()=>{
+  const pc=localStorage.getItem('paletteSlotCols'),pr=localStorage.getItem('paletteSlotRows');
+  if(pc){paletteCols=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(pc)||4));document.getElementById('paletteCols').value=paletteCols;}
+  if(pr){paletteRows=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(pr)||4));document.getElementById('paletteRows').value=paletteRows;}
+})();
+document.getElementById('paletteCols').addEventListener('input',e=>{paletteCols=e.target.value;normalizePaletteGrid('cols');localStorage.setItem('paletteSlotCols',paletteCols);localStorage.setItem('paletteSlotRows',paletteRows);renderPaletteMatrix();savePalettesServer();});
+document.getElementById('paletteRows').addEventListener('input',e=>{paletteRows=e.target.value;normalizePaletteGrid('rows');localStorage.setItem('paletteSlotCols',paletteCols);localStorage.setItem('paletteSlotRows',paletteRows);renderPaletteMatrix();savePalettesServer();});
+function renderPaletteMatrix(){
+  const grid=document.getElementById('paletteMatrix');
+  normalizePaletteGrid('cols');
+  const total=paletteCols*paletteRows;
+  grid.style.gridTemplateColumns='repeat('+paletteCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const p=palettes.find(pl=>pl.slot===i);
+    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette"><button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button>${escHtml(p.name)}</div>`;
+    else html+=`<div class="slot" data-palette-slot="${i}" title="Click to save palette here">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.slot').forEach(el=>{
+    const idx=parseInt(el.dataset.paletteSlot,10);
+    el.addEventListener('click',()=>paletteSlotClick(idx));
+  });
+  grid.querySelectorAll('.slot-del').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const idx=parseInt(btn.dataset.delPaletteSlot,10);
+      const p=palettes.find(pl=>pl.slot===idx);if(!p)return;
+      if(!confirm('Delete palette "'+p.name+'"?'))return;
+      palettes.splice(palettes.indexOf(p),1);
+      renderPaletteMatrix();savePalettesServer();
+    });
+  });
+}
+function paletteSlotClick(idx){
+  const p=palettes.find(pl=>pl.slot===idx);
+  if(p){recallPalette(p);return;}
+  const name=(prompt('Palette name:','Palette '+(idx+1))||'').trim();
+  if(!name)return;
+  savePaletteToSlot(idx,name);
+}
+function savePaletteToSlot(idx,name){
+  const scope=document.getElementById('paletteScope')?.value||'position';
+  const paletteValues=currentPaletteSaveValues();
+  if(!paletteValues)return;
+  const fixtureCount=sceneFixtureIdsFromValues(paletteValues).length;
+  if(!fixtureCount){showError('Palette scope "'+paletteScopeLabel(scope)+'" has no matching fixture values to save.');return;}
+  const ei=palettes.findIndex(p=>p.slot===idx);
+  if(ei>=0)palettes.splice(ei,1);
+  palettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values:paletteValues});
+  renderPaletteMatrix();savePalettesServer();
+  setStatus('Palette "'+name+'" saved to slot '+(idx+1)+' ('+paletteScopeLabel(scope)+', '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');
+}
+function paletteScopeLabel(scope){
+  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',all:'All controls'}[scope]||'Palette';
+}
+function recallPalette(p){
+  const paletteValues=normalizedSceneValues(p.values);
+  const involved=sceneFixtureIdsFromValues(paletteValues);
+  if(!involved.length){setStatus('Palette has no valid fixtures in this setup',true);return;}
+  selectedFixtureIds.clear();
+  activeSavedGroupIds.clear();
+  involved.forEach(id=>selectedFixtureIds.add(id));
+  sceneFixtureFilterActive=true;
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  Object.assign(values,paletteValues);
+  drawSurface();
+  writeLiveValues(true);
+  if(live.checked){
+    const root=endpoint();
+    if(root){
+      const pairs=[];
+      Object.keys(paletteValues).forEach(key=>{
+        const parts=String(key).split(':');
+        const f=fixtures.find(fx=>String(fx.id)===parts[0]);
+        const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+        if(f&&c)resolveDmxBytes(f,c).forEach(({ch,val})=>pairs.push(ch+':'+val));
+      });
+      if(pairs.length)fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'}).catch(err=>setStatus(err.message,true));
+    }
+  }
+  setStatus('Recalled palette: "'+p.name+'"');
+}
+function savePalettesServer(){
+  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows})})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Palettes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Palettes save error: '+e.message,true));
+}
+function loadPalettesServer(){
+  fetch('palette_setup.php').then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){
+      if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
+      palettes=d.palettes||[];
+      if(d.paletteCols){paletteCols=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(d.paletteCols)||4));document.getElementById('paletteCols').value=paletteCols;localStorage.setItem('paletteSlotCols',paletteCols);}
+      if(d.paletteRows){paletteRows=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(d.paletteRows)||4));document.getElementById('paletteRows').value=paletteRows;localStorage.setItem('paletteSlotRows',paletteRows);}
+    }else{palettes=[];}
+    renderPaletteMatrix();
+  }).catch(()=>{palettes=[];renderPaletteMatrix();});
+}
+function exportPalettesJson(){
+  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_palettes.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importPalettesJson(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.palettes))throw new Error('Expected {palettes:[...]}');
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
+      palettes=data.palettes;
+      if(data.paletteCols){paletteCols=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(data.paletteCols)||4));document.getElementById('paletteCols').value=paletteCols;}
+      if(data.paletteRows){paletteRows=Math.max(1,Math.min(PALETTE_SLOT_GRID_MAX,parseInt(data.paletteRows)||4));document.getElementById('paletteRows').value=paletteRows;}
+      renderPaletteMatrix();savePalettesServer();
+      setStatus('Imported '+palettes.length+' palette(s)');
+    }catch(err){setStatus('Palette import failed: '+err.message,true);}
+  };
+  fr.readAsText(file);
+}
+document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
+document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile').click();
+document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
+const paletteToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'paletteBox',
+  headerId:'paletteBoxHdr',
+  toggleId:'paletteBoxToggle',
+  posStorageKey:'paletteBoxPos',
+  collapsedStorageKey:'paletteBoxCollapsed',
+  uiStatePage:'fixture',
+  uiStatePosKey:'paletteBoxPos',
+  uiStateCollapsedKey:'paletteBoxCollapsed'
+});
+loadPalettesServer();
+// ── End palette toolbox ───────────────────────────────────────────────
 
 const fanToolbox=DmxCommon.initFloatingToolbox({
   boxId:'fanToolbox',

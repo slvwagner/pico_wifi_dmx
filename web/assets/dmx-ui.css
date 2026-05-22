@@ -56,6 +56,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox--narrow{max-width:380px}
 .scene-toolbox--groups{right:430px;min-width:280px;max-width:calc(100vw - 24px);overflow:visible}
 .scene-toolbox--groups .scene-toolbox__header{background:#075b66}
+.scene-toolbox--palettes .scene-toolbox__header{background:#67510a}
 .scene-toolbox--fan .scene-toolbox__header{background:#5a171a}
 .groups-toolbar{display:grid;grid-template-columns:36px 36px auto auto minmax(70px,auto);grid-template-rows:auto auto;gap:8px;align-items:start;justify-content:start}
 .groups-toolbar .icon-btn{align-self:start}

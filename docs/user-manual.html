@@ -217,7 +217,36 @@ strong { color: #ffffff; }
 </ol>
 <p>The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand. If <strong>Live send</strong> is enabled, the changed DMX values are also sent to the Pico.</p>
 <p>Use <strong>Save</strong> in the Fan Out toolbox to store the fan setup itself: selected group or fixture IDs, selected control, mode, spread, and From/To offsets. Use <strong>Recall</strong> to restore that fan setup later. Recalling a Fan Out preset reapplies the fan to the controller values; it does not create a scene by itself. Use the Scene Toolbox when you want to store the resulting lighting look.</p>
-<h2 id="2-scenes">2. Scenes</h2>
+<h3 id="palette-toolbox">Palette Toolbox</h3>
+<p>The Fixture Controller also includes a <strong>Palettes</strong> toolbox. Palettes are reusable value fragments, while scenes are complete looks for their saved scope.</p>
+<p>Use palettes for building blocks such as:</p>
+<ul>
+<li>Positions</li>
+<li>Colors</li>
+<li>Gobos</li>
+<li>Dimmer levels</li>
+<li>Fan Out results that you want to reuse as an overlay</li>
+</ul>
+<p>Palette save rules:</p>
+<ul>
+<li>If Fan Out is active, the palette saves only the Fan Out affected controls.</li>
+<li>If Fan Out is not active and fixtures are selected, the palette saves only the selected <strong>Scope</strong> for those fixtures.</li>
+<li><strong>Position</strong> saves pan/tilt or position controls.</li>
+<li><strong>Color</strong> saves RGB, RGBW, RGBWA, CMY, CMYK, and controls labeled as color-related.</li>
+<li><strong>Beam / Gobo</strong> saves controls labeled as gobo, beam, prism, zoom, focus, iris, frost, strobe, or shutter.</li>
+<li><strong>Dimmer</strong> saves controls labeled as dimmer, intensity, or shutter.</li>
+<li><strong>All controls</strong> saves every control on the selected fixtures and should be used deliberately.</li>
+<li>If nothing is selected, the palette is not saved; select fixtures or apply Fan Out first.</li>
+</ul>
+<p>Palette recall rules:</p>
+<ul>
+<li>Recalling a palette applies only the stored values.</li>
+<li>Unrelated controller values are left unchanged.</li>
+<li>The active group filter is cleared.</li>
+<li>The Control Surface is filtered to the fixtures involved in the palette.</li>
+<li>If <strong>Live send</strong> is enabled, only the recalled palette controls are sent to the Pico.</li>
+</ul>
+<h2 id="2-scenes-and-palettes">2. Scenes And Palettes</h2>
 <p><img src="screenshots/fixture-controller-scene-box.png" alt="Scene Toolbox"></p>
 <p>The Scene Toolbox is available on the Fixture Controller and Fan Out pages.</p>
 <p>Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.</p>
@@ -491,6 +520,7 @@ strong { color: #ffffff; }
 <li>Fixture setup</li>
 <li>Groups</li>
 <li>Scenes</li>
+<li>Palettes</li>
 <li>Chaser setup</li>
 <li>Motion FX setup</li>
 <li>Fan Out setup</li>
