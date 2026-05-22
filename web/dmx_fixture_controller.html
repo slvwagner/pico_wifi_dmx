@@ -97,6 +97,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="panel">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Add / Edit Control</h2>
+<button id="addControlCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
 <div id="addControlBody">
 <div id="typeChannelsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px">
@@ -1943,7 +1944,7 @@ loadSetup().then(ok=>{
     const body=document.getElementById(bodyId),btn=document.getElementById(btnId);
     if(body)body.style.display='none';
     if(btn)btn.textContent='+';
-    if(key==='profilesCollapsed')setSectionCollapsed(null,'addControlBody',null,true);
+    if(key==='profilesCollapsed')setSectionCollapsed(btnId,bodyId,key,true);
   });
 }).catch(()=>addDefaultProfile());
 loadSavedGroups();
@@ -2042,8 +2043,46 @@ function saveSceneToSlot(idx,name){
   renderSlotMatrix();saveScenesServer();
   setStatus('Scene "'+name+'" saved to slot '+(idx+1));
 }
+function profileForControlId(controlId){
+  return profiles.find(p=>(p.controls||[]).some(c=>String(c.id)===String(controlId)));
+}
+function currentFixtureById(id){
+  return fixtures.find(f=>String(f.id)===String(id));
+}
+function remapValueKeysForCurrentSetup(sourceValues){
+  const source=sourceValues||{};
+  const oldFixtureIdsByProfile=new Map();
+  Object.keys(source).forEach(k=>{
+    const parts=String(k).split(':');
+    if(parts.length!==2||currentFixtureById(parts[0]))return;
+    const profile=profileForControlId(parts[1]);
+    if(!profile)return;
+    const pid=String(profile.id);
+    if(!oldFixtureIdsByProfile.has(pid))oldFixtureIdsByProfile.set(pid,[]);
+    const ids=oldFixtureIdsByProfile.get(pid);
+    if(!ids.includes(parts[0]))ids.push(parts[0]);
+  });
+  if(!oldFixtureIdsByProfile.size)return JSON.parse(JSON.stringify(source));
+  const remap=new Map();
+  oldFixtureIdsByProfile.forEach((oldIds,pid)=>{
+    const current=fixtures
+      .filter(f=>String(f.profileId)===pid)
+      .slice()
+      .sort((a,b)=>(parseInt(a.start)||0)-(parseInt(b.start)||0));
+    oldIds.forEach((oldId,i)=>{
+      if(current[i])remap.set(oldId,String(current[i].id));
+    });
+  });
+  const out={};
+  Object.entries(source).forEach(([k,v])=>{
+    const parts=String(k).split(':');
+    const nextFixtureId=parts.length===2?remap.get(parts[0]):null;
+    out[nextFixtureId?nextFixtureId+':'+parts[1]:k]=JSON.parse(JSON.stringify(v));
+  });
+  return out;
+}
 function normalizedSceneValues(sceneValues){
-  const out=JSON.parse(JSON.stringify(sceneValues||{}));
+  const out=remapValueKeysForCurrentSetup(sceneValues);
   fixtures.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
@@ -2169,8 +2208,7 @@ loadScenesServer();
   const body=document.getElementById(bodyId);
   if(!btn||!body)return;
   if(localStorage.getItem(storageKey)==='1'){
-    body.style.display='none';
-    btn.textContent='+';
+    setSectionCollapsed(btnId,bodyId,storageKey,true);
     if(storageKey==='profilesCollapsed')setSectionCollapsed(null,'addControlBody',null,true);
   }
   btn.addEventListener('click',()=>{
@@ -2187,11 +2225,21 @@ function setSectionCollapsed(btnId,bodyId,storageKey,collapsed){
   if(!body)return;
   body.style.display=collapsed?'none':'';
   if(btn)btn.textContent=collapsed?'+':'\u2212';
+  if(storageKey==='profilesCollapsed'){
+    const addBtn=document.getElementById('addControlCollapseBtn');
+    if(addBtn)addBtn.textContent=collapsed?'+':'\u2212';
+  }
   if(storageKey){
     localStorage.setItem(storageKey,collapsed?'1':'');
     saveUiStateServer(storageKey,collapsed);
   }
 }
+document.getElementById('addControlCollapseBtn').addEventListener('click',()=>{
+  const body=document.getElementById('addControlBody');
+  const collapse=body.style.display!=='none';
+  setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',collapse);
+  setSectionCollapsed(null,'addControlBody',null,collapse);
+});
 // ── UI State server sync ──────────────────────────────────────────────
 function saveUiStateServer(key,val){
   DmxCommon.saveUiState('fixture',key,val);
@@ -2244,7 +2292,7 @@ function saveUiStateServer(key,val){
       const body=document.getElementById(bodyId),btn=document.getElementById(btnId);
       if(body)body.style.display=c?'none':'';
       if(btn)btn.textContent=c?'+':'\u2212';
-      if(key==='profilesCollapsed')setSectionCollapsed(null,'addControlBody',null,c);
+      if(key==='profilesCollapsed')setSectionCollapsed(btnId,bodyId,key,c);
     });
     if(Array.isArray(st.fixtureCardCollapsed)){
       localStorage.setItem('fixtureCardCollapsed',JSON.stringify(st.fixtureCardCollapsed));

@@ -131,10 +131,14 @@ Use scenes to store complete looks.
 1. Set your desired fixture values.
 2. Click an empty scene slot.
 3. Enter a scene name.
-4. Click a filled slot to recall it.
+4. Click a filled slot once to recall it.
 5. Use the small `x` on a filled slot to delete it.
 
-Scene recall sends the stored DMX values to the Pico in one batch and updates the live-value snapshot used by the Chaser page.
+Scene recall loads the stored values back into the Fixture Controller, redraws the fixture cards, and updates the live-value snapshot used by the Chaser page.
+
+When **Live send** is enabled and a Pico base URL is set, scene recall also sends the recalled DMX values to the Pico in one batch. When **Live send** is disabled, the scene is recalled in the browser only.
+
+If a saved scene was created before fixtures were repatched, the controller tries to remap old fixture IDs to the current patch by matching the same fixture profile in DMX start-address order. This lets older scenes continue to recall after a fixture run was recreated, as long as the fixture profiles and control IDs still match.
 
 The red **Clear all DMX channels** button clears controller values and calls `/dmx/clear` on the Pico. This clears both live DMX output and the motion base buffer.
 

@@ -211,10 +211,12 @@ strong { color: #ffffff; }
 <li>Set your desired fixture values.</li>
 <li>Click an empty scene slot.</li>
 <li>Enter a scene name.</li>
-<li>Click a filled slot to recall it.</li>
+<li>Click a filled slot once to recall it.</li>
 <li>Use the small <code>x</code> on a filled slot to delete it.</li>
 </ol>
-<p>Scene recall sends the stored DMX values to the Pico in one batch and updates the live-value snapshot used by the Chaser page.</p>
+<p>Scene recall loads the stored values back into the Fixture Controller, redraws the fixture cards, and updates the live-value snapshot used by the Chaser page.</p>
+<p>When <strong>Live send</strong> is enabled and a Pico base URL is set, scene recall also sends the recalled DMX values to the Pico in one batch. When <strong>Live send</strong> is disabled, the scene is recalled in the browser only.</p>
+<p>If a saved scene was created before fixtures were repatched, the controller tries to remap old fixture IDs to the current patch by matching the same fixture profile in DMX start-address order. This lets older scenes continue to recall after a fixture run was recreated, as long as the fixture profiles and control IDs still match.</p>
 <p>The red <strong>Clear all DMX channels</strong> button clears controller values and calls <code>/dmx/clear</code> on the Pico. This clears both live DMX output and the motion base buffer.</p>
 <p>The Scene Toolbox sits in the shared <strong>Toolboxes</strong> sidebar. Its slot grid follows the configured rows and columns, and the tile size expands to the available sidebar width while keeping the old minimum slot size.</p>
 <h2 id="3-groups">3. Groups</h2>
