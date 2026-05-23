@@ -34,10 +34,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 #chaserGroupModal input[type=range]{width:100%}
 #chaserGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #chaserGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-#chaseBox{top:20px;right:20px;min-width:220px;max-width:320px}
-#chaserGroupsBox{right:300px}
-#stepsBox{top:110px;left:20px;right:auto;width:380px;height:520px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);resize:both;overflow:hidden}
-#browserPlaybackBox{top:620px;left:20px;right:auto;width:430px;max-width:calc(100vw - 40px)}
 #chaseBox .scene-toolbox__header,#stepsBox .scene-toolbox__header,#browserPlaybackBox .scene-toolbox__header{background:#8d3a7e}
 #stepsBox .scene-toolbox__body{height:calc(100% - 43px);max-height:none;overflow:auto;align-content:start}
 #stepsBoxBody>.buttons:first-child{position:sticky;top:0;z-index:2;background:var(--panel);border-bottom:1px solid var(--line);padding-bottom:10px;margin:-12px -12px 0;padding:12px}
@@ -127,7 +123,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <label>Fade %<input id="edFade" type="number" min="0" max="100" value="0"></label>
         <button id="btnApplyMeta">Apply</button>
         <button id="btnCaptureToStep">⬇ Capture from FC</button>
-        <button id="btnSaveStepScene">Save as Scene</button>
       </div>
     <div id="editorHint" class="small">Select a step to edit its values.</div>
     <div class="surface" id="stepSurface"></div>
@@ -323,6 +318,26 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 
+<div id="chaserPaletteBox" class="scene-toolbox scene-toolbox--palettes">
+<div id="chaserPaletteHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Palettes</span>
+<button id="chaserPaletteBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="chaserPaletteBoxBody" class="scene-toolbox__body">
+<div class="buttons">
+<button id="exportChaserPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
+<button id="importChaserPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
+<input id="importChaserPalettesFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step.</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+</div>
+<div id="chaserPaletteMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
 <div id="fanToolbox" class="scene-toolbox scene-toolbox--fan">
 <div id="fanToolboxHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Fan Out</span>
@@ -354,13 +369,15 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <script>
 document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
 const chaserToolboxRail=document.getElementById('chaserToolboxRail');
-DmxCommon.initToolboxRail(chaserToolboxRail,[
+const chaserToolboxRailEntries=[
   {box:'chaserGroupsBox',type:'groups'},
   {box:'chaseBox',type:'chases'},
   {box:'stepsBox',type:'steps'},
+  {box:'chaserPaletteBox',type:'palettes'},
   {box:'fanToolbox',type:'fan'},
   {box:'browserPlaybackBox',type:'browserPlayback'}
-]);
+];
+DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -2093,225 +2110,8 @@ document.querySelectorAll('[data-collapse-group="chaser-playback"]').forEach(btn
 });
 updateChaserPlaybackCollapseButtons();
 setTimeout(updateChaserPlaybackCollapseButtons,500);
-const chaserCompactBoxes=[
-  {id:'stepsBox',toolbox:stepsToolbox,posKey:'stepsBoxPos',collapsedKey:'stepsBoxCollapsed',sizeKey:'stepsBoxSize'},
-  {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox,posKey:'browserPlaybackBoxPos',collapsedKey:'browserPlaybackBoxCollapsed'}
-];
-function boxSnapshot(cfg){
-  const box=document.getElementById(cfg.id);
-  if(!box)return null;
-  const snap={
-    id:cfg.id,
-    collapsed:box.classList.contains('collapsed'),
-    pos:{x:parseInt(box.style.left)||Math.round(box.offsetLeft)||0,y:parseInt(box.style.top)||Math.round(box.offsetTop)||0}
-  };
-  if(cfg.sizeKey)snap.size={w:Math.round(box.offsetWidth),h:Math.round(box.offsetHeight)};
-  return snap;
-}
-function saveToolboxPosition(cfg,pos){
-  cfg.toolbox?.applyPosition?.(pos);
-  localStorage.setItem(cfg.posKey,JSON.stringify(pos));
-  DmxCommon.saveUiState('chaser',cfg.posKey,pos);
-}
-function compactNeighborPosition(anchorBox,otherBox){
-  const gap=8;
-  const ar=anchorBox.getBoundingClientRect();
-  const or=otherBox.getBoundingClientRect();
-  const acx=ar.left+ar.width/2,acy=ar.top+ar.height/2;
-  const ocx=or.left+or.width/2,ocy=or.top+or.height/2;
-  let x=ar.left,y=ar.top;
-  if(Math.abs(ocx-acx)>Math.abs(ocy-acy)){
-    x=ocx>=acx?ar.right+gap:ar.left-otherBox.offsetWidth-gap;
-    y=ar.top;
-  }else{
-    x=ar.left;
-    y=ocy>=acy?ar.bottom+gap:ar.top-otherBox.offsetHeight-gap;
-  }
-  return{
-    x:Math.max(0,Math.min(window.innerWidth-otherBox.offsetWidth,Math.round(x))),
-    y:Math.max(0,Math.min(window.innerHeight-otherBox.offsetHeight,Math.round(y)))
-  };
-}
-function restoreChaserCompactState(saved){
-  if(!saved?.boxes)return;
-  saved.boxes.forEach(s=>{
-    const cfg=chaserCompactBoxes.find(b=>b.id===s.id);
-    if(!cfg)return;
-    if(s.size&&cfg.sizeKey)cfg.toolbox?.applySize?.(s.size);
-    if(s.pos)saveToolboxPosition(cfg,s.pos);
-    cfg.toolbox?.setCollapsed?.(false,true);
-  });
-  localStorage.removeItem('chaserCompactState');
-  DmxCommon.saveUiState('chaser','chaserCompactState',null);
-}
-function exitChaserCompactModeWithCurrentLayout(){
-  let saved=null;
-  try{saved=JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){}
-  if(!saved)return;
-  chaserCompactBoxes.forEach(cfg=>{
-    const box=document.getElementById(cfg.id);
-    if(!box)return;
-    saveToolboxPosition(cfg,{x:parseInt(box.style.left)||box.offsetLeft||0,y:parseInt(box.style.top)||box.offsetTop||0});
-    DmxCommon.saveUiState('chaser',cfg.collapsedKey,box.classList.contains('collapsed'));
-  });
-  localStorage.removeItem('chaserCompactState');
-  DmxCommon.saveUiState('chaser','chaserCompactState',null);
-}
-function moveOtherCompactBoxBelowOpened(openedId){
-  const openedCfg=chaserCompactBoxes.find(cfg=>cfg.id===openedId);
-  const otherCfg=chaserCompactBoxes.find(cfg=>cfg.id!==openedId);
-  const opened=document.getElementById(openedCfg?.id);
-  const other=document.getElementById(otherCfg?.id);
-  if(!opened||!other||!otherCfg)return;
-  const ar=opened.getBoundingClientRect();
-  const or=other.getBoundingClientRect();
-  if(!rectsOverlap(ar,or))return;
-  const gap=8;
-  let x=ar.left;
-  let y=ar.bottom+gap;
-  if(y+other.offsetHeight>window.innerHeight)y=ar.top-other.offsetHeight-gap;
-  const pos={
-    x:Math.max(0,Math.min(window.innerWidth-other.offsetWidth,Math.round(x))),
-    y:Math.max(0,Math.min(window.innerHeight-other.offsetHeight,Math.round(y)))
-  };
-  saveToolboxPosition(otherCfg,pos);
-}
-function exitChaserCompactModeAfterOpening(openedId){
-  moveOtherCompactBoxBelowOpened(openedId);
-  exitChaserCompactModeWithCurrentLayout();
-}
-function toggleChaserCompact(anchorId){
-  let saved=null;
-  try{saved=JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){}
-  if(saved){restoreChaserCompactState(saved);return;}
-  const snapshot={anchorId,boxes:chaserCompactBoxes.map(boxSnapshot).filter(Boolean)};
-  localStorage.setItem('chaserCompactState',JSON.stringify(snapshot));
-  DmxCommon.saveUiState('chaser','chaserCompactState',snapshot);
-
-  const anchorCfg=chaserCompactBoxes.find(b=>b.id===anchorId)||chaserCompactBoxes[0];
-  const otherCfg=chaserCompactBoxes.find(b=>b.id!==anchorCfg.id);
-  const anchorBox=document.getElementById(anchorCfg.id);
-  const otherBox=document.getElementById(otherCfg?.id);
-  anchorCfg.toolbox?.setCollapsed?.(true,true);
-  otherCfg?.toolbox?.setCollapsed?.(true,true);
-  if(anchorBox&&otherBox&&otherCfg){
-    const pos=compactNeighborPosition(anchorBox,otherBox);
-    saveToolboxPosition(otherCfg,pos);
-  }
-}
-document.querySelectorAll('.chaser-collapse-all').forEach(btn=>btn.addEventListener('click',()=>toggleChaserCompact(btn.dataset.anchorBox)));
-['stepsBoxToggle','browserPlaybackBoxToggle'].forEach(toggleId=>{
-  const toggle=document.getElementById(toggleId);
-  if(!toggle)return;
-  toggle.addEventListener('click',()=>{
-    setTimeout(()=>{
-      const openedId=toggleId.replace('Toggle','');
-      const box=document.getElementById(openedId);
-      if(box&&!box.classList.contains('collapsed'))exitChaserCompactModeAfterOpening(openedId);
-    },80);
-  });
-});
-function initCompactPairDrag(){
-  let drag=null;
-  function compactActive(){
-    try{return !!JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){return false;}
-  }
-  function pairSnapshot(){
-    return chaserCompactBoxes.map(cfg=>{
-      const box=document.getElementById(cfg.id);
-      return box?{cfg,box,x:parseInt(box.style.left)||box.offsetLeft||0,y:parseInt(box.style.top)||box.offsetTop||0}:null;
-    }).filter(Boolean);
-  }
-  function clampPos(box,x,y){
-    return{
-      x:Math.max(0,Math.min(window.innerWidth-box.offsetWidth,Math.round(x))),
-      y:Math.max(0,Math.min(window.innerHeight-box.offsetHeight,Math.round(y)))
-    };
-  }
-  function moveDrag(e){
-    if(!drag)return;
-    e.preventDefault();
-    e.stopImmediatePropagation?.();
-    const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
-    drag.boxes.forEach(({box,x,y})=>{
-      const p=clampPos(box,x+dx,y+dy);
-      box.style.left=p.x+'px';
-      box.style.top=p.y+'px';
-      box.style.right='auto';
-    });
-  }
-  function endDrag(e){
-    if(!drag)return;
-    e.preventDefault();
-    e.stopImmediatePropagation?.();
-    drag.boxes.forEach(({cfg,box})=>saveToolboxPosition(cfg,{x:parseInt(box.style.left)||0,y:parseInt(box.style.top)||0}));
-    const header=drag.header;
-    drag=null;
-    if(header)header.style.cursor='grab';
-  }
-  ['stepsBoxHdr','browserPlaybackBoxHdr'].forEach(headerId=>{
-    const header=document.getElementById(headerId);
-    if(!header)return;
-    header.addEventListener('pointerdown',e=>{
-      if(!compactActive()||e.target.closest('button'))return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      try{header.setPointerCapture(e.pointerId);}catch(_){}
-      drag={id:e.pointerId,startX:e.clientX,startY:e.clientY,boxes:pairSnapshot(),header};
-      header.style.cursor='grabbing';
-    },true);
-    header.addEventListener('pointermove',e=>{
-      if(!drag||drag.id!==e.pointerId)return;
-      moveDrag(e);
-    },true);
-    header.addEventListener('pointerup',e=>{
-      if(!drag||drag.id!==e.pointerId)return;
-      endDrag(e);
-    },true);
-  });
-  window.addEventListener('pointermove',e=>{if(drag&&drag.id===e.pointerId)moveDrag(e);},true);
-  window.addEventListener('pointerup',e=>{if(drag&&drag.id===e.pointerId)endDrag(e);},true);
-}
-initCompactPairDrag();
-function rectsOverlap(a,b){
-  return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
-}
-function placeInitialChaseToolbox(){
-  const box=document.getElementById('chaseBox');
-  const groups=document.getElementById('chaserGroupsBox');
-  if(!box||!groups)return;
-  const savedLocal=!!localStorage.getItem('chaseBoxPos');
-  DmxCommon.loadUiState('chaser').then(st=>{
-    if(!savedLocal&&st.chaseBoxPos)chaseToolbox.applyPosition(st.chaseBoxPos);
-    setTimeout(()=>{
-      const br=box.getBoundingClientRect();
-      const gr=groups.getBoundingClientRect();
-      if(!rectsOverlap(br,gr))return;
-      const x=gr.left-box.offsetWidth-20;
-      let pos;
-      if(x>=0){
-        pos={x,y:Math.max(0,Math.round(gr.top))};
-      }else{
-        const y=Math.min(Math.max(0,Math.round(gr.bottom+16)),Math.max(0,window.innerHeight-box.offsetHeight));
-        pos={x:Math.max(0,window.innerWidth-box.offsetWidth-20),y};
-      }
-      chaseToolbox.applyPosition(pos);
-      localStorage.setItem('chaseBoxPos',JSON.stringify(pos));
-      DmxCommon.saveUiState('chaser','chaseBoxPos',pos);
-    },300);
-  }).catch(()=>{});
-}
-placeInitialChaseToolbox();
-function restoreFloatingToolbox(toolbox,posKey,sizeKey){
-  const savedLocal=!!localStorage.getItem(posKey);
-  const savedSizeLocal=sizeKey&&!!localStorage.getItem(sizeKey);
-  DmxCommon.loadUiState('chaser').then(st=>{
-    if(!savedLocal&&st[posKey])toolbox.applyPosition(st[posKey]);
-    if(sizeKey&&!savedSizeLocal&&st[sizeKey])toolbox.applySize(st[sizeKey]);
-  }).catch(()=>{});
-}
-restoreFloatingToolbox(stepsToolbox,'stepsBoxPos','stepsBoxSize');
-restoreFloatingToolbox(browserPlaybackToolbox,'browserPlaybackBoxPos');
+['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>localStorage.removeItem(key));
+['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>DmxCommon.saveUiState('chaser',key,null));
 loadChasesServer();
 
 function applyParticipatingData(data,redraw=true){
@@ -2330,27 +2130,184 @@ function applyParticipatingData(data,redraw=true){
   if(redraw){drawParticipation();drawStepEditor();}
 }
 
-async function saveSelectedStepAsScene(){
-  const step=steps[selectedStepIdx];
-  if(!step){setStatus('Select a step before saving a scene',true);return;}
-  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Scene save needs the XAMPP server',true);return;}
-  try{
-    const r=await fetch('scene_setup.php',{cache:'no-store'});
-    const j=await r.json();
-    const scenes=(j.ok&&j.exists&&Array.isArray(j.scenes))?j.scenes:[];
-    const slotCols=j.slotCols||4,slotRows=j.slotRows||4,total=slotCols*slotRows;
-    let slot=0;
-    while(slot<total&&scenes.some(s=>s.slot===slot))slot++;
-    if(slot>=total){setStatus('No free scene slot available',true);return;}
-    const name=prompt('Scene name','Chaser '+(selectedStepIdx+1)+' - '+(step.label||'Step'));
-    if(!name)return;
-    scenes.push({id:'scene_'+Date.now(),name,slot,values:JSON.parse(JSON.stringify(step.values||{}))});
-    const wr=await fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrlEl.value,scenes,slotCols,slotRows})});
-    const wj=await wr.json();
-    if(wj.ok)setStatus('Saved scene "'+name+'" to slot '+(slot+1));
-    else setStatus('Scene save failed: '+wj.error,true);
-  }catch(err){setStatus('Scene save failed: '+err.message,true);}
+// ---- palette toolbox (save/recall selected step values) ----
+let chaserPalettes=[];
+let chaserPaletteCols=4,chaserPaletteRows=4;
+const CHASER_PALETTE_GRID_MAX=32;
+function requiredChaserPaletteSlots(){
+  return chaserPalettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
 }
+function normalizeChaserPaletteGrid(priority='cols'){
+  const needed=requiredChaserPaletteSlots();
+  chaserPaletteCols=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(chaserPaletteCols)||4));
+  chaserPaletteRows=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(chaserPaletteRows)||4));
+  if(needed&&chaserPaletteCols*chaserPaletteRows<needed){
+    if(priority==='rows'){
+      chaserPaletteCols=Math.max(chaserPaletteCols,Math.ceil(needed/chaserPaletteRows));
+      if(chaserPaletteCols>CHASER_PALETTE_GRID_MAX){chaserPaletteCols=CHASER_PALETTE_GRID_MAX;chaserPaletteRows=Math.ceil(needed/chaserPaletteCols);}
+    }else{
+      chaserPaletteRows=Math.max(chaserPaletteRows,Math.ceil(needed/chaserPaletteCols));
+      if(chaserPaletteRows>CHASER_PALETTE_GRID_MAX){chaserPaletteRows=CHASER_PALETTE_GRID_MAX;chaserPaletteCols=Math.ceil(needed/chaserPaletteRows);}
+    }
+  }
+  const colsInput=document.getElementById('chaserPaletteCols');
+  const rowsInput=document.getElementById('chaserPaletteRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/chaserPaletteRows));colsInput.value=chaserPaletteCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/chaserPaletteCols));rowsInput.value=chaserPaletteRows;}
+}
+function chaserPaletteScopeForValues(values){
+  const scopes=new Set();
+  Object.keys(values||{}).forEach(key=>{
+    const parts=String(key).split(':');
+    const f=setup.fixtures?.find(fx=>String(fx.id)===parts[0]);
+    const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+    if(!c){scopes.add('all');return;}
+    const label=String(c.label||'').toLowerCase();
+    if(c.type==='panTilt16'||c.type==='panTilt8'||/\b(pan|tilt|position|pos)\b/.test(label))scopes.add('position');
+    else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)||/colou?r|rgb|cmy|white|amber/.test(label))scopes.add('color');
+    else if(/dimmer|intensity|shutter/.test(label))scopes.add('dimmer');
+    else if(/gobo|beam|prism|zoom|focus|iris|frost|strobe|shutter/.test(label))scopes.add('beam');
+    else scopes.add('all');
+  });
+  return scopes.size===1?[...scopes][0]:'all';
+}
+function chaserPaletteScopeLabel(scope){
+  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',all:'All controls'}[scope]||'Palette';
+}
+function validStepPaletteValues(values){
+  const valid=validControlKeySet();
+  const out={};
+  Object.entries(values||{}).forEach(([key,value])=>{if(valid.has(key))out[key]=JSON.parse(JSON.stringify(value));});
+  return out;
+}
+function selectedStepPaletteValues(){
+  const step=steps[selectedStepIdx];
+  if(!step)return null;
+  return validStepPaletteValues(step.values||{});
+}
+function renderChaserPaletteMatrix(){
+  const grid=document.getElementById('chaserPaletteMatrix');
+  if(!grid)return;
+  normalizeChaserPaletteGrid('cols');
+  const total=chaserPaletteCols*chaserPaletteRows;
+  grid.style.gridTemplateColumns='repeat('+chaserPaletteCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===i);
+    if(p)html+=`<div class="slot filled" data-chaser-palette-slot="${i}" title="Click: recall palette into selected step" style="${DmxCommon.slotVisualStyle(p)}"><button class="slot-del" data-del-chaser-palette="${i}" title="Delete palette">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${DmxCommon.escapeHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
+    else html+=`<div class="slot" data-chaser-palette-slot="${i}" title="Click to save selected step values as palette">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-chaser-palette-slot]').forEach(el=>{
+    const idx=parseInt(el.dataset.chaserPaletteSlot,10);
+    el.addEventListener('click',()=>chaserPaletteSlotClick(idx));
+  });
+  grid.querySelectorAll('[data-del-chaser-palette]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const idx=parseInt(btn.dataset.delChaserPalette,10);
+      const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===idx);if(!p)return;
+      if(!confirm('Delete palette "'+(p.name||('Palette '+(idx+1)))+'"?'))return;
+      chaserPalettes=chaserPalettes.filter(pl=>parseInt(pl.slot,10)!==idx);
+      renderChaserPaletteMatrix();
+      saveChaserPalettesServer();
+    });
+  });
+}
+function chaserPaletteSlotClick(idx){
+  const existing=chaserPalettes.find(pl=>parseInt(pl.slot,10)===idx);
+  if(existing){recallChaserPalette(existing);return;}
+  const values=selectedStepPaletteValues();
+  if(!values||!Object.keys(values).length){setStatus('Select a step with values before saving a palette',true);return;}
+  const step=steps[selectedStepIdx];
+  const name=(prompt('Palette name:',(step?.label||'Step')+' palette')||'').trim();
+  if(!name)return;
+  const scope=chaserPaletteScopeForValues(values);
+  chaserPalettes=chaserPalettes.filter(pl=>parseInt(pl.slot,10)!==idx);
+  chaserPalettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values,visual:{type:'visual',color:'#225a50',image:''}});
+  renderChaserPaletteMatrix();
+  saveChaserPalettesServer();
+  setStatus('Saved step '+(selectedStepIdx+1)+' as palette "'+name+'" ('+chaserPaletteScopeLabel(scope)+')');
+}
+function recallChaserPalette(p){
+  const step=steps[selectedStepIdx];
+  if(!step){setStatus('Select a step before recalling a palette',true);return;}
+  const values=validStepPaletteValues(p.values||{});
+  const keys=Object.keys(values);
+  if(!keys.length){setStatus('Palette has no compatible controls in this setup',true);return;}
+  Object.assign(step.values,values);
+  applyStepParticipating(step);
+  sourceFixtureId=firstStepFixtureId(step);
+  const batchMap={};
+  keys.forEach(key=>{
+    const parts=String(key).split(':');
+    const f=setup.fixtures?.find(fx=>String(fx.id)===parts[0]);
+    const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+    if(f&&c)collectChannels(f,c,values[key],batchMap);
+  });
+  sendBatch(batchMap);
+  drawParticipation();
+  drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
+  setStatus('Recalled palette "'+(p.name||'Palette')+'" into step '+(selectedStepIdx+1));
+}
+function saveChaserPalettesServer(){
+  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows})})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Palettes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Palettes save error: '+e.message,true));
+}
+function loadChaserPalettesServer(){
+  fetch('palette_setup.php',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){
+      if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=d.baseUrl;
+      chaserPalettes=Array.isArray(d.palettes)?d.palettes:[];
+      if(d.paletteCols)chaserPaletteCols=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(d.paletteCols)||4));
+      if(d.paletteRows)chaserPaletteRows=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(d.paletteRows)||4));
+    }else chaserPalettes=[];
+    renderChaserPaletteMatrix();
+  }).catch(()=>{chaserPalettes=[];renderChaserPaletteMatrix();});
+}
+function exportChaserPalettesJson(){
+  const blob=new Blob([JSON.stringify({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_palettes.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importChaserPalettesJson(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!Array.isArray(data.palettes))throw new Error('Expected {palettes:[...]}');
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+      chaserPalettes=data.palettes;
+      if(data.paletteCols)chaserPaletteCols=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(data.paletteCols)||4));
+      if(data.paletteRows)chaserPaletteRows=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(data.paletteRows)||4));
+      renderChaserPaletteMatrix();
+      saveChaserPalettesServer();
+      setStatus('Imported '+chaserPalettes.length+' palette(s)');
+    }catch(err){setStatus('Palette import failed: '+err.message,true);}
+  };
+  reader.readAsText(file);
+}
+document.getElementById('chaserPaletteCols').addEventListener('input',e=>{chaserPaletteCols=e.target.value;normalizeChaserPaletteGrid('cols');renderChaserPaletteMatrix();saveChaserPalettesServer();});
+document.getElementById('chaserPaletteRows').addEventListener('input',e=>{chaserPaletteRows=e.target.value;normalizeChaserPaletteGrid('rows');renderChaserPaletteMatrix();saveChaserPalettesServer();});
+document.getElementById('exportChaserPalettesBtn').onclick=exportChaserPalettesJson;
+document.getElementById('importChaserPalettesBtn').onclick=()=>document.getElementById('importChaserPalettesFile').click();
+document.getElementById('importChaserPalettesFile').onchange=e=>{if(e.target.files[0])importChaserPalettesJson(e.target.files[0]);e.target.value='';};
+const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'chaserPaletteBox',
+  headerId:'chaserPaletteHdr',
+  toggleId:'chaserPaletteBoxToggle',
+  posStorageKey:'chaserPaletteBoxPos',
+  collapsedStorageKey:'chaserPaletteBoxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'chaserPaletteBoxPos',
+  uiStateCollapsedKey:'chaserPaletteBoxCollapsed'
+});
+loadChaserPalettesServer();
+DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
+
 async function saveParticipatingToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
   try{
@@ -2496,7 +2453,6 @@ document.getElementById('btnApplyMeta').onclick=()=>{
   document.getElementById('editorTitle').textContent='#'+(selectedStepIdx+1)+' – '+step.label;
   setStatus('Step meta updated');
 };
-document.getElementById('btnSaveStepScene').onclick=()=>saveSelectedStepAsScene();
 document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
   const panel=document.getElementById(btn.dataset.panelToggle);
   const key='chaserPanelCollapsed_'+btn.dataset.panelToggle;

@@ -17,6 +17,9 @@ $backupDataDir = Join-Path $env:TEMP ("pico-dmx-manual-data-backup-" + [DateTime
 $url = $BaseUrl.TrimEnd("/") + "/dmx_chaser.html?docshot=" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
+if (Test-Path -LiteralPath $profileDir) {
+    Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+}
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $manualDataPath)) {
@@ -110,18 +113,63 @@ try {
             [string]$Name
         )
         $selectorJson = $Selector | ConvertTo-Json -Compress
-        $rect = Invoke-PageScript @"
+        if ($Selector -match '(Box|Toolbox)$') {
+            Invoke-PageScript @"
 (async()=>{
   const selector=$selectorJson;
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const el=document.querySelector(selector);
   if(!el)throw new Error('Missing screenshot element: '+selector);
+  const rail=el.closest('.toolbox-rail')||document.querySelector('.toolbox-rail');
+  if(!rail)throw new Error('Missing toolbox rail for '+selector);
+  const railToggle=rail.querySelector('.toolbox-rail-toggle');
+  if(rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  if(el.classList.contains('collapsed')){
+    const toggle=el.querySelector('.scene-toolbox__toggle');
+    if(toggle)toggle.click();
+    el.classList.remove('collapsed');
+  }
+  const firstBox=rail.querySelector('.scene-toolbox');
+  if(firstBox&&firstBox!==el)rail.insertBefore(el,firstBox);
+  rail.scrollTop=0;
+  await wait(80);
+  const railRect=rail.getBoundingClientRect();
+  const elRect=el.getBoundingClientRect();
+  rail.scrollTop=Math.max(0,rail.scrollTop+(elRect.top-railRect.top)-64);
+  rail.scrollLeft=0;
+  await wait(300);
+  const firstBoxAfter=rail.querySelector('.scene-toolbox');
+  if(firstBoxAfter&&firstBoxAfter!==el)rail.insertBefore(el,firstBoxAfter);
+  rail.scrollTop=0;
+  return true;
+})()
+"@ | Out-Null
+            $rect = [pscustomobject]@{ x = 800; y = 0; width = 640; height = 1100 }
+        } else {
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  let el=document.querySelector(selector);
+  if(!el)throw new Error('Missing screenshot element: '+selector);
   const rail=el.closest('.toolbox-rail');
   if(rail){
-    const header=el.querySelector('.scene-toolbox__header');
-    rail.scrollTop=Math.max(0,el.offsetTop-(header?.offsetHeight||0)-12);
+    if(el.classList.contains('collapsed')){
+      const toggle=el.querySelector('.scene-toolbox__toggle');
+      if(toggle)toggle.click();
+      el.classList.remove('collapsed');
+    }
+    rail.scrollTop=Math.max(0,el.offsetTop-64);
     rail.scrollLeft=0;
-  }else{
+    await wait(260);
+    const r=rail.getBoundingClientRect();
+    return JSON.stringify({
+      x:Math.max(0,Math.floor(r.left)),
+      y:Math.max(0,Math.floor(r.top)),
+      width:Math.ceil(r.width),
+      height:Math.ceil(r.height)
+    });
+  } else {
     el.scrollIntoView({block:'start',inline:'nearest'});
   }
   await wait(220);
@@ -136,14 +184,18 @@ try {
   const bottom=Math.max(...rects.map(r=>r.bottom));
   const pad=10;
   const topPad=el.classList.contains('scene-toolbox')?120:pad;
-  const x=Math.max(0,Math.floor(left+window.scrollX-pad));
-  const y=Math.max(0,Math.floor(top+window.scrollY-topPad));
+  const scrollX=rail?0:window.scrollX;
+  const scrollY=rail?0:window.scrollY;
+  const x=Math.max(0,Math.floor(left+scrollX-pad));
+  const y=Math.max(0,Math.floor(top+scrollY-topPad));
   const width=Math.ceil(right-left+pad*2);
   const height=Math.ceil(bottom-top+topPad+pad);
   if(width<40||height<40)throw new Error('Screenshot element is too small: '+selector);
-  return{x,y,width,height};
+  return JSON.stringify({x,y,width,height});
 })()
 "@
+        if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
+        }
         $shot = Send-Cdp "Page.captureScreenshot" @{
             format = "png"
             fromSurface = $true
@@ -155,6 +207,10 @@ try {
                 height = [double]$rect.height
                 scale = 1
             }
+        }
+        if (-not $shot.result.data) {
+            $rectJson = $rect | ConvertTo-Json -Compress
+            throw "Chrome returned an empty screenshot for $Selector with clip $rectJson"
         }
         $file = Join-Path $outPath $Name
         [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($shot.result.data))
@@ -185,7 +241,10 @@ try {
     box.style.display='';
     if(box.classList.contains('collapsed')&&toggle)toggle.click();
   }
-  ['chaserGroupsBox','chaseBox','stepsBox','fanToolbox','browserPlaybackBox'].forEach(openToolbox);
+  ['chaserGroupsBox','chaseBox','stepsBox','chaserPaletteBox','fanToolbox','browserPlaybackBox'].forEach(openToolbox);
+  const chaseBox=document.getElementById('chaseBox');
+  const paletteBox=document.getElementById('chaserPaletteBox');
+  if(chaseBox&&paletteBox)chaseBox.after(paletteBox);
   if(typeof loadChases==='function')await loadChases();
   if(!Array.isArray(savedChases)||!savedChases.length)throw new Error('Manual data has no saved chases');
   chaseSlotCols=4;
@@ -199,6 +258,26 @@ try {
   fanState.bases={};
   renderFanToolbox();
   refreshChaserGroupActions();
+  const chaseBox2=document.getElementById('chaseBox');
+  const paletteBox2=document.getElementById('chaserPaletteBox');
+  if(chaseBox2&&paletteBox2){
+    chaseBox2.after(paletteBox2);
+    openToolbox('chaserPaletteBox');
+  }
+  if(window.DmxCommon&&typeof DmxCommon.initToolboxRail==='function'){
+    DmxCommon.initToolboxRail(document.getElementById('chaserToolboxRail'),[
+      {box:'chaserGroupsBox',type:'groups'},
+      {box:'chaseBox',type:'chases'},
+      {box:'stepsBox',type:'steps'},
+      {box:'chaserPaletteBox',type:'palettes'},
+      {box:'fanToolbox',type:'fan'},
+      {box:'browserPlaybackBox',type:'browserPlayback'}
+    ]);
+  }
+  document.querySelector('main')?.scrollTo(0,0);
+  window.scrollTo(0,0);
+  const rail2=document.querySelector('.toolbox-rail');
+  if(rail2)rail2.scrollTop=0;
   document.getElementById('picoSlot').value='0';
   document.getElementById('picoChaserMode').value='loop';
   document.getElementById('picoDirection').value='forward';
@@ -225,6 +304,7 @@ try {
     Save-ElementScreenshot "#chaserGroupsBox" "chaser-toolbox-groups.png"
     Save-ElementScreenshot "#chaseBox" "chaser-toolbox-chases.png"
     Save-ElementScreenshot "#stepsBox" "chaser-toolbox-steps.png"
+    Save-ElementScreenshot "#chaserPaletteBox" "chaser-toolbox-palettes.png"
     Save-ElementScreenshot "#fanToolbox" "chaser-toolbox-fanout.png"
     Save-ElementScreenshot "#browserPlaybackBox" "chaser-toolbox-browser-playback.png"
     Save-ElementScreenshot "#participationPanel" "chaser-participating-controls.png"

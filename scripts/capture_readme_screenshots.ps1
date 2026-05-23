@@ -12,6 +12,9 @@ $outPath = Join-Path $repoRoot $OutDir
 $profileDir = Join-Path $env:TEMP "pico-dmx-docshots"
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
+if (Test-Path -LiteralPath $profileDir) {
+    Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+}
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
@@ -123,18 +126,63 @@ try {
             [string]$Name
         )
         $selectorJson = $Selector | ConvertTo-Json -Compress
-        $rect = Invoke-PageScript @"
+        if ($Selector -match '(Box|Toolbox)$') {
+            Invoke-PageScript @"
 (async()=>{
   const selector=$selectorJson;
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const el=document.querySelector(selector);
   if(!el)throw new Error('Missing screenshot element: '+selector);
+  const rail=el.closest('.toolbox-rail')||document.querySelector('.toolbox-rail');
+  if(!rail)throw new Error('Missing toolbox rail for '+selector);
+  const railToggle=rail.querySelector('.toolbox-rail-toggle');
+  if(rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  if(el.classList.contains('collapsed')){
+    const toggle=el.querySelector('.scene-toolbox__toggle');
+    if(toggle)toggle.click();
+    el.classList.remove('collapsed');
+  }
+  const firstBox=rail.querySelector('.scene-toolbox');
+  if(firstBox&&firstBox!==el)rail.insertBefore(el,firstBox);
+  rail.scrollTop=0;
+  await wait(80);
+  const railRect=rail.getBoundingClientRect();
+  const elRect=el.getBoundingClientRect();
+  rail.scrollTop=Math.max(0,rail.scrollTop+(elRect.top-railRect.top)-64);
+  rail.scrollLeft=0;
+  await wait(300);
+  const firstBoxAfter=rail.querySelector('.scene-toolbox');
+  if(firstBoxAfter&&firstBoxAfter!==el)rail.insertBefore(el,firstBoxAfter);
+  rail.scrollTop=0;
+  return true;
+})()
+"@ | Out-Null
+            $rect = [pscustomobject]@{ x = 800; y = 0; width = 640; height = 1100 }
+        } else {
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  let el=document.querySelector(selector);
+  if(!el)throw new Error('Missing screenshot element: '+selector);
   const rail=el.closest('.toolbox-rail');
   if(rail){
-    const header=el.querySelector('.scene-toolbox__header');
-    rail.scrollTop=Math.max(0,el.offsetTop-(header?.offsetHeight||0)-12);
+    if(el.classList.contains('collapsed')){
+      const toggle=el.querySelector('.scene-toolbox__toggle');
+      if(toggle)toggle.click();
+      el.classList.remove('collapsed');
+    }
+    rail.scrollTop=Math.max(0,el.offsetTop-64);
     rail.scrollLeft=0;
-  }else{
+    await wait(260);
+    const r=rail.getBoundingClientRect();
+    return JSON.stringify({
+      x:Math.max(0,Math.floor(r.left)),
+      y:Math.max(0,Math.floor(r.top)),
+      width:Math.ceil(r.width),
+      height:Math.ceil(r.height)
+    });
+  } else {
     el.scrollIntoView({block:'start',inline:'nearest'});
   }
   await wait(220);
@@ -149,14 +197,18 @@ try {
   const bottom=Math.max(...rects.map(r=>r.bottom));
   const pad=10;
   const topPad=el.classList.contains('scene-toolbox')?120:pad;
-  const x=Math.max(0,Math.floor(left+window.scrollX-pad));
-  const y=Math.max(0,Math.floor(top+window.scrollY-topPad));
+  const scrollX=rail?0:window.scrollX;
+  const scrollY=rail?0:window.scrollY;
+  const x=Math.max(0,Math.floor(left+scrollX-pad));
+  const y=Math.max(0,Math.floor(top+scrollY-topPad));
   const width=Math.ceil(right-left+pad*2);
   const height=Math.ceil(bottom-top+topPad+pad);
   if(width<40||height<40)throw new Error('Screenshot element is too small: '+selector);
-  return{x,y,width,height};
+  return JSON.stringify({x,y,width,height});
 })()
 "@
+        if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
+        }
         $result = Send-Cdp "Page.captureScreenshot" @{
             format = "png"
             fromSurface = $true
@@ -168,6 +220,10 @@ try {
                 height = [double]$rect.height
                 scale = 1
             }
+        }
+        if (-not $result.result.data) {
+            $rectJson = $rect | ConvertTo-Json -Compress
+            throw "Chrome returned an empty screenshot for $Selector with clip $rectJson"
         }
         $file = Join-Path $outPath $Name
         [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($result.result.data))
@@ -452,15 +508,6 @@ try {
     box.style.display='';
     if(box.classList.contains('collapsed')&&toggle)toggle.click();
   }
-  function position(id,x,y,w,h){
-    const box=document.getElementById(id);
-    if(!box)return;
-    box.style.left=x+'px';
-    box.style.top=y+'px';
-    box.style.right='auto';
-    if(w)box.style.width=w+'px';
-    if(h)box.style.height=h+'px';
-  }
   function expandPanel(id){
     const panel=document.getElementById(id);
     const btn=document.querySelector('[data-panel-toggle="'+id+'"]');
@@ -474,17 +521,26 @@ try {
   if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
   expandPanel('participationPanel');
   expandPanel('stepEditorSection');
-  ['stepsBox','browserPlaybackBox','chaseBox'].forEach(openToolbox);
+  ['stepsBox','browserPlaybackBox','chaseBox','chaserPaletteBox'].forEach(openToolbox);
+  const chaseBox=document.getElementById('chaseBox');
+  const paletteBox=document.getElementById('chaserPaletteBox');
+  if(chaseBox&&paletteBox)chaseBox.after(paletteBox);
   const groups=document.getElementById('chaserGroupsBox');
   const groupsToggle=document.getElementById('chaserGroupsToggle');
   if(groups){
     groups.style.display='';
     if(groups.classList.contains('collapsed')&&groupsToggle)groupsToggle.click();
-    position('chaserGroupsBox',760,20,380);
   }
-  position('stepsBox',20,110,380,520);
-  position('browserPlaybackBox',625,600,430);
-  position('chaseBox',1165,265,255);
+  if(window.DmxCommon&&typeof DmxCommon.initToolboxRail==='function'){
+    DmxCommon.initToolboxRail(document.getElementById('chaserToolboxRail'),[
+      {box:'chaserGroupsBox',type:'groups'},
+      {box:'chaseBox',type:'chases'},
+      {box:'stepsBox',type:'steps'},
+      {box:'chaserPaletteBox',type:'palettes'},
+      {box:'fanToolbox',type:'fan'},
+      {box:'browserPlaybackBox',type:'browserPlayback'}
+    ]);
+  }
   if(typeof setup==='object'&&Array.isArray(setup.fixtures)&&typeof fixtureProfile==='function'&&typeof controlKey==='function'){
     if(window.DmxCommon&&typeof DmxCommon.saveSharedGroupSelection==='function')DmxCommon.saveSharedGroupSelection([]);
     if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
@@ -541,6 +597,24 @@ try {
   if(typeof drawParticipation==='function')drawParticipation();
   if(typeof drawStepEditor==='function')drawStepEditor();
   if(typeof refreshChaserGroupActions==='function')refreshChaserGroupActions();
+  const chaseBox2=document.getElementById('chaseBox');
+  const paletteBox2=document.getElementById('chaserPaletteBox');
+  if(chaseBox2&&paletteBox2){
+    chaseBox2.after(paletteBox2);
+    openToolbox('chaserPaletteBox');
+  }
+  if(window.DmxCommon&&typeof DmxCommon.initToolboxRail==='function'){
+    DmxCommon.initToolboxRail(document.getElementById('chaserToolboxRail'),[
+      {box:'chaserGroupsBox',type:'groups'},
+      {box:'chaseBox',type:'chases'},
+      {box:'stepsBox',type:'steps'},
+      {box:'chaserPaletteBox',type:'palettes'},
+      {box:'fanToolbox',type:'fan'},
+      {box:'browserPlaybackBox',type:'browserPlayback'}
+    ]);
+  }
+  document.querySelector('main')?.scrollTo(0,0);
+  window.scrollTo(0,0);
   window.__docChaserState={
     steps:document.querySelectorAll('#stepList [data-step-index]').length,
     stepCount:document.getElementById('stepCount')?.textContent||'',

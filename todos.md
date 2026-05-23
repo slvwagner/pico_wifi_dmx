@@ -12,7 +12,11 @@ Do we want “offline programming” to be a global system mode, or page-specifi
 
 Global is simpler and safer. Page-specific is more flexible, but easier to misunderstand during a show.
 
+## 02
+In the toolbox Groups button group edit it uses the sorce values form the fixture but it does not apply it to all the controlls editable automatically. I think that is so fare ok but I would need a button per controll to apply the source values to the controlls for all the fixtures. I think it is best to do seperatly for each controll. And may add another button all on the very left side of the modall to do it for all controlls.
 
+## 03
+In the chaser page tool boxes chase chase steps I want you to stop the play back as sone as a step gets selected or if any control button will be used in the edit step card. Would that be feasible without breaking otherthings?
 
 # Debug
 

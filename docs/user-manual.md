@@ -341,6 +341,10 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
+- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and sends those edited step values to the Pico.
+
+![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
+
 - **Chase Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
 - **Chases**, **Chase Steps**, and **Chase Playback** share one toolbox color and collapse together. Use **-- all** on any of those boxes to collapse the whole color group, and **+ all** to reopen it.
 
@@ -454,6 +458,8 @@ To create a step manually:
 **Add step** starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.
 
 After **Add step** or **Capture + Add**, the first fixture in the new step is automatically marked as the **Source** fixture in **Edit Step**. Click another fixture card in **Edit Step** to make it the Source fixture. Group Edit uses the Source fixture's current step values as its starting values before writing changes to the matching participating fixtures.
+
+Use the **Palettes** toolbox when the selected step should become a reusable fragment. Empty palette slots save exactly the selected step's stored values, not the whole chase and not all DMX channels. Filled palette slots merge compatible palette values into the selected step.
 
 To capture a new step from the Fixture Controller:
 

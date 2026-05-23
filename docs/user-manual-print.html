@@ -370,6 +370,10 @@ strong { color: #ffffff; }
 </ul>
 <p><img src="screenshots/chaser-toolbox-chases.png" alt="Chaser Chases toolbox"></p>
 <ul>
+<li><strong>Palettes</strong> stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step&#39;s fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and sends those edited step values to the Pico.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-palettes.png" alt="Chaser Palettes toolbox"></p>
+<ul>
 <li><strong>Chase Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.</li>
 <li><strong>Chases</strong>, <strong>Chase Steps</strong>, and <strong>Chase Playback</strong> share one toolbox color and collapse together. Use <strong>-- all</strong> on any of those boxes to collapse the whole color group, and <strong>+ all</strong> to reopen it.</li>
 </ul>
@@ -465,6 +469,7 @@ strong { color: #ffffff; }
 </ol>
 <p><strong>Add step</strong> starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.</p>
 <p>After <strong>Add step</strong> or <strong>Capture + Add</strong>, the first fixture in the new step is automatically marked as the <strong>Source</strong> fixture in <strong>Edit Step</strong>. Click another fixture card in <strong>Edit Step</strong> to make it the Source fixture. Group Edit uses the Source fixture&#39;s current step values as its starting values before writing changes to the matching participating fixtures.</p>
+<p>Use the <strong>Palettes</strong> toolbox when the selected step should become a reusable fragment. Empty palette slots save exactly the selected step&#39;s stored values, not the whole chase and not all DMX channels. Filled palette slots merge compatible palette values into the selected step.</p>
 <p>To capture a new step from the Fixture Controller:</p>
 <ol>
 <li>Open <strong>Fixture Controller</strong> in another browser tab or window.</li>

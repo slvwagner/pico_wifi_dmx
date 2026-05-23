@@ -73,7 +73,7 @@
   const TOOLBOX_WIDTH_KEY='toolboxRailWidth';
   const TOOLBOX_COLLAPSED_KEY='toolboxRailCollapsed';
   const GROUP_SELECTION_KEY='selectedGroupIds';
-  const DEFAULT_TOOLBOX_ORDER=['groups','scenes','chases','steps','browserPlayback'];
+  const DEFAULT_TOOLBOX_ORDER=['groups','scenes','palettes','chases','steps','fan','browserPlayback','motionEffect','effects'];
 
   function normalizeToolboxOrder(order,types){
     const known=Array.isArray(order)?order:[];
@@ -354,9 +354,19 @@
     let dragOffset={x:0,y:0};
     let sizeSaveTimer=0;
     let observedOnce=false;
+    function inToolboxRail(){
+      return !!box?.closest('.toolbox-rail');
+    }
 
     function clampBox(){
       if(!box)return;
+      if(inToolboxRail()){
+        box.style.left='';
+        box.style.top='';
+        box.style.right='';
+        box.style.bottom='';
+        return;
+      }
       if(resizable){
         const w=Math.max(minWidth,Math.min(window.innerWidth,parseInt(box.style.width)||box.offsetWidth||minWidth));
         const h=Math.max(minHeight,Math.min(window.innerHeight,parseInt(box.style.height)||box.offsetHeight||minHeight));
@@ -373,6 +383,7 @@
 
     function applyPosition(pos){
       if(!box||!pos)return;
+      if(inToolboxRail())return;
       box.style.left=(parseInt(pos.x)||0)+'px';
       box.style.top=(parseInt(pos.y)||0)+'px';
       box.style.right='auto';
@@ -383,7 +394,7 @@
       if(!box||!size)return;
       const w=parseInt(size.w||size.width);
       const h=parseInt(size.h||size.height);
-      if(w)box.style.width=Math.max(minWidth,w)+'px';
+      if(w&&!inToolboxRail())box.style.width=Math.max(minWidth,w)+'px';
       if(h&&!box.classList.contains('collapsed'))box.style.height=Math.max(minHeight,h)+'px';
       clampBox();
     }
@@ -410,7 +421,7 @@
     function setCollapsed(collapsed,save){
       if(!box)return;
       const c=!!collapsed;
-      if(c&&!box.classList.contains('collapsed')){
+      if(c&&!box.classList.contains('collapsed')&&!inToolboxRail()){
         box.style.width=(box.offsetWidth||parseInt(box.style.width)||minWidth)+'px';
       }
       if(resizable){
@@ -441,7 +452,7 @@
       clampBox();
     }
 
-    if(box&&posKey){
+    if(box&&posKey&&!inToolboxRail()){
       try{applyPosition(JSON.parse(localStorage.getItem(posKey)||'null'));}catch(_){}
     }
     if(box&&sizeKey){
