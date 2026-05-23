@@ -48,7 +48,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fan-preview-card strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
@@ -283,6 +283,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
 <button id="importPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
 <button id="mergePaletteBtn" class="palette-merge-btn" title="Merge current scoped values into an existing palette">Merge</button>
+<button id="paletteVisualBtn" class="palette-merge-btn" title="Edit the visual for Position, Color, or Beam / Gobo palettes">Icon</button>
 <input id="importPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <label>Scope<select id="paletteScope">
@@ -298,6 +299,36 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="paletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 </div>
 <div id="paletteMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="paletteVisualModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Palette Icon</h2>
+<button id="paletteVisualClose" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div class="modal-body">
+<label>Target<select id="paletteVisualTarget"></select></label>
+<div id="paletteColorVisualWrap">
+<label>Color swatch<input id="paletteVisualColor" type="color" value="#ffffff"></label>
+</div>
+<div id="paletteBeamVisualWrap" class="wheel-editor">
+<div class="toolbar">
+<label>Upload icon<input id="paletteVisualImage" type="file" accept="image/*"></label>
+</div>
+<div class="toolbar">
+<canvas id="paletteVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+<div class="buttons"><button id="paletteVisualClear" type="button">Clear drawing</button></div>
+</div>
+<div class="small">Draw a small position or beam/gobo mark, or upload an icon. The image is saved inside the palette JSON.</div>
+</div>
+<div id="paletteVisualHint" class="small"></div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="paletteVisualSave" class="primary">Save icon</button>
+<button id="paletteVisualClose2">Close</button>
+</div>
 </div>
 </div>
 
@@ -2597,6 +2628,44 @@ loadScenesServer();
 let palettes=[];
 let paletteCols=4,paletteRows=4;
 const PALETTE_SLOT_GRID_MAX=32;
+let paletteVisualDefaults=(()=>{
+  try{
+    const saved=JSON.parse(localStorage.getItem('paletteVisualDefaults')||'{}');
+    return {
+      color:normalizePaletteVisual(saved.color)||{type:'color',color:'#ffffff'},
+      position:normalizePaletteVisual(saved.position)||{type:'image',image:''},
+      beam:normalizePaletteVisual(saved.beam)||{type:'image',image:''}
+    };
+  }catch(_){
+    return {color:{type:'color',color:'#ffffff'},position:{type:'image',image:''},beam:{type:'image',image:''}};
+  }
+})();
+function normalizePaletteVisual(visual){
+  if(!visual||typeof visual!=='object')return null;
+  if(visual.type==='color'&&/^#[0-9a-f]{6}$/i.test(String(visual.color||'')))return{type:'color',color:String(visual.color)};
+  if((visual.type==='image'||visual.type==='drawing')&&(/^data:image\//.test(String(visual.image||''))||String(visual.image||'')===''))return{type:'image',image:String(visual.image||'')};
+  return null;
+}
+function savePaletteVisualDefaults(){
+  localStorage.setItem('paletteVisualDefaults',JSON.stringify(paletteVisualDefaults));
+}
+function currentPaletteVisualForSave(){
+  const scope=currentPaletteScope();
+  if(scope==='color')return cloneValue(paletteVisualDefaults.color);
+  if(scope==='position')return cloneValue(paletteVisualDefaults.position);
+  if(scope==='beam')return cloneValue(paletteVisualDefaults.beam);
+  return null;
+}
+function paletteSlotVisualHtml(p){
+  const visual=normalizePaletteVisual(p?.visual);
+  if(!visual)return '';
+  if(visual.type==='color')return `<span class="palette-visual palette-visual--color" style="background:${visual.color}"></span>`;
+  if(visual.type==='image'&&visual.image){
+    const img=String(visual.image).replace(/"/g,'&quot;');
+    return `<span class="palette-visual" style="background-image:url(&quot;${img}&quot;)"></span>`;
+  }
+  return '';
+}
 function requiredPaletteSlots(){
   return palettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
 }
@@ -2633,7 +2702,7 @@ function renderPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=palettes.find(pl=>pl.slot===i);
-    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette"><button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button>${escHtml(p.name)}</div>`;
+    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette"><button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
     else html+=`<div class="slot" data-palette-slot="${i}" title="Click to save palette here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2700,6 +2769,10 @@ function mergePaletteValues(p,nextScope){
   if(!fixtureCount){showError('Current palette scope has no matching fixture values to merge.');return;}
   p.values={...(p.values||{}),...paletteValues};
   p.scope=nextScope;
+  if(!p.visual){
+    const visual=currentPaletteVisualForSave();
+    if(visual)p.visual=visual;
+  }
   renderPaletteMatrix();
   savePalettesServer();
   setStatus('Merged '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+' into palette "'+p.name+'"');
@@ -2712,7 +2785,8 @@ function savePaletteToSlot(idx,name){
   if(!fixtureCount){showError('Palette scope "'+paletteScopeLabel(scope)+'" has no matching fixture values to save.');return;}
   const ei=palettes.findIndex(p=>p.slot===idx);
   if(ei>=0)palettes.splice(ei,1);
-  palettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values:paletteValues});
+  const visual=currentPaletteVisualForSave();
+  palettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values:paletteValues,visual});
   renderPaletteMatrix();savePalettesServer();
   setStatus('Palette "'+name+'" saved to slot '+(idx+1)+' ('+paletteScopeLabel(scope)+', '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');
 }
@@ -2785,9 +2859,152 @@ function importPalettesJson(file){
   };
   fr.readAsText(file);
 }
+const paletteVisualModal=document.getElementById('paletteVisualModal');
+const paletteVisualTarget=document.getElementById('paletteVisualTarget');
+const paletteVisualColor=document.getElementById('paletteVisualColor');
+const paletteVisualCanvas=document.getElementById('paletteVisualCanvas');
+const paletteVisualCtx=paletteVisualCanvas.getContext('2d');
+let paletteVisualDrawing=false;
+let uploadedPaletteVisualImage='';
+function clearPaletteVisualCanvas(){
+  paletteVisualCtx.fillStyle='#000000';
+  paletteVisualCtx.fillRect(0,0,paletteVisualCanvas.width,paletteVisualCanvas.height);
+  paletteVisualCtx.beginPath();
+  paletteVisualCtx.strokeStyle='#ffffff';
+  paletteVisualCtx.lineWidth=6;
+  paletteVisualCtx.lineCap='round';
+  uploadedPaletteVisualImage='';
+  document.getElementById('paletteVisualImage').value='';
+}
+function drawPaletteVisual(e){
+  const rect=paletteVisualCanvas.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*paletteVisualCanvas.width/rect.width;
+  const y=(e.clientY-rect.top)*paletteVisualCanvas.height/rect.height;
+  if(!paletteVisualDrawing){
+    paletteVisualCtx.beginPath();
+    paletteVisualCtx.moveTo(x,y);
+    return;
+  }
+  paletteVisualCtx.lineTo(x,y);
+  paletteVisualCtx.stroke();
+  paletteVisualCtx.beginPath();
+  paletteVisualCtx.moveTo(x,y);
+  uploadedPaletteVisualImage='';
+}
+function loadPaletteVisualCanvas(image){
+  clearPaletteVisualCanvas();
+  if(!image)return;
+  const img=new Image();
+  img.onload=()=>{
+    clearPaletteVisualCanvas();
+    paletteVisualCtx.drawImage(img,0,0,paletteVisualCanvas.width,paletteVisualCanvas.height);
+    uploadedPaletteVisualImage=paletteVisualCanvas.toDataURL('image/png');
+  };
+  img.src=image;
+}
+function paletteVisualFromModal(scope){
+  if(scope==='color')return{type:'color',color:paletteVisualColor.value||'#ffffff'};
+  if(scope==='position'||scope==='beam')return{type:'image',image:uploadedPaletteVisualImage||paletteVisualCanvas.toDataURL('image/png')};
+  return null;
+}
+function populatePaletteVisualTarget(scope){
+  const label=scope==='color'?'Color':scope==='position'?'Position':scope==='beam'?'Beam / Gobo':'Palette';
+  const options=[`<option value="__default">New ${label} palettes</option>`];
+  palettes
+    .slice()
+    .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+    .filter(p=>(scope==='color'||scope==='position'||scope==='beam')&&((p.scope||'all')===scope||(p.scope||'all')==='all'))
+    .forEach(p=>{
+      const slot=parseInt(p.slot,10)||0;
+      options.push(`<option value="${slot}">Slot ${slot+1}: ${escHtml(p.name)}</option>`);
+    });
+  paletteVisualTarget.innerHTML=options.join('');
+}
+function selectedPaletteVisualTarget(){
+  const val=paletteVisualTarget.value;
+  if(val==='__default')return null;
+  return palettes.find(p=>String(p.slot)===String(val))||null;
+}
+function loadPaletteVisualEditor(){
+  const scope=currentPaletteScope();
+  const target=selectedPaletteVisualTarget();
+  const visual=normalizePaletteVisual(target?.visual)||normalizePaletteVisual(paletteVisualDefaults[scope]);
+  if(scope==='color'){
+    paletteVisualColor.value=visual?.color||'#ffffff';
+  }else if(scope==='position'||scope==='beam'){
+    loadPaletteVisualCanvas(visual?.image||'');
+  }
+}
+function openPaletteVisualModal(){
+  const scope=currentPaletteScope();
+  const colorWrap=document.getElementById('paletteColorVisualWrap');
+  const beamWrap=document.getElementById('paletteBeamVisualWrap');
+  const hint=document.getElementById('paletteVisualHint');
+  if(scope!=='color'&&scope!=='position'&&scope!=='beam'){
+    setStatus('Palette icons are available for Position, Color, and Beam / Gobo scopes.',true);
+    return;
+  }
+  colorWrap.style.display=scope==='color'?'grid':'none';
+  beamWrap.style.display=(scope==='position'||scope==='beam')?'grid':'none';
+  hint.textContent=scope==='color'
+    ?'Choose the swatch shown on new Color palettes, or apply it to an existing Color/All palette.'
+    :scope==='position'
+      ?'Draw or upload the small icon shown on new Position palettes, or apply it to an existing Position/All palette.'
+      :'Draw or upload the small icon shown on new Beam / Gobo palettes, or apply it to an existing Beam/All palette.';
+  populatePaletteVisualTarget(scope);
+  clearPaletteVisualCanvas();
+  loadPaletteVisualEditor();
+  paletteVisualModal.style.display='flex';
+}
+function closePaletteVisualModal(){
+  paletteVisualModal.style.display='none';
+}
+function savePaletteVisualFromModal(){
+  const scope=currentPaletteScope();
+  const visual=paletteVisualFromModal(scope);
+  if(!visual)return;
+  const target=selectedPaletteVisualTarget();
+  if(target){
+    target.visual=visual;
+    renderPaletteMatrix();
+    savePalettesServer();
+    setStatus('Updated palette icon for "'+target.name+'"');
+  }else{
+    paletteVisualDefaults[scope]=visual;
+    savePaletteVisualDefaults();
+    setStatus('Default '+paletteScopeLabel(scope)+' palette icon updated');
+  }
+  closePaletteVisualModal();
+}
+paletteVisualCanvas.addEventListener('pointerdown',e=>{paletteVisualDrawing=false;paletteVisualCanvas.setPointerCapture(e.pointerId);drawPaletteVisual(e);paletteVisualDrawing=true;uploadedPaletteVisualImage='';});
+paletteVisualCanvas.addEventListener('pointermove',e=>{if(paletteVisualDrawing)drawPaletteVisual(e);});
+paletteVisualCanvas.addEventListener('pointerup',()=>{paletteVisualDrawing=false;uploadedPaletteVisualImage='';});
+paletteVisualCanvas.addEventListener('pointercancel',()=>{paletteVisualDrawing=false;});
+document.getElementById('paletteVisualImage').onchange=e=>{
+  const file=e.target.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      clearPaletteVisualCanvas();
+      paletteVisualCtx.drawImage(img,0,0,paletteVisualCanvas.width,paletteVisualCanvas.height);
+      uploadedPaletteVisualImage=paletteVisualCanvas.toDataURL('image/png');
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+};
+document.getElementById('paletteVisualClear').onclick=clearPaletteVisualCanvas;
+paletteVisualTarget.onchange=loadPaletteVisualEditor;
+document.getElementById('paletteVisualClose').onclick=closePaletteVisualModal;
+document.getElementById('paletteVisualClose2').onclick=closePaletteVisualModal;
+document.getElementById('paletteVisualSave').onclick=savePaletteVisualFromModal;
+paletteVisualModal.addEventListener('click',e=>{if(e.target===paletteVisualModal)closePaletteVisualModal();});
 document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile').click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
+document.getElementById('paletteVisualBtn').onclick=openPaletteVisualModal;
 document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
 const paletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'paletteBox',

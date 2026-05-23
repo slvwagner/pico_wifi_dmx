@@ -149,6 +149,8 @@ Use palettes for building blocks such as:
 - Dimmer levels
 - Fan Out results that you want to reuse as an overlay
 
+The **Icon** button opens the palette visual editor for the current scope. For **Color** palettes it stores a small color swatch. For **Position** and **Beam / Gobo** palettes it stores a drawn or uploaded icon, using the same idea as the wheel-option editor in Add / Edit Control. These visuals are saved inside the palette JSON and shown directly in the palette slot grid.
+
 Palette save rules:
 
 - If Fan Out is active, the palette saves only the Fan Out affected controls.

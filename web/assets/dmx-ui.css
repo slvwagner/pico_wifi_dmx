@@ -104,6 +104,10 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .slot:not(.filled):hover{border-color:var(--accent);color:var(--accent)}
 .slot.readonly{cursor:default}
 .slot.readonly:not(.filled):hover{border-color:var(--line);color:var(--muted)}
+.palette-slot-content{display:grid;gap:3px;justify-items:center;align-items:center;width:100%;min-width:0}
+.palette-slot-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.palette-visual{display:inline-block;width:20px;height:20px;border-radius:5px;border:1px solid rgba(255,255,255,.45);background:#111;background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.palette-visual--color{border-radius:50%}
 .slot-del{position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.6;cursor:pointer}
 .slot-del:hover{background:rgba(1,255,230,.18);border-color:#01ffe6;opacity:1}
 @media(max-width:900px){main{padding:12px}input[type=url],input[type=text],textarea{min-width:0;width:100%}}

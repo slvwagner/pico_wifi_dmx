@@ -172,6 +172,8 @@ Patch Fixtures supports one fixture at a time or a numbered run. Set a base name
 
 The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
 
+The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. Color palettes can carry a color swatch, and Position or Beam / Gobo palettes can carry a drawn or uploaded icon so palette slots stay readable at a glance. Palette visuals are saved inside `data/palette_setup.json` together with the palette values.
+
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
 The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. The Add / Edit Control card edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed. Clicking Edit on an existing control opens this editor automatically. Collapsing Fixture Profiles also hides the Add / Edit Control card.
