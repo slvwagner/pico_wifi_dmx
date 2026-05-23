@@ -77,11 +77,11 @@ try {
     if (-not $SkipScreenshots) {
         Invoke-Step "Capture deterministic controller screenshots" {
             & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
+            & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
         }
 
         Invoke-Step "Capture page overview screenshots" {
             Save-PageScreenshot "motion-fx.png" ($BaseUrl.TrimEnd('/') + "/dmx_motion.html")
-            Save-PageScreenshot "fan-out.png" ($BaseUrl.TrimEnd('/') + "/dmx_fan.html")
             Save-PageScreenshot "gpio-control.png" ($BaseUrl.TrimEnd('/') + "/dmx_gpio.html")
             Save-PageScreenshot "benchmark.png" ($BaseUrl.TrimEnd('/') + "/test/")
         }

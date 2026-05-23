@@ -36,7 +36,6 @@ main{max-width:none;width:100%;margin:0}
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_fan.html">Fan</a>
     <a class="nav" href="dmx_gpio.html">GPIO</a>
     <a class="nav" href="user-manual.html#5-motion-fx" target="_blank">Manual</a>
   </div>
@@ -155,7 +154,12 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
+<aside id="motionToolboxRail" class="toolbox-rail" aria-label="Motion effects toolboxes"></aside>
+
 <script>
+document.body.classList.add('toolbox-rail-layout');
+const motionToolboxRail=document.getElementById('motionToolboxRail');
+DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionSceneBox',type:'scenes'}]);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -176,6 +180,7 @@ motionGroupsBox=DmxCommon.initGroupsToolbox({
   page:'motion',
   idPrefix:'motionGroups',
   title:'Groups',
+  host:motionToolboxRail||document.body,
   showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
@@ -1087,11 +1092,23 @@ loadSetup().finally(async()=>{
 });
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
+function requiredMotionSceneSlots(){
+  return motionScenes.reduce((max,s)=>Math.max(max,(parseInt(s.slot,10)||0)+1),0);
+}
+function normalizeMotionSceneGrid(){
+  const needed=requiredMotionSceneSlots();
+  motionSlotCols=Math.max(1,parseInt(motionSlotCols)||4);
+  motionSlotRows=Math.max(1,parseInt(motionSlotRows)||4);
+  if(needed&&motionSlotCols*motionSlotRows<needed){
+    motionSlotRows=Math.ceil(needed/motionSlotCols);
+  }
+}
 function escMotionHtml(s){return DmxCommon.escapeHtml(s);}
 function renderMotionSlotGrid(){
   const grid=document.getElementById('motionSlotGrid');
+  normalizeMotionSceneGrid();
   const total=motionSlotCols*motionSlotRows;
-  grid.style.gridTemplateColumns='repeat('+motionSlotCols+',54px)';
+  grid.style.gridTemplateColumns='repeat('+motionSlotCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const s=motionScenes.find(sc=>sc.slot===i);

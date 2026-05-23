@@ -16,6 +16,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .item.active-step.edit-step{border-color:var(--accent)}
 .surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.card.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent);transition:border-color .15s,box-shadow .15s}
 .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .readout{font-size:22px;line-height:1;color:var(--accent);font-weight:700}.bytes{color:var(--muted);font-size:13px}
@@ -46,6 +47,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .chaser-collapse-all{padding:3px 8px;font-size:12px;line-height:1;min-width:64px}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+#stepList .item{cursor:pointer}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
 .progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.05s linear}
 .step-num{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:5px;background:#22303a;font-weight:700;font-size:12px;flex-shrink:0;padding:0 4px}
@@ -55,6 +57,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .step-card-meta{font-size:12px;color:var(--muted);white-space:nowrap}
 .step-actions-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
 .step-actions-grid button{width:100%;min-width:0;padding:5px 7px;font-size:12px;line-height:1.1}
+.step-common-actions{border-top:1px solid var(--line);padding-top:10px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}#participationList,#stepList{grid-template-columns:1fr}}
 .card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .card.collapsed .control{display:none}
@@ -78,7 +81,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_motion.html">Motion</a>
-    <a class="nav" href="dmx_fan.html">Fan</a>
     <a class="nav" href="dmx_gpio.html">GPIO</a>
     <a class="nav" href="user-manual.html#4-chaser" target="_blank">Manual</a>
   </div>
@@ -145,16 +147,15 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       <div class="buttons" style="justify-content:flex-start">
         <button class="primary" id="btnAddStep">+ Add step</button>
         <button id="btnCaptureNew">⬇ Capture + Add</button>
-        <button class="warn" id="btnClearAll">Clear all</button>
+        <button class="warn" id="btnClearAll">Clear Steps</button>
+      </div>
+      <div class="buttons step-common-actions" style="justify-content:flex-start">
+        <button id="btnStepDuplicate" disabled>Dupe</button>
+        <button id="btnStepUp" disabled>Up</button>
+        <button id="btnStepDown" disabled>Down</button>
+        <button class="warn" id="btnStepDelete" disabled>Delete</button>
       </div>
       <div class="list" id="stepList"></div>
-      <div class="row" style="flex-wrap:wrap">
-        <button id="btnSave" title="Save editable chaser preset on the server">Save Preset</button>
-        <button id="btnLoad" title="Load editable chaser preset from the server">Load Preset</button>
-        <button id="btnExport" class="icon-btn export-btn" title="Export chaser JSON"></button>
-        <button id="btnImport" class="icon-btn import-btn" title="Import chaser JSON"></button>
-        <input id="importFile" type="file" accept=".json,application/json" style="display:none">
-      </div>
     </div>
   </div>
 
@@ -173,7 +174,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       <button id="btnPrev">◀ Prev</button>
       <button id="btnNext">Next ▶</button>
       <label><input id="loopCheck" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Loop</label>
-      <label><input id="livePreview" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Live preview</label>
       <label>BPM<input id="bpmInput" type="number" min="1" max="600" value="120"></label>
       <label>Beats/step
         <select id="beatsPerStep">
@@ -186,8 +186,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         </select>
       </label>
       <button id="btnTap">Tap tempo</button>
-      <label>Default fade %<input id="globalFade" type="number" min="0" max="100" value="0"></label>
-      <button id="btnApplyFade" title="Apply default fade % to all steps">↓ All steps</button>
+      <label>Fade % (all steps)<input id="globalFade" type="number" min="0" max="100" value="0"></label>
+      <button id="btnApplyFade" title="Reapply fade % to all steps">Apply</button>
       <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
     </div>
     <div class="row" style="align-items:center">
@@ -233,7 +233,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <option value="reverse">Reverse</option>
       </select>
     </label>
-    <button class="primary" id="btnPicoUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
+    <button class="primary" id="btnPicoUpload" title="Send current chase to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
     <button id="btnPicoPauseSlot">Pause</button>
     <button id="btnPicoResumeSlot">Resume</button>
@@ -282,6 +282,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div class="buttons">
 <button id="exportChasesBtn" class="icon-btn export-btn" title="Export chases JSON"></button>
 <button id="importChasesBtn" class="icon-btn import-btn" title="Import chases JSON"></button>
+<button id="chaseVisualBtn" class="palette-merge-btn" title="Edit the chase visual">Visual</button>
 <input id="importChasesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -292,7 +293,75 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 
+<div id="chaseVisualModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Slot Visual</h2>
+<button id="chaseVisualClose" class="collapse-btn">x</button>
+</div>
+<div class="modal-body">
+<label>Target<select id="chaseVisualTarget"></select></label>
+<div id="chaseVisualColorWrap">
+<label>Background color<input id="chaseVisualColor" type="color" value="#225a50"></label>
+<button id="chaseVisualResetColor" type="button">Default background</button>
+</div>
+<div id="chaseVisualImageWrap" class="slot-visual-editor">
+<div class="toolbar">
+<label>Upload visual<input id="chaseVisualImage" type="file" accept="image/*"></label>
+</div>
+<div class="toolbar">
+<canvas id="chaseVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+<div class="buttons"><button id="chaseVisualClear" type="button">No icon</button></div>
+</div>
+<div class="small">Choose a background color, then draw or upload an optional visual on top. Both are saved inside the chases JSON.</div>
+</div>
+<div id="chaseVisualHint" class="small"></div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="chaseVisualSave" class="primary">Save visual</button>
+<button id="chaseVisualClose2">Close</button>
+</div>
+</div>
+</div>
+
+<div id="fanToolbox" class="scene-toolbox scene-toolbox--fan">
+<div id="fanToolboxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Fan Out</span>
+<button id="fanToolboxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="fanToolboxBody" class="scene-toolbox__body">
+<div style="display:grid;gap:10px">
+<div class="small" id="fanScopeHint">Select a group or participating fixtures.</div>
+<label>Control<select id="fanControlSelect"></select></label>
+<label>Mode<select id="fanMode"><option value="symmetric">Symmetric spread</option><option value="range">Start to end</option></select></label>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end">
+<label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
+<button id="fanInvert" title="Reverse fixture order for Fan Out">Invert</button>
+</div>
+<div id="fanRangeWrap" style="display:none;gap:8px">
+<label>From<input id="fanFrom" type="number" value="0"></label>
+<label>To<input id="fanTo" type="number" value="0"></label>
+</div>
+<div class="buttons">
+<button id="fanClear">Clear</button>
+</div>
+<div id="fanPreview" class="fan-preview"></div>
+</div>
+</div>
+</div>
+
+<aside id="chaserToolboxRail" class="toolbox-rail chaser-toolbox-rail" aria-label="Chaser toolboxes"></aside>
+
 <script>
+document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
+const chaserToolboxRail=document.getElementById('chaserToolboxRail');
+DmxCommon.initToolboxRail(chaserToolboxRail,[
+  {box:'chaserGroupsBox',type:'groups'},
+  {box:'chaseBox',type:'chases'},
+  {box:'stepsBox',type:'steps'},
+  {box:'fanToolbox',type:'fan'},
+  {box:'browserPlaybackBox',type:'browserPlayback'}
+]);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -302,6 +371,7 @@ const PICO_SLOT_COUNT=32;
 const CHASER_MAX_STEPS=32;
 let steps=[];
 let selectedStepIdx=-1;
+let sourceFixtureId=null;
 let collapsedFixtures=new Set(JSON.parse(localStorage.getItem('chaserCollapsedFix')||'[]'));
 let collapsedPartFixtures=new Set(JSON.parse(localStorage.getItem('chaserPartCollapsedFix')||'[]'));
 function populatePicoSlotSelect(){
@@ -334,10 +404,12 @@ chaserGroupsBox=DmxCommon.initGroupsToolbox({
   page:'chaser',
   idPrefix:'chaserGroups',
   title:'Groups',
+  host:chaserToolboxRail||document.body,
   showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
-  canEdit:()=>selectedStepIdx>=0&&getChaserGroupCommonControls().length>0,
+  editRequiresSelection:false,
+  canEdit:()=>selectedStepIdx>=0&&getChaserGroupEditableControls().length>0,
   onEdit:()=>openChaserGroupModal(),
   onSelectionChange:()=>applyChaserGroupSelection(true)
 });
@@ -392,32 +464,10 @@ function defaultValue(c){
   if(c.type==='rgb'||c.type==='cmy')return{a:0,b:0,c:0};
   return 0;
 }
-function sendControlValue(f,c,val){
-  val=val??defaultValue(c);
-  if(c.type==='panTilt16'){
-    const pan=bytes16(val.pan??32768),tilt=bytes16(val.tilt??32768);
-    sendChannel(absolute(f.start,c.pan),pan.coarse);
-    sendChannel(absolute(f.start,c.panFine??c.pan+1),pan.fine);
-    sendChannel(absolute(f.start,c.tilt),tilt.coarse);
-    sendChannel(absolute(f.start,c.tiltFine??c.tilt+1),tilt.fine);
-  }else if(c.type==='panTilt8'){
-    sendChannel(absolute(f.start,c.pan),val.pan??128);
-    sendChannel(absolute(f.start,c.tilt),val.tilt??128);
-  }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(p=>sendChannel(absolute(f.start,c[p]),val[p]??0));
-  }else if(c.type==='slider16'){
-    const b=bytes16(val??0);
-    sendChannel(absolute(f.start,c.channel),b.coarse);
-    sendChannel(absolute(f.start,c.fine??c.channel+1),b.fine);
-  }else{
-    sendChannel(absolute(f.start,c.channel),val??0);
-  }
-}
-
 // ---- setup loading ----
 let setup={};
 let participating={};
+let activeStepValueKeys=null;
 function controlKey(f,c){return f.id+':'+c.id;}
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
 
@@ -449,23 +499,61 @@ function rebuildParticipation(){
 
 function applyChaserGroupSelection(redraw=true){
   const selected=chaserGroupsBox?.selectedGroups?.()||[];
+  fanState.bases={};
   if(redraw){
     drawParticipation();
     drawStepEditor();
+    renderFanToolbox();
     setStatus(selected.length?'Chaser filtered to '+selected.length+' group'+(selected.length===1?'':'s'):'Chaser group filter cleared');
   }
+}
+function sendEditedControlValue(f,c,val){
+  const batchMap={};
+  collectChannels(f,c,val,batchMap);
+  sendBatch(batchMap);
 }
 
 function selectedChaserGroupFixtureIds(){
   const selected=chaserGroupsBox?.selectedGroups?.()||[];
   if(!selected.length)return null;
-  return new Set(selected.flatMap(g=>g.fixtureIds||[]));
+  return new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String));
 }
 
 function selectedChaserGroupFixtures(){
   const ids=selectedChaserGroupFixtureIds();
   if(!ids)return[];
-  return(setup.fixtures||[]).filter(f=>ids.has(f.id));
+  return(setup.fixtures||[]).filter(f=>ids.has(String(f.id)));
+}
+function chaserGroupEditFixtures(){
+  const selected=selectedChaserGroupFixtures();
+  if(selected.length)return selected;
+  const seen=new Set();
+  return getParticipatingList().reduce((fixtures,item)=>{
+    const id=String(item.f.id);
+    if(!seen.has(id)){seen.add(id);fixtures.push(item.f);}
+    return fixtures;
+  },[]);
+}
+
+function firstStepFixtureId(step=steps[selectedStepIdx]){
+  const keys=Object.keys(step?.values||{});
+  for(const key of keys){
+    const fixtureId=String(key).split(':')[0];
+    if((setup.fixtures||[]).some(f=>String(f.id)===fixtureId))return fixtureId;
+  }
+  const item=getParticipatingList()[0];
+  return item?String(item.f.id):null;
+}
+function ensureSourceFixture(){
+  const current=String(sourceFixtureId||'');
+  if(current&&(setup.fixtures||[]).some(f=>String(f.id)===current))return current;
+  sourceFixtureId=firstStepFixtureId();
+  return sourceFixtureId;
+}
+function setSourceFixture(fixtureId,redraw=true){
+  sourceFixtureId=fixtureId==null?null:String(fixtureId);
+  if(chaserGroupsBox?.render)chaserGroupsBox.render();
+  if(redraw)drawStepEditor();
 }
 
 function chaserGroupKey(c){return c.label+'|'+c.type;}
@@ -474,21 +562,50 @@ function findChaserGroupControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>chaserGroupKey(c)===key)||null;
 }
 function getChaserGroupCommonControls(){
-  const fx=selectedChaserGroupFixtures();
+  const fx=chaserGroupEditFixtures();
   if(!fx.length)return[];
   const first=(fixtureProfile(fx[0])?.controls||[]);
   return first.filter(c=>fx.every(f=>!!findChaserGroupControl(f,chaserGroupKey(c))));
 }
+function isChaserGroupControlParticipating(f,c){
+  if(!participating[controlKey(f,c)])return false;
+  if(activeStepValueKeys instanceof Set&&!activeStepValueKeys.has(controlKey(f,c)))return false;
+  return true;
+}
+function getChaserGroupEditableControls(){
+  const fx=chaserGroupEditFixtures();
+  if(fx.length<2)return[];
+  const controls=new Map();
+  fx.forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      if(!isChaserGroupControlParticipating(f,c))return;
+      const key=chaserGroupKey(c);
+      if(!controls.has(key))controls.set(key,{control:c,count:0});
+      controls.get(key).count++;
+    });
+  });
+  return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
+}
 function chaserGroupControlByDataKey(dataKey){
   const key=decodeURIComponent(dataKey||'');
-  return getChaserGroupCommonControls().find(c=>chaserGroupKey(c)===key)||null;
+  return getChaserGroupEditableControls().find(c=>chaserGroupKey(c)===key)||null;
 }
 function getChaserGroupValue(c){
   const key=chaserGroupKey(c);
-  const fx=selectedChaserGroupFixtures();
+  const fx=chaserGroupEditFixtures();
+  const sourceId=ensureSourceFixture();
+  const source=fx.find(f=>String(f.id)===String(sourceId));
+  if(source){
+    const mc=findChaserGroupControl(source,key);
+    if(mc&&isChaserGroupControlParticipating(source,mc)){
+      const v=getStepVal(source,mc);
+      if(v!==undefined)return JSON.parse(JSON.stringify(v));
+    }
+  }
   for(const f of fx){
     const mc=findChaserGroupControl(f,key);
-    if(!mc)continue;
+    if(!mc||!isChaserGroupControlParticipating(f,mc))continue;
     const v=getStepVal(f,mc);
     if(v!==undefined)return JSON.parse(JSON.stringify(v));
   }
@@ -496,9 +613,9 @@ function getChaserGroupValue(c){
 }
 function setChaserGroupValue(c,val){
   const key=chaserGroupKey(c);
-  selectedChaserGroupFixtures().forEach(f=>{
+  chaserGroupEditFixtures().forEach(f=>{
     const mc=findChaserGroupControl(f,key);
-    if(mc)setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
+    if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
   });
 }
 function renderChaserGroupControl(c){
@@ -513,7 +630,7 @@ function renderChaserGroupControl(c){
       <label>Tilt coarse <span data-cg-byte="${key}" data-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
       <label>Tilt fine <span data-cg-byte="${key}" data-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
     </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · selected group</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span></div>
       <div class="xy-pad" data-cgxy="${key}"><div class="xy-dot" style="left:${(v.pan??Math.round(max/2))/max*100}%;top:${100-(v.tilt??Math.round(max/2))/max*100}%"></div></div>
       <div class="row"><span class="readout" data-cg-readout="${key}">Pan ${Math.round(v.pan??Math.round(max/2))} · Tilt ${Math.round(v.tilt??Math.round(max/2))}</span><button ${gca} data-cg-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.pan??Math.round(max/2))}" ${gca} data-axis="pan"></label>
@@ -524,7 +641,7 @@ function renderChaserGroupControl(c){
     const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · selected group</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span></div>
       <label>Color<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
       ${parts.map((part,i)=>`<label>${names[i]} <span data-cg-part="${key}" data-part="${part}">${Math.round(v[part]??0)}</span><input type="range" min="0" max="255" value="${Math.round(v[part]??0)}" ${gca} data-part="${part}"></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-cg-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-cg-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-cg-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-cg-color="#0000ff" ${gca}></button></div></div>`;
@@ -542,7 +659,7 @@ function renderChaserGroupControl(c){
       <label>Coarse <span data-cg-byte="${key}" data-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
       <label>Fine <span data-cg-byte="${key}" data-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
     </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · selected group</span></div>
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span></div>
     <input type="range" min="0" max="${max}" step="1" value="${Math.round(sv)}" ${gca}>${extra}</div>`;
 }
 function updateChaserGroupControlDisplay(c){
@@ -591,10 +708,10 @@ function updateChaserGroupControlDisplay(c){
 }
 function openChaserGroupModal(){
   if(selectedStepIdx<0){setStatus('Select a step before editing a group',true);return;}
-  const common=getChaserGroupCommonControls();
-  if(!common.length){setStatus('Select a group with common controls first',true);return;}
-  const n=selectedChaserGroupFixtures().length;
-  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s');
+  const common=getChaserGroupEditableControls();
+  if(!common.length){setStatus('Select a step with at least two matching participating controls first',true);return;}
+  const n=chaserGroupEditFixtures().length;
+  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s')+' · '+common.length+' participating control'+(common.length===1?'':'s');
   document.getElementById('chaserGroupModalBody').innerHTML=common.map(c=>renderChaserGroupControl(c)).join('');
   document.getElementById('chaserGroupModal').style.display='flex';
 }
@@ -606,7 +723,7 @@ function groupControlOptions(){
   if(!selectedFixtureIds)return[];
   const opts=new Map();
   (setup.fixtures||[]).forEach(f=>{
-    if(!selectedFixtureIds.has(f.id))return;
+    if(!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
       const key=groupControlKey(c);
@@ -635,13 +752,14 @@ function drawGroupControlTools(){
 }
 
 function applyGroupControlSelection(mode){
+  activeStepValueKeys=null;
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   const wanted=document.getElementById('groupControlSelect').value;
   if(!selectedFixtureIds||!wanted){setStatus('Select a group and a control first',true);return;}
   if(mode==='only')Object.keys(participating).forEach(k=>participating[k]=false);
   let changed=0;
   (setup.fixtures||[]).forEach(f=>{
-    if(!selectedFixtureIds.has(f.id))return;
+    if(!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
       if(groupControlKey(c)!==wanted)return;
@@ -658,12 +776,176 @@ function applyGroupControlSelection(mode){
 function getParticipatingList(){
   const result=[];
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
   (setup.fixtures||[]).forEach(f=>{
-    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return;
+    if(selectedFixtureIds&&!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
-    p.controls.forEach(c=>{if(participating[controlKey(f,c)])result.push({f,c});});
+    p.controls.forEach(c=>{
+      const k=controlKey(f,c);
+      if(activeKeys&&!activeKeys.has(k))return;
+      if(participating[k])result.push({f,c});
+    });
   });
   return result;
+}
+
+const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,inverted:false,bases:{}};
+function fanFixtureOrder(){
+  let ids=[];
+  getParticipatingList().forEach(({f})=>{if(!ids.some(id=>String(id)===String(f.id)))ids.push(f.id);});
+  return ids.map(id=>(setup.fixtures||[]).find(f=>String(f.id)===String(id))).filter(Boolean);
+}
+function chaserFanControlKey(c,axis){return encodeURIComponent(chaserGroupKey(c))+'|'+axis;}
+function parseChaserFanControlKey(key=fanState.controlKey){
+  const parts=String(key||'').split('|');
+  return{controlKey:decodeURIComponent(parts[0]||''),axis:parts[1]||'value'};
+}
+function findChaserFanControl(f,controlKeyValue,axis){
+  const c=(fixtureProfile(f)?.controls||[]).find(ctrl=>chaserGroupKey(ctrl)===controlKeyValue);
+  if(!c)return null;
+  if((axis==='pan'||axis==='tilt')&&(c.type==='panTilt16'||c.type==='panTilt8'))return c;
+  if(axis==='value'&&(c.type==='slider16'||c.channel>=1))return c;
+  return null;
+}
+function fanControlOptions(){
+  const byKey=new Map();
+  getParticipatingList().forEach(({f,c})=>{
+    const add=(axis,label,max)=>{
+      const key=chaserFanControlKey(c,axis);
+      const entry=byKey.get(key)||{key,label,max,fixtureIds:new Set()};
+      entry.fixtureIds.add(String(f.id));
+      byKey.set(key,entry);
+    };
+    if(c.type==='panTilt16'){add('pan',c.label+' Pan',65535);add('tilt',c.label+' Tilt',65535);}
+    else if(c.type==='panTilt8'){add('pan',c.label+' Pan',255);add('tilt',c.label+' Tilt',255);}
+    else if(c.type==='slider16')add('value',c.label,65535);
+    else if(c.channel>=1)add('value',c.label,255);
+  });
+  return Array.from(byKey.values()).filter(o=>o.fixtureIds.size>=2).map(({fixtureIds,...o})=>o);
+}
+function fanMaxValue(){
+  const opt=fanControlOptions().find(o=>o.key===fanState.controlKey);
+  return opt?.max||255;
+}
+function fanGetStepValue(f,c,axis){
+  const max=c.type==='panTilt8'?255:65535;
+  const v=getStepVal(f,c);
+  if(axis==='pan'||axis==='tilt')return (v??defaultValue(c))[axis]??Math.round(max/2);
+  return v??defaultValue(c);
+}
+function fanBaseKey(f,c,axis){
+  return f.id+':'+chaserGroupKey(c)+':'+axis;
+}
+function fanSetStepValue(f,c,axis,val){
+  val=clamp(Math.round(val),0,fanMaxValue());
+  if(axis==='pan'||axis==='tilt'){
+    const max=c.type==='panTilt8'?255:65535;
+    const cur={...(getStepVal(f,c)||defaultValue(c)||{pan:Math.round(max/2),tilt:Math.round(max/2)})};
+    cur[axis]=val;
+    setStepVal(f,c,cur);
+  }else setStepVal(f,c,val);
+  participating[controlKey(f,c)]=true;
+  if(activeStepValueKeys instanceof Set)activeStepValueKeys.add(controlKey(f,c));
+}
+function ensureFanBases(){
+  const ordered=fanFixtureOrder();
+  const {controlKey:fanControl,axis}=parseChaserFanControlKey();
+  ordered.forEach(f=>{
+    const c=findChaserFanControl(f,fanControl,axis);
+    if(!c)return;
+    const key=fanBaseKey(f,c,axis);
+    if(fanState.bases[key]!==undefined)return;
+    fanState.bases[key]=fanGetStepValue(f,c,axis);
+  });
+}
+function refreshFanBasesFromStep(){
+  fanState.bases={};
+  renderFanToolbox();
+}
+function fanComputedValues(){
+  const ordered=DmxCommon.fanOrderedFixtures(fanFixtureOrder(),fanState.inverted);
+  const max=fanMaxValue();
+  const {controlKey:fanControl,axis}=parseChaserFanControlKey();
+  const count=ordered.length;
+  const from=fanState.mode==='range'?parseFloat(fanState.fromOffset)||0:-(parseFloat(fanState.spread)||0)/2;
+  const to=fanState.mode==='range'?parseFloat(fanState.toOffset)||0:(parseFloat(fanState.spread)||0)/2;
+  return ordered.map((f,i)=>{
+    const c=findChaserFanControl(f,fanControl,axis);
+    const t=count>1?i/(count-1):0;
+    const base=c?(fanState.bases[fanBaseKey(f,c,axis)]??fanGetStepValue(f,c,axis)):Math.round(max/2);
+    const offset=from+(to-from)*t;
+    return{fixture:f,base,offset,finalVal:clamp(Math.round(base+offset),0,max)};
+  });
+}
+function renderFanToolbox(){
+  const hint=document.getElementById('fanScopeHint');if(!hint)return;
+  const ordered=fanFixtureOrder();
+  const opts=fanControlOptions();
+  const sel=document.getElementById('fanControlSelect');
+  const old=fanState.controlKey||sel.value;
+  sel.innerHTML=opts.map(o=>`<option value="${o.key}">${DmxCommon.escapeHtml(o.label)}</option>`).join('');
+  if(opts.some(o=>o.key===old))sel.value=old;
+  else if(opts[0]){sel.value=opts[0].key;fanState.controlKey=opts[0].key;fanState.bases={};}
+  else fanState.controlKey='';
+  const max=fanMaxValue();
+  document.getElementById('fanSpread').max=max;
+  document.getElementById('fanSpread').step=max>255?256:1;
+  document.getElementById('fanSpread').value=clamp(fanState.spread,0,max);
+  document.getElementById('fanSpreadReadout').textContent=Math.round(fanState.spread||0);
+  const invertBtn=document.getElementById('fanInvert');
+  if(invertBtn){
+    invertBtn.classList.toggle('primary',!!fanState.inverted);
+    invertBtn.textContent=fanState.inverted?'Inverted':'Invert';
+  }
+  document.getElementById('fanMode').value=fanState.mode;
+  document.getElementById('fanRangeWrap').style.display=fanState.mode==='range'?'flex':'none';
+  document.getElementById('fanFrom').value=Math.round(fanState.fromOffset||0);
+  document.getElementById('fanTo').value=Math.round(fanState.toOffset||0);
+  const source=(chaserGroupsBox?.selectedGroups?.()||[]).length?'selected groups':'participating controls';
+  hint.textContent=selectedStepIdx<0?'Select a step before using Fan Out.':(ordered.length?('Affecting '+ordered.length+' fixture'+(ordered.length===1?'':'s')+' from '+source):'Select a group or add participating controls first.');
+  const disabled=selectedStepIdx<0||!ordered.length||!opts.length;
+  ['fanControlSelect','fanSpread','fanInvert','fanMode','fanFrom','fanTo','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=disabled;});
+  ensureFanBases();
+  document.getElementById('fanPreview').innerHTML=fanComputedValues().map(v=>`<div class="fan-preview-card active"><strong>${DmxCommon.escapeHtml(v.fixture.name)}</strong><span>${v.base} -> ${v.finalVal}</span></div>`).join('')||'<div class="small">No fan preview.</div>';
+}
+function applyFanToStep(options={}){
+  if(selectedStepIdx<0){setStatus('Select a step before applying Fan Out',true);return;}
+  const ordered=fanFixtureOrder();
+  const {controlKey:fanControl,axis}=parseChaserFanControlKey();
+  if(!ordered.length||!fanControl){setStatus('Select a group or participating fixtures first',true);return;}
+  ensureFanBases();
+  fanComputedValues().forEach(({fixture,finalVal})=>{
+    const c=findChaserFanControl(fixture,fanControl,axis);if(!c)return;
+    fanSetStepValue(fixture,c,axis,finalVal);
+  });
+  drawParticipation();
+  drawStepEditor();
+  drawStepList();
+  if(!options.silent)setStatus('Fan Out applied to step '+(selectedStepIdx+1));
+}
+function liveFanUpdate(){
+  renderFanToolbox();
+  applyFanToStep({silent:true});
+}
+function clearFanOut(){
+  fanState.spread=0;
+  fanState.fromOffset=0;
+  fanState.toOffset=0;
+  fanState.inverted=false;
+  fanState.bases={};
+  renderFanToolbox();
+  setStatus('Fan Out shaping reset');
+}
+
+function scopedParticipationFixtures(){
+  const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
+  return (setup.fixtures||[]).filter(f=>{
+    if(selectedFixtureIds&&!selectedFixtureIds.has(String(f.id)))return false;
+    const p=fixtureProfile(f);if(!p)return false;
+    if(activeKeys)return p.controls.some(c=>activeKeys.has(controlKey(f,c))&&participating[controlKey(f,c)]);
+    return true;
+  });
 }
 
 // ---- participation UI ----
@@ -671,12 +953,11 @@ function drawParticipation(){
   const el=document.getElementById('participationList');
   el.innerHTML='';
   drawGroupControlTools();
+  if(chaserGroupsBox?.render)chaserGroupsBox.render();
+  renderFanToolbox();
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
-  const fixtures=(setup.fixtures||[]).filter(f=>{
-    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return false;
-    const p=fixtureProfile(f);if(!p)return false;
-    return p.controls.some(c=>participating[controlKey(f,c)]);
-  });
+  const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
+  const fixtures=scopedParticipationFixtures();
   if(selectedFixtureIds&&!fixtures.length){
     el.innerHTML='<div class="small">Selected groups have no participating controls in this setup.</div>';
     return;
@@ -696,6 +977,7 @@ function drawParticipation(){
       `<div class="ctrl-summary">${checkedChips}</div>`;
     p.controls.forEach(c=>{
       const k=controlKey(f,c);
+      if(activeKeys&&!activeKeys.has(k))return;
       const lbl=document.createElement('label');
       lbl.style.cssText='display:flex;flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer';
       lbl.innerHTML=`<input type="checkbox" data-key="${k}" ${participating[k]?'checked':''} style="accent-color:var(--accent)"> ${c.label} <span style="opacity:.6">(${c.type})</span>`;
@@ -705,6 +987,7 @@ function drawParticipation(){
   });
   el.oninput=e=>{
     if(e.target.dataset.key){
+      if(activeStepValueKeys instanceof Set)activeStepValueKeys.add(e.target.dataset.key);
       participating[e.target.dataset.key]=e.target.checked;
       drawStepEditor();
       const item=e.target.closest('.item');
@@ -756,6 +1039,58 @@ function involvedChaserValueKeys(){
   steps.forEach(step=>Object.keys(step?.values||{}).forEach(k=>keys.add(k)));
   return keys;
 }
+function profileForControlId(controlId){
+  return (setup.profiles||[]).find(p=>(p.controls||[]).some(c=>String(c.id)===String(controlId)));
+}
+function currentFixtureById(id){
+  return (setup.fixtures||[]).find(f=>String(f.id)===String(id));
+}
+function remapChaserKeysForCurrentSetup(data){
+  if(!data||!Array.isArray(data.steps))return data;
+  const oldFixtureIdsByProfile=new Map();
+  const rememberKey=k=>{
+    const parts=String(k).split(':');
+    if(parts.length!==2||currentFixtureById(parts[0]))return;
+    const profile=profileForControlId(parts[1]);
+    if(!profile)return;
+    const pid=String(profile.id);
+    if(!oldFixtureIdsByProfile.has(pid))oldFixtureIdsByProfile.set(pid,[]);
+    const ids=oldFixtureIdsByProfile.get(pid);
+    if(!ids.includes(parts[0]))ids.push(parts[0]);
+  };
+  data.steps.forEach(step=>Object.keys(step?.values||{}).forEach(rememberKey));
+  Object.keys(data.participating||{}).forEach(rememberKey);
+  if(!oldFixtureIdsByProfile.size)return data;
+  const remap=new Map();
+  oldFixtureIdsByProfile.forEach((oldIds,pid)=>{
+    const fixtures=(setup.fixtures||[])
+      .filter(f=>String(f.profileId)===pid)
+      .slice()
+      .sort((a,b)=>(parseInt(a.start)||0)-(parseInt(b.start)||0));
+    oldIds.forEach((oldId,i)=>{
+      if(fixtures[i])remap.set(oldId,String(fixtures[i].id));
+    });
+  });
+  if(!remap.size)return data;
+  const mapKey=k=>{
+    const parts=String(k).split(':');
+    if(parts.length!==2)return k;
+    const nextFixtureId=remap.get(parts[0]);
+    return nextFixtureId?nextFixtureId+':'+parts[1]:k;
+  };
+  data.steps.forEach(step=>{
+    if(!step?.values)return;
+    const next={};
+    Object.entries(step.values).forEach(([k,v])=>{next[mapKey(k)]=v;});
+    step.values=next;
+  });
+  if(data.participating&&typeof data.participating==='object'){
+    const next={};
+    Object.entries(data.participating).forEach(([k,v])=>{next[mapKey(k)]=v;});
+    data.participating=next;
+  }
+  return data;
+}
 function applyStepParticipating(step){
   const valid=validControlKeySet();
   const next={};
@@ -764,6 +1099,7 @@ function applyStepParticipating(step){
   participating=next;
   const before=Object.keys(step?.values||{}).length;
   Object.keys(step?.values||{}).forEach(k=>{if(!valid.has(k))delete step.values[k];});
+  activeStepValueKeys=new Set(Object.keys(step?.values||{}).filter(k=>valid.has(k)));
   return{active:Object.values(next).filter(Boolean).length,removed:before-Object.keys(step?.values||{}).length};
 }
 function addStep(vals){
@@ -774,7 +1110,10 @@ function addStep(vals){
   steps.push(s);
   selectedStepIdx=steps.length-1;
   applyStepParticipating(s);
-  drawStepList();drawStepEditor();
+  sourceFixtureId=firstStepFixtureId(s);
+  drawParticipation();drawStepList();drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
   setStatus('Step '+(steps.length)+' added');
 }
 function duplicateStep(idx){
@@ -783,13 +1122,21 @@ function duplicateStep(idx){
   const copy={...s,id:uid(),label:s.label+' copy',values:{...s.values}};
   steps.splice(idx+1,0,copy);
   selectedStepIdx=idx+1;
-  drawStepList();drawStepEditor();
+  applyStepParticipating(copy);
+  sourceFixtureId=firstStepFixtureId(copy);
+  drawParticipation();drawStepList();drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
 }
 function deleteStep(idx){
   steps.splice(idx,1);
   if(selectedStepIdx>=steps.length)selectedStepIdx=steps.length-1;
   if(activeStepIdx>=steps.length)activeStepIdx=steps.length-1;
-  drawStepList();drawStepEditor();
+  if(steps[selectedStepIdx])applyStepParticipating(steps[selectedStepIdx]);else activeStepValueKeys=null;
+  sourceFixtureId=steps[selectedStepIdx]?firstStepFixtureId(steps[selectedStepIdx]):null;
+  drawParticipation();drawStepList();drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
 }
 function moveStep(idx,dir){
   const ni=idx+dir;
@@ -800,28 +1147,64 @@ function moveStep(idx,dir){
   if(activeStepIdx===idx)activeStepIdx=ni;
   else if(activeStepIdx===ni)activeStepIdx=idx;
   drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
+}
+
+async function clearChaserGroupSelectionForLoadedStep(){
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+  await new Promise(resolve=>setTimeout(resolve,0));
+}
+function refreshChaserGroupActions(){
+  if(chaserGroupsBox?.render)chaserGroupsBox.render();
 }
 
 async function captureFromFC(stepIdx){
   const step=steps[stepIdx];if(!step)return;
   try{
-    let vals=null;
-    if(location.protocol==='http:'||location.protocol==='https:'){
-      try{
-        const r=await fetch('fixture_setup.php?livevalues',{cache:'no-store'});
-        const j=await r.json();
-        if(j.ok&&j.exists&&j.values)vals=j.values;
-      }catch(_){}
-    }
-    if(!vals){
-      const raw=localStorage.getItem('dmxFCLiveValues');
-      if(raw)vals=JSON.parse(raw);
-    }
+    const vals=await readFixtureControllerLiveValues();
     if(!vals){setStatus('No live values from FC — open Fixture Controller and recall a scene or adjust a control first',true);return;}
-    getParticipatingList().forEach(({f,c})=>{const k=controlKey(f,c);if(vals[k]!==undefined)step.values[k]=vals[k];});
-    if(stepIdx===selectedStepIdx)drawStepEditor();
+    const captured=applyCapturedValuesToStep(step,vals);
+    if(!captured){setStatus('No matching live values for the selected participating controls',true);return;}
+    if(stepIdx===selectedStepIdx){
+      applyStepParticipating(step);
+      sourceFixtureId=firstStepFixtureId(step);
+      drawStepList();
+      drawParticipation();
+      drawStepEditor();
+      refreshChaserGroupActions();
+      refreshFanBasesFromStep();
+    }
     setStatus('FC values captured into step '+(stepIdx+1));
   }catch(e){setStatus('Capture failed: '+e.message,true);}
+}
+async function readFixtureControllerLiveValues(){
+  let vals=null;
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    try{
+      const r=await fetch('fixture_setup.php?livevalues',{cache:'no-store'});
+      const j=await r.json();
+      if(j.ok&&j.exists&&j.values)vals=j.values;
+    }catch(_){}
+  }
+  if(!vals){
+    const raw=localStorage.getItem('dmxFCLiveValues');
+    if(raw)vals=JSON.parse(raw);
+  }
+  return vals;
+}
+function applyCapturedValuesToStep(step,vals){
+  let captured=0;
+  getParticipatingList().forEach(({f,c})=>{
+    const k=controlKey(f,c);
+    if(vals[k]!==undefined){
+      step.values[k]=JSON.parse(JSON.stringify(vals[k]));
+      captured++;
+    }
+  });
+  return captured;
 }
 
 // ---- step list UI ----
@@ -831,6 +1214,11 @@ function drawStepList(){
   const atMax=steps.length>=CHASER_MAX_STEPS;
   document.getElementById('btnAddStep').disabled=atMax;
   document.getElementById('btnCaptureNew').disabled=atMax;
+  const hasSelection=selectedStepIdx>=0&&selectedStepIdx<steps.length;
+  document.getElementById('btnStepDuplicate').disabled=!hasSelection||atMax;
+  document.getElementById('btnStepUp').disabled=!hasSelection||selectedStepIdx<=0;
+  document.getElementById('btnStepDown').disabled=!hasSelection||selectedStepIdx>=steps.length-1;
+  document.getElementById('btnStepDelete').disabled=!hasSelection;
   el.innerHTML='';
   if(!steps.length){
     el.innerHTML='<div class="small">No steps yet. Use Add step or Capture + Add.</div>';
@@ -841,6 +1229,7 @@ function drawStepList(){
     const isSel=i===selectedStepIdx;
     const item=document.createElement('div');
     item.className='item'+(isActive?' active-step':'')+(isSel?' edit-step':'');
+    item.dataset.stepIndex=i;
     item.innerHTML=`
       <div class="step-card-head">
         <span class="step-num${isActive?' playing':''}">${i+1}</span>
@@ -849,32 +1238,24 @@ function drawStepList(){
           <div class="step-card-meta">${s.duration}ms · fade ${s.fade??0}%</div>
         </div>
       </div>
-      <div class="step-actions-grid">
-        <button data-sel="${i}">Edit</button>
-        <button data-dup="${i}">Dupe</button>
-        <button class="warn" data-del="${i}">Delete</button>
-        <button data-up="${i}">Up</button>
-        <button data-dn="${i}">Down</button>
-      </div>`;
+      `;
     el.appendChild(item);
   });
   el.onclick=e=>{
-    const s=e.target.dataset.sel,d=e.target.dataset.dup,x=e.target.dataset.del,u=e.target.dataset.up,dn=e.target.dataset.dn;
-    if(s!==undefined){selectStepForEdit(parseInt(s));}
-    else if(d!==undefined)duplicateStep(parseInt(d));
-    else if(x!==undefined)deleteStep(parseInt(x));
-    else if(u!==undefined)moveStep(parseInt(u),-1);
-    else if(dn!==undefined)moveStep(parseInt(dn),1);
+    const item=e.target.closest('[data-step-index]');
+    if(item)selectStepForEdit(parseInt(item.dataset.stepIndex));
   };
 }
 
 async function selectStepForEdit(idx){
   selectedStepIdx=idx;
-  chaserGroupsBox?.clearSelection?.();
   const result=applyStepParticipating(steps[idx]);
+  sourceFixtureId=firstStepFixtureId(steps[idx]);
   drawStepList();
   drawParticipation();
   drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
   setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
 }
 
@@ -883,7 +1264,7 @@ function getStepVal(f,c){return steps[selectedStepIdx]?.values?.[controlKey(f,c)
 function setStepVal(f,c,val){
   const s=steps[selectedStepIdx];if(!s)return;
   s.values[controlKey(f,c)]=val;
-  if(document.getElementById('livePreview').checked)sendControlValue(f,c,val);
+  sendEditedControlValue(f,c,val);
 }
 
 function drawStepEditor(){
@@ -900,15 +1281,17 @@ function drawStepEditor(){
   surface.innerHTML='';
   const ptList=getParticipatingList();
   if(!ptList.length){surface.innerHTML='<div class="small">No controls selected in Participating Controls.</div>';return;}
+  ensureSourceFixture();
   const byFixture=new Map();
   ptList.forEach(({f,c})=>{if(!byFixture.has(f.id))byFixture.set(f.id,{f,controls:[]});byFixture.get(f.id).controls.push(c);});
   byFixture.forEach(({f,controls})=>{
     const p=fixtureProfile(f);if(!p)return;
     const isCollapsed=collapsedFixtures.has(f.id);
-    const card=document.createElement('article');card.className='card'+(isCollapsed?' collapsed':'');
+    const isSource=String(f.id)===String(sourceFixtureId);
+    const card=document.createElement('article');card.className='card'+(isCollapsed?' collapsed':'')+(isSource?' source-fixture':'');card.dataset.sourceFixture=f.id;
     const summary=controls.map(c=>controlSummaryHtml(f,c)).join('');
     card.innerHTML=
-      `<div class="card-hdr"><div><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>`+
+      `<div class="card-hdr"><div><h2>${f.name}${isSource?' <span class="ctrl-chip">Source</span>':''}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>`+
       `<button class="collapse-btn" data-collapse-fix="${f.id}">${isCollapsed?'+':'−'}</button></div>`+
       `<div class="ctrl-summary">${summary}</div>`+
       controls.map(c=>renderStepControl(f,c)).join('');
@@ -929,6 +1312,14 @@ function drawStepEditor(){
       colBtn.textContent=nowCollapsed?'+':'−';
       if(nowCollapsed)collapsedFixtures.add(fid);else collapsedFixtures.delete(fid);
       localStorage.setItem('chaserCollapsedFix',JSON.stringify([...collapsedFixtures]));
+      return;
+    }
+    if(e.target.closest('input,button,select,textarea,label,.xy-pad')){handleStepClick(e);return;}
+    const sourceCard=e.target.closest('[data-source-fixture]');
+    if(sourceCard){
+      setSourceFixture(sourceCard.dataset.sourceFixture,false);
+      drawStepEditor();
+      setStatus('Source fixture: '+sourceCard.querySelector('h2')?.textContent.replace('Source','').trim());
       return;
     }
     handleStepClick(e);
@@ -981,6 +1372,7 @@ function handleStepInput(e){
     setStepVal(f,c,clamp(e.target.value,0,c.type==='slider16'?65535:255));
   }
   updateStepDisplay(f,c);
+  refreshFanBasesFromStep();
 }
 
 function handleStepClick(e){
@@ -989,15 +1381,15 @@ function handleStepClick(e){
   const f=setup.fixtures?.find(x=>x.id===fi);
   const p=f&&fixtureProfile(f);const c=p?.controls.find(x=>x.id===ci);
   if(!f||!c)return;
-  if(e.target.dataset.center){setStepVal(f,c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});updateStepDisplay(f,c);return;}
+  if(e.target.dataset.center){setStepVal(f,c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});updateStepDisplay(f,c);refreshFanBasesFromStep();return;}
   if(e.target.dataset.color){
     const cur={...(getStepVal(f,c)||defaultValue(c))};
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.color);setStepVal(f,c,{...cur,a:rgb.a,b:rgb.b,c:rgb.c});}
     else if(c.type==='cmy')setStepVal(f,c,rgbToCmy(e.target.dataset.color));
     else if(c.type==='cmyk')setStepVal(f,c,rgbToCmyk(e.target.dataset.color));
-    updateStepDisplay(f,c);return;
+    updateStepDisplay(f,c);refreshFanBasesFromStep();return;
   }
-  if(e.target.dataset.wheel!==undefined){setStepVal(f,c,clamp(e.target.dataset.wheel,0,255));updateStepDisplay(f,c);return;}
+  if(e.target.dataset.wheel!==undefined){setStepVal(f,c,clamp(e.target.dataset.wheel,0,255));updateStepDisplay(f,c);refreshFanBasesFromStep();return;}
 }
 
 function handleChaserGroupInput(e){
@@ -1025,23 +1417,24 @@ function handleChaserGroupInput(e){
   setChaserGroupValue(c,v);
   updateChaserGroupControlDisplay(c);
   drawStepEditor();
+  refreshFanBasesFromStep();
 }
 
 function handleChaserGroupClick(e){
   const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
   if(e.target.dataset.cgCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
-    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();return;
+    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();return;
   }
   if(e.target.dataset.cgColor){
     let v=getChaserGroupValue(c);
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.cgColor);v={...v,a:rgb.a,b:rgb.b,c:rgb.c};}
     else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.cgColor);
     else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.cgColor);
-    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();return;
+    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();return;
   }
   if(e.target.dataset.cgWheel!==undefined){
-    setChaserGroupValue(c,clamp(e.target.dataset.cgWheel,0,255));updateChaserGroupControlDisplay(c);drawStepEditor();
+    setChaserGroupValue(c,clamp(e.target.dataset.cgWheel,0,255));updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();
   }
 }
 
@@ -1054,6 +1447,7 @@ function setChaserGroupXY(e,pad){
   setChaserGroupValue(c,{pan:Math.round(x*max),tilt:Math.round((1-y)*max)});
   updateChaserGroupControlDisplay(c);
   drawStepEditor();
+  refreshFanBasesFromStep();
 }
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
@@ -1245,7 +1639,8 @@ function playbackTick(){
   const now=performance.now();
   const step=steps[activeStepIdx];if(!step){stopPlayback();return;}
   const durMs=Math.max(1,step.duration??500);
-  const fadeMs=Math.round((clamp(step.fade??0,0,100)/100)*durMs);
+  const fadePct=clamp(parseInt(step.fade??0,10)||0,0,100);
+  const fadeMs=Math.round((fadePct/100)*durMs);
   const elapsed=now-stepEnteredAt;
   const t=fadeMs>0?Math.min(1,elapsed/fadeMs):1;
   const ptList=getParticipatingList();
@@ -1335,7 +1730,6 @@ function applyPicoPlaybackOptions(opts={}){
 function browserPlaybackOptions(){
   return {
     loop:!!document.getElementById('loopCheck')?.checked,
-    livePreview:!!document.getElementById('livePreview')?.checked,
     bpm:clamp(document.getElementById('bpmInput')?.value||120,1,600),
     beatsPerStep:clamp(document.getElementById('beatsPerStep')?.value||1,0.25,8),
     defaultFade:clamp(document.getElementById('globalFade')?.value||0,0,100),
@@ -1344,29 +1738,75 @@ function browserPlaybackOptions(){
 }
 function applyBrowserPlaybackOptions(opts={}){
   if(opts.loop!==undefined)document.getElementById('loopCheck').checked=!!opts.loop;
-  if(opts.livePreview!==undefined)document.getElementById('livePreview').checked=!!opts.livePreview;
   if(opts.bpm!==undefined)document.getElementById('bpmInput').value=clamp(opts.bpm,1,600);
   if(opts.beatsPerStep!==undefined)document.getElementById('beatsPerStep').value=String(clamp(opts.beatsPerStep,0.25,8));
   if(opts.defaultFade!==undefined)document.getElementById('globalFade').value=clamp(opts.defaultFade,0,100);
   if(opts.updateRate!==undefined)document.getElementById('updateRate').value=clamp(opts.updateRate,5,50);
 }
-function chaserData(){return{baseUrl:baseUrlEl.value,playback:picoPlaybackOptions(),browserPlayback:browserPlaybackOptions(),steps};}
 function applyChaserData(data,redraw=true){
+  data=remapChaserKeysForCurrentSetup(data);
   if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   if(data?.playback)applyPicoPlaybackOptions(data.playback);
   if(data?.browserPlayback)applyBrowserPlaybackOptions(data.browserPlayback);
   if(Array.isArray(data?.steps)){
     steps=data.steps.slice(0,CHASER_MAX_STEPS);
-    if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported preset was trimmed to '+CHASER_MAX_STEPS+' steps',true);
+    if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported chase was trimmed to '+CHASER_MAX_STEPS+' steps',true);
   }
   selectedStepIdx=steps.length?0:-1;
-  if(redraw){drawParticipation();drawStepList();drawStepEditor();}
+  if(steps[selectedStepIdx]){
+    applyStepParticipating(steps[selectedStepIdx]);
+    if(activeStepValueKeys&&activeStepValueKeys.size===0&&data?.participating){
+      applyParticipatingData(data.participating,false);
+    }
+  }else{
+    activeStepValueKeys=null;
+    if(data?.participating)applyParticipatingData(data.participating,false);
+  }
+  sourceFixtureId=steps[selectedStepIdx]?firstStepFixtureId(steps[selectedStepIdx]):null;
+  if(redraw){drawParticipation();drawStepList();drawStepEditor();refreshFanBasesFromStep();}
 }
 
 // ---- floating chase toolbox ----
 let savedChases=[];
 let chaseSlotCols=4,chaseSlotRows=4;
 const CHASE_SLOT_GRID_MAX=32;
+let chaseVisualDefault=(()=>{
+  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('chaseVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  catch(_){return {type:'visual',color:'#225a50',image:''};}
+})();
+function saveChaseVisualDefault(){
+  localStorage.setItem('chaseVisualDefault',JSON.stringify(chaseVisualDefault));
+}
+function currentChaseVisualForSave(){
+  return JSON.parse(JSON.stringify(chaseVisualDefault));
+}
+function requiredChaseSlots(){
+  return savedChases.reduce((max,c)=>Math.max(max,(parseInt(c.slot,10)||0)+1),0);
+}
+function normalizeChaseGrid(priority='cols'){
+  const needed=requiredChaseSlots();
+  chaseSlotCols=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(chaseSlotCols)||4));
+  chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(chaseSlotRows)||4));
+  if(needed&&chaseSlotCols*chaseSlotRows<needed){
+    if(priority==='rows'){
+      chaseSlotCols=Math.max(chaseSlotCols,Math.ceil(needed/chaseSlotRows));
+      if(chaseSlotCols>CHASE_SLOT_GRID_MAX){chaseSlotCols=CHASE_SLOT_GRID_MAX;chaseSlotRows=Math.ceil(needed/chaseSlotCols);}
+    }else{
+      chaseSlotRows=Math.max(chaseSlotRows,Math.ceil(needed/chaseSlotCols));
+      if(chaseSlotRows>CHASE_SLOT_GRID_MAX){chaseSlotRows=CHASE_SLOT_GRID_MAX;chaseSlotCols=Math.ceil(needed/chaseSlotRows);}
+    }
+  }
+  const colsInput=document.getElementById('chaseSlotCols');
+  const rowsInput=document.getElementById('chaseSlotRows');
+  if(colsInput){
+    colsInput.min=Math.max(1,Math.ceil(needed/chaseSlotRows));
+    colsInput.value=chaseSlotCols;
+  }
+  if(rowsInput){
+    rowsInput.min=Math.max(1,Math.ceil(needed/chaseSlotCols));
+    rowsInput.value=chaseSlotRows;
+  }
+}
 (()=>{
   const sc=localStorage.getItem('chaseSlotCols'),sr=localStorage.getItem('chaseSlotRows');
   if(sc){chaseSlotCols=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(sc)||4));document.getElementById('chaseSlotCols').value=chaseSlotCols;}
@@ -1383,12 +1823,13 @@ function currentChaseSlotData(){
 }
 function renderChaseSlotMatrix(){
   const grid=document.getElementById('chaseSlotMatrix');
+  normalizeChaseGrid('cols');
   const total=chaseSlotCols*chaseSlotRows;
-  grid.style.gridTemplateColumns='repeat('+chaseSlotCols+',54px)';
+  grid.style.gridTemplateColumns='repeat('+chaseSlotCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const chase=savedChases.find(c=>c.slot===i);
-    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase"><button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button>${DmxCommon.escapeHtml(chase.name)}</div>`;
+    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase" style="${DmxCommon.slotVisualStyle(chase)}"><button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
     else html+=`<div class="slot" data-chase-slot="${i}" title="Click to save chase here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1412,22 +1853,21 @@ function chaseSlotClick(idx){
 function saveChaseToSlot(idx,name){
   const existing=savedChases.findIndex(c=>c.slot===idx);
   if(existing>=0)savedChases.splice(existing,1);
-  savedChases.push({id:'chase_'+Date.now(),name,slot:idx,data:currentChaseSlotData()});
+  savedChases.push({id:'chase_'+Date.now(),name,slot:idx,data:currentChaseSlotData(),visual:currentChaseVisualForSave()});
   renderChaseSlotMatrix();saveChasesServer();
   setStatus('Chase "'+name+'" saved to slot '+(idx+1));
 }
-function loadChaseSlot(chase){
+async function loadChaseSlot(chase){
   if(!chase?.data)return;
+  await clearChaserGroupSelectionForLoadedStep();
   applyChaserData(chase.data,false);
-  chaserGroupsBox?.clearSelection?.();
-  if(steps[selectedStepIdx])applyStepParticipating(steps[selectedStepIdx]);
-  else if(chase.data.participating)applyParticipatingData(chase.data.participating,false);
   drawParticipation();drawStepList();drawStepEditor();
+  refreshFanBasesFromStep();
   setStatus('Loaded chase: "'+chase.name+'"');
 }
 async function saveChasesServer(){
   try{
-    const body={...chaserData(),chases:savedChases,chaseSlotCols,chaseSlotRows};
+    const body={baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows};
     const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
     if(!j.ok)setStatus('Chases save failed: '+j.error,true);
@@ -1464,10 +1904,48 @@ function importChasesJson(file){
   };
   fr.readAsText(file);
 }
-document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotCols',chaseSlotCols);renderChaseSlotMatrix();saveChasesServer();});
-document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(e.target.value)||4));localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
+const chaseVisualEditor=DmxCommon.initSlotVisualEditor({
+  modalId:'chaseVisualModal',
+  targetId:'chaseVisualTarget',
+  colorWrapId:'chaseVisualColorWrap',
+  imageWrapId:'chaseVisualImageWrap',
+  colorInputId:'chaseVisualColor',
+  resetColorBtnId:'chaseVisualResetColor',
+  canvasId:'chaseVisualCanvas',
+  imageInputId:'chaseVisualImage',
+  clearBtnId:'chaseVisualClear',
+  hintId:'chaseVisualHint',
+  saveBtnId:'chaseVisualSave',
+  closeIds:['chaseVisualClose','chaseVisualClose2']
+});
+function openChaseVisualModal(){
+  chaseVisualEditor.open({
+    targetLabel:'Chases',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the chase slot; loading still uses the stored chase data.',
+    defaultColor:'#225a50',
+    defaultVisual:chaseVisualDefault,
+    targets:savedChases
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+      .map(chase=>({key:String(parseInt(chase.slot,10)||0),item:chase,label:'Slot '+((parseInt(chase.slot,10)||0)+1)+': '+(chase.name||'Chase')})),
+    onSaveDefault:visual=>{
+      chaseVisualDefault=visual;
+      saveChaseVisualDefault();
+      setStatus('Default chase visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderChaseSlotMatrix();
+      saveChasesServer();
+      setStatus('Updated chase visual for "'+target.name+'"');
+    }
+  });
+}
+document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=e.target.value;normalizeChaseGrid('cols');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
+document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=e.target.value;normalizeChaseGrid('rows');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('exportChasesBtn').onclick=exportChasesJson;
 document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile').click();
+document.getElementById('chaseVisualBtn').onclick=openChaseVisualModal;
 document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
 const chaseToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaseBox',
@@ -1503,6 +1981,16 @@ const browserPlaybackToolbox=DmxCommon.initFloatingToolbox({
   uiStatePage:'chaser',
   uiStatePosKey:'browserPlaybackBoxPos',
   uiStateCollapsedKey:'browserPlaybackBoxCollapsed'
+});
+const fanToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'fanToolbox',
+  headerId:'fanToolboxHdr',
+  toggleId:'fanToolboxToggle',
+  posStorageKey:'fanToolboxPos',
+  collapsedStorageKey:'fanToolboxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'fanToolboxPos',
+  uiStateCollapsedKey:'fanToolboxCollapsed'
 });
 const chaserCompactBoxes=[
   {id:'stepsBox',toolbox:stepsToolbox,posKey:'stepsBoxPos',collapsedKey:'stepsBoxCollapsed',sizeKey:'stepsBoxSize'},
@@ -1737,6 +2225,7 @@ function applyParticipatingData(data,redraw=true){
     });
     participating=next;
   }
+  activeStepValueKeys=null;
   if(redraw){drawParticipation();drawStepEditor();}
 }
 
@@ -1761,15 +2250,6 @@ async function saveSelectedStepAsScene(){
     else setStatus('Scene save failed: '+wj.error,true);
   }catch(err){setStatus('Scene save failed: '+err.message,true);}
 }
-async function saveChaserToServer(silent=false){
-  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
-  try{
-    const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserData())});
-    const j=await r.json();
-    if(j.ok){if(!silent)setStatus('Chaser steps saved to server');}
-    else setStatus('Save failed: '+j.error,true);
-  }catch(err){setStatus('Save failed: '+err.message,true);}
-}
 async function saveParticipatingToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
   try{
@@ -1778,19 +2258,6 @@ async function saveParticipatingToServer(){
     if(j.ok)setStatus('Participating controls saved');
     else setStatus('Save failed: '+j.error,true);
   }catch(err){setStatus('Save failed: '+err.message,true);}
-}
-async function loadChaserFromServer(){
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
-  try{
-    const r=await fetch('chaser_setup.php',{cache:'no-store'});
-    const j=await r.json();
-    if(r.ok&&j.ok&&j.exists&&j.chaser){
-      applyChaserData(j.chaser);
-      if(j.chaser.participating)applyParticipatingData(j.chaser.participating);
-      return true;
-    }
-  }catch(_){}
-  return false;
 }
 async function loadParticipatingFromServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
@@ -1801,28 +2268,6 @@ async function loadParticipatingFromServer(){
   }catch(_){}
   return false;
 }
-document.getElementById('btnSave').onclick=()=>saveChaserToServer();
-document.getElementById('btnLoad').onclick=async()=>{
-  const loaded=await loadChaserFromServer();
-  if(loaded){setStatus('Chaser loaded from server');}
-  else{
-    const raw=localStorage.getItem('dmxChaser');
-    if(raw){applyChaserData(JSON.parse(raw));setStatus('Chaser loaded (browser cache)');}
-    else setStatus('No saved chaser found',true);
-  }
-};
-document.getElementById('btnExport').onclick=()=>{
-  const blob=new Blob([JSON.stringify(chaserData(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_chaser.json';a.click();URL.revokeObjectURL(a.href);
-  setStatus('dmx_chaser.json downloaded');
-};
-document.getElementById('btnImport').onclick=()=>document.getElementById('importFile').click();
-document.getElementById('importFile').onchange=e=>{
-  const file=e.target.files?.[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{try{applyChaserData(JSON.parse(reader.result));setStatus('Chaser imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';};
-  reader.readAsText(file);
-};
 document.getElementById('btnExportSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
@@ -1882,30 +2327,64 @@ document.getElementById('btnStop').onclick=stopPlayback;
 let browserPlaybackAutosaveTimer=0;
 function scheduleBrowserPlaybackAutosave(){
   clearTimeout(browserPlaybackAutosaveTimer);
-  browserPlaybackAutosaveTimer=setTimeout(()=>saveChaserToServer(true),800);
+  browserPlaybackAutosaveTimer=setTimeout(()=>{},800);
 }
 function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();scheduleBrowserPlaybackAutosave();}
 document.getElementById('bpmInput').oninput=applyBpmToSteps;
 document.getElementById('beatsPerStep').onchange=applyBpmToSteps;
-['loopCheck','livePreview','globalFade','updateRate'].forEach(id=>{
+['loopCheck','updateRate'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('input',scheduleBrowserPlaybackAutosave);
   if(el)el.addEventListener('change',scheduleBrowserPlaybackAutosave);
 });
-document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getElementById('globalFade').value,0,100);steps.forEach(s=>s.fade=f);drawStepList();scheduleBrowserPlaybackAutosave();setStatus('Fade '+f+'% applied to all steps');};
+function applyGlobalFadeToSteps(showStatus=false){
+  const f=clamp(document.getElementById('globalFade').value,0,100);
+  steps.forEach(s=>s.fade=f);
+  if(selectedStepIdx>=0&&steps[selectedStepIdx])document.getElementById('edFade').value=steps[selectedStepIdx].fade;
+  drawStepList();
+  scheduleBrowserPlaybackAutosave();
+  if(showStatus)setStatus(steps.length?'Fade '+f+'% applied to all steps':'No steps to update');
+}
+document.getElementById('globalFade').addEventListener('input',()=>applyGlobalFadeToSteps(false));
+document.getElementById('globalFade').addEventListener('change',()=>applyGlobalFadeToSteps(true));
+document.getElementById('btnApplyFade').onclick=()=>applyGlobalFadeToSteps(true);
 document.getElementById('btnPrev').onclick=()=>manualStep(-1);
 document.getElementById('btnNext').onclick=()=>manualStep(1);
 document.getElementById('btnAddStep').onclick=()=>addStep();
+document.getElementById('btnStepDuplicate').onclick=()=>{if(selectedStepIdx>=0)duplicateStep(selectedStepIdx);};
+document.getElementById('btnStepUp').onclick=()=>{if(selectedStepIdx>=0)moveStep(selectedStepIdx,-1);};
+document.getElementById('btnStepDown').onclick=()=>{if(selectedStepIdx>=0)moveStep(selectedStepIdx,1);};
+document.getElementById('btnStepDelete').onclick=()=>{if(selectedStepIdx>=0)deleteStep(selectedStepIdx);};
+document.getElementById('fanControlSelect').addEventListener('change',e=>{
+  fanState.controlKey=e.target.value;
+  fanState.bases={};
+  liveFanUpdate();
+});
+document.getElementById('fanMode').addEventListener('change',e=>{fanState.mode=e.target.value;liveFanUpdate();});
+document.getElementById('fanSpread').addEventListener('input',e=>{fanState.spread=clamp(e.target.value,0,fanMaxValue());liveFanUpdate();});
+document.getElementById('fanInvert').onclick=()=>{fanState.inverted=!fanState.inverted;liveFanUpdate();};
+document.getElementById('fanFrom').addEventListener('input',e=>{fanState.fromOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
+document.getElementById('fanTo').addEventListener('input',e=>{fanState.toOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
+document.getElementById('fanClear').onclick=clearFanOut;
 document.getElementById('btnCaptureNew').onclick=async()=>{
   if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
-  const s=makeStep();steps.push(s);selectedStepIdx=steps.length-1;
-  drawStepList();drawStepEditor();
-  await captureFromFC(selectedStepIdx);
+  let vals=null;
+  try{vals=await readFixtureControllerLiveValues();}
+  catch(e){setStatus('Capture failed: '+e.message,true);return;}
+  if(!vals){setStatus('No live values from FC — open Fixture Controller and recall a scene or adjust a control first',true);return;}
+  const captured={};
+  getParticipatingList().forEach(({f,c})=>{
+    const k=controlKey(f,c);
+    if(vals[k]!==undefined)captured[k]=JSON.parse(JSON.stringify(vals[k]));
+  });
+  if(!Object.keys(captured).length){setStatus('No matching live values for the selected participating controls',true);return;}
+  addStep(captured);
+  setStatus('FC values captured into new step '+steps.length);
 };
 document.getElementById('btnCaptureToStep').onclick=()=>captureFromFC(selectedStepIdx);
 document.getElementById('btnClearAll').onclick=()=>{
   if(!confirm('Delete all steps?'))return;
-  steps=[];selectedStepIdx=-1;stopPlayback();drawStepList();drawStepEditor();
+  steps=[];selectedStepIdx=-1;sourceFixtureId=null;stopPlayback();drawStepList();drawStepEditor();refreshChaserGroupActions();
 };
 document.getElementById('btnApplyMeta').onclick=()=>{
   const step=steps[selectedStepIdx];if(!step)return;
@@ -1930,6 +2409,7 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
   btn.onclick=()=>setCollapsed(!panel.classList.contains('collapsed-panel'));
 });
 document.getElementById('btnSelAll').onclick=()=>{
+  activeStepValueKeys=null;
   Object.keys(participating).forEach(k=>participating[k]=true);
   collapsedPartFixtures.clear();
   localStorage.setItem('chaserPartCollapsedFix','[]');
@@ -1937,6 +2417,7 @@ document.getElementById('btnSelAll').onclick=()=>{
   drawStepEditor();
 };
 document.getElementById('btnSelNone').onclick=()=>{
+  activeStepValueKeys=null;
   Object.keys(participating).forEach(k=>participating[k]=false);
   collapsedPartFixtures=new Set((setup.fixtures||[]).map(f=>f.id));
   localStorage.setItem('chaserPartCollapsedFix',JSON.stringify([...collapsedPartFixtures]));
@@ -2164,7 +2645,7 @@ document.getElementById('btnPicoUpload').onclick=async()=>{
     const j=await r.json();
     if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
     saveChaserSlotToServer(slot, body); // persist to server (fire-and-forget)
-    setPicoStatus('Uploaded current preset to slot '+slot,'var(--accent)');
+    setPicoStatus('Uploaded current chase to slot '+slot,'var(--accent)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
@@ -2252,9 +2733,10 @@ document.getElementById('picoSlot').addEventListener('change',()=>{
 
 // ---- init ----
 loadSetup();
+renderFanToolbox();
+drawStepList();
+drawStepEditor();
 (async()=>{
-  const loaded=await loadChaserFromServer();
-  if(!loaded){try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}}
   // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(root){

@@ -8,7 +8,8 @@ Browser-based user interface with the following features:
 - Fixture patching, including multi-fixture patch runs with automatic numbering and optional Saved Group creation
 - Fixture groups with saved group selection, multi-select filtering, rename, delete, and compact group matrix layout
 - Scene editing and saving to palettes
-- Fan Out tool to spread values, for example moving-light positions across fixture groups
+- Palette toolbox for reusable partial looks that recall as overlays
+- Fan Out toolbox on the Fixture Controller to shape selected groups directly into scene values with affected controls highlighted
 - Effect creation, such as swing, circle, and figure-8
 - Effects are relative to the scene position
 - 32 effects can be saved on the Pico and run simultaneously
@@ -103,7 +104,7 @@ END
 
 `MODE` supports `single`, `loop`, and `loop_n`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
 
-Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforces the same limit so browser playback and Pico playback use the same preset shape.
+Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforces the same limit so browser playback and Pico playback use the same chase shape.
 
 ### Pico motion FX
 
@@ -146,9 +147,8 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Page | File | Description |
 |------|------|-------------|
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
-| Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save editable presets; upload the current preset to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
+| Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Motion FX | `web/dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); save editable presets; upload the current preset to up to 32 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
-| Fan Out | `web/dmx_fan.html` | Spread any DMX control (pan, tilt, zoom, dimmer, …) as an offset fan across an ordered fixture list — see below |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | FPS Benchmark | `web/dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
@@ -158,7 +158,7 @@ The screenshots below show the main pages as served from XAMPP during developmen
 
 Run `scripts/update_user_manual.ps1` after UI or documentation changes. It syncs the current web app to XAMPP, captures deterministic screenshots, rebuilds the dark-mode HTML/PDF manual, syncs the result back to XAMPP, and verifies the deployed manual.
 
-The controller screenshots are generated with deterministic per-shot setup states: each screenshot explicitly opens or collapses the relevant sections, sets the scene toolbox visibility, clears or selects group filters, and expands fixture cards as needed. This avoids stale browser collapse state leaking into the documentation images.
+The controller screenshots are generated with deterministic per-shot setup states: each screenshot explicitly opens or collapses the relevant sections, collapses the shared toolbox sidebar for page-local topics, sets toolbox visibility for toolbox-specific topics, clears or selects group filters, and expands fixture cards as needed. This avoids stale browser collapse state leaking into the documentation images.
 
 **Fixture Controller**
 
@@ -169,6 +169,10 @@ The Fixture Controller is the main setup and live-control page. It defines fixtu
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
 Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
+
+The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
+
+The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. Palette visuals are independent from scope: any palette can carry a background color plus an optional drawn/uploaded visual so slots stay readable at a glance. The visual editor can reset to the default background or clear the icon entirely. Palette visuals are saved inside `data/palette_setup.json` together with the palette values.
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
@@ -188,7 +192,7 @@ The Group Edit modal appears when multiple compatible fixtures are selected or w
 
 ![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
 
-The Scene Toolbox is a floating panel for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set.
+The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a background color plus an optional drawn/uploaded visual as a label in the slot grid, with controls to reset the background or remove the icon.
 
 **Chaser**
 
@@ -198,6 +202,8 @@ The Chaser page builds step-based sequences. A chase is made from multiple steps
 
 Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
 
+The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, use the header arrow to collapse or reopen the sidebar, and drag toolbox headers to reorder them. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, and Motion FX. Chases use the same Visual editor as scenes and palettes so chase slots can have a background color plus optional drawn/uploaded visual, with controls to reset the background or remove the icon.
+
 **Motion FX**
 
 ![Motion FX page](docs/screenshots/motion-fx.png)
@@ -205,14 +211,6 @@ Chaser steps can be created manually, duplicated, edited, or captured from the c
 The Motion FX page creates continuous pan/tilt movement effects for moving lights. Effects such as circle, figure-8, pan swing, and tilt swing are calculated relative to the current scene position instead of using a fixed center point.
 
 This means the normal workflow is: recall or set a position first, then start the effect. The firmware reads the center from the scene base buffer and the motion oscillator moves around that position. Motion FX can also be uploaded into one of 32 Pico slots so multiple effects can run directly on the Pico without browser timing jitter.
-
-**Fan Out**
-
-![Fan Out page](docs/screenshots/fan-out.png)
-
-The Fan Out page spreads one selected control across an ordered fixture group. It is useful for moving-light looks such as pan fans, tilt fans, zoom spreads, dimmer gradients, or any other offset across multiple fixtures.
-
-Each fan axis starts from a base snapshot of the current Pico values and adds an offset on top. This keeps the fan relative to the actual fixture position instead of forcing all fixtures to a hard-coded value. Fan Out also includes the scene toolbox, so scenes can be saved, recalled, deleted, and used together with fan positions.
 
 **GPIO Control**
 
@@ -234,12 +232,13 @@ Both playback pages show a **Browser Playback** section and a **Pico Playback** 
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough.
 
-### Chaser / Motion FX — Presets and Pico Slots
+### Chaser / Motion FX — Saved Chases, Presets and Pico Slots
 
-The playback pages separate editable presets from the autonomous Pico slot memory:
+The playback pages separate browser editing from the autonomous Pico slot memory:
 
-- **Save Preset / Load Preset** — store and restore the editable page setup on the XAMPP server JSON file.
-- **Upload to Slot** — sends the current editable preset to the selected Pico slot and mirrors that slot payload on the XAMPP server. It does not start playback.
+- **Chaser Chases toolbox** — stores reusable editable chases on the XAMPP server. Recalling a chase loads its steps, selects Step 1, rebuilds Participating Controls and Edit Step, and a newly opened Chaser page starts with no working steps until a chase is recalled or created.
+- **Motion Save Preset / Load Preset** — stores and restores the editable Motion FX page setup on the XAMPP server JSON file.
+- **Upload to Slot** — sends the current editable chase or Motion FX preset to the selected Pico slot and mirrors that slot payload on the XAMPP server. It does not start playback.
 - **Play Slot / Start Slot** — starts the already-loaded slot on the Pico.
 - **Restore Saved Slots to Pico** — re-sends the saved server-side slot payloads to the Pico after reboot or firmware upload.
 - **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP slot payload and calls the Pico clear endpoint for that slot when the Pico base URL is set.
@@ -250,8 +249,8 @@ On the Chaser page, each uploaded Pico slot also stores its playback mode (`Sing
 
 The **Participating Controls** panel defines which fixture+control pairs are written by the chaser. It is stored separately from the step list:
 
-- **Save / Load** — persisted to `chaser_setup.json` via `chaser_setup.php?participating`, independently of steps. Changing presets does not overwrite the control selection.
-- **Export (↓) / Import (↑)** — download or upload the participating map as a standalone JSON file. Useful for copying a control selection between chaser presets.
+- **Save / Load** — persisted to `chaser_setup.json` via `chaser_setup.php?participating`, independently of steps. Recalling a saved chase rebuilds the active selection from the recalled step.
+- **Export (↓) / Import (↑)** — download or upload the participating map as a standalone JSON file. Useful for copying a control selection between chase-building sessions.
 
 ### Chaser — Capture from Fixture Controller
 
@@ -286,15 +285,15 @@ On each patched fixture card, **Default** and **Blackout** buttons are shown whe
 
 ### Fixture Controller — Scene Toolbox
 
-A floating, draggable, collapsible **Scene Toolbox** overlays the fixture controller page.
+The **Scene Toolbox** sits in the shared right-side Toolboxes sidebar.
 
 - The toolbox shows a configurable grid of slots (rows × columns adjustable with spinners).
 - **Save scene** — snapshots every channel value for every patched fixture into a named slot.
-- **Recall scene** — sends all stored channel values back to the Pico in one batch request.
+- **Recall scene** — clears the active group/fixture selection, restores all stored controller values, updates the Chaser live-value snapshot, and sends the values to the Pico in one batch request when Live send is enabled.
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
 - **Clear all channels** — the red `×` icon next to the scene JSON import/export buttons asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
 - Slots are stored server-side in `data/scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
-- Toolbox position (drag) and collapsed state are persisted per-page to `data/ui_state.json` via `ui_state.php`.
+- Sidebar width and toolbox order are shared across toolbox pages via `data/ui_state.json`; collapsed state is also persisted.
 - Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `data/fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
 
 ### Motion FX — Scene Center Toolbox
@@ -304,8 +303,8 @@ The Motion FX page has a read-only companion to the Scene Toolbox.
 - Loads the same scenes from `scene_setup.php`; renders them as a clickable slot grid.
 - Clicking a filled slot reads the pan/tilt channel values stored in that scene, **sends them to the Pico** as a DMX batch (updating `dmx_base_frame`), and stores them as `basePan`/`baseTilt` in the browser's motion fixture state.
 - The effect then oscillates **relative to that position** rather than around any fixed stored center. Moving lights to a new position (via a scene) and starting motion will always orbit where they are now.
-- The toolbox is draggable, collapsible, and its state is persisted server-side.
-- The scene toolbox on the Motion FX page is **read-only** — it does not save or delete scenes. Scene management (save, delete) is only available on the Fixture Controller and Fan Out pages.
+- The toolbox lives in the shared sidebar. Drag its colored header to reorder it, and use the sidebar resize line to adjust the shared toolbox width.
+- The scene toolbox on the Motion FX page is **read-only** — it does not save or delete scenes. Scene management (save, delete) is only available on the Fixture Controller.
 - The **↺ Reload from Fixture Controller** button re-fetches `fixture_setup.php` (fixture definitions, not live values) to refresh the fixture list in case fixtures were added or changed.
 
 ### Motion FX — Fixture Card Grid
@@ -335,42 +334,6 @@ Because motion FX never writes back to the base buffer, the oscillation center s
 3. Start motion (browser `▶ Start` or Pico `/motion/start`) — the effect orbits the position set in step 1/2.
 
 When browser motion starts, the page fetches `/dmx/values.json` from the Pico and seeds the browser-side base from the live channel values, so the browser and firmware bases are always in sync.
-
-### Fan Out (`web/dmx_fan.html`)
-
-Spreads any DMX control as an interpolated offset across an ordered list of fixtures. Useful for creating a pan fan, tilt fan, zoom spread, dimmer gradient, etc.
-
-**Concepts:**
-
-- **Fan Group** — a set of fixtures ordered left-to-right (left = fan start, right = fan end). Each group can have multiple independent **Fan Axes**.
-- **Fan Axis** — one control (e.g. Pan, Tilt, Zoom) with its own spread slider. Pan and Tilt axes in the same group share the same fixture order but fan completely independently.
-- **Base** — the current DMX value of each fixture's channel, read from the Pico. The fan offset is added on top of the base so the spread always starts from wherever the fixture controller has positioned the lights.
-- **Spread** — total offset range. In Symmetric mode the fixtures are spread ±½·spread around their base. In Start→End mode independent From/To offsets interpolate linearly across the fixture list.
-
-**Preview bar** — shows each fixture's actual movement relative to its base. Center = no movement. Fill extends right for positive offsets, left for negative. Orange card + orange text = value was clamped at the DMX limit (reduce spread or snapshot a better base position).
-
-**Base defaults** — when no snapshot has been taken, base defaults to the channel midpoint (`32768` for 16-bit, `128` for 8-bit) so both directions of the fan have equal room without needing a prior snapshot.
-
-**Auto-snapshot** — bases are read from the Pico automatically:
-- On page load (if URL is already stored)
-- When the URL is entered/changed (800 ms debounce)
-- When a control is selected for an axis
-- When a fixture is added to a group
-
-**↺ Refresh All Bases** (header button) — re-reads current Pico values for every axis in every group and immediately re-sends all fan values. Use this after changing positions in the Fixture Controller.
-
-**Modes:**
-
-| Mode | Sliders | Behaviour |
-|------|---------|-----------|
-| Symmetric ± | Spread | Fixture 1 gets `base − spread/2`, last gets `base + spread/2`, others interpolate |
-| Start → End | From, To | Fixture 1 gets `base + From`, last gets `base + To`, others interpolate |
-
-Supports 8-bit and 16-bit controls. `panTilt16` controls expose Pan and Tilt as separate selectable axes. Multiple fan groups can run simultaneously (e.g. pan fan on group 1, tilt fan on group 2) — each group sends only its own channels so they never interfere.
-
-The Fan Out page also has a **Scene Toolbox** (same slot grid as the Fixture Controller) for saving and recalling scenes, including the ability to delete individual scenes from their slot with the `×` button.
-
-The red **Clear all DMX channels** icon in the Fan Out scene toolbox calls `/dmx/clear` on the Pico and resets all configured Fan Out lane base values to `0`. This keeps the fan previews and offsets aligned with the cleared hardware state instead of continuing from stale base snapshots.
 
 ### GPIO Control Prototype (`web/dmx_gpio.html`)
 
@@ -427,12 +390,12 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `fixture_setup.php` | `data/fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
 | `fixture_setup.php?livevalues` | `data/fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
 | `scene_setup.php` | `data/scene_setup.json` | Named scene snapshots, slot grid dimensions |
+| `palette_setup.php` | `data/palette_setup.json` | Reusable palette overlays and slot grid dimensions |
 | `group_setup.php` | `data/group_setup.json` | Fixture group definitions |
-| `fan_setup.php` | `data/fan_setup.json` | Fan Out groups and Pico base URL |
-| `chaser_setup.php` | `data/chaser_setup.json` | Chaser step sequences and slot config |
+| `chaser_setup.php` | `data/chaser_setup.json` | Saved chases, Chaser toolbox grid config, mirrored Pico slot payloads |
 | `chaser_setup.php?participating` | `data/chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
 | `motion_setup.php` | `data/motion_setup.json` | Motion FX browser setup and saved Pico slot payloads |
-| `ui_state.php` | `data/ui_state.json` | Per-page UI state (section collapse flags, floating toolbox positions) |
+| `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, and toolbox collapse state |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
 
@@ -476,9 +439,9 @@ The root `CMakeLists.txt` remains the Pico build entry point and references sour
 | `CMakeLists.txt` | Build target, source files, SDK libraries |
 | `api/fixture_setup.php` | REST handler — save/load fixture setup (`data/fixture_setup.json`); `?livevalues` endpoint snapshots/restores the current live control values (`data/fixture_live_values.json`) |
 | `api/scene_setup.php` | REST handler — save/load scenes and slot grid config (`data/scene_setup.json`) |
+| `api/palette_setup.php` | REST handler — save/load reusable palette overlays (`data/palette_setup.json`) |
 | `api/group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
-| `api/fan_setup.php` | REST handler — save/load fan groups (`data/fan_setup.json`) |
-| `api/chaser_setup.php` | REST handler — save/load chaser step sequences (`data/chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
+| `api/chaser_setup.php` | REST handler — save/load saved Chases toolbox entries and mirrored Pico slot payloads (`data/chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
 | `api/motion_setup.php` | REST handler — save/load Motion FX setup and mirrored Pico slot payloads (`data/motion_setup.json`) |
 | `api/ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
 | `scripts/sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |

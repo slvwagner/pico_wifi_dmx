@@ -21,6 +21,11 @@
     return Math.max(min,Math.min(max,isNaN(n)?min:n));
   }
 
+  function fanOrderedFixtures(fixtures,inverted=false){
+    const ordered=Array.isArray(fixtures)?fixtures.filter(Boolean).slice():[];
+    return inverted?ordered.reverse():ordered;
+  }
+
   function applyBaseUrl(input,fallback=''){
     if(!input)return '';
     input.value=localStorage.getItem(BASE_URL_KEY)||fallback||'';
@@ -62,6 +67,231 @@
     }catch(_){
       return {};
     }
+  }
+
+  const TOOLBOX_ORDER_KEY='toolboxRailOrder';
+  const TOOLBOX_WIDTH_KEY='toolboxRailWidth';
+  const TOOLBOX_COLLAPSED_KEY='toolboxRailCollapsed';
+  const GROUP_SELECTION_KEY='selectedGroupIds';
+  const DEFAULT_TOOLBOX_ORDER=['groups','scenes','chases','steps','browserPlayback'];
+
+  function normalizeToolboxOrder(order,types){
+    const known=Array.isArray(order)?order:[];
+    const allTypes=Array.from(new Set([...(known||[]),...DEFAULT_TOOLBOX_ORDER,...types]));
+    return allTypes.filter(t=>types.includes(t));
+  }
+
+  function savedToolboxOrder(types){
+    let local=null;
+    try{local=JSON.parse(localStorage.getItem(TOOLBOX_ORDER_KEY)||'null');}catch(_){}
+    return normalizeToolboxOrder(local,types);
+  }
+
+  async function applySharedToolboxOrder(rail){
+    if(!rail)return;
+    const boxes=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'));
+    const types=boxes.map(box=>box.dataset.toolboxType).filter(Boolean);
+    let order=savedToolboxOrder(types);
+    const shared=await loadUiState('toolboxes');
+    if(Array.isArray(shared[TOOLBOX_ORDER_KEY])){
+      order=normalizeToolboxOrder(shared[TOOLBOX_ORDER_KEY],types);
+      localStorage.setItem(TOOLBOX_ORDER_KEY,JSON.stringify(shared[TOOLBOX_ORDER_KEY]));
+    }
+    order.forEach(type=>{
+      const box=boxes.find(b=>b.dataset.toolboxType===type);
+      if(box)rail.appendChild(box);
+    });
+  }
+
+  function saveSharedToolboxOrder(rail){
+    if(!rail)return;
+    const order=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'))
+      .map(box=>box.dataset.toolboxType)
+      .filter(Boolean);
+    const merged=normalizeToolboxOrder(order,DEFAULT_TOOLBOX_ORDER);
+    localStorage.setItem(TOOLBOX_ORDER_KEY,JSON.stringify(merged));
+    saveUiState('toolboxes',TOOLBOX_ORDER_KEY,merged);
+  }
+
+  function normalizeGroupSelection(ids){
+    return Array.isArray(ids)?[...new Set(ids.filter(Boolean).map(String))]:[];
+  }
+
+  function saveSharedGroupSelection(ids){
+    const selected=normalizeGroupSelection(ids);
+    localStorage.setItem(GROUP_SELECTION_KEY,JSON.stringify(selected));
+    saveUiState('toolboxes',GROUP_SELECTION_KEY,selected);
+  }
+
+  async function loadSharedGroupSelection(){
+    let selected=[];
+    try{selected=normalizeGroupSelection(JSON.parse(localStorage.getItem(GROUP_SELECTION_KEY)||'[]'));}catch(_){}
+    const shared=await loadUiState('toolboxes');
+    if(Array.isArray(shared[GROUP_SELECTION_KEY])){
+      selected=normalizeGroupSelection(shared[GROUP_SELECTION_KEY]);
+      localStorage.setItem(GROUP_SELECTION_KEY,JSON.stringify(selected));
+    }
+    return selected;
+  }
+
+  function clampToolboxRailWidth(value){
+    const min=300;
+    const max=Math.max(min,Math.min(760,window.innerWidth-360));
+    return Math.max(min,Math.min(max,parseInt(value,10)||0));
+  }
+
+  function setToolboxRailWidth(value,{save=false}={}){
+    if(window.matchMedia&&window.matchMedia('(max-width:1100px)').matches)return;
+    const width=clampToolboxRailWidth(value);
+    document.documentElement.style.setProperty('--toolbox-rail-width',width+'px');
+    if(save){
+      localStorage.setItem(TOOLBOX_WIDTH_KEY,String(width));
+      saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,width);
+    }
+  }
+
+  async function applySharedToolboxRailWidth(){
+    const local=parseInt(localStorage.getItem(TOOLBOX_WIDTH_KEY)||'',10);
+    if(local)setToolboxRailWidth(local);
+    const shared=await loadUiState('toolboxes');
+    if(shared[TOOLBOX_WIDTH_KEY]){
+      localStorage.setItem(TOOLBOX_WIDTH_KEY,String(shared[TOOLBOX_WIDTH_KEY]));
+      setToolboxRailWidth(shared[TOOLBOX_WIDTH_KEY]);
+    }
+  }
+
+  function setToolboxRailCollapsed(rail,collapsed,{save=false}={}){
+    if(!rail)return;
+    const next=!!collapsed;
+    rail.classList.toggle('collapsed',next);
+    document.body.classList.toggle('toolbox-rail-collapsed',next);
+    const toggle=rail.querySelector('.toolbox-rail-toggle');
+    if(toggle){
+      toggle.textContent=next?'‹':'›';
+      toggle.title=next?'Show toolboxes':'Hide toolboxes';
+      toggle.setAttribute('aria-expanded',next?'false':'true');
+    }
+    if(save){
+      localStorage.setItem(TOOLBOX_COLLAPSED_KEY,next?'1':'0');
+      saveUiState('toolboxes',TOOLBOX_COLLAPSED_KEY,next);
+    }
+  }
+
+  async function applySharedToolboxRailCollapsed(rail){
+    let collapsed=localStorage.getItem(TOOLBOX_COLLAPSED_KEY)==='1';
+    const shared=await loadUiState('toolboxes');
+    if(shared[TOOLBOX_COLLAPSED_KEY]!==undefined){
+      collapsed=!!shared[TOOLBOX_COLLAPSED_KEY];
+      localStorage.setItem(TOOLBOX_COLLAPSED_KEY,collapsed?'1':'0');
+    }
+    setToolboxRailCollapsed(rail,collapsed);
+  }
+
+  function initToolboxRailHeader(rail){
+    if(!rail||rail.querySelector('.toolbox-rail-header'))return;
+    const header=document.createElement('div');
+    header.className='toolbox-rail-header';
+    header.innerHTML='<span class="toolbox-rail-title">Toolboxes</span><button class="toolbox-rail-toggle" type="button" title="Hide toolboxes" aria-expanded="true">›</button>';
+    rail.prepend(header);
+    header.querySelector('.toolbox-rail-toggle').addEventListener('click',()=>{
+      setToolboxRailCollapsed(rail,!rail.classList.contains('collapsed'),{save:true});
+    });
+  }
+
+  function initToolboxRailResize(rail){
+    if(!rail||rail.querySelector('.toolbox-rail-resizer'))return;
+    const handle=document.createElement('div');
+    handle.className='toolbox-rail-resizer';
+    handle.title='Drag to resize toolboxes';
+    rail.prepend(handle);
+    let active=false;
+    const onMove=e=>{
+      if(!active)return;
+      setToolboxRailWidth(window.innerWidth-e.clientX);
+    };
+    const onUp=e=>{
+      if(!active)return;
+      active=false;
+      document.body.classList.remove('toolbox-rail-resizing');
+      handle.releasePointerCapture?.(e.pointerId);
+      setToolboxRailWidth(window.innerWidth-e.clientX,{save:true});
+      window.removeEventListener('pointermove',onMove);
+      window.removeEventListener('pointerup',onUp);
+      window.removeEventListener('pointercancel',onUp);
+    };
+    handle.addEventListener('pointerdown',e=>{
+      if(window.matchMedia&&window.matchMedia('(max-width:1100px)').matches)return;
+      active=true;
+      document.body.classList.add('toolbox-rail-resizing');
+      handle.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+      window.addEventListener('pointermove',onMove);
+      window.addEventListener('pointerup',onUp);
+      window.addEventListener('pointercancel',onUp);
+    });
+    handle.addEventListener('dblclick',()=>{
+      localStorage.removeItem(TOOLBOX_WIDTH_KEY);
+      document.documentElement.style.removeProperty('--toolbox-rail-width');
+      saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,null);
+    });
+  }
+
+  function configureToolboxRailDragHandle(box){
+    if(!box)return;
+    box.draggable=false;
+    const header=box.querySelector('.scene-toolbox__header');
+    if(!header)return;
+    header.draggable=true;
+    header.dataset.toolboxDragHandle='1';
+    header.title=header.title||'Drag to reorder toolbox';
+  }
+
+  function initToolboxRail(rail,entries){
+    if(!rail)return;
+    initToolboxRailHeader(rail);
+    initToolboxRailResize(rail);
+    applySharedToolboxRailWidth().catch(()=>{});
+    applySharedToolboxRailCollapsed(rail).catch(()=>{});
+    (entries||[]).forEach(entry=>{
+      const box=typeof entry.box==='string'?document.getElementById(entry.box):entry.box;
+      if(!box)return;
+      box.dataset.toolboxType=entry.type||box.id;
+      configureToolboxRailDragHandle(box);
+      rail.appendChild(box);
+    });
+    rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(configureToolboxRailDragHandle);
+    applySharedToolboxOrder(rail).catch(()=>{});
+    if(rail.dataset.toolboxRailInit==='1')return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
+    rail.dataset.toolboxRailInit='1';
+
+    rail.addEventListener('dragstart',e=>{
+      const handle=e.target.closest('.scene-toolbox__header[data-toolbox-drag-handle="1"]');
+      const box=handle?.closest('.scene-toolbox[data-toolbox-type]');
+      if(!box||e.target.closest('button,input,select,textarea,a')){e.preventDefault();return;}
+      box.classList.add('toolbox-dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',box.dataset.toolboxType||box.id);
+    });
+    rail.addEventListener('dragend',e=>{
+      const box=e.target.closest('.scene-toolbox[data-toolbox-type]');
+      if(box)box.classList.remove('toolbox-dragging');
+      rail.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(el=>el.classList.remove('toolbox-drop-before','toolbox-drop-after'));
+      saveSharedToolboxOrder(rail);
+    });
+    rail.addEventListener('dragover',e=>{
+      const dragging=rail.querySelector('.toolbox-dragging');
+      if(!dragging)return;
+      const target=e.target.closest('.scene-toolbox[data-toolbox-type]');
+      if(!target||target===dragging)return;
+      e.preventDefault();
+      const rect=target.getBoundingClientRect();
+      const before=e.clientY<rect.top+rect.height/2;
+      target.classList.toggle('toolbox-drop-before',before);
+      target.classList.toggle('toolbox-drop-after',!before);
+      if(before)rail.insertBefore(dragging,target);
+      else rail.insertBefore(dragging,target.nextSibling);
+    });
+    return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
   }
 
   function initFloatingToolbox(options){
@@ -178,6 +408,7 @@
 
     if(box&&header){
       header.addEventListener('pointerdown',e=>{
+        if(box.closest('.toolbox-rail'))return;
         if(e.target.closest('button'))return;
         header.setPointerCapture(e.pointerId);
         const r=box.getBoundingClientRect();
@@ -185,6 +416,7 @@
         header.style.cursor='grabbing';
       });
       header.addEventListener('pointermove',e=>{
+        if(box.closest('.toolbox-rail'))return;
         if(!header.hasPointerCapture(e.pointerId))return;
         let x=e.clientX-dragOffset.x;
         let y=e.clientY-dragOffset.y;
@@ -196,6 +428,7 @@
         if(posKey)localStorage.setItem(posKey,JSON.stringify({x,y}));
       });
       header.addEventListener('pointerup',()=>{
+        if(box.closest('.toolbox-rail'))return;
         header.style.cursor='grab';
         const pos={x:parseInt(box.style.left)||0,y:parseInt(box.style.top)||0};
         if(page)saveUiState(page,uiPosKey,pos);
@@ -234,14 +467,16 @@
     const rowsId=idPrefix+'Rows';
     const importFileId=idPrefix+'ImportFile';
     const statePrefix=idPrefix;
+    const layoutPrefix=options.layoutStoragePrefix||'groupsBox';
     let groups=[];
     let selectedIds=new Set();
-    let cols=parseInt(localStorage.getItem(statePrefix+'Cols'))||2;
-    let rows=parseInt(localStorage.getItem(statePrefix+'Rows'))||4;
+    let cols=parseInt(localStorage.getItem(layoutPrefix+'Cols')||localStorage.getItem(statePrefix+'Cols'))||2;
+    let rows=parseInt(localStorage.getItem(layoutPrefix+'Rows')||localStorage.getItem(statePrefix+'Rows'))||4;
 
     const box=document.createElement('div');
     box.id=boxId;
     box.className='scene-toolbox scene-toolbox--groups';
+    box.dataset.toolboxType=options.toolboxType||'groups';
     box.innerHTML=`
       <div id="${headerId}" class="scene-toolbox__header">
         <span style="font-weight:700;font-size:13px">${escapeHtml(title)}</span>
@@ -251,8 +486,8 @@
         <div class="groups-toolbar">
           <button id="${idPrefix}Export" class="icon-btn export-btn" title="Export groups JSON"></button>
           <button id="${idPrefix}Import" class="icon-btn import-btn" title="Import groups JSON"></button>
-          <button id="${idPrefix}Rename" class="icon-btn" title="Rename selected group">Aa</button>
-          <button id="${idPrefix}Delete" class="icon-btn danger" title="Delete selected groups">×</button>
+          <button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
+          <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>
           ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
           <input id="${importFileId}" type="file" accept=".json,application/json" style="display:none">
           <div class="groups-layout-controls">
@@ -263,6 +498,9 @@
         <div id="${listId}" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
       </div>`;
     host.appendChild(box);
+    if(host.classList?.contains('toolbox-rail')){
+      initToolboxRail(host,[]);
+    }
 
     const toolbox=initFloatingToolbox({
       boxId,headerId,toggleId,
@@ -275,18 +513,28 @@
 
     function key(g,i){return g.id||('idx_'+i);}
     function selectedGroups(){return groups.filter((g,i)=>selectedIds.has(key(g,i)));}
-    function clampLayout(){
+    function selectedGroupIds(){return selectedGroups().map(g=>g.id).filter(Boolean);}
+    function applySharedSelection(ids){
+      const wanted=new Set(normalizeGroupSelection(ids));
+      selectedIds.clear();
+      groups.forEach((g,i)=>{if(wanted.has(String(g.id)))selectedIds.add(key(g,i));});
+    }
+    function clampLayout(priority='cols'){
       const count=groups.length;
       cols=Math.max(1,Math.min(8,parseInt(cols)||2));
       rows=Math.max(1,Math.min(12,parseInt(rows)||4));
       if(count&&cols*rows<count){
-        const neededRows=Math.ceil(count/cols);
-        if(neededRows<=12)rows=neededRows;
-        else cols=Math.min(8,Math.ceil(count/rows));
+        if(priority==='rows'){
+          cols=Math.max(cols,Math.ceil(count/rows));
+          if(cols>8){cols=8;rows=Math.ceil(count/cols);}
+        }else{
+          rows=Math.max(rows,Math.ceil(count/cols));
+          if(rows>12){rows=12;cols=Math.ceil(count/rows);}
+        }
       }
     }
-    function applyLayout(){
-      clampLayout();
+    function applyLayout(priority='cols'){
+      clampLayout(priority);
       const list=document.getElementById(listId);
       if(list)list.style.gridTemplateColumns='repeat('+cols+',minmax(170px,1fr))';
       if(box){
@@ -304,12 +552,12 @@
         rowsInput.value=rows;
       }
     }
-    function saveLayout(){
-      clampLayout();
-      localStorage.setItem(statePrefix+'Cols',cols);
-      localStorage.setItem(statePrefix+'Rows',rows);
-      saveUiState(page,statePrefix+'Cols',cols);
-      saveUiState(page,statePrefix+'Rows',rows);
+    function saveLayout(priority='cols'){
+      clampLayout(priority);
+      localStorage.setItem(layoutPrefix+'Cols',cols);
+      localStorage.setItem(layoutPrefix+'Rows',rows);
+      saveUiState('toolboxes',layoutPrefix+'Cols',cols);
+      saveUiState('toolboxes',layoutPrefix+'Rows',rows);
     }
     function updateActions(){
       const selected=selectedGroups();
@@ -318,16 +566,19 @@
       const edit=document.getElementById(idPrefix+'Edit');
       if(rename)rename.disabled=selected.length!==1;
       if(del)del.disabled=selected.length===0;
-      if(edit)edit.disabled=selected.length===0||!options.canEdit?.(selected);
+      if(edit){
+        const requiresSelection=options.editRequiresSelection!==false;
+        edit.disabled=(requiresSelection&&selected.length===0)||!options.canEdit?.(selected);
+      }
     }
     function notify(){
       options.onSelectionChange?.(selectedGroups(),groups);
       updateActions();
     }
-    function render(){
+    function render(priority='cols'){
       const list=document.getElementById(listId);
       if(!list)return;
-      applyLayout();
+      applyLayout(priority);
       if(!groups.length){
         list.innerHTML='<div class="small">No saved groups yet.</div>';
         updateActions();
@@ -359,7 +610,7 @@
         if(d.baseUrl&&options.baseUrlInput&&!localStorage.getItem(BASE_URL_KEY))options.baseUrlInput.value=d.baseUrl;
         groups=Array.isArray(d.groups)?d.groups.map((g,i)=>({...g,id:g.id||('grp_'+Date.now()+'_'+i),fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],values:g.values||{}})):[];
       }catch(_){groups=[];}
-      selectedIds.clear();
+      applySharedSelection(await loadSharedGroupSelection());
       render();
       notify();
     }
@@ -375,7 +626,7 @@
           if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
           if(data.baseUrl&&options.baseUrlInput&&!localStorage.getItem(BASE_URL_KEY))options.baseUrlInput.value=data.baseUrl;
           groups=data.groups.map((g,i)=>({...g,id:g.id||('grp_'+Date.now()+'_'+i),fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],values:g.values||{}}));
-          selectedIds.clear();render();notify();saveGroups();
+          selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
           options.onStatus?.('Imported '+groups.length+' group(s)');
         }catch(err){options.onStatus?.('Import failed: '+err.message,true);}
       };
@@ -389,7 +640,8 @@
       const g=groups[i];if(!g)return;
       const k=key(g,i);
       if(selectedIds.has(k))selectedIds.delete(k);else selectedIds.add(k);
-      render();notify();
+      saveSharedGroupSelection(selectedGroupIds());
+      render('cols');notify();
     });
     document.getElementById(idPrefix+'Export').onclick=exportGroups;
     document.getElementById(idPrefix+'Import').onclick=()=>document.getElementById(importFileId).click();
@@ -399,34 +651,235 @@
       const g=selected[0];
       const name=(prompt('Group name:',g.name||'Group')||'').trim();
       if(!name||name===g.name)return;
-      g.name=name;render();saveGroups();
+      g.name=name;render('cols');saveGroups();
     };
     document.getElementById(idPrefix+'Delete').onclick=()=>{
       const selected=selectedGroups();if(!selected.length)return;
       const ids=new Set(selected.map(g=>g.id));
       if(!confirm('Delete '+selected.length+' selected group'+(selected.length===1?'':'s')+'?\n\n'+selected.map(g=>g.name).join(', ')))return;
       groups=groups.filter(g=>!ids.has(g.id));
-      selectedIds.clear();render();notify();saveGroups();
+      selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
     };
     const edit=document.getElementById(idPrefix+'Edit');
-    if(edit)edit.onclick=()=>{const selected=selectedGroups();if(selected.length)options.onEdit?.(selected);};
-    document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout();render();saveLayout();});
-    document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout();render();saveLayout();});
-    loadUiState(page).then(st=>{
+    if(edit)edit.onclick=()=>{
+      const selected=selectedGroups();
+      if(selected.length||options.editRequiresSelection===false)options.onEdit?.(selected);
+    };
+    document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout('cols');render('cols');saveLayout('cols');});
+    document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout('rows');render('rows');saveLayout('rows');});
+    Promise.all([loadUiState(page),loadUiState('toolboxes')]).then(([st,shared])=>{
       if(st[statePrefix+'Collapsed']!==undefined)toolbox.setCollapsed(!!st[statePrefix+'Collapsed'],false);
       if(st[statePrefix+'Pos'])toolbox.applyPosition(st[statePrefix+'Pos']);
-      if(st[statePrefix+'Cols']!==undefined)cols=st[statePrefix+'Cols'];
-      if(st[statePrefix+'Rows']!==undefined)rows=st[statePrefix+'Rows'];
+      if(shared[layoutPrefix+'Cols']!==undefined)cols=shared[layoutPrefix+'Cols'];
+      else if(st[statePrefix+'Cols']!==undefined)cols=st[statePrefix+'Cols'];
+      if(shared[layoutPrefix+'Rows']!==undefined)rows=shared[layoutPrefix+'Rows'];
+      else if(st[statePrefix+'Rows']!==undefined)rows=st[statePrefix+'Rows'];
       render();
     }).catch(()=>{});
     loadGroups();
+    window.addEventListener('storage',e=>{
+      if(e.key!==GROUP_SELECTION_KEY)return;
+      try{applySharedSelection(JSON.parse(e.newValue||'[]'));render();notify();}catch(_){}
+    });
     function clearSelection(){
       if(!selectedIds.size)return;
       selectedIds.clear();
+      saveSharedGroupSelection([]);
       render();
       notify();
     }
     return {box,toolbox,loadGroups,render,selectedGroups,clearSelection,get groups(){return groups;}};
+  }
+
+  function normalizeSlotVisual(visual){
+    if(!visual||typeof visual!=='object')return null;
+    const type=String(visual.type||'');
+    const color=String(visual.color||'');
+    const image=String(visual.image||'');
+    const hasColor=/^#[0-9a-f]{6}$/i.test(color);
+    const hasImage=/^data:image\//.test(image);
+    if(type==='color'&&hasColor)return{type:'visual',color,image:''};
+    if((type==='image'||type==='drawing')&&(hasImage||image===''))return{type:'visual',color:hasColor?color:'#225a50',image};
+    if((type==='visual'||type==='slot')&&(hasColor||hasImage))return{type:'visual',color:hasColor?color:'#225a50',image:hasImage?image:''};
+    return null;
+  }
+
+  function contrastTextForColor(hex){
+    const value=String(hex||'').replace('#','');
+    if(!/^[0-9a-f]{6}$/i.test(value))return '#ffffff';
+    const r=parseInt(value.slice(0,2),16)/255;
+    const g=parseInt(value.slice(2,4),16)/255;
+    const b=parseInt(value.slice(4,6),16)/255;
+    const linear=v=>v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);
+    const luminance=0.2126*linear(r)+0.7152*linear(g)+0.0722*linear(b);
+    const contrastWhite=(1.05)/(luminance+0.05);
+    const contrastBlack=(luminance+0.05)/0.05;
+    return contrastBlack>=contrastWhite?'#06110e':'#ffffff';
+  }
+
+  function slotVisualStyle(item){
+    const visual=normalizeSlotVisual(item&&item.visual);
+    if(!visual||!visual.color)return '';
+    const text=contrastTextForColor(visual.color);
+    return `background:${visual.color};border-color:${visual.color};color:${text}`;
+  }
+
+  function slotVisualHtml(item){
+    const visual=normalizeSlotVisual(item&&item.visual);
+    if(!visual)return '';
+    if(visual.image){
+      const image=String(visual.image).replace(/"/g,'&quot;');
+      return `<span class="palette-visual" style="background-image:url(&quot;${image}&quot;)"></span>`;
+    }
+    return '';
+  }
+
+  function initSlotVisualEditor(options){
+    const modal=document.getElementById(options.modalId);
+    const targetSelect=document.getElementById(options.targetId);
+    const colorWrap=document.getElementById(options.colorWrapId);
+    const imageWrap=document.getElementById(options.imageWrapId);
+    const colorInput=document.getElementById(options.colorInputId);
+    const resetColorBtn=options.resetColorBtnId?document.getElementById(options.resetColorBtnId):null;
+    const canvas=document.getElementById(options.canvasId);
+    const imageInput=document.getElementById(options.imageInputId);
+    const clearBtn=document.getElementById(options.clearBtnId);
+    const hint=document.getElementById(options.hintId);
+    const saveBtn=document.getElementById(options.saveBtnId);
+    if(!modal||!targetSelect||!colorWrap||!imageWrap||!colorInput||!canvas||!imageInput||!clearBtn||!hint||!saveBtn)return null;
+    const ctx=canvas.getContext('2d');
+    let drawing=false;
+    let uploadedImage='';
+    let hasIcon=false;
+    let config={};
+    let targetMap=new Map();
+    const defaultColor=options.defaultColor||'#225a50';
+
+    function blankCanvas(){
+      ctx.fillStyle='#000000';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.beginPath();
+      ctx.strokeStyle='#ffffff';
+      ctx.lineWidth=6;
+      ctx.lineCap='round';
+    }
+
+    function clearCanvas(){
+      blankCanvas();
+      uploadedImage='';
+      hasIcon=false;
+      imageInput.value='';
+    }
+
+    function draw(e){
+      const rect=canvas.getBoundingClientRect();
+      const x=(e.clientX-rect.left)*canvas.width/rect.width;
+      const y=(e.clientY-rect.top)*canvas.height/rect.height;
+      if(!drawing){
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+        return;
+      }
+      ctx.lineTo(x,y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x,y);
+      uploadedImage='';
+      hasIcon=true;
+    }
+
+    function loadCanvas(image){
+      clearCanvas();
+      if(!image)return;
+      const img=new Image();
+      img.onload=()=>{
+        blankCanvas();
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        uploadedImage=canvas.toDataURL('image/png');
+        hasIcon=true;
+      };
+      img.src=image;
+    }
+
+    function selectedTarget(){
+      const val=targetSelect.value;
+      if(val==='__default')return null;
+      return targetMap.get(val)||null;
+    }
+
+    function loadEditor(){
+      const target=selectedTarget();
+      const visual=normalizeSlotVisual(target&&target.visual)||normalizeSlotVisual(config.defaultVisual)||{type:'visual',color:config.defaultColor||defaultColor,image:''};
+      colorWrap.style.display='grid';
+      imageWrap.style.display='grid';
+      colorInput.value=visual.color||config.defaultColor||defaultColor;
+      loadCanvas(visual.image||'');
+    }
+
+    function visualFromEditor(){
+      const image=hasIcon?(uploadedImage||canvas.toDataURL('image/png')):'';
+      return{type:'visual',color:colorInput.value||config.defaultColor||defaultColor,image};
+    }
+
+    function open(nextConfig){
+      config=nextConfig||{};
+      targetMap=new Map();
+      const optionsHtml=[`<option value="__default">New ${escapeHtml(config.targetLabel||'slot visuals')}</option>`];
+      (config.targets||[]).forEach((target,i)=>{
+        const key=String(target.key??target.slot??i);
+        targetMap.set(key,target.item||target);
+        optionsHtml.push(`<option value="${escapeHtml(key)}">${escapeHtml(target.label||('Slot '+(i+1)))}</option>`);
+      });
+      targetSelect.innerHTML=optionsHtml.join('');
+      config.defaultColor=config.defaultColor||defaultColor;
+      hint.textContent=config.hint||'Choose a background color and optionally draw/upload a visual.';
+      clearCanvas();
+      loadEditor();
+      modal.style.display='flex';
+    }
+
+    function close(){
+      modal.style.display='none';
+    }
+
+    function save(){
+      const visual=visualFromEditor();
+      const target=selectedTarget();
+      if(target)config.onSaveTarget?.(target,visual);
+      else config.onSaveDefault?.(visual);
+      close();
+    }
+
+    canvas.addEventListener('pointerdown',e=>{drawing=false;canvas.setPointerCapture?.(e.pointerId);draw(e);drawing=true;uploadedImage='';hasIcon=true;});
+    canvas.addEventListener('pointermove',e=>{if(drawing)draw(e);});
+    canvas.addEventListener('pointerup',()=>{drawing=false;uploadedImage='';});
+    canvas.addEventListener('pointercancel',()=>{drawing=false;});
+    imageInput.onchange=e=>{
+      const file=e.target.files&&e.target.files[0];
+      if(!file)return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+          clearCanvas();
+          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          uploadedImage=canvas.toDataURL('image/png');
+          hasIcon=true;
+        };
+        img.src=reader.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    clearBtn.onclick=clearCanvas;
+    if(resetColorBtn)resetColorBtn.onclick=()=>{colorInput.value=config.defaultColor||defaultColor;};
+    targetSelect.onchange=loadEditor;
+    saveBtn.onclick=save;
+    (options.closeIds||[]).forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.onclick=close;
+    });
+    modal.addEventListener('click',e=>{if(e.target===modal)close();});
+    return {open,close,normalize:normalizeSlotVisual,html:slotVisualHtml,style:slotVisualStyle};
   }
 
   window.DmxCommon={
@@ -435,12 +888,20 @@
     escapeHtml,
     clampInt,
     clampFloat,
+    fanOrderedFixtures,
     applyBaseUrl,
     bindBaseUrl,
     preferStoredBaseUrl,
     saveUiState,
     loadUiState,
+    saveSharedGroupSelection,
+    loadSharedGroupSelection,
+    initToolboxRail,
     initFloatingToolbox,
-    initGroupsToolbox
+    initGroupsToolbox,
+    normalizeSlotVisual,
+    slotVisualStyle,
+    slotVisualHtml,
+    initSlotVisualEditor
   };
 })();

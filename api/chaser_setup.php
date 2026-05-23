@@ -138,7 +138,9 @@ if ($method === 'POST') {
         exit;
     }
 
-    // default POST — save browser state (preserve existing pico_slots and participating)
+    // default POST — save chase slots/toolbox state (preserve existing pico_slots and participating).
+    // Loose top-level editable steps are intentionally not persisted; saved chases keep
+    // their own nested step data inside the "chases" array.
     $raw  = file_get_contents('php://input');
     $data = json_decode($raw === false ? '' : $raw, true);
     if (!is_array($data)) {
@@ -146,6 +148,7 @@ if ($method === 'POST') {
         echo json_encode(['ok' => false, 'error' => 'Request body must be a JSON object']);
         exit;
     }
+    unset($data['steps'], $data['playback'], $data['browserPlayback']);
     $existing = readDataFile($dataFile);
     if (isset($existing['pico_slots'])) {
         $data['pico_slots'] = $existing['pico_slots'];

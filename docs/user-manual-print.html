@@ -125,7 +125,6 @@ strong { color: #ffffff; }
 <tr><td>Fixture Controller</td><td>Fixture profiles, patching, live control, groups, scenes, default and blackout values</td></tr>
 <tr><td>Chaser</td><td>Step-based chases with fade, loop modes, direction, pause/resume, and Pico slot upload</td></tr>
 <tr><td>Motion FX</td><td>Pan/tilt effects such as circle, figure-8, pan swing, and tilt swing</td></tr>
-<tr><td>Fan Out</td><td>Spread one control value across a group of fixtures</td></tr>
 <tr><td>GPIO Control</td><td>Map Pico GPIO buttons and ADC inputs to lighting actions</td></tr>
 <tr><td>Benchmark</td><td>Test Pico HTTP/DMX update performance</td></tr>
 </tbody>
@@ -200,22 +199,97 @@ strong { color: #ffffff; }
 <li>Wheel buttons for indexed wheel values</li>
 <li>Coarse/fine sliders for 16-bit channels</li>
 </ul>
+<p>Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing.</p>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> on a fixture card to recall the stored values for that fixture only.</p>
 <p>Use <strong>Select</strong> to include a fixture in group editing.</p>
 <p>When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Saved Groups card to filter the control surface.</p>
-<h2 id="2-scenes">2. Scenes</h2>
+<h3 id="fan-out-toolbox">Fan Out Toolbox</h3>
+<p>The Fixture Controller includes a <strong>Fan Out</strong> toolbox in the shared Toolboxes sidebar. It shapes the current controller values for the selected group or selected fixture cards, so the result can immediately be saved as a scene.</p>
+<ol>
+<li>Select one or more Saved Groups, or select fixture cards manually.</li>
+<li>In <strong>Fan Out</strong>, choose the control to shape, for example Dimmer, Pan, Tilt, or another compatible single-value control.</li>
+<li>Click <strong>Snapshot</strong> to use the current controller values as the fan base.</li>
+<li>Adjust <strong>Spread</strong>, or use <strong>Start to end</strong> mode with From/To offsets.</li>
+<li>Use <strong>Invert</strong> when the spread direction should run through the selected fixtures in the opposite order.</li>
+<li>The Control Surface updates continuously while you change the fan values.</li>
+<li>The affected fixture controls are highlighted in the Control Surface.</li>
+<li>Save the resulting look with the Scene Toolbox if you want to keep the actual DMX look.</li>
+</ol>
+<p>The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand. If <strong>Live send</strong> is enabled, the changed DMX values are also sent to the Pico.</p>
+<p>Fan Out calculates from a stored base value for each fixture, control, and axis. <strong>Snapshot</strong> stores those base values. In <strong>Symmetric spread</strong>, the spread is added around the base values:</p>
+<pre><code>final value = snapshotted base value + spread offset</code></pre>
+<p>For example, with five fixtures and a spread of <code>100</code>, the offsets are <code>-50</code>, <code>-25</code>, <code>0</code>, <code>+25</code>, and <code>+50</code>. If every fixture has a base value of <code>128</code>, the result is <code>78</code>, <code>103</code>, <code>128</code>, <code>153</code>, and <code>178</code>. If the fixtures have different base values, each fixture still keeps its own base as the starting point.</p>
+<p>Use <strong>Save</strong> in the Fan Out toolbox to store the fan setup itself: selected group or fixture IDs, selected control, mode, spread, and From/To offsets. Use <strong>Recall</strong> to restore that fan setup later. Recalling a Fan Out preset reapplies the fan to the controller values; it does not create a scene by itself. Use the Scene Toolbox when you want to store the resulting lighting look.</p>
+<h3 id="palette-toolbox">Palette Toolbox</h3>
+<p>The Fixture Controller also includes a <strong>Palettes</strong> toolbox. Palettes are reusable value fragments, while scenes are complete looks for their saved scope.</p>
+<p>Use palettes for building blocks such as:</p>
+<ul>
+<li>Positions</li>
+<li>Colors</li>
+<li>Gobos</li>
+<li>Dimmer levels</li>
+<li>Fan Out results that you want to reuse as an overlay</li>
+</ul>
+<p>The <strong>Visual</strong> button opens the palette visual editor. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Use <strong>Default background</strong> to restore the standard slot color, or <strong>No icon</strong> to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.</p>
+<p>Palette save rules:</p>
+<ul>
+<li>If Fan Out is active, the palette saves only the Fan Out affected controls.</li>
+<li>If Fan Out is not active and fixtures are selected, the palette saves only the selected <strong>Scope</strong> for those fixtures.</li>
+<li><strong>Position</strong> saves pan/tilt or position controls.</li>
+<li><strong>Color</strong> saves RGB, RGBW, RGBWA, CMY, CMYK, and controls labeled as color-related.</li>
+<li><strong>Beam / Gobo</strong> saves controls labeled as gobo, beam, prism, zoom, focus, iris, frost, strobe, or shutter.</li>
+<li><strong>Dimmer</strong> saves controls labeled as dimmer, intensity, or shutter.</li>
+<li><strong>All controls</strong> saves every control on the selected fixtures and should be used deliberately.</li>
+<li>If nothing is selected, the palette is not saved; select fixtures or apply Fan Out first.</li>
+</ul>
+<p>Palette recall rules:</p>
+<ul>
+<li>Recalling a palette applies only the stored values.</li>
+<li>Unrelated controller values are left unchanged.</li>
+<li>The active group filter is cleared.</li>
+<li>The Control Surface is filtered to the fixtures involved in the palette.</li>
+<li>If <strong>Live send</strong> is enabled, only the recalled palette controls are sent to the Pico.</li>
+</ul>
+<p>Filled palette slots recall palettes. Merging is done with the separate <strong>Merge</strong> button so recall and edit actions stay distinct.</p>
+<p>Use <strong>Merge</strong> when you have a current fixture selection or active Fan Out result:</p>
+<ul>
+<li>The controller asks which saved palette slot should receive the current scoped values.</li>
+<li>If the current scope matches the saved palette scope, the values are merged and the palette keeps its scope.</li>
+<li>This allows one <strong>Color</strong> palette to contain RGB controls, color wheels, and RGBWA controls from different fixture types while still remaining a Color palette.</li>
+<li>If the current scope differs from the saved palette scope, the controller asks whether to change the saved palette to <strong>All controls</strong> and merge.</li>
+<li>If you cancel a merge prompt, the palette is not changed.</li>
+</ul>
+<h2 id="2-scenes-and-palettes">2. Scenes And Palettes</h2>
 <p><img src="screenshots/fixture-controller-scene-box.png" alt="Scene Toolbox"></p>
-<p>The Scene Toolbox is available on the Fixture Controller and Fan Out pages.</p>
-<p>Use scenes to store complete looks.</p>
+<p>The Scene Toolbox is available on the Fixture Controller page.</p>
+<p>Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.</p>
+<p>The <strong>Visual</strong> button opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.</p>
 <ol>
 <li>Set your desired fixture values.</li>
 <li>Click an empty scene slot.</li>
 <li>Enter a scene name.</li>
-<li>Click a filled slot to recall it.</li>
+<li>Click a filled slot once to recall it.</li>
 <li>Use the small <code>x</code> on a filled slot to delete it.</li>
 </ol>
-<p>Scene recall sends the stored DMX values to the Pico in one batch and updates the live-value snapshot used by the Chaser page.</p>
+<h3 id="scene-save-rules">Scene Save Rules</h3>
+<p>Scene saving uses the current working scope:</p>
+<ul>
+<li>If Fan Out is active, the scene saves only the fixtures affected by Fan Out.</li>
+<li>For each Fan Out fixture, the scene saves all controls of that fixture, not only the fanned control. This keeps related values such as Tilt stable when saving a Pan fan.</li>
+<li>If Fan Out is not active and fixtures are selected, the scene saves only the selected fixtures.</li>
+<li>Selected Saved Groups count as selected fixtures, so a group-filtered scene saves only the fixtures in the selected groups.</li>
+<li>If a scene was recalled and the control surface is filtered to that scene&#39;s involved fixtures, saving again uses those involved fixtures.</li>
+<li>If nothing is selected, the controller asks before saving all patched fixtures.</li>
+<li>If you cancel that prompt, no scene is saved.</li>
+</ul>
+<p>This means a scene is normally scoped to the fixtures you are actually working with. It does not silently save unrelated fixtures unless you explicitly confirm the all-fixtures fallback.</p>
+<h3 id="scene-recall-rules">Scene Recall Rules</h3>
+<p>Scene recall loads the stored values back into the Fixture Controller, redraws the fixture cards, and updates the live-value snapshot used by the Chaser page.</p>
+<p>When <strong>Live send</strong> is enabled and a Pico base URL is set, scene recall also sends the recalled DMX values to the Pico in one batch. When <strong>Live send</strong> is disabled, the scene is recalled in the browser only.</p>
+<p>Recalling a scene clears the active group selection and shared group filter. It then selects the fixtures involved in the recalled scene and filters the Control Surface to only those fixtures. This makes the recalled scene visible without leaving an old group filter active, and without showing unrelated fixtures.</p>
+<p>If a saved scene was created before fixtures were repatched, the controller tries to remap old fixture IDs to the current patch by matching the same fixture profile in DMX start-address order. This lets older scenes continue to recall after a fixture run was recreated, as long as the fixture profiles and control IDs still match.</p>
 <p>The red <strong>Clear all DMX channels</strong> button clears controller values and calls <code>/dmx/clear</code> on the Pico. This clears both live DMX output and the motion base buffer.</p>
+<p>The Scene Toolbox sits in the shared <strong>Toolboxes</strong> sidebar. Its slot grid follows the configured rows and columns, and the tile size expands to the available sidebar width while keeping the old minimum slot size.</p>
 <h2 id="3-groups">3. Groups</h2>
 <p><img src="screenshots/fixture-controller-group-modal.png" alt="Fixture group edit modal"></p>
 <p>Groups let you control multiple fixtures at once.</p>
@@ -237,6 +311,7 @@ strong { color: #ffffff; }
 </ul>
 <p>More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.</p>
 <p>The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use <strong>Show all</strong> to clear the saved-group filter and return to the full fixture list.</p>
+<p>Group selection is shared across toolbox pages that use the Groups toolbox. It is a working filter: selecting groups limits the visible fixtures for controller editing, Fan Out targeting, and Chaser participating-control setup. Recalling a scene, editing a saved chase step, or loading a saved chase clears the group filter because the recalled data itself becomes the source of truth.</p>
 <h3 id="edit-a-group">Edit a Group</h3>
 <ol>
 <li>Load a saved group or select multiple fixtures.</li>
@@ -245,38 +320,139 @@ strong { color: #ffffff; }
 <li>Click <strong>Send all to Pico</strong> to send the group values.</li>
 </ol>
 <p>The Group Edit modal only shows controls that exist on all selected fixtures. This prevents accidentally sending values to fixtures with incompatible control layouts.</p>
+<p>If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, <strong>Group Edit</strong> uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.</p>
 <p>Use <strong>Default all</strong> or <strong>Blackout all</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
 <h2 id="4-chaser">4. Chaser</h2>
 <p><img src="screenshots/chaser.png" alt="Chaser"></p>
-<p>The Chaser page creates step-based sequences. The main page stays focused on <strong>Participating Controls</strong> and <strong>Edit Step</strong>, while the repeated working tools sit in floating hover boxes.</p>
-<p>The Chaser screenshot is captured with the important boxes open on purpose: <strong>Steps</strong>, <strong>Browser Playback</strong>, <strong>Chases</strong>, and the collapsed <strong>Groups</strong> header. These boxes can be dragged, collapsed, and reopened. The Steps box can also be resized; its action buttons stay sticky at the top while the step list scrolls.</p>
+<p>The Chaser page creates step-based sequences. The main page stays focused on <strong>Participating Controls</strong> and <strong>Edit Step</strong>, while the repeated working tools sit in the <strong>Toolboxes</strong> sidebar.</p>
+<p>The Chaser screenshot is captured with the important boxes visible on purpose: <strong>Groups</strong>, <strong>Chases</strong>, <strong>Steps</strong>, and <strong>Browser Playback</strong>. Toolbox headers can be dragged up or down to reorder them in the sidebar. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.</p>
 <h3 id="basic-workflow">Basic Workflow</h3>
 <ol>
 <li>Open <strong>Chaser</strong>.</li>
 <li>Select participating fixture controls.</li>
-<li>Create steps manually or capture values from the Fixture Controller.</li>
+<li>Create steps with <strong>Add step</strong>, <strong>Capture + Add</strong>, or <strong>Capture from FC</strong>.</li>
 <li>Set step duration and fade in <strong>Edit Step</strong>.</li>
-<li>Store the chase in the <strong>Chases</strong> hover box if you want quick recall.</li>
+<li>Store the chase in the <strong>Chases</strong> toolbox if you want quick recall.</li>
 <li>Test timing in <strong>Browser Playback</strong>.</li>
-<li>Upload the preset to a Pico slot.</li>
+<li>Upload the current chase to a Pico slot.</li>
 <li>Play the slot from the Pico.</li>
 </ol>
-<h3 id="chaser-hover-boxes">Chaser Hover Boxes</h3>
-<p>The Chaser page uses several floating boxes:</p>
+<h3 id="toolbox-sidebar">Toolbox Sidebar</h3>
+<p>Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on desktop-sized screens.</p>
+<ul>
+<li>Drag the vertical resize line on the left edge of the sidebar to change its width.</li>
+<li>The sidebar width is shared across all toolbox pages.</li>
+<li>Double-click the resize line to reset the default width.</li>
+<li>Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.</li>
+<li>Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens.</li>
+<li>On narrow screens, the sidebar changes into a bottom toolbox drawer.</li>
+</ul>
+<p>The Chaser page uses several toolboxes:</p>
 <ul>
 <li><strong>Groups</strong> filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.</li>
-<li><strong>Chases</strong> stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.</li>
-<li><strong>Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.</li>
-<li><strong>Browser Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico.</li>
 </ul>
-<p>Loading a chase from the <strong>Chases</strong> box updates the step list, participating controls, and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
-<p>The <strong>Compact</strong> button is only shown on <strong>Steps</strong> and <strong>Browser Playback</strong>. It switches those two boxes into a compact mode: the box whose <strong>Compact</strong> button was pressed stays in place, the other box is pulled next to it, and both boxes collapse to their headers. In compact mode, dragging either header moves both boxes together as one pair. Press <strong>Compact</strong> again to restore their previous positions and reopen both boxes.</p>
-<p>The <strong>Chases</strong> box stays independent and does not have a <strong>Compact</strong> button.</p>
-<p>The position, collapse state, compact-pair state, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
+<p><img src="screenshots/chaser-toolbox-groups.png" alt="Chaser Groups toolbox"></p>
+<ul>
+<li><strong>Chases</strong> stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.</li>
+<li>The <strong>Visual</strong> button in <strong>Chases</strong> sets a background color and optional drawn/uploaded visual for chase slots. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-chases.png" alt="Chaser Chases toolbox"></p>
+<ul>
+<li><strong>Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-steps.png" alt="Chaser Steps toolbox"></p>
+<ul>
+<li><strong>Fan Out</strong> is a live step-shaping tool. It works on the currently selected step and writes directly into <strong>Edit Step</strong> as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.</li>
+<li><strong>Fan Out control selection</strong> is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step&#39;s participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.</li>
+<li><strong>Invert</strong> reverses the fixture order for the Fan Out calculation. Use it when the spread shape is right but should run from the opposite side of the fixture row.</li>
+<li><strong>Fan Out base values</strong> come from the values currently displayed in <strong>Edit Step</strong>. Selecting another step, loading another chase, capturing values, or using <strong>Group Edit</strong> refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.</li>
+<li><strong>Clear</strong> in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.</li>
+<li>Editing <strong>Edit Step</strong>, using <strong>Group Edit</strong>, and changing <strong>Fan Out</strong> sends the changed selected-step values to the Pico immediately. Browser playback sends the current chase continuously while it runs.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-fanout.png" alt="Chaser Fan Out toolbox"></p>
+<ul>
+<li><strong>Browser Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico. The <strong>Fade % (all steps)</strong> field applies one fade value to every step immediately. Use <strong>Edit Step &gt; Fade %</strong> when one step needs its own fade value.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-browser-playback.png" alt="Chaser Browser Playback toolbox"></p>
+<p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
+<p>The collapse state, toolbox order, shared sidebar width, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
+<h3 id="steps-toolbox-buttons">Steps Toolbox Buttons</h3>
+<p>The <strong>Steps</strong> toolbox uses shared action buttons instead of per-step buttons. Click a step card to select the step first; the selected step is highlighted and loaded into <strong>Edit Step</strong>.</p>
+<ul>
+<li><strong>Add step</strong> creates a new selected step from the stored default values of the currently participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback.</li>
+<li><strong>Capture + Add</strong> creates a new selected step only when Fixture Controller live values exist for at least one currently participating control. If no matching live values are available, no empty step is created.</li>
+<li><strong>Clear Steps</strong> deletes all current working steps after confirmation. It does not delete saved Chases toolbox entries or Pico slot payloads.</li>
+<li><strong>Dupe</strong> duplicates the selected step directly after itself and selects the copy.</li>
+<li><strong>Up</strong> and <strong>Down</strong> move the selected step in the step order and keep the same step loaded in <strong>Edit Step</strong>.</li>
+<li><strong>Delete</strong> removes the selected step. If another step remains, it becomes the selected step.</li>
+</ul>
 <h3 id="participating-controls">Participating Controls</h3>
 <p>Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.</p>
+<p><img src="screenshots/chaser-participating-controls.png" alt="Chaser Participating Controls"></p>
 <p>For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.</p>
-<p>If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups hover box, only fixtures from those groups are shown. The <strong>All</strong>, <strong>None</strong>, <strong>Only</strong>, and <strong>Add</strong> tools let you quickly build a participating-control set for the selected group.</p>
+<p>If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown. The <strong>All</strong>, <strong>None</strong>, <strong>Only</strong>, and <strong>Add</strong> tools let you quickly build a participating-control set for the selected group.</p>
+<p><strong>Group Edit</strong> edits the current participating-control scope. If one or more groups are selected, it applies only to matching fixtures in those groups. If no group is selected, it uses the fixtures that participate in the selected step. It does not require every profile control to be active. For example, if only Dimmer is selected as a participating control, Group Edit opens with Dimmer only and applies it to matching fixtures in the current edit scope.</p>
+<h3 id="chaser-selection-rules">Chaser Selection Rules</h3>
+<p>The Chaser page has two different selection modes: defining a new participating-control set, and editing or recalling an existing step. They intentionally behave differently.</p>
+<p>When you define participating controls manually:</p>
+<ul>
+<li>If no group is selected, the Participating Controls panel shows all patched fixtures.</li>
+<li>If one or more groups are selected, the panel is filtered to the fixtures in those groups.</li>
+<li><strong>All</strong> selects every currently visible control.</li>
+<li><strong>None</strong> clears the participating-control selection and collapses the fixture list.</li>
+<li>The control dropdown plus <strong>Only</strong> selects one matching control type for the selected groups and clears all other controls.</li>
+<li>The control dropdown plus <strong>Add</strong> adds one matching control type for the selected groups without clearing existing participating controls.</li>
+</ul>
+<p>When you click a step in the <strong>Steps</strong> toolbox:</p>
+<ul>
+<li>The step values are checked against the current fixture setup.</li>
+<li>Invalid fixture/control references are removed from the edited step.</li>
+<li>The Participating Controls panel is rebuilt from the chase values.</li>
+<li>If no group is selected, only fixtures and controls that are actually stored in the selected step are shown, and <strong>Group Edit</strong> becomes available when at least one participating control can be edited on two or more involved fixtures.</li>
+<li>If a group is selected, the selected step is filtered to that group and <strong>Group Edit</strong> uses the grouped fixtures as its edit scope.</li>
+<li>The Edit Step card shows the same scoped fixture/control set, so editing Step 2 cannot accidentally show or edit unrelated controls from another group or old filter.</li>
+</ul>
+<p>When you click a saved chase in the <strong>Chases</strong> toolbox:</p>
+<ul>
+<li>The selected Groups filter is cleared first.</li>
+<li>The saved steps, playback settings, and browser playback settings are loaded.</li>
+<li>The first step becomes the edited step.</li>
+<li>Participating Controls and Edit Step are rebuilt from that loaded step.</li>
+<li>If the saved chase was made before fixtures were repatched, the page tries to remap old fixture IDs to the current setup by matching the same fixture profile in DMX start-address order.</li>
+<li>If no valid step values can be found, the page falls back to the saved participating-control map stored with the chase.</li>
+</ul>
+<p>This means group selection is a tool for building, filtering, and group-editing a step. Loading a saved chase clears the group filter because the recalled chase data becomes the source of truth. After recall, <strong>Group Edit</strong> can still become available without a selected group because it uses the fixtures participating in the selected step.</p>
+<h3 id="create-chase-steps">Create Chase Steps</h3>
+<p>A chase step stores values for the selected <strong>Participating Controls</strong>. It does not store every patched fixture automatically.</p>
+<p>To create a step manually:</p>
+<p><img src="screenshots/chaser-edit-step.png" alt="Chaser Edit Step"></p>
+<ol>
+<li>Select the controls that should participate in <strong>Participating Controls</strong>.</li>
+<li>In the <strong>Steps</strong> toolbox, click <strong>Add step</strong>.</li>
+<li>Click the new step in the <strong>Steps</strong> list.</li>
+<li>In <strong>Edit Step</strong>, set <strong>Label</strong>, <strong>Duration (ms)</strong>, and <strong>Fade %</strong>.</li>
+<li>Adjust the controls shown in <strong>Edit Step</strong>. Those control values are written into the selected step and sent to the Pico immediately.</li>
+<li>Click <strong>Apply</strong> after changing the label, duration, or fade.</li>
+</ol>
+<p><strong>Add step</strong> starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.</p>
+<p>After <strong>Add step</strong> or <strong>Capture + Add</strong>, the first fixture in the new step is automatically marked as the <strong>Source</strong> fixture in <strong>Edit Step</strong>. Click another fixture card in <strong>Edit Step</strong> to make it the Source fixture. Group Edit uses the Source fixture&#39;s current step values as its starting values before writing changes to the matching participating fixtures.</p>
+<p>To capture a new step from the Fixture Controller:</p>
+<ol>
+<li>Open <strong>Fixture Controller</strong> in another browser tab or window.</li>
+<li>Build the look there by moving controls, recalling a scene, or recalling a palette.</li>
+<li>Return to <strong>Chaser</strong>.</li>
+<li>Make sure <strong>Participating Controls</strong> contains the controls you want to capture.</li>
+<li>In the <strong>Steps</strong> toolbox, click <strong>Capture + Add</strong>.</li>
+</ol>
+<p><strong>Capture + Add</strong> creates a new step and copies the current Fixture Controller live values for the selected participating controls.</p>
+<p>To capture into an existing step:</p>
+<ol>
+<li>Click the step in the <strong>Steps</strong> list.</li>
+<li>Build the wanted look in <strong>Fixture Controller</strong>.</li>
+<li>Return to <strong>Chaser</strong>.</li>
+<li>In <strong>Edit Step</strong>, click <strong>Capture from FC</strong>.</li>
+</ol>
+<p><strong>Capture from FC</strong> updates the selected step with the current Fixture Controller live values for the selected participating controls.</p>
 <h3 id="capture-from-fixture-controller">Capture From Fixture Controller</h3>
 <p>Use <strong>Capture from FC</strong> or <strong>Capture + Add</strong> to read the current Fixture Controller live values and use them as chase step values.</p>
 <p>This is useful when you want to build a chase visually:</p>
@@ -286,8 +462,10 @@ strong { color: #ffffff; }
 <li>Change the look.</li>
 <li>Capture the next step.</li>
 </ol>
+<p>If Chaser reports that no Fixture Controller values are available, open the Fixture Controller page and move a control or recall a scene first. Capture only reads controls that are selected as participating controls, so unselected controls are ignored.</p>
 <h3 id="pico-slot-playback">Pico Slot Playback</h3>
 <p>Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open.</p>
+<p><img src="screenshots/chaser-pico-playback.png" alt="Chaser Pico Playback"></p>
 <p>Supported playback options:</p>
 <ul>
 <li>Single run</li>
@@ -320,29 +498,7 @@ strong { color: #ffffff; }
 <li>Start the slot.</li>
 </ol>
 <p>The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.</p>
-<h2 id="6-fan-out">6. Fan Out</h2>
-<p><img src="screenshots/fan-out.png" alt="Fan Out"></p>
-<p>Fan Out spreads one selected control across an ordered fixture group.</p>
-<p>Typical uses:</p>
-<ul>
-<li>Pan fan</li>
-<li>Tilt fan</li>
-<li>Zoom spread</li>
-<li>Dimmer gradient</li>
-<li>Any other offset across fixtures</li>
-</ul>
-<h3 id="basic-workflow-2">Basic Workflow</h3>
-<ol>
-<li>Open <strong>Fan Out</strong>.</li>
-<li>Create or select a fan group.</li>
-<li>Add fixtures in the desired order.</li>
-<li>Select the control to fan, for example Pan.</li>
-<li>Snapshot or refresh the base values.</li>
-<li>Adjust the spread.</li>
-</ol>
-<p>Fan Out adds offsets on top of the current base values. This keeps the fan relative to the current fixture positions.</p>
-<p>The Fan Out page also includes the scene toolbox, so fan looks can be saved and recalled as scenes.</p>
-<h2 id="7-gpio-control">7. GPIO Control</h2>
+<h2 id="6-gpio-control">6. GPIO Control</h2>
 <p><img src="screenshots/gpio-control.png" alt="GPIO Control"></p>
 <p>GPIO Control maps physical Pico inputs to lighting actions.</p>
 <p>Digital GPIO pins can trigger:</p>
@@ -393,7 +549,7 @@ strong { color: #ffffff; }
 <li>1/16 beat</li>
 </ul>
 <p>The firmware ignores very long gaps between taps so stopping for a while does not create an extremely slow tempo when tapping resumes.</p>
-<h2 id="8-benchmark">8. Benchmark</h2>
+<h2 id="7-benchmark">7. Benchmark</h2>
 <p><img src="screenshots/benchmark.png" alt="Benchmark"></p>
 <p>The Benchmark page tests Pico HTTP and DMX update performance.</p>
 <p>Use it to compare:</p>
@@ -414,20 +570,20 @@ strong { color: #ffffff; }
 <li>Errors</li>
 </ul>
 <p>Use <strong>Export CSV</strong> to save results for later comparison.</p>
-<h2 id="9-backup-and-import">9. Backup and Import</h2>
+<h2 id="8-backup-and-import">8. Backup and Import</h2>
 <p>Most setup data is stored as JSON files on the XAMPP server in the <code>data/</code> folder.</p>
 <p>The UI also offers export/import buttons for:</p>
 <ul>
 <li>Fixture setup</li>
 <li>Groups</li>
 <li>Scenes</li>
+<li>Palettes</li>
 <li>Chaser setup</li>
 <li>Motion FX setup</li>
-<li>Fan Out setup</li>
 <li>GPIO setup</li>
 </ul>
 <p>Use JSON export before large changes so a known-good setup can be restored later.</p>
-<h2 id="10-clear-functions">10. Clear Functions</h2>
+<h2 id="9-clear-functions">9. Clear Functions</h2>
 <p>There are two different clear actions:</p>
 <table>
 <thead><tr><th>Action</th><th>What it clears</th><th>When to use</th></tr></thead><tbody>
@@ -464,7 +620,7 @@ strong { color: #ffffff; }
 <li>For ADC, use only GPIO26, GPIO27, or GPIO28.</li>
 </ul>
 <h3 id="a-chaser-has-more-than-32-steps">A chaser has more than 32 steps</h3>
-<p>The firmware supports 32 steps per chaser slot. Keep the UI preset within this limit before uploading to the Pico.</p>
+<p>The firmware supports 32 steps per chaser slot. Keep the chase within this limit before uploading to the Pico.</p>
 </main>
 </body>
 </html>
