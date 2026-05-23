@@ -490,6 +490,8 @@ The **Effect** dropdown is target-aware. It only shows effects that make sense f
 
 The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.
 
+The Motion FX page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. Palette creation and visual editing still happen on the Fixture Controller; Motion recalls, imports, and exports the shared palette JSON.
+
 ### Pico Motion Slots
 
 The Pico Motion slot upload now uses the same selected **Effect target** as the browser page.
@@ -509,8 +511,9 @@ For scalar targets, set the current value first, then upload/start the slot. For
 3. Open Motion FX.
 4. Select one **Effect target**.
 5. Set BPM, effect shape, amplitude, and spread in the **Effect Parameters** toolbox.
-6. Upload the effect to a Pico slot and start the slot when you want autonomous playback without browser timing jitter.
-7. Use browser playback from the **Effect Parameters** toolbox when you want quick live testing before uploading.
+6. Optionally recall a palette from the **Palettes** toolbox to set the center for the selected target.
+7. Upload the effect to a Pico slot and start the slot when you want autonomous playback without browser timing jitter.
+8. Use browser playback from the **Effect Parameters** toolbox when you want quick live testing before uploading.
 
 The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.
 

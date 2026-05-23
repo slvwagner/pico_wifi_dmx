@@ -496,6 +496,7 @@ strong { color: #ffffff; }
 <p>Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the <strong>Effect Parameters</strong> toolbox.</p>
 <p>The <strong>Effect</strong> dropdown is target-aware. It only shows effects that make sense for the selected <strong>Effect target</strong>.</p>
 <p>The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.</p>
+<p>The Motion FX page also includes the shared <strong>Palettes</strong> toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. Palette creation and visual editing still happen on the Fixture Controller; Motion recalls, imports, and exports the shared palette JSON.</p>
 <h3 id="pico-motion-slots">Pico Motion Slots</h3>
 <p>The Pico Motion slot upload now uses the same selected <strong>Effect target</strong> as the browser page.</p>
 <ul>
@@ -513,6 +514,7 @@ strong { color: #ffffff; }
 <li>Open Motion FX.</li>
 <li>Select one <strong>Effect target</strong>.</li>
 <li>Set BPM, effect shape, amplitude, and spread in the <strong>Effect Parameters</strong> toolbox.</li>
+<li>Optionally recall a palette from the <strong>Palettes</strong> toolbox to set the center for the selected target.</li>
 <li>Upload the effect to a Pico slot and start the slot when you want autonomous playback without browser timing jitter.</li>
 <li>Use browser playback from the <strong>Effect Parameters</strong> toolbox when you want quick live testing before uploading.</li>
 </ol>

@@ -211,7 +211,7 @@ The repeated page tools now live in a shared right-side Toolboxes sidebar on des
 
 The Motion FX page creates continuous effects for one selected target type at a time. Pan/tilt targets can run circle, figure-8, pan swing, or tilt swing; scalar controls such as dimmer, zoom, iris, prism, or gobo can run sine or pulse effects. All effects are calculated relative to the current scene/base-buffer value instead of using a fixed stored center point.
 
-This means the normal workflow is: recall or set the base value first, then start the effect. The firmware reads the center from the scene base buffer and the motion oscillator moves around that value. Motion FX can also be uploaded into one of 64 Pico slots so multiple effects can run directly on the Pico without browser timing jitter.
+This means the normal workflow is: recall or set the base value first, then start the effect. The firmware reads the center from the scene base buffer and the motion oscillator moves around that value. Motion FX can also be uploaded into one of 64 Pico slots so multiple effects can run directly on the Pico without browser timing jitter. The Motion page can recall compatible shared palettes as effect centers, so position, dimmer, beam, or other scalar palettes can seed the current target before upload.
 
 **GPIO Control**
 
