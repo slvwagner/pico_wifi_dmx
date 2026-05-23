@@ -402,6 +402,8 @@ If no group is selected, all patched fixtures are available. If one or more grou
 
 The fixtures may use different profiles; the modal only shows matching controls that are actually selected as participating controls and exist on at least two fixtures. For example, if only Dimmer is selected, Group Edit opens with Dimmer only and applies it to every involved fixture that has a matching Dimmer control.
 
+Group Edit uses the **Source** fixture from **Edit Step** as the reference value. Opening the modal does not automatically overwrite the other fixtures. Use **Apply source** on one control to copy that Source value to all matching participating fixtures for that control only. Use **All** at the lower-left of the modal to copy the Source values for every editable control in the modal.
+
 ### Chaser Selection Rules
 
 The Chaser page has two different selection modes: defining a new participating-control set, and editing or recalling an existing step. They intentionally behave differently.

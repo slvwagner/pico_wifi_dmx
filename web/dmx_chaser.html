@@ -258,7 +258,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <button id="closeChaserGroupModal" class="collapse-btn">x</button>
 </div>
 <div id="chaserGroupModalBody" class="modal-body"></div>
-<div class="buttons">
+<div class="buttons" style="justify-content:space-between">
+<button id="chaserGroupApplyAllSource">All</button>
 <button id="closeChaserGroupModal2">Close</button>
 </div>
 </div>
@@ -649,7 +650,22 @@ function getChaserGroupValue(c){
   }
   return defaultValue(c);
 }
+function getChaserGroupSourceValue(c){
+  const key=chaserGroupKey(c);
+  const fx=chaserGroupEditFixtures();
+  const sourceId=ensureSourceFixture();
+  const source=fx.find(f=>String(f.id)===String(sourceId));
+  if(source){
+    const mc=findChaserGroupControl(source,key);
+    if(mc&&isChaserGroupControlParticipating(source,mc)){
+      const v=getStepVal(source,mc);
+      return v!==undefined?JSON.parse(JSON.stringify(v)):defaultValue(mc);
+    }
+  }
+  return defaultValue(c);
+}
 function setChaserGroupValue(c,val){
+  stopPlaybackForManualEdit();
   if(selectedStepIdx<0&&steps.length<CHASER_MAX_STEPS){
     const initial={};
     getParticipatingList().forEach(({f,c:pc})=>{initial[controlKey(f,pc)]=defaultValue(pc);});
@@ -666,6 +682,14 @@ function setChaserGroupValue(c,val){
     if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
   });
 }
+function applyChaserGroupSourceValue(c,options={}){
+  setChaserGroupValue(c,getChaserGroupSourceValue(c));
+  if(!options.deferRefresh){
+    updateChaserGroupControlDisplay(c);
+    drawStepEditor();
+    refreshFanBasesFromStep();
+  }
+}
 function renderChaserGroupControl(c){
   const key=chaserGroupDataKey(c),gca=`data-cg="${key}"`;
   const v=getChaserGroupValue(c);
@@ -678,7 +702,7 @@ function renderChaserGroupControl(c){
       <label>Tilt coarse <span data-cg-byte="${key}" data-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
       <label>Tilt fine <span data-cg-byte="${key}" data-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
     </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
       <div class="xy-pad" data-cgxy="${key}"><div class="xy-dot" style="left:${(v.pan??Math.round(max/2))/max*100}%;top:${100-(v.tilt??Math.round(max/2))/max*100}%"></div></div>
       <div class="row"><span class="readout" data-cg-readout="${key}">Pan ${Math.round(v.pan??Math.round(max/2))} · Tilt ${Math.round(v.tilt??Math.round(max/2))}</span><button ${gca} data-cg-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.pan??Math.round(max/2))}" ${gca} data-axis="pan"></label>
@@ -689,7 +713,7 @@ function renderChaserGroupControl(c){
     const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
       <label>Color<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
       ${parts.map((part,i)=>`<label>${names[i]} <span data-cg-part="${key}" data-part="${part}">${Math.round(v[part]??0)}</span><input type="range" min="0" max="255" value="${Math.round(v[part]??0)}" ${gca} data-part="${part}"></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-cg-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-cg-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-cg-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-cg-color="#0000ff" ${gca}></button></div></div>`;
@@ -697,7 +721,7 @@ function renderChaserGroupControl(c){
   if(c.type==='wheel'){
     const wv=v??0;
     const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
       <div class="tabs">${(c.options||[]).map(o=>`<button class="tab${o.value===wv?' active':''}" data-cg-wheel="${o.value}" ${gca}>${icon(o)}${o.name}</button>`).join('')}</div>
       <input type="range" min="0" max="255" value="${wv}" ${gca}></div>`;
   }
@@ -707,7 +731,7 @@ function renderChaserGroupControl(c){
       <label>Coarse <span data-cg-byte="${key}" data-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
       <label>Fine <span data-cg-byte="${key}" data-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
     </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span></div>
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
     <input type="range" min="0" max="${max}" step="1" value="${Math.round(sv)}" ${gca}>${extra}</div>`;
 }
 function updateChaserGroupControlDisplay(c){
@@ -1503,6 +1527,11 @@ function handleChaserGroupInput(e){
 
 function handleChaserGroupClick(e){
   const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
+  if(e.target.dataset.cgApplySource){
+    applyChaserGroupSourceValue(c);
+    setStatus('Source value applied to '+c.label);
+    return;
+  }
   if(e.target.dataset.cgCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
     setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();return;
@@ -1533,6 +1562,15 @@ function setChaserGroupXY(e,pad){
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
 document.getElementById('closeChaserGroupModal2').onclick=closeChaserGroupModal;
+document.getElementById('chaserGroupApplyAllSource').onclick=()=>{
+  const controls=getChaserGroupEditableControls();
+  if(!controls.length)return;
+  controls.forEach(c=>applyChaserGroupSourceValue(c,{deferRefresh:true}));
+  controls.forEach(c=>updateChaserGroupControlDisplay(c));
+  drawStepEditor();
+  refreshFanBasesFromStep();
+  setStatus('Source values applied to '+controls.length+' control'+(controls.length===1?'':'s'));
+};
 document.getElementById('chaserGroupModal').addEventListener('click',e=>{if(e.target===document.getElementById('chaserGroupModal'))closeChaserGroupModal();});
 const chaserGroupModalBody=document.getElementById('chaserGroupModalBody');
 chaserGroupModalBody.oninput=handleChaserGroupInput;
