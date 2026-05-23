@@ -263,6 +263,8 @@ Group selection is shared across toolbox pages that use the Groups toolbox. It i
 
 The Group Edit modal only shows controls that exist on all selected fixtures. This prevents accidentally sending values to fixtures with incompatible control layouts.
 
+If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, **Group Edit** uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.
+
 Use **Default all** or **Blackout all** to recall the stored default or blackout values for every fixture in the selected group.
 
 ## 4. Chaser
@@ -314,6 +316,8 @@ Participating controls define which fixture controls belong to the chase. This k
 For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.
 
 If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown. The **All**, **None**, **Only**, and **Add** tools let you quickly build a participating-control set for the selected group.
+
+When a group is selected, **Group Edit** edits the current participating-control scope. It does not require every profile control to be active. For example, if only Dimmer is selected as a participating control, Group Edit opens with Dimmer only and applies it to matching fixtures in the selected group.
 
 ### Chaser Selection Rules
 

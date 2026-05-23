@@ -382,6 +382,7 @@ const patchProfile=document.getElementById('patchProfile');
 const patchedEl=document.getElementById('patched');
 const surfaceEl=document.getElementById('surface');
 let sceneFixtureFilterActive=false;
+let activeControlScopeKeys=new Set();
 
 function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
@@ -1723,6 +1724,42 @@ function getGroupCommonControls(){
   const first=fixtureProfile(fxList[0])?.controls||[];
   return first.filter(c=>fxList.every(f=>!!(fixtureProfile(f)?.controls||[]).find(cc=>groupKey(cc)===groupKey(c))));
 }
+function getActiveGroupControlScope(){
+  if(fanAffectedKeys.size)return fanAffectedKeys;
+  if(activeControlScopeKeys.size)return activeControlScopeKeys;
+  return null;
+}
+function isGroupControlInScope(f,c){
+  const scope=getActiveGroupControlScope();
+  if(!scope)return true;
+  return scope.has(controlKey(f,c));
+}
+function getGroupEditableControls(){
+  const fxList=[...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
+  if(fxList.length<2)return[];
+  const scope=getActiveGroupControlScope();
+  if(!scope)return getGroupCommonControls();
+  const controls=new Map();
+  fxList.forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      if(!scope.has(controlKey(f,c)))return;
+      const key=groupKey(c);
+      if(!controls.has(key))controls.set(key,{control:c,count:0});
+      controls.get(key).count++;
+    });
+  });
+  return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
+}
+function firstSelectedFixtureWithGroupControl(c){
+  const key=groupKey(c);
+  for(const id of selectedFixtureIds){
+    const f=fixtures.find(fx=>fx.id===id);if(!f)continue;
+    const fc=findMatchingControl(f,key);
+    if(fc&&isGroupControlInScope(f,fc))return{fixture:f,control:fc};
+  }
+  return null;
+}
 function getGroupValue(c){
   const key=groupKey(c);
   if(groupValues[key]===undefined)groupValues[key]=defaultValueForControl(c);
@@ -1733,6 +1770,7 @@ function setGroupValue(c,v){
   [...selectedFixtureIds].forEach(id=>{
     const f=fixtures.find(fx=>fx.id===id);if(!f)return;
     const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    if(!isGroupControlInScope(f,fc))return;
     setValue(f,fc,v);
   });
 }
@@ -1747,6 +1785,7 @@ async function sendGroupControl(c){
   [...selectedFixtureIds].forEach(id=>{
     const f=fixtures.find(fx=>fx.id===id);if(!f)return;
     const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
+    if(!isGroupControlInScope(f,fc))return;
     resolveDmxBytes(f,fc).forEach(({ch,val})=>pairs.push(ch+':'+val));
   });
   if(!pairs.length)return;
@@ -1758,9 +1797,10 @@ function updateGroupBar(){
   const n=selectedFixtureIds.size;
   const activeGroups=selectedSavedGroups();
   bar.style.display='flex';
-  const common=getGroupCommonControls();
+  const common=getGroupEditableControls();
+  const scoped=!!getActiveGroupControlScope();
   const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:'';
-  const note=n>1?(' · '+common.length+' common control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
+  const note=n>1?(' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
   const label=n?`<strong>${n} fixture${n>1?'s':''} selected</strong>${note}`:'<strong>No fixtures selected</strong>';
   bar.innerHTML=`<span>${label}</span>${scope}<button class="primary" id="openGroupEdit"${n>1&&common.length?'':' disabled'}>Group Edit</button><button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
   document.getElementById('openGroupEdit').onclick=()=>{if(n>1&&common.length)openGroupModal();};
@@ -1771,6 +1811,7 @@ function clearGroupSelection(){
   selectedFixtureIds.clear();
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
   fanState.bases={};
   fanAffectedKeys.clear();
   DmxCommon.saveSharedGroupSelection([]);
@@ -1875,11 +1916,15 @@ function updateGroupControlDisplay(c){
   }
 }
 function openGroupModal(){
-  const common=getGroupCommonControls();if(!common.length)return;
-  const firstFx=fixtures.find(f=>selectedFixtureIds.has(f.id));
-  if(firstFx)common.forEach(c=>{const key=groupKey(c);if(groupValues[key]===undefined)groupValues[key]=getValue(firstFx,c,defaultValueForControl(c));});
+  const common=getGroupEditableControls();if(!common.length)return;
+  common.forEach(c=>{
+    const match=firstSelectedFixtureWithGroupControl(c);
+    const key=groupKey(c);
+    if(match&&groupValues[key]===undefined)groupValues[key]=cloneValue(getValue(match.fixture,match.control,defaultValueForControl(c)));
+  });
   const n=selectedFixtureIds.size;
-  document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' · '+common.length+' common control'+(common.length===1?'':'s');
+  const scoped=!!getActiveGroupControlScope();
+  document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s');
   document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
   document.getElementById('groupModal').style.display='flex';
 }
@@ -1889,12 +1934,14 @@ document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
 async function recallGroupFixtureValues(which){
   const ids=[...selectedFixtureIds];
+  const editableKeys=new Set(getGroupEditableControls().map(c=>groupKey(c)));
   const errors=[];
   let controls=0;
   for(const id of ids){
     const f=fixtures.find(fx=>fx.id===id);if(!f)continue;
     const p=fixtureProfile(f);if(!p)continue;
     for(const c of p.controls){
+      if(!editableKeys.has(groupKey(c))||!isGroupControlInScope(f,c))continue;
       const v=c[which];
       if(v===null||v===undefined)continue;
       controls++;
@@ -1904,7 +1951,7 @@ async function recallGroupFixtureValues(which){
     }
   }
   writeLiveValues();
-  const common=getGroupCommonControls();
+  const common=getGroupEditableControls();
   syncGroupValuesFromFirstSelected(common);
   common.forEach(c=>updateGroupControlDisplay(c));
   const label=which==='defaultValue'?'default':'blackout';
@@ -1915,13 +1962,13 @@ async function recallGroupFixtureValues(which){
 document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue');
 document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
 document.getElementById('sendGroupBtn').onclick=()=>{
-  const common=getGroupCommonControls();
+  const common=getGroupEditableControls();
   Promise.all(common.map(c=>sendGroupControl(c))).catch(err=>setStatus(err.message,true));
 };
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
   const key=e.target.dataset.gc;if(!key)return;
-  const common=getGroupCommonControls();
+  const common=getGroupEditableControls();
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
   let v=getGroupValue(c);
   if(e.target.dataset.colorPicker){
@@ -1946,7 +1993,7 @@ groupModalBody.oninput=e=>{
 };
 groupModalBody.addEventListener('click',e=>{
   const key=e.target.dataset.gc;if(!key)return;
-  const common=getGroupCommonControls();
+  const common=getGroupEditableControls();
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
   if(e.target.dataset.gcCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
@@ -1976,7 +2023,7 @@ groupModalBody.addEventListener('pointermove',e=>{
 });
 function setGroupXY(e,pad){
   const key=pad.dataset.gxy;
-  const common=getGroupCommonControls();
+  const common=getGroupEditableControls();
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
   const r=pad.getBoundingClientRect();
   const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
@@ -2007,6 +2054,8 @@ surfaceEl.addEventListener('click',e=>{
   if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  fanAffectedKeys.clear();
   renderSavedGroupsList();
   drawSurface();
 },true);
@@ -2036,8 +2085,10 @@ function applySharedGroupSelection(ids){
   const wanted=new Set((Array.isArray(ids)?ids:[]).filter(Boolean).map(String));
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
   savedGroups.forEach((g,i)=>{if(wanted.has(String(g.id)))activeSavedGroupIds.add(savedGroupKey(g,i));});
   fanState.bases={};
+  fanAffectedKeys.clear();
   rebuildSelectionFromSavedGroups();
 }
 function rebuildSelectionFromSavedGroups(){
@@ -2106,7 +2157,7 @@ function updateGroupActionButtons(){
   const editBtn=document.getElementById('editSelectedGroups');
   if(renameBtn)renameBtn.disabled=selected.length!==1;
   if(deleteBtn)deleteBtn.disabled=selected.length===0;
-  if(editBtn)editBtn.disabled=selected.length===0||selectedFixtureIds.size<2||!getGroupCommonControls().length;
+  if(editBtn)editBtn.disabled=selected.length===0||selectedFixtureIds.size<2||!getGroupEditableControls().length;
 }
 function saveSavedGroupsToServer(){
   fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups})})
@@ -2160,7 +2211,9 @@ function toggleGroup(i){
   const key=savedGroupKey(g,i);
   if(activeSavedGroupIds.has(key))activeSavedGroupIds.delete(key);else activeSavedGroupIds.add(key);
   sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
   fanState.bases={};
+  fanAffectedKeys.clear();
   rebuildSelectionFromSavedGroups();
   DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
   renderSavedGroupsList();
@@ -2170,7 +2223,9 @@ function loadGroup(i){
   const g=savedGroups[i];if(!g)return;
   activeSavedGroupIds.add(savedGroupKey(g,i));
   sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
   fanState.bases={};
+  fanAffectedKeys.clear();
   rebuildSelectionFromSavedGroups();
   DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
   renderSavedGroupsList();
@@ -2201,9 +2256,9 @@ function renameSelectedGroup(){
 }
 function editSelectedGroups(){
   if(selectedSavedGroupEntries().length<1)return;
-  const common=getGroupCommonControls();
+  const common=getGroupEditableControls();
   if(selectedFixtureIds.size<2||!common.length){
-    setStatus('Select a group with at least two fixtures and common controls to edit',true);
+    setStatus('Select a group with at least two matching controls to edit',true);
     return;
   }
   openGroupModal();
@@ -2543,6 +2598,7 @@ function recallScene(s){
   activeSavedGroupIds.clear();
   sceneFixtureIdsFromValues(recalledValues).forEach(id=>selectedFixtureIds.add(id));
   sceneFixtureFilterActive=selectedFixtureIds.size>0;
+  activeControlScopeKeys=new Set(Object.keys(recalledValues||{}).map(String));
   fanState.bases={};
   fanAffectedKeys.clear();
   DmxCommon.saveSharedGroupSelection([]);
@@ -2806,6 +2862,7 @@ function recallPalette(p){
   activeSavedGroupIds.clear();
   involved.forEach(id=>selectedFixtureIds.add(id));
   sceneFixtureFilterActive=true;
+  activeControlScopeKeys=new Set(Object.keys(paletteValues||{}).map(String));
   fanState.bases={};
   fanAffectedKeys.clear();
   DmxCommon.saveSharedGroupSelection([]);

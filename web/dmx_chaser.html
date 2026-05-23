@@ -386,7 +386,7 @@ chaserGroupsBox=DmxCommon.initGroupsToolbox({
   showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
-  canEdit:()=>selectedStepIdx>=0&&getChaserGroupCommonControls().length>0,
+  canEdit:()=>selectedStepIdx>=0&&getChaserGroupEditableControls().length>0,
   onEdit:()=>openChaserGroupModal(),
   onSelectionChange:()=>applyChaserGroupSelection(true)
 });
@@ -529,16 +529,36 @@ function getChaserGroupCommonControls(){
   const first=(fixtureProfile(fx[0])?.controls||[]);
   return first.filter(c=>fx.every(f=>!!findChaserGroupControl(f,chaserGroupKey(c))));
 }
+function isChaserGroupControlParticipating(f,c){
+  if(!participating[controlKey(f,c)])return false;
+  if(activeStepValueKeys instanceof Set&&!activeStepValueKeys.has(controlKey(f,c)))return false;
+  return true;
+}
+function getChaserGroupEditableControls(){
+  const fx=selectedChaserGroupFixtures();
+  if(fx.length<2)return[];
+  const controls=new Map();
+  fx.forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      if(!isChaserGroupControlParticipating(f,c))return;
+      const key=chaserGroupKey(c);
+      if(!controls.has(key))controls.set(key,{control:c,count:0});
+      controls.get(key).count++;
+    });
+  });
+  return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
+}
 function chaserGroupControlByDataKey(dataKey){
   const key=decodeURIComponent(dataKey||'');
-  return getChaserGroupCommonControls().find(c=>chaserGroupKey(c)===key)||null;
+  return getChaserGroupEditableControls().find(c=>chaserGroupKey(c)===key)||null;
 }
 function getChaserGroupValue(c){
   const key=chaserGroupKey(c);
   const fx=selectedChaserGroupFixtures();
   for(const f of fx){
     const mc=findChaserGroupControl(f,key);
-    if(!mc)continue;
+    if(!mc||!isChaserGroupControlParticipating(f,mc))continue;
     const v=getStepVal(f,mc);
     if(v!==undefined)return JSON.parse(JSON.stringify(v));
   }
@@ -548,7 +568,7 @@ function setChaserGroupValue(c,val){
   const key=chaserGroupKey(c);
   selectedChaserGroupFixtures().forEach(f=>{
     const mc=findChaserGroupControl(f,key);
-    if(mc)setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
+    if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
   });
 }
 function renderChaserGroupControl(c){
@@ -641,10 +661,10 @@ function updateChaserGroupControlDisplay(c){
 }
 function openChaserGroupModal(){
   if(selectedStepIdx<0){setStatus('Select a step before editing a group',true);return;}
-  const common=getChaserGroupCommonControls();
-  if(!common.length){setStatus('Select a group with common controls first',true);return;}
+  const common=getChaserGroupEditableControls();
+  if(!common.length){setStatus('Select a group with at least two matching participating controls first',true);return;}
   const n=selectedChaserGroupFixtures().length;
-  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s');
+  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s')+' · '+common.length+' participating control'+(common.length===1?'':'s');
   document.getElementById('chaserGroupModalBody').innerHTML=common.map(c=>renderChaserGroupControl(c)).join('');
   document.getElementById('chaserGroupModal').style.display='flex';
 }
@@ -738,6 +758,7 @@ function drawParticipation(){
   const el=document.getElementById('participationList');
   el.innerHTML='';
   drawGroupControlTools();
+  if(chaserGroupsBox?.render)chaserGroupsBox.render();
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
   const fixtures=scopedParticipationFixtures();
