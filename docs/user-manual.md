@@ -299,6 +299,7 @@ The Chaser page uses several toolboxes:
 
 - **Groups** filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.
 - **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
+- The **Visual** button in **Chases** sets a background color and optional drawn/uploaded visual for chase slots. This is only a label; loading a chase still uses the stored chase steps and playback settings.
 - **Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
 - **Browser Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico.
 

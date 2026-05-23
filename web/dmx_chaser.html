@@ -289,6 +289,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div class="buttons">
 <button id="exportChasesBtn" class="icon-btn export-btn" title="Export chases JSON"></button>
 <button id="importChasesBtn" class="icon-btn import-btn" title="Import chases JSON"></button>
+<button id="chaseVisualBtn" class="palette-merge-btn" title="Edit the chase visual">Visual</button>
 <input id="importChasesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -296,6 +297,36 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 </div>
 <div id="chaseSlotMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="chaseVisualModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Slot Visual</h2>
+<button id="chaseVisualClose" class="collapse-btn">x</button>
+</div>
+<div class="modal-body">
+<label>Target<select id="chaseVisualTarget"></select></label>
+<div id="chaseVisualColorWrap">
+<label>Background color<input id="chaseVisualColor" type="color" value="#225a50"></label>
+</div>
+<div id="chaseVisualImageWrap" class="slot-visual-editor">
+<div class="toolbar">
+<label>Upload visual<input id="chaseVisualImage" type="file" accept="image/*"></label>
+</div>
+<div class="toolbar">
+<canvas id="chaseVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+<div class="buttons"><button id="chaseVisualClear" type="button">Clear drawing</button></div>
+</div>
+<div class="small">Choose a background color, then draw or upload an optional visual on top. Both are saved inside the chases JSON.</div>
+</div>
+<div id="chaseVisualHint" class="small"></div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="chaseVisualSave" class="primary">Save visual</button>
+<button id="chaseVisualClose2">Close</button>
+</div>
 </div>
 </div>
 
@@ -1468,6 +1499,16 @@ function applyChaserData(data,redraw=true){
 let savedChases=[];
 let chaseSlotCols=4,chaseSlotRows=4;
 const CHASE_SLOT_GRID_MAX=32;
+let chaseVisualDefault=(()=>{
+  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('chaseVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  catch(_){return {type:'visual',color:'#225a50',image:''};}
+})();
+function saveChaseVisualDefault(){
+  localStorage.setItem('chaseVisualDefault',JSON.stringify(chaseVisualDefault));
+}
+function currentChaseVisualForSave(){
+  return JSON.parse(JSON.stringify(chaseVisualDefault));
+}
 function requiredChaseSlots(){
   return savedChases.reduce((max,c)=>Math.max(max,(parseInt(c.slot,10)||0)+1),0);
 }
@@ -1517,7 +1558,7 @@ function renderChaseSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const chase=savedChases.find(c=>c.slot===i);
-    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase"><button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button>${DmxCommon.escapeHtml(chase.name)}</div>`;
+    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase" style="${DmxCommon.slotVisualStyle(chase)}"><button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
     else html+=`<div class="slot" data-chase-slot="${i}" title="Click to save chase here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1541,7 +1582,7 @@ function chaseSlotClick(idx){
 function saveChaseToSlot(idx,name){
   const existing=savedChases.findIndex(c=>c.slot===idx);
   if(existing>=0)savedChases.splice(existing,1);
-  savedChases.push({id:'chase_'+Date.now(),name,slot:idx,data:currentChaseSlotData()});
+  savedChases.push({id:'chase_'+Date.now(),name,slot:idx,data:currentChaseSlotData(),visual:currentChaseVisualForSave()});
   renderChaseSlotMatrix();saveChasesServer();
   setStatus('Chase "'+name+'" saved to slot '+(idx+1));
 }
@@ -1591,10 +1632,46 @@ function importChasesJson(file){
   };
   fr.readAsText(file);
 }
+const chaseVisualEditor=DmxCommon.initSlotVisualEditor({
+  modalId:'chaseVisualModal',
+  targetId:'chaseVisualTarget',
+  colorWrapId:'chaseVisualColorWrap',
+  imageWrapId:'chaseVisualImageWrap',
+  colorInputId:'chaseVisualColor',
+  canvasId:'chaseVisualCanvas',
+  imageInputId:'chaseVisualImage',
+  clearBtnId:'chaseVisualClear',
+  hintId:'chaseVisualHint',
+  saveBtnId:'chaseVisualSave',
+  closeIds:['chaseVisualClose','chaseVisualClose2']
+});
+function openChaseVisualModal(){
+  chaseVisualEditor.open({
+    targetLabel:'Chases',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the chase slot; loading still uses the stored chase data.',
+    defaultVisual:chaseVisualDefault,
+    targets:savedChases
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+      .map(chase=>({key:String(parseInt(chase.slot,10)||0),item:chase,label:'Slot '+((parseInt(chase.slot,10)||0)+1)+': '+(chase.name||'Chase')})),
+    onSaveDefault:visual=>{
+      chaseVisualDefault=visual;
+      saveChaseVisualDefault();
+      setStatus('Default chase visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderChaseSlotMatrix();
+      saveChasesServer();
+      setStatus('Updated chase visual for "'+target.name+'"');
+    }
+  });
+}
 document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=e.target.value;normalizeChaseGrid('cols');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=e.target.value;normalizeChaseGrid('rows');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('exportChasesBtn').onclick=exportChasesJson;
 document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile').click();
+document.getElementById('chaseVisualBtn').onclick=openChaseVisualModal;
 document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
 const chaseToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaseBox',

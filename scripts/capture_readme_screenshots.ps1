@@ -14,6 +14,10 @@ $profileDir = Join-Path $env:TEMP "pico-dmx-docshots"
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
+$cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+$startUrl = $BaseUrl
+$startUrl += ($(if ($startUrl.Contains("?")) { "&" } else { "?" }) + "docshot=$cacheBust")
+
 $args = @(
     "--headless=new",
     "--remote-debugging-port=$Port",
@@ -22,7 +26,7 @@ $args = @(
     "--no-first-run",
     "--user-data-dir=$profileDir",
     "--window-size=1440,1100",
-    $BaseUrl
+    $startUrl
 )
 
 $chromeProcess = Start-Process -FilePath $chrome -ArgumentList $args -WindowStyle Hidden -PassThru
@@ -283,7 +287,7 @@ try {
 "@
     Save-Screenshot "fixture-controller-group-modal.png"
 
-    $chaserUrl = $BaseUrl.TrimEnd('/') + "/dmx_chaser.html"
+    $chaserUrl = $BaseUrl.TrimEnd('/') + "/dmx_chaser.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $chaserUrl } | Out-Null
     Start-Sleep -Seconds 2
 
