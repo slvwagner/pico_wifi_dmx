@@ -374,6 +374,8 @@ To create a step manually:
 5. Adjust the controls shown in **Edit Step**. Those control values are written into the selected step.
 6. Click **Apply** after changing the label, duration, or fade.
 
+**Add step** starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.
+
 To capture a new step from the Fixture Controller:
 
 1. Open **Fixture Controller** in another browser tab or window.
