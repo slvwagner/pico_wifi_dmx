@@ -1213,6 +1213,12 @@ function updateControlDisplay(f,c){
     el.textContent=c.type==='wheel'?'CH '+absolute(f.start,c.channel)+' · '+v:v;
   });
   document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"]:not([data-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='wheel'){
+    document.querySelectorAll(`button[data-fixture="${f.id}"][data-control="${c.id}"][data-wheel]`).forEach(el=>{
+      el.classList.toggle('active',Number(el.dataset.wheel)===Number(v));
+    });
+    return;
+  }
   if(c.type==='slider16'){
     const b=bytes16(v);
     document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
@@ -1552,7 +1558,10 @@ surfaceEl.onclick=e=>{
   }
   if(e.target.dataset.wheel!==undefined){
     setValue(f,c,clamp(e.target.dataset.wheel,0,255));
-    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
+    updateControlDisplay(f,c);
+    writeLiveValues();
+    return;
   }
   if(e.target.dataset.sendFixture)sendControl(f,c).catch(err=>setStatus(err.message,true));
 };
