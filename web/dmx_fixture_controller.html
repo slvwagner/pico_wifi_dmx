@@ -344,7 +344,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="small" id="fanScopeHint">Select a group to fan fixtures.</div>
 <label>Control<select id="fanControlSelect"></select></label>
 <label>Mode<select id="fanMode"><option value="symmetric">Symmetric spread</option><option value="range">Start to end</option></select></label>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end">
 <label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
+<button id="fanInvert" title="Reverse fixture order for Fan Out">Invert</button>
+</div>
 <div id="fanRangeWrap" style="display:none;gap:8px">
 <label>From<input id="fanFrom" type="number" value="0"></label>
 <label>To<input id="fanTo" type="number" value="0"></label>
@@ -431,7 +434,7 @@ function writeLiveValues(immediate=false){
 function fixtureProfile(f){return profiles.find(p=>p.id===f.profileId);}
 function activeProfile(){return profiles.find(profile=>profile.id===activeProfileId);}
 function channelOk(f,rel,width=1){const ch=absolute(f.start,rel);return ch>=1&&(ch+width-1)<=maxDmx;}
-const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,bases:{}};
+const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,inverted:false,bases:{}};
 let fanAffectedKeys=new Set();
 let fanPresets=[];
 function controlClass(f,c){return 'control'+(fanAffectedKeys.has(controlKey(f,c))?' fan-affected':'');}
@@ -1319,7 +1322,7 @@ function ensureFanBases(){
   });
 }
 function fanComputedValues(){
-  const ordered=fanFixtureOrder();
+  const ordered=DmxCommon.fanOrderedFixtures(fanFixtureOrder(),fanState.inverted);
   const max=fanMaxValue();
   const {controlId,axis}=parseFanControlKey();
   const count=ordered.length;
@@ -1347,12 +1350,17 @@ function renderFanToolbox(){
   document.getElementById('fanSpread').step=max>255?256:1;
   document.getElementById('fanSpread').value=clamp(fanState.spread,0,max);
   document.getElementById('fanSpreadReadout').textContent=Math.round(fanState.spread||0);
+  const invertBtn=document.getElementById('fanInvert');
+  if(invertBtn){
+    invertBtn.classList.toggle('primary',!!fanState.inverted);
+    invertBtn.textContent=fanState.inverted?'Inverted':'Invert';
+  }
   document.getElementById('fanMode').value=fanState.mode;
   document.getElementById('fanRangeWrap').style.display=fanState.mode==='range'?'flex':'none';
   document.getElementById('fanFrom').value=Math.round(fanState.fromOffset||0);
   document.getElementById('fanTo').value=Math.round(fanState.toOffset||0);
   hint.textContent=ordered.length?('Affecting '+ordered.length+' fixture'+(ordered.length===1?'':'s')+' in selected order'):'Select a saved group or fixture cards first.';
-  ['fanControlSelect','fanSpread','fanMode','fanFrom','fanTo','fanSnapshot','fanApply','fanSave','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ordered.length||!opts.length;});
+  ['fanControlSelect','fanSpread','fanInvert','fanMode','fanFrom','fanTo','fanSnapshot','fanApply','fanSave','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ordered.length||!opts.length;});
   document.getElementById('fanRecall').disabled=!fanPresets.length;
   const preview=document.getElementById('fanPreview');
   ensureFanBases();
@@ -1398,6 +1406,7 @@ function fanPresetPayload(name){
       controlKey:fanState.controlKey,
       mode:fanState.mode,
       spread:fanState.spread,
+      inverted:!!fanState.inverted,
       fromOffset:fanState.fromOffset,
       toOffset:fanState.toOffset
     }
@@ -1441,6 +1450,7 @@ function recallFanPreset(){
     DmxCommon.saveSharedGroupSelection([]);
   }
   Object.assign(fanState,preset.state||{});
+  fanState.inverted=!!fanState.inverted;
   fanState.bases={};
   fanAffectedKeys.clear();
   renderSavedGroupsList();
@@ -3026,6 +3036,7 @@ document.getElementById('fanControlSelect').addEventListener('change',e=>{
 });
 document.getElementById('fanMode').addEventListener('change',e=>{fanState.mode=e.target.value;liveFanUpdate();});
 document.getElementById('fanSpread').addEventListener('input',e=>{fanState.spread=clamp(e.target.value,0,fanMaxValue());liveFanUpdate();});
+document.getElementById('fanInvert').onclick=()=>{fanState.inverted=!fanState.inverted;liveFanUpdate();};
 document.getElementById('fanFrom').addEventListener('input',e=>{fanState.fromOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
 document.getElementById('fanTo').addEventListener('input',e=>{fanState.toOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
 document.getElementById('fanSnapshot').onclick=()=>{snapshotFanBases();setStatus('Fan Out bases snapshotted');};

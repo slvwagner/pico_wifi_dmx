@@ -210,6 +210,7 @@ strong { color: #ffffff; }
 <li>In <strong>Fan Out</strong>, choose the control to shape, for example Dimmer, Pan, Tilt, or another compatible single-value control.</li>
 <li>Click <strong>Snapshot</strong> to use the current controller values as the fan base.</li>
 <li>Adjust <strong>Spread</strong>, or use <strong>Start to end</strong> mode with From/To offsets.</li>
+<li>Use <strong>Invert</strong> when the spread direction should run through the selected fixtures in the opposite order.</li>
 <li>The Control Surface updates continuously while you change the fan values.</li>
 <li>The affected fixture controls are highlighted in the Control Surface.</li>
 <li>Save the resulting look with the Scene Toolbox if you want to keep the actual DMX look.</li>
@@ -363,6 +364,7 @@ strong { color: #ffffff; }
 <ul>
 <li><strong>Fan Out</strong> is a live step-shaping tool. It works on the currently selected step and writes directly into <strong>Edit Step</strong> as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.</li>
 <li><strong>Fan Out control selection</strong> is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step&#39;s participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.</li>
+<li><strong>Invert</strong> reverses the fixture order for the Fan Out calculation. Use it when the spread shape is right but should run from the opposite side of the fixture row.</li>
 <li><strong>Fan Out base values</strong> come from the values currently displayed in <strong>Edit Step</strong>. Selecting another step, loading another chase, capturing values, or using <strong>Group Edit</strong> refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.</li>
 <li><strong>Clear</strong> in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.</li>
 <li>If <strong>Live preview</strong> is enabled in <strong>Browser Playback</strong>, Fan Out changes are also sent to the Pico while the selected step is edited.</li>

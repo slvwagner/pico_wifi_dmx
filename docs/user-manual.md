@@ -129,9 +129,10 @@ The Fixture Controller includes a **Fan Out** toolbox in the shared Toolboxes si
 2. In **Fan Out**, choose the control to shape, for example Dimmer, Pan, Tilt, or another compatible single-value control.
 3. Click **Snapshot** to use the current controller values as the fan base.
 4. Adjust **Spread**, or use **Start to end** mode with From/To offsets.
-5. The Control Surface updates continuously while you change the fan values.
-6. The affected fixture controls are highlighted in the Control Surface.
-7. Save the resulting look with the Scene Toolbox if you want to keep the actual DMX look.
+5. Use **Invert** when the spread direction should run through the selected fixtures in the opposite order.
+6. The Control Surface updates continuously while you change the fan values.
+7. The affected fixture controls are highlighted in the Control Surface.
+8. Save the resulting look with the Scene Toolbox if you want to keep the actual DMX look.
 
 The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand. If **Live send** is enabled, the changed DMX values are also sent to the Pico.
 
@@ -322,6 +323,7 @@ The Chaser page uses several toolboxes:
 
 - **Fan Out** is a live step-shaping tool. It works on the currently selected step and writes directly into **Edit Step** as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.
 - **Fan Out control selection** is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step's participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.
+- **Invert** reverses the fixture order for the Fan Out calculation. Use it when the spread shape is right but should run from the opposite side of the fixture row.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
 - If **Live preview** is enabled in **Browser Playback**, Fan Out changes are also sent to the Pico while the selected step is edited.

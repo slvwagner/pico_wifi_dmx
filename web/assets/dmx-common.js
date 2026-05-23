@@ -21,6 +21,11 @@
     return Math.max(min,Math.min(max,isNaN(n)?min:n));
   }
 
+  function fanOrderedFixtures(fixtures,inverted=false){
+    const ordered=Array.isArray(fixtures)?fixtures.filter(Boolean).slice():[];
+    return inverted?ordered.reverse():ordered;
+  }
+
   function applyBaseUrl(input,fallback=''){
     if(!input)return '';
     input.value=localStorage.getItem(BASE_URL_KEY)||fallback||'';
@@ -883,6 +888,7 @@
     escapeHtml,
     clampInt,
     clampFloat,
+    fanOrderedFixtures,
     applyBaseUrl,
     bindBaseUrl,
     preferStoredBaseUrl,
