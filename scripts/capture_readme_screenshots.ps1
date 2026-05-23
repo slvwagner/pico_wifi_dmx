@@ -336,6 +336,7 @@ try {
 })()
 "@
     Save-Screenshot "fixture-controller-expanded.png"
+    Save-Screenshot "fixture-controller.png"
 
     Eval-Js @"
 (async()=>{
@@ -409,6 +410,29 @@ try {
     Save-ElementScreenshot "#sceneBox" "fixture-controller-toolbox-scenes.png"
     Save-ElementScreenshot "#paletteBox" "fixture-controller-toolbox-palettes.png"
     Save-ElementScreenshot "#fanToolbox" "fixture-controller-toolbox-fanout.png"
+
+    Eval-Js @"
+(async()=>{
+  docShots.setToolboxRail({collapsed:false});
+  docShots.setSceneBox({visible:true,open:true});
+  if(!Array.isArray(scenes))scenes=[];
+  if(!scenes.some(s=>parseInt(s.slot,10)===0)){
+    scenes.push({id:'doc_scene_tile',name:'Warm look',slot:0,values:{},visual:{type:'visual',color:'#305a36',image:''}});
+  }else{
+    const s=scenes.find(s=>parseInt(s.slot,10)===0);
+    s.name=s.name||'Warm look';
+    s.visual=s.visual||{type:'visual',color:'#305a36',image:''};
+  }
+  if(typeof renderSlotMatrix==='function')renderSlotMatrix();
+  await docShots.wait(200);
+  if(typeof openSceneVisualModal==='function')openSceneVisualModal(0);
+  await docShots.wait(300);
+  const name=document.getElementById('paletteVisualName');
+  if(name)name.value='Warm look';
+})()
+"@
+    Save-ElementScreenshot "#paletteVisualModal .modal" "fixture-controller-edit-tile.png"
+    Eval-Js "document.getElementById('paletteVisualClose2')?.click();"
 
     Eval-Js @"
 (async()=>{
@@ -692,6 +716,27 @@ try {
     Save-ElementScreenshot "#motionSavedEffectBox" "motion-toolbox-effects.png"
     Save-ElementScreenshot "#motionSceneBox" "motion-toolbox-scenes.png"
     Save-ElementScreenshot "#motionPaletteBox" "motion-toolbox-palettes.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(!Array.isArray(motionEffects))motionEffects=[];
+  if(!motionEffects.some(e=>parseInt(e.slot,10)===0)){
+    motionEffects.push({id:'doc_motion_effect_tile',name:'Slow circle',slot:0,recipe:{},visual:{type:'visual',color:'#365a40',image:''}});
+  }else{
+    const e=motionEffects.find(e=>parseInt(e.slot,10)===0);
+    e.name=e.name||'Slow circle';
+    e.visual=e.visual||{type:'visual',color:'#365a40',image:''};
+  }
+  if(typeof renderMotionEffectMatrix==='function')renderMotionEffectMatrix();
+  await wait();
+  if(typeof openMotionEffectVisualModal==='function')openMotionEffectVisualModal(0);
+  await wait();
+  const name=document.getElementById('motionEffectVisualName');
+  if(name)name.value='Slow circle';
+})()
+"@
+    Save-ElementScreenshot "#motionEffectVisualModal .modal" "motion-edit-tile.png"
 }
 finally {
     if ($socket) { $socket.Dispose() }

@@ -170,7 +170,12 @@ try {
       height:Math.ceil(r.height)
     });
   } else {
-    el.scrollIntoView({block:'start',inline:'nearest'});
+    const main=el.closest('main')||document.querySelector('main');
+    if(main&&main.scrollHeight>main.clientHeight){
+      main.scrollTop=Math.max(0,el.offsetTop-72);
+    }else{
+      el.scrollIntoView({block:'start',inline:'nearest'});
+    }
   }
   await wait(220);
   const rects=[el.getBoundingClientRect()];
@@ -184,10 +189,8 @@ try {
   const bottom=Math.max(...rects.map(r=>r.bottom));
   const pad=10;
   const topPad=el.classList.contains('scene-toolbox')?120:pad;
-  const scrollX=rail?0:window.scrollX;
-  const scrollY=rail?0:window.scrollY;
-  const x=Math.max(0,Math.floor(left+scrollX-pad));
-  const y=Math.max(0,Math.floor(top+scrollY-topPad));
+  const x=Math.max(0,Math.floor(left-pad));
+  const y=Math.max(0,Math.floor(top-topPad));
   const width=Math.ceil(right-left+pad*2);
   const height=Math.ceil(bottom-top+topPad+pad);
   if(width<40||height<40)throw new Error('Screenshot element is too small: '+selector);
@@ -199,7 +202,7 @@ try {
         $shot = Send-Cdp "Page.captureScreenshot" @{
             format = "png"
             fromSurface = $true
-            captureBeyondViewport = $true
+            captureBeyondViewport = $false
             clip = @{
                 x = [double]$rect.x
                 y = [double]$rect.y
@@ -264,16 +267,6 @@ try {
     chaseBox2.after(paletteBox2);
     openToolbox('chaserPaletteBox');
   }
-  if(window.DmxCommon&&typeof DmxCommon.initToolboxRail==='function'){
-    DmxCommon.initToolboxRail(document.getElementById('chaserToolboxRail'),[
-      {box:'chaserGroupsBox',type:'groups'},
-      {box:'chaseBox',type:'chases'},
-      {box:'stepsBox',type:'steps'},
-      {box:'chaserPaletteBox',type:'palettes'},
-      {box:'fanToolbox',type:'fan'},
-      {box:'browserPlaybackBox',type:'browserPlayback'}
-    ]);
-  }
   document.querySelector('main')?.scrollTo(0,0);
   window.scrollTo(0,0);
   const rail2=document.querySelector('.toolbox-rail');
@@ -307,6 +300,86 @@ try {
     Save-ElementScreenshot "#chaserPaletteBox" "chaser-toolbox-palettes.png"
     Save-ElementScreenshot "#fanToolbox" "chaser-toolbox-fanout.png"
     Save-ElementScreenshot "#browserPlaybackBox" "chaser-toolbox-browser-playback.png"
+    $expression = @'
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(!Array.isArray(savedChases))savedChases=[];
+  if(!savedChases.some(c=>parseInt(c.slot,10)===0)){
+    const fallbackData={
+      baseUrl:document.getElementById('baseUrl')?.value||'',
+      playback:{slot:0,speed:1,mode:'loop',loops:2,direction:'forward'},
+      browserPlayback:{loop:true,live:false,bpm:120,beats:1,defaultFade:0,updateRate:25},
+      participating:{},
+      steps:[]
+    };
+    savedChases.push({id:'doc_chase_tile',name:'Doc Chase',slot:0,data:fallbackData,visual:{type:'visual',color:'#7f2ac8',image:''}});
+  }else{
+    const chase=savedChases.find(c=>parseInt(c.slot,10)===0);
+    chase.name=chase.name||'Doc Chase';
+    chase.visual=chase.visual||{type:'visual',color:'#7f2ac8',image:''};
+  }
+  if(typeof renderChaseSlotMatrix==='function')renderChaseSlotMatrix();
+  await wait();
+  if(typeof openChaseVisualModal==='function')openChaseVisualModal(0);
+  await wait();
+  const name=document.getElementById('chaseVisualName');
+  if(name)name.value='Doc Chase';
+  return true;
+})()
+'@
+    Invoke-PageScript $expression | Out-Null
+    Save-ElementScreenshot "#chaseVisualModal .modal" "chaser-edit-tile.png"
+    Invoke-PageScript "document.getElementById('chaseVisualClose2')?.click(); true" | Out-Null
+
+    Send-Cdp "Page.navigate" @{ url = ($url + "&mainshots=1") } | Out-Null
+    for ($i = 0; $i -lt 40; $i++) {
+        $ready = Invoke-PageScript "document.readyState === 'complete'"
+        if ($ready) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    Start-Sleep -Milliseconds 800
+    $expression = @'
+(async()=>{
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<30;i++){
+    if(typeof setup==='object'&&Array.isArray(setup.fixtures)&&setup.fixtures.length)break;
+    await wait(250);
+  }
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail&&!rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  localStorage.setItem('toolboxRailCollapsed','1');
+  ['participationPanel','stepEditorSection'].forEach(id=>{
+    const panel=document.getElementById(id);
+    const btn=document.querySelector('[data-panel-toggle="'+id+'"]');
+    if(panel)panel.classList.remove('collapsed-panel');
+    if(btn)btn.textContent='−';
+  });
+  if(typeof loadChases==='function')await loadChases();
+  const chase=(Array.isArray(savedChases)?savedChases:[]).find(c=>c?.data?.steps?.length&&Object.keys(c.data.steps[0].values||{}).length>=2)||savedChases?.[0];
+  if(chase&&typeof applyChaserData==='function'){
+    applyChaserData(chase.data,true);
+    if(typeof selectStepForEdit==='function')await selectStepForEdit(0);
+  }
+  if(typeof drawParticipation==='function')drawParticipation();
+  if(typeof drawStepEditor==='function')drawStepEditor();
+  if(typeof refreshChaserGroupActions==='function')refreshChaserGroupActions();
+  const picoSlot=document.getElementById('picoSlot'); if(picoSlot)picoSlot.value='0';
+  const picoMode=document.getElementById('picoChaserMode'); if(picoMode)picoMode.value='loop';
+  const picoDirection=document.getElementById('picoDirection'); if(picoDirection)picoDirection.value='forward';
+  const picoSpeed=document.getElementById('picoSpeed'); if(picoSpeed)picoSpeed.value='1.0';
+  const picoLoopCount=document.getElementById('picoLoopCount'); if(picoLoopCount)picoLoopCount.value='2';
+  const main=document.querySelector('main');
+  if(main)main.scrollTop=0;
+  window.scrollTo(0,0);
+  await wait(700);
+  return {
+    text:(main?.innerText||'').slice(0,80),
+    participation:document.getElementById('participationPanel')?.getBoundingClientRect().toJSON?.()
+  };
+})()
+'@
+    Invoke-PageScript $expression | Out-Null
     Save-ElementScreenshot "#participationPanel" "chaser-participating-controls.png"
     Save-ElementScreenshot "#stepEditorSection" "chaser-edit-step.png"
     Save-ElementScreenshot "#picoPanel" "chaser-pico-playback.png"

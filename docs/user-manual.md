@@ -190,6 +190,8 @@ Use palettes for building blocks such as:
 
 The small top-left pencil icon on a filled palette slot opens **Edit Tile** for that slot. Use **Name** to rename the tile text, and use the visual controls for a background color plus an optional drawn/uploaded visual on top. The visual is independent from the palette scope. The drawing canvas uses the selected background color, and the brush automatically switches between a light and dark stroke for readable contrast. Use **Default background** to restore the standard slot color, or **No icon** to keep only the colored button. Scope still decides which DMX values are saved; the name and visual are readable labels shown in the palette slot grid and stored inside the palette JSON.
 
+![Edit Tile modal](screenshots/fixture-controller-edit-tile.png)
+
 Palette save rules:
 
 - If Fan Out is active, the palette saves only the Fan Out affected controls.
@@ -350,6 +352,8 @@ The Chaser page uses several toolboxes:
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
 - **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and rebuilds **Participating Controls** from the palette's stored fixture/control keys. If no step is selected, Chaser creates a new selected step from the palette. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. The small top-left pencil icon opens **Edit Tile** for a saved palette slot's name and visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.
+
+![Chaser Edit Tile modal](screenshots/chaser-edit-tile.png)
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
@@ -560,6 +564,8 @@ The same target rules are used for Pico upload. Pan/tilt and scalar effects can 
 The Motion FX page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens **Edit Tile** so palette names and visuals can be adjusted from Motion too. Motion recalls, imports, exports, and saves the shared palette JSON.
 
 The **Effects** toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. Clicking a saved effect recalls the recipe without sending DMX and without uploading to a Pico slot. The small pencil opens **Edit Tile** for the effect name, background, and optional drawing/upload.
+
+![Motion Edit Tile modal](screenshots/motion-edit-tile.png)
 
 **Effect Parameters** and **Effects** share one toolbox color and collapse together. Use **-- all** on either box to collapse the whole effect group, and **+ all** to reopen it.
 
