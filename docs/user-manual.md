@@ -188,7 +188,7 @@ Use palettes for building blocks such as:
 - Dimmer levels
 - Fan Out results that you want to reuse as an overlay
 
-The small top-left pencil icon on a filled palette slot opens the palette visual editor for that slot. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Use **Default background** to restore the standard slot color, or **No icon** to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.
+The small top-left pencil icon on a filled palette slot opens the palette visual editor for that slot. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. The drawing canvas uses the selected background color, and the brush automatically switches between a light and dark stroke for readable contrast. Use **Default background** to restore the standard slot color, or **No icon** to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.
 
 Palette save rules:
 
@@ -227,7 +227,7 @@ The Scene Toolbox is available on the Fixture Controller page.
 
 Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.
 
-The small top-left pencil icon on a filled scene slot opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. **Default background** restores the standard slot color, and **No icon** removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.
+The small top-left pencil icon on a filled scene slot opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. The canvas background follows the selected background color, and the brush color is calculated for contrast against it. **Default background** restores the standard slot color, and **No icon** removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.
 
 1. Set your desired fixture values.
 2. Click an empty scene slot.

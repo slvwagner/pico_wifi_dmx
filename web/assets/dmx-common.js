@@ -813,13 +813,27 @@
     let targetMap=new Map();
     const defaultColor=options.defaultColor||'#225a50';
 
-    function blankCanvas(){
-      ctx.fillStyle='#000000';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.beginPath();
-      ctx.strokeStyle='#ffffff';
+    function editorBgColor(){
+      const color=String(colorInput.value||config.defaultColor||defaultColor);
+      return /^#[0-9a-f]{6}$/i.test(color)?color:defaultColor;
+    }
+
+    function editorBrushColor(){
+      return contrastTextForColor(editorBgColor());
+    }
+
+    function prepareBrush(){
+      ctx.strokeStyle=editorBrushColor();
       ctx.lineWidth=6;
       ctx.lineCap='round';
+      ctx.lineJoin='round';
+    }
+
+    function blankCanvas(){
+      ctx.fillStyle=editorBgColor();
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.beginPath();
+      prepareBrush();
     }
 
     function clearCanvas(){
@@ -833,6 +847,7 @@
       const rect=canvas.getBoundingClientRect();
       const x=(e.clientX-rect.left)*canvas.width/rect.width;
       const y=(e.clientY-rect.top)*canvas.height/rect.height;
+      prepareBrush();
       if(!drawing){
         ctx.beginPath();
         ctx.moveTo(x,y);
@@ -932,7 +947,15 @@
       reader.readAsDataURL(file);
     };
     clearBtn.onclick=clearCanvas;
-    if(resetColorBtn)resetColorBtn.onclick=()=>{colorInput.value=config.defaultColor||defaultColor;};
+    colorInput.addEventListener('input',()=>{
+      prepareBrush();
+      if(!hasIcon)blankCanvas();
+    });
+    if(resetColorBtn)resetColorBtn.onclick=()=>{
+      colorInput.value=config.defaultColor||defaultColor;
+      prepareBrush();
+      if(!hasIcon)blankCanvas();
+    };
     targetSelect.onchange=loadEditor;
     saveBtn.onclick=save;
     (options.closeIds||[]).forEach(id=>{

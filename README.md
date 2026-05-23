@@ -173,7 +173,7 @@ Patch Fixtures supports one fixture at a time or a numbered run. Set a base name
 
 The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
 
-The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. Palette visuals are independent from scope: any palette can carry a background color plus an optional drawn/uploaded visual so slots stay readable at a glance. The visual editor can reset to the default background or clear the icon entirely. Palette visuals are saved inside `data/palette_setup.json` together with the palette values.
+The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. Palette visuals are independent from scope: any palette can carry a background color plus an optional drawn/uploaded visual so slots stay readable at a glance. The visual editor draws on the selected background color and automatically chooses a high-contrast brush color. It can reset to the default background or clear the icon entirely. Palette visuals are saved inside `data/palette_setup.json` together with the palette values.
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
