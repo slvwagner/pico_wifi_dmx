@@ -790,13 +790,9 @@ function groupControlKey(c){return c.label+'|'+c.type;}
 function groupControlFixtureIds(){
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   if(selectedFixtureIds)return selectedFixtureIds;
-  const ids=new Set();
-  (setup.fixtures||[]).forEach(f=>{
-    const p=fixtureProfile(f);if(!p)return;
-    if(p.controls.some(c=>participating[controlKey(f,c)]))ids.add(String(f.id));
-  });
-  if(ids.size)return ids;
-  return new Set((setup.fixtures||[]).map(f=>String(f.id)));
+  const visible=scopedParticipationFixtures();
+  if(visible.length)return new Set(visible.map(f=>String(f.id)));
+  return new Set((setup.fixtures||[]).filter(f=>fixtureProfile(f)).map(f=>String(f.id)));
 }
 function groupControlOptions(){
   const selectedFixtureIds=groupControlFixtureIds();
