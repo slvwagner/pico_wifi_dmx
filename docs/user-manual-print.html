@@ -367,7 +367,7 @@ strong { color: #ffffff; }
 <li><strong>Invert</strong> reverses the fixture order for the Fan Out calculation. Use it when the spread shape is right but should run from the opposite side of the fixture row.</li>
 <li><strong>Fan Out base values</strong> come from the values currently displayed in <strong>Edit Step</strong>. Selecting another step, loading another chase, capturing values, or using <strong>Group Edit</strong> refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.</li>
 <li><strong>Clear</strong> in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.</li>
-<li>If <strong>Live preview</strong> is enabled in <strong>Browser Playback</strong>, Fan Out changes are also sent to the Pico while the selected step is edited.</li>
+<li>Editing <strong>Edit Step</strong>, using <strong>Group Edit</strong>, and changing <strong>Fan Out</strong> sends the changed selected-step values to the Pico immediately. Browser playback sends the current chase continuously while it runs.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-fanout.png" alt="Chaser Fan Out toolbox"></p>
 <ul>
@@ -431,7 +431,7 @@ strong { color: #ffffff; }
 <li>In the <strong>Steps</strong> toolbox, click <strong>Add step</strong>.</li>
 <li>Click the new step in the <strong>Steps</strong> list.</li>
 <li>In <strong>Edit Step</strong>, set <strong>Label</strong>, <strong>Duration (ms)</strong>, and <strong>Fade %</strong>.</li>
-<li>Adjust the controls shown in <strong>Edit Step</strong>. Those control values are written into the selected step.</li>
+<li>Adjust the controls shown in <strong>Edit Step</strong>. Those control values are written into the selected step and sent to the Pico immediately.</li>
 <li>Click <strong>Apply</strong> after changing the label, duration, or fade.</li>
 </ol>
 <p><strong>Add step</strong> starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.</p>

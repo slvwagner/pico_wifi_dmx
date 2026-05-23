@@ -326,7 +326,7 @@ The Chaser page uses several toolboxes:
 - **Invert** reverses the fixture order for the Fan Out calculation. Use it when the spread shape is right but should run from the opposite side of the fixture row.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
-- If **Live preview** is enabled in **Browser Playback**, Fan Out changes are also sent to the Pico while the selected step is edited.
+- Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** sends the changed selected-step values to the Pico immediately. Browser playback sends the current chase continuously while it runs.
 
 ![Chaser Fan Out toolbox](screenshots/chaser-toolbox-fanout.png)
 
@@ -406,7 +406,7 @@ To create a step manually:
 2. In the **Steps** toolbox, click **Add step**.
 3. Click the new step in the **Steps** list.
 4. In **Edit Step**, set **Label**, **Duration (ms)**, and **Fade %**.
-5. Adjust the controls shown in **Edit Step**. Those control values are written into the selected step.
+5. Adjust the controls shown in **Edit Step**. Those control values are written into the selected step and sent to the Pico immediately.
 6. Click **Apply** after changing the label, duration, or fade.
 
 **Add step** starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.

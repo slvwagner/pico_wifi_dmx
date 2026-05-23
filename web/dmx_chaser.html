@@ -174,7 +174,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       <button id="btnPrev">◀ Prev</button>
       <button id="btnNext">Next ▶</button>
       <label><input id="loopCheck" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Loop</label>
-      <label><input id="livePreview" type="checkbox" style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Live preview</label>
       <label>BPM<input id="bpmInput" type="number" min="1" max="600" value="120"></label>
       <label>Beats/step
         <select id="beatsPerStep">
@@ -465,29 +464,6 @@ function defaultValue(c){
   if(c.type==='rgb'||c.type==='cmy')return{a:0,b:0,c:0};
   return 0;
 }
-function sendControlValue(f,c,val){
-  val=val??defaultValue(c);
-  if(c.type==='panTilt16'){
-    const pan=bytes16(val.pan??32768),tilt=bytes16(val.tilt??32768);
-    sendChannel(absolute(f.start,c.pan),pan.coarse);
-    sendChannel(absolute(f.start,c.panFine??c.pan+1),pan.fine);
-    sendChannel(absolute(f.start,c.tilt),tilt.coarse);
-    sendChannel(absolute(f.start,c.tiltFine??c.tilt+1),tilt.fine);
-  }else if(c.type==='panTilt8'){
-    sendChannel(absolute(f.start,c.pan),val.pan??128);
-    sendChannel(absolute(f.start,c.tilt),val.tilt??128);
-  }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(p=>sendChannel(absolute(f.start,c[p]),val[p]??0));
-  }else if(c.type==='slider16'){
-    const b=bytes16(val??0);
-    sendChannel(absolute(f.start,c.channel),b.coarse);
-    sendChannel(absolute(f.start,c.fine??c.channel+1),b.fine);
-  }else{
-    sendChannel(absolute(f.start,c.channel),val??0);
-  }
-}
-
 // ---- setup loading ----
 let setup={};
 let participating={};
@@ -530,6 +506,11 @@ function applyChaserGroupSelection(redraw=true){
     renderFanToolbox();
     setStatus(selected.length?'Chaser filtered to '+selected.length+' group'+(selected.length===1?'':'s'):'Chaser group filter cleared');
   }
+}
+function sendEditedControlValue(f,c,val){
+  const batchMap={};
+  collectChannels(f,c,val,batchMap);
+  sendBatch(batchMap);
 }
 
 function selectedChaserGroupFixtureIds(){
@@ -1283,7 +1264,7 @@ function getStepVal(f,c){return steps[selectedStepIdx]?.values?.[controlKey(f,c)
 function setStepVal(f,c,val){
   const s=steps[selectedStepIdx];if(!s)return;
   s.values[controlKey(f,c)]=val;
-  if(document.getElementById('livePreview').checked)sendControlValue(f,c,val);
+  sendEditedControlValue(f,c,val);
 }
 
 function drawStepEditor(){
@@ -1749,7 +1730,6 @@ function applyPicoPlaybackOptions(opts={}){
 function browserPlaybackOptions(){
   return {
     loop:!!document.getElementById('loopCheck')?.checked,
-    livePreview:!!document.getElementById('livePreview')?.checked,
     bpm:clamp(document.getElementById('bpmInput')?.value||120,1,600),
     beatsPerStep:clamp(document.getElementById('beatsPerStep')?.value||1,0.25,8),
     defaultFade:clamp(document.getElementById('globalFade')?.value||0,0,100),
@@ -1758,7 +1738,6 @@ function browserPlaybackOptions(){
 }
 function applyBrowserPlaybackOptions(opts={}){
   if(opts.loop!==undefined)document.getElementById('loopCheck').checked=!!opts.loop;
-  if(opts.livePreview!==undefined)document.getElementById('livePreview').checked=!!opts.livePreview;
   if(opts.bpm!==undefined)document.getElementById('bpmInput').value=clamp(opts.bpm,1,600);
   if(opts.beatsPerStep!==undefined)document.getElementById('beatsPerStep').value=String(clamp(opts.beatsPerStep,0.25,8));
   if(opts.defaultFade!==undefined)document.getElementById('globalFade').value=clamp(opts.defaultFade,0,100);
@@ -2353,7 +2332,7 @@ function scheduleBrowserPlaybackAutosave(){
 function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();scheduleBrowserPlaybackAutosave();}
 document.getElementById('bpmInput').oninput=applyBpmToSteps;
 document.getElementById('beatsPerStep').onchange=applyBpmToSteps;
-['loopCheck','livePreview','updateRate'].forEach(id=>{
+['loopCheck','updateRate'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('input',scheduleBrowserPlaybackAutosave);
   if(el)el.addEventListener('change',scheduleBrowserPlaybackAutosave);
