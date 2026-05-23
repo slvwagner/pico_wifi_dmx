@@ -358,9 +358,11 @@ Participating controls define which fixture controls belong to the chase. This k
 
 For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.
 
-If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown. The **All**, **None**, **Only**, and **Add** tools let you quickly build a participating-control set for the selected group.
+If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown while you are choosing the scope. Any direct change in **Participating Controls** then clears the group selection. This avoids mixing two different filters: after you press **All**, **None**, **Only**, **Add**, load/import participating controls, or tick an individual checkbox, the participating-control set becomes the source of truth.
 
-**Group Edit** edits the current participating-control scope. If one or more groups are selected, it applies only to matching fixtures in those groups. If no group is selected, it uses the fixtures that participate in the selected step. It does not require every profile control to be active. For example, if only Dimmer is selected as a participating control, Group Edit opens with Dimmer only and applies it to matching fixtures in the current edit scope.
+**Group Edit** edits the current participating-control scope. It becomes available when the current scope contains at least one matching selected control on two or more participating fixtures. A step does not need to be selected first. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edit into that step. If a step is selected, Group Edit edits that selected step.
+
+The fixtures may use different profiles; the modal only shows matching controls that are actually selected as participating controls and exist on at least two fixtures. For example, if only Dimmer is selected, Group Edit opens with Dimmer only and applies it to every involved fixture that has a matching Dimmer control.
 
 ### Chaser Selection Rules
 
@@ -369,18 +371,20 @@ The Chaser page has two different selection modes: defining a new participating-
 When you define participating controls manually:
 
 - If no group is selected, the Participating Controls panel shows all patched fixtures.
-- If one or more groups are selected, the panel is filtered to the fixtures in those groups.
-- **All** selects every currently visible control.
-- **None** clears the participating-control selection and collapses the fixture list.
-- The control dropdown plus **Only** selects one matching control type for the selected groups and clears all other controls.
-- The control dropdown plus **Add** adds one matching control type for the selected groups without clearing existing participating controls.
+- If one or more groups are selected, the panel is temporarily filtered to the fixtures in those groups.
+- **All** selects every currently visible control and clears the group selection.
+- **None** clears the participating-control selection, collapses the fixture list, and clears the group selection.
+- The control dropdown lists controls from the selected groups while a group filter is active. If no group is selected, it lists controls from the current participating-control scope.
+- The control dropdown plus **Only** selects one matching control type from the current scope, clears all other controls, and then clears the group selection.
+- The control dropdown plus **Add** adds one matching control type from the current scope without clearing existing participating controls, then clears the group selection.
+- Ticking or unticking an individual participating-control checkbox also clears the group selection.
 
 When you click a step in the **Steps** toolbox:
 
 - The step values are checked against the current fixture setup.
 - Invalid fixture/control references are removed from the edited step.
 - The Participating Controls panel is rebuilt from the chase values.
-- If no group is selected, only fixtures and controls that are actually stored in the selected step are shown, and **Group Edit** becomes available when at least one participating control can be edited on two or more involved fixtures.
+- If no group is selected, only fixtures and controls that are actually stored in the selected step are shown, and **Group Edit** becomes step-dependent.
 - If a group is selected, the selected step is filtered to that group and **Group Edit** uses the grouped fixtures as its edit scope.
 - The Edit Step card shows the same scoped fixture/control set, so editing Step 2 cannot accidentally show or edit unrelated controls from another group or old filter.
 
@@ -495,6 +499,8 @@ The same target rules are used for Pico upload. Pan/tilt and scalar effects can 
 
 The Motion FX page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. Palette creation and visual editing still happen on the Fixture Controller; Motion recalls, imports, and exports the shared palette JSON.
 
+The **Effects** toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. Clicking a saved effect recalls the recipe without sending DMX and without uploading to a Pico slot.
+
 ### Pico Motion Slots
 
 The Pico Motion slot upload now uses the same selected **Effect target** as the browser page.
@@ -518,8 +524,9 @@ For scalar targets, set the current value first, then upload/start the slot. For
 4. Select one **Effect target**.
 5. Set BPM, effect shape, amplitude, and spread in the **Effect Parameters** toolbox.
 6. Optionally recall a palette from the **Palettes** toolbox to set the center for the selected target.
-7. Click an empty Pico slot to upload the effect, then start the slot when you want autonomous playback without browser timing jitter.
-8. Use browser playback from the **Effect Parameters** toolbox when you want quick live testing before uploading.
+7. Optionally save or recall the recipe from the **Effects** toolbox.
+8. Click an empty Pico slot to upload the effect, then start the slot when you want autonomous playback without browser timing jitter.
+9. Use browser playback from the **Effect Parameters** toolbox when you want quick live testing before uploading.
 
 The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.
 

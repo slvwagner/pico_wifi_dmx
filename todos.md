@@ -13,7 +13,13 @@ Global is simpler and safer. Page-specific is more flexible, but easier to misun
 
 # Debug
 
+## BUG 01
+use the same color for Effects tool box as we use in Effect Parameters
 
+toolboxes should have different backgound colors and they should be unique over all the pages. Exception Chases, Steps, Browser Playback in chases. 
+
+## Bug 02
+Every tool box sh
 # Error fixing
 
 

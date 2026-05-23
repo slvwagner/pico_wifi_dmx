@@ -408,7 +408,7 @@ chaserGroupsBox=DmxCommon.initGroupsToolbox({
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
   editRequiresSelection:false,
-  canEdit:()=>selectedStepIdx>=0&&getChaserGroupEditableControls().length>0,
+  canEdit:()=>chaserGroupEditFixtures().length>=2&&getChaserGroupEditableControls().length>0,
   onEdit:()=>openChaserGroupModal(),
   onSelectionChange:()=>applyChaserGroupSelection(true)
 });
@@ -506,6 +506,17 @@ function applyChaserGroupSelection(redraw=true){
     setStatus(selected.length?'Chaser filtered to '+selected.length+' group'+(selected.length===1?'':'s'):'Chaser group filter cleared');
   }
 }
+function clearChaserGroupSelectionForParticipationEdit(){
+  const selected=chaserGroupsBox?.selectedGroups?.()||[];
+  if(!selected.length)return false;
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+  return true;
+}
+function refreshChaserGroupActionsSoon(){
+  refreshChaserGroupActions();
+  setTimeout(()=>refreshChaserGroupActions(),0);
+}
 function sendEditedControlValue(f,c,val){
   const batchMap={};
   collectChannels(f,c,val,batchMap);
@@ -523,7 +534,7 @@ function selectedChaserGroupFixtures(){
   if(!ids)return[];
   return(setup.fixtures||[]).filter(f=>ids.has(String(f.id)));
 }
-function chaserGroupEditFixtures(){
+function chaserGroupScopeFixtures(){
   const selected=selectedChaserGroupFixtures();
   if(selected.length)return selected;
   const seen=new Set();
@@ -532,6 +543,12 @@ function chaserGroupEditFixtures(){
     if(!seen.has(id)){seen.add(id);fixtures.push(item.f);}
     return fixtures;
   },[]);
+}
+function chaserGroupEditFixtures(){
+  return chaserGroupScopeFixtures().filter(f=>{
+    const p=fixtureProfile(f);if(!p)return false;
+    return p.controls.some(c=>isChaserGroupControlParticipating(f,c));
+  });
 }
 
 function firstStepFixtureId(step=steps[selectedStepIdx]){
@@ -586,6 +603,11 @@ function getChaserGroupEditableControls(){
   });
   return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
 }
+function chaserGroupEditState(){
+  const fixtures=chaserGroupEditFixtures();
+  const controls=getChaserGroupEditableControls();
+  return{fixtures,controls,canOpen:selectedStepIdx>=0&&fixtures.length>=2};
+}
 function chaserGroupControlByDataKey(dataKey){
   const key=decodeURIComponent(dataKey||'');
   return getChaserGroupEditableControls().find(c=>chaserGroupKey(c)===key)||null;
@@ -611,6 +633,16 @@ function getChaserGroupValue(c){
   return defaultValue(c);
 }
 function setChaserGroupValue(c,val){
+  if(selectedStepIdx<0&&steps.length<CHASER_MAX_STEPS){
+    const initial={};
+    getParticipatingList().forEach(({f,c:pc})=>{initial[controlKey(f,pc)]=defaultValue(pc);});
+    const s=makeStep(null,initial);
+    steps.push(s);
+    selectedStepIdx=steps.length-1;
+    activeStepValueKeys=new Set(Object.keys(initial));
+    sourceFixtureId=firstStepFixtureId(s);
+    drawStepList();
+  }
   const key=chaserGroupKey(c);
   chaserGroupEditFixtures().forEach(f=>{
     const mc=findChaserGroupControl(f,key);
@@ -706,20 +738,30 @@ function updateChaserGroupControlDisplay(c){
   }
 }
 function openChaserGroupModal(){
-  if(selectedStepIdx<0){setStatus('Select a step before editing a group',true);return;}
-  const common=getChaserGroupEditableControls();
-  if(!common.length){setStatus('Select a step with at least two matching participating controls first',true);return;}
-  const n=chaserGroupEditFixtures().length;
-  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s')+' · '+common.length+' participating control'+(common.length===1?'':'s');
-  document.getElementById('chaserGroupModalBody').innerHTML=common.map(c=>renderChaserGroupControl(c)).join('');
+  const state=chaserGroupEditState();
+  if(state.fixtures.length<2||!state.controls.length){setStatus('Select at least one matching participating control on two or more fixtures first',true);return;}
+  const n=state.fixtures.length;
+  const titleStep=selectedStepIdx>=0?'step '+(selectedStepIdx+1):'new step';
+  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - '+titleStep+' - '+n+' fixture'+(n===1?'':'s')+' · '+state.controls.length+' matching control'+(state.controls.length===1?'':'s');
+  document.getElementById('chaserGroupModalBody').innerHTML=state.controls.map(c=>renderChaserGroupControl(c)).join('');
   document.getElementById('chaserGroupModal').style.display='flex';
 }
 function closeChaserGroupModal(){document.getElementById('chaserGroupModal').style.display='none';drawStepEditor();}
 
 function groupControlKey(c){return c.label+'|'+c.type;}
-function groupControlOptions(){
+function groupControlFixtureIds(){
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
-  if(!selectedFixtureIds)return[];
+  if(selectedFixtureIds)return selectedFixtureIds;
+  const ids=new Set();
+  (setup.fixtures||[]).forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    if(p.controls.some(c=>participating[controlKey(f,c)]))ids.add(String(f.id));
+  });
+  if(ids.size)return ids;
+  return new Set((setup.fixtures||[]).map(f=>String(f.id)));
+}
+function groupControlOptions(){
+  const selectedFixtureIds=groupControlFixtureIds();
   const opts=new Map();
   (setup.fixtures||[]).forEach(f=>{
     if(!selectedFixtureIds.has(String(f.id)))return;
@@ -743,20 +785,21 @@ function drawGroupControlTools(){
   const old=sel.value;
   sel.innerHTML=opts.map(o=>`<option value="${o.key}">${o.label} (${o.type})</option>`).join('');
   if(opts.some(o=>o.key===old))sel.value=old;
-  const enabled=selectedGroups.length>0&&opts.length>0;
+  const enabled=opts.length>0;
   sel.disabled=!enabled;onlyBtn.disabled=!enabled;addBtn.disabled=!enabled;
   hint.textContent=selectedGroups.length
     ?(opts.length?'Apply one control to '+selectedGroups.length+' selected group'+(selectedGroups.length===1?'':'s'):'Selected groups have no controls.')
-    :'Select one or more groups first.';
+    :(opts.length?'Apply one control to the current participating-control scope.':'No fixture controls available.');
 }
 
 function applyGroupControlSelection(mode){
   activeStepValueKeys=null;
-  const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const selectedFixtureIds=groupControlFixtureIds();
   const wanted=document.getElementById('groupControlSelect').value;
-  if(!selectedFixtureIds||!wanted){setStatus('Select a group and a control first',true);return;}
+  if(!selectedFixtureIds.size||!wanted){setStatus('Select a fixture scope and a control first',true);return;}
   if(mode==='only')Object.keys(participating).forEach(k=>participating[k]=false);
   let changed=0;
+  const label=document.getElementById('groupControlSelect').selectedOptions[0]?.textContent||'control';
   (setup.fixtures||[]).forEach(f=>{
     if(!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
@@ -766,9 +809,10 @@ function applyGroupControlSelection(mode){
       changed++;
     });
   });
+  clearChaserGroupSelectionForParticipationEdit();
   drawParticipation();
   drawStepEditor();
-  const label=document.getElementById('groupControlSelect').selectedOptions[0]?.textContent||'control';
+  refreshChaserGroupActionsSoon();
   setStatus((mode==='only'?'Selected only ':'Added ')+label+' for '+changed+' fixture control'+(changed===1?'':'s'));
 }
 
@@ -988,6 +1032,11 @@ function drawParticipation(){
     if(e.target.dataset.key){
       if(activeStepValueKeys instanceof Set)activeStepValueKeys.add(e.target.dataset.key);
       participating[e.target.dataset.key]=e.target.checked;
+      if(clearChaserGroupSelectionForParticipationEdit()){
+        drawStepEditor();
+        refreshChaserGroupActionsSoon();
+        return;
+      }
       drawStepEditor();
       const item=e.target.closest('.item');
       if(item){
@@ -999,6 +1048,7 @@ function drawParticipation(){
           item.querySelector('.ctrl-summary').innerHTML=chips;
         }
       }
+      refreshChaserGroupActionsSoon();
     }
   };
   el.onclick=e=>{
@@ -2266,7 +2316,7 @@ async function loadParticipatingFromServer(){
   try{
     const r=await fetch('chaser_setup.php?participating',{cache:'no-store'});
     const j=await r.json();
-    if(r.ok&&j.ok&&j.exists&&j.participating){applyParticipatingData(j.participating);return true;}
+    if(r.ok&&j.ok&&j.exists&&j.participating){applyParticipatingData(j.participating);clearChaserGroupSelectionForParticipationEdit();refreshChaserGroupActionsSoon();return true;}
   }catch(_){}
   return false;
 }
@@ -2413,18 +2463,23 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
 document.getElementById('btnSelAll').onclick=()=>{
   activeStepValueKeys=null;
   Object.keys(participating).forEach(k=>participating[k]=true);
+  clearChaserGroupSelectionForParticipationEdit();
   collapsedPartFixtures.clear();
   localStorage.setItem('chaserPartCollapsedFix','[]');
   drawParticipation();
   drawStepEditor();
+  refreshChaserGroupActionsSoon();
+  if(selectedStepIdx<0)setStatus('All participating controls selected. Select or add a step to use Group Edit.',true);
 };
 document.getElementById('btnSelNone').onclick=()=>{
   activeStepValueKeys=null;
   Object.keys(participating).forEach(k=>participating[k]=false);
+  clearChaserGroupSelectionForParticipationEdit();
   collapsedPartFixtures=new Set((setup.fixtures||[]).map(f=>f.id));
   localStorage.setItem('chaserPartCollapsedFix',JSON.stringify([...collapsedPartFixtures]));
   drawParticipation();
   drawStepEditor();
+  refreshChaserGroupActionsSoon();
 };
 document.getElementById('btnGroupControlOnly').onclick=()=>applyGroupControlSelection('only');
 document.getElementById('btnGroupControlAdd').onclick=()=>applyGroupControlSelection('add');
@@ -2447,6 +2502,8 @@ document.getElementById('importPartFile').onchange=e=>{
     try{
       const data=JSON.parse(reader.result);
       applyParticipatingData(data.participating??data);
+      clearChaserGroupSelectionForParticipationEdit();
+      refreshChaserGroupActionsSoon();
       setStatus('Participating controls imported from '+file.name);
     }catch(err){alert('Invalid JSON: '+err.message);}
     e.target.value='';

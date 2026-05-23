@@ -9,7 +9,7 @@ if (!is_dir($dataDir)) {
 }
 $dataFile = $dataDir . DIRECTORY_SEPARATOR . 'motion_setup.json';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-const PICO_SLOT_COUNT = 32;
+const PICO_SLOT_COUNT = 64;
 
 function readDataFile(string $path): array {
     if (!is_file($path)) return [];

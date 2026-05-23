@@ -186,6 +186,27 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
+<div id="motionSavedEffectBox" class="scene-toolbox scene-toolbox--palettes">
+<div id="motionSavedEffectHdr" class="scene-toolbox__header">
+  <span style="font-weight:700;font-size:13px">Effects</span>
+  <button id="motionSavedEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div class="scene-toolbox__body">
+  <div class="slot-actions">
+    <button id="exportMotionEffectsBtn" class="icon-btn export-btn" title="Export effects JSON"></button>
+    <button id="importMotionEffectsBtn" class="icon-btn import-btn" title="Import effects JSON"></button>
+    <button id="motionEffectVisualBtn" class="palette-merge-btn" title="Edit effect visual">Visual</button>
+    <input id="importMotionEffectsFile" type="file" accept=".json,application/json" style="display:none">
+  </div>
+  <div class="small" style="color:var(--muted)">Click an empty slot to save the current effect recipe. Click a filled slot to recall it.</div>
+  <div class="slot-actions">
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionEffectCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionEffectRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+  </div>
+  <div id="motionEffectMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
 <div id="motionSceneBox" class="scene-toolbox scene-toolbox--narrow">
 <div class="scene-toolbox__header" id="motionSceneHdr">
   <span style="font-weight:700;font-size:13px">Scenes</span>
@@ -217,12 +238,38 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
+<div id="motionEffectVisualModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Effect Visual</h2>
+<button id="motionEffectVisualClose" style="font-size:16px;padding:6px 14px">x</button>
+</div>
+<div class="modal-body">
+<label>Target<select id="motionEffectVisualTarget"></select></label>
+<div id="motionEffectColorVisualWrap">
+<label>Background color<input id="motionEffectVisualColor" type="color" value="#225a50"></label>
+<button id="motionEffectVisualResetColor" type="button">Default background</button>
+</div>
+<div id="motionEffectImageVisualWrap" class="wheel-editor">
+<label>Upload visual<input id="motionEffectVisualImage" type="file" accept="image/*"></label>
+<canvas id="motionEffectVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+<div class="buttons"><button id="motionEffectVisualClear" type="button">No icon</button></div>
+</div>
+<div id="motionEffectVisualHint" class="small"></div>
+</div>
+<div class="buttons">
+<button id="motionEffectVisualSave" class="primary">Save visual</button>
+<button id="motionEffectVisualClose2">Close</button>
+</div>
+</div>
+</div>
+
 <aside id="motionToolboxRail" class="toolbox-rail" aria-label="Motion effects toolboxes"></aside>
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const motionToolboxRail=document.getElementById('motionToolboxRail');
-DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motionEffect'},{box:'motionSceneBox',type:'scenes'},{box:'motionPaletteBox',type:'palettes'}]);
+DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motionEffect'},{box:'motionSavedEffectBox',type:'effects'},{box:'motionSceneBox',type:'scenes'},{box:'motionPaletteBox',type:'palettes'}]);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -1315,6 +1362,9 @@ function motionData(){
   return{
     baseUrl:baseUrlEl.value,
     targetKey:selectedMotionTargetKey,
+    effects:motionEffects,
+    effectCols:motionEffectCols,
+    effectRows:motionEffectRows,
     params:{
       effectType:document.getElementById('effectType').value,
       bpm:+document.getElementById('bpm').value,
@@ -1345,6 +1395,9 @@ function applyMotionData(data){
     if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
     if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
   }
+  if(Array.isArray(data.effects))motionEffects=data.effects;
+  if(data.effectCols)motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectCols)||4));
+  if(data.effectRows)motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectRows)||4));
   if(Array.isArray(data.fixtures)){
     data.fixtures.forEach(saved=>{
       const mf=motionFixtures.find(m=>m.fixture.id===saved.fixtureId&&m.control.id===saved.controlId);
@@ -1364,6 +1417,7 @@ function applyMotionData(data){
     if(motionControlKey(mf.control)!==selectedMotionTargetKey)mf.enabled=false;
   });
   drawFixtureList();drawPathPreview();
+  renderMotionEffectMatrix();
 }
 async function saveMotionToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
@@ -1449,6 +1503,184 @@ document.getElementById('importMotionSlotsFile').onchange=async e=>{
   };
   reader.readAsText(file);
 };
+
+// ---- saved effects toolbox (effect recipe, no center/base values) ----
+let motionEffects=[];
+let motionEffectCols=4,motionEffectRows=4;
+const MOTION_EFFECT_GRID_MAX=32;
+let motionEffectVisualDefault=(()=> {
+  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('motionEffectVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  catch(_){return{type:'visual',color:'#225a50',image:''};}
+})();
+function currentMotionEffectRecipe(){
+  return{
+    targetKey:selectedMotionTargetKey,
+    params:{
+      effectType:document.getElementById('effectType').value,
+      bpm:+document.getElementById('bpm').value,
+      panAmp:+document.getElementById('panAmp').value,
+      tiltAmp:+document.getElementById('tiltAmp').value,
+      phaseSpread:+document.getElementById('phaseSpread').value,
+      updateRate:+document.getElementById('updateRate').value
+    },
+    fixtures:motionFixtures
+      .filter(mf=>motionControlKey(mf.control)===selectedMotionTargetKey&&mf.enabled)
+      .map(mf=>({fixtureId:mf.fixture.id,controlId:mf.control.id,phaseOffset:mf.phaseOffset||0}))
+  };
+}
+function requiredMotionEffectSlots(){
+  return motionEffects.reduce((max,e)=>Math.max(max,(parseInt(e.slot,10)||0)+1),0);
+}
+function normalizeMotionEffectGrid(priority='cols'){
+  const needed=requiredMotionEffectSlots();
+  motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(motionEffectCols)||4));
+  motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(motionEffectRows)||4));
+  if(needed&&motionEffectCols*motionEffectRows<needed){
+    if(priority==='rows'){
+      motionEffectCols=Math.max(motionEffectCols,Math.ceil(needed/motionEffectRows));
+      if(motionEffectCols>MOTION_EFFECT_GRID_MAX){motionEffectCols=MOTION_EFFECT_GRID_MAX;motionEffectRows=Math.ceil(needed/motionEffectCols);}
+    }else{
+      motionEffectRows=Math.max(motionEffectRows,Math.ceil(needed/motionEffectCols));
+      if(motionEffectRows>MOTION_EFFECT_GRID_MAX){motionEffectRows=MOTION_EFFECT_GRID_MAX;motionEffectCols=Math.ceil(needed/motionEffectRows);}
+    }
+  }
+  const colsInput=document.getElementById('motionEffectCols');
+  const rowsInput=document.getElementById('motionEffectRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/motionEffectRows));colsInput.value=motionEffectCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/motionEffectCols));rowsInput.value=motionEffectRows;}
+}
+function renderMotionEffectMatrix(){
+  const grid=document.getElementById('motionEffectMatrix');
+  if(!grid)return;
+  normalizeMotionEffectGrid();
+  const total=motionEffectCols*motionEffectRows;
+  grid.style.gridTemplateColumns='repeat('+motionEffectCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const e=motionEffects.find(fx=>parseInt(fx.slot,10)===i);
+    if(e)html+=`<div class="slot filled" data-motion-effect-slot="${i}" title="Click: recall effect" style="${DmxCommon.slotVisualStyle(e)}"><button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
+    else html+=`<div class="slot" data-motion-effect-slot="${i}" title="Click to save current effect">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-motion-effect-slot]').forEach(el=>{
+    el.addEventListener('click',()=>motionEffectSlotClick(parseInt(el.dataset.motionEffectSlot,10)));
+  });
+  grid.querySelectorAll('[data-del-motion-effect]').forEach(btn=>{
+    btn.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const slot=parseInt(btn.dataset.delMotionEffect,10);
+      const e=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
+      if(!e||!confirm('Delete effect "'+(e.name||('Effect '+(slot+1)))+'"?'))return;
+      motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
+      renderMotionEffectMatrix();
+      saveMotionEffectsServer();
+    });
+  });
+}
+function motionEffectSlotClick(slot){
+  const saved=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
+  if(saved){recallMotionEffect(saved);return;}
+  const recipe=currentMotionEffectRecipe();
+  if(!recipe.fixtures.length){setStatus('Select at least one participating fixture before saving an effect',true);return;}
+  const name=(prompt('Effect name:','Effect '+(slot+1))||'').trim();
+  if(!name)return;
+  motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
+  motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:JSON.parse(JSON.stringify(motionEffectVisualDefault))});
+  renderMotionEffectMatrix();
+  saveMotionEffectsServer();
+  setStatus('Saved effect "'+name+'"');
+}
+function recallMotionEffect(effect){
+  const recipe=effect.recipe||effect;
+  if(!recipe.targetKey){setStatus('Effect has no target data',true);return;}
+  clearMotionGroupSelection();
+  selectedMotionTargetKey=recipe.targetKey;
+  localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
+  const p=recipe.params||{};
+  if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
+  if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
+  if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
+  if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
+  if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
+  const selected=new Set((recipe.fixtures||[]).map(f=>String(f.fixtureId)+':'+String(f.controlId)));
+  motionFixtures.forEach(mf=>{
+    const key=String(mf.fixture.id)+':'+String(mf.control.id);
+    mf.enabled=motionControlKey(mf.control)===selectedMotionTargetKey&&selected.has(key);
+    const saved=(recipe.fixtures||[]).find(f=>String(f.fixtureId)===String(mf.fixture.id)&&String(f.controlId)===String(mf.control.id));
+    if(saved&&saved.phaseOffset!==undefined)mf.phaseOffset=saved.phaseOffset;
+  });
+  populateMotionControlFilter();
+  populateEffectTypeFilter(p.effectType);
+  drawFixtureList();
+  drawPathPreview();
+  refreshMotionGroupActions();
+  setStatus('Recalled effect "'+(effect.name||'Effect')+'"');
+}
+function saveMotionEffectsServer(){
+  saveMotionToServer();
+}
+function exportMotionEffectsJson(){
+  const blob=new Blob([JSON.stringify({baseUrl:baseUrlEl.value,effects:motionEffects,effectCols:motionEffectCols,effectRows:motionEffectRows},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_motion_effects.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importMotionEffectsJson(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const effects=Array.isArray(data)?data:data.effects;
+      if(!Array.isArray(effects))throw new Error('Expected {effects:[...]} or an array');
+      motionEffects=effects;
+      if(data.effectCols)motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectCols)||4));
+      if(data.effectRows)motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectRows)||4));
+      renderMotionEffectMatrix();
+      saveMotionEffectsServer();
+      setStatus('Imported '+motionEffects.length+' effect(s)');
+    }catch(err){setStatus('Effect import failed: '+err.message,true);}
+  };
+  reader.readAsText(file);
+}
+const motionEffectVisualEditor=DmxCommon.initSlotVisualEditor({
+  modalId:'motionEffectVisualModal',
+  targetId:'motionEffectVisualTarget',
+  colorWrapId:'motionEffectColorVisualWrap',
+  imageWrapId:'motionEffectImageVisualWrap',
+  colorInputId:'motionEffectVisualColor',
+  resetColorBtnId:'motionEffectVisualResetColor',
+  canvasId:'motionEffectVisualCanvas',
+  imageInputId:'motionEffectVisualImage',
+  clearBtnId:'motionEffectVisualClear',
+  hintId:'motionEffectVisualHint',
+  saveBtnId:'motionEffectVisualSave',
+  closeIds:['motionEffectVisualClose','motionEffectVisualClose2']
+});
+function openMotionEffectVisualModal(){
+  motionEffectVisualEditor?.open({
+    targetLabel:'saved effects',
+    defaultVisual:motionEffectVisualDefault,
+    targets:motionEffects
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0))
+      .map(e=>({key:String(parseInt(e.slot,10)||0),item:e,label:'Slot '+((parseInt(e.slot,10)||0)+1)+': '+(e.name||'Effect')})),
+    onDefaultSave:visual=>{
+      motionEffectVisualDefault=visual;
+      localStorage.setItem('motionEffectVisualDefault',JSON.stringify(visual));
+      setStatus('Default effect visual updated');
+    },
+    onTargetSave:(target,visual)=>{
+      target.visual=visual;
+      renderMotionEffectMatrix();
+      saveMotionEffectsServer();
+      setStatus('Updated effect visual for "'+(target.name||'Effect')+'"');
+    }
+  });
+}
+document.getElementById('motionEffectCols').addEventListener('input',e=>{motionEffectCols=e.target.value;normalizeMotionEffectGrid('cols');renderMotionEffectMatrix();saveMotionEffectsServer();});
+document.getElementById('motionEffectRows').addEventListener('input',e=>{motionEffectRows=e.target.value;normalizeMotionEffectGrid('rows');renderMotionEffectMatrix();saveMotionEffectsServer();});
+document.getElementById('exportMotionEffectsBtn').onclick=exportMotionEffectsJson;
+document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile').click();
+document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
+document.getElementById('motionEffectVisualBtn').onclick=openMotionEffectVisualModal;
 
 loadSetup().finally(async()=>{
   try{
@@ -1690,6 +1922,16 @@ const motionEffectToolbox=DmxCommon.initFloatingToolbox({
   uiStatePage:'motion',
   uiStatePosKey:'motionEffectBoxPos',
   uiStateCollapsedKey:'motionEffectBoxCollapsed'
+});
+const motionSavedEffectToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'motionSavedEffectBox',
+  headerId:'motionSavedEffectHdr',
+  toggleId:'motionSavedEffectBoxToggle',
+  posStorageKey:'motionSavedEffectBoxPos',
+  collapsedStorageKey:'motionSavedEffectBoxCollapsed',
+  uiStatePage:'motion',
+  uiStatePosKey:'motionSavedEffectBoxPos',
+  uiStateCollapsedKey:'motionSavedEffectBoxCollapsed'
 });
 const motionPaletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'motionPaletteBox',
