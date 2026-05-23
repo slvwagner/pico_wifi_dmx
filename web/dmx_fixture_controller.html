@@ -313,6 +313,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label>Target<select id="paletteVisualTarget"></select></label>
 <div id="paletteColorVisualWrap">
 <label>Background color<input id="paletteVisualColor" type="color" value="#225a50"></label>
+<button id="paletteVisualResetColor" type="button">Default background</button>
 </div>
 <div id="paletteBeamVisualWrap" class="wheel-editor">
 <div class="toolbar">
@@ -320,7 +321,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div class="toolbar">
 <canvas id="paletteVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
-<div class="buttons"><button id="paletteVisualClear" type="button">Clear drawing</button></div>
+<div class="buttons"><button id="paletteVisualClear" type="button">No icon</button></div>
 </div>
 <div class="small">Choose a background color, then draw or upload an optional visual on top. Both are saved inside the JSON.</div>
 </div>
@@ -2869,6 +2870,7 @@ const slotVisualEditor=DmxCommon.initSlotVisualEditor({
   colorWrapId:'paletteColorVisualWrap',
   imageWrapId:'paletteBeamVisualWrap',
   colorInputId:'paletteVisualColor',
+  resetColorBtnId:'paletteVisualResetColor',
   canvasId:'paletteVisualCanvas',
   imageInputId:'paletteVisualImage',
   clearBtnId:'paletteVisualClear',
@@ -2881,6 +2883,7 @@ function openPaletteVisualModal(){
   slotVisualEditor.open({
     targetLabel:paletteScopeLabel(scope)+' palettes',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label; the Scope still decides which DMX values are saved.',
+    defaultColor:'#225a50',
     defaultVisual:paletteVisualDefaults[scope],
     targets:palettes
       .slice()
@@ -2903,6 +2906,7 @@ function openSceneVisualModal(){
   slotVisualEditor.open({
     targetLabel:'Scenes',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the scene slot; scene recall still uses the stored DMX values.',
+    defaultColor:'#225a50',
     defaultVisual:sceneVisualDefault,
     targets:scenes
       .slice()

@@ -149,7 +149,7 @@ Use palettes for building blocks such as:
 - Dimmer levels
 - Fan Out results that you want to reuse as an overlay
 
-The **Visual** button opens the palette visual editor. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.
+The **Visual** button opens the palette visual editor. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Use **Default background** to restore the standard slot color, or **No icon** to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.
 
 Palette save rules:
 
@@ -188,7 +188,7 @@ The Scene Toolbox is available on the Fixture Controller page.
 
 Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.
 
-The **Visual** button opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.
+The **Visual** button opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. **Default background** restores the standard slot color, and **No icon** removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.
 
 1. Set your desired fixture values.
 2. Click an empty scene slot.
@@ -299,7 +299,7 @@ The Chaser page uses several toolboxes:
 
 - **Groups** filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.
 - **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
-- The **Visual** button in **Chases** sets a background color and optional drawn/uploaded visual for chase slots. This is only a label; loading a chase still uses the stored chase steps and playback settings.
+- The **Visual** button in **Chases** sets a background color and optional drawn/uploaded visual for chase slots. **Default background** restores the standard slot color, and **No icon** removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.
 - **Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
 - **Browser Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico.
 

@@ -729,6 +729,7 @@
     const colorWrap=document.getElementById(options.colorWrapId);
     const imageWrap=document.getElementById(options.imageWrapId);
     const colorInput=document.getElementById(options.colorInputId);
+    const resetColorBtn=options.resetColorBtnId?document.getElementById(options.resetColorBtnId):null;
     const canvas=document.getElementById(options.canvasId);
     const imageInput=document.getElementById(options.imageInputId);
     const clearBtn=document.getElementById(options.clearBtnId);
@@ -738,17 +739,24 @@
     const ctx=canvas.getContext('2d');
     let drawing=false;
     let uploadedImage='';
+    let hasIcon=false;
     let config={};
     let targetMap=new Map();
+    const defaultColor=options.defaultColor||'#225a50';
 
-    function clearCanvas(){
+    function blankCanvas(){
       ctx.fillStyle='#000000';
       ctx.fillRect(0,0,canvas.width,canvas.height);
       ctx.beginPath();
       ctx.strokeStyle='#ffffff';
       ctx.lineWidth=6;
       ctx.lineCap='round';
+    }
+
+    function clearCanvas(){
+      blankCanvas();
       uploadedImage='';
+      hasIcon=false;
       imageInput.value='';
     }
 
@@ -766,6 +774,7 @@
       ctx.beginPath();
       ctx.moveTo(x,y);
       uploadedImage='';
+      hasIcon=true;
     }
 
     function loadCanvas(image){
@@ -773,9 +782,10 @@
       if(!image)return;
       const img=new Image();
       img.onload=()=>{
-        clearCanvas();
+        blankCanvas();
         ctx.drawImage(img,0,0,canvas.width,canvas.height);
         uploadedImage=canvas.toDataURL('image/png');
+        hasIcon=true;
       };
       img.src=image;
     }
@@ -788,16 +798,16 @@
 
     function loadEditor(){
       const target=selectedTarget();
-      const visual=normalizeSlotVisual(target&&target.visual)||normalizeSlotVisual(config.defaultVisual)||{type:'visual',color:'#225a50',image:''};
+      const visual=normalizeSlotVisual(target&&target.visual)||normalizeSlotVisual(config.defaultVisual)||{type:'visual',color:config.defaultColor||defaultColor,image:''};
       colorWrap.style.display='grid';
       imageWrap.style.display='grid';
-      colorInput.value=visual.color||'#225a50';
+      colorInput.value=visual.color||config.defaultColor||defaultColor;
       loadCanvas(visual.image||'');
     }
 
     function visualFromEditor(){
-      const image=uploadedImage||canvas.toDataURL('image/png');
-      return{type:'visual',color:colorInput.value||'#225a50',image};
+      const image=hasIcon?(uploadedImage||canvas.toDataURL('image/png')):'';
+      return{type:'visual',color:colorInput.value||config.defaultColor||defaultColor,image};
     }
 
     function open(nextConfig){
@@ -810,6 +820,7 @@
         optionsHtml.push(`<option value="${escapeHtml(key)}">${escapeHtml(target.label||('Slot '+(i+1)))}</option>`);
       });
       targetSelect.innerHTML=optionsHtml.join('');
+      config.defaultColor=config.defaultColor||defaultColor;
       hint.textContent=config.hint||'Choose a background color and optionally draw/upload a visual.';
       clearCanvas();
       loadEditor();
@@ -828,7 +839,7 @@
       close();
     }
 
-    canvas.addEventListener('pointerdown',e=>{drawing=false;canvas.setPointerCapture?.(e.pointerId);draw(e);drawing=true;uploadedImage='';});
+    canvas.addEventListener('pointerdown',e=>{drawing=false;canvas.setPointerCapture?.(e.pointerId);draw(e);drawing=true;uploadedImage='';hasIcon=true;});
     canvas.addEventListener('pointermove',e=>{if(drawing)draw(e);});
     canvas.addEventListener('pointerup',()=>{drawing=false;uploadedImage='';});
     canvas.addEventListener('pointercancel',()=>{drawing=false;});
@@ -842,12 +853,14 @@
           clearCanvas();
           ctx.drawImage(img,0,0,canvas.width,canvas.height);
           uploadedImage=canvas.toDataURL('image/png');
+          hasIcon=true;
         };
         img.src=reader.result;
       };
       reader.readAsDataURL(file);
     };
     clearBtn.onclick=clearCanvas;
+    if(resetColorBtn)resetColorBtn.onclick=()=>{colorInput.value=config.defaultColor||defaultColor;};
     targetSelect.onchange=loadEditor;
     saveBtn.onclick=save;
     (options.closeIds||[]).forEach(id=>{

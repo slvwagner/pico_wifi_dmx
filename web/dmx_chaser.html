@@ -310,6 +310,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <label>Target<select id="chaseVisualTarget"></select></label>
 <div id="chaseVisualColorWrap">
 <label>Background color<input id="chaseVisualColor" type="color" value="#225a50"></label>
+<button id="chaseVisualResetColor" type="button">Default background</button>
 </div>
 <div id="chaseVisualImageWrap" class="slot-visual-editor">
 <div class="toolbar">
@@ -317,7 +318,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 <div class="toolbar">
 <canvas id="chaseVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
-<div class="buttons"><button id="chaseVisualClear" type="button">Clear drawing</button></div>
+<div class="buttons"><button id="chaseVisualClear" type="button">No icon</button></div>
 </div>
 <div class="small">Choose a background color, then draw or upload an optional visual on top. Both are saved inside the chases JSON.</div>
 </div>
@@ -1638,6 +1639,7 @@ const chaseVisualEditor=DmxCommon.initSlotVisualEditor({
   colorWrapId:'chaseVisualColorWrap',
   imageWrapId:'chaseVisualImageWrap',
   colorInputId:'chaseVisualColor',
+  resetColorBtnId:'chaseVisualResetColor',
   canvasId:'chaseVisualCanvas',
   imageInputId:'chaseVisualImage',
   clearBtnId:'chaseVisualClear',
@@ -1649,6 +1651,7 @@ function openChaseVisualModal(){
   chaseVisualEditor.open({
     targetLabel:'Chases',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the chase slot; loading still uses the stored chase data.',
+    defaultColor:'#225a50',
     defaultVisual:chaseVisualDefault,
     targets:savedChases
       .slice()

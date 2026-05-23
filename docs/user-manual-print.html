@@ -226,7 +226,7 @@ strong { color: #ffffff; }
 <li>Dimmer levels</li>
 <li>Fan Out results that you want to reuse as an overlay</li>
 </ul>
-<p>The <strong>Visual</strong> button opens the palette visual editor. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.</p>
+<p>The <strong>Visual</strong> button opens the palette visual editor. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Use <strong>Default background</strong> to restore the standard slot color, or <strong>No icon</strong> to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.</p>
 <p>Palette save rules:</p>
 <ul>
 <li>If Fan Out is active, the palette saves only the Fan Out affected controls.</li>
@@ -259,7 +259,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/fixture-controller-scene-box.png" alt="Scene Toolbox"></p>
 <p>The Scene Toolbox is available on the Fixture Controller page.</p>
 <p>Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.</p>
-<p>The <strong>Visual</strong> button opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.</p>
+<p>The <strong>Visual</strong> button opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.</p>
 <ol>
 <li>Set your desired fixture values.</li>
 <li>Click an empty scene slot.</li>
@@ -346,7 +346,7 @@ strong { color: #ffffff; }
 <ul>
 <li><strong>Groups</strong> filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.</li>
 <li><strong>Chases</strong> stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.</li>
-<li>The <strong>Visual</strong> button in <strong>Chases</strong> sets a background color and optional drawn/uploaded visual for chase slots. This is only a label; loading a chase still uses the stored chase steps and playback settings.</li>
+<li>The <strong>Visual</strong> button in <strong>Chases</strong> sets a background color and optional drawn/uploaded visual for chase slots. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.</li>
 <li><strong>Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.</li>
 <li><strong>Browser Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico.</li>
 </ul>
