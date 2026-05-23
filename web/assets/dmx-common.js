@@ -246,10 +246,53 @@
     header.title=header.title||'Drag to reorder toolbox';
   }
 
+  function findVerticalScroller(target,limit){
+    let el=target;
+    while(el&&el!==document&&el!==document.body){
+      if(limit&&!limit.contains(el))break;
+      const style=getComputedStyle(el);
+      const overflow=style.overflowY;
+      if((overflow==='auto'||overflow==='scroll')&&el.scrollHeight>el.clientHeight+1)return el;
+      if(el===limit)break;
+      el=el.parentElement;
+    }
+    return limit;
+  }
+
+  function initToolboxRailScrollGuard(rail){
+    if(!rail||rail.dataset.toolboxScrollGuard==='1')return;
+    rail.dataset.toolboxScrollGuard='1';
+    let touch={y:0,scroller:null};
+    const canScroll=(el,dy)=>{
+      if(!el)return false;
+      if(el.scrollHeight<=el.clientHeight+1)return false;
+      if(dy<0)return el.scrollTop>0;
+      if(dy>0)return el.scrollTop+el.clientHeight<el.scrollHeight-1;
+      return false;
+    };
+    rail.addEventListener('wheel',e=>{
+      const scroller=findVerticalScroller(e.target,rail);
+      e.stopPropagation();
+      if(!canScroll(scroller,e.deltaY))e.preventDefault();
+    },{passive:false});
+    rail.addEventListener('touchstart',e=>{
+      touch.y=e.touches[0]?.clientY||0;
+      touch.scroller=findVerticalScroller(e.target,rail);
+    },{passive:true});
+    rail.addEventListener('touchmove',e=>{
+      const y=e.touches[0]?.clientY||touch.y;
+      const dy=touch.y-y;
+      touch.y=y;
+      e.stopPropagation();
+      if(!canScroll(touch.scroller,dy))e.preventDefault();
+    },{passive:false});
+  }
+
   function initToolboxRail(rail,entries){
     if(!rail)return;
     initToolboxRailHeader(rail);
     initToolboxRailResize(rail);
+    initToolboxRailScrollGuard(rail);
     applySharedToolboxRailWidth().catch(()=>{});
     applySharedToolboxRailCollapsed(rail).catch(()=>{});
     (entries||[]).forEach(entry=>{
