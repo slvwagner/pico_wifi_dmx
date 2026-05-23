@@ -191,6 +191,8 @@ Saved Groups are shown in a compact matrix. Each group has Select and Deselect o
 
 The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows only controls that exist on all selected fixtures, so one slider or XY pad can update every fixture in the group at once. On the Chaser page, **Apply source** copies the selected Source fixture's value for one control to all matching participating fixtures, and **All** applies every editable Source value in the modal. The modal can also recall Default all or Blackout all; normal edits are sent to the Pico when a Pico base URL is set.
 
+The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, **Merge** the selected step values into an existing palette, or edit slot appearance with **Visual**. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
+
 ![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
 
 The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a background color plus an optional drawn/uploaded visual as a label in the slot grid, with controls to reset the background or remove the icon.
@@ -248,10 +250,7 @@ On the Chaser page, each uploaded Pico slot also stores its playback mode (`Sing
 
 ### Chaser — Participating Controls
 
-The **Participating Controls** panel defines which fixture+control pairs are written by the chaser. It is stored separately from the step list:
-
-- **Save / Load** — persisted to `chaser_setup.json` via `chaser_setup.php?participating`, independently of steps. Recalling a saved chase rebuilds the active selection from the recalled step.
-- **Export (↓) / Import (↑)** — download or upload the participating map as a standalone JSON file. Useful for copying a control selection between chase-building sessions.
+The **Participating Controls** panel defines which fixture+control pairs are written by the current chase. It is not saved as a separate preset anymore. Recalling a chase rebuilds the active participating controls from the selected step, while **All**, **None**, **Only**, and **Add** are working tools for creating or editing the current step.
 
 ### Chaser — Capture from Fixture Controller
 
@@ -394,7 +393,6 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `palette_setup.php` | `data/palette_setup.json` | Reusable palette overlays and slot grid dimensions |
 | `group_setup.php` | `data/group_setup.json` | Fixture group definitions |
 | `chaser_setup.php` | `data/chaser_setup.json` | Saved chases, Chaser toolbox grid config, mirrored Pico slot payloads |
-| `chaser_setup.php?participating` | `data/chaser_setup.json` (merged) | Participating controls map — saved/loaded independently of steps so the control selection survives step edits and can be exported/imported as standalone JSON |
 | `motion_setup.php` | `data/motion_setup.json` | Motion FX browser setup, saved effect recipes, and saved Pico slot payloads |
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, and toolbox collapse state |
 
@@ -442,7 +440,7 @@ The root `CMakeLists.txt` remains the Pico build entry point and references sour
 | `api/scene_setup.php` | REST handler — save/load scenes and slot grid config (`data/scene_setup.json`) |
 | `api/palette_setup.php` | REST handler — save/load reusable palette overlays (`data/palette_setup.json`) |
 | `api/group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
-| `api/chaser_setup.php` | REST handler — save/load saved Chases toolbox entries and mirrored Pico slot payloads (`data/chaser_setup.json`); `?participating` endpoint saves/loads participating controls independently of steps |
+| `api/chaser_setup.php` | REST handler — save/load saved Chases toolbox entries and mirrored Pico slot payloads (`data/chaser_setup.json`) |
 | `api/motion_setup.php` | REST handler — save/load Motion FX setup, saved effect recipes, and mirrored Pico slot payloads (`data/motion_setup.json`) |
 | `api/ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
 | `scripts/sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |

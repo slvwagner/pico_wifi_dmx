@@ -349,7 +349,7 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
-- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step. When a Pico base URL is set, the edited step values are also sent to the Pico.
+- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. **Visual** edits the default palette slot appearance or a saved palette's appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
@@ -396,7 +396,9 @@ Participating controls define which fixture controls belong to the chase. This k
 
 For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.
 
-If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown while you are choosing the scope. Any direct change in **Participating Controls** then clears the group selection. This avoids mixing two different filters: after you press **All**, **None**, **Only**, **Add**, load/import participating controls, or tick an individual checkbox, the participating-control set becomes the source of truth.
+If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown while you are choosing the scope. Any direct change in **Participating Controls** then clears the group selection. This avoids mixing two different filters: after you press **All**, **None**, **Only**, **Add**, or tick an individual checkbox, the participating-control set becomes the source of truth.
+
+**All** selects every valid participating control for all patched fixtures, clears the Groups filter, expands the participating fixture list, stops browser Chase Playback, clears the selected step, clears **Edit Step**, clears the Source fixture, and resets Fan Out bases. Existing steps in **Chase Steps** are not deleted. After **All**, use **Add step**, **Capture + Add**, or **Group Edit** to create or edit a step from the full participating-control scope.
 
 **Group Edit** edits the current participating-control scope. It becomes available when the current scope contains at least one matching selected control on two or more participating fixtures. A step does not need to be selected first. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edit into that step. If a step is selected, Group Edit edits that selected step.
 
@@ -418,6 +420,7 @@ Keep these rules as the contract for the Chaser page:
 - When playback stops or pauses, the last played step remains selected.
 - Manual previous/next playback also selects the stepped-to chase step and redraws **Edit Step**.
 - Group filters are only temporary scope builders. Direct Participating Controls changes clear the group filter.
+- **All** clears the selected step/edit context but keeps the existing step list unchanged.
 - **Group Edit** does not require a selected step. If no step is selected, the first Group Edit value change creates a new step from the current participating controls. If a step is selected, Group Edit edits that step.
 
 When you define participating controls manually:

@@ -64,7 +64,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox--narrow{max-width:380px}
 .scene-toolbox--groups{right:430px;min-width:280px;max-width:calc(100vw - 24px);overflow:visible}
 .scene-toolbox--groups .scene-toolbox__header{background:#075b66}
-.scene-toolbox--palettes .scene-toolbox__header{background:#67510a}
+.scene-toolbox--palettes .scene-toolbox__header{background:rgb(50,90,54)}
 .scene-toolbox--fan .scene-toolbox__header{background:#5a171a}
 .scene-toolbox--effects .scene-toolbox__header{background:#17425a}
 .fan-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}

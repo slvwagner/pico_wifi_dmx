@@ -87,11 +87,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       <div class="row" style="justify-content:space-between;align-items:center">
         <h2>Participating Controls</h2>
         <div class="buttons">
-          <button id="btnSavePart" style="padding:6px 10px;font-size:12px">Save</button>
-          <button id="btnLoadPart" style="padding:6px 10px;font-size:12px">Load</button>
-          <button id="btnExportPart" class="icon-btn export-btn" title="Export participating JSON"></button>
-          <button id="btnImportPart" class="icon-btn import-btn" title="Import participating JSON"></button>
-          <input id="importPartFile" type="file" accept=".json,application/json" style="display:none">
           <button class="collapse-btn" data-panel-toggle="participationPanel" title="Collapse Participating Controls">−</button>
         </div>
       </div>
@@ -328,9 +323,11 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div class="buttons">
 <button id="exportChaserPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
 <button id="importChaserPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
+<button id="mergeChaserPaletteBtn" class="palette-merge-btn" title="Merge selected step values into an existing palette">Merge</button>
+<button id="chaserPaletteVisualBtn" class="palette-merge-btn" title="Edit the palette visual">Visual</button>
 <input id="importChaserPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
-<div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step.</div>
+<div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step. Merge adds selected step values to an existing palette.</div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
@@ -2179,6 +2176,16 @@ function applyParticipatingData(data,redraw=true){
 let chaserPalettes=[];
 let chaserPaletteCols=4,chaserPaletteRows=4;
 const CHASER_PALETTE_GRID_MAX=32;
+let chaserPaletteVisualDefault=(()=>{
+  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('chaserPaletteVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  catch(_){return {type:'visual',color:'#225a50',image:''};}
+})();
+function saveChaserPaletteVisualDefault(){
+  localStorage.setItem('chaserPaletteVisualDefault',JSON.stringify(chaserPaletteVisualDefault));
+}
+function currentChaserPaletteVisualForSave(){
+  return JSON.parse(JSON.stringify(chaserPaletteVisualDefault));
+}
 function requiredChaserPaletteSlots(){
   return chaserPalettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
 }
@@ -2269,10 +2276,47 @@ function chaserPaletteSlotClick(idx){
   if(!name)return;
   const scope=chaserPaletteScopeForValues(values);
   chaserPalettes=chaserPalettes.filter(pl=>parseInt(pl.slot,10)!==idx);
-  chaserPalettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values,visual:{type:'visual',color:'#225a50',image:''}});
+  chaserPalettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values,visual:currentChaserPaletteVisualForSave()});
   renderChaserPaletteMatrix();
   saveChaserPalettesServer();
   setStatus('Saved step '+(selectedStepIdx+1)+' as palette "'+name+'" ('+chaserPaletteScopeLabel(scope)+')');
+}
+function mergeChaserPaletteButtonClick(){
+  const values=selectedStepPaletteValues();
+  if(!values||!Object.keys(values).length){setStatus('Select a step with values before merging a palette',true);return;}
+  if(!chaserPalettes.length){setStatus('No saved palettes to merge into',true);return;}
+  const list=chaserPalettes
+    .slice()
+    .sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0))
+    .map(p=>(parseInt(p.slot,10)+1)+': '+(p.name||'Palette')+' ('+chaserPaletteScopeLabel(p.scope||'all')+')')
+    .join('\n');
+  const answer=(prompt('Merge selected step values into palette slot:\n'+list,'1')||'').trim();
+  if(!answer)return;
+  const slot=Math.max(0,parseInt(answer,10)-1);
+  const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===slot);
+  if(!p){setStatus('Palette slot '+(slot+1)+' is empty',true);return;}
+  mergeSelectedStepIntoChaserPalette(p,values);
+}
+function mergeSelectedStepIntoChaserPalette(p,values){
+  const currentScope=chaserPaletteScopeForValues(values);
+  const savedScope=p.scope||'all';
+  if(savedScope===currentScope||savedScope==='all'){
+    mergeChaserPaletteValues(p,values,savedScope==='all'?'all':currentScope);
+    return;
+  }
+  if(confirm('Palette "'+(p.name||'Palette')+'" is '+chaserPaletteScopeLabel(savedScope)+', but the selected step values are '+chaserPaletteScopeLabel(currentScope)+'.\n\nChange this palette scope to All controls and merge?')){
+    mergeChaserPaletteValues(p,values,'all');
+  }
+}
+function mergeChaserPaletteValues(p,values,nextScope){
+  const keys=Object.keys(values||{});
+  if(!keys.length){setStatus('Selected step has no compatible values to merge',true);return;}
+  p.values={...(p.values||{}),...values};
+  p.scope=nextScope;
+  if(!p.visual)p.visual=currentChaserPaletteVisualForSave();
+  renderChaserPaletteMatrix();
+  saveChaserPalettesServer();
+  setStatus('Merged '+keys.length+' value'+(keys.length===1?'':'s')+' into palette "'+(p.name||'Palette')+'"');
 }
 function recallChaserPalette(p){
   const step=steps[selectedStepIdx];
@@ -2335,10 +2379,35 @@ function importChaserPalettesJson(file){
   };
   reader.readAsText(file);
 }
+function openChaserPaletteVisualModal(){
+  chaseVisualEditor.open({
+    targetLabel:'Palettes',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the palette slot; recall still uses the stored palette values.',
+    defaultColor:'#225a50',
+    defaultVisual:chaserPaletteVisualDefault,
+    targets:chaserPalettes
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+      .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+chaserPaletteScopeLabel(p.scope||'all')+')'})),
+    onSaveDefault:visual=>{
+      chaserPaletteVisualDefault=visual;
+      saveChaserPaletteVisualDefault();
+      setStatus('Default palette visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderChaserPaletteMatrix();
+      saveChaserPalettesServer();
+      setStatus('Updated palette visual for "'+(target.name||'Palette')+'"');
+    }
+  });
+}
 document.getElementById('chaserPaletteCols').addEventListener('input',e=>{chaserPaletteCols=e.target.value;normalizeChaserPaletteGrid('cols');renderChaserPaletteMatrix();saveChaserPalettesServer();});
 document.getElementById('chaserPaletteRows').addEventListener('input',e=>{chaserPaletteRows=e.target.value;normalizeChaserPaletteGrid('rows');renderChaserPaletteMatrix();saveChaserPalettesServer();});
 document.getElementById('exportChaserPalettesBtn').onclick=exportChaserPalettesJson;
 document.getElementById('importChaserPalettesBtn').onclick=()=>document.getElementById('importChaserPalettesFile').click();
+document.getElementById('mergeChaserPaletteBtn').onclick=mergeChaserPaletteButtonClick;
+document.getElementById('chaserPaletteVisualBtn').onclick=openChaserPaletteVisualModal;
 document.getElementById('importChaserPalettesFile').onchange=e=>{if(e.target.files[0])importChaserPalettesJson(e.target.files[0]);e.target.value='';};
 const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaserPaletteBox',
@@ -2353,24 +2422,6 @@ const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
 loadChaserPalettesServer();
 DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
 
-async function saveParticipatingToServer(){
-  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
-  try{
-    const r=await fetch('chaser_setup.php?participating',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(participating)});
-    const j=await r.json();
-    if(j.ok)setStatus('Participating controls saved');
-    else setStatus('Save failed: '+j.error,true);
-  }catch(err){setStatus('Save failed: '+err.message,true);}
-}
-async function loadParticipatingFromServer(){
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
-  try{
-    const r=await fetch('chaser_setup.php?participating',{cache:'no-store'});
-    const j=await r.json();
-    if(r.ok&&j.ok&&j.exists&&j.participating){applyParticipatingData(j.participating);clearChaserGroupSelectionForParticipationEdit();refreshChaserGroupActionsSoon();return true;}
-  }catch(_){}
-  return false;
-}
 document.getElementById('btnExportSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
@@ -2511,15 +2562,20 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
   btn.onclick=()=>setCollapsed(!panel.classList.contains('collapsed-panel'));
 });
 document.getElementById('btnSelAll').onclick=()=>{
+  stopPlaybackForManualEdit();
   activeStepValueKeys=null;
+  selectedStepIdx=-1;
+  sourceFixtureId=null;
   Object.keys(participating).forEach(k=>participating[k]=true);
   clearChaserGroupSelectionForParticipationEdit();
   collapsedPartFixtures.clear();
   localStorage.setItem('chaserPartCollapsedFix','[]');
   drawParticipation();
+  drawStepList();
   drawStepEditor();
+  refreshFanBasesFromStep();
   refreshChaserGroupActionsSoon();
-  if(selectedStepIdx<0)setStatus('All participating controls selected. Select or add a step to use Group Edit.',true);
+  setStatus('All participating controls selected. Step editing context cleared; existing steps are unchanged.');
 };
 document.getElementById('btnSelNone').onclick=()=>{
   activeStepValueKeys=null;
@@ -2533,33 +2589,6 @@ document.getElementById('btnSelNone').onclick=()=>{
 };
 document.getElementById('btnGroupControlOnly').onclick=()=>applyGroupControlSelection('only');
 document.getElementById('btnGroupControlAdd').onclick=()=>applyGroupControlSelection('add');
-document.getElementById('btnSavePart').onclick=()=>saveParticipatingToServer();
-document.getElementById('btnLoadPart').onclick=async()=>{
-  const loaded=await loadParticipatingFromServer();
-  if(loaded)setStatus('Participating controls loaded from server');
-  else setStatus('No saved participating controls found',true);
-};
-document.getElementById('btnExportPart').onclick=()=>{
-  const blob=new Blob([JSON.stringify({participating},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_participating.json';a.click();URL.revokeObjectURL(a.href);
-  setStatus('dmx_participating.json downloaded');
-};
-document.getElementById('btnImportPart').onclick=()=>document.getElementById('importPartFile').click();
-document.getElementById('importPartFile').onchange=e=>{
-  const file=e.target.files?.[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    try{
-      const data=JSON.parse(reader.result);
-      applyParticipatingData(data.participating??data);
-      clearChaserGroupSelectionForParticipationEdit();
-      refreshChaserGroupActionsSoon();
-      setStatus('Participating controls imported from '+file.name);
-    }catch(err){alert('Invalid JSON: '+err.message);}
-    e.target.value='';
-  };
-  reader.readAsText(file);
-};
 
 // ---- Pico realtime playback ----
 function serializeChaserForPico(){

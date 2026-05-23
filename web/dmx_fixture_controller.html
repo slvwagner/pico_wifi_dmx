@@ -506,14 +506,17 @@ function wheelOptionsText(options){
 }
 
 function duplicateWheelOptionValueError(options){
-  const seen=new Map();
+  const byValue=new Map();
   for(const option of options||[]){
     const value=clamp(option.value,0,255);
-    if(seen.has(value)){
-      return 'Wheel option DMX value '+value+' is used by "'+seen.get(value)+'" and "'+(option.name||'Value')+'". Each wheel option needs a unique DMX value.';
-    }
-    seen.set(value,option.name||'Value');
+    if(!byValue.has(value))byValue.set(value,[]);
+    byValue.get(value).push(option.name||'Value');
   }
+  const duplicates=[];
+  byValue.forEach((names,value)=>{
+    if(names.length>1)duplicates.push('DMX '+value+': '+names.map(name=>'"'+name+'"').join(', '));
+  });
+  if(duplicates.length)return 'Wheel option DMX values must be unique. Duplicate assignments: '+duplicates.join('; ')+'.';
   return '';
 }
 
