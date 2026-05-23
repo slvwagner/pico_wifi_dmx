@@ -390,7 +390,7 @@ The **Chase Steps** toolbox uses shared action buttons instead of per-step butto
 - **Clear Steps** deletes all current working steps after confirmation. It does not delete saved Chases toolbox entries or Pico slot payloads.
 - **Dupe** duplicates the selected step directly after itself and selects the copy.
 - **Up** and **Down** move the selected step in the step order and keep the same step loaded in **Edit Step**.
-- You can also drag a step card and drop it before or after another step card to reorder the chase. The selected step and the currently playing step stay attached to the same step data after the move.
+- You can also drag a step card with mouse or touch and drop it before or after another step card to reorder the chase. A short click still selects the step. The selected step and the currently playing step stay attached to the same step data after the move.
 - **Delete** removes the selected step. If another step remains, it becomes the selected step.
 
 ### Participating Controls

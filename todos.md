@@ -13,15 +13,14 @@ Do we want “offline programming” to be a global system mode, or page-specifi
 Global is simpler and safer. Page-specific is more flexible, but easier to misunderstand during a show.
 
 ## 02
-I wold like to be able to reorder the chaser steps per drag and drop 
 
 
 # Debug
 
 
 
-## 02
-So you are always using the manual-data to create screen shots automated?
+## 01
+
 
 
 # Error fixing
