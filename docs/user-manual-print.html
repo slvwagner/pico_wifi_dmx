@@ -403,6 +403,7 @@ strong { color: #ffffff; }
 <li><strong>Edit Step</strong> shows the currently selected step, not a separate preview copy.</li>
 <li>If a saved chase is recalled, Step 1 is selected immediately and becomes the visible <strong>Edit Step</strong>.</li>
 <li>If <strong>Chase Playback</strong> is running, playback overrules manual step rendering: every played step automatically becomes the selected step and redraws <strong>Participating Controls</strong> plus <strong>Edit Step</strong>.</li>
+<li>During fades, <strong>Edit Step</strong> updates the existing sliders, readouts, XY dots, colors, and wheel highlights continuously from the interpolated playback values. The full card is only rebuilt when the played step changes.</li>
 <li>When playback stops or pauses, the last played step remains selected.</li>
 <li>Manual previous/next playback also selects the stepped-to chase step and redraws <strong>Edit Step</strong>.</li>
 <li>Group filters are only temporary scope builders. Direct Participating Controls changes clear the group filter.</li>

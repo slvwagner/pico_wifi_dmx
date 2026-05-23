@@ -1525,9 +1525,9 @@ chaserGroupModalBody.addEventListener('pointermove',e=>{
   setChaserGroupXY(e,pad);
 });
 
-function updateStepDisplay(f,c){
+function updateStepDisplay(f,c,overrideValue){
   const fi=f.id,ci=c.id;
-  const v=getStepVal(f,c)??defaultValue(c);
+  const v=overrideValue??getStepVal(f,c)??defaultValue(c);
   if(c.type==='panTilt16'||c.type==='panTilt8'){
     const max=c.type==='panTilt8'?255:65535;
     const pad=document.querySelector(`[data-xyf="${fi}"][data-xyc="${ci}"]`);
@@ -1646,6 +1646,18 @@ let stepEnteredAt=null;
 let prevOutput={};
 let currentOutput={};
 let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
+let playbackVisualFrame=0;
+
+function schedulePlaybackVisualUpdate(ptList){
+  if(playbackVisualFrame)return;
+  playbackVisualFrame=requestAnimationFrame(()=>{
+    playbackVisualFrame=0;
+    (ptList||getParticipatingList()).forEach(({f,c})=>{
+      const k=controlKey(f,c);
+      if(currentOutput[k]!==undefined)updateStepDisplay(f,c,currentOutput[k]);
+    });
+  });
+}
 
 function startPlayback(){
   if(!steps.length){setStatus('Add some steps first',true);return;}
@@ -1713,6 +1725,7 @@ function playbackTick(){
     currentOutput[k]=val;
     collectChannels(f,c,val,batchMap);
   });
+  schedulePlaybackVisualUpdate(ptList);
   sendBatch(batchMap);
   const progress=Math.min(100,elapsed/durMs*100);
   document.getElementById('stepProgress').style.width=progress+'%';

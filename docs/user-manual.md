@@ -376,6 +376,7 @@ Keep these rules as the contract for the Chaser page:
 - **Edit Step** shows the currently selected step, not a separate preview copy.
 - If a saved chase is recalled, Step 1 is selected immediately and becomes the visible **Edit Step**.
 - If **Chase Playback** is running, playback overrules manual step rendering: every played step automatically becomes the selected step and redraws **Participating Controls** plus **Edit Step**.
+- During fades, **Edit Step** updates the existing sliders, readouts, XY dots, colors, and wheel highlights continuously from the interpolated playback values. The full card is only rebuilt when the played step changes.
 - When playback stops or pauses, the last played step remains selected.
 - Manual previous/next playback also selects the stepped-to chase step and redraws **Edit Step**.
 - Group filters are only temporary scope builders. Direct Participating Controls changes clear the group filter.
