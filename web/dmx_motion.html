@@ -245,11 +245,12 @@ main{max-width:none;width:100%;margin:0}
 <div id="motionEffectVisualModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Effect Visual</h2>
+<h2>Edit Tile</h2>
 <button id="motionEffectVisualClose" style="font-size:16px;padding:6px 14px">x</button>
 </div>
 <div class="modal-body">
 <label>Target<select id="motionEffectVisualTarget"></select></label>
+<label>Name<input id="motionEffectVisualName" type="text"></label>
 <div id="motionEffectColorVisualWrap">
 <label>Background color<input id="motionEffectVisualColor" type="color" value="#225a50"></label>
 <button id="motionEffectVisualResetColor" type="button">Default background</button>
@@ -262,7 +263,7 @@ main{max-width:none;width:100%;margin:0}
 <div id="motionEffectVisualHint" class="small"></div>
 </div>
 <div class="buttons">
-<button id="motionEffectVisualSave" class="primary">Save visual</button>
+<button id="motionEffectVisualSave" class="primary">Save tile</button>
 <button id="motionEffectVisualClose2">Close</button>
 </div>
 </div>
@@ -1562,7 +1563,7 @@ function renderMotionEffectMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const e=motionEffects.find(fx=>parseInt(fx.slot,10)===i);
-    if(e)html+=`<div class="slot filled" data-motion-effect-slot="${i}" title="Click: recall effect" style="${DmxCommon.slotVisualStyle(e)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-effect-slot',i,'Edit effect visual')}<button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
+    if(e)html+=`<div class="slot filled" data-motion-effect-slot="${i}" title="Click: recall effect" style="${DmxCommon.slotVisualStyle(e)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-effect-slot',i,'Edit effect tile')}<button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
     else html+=`<div class="slot" data-motion-effect-slot="${i}" title="Click to save current effect">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1656,6 +1657,7 @@ const motionEffectVisualEditor=DmxCommon.initSlotVisualEditor({
   colorWrapId:'motionEffectColorVisualWrap',
   imageWrapId:'motionEffectImageVisualWrap',
   colorInputId:'motionEffectVisualColor',
+  nameInputId:'motionEffectVisualName',
   resetColorBtnId:'motionEffectVisualResetColor',
   canvasId:'motionEffectVisualCanvas',
   imageInputId:'motionEffectVisualImage',
@@ -1683,6 +1685,30 @@ function openMotionEffectVisualModal(slot){
       renderMotionEffectMatrix();
       saveMotionEffectsServer();
       setStatus('Updated effect visual for "'+(target.name||'Effect')+'"');
+    }
+  });
+}
+let motionPaletteVisualDefault={type:'visual',color:'#225a50',image:''};
+function openMotionPaletteVisualModal(slot){
+  motionEffectVisualEditor?.open({
+    targetLabel:'palettes',
+    hint:'Choose a name, background color, and optional drawing/upload for this palette tile. The palette scope and DMX values stay unchanged.',
+    defaultColor:'#225a50',
+    defaultVisual:motionPaletteVisualDefault,
+    targets:motionPalettes
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0))
+      .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')})),
+    selectedKey:slot,
+    onSaveDefault:visual=>{
+      motionPaletteVisualDefault=visual;
+      setStatus('Default palette visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderMotionPaletteMatrix();
+      saveMotionPalettesServer();
+      setStatus('Updated palette tile for "'+(target.name||'Palette')+'"');
     }
   });
 }
@@ -1822,13 +1848,19 @@ function renderMotionPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=motionPalettes.find(pl=>parseInt(pl.slot,10)===i);
-    if(p)html+=`<div class="slot filled" data-motion-palette-slot="${i}" title="Click: recall palette" style="${DmxCommon.slotVisualStyle(p)}"><div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${escMotionHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
+    if(p)html+=`<div class="slot filled" data-motion-palette-slot="${i}" title="Click: recall palette" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-palette-slot',i,'Edit palette tile')}<div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${escMotionHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
     else html+=`<div class="slot readonly" data-motion-palette-slot="${i}">${i+1}</div>`;
   }
   grid.innerHTML=html;
   grid.querySelectorAll('.slot.filled').forEach(el=>{
     const idx=parseInt(el.dataset.motionPaletteSlot,10);
     el.addEventListener('click',()=>{const p=motionPalettes.find(pl=>parseInt(pl.slot,10)===idx);if(p)recallMotionPalette(p);});
+  });
+  grid.querySelectorAll('[data-visual-motion-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openMotionPaletteVisualModal(parseInt(btn.dataset.visualMotionPaletteSlot,10));
+    });
   });
 }
 function compatibleMotionPaletteEntries(paletteValues){

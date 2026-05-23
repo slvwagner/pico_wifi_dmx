@@ -302,11 +302,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="paletteVisualModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Slot Visual</h2>
+<h2>Edit Tile</h2>
 <button id="paletteVisualClose" style="font-size:16px;padding:6px 14px">✕</button>
 </div>
 <div class="modal-body">
 <label>Target<select id="paletteVisualTarget"></select></label>
+<label>Name<input id="paletteVisualName" type="text"></label>
 <div id="paletteColorVisualWrap">
 <label>Background color<input id="paletteVisualColor" type="color" value="#225a50"></label>
 <button id="paletteVisualResetColor" type="button">Default background</button>
@@ -324,7 +325,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="paletteVisualHint" class="small"></div>
 </div>
 <div class="buttons" style="padding-top:4px">
-<button id="paletteVisualSave" class="primary">Save visual</button>
+<button id="paletteVisualSave" class="primary">Save tile</button>
 <button id="paletteVisualClose2">Close</button>
 </div>
 </div>
@@ -2428,7 +2429,7 @@ function renderSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}">${DmxCommon.slotVisualButtonHtml('data-visual-slot',i,'Edit scene visual')}<button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}">${DmxCommon.slotVisualButtonHtml('data-visual-slot',i,'Edit scene tile')}<button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
     else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2787,7 +2788,7 @@ function renderPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=palettes.find(pl=>pl.slot===i);
-    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-palette-slot',i,'Edit palette visual')}<button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
+    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-palette-slot',i,'Edit palette tile')}<button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
     else html+=`<div class="slot" data-palette-slot="${i}" title="Click to save palette here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2957,6 +2958,7 @@ const slotVisualEditor=DmxCommon.initSlotVisualEditor({
   colorWrapId:'paletteColorVisualWrap',
   imageWrapId:'paletteBeamVisualWrap',
   colorInputId:'paletteVisualColor',
+  nameInputId:'paletteVisualName',
   resetColorBtnId:'paletteVisualResetColor',
   canvasId:'paletteVisualCanvas',
   imageInputId:'paletteVisualImage',

@@ -798,6 +798,7 @@
     const colorWrap=document.getElementById(options.colorWrapId);
     const imageWrap=document.getElementById(options.imageWrapId);
     const colorInput=document.getElementById(options.colorInputId);
+    const nameInput=options.nameInputId?document.getElementById(options.nameInputId):null;
     const resetColorBtn=options.resetColorBtnId?document.getElementById(options.resetColorBtnId):null;
     const canvas=document.getElementById(options.canvasId);
     const imageInput=document.getElementById(options.imageInputId);
@@ -883,6 +884,18 @@
     function loadEditor(){
       const target=selectedTarget();
       const visual=normalizeSlotVisual(target&&target.visual)||normalizeSlotVisual(config.defaultVisual)||{type:'visual',color:config.defaultColor||defaultColor,image:''};
+      if(nameInput){
+        const nameWrap=nameInput.closest('label')||nameInput.parentElement;
+        if(target){
+          nameInput.disabled=false;
+          nameInput.value=target.name||target.label||'';
+          if(nameWrap)nameWrap.style.display='';
+        }else{
+          nameInput.disabled=true;
+          nameInput.value='';
+          if(nameWrap)nameWrap.style.display='none';
+        }
+      }
       colorWrap.style.display='grid';
       imageWrap.style.display='grid';
       colorInput.value=visual.color||config.defaultColor||defaultColor;
@@ -921,7 +934,13 @@
     function save(){
       const visual=visualFromEditor();
       const target=selectedTarget();
-      if(target)config.onSaveTarget?.(target,visual);
+      if(target){
+        if(nameInput&&!nameInput.disabled){
+          const nextName=nameInput.value.trim();
+          if(nextName)target.name=nextName;
+        }
+        config.onSaveTarget?.(target,visual);
+      }
       else config.onSaveDefault?.(visual);
       close();
     }

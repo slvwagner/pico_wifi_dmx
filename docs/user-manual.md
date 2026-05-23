@@ -141,7 +141,7 @@ The Fixture Controller uses four toolboxes in the shared right-side **Toolboxes*
 
 ![Controller Scenes toolbox](screenshots/fixture-controller-toolbox-scenes.png)
 
-**Scenes** stores complete looks for the current working scope. Empty slots save, filled slots recall, the small `x` deletes, and the small top-left pencil icon edits that slot's background and optional drawing/upload.
+**Scenes** stores complete looks for the current working scope. Empty slots save, filled slots recall, the small `x` deletes, and the small top-left pencil icon opens **Edit Tile** for that slot's name, background, and optional drawing/upload.
 
 ![Controller Palettes toolbox](screenshots/fixture-controller-toolbox-palettes.png)
 
@@ -188,7 +188,7 @@ Use palettes for building blocks such as:
 - Dimmer levels
 - Fan Out results that you want to reuse as an overlay
 
-The small top-left pencil icon on a filled palette slot opens the palette visual editor for that slot. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. The drawing canvas uses the selected background color, and the brush automatically switches between a light and dark stroke for readable contrast. Use **Default background** to restore the standard slot color, or **No icon** to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.
+The small top-left pencil icon on a filled palette slot opens **Edit Tile** for that slot. Use **Name** to rename the tile text, and use the visual controls for a background color plus an optional drawn/uploaded visual on top. The visual is independent from the palette scope. The drawing canvas uses the selected background color, and the brush automatically switches between a light and dark stroke for readable contrast. Use **Default background** to restore the standard slot color, or **No icon** to keep only the colored button. Scope still decides which DMX values are saved; the name and visual are readable labels shown in the palette slot grid and stored inside the palette JSON.
 
 Palette save rules:
 
@@ -227,7 +227,7 @@ The Scene Toolbox is available on the Fixture Controller page.
 
 Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.
 
-The small top-left pencil icon on a filled scene slot opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. The canvas background follows the selected background color, and the brush color is calculated for contrast against it. **Default background** restores the standard slot color, and **No icon** removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.
+The small top-left pencil icon on a filled scene slot opens the same **Edit Tile** modal used by palettes. A scene can be renamed and can have a background color plus an optional drawn/uploaded visual in its slot. The canvas background follows the selected background color, and the brush color is calculated for contrast against it. **Default background** restores the standard slot color, and **No icon** removes the drawn/uploaded image. This name and visual are only labels for finding the scene quickly; scene save and recall still use the stored fixture values.
 
 1. Set your desired fixture values.
 2. Click an empty scene slot.
@@ -345,11 +345,11 @@ The Chaser page uses several toolboxes:
 ![Chaser Groups toolbox](screenshots/chaser-toolbox-groups.png)
 
 - **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
-- The small top-left pencil icon on a filled **Chases** slot sets a background color and optional drawn/uploaded visual for that chase slot. **Default background** restores the standard slot color, and **No icon** removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.
+- The small top-left pencil icon on a filled **Chases** slot opens **Edit Tile** for the chase name, background color, and optional drawn/uploaded visual. **Default background** restores the standard slot color, and **No icon** removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.
 
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
-- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and rebuilds **Participating Controls** from the palette's stored fixture/control keys. If no step is selected, Chaser creates a new selected step from the palette. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. The small top-left pencil icon edits a saved palette slot's visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.
+- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and rebuilds **Participating Controls** from the palette's stored fixture/control keys. If no step is selected, Chaser creates a new selected step from the palette. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. The small top-left pencil icon opens **Edit Tile** for a saved palette slot's name and visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
@@ -557,9 +557,9 @@ The **Effect** dropdown is target-aware. It only shows effects that make sense f
 
 The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.
 
-The Motion FX page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. Palette creation and visual editing still happen on the Fixture Controller; Motion recalls, imports, and exports the shared palette JSON.
+The Motion FX page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens **Edit Tile** so palette names and visuals can be adjusted from Motion too. Motion recalls, imports, exports, and saves the shared palette JSON.
 
-The **Effects** toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. Clicking a saved effect recalls the recipe without sending DMX and without uploading to a Pico slot.
+The **Effects** toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. Clicking a saved effect recalls the recipe without sending DMX and without uploading to a Pico slot. The small pencil opens **Edit Tile** for the effect name, background, and optional drawing/upload.
 
 **Effect Parameters** and **Effects** share one toolbox color and collapse together. Use **-- all** on either box to collapse the whole effect group, and **+ all** to reopen it.
 

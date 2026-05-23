@@ -173,7 +173,7 @@ Patch Fixtures supports one fixture at a time or a numbered run. Set a base name
 
 The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
 
-The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. Palette visuals are independent from scope: any palette can carry a background color plus an optional drawn/uploaded visual so slots stay readable at a glance. The visual editor draws on the selected background color and automatically chooses a high-contrast brush color. It can reset to the default background or clear the icon entirely. Palette visuals are saved inside `data/palette_setup.json` together with the palette values.
+The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. The small pencil on a filled tile opens **Edit Tile**, where you can rename the tile and set a background color plus an optional drawn/uploaded visual. Palette visuals are independent from scope, draw on the selected background color, and automatically choose a high-contrast brush color. They can reset to the default background or clear the icon entirely. Palette names and visuals are saved inside `data/palette_setup.json` together with the palette values.
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
@@ -191,11 +191,11 @@ Saved Groups are shown in a compact matrix. Each group has Select and Deselect o
 
 The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows only controls that exist on all selected fixtures, so one slider or XY pad can update every fixture in the group at once. On the Chaser page, **Apply source** copies the selected Source fixture's value for one control to all matching participating fixtures, and **All** applies every editable Source value in the modal. The modal can also recall Default all or Blackout all; normal edits are sent to the Pico when a Pico base URL is set.
 
-The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, or **Merge** the selected step values into an existing palette. Filled palette slots use the small top-left pencil icon to edit their visual appearance. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
+The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, or **Merge** the selected step values into an existing palette. Filled palette slots use the small top-left pencil icon to open **Edit Tile** for renaming and visual appearance. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
 
 ![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
 
-The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a background color plus an optional drawn/uploaded visual as a label in the slot grid, with controls to reset the background or remove the icon.
+The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a custom tile name, background color, and optional drawn/uploaded visual as a label in the slot grid, with controls to reset the background or remove the icon.
 
 **Chaser**
 
@@ -205,7 +205,7 @@ The Chaser page builds step-based sequences. A chase is made from multiple steps
 
 Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
 
-The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, use the header arrow to collapse or reopen the sidebar, and drag toolbox headers to reorder them. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, and Motion FX. Filled scene, palette, chase, and effect slots use a small top-left pencil icon to edit their visual appearance; the small `x` remains the delete control. The Chaser also has a Palettes toolbox: empty palette slots save the selected step's fixture/control values, and filled palette slots recall compatible values into the selected step.
+The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, use the header arrow to collapse or reopen the sidebar, and drag toolbox headers to reorder them. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, and Motion FX. Filled scene, palette, chase, and effect slots use a small top-left pencil icon to open **Edit Tile** for renaming and visual appearance; the small `x` remains the delete control. The Chaser also has a Palettes toolbox: empty palette slots save the selected step's fixture/control values, and filled palette slots recall compatible values into the selected step.
 
 **Motion FX**
 
