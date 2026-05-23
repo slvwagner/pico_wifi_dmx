@@ -147,7 +147,10 @@ main{max-width:none;width:100%;margin:0}
 <div id="motionEffectBox" class="scene-toolbox scene-toolbox--fan">
 <div id="motionEffectHdr" class="scene-toolbox__header">
   <span style="font-weight:700;font-size:13px">Effect Parameters</span>
-  <button id="motionEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+  <div class="toolbox-header-actions">
+    <button class="toolbox-collapse-group" data-collapse-group="motion-effects" title="Collapse all effect toolboxes">-- all</button>
+    <button id="motionEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+  </div>
 </div>
 <div class="scene-toolbox__body">
   <div style="display:grid;gap:8px">
@@ -186,10 +189,13 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
-<div id="motionSavedEffectBox" class="scene-toolbox scene-toolbox--palettes">
+<div id="motionSavedEffectBox" class="scene-toolbox scene-toolbox--fan">
 <div id="motionSavedEffectHdr" class="scene-toolbox__header">
   <span style="font-weight:700;font-size:13px">Effects</span>
-  <button id="motionSavedEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+  <div class="toolbox-header-actions">
+    <button class="toolbox-collapse-group" data-collapse-group="motion-effects" title="Collapse all effect toolboxes">-- all</button>
+    <button id="motionSavedEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+  </div>
 </div>
 <div class="scene-toolbox__body">
   <div class="slot-actions">
@@ -1933,6 +1939,30 @@ const motionSavedEffectToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'motionSavedEffectBoxPos',
   uiStateCollapsedKey:'motionSavedEffectBoxCollapsed'
 });
+const motionEffectsCollapseGroup=[
+  {id:'motionEffectBox',toolbox:motionEffectToolbox},
+  {id:'motionSavedEffectBox',toolbox:motionSavedEffectToolbox}
+];
+function updateMotionEffectsCollapseButtons(){
+  const boxes=motionEffectsCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const allCollapsed=boxes.length&&boxes.every(box=>box.classList.contains('collapsed'));
+  document.querySelectorAll('[data-collapse-group="motion-effects"]').forEach(btn=>{
+    btn.textContent=allCollapsed?'+ all':'-- all';
+    btn.title=allCollapsed?'Uncollapse all effect toolboxes':'Collapse all effect toolboxes';
+  });
+}
+function toggleMotionEffectsCollapseGroup(){
+  const boxes=motionEffectsCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const collapse=boxes.some(box=>!box.classList.contains('collapsed'));
+  motionEffectsCollapseGroup.forEach(cfg=>cfg.toolbox?.setCollapsed?.(collapse,true));
+  updateMotionEffectsCollapseButtons();
+}
+document.querySelectorAll('[data-collapse-group="motion-effects"]').forEach(btn=>btn.addEventListener('click',toggleMotionEffectsCollapseGroup));
+['motionEffectBoxToggle','motionSavedEffectBoxToggle'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',()=>setTimeout(updateMotionEffectsCollapseButtons,0));
+});
+updateMotionEffectsCollapseButtons();
+setTimeout(updateMotionEffectsCollapseButtons,500);
 const motionPaletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'motionPaletteBox',
   headerId:'motionPaletteHdr',

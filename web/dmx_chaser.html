@@ -44,7 +44,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 #browserPlaybackBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto}
 #browserPlaybackBox .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end}
 .chaser-toolbox-actions{display:flex;gap:6px;align-items:center}
-.chaser-collapse-all{padding:3px 8px;font-size:12px;line-height:1;min-width:64px}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList .item{cursor:pointer}
@@ -139,7 +138,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <div id="stepsBoxHdr" class="scene-toolbox__header">
       <span style="font-weight:700;font-size:13px">Chase Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="stepsBox" title="Toggle compact layout for Chase Steps and Chase Playback">Compact</button>
+        <button class="toolbox-collapse-group" data-collapse-group="chaser-playback" title="Collapse all chaser playback toolboxes">-- all</button>
         <button id="stepsBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -163,7 +162,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <div id="browserPlaybackBoxHdr" class="scene-toolbox__header">
       <span style="font-weight:700;font-size:13px">Chase Playback</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="browserPlaybackBox" title="Toggle compact layout for Chase Steps and Chase Playback">Compact</button>
+        <button class="toolbox-collapse-group" data-collapse-group="chaser-playback" title="Collapse all chaser playback toolboxes">-- all</button>
         <button id="browserPlaybackBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -274,6 +273,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div id="chaseBoxHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Chases</span>
 <div class="chaser-toolbox-actions">
+<button class="toolbox-collapse-group" data-collapse-group="chaser-playback" title="Collapse all chaser playback toolboxes">-- all</button>
 <button id="chaseBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
 </div>
@@ -2053,6 +2053,33 @@ const fanToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'fanToolboxPos',
   uiStateCollapsedKey:'fanToolboxCollapsed'
 });
+const chaserPlaybackCollapseGroup=[
+  {id:'chaseBox',toolbox:chaseToolbox},
+  {id:'stepsBox',toolbox:stepsToolbox},
+  {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox}
+];
+function updateChaserPlaybackCollapseButtons(){
+  const boxes=chaserPlaybackCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const allCollapsed=boxes.length&&boxes.every(box=>box.classList.contains('collapsed'));
+  document.querySelectorAll('[data-collapse-group="chaser-playback"]').forEach(btn=>{
+    btn.textContent=allCollapsed?'+ all':'-- all';
+    btn.title=allCollapsed?'Uncollapse all chaser playback toolboxes':'Collapse all chaser playback toolboxes';
+  });
+}
+function toggleChaserPlaybackCollapseGroup(){
+  localStorage.removeItem('chaserCompactState');
+  DmxCommon.saveUiState('chaser','chaserCompactState',null);
+  const boxes=chaserPlaybackCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const collapse=boxes.some(box=>!box.classList.contains('collapsed'));
+  chaserPlaybackCollapseGroup.forEach(cfg=>cfg.toolbox?.setCollapsed?.(collapse,true));
+  updateChaserPlaybackCollapseButtons();
+}
+document.querySelectorAll('[data-collapse-group="chaser-playback"]').forEach(btn=>btn.addEventListener('click',toggleChaserPlaybackCollapseGroup));
+['chaseBoxToggle','stepsBoxToggle','browserPlaybackBoxToggle'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',()=>setTimeout(updateChaserPlaybackCollapseButtons,0));
+});
+updateChaserPlaybackCollapseButtons();
+setTimeout(updateChaserPlaybackCollapseButtons,500);
 const chaserCompactBoxes=[
   {id:'stepsBox',toolbox:stepsToolbox,posKey:'stepsBoxPos',collapsedKey:'stepsBoxCollapsed',sizeKey:'stepsBoxSize'},
   {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox,posKey:'browserPlaybackBoxPos',collapsedKey:'browserPlaybackBoxCollapsed'}

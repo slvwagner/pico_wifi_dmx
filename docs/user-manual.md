@@ -319,6 +319,7 @@ The Chaser page uses several toolboxes:
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
 - **Chase Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
+- **Chases**, **Chase Steps**, and **Chase Playback** share one toolbox color and collapse together. Use **-- all** on any of those boxes to collapse the whole color group, and **+ all** to reopen it.
 
 ![Chaser Chase Steps toolbox](screenshots/chaser-toolbox-steps.png)
 
@@ -512,6 +513,8 @@ The same target rules are used for Pico upload. Pan/tilt and scalar effects can 
 The Motion FX page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. Palette creation and visual editing still happen on the Fixture Controller; Motion recalls, imports, and exports the shared palette JSON.
 
 The **Effects** toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. Clicking a saved effect recalls the recipe without sending DMX and without uploading to a Pico slot.
+
+**Effect Parameters** and **Effects** share one toolbox color and collapse together. Use **-- all** on either box to collapse the whole effect group, and **+ all** to reopen it.
 
 ### Pico Motion Slots
 

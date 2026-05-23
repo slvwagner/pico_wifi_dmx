@@ -87,6 +87,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox.collapsed .scene-toolbox__body{display:none}
 .scene-toolbox__body{padding:12px;display:grid;gap:10px}
 .scene-toolbox__toggle{padding:3px 10px;font-size:15px;line-height:1;min-width:28px}
+.toolbox-header-actions{display:flex;gap:6px;align-items:center}
+.toolbox-collapse-group{padding:3px 8px;font-size:15px;line-height:1;min-width:56px}
 .toolbox-rail-layout{overflow-x:hidden}
 .toolbox-rail-layout main{width:calc(100% - var(--toolbox-rail-width,max(340px,33vw)));max-width:none;margin:0;padding-right:20px;box-sizing:border-box}
 .toolbox-rail{position:fixed;top:0;right:0;width:var(--toolbox-rail-width,max(340px,33vw));height:100vh;z-index:180;display:flex;flex-direction:column;gap:12px;padding:20px 16px 20px 12px;box-sizing:border-box;overflow:auto;background:linear-gradient(180deg,rgba(10,13,16,.98),rgba(13,18,22,.96));border-left:1px solid var(--line);box-shadow:-12px 0 30px rgba(0,0,0,.38)}

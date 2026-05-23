@@ -359,6 +359,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/chaser-toolbox-chases.png" alt="Chaser Chases toolbox"></p>
 <ul>
 <li><strong>Chase Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.</li>
+<li><strong>Chases</strong>, <strong>Chase Steps</strong>, and <strong>Chase Playback</strong> share one toolbox color and collapse together. Use <strong>-- all</strong> on any of those boxes to collapse the whole color group, and <strong>+ all</strong> to reopen it.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-steps.png" alt="Chaser Chase Steps toolbox"></p>
 <ul>
@@ -515,6 +516,7 @@ strong { color: #ffffff; }
 <p>The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.</p>
 <p>The Motion FX page also includes the shared <strong>Palettes</strong> toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. Palette creation and visual editing still happen on the Fixture Controller; Motion recalls, imports, and exports the shared palette JSON.</p>
 <p>The <strong>Effects</strong> toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. Clicking a saved effect recalls the recipe without sending DMX and without uploading to a Pico slot.</p>
+<p><strong>Effect Parameters</strong> and <strong>Effects</strong> share one toolbox color and collapse together. Use <strong>-- all</strong> on either box to collapse the whole effect group, and <strong>+ all</strong> to reopen it.</p>
 <h3 id="pico-motion-slots">Pico Motion Slots</h3>
 <p>The Pico Motion slot upload now uses the same selected <strong>Effect target</strong> as the browser page.</p>
 <ul>

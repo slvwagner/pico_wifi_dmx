@@ -14,9 +14,9 @@ Global is simpler and safer. Page-specific is more flexible, but easier to misun
 # Debug
 
 ## BUG 01
-use the same color for Effects tool box as we use in Effect Parameters
+No document cleary every toolbox in every page with a decicated toolbox screen shot for the the one going together you could take a single shot but you must not. Whatever is more simple to maintain. Update the manuall but in a way that it can be automated cleanly. 
 
-toolboxes should have different backgound colors and they should be unique over all the pages. Exception Chases, Steps, Browser Playback in chases. 
+But before doing any manuall update 
 
 ## Bug 02
 Every tool box sh
