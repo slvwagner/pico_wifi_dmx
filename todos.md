@@ -12,15 +12,11 @@ Do we want “offline programming” to be a global system mode, or page-specifi
 
 Global is simpler and safer. Page-specific is more flexible, but easier to misunderstand during a show.
 
-## 02
-could I move the page scroll bar to the left side of the tool box separation line?
+
 
 # Debug
 
-## 01
-No document cleary every toolbox in every page with a decicated toolbox screen shot for the the one going together you could take a single shot but you must not. Whatever is more simple to maintain. Update the manuall but in a way that it can be automated cleanly. 
 
-But before doing any manuall update 
 
 ## 02
 So you are always using the manual-data to create screen shots automated?

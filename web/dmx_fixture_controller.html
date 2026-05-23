@@ -1164,6 +1164,7 @@ function drawSurface(){
     surfaceEl.appendChild(card);
   });
   updateGroupBar();
+  updateGroupActionButtons();
   renderFanToolbox();
 }
 
@@ -2169,7 +2170,7 @@ function updateGroupActionButtons(){
   const editBtn=document.getElementById('editSelectedGroups');
   if(renameBtn)renameBtn.disabled=selected.length!==1;
   if(deleteBtn)deleteBtn.disabled=selected.length===0;
-  if(editBtn)editBtn.disabled=selected.length===0||selectedFixtureIds.size<2||!getGroupEditableControls().length;
+  if(editBtn)editBtn.disabled=selectedFixtureIds.size<2||!getGroupEditableControls().length;
 }
 function saveSavedGroupsToServer(){
   fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups})})
@@ -2267,10 +2268,9 @@ function renameSelectedGroup(){
   renderSavedGroupsList();saveSavedGroupsToServer();
 }
 function editSelectedGroups(){
-  if(selectedSavedGroupEntries().length<1)return;
   const common=getGroupEditableControls();
   if(selectedFixtureIds.size<2||!common.length){
-    setStatus('Select a group with at least two matching controls to edit',true);
+    setStatus('Select at least two fixtures with matching controls to edit',true);
     return;
   }
   openGroupModal();

@@ -325,6 +325,7 @@ Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on des
 - Drag the vertical resize line on the left edge of the sidebar to change its width.
 - The sidebar width is shared across all toolbox pages.
 - Double-click the resize line to reset the default width.
+- The page content and the toolbox sidebar scroll independently. The page scrollbar sits beside the toolbox separation line, while the toolbox scrollbar stays inside the toolbox sidebar.
 - Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.
 - Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens.
 - On narrow screens, the sidebar changes into a bottom toolbox drawer.
