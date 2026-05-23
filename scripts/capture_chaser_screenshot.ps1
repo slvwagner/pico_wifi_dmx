@@ -1,6 +1,8 @@
 param(
     [string]$BaseUrl = "http://localhost/dmx/",
     [string]$OutDir = "docs/screenshots",
+    [string]$ManualDataDir = "docs/manual-data",
+    [string]$XamppDataDir = "E:\Software\xampp\htdocs\dmx\data",
     [int]$Port = 9240
 )
 
@@ -9,11 +11,24 @@ $ErrorActionPreference = "Stop"
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $outPath = Join-Path $repoRoot $OutDir
+$manualDataPath = Join-Path $repoRoot $ManualDataDir
 $profileDir = Join-Path $env:TEMP "pico-dmx-chaser-docshot"
+$backupDataDir = Join-Path $env:TEMP ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
 $url = $BaseUrl.TrimEnd("/") + "/dmx_chaser.html?docshot=" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+
+if (-not (Test-Path -LiteralPath $manualDataPath)) {
+    throw "Manual data baseline not found: $manualDataPath"
+}
+if (-not (Test-Path -LiteralPath $XamppDataDir)) {
+    throw "XAMPP data directory not found: $XamppDataDir"
+}
+
+New-Item -ItemType Directory -Force -Path $backupDataDir | Out-Null
+Copy-Item -Path (Join-Path $XamppDataDir "*.json") -Destination $backupDataDir -Force -ErrorAction SilentlyContinue
+Copy-Item -Path (Join-Path $manualDataPath "*.json") -Destination $XamppDataDir -Force
 
 $args = @(
     "--headless=new",
@@ -72,6 +87,63 @@ try {
         }
     }
 
+    function Invoke-PageScript {
+        param(
+            [string]$Expression
+        )
+        $eval = Send-Cdp "Runtime.evaluate" @{
+            expression = $Expression
+            awaitPromise = $true
+            returnByValue = $true
+        }
+        if ($eval.exceptionDetails) {
+            $message = $eval.exceptionDetails.text
+            if ($eval.exceptionDetails.exception.description) { $message = $eval.exceptionDetails.exception.description }
+            throw "Page script failed: $message"
+        }
+        return $eval.result.result.value
+    }
+
+    function Save-ElementScreenshot {
+        param(
+            [string]$Selector,
+            [string]$Name
+        )
+        $selectorJson = $Selector | ConvertTo-Json -Compress
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const el=document.querySelector(selector);
+  if(!el)throw new Error('Missing screenshot element: '+selector);
+  el.scrollIntoView({block:'center',inline:'nearest'});
+  await wait(220);
+  const r=el.getBoundingClientRect();
+  const pad=10;
+  const x=Math.max(0,Math.floor(r.left-pad));
+  const y=Math.max(0,Math.floor(r.top-pad));
+  const width=Math.min(window.innerWidth-x,Math.ceil(r.width+pad*2));
+  const height=Math.min(window.innerHeight-y,Math.ceil(r.height+pad*2));
+  if(width<40||height<40)throw new Error('Screenshot element is too small: '+selector);
+  return{x,y,width,height};
+})()
+"@
+        $shot = Send-Cdp "Page.captureScreenshot" @{
+            format = "png"
+            fromSurface = $true
+            clip = @{
+                x = [double]$rect.x
+                y = [double]$rect.y
+                width = [double]$rect.width
+                height = [double]$rect.height
+                scale = 1
+            }
+        }
+        $file = Join-Path $outPath $Name
+        [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($shot.result.data))
+        Write-Host "Captured $file"
+    }
+
     Send-Cdp "Page.enable" | Out-Null
     Send-Cdp "Runtime.enable" | Out-Null
     Start-Sleep -Milliseconds 2500
@@ -88,6 +160,7 @@ try {
   }
   if(window.DmxCommon&&typeof DmxCommon.saveSharedGroupSelection==='function')DmxCommon.saveSharedGroupSelection([]);
   if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.loadGroups)await chaserGroupsBox.loadGroups();
   function openToolbox(id){
     const box=document.getElementById(id);
     const toggle=document.getElementById(id+'Toggle');
@@ -95,34 +168,25 @@ try {
     box.style.display='';
     if(box.classList.contains('collapsed')&&toggle)toggle.click();
   }
-  ['chaserGroupsBox','chaseBox','stepsBox','browserPlaybackBox'].forEach(openToolbox);
-  const stepValues={};
-  const part={};
-  setup.fixtures.slice(0,6).forEach((f,idx)=>{
-    const p=fixtureProfile(f);
-    const c=(p?.controls||[]).find(x=>/dimmer/i.test(x.label||''))||(p?.controls||[])[0];
-    if(!c)return;
-    const key=controlKey(f,c);
-    part[key]=true;
-    stepValues[key]=idx%2?190:80;
-  });
-  const docChase={
-    baseUrl:document.getElementById('baseUrl')?.value||'',
-    playback:{slot:0,speed:1,mode:'loop',loops:2,direction:'forward'},
-    browserPlayback:{loop:true,live:false,bpm:120,beats:1,defaultFade:0,updateRate:25},
-    participating:part,
-    steps:[
-      {id:9001,label:'Step 1',duration:500,fade:0,values:stepValues},
-      {id:9002,label:'Step 2',duration:500,fade:40,values:Object.fromEntries(Object.entries(stepValues).map(([k,v])=>[k,255-v]))}
-    ]
-  };
-  savedChases=[{id:'doc_chase_1',name:'Doc Chase',slot:0,data:docChase,visual:{type:'visual',color:'#7f2ac8',image:''}}];
+  ['chaserGroupsBox','chaseBox','stepsBox','fanToolbox','browserPlaybackBox'].forEach(openToolbox);
+  if(typeof loadChases==='function')await loadChases();
+  if(!Array.isArray(savedChases)||!savedChases.length)throw new Error('Manual data has no saved chases');
   chaseSlotCols=4;
-  chaseSlotRows=4;
+  chaseSlotRows=Math.max(3,Math.ceil(savedChases.length/chaseSlotCols));
   renderChaseSlotMatrix();
-  applyChaserData(docChase,true);
+  const chase=savedChases.find(c=>c?.data?.steps?.length&&Object.values(c.data.steps[0].values||{}).length>=2)||savedChases[0];
+  applyChaserData(chase.data,true);
   await selectStepForEdit(0);
+  fanState.spread=Math.min(80,fanMaxValue());
+  fanState.mode='symmetric';
+  fanState.bases={};
+  renderFanToolbox();
   refreshChaserGroupActions();
+  document.getElementById('picoSlot').value='0';
+  document.getElementById('picoChaserMode').value='loop';
+  document.getElementById('picoDirection').value='forward';
+  document.getElementById('picoSpeed').value='1.0';
+  document.getElementById('picoLoopCount').value='2';
   await wait(500);
   return {
     steps:document.querySelectorAll('#stepList [data-step-index]').length,
@@ -131,17 +195,7 @@ try {
 })()
 '@
 
-    $eval = Send-Cdp "Runtime.evaluate" @{
-        expression = $expression
-        awaitPromise = $true
-        returnByValue = $true
-    }
-    if ($eval.exceptionDetails) {
-        $message = $eval.exceptionDetails.text
-        if ($eval.exceptionDetails.exception.description) { $message = $eval.exceptionDetails.exception.description }
-        throw "Chaser docshot setup failed: $message"
-    }
-    $state = $eval.result.result.value
+    $state = Invoke-PageScript $expression
     if (-not $state -or $state.steps -lt 1 -or $state.editDisabled) {
         throw "Chaser docshot did not reach recalled-step state."
     }
@@ -150,8 +204,21 @@ try {
     $file = Join-Path $outPath "chaser.png"
     [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($shot.result.data))
     Write-Host "Captured $file"
+
+    Save-ElementScreenshot "#chaserGroupsBox" "chaser-toolbox-groups.png"
+    Save-ElementScreenshot "#chaseBox" "chaser-toolbox-chases.png"
+    Save-ElementScreenshot "#stepsBox" "chaser-toolbox-steps.png"
+    Save-ElementScreenshot "#fanToolbox" "chaser-toolbox-fanout.png"
+    Save-ElementScreenshot "#browserPlaybackBox" "chaser-toolbox-browser-playback.png"
+    Save-ElementScreenshot "#participationPanel" "chaser-participating-controls.png"
+    Save-ElementScreenshot "#stepEditorSection" "chaser-edit-step.png"
+    Save-ElementScreenshot "#picoPanel" "chaser-pico-playback.png"
 }
 finally {
     if ($socket) { $socket.Dispose() }
     if ($chromeProcess -and -not $chromeProcess.HasExited) { Stop-Process -Id $chromeProcess.Id -Force }
+    if (Test-Path -LiteralPath $backupDataDir) {
+        Copy-Item -Path (Join-Path $backupDataDir "*.json") -Destination $XamppDataDir -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backupDataDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }

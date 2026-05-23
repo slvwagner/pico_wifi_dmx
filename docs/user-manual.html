@@ -349,16 +349,29 @@ strong { color: #ffffff; }
 <p>The Chaser page uses several toolboxes:</p>
 <ul>
 <li><strong>Groups</strong> filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-groups.png" alt="Chaser Groups toolbox"></p>
+<ul>
 <li><strong>Chases</strong> stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.</li>
 <li>The <strong>Visual</strong> button in <strong>Chases</strong> sets a background color and optional drawn/uploaded visual for chase slots. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-chases.png" alt="Chaser Chases toolbox"></p>
+<ul>
 <li><strong>Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-steps.png" alt="Chaser Steps toolbox"></p>
+<ul>
 <li><strong>Fan Out</strong> is a live step-shaping tool. It works on the currently selected step and writes directly into <strong>Edit Step</strong> as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.</li>
 <li><strong>Fan Out control selection</strong> is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step&#39;s participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.</li>
 <li><strong>Fan Out base values</strong> come from the values currently displayed in <strong>Edit Step</strong>. Selecting another step, loading another chase, capturing values, or using <strong>Group Edit</strong> refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.</li>
 <li><strong>Clear</strong> in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.</li>
 <li>If <strong>Live preview</strong> is enabled in <strong>Browser Playback</strong>, Fan Out changes are also sent to the Pico while the selected step is edited.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-fanout.png" alt="Chaser Fan Out toolbox"></p>
+<ul>
 <li><strong>Browser Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico. The <strong>Fade % (all steps)</strong> field applies one fade value to every step immediately. Use <strong>Edit Step &gt; Fade %</strong> when one step needs its own fade value.</li>
 </ul>
+<p><img src="screenshots/chaser-toolbox-browser-playback.png" alt="Chaser Browser Playback toolbox"></p>
 <p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
 <p>The collapse state, toolbox order, shared sidebar width, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
 <h3 id="steps-toolbox-buttons">Steps Toolbox Buttons</h3>
@@ -373,6 +386,7 @@ strong { color: #ffffff; }
 </ul>
 <h3 id="participating-controls">Participating Controls</h3>
 <p>Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.</p>
+<p><img src="screenshots/chaser-participating-controls.png" alt="Chaser Participating Controls"></p>
 <p>For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.</p>
 <p>If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown. The <strong>All</strong>, <strong>None</strong>, <strong>Only</strong>, and <strong>Add</strong> tools let you quickly build a participating-control set for the selected group.</p>
 <p><strong>Group Edit</strong> edits the current participating-control scope. If one or more groups are selected, it applies only to matching fixtures in those groups. If no group is selected, it uses the fixtures that participate in the selected step. It does not require every profile control to be active. For example, if only Dimmer is selected as a participating control, Group Edit opens with Dimmer only and applies it to matching fixtures in the current edit scope.</p>
@@ -409,6 +423,7 @@ strong { color: #ffffff; }
 <h3 id="create-chase-steps">Create Chase Steps</h3>
 <p>A chase step stores values for the selected <strong>Participating Controls</strong>. It does not store every patched fixture automatically.</p>
 <p>To create a step manually:</p>
+<p><img src="screenshots/chaser-edit-step.png" alt="Chaser Edit Step"></p>
 <ol>
 <li>Select the controls that should participate in <strong>Participating Controls</strong>.</li>
 <li>In the <strong>Steps</strong> toolbox, click <strong>Add step</strong>.</li>
@@ -448,6 +463,7 @@ strong { color: #ffffff; }
 <p>If Chaser reports that no Fixture Controller values are available, open the Fixture Controller page and move a control or recall a scene first. Capture only reads controls that are selected as participating controls, so unselected controls are ignored.</p>
 <h3 id="pico-slot-playback">Pico Slot Playback</h3>
 <p>Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open.</p>
+<p><img src="screenshots/chaser-pico-playback.png" alt="Chaser Pico Playback"></p>
 <p>Supported playback options:</p>
 <ul>
 <li>Single run</li>

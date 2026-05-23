@@ -308,15 +308,29 @@ Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on des
 The Chaser page uses several toolboxes:
 
 - **Groups** filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.
+
+![Chaser Groups toolbox](screenshots/chaser-toolbox-groups.png)
+
 - **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
 - The **Visual** button in **Chases** sets a background color and optional drawn/uploaded visual for chase slots. **Default background** restores the standard slot color, and **No icon** removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.
+
+![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
+
 - **Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
+
+![Chaser Steps toolbox](screenshots/chaser-toolbox-steps.png)
+
 - **Fan Out** is a live step-shaping tool. It works on the currently selected step and writes directly into **Edit Step** as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.
 - **Fan Out control selection** is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step's participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
 - If **Live preview** is enabled in **Browser Playback**, Fan Out changes are also sent to the Pico while the selected step is edited.
+
+![Chaser Fan Out toolbox](screenshots/chaser-toolbox-fanout.png)
+
 - **Browser Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
+
+![Chaser Browser Playback toolbox](screenshots/chaser-toolbox-browser-playback.png)
 
 On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
@@ -336,6 +350,8 @@ The **Steps** toolbox uses shared action buttons instead of per-step buttons. Cl
 ### Participating Controls
 
 Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.
+
+![Chaser Participating Controls](screenshots/chaser-participating-controls.png)
 
 For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.
 
@@ -381,6 +397,8 @@ This means group selection is a tool for building, filtering, and group-editing 
 A chase step stores values for the selected **Participating Controls**. It does not store every patched fixture automatically.
 
 To create a step manually:
+
+![Chaser Edit Step](screenshots/chaser-edit-step.png)
 
 1. Select the controls that should participate in **Participating Controls**.
 2. In the **Steps** toolbox, click **Add step**.
@@ -428,6 +446,8 @@ If Chaser reports that no Fixture Controller values are available, open the Fixt
 ### Pico Slot Playback
 
 Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open.
+
+![Chaser Pico Playback](screenshots/chaser-pico-playback.png)
 
 Supported playback options:
 
