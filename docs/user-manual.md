@@ -466,7 +466,7 @@ Each chaser slot supports up to 32 steps.
 
 ![Motion FX](screenshots/motion-fx.png)
 
-Motion FX creates continuous movement for moving lights.
+Motion FX creates continuous effects for selected fixture controls. The current prototype can drive pan/tilt controls and scalar DMX controls such as dimmer, prism, gobo, zoom, or iris from the browser.
 
 Supported effects include:
 
@@ -474,18 +474,24 @@ Supported effects include:
 - Figure-8
 - Pan swing
 - Tilt swing
+- Sine
+- Pulse
 
-Motion FX is relative to the current scene position. This means the effect moves around the position that was last written into the Pico base buffer.
+Pan/tilt effects are relative to the current scene position. This means the effect moves around the position that was last written into the Pico base buffer. Scalar controls use their displayed center value and the **Pan / scalar amplitude** as the effect depth.
+
+The **Participating Controls** panel works like the Chaser control selection: use **All**, **None**, the control dropdown, **Only**, and **Add** to decide which controls receive the browser effect. The **Effect Parameters** controls live in the toolbox sidebar.
+
+Pico upload is still pan/tilt-only in this prototype. Browser effects can drive scalar controls live, but scalar controls are ignored by Pico Motion slot upload until the firmware format is expanded.
 
 ### Recommended Workflow
 
 1. Use the Fixture Controller to position the fixtures.
 2. Save or recall a scene.
 3. Open Motion FX.
-4. Select the fixtures for the effect.
-5. Set BPM, pan amplitude, tilt amplitude, and spread.
-6. Upload the effect to a Pico slot.
-7. Start the slot.
+4. Select the participating controls for the effect.
+5. Set BPM, effect shape, amplitude, and spread in the **Effect Parameters** toolbox.
+6. For pan/tilt effects, upload the effect to a Pico slot and start the slot.
+7. For scalar controls, use browser playback from the **Effect Parameters** toolbox.
 
 The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.
 

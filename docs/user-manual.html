@@ -478,24 +478,28 @@ strong { color: #ffffff; }
 <p>Each chaser slot supports up to 32 steps.</p>
 <h2 id="5-motion-fx">5. Motion FX</h2>
 <p><img src="screenshots/motion-fx.png" alt="Motion FX"></p>
-<p>Motion FX creates continuous movement for moving lights.</p>
+<p>Motion FX creates continuous effects for selected fixture controls. The current prototype can drive pan/tilt controls and scalar DMX controls such as dimmer, prism, gobo, zoom, or iris from the browser.</p>
 <p>Supported effects include:</p>
 <ul>
 <li>Circle</li>
 <li>Figure-8</li>
 <li>Pan swing</li>
 <li>Tilt swing</li>
+<li>Sine</li>
+<li>Pulse</li>
 </ul>
-<p>Motion FX is relative to the current scene position. This means the effect moves around the position that was last written into the Pico base buffer.</p>
+<p>Pan/tilt effects are relative to the current scene position. This means the effect moves around the position that was last written into the Pico base buffer. Scalar controls use their displayed center value and the <strong>Pan / scalar amplitude</strong> as the effect depth.</p>
+<p>The <strong>Participating Controls</strong> panel works like the Chaser control selection: use <strong>All</strong>, <strong>None</strong>, the control dropdown, <strong>Only</strong>, and <strong>Add</strong> to decide which controls receive the browser effect. The <strong>Effect Parameters</strong> controls live in the toolbox sidebar.</p>
+<p>Pico upload is still pan/tilt-only in this prototype. Browser effects can drive scalar controls live, but scalar controls are ignored by Pico Motion slot upload until the firmware format is expanded.</p>
 <h3 id="recommended-workflow">Recommended Workflow</h3>
 <ol>
 <li>Use the Fixture Controller to position the fixtures.</li>
 <li>Save or recall a scene.</li>
 <li>Open Motion FX.</li>
-<li>Select the fixtures for the effect.</li>
-<li>Set BPM, pan amplitude, tilt amplitude, and spread.</li>
-<li>Upload the effect to a Pico slot.</li>
-<li>Start the slot.</li>
+<li>Select the participating controls for the effect.</li>
+<li>Set BPM, effect shape, amplitude, and spread in the <strong>Effect Parameters</strong> toolbox.</li>
+<li>For pan/tilt effects, upload the effect to a Pico slot and start the slot.</li>
+<li>For scalar controls, use browser playback from the <strong>Effect Parameters</strong> toolbox.</li>
 </ol>
 <p>The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.</p>
 <h2 id="6-gpio-control">6. GPIO Control</h2>

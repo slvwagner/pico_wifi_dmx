@@ -34,6 +34,13 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .icon-btn.import-btn::before{display:block;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='8' y1='10' x2='8' y2='2'/%3E%3Cpolyline points='5 5 8 2 11 5'/%3E%3Cline x1='3' y1='14' x2='13' y2='14'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='8' y1='10' x2='8' y2='2'/%3E%3Cpolyline points='5 5 8 2 11 5'/%3E%3Cline x1='3' y1='14' x2='13' y2='14'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat}
 .list{display:grid;gap:8px}
 .item{border:1px solid var(--line);border-radius:8px;padding:10px;background:#10161b;display:grid;gap:8px}
+.panel.collapsed-panel .panel-body{display:none}
+.card-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ctrl-summary{display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:2px}
+.ctrl-chip{font-size:12px;color:var(--muted);background:#22303a;border:1px solid var(--line);border-radius:4px;padding:3px 8px;white-space:nowrap}
+.collapse-btn{padding:4px 10px;font-size:15px;line-height:1;min-width:28px;align-self:start;flex-shrink:0}
+.participant-list .item.collapsed .participant-control{display:none!important}
+.participant-list .item.collapsed .ctrl-summary{display:flex}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
 .xy-pad,.xy-mini{position:relative;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%}

@@ -13,8 +13,18 @@ main{max-width:none;width:100%;margin:0}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .xy-dot{width:12px;height:12px}
 .readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
-.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;overflow-y:auto;min-height:0}
-#fxPanel{display:flex;flex-direction:column;max-height:70vh}
+#fxPanel{max-height:70vh;overflow:auto}
+#motionEffectBox .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));align-items:end}
+#motionEffectBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto}
+.motion-participant-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.motion-kind{border:1px solid var(--line);border-radius:999px;padding:2px 7px;color:var(--accent);font-size:11px}
+.motion-scalar-preview{height:9px;border-radius:999px;background:#101820;border:1px solid var(--line);overflow:hidden}
+.motion-scalar-preview span{display:block;height:100%;background:var(--accent);width:0%}
+.motion-control-row{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,.8fr) minmax(160px,.9fr);gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.motion-control-row label{min-width:0}
+.motion-control-row input[type=range]{width:100%}
+.motion-control-row .small{align-self:center}
+@media(max-width:900px){.motion-control-row{grid-template-columns:1fr}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
@@ -41,53 +51,35 @@ main{max-width:none;width:100%;margin:0}
   </div>
 </header>
 
-<section class="panel">
-  <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <h2>Effect Parameters</h2>
-    <span style="display:flex;gap:8px;align-items:center">
-      <span class="mode-badge">🖥 Browser</span>
-      <button class="primary" id="startStop">▶ Start</button>
-    </span>
-  </div>
-  <div class="toolbar">
-    <label>Effect
-      <select id="effectType">
-        <option value="circle">Circle</option>
-        <option value="figure8">Figure-8</option>
-        <option value="panSwing">Pan Swing</option>
-        <option value="tiltSwing">Tilt Swing</option>
-      </select>
-    </label>
-    <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
-    <label>Pan amplitude <span id="panAmpVal">20</span>%<input id="panAmp" type="range" min="0" max="100" value="20"></label>
-    <label>Tilt amplitude <span id="tiltAmpVal">15</span>%<input id="tiltAmp" type="range" min="0" max="100" value="15"></label>
-    <label>Phase spread <span id="phaseSpreadVal">0</span>°<input id="phaseSpread" type="range" min="0" max="360" value="0"></label>
-    <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
-  </div>
-  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
-    <div>
-      <div class="small" style="margin-bottom:6px">Motion path preview (normalized)</div>
-      <canvas id="pathCanvas" width="200" height="200" style="border:1px solid var(--line);border-radius:8px;background:#0a0d10;display:block"></canvas>
-    </div>
-    <div class="small" style="max-width:360px;align-self:center;line-height:1.7">
-      Center positions are loaded from the Fixture Controller setup. Adjust them per-fixture below without affecting the static setup.<br><br>
-      <b>Phase spread</b> offsets fixtures evenly around the cycle — e.g. 360° with 3 fixtures gives 0°, 120°, 240°, creating a wave effect. Individual phase offsets stack on top.
-    </div>
-  </div>
-</section>
-
 <section class="panel" id="fxPanel">
-  <h2>Fixtures with Pan/Tilt</h2>
-  <div id="noFixtures" class="small" style="display:none">
-    No fixtures with Pan/Tilt controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first</a>
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h2>Participating Controls</h2>
+    <div class="buttons">
+      <button id="btnMotionSave" style="padding:6px 10px;font-size:12px" title="Save editable motion preset on the server">Save</button>
+      <button id="btnMotionLoad" style="padding:6px 10px;font-size:12px" title="Load editable motion preset from the server">Load</button>
+      <button id="btnMotionExport" class="icon-btn export-btn" title="Export motion JSON"></button>
+      <button id="btnMotionImport" class="icon-btn import-btn" title="Import motion JSON"></button>
+      <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
+      <button class="collapse-btn" data-panel-toggle="fxPanel" title="Collapse Participating Controls">−</button>
+    </div>
   </div>
-  <div class="fx-grid" id="fixtureList" style="flex:1"></div>
-  <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;flex-shrink:0">
-    <button id="btnMotionSave" title="Save editable motion preset on the server">Save Preset</button>
-    <button id="btnMotionLoad" title="Load editable motion preset from the server">Load Preset</button>
-    <button id="btnMotionExport" class="icon-btn export-btn" title="Export motion JSON"></button>
-    <button id="btnMotionImport" class="icon-btn import-btn" title="Import motion JSON"></button>
-    <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
+  <div class="panel-body">
+    <div class="small" style="margin-bottom:10px">Select the controls that should be driven by the browser effect. Pico upload still uses pan/tilt controls only in this prototype.</div>
+    <div id="noFixtures" class="small" style="display:none">
+      No compatible fixture controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first</a>
+    </div>
+    <div class="toolbar" id="motionControlTools" style="margin-bottom:10px">
+      <button id="btnMotionAll">All</button>
+      <button id="btnMotionNone">None</button>
+      <label>Control
+        <select id="motionControlFilter"></select>
+      </label>
+      <button id="btnMotionOnly">Only</button>
+      <button id="btnMotionAdd">Add</button>
+      <span class="small" id="motionControlHint">Select a group to filter by control.</span>
+    </div>
+    <div class="list participant-list" id="fixtureList"></div>
+    <div class="small">Only selected controls are driven by browser playback. Pico upload still ignores scalar controls.</div>
   </div>
 </section>
 
@@ -143,6 +135,40 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
+<div id="motionEffectBox" class="scene-toolbox scene-toolbox--fan">
+<div id="motionEffectHdr" class="scene-toolbox__header">
+  <span style="font-weight:700;font-size:13px">Effect Parameters</span>
+  <button id="motionEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div class="scene-toolbox__body">
+  <div style="display:grid;gap:10px">
+    <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
+      <span class="mode-badge">Browser</span>
+      <button class="primary" id="startStop">Start</button>
+    </div>
+    <label>Effect
+      <select id="effectType">
+        <option value="circle">Circle</option>
+        <option value="figure8">Figure-8</option>
+        <option value="panSwing">Pan Swing</option>
+        <option value="tiltSwing">Tilt Swing</option>
+        <option value="sine">Sine</option>
+        <option value="pulse">Pulse</option>
+      </select>
+    </label>
+    <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
+    <label>Pan / scalar amplitude <span id="panAmpVal">20</span>%<input id="panAmp" type="range" min="0" max="100" value="20"></label>
+    <label>Tilt amplitude <span id="tiltAmpVal">15</span>%<input id="tiltAmp" type="range" min="0" max="100" value="15"></label>
+    <label>Phase spread <span id="phaseSpreadVal">0</span>°<input id="phaseSpread" type="range" min="0" max="360" value="0"></label>
+    <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
+    <div>
+      <div class="small" style="margin-bottom:6px">Effect preview</div>
+      <canvas id="pathCanvas" width="200" height="200" style="border:1px solid var(--line);border-radius:8px;background:#0a0d10;display:block;width:100%;max-width:240px"></canvas>
+    </div>
+  </div>
+</div>
+</div>
+
 <div id="motionSceneBox" class="scene-toolbox scene-toolbox--narrow">
 <div class="scene-toolbox__header" id="motionSceneHdr">
   <span style="font-weight:700;font-size:13px">Scenes</span>
@@ -159,7 +185,7 @@ main{max-width:none;width:100%;margin:0}
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const motionToolboxRail=document.getElementById('motionToolboxRail');
-DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionSceneBox',type:'scenes'}]);
+DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motionEffect'},{box:'motionSceneBox',type:'scenes'}]);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -176,6 +202,7 @@ populatePicoMotionSlotSelect();
 const baseUrlEl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl);
 let motionGroupsBox=null;
+let collapsedMotionPartFixtures=new Set(JSON.parse(localStorage.getItem('motionPartCollapsedFix')||'[]'));
 motionGroupsBox=DmxCommon.initGroupsToolbox({
   page:'motion',
   idPrefix:'motionGroups',
@@ -199,7 +226,7 @@ function sendChannel(ch,value){
 // ---- setup loading ----
 let setup={};
 let lastSetupJson='';
-// motionFixtures: [{fixture, control, enabled, phaseOffset(deg), basePan, baseTilt}]
+// motionFixtures: [{fixture, control, enabled, phaseOffset(deg), kind, basePan, baseTilt, baseValue}]
 let motionFixtures=[];
 
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
@@ -207,7 +234,30 @@ function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId
 function getStoredCenter(f,c){
   const v=(setup.values||{})[f.id+':'+c.id];
   if(c.type==='panTilt16')return v??{pan:32768,tilt:32768};
+  if(c.type==='panTilt8')return v??{pan:128,tilt:128};
   return v??{pan:128,tilt:128};
+}
+function isMotionControl(c){
+  return c&&(c.type==='panTilt16'||c.type==='panTilt8'||c.type==='slider16'||c.channel>=1);
+}
+function motionControlKind(c){
+  return(c.type==='panTilt16'||c.type==='panTilt8')?'panTilt':(c.type==='slider16'?'scalar16':'scalar8');
+}
+function motionControlKey(c){
+  if(!c)return'';
+  const axis=motionControlKind(c)==='panTilt'?'panTilt':'value';
+  return c.type+':'+(c.label||'Control')+':'+axis;
+}
+function motionControlLabel(c){
+  if(!c)return'Control';
+  const kind=motionControlKind(c);
+  return(c.label||'Control')+(kind==='panTilt'?' Pan/Tilt':kind==='scalar16'?' 16-bit':'');
+}
+function scalarMax(c){return c.type==='slider16'?65535:255;}
+function getStoredScalar(f,c){
+  const v=(setup.values||{})[f.id+':'+c.id];
+  if(typeof v==='number')return v;
+  return scalarMax(c)===65535?0:0;
 }
 
 async function loadSetup(auto=false){
@@ -242,16 +292,18 @@ function applySetup(){
   motionFixtures=[];
   (setup.fixtures||[]).forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
-    const c=p.controls.find(cc=>cc.type==='panTilt16'||cc.type==='panTilt8');
-    if(!c)return;
-    const center=getStoredCenter(f,c);
-    const ex=prev.get(f.id+':'+c.id);
-    motionFixtures.push({
-      fixture:f,control:c,
-      enabled:ex?ex.enabled:true,
-      phaseOffset:ex?ex.phaseOffset:0,
-      basePan:ex?ex.basePan:center.pan,
-      baseTilt:ex?ex.baseTilt:center.tilt
+    p.controls.filter(isMotionControl).forEach(c=>{
+      const center=getStoredCenter(f,c);
+      const ex=prev.get(f.id+':'+c.id);
+      const kind=motionControlKind(c);
+      motionFixtures.push({
+        fixture:f,control:c,kind,
+        enabled:ex?ex.enabled:kind==='panTilt',
+        phaseOffset:ex?ex.phaseOffset:0,
+        basePan:ex?ex.basePan:center.pan,
+        baseTilt:ex?ex.baseTilt:center.tilt,
+        baseValue:ex?ex.baseValue:getStoredScalar(f,c)
+      });
     });
   });
   applyMotionGroupSelection(false);
@@ -275,7 +327,7 @@ function motionGroupFixtureIds(){
   return [...new Set((motionGroupsBox?.selectedGroups?.()||[]).flatMap(g=>g.fixtureIds||[]))]
     .filter(id=>(setup.fixtures||[]).some(f=>f.id===id));
 }
-function motionGroupKey(c){return c.type+':'+c.label;}
+function motionGroupKey(c){return motionControlKey(c);}
 function findMatchingMotionControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>motionGroupKey(c)===key)||null;
 }
@@ -283,13 +335,14 @@ function getMotionGroupCommonControls(){
   const ids=motionGroupFixtureIds();
   const fxList=ids.map(id=>(setup.fixtures||[]).find(f=>f.id===id)).filter(Boolean);
   if(fxList.length<2)return[];
-  const first=(fixtureProfile(fxList[0])?.controls||[]).filter(c=>c.type==='panTilt16'||c.type==='panTilt8');
+  const first=(fixtureProfile(fxList[0])?.controls||[]).filter(isMotionControl);
   return first.filter(c=>fxList.every(f=>!!findMatchingMotionControl(f,motionGroupKey(c))));
 }
 function motionGroupValue(c){
   const ids=motionGroupFixtureIds();
   const firstId=ids.find(id=>motionFixtures.some(mf=>mf.fixture.id===id&&motionGroupKey(mf.control)===motionGroupKey(c)));
   const mf=motionFixtures.find(m=>m.fixture.id===firstId&&motionGroupKey(m.control)===motionGroupKey(c));
+  if(motionControlKind(c)!=='panTilt')return mf?.baseValue??0;
   const max=c.type==='panTilt16'?65535:255;
   return{pan:mf?.basePan??Math.round(max/2),tilt:mf?.baseTilt??Math.round(max/2)};
 }
@@ -297,13 +350,29 @@ function setMotionGroupValue(c,v){
   const ids=new Set(motionGroupFixtureIds());
   motionFixtures.forEach(mf=>{
     if(!ids.has(mf.fixture.id)||motionGroupKey(mf.control)!==motionGroupKey(c))return;
-    mf.basePan=v.pan;
-    mf.baseTilt=v.tilt;
+    if(mf.kind==='panTilt'){
+      mf.basePan=v.pan;
+      mf.baseTilt=v.tilt;
+    }else mf.baseValue=v;
   });
 }
 function renderMotionGroupControl(c){
   const key=motionGroupKey(c);
   const v=motionGroupValue(c);
+  if(motionControlKind(c)!=='panTilt'){
+    const max=scalarMax(c);
+    const b=bytes16(v);
+    const bytes=c.type==='slider16'?`
+    <div class="byte-sliders">
+      <label>Coarse <span data-mg-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-mg="${key}" data-byte-part="coarse"></label>
+      <label>Fine <span data-mg-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-mg="${key}" data-byte-part="fine"></label>
+    </div>`:'';
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='slider16'?'16-bit scalar':'8-bit scalar'} · effect center</span></div>
+      <div class="row"><span class="readout" data-mg-readout="${key}">${Math.round(v)}</span><button data-mg="${key}" data-mg-center="1">Zero</button></div>
+      <label>Value<input type="range" min="0" max="${max}" step="1" value="${Math.round(v)}" data-mg="${key}"></label>
+      ${bytes}
+    </div>`;
+  }
   const max=c.type==='panTilt16'?65535:255;
   const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
   const bytes=c.type==='panTilt16'?`
@@ -324,6 +393,20 @@ function renderMotionGroupControl(c){
 function updateMotionGroupDisplay(c){
   const key=motionGroupKey(c);
   const v=motionGroupValue(c);
+  if(motionControlKind(c)!=='panTilt'){
+    document.querySelectorAll(`[data-mg-readout="${key}"]`).forEach(el=>el.textContent=Math.round(v));
+    document.querySelectorAll(`input[data-mg="${key}"]:not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+    if(c.type==='slider16'){
+      const b=bytes16(v);
+      ['coarse','fine'].forEach(part=>{
+        document.querySelectorAll(`input[data-mg="${key}"][data-byte-part="${part}"]`).forEach(el=>{if(el.value!=b[part])el.value=b[part];});
+        document.querySelectorAll(`[data-mg-byte="${key}"][data-byte-part="${part}"]`).forEach(el=>el.textContent=b[part]);
+      });
+    }
+    drawFixtureList();
+    drawPathPreview();
+    return;
+  }
   const max=c.type==='panTilt16'?65535:255;
   const pad=document.querySelector(`[data-mgxy="${key}"]`);
   const dot=pad?.querySelector('.xy-dot');
@@ -348,7 +431,13 @@ function sendMotionGroupControl(c){
   motionFixtures.forEach(mf=>{
     if(!ids.has(mf.fixture.id)||motionGroupKey(mf.control)!==motionGroupKey(c))return;
     const f=mf.fixture,fc=mf.control;
-    if(fc.type==='panTilt16'){
+    if(mf.kind==='scalar16'){
+      const b=bytes16(mf.baseValue);
+      batch[absolute(f.start,fc.channel)]=b.coarse;
+      batch[absolute(f.start,fc.fine??fc.channel+1)]=b.fine;
+    }else if(mf.kind==='scalar8'){
+      batch[absolute(f.start,fc.channel)]=mf.baseValue;
+    }else if(fc.type==='panTilt16'){
       const panB=bytes16(mf.basePan),tiltB=bytes16(mf.baseTilt);
       batch[absolute(f.start,fc.pan)]=panB.coarse;
       batch[absolute(f.start,fc.panFine??fc.pan+1)]=panB.fine;
@@ -360,13 +449,13 @@ function sendMotionGroupControl(c){
     }
   });
   sendBatch(batch);
-  setStatus('Group motion center sent to '+ids.size+' fixture'+(ids.size===1?'':'s'));
+  setStatus('Group effect center sent to '+ids.size+' fixture'+(ids.size===1?'':'s'));
 }
 function openMotionGroupModal(){
   const common=getMotionGroupCommonControls();
-  if(!common.length){setStatus('Select a group with at least two motion fixtures',true);return;}
+  if(!common.length){setStatus('Select a group with at least two compatible controls',true);return;}
   const n=motionGroupFixtureIds().length;
-  document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common motion control'+(common.length===1?'':'s');
+  document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common effect control'+(common.length===1?'':'s');
   document.getElementById('motionGroupModalBody').innerHTML=common.map(c=>renderMotionGroupControl(c)).join('');
   document.getElementById('motionGroupModal').style.display='flex';
 }
@@ -379,13 +468,20 @@ function handleMotionGroupInput(target){
   const key=target.dataset.mg;if(!key)return;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
   let v=motionGroupValue(c);
-  const max=c.type==='panTilt16'?65535:255;
-  if(target.dataset.bytePart){
+  if(motionControlKind(c)!=='panTilt'){
+    if(target.dataset.bytePart){
+      const b=bytes16(v);
+      b[target.dataset.bytePart]=clamp(target.value,0,255);
+      v=(b.coarse<<8)|b.fine;
+    }else v=clamp(target.value,0,scalarMax(c));
+  }else if(target.dataset.bytePart){
+    const max=c.type==='panTilt16'?65535:255;
     const axis=target.dataset.byteAxis;
     const b=bytes16(v[axis]);
     b[target.dataset.bytePart]=clamp(target.value,0,255);
     v={...v,[axis]:(b.coarse<<8)|b.fine};
   }else if(target.dataset.axis){
+    const max=c.type==='panTilt16'?65535:255;
     v={...v,[target.dataset.axis]:clamp(target.value,0,max)};
   }
   setMotionGroupValue(c,v);
@@ -402,8 +498,8 @@ motionGroupModalBody.addEventListener('click',e=>{
   const key=e.target.dataset.mg;if(!key)return;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
   if(e.target.dataset.mgCenter){
-    const max=c.type==='panTilt16'?65535:255;
-    const v={pan:Math.round(max/2),tilt:Math.round(max/2)};
+    const max=motionControlKind(c)==='panTilt'?(c.type==='panTilt16'?65535:255):scalarMax(c);
+    const v=motionControlKind(c)==='panTilt'?{pan:Math.round(max/2),tilt:Math.round(max/2)}:0;
     setMotionGroupValue(c,v);
     updateMotionGroupDisplay(c);
     sendMotionGroupControl(c);
@@ -420,6 +516,7 @@ motionGroupModalBody.addEventListener('pointermove',e=>{
 function setMotionGroupXY(e,pad){
   const key=pad.dataset.mgxy;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
+  if(motionControlKind(c)!=='panTilt')return;
   const r=pad.getBoundingClientRect();
   const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
   const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
@@ -441,7 +538,13 @@ async function syncBaseFromPico(){
     if(!Array.isArray(vals))return;
     motionFixtures.forEach(mf=>{
       const c=mf.control,f=mf.fixture;
-      if(c.type==='panTilt16'){
+      if(mf.kind==='scalar16'){
+        const coarseIdx=absolute(f.start,c.channel)-1;
+        const fineIdx=absolute(f.start,c.fine??c.channel+1)-1;
+        mf.baseValue=(((vals[coarseIdx]??0)<<8)|(vals[fineIdx]??0));
+      }else if(mf.kind==='scalar8'){
+        mf.baseValue=vals[absolute(f.start,c.channel)-1]??0;
+      }else if(c.type==='panTilt16'){
         const panIdx  =absolute(f.start,c.pan)-1;
         const fineIdx =absolute(f.start,c.panFine??c.pan+1)-1;
         const tiltIdx =absolute(f.start,c.tilt)-1;
@@ -463,30 +566,58 @@ const COLORS=['#37c4a4','#ffbc6b','#ff7a7a','#7ab4ff','#c4a437','#d37aff'];
 function drawFixtureList(){
   const listEl=document.getElementById('fixtureList');
   document.getElementById('noFixtures').style.display=motionFixtures.length?'none':'block';
+  populateMotionControlFilter();
   listEl.innerHTML='';
+  const selected=(motionGroupsBox?.selectedGroups?.()||[]);
+  const selectedIds=selected.length?new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String)):null;
+  const groups=new Map();
   motionFixtures.forEach((mf,i)=>{
-    const c=mf.control;
-    const max=c.type==='panTilt16'?65535:255;
-    const color=COLORS[i%COLORS.length];
+    if(selectedIds&&!selectedIds.has(String(mf.fixture.id)))return;
+    const id=String(mf.fixture.id);
+    if(!groups.has(id))groups.set(id,{fixture:mf.fixture,profile:fixtureProfile(mf.fixture),items:[]});
+    groups.get(id).items.push({mf,i});
+  });
+  const fixtureGroups=Array.from(groups.values());
+  const hint=document.getElementById('motionControlHint');
+  if(hint)hint.textContent=selected.length?'Filtering '+selected.length+' selected group'+(selected.length===1?'':'s')+'.':'No group filter active.';
+  if(selectedIds&&!fixtureGroups.length){
+    listEl.innerHTML='<div class="small">Selected groups have no compatible effect controls in this setup.</div>';
+    return;
+  }
+  if(!fixtureGroups.length){
+    listEl.innerHTML='<div class="small">No compatible effect controls selected.</div>';
+    return;
+  }
+  fixtureGroups.forEach(group=>{
+    const f=group.fixture,p=group.profile;
+    const isCollapsed=collapsedMotionPartFixtures.has(f.id);
     const item=document.createElement('div');
-    item.className='item'+(mf.enabled?' active':'');
-    item.innerHTML=`
-      <div class="row" style="justify-content:space-between">
-        <label style="flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:14px">
+    item.className='item'+(isCollapsed?' collapsed':'')+(group.items.some(x=>x.mf.enabled)?' active':'');
+    item.dataset.fixId=f.id;
+    const checkedChips=group.items.filter(x=>x.mf.enabled).map(x=>`<span class="ctrl-chip">${DmxCommon.escapeHtml(x.mf.control.label||'Control')}</span>`).join('')||`<span class="ctrl-chip" style="color:var(--bad)">none</span>`;
+    item.innerHTML=
+      `<div class="card-hdr"><div class="small" style="font-weight:700;color:var(--text)">${DmxCommon.escapeHtml(f.name)} <span style="font-weight:400;color:var(--muted)">${DmxCommon.escapeHtml(p?.name||'Profile')} · start ch ${f.start}</span></div>`+
+      `<button class="collapse-btn" data-motion-part-collapse="${f.id}">${isCollapsed?'+':'−'}</button></div>`+
+      `<div class="ctrl-summary">${checkedChips}</div>`;
+    group.items.forEach(({mf,i})=>{
+      const c=mf.control;
+      const isPanTilt=mf.kind==='panTilt';
+      const max=isPanTilt?(c.type==='panTilt16'?65535:255):scalarMax(c);
+      const meta=isPanTilt?(c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'):(c.type==='slider16'?'Scalar 16-bit':'Scalar 8-bit');
+      const row=document.createElement('div');
+      row.className='participant-control motion-control-row';
+      row.innerHTML=`
+        <label style="display:flex;flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:13px;cursor:pointer">
           <input type="checkbox" data-mf="${i}" data-f="enabled" ${mf.enabled?'checked':''} style="width:16px;height:16px;padding:0;accent-color:var(--accent)">
-          <strong style="border-left:3px solid ${color};padding-left:8px">${mf.fixture.name}</strong>
+          <span>${DmxCommon.escapeHtml(c.label||'Control')}</span>
+          <span class="motion-kind">${meta}</span>
+          ${isPanTilt?'':'<span style="color:var(--warn);font-size:12px">Browser only</span>'}
         </label>
-        <span class="small">${c.type==='panTilt16'?'16-bit':'8-bit'} · start ch ${mf.fixture.start}</span>
-      </div>
-      <div class="row">
-        <div class="xy-mini">
-          <div class="xy-dot" id="dot${i}" style="left:${mf.basePan/max*100}%;top:${100-mf.baseTilt/max*100}%;background:${color};box-shadow:0 0 0 1px ${color}"></div>
-        </div>
-        <div>
-          <div class="small">Live position</div>
-          <div class="readout" id="pos${i}" style="color:${color}">Pan ${Math.round(mf.basePan)} · Tilt ${Math.round(mf.baseTilt)}</div>
-        </div>
-      </div>`;
+        <label>Phase <span class="small">${Math.round(mf.phaseOffset||0)} deg</span><input type="range" min="-360" max="360" step="1" value="${mf.phaseOffset||0}" data-mf="${i}" data-f="phaseOffset"></label>
+        ${isPanTilt?'<div class="small">Pico upload compatible</div>':`<label>Center <span class="small">${Math.round(mf.baseValue)}</span><input type="range" min="0" max="${max}" step="1" value="${Math.round(mf.baseValue)}" data-mf="${i}" data-f="baseValue"></label>`}
+      `;
+      item.appendChild(row);
+    });
     listEl.appendChild(item);
   });
 
@@ -497,10 +628,67 @@ function drawFixtureList(){
     const f=e.target.dataset.f;
     if(f==='enabled'){
       mf.enabled=e.target.checked;
-      e.target.closest('.item').className='item'+(mf.enabled?' active':'');
+      const item=e.target.closest('.item');
+      if(item){
+        const fid=parseInt(item.dataset.fixId,10);
+        const entries=motionFixtures.map((m,idx)=>({mf:m,i:idx})).filter(x=>x.mf.fixture.id===fid);
+        item.className='item'+(item.classList.contains('collapsed')?' collapsed':'')+(entries.some(x=>x.mf.enabled)?' active':'');
+        const chips=entries.filter(x=>x.mf.enabled).map(x=>`<span class="ctrl-chip">${DmxCommon.escapeHtml(x.mf.control.label||'Control')}</span>`).join('')||`<span class="ctrl-chip" style="color:var(--bad)">none</span>`;
+        const summary=item.querySelector('.ctrl-summary');
+        if(summary)summary.innerHTML=chips;
+      }
       drawPathPreview();
+    }else if(f==='phaseOffset'){
+      mf.phaseOffset=clamp(e.target.value,-360,360);
+      drawFixtureList();
+      drawPathPreview();
+    }else if(f==='baseValue'){
+      mf.baseValue=clamp(e.target.value,0,scalarMax(mf.control));
+      drawFixtureList();
+      drawPathPreview();
+      const batch={};
+      sendMotionTargetValue(mf,mf.baseValue,batch);
+      sendBatch(batch);
     }
   };
+  listEl.onclick=e=>{
+    const colBtn=e.target.closest('[data-motion-part-collapse]');
+    if(colBtn){
+      const fid=parseInt(colBtn.dataset.motionPartCollapse,10);
+      const item=colBtn.closest('.item');
+      const nowCollapsed=item.classList.toggle('collapsed');
+      colBtn.textContent=nowCollapsed?'+':'−';
+      if(nowCollapsed)collapsedMotionPartFixtures.add(fid);else collapsedMotionPartFixtures.delete(fid);
+      localStorage.setItem('motionPartCollapsedFix',JSON.stringify([...collapsedMotionPartFixtures]));
+    }
+  };
+}
+
+function motionControlOptions(){
+  const map=new Map();
+  motionFixtures.forEach(mf=>{
+    const key=motionControlKey(mf.control);
+    if(!map.has(key))map.set(key,{key,label:motionControlLabel(mf.control),count:0});
+    map.get(key).count++;
+  });
+  return Array.from(map.values());
+}
+function populateMotionControlFilter(){
+  const sel=document.getElementById('motionControlFilter');
+  if(!sel)return;
+  const old=sel.value;
+  const opts=motionControlOptions();
+  sel.innerHTML=opts.map(o=>`<option value="${DmxCommon.escapeHtml(o.key)}">${DmxCommon.escapeHtml(o.label)} (${o.count})</option>`).join('');
+  if(opts.some(o=>o.key===old))sel.value=old;
+}
+function setMotionParticipationByKey(key,mode){
+  motionFixtures.forEach(mf=>{
+    const matches=motionControlKey(mf.control)===key;
+    if(mode==='only')mf.enabled=matches;
+    else if(mode==='add'&&matches)mf.enabled=true;
+  });
+  drawFixtureList();
+  drawPathPreview();
 }
 
 // ---- path preview canvas ----
@@ -513,6 +701,8 @@ function effectOffset(t,type){
     case 'figure8':  return{pan:Math.sin(t),tilt:Math.sin(2*t)};
     case 'panSwing': return{pan:Math.sin(t),tilt:0};
     case 'tiltSwing':return{pan:0,tilt:Math.sin(t)};
+    case 'sine':     return{pan:Math.sin(t),tilt:Math.sin(t)};
+    case 'pulse':    return{pan:Math.sin(t)>=0?1:-1,tilt:Math.sin(t)>=0?1:-1};
     default:         return{pan:0,tilt:0};
   }
 }
@@ -629,6 +819,17 @@ function sendBatch(map){
   fetch(root+'/dmx/b',{method:'POST',body:pairs,cache:'no-store'}).catch(()=>{});
 }
 
+function sendMotionTargetValue(mf,value,batchMap){
+  const f=mf.fixture,c=mf.control;
+  if(mf.kind==='scalar16'){
+    const b=bytes16(value);
+    batchMap[absolute(f.start,c.channel)]=b.coarse;
+    batchMap[absolute(f.start,c.fine??c.channel+1)]=b.fine;
+  }else if(mf.kind==='scalar8'){
+    batchMap[absolute(f.start,c.channel)]=value;
+  }
+}
+
 function tick(){
   const elapsed=(performance.now()-startTime)/1000;
   const bpm=clamp(document.getElementById('bpm').value,1,600);
@@ -646,11 +847,20 @@ function tick(){
     const autoPhase=enabled.length>1?spread*i/enabled.length:0;
     const phase=mf.phaseOffset*Math.PI/180+autoPhase;
     const off=effectOffset(angle+phase,type);
-    const max=c.type==='panTilt16'?65535:255;
+    const max=mf.kind==='panTilt'?(c.type==='panTilt16'?65535:255):scalarMax(c);
     const half=max/2;
+    if(mf.kind!=='panTilt'){
+      const newVal=clamp(mf.baseValue+off.pan*pAmp*half,0,max);
+      sendMotionTargetValue(mf,newVal,batchMap);
+      const idx=motionFixtures.indexOf(mf);
+      const bar=document.getElementById('bar'+idx);
+      if(bar)bar.style.width=(newVal/max*100)+'%';
+      const posEl=document.getElementById('pos'+idx);
+      if(posEl)posEl.textContent=Math.round(newVal);
+      return;
+    }
     const newPan=clamp(mf.basePan+off.pan*pAmp*half,0,max);
     const newTilt=clamp(mf.baseTilt+off.tilt*tAmp*half,0,max);
-
     if(c.type==='panTilt16'){
       const pan=bytes16(newPan),tilt=bytes16(newTilt);
       batchMap[absolute(f.start,c.pan)]=pan.coarse;
@@ -677,6 +887,33 @@ function tick(){
 // ---- event wiring ----
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
 document.getElementById('effectType').onchange=drawPathPreview;
+document.getElementById('btnMotionAll').onclick=()=>{
+  motionFixtures.forEach(mf=>mf.enabled=true);
+  collapsedMotionPartFixtures.clear();
+  localStorage.setItem('motionPartCollapsedFix','[]');
+  drawFixtureList();drawPathPreview();
+};
+document.getElementById('btnMotionNone').onclick=()=>{
+  motionFixtures.forEach(mf=>mf.enabled=false);
+  collapsedMotionPartFixtures=new Set((setup.fixtures||[]).map(f=>f.id));
+  localStorage.setItem('motionPartCollapsedFix',JSON.stringify([...collapsedMotionPartFixtures]));
+  drawFixtureList();drawPathPreview();
+};
+document.getElementById('btnMotionOnly').onclick=()=>setMotionParticipationByKey(document.getElementById('motionControlFilter').value,'only');
+document.getElementById('btnMotionAdd').onclick=()=>setMotionParticipationByKey(document.getElementById('motionControlFilter').value,'add');
+document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
+  const panel=document.getElementById(btn.dataset.panelToggle);
+  if(!panel)return;
+  const key='motionPanelCollapsed:'+btn.dataset.panelToggle;
+  const setCollapsed=collapsed=>{
+    panel.classList.toggle('collapsed-panel',collapsed);
+    btn.textContent=collapsed?'+':'−';
+    btn.title=(collapsed?'Expand ':'Collapse ')+(panel.querySelector('h2')?.textContent.trim()||'panel');
+    localStorage.setItem(key,collapsed?'1':'');
+  };
+  setCollapsed(localStorage.getItem(key)==='1');
+  btn.onclick=()=>setCollapsed(!panel.classList.contains('collapsed-panel'));
+});
 ['panAmp','tiltAmp','phaseSpread'].forEach(id=>{
   const el=document.getElementById(id);
   const valEl=document.getElementById(id+'Val');
@@ -698,7 +935,7 @@ function serializeMotionForPico(){
     'TILTAMP '+tiltAmp.toFixed(6),
     'SPREAD '+spread.toFixed(4),
   ];
-  motionFixtures.forEach(mf=>{
+  motionFixtures.filter(mf=>mf.kind==='panTilt').forEach(mf=>{
     const c=mf.control,f=mf.fixture;
     const is16=c.type==='panTilt16'?1:0;
     const panCh=absolute(f.start,c.pan);
@@ -865,7 +1102,8 @@ async function restoreAllMotionSlots(){
 }
 
 document.getElementById('btnPicoMotionUpload').onclick=async()=>{
-  if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
+  if(motionFixtures.filter(m=>m.enabled&&m.kind==='panTilt').length===0){setPicoMotionStatus('No enabled Pico-compatible pan/tilt controls','var(--warn)');return;}
+  if(typeMapPico[document.getElementById('effectType').value]===undefined){setPicoMotionStatus('This browser-only effect cannot be uploaded to Pico yet','var(--warn)');return;}
   if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
@@ -948,8 +1186,8 @@ function motionData(){
     },
     fixtures:motionFixtures.map(mf=>({
       fixtureId:mf.fixture.id,controlId:mf.control.id,
-      enabled:mf.enabled,phaseOffset:mf.phaseOffset,
-      basePan:mf.basePan,baseTilt:mf.baseTilt,
+      kind:mf.kind,enabled:mf.enabled,phaseOffset:mf.phaseOffset,
+      basePan:mf.basePan,baseTilt:mf.baseTilt,baseValue:mf.baseValue,
     }))
   };
 }
@@ -975,6 +1213,7 @@ function applyMotionData(data){
       else if(saved.panCenter!==undefined)mf.basePan=saved.panCenter;  // backwards compat
       if(saved.baseTilt!==undefined)mf.baseTilt=saved.baseTilt;
       else if(saved.tiltCenter!==undefined)mf.baseTilt=saved.tiltCenter;  // backwards compat
+      if(saved.baseValue!==undefined)mf.baseValue=saved.baseValue;
     });
   }
   drawFixtureList();drawPathPreview();
@@ -1126,6 +1365,11 @@ function applySceneAsCenter(s){
   motionFixtures.forEach(mf=>{
     const v=(s.values||{})[mf.fixture.id+':'+mf.control.id];
     if(v==null)return;
+    if(mf.kind!=='panTilt'){
+      mf.baseValue=typeof v==='number'?v:(mf.baseValue??0);
+      sendMotionTargetValue(mf,mf.baseValue,batchMap);
+      return;
+    }
     const max=mf.control.type==='panTilt16'?32768:128;
     mf.basePan =typeof v==='object'?(v.pan??max):max;
     mf.baseTilt=typeof v==='object'?(v.tilt??max):max;
@@ -1161,6 +1405,16 @@ const motionSceneToolbox=DmxCommon.initFloatingToolbox({
   posStorageKey:'motionSceneBoxPos',
   collapsedStorageKey:'motionSceneBoxCollapsed',
   uiStatePage:'motion'
+});
+const motionEffectToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'motionEffectBox',
+  headerId:'motionEffectHdr',
+  toggleId:'motionEffectBoxToggle',
+  posStorageKey:'motionEffectBoxPos',
+  collapsedStorageKey:'motionEffectBoxCollapsed',
+  uiStatePage:'motion',
+  uiStatePosKey:'motionEffectBoxPos',
+  uiStateCollapsedKey:'motionEffectBoxCollapsed'
 });
 loadMotionScenesServer();
 // ── UI State persistence ─────────────────────────────────────────────────────────
