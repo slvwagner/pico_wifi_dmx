@@ -73,7 +73,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 <section class="panel">
 <div class="toolbar">
-<label><input id="live" type="checkbox" checked> Live send</label>
 <button id="exportCsv" class="icon-btn export-btn" title="Export patch CSV"></button>
 <button id="exportJson" class="icon-btn export-btn" title="Export setup JSON"></button>
 <button id="importJson" class="icon-btn import-btn" title="Import setup JSON"></button>
@@ -377,7 +376,6 @@ let editingControlId=0;
 const values={};
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl);
-const live=document.getElementById('live');
 const statusEl=document.getElementById('status');
 const profilesEl=document.getElementById('profiles');
 const patchProfile=document.getElementById('patchProfile');
@@ -415,6 +413,7 @@ function rgbToCmyk(hex){
 }
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
+function autoSendEnabled(){return !!endpoint();}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
@@ -994,10 +993,9 @@ function patchFixture(){
   scheduleSetupAutosave();
 }
 
-function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures};}
+function saveData(){return {baseUrl:baseUrl.value,profiles,fixtures};}
 function applyData(data){
   baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
-  if(data?.live!==undefined)live.checked=data.live;
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
   Object.keys(values).forEach(k=>delete values[k]);
@@ -1379,7 +1377,7 @@ function applyFanToController(options={}){
   });
   drawSurface();
   writeLiveValues(true);
-  if(live.checked){
+  if(autoSendEnabled()){
     const root=endpoint();
     if(root){
       const pairs=[];
@@ -1527,7 +1525,7 @@ surfaceEl.oninput=e=>{
   }else if(e.target.dataset.part){
     const v=getValue(f,c,{a:0,b:0,c:0});v[e.target.dataset.part]=clamp(e.target.value,0,255);setValue(f,c,v);
   }else setValue(f,c,clamp(e.target.value,0,c.type==='slider16'?65535:255));
-  if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
   updateControlDisplay(f,c);
   writeLiveValues();
 };
@@ -1538,7 +1536,7 @@ surfaceEl.onclick=e=>{
   if(!f||!c)return;
   if(e.target.dataset.centerPantilt){
     setValue(f,c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});
-    if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
     updateControlDisplay(f,c);
     return;
   }
@@ -1550,11 +1548,11 @@ surfaceEl.onclick=e=>{
     }
     else if(c.type==='cmy')setValue(f,c,rgbToCmy(e.target.dataset.color));
     else if(c.type==='cmyk')setValue(f,c,rgbToCmyk(e.target.dataset.color));
-    sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
   }
   if(e.target.dataset.wheel!==undefined){
     setValue(f,c,clamp(e.target.dataset.wheel,0,255));
-    if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
   }
   if(e.target.dataset.sendFixture)sendControl(f,c).catch(err=>setStatus(err.message,true));
 };
@@ -1574,7 +1572,7 @@ function setXY(e,pad){
   const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
   const max=c.type==='panTilt8'?255:65535;
   setValue(f,c,{pan:Math.round(x*max),tilt:Math.round((1-y)*max)});
-  if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
   updateControlDisplay(f,c);
 }
 
@@ -1630,7 +1628,6 @@ patchProfile.onchange=()=>{
   if(profile)document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
 };
 baseUrl.addEventListener('input',scheduleSetupAutosave);
-live.addEventListener('change',scheduleSetupAutosave);
 document.getElementById('exportCsv').onclick=exportCsv;
 document.getElementById('exportJson').onclick=()=>{
   const blob=new Blob([JSON.stringify(saveData(),null,2)],{type:'application/json'});
@@ -2000,7 +1997,7 @@ groupModalBody.oninput=e=>{
     v=clamp(e.target.value,0,c.type==='slider16'?65535:255);
   }
   setGroupValue(c,v);
-  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
   updateGroupControlDisplay(c);
   writeLiveValues();
 };
@@ -2010,18 +2007,18 @@ groupModalBody.addEventListener('click',e=>{
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
   if(e.target.dataset.gcCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
-    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+    setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
   }
   if(e.target.dataset.gcColor!==undefined){
     let v=getGroupValue(c);
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.gcColor);v={...(typeof v==='object'?v:{a:0,b:0,c:0}),a:rgb.a,b:rgb.b,c:rgb.c};}
     else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.gcColor);
     else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.gcColor);
-    setGroupValue(c,v);sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+    setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
   }
   if(e.target.dataset.gcWheel!==undefined){
     const v=clamp(e.target.dataset.gcWheel,0,255);
-    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+    setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
     document.querySelectorAll(`[data-gc="${key}"].tab`).forEach(btn=>btn.classList.toggle('active',parseInt(btn.dataset.gcWheel)===v));
     updateGroupControlDisplay(c);return;
   }
@@ -2044,7 +2041,7 @@ function setGroupXY(e,pad){
   const max=c.type==='panTilt8'?255:65535;
   const v={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
   setGroupValue(c,v);
-  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
   updateGroupControlDisplay(c);
   writeLiveValues();
 }
@@ -2618,7 +2615,7 @@ function recallScene(s){
   Object.assign(values,recalledValues);
   drawSurface();
   writeLiveValues(true);
-  if(live.checked){
+  if(autoSendEnabled()){
     const root=endpoint();
     if(root){
       const pairs=[];
@@ -2882,7 +2879,7 @@ function recallPalette(p){
   Object.assign(values,paletteValues);
   drawSurface();
   writeLiveValues(true);
-  if(live.checked){
+  if(autoSendEnabled()){
     const root=endpoint();
     if(root){
       const pairs=[];
