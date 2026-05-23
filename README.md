@@ -158,7 +158,7 @@ The screenshots below show the main pages as served from XAMPP during developmen
 
 Run `scripts/update_user_manual.ps1` after UI or documentation changes. It syncs the current web app to XAMPP, captures deterministic screenshots, rebuilds the dark-mode HTML/PDF manual, syncs the result back to XAMPP, and verifies the deployed manual.
 
-The controller screenshots are generated with deterministic per-shot setup states: each screenshot explicitly opens or collapses the relevant sections, sets the scene toolbox visibility, clears or selects group filters, and expands fixture cards as needed. This avoids stale browser collapse state leaking into the documentation images.
+The controller screenshots are generated with deterministic per-shot setup states: each screenshot explicitly opens or collapses the relevant sections, collapses the shared toolbox sidebar for page-local topics, sets toolbox visibility for toolbox-specific topics, clears or selects group filters, and expands fixture cards as needed. This avoids stale browser collapse state leaking into the documentation images.
 
 **Fixture Controller**
 

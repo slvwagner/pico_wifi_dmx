@@ -115,6 +115,25 @@ try {
       if(open && box.classList.contains('collapsed') && toggle) toggle.click();
       if(!open && !box.classList.contains('collapsed') && toggle) toggle.click();
     },
+    setToolboxRail({collapsed=false}={}){
+      const rail=document.querySelector('.toolbox-rail');
+      if(!rail)return;
+      const toggle=rail.querySelector('.toolbox-rail-toggle');
+      if(toggle && rail.classList.contains('collapsed')!==collapsed) toggle.click();
+      else {
+        rail.classList.toggle('collapsed',collapsed);
+        document.body.classList.toggle('toolbox-rail-collapsed',collapsed);
+      }
+      rail.style.width=collapsed?'48px':'';
+      rail.style.overflow=collapsed?'hidden':'';
+      document.querySelectorAll('.toolbox-rail .scene-toolbox,.toolbox-rail .toolbox-rail-resizer').forEach(el=>{
+        el.style.display=collapsed?'none':'';
+      });
+      document.querySelectorAll('main').forEach(el=>{
+        el.style.width=collapsed?'calc(100% - 48px)':'';
+      });
+      localStorage.setItem('toolboxRailCollapsed',collapsed?'1':'0');
+    },
     setGroupsBox({visible=true,open=true}={}){
       const box=document.querySelector('#groupsBox');
       const toggle=document.querySelector('#groupsBoxToggle');
@@ -161,12 +180,16 @@ try {
   };
 
   docShots.setSetupSections({profiles:false,patch:false});
+  docShots.setToolboxRail({collapsed:true});
   docShots.setGroupsBox({visible:true,open:true});
   ['profiles','patch'].forEach(name=>localStorage.setItem(name+'Collapsed','0'));
+  localStorage.setItem('toolboxRailCollapsed','1');
   localStorage.setItem('groupsBoxCollapsed','0');
   localStorage.setItem('fixtureCardCollapsed','[]');
   docShots.expandFixtureCards();
   document.querySelector('main')?.scrollTo(0,0);
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:true});
   await docShots.wait();
 })()
 "@
@@ -175,10 +198,13 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setSetupSections({profiles:false,patch:true});
+  docShots.setToolboxRail({collapsed:true});
   docShots.setSceneBox({visible:false});
   docShots.setGroupsBox({visible:false});
   const panel=document.querySelector('#profileList') || document.querySelector('#profileForm') || document.body;
   document.querySelector('main')?.scrollTo(0,70);
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:true});
   await docShots.wait();
 })()
 "@
@@ -187,9 +213,12 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:false});
   docShots.setSceneBox({visible:false});
   docShots.setGroupsBox({visible:true,open:true});
   docShots.selectDemoGroups();
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:false});
   await docShots.wait();
 })()
 "@
@@ -198,11 +227,14 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:false});
   docShots.selectDemoGroups();
   docShots.expandFixtureCards();
   window.scrollBy(0,-130);
   docShots.setSceneBox({visible:true,open:true});
   docShots.setGroupsBox({visible:true,open:true});
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:false});
   await docShots.wait();
 })()
 "@
@@ -211,6 +243,7 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:true});
   docShots.clearGroupFilter();
   docShots.setSceneBox({visible:false});
   docShots.setGroupsBox({visible:false});
@@ -220,6 +253,8 @@ try {
   await docShots.wait(300);
   document.querySelector('#controlSurfacePanel')?.scrollIntoView({block:'start'});
   window.scrollBy(0,-80);
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:true});
   await docShots.wait();
 })()
 "@
@@ -228,6 +263,7 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:true});
   docShots.setSceneBox({visible:false});
   docShots.setGroupsBox({visible:false});
   docShots.ensureDemoGroups();
@@ -240,6 +276,8 @@ try {
   await docShots.wait();
   if(typeof openGroupModal==='function') openGroupModal();
   else document.querySelector('#openGroupEdit')?.click();
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:true});
   await docShots.wait(600);
 })()
 "@
@@ -252,6 +290,10 @@ try {
     Eval-Js @"
 (async()=>{
   const wait=(ms=500)=>new Promise(r=>setTimeout(r,ms));
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail&&rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  localStorage.setItem('toolboxRailCollapsed','0');
   function openToolbox(id){
     const box=document.getElementById(id);
     const toggle=document.getElementById(id+'Toggle');
