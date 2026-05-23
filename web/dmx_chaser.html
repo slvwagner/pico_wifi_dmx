@@ -341,10 +341,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <label>To<input id="fanTo" type="number" value="0"></label>
 </div>
 <div class="buttons">
-<button id="fanSave">Save</button>
-<button id="fanRecall">Recall</button>
-<button id="fanSnapshot">Snapshot</button>
-<button class="primary" id="fanApply">Apply</button>
 <button id="fanClear">Clear</button>
 </div>
 <div id="fanPreview" class="fan-preview"></div>
@@ -524,7 +520,6 @@ function rebuildParticipation(){
 
 function applyChaserGroupSelection(redraw=true){
   const selected=chaserGroupsBox?.selectedGroups?.()||[];
-  fanState.fixtureIds=null;
   fanState.bases={};
   if(redraw){
     drawParticipation();
@@ -810,18 +805,10 @@ function getParticipatingList(){
   return result;
 }
 
-const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,bases:{},fixtureIds:null};
-let fanPresets=[];
+const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,bases:{}};
 function fanFixtureOrder(){
   let ids=[];
-  if(Array.isArray(fanState.fixtureIds)&&fanState.fixtureIds.length)ids=fanState.fixtureIds.slice();
-  if(!ids.length){
-    const selected=chaserGroupsBox?.selectedGroups?.()||[];
-    selected.forEach(g=>(g.fixtureIds||[]).forEach(id=>{if(!ids.some(x=>String(x)===String(id)))ids.push(id);}));
-  }
-  if(!ids.length){
-    getParticipatingList().forEach(({f})=>{if(!ids.some(id=>String(id)===String(f.id)))ids.push(f.id);});
-  }
+  getParticipatingList().forEach(({f})=>{if(!ids.some(id=>String(id)===String(f.id)))ids.push(f.id);});
   return ids.map(id=>(setup.fixtures||[]).find(f=>String(f.id)===String(id))).filter(Boolean);
 }
 function chaserFanControlKey(c,axis){return encodeURIComponent(chaserGroupKey(c))+'|'+axis;}
@@ -837,22 +824,20 @@ function findChaserFanControl(f,controlKeyValue,axis){
   return null;
 }
 function fanControlOptions(){
-  const ordered=fanFixtureOrder();
-  const first=ordered[0];
-  const profile=first&&fixtureProfile(first);
-  if(!profile)return[];
-  const opts=[];
-  profile.controls.forEach(c=>{
+  const byKey=new Map();
+  getParticipatingList().forEach(({f,c})=>{
     const add=(axis,label,max)=>{
-      const keyValue=chaserGroupKey(c);
-      if(ordered.every(f=>findChaserFanControl(f,keyValue,axis)))opts.push({key:chaserFanControlKey(c,axis),label,max});
+      const key=chaserFanControlKey(c,axis);
+      const entry=byKey.get(key)||{key,label,max,fixtureIds:new Set()};
+      entry.fixtureIds.add(String(f.id));
+      byKey.set(key,entry);
     };
     if(c.type==='panTilt16'){add('pan',c.label+' Pan',65535);add('tilt',c.label+' Tilt',65535);}
     else if(c.type==='panTilt8'){add('pan',c.label+' Pan',255);add('tilt',c.label+' Tilt',255);}
     else if(c.type==='slider16')add('value',c.label,65535);
     else if(c.channel>=1)add('value',c.label,255);
   });
-  return opts;
+  return Array.from(byKey.values()).filter(o=>o.fixtureIds.size>=2).map(({fixtureIds,...o})=>o);
 }
 function fanMaxValue(){
   const opt=fanControlOptions().find(o=>o.key===fanState.controlKey);
@@ -877,16 +862,6 @@ function fanSetStepValue(f,c,axis,val){
   }else setStepVal(f,c,val);
   participating[controlKey(f,c)]=true;
   if(activeStepValueKeys instanceof Set)activeStepValueKeys.add(controlKey(f,c));
-}
-function snapshotFanBases(){
-  const ordered=fanFixtureOrder();
-  const {controlKey:fanControl,axis}=parseChaserFanControlKey();
-  fanState.bases={};
-  ordered.forEach(f=>{
-    const c=findChaserFanControl(f,fanControl,axis);
-    if(c)fanState.bases[fanBaseKey(f,c,axis)]=fanGetStepValue(f,c,axis);
-  });
-  renderFanToolbox();
 }
 function ensureFanBases(){
   const ordered=fanFixtureOrder();
@@ -927,6 +902,7 @@ function renderFanToolbox(){
   sel.innerHTML=opts.map(o=>`<option value="${o.key}">${DmxCommon.escapeHtml(o.label)}</option>`).join('');
   if(opts.some(o=>o.key===old))sel.value=old;
   else if(opts[0]){sel.value=opts[0].key;fanState.controlKey=opts[0].key;fanState.bases={};}
+  else fanState.controlKey='';
   const max=fanMaxValue();
   document.getElementById('fanSpread').max=max;
   document.getElementById('fanSpread').step=max>255?256:1;
@@ -936,12 +912,10 @@ function renderFanToolbox(){
   document.getElementById('fanRangeWrap').style.display=fanState.mode==='range'?'flex':'none';
   document.getElementById('fanFrom').value=Math.round(fanState.fromOffset||0);
   document.getElementById('fanTo').value=Math.round(fanState.toOffset||0);
-  const source=Array.isArray(fanState.fixtureIds)&&fanState.fixtureIds.length?'Fan preset':((chaserGroupsBox?.selectedGroups?.()||[]).length?'selected groups':'participating fixtures');
-  hint.textContent=ordered.length?('Affecting '+ordered.length+' fixture'+(ordered.length===1?'':'s')+' from '+source):'Select a group or add participating controls first.';
-  ['fanControlSelect','fanSpread','fanMode','fanFrom','fanTo','fanSnapshot','fanSave','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ordered.length||!opts.length;});
-  const applyBtn=document.getElementById('fanApply');
-  if(applyBtn)applyBtn.disabled=!ordered.length||!opts.length||selectedStepIdx<0;
-  document.getElementById('fanRecall').disabled=!fanPresets.length;
+  const source=(chaserGroupsBox?.selectedGroups?.()||[]).length?'selected groups':'participating controls';
+  hint.textContent=selectedStepIdx<0?'Select a step before using Fan Out.':(ordered.length?('Affecting '+ordered.length+' fixture'+(ordered.length===1?'':'s')+' from '+source):'Select a group or add participating controls first.');
+  const disabled=selectedStepIdx<0||!ordered.length||!opts.length;
+  ['fanControlSelect','fanSpread','fanMode','fanFrom','fanTo','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=disabled;});
   ensureFanBases();
   document.getElementById('fanPreview').innerHTML=fanComputedValues().map(v=>`<div class="fan-preview-card active"><strong>${DmxCommon.escapeHtml(v.fixture.name)}</strong><span>${v.base} -> ${v.finalVal}</span></div>`).join('')||'<div class="small">No fan preview.</div>';
 }
@@ -964,60 +938,13 @@ function liveFanUpdate(){
   renderFanToolbox();
   applyFanToStep({silent:true});
 }
-function fanPresetPayload(name){
-  return{
-    id:'fan_'+Date.now()+'_'+Math.floor(Math.random()*1000),
-    name,
-    fixtureIds:fanFixtureOrder().map(f=>f.id),
-    state:{
-      controlKey:fanState.controlKey,
-      mode:fanState.mode,
-      spread:fanState.spread,
-      fromOffset:fanState.fromOffset,
-      toOffset:fanState.toOffset
-    }
-  };
-}
-function saveFanPresets(){
-  DmxCommon.saveUiState('chaser','fanOutPresets',fanPresets);
-}
-async function loadFanPresets(){
-  try{
-    const st=await DmxCommon.loadUiState('chaser');
-    fanPresets=Array.isArray(st.fanOutPresets)?st.fanOutPresets:[];
-  }catch(_){fanPresets=[];}
-  renderFanToolbox();
-}
-function saveFanPreset(){
-  if(!fanFixtureOrder().length){setStatus('Select a group or participating fixtures before saving Fan Out',true);return;}
-  const name=(prompt('Fan Out preset name:','Fan '+(fanPresets.length+1))||'').trim();
-  if(!name)return;
-  const existing=fanPresets.findIndex(p=>p.name===name);
-  const preset=fanPresetPayload(name);
-  if(existing>=0)fanPresets.splice(existing,1,preset);else fanPresets.push(preset);
-  saveFanPresets();
-  renderFanToolbox();
-  setStatus('Fan Out preset saved: '+name);
-}
-function recallFanPreset(){
-  if(!fanPresets.length){setStatus('No saved Fan Out presets',true);return;}
-  const label=fanPresets.map((p,i)=>(i+1)+': '+p.name).join('\n');
-  const answer=(prompt('Recall Fan Out preset number:\n'+label,'1')||'').trim();
-  if(!answer)return;
-  const idx=Math.max(0,Math.min(fanPresets.length-1,(parseInt(answer,10)||1)-1));
-  const preset=fanPresets[idx];if(!preset)return;
-  Object.assign(fanState,preset.state||{});
-  fanState.fixtureIds=Array.isArray(preset.fixtureIds)?preset.fixtureIds.slice():null;
-  fanState.bases={};
-  snapshotFanBases();
-  liveFanUpdate();
-  setStatus('Fan Out preset recalled: '+preset.name);
-}
 function clearFanOut(){
-  fanState.fixtureIds=null;
+  fanState.spread=0;
+  fanState.fromOffset=0;
+  fanState.toOffset=0;
   fanState.bases={};
   renderFanToolbox();
-  setStatus('Fan Out target cleared');
+  setStatus('Fan Out shaping reset');
 }
 
 function scopedParticipationFixtures(){
@@ -2443,17 +2370,12 @@ document.getElementById('btnStepDelete').onclick=()=>{if(selectedStepIdx>=0)dele
 document.getElementById('fanControlSelect').addEventListener('change',e=>{
   fanState.controlKey=e.target.value;
   fanState.bases={};
-  fanState.fixtureIds=null;
-  snapshotFanBases();
+  liveFanUpdate();
 });
 document.getElementById('fanMode').addEventListener('change',e=>{fanState.mode=e.target.value;liveFanUpdate();});
 document.getElementById('fanSpread').addEventListener('input',e=>{fanState.spread=clamp(e.target.value,0,fanMaxValue());liveFanUpdate();});
 document.getElementById('fanFrom').addEventListener('input',e=>{fanState.fromOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
 document.getElementById('fanTo').addEventListener('input',e=>{fanState.toOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
-document.getElementById('fanSnapshot').onclick=()=>{snapshotFanBases();setStatus('Fan Out bases snapshotted');};
-document.getElementById('fanApply').onclick=()=>applyFanToStep();
-document.getElementById('fanSave').onclick=saveFanPreset;
-document.getElementById('fanRecall').onclick=recallFanPreset;
 document.getElementById('fanClear').onclick=clearFanOut;
 document.getElementById('btnCaptureNew').onclick=async()=>{
   if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
@@ -2822,7 +2744,7 @@ document.getElementById('picoSlot').addEventListener('change',()=>{
 
 // ---- init ----
 loadSetup();
-loadFanPresets();
+renderFanToolbox();
 drawStepList();
 drawStepEditor();
 (async()=>{

@@ -1,0 +1,64 @@
+{
+    "baseUrl": "http://192.168.0.24/",
+    "params": {
+        "effectType": "circle",
+        "bpm": 30,
+        "panAmp": 20,
+        "tiltAmp": 15,
+        "phaseSpread": 0,
+        "updateRate": 25
+    },
+    "fixtures": [
+        {
+            "fixtureId": 1778925816881,
+            "controlId": 1778925642150,
+            "enabled": true,
+            "phaseOffset": 0,
+            "basePan": 10452,
+            "baseTilt": 55287
+        },
+        {
+            "fixtureId": 1778925822587,
+            "controlId": 1778925642150,
+            "enabled": true,
+            "phaseOffset": 0,
+            "basePan": 56807,
+            "baseTilt": 52706
+        },
+        {
+            "fixtureId": 1778925826342,
+            "controlId": 1778925642150,
+            "enabled": true,
+            "phaseOffset": 0,
+            "basePan": 9418,
+            "baseTilt": 16545
+        },
+        {
+            "fixtureId": 1779004917801,
+            "controlId": 1778925642150,
+            "enabled": true,
+            "phaseOffset": 0,
+            "basePan": 56867,
+            "baseTilt": 15823
+        }
+    ],
+    "pico_slots": [
+        "TYPE 3\nBPM 30.0000\nPANAMP 0.200000\nTILTAMP 0.150000\nSPREAD 0.0000\nFIX 1 2 3 4 5 1 0.00\nFIX 1 18 19 20 21 1 0.00\nFIX 1 34 35 36 37 1 0.00\nFIX 1 50 51 52 53 1 0.00\nEND",
+        "TYPE 3\nBPM 30.0000\nPANAMP 0.200000\nTILTAMP 0.150000\nSPREAD 106.0000\nFIX 1 2 3 4 5 1 16903.00 47343.00 0.00\nFIX 1 18 19 20 21 1 14975.00 17340.00 0.00\nFIX 1 34 35 36 37 1 50089.00 15731.00 0.00\nFIX 1 50 51 52 53 1 48746.00 48961.00 0.00\nEND",
+        "TYPE 0\nBPM 30.0000\nPANAMP 0.200000\nTILTAMP 0.150000\nSPREAD 0.0000\nFIX 1 2 3 4 5 1 0.00\nFIX 1 18 19 20 21 1 0.00\nFIX 1 34 35 36 37 1 0.00\nFIX 1 50 51 52 53 1 0.00\nEND",
+        "TYPE 2\nBPM 50.0000\nPANAMP 0.540000\nTILTAMP 0.150000\nSPREAD 97.0000\nFIX 1 2 3 4 5 1 16903.00 47343.00 0.00\nFIX 1 18 19 20 21 1 14975.00 17340.00 0.00\nFIX 1 34 35 36 37 1 50089.00 15731.00 0.00\nFIX 1 50 51 52 53 1 48746.00 48961.00 0.00\nEND",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    ],
+    "pico_url": "http://192.168.0.24/"
+}
