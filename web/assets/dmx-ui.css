@@ -132,6 +132,9 @@ body.toolbox-rail-collapsed .toolbox-rail-resizer,body.toolbox-rail-collapsed .t
 .palette-slot-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .palette-visual{display:inline-block;width:20px;height:20px;border-radius:5px;border:1px solid rgba(255,255,255,.45);background:#111;background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .palette-visual--color{border-radius:50%}
+.slot-visual-btn{position:absolute;top:2px;left:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer;z-index:2}
+.slot-visual-btn:hover,.slot-del:hover{opacity:1;background:rgba(1,255,230,.12);border-color:rgba(1,255,230,.35)}
+.slot-visual-btn svg{width:11px;height:11px;display:block;fill:currentColor}
 .slot-visual-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
 .gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}
 .slot-del{position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.6;cursor:pointer}

@@ -200,7 +200,6 @@ main{max-width:none;width:100%;margin:0}
   <div class="slot-actions">
     <button id="exportMotionEffectsBtn" class="icon-btn export-btn" title="Export effects JSON"></button>
     <button id="importMotionEffectsBtn" class="icon-btn import-btn" title="Import effects JSON"></button>
-    <button id="motionEffectVisualBtn" class="palette-merge-btn" title="Edit effect visual">Visual</button>
     <input id="importMotionEffectsFile" type="file" accept=".json,application/json" style="display:none">
   </div>
   <div class="small" style="color:var(--muted)">Click an empty slot to save the current effect recipe. Click a filled slot to recall it.</div>
@@ -1563,7 +1562,7 @@ function renderMotionEffectMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const e=motionEffects.find(fx=>parseInt(fx.slot,10)===i);
-    if(e)html+=`<div class="slot filled" data-motion-effect-slot="${i}" title="Click: recall effect" style="${DmxCommon.slotVisualStyle(e)}"><button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
+    if(e)html+=`<div class="slot filled" data-motion-effect-slot="${i}" title="Click: recall effect" style="${DmxCommon.slotVisualStyle(e)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-effect-slot',i,'Edit effect visual')}<button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
     else html+=`<div class="slot" data-motion-effect-slot="${i}" title="Click to save current effect">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1579,6 +1578,12 @@ function renderMotionEffectMatrix(){
       motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
       renderMotionEffectMatrix();
       saveMotionEffectsServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-motion-effect-slot]').forEach(btn=>{
+    btn.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      openMotionEffectVisualModal(parseInt(btn.dataset.visualMotionEffectSlot,10));
     });
   });
 }
@@ -1659,7 +1664,7 @@ const motionEffectVisualEditor=DmxCommon.initSlotVisualEditor({
   saveBtnId:'motionEffectVisualSave',
   closeIds:['motionEffectVisualClose','motionEffectVisualClose2']
 });
-function openMotionEffectVisualModal(){
+function openMotionEffectVisualModal(slot){
   motionEffectVisualEditor?.open({
     targetLabel:'saved effects',
     defaultVisual:motionEffectVisualDefault,
@@ -1667,12 +1672,13 @@ function openMotionEffectVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0))
       .map(e=>({key:String(parseInt(e.slot,10)||0),item:e,label:'Slot '+((parseInt(e.slot,10)||0)+1)+': '+(e.name||'Effect')})),
-    onDefaultSave:visual=>{
+    selectedKey:slot,
+    onSaveDefault:visual=>{
       motionEffectVisualDefault=visual;
       localStorage.setItem('motionEffectVisualDefault',JSON.stringify(visual));
       setStatus('Default effect visual updated');
     },
-    onTargetSave:(target,visual)=>{
+    onSaveTarget:(target,visual)=>{
       target.visual=visual;
       renderMotionEffectMatrix();
       saveMotionEffectsServer();
@@ -1685,7 +1691,6 @@ document.getElementById('motionEffectRows').addEventListener('input',e=>{motionE
 document.getElementById('exportMotionEffectsBtn').onclick=exportMotionEffectsJson;
 document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile').click();
 document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
-document.getElementById('motionEffectVisualBtn').onclick=openMotionEffectVisualModal;
 
 loadSetup().finally(async()=>{
   try{

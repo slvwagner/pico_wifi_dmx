@@ -217,7 +217,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/fixture-controller-toolbox-groups.png" alt="Controller Groups toolbox"></p>
 <p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, rename one selected group, delete selected groups after confirmation, import/export group JSON, and open <strong>Group Edit</strong> when the current scope supports it.</p>
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Controller Scenes toolbox"></p>
-<p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, and <strong>Visual</strong> edits the slot background and optional drawing/upload.</p>
+<p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, and the small top-left pencil icon edits that slot&#39;s background and optional drawing/upload.</p>
 <p><img src="screenshots/fixture-controller-toolbox-palettes.png" alt="Controller Palettes toolbox"></p>
 <p><strong>Palettes</strong> stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched.</p>
 <p><img src="screenshots/fixture-controller-toolbox-fanout.png" alt="Controller Fan Out toolbox"></p>
@@ -249,7 +249,7 @@ strong { color: #ffffff; }
 <li>Dimmer levels</li>
 <li>Fan Out results that you want to reuse as an overlay</li>
 </ul>
-<p>The <strong>Visual</strong> button opens the palette visual editor. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Use <strong>Default background</strong> to restore the standard slot color, or <strong>No icon</strong> to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.</p>
+<p>The small top-left pencil icon on a filled palette slot opens the palette visual editor for that slot. The visual is independent from the palette scope: any palette can use a background color and an optional drawn/uploaded visual on top. Use <strong>Default background</strong> to restore the standard slot color, or <strong>No icon</strong> to keep only the colored button. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.</p>
 <p>Palette save rules:</p>
 <ul>
 <li>If Fan Out is active, the palette saves only the Fan Out affected controls.</li>
@@ -282,7 +282,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Scene Toolbox"></p>
 <p>The Scene Toolbox is available on the Fixture Controller page.</p>
 <p>Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.</p>
-<p>The <strong>Visual</strong> button opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.</p>
+<p>The small top-left pencil icon on a filled scene slot opens the same visual editor used by palettes. A scene can have a background color and an optional drawn/uploaded visual in its slot. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the drawn/uploaded image. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.</p>
 <ol>
 <li>Set your desired fixture values.</li>
 <li>Click an empty scene slot.</li>
@@ -374,11 +374,11 @@ strong { color: #ffffff; }
 <p><img src="screenshots/chaser-toolbox-groups.png" alt="Chaser Groups toolbox"></p>
 <ul>
 <li><strong>Chases</strong> stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.</li>
-<li>The <strong>Visual</strong> button in <strong>Chases</strong> sets a background color and optional drawn/uploaded visual for chase slots. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.</li>
+<li>The small top-left pencil icon on a filled <strong>Chases</strong> slot sets a background color and optional drawn/uploaded visual for that chase slot. <strong>Default background</strong> restores the standard slot color, and <strong>No icon</strong> removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-chases.png" alt="Chaser Chases toolbox"></p>
 <ul>
-<li><strong>Palettes</strong> stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step&#39;s fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step. <strong>Merge</strong> adds the selected step&#39;s values into an existing palette; if the palette scope differs, Chaser asks before changing it to <strong>All controls</strong>. <strong>Visual</strong> edits the default palette slot appearance or a saved palette&#39;s appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.</li>
+<li><strong>Palettes</strong> stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step&#39;s fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step. <strong>Merge</strong> adds the selected step&#39;s values into an existing palette; if the palette scope differs, Chaser asks before changing it to <strong>All controls</strong>. The small top-left pencil icon edits a saved palette slot&#39;s visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-palettes.png" alt="Chaser Palettes toolbox"></p>
 <ul>

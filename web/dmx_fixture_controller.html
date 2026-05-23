@@ -261,7 +261,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportScenesBtn" class="icon-btn export-btn" title="Export scenes JSON"></button>
 <button id="importScenesBtn" class="icon-btn import-btn" title="Import scenes JSON"></button>
 <button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
-<button id="sceneVisualBtn" class="palette-merge-btn" title="Edit the scene visual">Visual</button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -282,7 +281,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
 <button id="importPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
 <button id="mergePaletteBtn" class="palette-merge-btn" title="Merge current scoped values into an existing palette">Merge</button>
-<button id="paletteVisualBtn" class="palette-merge-btn" title="Edit the palette visual">Visual</button>
 <input id="importPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <label>Scope<select id="paletteScope">
@@ -2430,7 +2428,7 @@ function renderSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}">${DmxCommon.slotVisualButtonHtml('data-visual-slot',i,'Edit scene visual')}<button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
     else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2447,6 +2445,12 @@ function renderSlotMatrix(){
       if(!confirm('Delete scene "'+s.name+'"?'))return;
       scenes.splice(scenes.indexOf(s),1);
       renderSlotMatrix();saveScenesServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openSceneVisualModal(parseInt(btn.dataset.visualSlot,10));
     });
   });
 }
@@ -2708,7 +2712,6 @@ function importScenesJson(file){
 document.getElementById('exportScenesBtn').onclick=exportScenesJson;
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
 document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
-document.getElementById('sceneVisualBtn').onclick=openSceneVisualModal;
 document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
 const sceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'sceneBox',
@@ -2784,7 +2787,7 @@ function renderPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=palettes.find(pl=>pl.slot===i);
-    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}"><button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
+    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-palette-slot',i,'Edit palette visual')}<button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
     else html+=`<div class="slot" data-palette-slot="${i}" title="Click to save palette here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2800,6 +2803,12 @@ function renderPaletteMatrix(){
       if(!confirm('Delete palette "'+p.name+'"?'))return;
       palettes.splice(palettes.indexOf(p),1);
       renderPaletteMatrix();savePalettesServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openPaletteVisualModal(parseInt(btn.dataset.visualPaletteSlot,10));
     });
   });
 }
@@ -2956,7 +2965,7 @@ const slotVisualEditor=DmxCommon.initSlotVisualEditor({
   saveBtnId:'paletteVisualSave',
   closeIds:['paletteVisualClose','paletteVisualClose2']
 });
-function openPaletteVisualModal(){
+function openPaletteVisualModal(slot){
   const scope=currentPaletteScope();
   slotVisualEditor.open({
     targetLabel:paletteScopeLabel(scope)+' palettes',
@@ -2967,6 +2976,7 @@ function openPaletteVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
       .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+paletteScopeLabel(p.scope||'all')+')'})),
+    selectedKey:slot,
     onSaveDefault:visual=>{
       paletteVisualDefaults[scope]=visual;
       savePaletteVisualDefaults();
@@ -2980,7 +2990,7 @@ function openPaletteVisualModal(){
     }
   });
 }
-function openSceneVisualModal(){
+function openSceneVisualModal(slot){
   slotVisualEditor.open({
     targetLabel:'Scenes',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the scene slot; scene recall still uses the stored DMX values.',
@@ -2990,6 +3000,7 @@ function openSceneVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
       .map(s=>({key:String(parseInt(s.slot,10)||0),item:s,label:'Slot '+((parseInt(s.slot,10)||0)+1)+': '+(s.name||'Scene')})),
+    selectedKey:slot,
     onSaveDefault:visual=>{
       sceneVisualDefault=visual;
       saveSceneVisualDefault();
@@ -3006,7 +3017,6 @@ function openSceneVisualModal(){
 document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile').click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
-document.getElementById('paletteVisualBtn').onclick=openPaletteVisualModal;
 document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
 const paletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'paletteBox',

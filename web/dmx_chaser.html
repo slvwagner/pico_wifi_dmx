@@ -272,7 +272,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div class="buttons">
 <button id="exportChasesBtn" class="icon-btn export-btn" title="Export chases JSON"></button>
 <button id="importChasesBtn" class="icon-btn import-btn" title="Import chases JSON"></button>
-<button id="chaseVisualBtn" class="palette-merge-btn" title="Edit the chase visual">Visual</button>
 <input id="importChasesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -324,7 +323,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <button id="exportChaserPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
 <button id="importChaserPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
 <button id="mergeChaserPaletteBtn" class="palette-merge-btn" title="Merge selected step values into an existing palette">Merge</button>
-<button id="chaserPaletteVisualBtn" class="palette-merge-btn" title="Edit the palette visual">Visual</button>
 <input id="importChaserPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step. Merge adds selected step values to an existing palette.</div>
@@ -1958,7 +1956,7 @@ function renderChaseSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const chase=savedChases.find(c=>c.slot===i);
-    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase" style="${DmxCommon.slotVisualStyle(chase)}"><button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
+    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase" style="${DmxCommon.slotVisualStyle(chase)}">${DmxCommon.slotVisualButtonHtml('data-visual-chase-slot',i,'Edit chase visual')}<button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
     else html+=`<div class="slot" data-chase-slot="${i}" title="Click to save chase here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1970,6 +1968,10 @@ function renderChaseSlotMatrix(){
     if(!confirm('Delete chase "'+chase.name+'"?'))return;
     savedChases.splice(savedChases.indexOf(chase),1);
     renderChaseSlotMatrix();saveChasesServer();
+  }));
+  grid.querySelectorAll('[data-visual-chase-slot]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    openChaseVisualModal(parseInt(btn.dataset.visualChaseSlot,10));
   }));
 }
 function chaseSlotClick(idx){
@@ -2047,7 +2049,7 @@ const chaseVisualEditor=DmxCommon.initSlotVisualEditor({
   saveBtnId:'chaseVisualSave',
   closeIds:['chaseVisualClose','chaseVisualClose2']
 });
-function openChaseVisualModal(){
+function openChaseVisualModal(slot){
   chaseVisualEditor.open({
     targetLabel:'Chases',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the chase slot; loading still uses the stored chase data.',
@@ -2057,6 +2059,7 @@ function openChaseVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
       .map(chase=>({key:String(parseInt(chase.slot,10)||0),item:chase,label:'Slot '+((parseInt(chase.slot,10)||0)+1)+': '+(chase.name||'Chase')})),
+    selectedKey:slot,
     onSaveDefault:visual=>{
       chaseVisualDefault=visual;
       saveChaseVisualDefault();
@@ -2074,7 +2077,6 @@ document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotC
 document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=e.target.value;normalizeChaseGrid('rows');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('exportChasesBtn').onclick=exportChasesJson;
 document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile').click();
-document.getElementById('chaseVisualBtn').onclick=openChaseVisualModal;
 document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
 const chaseToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaseBox',
@@ -2242,7 +2244,7 @@ function renderChaserPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===i);
-    if(p)html+=`<div class="slot filled" data-chaser-palette-slot="${i}" title="Click: recall palette into selected step" style="${DmxCommon.slotVisualStyle(p)}"><button class="slot-del" data-del-chaser-palette="${i}" title="Delete palette">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${DmxCommon.escapeHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
+    if(p)html+=`<div class="slot filled" data-chaser-palette-slot="${i}" title="Click: recall palette into selected step" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-chaser-palette-slot',i,'Edit palette visual')}<button class="slot-del" data-del-chaser-palette="${i}" title="Delete palette">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${DmxCommon.escapeHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
     else html+=`<div class="slot" data-chaser-palette-slot="${i}" title="Click to save selected step values as palette">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2259,6 +2261,12 @@ function renderChaserPaletteMatrix(){
       chaserPalettes=chaserPalettes.filter(pl=>parseInt(pl.slot,10)!==idx);
       renderChaserPaletteMatrix();
       saveChaserPalettesServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-chaser-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openChaserPaletteVisualModal(parseInt(btn.dataset.visualChaserPaletteSlot,10));
     });
   });
 }
@@ -2375,7 +2383,7 @@ function importChaserPalettesJson(file){
   };
   reader.readAsText(file);
 }
-function openChaserPaletteVisualModal(){
+function openChaserPaletteVisualModal(slot){
   chaseVisualEditor.open({
     targetLabel:'Palettes',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the palette slot; recall still uses the stored palette values.',
@@ -2385,6 +2393,7 @@ function openChaserPaletteVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
       .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+chaserPaletteScopeLabel(p.scope||'all')+')'})),
+    selectedKey:slot,
     onSaveDefault:visual=>{
       chaserPaletteVisualDefault=visual;
       saveChaserPaletteVisualDefault();
@@ -2403,7 +2412,6 @@ document.getElementById('chaserPaletteRows').addEventListener('input',e=>{chaser
 document.getElementById('exportChaserPalettesBtn').onclick=exportChaserPalettesJson;
 document.getElementById('importChaserPalettesBtn').onclick=()=>document.getElementById('importChaserPalettesFile').click();
 document.getElementById('mergeChaserPaletteBtn').onclick=mergeChaserPaletteButtonClick;
-document.getElementById('chaserPaletteVisualBtn').onclick=openChaserPaletteVisualModal;
 document.getElementById('importChaserPalettesFile').onchange=e=>{if(e.target.files[0])importChaserPalettesJson(e.target.files[0]);e.target.value='';};
 const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaserPaletteBox',
