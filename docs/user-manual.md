@@ -311,12 +311,23 @@ The Chaser page uses several toolboxes:
 - **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
 - The **Visual** button in **Chases** sets a background color and optional drawn/uploaded visual for chase slots. **Default background** restores the standard slot color, and **No icon** removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.
 - **Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
-- **Fan Out** shapes values across the selected group or, if no group is selected, across the fixtures that participate in the current step. It uses the same base-plus-offset calculation as the Fixture Controller Fan Out toolbox. Click **Snapshot** to store the selected step values as the base, then **Apply** to write the fanned values into the selected step. If **Live preview** is enabled, the changed step values are also sent to the Pico.
+- **Fan Out** shapes values across the selected group or, if no group is selected, across the fixtures that participate in the current step. It uses the same base-plus-offset calculation as the Fixture Controller Fan Out toolbox. Click **Snapshot** to store the selected step values as the base, then **Apply** to write the fanned values into the selected step. When you change values in **Edit Step**, **Group Edit**, capture from Fixture Controller, or select another step, Fan Out refreshes its base from the values currently shown in **Edit Step**. If **Live preview** is enabled, the changed step values are also sent to the Pico.
 - **Browser Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
 
 On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
 The collapse state, toolbox order, shared sidebar width, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.
+
+### Steps Toolbox Buttons
+
+The **Steps** toolbox uses shared action buttons instead of per-step buttons. Click a step card to select the step first; the selected step is highlighted and loaded into **Edit Step**.
+
+- **Add step** creates a new selected step from the stored default values of the currently participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback.
+- **Capture + Add** creates a new selected step only when Fixture Controller live values exist for at least one currently participating control. If no matching live values are available, no empty step is created.
+- **Clear Steps** deletes all current working steps after confirmation. It does not delete saved Chases toolbox entries or Pico slot payloads.
+- **Dupe** duplicates the selected step directly after itself and selects the copy.
+- **Up** and **Down** move the selected step in the step order and keep the same step loaded in **Edit Step**.
+- **Delete** removes the selected step. If another step remains, it becomes the selected step.
 
 ### Participating Controls
 

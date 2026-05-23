@@ -899,6 +899,10 @@ function ensureFanBases(){
     fanState.bases[key]=fanGetStepValue(f,c,axis);
   });
 }
+function refreshFanBasesFromStep(){
+  fanState.bases={};
+  renderFanToolbox();
+}
 function fanComputedValues(){
   const ordered=fanFixtureOrder();
   const max=fanMaxValue();
@@ -1192,6 +1196,7 @@ function addStep(vals){
   sourceFixtureId=firstStepFixtureId(s);
   drawParticipation();drawStepList();drawStepEditor();
   refreshChaserGroupActions();
+  refreshFanBasesFromStep();
   setStatus('Step '+(steps.length)+' added');
 }
 function duplicateStep(idx){
@@ -1204,6 +1209,7 @@ function duplicateStep(idx){
   sourceFixtureId=firstStepFixtureId(copy);
   drawParticipation();drawStepList();drawStepEditor();
   refreshChaserGroupActions();
+  refreshFanBasesFromStep();
 }
 function deleteStep(idx){
   steps.splice(idx,1);
@@ -1213,6 +1219,7 @@ function deleteStep(idx){
   sourceFixtureId=steps[selectedStepIdx]?firstStepFixtureId(steps[selectedStepIdx]):null;
   drawParticipation();drawStepList();drawStepEditor();
   refreshChaserGroupActions();
+  refreshFanBasesFromStep();
 }
 function moveStep(idx,dir){
   const ni=idx+dir;
@@ -1223,6 +1230,9 @@ function moveStep(idx,dir){
   if(activeStepIdx===idx)activeStepIdx=ni;
   else if(activeStepIdx===ni)activeStepIdx=idx;
   drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
 }
 
 async function clearChaserGroupSelectionForLoadedStep(){
@@ -1237,28 +1247,47 @@ function refreshChaserGroupActions(){
 async function captureFromFC(stepIdx){
   const step=steps[stepIdx];if(!step)return;
   try{
-    let vals=null;
-    if(location.protocol==='http:'||location.protocol==='https:'){
-      try{
-        const r=await fetch('fixture_setup.php?livevalues',{cache:'no-store'});
-        const j=await r.json();
-        if(j.ok&&j.exists&&j.values)vals=j.values;
-      }catch(_){}
-    }
-    if(!vals){
-      const raw=localStorage.getItem('dmxFCLiveValues');
-      if(raw)vals=JSON.parse(raw);
-    }
+    const vals=await readFixtureControllerLiveValues();
     if(!vals){setStatus('No live values from FC — open Fixture Controller and recall a scene or adjust a control first',true);return;}
-    getParticipatingList().forEach(({f,c})=>{const k=controlKey(f,c);if(vals[k]!==undefined)step.values[k]=vals[k];});
+    const captured=applyCapturedValuesToStep(step,vals);
+    if(!captured){setStatus('No matching live values for the selected participating controls',true);return;}
     if(stepIdx===selectedStepIdx){
+      applyStepParticipating(step);
       sourceFixtureId=firstStepFixtureId(step);
+      drawStepList();
       drawParticipation();
       drawStepEditor();
       refreshChaserGroupActions();
+      refreshFanBasesFromStep();
     }
     setStatus('FC values captured into step '+(stepIdx+1));
   }catch(e){setStatus('Capture failed: '+e.message,true);}
+}
+async function readFixtureControllerLiveValues(){
+  let vals=null;
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    try{
+      const r=await fetch('fixture_setup.php?livevalues',{cache:'no-store'});
+      const j=await r.json();
+      if(j.ok&&j.exists&&j.values)vals=j.values;
+    }catch(_){}
+  }
+  if(!vals){
+    const raw=localStorage.getItem('dmxFCLiveValues');
+    if(raw)vals=JSON.parse(raw);
+  }
+  return vals;
+}
+function applyCapturedValuesToStep(step,vals){
+  let captured=0;
+  getParticipatingList().forEach(({f,c})=>{
+    const k=controlKey(f,c);
+    if(vals[k]!==undefined){
+      step.values[k]=JSON.parse(JSON.stringify(vals[k]));
+      captured++;
+    }
+  });
+  return captured;
 }
 
 // ---- step list UI ----
@@ -1309,6 +1338,7 @@ async function selectStepForEdit(idx){
   drawParticipation();
   drawStepEditor();
   refreshChaserGroupActions();
+  refreshFanBasesFromStep();
   setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
 }
 
@@ -1425,6 +1455,7 @@ function handleStepInput(e){
     setStepVal(f,c,clamp(e.target.value,0,c.type==='slider16'?65535:255));
   }
   updateStepDisplay(f,c);
+  refreshFanBasesFromStep();
 }
 
 function handleStepClick(e){
@@ -1433,15 +1464,15 @@ function handleStepClick(e){
   const f=setup.fixtures?.find(x=>x.id===fi);
   const p=f&&fixtureProfile(f);const c=p?.controls.find(x=>x.id===ci);
   if(!f||!c)return;
-  if(e.target.dataset.center){setStepVal(f,c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});updateStepDisplay(f,c);return;}
+  if(e.target.dataset.center){setStepVal(f,c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});updateStepDisplay(f,c);refreshFanBasesFromStep();return;}
   if(e.target.dataset.color){
     const cur={...(getStepVal(f,c)||defaultValue(c))};
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.color);setStepVal(f,c,{...cur,a:rgb.a,b:rgb.b,c:rgb.c});}
     else if(c.type==='cmy')setStepVal(f,c,rgbToCmy(e.target.dataset.color));
     else if(c.type==='cmyk')setStepVal(f,c,rgbToCmyk(e.target.dataset.color));
-    updateStepDisplay(f,c);return;
+    updateStepDisplay(f,c);refreshFanBasesFromStep();return;
   }
-  if(e.target.dataset.wheel!==undefined){setStepVal(f,c,clamp(e.target.dataset.wheel,0,255));updateStepDisplay(f,c);return;}
+  if(e.target.dataset.wheel!==undefined){setStepVal(f,c,clamp(e.target.dataset.wheel,0,255));updateStepDisplay(f,c);refreshFanBasesFromStep();return;}
 }
 
 function handleChaserGroupInput(e){
@@ -1469,23 +1500,24 @@ function handleChaserGroupInput(e){
   setChaserGroupValue(c,v);
   updateChaserGroupControlDisplay(c);
   drawStepEditor();
+  refreshFanBasesFromStep();
 }
 
 function handleChaserGroupClick(e){
   const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
   if(e.target.dataset.cgCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
-    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();return;
+    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();return;
   }
   if(e.target.dataset.cgColor){
     let v=getChaserGroupValue(c);
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.cgColor);v={...v,a:rgb.a,b:rgb.b,c:rgb.c};}
     else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.cgColor);
     else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.cgColor);
-    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();return;
+    setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();return;
   }
   if(e.target.dataset.cgWheel!==undefined){
-    setChaserGroupValue(c,clamp(e.target.dataset.cgWheel,0,255));updateChaserGroupControlDisplay(c);drawStepEditor();
+    setChaserGroupValue(c,clamp(e.target.dataset.cgWheel,0,255));updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();
   }
 }
 
@@ -1498,6 +1530,7 @@ function setChaserGroupXY(e,pad){
   setChaserGroupValue(c,{pan:Math.round(x*max),tilt:Math.round((1-y)*max)});
   updateChaserGroupControlDisplay(c);
   drawStepEditor();
+  refreshFanBasesFromStep();
 }
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
@@ -1815,7 +1848,7 @@ function applyChaserData(data,redraw=true){
     if(data?.participating)applyParticipatingData(data.participating,false);
   }
   sourceFixtureId=steps[selectedStepIdx]?firstStepFixtureId(steps[selectedStepIdx]):null;
-  if(redraw){drawParticipation();drawStepList();drawStepEditor();}
+  if(redraw){drawParticipation();drawStepList();drawStepEditor();refreshFanBasesFromStep();}
 }
 
 // ---- floating chase toolbox ----
@@ -1914,6 +1947,7 @@ async function loadChaseSlot(chase){
   await clearChaserGroupSelectionForLoadedStep();
   applyChaserData(chase.data,false);
   drawParticipation();drawStepList();drawStepEditor();
+  refreshFanBasesFromStep();
   setStatus('Loaded chase: "'+chase.name+'"');
 }
 async function saveChasesServer(){
@@ -2423,9 +2457,18 @@ document.getElementById('fanRecall').onclick=recallFanPreset;
 document.getElementById('fanClear').onclick=clearFanOut;
 document.getElementById('btnCaptureNew').onclick=async()=>{
   if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
-  const s=makeStep();steps.push(s);selectedStepIdx=steps.length-1;
-  drawStepList();drawStepEditor();
-  await captureFromFC(selectedStepIdx);
+  let vals=null;
+  try{vals=await readFixtureControllerLiveValues();}
+  catch(e){setStatus('Capture failed: '+e.message,true);return;}
+  if(!vals){setStatus('No live values from FC — open Fixture Controller and recall a scene or adjust a control first',true);return;}
+  const captured={};
+  getParticipatingList().forEach(({f,c})=>{
+    const k=controlKey(f,c);
+    if(vals[k]!==undefined)captured[k]=JSON.parse(JSON.stringify(vals[k]));
+  });
+  if(!Object.keys(captured).length){setStatus('No matching live values for the selected participating controls',true);return;}
+  addStep(captured);
+  setStatus('FC values captured into new step '+steps.length);
 };
 document.getElementById('btnCaptureToStep').onclick=()=>captureFromFC(selectedStepIdx);
 document.getElementById('btnClearAll').onclick=()=>{
