@@ -292,7 +292,7 @@ The Chaser screenshot is captured with the important boxes visible on purpose: *
 4. Set step duration and fade in **Edit Step**.
 5. Store the chase in the **Chases** toolbox if you want quick recall.
 6. Test timing in **Browser Playback**.
-7. Upload the current chase to a Pico slot.
+7. Click an empty Pico slot to upload the current chase to that slot.
 8. Play the slot from the Pico.
 
 ### Toolbox Sidebar
@@ -447,7 +447,7 @@ If Chaser reports that no Fixture Controller values are available, open the Fixt
 
 ### Pico Slot Playback
 
-Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open.
+Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open. The Pico slot strip is the upload target: click an empty slot to upload the current chase. Click a loaded slot once to select it for play, pause, resume, speed, or stop. Click the selected loaded slot again if you want to replace it with the current chase; the page asks before overwriting.
 
 ![Chaser Pico Playback](screenshots/chaser-pico-playback.png)
 
@@ -498,6 +498,9 @@ The Pico Motion slot upload now uses the same selected **Effect target** as the 
 
 - If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
 - If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse.
+- Click an empty Pico slot to upload the current effect to that slot.
+- Click a loaded slot once to select it for start, stop, or BPM changes.
+- Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
 - Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
 - The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
 - Up to 64 Motion FX slots can be loaded on the Pico.
@@ -512,7 +515,7 @@ For scalar targets, set the current value first, then upload/start the slot. For
 4. Select one **Effect target**.
 5. Set BPM, effect shape, amplitude, and spread in the **Effect Parameters** toolbox.
 6. Optionally recall a palette from the **Palettes** toolbox to set the center for the selected target.
-7. Upload the effect to a Pico slot and start the slot when you want autonomous playback without browser timing jitter.
+7. Click an empty Pico slot to upload the effect, then start the slot when you want autonomous playback without browser timing jitter.
 8. Use browser playback from the **Effect Parameters** toolbox when you want quick live testing before uploading.
 
 The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.

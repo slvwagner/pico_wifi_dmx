@@ -239,7 +239,7 @@ The playback pages separate browser editing from the autonomous Pico slot memory
 
 - **Chaser Chases toolbox** — stores reusable editable chases on the XAMPP server. Recalling a chase loads its steps, selects Step 1, rebuilds Participating Controls and Edit Step, and a newly opened Chaser page starts with no working steps until a chase is recalled or created.
 - **Motion Save Preset / Load Preset** — stores and restores the editable Motion FX page setup on the XAMPP server JSON file.
-- **Upload to Slot** — sends the current editable chase or Motion FX preset to the selected Pico slot and mirrors that slot payload on the XAMPP server. It does not start playback.
+- **Pico slot click upload** — click an empty Pico slot to send the current editable chase or Motion FX preset to that slot and mirror the payload on the XAMPP server. Click a loaded slot once to select it for playback controls; click the selected loaded slot again to replace it after confirmation.
 - **Play Slot / Start Slot** — starts the already-loaded slot on the Pico.
 - **Restore Saved Slots to Pico** — re-sends the saved server-side slot payloads to the Pico after reboot or firmware upload.
 - **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP slot payload and calls the Pico clear endpoint for that slot when the Pico base URL is set.

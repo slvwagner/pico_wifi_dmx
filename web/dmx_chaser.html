@@ -233,7 +233,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <option value="reverse">Reverse</option>
       </select>
     </label>
-    <button class="primary" id="btnPicoUpload" title="Send current chase to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
     <button id="btnPicoPauseSlot">Pause</button>
     <button id="btnPicoResumeSlot">Resume</button>
@@ -2535,8 +2534,12 @@ function renderChaserSlotStrip(slots, activeMask) {
       '</div>';
     d.onclick = () => {
       if(unsupported){setPicoStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
+      const wasSelected=selectedChaserSlot()===s.slot;
       document.getElementById('picoSlot').value = s.slot;
       renderChaserSlotStrip(slots, activeMask);
+      if(!loaded)uploadCurrentChaseToSlot(s.slot,false);
+      else if(wasSelected)uploadCurrentChaseToSlot(s.slot,true);
+      else setPicoStatus('Selected slot '+s.slot+' · click again to replace with current chase','var(--muted)');
     };
     const delBtn = d.querySelector('[data-delete-chaser-slot]');
     if(delBtn){
@@ -2630,14 +2633,15 @@ async function restoreAllChaserSlots(){
   pollPicoStatus();
 }
 
-document.getElementById('btnPicoUpload').onclick=async()=>{
+async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
   if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
   if(steps.length>CHASER_MAX_STEPS){setPicoStatus('Chaser slots support max '+CHASER_MAX_STEPS+' steps','var(--bad)');return;}
+  document.getElementById('picoSlot').value=slot;
   if(!ensureChaserSlotSupported())return;
   stopPlayback(); // stop browser playback so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
-  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  if(confirmOverwrite&&!confirm('Replace Pico chaser slot '+slot+' with the current chase?'))return;
   const body=serializeChaserForPico();
   setPicoStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
@@ -2648,7 +2652,7 @@ document.getElementById('btnPicoUpload').onclick=async()=>{
     setPicoStatus('Uploaded current chase to slot '+slot,'var(--accent)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
-};
+}
 document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
 
 document.getElementById('btnPicoPlaySlot').onclick=async()=>{

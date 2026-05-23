@@ -109,7 +109,6 @@ main{max-width:none;width:100%;margin:0}
       BPM
       <input id="picoMotionBpm" class="pico-number" type="number" min="0.1" max="600" step="1" value="30">
     </label>
-    <button class="primary" id="btnPicoMotionUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoMotionStartSlot" title="Run the already-loaded selected Pico slot">&#x25B6; Start Slot</button>
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
     <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
@@ -1124,8 +1123,12 @@ function renderMotionSlotStrip(slots, activeMask){
       '</div>';
     d.onclick=()=>{
       if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
+      const wasSelected=selectedMotionSlot()===s.slot;
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask);
+      if(!loaded)uploadCurrentMotionToSlot(s.slot,false);
+      else if(wasSelected)uploadCurrentMotionToSlot(s.slot,true);
+      else setPicoMotionStatus('Selected slot '+s.slot+' · click again to replace with current effect','var(--muted)');
     };
     const delBtn=d.querySelector('[data-delete-motion-slot]');
     if(delBtn){
@@ -1153,7 +1156,7 @@ async function deleteMotionSlot(slot){
     }
     if(_lastSlots){
       _lastSlots[slot]={slot:slot,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0};
-      renderMotionSlotStrip(_lastSlots,_lastActiveMask & ~(1<<slot));
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask);
     }
     pollPicoMotionStatus();
   }catch(e){
@@ -1217,13 +1220,14 @@ async function restoreAllMotionSlots(){
   pollPicoMotionStatus();
 }
 
-document.getElementById('btnPicoMotionUpload').onclick=async()=>{
+async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
   if(motionFixtures.filter(m=>m.enabled&&motionControlKey(m.control)===selectedMotionTargetKey).length===0){setPicoMotionStatus('No enabled targets for upload','var(--warn)');return;}
+  document.getElementById('picoMotionSlot').value=slot;
   if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
-  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  if(confirmOverwrite&&!confirm('Replace Pico motion slot '+slot+' with the current effect?'))return;
   const body=serializeMotionForPico();
   setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
@@ -1234,7 +1238,7 @@ document.getElementById('btnPicoMotionUpload').onclick=async()=>{
     setPicoMotionStatus('Uploaded current preset to slot '+slot,'var(--accent)');
     pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
-};
+}
 document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;
 
 document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
