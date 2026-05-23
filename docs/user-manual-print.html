@@ -378,7 +378,7 @@ strong { color: #ffffff; }
 </ul>
 <p><img src="screenshots/chaser-toolbox-chases.png" alt="Chaser Chases toolbox"></p>
 <ul>
-<li><strong>Palettes</strong> stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step&#39;s fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step. <strong>Merge</strong> adds the selected step&#39;s values into an existing palette; if the palette scope differs, Chaser asks before changing it to <strong>All controls</strong>. The small top-left pencil icon edits a saved palette slot&#39;s visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.</li>
+<li><strong>Palettes</strong> stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step&#39;s fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and rebuilds <strong>Participating Controls</strong> from the palette&#39;s stored fixture/control keys. If no step is selected, Chaser creates a new selected step from the palette. <strong>Merge</strong> adds the selected step&#39;s values into an existing palette; if the palette scope differs, Chaser asks before changing it to <strong>All controls</strong>. The small top-left pencil icon edits a saved palette slot&#39;s visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-palettes.png" alt="Chaser Palettes toolbox"></p>
 <ul>
@@ -483,7 +483,7 @@ strong { color: #ffffff; }
 </ol>
 <p><strong>Add step</strong> starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.</p>
 <p>After <strong>Add step</strong> or <strong>Capture + Add</strong>, the first fixture in the new step is automatically marked as the <strong>Source</strong> fixture in <strong>Edit Step</strong>. Click another fixture card in <strong>Edit Step</strong> to make it the Source fixture. Group Edit uses the Source fixture&#39;s current step values as its starting values before writing changes to the matching participating fixtures.</p>
-<p>Use the <strong>Palettes</strong> toolbox when the selected step should become a reusable fragment. Empty palette slots save exactly the selected step&#39;s stored values, not the whole chase and not all DMX channels. Filled palette slots merge compatible palette values into the selected step.</p>
+<p>Use the <strong>Palettes</strong> toolbox when the selected step should become a reusable fragment. Empty palette slots save exactly the selected step&#39;s stored values, not the whole chase and not all DMX channels. Filled palette slots recall compatible palette values into the selected step and make the palette&#39;s stored controls the active participating-control scope. Other values already stored in the step remain stored, but <strong>Edit Step</strong> focuses on the recalled palette controls. If no step is selected, recalling a palette creates a new selected step from that palette.</p>
 <p>To capture a new step from the Fixture Controller:</p>
 <ol>
 <li>Open <strong>Fixture Controller</strong> in another browser tab or window.</li>

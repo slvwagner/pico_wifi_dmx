@@ -2298,6 +2298,28 @@ function validStepPaletteValues(values){
   Object.entries(values||{}).forEach(([key,value])=>{if(valid.has(key))out[key]=JSON.parse(JSON.stringify(value));});
   return out;
 }
+function applyChaserPaletteParticipatingKeys(keys){
+  const valid=validControlKeySet();
+  const next={};
+  valid.forEach(k=>{next[k]=false;});
+  const active=[];
+  keys.forEach(k=>{
+    if(valid.has(k)){
+      next[k]=true;
+      active.push(k);
+    }
+  });
+  participating=next;
+  activeStepValueKeys=new Set(active);
+  return active.length;
+}
+function firstFixtureIdFromKeys(keys){
+  for(const key of keys){
+    const fixtureId=String(key).split(':')[0];
+    if((setup.fixtures||[]).some(f=>String(f.id)===fixtureId))return fixtureId;
+  }
+  return null;
+}
 function selectedStepPaletteValues(){
   const step=steps[selectedStepIdx];
   if(!step)return null;
@@ -2391,14 +2413,21 @@ function mergeChaserPaletteValues(p,values,nextScope){
   setStatus('Merged '+keys.length+' value'+(keys.length===1?'':'s')+' into palette "'+(p.name||'Palette')+'"');
 }
 function recallChaserPalette(p){
-  const step=steps[selectedStepIdx];
-  if(!step){setStatus('Select a step before recalling a palette',true);return;}
   const values=validStepPaletteValues(p.values||{});
   const keys=Object.keys(values);
   if(!keys.length){setStatus('Palette has no compatible controls in this setup',true);return;}
+  let step=steps[selectedStepIdx];
+  if(!step){
+    if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
+    step=makeStep((p.name||'Palette')+' step',values);
+    steps.push(step);
+    selectedStepIdx=steps.length-1;
+  }
   Object.assign(step.values,values);
-  applyStepParticipating(step);
-  sourceFixtureId=firstStepFixtureId(step);
+  applyChaserPaletteParticipatingKeys(keys);
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+  sourceFixtureId=firstFixtureIdFromKeys(keys)||firstStepFixtureId(step);
   const batchMap={};
   keys.forEach(key=>{
     const parts=String(key).split(':');
@@ -2412,7 +2441,7 @@ function recallChaserPalette(p){
   drawStepEditor();
   refreshChaserGroupActions();
   refreshFanBasesFromStep();
-  setStatus('Recalled palette "'+(p.name||'Palette')+'" into step '+(selectedStepIdx+1));
+  setStatus('Recalled palette "'+(p.name||'Palette')+'" into step '+(selectedStepIdx+1)+' and loaded '+keys.length+' participating control'+(keys.length===1?'':'s'));
 }
 function saveChaserPalettesServer(){
   fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows})})

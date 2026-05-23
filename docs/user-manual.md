@@ -349,7 +349,7 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
-- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. The small top-left pencil icon edits a saved palette slot's visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.
+- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and rebuilds **Participating Controls** from the palette's stored fixture/control keys. If no step is selected, Chaser creates a new selected step from the palette. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. The small top-left pencil icon edits a saved palette slot's visual appearance. When a Pico base URL is set, recalled palette values are also sent to the Pico.
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
@@ -476,7 +476,7 @@ To create a step manually:
 
 After **Add step** or **Capture + Add**, the first fixture in the new step is automatically marked as the **Source** fixture in **Edit Step**. Click another fixture card in **Edit Step** to make it the Source fixture. Group Edit uses the Source fixture's current step values as its starting values before writing changes to the matching participating fixtures.
 
-Use the **Palettes** toolbox when the selected step should become a reusable fragment. Empty palette slots save exactly the selected step's stored values, not the whole chase and not all DMX channels. Filled palette slots merge compatible palette values into the selected step.
+Use the **Palettes** toolbox when the selected step should become a reusable fragment. Empty palette slots save exactly the selected step's stored values, not the whole chase and not all DMX channels. Filled palette slots recall compatible palette values into the selected step and make the palette's stored controls the active participating-control scope. Other values already stored in the step remain stored, but **Edit Step** focuses on the recalled palette controls. If no step is selected, recalling a palette creates a new selected step from that palette.
 
 To capture a new step from the Fixture Controller:
 
