@@ -22,7 +22,7 @@ Enter the Pico base URL once in any page. The browser stores it and shares it wi
 |------|---------|
 | Fixture Controller | Fixture profiles, patching, live control, groups, scenes, default and blackout values |
 | Chaser | Step-based chases with fade, loop modes, direction, pause/resume, and Pico slot upload |
-| Motion FX | Pan/tilt effects such as circle, figure-8, pan swing, and tilt swing |
+| Motion FX | Continuous effects for pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, and gobo |
 | GPIO Control | Map Pico GPIO buttons and ADC inputs to lighting actions |
 | Benchmark | Test Pico HTTP/DMX update performance |
 
@@ -466,7 +466,7 @@ Each chaser slot supports up to 32 steps.
 
 ![Motion FX](screenshots/motion-fx.png)
 
-Motion FX creates continuous effects for one selected effect target at a time. The current prototype can drive a combined pan/tilt target, or one scalar DMX target such as dimmer, prism, gobo, zoom, or iris from the browser.
+Motion FX creates continuous effects for one selected effect target at a time. It can drive a combined pan/tilt target, or one scalar DMX target such as dimmer, prism, gobo, zoom, or iris.
 
 Supported effects include:
 
@@ -488,7 +488,19 @@ Center values come from the current base buffer or from recalling a scene as the
 
 The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
 
-Pico upload is still pan/tilt-only in this prototype. Browser effects can drive scalar controls live, but scalar controls are ignored by Pico Motion slot upload until the firmware format is expanded.
+The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.
+
+### Pico Motion Slots
+
+The Pico Motion slot upload now uses the same selected **Effect target** as the browser page.
+
+- If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
+- If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse.
+- Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
+- The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
+- Up to 64 Motion FX slots can be loaded on the Pico.
+
+For scalar targets, set the current value first, then upload/start the slot. For example, set a dimmer to its desired base brightness and use Sine if you want the Pico to pulse above and below that base value.
 
 ### Recommended Workflow
 
@@ -497,8 +509,8 @@ Pico upload is still pan/tilt-only in this prototype. Browser effects can drive 
 3. Open Motion FX.
 4. Select one **Effect target**.
 5. Set BPM, effect shape, amplitude, and spread in the **Effect Parameters** toolbox.
-6. For pan/tilt effects, upload the effect to a Pico slot and start the slot.
-7. For scalar controls, use browser playback from the **Effect Parameters** toolbox.
+6. Upload the effect to a Pico slot and start the slot when you want autonomous playback without browser timing jitter.
+7. Use browser playback from the **Effect Parameters** toolbox when you want quick live testing before uploading.
 
 The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.
 

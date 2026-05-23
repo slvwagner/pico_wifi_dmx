@@ -108,35 +108,36 @@ Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforc
 
 ### Pico motion FX
 
-Up to **32 independent motion FX slots** can be loaded and played simultaneously. Each slot has its own effect type, BPM, fixture list and phase offsets. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+Up to **64 independent motion FX slots** can be loaded and played simultaneously. Each slot has its own effect type, BPM, target list and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/motion/load` | POST | Upload motion FX config to slot 0 (backward compat) |
-| `/motion/load/<N>` | POST | Upload motion FX config to slot N (0–31) |
-| `/motion/start` | GET | Start slot 0 (backward compat) |
+| `/motion/load` | POST | Upload motion FX config to slot 0 |
+| `/motion/load/<N>` | POST | Upload motion FX config to slot N (0–63) |
+| `/motion/start` | GET | Start slot 0 |
 | `/motion/start/<N>` | GET | Start slot N |
 | `/motion/clear/<N>` | GET | Clear/unload slot N without clearing global DMX output |
 | `/motion/stop` | GET | Stop all slots |
 | `/motion/stop/<N>` | GET | Stop slot N only |
 | `/motion/bpm/<N>/<bpm_x10>` | GET | Set BPM for slot N live (e.g. `/motion/bpm/0/1200` = 120.0 BPM) |
 | `/motion/status` | GET | `{"ok":true,"active_mask":N,"loaded_mask":N,"elapsed_s":F}` |
-| `/motion/slots` | GET | Array of per-slot info: `{"ok":true,"slots":[{"slot":N,"loaded":bool,"active":bool,"type":N,"bpm":F,"fixture_count":N},…]}` |
+| `/motion/slots` | GET | Array of per-slot info: `{"ok":true,"slots":[{"slot":N,"loaded":bool,"active":bool,"type":N,"bpm":F,"target_count":N},…]}` |
 
 `active_mask` and `loaded_mask` are bitmasks — bit *i* set means slot *i* is active/loaded.
 
 Motion FX text protocol (POST body):
 ```
-TYPE <0=circle|1=figure8|2=panSwing|3=tiltSwing>
+FX 1
+TYPE <0=circle|1=figure8|2=panSwing|3=tiltSwing|4=sine|5=pulse>
 BPM <float>
-PANAMP <0.0–1.0>
-TILTAMP <0.0–1.0>
+AMP1 <0.0–1.0>
+AMP2 <0.0–1.0>
 SPREAD <degrees>
-FIX <enabled> <pan_ch> <pan_fine_ch> <tilt_ch> <tilt_fine_ch> <is_16bit> <phase_deg>
+TARGET <scalar8|scalar16|pantilt8|pantilt16> <enabled> <ch1> <fine1> <ch2> <fine2> <phase_deg>
 END
 ```
 
-The `FIX` line no longer contains fixed center positions. Instead, the oscillation center is read from the **scene base buffer** (`dmx_base_frame`) at tick time — see [Scene Base Buffer](#scene-base-buffer) below.
+The `TARGET` line contains DMX channel positions only. It does not store fixed center values. Instead, the effect center is read from the **scene base buffer** (`dmx_base_frame`) at tick time — see [Scene Base Buffer](#scene-base-buffer) below. Pan/tilt targets use both axes; scalar targets use `ch1`/`fine1` and ignore `ch2`/`fine2`.
 
 ---
 
@@ -148,7 +149,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 |------|------|-------------|
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
 | Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
-| Motion FX | `web/dmx_motion.html` | Configure pan/tilt oscillator effects (circle, figure-8, swing); save editable presets; upload the current preset to up to 32 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
+| Motion FX | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | FPS Benchmark | `web/dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
@@ -208,9 +209,9 @@ The repeated page tools now live in a shared right-side Toolboxes sidebar on des
 
 ![Motion FX page](docs/screenshots/motion-fx.png)
 
-The Motion FX page creates continuous pan/tilt movement effects for moving lights. Effects such as circle, figure-8, pan swing, and tilt swing are calculated relative to the current scene position instead of using a fixed center point.
+The Motion FX page creates continuous effects for one selected target type at a time. Pan/tilt targets can run circle, figure-8, pan swing, or tilt swing; scalar controls such as dimmer, zoom, iris, prism, or gobo can run sine or pulse effects. All effects are calculated relative to the current scene/base-buffer value instead of using a fixed stored center point.
 
-This means the normal workflow is: recall or set a position first, then start the effect. The firmware reads the center from the scene base buffer and the motion oscillator moves around that position. Motion FX can also be uploaded into one of 32 Pico slots so multiple effects can run directly on the Pico without browser timing jitter.
+This means the normal workflow is: recall or set the base value first, then start the effect. The firmware reads the center from the scene base buffer and the motion oscillator moves around that value. Motion FX can also be uploaded into one of 64 Pico slots so multiple effects can run directly on the Pico without browser timing jitter.
 
 **GPIO Control**
 
@@ -431,7 +432,7 @@ The root `CMakeLists.txt` remains the Pico build entry point and references sour
 | `firmware/dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
 | `firmware/dmx_native.pio` | PIO program for 250 kbaud DMX framing |
 | `firmware/pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
-| `firmware/pico_motion.cpp` / `.h` | Pico-side pan/tilt oscillator — **32 independent slots**, simultaneous playback with bigger-wins channel merge, axes-only writes (pan-swing never touches tilt channels and vice versa), 100 Hz tick, hardware spinlock |
+| `firmware/pico_motion.cpp` / `.h` | Pico-side generic FX oscillator — **64 independent slots**, pan/tilt and scalar targets, simultaneous playback with bigger-wins channel merge, target-aware axis writes, 100 Hz tick, hardware spinlock |
 | `firmware/gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |
 | `firmware/lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving |
 | `firmware/fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
@@ -517,5 +518,5 @@ Using OpenOCD + Picoprobe/CMSIS-DAP:
 - The `/dmx/b/` batch endpoint encodes channel data in the **URL path** rather than a query string. lwIP httpd nulls the `?` in the URI before calling `fs_open_custom`, making query-string-based batch endpoints unreliable.
 - `dmx_engine_set_channel()` is called from both cores. Reads/writes to the DMX buffer are 8-bit aligned and the PIO reads the buffer independently, so no additional lock is needed for channel writes. The `dmx_ui_lock` critical section protects the secondary UI mirror array only.
 - Both `chaser_lock` and `mfx_lock` are module-local spinlocks. DMX writes are performed **outside** these locks (after releasing them) to avoid nested-lock deadlock.
-- The motion FX tick uses a static per-slot **scratch buffer** (`dmx_scratch[513]` + `dmx_touched[513]`). Each active slot computes its values into the scratch with a *bigger-wins* merge (max raw value per channel). The final merged result is written to the DMX engine in one pass after all slots are evaluated — this ensures simultaneous slots never interfere with each other.
-- `panSwing` slots only write pan channels; `tiltSwing` slots only write tilt channels. Mixed-mode slots (circle, figure-8) write both. This prevents a pan-only slot from zeroing tilt when no tilt data is present in its scratch.
+- The motion FX tick uses static scratch buffers for 8-bit and 16-bit values. Each active slot computes its values into the scratch with a *bigger-wins* merge (max raw value per channel). The final merged result is written to the DMX engine in one pass after all slots are evaluated — this ensures simultaneous slots never interfere with each other.
+- `panSwing` slots only write pan channels; `tiltSwing` slots only write tilt channels. Mixed-mode pan/tilt slots (circle, figure-8) write both. Scalar slots write only their selected scalar control. This prevents one effect from zeroing unrelated channels.

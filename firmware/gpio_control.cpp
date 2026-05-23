@@ -232,7 +232,7 @@ static bool slot_active_motion(uint8_t slot)
 {
     mfx_status_t st;
     mfx_get_status(&st);
-    return (st.active_mask & (1u << slot)) != 0;
+    return slot < MFX_MAX_SLOTS && (st.active_mask & ((uint64_t)1u << slot)) != 0;
 }
 
 static void run_action(gpio_action_t action, uint8_t slot)

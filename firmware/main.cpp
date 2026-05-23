@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include "pico/stdlib.h"
 #include "pico/sync.h"
@@ -816,9 +817,9 @@ static void build_motion_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active_mask\":%lu,\"loaded_mask\":%lu,\"elapsed_s\":%.2f}\n",
-        (unsigned long)s.active_mask,
-        (unsigned long)s.loaded_mask,
+        "{\"ok\":true,\"active_mask\":%" PRIu64 ",\"loaded_mask\":%" PRIu64 ",\"elapsed_s\":%.2f}\n",
+        (uint64_t)s.active_mask,
+        (uint64_t)s.loaded_mask,
         (double)s.elapsed_s);
 }
 
@@ -836,14 +837,15 @@ static void build_motion_slots_response()
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"type\":%d,\"bpm\":%.2f,\"fixture_count\":%u}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"type\":%d,\"bpm\":%.2f,\"target_count\":%u,\"fixture_count\":%u}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded ? "true" : "false",
             info.active ? "true" : "false",
             info.type,
             (double)info.bpm,
-            info.fixture_count);
+            info.target_count,
+            info.target_count);
     }
     snprintf(http_playback_json + used, sizeof(http_playback_json) - used, "]}\n");
 }
@@ -1125,7 +1127,7 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     /* ----- Motion endpoints ------------------------------------------- */
-    /* /motion/start        — start slot 0 (backward compat)
+    /* /motion/start        — start slot 0
        /motion/start/<N>    — start slot N */
     if (path_matches(name, "/motion/start")) {
         uint8_t slot = 0;
