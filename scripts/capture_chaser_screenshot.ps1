@@ -116,14 +116,30 @@ try {
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const el=document.querySelector(selector);
   if(!el)throw new Error('Missing screenshot element: '+selector);
-  el.scrollIntoView({block:'center',inline:'nearest'});
+  const rail=el.closest('.toolbox-rail');
+  if(rail){
+    const header=el.querySelector('.scene-toolbox__header');
+    rail.scrollTop=Math.max(0,el.offsetTop-(header?.offsetHeight||0)-12);
+    rail.scrollLeft=0;
+  }else{
+    el.scrollIntoView({block:'start',inline:'nearest'});
+  }
   await wait(220);
-  const r=el.getBoundingClientRect();
+  const rects=[el.getBoundingClientRect()];
+  const header=el.querySelector('.scene-toolbox__header');
+  const body=el.querySelector('.scene-toolbox__body');
+  if(header)rects.push(header.getBoundingClientRect());
+  if(body)rects.push(body.getBoundingClientRect());
+  const left=Math.min(...rects.map(r=>r.left));
+  const top=Math.min(...rects.map(r=>r.top));
+  const right=Math.max(...rects.map(r=>r.right));
+  const bottom=Math.max(...rects.map(r=>r.bottom));
   const pad=10;
-  const x=Math.max(0,Math.floor(r.left-pad));
-  const y=Math.max(0,Math.floor(r.top-pad));
-  const width=Math.min(window.innerWidth-x,Math.ceil(r.width+pad*2));
-  const height=Math.min(window.innerHeight-y,Math.ceil(r.height+pad*2));
+  const topPad=el.classList.contains('scene-toolbox')?120:pad;
+  const x=Math.max(0,Math.floor(left+window.scrollX-pad));
+  const y=Math.max(0,Math.floor(top+window.scrollY-topPad));
+  const width=Math.ceil(right-left+pad*2);
+  const height=Math.ceil(bottom-top+topPad+pad);
   if(width<40||height<40)throw new Error('Screenshot element is too small: '+selector);
   return{x,y,width,height};
 })()
@@ -131,6 +147,7 @@ try {
         $shot = Send-Cdp "Page.captureScreenshot" @{
             format = "png"
             fromSurface = $true
+            captureBeyondViewport = $true
             clip = @{
                 x = [double]$rect.x
                 y = [double]$rect.y

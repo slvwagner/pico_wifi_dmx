@@ -92,9 +92,83 @@ try {
         return $null
     }
 
+    function Invoke-PageScript {
+        param([string]$Expression)
+        $evalResult = Send-Cdp "Runtime.evaluate" @{
+            expression = $Expression
+            awaitPromise = $true
+            returnByValue = $true
+        }
+        if ($evalResult.exceptionDetails) {
+            $message = $evalResult.exceptionDetails.text
+            if ($evalResult.exceptionDetails.exception.description) {
+                $message = $evalResult.exceptionDetails.exception.description
+            }
+            throw "JavaScript evaluation failed: $message"
+        }
+        return $evalResult.result.result.value
+    }
+
     function Save-Screenshot {
         param([string]$Name)
         $result = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
+        $file = Join-Path $outPath $Name
+        [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($result.result.data))
+        Write-Host "Captured $file"
+    }
+
+    function Save-ElementScreenshot {
+        param(
+            [string]$Selector,
+            [string]$Name
+        )
+        $selectorJson = $Selector | ConvertTo-Json -Compress
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const el=document.querySelector(selector);
+  if(!el)throw new Error('Missing screenshot element: '+selector);
+  const rail=el.closest('.toolbox-rail');
+  if(rail){
+    const header=el.querySelector('.scene-toolbox__header');
+    rail.scrollTop=Math.max(0,el.offsetTop-(header?.offsetHeight||0)-12);
+    rail.scrollLeft=0;
+  }else{
+    el.scrollIntoView({block:'start',inline:'nearest'});
+  }
+  await wait(220);
+  const rects=[el.getBoundingClientRect()];
+  const header=el.querySelector('.scene-toolbox__header');
+  const body=el.querySelector('.scene-toolbox__body');
+  if(header)rects.push(header.getBoundingClientRect());
+  if(body)rects.push(body.getBoundingClientRect());
+  const left=Math.min(...rects.map(r=>r.left));
+  const top=Math.min(...rects.map(r=>r.top));
+  const right=Math.max(...rects.map(r=>r.right));
+  const bottom=Math.max(...rects.map(r=>r.bottom));
+  const pad=10;
+  const topPad=el.classList.contains('scene-toolbox')?120:pad;
+  const x=Math.max(0,Math.floor(left+window.scrollX-pad));
+  const y=Math.max(0,Math.floor(top+window.scrollY-topPad));
+  const width=Math.ceil(right-left+pad*2);
+  const height=Math.ceil(bottom-top+topPad+pad);
+  if(width<40||height<40)throw new Error('Screenshot element is too small: '+selector);
+  return{x,y,width,height};
+})()
+"@
+        $result = Send-Cdp "Page.captureScreenshot" @{
+            format = "png"
+            fromSurface = $true
+            captureBeyondViewport = $true
+            clip = @{
+                x = [double]$rect.x
+                y = [double]$rect.y
+                width = [double]$rect.width
+                height = [double]$rect.height
+                scale = 1
+            }
+        }
         $file = Join-Path $outPath $Name
         [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($result.result.data))
         Write-Host "Captured $file"
@@ -251,6 +325,34 @@ try {
 })()
 "@
     Save-Screenshot "fixture-controller-scene-box.png"
+
+    Eval-Js @"
+(async()=>{
+  docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:false});
+  docShots.ensureDemoGroups();
+  docShots.selectDemoGroups();
+  docShots.setSceneBox({visible:true,open:true});
+  docShots.setGroupsBox({visible:true,open:true});
+  function openToolbox(id){
+    const box=document.getElementById(id);
+    const toggle=document.getElementById(id+'Toggle');
+    if(!box)return;
+    box.style.display='';
+    if(box.classList.contains('collapsed')&&toggle)toggle.click();
+  }
+  ['paletteBox','fanToolbox'].forEach(openToolbox);
+  if(typeof renderSavedGroupsList==='function')renderSavedGroupsList();
+  if(typeof renderSceneSlotMatrix==='function')renderSceneSlotMatrix();
+  if(typeof renderPaletteSlotMatrix==='function')renderPaletteSlotMatrix();
+  if(typeof renderFanToolbox==='function')renderFanToolbox();
+  await docShots.wait(600);
+})()
+"@
+    Save-ElementScreenshot "#groupsBox" "fixture-controller-toolbox-groups.png"
+    Save-ElementScreenshot "#sceneBox" "fixture-controller-toolbox-scenes.png"
+    Save-ElementScreenshot "#paletteBox" "fixture-controller-toolbox-palettes.png"
+    Save-ElementScreenshot "#fanToolbox" "fixture-controller-toolbox-fanout.png"
 
     Eval-Js @"
 (async()=>{
@@ -457,6 +559,65 @@ try {
         Write-Host "Chaser docshot state: steps=$($state.steps), stepCount=$($state.stepCount), editEnabled=$($state.editEnabled), status=$($state.status)"
     }
     Save-Screenshot "chaser.png"
+
+    $motionUrl = $BaseUrl.TrimEnd('/') + "/dmx_motion.html?docshot=$cacheBust"
+    Send-Cdp "Page.navigate" @{ url = $motionUrl } | Out-Null
+    Start-Sleep -Seconds 2
+
+    if ($socket) { $socket.Dispose() }
+    $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing
+    $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_motion.html*" } | Select-Object -First 1).webSocketDebuggerUrl
+    if (-not $wsUrl) { throw "Could not find Motion FX tab after navigation." }
+    $socket = [System.Net.WebSockets.ClientWebSocket]::new()
+    $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult() | Out-Null
+    $script:cdpId = 0
+    Send-Cdp "Page.enable" | Out-Null
+    Send-Cdp "Runtime.enable" | Out-Null
+
+    for ($i = 0; $i -lt 40; $i++) {
+        $navState = Send-Cdp "Runtime.evaluate" @{
+            expression = "document.readyState === 'complete'"
+            returnByValue = $true
+        }
+        if ($navState.result.result.value) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    Start-Sleep -Milliseconds 500
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=500)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<40;i++){
+    if(typeof setup==='object'&&Array.isArray(setup.fixtures)&&setup.fixtures.length&&document.getElementById('motionEffectBox'))break;
+    await wait(250);
+  }
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail&&rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  localStorage.setItem('toolboxRailCollapsed','0');
+  if(window.DmxCommon&&typeof DmxCommon.saveSharedGroupSelection==='function')DmxCommon.saveSharedGroupSelection([]);
+  if(typeof motionGroupsBox!=='undefined'&&motionGroupsBox?.clearSelection)motionGroupsBox.clearSelection();
+  if(typeof motionGroupsBox!=='undefined'&&motionGroupsBox?.loadGroups)await motionGroupsBox.loadGroups();
+  function openToolbox(id){
+    const box=document.getElementById(id);
+    const toggle=document.getElementById(id+'Toggle');
+    if(!box)return;
+    box.style.display='';
+    if(box.classList.contains('collapsed')&&toggle)toggle.click();
+  }
+  ['motionGroupsBox','motionEffectBox','motionSavedEffectBox','motionSceneBox','motionPaletteBox'].forEach(openToolbox);
+  if(typeof renderMotionEffectSlots==='function')renderMotionEffectSlots();
+  if(typeof renderMotionSceneSlots==='function')renderMotionSceneSlots();
+  if(typeof renderMotionPaletteSlots==='function')renderMotionPaletteSlots();
+  if(typeof renderMotionPreview==='function')renderMotionPreview();
+  await wait(800);
+})()
+"@
+    Save-ElementScreenshot "#motionGroupsBox" "motion-toolbox-groups.png"
+    Save-ElementScreenshot "#motionEffectBox" "motion-toolbox-effect-parameters.png"
+    Save-ElementScreenshot "#motionSavedEffectBox" "motion-toolbox-effects.png"
+    Save-ElementScreenshot "#motionSceneBox" "motion-toolbox-scenes.png"
+    Save-ElementScreenshot "#motionPaletteBox" "motion-toolbox-palettes.png"
 }
 finally {
     if ($socket) { $socket.Dispose() }

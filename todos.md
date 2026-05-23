@@ -1,5 +1,6 @@
 # New Features
 
+## 01
 - Define a shared "Output enabled" / offline programming model for live-show safety.
   Editing should be possible without changing DMX output, especially for Controller, Chaser, and Motion FX.
   Uploading chase or motion data to Pico memory slots should still be allowed while offline because it is only data transfer.
@@ -11,15 +12,20 @@ Do we want “offline programming” to be a global system mode, or page-specifi
 
 Global is simpler and safer. Page-specific is more flexible, but easier to misunderstand during a show.
 
+## 02
+could I move the page scroll bar to the left side of the tool box separation line?
+
 # Debug
 
-## BUG 01
+## 01
 No document cleary every toolbox in every page with a decicated toolbox screen shot for the the one going together you could take a single shot but you must not. Whatever is more simple to maintain. Update the manuall but in a way that it can be automated cleanly. 
 
 But before doing any manuall update 
 
-## Bug 02
-Every tool box sh
+## 02
+So you are always using the manual-data to create screen shots automated?
+
+
 # Error fixing
 
 

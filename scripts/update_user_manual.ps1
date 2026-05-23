@@ -2,6 +2,7 @@ param(
     [string]$XamppHtdocs = "E:\Software\xampp\htdocs",
     [string]$AppFolder = "dmx",
     [string]$BaseUrl = "http://localhost/dmx/",
+    [string]$ManualDataDir = "docs/manual-data",
     [switch]$SkipInitialSync,
     [switch]$SkipScreenshots,
     [switch]$SkipFinalSync
@@ -12,6 +13,8 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $screenshotsDir = Join-Path $repoRoot "docs\screenshots"
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+$manualDataPath = Join-Path $repoRoot $ManualDataDir
+$xamppDataPath = Join-Path (Join-Path $XamppHtdocs $AppFolder) "data"
 
 function Invoke-Step {
     param(
@@ -40,6 +43,40 @@ function Save-PageScreenshot {
         throw "Screenshot was not created: $out"
     }
     Write-Host "Captured $out"
+}
+
+function Copy-JsonFiles {
+    param(
+        [string]$SourceDir,
+        [string]$DestinationDir
+    )
+    if (-not (Test-Path -LiteralPath $SourceDir)) {
+        throw "JSON source directory not found: $SourceDir"
+    }
+    New-Item -ItemType Directory -Force -Path $DestinationDir | Out-Null
+    Copy-Item -Path (Join-Path $SourceDir "*.json") -Destination $DestinationDir -Force -ErrorAction SilentlyContinue
+}
+
+function Start-ManualDataSnapshot {
+    if (-not (Test-Path -LiteralPath $manualDataPath)) {
+        throw "Manual data baseline not found: $manualDataPath"
+    }
+    if (-not (Test-Path -LiteralPath $xamppDataPath)) {
+        throw "XAMPP data directory not found: $xamppDataPath"
+    }
+    $backup = Join-Path $env:TEMP ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+    New-Item -ItemType Directory -Force -Path $backup | Out-Null
+    Copy-JsonFiles -SourceDir $xamppDataPath -DestinationDir $backup
+    Copy-JsonFiles -SourceDir $manualDataPath -DestinationDir $xamppDataPath
+    return $backup
+}
+
+function Restore-ManualDataSnapshot {
+    param([string]$BackupDir)
+    if ($BackupDir -and (Test-Path -LiteralPath $BackupDir)) {
+        Copy-JsonFiles -SourceDir $BackupDir -DestinationDir $xamppDataPath
+        Remove-Item -LiteralPath $BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Wait-FileStable {
@@ -75,15 +112,28 @@ try {
     }
 
     if (-not $SkipScreenshots) {
-        Invoke-Step "Capture deterministic controller screenshots" {
-            & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
-            & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
-        }
+        $script:manualDataBackup = $null
+        try {
+            Invoke-Step "Use manual data baseline for screenshots" {
+                $script:manualDataBackup = Start-ManualDataSnapshot
+                Write-Host "Copied manual data from $manualDataPath to $xamppDataPath"
+            }
 
-        Invoke-Step "Capture page overview screenshots" {
-            Save-PageScreenshot "motion-fx.png" ($BaseUrl.TrimEnd('/') + "/dmx_motion.html")
-            Save-PageScreenshot "gpio-control.png" ($BaseUrl.TrimEnd('/') + "/dmx_gpio.html")
-            Save-PageScreenshot "benchmark.png" ($BaseUrl.TrimEnd('/') + "/test/")
+            Invoke-Step "Capture deterministic controller screenshots" {
+                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
+                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
+            }
+
+            Invoke-Step "Capture page overview screenshots" {
+                Save-PageScreenshot "motion-fx.png" ($BaseUrl.TrimEnd('/') + "/dmx_motion.html")
+                Save-PageScreenshot "gpio-control.png" ($BaseUrl.TrimEnd('/') + "/dmx_gpio.html")
+                Save-PageScreenshot "benchmark.png" ($BaseUrl.TrimEnd('/') + "/test/")
+            }
+        }
+        finally {
+            Invoke-Step "Restore live XAMPP data after screenshots" {
+                Restore-ManualDataSnapshot -BackupDir $script:manualDataBackup
+            }
         }
     }
 

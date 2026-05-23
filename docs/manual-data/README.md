@@ -2,7 +2,7 @@
 
 This folder contains a deterministic snapshot of the JSON data from the local XAMPP DMX server.
 
-The manual screenshot scripts should use these files as their input data before capturing screenshots. That keeps the user manual reproducible even if the live XAMPP setup changes during testing.
+`scripts/update_user_manual.ps1` copies these files into the XAMPP `data` folder before any screenshot is captured, then restores the live XAMPP data afterwards. That keeps the user manual reproducible even if the live XAMPP setup changes during testing.
 
 Source at capture time:
 
