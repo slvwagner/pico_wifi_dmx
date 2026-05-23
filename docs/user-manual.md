@@ -23,7 +23,6 @@ Enter the Pico base URL once in any page. The browser stores it and shares it wi
 | Fixture Controller | Fixture profiles, patching, live control, groups, scenes, default and blackout values |
 | Chaser | Step-based chases with fade, loop modes, direction, pause/resume, and Pico slot upload |
 | Motion FX | Pan/tilt effects such as circle, figure-8, pan swing, and tilt swing |
-| Fan Out | Spread one control value across a group of fixtures |
 | GPIO Control | Map Pico GPIO buttons and ADC inputs to lighting actions |
 | Benchmark | Test Pico HTTP/DMX update performance |
 
@@ -183,7 +182,7 @@ Use **Merge** when you have a current fixture selection or active Fan Out result
 
 ![Scene Toolbox](screenshots/fixture-controller-scene-box.png)
 
-The Scene Toolbox is available on the Fixture Controller and Fan Out pages.
+The Scene Toolbox is available on the Fixture Controller page.
 
 Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.
 
@@ -283,7 +282,7 @@ The Chaser screenshot is captured with the important boxes visible on purpose: *
 
 ### Toolbox Sidebar
 
-Controller, Chaser, Motion FX, and Fan Out use a shared right-side toolbox sidebar on desktop-sized screens.
+Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on desktop-sized screens.
 
 - Drag the vertical resize line on the left edge of the sidebar to change its width.
 - The sidebar width is shared across all toolbox pages.
@@ -396,38 +395,7 @@ Motion FX is relative to the current scene position. This means the effect moves
 
 The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.
 
-## 6. Fan Out
-
-![Fan Out](screenshots/fan-out.png)
-
-Fan Out spreads one selected control across an ordered fixture group.
-
-The preferred daily workflow is now the **Fan Out** toolbox on the Fixture Controller page, because it shows the affected controls directly in the live control surface and lets the Scene Toolbox save the finished look immediately. The separate Fan Out page remains available for the larger dedicated editor and saved fan-group setup.
-
-Typical uses:
-
-- Pan fan
-- Tilt fan
-- Zoom spread
-- Dimmer gradient
-- Any other offset across fixtures
-
-### Basic Workflow
-
-1. Open **Fan Out**.
-2. Create or select a fan group.
-3. Add fixtures in the desired order.
-4. Select the control to fan, for example Pan.
-5. Snapshot or refresh the base values.
-6. Adjust the spread.
-
-Fan Out adds offsets on top of the current base values. This keeps the fan relative to the current fixture positions.
-
-The Fan Out page also includes the scene toolbox, so fan looks can be saved and recalled as scenes.
-
-When a Fan Out result is saved as a scene, only the affected Fan Out fixtures are saved. The saved scene includes all controls for those fixtures, so a fan created on Pan still preserves Tilt and the other fixture values for the same fixtures. This avoids saving unrelated fixtures while keeping each involved fixture complete enough to recall safely.
-
-## 7. GPIO Control
+## 6. GPIO Control
 
 ![GPIO Control](screenshots/gpio-control.png)
 
@@ -487,7 +455,7 @@ The beat divider can be set to:
 
 The firmware ignores very long gaps between taps so stopping for a while does not create an extremely slow tempo when tapping resumes.
 
-## 8. Benchmark
+## 7. Benchmark
 
 ![Benchmark](screenshots/benchmark.png)
 
@@ -512,7 +480,7 @@ The result panel shows:
 
 Use **Export CSV** to save results for later comparison.
 
-## 9. Backup and Import
+## 8. Backup and Import
 
 Most setup data is stored as JSON files on the XAMPP server in the `data/` folder.
 
@@ -524,12 +492,11 @@ The UI also offers export/import buttons for:
 - Palettes
 - Chaser setup
 - Motion FX setup
-- Fan Out setup
 - GPIO setup
 
 Use JSON export before large changes so a known-good setup can be restored later.
 
-## 10. Clear Functions
+## 9. Clear Functions
 
 There are two different clear actions:
 

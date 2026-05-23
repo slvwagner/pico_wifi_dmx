@@ -125,7 +125,6 @@ strong { color: #ffffff; }
 <tr><td>Fixture Controller</td><td>Fixture profiles, patching, live control, groups, scenes, default and blackout values</td></tr>
 <tr><td>Chaser</td><td>Step-based chases with fade, loop modes, direction, pause/resume, and Pico slot upload</td></tr>
 <tr><td>Motion FX</td><td>Pan/tilt effects such as circle, figure-8, pan swing, and tilt swing</td></tr>
-<tr><td>Fan Out</td><td>Spread one control value across a group of fixtures</td></tr>
 <tr><td>GPIO Control</td><td>Map Pico GPIO buttons and ADC inputs to lighting actions</td></tr>
 <tr><td>Benchmark</td><td>Test Pico HTTP/DMX update performance</td></tr>
 </tbody>
@@ -257,7 +256,7 @@ strong { color: #ffffff; }
 </ul>
 <h2 id="2-scenes-and-palettes">2. Scenes And Palettes</h2>
 <p><img src="screenshots/fixture-controller-scene-box.png" alt="Scene Toolbox"></p>
-<p>The Scene Toolbox is available on the Fixture Controller and Fan Out pages.</p>
+<p>The Scene Toolbox is available on the Fixture Controller page.</p>
 <p>Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.</p>
 <ol>
 <li>Set your desired fixture values.</li>
@@ -332,7 +331,7 @@ strong { color: #ffffff; }
 <li>Play the slot from the Pico.</li>
 </ol>
 <h3 id="toolbox-sidebar">Toolbox Sidebar</h3>
-<p>Controller, Chaser, Motion FX, and Fan Out use a shared right-side toolbox sidebar on desktop-sized screens.</p>
+<p>Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on desktop-sized screens.</p>
 <ul>
 <li>Drag the vertical resize line on the left edge of the sidebar to change its width.</li>
 <li>The sidebar width is shared across all toolbox pages.</li>
@@ -426,31 +425,7 @@ strong { color: #ffffff; }
 <li>Start the slot.</li>
 </ol>
 <p>The Motion FX page also has a read-only scene toolbox. Clicking a scene sends the position to the Pico and updates the effect center.</p>
-<h2 id="6-fan-out">6. Fan Out</h2>
-<p><img src="screenshots/fan-out.png" alt="Fan Out"></p>
-<p>Fan Out spreads one selected control across an ordered fixture group.</p>
-<p>The preferred daily workflow is now the <strong>Fan Out</strong> toolbox on the Fixture Controller page, because it shows the affected controls directly in the live control surface and lets the Scene Toolbox save the finished look immediately. The separate Fan Out page remains available for the larger dedicated editor and saved fan-group setup.</p>
-<p>Typical uses:</p>
-<ul>
-<li>Pan fan</li>
-<li>Tilt fan</li>
-<li>Zoom spread</li>
-<li>Dimmer gradient</li>
-<li>Any other offset across fixtures</li>
-</ul>
-<h3 id="basic-workflow-2">Basic Workflow</h3>
-<ol>
-<li>Open <strong>Fan Out</strong>.</li>
-<li>Create or select a fan group.</li>
-<li>Add fixtures in the desired order.</li>
-<li>Select the control to fan, for example Pan.</li>
-<li>Snapshot or refresh the base values.</li>
-<li>Adjust the spread.</li>
-</ol>
-<p>Fan Out adds offsets on top of the current base values. This keeps the fan relative to the current fixture positions.</p>
-<p>The Fan Out page also includes the scene toolbox, so fan looks can be saved and recalled as scenes.</p>
-<p>When a Fan Out result is saved as a scene, only the affected Fan Out fixtures are saved. The saved scene includes all controls for those fixtures, so a fan created on Pan still preserves Tilt and the other fixture values for the same fixtures. This avoids saving unrelated fixtures while keeping each involved fixture complete enough to recall safely.</p>
-<h2 id="7-gpio-control">7. GPIO Control</h2>
+<h2 id="6-gpio-control">6. GPIO Control</h2>
 <p><img src="screenshots/gpio-control.png" alt="GPIO Control"></p>
 <p>GPIO Control maps physical Pico inputs to lighting actions.</p>
 <p>Digital GPIO pins can trigger:</p>
@@ -501,7 +476,7 @@ strong { color: #ffffff; }
 <li>1/16 beat</li>
 </ul>
 <p>The firmware ignores very long gaps between taps so stopping for a while does not create an extremely slow tempo when tapping resumes.</p>
-<h2 id="8-benchmark">8. Benchmark</h2>
+<h2 id="7-benchmark">7. Benchmark</h2>
 <p><img src="screenshots/benchmark.png" alt="Benchmark"></p>
 <p>The Benchmark page tests Pico HTTP and DMX update performance.</p>
 <p>Use it to compare:</p>
@@ -522,7 +497,7 @@ strong { color: #ffffff; }
 <li>Errors</li>
 </ul>
 <p>Use <strong>Export CSV</strong> to save results for later comparison.</p>
-<h2 id="9-backup-and-import">9. Backup and Import</h2>
+<h2 id="8-backup-and-import">8. Backup and Import</h2>
 <p>Most setup data is stored as JSON files on the XAMPP server in the <code>data/</code> folder.</p>
 <p>The UI also offers export/import buttons for:</p>
 <ul>
@@ -532,11 +507,10 @@ strong { color: #ffffff; }
 <li>Palettes</li>
 <li>Chaser setup</li>
 <li>Motion FX setup</li>
-<li>Fan Out setup</li>
 <li>GPIO setup</li>
 </ul>
 <p>Use JSON export before large changes so a known-good setup can be restored later.</p>
-<h2 id="10-clear-functions">10. Clear Functions</h2>
+<h2 id="9-clear-functions">9. Clear Functions</h2>
 <p>There are two different clear actions:</p>
 <table>
 <thead><tr><th>Action</th><th>What it clears</th><th>When to use</th></tr></thead><tbody>

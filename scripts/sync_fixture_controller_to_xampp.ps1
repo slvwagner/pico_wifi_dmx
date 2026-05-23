@@ -16,9 +16,7 @@ $apiSource = Join-Path $apiDir "fixture_setup.php"
 $motionSource = Join-Path $webDir "dmx_motion.html"
 $chaserSource = Join-Path $webDir "dmx_chaser.html"
 $benchSource = Join-Path $webDir "dmx_benchmark.html"
-$fanSource       = Join-Path $webDir "dmx_fan.html"
 $gpioSource      = Join-Path $webDir "dmx_gpio.html"
-$fanApiSource    = Join-Path $apiDir "fan_setup.php"
 $chaserApiSource = Join-Path $apiDir "chaser_setup.php"
 $motionApiSource = Join-Path $apiDir "motion_setup.php"
 $groupApiSource  = Join-Path $apiDir "group_setup.php"
@@ -37,9 +35,7 @@ $apiTarget = Join-Path $targetDir "fixture_setup.php"
 $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $benchTargetDir "index.html"
-$fanTarget       = Join-Path $targetDir "dmx_fan.html"
 $gpioTarget      = Join-Path $targetDir "dmx_gpio.html"
-$fanApiTarget    = Join-Path $targetDir "fan_setup.php"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
 $groupApiTarget  = Join-Path $targetDir "group_setup.php"
@@ -80,17 +76,9 @@ if (Test-Path -LiteralPath $benchSource) {
     Copy-Item -LiteralPath $benchSource -Destination $benchTarget -Force
     Write-Host "Copied benchmark to $benchTarget"
 }
-if (Test-Path -LiteralPath $fanSource) {
-    Copy-Item -LiteralPath $fanSource -Destination $fanTarget -Force
-    Write-Host "Copied fan out to $fanTarget"
-}
 if (Test-Path -LiteralPath $gpioSource) {
     Copy-Item -LiteralPath $gpioSource -Destination $gpioTarget -Force
     Write-Host "Copied GPIO control to $gpioTarget"
-}
-if (Test-Path -LiteralPath $fanApiSource) {
-    Copy-Item -LiteralPath $fanApiSource -Destination $fanApiTarget -Force
-    Write-Host "Copied fan API to $fanApiTarget"
 }
 if (Test-Path -LiteralPath $chaserApiSource) {
     Copy-Item -LiteralPath $chaserApiSource -Destination $chaserApiTarget -Force
@@ -136,7 +124,6 @@ $dataFiles = @(
     "scene_setup.json",
     "palette_setup.json",
     "group_setup.json",
-    "fan_setup.json",
     "chaser_setup.json",
     "motion_setup.json",
     "ui_state.json"
@@ -147,6 +134,19 @@ foreach ($dataFile in $dataFiles) {
     if (Test-Path -LiteralPath $oldPath) {
         Move-Item -LiteralPath $oldPath -Destination $newPath -Force
         Write-Host "Moved data file to $newPath"
+    }
+}
+
+$removedFiles = @(
+    (Join-Path $targetDir "dmx_fan.html"),
+    (Join-Path $targetDir "fan_setup.php"),
+    (Join-Path $dataTargetDir "fan_setup.json"),
+    (Join-Path $manualScreenshotsTarget "fan-out.png")
+)
+foreach ($removedFile in $removedFiles) {
+    if (Test-Path -LiteralPath $removedFile) {
+        Remove-Item -LiteralPath $removedFile -Force
+        Write-Host "Removed obsolete Fan Out file $removedFile"
     }
 }
 
