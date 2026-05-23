@@ -331,14 +331,43 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 
+<div id="fanToolbox" class="scene-toolbox scene-toolbox--fan">
+<div id="fanToolboxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Fan Out</span>
+<button id="fanToolboxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="fanToolboxBody" class="scene-toolbox__body">
+<div style="display:grid;gap:10px">
+<div class="small" id="fanScopeHint">Select a group or participating fixtures.</div>
+<label>Control<select id="fanControlSelect"></select></label>
+<label>Mode<select id="fanMode"><option value="symmetric">Symmetric spread</option><option value="range">Start to end</option></select></label>
+<label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
+<div id="fanRangeWrap" style="display:none;gap:8px">
+<label>From<input id="fanFrom" type="number" value="0"></label>
+<label>To<input id="fanTo" type="number" value="0"></label>
+</div>
+<div class="buttons">
+<button id="fanSave">Save</button>
+<button id="fanRecall">Recall</button>
+<button id="fanSnapshot">Snapshot</button>
+<button class="primary" id="fanApply">Apply</button>
+<button id="fanClear">Clear</button>
+</div>
+<div id="fanPreview" class="fan-preview"></div>
+</div>
+</div>
+</div>
+
 <aside id="chaserToolboxRail" class="toolbox-rail chaser-toolbox-rail" aria-label="Chaser toolboxes"></aside>
 
 <script>
 document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
 const chaserToolboxRail=document.getElementById('chaserToolboxRail');
 DmxCommon.initToolboxRail(chaserToolboxRail,[
+  {box:'chaserGroupsBox',type:'groups'},
   {box:'chaseBox',type:'chases'},
   {box:'stepsBox',type:'steps'},
+  {box:'fanToolbox',type:'fan'},
   {box:'browserPlaybackBox',type:'browserPlayback'}
 ]);
 // ---- helpers ----
@@ -499,9 +528,12 @@ function rebuildParticipation(){
 
 function applyChaserGroupSelection(redraw=true){
   const selected=chaserGroupsBox?.selectedGroups?.()||[];
+  fanState.fixtureIds=null;
+  fanState.bases={};
   if(redraw){
     drawParticipation();
     drawStepEditor();
+    renderFanToolbox();
     setStatus(selected.length?'Chaser filtered to '+selected.length+' group'+(selected.length===1?'':'s'):'Chaser group filter cleared');
   }
 }
@@ -742,6 +774,206 @@ function getParticipatingList(){
   return result;
 }
 
+const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,bases:{},fixtureIds:null};
+let fanPresets=[];
+function fanFixtureOrder(){
+  let ids=[];
+  if(Array.isArray(fanState.fixtureIds)&&fanState.fixtureIds.length)ids=fanState.fixtureIds.slice();
+  if(!ids.length){
+    const selected=chaserGroupsBox?.selectedGroups?.()||[];
+    selected.forEach(g=>(g.fixtureIds||[]).forEach(id=>{if(!ids.some(x=>String(x)===String(id)))ids.push(id);}));
+  }
+  if(!ids.length){
+    getParticipatingList().forEach(({f})=>{if(!ids.some(id=>String(id)===String(f.id)))ids.push(f.id);});
+  }
+  return ids.map(id=>(setup.fixtures||[]).find(f=>String(f.id)===String(id))).filter(Boolean);
+}
+function chaserFanControlKey(c,axis){return encodeURIComponent(chaserGroupKey(c))+'|'+axis;}
+function parseChaserFanControlKey(key=fanState.controlKey){
+  const parts=String(key||'').split('|');
+  return{controlKey:decodeURIComponent(parts[0]||''),axis:parts[1]||'value'};
+}
+function findChaserFanControl(f,controlKeyValue,axis){
+  const c=(fixtureProfile(f)?.controls||[]).find(ctrl=>chaserGroupKey(ctrl)===controlKeyValue);
+  if(!c)return null;
+  if((axis==='pan'||axis==='tilt')&&(c.type==='panTilt16'||c.type==='panTilt8'))return c;
+  if(axis==='value'&&(c.type==='slider16'||c.channel>=1))return c;
+  return null;
+}
+function fanControlOptions(){
+  const ordered=fanFixtureOrder();
+  const first=ordered[0];
+  const profile=first&&fixtureProfile(first);
+  if(!profile)return[];
+  const opts=[];
+  profile.controls.forEach(c=>{
+    const add=(axis,label,max)=>{
+      const keyValue=chaserGroupKey(c);
+      if(ordered.every(f=>findChaserFanControl(f,keyValue,axis)))opts.push({key:chaserFanControlKey(c,axis),label,max});
+    };
+    if(c.type==='panTilt16'){add('pan',c.label+' Pan',65535);add('tilt',c.label+' Tilt',65535);}
+    else if(c.type==='panTilt8'){add('pan',c.label+' Pan',255);add('tilt',c.label+' Tilt',255);}
+    else if(c.type==='slider16')add('value',c.label,65535);
+    else if(c.channel>=1)add('value',c.label,255);
+  });
+  return opts;
+}
+function fanMaxValue(){
+  const opt=fanControlOptions().find(o=>o.key===fanState.controlKey);
+  return opt?.max||255;
+}
+function fanGetStepValue(f,c,axis){
+  const max=c.type==='panTilt8'?255:65535;
+  const v=getStepVal(f,c);
+  if(axis==='pan'||axis==='tilt')return (v??defaultValue(c))[axis]??Math.round(max/2);
+  return v??defaultValue(c);
+}
+function fanSetStepValue(f,c,axis,val){
+  val=clamp(Math.round(val),0,fanMaxValue());
+  if(axis==='pan'||axis==='tilt'){
+    const max=c.type==='panTilt8'?255:65535;
+    const cur={...(getStepVal(f,c)||defaultValue(c)||{pan:Math.round(max/2),tilt:Math.round(max/2)})};
+    cur[axis]=val;
+    setStepVal(f,c,cur);
+  }else setStepVal(f,c,val);
+  participating[controlKey(f,c)]=true;
+  if(activeStepValueKeys instanceof Set)activeStepValueKeys.add(controlKey(f,c));
+}
+function snapshotFanBases(){
+  const ordered=fanFixtureOrder();
+  const {controlKey:fanControl,axis}=parseChaserFanControlKey();
+  fanState.bases={};
+  ordered.forEach(f=>{
+    const c=findChaserFanControl(f,fanControl,axis);
+    if(c)fanState.bases[f.id]=fanGetStepValue(f,c,axis);
+  });
+  renderFanToolbox();
+}
+function ensureFanBases(){
+  const ordered=fanFixtureOrder();
+  const {controlKey:fanControl,axis}=parseChaserFanControlKey();
+  ordered.forEach(f=>{
+    if(fanState.bases[f.id]!==undefined)return;
+    const c=findChaserFanControl(f,fanControl,axis);
+    if(c)fanState.bases[f.id]=fanGetStepValue(f,c,axis);
+  });
+}
+function fanComputedValues(){
+  const ordered=fanFixtureOrder();
+  const max=fanMaxValue();
+  const count=ordered.length;
+  const from=fanState.mode==='range'?parseFloat(fanState.fromOffset)||0:-(parseFloat(fanState.spread)||0)/2;
+  const to=fanState.mode==='range'?parseFloat(fanState.toOffset)||0:(parseFloat(fanState.spread)||0)/2;
+  return ordered.map((f,i)=>{
+    const t=count>1?i/(count-1):0;
+    const base=fanState.bases[f.id]??Math.round(max/2);
+    const offset=from+(to-from)*t;
+    return{fixture:f,base,offset,finalVal:clamp(Math.round(base+offset),0,max)};
+  });
+}
+function renderFanToolbox(){
+  const hint=document.getElementById('fanScopeHint');if(!hint)return;
+  const ordered=fanFixtureOrder();
+  const opts=fanControlOptions();
+  const sel=document.getElementById('fanControlSelect');
+  const old=fanState.controlKey||sel.value;
+  sel.innerHTML=opts.map(o=>`<option value="${o.key}">${DmxCommon.escapeHtml(o.label)}</option>`).join('');
+  if(opts.some(o=>o.key===old))sel.value=old;
+  else if(opts[0]){sel.value=opts[0].key;fanState.controlKey=opts[0].key;fanState.bases={};}
+  const max=fanMaxValue();
+  document.getElementById('fanSpread').max=max;
+  document.getElementById('fanSpread').step=max>255?256:1;
+  document.getElementById('fanSpread').value=clamp(fanState.spread,0,max);
+  document.getElementById('fanSpreadReadout').textContent=Math.round(fanState.spread||0);
+  document.getElementById('fanMode').value=fanState.mode;
+  document.getElementById('fanRangeWrap').style.display=fanState.mode==='range'?'flex':'none';
+  document.getElementById('fanFrom').value=Math.round(fanState.fromOffset||0);
+  document.getElementById('fanTo').value=Math.round(fanState.toOffset||0);
+  const source=Array.isArray(fanState.fixtureIds)&&fanState.fixtureIds.length?'Fan preset':((chaserGroupsBox?.selectedGroups?.()||[]).length?'selected groups':'participating fixtures');
+  hint.textContent=ordered.length?('Affecting '+ordered.length+' fixture'+(ordered.length===1?'':'s')+' from '+source):'Select a group or add participating controls first.';
+  ['fanControlSelect','fanSpread','fanMode','fanFrom','fanTo','fanSnapshot','fanSave','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ordered.length||!opts.length;});
+  const applyBtn=document.getElementById('fanApply');
+  if(applyBtn)applyBtn.disabled=!ordered.length||!opts.length||selectedStepIdx<0;
+  document.getElementById('fanRecall').disabled=!fanPresets.length;
+  ensureFanBases();
+  document.getElementById('fanPreview').innerHTML=fanComputedValues().map(v=>`<div class="fan-preview-card active"><strong>${DmxCommon.escapeHtml(v.fixture.name)}</strong><span>${v.base} -> ${v.finalVal}</span></div>`).join('')||'<div class="small">No fan preview.</div>';
+}
+function applyFanToStep(options={}){
+  if(selectedStepIdx<0){setStatus('Select a step before applying Fan Out',true);return;}
+  const ordered=fanFixtureOrder();
+  const {controlKey:fanControl,axis}=parseChaserFanControlKey();
+  if(!ordered.length||!fanControl){setStatus('Select a group or participating fixtures first',true);return;}
+  ensureFanBases();
+  fanComputedValues().forEach(({fixture,finalVal})=>{
+    const c=findChaserFanControl(fixture,fanControl,axis);if(!c)return;
+    fanSetStepValue(fixture,c,axis,finalVal);
+  });
+  drawParticipation();
+  drawStepEditor();
+  drawStepList();
+  saveChaserToServer(true);
+  if(!options.silent)setStatus('Fan Out applied to step '+(selectedStepIdx+1));
+}
+function liveFanUpdate(){
+  renderFanToolbox();
+  applyFanToStep({silent:true});
+}
+function fanPresetPayload(name){
+  return{
+    id:'fan_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+    name,
+    fixtureIds:fanFixtureOrder().map(f=>f.id),
+    state:{
+      controlKey:fanState.controlKey,
+      mode:fanState.mode,
+      spread:fanState.spread,
+      fromOffset:fanState.fromOffset,
+      toOffset:fanState.toOffset
+    }
+  };
+}
+function saveFanPresets(){
+  DmxCommon.saveUiState('chaser','fanOutPresets',fanPresets);
+}
+async function loadFanPresets(){
+  try{
+    const st=await DmxCommon.loadUiState('chaser');
+    fanPresets=Array.isArray(st.fanOutPresets)?st.fanOutPresets:[];
+  }catch(_){fanPresets=[];}
+  renderFanToolbox();
+}
+function saveFanPreset(){
+  if(!fanFixtureOrder().length){setStatus('Select a group or participating fixtures before saving Fan Out',true);return;}
+  const name=(prompt('Fan Out preset name:','Fan '+(fanPresets.length+1))||'').trim();
+  if(!name)return;
+  const existing=fanPresets.findIndex(p=>p.name===name);
+  const preset=fanPresetPayload(name);
+  if(existing>=0)fanPresets.splice(existing,1,preset);else fanPresets.push(preset);
+  saveFanPresets();
+  renderFanToolbox();
+  setStatus('Fan Out preset saved: '+name);
+}
+function recallFanPreset(){
+  if(!fanPresets.length){setStatus('No saved Fan Out presets',true);return;}
+  const label=fanPresets.map((p,i)=>(i+1)+': '+p.name).join('\n');
+  const answer=(prompt('Recall Fan Out preset number:\n'+label,'1')||'').trim();
+  if(!answer)return;
+  const idx=Math.max(0,Math.min(fanPresets.length-1,(parseInt(answer,10)||1)-1));
+  const preset=fanPresets[idx];if(!preset)return;
+  Object.assign(fanState,preset.state||{});
+  fanState.fixtureIds=Array.isArray(preset.fixtureIds)?preset.fixtureIds.slice():null;
+  fanState.bases={};
+  snapshotFanBases();
+  liveFanUpdate();
+  setStatus('Fan Out preset recalled: '+preset.name);
+}
+function clearFanOut(){
+  fanState.fixtureIds=null;
+  fanState.bases={};
+  renderFanToolbox();
+  setStatus('Fan Out target cleared');
+}
+
 function scopedParticipationFixtures(){
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
@@ -759,6 +991,7 @@ function drawParticipation(){
   el.innerHTML='';
   drawGroupControlTools();
   if(chaserGroupsBox?.render)chaserGroupsBox.render();
+  renderFanToolbox();
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
   const fixtures=scopedParticipationFixtures();
@@ -1733,6 +1966,16 @@ const browserPlaybackToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'browserPlaybackBoxPos',
   uiStateCollapsedKey:'browserPlaybackBoxCollapsed'
 });
+const fanToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'fanToolbox',
+  headerId:'fanToolboxHdr',
+  toggleId:'fanToolboxToggle',
+  posStorageKey:'fanToolboxPos',
+  collapsedStorageKey:'fanToolboxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'fanToolboxPos',
+  uiStateCollapsedKey:'fanToolboxCollapsed'
+});
 const chaserCompactBoxes=[
   {id:'stepsBox',toolbox:stepsToolbox,posKey:'stepsBoxPos',collapsedKey:'stepsBoxCollapsed',sizeKey:'stepsBoxSize'},
   {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox,posKey:'browserPlaybackBoxPos',collapsedKey:'browserPlaybackBoxCollapsed'}
@@ -2140,6 +2383,21 @@ document.getElementById('btnStepDuplicate').onclick=()=>{if(selectedStepIdx>=0)d
 document.getElementById('btnStepUp').onclick=()=>{if(selectedStepIdx>=0)moveStep(selectedStepIdx,-1);};
 document.getElementById('btnStepDown').onclick=()=>{if(selectedStepIdx>=0)moveStep(selectedStepIdx,1);};
 document.getElementById('btnStepDelete').onclick=()=>{if(selectedStepIdx>=0)deleteStep(selectedStepIdx);};
+document.getElementById('fanControlSelect').addEventListener('change',e=>{
+  fanState.controlKey=e.target.value;
+  fanState.bases={};
+  fanState.fixtureIds=null;
+  snapshotFanBases();
+});
+document.getElementById('fanMode').addEventListener('change',e=>{fanState.mode=e.target.value;liveFanUpdate();});
+document.getElementById('fanSpread').addEventListener('input',e=>{fanState.spread=clamp(e.target.value,0,fanMaxValue());liveFanUpdate();});
+document.getElementById('fanFrom').addEventListener('input',e=>{fanState.fromOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
+document.getElementById('fanTo').addEventListener('input',e=>{fanState.toOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
+document.getElementById('fanSnapshot').onclick=()=>{snapshotFanBases();setStatus('Fan Out bases snapshotted');};
+document.getElementById('fanApply').onclick=()=>applyFanToStep();
+document.getElementById('fanSave').onclick=saveFanPreset;
+document.getElementById('fanRecall').onclick=recallFanPreset;
+document.getElementById('fanClear').onclick=clearFanOut;
 document.getElementById('btnCaptureNew').onclick=async()=>{
   if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
   const s=makeStep();steps.push(s);selectedStepIdx=steps.length-1;
@@ -2498,6 +2756,7 @@ document.getElementById('picoSlot').addEventListener('change',()=>{
 
 // ---- init ----
 loadSetup();
+loadFanPresets();
 (async()=>{
   const loaded=await loadChaserFromServer();
   if(!loaded){try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}}
