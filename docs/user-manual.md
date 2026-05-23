@@ -466,20 +466,27 @@ Each chaser slot supports up to 32 steps.
 
 ![Motion FX](screenshots/motion-fx.png)
 
-Motion FX creates continuous effects for selected fixture controls. The current prototype can drive pan/tilt controls and scalar DMX controls such as dimmer, prism, gobo, zoom, or iris from the browser.
+Motion FX creates continuous effects for one selected effect target at a time. The current prototype can drive a combined pan/tilt target, or one scalar DMX target such as dimmer, prism, gobo, zoom, or iris from the browser.
 
 Supported effects include:
 
-- Circle
-- Figure-8
-- Pan swing
-- Tilt swing
-- Sine
-- Pulse
+- Pan/tilt targets: Circle, Figure-8, Pan swing, Tilt swing
+- Scalar targets: Sine, Pulse
 
-Pan/tilt effects are relative to the current scene position. This means the effect moves around the position that was last written into the Pico base buffer. Scalar controls use their displayed center value and the **Pan / scalar amplitude** as the effect depth.
+Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Pan / scalar amplitude** as the effect depth.
 
-The **Participating Controls** panel works like the Chaser control selection: use **All**, **None**, the control dropdown, **Only**, and **Add** to decide which controls receive the browser effect. The **Effect Parameters** controls live in the toolbox sidebar.
+The **Participating Controls** panel uses an **Effect target** dropdown. One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Changing the effect target rebuilds the fixture matrix and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.
+
+The fixture matrix is a selection and preview surface:
+
+- Click a fixture tile to include or exclude it from the effect.
+- Use **All** and **None** to enable or disable every visible fixture for the current target.
+- Pan/tilt targets show a small XY plot with the current position.
+- Scalar targets show a small value bar with the current value.
+
+Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox.
+
+The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
 
 Pico upload is still pan/tilt-only in this prototype. Browser effects can drive scalar controls live, but scalar controls are ignored by Pico Motion slot upload until the firmware format is expanded.
 
@@ -488,7 +495,7 @@ Pico upload is still pan/tilt-only in this prototype. Browser effects can drive 
 1. Use the Fixture Controller to position the fixtures.
 2. Save or recall a scene.
 3. Open Motion FX.
-4. Select the participating controls for the effect.
+4. Select one **Effect target**.
 5. Set BPM, effect shape, amplitude, and spread in the **Effect Parameters** toolbox.
 6. For pan/tilt effects, upload the effect to a Pico slot and start the slot.
 7. For scalar controls, use browser playback from the **Effect Parameters** toolbox.
