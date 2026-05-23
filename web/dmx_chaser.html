@@ -43,6 +43,10 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList .item{cursor:pointer}
+#stepList .item[draggable="true"]{cursor:grab}
+#stepList .item.step-dragging{opacity:.45;cursor:grabbing}
+#stepList .item.step-drop-before{box-shadow:-3px 0 0 var(--accent),0 0 0 1px var(--accent) inset}
+#stepList .item.step-drop-after{box-shadow:3px 0 0 var(--accent),0 0 0 1px var(--accent) inset}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
 .progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.05s linear}
 .step-num{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:5px;background:#22303a;font-weight:700;font-size:12px;flex-shrink:0;padding:0 4px}
@@ -1232,6 +1236,25 @@ function moveStep(idx,dir){
   refreshChaserGroupActions();
   refreshFanBasesFromStep();
 }
+function reorderStep(fromIdx,toIdx){
+  if(fromIdx<0||fromIdx>=steps.length||toIdx<0||toIdx>=steps.length||fromIdx===toIdx)return;
+  const [step]=steps.splice(fromIdx,1);
+  steps.splice(toIdx,0,step);
+  const remap=idx=>{
+    if(idx<0)return idx;
+    if(idx===fromIdx)return toIdx;
+    if(fromIdx<toIdx&&idx>fromIdx&&idx<=toIdx)return idx-1;
+    if(fromIdx>toIdx&&idx>=toIdx&&idx<fromIdx)return idx+1;
+    return idx;
+  };
+  selectedStepIdx=remap(selectedStepIdx);
+  activeStepIdx=remap(activeStepIdx);
+  drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
+  setStatus('Step moved to position '+(toIdx+1));
+}
 
 async function clearChaserGroupSelectionForLoadedStep(){
   if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
@@ -1313,6 +1336,7 @@ function drawStepList(){
     const item=document.createElement('div');
     item.className='item'+(isActive?' active-step':'')+(isSel?' edit-step':'');
     item.dataset.stepIndex=i;
+    item.draggable=true;
     item.innerHTML=`
       <div class="step-card-head">
         <span class="step-num${isActive?' playing':''}">${i+1}</span>
@@ -1327,6 +1351,50 @@ function drawStepList(){
   el.onclick=e=>{
     const item=e.target.closest('[data-step-index]');
     if(item)selectStepForEdit(parseInt(item.dataset.stepIndex));
+  };
+  let dragFrom=-1,dropTarget=-1,dropAfter=false;
+  const clearDropMarks=()=>{
+    el.querySelectorAll('.step-drop-before,.step-drop-after').forEach(node=>node.classList.remove('step-drop-before','step-drop-after'));
+  };
+  el.ondragstart=e=>{
+    const item=e.target.closest('[data-step-index]');
+    if(!item)return;
+    dragFrom=parseInt(item.dataset.stepIndex,10);
+    item.classList.add('step-dragging');
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',String(dragFrom));
+  };
+  el.ondragover=e=>{
+    const item=e.target.closest('[data-step-index]');
+    if(!item||dragFrom<0)return;
+    e.preventDefault();
+    clearDropMarks();
+    const rect=item.getBoundingClientRect();
+    const horizontal=rect.width>=rect.height;
+    dropAfter=horizontal?e.clientX>rect.left+rect.width/2:e.clientY>rect.top+rect.height/2;
+    dropTarget=parseInt(item.dataset.stepIndex,10);
+    item.classList.add(dropAfter?'step-drop-after':'step-drop-before');
+  };
+  el.ondragleave=e=>{
+    if(!el.contains(e.relatedTarget))clearDropMarks();
+  };
+  el.ondrop=e=>{
+    e.preventDefault();
+    clearDropMarks();
+    const raw=e.dataTransfer.getData('text/plain');
+    const from=Number.isFinite(parseInt(raw,10))?parseInt(raw,10):dragFrom;
+    let to=dropTarget;
+    if(to<0||from<0)return;
+    if(dropAfter)to++;
+    if(from<to)to--;
+    to=Math.max(0,Math.min(steps.length-1,to));
+    reorderStep(from,to);
+    dragFrom=dropTarget=-1;dropAfter=false;
+  };
+  el.ondragend=()=>{
+    el.querySelectorAll('.step-dragging').forEach(node=>node.classList.remove('step-dragging'));
+    clearDropMarks();
+    dragFrom=dropTarget=-1;dropAfter=false;
   };
   refreshChaserGroupActions();
 }
