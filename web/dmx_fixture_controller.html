@@ -1285,6 +1285,9 @@ function fanGetValue(f,c,axis){
   }
   return getValue(f,c,0);
 }
+function fanBaseKey(f,c,axis){
+  return f.id+':'+c.id+':'+axis;
+}
 function fanSetValue(f,c,axis,val){
   val=clamp(Math.round(val),0,fanMaxValue());
   if(axis==='pan'||axis==='tilt'){
@@ -1300,7 +1303,7 @@ function snapshotFanBases(){
   fanState.bases={};
   ordered.forEach(f=>{
     const c=findFanControl(f,controlId,axis);
-    if(c)fanState.bases[f.id]=fanGetValue(f,c,axis);
+    if(c)fanState.bases[fanBaseKey(f,c,axis)]=fanGetValue(f,c,axis);
   });
   renderFanToolbox();
 }
@@ -1308,20 +1311,24 @@ function ensureFanBases(){
   const ordered=fanFixtureOrder();
   const {controlId,axis}=parseFanControlKey();
   ordered.forEach(f=>{
-    if(fanState.bases[f.id]!==undefined)return;
     const c=findFanControl(f,controlId,axis);
-    if(c)fanState.bases[f.id]=fanGetValue(f,c,axis);
+    if(!c)return;
+    const key=fanBaseKey(f,c,axis);
+    if(fanState.bases[key]!==undefined)return;
+    fanState.bases[key]=fanGetValue(f,c,axis);
   });
 }
 function fanComputedValues(){
   const ordered=fanFixtureOrder();
   const max=fanMaxValue();
+  const {controlId,axis}=parseFanControlKey();
   const count=ordered.length;
   const from=fanState.mode==='range'?parseFloat(fanState.fromOffset)||0:-(parseFloat(fanState.spread)||0)/2;
   const to=fanState.mode==='range'?parseFloat(fanState.toOffset)||0:(parseFloat(fanState.spread)||0)/2;
   return ordered.map((f,i)=>{
+    const c=findFanControl(f,controlId,axis);
     const t=count>1?i/(count-1):0;
-    const base=fanState.bases[f.id]??Math.round(max/2);
+    const base=c?(fanState.bases[fanBaseKey(f,c,axis)]??fanGetValue(f,c,axis)):Math.round(max/2);
     const offset=from+(to-from)*t;
     return{fixture:f,base,offset,finalVal:clamp(Math.round(base+offset),0,max)};
   });

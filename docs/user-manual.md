@@ -135,6 +135,14 @@ The Fixture Controller includes a **Fan Out** toolbox in the shared Toolboxes si
 
 The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand. If **Live send** is enabled, the changed DMX values are also sent to the Pico.
 
+Fan Out calculates from a stored base value for each fixture, control, and axis. **Snapshot** stores those base values. In **Symmetric spread**, the spread is added around the base values:
+
+```text
+final value = snapshotted base value + spread offset
+```
+
+For example, with five fixtures and a spread of `100`, the offsets are `-50`, `-25`, `0`, `+25`, and `+50`. If every fixture has a base value of `128`, the result is `78`, `103`, `128`, `153`, and `178`. If the fixtures have different base values, each fixture still keeps its own base as the starting point.
+
 Use **Save** in the Fan Out toolbox to store the fan setup itself: selected group or fixture IDs, selected control, mode, spread, and From/To offsets. Use **Recall** to restore that fan setup later. Recalling a Fan Out preset reapplies the fan to the controller values; it does not create a scene by itself. Use the Scene Toolbox when you want to store the resulting lighting look.
 
 ### Palette Toolbox
@@ -303,7 +311,7 @@ The Chaser page uses several toolboxes:
 - **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
 - The **Visual** button in **Chases** sets a background color and optional drawn/uploaded visual for chase slots. **Default background** restores the standard slot color, and **No icon** removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.
 - **Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
-- **Fan Out** shapes values across the selected group or, if no group is selected, across the fixtures that participate in the current step. Click **Apply** to write the fanned values into the selected step. If **Live preview** is enabled, the changed step values are also sent to the Pico.
+- **Fan Out** shapes values across the selected group or, if no group is selected, across the fixtures that participate in the current step. It uses the same base-plus-offset calculation as the Fixture Controller Fan Out toolbox. Click **Snapshot** to store the selected step values as the base, then **Apply** to write the fanned values into the selected step. If **Live preview** is enabled, the changed step values are also sent to the Pico.
 - **Browser Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
 
 Loading a chase from the **Chases** box updates the step list, participating controls, and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
