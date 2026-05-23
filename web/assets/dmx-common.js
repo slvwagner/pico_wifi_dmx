@@ -644,16 +644,38 @@
     const type=String(visual.type||'');
     const color=String(visual.color||'');
     const image=String(visual.image||'');
-    if(type==='color'&&/^#[0-9a-f]{6}$/i.test(color))return{type:'color',color};
-    if((type==='image'||type==='drawing')&&(/^data:image\//.test(image)||image===''))return{type:'image',image};
+    const hasColor=/^#[0-9a-f]{6}$/i.test(color);
+    const hasImage=/^data:image\//.test(image);
+    if(type==='color'&&hasColor)return{type:'visual',color,image:''};
+    if((type==='image'||type==='drawing')&&(hasImage||image===''))return{type:'visual',color:hasColor?color:'#225a50',image};
+    if((type==='visual'||type==='slot')&&(hasColor||hasImage))return{type:'visual',color:hasColor?color:'#225a50',image:hasImage?image:''};
     return null;
+  }
+
+  function contrastTextForColor(hex){
+    const value=String(hex||'').replace('#','');
+    if(!/^[0-9a-f]{6}$/i.test(value))return '#ffffff';
+    const r=parseInt(value.slice(0,2),16)/255;
+    const g=parseInt(value.slice(2,4),16)/255;
+    const b=parseInt(value.slice(4,6),16)/255;
+    const linear=v=>v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);
+    const luminance=0.2126*linear(r)+0.7152*linear(g)+0.0722*linear(b);
+    const contrastWhite=(1.05)/(luminance+0.05);
+    const contrastBlack=(luminance+0.05)/0.05;
+    return contrastBlack>=contrastWhite?'#06110e':'#ffffff';
+  }
+
+  function slotVisualStyle(item){
+    const visual=normalizeSlotVisual(item&&item.visual);
+    if(!visual||!visual.color)return '';
+    const text=contrastTextForColor(visual.color);
+    return `background:${visual.color};border-color:${visual.color};color:${text}`;
   }
 
   function slotVisualHtml(item){
     const visual=normalizeSlotVisual(item&&item.visual);
     if(!visual)return '';
-    if(visual.type==='color')return `<span class="palette-visual palette-visual--color" style="background:${visual.color}"></span>`;
-    if(visual.type==='image'&&visual.image){
+    if(visual.image){
       const image=String(visual.image).replace(/"/g,'&quot;');
       return `<span class="palette-visual" style="background-image:url(&quot;${image}&quot;)"></span>`;
     }
@@ -663,7 +685,6 @@
   function initSlotVisualEditor(options){
     const modal=document.getElementById(options.modalId);
     const targetSelect=document.getElementById(options.targetId);
-    const typeSelect=document.getElementById(options.typeId);
     const colorWrap=document.getElementById(options.colorWrapId);
     const imageWrap=document.getElementById(options.imageWrapId);
     const colorInput=document.getElementById(options.colorInputId);
@@ -672,7 +693,7 @@
     const clearBtn=document.getElementById(options.clearBtnId);
     const hint=document.getElementById(options.hintId);
     const saveBtn=document.getElementById(options.saveBtnId);
-    if(!modal||!targetSelect||!typeSelect||!colorWrap||!imageWrap||!colorInput||!canvas||!imageInput||!clearBtn||!hint||!saveBtn)return null;
+    if(!modal||!targetSelect||!colorWrap||!imageWrap||!colorInput||!canvas||!imageInput||!clearBtn||!hint||!saveBtn)return null;
     const ctx=canvas.getContext('2d');
     let drawing=false;
     let uploadedImage='';
@@ -718,12 +739,6 @@
       img.src=image;
     }
 
-    function setMode(type){
-      const isColor=type==='color';
-      colorWrap.style.display=isColor?'grid':'none';
-      imageWrap.style.display=isColor?'none':'grid';
-    }
-
     function selectedTarget(){
       const val=targetSelect.value;
       if(val==='__default')return null;
@@ -732,16 +747,16 @@
 
     function loadEditor(){
       const target=selectedTarget();
-      const visual=normalizeSlotVisual(target&&target.visual)||normalizeSlotVisual(config.defaultVisual)||{type:'image',image:''};
-      typeSelect.value=visual.type==='color'?'color':'image';
-      setMode(typeSelect.value);
-      if(visual.type==='color')colorInput.value=visual.color||'#ffffff';
-      else loadCanvas(visual.image||'');
+      const visual=normalizeSlotVisual(target&&target.visual)||normalizeSlotVisual(config.defaultVisual)||{type:'visual',color:'#225a50',image:''};
+      colorWrap.style.display='grid';
+      imageWrap.style.display='grid';
+      colorInput.value=visual.color||'#225a50';
+      loadCanvas(visual.image||'');
     }
 
     function visualFromEditor(){
-      if(typeSelect.value==='color')return{type:'color',color:colorInput.value||'#ffffff'};
-      return{type:'image',image:uploadedImage||canvas.toDataURL('image/png')};
+      const image=uploadedImage||canvas.toDataURL('image/png');
+      return{type:'visual',color:colorInput.value||'#225a50',image};
     }
 
     function open(nextConfig){
@@ -754,7 +769,7 @@
         optionsHtml.push(`<option value="${escapeHtml(key)}">${escapeHtml(target.label||('Slot '+(i+1)))}</option>`);
       });
       targetSelect.innerHTML=optionsHtml.join('');
-      hint.textContent=config.hint||'Choose a swatch or draw/upload a visual.';
+      hint.textContent=config.hint||'Choose a background color and optionally draw/upload a visual.';
       clearCanvas();
       loadEditor();
       modal.style.display='flex';
@@ -793,14 +808,13 @@
     };
     clearBtn.onclick=clearCanvas;
     targetSelect.onchange=loadEditor;
-    typeSelect.onchange=()=>setMode(typeSelect.value);
     saveBtn.onclick=save;
     (options.closeIds||[]).forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.onclick=close;
     });
     modal.addEventListener('click',e=>{if(e.target===modal)close();});
-    return {open,close,normalize:normalizeSlotVisual,html:slotVisualHtml};
+    return {open,close,normalize:normalizeSlotVisual,html:slotVisualHtml,style:slotVisualStyle};
   }
 
   window.DmxCommon={
@@ -820,6 +834,7 @@
     initFloatingToolbox,
     initGroupsToolbox,
     normalizeSlotVisual,
+    slotVisualStyle,
     slotVisualHtml,
     initSlotVisualEditor
   };

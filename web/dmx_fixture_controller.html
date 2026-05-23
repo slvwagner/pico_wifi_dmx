@@ -311,12 +311,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div class="modal-body">
 <label>Target<select id="paletteVisualTarget"></select></label>
-<label>Visual type<select id="paletteVisualType">
-<option value="color">Color swatch</option>
-<option value="image">Drawing / upload</option>
-</select></label>
 <div id="paletteColorVisualWrap">
-<label>Color swatch<input id="paletteVisualColor" type="color" value="#ffffff"></label>
+<label>Background color<input id="paletteVisualColor" type="color" value="#225a50"></label>
 </div>
 <div id="paletteBeamVisualWrap" class="wheel-editor">
 <div class="toolbar">
@@ -326,7 +322,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <canvas id="paletteVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
 <div class="buttons"><button id="paletteVisualClear" type="button">Clear drawing</button></div>
 </div>
-<div class="small">Draw a small mark or upload a visual. The image is saved inside the JSON.</div>
+<div class="small">Choose a background color, then draw or upload an optional visual on top. Both are saved inside the JSON.</div>
 </div>
 <div id="paletteVisualHint" class="small"></div>
 </div>
@@ -2297,8 +2293,8 @@ let scenes=[];
 let slotCols=4,slotRows=4;
 const SCENE_SLOT_GRID_MAX=32;
 let sceneVisualDefault=(()=>{
-  try{return normalizePaletteVisual(JSON.parse(localStorage.getItem('sceneVisualDefault')||'null'))||{type:'image',image:''};}
-  catch(_){return {type:'image',image:''};}
+  try{return normalizePaletteVisual(JSON.parse(localStorage.getItem('sceneVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  catch(_){return {type:'visual',color:'#225a50',image:''};}
 })();
 function saveSceneVisualDefault(){
   localStorage.setItem('sceneVisualDefault',JSON.stringify(sceneVisualDefault));
@@ -2311,6 +2307,9 @@ function normalizePaletteVisual(visual){
 }
 function paletteSlotVisualHtml(item){
   return DmxCommon.slotVisualHtml(item);
+}
+function slotVisualStyle(item){
+  return DmxCommon.slotVisualStyle(item);
 }
 function requiredSceneSlots(){
   return scenes.reduce((max,s)=>Math.max(max,(parseInt(s.slot,10)||0)+1),0);
@@ -2354,7 +2353,7 @@ function renderSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
     else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2654,14 +2653,14 @@ let paletteVisualDefaults=(()=>{
   try{
     const saved=JSON.parse(localStorage.getItem('paletteVisualDefaults')||'{}');
     return {
-      position:normalizePaletteVisual(saved.position)||{type:'image',image:''},
-      color:normalizePaletteVisual(saved.color)||{type:'color',color:'#ffffff'},
-      beam:normalizePaletteVisual(saved.beam)||{type:'image',image:''},
-      dimmer:normalizePaletteVisual(saved.dimmer)||{type:'color',color:'#ffffff'},
-      all:normalizePaletteVisual(saved.all)||{type:'image',image:''}
+      position:normalizePaletteVisual(saved.position)||{type:'visual',color:'#225a50',image:''},
+      color:normalizePaletteVisual(saved.color)||{type:'visual',color:'#225a50',image:''},
+      beam:normalizePaletteVisual(saved.beam)||{type:'visual',color:'#225a50',image:''},
+      dimmer:normalizePaletteVisual(saved.dimmer)||{type:'visual',color:'#225a50',image:''},
+      all:normalizePaletteVisual(saved.all)||{type:'visual',color:'#225a50',image:''}
     };
   }catch(_){
-    return {position:{type:'image',image:''},color:{type:'color',color:'#ffffff'},beam:{type:'image',image:''},dimmer:{type:'color',color:'#ffffff'},all:{type:'image',image:''}};
+    return {position:{type:'visual',color:'#225a50',image:''},color:{type:'visual',color:'#225a50',image:''},beam:{type:'visual',color:'#225a50',image:''},dimmer:{type:'visual',color:'#225a50',image:''},all:{type:'visual',color:'#225a50',image:''}};
   }
 })();
 function savePaletteVisualDefaults(){
@@ -2669,7 +2668,7 @@ function savePaletteVisualDefaults(){
 }
 function currentPaletteVisualForSave(){
   const scope=currentPaletteScope();
-  return cloneValue(paletteVisualDefaults[scope]||{type:'image',image:''});
+  return cloneValue(paletteVisualDefaults[scope]||{type:'visual',color:'#225a50',image:''});
 }
 function requiredPaletteSlots(){
   return palettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
@@ -2707,7 +2706,7 @@ function renderPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=palettes.find(pl=>pl.slot===i);
-    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette"><button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
+    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}"><button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
     else html+=`<div class="slot" data-palette-slot="${i}" title="Click to save palette here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2867,7 +2866,6 @@ function importPalettesJson(file){
 const slotVisualEditor=DmxCommon.initSlotVisualEditor({
   modalId:'paletteVisualModal',
   targetId:'paletteVisualTarget',
-  typeId:'paletteVisualType',
   colorWrapId:'paletteColorVisualWrap',
   imageWrapId:'paletteBeamVisualWrap',
   colorInputId:'paletteVisualColor',
@@ -2882,7 +2880,7 @@ function openPaletteVisualModal(){
   const scope=currentPaletteScope();
   slotVisualEditor.open({
     targetLabel:paletteScopeLabel(scope)+' palettes',
-    hint:'Choose a swatch or draw/upload a visual. This is only a label; the Scope still decides which DMX values are saved.',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label; the Scope still decides which DMX values are saved.',
     defaultVisual:paletteVisualDefaults[scope],
     targets:palettes
       .slice()
@@ -2904,7 +2902,7 @@ function openPaletteVisualModal(){
 function openSceneVisualModal(){
   slotVisualEditor.open({
     targetLabel:'Scenes',
-    hint:'Choose a swatch or draw/upload a visual. This is only a label for the scene slot; scene recall still uses the stored DMX values.',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the scene slot; scene recall still uses the stored DMX values.',
     defaultVisual:sceneVisualDefault,
     targets:scenes
       .slice()
