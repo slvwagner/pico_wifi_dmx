@@ -1317,6 +1317,7 @@ function drawStepList(){
 }
 
 async function selectStepForEdit(idx){
+  stopPlaybackForManualEdit();
   const result=loadStepIntoEditor(idx);
   setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
 }
@@ -1404,6 +1405,7 @@ function drawStepEditor(){
 }
 
 function handleXY(e,pad){
+  stopPlaybackForManualEdit();
   const fi=parseInt(pad.dataset.xyf),ci=parseInt(pad.dataset.xyc);
   const f=setup.fixtures?.find(x=>x.id===fi);
   const p=f&&fixtureProfile(f);const c=p?.controls.find(x=>x.id===ci);
@@ -1417,6 +1419,7 @@ function handleXY(e,pad){
 }
 
 function handleStepInput(e){
+  stopPlaybackForManualEdit();
   const fi=parseInt(e.target.dataset.fi),ci=parseInt(e.target.dataset.ci);
   if(isNaN(fi)||isNaN(ci))return;
   const f=setup.fixtures?.find(x=>x.id===fi);
@@ -1453,6 +1456,7 @@ function handleStepInput(e){
 }
 
 function handleStepClick(e){
+  stopPlaybackForManualEdit();
   const fi=parseInt(e.target.dataset.fi),ci=parseInt(e.target.dataset.ci);
   if(isNaN(fi)||isNaN(ci))return;
   const f=setup.fixtures?.find(x=>x.id===fi);
@@ -1721,6 +1725,9 @@ function stopPlayback(){
   document.getElementById('playbackInfo').textContent='Stopped';
   setStatus('Stopped');
   drawStepList();
+}
+function stopPlaybackForManualEdit(){
+  if(playing||activeStepIdx>=0)stopPlayback();
 }
 
 function playbackTick(){

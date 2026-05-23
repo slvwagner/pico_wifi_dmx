@@ -369,6 +369,7 @@ The Chaser page uses several toolboxes:
 
 - **Chase Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
 - While Chase Playback runs, the currently playing step automatically becomes the selected step. This means **Edit Step** follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.
+- Selecting a step in **Chase Steps** or manually changing controls in **Edit Step** stops browser Chase Playback. This prevents playback from immediately overwriting the values you are trying to edit.
 
 ![Chaser Chase Playback toolbox](screenshots/chaser-toolbox-browser-playback.png)
 

@@ -398,6 +398,7 @@ strong { color: #ffffff; }
 <ul>
 <li><strong>Chase Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico. The <strong>Fade % (all steps)</strong> field applies one fade value to every step immediately. Use <strong>Edit Step &gt; Fade %</strong> when one step needs its own fade value.</li>
 <li>While Chase Playback runs, the currently playing step automatically becomes the selected step. This means <strong>Edit Step</strong> follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.</li>
+<li>Selecting a step in <strong>Chase Steps</strong> or manually changing controls in <strong>Edit Step</strong> stops browser Chase Playback. This prevents playback from immediately overwriting the values you are trying to edit.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-browser-playback.png" alt="Chaser Chase Playback toolbox"></p>
 <p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
