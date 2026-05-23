@@ -193,8 +193,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         </select>
       </label>
       <button id="btnTap">Tap tempo</button>
-      <label>Default fade %<input id="globalFade" type="number" min="0" max="100" value="0"></label>
-      <button id="btnApplyFade" title="Apply default fade % to all steps">↓ All steps</button>
+      <label>Fade % (all steps)<input id="globalFade" type="number" min="0" max="100" value="0"></label>
+      <button id="btnApplyFade" title="Reapply fade % to all steps">Apply</button>
       <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
     </div>
     <div class="row" style="align-items:center">
@@ -1389,7 +1389,8 @@ function playbackTick(){
   const now=performance.now();
   const step=steps[activeStepIdx];if(!step){stopPlayback();return;}
   const durMs=Math.max(1,step.duration??500);
-  const fadeMs=Math.round((clamp(step.fade??0,0,100)/100)*durMs);
+  const fadePct=clamp(parseInt(step.fade??0,10)||0,0,100);
+  const fadeMs=Math.round((fadePct/100)*durMs);
   const elapsed=now-stepEnteredAt;
   const t=fadeMs>0?Math.min(1,elapsed/fadeMs):1;
   const ptList=getParticipatingList();
@@ -2116,12 +2117,22 @@ function scheduleBrowserPlaybackAutosave(){
 function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();scheduleBrowserPlaybackAutosave();}
 document.getElementById('bpmInput').oninput=applyBpmToSteps;
 document.getElementById('beatsPerStep').onchange=applyBpmToSteps;
-['loopCheck','livePreview','globalFade','updateRate'].forEach(id=>{
+['loopCheck','livePreview','updateRate'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('input',scheduleBrowserPlaybackAutosave);
   if(el)el.addEventListener('change',scheduleBrowserPlaybackAutosave);
 });
-document.getElementById('btnApplyFade').onclick=()=>{const f=clamp(document.getElementById('globalFade').value,0,100);steps.forEach(s=>s.fade=f);drawStepList();scheduleBrowserPlaybackAutosave();setStatus('Fade '+f+'% applied to all steps');};
+function applyGlobalFadeToSteps(showStatus=false){
+  const f=clamp(document.getElementById('globalFade').value,0,100);
+  steps.forEach(s=>s.fade=f);
+  if(selectedStepIdx>=0&&steps[selectedStepIdx])document.getElementById('edFade').value=steps[selectedStepIdx].fade;
+  drawStepList();
+  scheduleBrowserPlaybackAutosave();
+  if(showStatus)setStatus(steps.length?'Fade '+f+'% applied to all steps':'No steps to update');
+}
+document.getElementById('globalFade').addEventListener('input',()=>applyGlobalFadeToSteps(false));
+document.getElementById('globalFade').addEventListener('change',()=>applyGlobalFadeToSteps(true));
+document.getElementById('btnApplyFade').onclick=()=>applyGlobalFadeToSteps(true);
 document.getElementById('btnPrev').onclick=()=>manualStep(-1);
 document.getElementById('btnNext').onclick=()=>manualStep(1);
 document.getElementById('btnAddStep').onclick=()=>addStep();
