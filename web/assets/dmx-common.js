@@ -66,6 +66,7 @@
 
   const TOOLBOX_ORDER_KEY='toolboxRailOrder';
   const TOOLBOX_WIDTH_KEY='toolboxRailWidth';
+  const TOOLBOX_COLLAPSED_KEY='toolboxRailCollapsed';
   const GROUP_SELECTION_KEY='selectedGroupIds';
   const DEFAULT_TOOLBOX_ORDER=['groups','scenes','chases','steps','browserPlayback'];
 
@@ -154,6 +155,44 @@
     }
   }
 
+  function setToolboxRailCollapsed(rail,collapsed,{save=false}={}){
+    if(!rail)return;
+    const next=!!collapsed;
+    rail.classList.toggle('collapsed',next);
+    document.body.classList.toggle('toolbox-rail-collapsed',next);
+    const toggle=rail.querySelector('.toolbox-rail-toggle');
+    if(toggle){
+      toggle.textContent=next?'‹':'›';
+      toggle.title=next?'Show toolboxes':'Hide toolboxes';
+      toggle.setAttribute('aria-expanded',next?'false':'true');
+    }
+    if(save){
+      localStorage.setItem(TOOLBOX_COLLAPSED_KEY,next?'1':'0');
+      saveUiState('toolboxes',TOOLBOX_COLLAPSED_KEY,next);
+    }
+  }
+
+  async function applySharedToolboxRailCollapsed(rail){
+    let collapsed=localStorage.getItem(TOOLBOX_COLLAPSED_KEY)==='1';
+    const shared=await loadUiState('toolboxes');
+    if(shared[TOOLBOX_COLLAPSED_KEY]!==undefined){
+      collapsed=!!shared[TOOLBOX_COLLAPSED_KEY];
+      localStorage.setItem(TOOLBOX_COLLAPSED_KEY,collapsed?'1':'0');
+    }
+    setToolboxRailCollapsed(rail,collapsed);
+  }
+
+  function initToolboxRailHeader(rail){
+    if(!rail||rail.querySelector('.toolbox-rail-header'))return;
+    const header=document.createElement('div');
+    header.className='toolbox-rail-header';
+    header.innerHTML='<span class="toolbox-rail-title">Toolboxes</span><button class="toolbox-rail-toggle" type="button" title="Hide toolboxes" aria-expanded="true">›</button>';
+    rail.prepend(header);
+    header.querySelector('.toolbox-rail-toggle').addEventListener('click',()=>{
+      setToolboxRailCollapsed(rail,!rail.classList.contains('collapsed'),{save:true});
+    });
+  }
+
   function initToolboxRailResize(rail){
     if(!rail||rail.querySelector('.toolbox-rail-resizer'))return;
     const handle=document.createElement('div');
@@ -204,8 +243,10 @@
 
   function initToolboxRail(rail,entries){
     if(!rail)return;
+    initToolboxRailHeader(rail);
     initToolboxRailResize(rail);
     applySharedToolboxRailWidth().catch(()=>{});
+    applySharedToolboxRailCollapsed(rail).catch(()=>{});
     (entries||[]).forEach(entry=>{
       const box=typeof entry.box==='string'?document.getElementById(entry.box):entry.box;
       if(!box)return;
