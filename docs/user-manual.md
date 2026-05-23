@@ -283,7 +283,7 @@ Use **Default all** or **Blackout all** to recall the stored default or blackout
 
 The Chaser page creates step-based sequences. The main page stays focused on **Participating Controls** and **Edit Step**, while the repeated working tools sit in the **Toolboxes** sidebar.
 
-The Chaser screenshot is captured with the important boxes visible on purpose: **Groups**, **Chases**, **Steps**, and **Browser Playback**. Toolbox headers can be dragged up or down to reorder them in the sidebar. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.
+The Chaser screenshot is captured with the important boxes visible on purpose: **Groups**, **Chases**, **Chase Steps**, and **Chase Playback**. Toolbox headers can be dragged up or down to reorder them in the sidebar. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.
 
 ### Basic Workflow
 
@@ -292,7 +292,7 @@ The Chaser screenshot is captured with the important boxes visible on purpose: *
 3. Create steps with **Add step**, **Capture + Add**, or **Capture from FC**.
 4. Set step duration and fade in **Edit Step**.
 5. Store the chase in the **Chases** toolbox if you want quick recall.
-6. Test timing in **Browser Playback**.
+6. Test timing in **Chase Playback**.
 7. Click an empty Pico slot to upload the current chase to that slot.
 8. Play the slot from the Pico.
 
@@ -318,30 +318,31 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
-- **Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
+- **Chase Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
 
-![Chaser Steps toolbox](screenshots/chaser-toolbox-steps.png)
+![Chaser Chase Steps toolbox](screenshots/chaser-toolbox-steps.png)
 
 - **Fan Out** is a live step-shaping tool. It works on the currently selected step and writes directly into **Edit Step** as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.
 - **Fan Out control selection** is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step's participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.
 - **Invert** reverses the fixture order for the Fan Out calculation. Use it when the spread shape is right but should run from the opposite side of the fixture row.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
-- Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** sends the changed selected-step values to the Pico immediately. Browser playback sends the current chase continuously while it runs.
+- Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** sends the changed selected-step values to the Pico immediately. Chase Playback sends the current chase continuously while it runs.
 
 ![Chaser Fan Out toolbox](screenshots/chaser-toolbox-fanout.png)
 
-- **Browser Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
+- **Chase Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
+- While Chase Playback runs, the currently playing step automatically becomes the selected step. This means **Edit Step** follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.
 
-![Chaser Browser Playback toolbox](screenshots/chaser-toolbox-browser-playback.png)
+![Chaser Chase Playback toolbox](screenshots/chaser-toolbox-browser-playback.png)
 
 On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
-The collapse state, toolbox order, shared sidebar width, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.
+The collapse state, toolbox order, shared sidebar width, and the Chase Steps box size are stored by the server UI-state file, so the working layout survives reloads.
 
-### Steps Toolbox Buttons
+### Chase Steps Toolbox Buttons
 
-The **Steps** toolbox uses shared action buttons instead of per-step buttons. Click a step card to select the step first; the selected step is highlighted and loaded into **Edit Step**.
+The **Chase Steps** toolbox uses shared action buttons instead of per-step buttons. Click a step card to select the step first; the selected step is highlighted and loaded into **Edit Step**.
 
 - **Add step** creates a new selected step from the stored default values of the currently participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback.
 - **Capture + Add** creates a new selected step only when Fixture Controller live values exist for at least one currently participating control. If no matching live values are available, no empty step is created.
@@ -368,6 +369,17 @@ The fixtures may use different profiles; the modal only shows matching controls 
 
 The Chaser page has two different selection modes: defining a new participating-control set, and editing or recalling an existing step. They intentionally behave differently.
 
+Keep these rules as the contract for the Chaser page:
+
+- **Participating Controls** define the fixture/control scope for new steps and for Group Edit.
+- **Edit Step** shows the currently selected step, not a separate preview copy.
+- If a saved chase is recalled, Step 1 is selected immediately and becomes the visible **Edit Step**.
+- If **Chase Playback** is running, playback overrules manual step rendering: every played step automatically becomes the selected step and redraws **Participating Controls** plus **Edit Step**.
+- When playback stops or pauses, the last played step remains selected.
+- Manual previous/next playback also selects the stepped-to chase step and redraws **Edit Step**.
+- Group filters are only temporary scope builders. Direct Participating Controls changes clear the group filter.
+- **Group Edit** does not require a selected step. If no step is selected, the first Group Edit value change creates a new step from the current participating controls. If a step is selected, Group Edit edits that step.
+
 When you define participating controls manually:
 
 - If no group is selected, the Participating Controls panel shows all patched fixtures.
@@ -379,7 +391,7 @@ When you define participating controls manually:
 - The control dropdown plus **Add** adds one matching control type from the current scope without clearing existing participating controls, then clears the group selection.
 - Ticking or unticking an individual participating-control checkbox also clears the group selection.
 
-When you click a step in the **Steps** toolbox:
+When you click a step in the **Chase Steps** toolbox:
 
 - The step values are checked against the current fixture setup.
 - Invalid fixture/control references are removed from the edited step.
@@ -391,7 +403,7 @@ When you click a step in the **Steps** toolbox:
 When you click a saved chase in the **Chases** toolbox:
 
 - The selected Groups filter is cleared first.
-- The saved steps, playback settings, and browser playback settings are loaded.
+- The saved steps, playback settings, and Chase Playback settings are loaded.
 - The first step becomes the edited step.
 - Participating Controls and Edit Step are rebuilt from that loaded step.
 - If the saved chase was made before fixtures were repatched, the page tries to remap old fixture IDs to the current setup by matching the same fixture profile in DMX start-address order.
@@ -408,8 +420,8 @@ To create a step manually:
 ![Chaser Edit Step](screenshots/chaser-edit-step.png)
 
 1. Select the controls that should participate in **Participating Controls**.
-2. In the **Steps** toolbox, click **Add step**.
-3. Click the new step in the **Steps** list.
+2. In the **Chase Steps** toolbox, click **Add step**.
+3. Click the new step in the **Chase Steps** list.
 4. In **Edit Step**, set **Label**, **Duration (ms)**, and **Fade %**.
 5. Adjust the controls shown in **Edit Step**. Those control values are written into the selected step and sent to the Pico immediately.
 6. Click **Apply** after changing the label, duration, or fade.
@@ -424,13 +436,13 @@ To capture a new step from the Fixture Controller:
 2. Build the look there by moving controls, recalling a scene, or recalling a palette.
 3. Return to **Chaser**.
 4. Make sure **Participating Controls** contains the controls you want to capture.
-5. In the **Steps** toolbox, click **Capture + Add**.
+5. In the **Chase Steps** toolbox, click **Capture + Add**.
 
 **Capture + Add** creates a new step and copies the current Fixture Controller live values for the selected participating controls.
 
 To capture into an existing step:
 
-1. Click the step in the **Steps** list.
+1. Click the step in the **Chase Steps** list.
 2. Build the wanted look in **Fixture Controller**.
 3. Return to **Chaser**.
 4. In **Edit Step**, click **Capture from FC**.

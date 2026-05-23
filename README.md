@@ -42,13 +42,13 @@ Cross-core data access is protected by `critical_section_t` hardware spinlocks. 
 
 ## Playback Modes
 
-### Browser Playback
+### Chase Playback
 The browser pages connect directly to the Pico's HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request (`/dmx/b/`). Two browser tabs can run simultaneously (e.g. chaser on dimmer channels + motion FX on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it doesn't own.
 
 ### Pico Autonomous Playback
 The chaser and motion FX configurations are uploaded to the Pico via HTTP POST. After that the Pico plays back entirely on Core 0 — no further network traffic is needed. This eliminates WiFi latency jitter from the DMX output completely.
 
-Starting browser playback automatically stops any running Pico playback, and vice versa (mutual exclusion).
+Starting Chase Playback automatically stops any running Pico playback, and vice versa (mutual exclusion).
 
 ---
 
@@ -104,7 +104,7 @@ END
 
 `MODE` supports `single`, `loop`, and `loop_n`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
 
-Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforces the same limit so browser playback and Pico playback use the same chase shape.
+Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforces the same limit so Chase Playback and Pico playback use the same chase shape.
 
 ### Pico motion FX
 
@@ -229,7 +229,7 @@ The Benchmark page measures how fast the Pico HTTP API can accept DMX updates. I
 
 This page is mainly for checking whether a change in firmware, WiFi, API format, or browser behavior affects real-time control performance. The CSV export makes it possible to compare test runs later.
 
-Both playback pages show a **Browser Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
+Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough.
 

@@ -137,9 +137,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 
   <div id="stepsBox" class="scene-toolbox">
     <div id="stepsBoxHdr" class="scene-toolbox__header">
-      <span style="font-weight:700;font-size:13px">Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
+      <span style="font-weight:700;font-size:13px">Chase Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="stepsBox" title="Toggle compact layout for Steps and Browser Playback">Compact</button>
+        <button class="chaser-collapse-all" data-anchor-box="stepsBox" title="Toggle compact layout for Chase Steps and Chase Playback">Compact</button>
         <button id="stepsBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -161,9 +161,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 
   <section id="browserPlaybackBox" class="scene-toolbox">
     <div id="browserPlaybackBoxHdr" class="scene-toolbox__header">
-      <span style="font-weight:700;font-size:13px">Browser Playback</span>
+      <span style="font-weight:700;font-size:13px">Chase Playback</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="browserPlaybackBox" title="Toggle compact layout for Steps and Browser Playback">Compact</button>
+        <button class="chaser-collapse-all" data-anchor-box="browserPlaybackBox" title="Toggle compact layout for Chase Steps and Chase Playback">Compact</button>
         <button id="browserPlaybackBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -1300,6 +1300,11 @@ function drawStepList(){
 }
 
 async function selectStepForEdit(idx){
+  const result=loadStepIntoEditor(idx);
+  setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
+}
+function loadStepIntoEditor(idx,options={}){
+  if(idx<0||idx>=steps.length)return{active:0,removed:0};
   selectedStepIdx=idx;
   const result=applyStepParticipating(steps[idx]);
   sourceFixtureId=firstStepFixtureId(steps[idx]);
@@ -1308,7 +1313,10 @@ async function selectStepForEdit(idx){
   drawStepEditor();
   refreshChaserGroupActions();
   refreshFanBasesFromStep();
-  setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
+  if(options.scroll){
+    document.querySelector(`#stepList [data-step-index="${idx}"]`)?.scrollIntoView({block:'nearest'});
+  }
+  return result;
 }
 
 // ---- step editor ----
@@ -1659,7 +1667,7 @@ function startPlayback(){
   const hz=clamp(document.getElementById('updateRate').value,5,50);
   playIntervalId=setInterval(playbackTick,1000/hz);
   setStatus('Playing…');
-  drawStepList();
+  loadStepIntoEditor(activeStepIdx,{scroll:true});
 }
 function pausePlayback(){
   playing=false;clearInterval(playIntervalId);
@@ -1723,13 +1731,13 @@ function advanceStep(){
   }
   activeStepIdx=next;
   stepEnteredAt=performance.now();
-  drawStepList();
+  loadStepIntoEditor(activeStepIdx,{scroll:true});
 }
 
 function manualStep(dir){
   if(!steps.length)return;
-  const ptList=getParticipatingList();
-  ptList.forEach(({f,c})=>{const k=controlKey(f,c);prevOutput[k]=currentOutput[k]??steps[Math.max(0,activeStepIdx)]?.values[k]??defaultValue(c);});
+  const previousIdx=activeStepIdx;
+  getParticipatingList().forEach(({f,c})=>{const k=controlKey(f,c);prevOutput[k]=currentOutput[k]??steps[Math.max(0,previousIdx)]?.values[k]??defaultValue(c);});
   if(activeStepIdx<0){
     activeStepIdx=dir>0?0:steps.length-1;
   }else{
@@ -1739,15 +1747,16 @@ function manualStep(dir){
     activeStepIdx=next;
   }
   stepEnteredAt=performance.now();
+  loadStepIntoEditor(activeStepIdx,{scroll:true});
   if(!playing){
     const step=steps[activeStepIdx];
     const batchMap={};
+    const ptList=getParticipatingList();
     ptList.forEach(({f,c})=>collectChannels(f,c,step.values[controlKey(f,c)]??defaultValue(c),batchMap));
     sendBatch(batchMap);
     setStatus('Step '+(activeStepIdx+1)+': '+step.label);
     document.getElementById('btnStop').disabled=false;
   }
-  drawStepList();
 }
 
 // ---- tap tempo ----
