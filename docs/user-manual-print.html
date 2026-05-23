@@ -333,7 +333,7 @@ strong { color: #ffffff; }
 <li>Set step duration and fade in <strong>Edit Step</strong>.</li>
 <li>Store the chase in the <strong>Chases</strong> toolbox if you want quick recall.</li>
 <li>Test timing in <strong>Browser Playback</strong>.</li>
-<li>Upload the preset to a Pico slot.</li>
+<li>Upload the current chase to a Pico slot.</li>
 <li>Play the slot from the Pico.</li>
 </ol>
 <h3 id="toolbox-sidebar">Toolbox Sidebar</h3>
@@ -355,13 +355,13 @@ strong { color: #ffffff; }
 <li><strong>Fan Out</strong> shapes values across the selected group or, if no group is selected, across the fixtures that participate in the current step. It uses the same base-plus-offset calculation as the Fixture Controller Fan Out toolbox. Click <strong>Snapshot</strong> to store the selected step values as the base, then <strong>Apply</strong> to write the fanned values into the selected step. If <strong>Live preview</strong> is enabled, the changed step values are also sent to the Pico.</li>
 <li><strong>Browser Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico. The <strong>Fade % (all steps)</strong> field applies one fade value to every step immediately. Use <strong>Edit Step &gt; Fade %</strong> when one step needs its own fade value.</li>
 </ul>
-<p>Loading a chase from the <strong>Chases</strong> box updates the step list, participating controls, and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
+<p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
 <p>The collapse state, toolbox order, shared sidebar width, and the Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
 <h3 id="participating-controls">Participating Controls</h3>
 <p>Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.</p>
 <p>For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.</p>
 <p>If no group is selected, all patched fixtures are available. If one or more groups are selected in the Groups toolbox, only fixtures from those groups are shown. The <strong>All</strong>, <strong>None</strong>, <strong>Only</strong>, and <strong>Add</strong> tools let you quickly build a participating-control set for the selected group.</p>
-<p>When a group is selected, <strong>Group Edit</strong> edits the current participating-control scope. It does not require every profile control to be active. For example, if only Dimmer is selected as a participating control, Group Edit opens with Dimmer only and applies it to matching fixtures in the selected group.</p>
+<p><strong>Group Edit</strong> edits the current participating-control scope. If one or more groups are selected, it applies only to matching fixtures in those groups. If no group is selected, it uses the fixtures that participate in the selected step. It does not require every profile control to be active. For example, if only Dimmer is selected as a participating control, Group Edit opens with Dimmer only and applies it to matching fixtures in the current edit scope.</p>
 <h3 id="chaser-selection-rules">Chaser Selection Rules</h3>
 <p>The Chaser page has two different selection modes: defining a new participating-control set, and editing or recalling an existing step. They intentionally behave differently.</p>
 <p>When you define participating controls manually:</p>
@@ -375,11 +375,11 @@ strong { color: #ffffff; }
 </ul>
 <p>When you click a step in the <strong>Steps</strong> toolbox:</p>
 <ul>
-<li>The selected Groups filter is cleared first.</li>
 <li>The step values are checked against the current fixture setup.</li>
 <li>Invalid fixture/control references are removed from the edited step.</li>
 <li>The Participating Controls panel is rebuilt from the chase values.</li>
-<li>Only fixtures and controls that are actually stored in the selected step are shown.</li>
+<li>If no group is selected, only fixtures and controls that are actually stored in the selected step are shown, and <strong>Group Edit</strong> becomes available when at least one participating control can be edited on two or more involved fixtures.</li>
+<li>If a group is selected, the selected step is filtered to that group and <strong>Group Edit</strong> uses the grouped fixtures as its edit scope.</li>
 <li>The Edit Step card shows the same scoped fixture/control set, so editing Step 2 cannot accidentally show or edit unrelated controls from another group or old filter.</li>
 </ul>
 <p>When you click a saved chase in the <strong>Chases</strong> toolbox:</p>
@@ -391,7 +391,7 @@ strong { color: #ffffff; }
 <li>If the saved chase was made before fixtures were repatched, the page tries to remap old fixture IDs to the current setup by matching the same fixture profile in DMX start-address order.</li>
 <li>If no valid step values can be found, the page falls back to the saved participating-control map stored with the chase.</li>
 </ul>
-<p>This means group selection is a tool for building or filtering a new participating-control set. Once you edit a saved step or recall a saved chase, the step data itself becomes the source of truth.</p>
+<p>This means group selection is a tool for building, filtering, and group-editing a step. Loading a saved chase clears the group filter because the recalled chase data becomes the source of truth. After recall, <strong>Group Edit</strong> can still become available without a selected group because it uses the fixtures participating in the selected step.</p>
 <h3 id="create-chase-steps">Create Chase Steps</h3>
 <p>A chase step stores values for the selected <strong>Participating Controls</strong>. It does not store every patched fixture automatically.</p>
 <p>To create a step manually:</p>
@@ -404,6 +404,7 @@ strong { color: #ffffff; }
 <li>Click <strong>Apply</strong> after changing the label, duration, or fade.</li>
 </ol>
 <p><strong>Add step</strong> starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.</p>
+<p>After <strong>Add step</strong> or <strong>Capture + Add</strong>, the first fixture in the new step is automatically marked as the <strong>Source</strong> fixture in <strong>Edit Step</strong>. Click another fixture card in <strong>Edit Step</strong> to make it the Source fixture. Group Edit uses the Source fixture&#39;s current step values as its starting values before writing changes to the matching participating fixtures.</p>
 <p>To capture a new step from the Fixture Controller:</p>
 <ol>
 <li>Open <strong>Fixture Controller</strong> in another browser tab or window.</li>
@@ -587,7 +588,7 @@ strong { color: #ffffff; }
 <li>For ADC, use only GPIO26, GPIO27, or GPIO28.</li>
 </ul>
 <h3 id="a-chaser-has-more-than-32-steps">A chaser has more than 32 steps</h3>
-<p>The firmware supports 32 steps per chaser slot. Keep the UI preset within this limit before uploading to the Pico.</p>
+<p>The firmware supports 32 steps per chaser slot. Keep the chase within this limit before uploading to the Pico.</p>
 </main>
 </body>
 </html>

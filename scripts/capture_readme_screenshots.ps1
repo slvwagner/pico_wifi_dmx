@@ -48,7 +48,7 @@ try {
     if (-not $wsUrl) { $wsUrl = $tabs[0].webSocketDebuggerUrl }
 
     $socket = [System.Net.WebSockets.ClientWebSocket]::new()
-    $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+    $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult() | Out-Null
     $script:cdpId = 0
 
     function Send-Cdp {
@@ -77,11 +77,19 @@ try {
 
     function Eval-Js {
         param([string]$Expression)
-        Send-Cdp "Runtime.evaluate" @{
+        $evalResult = Send-Cdp "Runtime.evaluate" @{
             expression = $Expression
             awaitPromise = $true
             returnByValue = $true
-        } | Out-Null
+        }
+        if ($evalResult.exceptionDetails) {
+            $message = $evalResult.exceptionDetails.text
+            if ($evalResult.exceptionDetails.exception.description) {
+                $message = $evalResult.exceptionDetails.exception.description
+            }
+            throw "JavaScript evaluation failed: $message"
+        }
+        return $null
     }
 
     function Save-Screenshot {
@@ -291,9 +299,46 @@ try {
     Send-Cdp "Page.navigate" @{ url = $chaserUrl } | Out-Null
     Start-Sleep -Seconds 2
 
+    if ($socket) { $socket.Dispose() }
+    $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing
+    $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_chaser.html*" } | Select-Object -First 1).webSocketDebuggerUrl
+    if (-not $wsUrl) { throw "Could not find Chaser tab after navigation." }
+    $socket = [System.Net.WebSockets.ClientWebSocket]::new()
+    $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult() | Out-Null
+    $script:cdpId = 0
+    Send-Cdp "Page.enable" | Out-Null
+    Send-Cdp "Runtime.enable" | Out-Null
+
+    for ($i = 0; $i -lt 40; $i++) {
+        $navState = Send-Cdp "Runtime.evaluate" @{
+            expression = "document.readyState === 'complete'"
+            returnByValue = $true
+        }
+        if ($navState.result.result.value) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    Start-Sleep -Milliseconds 500
+
     Eval-Js @"
 (async()=>{
   const wait=(ms=500)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<30;i++){
+    if(typeof setup==='object'&&Array.isArray(setup.fixtures)&&setup.fixtures.length)break;
+    await wait(250);
+  }
+  if(!(typeof setup==='object'&&Array.isArray(setup.fixtures)&&setup.fixtures.length)){
+    try{
+      const fixtureData=await fetch('fixture_setup.php',{cache:'no-store'}).then(r=>r.json());
+      if(fixtureData?.ok&&fixtureData?.setup){
+        setup=fixtureData.setup;
+        if(typeof rebuildParticipation==='function')rebuildParticipation();
+      }
+    }catch(_){}
+  }
+  for(let i=0;i<20;i++){
+    if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox&&Array.isArray(chaserGroupsBox.groups))break;
+    await wait(250);
+  }
   const rail=document.querySelector('.toolbox-rail');
   const railToggle=rail?.querySelector('.toolbox-rail-toggle');
   if(rail&&rail.classList.contains('collapsed')&&railToggle)railToggle.click();
@@ -323,6 +368,8 @@ try {
   }
 
   localStorage.removeItem('chaserCompactState');
+  if(window.DmxCommon&&typeof DmxCommon.saveSharedGroupSelection==='function')DmxCommon.saveSharedGroupSelection([]);
+  if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
   expandPanel('participationPanel');
   expandPanel('stepEditorSection');
   ['stepsBox','browserPlaybackBox','chaseBox'].forEach(openToolbox);
@@ -330,18 +377,85 @@ try {
   const groupsToggle=document.getElementById('chaserGroupsToggle');
   if(groups){
     groups.style.display='';
-    if(!groups.classList.contains('collapsed')&&groupsToggle)groupsToggle.click();
+    if(groups.classList.contains('collapsed')&&groupsToggle)groupsToggle.click();
     position('chaserGroupsBox',760,20,380);
   }
   position('stepsBox',20,110,380,520);
   position('browserPlaybackBox',625,600,430);
   position('chaseBox',1165,265,255);
+  if(typeof setup==='object'&&Array.isArray(setup.fixtures)&&typeof fixtureProfile==='function'&&typeof controlKey==='function'){
+    if(window.DmxCommon&&typeof DmxCommon.saveSharedGroupSelection==='function')DmxCommon.saveSharedGroupSelection([]);
+    if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+    const stepValues={};
+    const part={};
+    const fixtures=setup.fixtures.slice(0,6);
+    fixtures.forEach((f,idx)=>{
+      const profile=fixtureProfile(f);
+      const control=(profile?.controls||[]).find(c=>/dimmer/i.test(c.label||''))||(profile?.controls||[])[0];
+      if(!control)return;
+      const key=controlKey(f,control);
+      part[key]=true;
+      stepValues[key]=idx%2?190:80;
+    });
+    if(Object.keys(stepValues).length<2){
+      const inputs=[...document.querySelectorAll('#participationList input[data-key]')];
+      const dimmers=inputs.filter(input=>/dimmer/i.test(input.closest('label')?.textContent||''));
+      (dimmers.length?dimmers:inputs).slice(0,6).forEach((input,idx)=>{
+        const key=input.dataset.key;
+        if(!key)return;
+        part[key]=true;
+        stepValues[key]=idx%2?190:80;
+      });
+    }
+    if(Object.keys(stepValues).length>=2){
+      const docChase={
+        baseUrl:document.getElementById('baseUrl')?.value||'',
+        playback:{slot:0,speed:1,mode:'loop',loops:2,direction:'forward'},
+        browserPlayback:{loop:true,live:false,bpm:120,beats:1,defaultFade:0,updateRate:25},
+        participating:part,
+        steps:[
+          {id:9001,label:'Step 1',duration:500,fade:0,values:stepValues},
+          {id:9002,label:'Step 2',duration:500,fade:40,values:Object.fromEntries(Object.entries(stepValues).map(([k,v])=>[k,255-v]))}
+        ]
+      };
+      if(typeof savedChases!=='undefined'){
+        savedChases=[{id:'doc_chase_1',name:'Doc Chase',slot:0,data:docChase,visual:{type:'visual',color:'#7f2ac8',image:''}}];
+        if(typeof chaseSlotCols!=='undefined')chaseSlotCols=4;
+        if(typeof chaseSlotRows!=='undefined')chaseSlotRows=4;
+        if(typeof renderChaseSlotMatrix==='function')renderChaseSlotMatrix();
+      }
+      if(typeof applyChaserData==='function')applyChaserData(docChase,true);
+      if(typeof selectStepForEdit==='function')await selectStepForEdit(0);
+      try{
+        steps=docChase.steps.map(s=>({...s,values:{...s.values}}));
+        selectedStepIdx=0;
+        participating={...part};
+        activeStepValueKeys=new Set(Object.keys(stepValues));
+        sourceFixtureId=Object.keys(stepValues)[0].split(':')[0];
+      }catch(_){}
+    }
+  }
   if(typeof drawStepList==='function')drawStepList();
   if(typeof drawParticipation==='function')drawParticipation();
   if(typeof drawStepEditor==='function')drawStepEditor();
+  if(typeof refreshChaserGroupActions==='function')refreshChaserGroupActions();
+  window.__docChaserState={
+    steps:document.querySelectorAll('#stepList [data-step-index]').length,
+    stepCount:document.getElementById('stepCount')?.textContent||'',
+    editEnabled:!(document.getElementById('chaserGroupsEdit')?.disabled??true),
+    status:document.getElementById('status')?.textContent||''
+  };
   await wait(800);
 })()
 "@
+    $chaserState = Send-Cdp "Runtime.evaluate" @{
+        expression = "window.__docChaserState || null"
+        returnByValue = $true
+    }
+    if ($chaserState.result.result.value) {
+        $state = $chaserState.result.result.value
+        Write-Host "Chaser docshot state: steps=$($state.steps), stepCount=$($state.stepCount), editEnabled=$($state.editEnabled), status=$($state.status)"
+    }
     Save-Screenshot "chaser.png"
 }
 finally {

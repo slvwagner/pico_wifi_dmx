@@ -16,6 +16,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .item.active-step.edit-step{border-color:var(--accent)}
 .surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px}
+.card.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent);transition:border-color .15s,box-shadow .15s}
 .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .readout{font-size:22px;line-height:1;color:var(--accent);font-weight:700}.bytes{color:var(--muted);font-size:13px}
@@ -155,13 +156,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <button class="warn" id="btnStepDelete" disabled>Delete</button>
       </div>
       <div class="list" id="stepList"></div>
-      <div class="row" style="flex-wrap:wrap">
-        <button id="btnSave" title="Save editable chaser preset on the server">Save Preset</button>
-        <button id="btnLoad" title="Load editable chaser preset from the server">Load Preset</button>
-        <button id="btnExport" class="icon-btn export-btn" title="Export chaser JSON"></button>
-        <button id="btnImport" class="icon-btn import-btn" title="Import chaser JSON"></button>
-        <input id="importFile" type="file" accept=".json,application/json" style="display:none">
-      </div>
     </div>
   </div>
 
@@ -240,7 +234,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <option value="reverse">Reverse</option>
       </select>
     </label>
-    <button class="primary" id="btnPicoUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
+    <button class="primary" id="btnPicoUpload" title="Send current chase to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
     <button id="btnPicoPauseSlot">Pause</button>
     <button id="btnPicoResumeSlot">Resume</button>
@@ -379,6 +373,7 @@ const PICO_SLOT_COUNT=32;
 const CHASER_MAX_STEPS=32;
 let steps=[];
 let selectedStepIdx=-1;
+let sourceFixtureId=null;
 let collapsedFixtures=new Set(JSON.parse(localStorage.getItem('chaserCollapsedFix')||'[]'));
 let collapsedPartFixtures=new Set(JSON.parse(localStorage.getItem('chaserPartCollapsedFix')||'[]'));
 function populatePicoSlotSelect(){
@@ -415,6 +410,7 @@ chaserGroupsBox=DmxCommon.initGroupsToolbox({
   showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
+  editRequiresSelection:false,
   canEdit:()=>selectedStepIdx>=0&&getChaserGroupEditableControls().length>0,
   onEdit:()=>openChaserGroupModal(),
   onSelectionChange:()=>applyChaserGroupSelection(true)
@@ -541,13 +537,44 @@ function applyChaserGroupSelection(redraw=true){
 function selectedChaserGroupFixtureIds(){
   const selected=chaserGroupsBox?.selectedGroups?.()||[];
   if(!selected.length)return null;
-  return new Set(selected.flatMap(g=>g.fixtureIds||[]));
+  return new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String));
 }
 
 function selectedChaserGroupFixtures(){
   const ids=selectedChaserGroupFixtureIds();
   if(!ids)return[];
-  return(setup.fixtures||[]).filter(f=>ids.has(f.id));
+  return(setup.fixtures||[]).filter(f=>ids.has(String(f.id)));
+}
+function chaserGroupEditFixtures(){
+  const selected=selectedChaserGroupFixtures();
+  if(selected.length)return selected;
+  const seen=new Set();
+  return getParticipatingList().reduce((fixtures,item)=>{
+    const id=String(item.f.id);
+    if(!seen.has(id)){seen.add(id);fixtures.push(item.f);}
+    return fixtures;
+  },[]);
+}
+
+function firstStepFixtureId(step=steps[selectedStepIdx]){
+  const keys=Object.keys(step?.values||{});
+  for(const key of keys){
+    const fixtureId=String(key).split(':')[0];
+    if((setup.fixtures||[]).some(f=>String(f.id)===fixtureId))return fixtureId;
+  }
+  const item=getParticipatingList()[0];
+  return item?String(item.f.id):null;
+}
+function ensureSourceFixture(){
+  const current=String(sourceFixtureId||'');
+  if(current&&(setup.fixtures||[]).some(f=>String(f.id)===current))return current;
+  sourceFixtureId=firstStepFixtureId();
+  return sourceFixtureId;
+}
+function setSourceFixture(fixtureId,redraw=true){
+  sourceFixtureId=fixtureId==null?null:String(fixtureId);
+  if(chaserGroupsBox?.render)chaserGroupsBox.render();
+  if(redraw)drawStepEditor();
 }
 
 function chaserGroupKey(c){return c.label+'|'+c.type;}
@@ -556,7 +583,7 @@ function findChaserGroupControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>chaserGroupKey(c)===key)||null;
 }
 function getChaserGroupCommonControls(){
-  const fx=selectedChaserGroupFixtures();
+  const fx=chaserGroupEditFixtures();
   if(!fx.length)return[];
   const first=(fixtureProfile(fx[0])?.controls||[]);
   return first.filter(c=>fx.every(f=>!!findChaserGroupControl(f,chaserGroupKey(c))));
@@ -567,7 +594,7 @@ function isChaserGroupControlParticipating(f,c){
   return true;
 }
 function getChaserGroupEditableControls(){
-  const fx=selectedChaserGroupFixtures();
+  const fx=chaserGroupEditFixtures();
   if(fx.length<2)return[];
   const controls=new Map();
   fx.forEach(f=>{
@@ -587,7 +614,16 @@ function chaserGroupControlByDataKey(dataKey){
 }
 function getChaserGroupValue(c){
   const key=chaserGroupKey(c);
-  const fx=selectedChaserGroupFixtures();
+  const fx=chaserGroupEditFixtures();
+  const sourceId=ensureSourceFixture();
+  const source=fx.find(f=>String(f.id)===String(sourceId));
+  if(source){
+    const mc=findChaserGroupControl(source,key);
+    if(mc&&isChaserGroupControlParticipating(source,mc)){
+      const v=getStepVal(source,mc);
+      if(v!==undefined)return JSON.parse(JSON.stringify(v));
+    }
+  }
   for(const f of fx){
     const mc=findChaserGroupControl(f,key);
     if(!mc||!isChaserGroupControlParticipating(f,mc))continue;
@@ -598,7 +634,7 @@ function getChaserGroupValue(c){
 }
 function setChaserGroupValue(c,val){
   const key=chaserGroupKey(c);
-  selectedChaserGroupFixtures().forEach(f=>{
+  chaserGroupEditFixtures().forEach(f=>{
     const mc=findChaserGroupControl(f,key);
     if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
   });
@@ -615,7 +651,7 @@ function renderChaserGroupControl(c){
       <label>Tilt coarse <span data-cg-byte="${key}" data-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
       <label>Tilt fine <span data-cg-byte="${key}" data-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
     </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · selected group</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span></div>
       <div class="xy-pad" data-cgxy="${key}"><div class="xy-dot" style="left:${(v.pan??Math.round(max/2))/max*100}%;top:${100-(v.tilt??Math.round(max/2))/max*100}%"></div></div>
       <div class="row"><span class="readout" data-cg-readout="${key}">Pan ${Math.round(v.pan??Math.round(max/2))} · Tilt ${Math.round(v.tilt??Math.round(max/2))}</span><button ${gca} data-cg-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.pan??Math.round(max/2))}" ${gca} data-axis="pan"></label>
@@ -626,7 +662,7 @@ function renderChaserGroupControl(c){
     const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · selected group</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span></div>
       <label>Color<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
       ${parts.map((part,i)=>`<label>${names[i]} <span data-cg-part="${key}" data-part="${part}">${Math.round(v[part]??0)}</span><input type="range" min="0" max="255" value="${Math.round(v[part]??0)}" ${gca} data-part="${part}"></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-cg-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-cg-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-cg-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-cg-color="#0000ff" ${gca}></button></div></div>`;
@@ -644,7 +680,7 @@ function renderChaserGroupControl(c){
       <label>Coarse <span data-cg-byte="${key}" data-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
       <label>Fine <span data-cg-byte="${key}" data-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
     </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · selected group</span></div>
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span></div>
     <input type="range" min="0" max="${max}" step="1" value="${Math.round(sv)}" ${gca}>${extra}</div>`;
 }
 function updateChaserGroupControlDisplay(c){
@@ -694,8 +730,8 @@ function updateChaserGroupControlDisplay(c){
 function openChaserGroupModal(){
   if(selectedStepIdx<0){setStatus('Select a step before editing a group',true);return;}
   const common=getChaserGroupEditableControls();
-  if(!common.length){setStatus('Select a group with at least two matching participating controls first',true);return;}
-  const n=selectedChaserGroupFixtures().length;
+  if(!common.length){setStatus('Select a step with at least two matching participating controls first',true);return;}
+  const n=chaserGroupEditFixtures().length;
   document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s')+' · '+common.length+' participating control'+(common.length===1?'':'s');
   document.getElementById('chaserGroupModalBody').innerHTML=common.map(c=>renderChaserGroupControl(c)).join('');
   document.getElementById('chaserGroupModal').style.display='flex';
@@ -708,7 +744,7 @@ function groupControlOptions(){
   if(!selectedFixtureIds)return[];
   const opts=new Map();
   (setup.fixtures||[]).forEach(f=>{
-    if(!selectedFixtureIds.has(f.id))return;
+    if(!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
       const key=groupControlKey(c);
@@ -744,7 +780,7 @@ function applyGroupControlSelection(mode){
   if(mode==='only')Object.keys(participating).forEach(k=>participating[k]=false);
   let changed=0;
   (setup.fixtures||[]).forEach(f=>{
-    if(!selectedFixtureIds.has(f.id))return;
+    if(!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
       if(groupControlKey(c)!==wanted)return;
@@ -763,7 +799,7 @@ function getParticipatingList(){
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
   (setup.fixtures||[]).forEach(f=>{
-    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return;
+    if(selectedFixtureIds&&!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
       const k=controlKey(f,c);
@@ -918,7 +954,6 @@ function applyFanToStep(options={}){
   drawParticipation();
   drawStepEditor();
   drawStepList();
-  saveChaserToServer(true);
   if(!options.silent)setStatus('Fan Out applied to step '+(selectedStepIdx+1));
 }
 function liveFanUpdate(){
@@ -985,7 +1020,7 @@ function scopedParticipationFixtures(){
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
   const activeKeys=activeStepValueKeys instanceof Set?activeStepValueKeys:null;
   return (setup.fixtures||[]).filter(f=>{
-    if(selectedFixtureIds&&!selectedFixtureIds.has(f.id))return false;
+    if(selectedFixtureIds&&!selectedFixtureIds.has(String(f.id)))return false;
     const p=fixtureProfile(f);if(!p)return false;
     if(activeKeys)return p.controls.some(c=>activeKeys.has(controlKey(f,c))&&participating[controlKey(f,c)]);
     return true;
@@ -1154,7 +1189,9 @@ function addStep(vals){
   steps.push(s);
   selectedStepIdx=steps.length-1;
   applyStepParticipating(s);
+  sourceFixtureId=firstStepFixtureId(s);
   drawParticipation();drawStepList();drawStepEditor();
+  refreshChaserGroupActions();
   setStatus('Step '+(steps.length)+' added');
 }
 function duplicateStep(idx){
@@ -1164,14 +1201,18 @@ function duplicateStep(idx){
   steps.splice(idx+1,0,copy);
   selectedStepIdx=idx+1;
   applyStepParticipating(copy);
+  sourceFixtureId=firstStepFixtureId(copy);
   drawParticipation();drawStepList();drawStepEditor();
+  refreshChaserGroupActions();
 }
 function deleteStep(idx){
   steps.splice(idx,1);
   if(selectedStepIdx>=steps.length)selectedStepIdx=steps.length-1;
   if(activeStepIdx>=steps.length)activeStepIdx=steps.length-1;
   if(steps[selectedStepIdx])applyStepParticipating(steps[selectedStepIdx]);else activeStepValueKeys=null;
+  sourceFixtureId=steps[selectedStepIdx]?firstStepFixtureId(steps[selectedStepIdx]):null;
   drawParticipation();drawStepList();drawStepEditor();
+  refreshChaserGroupActions();
 }
 function moveStep(idx,dir){
   const ni=idx+dir;
@@ -1188,6 +1229,9 @@ async function clearChaserGroupSelectionForLoadedStep(){
   if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
   else DmxCommon.saveSharedGroupSelection([]);
   await new Promise(resolve=>setTimeout(resolve,0));
+}
+function refreshChaserGroupActions(){
+  if(chaserGroupsBox?.render)chaserGroupsBox.render();
 }
 
 async function captureFromFC(stepIdx){
@@ -1207,7 +1251,12 @@ async function captureFromFC(stepIdx){
     }
     if(!vals){setStatus('No live values from FC — open Fixture Controller and recall a scene or adjust a control first',true);return;}
     getParticipatingList().forEach(({f,c})=>{const k=controlKey(f,c);if(vals[k]!==undefined)step.values[k]=vals[k];});
-    if(stepIdx===selectedStepIdx)drawStepEditor();
+    if(stepIdx===selectedStepIdx){
+      sourceFixtureId=firstStepFixtureId(step);
+      drawParticipation();
+      drawStepEditor();
+      refreshChaserGroupActions();
+    }
     setStatus('FC values captured into step '+(stepIdx+1));
   }catch(e){setStatus('Capture failed: '+e.message,true);}
 }
@@ -1254,11 +1303,12 @@ function drawStepList(){
 
 async function selectStepForEdit(idx){
   selectedStepIdx=idx;
-  await clearChaserGroupSelectionForLoadedStep();
   const result=applyStepParticipating(steps[idx]);
+  sourceFixtureId=firstStepFixtureId(steps[idx]);
   drawStepList();
   drawParticipation();
   drawStepEditor();
+  refreshChaserGroupActions();
   setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
 }
 
@@ -1284,15 +1334,17 @@ function drawStepEditor(){
   surface.innerHTML='';
   const ptList=getParticipatingList();
   if(!ptList.length){surface.innerHTML='<div class="small">No controls selected in Participating Controls.</div>';return;}
+  ensureSourceFixture();
   const byFixture=new Map();
   ptList.forEach(({f,c})=>{if(!byFixture.has(f.id))byFixture.set(f.id,{f,controls:[]});byFixture.get(f.id).controls.push(c);});
   byFixture.forEach(({f,controls})=>{
     const p=fixtureProfile(f);if(!p)return;
     const isCollapsed=collapsedFixtures.has(f.id);
-    const card=document.createElement('article');card.className='card'+(isCollapsed?' collapsed':'');
+    const isSource=String(f.id)===String(sourceFixtureId);
+    const card=document.createElement('article');card.className='card'+(isCollapsed?' collapsed':'')+(isSource?' source-fixture':'');card.dataset.sourceFixture=f.id;
     const summary=controls.map(c=>controlSummaryHtml(f,c)).join('');
     card.innerHTML=
-      `<div class="card-hdr"><div><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>`+
+      `<div class="card-hdr"><div><h2>${f.name}${isSource?' <span class="ctrl-chip">Source</span>':''}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div>`+
       `<button class="collapse-btn" data-collapse-fix="${f.id}">${isCollapsed?'+':'−'}</button></div>`+
       `<div class="ctrl-summary">${summary}</div>`+
       controls.map(c=>renderStepControl(f,c)).join('');
@@ -1313,6 +1365,14 @@ function drawStepEditor(){
       colBtn.textContent=nowCollapsed?'+':'−';
       if(nowCollapsed)collapsedFixtures.add(fid);else collapsedFixtures.delete(fid);
       localStorage.setItem('chaserCollapsedFix',JSON.stringify([...collapsedFixtures]));
+      return;
+    }
+    if(e.target.closest('input,button,select,textarea,label,.xy-pad')){handleStepClick(e);return;}
+    const sourceCard=e.target.closest('[data-source-fixture]');
+    if(sourceCard){
+      setSourceFixture(sourceCard.dataset.sourceFixture,false);
+      drawStepEditor();
+      setStatus('Source fixture: '+sourceCard.querySelector('h2')?.textContent.replace('Source','').trim());
       return;
     }
     handleStepClick(e);
@@ -1735,7 +1795,6 @@ function applyBrowserPlaybackOptions(opts={}){
   if(opts.defaultFade!==undefined)document.getElementById('globalFade').value=clamp(opts.defaultFade,0,100);
   if(opts.updateRate!==undefined)document.getElementById('updateRate').value=clamp(opts.updateRate,5,50);
 }
-function chaserData(){return{baseUrl:baseUrlEl.value,playback:picoPlaybackOptions(),browserPlayback:browserPlaybackOptions(),steps};}
 function applyChaserData(data,redraw=true){
   data=remapChaserKeysForCurrentSetup(data);
   if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
@@ -1743,7 +1802,7 @@ function applyChaserData(data,redraw=true){
   if(data?.browserPlayback)applyBrowserPlaybackOptions(data.browserPlayback);
   if(Array.isArray(data?.steps)){
     steps=data.steps.slice(0,CHASER_MAX_STEPS);
-    if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported preset was trimmed to '+CHASER_MAX_STEPS+' steps',true);
+    if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported chase was trimmed to '+CHASER_MAX_STEPS+' steps',true);
   }
   selectedStepIdx=steps.length?0:-1;
   if(steps[selectedStepIdx]){
@@ -1755,6 +1814,7 @@ function applyChaserData(data,redraw=true){
     activeStepValueKeys=null;
     if(data?.participating)applyParticipatingData(data.participating,false);
   }
+  sourceFixtureId=steps[selectedStepIdx]?firstStepFixtureId(steps[selectedStepIdx]):null;
   if(redraw){drawParticipation();drawStepList();drawStepEditor();}
 }
 
@@ -1858,7 +1918,7 @@ async function loadChaseSlot(chase){
 }
 async function saveChasesServer(){
   try{
-    const body={...chaserData(),chases:savedChases,chaseSlotCols,chaseSlotRows};
+    const body={baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows};
     const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
     if(!j.ok)setStatus('Chases save failed: '+j.error,true);
@@ -2241,15 +2301,6 @@ async function saveSelectedStepAsScene(){
     else setStatus('Scene save failed: '+wj.error,true);
   }catch(err){setStatus('Scene save failed: '+err.message,true);}
 }
-async function saveChaserToServer(silent=false){
-  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
-  try{
-    const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserData())});
-    const j=await r.json();
-    if(j.ok){if(!silent)setStatus('Chaser steps saved to server');}
-    else setStatus('Save failed: '+j.error,true);
-  }catch(err){setStatus('Save failed: '+err.message,true);}
-}
 async function saveParticipatingToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
   try{
@@ -2258,19 +2309,6 @@ async function saveParticipatingToServer(){
     if(j.ok)setStatus('Participating controls saved');
     else setStatus('Save failed: '+j.error,true);
   }catch(err){setStatus('Save failed: '+err.message,true);}
-}
-async function loadChaserFromServer(){
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
-  try{
-    const r=await fetch('chaser_setup.php',{cache:'no-store'});
-    const j=await r.json();
-    if(r.ok&&j.ok&&j.exists&&j.chaser){
-      applyChaserData(j.chaser);
-      if(!steps.length&&j.chaser.participating)applyParticipatingData(j.chaser.participating);
-      return true;
-    }
-  }catch(_){}
-  return false;
 }
 async function loadParticipatingFromServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
@@ -2281,28 +2319,6 @@ async function loadParticipatingFromServer(){
   }catch(_){}
   return false;
 }
-document.getElementById('btnSave').onclick=()=>saveChaserToServer();
-document.getElementById('btnLoad').onclick=async()=>{
-  const loaded=await loadChaserFromServer();
-  if(loaded){setStatus('Chaser loaded from server');}
-  else{
-    const raw=localStorage.getItem('dmxChaser');
-    if(raw){applyChaserData(JSON.parse(raw));setStatus('Chaser loaded (browser cache)');}
-    else setStatus('No saved chaser found',true);
-  }
-};
-document.getElementById('btnExport').onclick=()=>{
-  const blob=new Blob([JSON.stringify(chaserData(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_chaser.json';a.click();URL.revokeObjectURL(a.href);
-  setStatus('dmx_chaser.json downloaded');
-};
-document.getElementById('btnImport').onclick=()=>document.getElementById('importFile').click();
-document.getElementById('importFile').onchange=e=>{
-  const file=e.target.files?.[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{try{applyChaserData(JSON.parse(reader.result));setStatus('Chaser imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';};
-  reader.readAsText(file);
-};
 document.getElementById('btnExportSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
@@ -2362,7 +2378,7 @@ document.getElementById('btnStop').onclick=stopPlayback;
 let browserPlaybackAutosaveTimer=0;
 function scheduleBrowserPlaybackAutosave(){
   clearTimeout(browserPlaybackAutosaveTimer);
-  browserPlaybackAutosaveTimer=setTimeout(()=>saveChaserToServer(true),800);
+  browserPlaybackAutosaveTimer=setTimeout(()=>{},800);
 }
 function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();scheduleBrowserPlaybackAutosave();}
 document.getElementById('bpmInput').oninput=applyBpmToSteps;
@@ -2414,7 +2430,7 @@ document.getElementById('btnCaptureNew').onclick=async()=>{
 document.getElementById('btnCaptureToStep').onclick=()=>captureFromFC(selectedStepIdx);
 document.getElementById('btnClearAll').onclick=()=>{
   if(!confirm('Delete all steps?'))return;
-  steps=[];selectedStepIdx=-1;stopPlayback();drawStepList();drawStepEditor();
+  steps=[];selectedStepIdx=-1;sourceFixtureId=null;stopPlayback();drawStepList();drawStepEditor();refreshChaserGroupActions();
 };
 document.getElementById('btnApplyMeta').onclick=()=>{
   const step=steps[selectedStepIdx];if(!step)return;
@@ -2675,7 +2691,7 @@ document.getElementById('btnPicoUpload').onclick=async()=>{
     const j=await r.json();
     if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
     saveChaserSlotToServer(slot, body); // persist to server (fire-and-forget)
-    setPicoStatus('Uploaded current preset to slot '+slot,'var(--accent)');
+    setPicoStatus('Uploaded current chase to slot '+slot,'var(--accent)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
@@ -2764,9 +2780,9 @@ document.getElementById('picoSlot').addEventListener('change',()=>{
 // ---- init ----
 loadSetup();
 loadFanPresets();
+drawStepList();
+drawStepEditor();
 (async()=>{
-  const loaded=await loadChaserFromServer();
-  if(!loaded){try{const raw=localStorage.getItem('dmxChaser');if(raw)applyChaserData(JSON.parse(raw));}catch(_){}}
   // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(root){

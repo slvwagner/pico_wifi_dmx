@@ -561,7 +561,10 @@
       const edit=document.getElementById(idPrefix+'Edit');
       if(rename)rename.disabled=selected.length!==1;
       if(del)del.disabled=selected.length===0;
-      if(edit)edit.disabled=selected.length===0||!options.canEdit?.(selected);
+      if(edit){
+        const requiresSelection=options.editRequiresSelection!==false;
+        edit.disabled=(requiresSelection&&selected.length===0)||!options.canEdit?.(selected);
+      }
     }
     function notify(){
       options.onSelectionChange?.(selectedGroups(),groups);
@@ -653,7 +656,10 @@
       selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
     };
     const edit=document.getElementById(idPrefix+'Edit');
-    if(edit)edit.onclick=()=>{const selected=selectedGroups();if(selected.length)options.onEdit?.(selected);};
+    if(edit)edit.onclick=()=>{
+      const selected=selectedGroups();
+      if(selected.length||options.editRequiresSelection===false)options.onEdit?.(selected);
+    };
     document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout('cols');render('cols');saveLayout('cols');});
     document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout('rows');render('rows');saveLayout('rows');});
     Promise.all([loadUiState(page),loadUiState('toolboxes')]).then(([st,shared])=>{

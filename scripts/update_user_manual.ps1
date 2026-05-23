@@ -77,6 +77,7 @@ try {
     if (-not $SkipScreenshots) {
         Invoke-Step "Capture deterministic controller screenshots" {
             & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
+            & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
         }
 
         Invoke-Step "Capture page overview screenshots" {
