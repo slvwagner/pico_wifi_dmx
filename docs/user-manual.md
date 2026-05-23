@@ -277,7 +277,7 @@ The Chaser screenshot is captured with the important boxes visible on purpose: *
 
 1. Open **Chaser**.
 2. Select participating fixture controls.
-3. Create steps manually or capture values from the Fixture Controller.
+3. Create steps with **Add step**, **Capture + Add**, or **Capture from FC**.
 4. Set step duration and fade in **Edit Step**.
 5. Store the chase in the **Chases** toolbox if you want quick recall.
 6. Test timing in **Browser Playback**.
@@ -348,6 +348,38 @@ When you click a saved chase in the **Chases** toolbox:
 
 This means group selection is a tool for building or filtering a new participating-control set. Once you edit a saved step or recall a saved chase, the step data itself becomes the source of truth.
 
+### Create Chase Steps
+
+A chase step stores values for the selected **Participating Controls**. It does not store every patched fixture automatically.
+
+To create a step manually:
+
+1. Select the controls that should participate in **Participating Controls**.
+2. In the **Steps** toolbox, click **Add step**.
+3. Click the new step in the **Steps** list.
+4. In **Edit Step**, set **Label**, **Duration (ms)**, and **Fade %**.
+5. Adjust the controls shown in **Edit Step**. Those control values are written into the selected step.
+6. Click **Apply** after changing the label, duration, or fade.
+
+To capture a new step from the Fixture Controller:
+
+1. Open **Fixture Controller** in another browser tab or window.
+2. Build the look there by moving controls, recalling a scene, or recalling a palette.
+3. Return to **Chaser**.
+4. Make sure **Participating Controls** contains the controls you want to capture.
+5. In the **Steps** toolbox, click **Capture + Add**.
+
+**Capture + Add** creates a new step and copies the current Fixture Controller live values for the selected participating controls.
+
+To capture into an existing step:
+
+1. Click the step in the **Steps** list.
+2. Build the wanted look in **Fixture Controller**.
+3. Return to **Chaser**.
+4. In **Edit Step**, click **Capture from FC**.
+
+**Capture from FC** updates the selected step with the current Fixture Controller live values for the selected participating controls.
+
 ### Capture From Fixture Controller
 
 Use **Capture from FC** or **Capture + Add** to read the current Fixture Controller live values and use them as chase step values.
@@ -358,6 +390,8 @@ This is useful when you want to build a chase visually:
 2. Capture it into the Chaser.
 3. Change the look.
 4. Capture the next step.
+
+If Chaser reports that no Fixture Controller values are available, open the Fixture Controller page and move a control or recall a scene first. Capture only reads controls that are selected as participating controls, so unselected controls are ignored.
 
 ### Pico Slot Playback
 

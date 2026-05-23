@@ -325,7 +325,7 @@ strong { color: #ffffff; }
 <ol>
 <li>Open <strong>Chaser</strong>.</li>
 <li>Select participating fixture controls.</li>
-<li>Create steps manually or capture values from the Fixture Controller.</li>
+<li>Create steps with <strong>Add step</strong>, <strong>Capture + Add</strong>, or <strong>Capture from FC</strong>.</li>
 <li>Set step duration and fade in <strong>Edit Step</strong>.</li>
 <li>Store the chase in the <strong>Chases</strong> toolbox if you want quick recall.</li>
 <li>Test timing in <strong>Browser Playback</strong>.</li>
@@ -386,6 +386,34 @@ strong { color: #ffffff; }
 <li>If no valid step values can be found, the page falls back to the saved participating-control map stored with the chase.</li>
 </ul>
 <p>This means group selection is a tool for building or filtering a new participating-control set. Once you edit a saved step or recall a saved chase, the step data itself becomes the source of truth.</p>
+<h3 id="create-chase-steps">Create Chase Steps</h3>
+<p>A chase step stores values for the selected <strong>Participating Controls</strong>. It does not store every patched fixture automatically.</p>
+<p>To create a step manually:</p>
+<ol>
+<li>Select the controls that should participate in <strong>Participating Controls</strong>.</li>
+<li>In the <strong>Steps</strong> toolbox, click <strong>Add step</strong>.</li>
+<li>Click the new step in the <strong>Steps</strong> list.</li>
+<li>In <strong>Edit Step</strong>, set <strong>Label</strong>, <strong>Duration (ms)</strong>, and <strong>Fade %</strong>.</li>
+<li>Adjust the controls shown in <strong>Edit Step</strong>. Those control values are written into the selected step.</li>
+<li>Click <strong>Apply</strong> after changing the label, duration, or fade.</li>
+</ol>
+<p>To capture a new step from the Fixture Controller:</p>
+<ol>
+<li>Open <strong>Fixture Controller</strong> in another browser tab or window.</li>
+<li>Build the look there by moving controls, recalling a scene, or recalling a palette.</li>
+<li>Return to <strong>Chaser</strong>.</li>
+<li>Make sure <strong>Participating Controls</strong> contains the controls you want to capture.</li>
+<li>In the <strong>Steps</strong> toolbox, click <strong>Capture + Add</strong>.</li>
+</ol>
+<p><strong>Capture + Add</strong> creates a new step and copies the current Fixture Controller live values for the selected participating controls.</p>
+<p>To capture into an existing step:</p>
+<ol>
+<li>Click the step in the <strong>Steps</strong> list.</li>
+<li>Build the wanted look in <strong>Fixture Controller</strong>.</li>
+<li>Return to <strong>Chaser</strong>.</li>
+<li>In <strong>Edit Step</strong>, click <strong>Capture from FC</strong>.</li>
+</ol>
+<p><strong>Capture from FC</strong> updates the selected step with the current Fixture Controller live values for the selected participating controls.</p>
 <h3 id="capture-from-fixture-controller">Capture From Fixture Controller</h3>
 <p>Use <strong>Capture from FC</strong> or <strong>Capture + Add</strong> to read the current Fixture Controller live values and use them as chase step values.</p>
 <p>This is useful when you want to build a chase visually:</p>
@@ -395,6 +423,7 @@ strong { color: #ffffff; }
 <li>Change the look.</li>
 <li>Capture the next step.</li>
 </ol>
+<p>If Chaser reports that no Fixture Controller values are available, open the Fixture Controller page and move a control or recall a scene first. Capture only reads controls that are selected as participating controls, so unselected controls are ignored.</p>
 <h3 id="pico-slot-playback">Pico Slot Playback</h3>
 <p>Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open.</p>
 <p>Supported playback options:</p>
