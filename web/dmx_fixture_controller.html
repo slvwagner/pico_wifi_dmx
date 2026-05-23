@@ -225,7 +225,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="buttons" style="padding-top:4px">
 <button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default all</button>
 <button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout all</button>
-<button id="sendGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeGroupModal2">Close</button>
 </div>
 </div>
@@ -1978,10 +1977,6 @@ async function recallGroupFixtureValues(which){
 }
 document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue');
 document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
-document.getElementById('sendGroupBtn').onclick=()=>{
-  const common=getGroupEditableControls();
-  Promise.all(common.map(c=>sendGroupControl(c))).catch(err=>setStatus(err.message,true));
-};
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
   const key=e.target.dataset.gc;if(!key)return;

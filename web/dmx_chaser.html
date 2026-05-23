@@ -1157,7 +1157,8 @@ async function clearChaserGroupSelectionForLoadedStep(){
   await new Promise(resolve=>setTimeout(resolve,0));
 }
 function refreshChaserGroupActions(){
-  if(chaserGroupsBox?.render)chaserGroupsBox.render();
+  if(chaserGroupsBox?.refreshActions)chaserGroupsBox.refreshActions();
+  else if(chaserGroupsBox?.render)chaserGroupsBox.render();
 }
 
 async function captureFromFC(stepIdx){
@@ -1221,6 +1222,7 @@ function drawStepList(){
   el.innerHTML='';
   if(!steps.length){
     el.innerHTML='<div class="small">No steps yet. Use Add step or Capture + Add.</div>';
+    refreshChaserGroupActions();
     return;
   }
   steps.forEach((s,i)=>{
@@ -1244,6 +1246,7 @@ function drawStepList(){
     const item=e.target.closest('[data-step-index]');
     if(item)selectStepForEdit(parseInt(item.dataset.stepIndex));
   };
+  refreshChaserGroupActions();
 }
 
 async function selectStepForEdit(idx){

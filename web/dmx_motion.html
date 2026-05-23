@@ -139,7 +139,6 @@ main{max-width:none;width:100%;margin:0}
 </div>
 <div id="motionGroupModalBody" class="modal-body"></div>
 <div class="buttons" style="padding-top:4px">
-<button id="sendMotionGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeMotionGroupModal2">Close</button>
 </div>
 </div>
@@ -249,6 +248,7 @@ motionGroupsBox=DmxCommon.initGroupsToolbox({
   showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
+  editRequiresSelection:false,
   canEdit:()=>getMotionGroupCommonControls().length>0,
   onEdit:()=>openMotionGroupModal(),
   onSelectionChange:()=>applyMotionGroupSelection(true)
@@ -334,8 +334,7 @@ function ensureMotionTarget(){
   const opts=motionControlOptions();
   if(!opts.length){selectedMotionTargetKey='';return;}
   if(!opts.some(o=>o.key===selectedMotionTargetKey)){
-    const panTilt=opts.find(o=>o.kind==='panTilt');
-    selectedMotionTargetKey=(panTilt||opts[0]).key;
+    selectedMotionTargetKey=opts[0].key;
   }
   localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
 }
@@ -354,6 +353,7 @@ function setMotionTarget(key,{enableMatches=false}={}){
   });
   drawFixtureList();
   drawPathPreview();
+  refreshMotionGroupActions();
 }
 
 async function loadSetup(auto=false){
@@ -411,7 +411,11 @@ function applySetup(){
 function applyMotionGroupSelection(redraw=true){
   const selected=motionGroupsBox?.selectedGroups?.()||[];
   ensureMotionTarget();
-  if(!selected.length){if(redraw){drawFixtureList();drawPathPreview();}return;}
+  if(!selected.length){
+    if(redraw){drawFixtureList();drawPathPreview();}
+    refreshMotionGroupActions();
+    return;
+  }
   const selectedFixtureIds=new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String));
   motionFixtures.forEach(mf=>{
     mf.enabled=selectedFixtureIds.has(String(mf.fixture.id))&&motionControlKey(mf.control)===selectedMotionTargetKey;
@@ -421,35 +425,49 @@ function applyMotionGroupSelection(redraw=true){
     drawPathPreview();
     setStatus('Motion fixtures set from '+selected.length+' group'+(selected.length===1?'':'s'));
   }
+  refreshMotionGroupActions();
+}
+function clearMotionGroupSelection(){
+  if(motionGroupsBox?.clearSelection)motionGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+}
+function refreshMotionGroupActions(){
+  if(motionGroupsBox?.refreshActions)motionGroupsBox.refreshActions();
+  else if(motionGroupsBox?.render)motionGroupsBox.render();
 }
 
 function motionGroupFixtureIds(){
-  return [...new Set((motionGroupsBox?.selectedGroups?.()||[]).flatMap(g=>g.fixtureIds||[]))]
-    .filter(id=>(setup.fixtures||[]).some(f=>f.id===id));
+  return [...new Set(motionGroupEditFixtures().map(mf=>mf.fixture.id))];
 }
 function motionGroupKey(c){return motionControlKey(c);}
-function findMatchingMotionControl(f,key){
-  return(fixtureProfile(f)?.controls||[]).find(c=>motionGroupKey(c)===key)||null;
+function motionGroupEditFixtures(){
+  const selected=(motionGroupsBox?.selectedGroups?.()||[]);
+  const selectedIds=selected.length?new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String)):null;
+  return motionFixtures.filter(mf=>
+    motionGroupKey(mf.control)===selectedMotionTargetKey &&
+    (selectedIds?selectedIds.has(String(mf.fixture.id)):mf.enabled)
+  );
 }
 function getMotionGroupCommonControls(){
-  const ids=motionGroupFixtureIds();
-  const fxList=ids.map(id=>(setup.fixtures||[]).find(f=>f.id===id)).filter(Boolean);
-  if(fxList.length<2)return[];
-  const first=(fixtureProfile(fxList[0])?.controls||[]).filter(c=>isMotionControl(c)&&motionControlKey(c)===selectedMotionTargetKey);
-  return first.filter(c=>fxList.every(f=>!!findMatchingMotionControl(f,motionGroupKey(c))));
+  const editFixtures=motionGroupEditFixtures();
+  if(editFixtures.length<2)return[];
+  const controls=new Map();
+  editFixtures.forEach(mf=>{
+    const key=motionGroupKey(mf.control);
+    if(!controls.has(key))controls.set(key,{control:mf.control,count:0});
+    controls.get(key).count++;
+  });
+  return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
 }
 function motionGroupValue(c){
-  const ids=motionGroupFixtureIds();
-  const firstId=ids.find(id=>motionFixtures.some(mf=>mf.fixture.id===id&&motionGroupKey(mf.control)===motionGroupKey(c)));
-  const mf=motionFixtures.find(m=>m.fixture.id===firstId&&motionGroupKey(m.control)===motionGroupKey(c));
+  const mf=motionGroupEditFixtures().find(m=>motionGroupKey(m.control)===motionGroupKey(c));
   if(motionControlKind(c)!=='panTilt')return mf?.baseValue??0;
   const max=c.type==='panTilt16'?65535:255;
   return{pan:mf?.basePan??Math.round(max/2),tilt:mf?.baseTilt??Math.round(max/2)};
 }
 function setMotionGroupValue(c,v){
-  const ids=new Set(motionGroupFixtureIds());
-  motionFixtures.forEach(mf=>{
-    if(!ids.has(mf.fixture.id)||motionGroupKey(mf.control)!==motionGroupKey(c))return;
+  motionGroupEditFixtures().forEach(mf=>{
+    if(motionGroupKey(mf.control)!==motionGroupKey(c))return;
     if(mf.kind==='panTilt'){
       mf.basePan=v.pan;
       mf.baseTilt=v.tilt;
@@ -526,10 +544,9 @@ function updateMotionGroupDisplay(c){
   drawPathPreview();
 }
 function sendMotionGroupControl(c){
-  const ids=new Set(motionGroupFixtureIds());
+  const targets=motionGroupEditFixtures().filter(mf=>motionGroupKey(mf.control)===motionGroupKey(c));
   const batch={};
-  motionFixtures.forEach(mf=>{
-    if(!ids.has(mf.fixture.id)||motionGroupKey(mf.control)!==motionGroupKey(c))return;
+  targets.forEach(mf=>{
     const f=mf.fixture,fc=mf.control;
     if(mf.kind==='scalar16'){
       const b=bytes16(mf.baseValue);
@@ -549,11 +566,11 @@ function sendMotionGroupControl(c){
     }
   });
   sendBatch(batch);
-  setStatus('Group effect center sent to '+ids.size+' fixture'+(ids.size===1?'':'s'));
+  setStatus('Group effect center sent to '+targets.length+' fixture'+(targets.length===1?'':'s'));
 }
 function openMotionGroupModal(){
   const common=getMotionGroupCommonControls();
-  if(!common.length){setStatus('Select a group with at least two compatible controls',true);return;}
+  if(!common.length){setStatus('Select at least two participating fixtures for the current effect target',true);return;}
   const n=motionGroupFixtureIds().length;
   document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common effect control'+(common.length===1?'':'s');
   document.getElementById('motionGroupModalBody').innerHTML=common.map(c=>renderMotionGroupControl(c)).join('');
@@ -591,7 +608,6 @@ function handleMotionGroupInput(target){
 document.getElementById('closeMotionGroupModal').onclick=closeMotionGroupModal;
 document.getElementById('closeMotionGroupModal2').onclick=closeMotionGroupModal;
 document.getElementById('motionGroupModal').addEventListener('click',e=>{if(e.target===document.getElementById('motionGroupModal'))closeMotionGroupModal();});
-document.getElementById('sendMotionGroupBtn').onclick=()=>getMotionGroupCommonControls().forEach(c=>sendMotionGroupControl(c));
 const motionGroupModalBody=document.getElementById('motionGroupModalBody');
 motionGroupModalBody.oninput=e=>handleMotionGroupInput(e.target);
 motionGroupModalBody.addEventListener('click',e=>{
@@ -732,6 +748,7 @@ function drawFixtureList(){
     mf.enabled=!mf.enabled;
     tile.classList.toggle('active',mf.enabled);
     drawPathPreview();
+    refreshMotionGroupActions();
   };
 }
 
@@ -769,6 +786,7 @@ function setMotionParticipationByKey(key,mode){
   localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
   drawFixtureList();
   drawPathPreview();
+  refreshMotionGroupActions();
 }
 
 // ---- path preview canvas ----
@@ -1001,6 +1019,7 @@ function tick(){
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
 document.getElementById('effectType').onchange=drawPathPreview;
 document.getElementById('btnMotionAll').onclick=()=>{
+  clearMotionGroupSelection();
   setMotionParticipationByKey(selectedMotionTargetKey,'all');
   collapsedMotionPartFixtures.clear();
   localStorage.setItem('motionPartCollapsedFix','[]');

@@ -189,7 +189,7 @@ Saved Groups are shown in a compact matrix. Each group has Select and Deselect o
 
 ![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
 
-The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows only controls that exist on all selected fixtures, so one slider or XY pad can update every fixture in the group at once. The modal can also recall Default all, Blackout all, or send the current group values to the Pico.
+The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows only controls that exist on all selected fixtures, so one slider or XY pad can update every fixture in the group at once. The modal can also recall Default all or Blackout all; normal edits follow the page's live-send behavior.
 
 ![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
 

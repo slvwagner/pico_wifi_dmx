@@ -268,9 +268,10 @@ Group selection is shared across toolbox pages that use the Groups toolbox. It i
 1. Load a saved group or select multiple fixtures.
 2. Click **Group Edit**.
 3. Adjust common controls in the modal.
-4. Click **Send all to Pico** to send the group values.
 
 The Group Edit modal only shows controls that exist on all selected fixtures. This prevents accidentally sending values to fixtures with incompatible control layouts.
+
+If **Live send** is enabled, each Group Edit change is sent to the Pico immediately. If Live send is disabled, Group Edit updates the browser/controller state only.
 
 If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, **Group Edit** uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.
 
@@ -480,7 +481,9 @@ The **Participating Controls** panel uses an **Effect target** dropdown. One eff
 The fixture matrix is a selection and preview surface:
 
 - Click a fixture tile to include or exclude it from the effect.
-- Use **All** and **None** to enable or disable every visible fixture for the current target.
+- Use **All** to clear any group filter and enable every fixture for the current target.
+- Use **None** to disable every visible fixture for the current target.
+- Selecting groups applies an additional filter and hides fixtures outside the selected groups.
 - Pan/tilt targets show a small XY plot with the current position.
 - Scalar targets show a small value bar with the current value.
 

@@ -317,9 +317,9 @@ strong { color: #ffffff; }
 <li>Load a saved group or select multiple fixtures.</li>
 <li>Click <strong>Group Edit</strong>.</li>
 <li>Adjust common controls in the modal.</li>
-<li>Click <strong>Send all to Pico</strong> to send the group values.</li>
 </ol>
 <p>The Group Edit modal only shows controls that exist on all selected fixtures. This prevents accidentally sending values to fixtures with incompatible control layouts.</p>
+<p>If <strong>Live send</strong> is enabled, each Group Edit change is sent to the Pico immediately. If Live send is disabled, Group Edit updates the browser/controller state only.</p>
 <p>If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, <strong>Group Edit</strong> uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.</p>
 <p>Use <strong>Default all</strong> or <strong>Blackout all</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
 <h2 id="4-chaser">4. Chaser</h2>
@@ -489,7 +489,9 @@ strong { color: #ffffff; }
 <p>The fixture matrix is a selection and preview surface:</p>
 <ul>
 <li>Click a fixture tile to include or exclude it from the effect.</li>
-<li>Use <strong>All</strong> and <strong>None</strong> to enable or disable every visible fixture for the current target.</li>
+<li>Use <strong>All</strong> to clear any group filter and enable every fixture for the current target.</li>
+<li>Use <strong>None</strong> to disable every visible fixture for the current target.</li>
+<li>Selecting groups applies an additional filter and hides fixtures outside the selected groups.</li>
 <li>Pan/tilt targets show a small XY plot with the current position.</li>
 <li>Scalar targets show a small value bar with the current value.</li>
 </ul>

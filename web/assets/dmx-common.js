@@ -688,7 +688,7 @@
       render();
       notify();
     }
-    return {box,toolbox,loadGroups,render,selectedGroups,clearSelection,get groups(){return groups;}};
+    return {box,toolbox,loadGroups,render,refreshActions:updateActions,selectedGroups,clearSelection,get groups(){return groups;}};
   }
 
   function normalizeSlotVisual(visual){
