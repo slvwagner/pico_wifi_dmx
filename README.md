@@ -172,7 +172,7 @@ Patch Fixtures supports one fixture at a time or a numbered run. Set a base name
 
 The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
 
-The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. Color palettes can carry a color swatch, and Position or Beam / Gobo palettes can carry a drawn or uploaded icon so palette slots stay readable at a glance. Palette visuals are saved inside `data/palette_setup.json` together with the palette values.
+The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. Palette visuals are independent from scope: any palette can carry either a color swatch or a drawn/uploaded visual so slots stay readable at a glance. Palette visuals are saved inside `data/palette_setup.json` together with the palette values.
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
@@ -192,7 +192,7 @@ The Group Edit modal appears when multiple compatible fixtures are selected or w
 
 ![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
 
-The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set.
+The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a color swatch or drawn/uploaded visual as a label in the slot grid.
 
 **Chaser**
 

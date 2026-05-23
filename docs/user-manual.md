@@ -149,7 +149,7 @@ Use palettes for building blocks such as:
 - Dimmer levels
 - Fan Out results that you want to reuse as an overlay
 
-The **Icon** button opens the palette visual editor for the current scope. For **Color** palettes it stores a small color swatch. For **Position** and **Beam / Gobo** palettes it stores a drawn or uploaded icon, using the same idea as the wheel-option editor in Add / Edit Control. These visuals are saved inside the palette JSON and shown directly in the palette slot grid.
+The **Visual** button opens the palette visual editor. The visual is independent from the palette scope: any palette can use either a color swatch or a drawn/uploaded visual. Scope still decides which DMX values are saved; the visual is only a readable label shown in the palette slot grid and stored inside the palette JSON.
 
 Palette save rules:
 
@@ -187,6 +187,8 @@ Use **Merge** when you have a current fixture selection or active Fan Out result
 The Scene Toolbox is available on the Fixture Controller page.
 
 Use scenes to store fixture/control looks. A scene stores controller values by fixture/control key, not a raw 512-channel DMX dump.
+
+The **Visual** button opens the same visual editor used by palettes. A scene can have a color swatch or a drawn/uploaded visual in its slot. This visual is only a label for finding the scene quickly; scene save and recall still use the stored fixture values.
 
 1. Set your desired fixture values.
 2. Click an empty scene slot.

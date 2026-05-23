@@ -639,6 +639,170 @@
     return {box,toolbox,loadGroups,render,selectedGroups,clearSelection,get groups(){return groups;}};
   }
 
+  function normalizeSlotVisual(visual){
+    if(!visual||typeof visual!=='object')return null;
+    const type=String(visual.type||'');
+    const color=String(visual.color||'');
+    const image=String(visual.image||'');
+    if(type==='color'&&/^#[0-9a-f]{6}$/i.test(color))return{type:'color',color};
+    if((type==='image'||type==='drawing')&&(/^data:image\//.test(image)||image===''))return{type:'image',image};
+    return null;
+  }
+
+  function slotVisualHtml(item){
+    const visual=normalizeSlotVisual(item&&item.visual);
+    if(!visual)return '';
+    if(visual.type==='color')return `<span class="palette-visual palette-visual--color" style="background:${visual.color}"></span>`;
+    if(visual.type==='image'&&visual.image){
+      const image=String(visual.image).replace(/"/g,'&quot;');
+      return `<span class="palette-visual" style="background-image:url(&quot;${image}&quot;)"></span>`;
+    }
+    return '';
+  }
+
+  function initSlotVisualEditor(options){
+    const modal=document.getElementById(options.modalId);
+    const targetSelect=document.getElementById(options.targetId);
+    const typeSelect=document.getElementById(options.typeId);
+    const colorWrap=document.getElementById(options.colorWrapId);
+    const imageWrap=document.getElementById(options.imageWrapId);
+    const colorInput=document.getElementById(options.colorInputId);
+    const canvas=document.getElementById(options.canvasId);
+    const imageInput=document.getElementById(options.imageInputId);
+    const clearBtn=document.getElementById(options.clearBtnId);
+    const hint=document.getElementById(options.hintId);
+    const saveBtn=document.getElementById(options.saveBtnId);
+    if(!modal||!targetSelect||!typeSelect||!colorWrap||!imageWrap||!colorInput||!canvas||!imageInput||!clearBtn||!hint||!saveBtn)return null;
+    const ctx=canvas.getContext('2d');
+    let drawing=false;
+    let uploadedImage='';
+    let config={};
+    let targetMap=new Map();
+
+    function clearCanvas(){
+      ctx.fillStyle='#000000';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.beginPath();
+      ctx.strokeStyle='#ffffff';
+      ctx.lineWidth=6;
+      ctx.lineCap='round';
+      uploadedImage='';
+      imageInput.value='';
+    }
+
+    function draw(e){
+      const rect=canvas.getBoundingClientRect();
+      const x=(e.clientX-rect.left)*canvas.width/rect.width;
+      const y=(e.clientY-rect.top)*canvas.height/rect.height;
+      if(!drawing){
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+        return;
+      }
+      ctx.lineTo(x,y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x,y);
+      uploadedImage='';
+    }
+
+    function loadCanvas(image){
+      clearCanvas();
+      if(!image)return;
+      const img=new Image();
+      img.onload=()=>{
+        clearCanvas();
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        uploadedImage=canvas.toDataURL('image/png');
+      };
+      img.src=image;
+    }
+
+    function setMode(type){
+      const isColor=type==='color';
+      colorWrap.style.display=isColor?'grid':'none';
+      imageWrap.style.display=isColor?'none':'grid';
+    }
+
+    function selectedTarget(){
+      const val=targetSelect.value;
+      if(val==='__default')return null;
+      return targetMap.get(val)||null;
+    }
+
+    function loadEditor(){
+      const target=selectedTarget();
+      const visual=normalizeSlotVisual(target&&target.visual)||normalizeSlotVisual(config.defaultVisual)||{type:'image',image:''};
+      typeSelect.value=visual.type==='color'?'color':'image';
+      setMode(typeSelect.value);
+      if(visual.type==='color')colorInput.value=visual.color||'#ffffff';
+      else loadCanvas(visual.image||'');
+    }
+
+    function visualFromEditor(){
+      if(typeSelect.value==='color')return{type:'color',color:colorInput.value||'#ffffff'};
+      return{type:'image',image:uploadedImage||canvas.toDataURL('image/png')};
+    }
+
+    function open(nextConfig){
+      config=nextConfig||{};
+      targetMap=new Map();
+      const optionsHtml=[`<option value="__default">New ${escapeHtml(config.targetLabel||'slot visuals')}</option>`];
+      (config.targets||[]).forEach((target,i)=>{
+        const key=String(target.key??target.slot??i);
+        targetMap.set(key,target.item||target);
+        optionsHtml.push(`<option value="${escapeHtml(key)}">${escapeHtml(target.label||('Slot '+(i+1)))}</option>`);
+      });
+      targetSelect.innerHTML=optionsHtml.join('');
+      hint.textContent=config.hint||'Choose a swatch or draw/upload a visual.';
+      clearCanvas();
+      loadEditor();
+      modal.style.display='flex';
+    }
+
+    function close(){
+      modal.style.display='none';
+    }
+
+    function save(){
+      const visual=visualFromEditor();
+      const target=selectedTarget();
+      if(target)config.onSaveTarget?.(target,visual);
+      else config.onSaveDefault?.(visual);
+      close();
+    }
+
+    canvas.addEventListener('pointerdown',e=>{drawing=false;canvas.setPointerCapture?.(e.pointerId);draw(e);drawing=true;uploadedImage='';});
+    canvas.addEventListener('pointermove',e=>{if(drawing)draw(e);});
+    canvas.addEventListener('pointerup',()=>{drawing=false;uploadedImage='';});
+    canvas.addEventListener('pointercancel',()=>{drawing=false;});
+    imageInput.onchange=e=>{
+      const file=e.target.files&&e.target.files[0];
+      if(!file)return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const img=new Image();
+        img.onload=()=>{
+          clearCanvas();
+          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          uploadedImage=canvas.toDataURL('image/png');
+        };
+        img.src=reader.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    clearBtn.onclick=clearCanvas;
+    targetSelect.onchange=loadEditor;
+    typeSelect.onchange=()=>setMode(typeSelect.value);
+    saveBtn.onclick=save;
+    (options.closeIds||[]).forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.onclick=close;
+    });
+    modal.addEventListener('click',e=>{if(e.target===modal)close();});
+    return {open,close,normalize:normalizeSlotVisual,html:slotVisualHtml};
+  }
+
   window.DmxCommon={
     BASE_URL_KEY,
     isHttp,
@@ -654,6 +818,9 @@
     loadSharedGroupSelection,
     initToolboxRail,
     initFloatingToolbox,
-    initGroupsToolbox
+    initGroupsToolbox,
+    normalizeSlotVisual,
+    slotVisualHtml,
+    initSlotVisualEditor
   };
 })();

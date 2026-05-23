@@ -263,6 +263,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportScenesBtn" class="icon-btn export-btn" title="Export scenes JSON"></button>
 <button id="importScenesBtn" class="icon-btn import-btn" title="Import scenes JSON"></button>
 <button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
+<button id="sceneVisualBtn" class="palette-merge-btn" title="Edit the scene visual">Visual</button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -283,7 +284,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
 <button id="importPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
 <button id="mergePaletteBtn" class="palette-merge-btn" title="Merge current scoped values into an existing palette">Merge</button>
-<button id="paletteVisualBtn" class="palette-merge-btn" title="Edit the visual for Position, Color, or Beam / Gobo palettes">Icon</button>
+<button id="paletteVisualBtn" class="palette-merge-btn" title="Edit the palette visual">Visual</button>
 <input id="importPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <label>Scope<select id="paletteScope">
@@ -305,28 +306,32 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="paletteVisualModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Palette Icon</h2>
+<h2>Slot Visual</h2>
 <button id="paletteVisualClose" style="font-size:16px;padding:6px 14px">✕</button>
 </div>
 <div class="modal-body">
 <label>Target<select id="paletteVisualTarget"></select></label>
+<label>Visual type<select id="paletteVisualType">
+<option value="color">Color swatch</option>
+<option value="image">Drawing / upload</option>
+</select></label>
 <div id="paletteColorVisualWrap">
 <label>Color swatch<input id="paletteVisualColor" type="color" value="#ffffff"></label>
 </div>
 <div id="paletteBeamVisualWrap" class="wheel-editor">
 <div class="toolbar">
-<label>Upload icon<input id="paletteVisualImage" type="file" accept="image/*"></label>
+<label>Upload visual<input id="paletteVisualImage" type="file" accept="image/*"></label>
 </div>
 <div class="toolbar">
 <canvas id="paletteVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
 <div class="buttons"><button id="paletteVisualClear" type="button">Clear drawing</button></div>
 </div>
-<div class="small">Draw a small position or beam/gobo mark, or upload an icon. The image is saved inside the palette JSON.</div>
+<div class="small">Draw a small mark or upload a visual. The image is saved inside the JSON.</div>
 </div>
 <div id="paletteVisualHint" class="small"></div>
 </div>
 <div class="buttons" style="padding-top:4px">
-<button id="paletteVisualSave" class="primary">Save icon</button>
+<button id="paletteVisualSave" class="primary">Save visual</button>
 <button id="paletteVisualClose2">Close</button>
 </div>
 </div>
@@ -2291,6 +2296,22 @@ window.addEventListener('storage',e=>{
 let scenes=[];
 let slotCols=4,slotRows=4;
 const SCENE_SLOT_GRID_MAX=32;
+let sceneVisualDefault=(()=>{
+  try{return normalizePaletteVisual(JSON.parse(localStorage.getItem('sceneVisualDefault')||'null'))||{type:'image',image:''};}
+  catch(_){return {type:'image',image:''};}
+})();
+function saveSceneVisualDefault(){
+  localStorage.setItem('sceneVisualDefault',JSON.stringify(sceneVisualDefault));
+}
+function currentSceneVisualForSave(){
+  return cloneValue(sceneVisualDefault);
+}
+function normalizePaletteVisual(visual){
+  return DmxCommon.normalizeSlotVisual(visual);
+}
+function paletteSlotVisualHtml(item){
+  return DmxCommon.slotVisualHtml(item);
+}
 function requiredSceneSlots(){
   return scenes.reduce((max,s)=>Math.max(max,(parseInt(s.slot,10)||0)+1),0);
 }
@@ -2333,7 +2354,7 @@ function renderSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button>${escHtml(s.name)}</div>`;
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
     else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2446,7 +2467,7 @@ function saveSceneToSlot(idx,name){
   if(!sceneValues)return;
   const fixtureCount=sceneFixtureIdsFromValues(sceneValues).length;
   if(!fixtureCount){showError('Scene has no fixture values to save.');return;}
-  scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:sceneValues});
+  scenes.push({id:'scene_'+Date.now(),name,slot:idx,values:sceneValues,visual:currentSceneVisualForSave()});
   renderSlotMatrix();saveScenesServer();
   setStatus('Scene "'+name+'" saved to slot '+(idx+1)+' ('+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');
 }
@@ -2610,6 +2631,7 @@ function importScenesJson(file){
 document.getElementById('exportScenesBtn').onclick=exportScenesJson;
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
 document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
+document.getElementById('sceneVisualBtn').onclick=openSceneVisualModal;
 document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
 const sceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'sceneBox',
@@ -2632,39 +2654,22 @@ let paletteVisualDefaults=(()=>{
   try{
     const saved=JSON.parse(localStorage.getItem('paletteVisualDefaults')||'{}');
     return {
-      color:normalizePaletteVisual(saved.color)||{type:'color',color:'#ffffff'},
       position:normalizePaletteVisual(saved.position)||{type:'image',image:''},
-      beam:normalizePaletteVisual(saved.beam)||{type:'image',image:''}
+      color:normalizePaletteVisual(saved.color)||{type:'color',color:'#ffffff'},
+      beam:normalizePaletteVisual(saved.beam)||{type:'image',image:''},
+      dimmer:normalizePaletteVisual(saved.dimmer)||{type:'color',color:'#ffffff'},
+      all:normalizePaletteVisual(saved.all)||{type:'image',image:''}
     };
   }catch(_){
-    return {color:{type:'color',color:'#ffffff'},position:{type:'image',image:''},beam:{type:'image',image:''}};
+    return {position:{type:'image',image:''},color:{type:'color',color:'#ffffff'},beam:{type:'image',image:''},dimmer:{type:'color',color:'#ffffff'},all:{type:'image',image:''}};
   }
 })();
-function normalizePaletteVisual(visual){
-  if(!visual||typeof visual!=='object')return null;
-  if(visual.type==='color'&&/^#[0-9a-f]{6}$/i.test(String(visual.color||'')))return{type:'color',color:String(visual.color)};
-  if((visual.type==='image'||visual.type==='drawing')&&(/^data:image\//.test(String(visual.image||''))||String(visual.image||'')===''))return{type:'image',image:String(visual.image||'')};
-  return null;
-}
 function savePaletteVisualDefaults(){
   localStorage.setItem('paletteVisualDefaults',JSON.stringify(paletteVisualDefaults));
 }
 function currentPaletteVisualForSave(){
   const scope=currentPaletteScope();
-  if(scope==='color')return cloneValue(paletteVisualDefaults.color);
-  if(scope==='position')return cloneValue(paletteVisualDefaults.position);
-  if(scope==='beam')return cloneValue(paletteVisualDefaults.beam);
-  return null;
-}
-function paletteSlotVisualHtml(p){
-  const visual=normalizePaletteVisual(p?.visual);
-  if(!visual)return '';
-  if(visual.type==='color')return `<span class="palette-visual palette-visual--color" style="background:${visual.color}"></span>`;
-  if(visual.type==='image'&&visual.image){
-    const img=String(visual.image).replace(/"/g,'&quot;');
-    return `<span class="palette-visual" style="background-image:url(&quot;${img}&quot;)"></span>`;
-  }
-  return '';
+  return cloneValue(paletteVisualDefaults[scope]||{type:'image',image:''});
 }
 function requiredPaletteSlots(){
   return palettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
@@ -2859,148 +2864,65 @@ function importPalettesJson(file){
   };
   fr.readAsText(file);
 }
-const paletteVisualModal=document.getElementById('paletteVisualModal');
-const paletteVisualTarget=document.getElementById('paletteVisualTarget');
-const paletteVisualColor=document.getElementById('paletteVisualColor');
-const paletteVisualCanvas=document.getElementById('paletteVisualCanvas');
-const paletteVisualCtx=paletteVisualCanvas.getContext('2d');
-let paletteVisualDrawing=false;
-let uploadedPaletteVisualImage='';
-function clearPaletteVisualCanvas(){
-  paletteVisualCtx.fillStyle='#000000';
-  paletteVisualCtx.fillRect(0,0,paletteVisualCanvas.width,paletteVisualCanvas.height);
-  paletteVisualCtx.beginPath();
-  paletteVisualCtx.strokeStyle='#ffffff';
-  paletteVisualCtx.lineWidth=6;
-  paletteVisualCtx.lineCap='round';
-  uploadedPaletteVisualImage='';
-  document.getElementById('paletteVisualImage').value='';
-}
-function drawPaletteVisual(e){
-  const rect=paletteVisualCanvas.getBoundingClientRect();
-  const x=(e.clientX-rect.left)*paletteVisualCanvas.width/rect.width;
-  const y=(e.clientY-rect.top)*paletteVisualCanvas.height/rect.height;
-  if(!paletteVisualDrawing){
-    paletteVisualCtx.beginPath();
-    paletteVisualCtx.moveTo(x,y);
-    return;
-  }
-  paletteVisualCtx.lineTo(x,y);
-  paletteVisualCtx.stroke();
-  paletteVisualCtx.beginPath();
-  paletteVisualCtx.moveTo(x,y);
-  uploadedPaletteVisualImage='';
-}
-function loadPaletteVisualCanvas(image){
-  clearPaletteVisualCanvas();
-  if(!image)return;
-  const img=new Image();
-  img.onload=()=>{
-    clearPaletteVisualCanvas();
-    paletteVisualCtx.drawImage(img,0,0,paletteVisualCanvas.width,paletteVisualCanvas.height);
-    uploadedPaletteVisualImage=paletteVisualCanvas.toDataURL('image/png');
-  };
-  img.src=image;
-}
-function paletteVisualFromModal(scope){
-  if(scope==='color')return{type:'color',color:paletteVisualColor.value||'#ffffff'};
-  if(scope==='position'||scope==='beam')return{type:'image',image:uploadedPaletteVisualImage||paletteVisualCanvas.toDataURL('image/png')};
-  return null;
-}
-function populatePaletteVisualTarget(scope){
-  const label=scope==='color'?'Color':scope==='position'?'Position':scope==='beam'?'Beam / Gobo':'Palette';
-  const options=[`<option value="__default">New ${label} palettes</option>`];
-  palettes
-    .slice()
-    .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
-    .filter(p=>(scope==='color'||scope==='position'||scope==='beam')&&((p.scope||'all')===scope||(p.scope||'all')==='all'))
-    .forEach(p=>{
-      const slot=parseInt(p.slot,10)||0;
-      options.push(`<option value="${slot}">Slot ${slot+1}: ${escHtml(p.name)}</option>`);
-    });
-  paletteVisualTarget.innerHTML=options.join('');
-}
-function selectedPaletteVisualTarget(){
-  const val=paletteVisualTarget.value;
-  if(val==='__default')return null;
-  return palettes.find(p=>String(p.slot)===String(val))||null;
-}
-function loadPaletteVisualEditor(){
-  const scope=currentPaletteScope();
-  const target=selectedPaletteVisualTarget();
-  const visual=normalizePaletteVisual(target?.visual)||normalizePaletteVisual(paletteVisualDefaults[scope]);
-  if(scope==='color'){
-    paletteVisualColor.value=visual?.color||'#ffffff';
-  }else if(scope==='position'||scope==='beam'){
-    loadPaletteVisualCanvas(visual?.image||'');
-  }
-}
+const slotVisualEditor=DmxCommon.initSlotVisualEditor({
+  modalId:'paletteVisualModal',
+  targetId:'paletteVisualTarget',
+  typeId:'paletteVisualType',
+  colorWrapId:'paletteColorVisualWrap',
+  imageWrapId:'paletteBeamVisualWrap',
+  colorInputId:'paletteVisualColor',
+  canvasId:'paletteVisualCanvas',
+  imageInputId:'paletteVisualImage',
+  clearBtnId:'paletteVisualClear',
+  hintId:'paletteVisualHint',
+  saveBtnId:'paletteVisualSave',
+  closeIds:['paletteVisualClose','paletteVisualClose2']
+});
 function openPaletteVisualModal(){
   const scope=currentPaletteScope();
-  const colorWrap=document.getElementById('paletteColorVisualWrap');
-  const beamWrap=document.getElementById('paletteBeamVisualWrap');
-  const hint=document.getElementById('paletteVisualHint');
-  if(scope!=='color'&&scope!=='position'&&scope!=='beam'){
-    setStatus('Palette icons are available for Position, Color, and Beam / Gobo scopes.',true);
-    return;
-  }
-  colorWrap.style.display=scope==='color'?'grid':'none';
-  beamWrap.style.display=(scope==='position'||scope==='beam')?'grid':'none';
-  hint.textContent=scope==='color'
-    ?'Choose the swatch shown on new Color palettes, or apply it to an existing Color/All palette.'
-    :scope==='position'
-      ?'Draw or upload the small icon shown on new Position palettes, or apply it to an existing Position/All palette.'
-      :'Draw or upload the small icon shown on new Beam / Gobo palettes, or apply it to an existing Beam/All palette.';
-  populatePaletteVisualTarget(scope);
-  clearPaletteVisualCanvas();
-  loadPaletteVisualEditor();
-  paletteVisualModal.style.display='flex';
+  slotVisualEditor.open({
+    targetLabel:paletteScopeLabel(scope)+' palettes',
+    hint:'Choose a swatch or draw/upload a visual. This is only a label; the Scope still decides which DMX values are saved.',
+    defaultVisual:paletteVisualDefaults[scope],
+    targets:palettes
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+      .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+paletteScopeLabel(p.scope||'all')+')'})),
+    onSaveDefault:visual=>{
+      paletteVisualDefaults[scope]=visual;
+      savePaletteVisualDefaults();
+      setStatus('Default '+paletteScopeLabel(scope)+' palette visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderPaletteMatrix();
+      savePalettesServer();
+      setStatus('Updated palette visual for "'+target.name+'"');
+    }
+  });
 }
-function closePaletteVisualModal(){
-  paletteVisualModal.style.display='none';
+function openSceneVisualModal(){
+  slotVisualEditor.open({
+    targetLabel:'Scenes',
+    hint:'Choose a swatch or draw/upload a visual. This is only a label for the scene slot; scene recall still uses the stored DMX values.',
+    defaultVisual:sceneVisualDefault,
+    targets:scenes
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+      .map(s=>({key:String(parseInt(s.slot,10)||0),item:s,label:'Slot '+((parseInt(s.slot,10)||0)+1)+': '+(s.name||'Scene')})),
+    onSaveDefault:visual=>{
+      sceneVisualDefault=visual;
+      saveSceneVisualDefault();
+      setStatus('Default scene visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderSlotMatrix();
+      saveScenesServer();
+      setStatus('Updated scene visual for "'+target.name+'"');
+    }
+  });
 }
-function savePaletteVisualFromModal(){
-  const scope=currentPaletteScope();
-  const visual=paletteVisualFromModal(scope);
-  if(!visual)return;
-  const target=selectedPaletteVisualTarget();
-  if(target){
-    target.visual=visual;
-    renderPaletteMatrix();
-    savePalettesServer();
-    setStatus('Updated palette icon for "'+target.name+'"');
-  }else{
-    paletteVisualDefaults[scope]=visual;
-    savePaletteVisualDefaults();
-    setStatus('Default '+paletteScopeLabel(scope)+' palette icon updated');
-  }
-  closePaletteVisualModal();
-}
-paletteVisualCanvas.addEventListener('pointerdown',e=>{paletteVisualDrawing=false;paletteVisualCanvas.setPointerCapture(e.pointerId);drawPaletteVisual(e);paletteVisualDrawing=true;uploadedPaletteVisualImage='';});
-paletteVisualCanvas.addEventListener('pointermove',e=>{if(paletteVisualDrawing)drawPaletteVisual(e);});
-paletteVisualCanvas.addEventListener('pointerup',()=>{paletteVisualDrawing=false;uploadedPaletteVisualImage='';});
-paletteVisualCanvas.addEventListener('pointercancel',()=>{paletteVisualDrawing=false;});
-document.getElementById('paletteVisualImage').onchange=e=>{
-  const file=e.target.files?.[0];
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const img=new Image();
-    img.onload=()=>{
-      clearPaletteVisualCanvas();
-      paletteVisualCtx.drawImage(img,0,0,paletteVisualCanvas.width,paletteVisualCanvas.height);
-      uploadedPaletteVisualImage=paletteVisualCanvas.toDataURL('image/png');
-    };
-    img.src=reader.result;
-  };
-  reader.readAsDataURL(file);
-};
-document.getElementById('paletteVisualClear').onclick=clearPaletteVisualCanvas;
-paletteVisualTarget.onchange=loadPaletteVisualEditor;
-document.getElementById('paletteVisualClose').onclick=closePaletteVisualModal;
-document.getElementById('paletteVisualClose2').onclick=closePaletteVisualModal;
-document.getElementById('paletteVisualSave').onclick=savePaletteVisualFromModal;
-paletteVisualModal.addEventListener('click',e=>{if(e.target===paletteVisualModal)closePaletteVisualModal();});
 document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile').click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
