@@ -563,7 +563,7 @@ Supported effects include:
 - Pan/tilt targets: Circle, Figure-8, Pan swing, Tilt swing
 - Scalar targets: Sine, Pulse
 
-Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Pan / scalar amplitude** as the effect depth.
+Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Amplitude** slider as the effect depth.
 
 The **Participating Controls** panel uses an **Effect target** dropdown. The default target is **None**. With **None** selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.
 
@@ -578,7 +578,7 @@ The fixture matrix is a selection and preview surface:
 - Pan/tilt targets show a small XY plot with the current position.
 - Scalar targets show a small value bar with the current value.
 
-Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox.
+Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox. With a pan/tilt target selected, the toolbox shows separate **Pan amp** and **Tilt amp** sliders. With a scalar target selected, it shows one **Amplitude** slider; the hidden tilt amplitude is forced to zero so the preview and Pico upload stay one-dimensional.
 
 The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
 
@@ -602,7 +602,7 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 
 ![Motion Effect Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 
-**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls.
+**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls. Pan/tilt targets show **Pan amp** and **Tilt amp**. Scalar targets show one **Amplitude** control and internally upload the second amplitude as zero.
 
 ![Motion Effects toolbox](screenshots/motion-toolbox-effects.png)
 
@@ -621,7 +621,7 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 The Pico Motion slot upload now uses the same selected **Effect target** as the browser page.
 
 - If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
-- If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse.
+- If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use `AMP1` for **Amplitude** and force `AMP2` to zero.
 - Click an empty Pico slot to upload the current effect to that slot.
 - Click a loaded slot once to select it for start, stop, or BPM changes.
 - Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.

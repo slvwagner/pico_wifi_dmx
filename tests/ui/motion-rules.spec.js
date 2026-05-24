@@ -105,6 +105,38 @@ test.describe('Motion FX established rules', () => {
     expect(result.scalarOptions).toEqual(['sine', 'pulse']);
   });
 
+  test('scalar targets show one amplitude slider and force hidden tilt amplitude to zero', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      document.getElementById('tiltAmp').value = 37;
+      document.getElementById('tiltAmpVal').textContent = '37';
+      const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');
+      setMotionTarget(motionControlKey(scalar.control));
+      const scalarState = {
+        panLabel: document.getElementById('panAmpLabel').childNodes[0].nodeValue.trim(),
+        tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display,
+        tiltValue: document.getElementById('tiltAmp').value,
+        tiltText: document.getElementById('tiltAmpVal').textContent,
+        serializedAmp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
+      };
+
+      const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
+      setMotionTarget(motionControlKey(pan.control));
+      const panTiltState = {
+        panLabel: document.getElementById('panAmpLabel').childNodes[0].nodeValue.trim(),
+        tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display
+      };
+      return { scalarState, panTiltState };
+    });
+
+    expect(result.scalarState.panLabel).toBe('Amplitude');
+    expect(result.scalarState.tiltDisplay).toBe('none');
+    expect(result.scalarState.tiltValue).toBe('0');
+    expect(result.scalarState.tiltText).toBe('0');
+    expect(result.scalarState.serializedAmp2).toBe('AMP2 0.000000');
+    expect(result.panTiltState.panLabel).toBe('Pan amp');
+    expect(result.panTiltState.tiltDisplay).not.toBe('none');
+  });
+
   test('All enables every fixture for the current effect target and clears group filtering', async ({ page }) => {
     await page.locator('#motionGroupsBox [data-group-index="0"]').click();
     const result = await page.evaluate(() => {

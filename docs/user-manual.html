@@ -551,7 +551,7 @@ strong { color: #ffffff; }
 <li>Pan/tilt targets: Circle, Figure-8, Pan swing, Tilt swing</li>
 <li>Scalar targets: Sine, Pulse</li>
 </ul>
-<p>Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the <strong>Pan / scalar amplitude</strong> as the effect depth.</p>
+<p>Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the <strong>Amplitude</strong> slider as the effect depth.</p>
 <p>The <strong>Participating Controls</strong> panel uses an <strong>Effect target</strong> dropdown. The default target is <strong>None</strong>. With <strong>None</strong> selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.</p>
 <p>One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.</p>
 <p>The fixture matrix is a selection and preview surface:</p>
@@ -563,7 +563,7 @@ strong { color: #ffffff; }
 <li>Pan/tilt targets show a small XY plot with the current position.</li>
 <li>Scalar targets show a small value bar with the current value.</li>
 </ul>
-<p>Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the <strong>Effect Parameters</strong> toolbox.</p>
+<p>Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the <strong>Effect Parameters</strong> toolbox. With a pan/tilt target selected, the toolbox shows separate <strong>Pan amp</strong> and <strong>Tilt amp</strong> sliders. With a scalar target selected, it shows one <strong>Amplitude</strong> slider; the hidden tilt amplitude is forced to zero so the preview and Pico upload stay one-dimensional.</p>
 <p>The <strong>Effect</strong> dropdown is target-aware. It only shows effects that make sense for the selected <strong>Effect target</strong>.</p>
 <p>The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.</p>
 <p>The Motion FX page also includes the shared <strong>Palettes</strong> toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens <strong>Edit Tile</strong> so palette names and visuals can be adjusted from Motion too. Motion recalls, imports, exports, and saves the shared palette JSON.</p>
@@ -575,7 +575,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/motion-toolbox-groups.png" alt="Motion Groups toolbox"></p>
 <p><strong>Groups</strong> filters the fixture matrix for the selected effect target. When <strong>Effect target</strong> is <strong>None</strong>, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available when two or more fixtures have that target. For example, after a hard reload, choosing <strong>Dimmer</strong> lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.</p>
 <p><img src="screenshots/motion-toolbox-effect-parameters.png" alt="Motion Effect Parameters toolbox"></p>
-<p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls.</p>
+<p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls. Pan/tilt targets show <strong>Pan amp</strong> and <strong>Tilt amp</strong>. Scalar targets show one <strong>Amplitude</strong> control and internally upload the second amplitude as zero.</p>
 <p><img src="screenshots/motion-toolbox-effects.png" alt="Motion Effects toolbox"></p>
 <p><strong>Effects</strong> stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, amplitude, spread, and phase offsets. It does not store fixed center values.</p>
 <p><img src="screenshots/motion-toolbox-scenes.png" alt="Motion Scenes toolbox"></p>
@@ -586,7 +586,7 @@ strong { color: #ffffff; }
 <p>The Pico Motion slot upload now uses the same selected <strong>Effect target</strong> as the browser page.</p>
 <ul>
 <li>If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.</li>
-<li>If the target is scalar, the uploaded slot stores that one control&#39;s DMX channel address and plays one-axis effects such as sine or pulse.</li>
+<li>If the target is scalar, the uploaded slot stores that one control&#39;s DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use <code>AMP1</code> for <strong>Amplitude</strong> and force <code>AMP2</code> to zero.</li>
 <li>Click an empty Pico slot to upload the current effect to that slot.</li>
 <li>Click a loaded slot once to select it for start, stop, or BPM changes.</li>
 <li>Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.</li>

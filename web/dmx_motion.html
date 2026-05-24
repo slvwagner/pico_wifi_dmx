@@ -168,10 +168,10 @@ main{max-width:none;width:100%;margin:0}
     <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
     <label>Hz<input id="updateRate" type="number" min="5" max="50" value="25"></label>
     </div>
-    <label>Pan / scalar amp
+    <label id="panAmpLabel">Pan amp
       <span class="motion-effect-slider"><input id="panAmp" type="range" min="0" max="100" value="20"><span><span id="panAmpVal">20</span>%</span></span>
     </label>
-    <label>Tilt amp
+    <label id="tiltAmpLabel">Tilt amp
       <span class="motion-effect-slider"><input id="tiltAmp" type="range" min="0" max="100" value="15"><span><span id="tiltAmpVal">15</span>%</span></span>
     </label>
     <label>Phase spread
@@ -372,7 +372,21 @@ function populateEffectTypeFilter(preferred){
   sel.innerHTML=opts.length?opts.map(o=>`<option value="${o.value}">${o.label}</option>`).join(''):'<option value="">None</option>';
   sel.value=opts.some(o=>o.value===old)?old:(opts[0]?.value||'');
   sel.disabled=!opts.length;
+  updateEffectParameterUi();
   drawPathPreview();
+}
+function updateEffectParameterUi(){
+  const family=effectTargetFamily();
+  const panLabel=document.getElementById('panAmpLabel');
+  const tiltLabel=document.getElementById('tiltAmpLabel');
+  const tilt=document.getElementById('tiltAmp');
+  const tiltVal=document.getElementById('tiltAmpVal');
+  if(panLabel)panLabel.childNodes[0].nodeValue=family==='scalar'?'Amplitude':'Pan amp';
+  if(tiltLabel)tiltLabel.style.display=family==='scalar'?'none':'grid';
+  if(family==='scalar'&&tilt){
+    tilt.value=0;
+    if(tiltVal)tiltVal.textContent='0';
+  }
 }
 function scopedMotionFixtures(){
   const ids=motionTargetFixtureIds();
@@ -401,6 +415,7 @@ function setMotionTarget(key,{enableMatches=false}={}){
     const inGroup=!selectedIds||selectedIds.has(String(mf.fixture.id));
     mf.enabled=enableMatches&&matches&&inGroup;
   });
+  populateEffectTypeFilter();
   drawFixtureList();
   drawPathPreview();
   refreshMotionGroupActions();
@@ -880,7 +895,7 @@ function drawPathPreview(){
   const {w,h}=syncPathCanvasResolution();
   const type=document.getElementById('effectType').value;
   const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
-  const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
+  const tAmp=effectTargetFamily()==='scalar'?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
 
@@ -1116,7 +1131,7 @@ function serializeMotionForPico(){
   const type=document.getElementById('effectType').value;
   const bpm=parseFloat(document.getElementById('bpm').value);
   const amp1=parseFloat(document.getElementById('panAmp').value)/100;
-  const amp2=parseFloat(document.getElementById('tiltAmp').value)/100;
+  const amp2=effectTargetFamily()==='scalar'?0:parseFloat(document.getElementById('tiltAmp').value)/100;
   const spread=parseFloat(document.getElementById('phaseSpread').value);
   const lines=[
     'FX 1',
