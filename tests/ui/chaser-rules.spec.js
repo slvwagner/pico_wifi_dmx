@@ -249,4 +249,45 @@ test.describe('Chaser established rules', () => {
     expect(result.list).toEqual(['103:31']);
     expect(result.activeKeys).toEqual(['103:31']);
   });
+
+  test('iPad Pan/Tilt step Center button stays anchored while values change digit length', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    const result = await page.evaluate(async () => {
+      const f = setup.fixtures[0];
+      const c = fixtureProfile(f).controls.find(ctrl => ctrl.type === 'panTilt16');
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating[controlKey(f, c)] = true;
+      steps = [makeStep('Pan/Tilt step', { [controlKey(f, c)]: { pan: 1, tilt: 1 } })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      sourceFixtureId = String(f.id);
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const button = document.querySelector('#stepSurface [data-center="1"]');
+      const readout = document.querySelector('#stepSurface [data-readoutf][data-readoutc]');
+      const before = {
+        buttonLeft: Math.round(button.getBoundingClientRect().left),
+        readoutText: readout.textContent
+      };
+      setStepVal(f, c, { pan: 65535, tilt: 65535 });
+      updateStepDisplay(f, c);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      return {
+        before,
+        after: {
+          buttonLeft: Math.round(button.getBoundingClientRect().left),
+          readoutText: readout.textContent
+        }
+      };
+    });
+
+    expect(result.before.readoutText).toContain('Pan 1');
+    expect(result.after.readoutText).toContain('Pan 65535');
+    expect(result.after.buttonLeft).toBe(result.before.buttonLeft);
+  });
 });

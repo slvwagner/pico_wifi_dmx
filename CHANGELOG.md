@@ -16,6 +16,7 @@ Fixed:
 - Fixed compact collapse layout for Chaser and Motion main cards so the sticky page header keeps a stable height and following cards move up instead of leaving empty space.
 - Fixed the toolbox sidebar width divider so it stays visible and draggable while the toolbox area is scrolled.
 - Fixed Controller iPad toolbox resizing so restored wide sidebar states cannot squeeze fixture cards, Pan/Tilt XY pads, or byte sliders into a broken horizontal-overflow layout.
+- Fixed the Chaser iPad Pan/Tilt step editor so the **Center** button stays anchored while Pan/Tilt readout digit lengths change.
 
 ## 0.9.1 - 2026-05-24
 

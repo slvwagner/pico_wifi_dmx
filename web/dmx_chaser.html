@@ -21,6 +21,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .readout{font-size:22px;line-height:1;color:var(--accent);font-weight:700}.bytes{color:var(--muted);font-size:13px}
 .byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pantilt-action-row{display:grid;grid-template-columns:auto minmax(0,1fr);justify-content:start;align-items:center}
+.pantilt-action-row .readout{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .xy-dot{width:14px;height:14px}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
@@ -1766,7 +1768,7 @@ function renderStepControl(f,c){
     const pan=bytes16(v.pan??32768),tilt=bytes16(v.tilt??32768);
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)}/${absolute(f.start,c.panFine??c.pan+1)} · Tilt ${absolute(f.start,c.tilt)}/${absolute(f.start,c.tiltFine??c.tilt+1)}</span></div>
       <div class="xy-pad" data-xyf="${fi}" data-xyc="${ci}"><div class="xy-dot" style="left:${(v.pan??32768)/65535*100}%;top:${100-(v.tilt??32768)/65535*100}%"></div></div>
-      <div class="row"><span class="readout" data-readoutf="${fi}" data-readoutc="${ci}">Pan ${Math.round(v.pan??32768)} · Tilt ${Math.round(v.tilt??32768)}</span><button data-center="1" data-fi="${fi}" data-ci="${ci}">Center</button></div>
+      <div class="row pantilt-action-row"><button data-center="1" data-fi="${fi}" data-ci="${ci}">Center</button><span class="readout" data-readoutf="${fi}" data-readoutc="${ci}">Pan ${Math.round(v.pan??32768)} · Tilt ${Math.round(v.tilt??32768)}</span></div>
       <label>Pan<input type="range" min="0" max="65535" value="${Math.round(v.pan??32768)}" data-fi="${fi}" data-ci="${ci}" data-axis="pan"></label>
       <label>Tilt<input type="range" min="0" max="65535" value="${Math.round(v.tilt??32768)}" data-fi="${fi}" data-ci="${ci}" data-axis="tilt"></label>
       <div class="byte-sliders">
@@ -1779,7 +1781,7 @@ function renderStepControl(f,c){
   if(c.type==='panTilt8'){
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan ${absolute(f.start,c.pan)} · Tilt ${absolute(f.start,c.tilt)}</span></div>
       <div class="xy-pad" data-xyf="${fi}" data-xyc="${ci}"><div class="xy-dot" style="left:${(v.pan??128)/255*100}%;top:${100-(v.tilt??128)/255*100}%"></div></div>
-      <div class="row"><span class="readout" data-readoutf="${fi}" data-readoutc="${ci}">Pan ${Math.round(v.pan??128)} · Tilt ${Math.round(v.tilt??128)}</span><button data-center="1" data-fi="${fi}" data-ci="${ci}">Center</button></div>
+      <div class="row pantilt-action-row"><button data-center="1" data-fi="${fi}" data-ci="${ci}">Center</button><span class="readout" data-readoutf="${fi}" data-readoutc="${ci}">Pan ${Math.round(v.pan??128)} · Tilt ${Math.round(v.tilt??128)}</span></div>
       <label>Pan<input type="range" min="0" max="255" value="${Math.round(v.pan??128)}" data-fi="${fi}" data-ci="${ci}" data-axis="pan"></label>
       <label>Tilt<input type="range" min="0" max="255" value="${Math.round(v.tilt??128)}" data-fi="${fi}" data-ci="${ci}" data-axis="tilt"></label></div>`;
   }
