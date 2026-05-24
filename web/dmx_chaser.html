@@ -2064,13 +2064,13 @@ function normalizeChaseGrid(priority='cols'){
   if(sr){chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(sr)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
 })();
 function currentChaseSlotData(){
-  return{
+  return DmxCommon.versionedPayload({
     baseUrl:baseUrlEl.value,
     playback:picoPlaybackOptions(),
     browserPlayback:browserPlaybackOptions(),
     steps:JSON.parse(JSON.stringify(steps)),
     participating:JSON.parse(JSON.stringify(participating))
-  };
+  });
 }
 function renderChaseSlotMatrix(){
   const grid=document.getElementById('chaseSlotMatrix');
@@ -2122,7 +2122,7 @@ async function loadChaseSlot(chase){
 }
 async function saveChasesServer(){
   try{
-    const body={baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows};
+    const body=DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows});
     const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
     if(!j.ok)setStatus('Chases save failed: '+j.error,true);
@@ -2140,8 +2140,7 @@ async function loadChasesServer(){
   renderChaseSlotMatrix();
 }
 function exportChasesJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_chases.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_chases.json',DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows}));
 }
 function importChasesJson(file){
   const fr=new FileReader();
@@ -2501,7 +2500,7 @@ function recallChaserPalette(p){
   setStatus('Recalled palette "'+(p.name||'Palette')+'" into step '+(selectedStepIdx+1)+' and loaded '+keys.length+' participating control'+(keys.length===1?'':'s'));
 }
 function saveChaserPalettesServer(){
-  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows})})
+  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows}))})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Palettes save failed: '+d.error,true);})
     .catch(e=>setStatus('Palettes save error: '+e.message,true));
 }
@@ -2517,8 +2516,7 @@ function loadChaserPalettesServer(){
   }).catch(()=>{chaserPalettes=[];renderChaserPaletteMatrix();});
 }
 function exportChaserPalettesJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_palettes.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_palettes.json',DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows}));
 }
 function importChaserPalettesJson(file){
   const reader=new FileReader();
@@ -2584,9 +2582,8 @@ document.getElementById('btnExportSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
   if(!j.ok){setStatus('Export slots error',true);return;}
-  const exportData={pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots};
-  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chaser_slots.json';a.click();URL.revokeObjectURL(a.href);
+  const exportData=DmxCommon.versionedPayload({pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots});
+  DmxCommon.downloadJson('chaser_slots.json',exportData);
   setStatus('chaser_slots.json downloaded');
 };
 document.getElementById('btnImportSlots').onclick=()=>document.getElementById('importSlotsFile').click();

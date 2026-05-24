@@ -39,6 +39,7 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 - Chaser **Add step** starts from default/fallback values for selected participating controls.
 - Chaser step selection rebuilds the active edit scope from the selected step values.
 - Buffer Monitor keeps **Refresh ms** and **Refresh Hz** synchronized.
+- Shared UI version badge is rendered, and JSON export payloads include `appVersion` and `schemaVersion`.
 - Browser Chase Playback sends fade interpolation at the configured update rate.
 - Real Pico hardware tests can verify `/dmx/output.json`, `/dmx/base.json`, chaser slot upload/play/stop, and motion slot upload/start/stop when enabled in the path config.
 

@@ -2,6 +2,8 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
+  const APP_VERSION='0.8.0';
+  const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
     return location.protocol==='http:'||location.protocol==='https:';
@@ -10,6 +12,48 @@
   function escapeHtml(value){
     return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+
+  function appVersion(){
+    return window.DMX_APP_VERSION||APP_VERSION;
+  }
+
+  function versionedPayload(data,schemaVersion){
+    return {
+      appVersion: appVersion(),
+      schemaVersion: schemaVersion||DEFAULT_SCHEMA_VERSION,
+      ...(data||{})
+    };
+  }
+
+  function downloadJson(filename,data){
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function initVersionBadge(){
+    const apply=version=>{
+      const v=String(version||appVersion()).trim();
+      if(!v)return;
+      document.querySelectorAll('header h1').forEach(h1=>{
+        if(h1.querySelector('.app-version'))return;
+        const badge=document.createElement('span');
+        badge.className='app-version';
+        badge.textContent='v'+v;
+        h1.appendChild(badge);
+      });
+    };
+    fetch('VERSION',{cache:'no-store'})
+      .then(r=>r.ok?r.text():appVersion())
+      .then(apply)
+      .catch(()=>apply(appVersion()));
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initVersionBadge);
+  else initVersionBadge();
 
   function clampInt(value,min,max){
     const n=parseInt(value||0,10);
@@ -653,7 +697,7 @@
     }
     async function saveGroups(){
       try{
-        const r=await fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:options.baseUrlInput?.value||'',groups})});
+        const r=await fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(versionedPayload({baseUrl:options.baseUrlInput?.value||'',groups}))});
         const j=await r.json();
         if(!j.ok)options.onStatus?.('Groups save failed: '+j.error,true);
       }catch(err){options.onStatus?.('Groups save error: '+err.message,true);}
@@ -669,8 +713,7 @@
       notify();
     }
     function exportGroups(){
-      const blob=new Blob([JSON.stringify({baseUrl:options.baseUrlInput?.value||'',groups},null,2)],{type:'application/json'});
-      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_groups.json';a.click();URL.revokeObjectURL(a.href);
+      downloadJson('dmx_groups.json',versionedPayload({baseUrl:options.baseUrlInput?.value||'',groups}));
     }
     function importGroups(file){
       const fr=new FileReader();
@@ -1014,8 +1057,12 @@
 
   window.DmxCommon={
     BASE_URL_KEY,
+    APP_VERSION,
     isHttp,
     escapeHtml,
+    appVersion,
+    versionedPayload,
+    downloadJson,
     clampInt,
     clampFloat,
     fanOrderedFixtures,

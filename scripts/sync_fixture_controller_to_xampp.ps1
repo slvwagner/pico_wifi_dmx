@@ -10,6 +10,7 @@ $webDir = Join-Path $repoRoot "web"
 $assetsDir = Join-Path $webDir "assets"
 $apiDir = Join-Path $repoRoot "api"
 $docsDir = Join-Path $repoRoot "docs"
+$versionSource = Join-Path $repoRoot "VERSION"
 
 $source = Join-Path $webDir "dmx_fixture_controller.html"
 $apiSource = Join-Path $apiDir "fixture_setup.php"
@@ -47,6 +48,7 @@ $uiStateTarget   = Join-Path $targetDir "ui_state.php"
 $manualTarget    = Join-Path $targetDir "user-manual.html"
 $manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
 $manualScreenshotsTarget = Join-Path $targetDir "screenshots"
+$versionTarget = Join-Path $targetDir "VERSION"
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Source file not found: $source"
@@ -122,6 +124,10 @@ if (Test-Path -LiteralPath $manualScreenshotsSource) {
     New-Item -ItemType Directory -Force -Path $manualScreenshotsTarget | Out-Null
     Copy-Item -Path (Join-Path $manualScreenshotsSource "*") -Destination $manualScreenshotsTarget -Force
     Write-Host "Copied user manual screenshots to $manualScreenshotsTarget"
+}
+if (Test-Path -LiteralPath $versionSource) {
+    Copy-Item -LiteralPath $versionSource -Destination $versionTarget -Force
+    Write-Host "Copied app version to $versionTarget"
 }
 
 $dataFiles = @(

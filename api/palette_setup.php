@@ -29,6 +29,8 @@ if ($method === 'GET') {
         'paletteCols' => $data['paletteCols'] ?? 4,
         'paletteRows' => $data['paletteRows'] ?? 4,
         'baseUrl'     => $data['baseUrl']     ?? null,
+        'appVersion' => $data['appVersion'] ?? null,
+        'schemaVersion' => $data['schemaVersion'] ?? null,
     ]);
     exit;
 }

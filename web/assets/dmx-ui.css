@@ -6,6 +6,7 @@ main{max-width:1260px;margin:0 auto;padding:20px;display:grid;gap:16px}
 header{position:sticky;top:0;z-index:90;background:var(--bg);padding:0 0 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 header>div:first-child{flex:1 1 220px;min-width:220px;max-width:100%}
 h1{font-size:22px;margin:0}
+.app-version{display:inline-block;margin-left:8px;color:var(--muted);font-size:12px;font-weight:600;vertical-align:baseline}
 h2{font-size:18px;margin:0}
 h3{font-size:15px;margin:0}
 .status,.small{color:var(--muted);font-size:13px}

@@ -992,7 +992,7 @@ function patchFixture(){
   scheduleSetupAutosave();
 }
 
-function saveData(){return {baseUrl:baseUrl.value,profiles,fixtures};}
+function saveData(){return DmxCommon.versionedPayload({baseUrl:baseUrl.value,profiles,fixtures});}
 function applyData(data){
   baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
@@ -1638,8 +1638,7 @@ patchProfile.onchange=()=>{
 baseUrl.addEventListener('input',scheduleSetupAutosave);
 document.getElementById('exportCsv').onclick=exportCsv;
 document.getElementById('exportJson').onclick=()=>{
-  const blob=new Blob([JSON.stringify(saveData(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fixture_setup.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('fixture_setup.json',saveData());
   setStatus('fixture_setup.json downloaded');
 };
 document.getElementById('importJson').onclick=()=>document.getElementById('importJsonFile').click();
@@ -2212,7 +2211,7 @@ function updateGroupActionButtons(){
   if(editBtn)editBtn.disabled=selectedFixtureIds.size<2||!getGroupEditableControls().length;
 }
 function saveSavedGroupsToServer(){
-  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups})})
+  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}))})
     .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
     .catch(e=>setStatus('Groups save error: '+e.message));
 }
@@ -2315,8 +2314,7 @@ function editSelectedGroups(){
   openGroupModal();
 }
 function exportGroupsJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_groups.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_groups.json',DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}));
 }
 function importGroupsJson(file){
   const fr=new FileReader();
@@ -2706,7 +2704,7 @@ async function clearAllChannels(){
   }
 }
 function saveScenesServer(){
-  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,scenes,slotCols,slotRows})})
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,scenes,slotCols,slotRows}))})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
     .catch(e=>setStatus('Scenes save error: '+e.message,true));
 }
@@ -2722,8 +2720,7 @@ function loadScenesServer(){
   }).catch(()=>{scenes=[];renderSlotMatrix();});
 }
 function exportScenesJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,scenes,slotCols,slotRows},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_scenes.json',DmxCommon.versionedPayload({baseUrl:baseUrl.value,scenes,slotCols,slotRows}));
 }
 function importScenesJson(file){
   const fr=new FileReader();
@@ -2948,7 +2945,7 @@ function recallPalette(p){
   setStatus('Recalled palette: "'+p.name+'"');
 }
 function savePalettesServer(){
-  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows})})
+  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows}))})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Palettes save failed: '+d.error,true);})
     .catch(e=>setStatus('Palettes save error: '+e.message,true));
 }
@@ -2964,8 +2961,7 @@ function loadPalettesServer(){
   }).catch(()=>{palettes=[];renderPaletteMatrix();});
 }
 function exportPalettesJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_palettes.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_palettes.json',DmxCommon.versionedPayload({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows}));
 }
 function importPalettesJson(file){
   const fr=new FileReader();
