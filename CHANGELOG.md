@@ -5,6 +5,12 @@
 Changed:
 
 - Started the 0.9.1 development branch.
+- Working title: Pico performance.
+
+Added:
+
+- Planned firmware performance logging for Core0/Core1 cycle headroom.
+- Added Core1 HTTP callback timing to the performance log.
 
 ## 0.9.0 - Unreleased
 

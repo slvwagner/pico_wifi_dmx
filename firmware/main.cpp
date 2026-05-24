@@ -48,6 +48,10 @@
 #define DMX_REFRESH_RATE 40
 #endif
 
+#define PERF_LOG_INTERVAL_US 2000000u
+#define CORE0_PLAYBACK_PERIOD_US 10000u
+#define CORE1_SERVICE_PERIOD_US 2000000u
+
 static critical_section_t log_lock;
 static critical_section_t dmx_ui_lock;
 static char log_buffer[4096];
@@ -71,6 +75,108 @@ static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_GPIO
 static uint8_t post_slot = 0;
 
 extern char __StackLimit;
+
+static void log_printf(const char *format, ...);
+
+typedef struct perf_window_t {
+    uint32_t samples;
+    uint32_t late_count;
+    uint64_t work_total_us;
+    uint64_t slack_total_us;
+    uint32_t work_peak_us;
+    uint32_t slack_min_us;
+    uint32_t late_peak_us;
+} perf_window_t;
+
+typedef struct http_perf_window_t {
+    uint32_t calls;
+    uint64_t total_us;
+    uint32_t peak_us;
+} http_perf_window_t;
+
+static http_perf_window_t core1_http_perf;
+
+static void perf_reset(perf_window_t *p)
+{
+    memset(p, 0, sizeof(*p));
+    p->slack_min_us = UINT32_MAX;
+}
+
+static void perf_add(perf_window_t *p, uint32_t work_us, int32_t slack_us)
+{
+    p->samples++;
+    p->work_total_us += work_us;
+    if (work_us > p->work_peak_us) {
+        p->work_peak_us = work_us;
+    }
+    if (slack_us >= 0) {
+        uint32_t slack = (uint32_t)slack_us;
+        p->slack_total_us += slack;
+        if (slack < p->slack_min_us) {
+            p->slack_min_us = slack;
+        }
+    } else {
+        uint32_t late = (uint32_t)(-slack_us);
+        p->late_count++;
+        if (late > p->late_peak_us) {
+            p->late_peak_us = late;
+        }
+        if (p->slack_min_us > 0) {
+            p->slack_min_us = 0;
+        }
+    }
+}
+
+static void perf_log_and_reset(const char *label, perf_window_t *p)
+{
+    if (p->samples == 0) {
+        log_printf("%s perf: no samples\n", label);
+        perf_reset(p);
+        return;
+    }
+    uint32_t work_mean = (uint32_t)(p->work_total_us / p->samples);
+    uint32_t slack_mean = (uint32_t)(p->slack_total_us / p->samples);
+    uint32_t slack_min = (p->slack_min_us == UINT32_MAX) ? 0 : p->slack_min_us;
+    log_printf("%s perf: samples=%lu work_us mean=%lu peak=%lu slack_us mean=%lu min=%lu late=%lu peak_late=%lu\n",
+               label,
+               (unsigned long)p->samples,
+               (unsigned long)work_mean,
+               (unsigned long)p->work_peak_us,
+               (unsigned long)slack_mean,
+               (unsigned long)slack_min,
+               (unsigned long)p->late_count,
+               (unsigned long)p->late_peak_us);
+    perf_reset(p);
+}
+
+static void http_perf_add(uint32_t work_us)
+{
+    core1_http_perf.calls++;
+    core1_http_perf.total_us += work_us;
+    if (work_us > core1_http_perf.peak_us) {
+        core1_http_perf.peak_us = work_us;
+    }
+}
+
+static void http_perf_log_and_reset()
+{
+    uint32_t mean_us = core1_http_perf.calls
+        ? (uint32_t)(core1_http_perf.total_us / core1_http_perf.calls)
+        : 0;
+    log_printf("Core1 http: calls=%lu work_us mean=%lu peak=%lu\n",
+               (unsigned long)core1_http_perf.calls,
+               (unsigned long)mean_us,
+               (unsigned long)core1_http_perf.peak_us);
+    memset(&core1_http_perf, 0, sizeof(core1_http_perf));
+}
+
+class scoped_http_perf_t {
+public:
+    scoped_http_perf_t() : start_us(time_us_32()) {}
+    ~scoped_http_perf_t() { http_perf_add(time_us_32() - start_us); }
+private:
+    uint32_t start_us;
+};
 
 static void append_log_line(const char *line)
 {
@@ -912,6 +1018,8 @@ static void build_playback_err_response(const char *msg)
 
 extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 {
+    scoped_http_perf_t http_perf;
+
     if (path_matches(name, "/dmx/set")) {
         build_dmx_set_response(name);
         file->data = http_dmx_json;
@@ -1318,6 +1426,7 @@ extern "C" err_t httpd_post_begin(void *connection,
                                    u16_t response_uri_len,
                                    u8_t *post_auto_wnd)
 {
+    scoped_http_perf_t http_perf;
     (void)connection; (void)http_request; (void)http_request_len;
     (void)response_uri; (void)response_uri_len;
 
@@ -1368,6 +1477,7 @@ extern "C" err_t httpd_post_begin(void *connection,
 
 extern "C" err_t httpd_post_receive_data(void *connection, struct pbuf *p)
 {
+    scoped_http_perf_t http_perf;
     (void)connection;
     struct pbuf *q = p;
     while (q != NULL) {
@@ -1388,6 +1498,7 @@ extern "C" void httpd_post_finished(void *connection,
                                      char *response_uri,
                                      u16_t response_uri_len)
 {
+    scoped_http_perf_t http_perf;
     (void)connection;
     post_buffer[post_length] = '\0';
 
@@ -1492,18 +1603,34 @@ static void core1_network_log_server()
     httpd_init();
     log_printf("HTTPD log server started on port 80\n");
 
-    uint32_t loop_count = 0;
+    perf_window_t core1_perf;
+    perf_reset(&core1_perf);
+    uint32_t next_service_us = time_us_32() + CORE1_SERVICE_PERIOD_US;
+
     while (true) {
+        uint32_t cycle_start_us = time_us_32();
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        
-        if ((loop_count++ % 10) == 0) {
-            log_printf("Wi-Fi is connected\n");
-            log_printf("Approx free RAM: %u bytes\n", (unsigned)get_free_ram_bytes());
-            log_ip_addresses();
+        int wifi_status = cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
+        int tcpip_status = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
+
+        uint32_t work_us = time_us_32() - cycle_start_us;
+        int32_t slack_us = (int32_t)(next_service_us - time_us_32());
+        perf_add(&core1_perf, work_us, slack_us);
+        perf_log_and_reset("Core1", &core1_perf);
+        log_printf("Core1 net: wifi=%s tcpip=%s free_ram=%u\n",
+                   link_status_name(wifi_status),
+                   link_status_name(tcpip_status),
+                   (unsigned)get_free_ram_bytes());
+        http_perf_log_and_reset();
+
+        while ((int32_t)(next_service_us - time_us_32()) > 50000) {
+            sleep_ms(50);
         }
-        sleep_ms(500);
+        if ((int32_t)(next_service_us - time_us_32()) > 0) {
+            sleep_us((uint32_t)(next_service_us - time_us_32()));
+        }
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-        sleep_ms(1000);
+        next_service_us += CORE1_SERVICE_PERIOD_US;
     }
 }
 
@@ -1540,15 +1667,18 @@ static void core0_application_loop()
 
     log_printf("Core0 DMX engine running\n");
 
-    uint32_t loop_count = 0;
     uint32_t last_playback_tick = 0;
     uint32_t last_gpio_poll_ms = 0;
+    uint32_t last_perf_log_us = time_us_32();
+    perf_window_t core0_perf;
+    perf_reset(&core0_perf);
 
     while (application_running) {
         dmx_engine_poll();
 
         uint32_t now_us = time_us_32();
-        if (now_us - last_playback_tick >= 10000) {  /* 100 Hz */
+        if (now_us - last_playback_tick >= CORE0_PLAYBACK_PERIOD_US) {  /* 100 Hz */
+            uint32_t cycle_start_us = now_us;
             /* Phase 1: chaser — results update the scene base buffer AND the output. */
             static uint8_t chaser_scratch[513];
             static bool    chaser_touched[513];
@@ -1572,7 +1702,10 @@ static void core0_application_loop()
                 if (mfx_touched[ch])
                     dmx_engine_set_channel(ch, mfx_scratch[ch]);
 
-            last_playback_tick = now_us;
+            uint32_t cycle_end_us = time_us_32();
+            int32_t slack_us = (int32_t)((cycle_start_us + CORE0_PLAYBACK_PERIOD_US) - cycle_end_us);
+            perf_add(&core0_perf, cycle_end_us - cycle_start_us, slack_us);
+            last_playback_tick = cycle_start_us;
         }
 
         uint32_t now_ms = to_ms_since_boot(get_absolute_time());
@@ -1581,14 +1714,18 @@ static void core0_application_loop()
             last_gpio_poll_ms = now_ms;
         }
 
-        if ((loop_count++ % 5000) == 0) {
+        now_us = time_us_32();
+        if (now_us - last_perf_log_us >= PERF_LOG_INTERVAL_US) {
             dmx_engine_status_t status;
             dmx_engine_get_status(&status);
-            log_printf("Core0 DMX running: frames=%lu skipped=%lu timeouts=%lu resyncs=%lu\n",
+            perf_log_and_reset("Core0", &core0_perf);
+            log_printf("Core0 dmx: frames=%lu skipped=%lu prime_timeouts=%lu frame_timeouts=%lu resyncs=%lu\n",
                        (unsigned long)status.frame_count,
                        (unsigned long)status.skipped_callbacks,
+                       (unsigned long)status.prime_timeouts,
                        (unsigned long)status.frame_timeouts,
                        (unsigned long)status.auto_resyncs);
+            last_perf_log_us = now_us;
         }
         sleep_us(50);
     }
