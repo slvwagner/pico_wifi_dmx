@@ -29,6 +29,20 @@ User-facing operating instructions are in [docs/user-manual.md](docs/user-manual
 
 ---
 
+## Automated Tests
+
+Regression tests live in [tests](tests/). The UI tests use Playwright against the XAMPP-served app and cover established workflow rules for Controller, Chaser, Motion FX, and the DMX Buffer Monitor.
+
+```powershell
+npm install
+npx playwright install chromium
+npm run test:ui
+```
+
+The default test URL is `http://localhost/dmx/`. Set `DMX_TEST_BASE_URL` to use another served copy.
+
+---
+
 ## Project Structure
 
 ```text
@@ -67,6 +81,10 @@ pico_wifi_dmx/
 │  ├─ capture_readme_screenshots.ps1
 │  ├─ capture_chaser_screenshot.ps1
 │  └─ build_user_manual_pdf.ps1
+├─ tests/                    Automated regression tests
+│  ├─ ui/                    Browser workflow tests against the served UI
+│  ├─ unit/                  Pure rule/helper tests
+│  └─ fixtures/              Compact deterministic test data
 ├─ CMakeLists.txt            Pico SDK build configuration
 ├─ pico_sdk_import.cmake     Pico SDK import helper
 ├─ LICENSE                   Non-commercial license declaration
@@ -241,7 +259,7 @@ Saved Groups are shown in a compact matrix. Each group has Select and Deselect o
 
 ![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
 
-The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows only controls that exist on all selected fixtures, so one slider or XY pad can update every fixture in the group at once. On the Chaser page, **Apply source** copies the selected Source fixture's value for one control to all matching participating fixtures, and **All** applies every editable Source value in the modal. The modal can also recall Default all or Blackout all; normal edits are sent to the Pico when a Pico base URL is set.
+The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows controls that exist on at least two selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. On the Chaser page, **Apply source** copies the selected Source fixture's value for one control to all matching participating fixtures, and **All** applies every editable Source value in the modal. The modal can also recall Default all or Blackout all; normal edits are sent to the Pico when a Pico base URL is set.
 
 The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, or **Merge** the selected step values into an existing palette. Filled palette slots use the small top-left pencil icon to open **Edit Tile** for renaming and visual appearance. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
 

@@ -303,7 +303,7 @@ Group selection is shared across toolbox pages that use the Groups toolbox. It i
 2. Click **Group Edit**.
 3. Adjust common controls in the modal.
 
-The Group Edit modal only shows controls that exist on all selected fixtures. This prevents accidentally sending values to fixtures with incompatible control layouts.
+The Group Edit modal only shows controls that exist on at least two selected fixtures. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.
 
 When a Pico base URL is set, each Group Edit change is sent to the Pico immediately. To use Group Edit browser-only, clear the Pico base URL first.
 
