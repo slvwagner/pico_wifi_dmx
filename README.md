@@ -516,7 +516,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Motion FX | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh interval and rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
-| FPS Benchmark | `web/dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
+| Pico Performance Test | `web/dmx_benchmark.html` | Check Pico connectivity, parse core timing logs, verify DMX/base buffer readback, and measure HTTP latency for single-channel, batch, stress, and soak-test DMX update patterns |
 
 ### Screenshots
 
@@ -596,13 +596,13 @@ The page protects reserved hardware pins and already-used pins, then sends the m
 
 The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selector to switch between the actual live output frame and the base/position buffer used as the Motion FX center. Use **Refresh ms** or **Refresh Hz** to choose how often the selected buffer is read; both fields stay synchronized.
 
-**Benchmark**
+**Pico Performance Test**
 
-![Benchmark page](docs/screenshots/benchmark.png)
+![Pico Performance Test page](docs/screenshots/benchmark.png)
 
-The Benchmark page measures how fast the Pico HTTP API can accept DMX updates. It can test single-channel updates, scene-sized batch updates, stress tests, and longer soak tests. The result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
+The Pico Performance Test page checks the whole browser-to-Pico path. It reads `/status.json` and `/logs.txt`, parses the Core0/Core1 timing lines, verifies that a known DMX batch can be read back from both `/dmx/output.json` and `/dmx/base.json`, and keeps the former frame-rate benchmark as the DMX Write Test. The write result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
 
-This page is mainly for checking whether a change in firmware, WiFi, API format, or browser behavior affects real-time control performance. The CSV export makes it possible to compare test runs later.
+Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 

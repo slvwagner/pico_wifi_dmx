@@ -31,7 +31,8 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 - GPIO ADC mappings only offer GPIO26, GPIO27, and GPIO28.
 - GPIO mapping dropdowns mark reserved or already-used pins unavailable.
 - GPIO loads saved mappings from the XAMPP server, autosaves edits back to the server, and preserves those mappings across a fresh device-style reload.
-- GPIO and Benchmark pages link to the DMX Buffer Monitor.
+- GPIO and Pico Performance pages link to the DMX Buffer Monitor.
+- Pico Performance Test parses firmware timing logs and verifies DMX/base buffer readback against a configured Pico base URL.
 - Controller wheel/indexed controls reject duplicate DMX option values.
 - Controller scene recall clears group selection and filters to involved fixtures.
 - Controller palette recall applies only stored values and leaves unrelated values untouched.

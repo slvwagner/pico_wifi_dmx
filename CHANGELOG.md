@@ -11,6 +11,8 @@ Added:
 
 - Planned firmware performance logging for Core0/Core1 cycle headroom.
 - Added Core1 HTTP callback timing to the performance log.
+- Reworked the former Frame Rate Test into the Pico Performance Test with Pico status checks, firmware log parsing, DMX/base buffer readback, the existing write benchmark, and automated UI coverage.
+- Hardened the Pico Performance Test so old firmware readback/log issues show as warnings, and added `/dmx/base.json` as a firmware alias for `/dmx/base`.
 
 ## 0.9.0 - Unreleased
 

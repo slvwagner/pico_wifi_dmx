@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DMX Frame Rate Test</title>
+<title>Pico Performance Test</title>
 <link rel="stylesheet" href="../assets/dmx-ui.css">
 <script src="../assets/dmx-common.js"></script>
 <style>
@@ -27,6 +27,20 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{border-bottom:1px solid var(--line);padding:8px;text-align:right}
 th:first-child,td:first-child{text-align:left}
 th{color:var(--muted);font-weight:600}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.section-head h2{margin:0}
+.check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.check{background:#0a0d10;border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-height:76px}
+.check-state{font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:.04em}
+.check-title{font-weight:700;margin:4px 0}
+.check-detail{color:var(--muted);font-size:12px;line-height:1.35}
+.check.pass{border-color:#2b8f73;background:#0b1815}
+.check.pass .check-state{color:var(--accent)}
+.check.warn{border-color:#9f7134;background:#19140d}
+.check.warn .check-state{color:var(--warn)}
+.check.bad{border-color:#9b4747;background:#1c1010}
+.check.bad .check-state{color:var(--bad)}
+.result-line{color:var(--muted);font-size:12px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -34,8 +48,8 @@ th{color:var(--muted);font-weight:600}
 
 <header>
   <div>
-    <h1>DMX Frame Rate Test</h1>
-    <div class="status" id="status">Configure and press Start.</div>
+    <h1>Pico Performance Test</h1>
+    <div class="status" id="status">Configure and run a test.</div>
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
@@ -44,11 +58,46 @@ th{color:var(--muted);font-weight:600}
     <a class="nav" href="../dmx_motion.html">Motion</a>
     <a class="nav" href="../dmx_gpio.html">GPIO</a>
     <a class="nav" href="../dmx_monitor.html">Monitor</a>
-    <a class="nav" href="../user-manual.html#7-benchmark" target="_blank">Manual</a>
+    <a class="nav" href="../user-manual.html#7-pico-performance-test" target="_blank">Manual</a>
   </div>
 </header>
 
 <section class="panel">
+  <div class="section-head">
+    <h2>Connection & Core Timing</h2>
+    <div class="toolbar">
+      <button id="btnCheckPico">Check Pico</button>
+      <button class="primary" id="btnRunFull">Run Full Test</button>
+    </div>
+  </div>
+  <div class="check-grid">
+    <div class="check" id="checkStatus"><div class="check-state">Idle</div><div class="check-title">Pico status</div><div class="check-detail">No check run yet.</div></div>
+    <div class="check" id="checkCore0"><div class="check-state">Idle</div><div class="check-title">Core0 DMX loop</div><div class="check-detail">No timing data yet.</div></div>
+    <div class="check" id="checkCore1"><div class="check-state">Idle</div><div class="check-title">Core1 service loop</div><div class="check-detail">No timing data yet.</div></div>
+    <div class="check" id="checkHttp"><div class="check-state">Idle</div><div class="check-title">HTTP callbacks</div><div class="check-detail">No HTTP timing data yet.</div></div>
+    <div class="check" id="checkDmx"><div class="check-state">Idle</div><div class="check-title">DMX frame counters</div><div class="check-detail">No frame counter data yet.</div></div>
+    <div class="check" id="checkBuffer"><div class="check-state">Idle</div><div class="check-title">Buffer readback</div><div class="check-detail">No readback test run yet.</div></div>
+    <div class="check" id="checkWrite"><div class="check-state">Idle</div><div class="check-title">DMX write load</div><div class="check-detail">No write benchmark run yet.</div></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-head">
+    <h2>Buffer Readback</h2>
+    <div class="toolbar">
+      <label>Start channel<input id="bufferChannel" type="number" min="1" max="512" value="1"></label>
+      <label>Channels<input id="bufferCount" type="number" min="1" max="512" value="16"></label>
+      <label>Value<input id="bufferValue" type="number" min="0" max="255" value="73"></label>
+      <button id="btnBufferReadback">Read Back</button>
+    </div>
+  </div>
+  <div class="result-line" id="bufferResult">Writes a known batch, reads live output and base buffer, then compares the tested channels.</div>
+</section>
+
+<section class="panel">
+  <div class="section-head">
+    <h2>DMX Write Test</h2>
+  </div>
   <div class="toolbar">
     <label>Preset<select id="preset">
       <option value="quick">Quick check</option>
@@ -146,6 +195,99 @@ try{const d=JSON.parse(localStorage.getItem('dmxFixtureController')||'{}');bench
 DmxCommon.bindBaseUrl(baseUrlEl,{fallback:benchmarkFallbackUrl});
 
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
+
+function picoRoot(){
+  return baseUrlEl.value.replace(/\/+$/,'');
+}
+
+function setCheck(id,state,title,detail){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const normalized=state||'idle';
+  el.className='check '+(normalized==='pass'?'pass':normalized==='warn'?'warn':normalized==='bad'?'bad':'');
+  el.querySelector('.check-state').textContent=normalized==='pass'?'Pass':normalized==='warn'?'Warn':normalized==='bad'?'Fail':'Idle';
+  if(title)el.querySelector('.check-title').textContent=title;
+  el.querySelector('.check-detail').textContent=detail||'';
+}
+
+async function fetchPicoText(path){
+  const root=picoRoot();
+  if(!root)throw new Error('Set Pico base URL first');
+  const r=await fetch(root+path,{cache:'no-store'});
+  if(!r.ok)throw new Error(path+' HTTP '+r.status);
+  return r.text();
+}
+
+async function fetchPicoJson(path){
+  return JSON.parse(await fetchPicoText(path));
+}
+
+function latestMatch(text,re){
+  const matches=[...text.matchAll(re)];
+  return matches.length?matches[matches.length-1]:null;
+}
+
+function parseCoreTiming(logText){
+  const core0=latestMatch(logText,/Core0 perf: samples=(\d+) work_us mean=(\d+) peak=(\d+) slack_us mean=(\d+) min=(\d+) late=(\d+) peak_late=(\d+)/g);
+  const core1=latestMatch(logText,/Core1 perf: samples=(\d+) work_us mean=(\d+) peak=(\d+) slack_us mean=(\d+) min=(\d+) late=(\d+) peak_late=(\d+)/g);
+  const dmx=latestMatch(logText,/Core0 dmx: frames=(\d+) skipped=(\d+) prime_timeouts=(\d+) frame_timeouts=(\d+) resyncs=(\d+)/g);
+  const http=latestMatch(logText,/Core1 http: calls=(\d+) work_us mean=(\d+) peak=(\d+)/g);
+  return {
+    core0:core0?{samples:+core0[1],mean:+core0[2],peak:+core0[3],slackMean:+core0[4],slackMin:+core0[5],late:+core0[6],peakLate:+core0[7]}:null,
+    core1:core1?{samples:+core1[1],mean:+core1[2],peak:+core1[3],slackMean:+core1[4],slackMin:+core1[5],late:+core1[6],peakLate:+core1[7]}:null,
+    dmx:dmx?{frames:+dmx[1],skipped:+dmx[2],primeTimeouts:+dmx[3],frameTimeouts:+dmx[4],resyncs:+dmx[5]}:null,
+    http:http?{calls:+http[1],mean:+http[2],peak:+http[3]}:null
+  };
+}
+
+function renderCoreTiming(parsed){
+  if(parsed.core0){
+    const c=parsed.core0;
+    const state=c.late>0?'bad':c.slackMin<1000?'warn':'pass';
+    setCheck('checkCore0',state,'Core0 DMX loop','work mean '+c.mean+'us, peak '+c.peak+'us, min slack '+c.slackMin+'us, late '+c.late);
+  }else setCheck('checkCore0','warn','Core0 DMX loop','No Core0 perf line found in /logs.txt.');
+
+  if(parsed.core1){
+    const c=parsed.core1;
+    const state=c.late>0?'bad':c.slackMin<100000?'warn':'pass';
+    setCheck('checkCore1',state,'Core1 service loop','work mean '+c.mean+'us, peak '+c.peak+'us, min slack '+c.slackMin+'us, late '+c.late);
+  }else setCheck('checkCore1','warn','Core1 service loop','No Core1 perf line found in /logs.txt.');
+
+  if(parsed.http){
+    const h=parsed.http;
+    setCheck('checkHttp',h.peak>10000?'warn':'pass','HTTP callbacks','calls '+h.calls+', work mean '+h.mean+'us, peak '+h.peak+'us');
+  }else setCheck('checkHttp','warn','HTTP callbacks','No HTTP timing line found in /logs.txt.');
+
+  if(parsed.dmx){
+    const d=parsed.dmx;
+    const state=(d.frameTimeouts>1||d.resyncs>1)?'warn':'pass';
+    setCheck('checkDmx',state,'DMX frame counters','frames '+d.frames+', skipped '+d.skipped+', timeouts '+d.frameTimeouts+', resyncs '+d.resyncs);
+  }else setCheck('checkDmx','warn','DMX frame counters','No Core0 dmx line found in /logs.txt.');
+}
+
+async function checkPico(){
+  try{
+    setStatus('Checking Pico status and logs...');
+    const status=await fetchPicoJson('/status.json');
+    setCheck('checkStatus','pass','Pico status','DMX '+(status.dmx&&status.dmx.running?'running':'available')+', '+((status.dmx&&status.dmx.channels)||'?')+' channels, frame '+((status.dmx&&status.dmx.frame_count)||'?'));
+    try{
+      const logs=await fetchPicoText('/logs.txt');
+      renderCoreTiming(parseCoreTiming(logs));
+      setStatus('Pico check complete.');
+    }catch(logError){
+      setCheck('checkCore0','warn','Core0 DMX loop','/logs.txt could not be read: '+logError.message);
+      setCheck('checkCore1','warn','Core1 service loop','/logs.txt could not be read: '+logError.message);
+      setCheck('checkHttp','warn','HTTP callbacks','/logs.txt could not be read: '+logError.message);
+      setCheck('checkDmx','warn','DMX frame counters','/logs.txt could not be read: '+logError.message);
+      setStatus('Pico status OK; logs unavailable, probably old firmware without /logs.txt CORS.');
+    }
+    return true;
+  }catch(e){
+    setStatus(e.message,true);
+    setCheck('checkStatus','bad','Pico status',e.message);
+    return false;
+  }
+}
 
 function updateModeHint(){
   const n=Math.max(1,parseInt(document.getElementById('chPerReq').value)||1);
@@ -272,6 +414,63 @@ function buildRequest(root,ch,val,n){
   return {url:root+'/dmx/b?t=',method:'POST',body:pairs.join(',')};
 }
 
+function channelValue(payload,ch){
+  if(Array.isArray(payload))return payload[ch-1];
+  if(payload&&Array.isArray(payload.values))return payload.values[ch-1];
+  return undefined;
+}
+
+async function runBufferReadback(){
+  const root=picoRoot();
+  if(!root){setStatus('Set Pico base URL first',true);return false;}
+  const ch=Math.max(1,Math.round(parseFloat(document.getElementById('bufferChannel').value)||1));
+  const count=Math.max(1,Math.round(parseFloat(document.getElementById('bufferCount').value)||1));
+  const val=Math.max(0,Math.min(255,Math.round(parseFloat(document.getElementById('bufferValue').value)||0)));
+  const safeCount=Math.min(count,513-ch);
+  const pairs=[];
+  for(let i=0;i<safeCount;i++)pairs.push((ch+i)+':'+val);
+  try{
+    setStatus('Running buffer readback...');
+    const write=await fetch(root+'/dmx/b?t='+Date.now(),{method:'POST',body:pairs.join(','),cache:'no-store'});
+    if(!write.ok)throw new Error('/dmx/b HTTP '+write.status);
+    await new Promise(resolve=>setTimeout(resolve,60));
+    const output=await fetchPicoJson('/dmx/output.json');
+    let base=null;
+    let baseError=null;
+    try{
+      base=await fetchPicoJson('/dmx/base');
+    }catch(e){
+      baseError=e;
+    }
+    const mismatches=[];
+    for(let i=0;i<safeCount;i++){
+      const channel=ch+i;
+      const outVal=channelValue(output,channel);
+      const baseVal=base?channelValue(base,channel):val;
+      if(outVal!==val||baseVal!==val)mismatches.push(channel+' out '+outVal+' base '+(base?baseVal:'not read'));
+    }
+    if(mismatches.length){
+      const detail=mismatches.slice(0,4).join('; ')+(mismatches.length>4?' ...':'');
+      setCheck('checkBuffer','bad','Buffer readback',mismatches.length+' mismatches: '+detail);
+      document.getElementById('bufferResult').textContent='Readback failed: '+detail;
+      setStatus('Buffer readback failed',true);
+      return false;
+    }
+    const detail=base
+      ? safeCount+' channels from '+ch+' read back as '+val+' in output and base buffers.'
+      : safeCount+' channels from '+ch+' read back as '+val+' in output buffer; base buffer unavailable: '+baseError.message;
+    setCheck('checkBuffer',base?'pass':'warn','Buffer readback',detail);
+    document.getElementById('bufferResult').textContent=detail;
+    setStatus('Buffer readback complete.');
+    return !!base;
+  }catch(e){
+    setCheck('checkBuffer','bad','Buffer readback',e.message);
+    document.getElementById('bufferResult').textContent=e.message;
+    setStatus(e.message,true);
+    return false;
+  }
+}
+
 function applyPreset(name){
   const p=PRESETS[name];
   if(!p)return;
@@ -296,14 +495,14 @@ function exportCsv(){
   const blob=new Blob([rows.join('\n')+'\n'],{type:'text/csv'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='dmx_benchmark_'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv';
+  a.download='pico_performance_'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv';
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
 async function runTest(){
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setStatus('Set Pico base URL first',true);return;}
+  const root=picoRoot();
+  if(!root){setStatus('Set Pico base URL first',true);return null;}
   const ch=Math.max(1,Math.round(parseFloat(document.getElementById('channel').value)||1));
   const val=Math.round(parseFloat(document.getElementById('value').value)||128);
   const n=Math.max(1,Math.round(parseFloat(document.getElementById('chPerReq').value)||1));
@@ -341,9 +540,25 @@ async function runTest(){
     if(history.length>12)history.shift();
     renderHistory();
     document.getElementById('btnExport').disabled=false;
+    setCheck('checkWrite',errors?'warn':'pass','DMX write load',s.n+' successful requests, '+errors+' errors, median '+s.median.toFixed(1)+'ms, p95 '+s.p95.toFixed(1)+'ms');
     setStatus('Done ('+modeLabel+') — '+s.n+' req · median '+s.median.toFixed(1)+'ms · p95 '+s.p95.toFixed(1)+'ms · '+s.fps.toFixed(1)+' req/s · '+Math.round(s.chs)+' ch/s'+(errors?' · '+errors+' errors':''));
+    return s;
   }else{
+    setCheck('checkWrite','bad','DMX write load','No successful requests'+(errors?' · '+errors+' errors':''));
     setStatus('No successful requests'+(errors?' · '+errors+' errors':''),true);
+    return null;
+  }
+}
+
+async function runFullPerformanceTest(){
+  document.getElementById('btnRunFull').disabled=true;
+  try{
+    await checkPico();
+    await runBufferReadback();
+    await runTest();
+    await checkPico();
+  }finally{
+    document.getElementById('btnRunFull').disabled=false;
   }
 }
 
@@ -353,6 +568,9 @@ document.getElementById('btnStart').onclick=runTest;
 document.getElementById('btnStop').onclick=()=>{running=false;};
 document.getElementById('btnExport').onclick=exportCsv;
 document.getElementById('btnClearHistory').onclick=()=>{history=[];renderHistory();};
+document.getElementById('btnCheckPico').onclick=checkPico;
+document.getElementById('btnBufferReadback').onclick=runBufferReadback;
+document.getElementById('btnRunFull').onclick=runFullPerformanceTest;
 window.addEventListener('resize',()=>{if(latencies.length)drawChart();});
 </script>
 </body>

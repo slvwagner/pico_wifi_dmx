@@ -481,13 +481,28 @@ static void build_dmx_page()
 
 static void build_logs_text()
 {
+    const char *header =
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n";
+    size_t header_length = strlen(header);
+    if (header_length >= sizeof(http_logs)) {
+        http_logs[0] = '\0';
+        return;
+    }
+    memcpy(http_logs, header, header_length);
+
     critical_section_enter_blocking(&log_lock);
     size_t copy_length = log_length;
-    if (copy_length >= sizeof(http_logs)) {
-        copy_length = sizeof(http_logs) - 1;
+    size_t available = sizeof(http_logs) - header_length - 1;
+    if (copy_length > available) {
+        copy_length = available;
     }
-    memcpy(http_logs, log_buffer + log_length - copy_length, copy_length);
-    http_logs[copy_length] = '\0';
+    memcpy(http_logs + header_length, log_buffer + log_length - copy_length, copy_length);
+    http_logs[header_length + copy_length] = '\0';
     critical_section_exit(&log_lock);
 }
 
@@ -777,6 +792,7 @@ static void build_dmx_base_response(void)
         sizeof(http_dmx_base_json),
         "HTTP/1.0 200 OK\r\n"
         "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
@@ -1056,7 +1072,7 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
-    if (path_matches(name, "/dmx/base")) {
+    if (path_matches(name, "/dmx/base.json") || path_matches(name, "/dmx/base")) {
         build_dmx_base_response();
         file->data = http_dmx_base_json;
         file->len = (int)strlen(http_dmx_base_json);
