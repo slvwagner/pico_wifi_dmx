@@ -783,7 +783,7 @@
     if(!visual)return '';
     if(visual.image){
       const image=String(visual.image).replace(/"/g,'&quot;');
-      return `<span class="palette-visual" style="background-image:url(&quot;${image}&quot;)"></span>`;
+      return `<span class="palette-visual" aria-hidden="true" style="background-image:url(&quot;${image}&quot;)"></span>`;
     }
     return '';
   }
