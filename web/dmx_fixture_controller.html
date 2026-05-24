@@ -2174,9 +2174,10 @@ function clampGroupLayout(priority='cols'){
 function applyGroupsBoxLayout(priority='cols'){
   clampGroupLayout(priority);
   const list=document.getElementById('savedGroupsList');
-  if(list)list.style.gridTemplateColumns='repeat('+groupCols+',minmax(170px,1fr))';
   const box=document.getElementById('groupsBox');
-  if(box){
+  const inRail=!!box?.closest('.toolbox-rail');
+  if(list)list.style.gridTemplateColumns='repeat('+groupCols+','+(inRail?'minmax(0,1fr)':'minmax(170px,1fr)')+')';
+  if(box&&!inRail){
     const width=Math.max(280,groupCols*178+24);
     box.style.width=Math.min(Math.max(280,window.innerWidth-24),width)+'px';
   }
