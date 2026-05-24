@@ -12,6 +12,9 @@ $outPath = Join-Path $repoRoot $OutDir
 $profileDir = Join-Path $env:TEMP "pico-dmx-docshots"
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
+if (Test-Path -LiteralPath $profileDir) {
+    Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+}
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
@@ -92,9 +95,136 @@ try {
         return $null
     }
 
+    function Invoke-PageScript {
+        param([string]$Expression)
+        $evalResult = Send-Cdp "Runtime.evaluate" @{
+            expression = $Expression
+            awaitPromise = $true
+            returnByValue = $true
+        }
+        if ($evalResult.exceptionDetails) {
+            $message = $evalResult.exceptionDetails.text
+            if ($evalResult.exceptionDetails.exception.description) {
+                $message = $evalResult.exceptionDetails.exception.description
+            }
+            throw "JavaScript evaluation failed: $message"
+        }
+        return $evalResult.result.result.value
+    }
+
     function Save-Screenshot {
         param([string]$Name)
         $result = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
+        $file = Join-Path $outPath $Name
+        [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($result.result.data))
+        Write-Host "Captured $file"
+    }
+
+    function Save-ElementScreenshot {
+        param(
+            [string]$Selector,
+            [string]$Name
+        )
+        $selectorJson = $Selector | ConvertTo-Json -Compress
+        if ($Selector -match '(Box|Toolbox)$') {
+            Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const el=document.querySelector(selector);
+  if(!el)throw new Error('Missing screenshot element: '+selector);
+  const rail=el.closest('.toolbox-rail')||document.querySelector('.toolbox-rail');
+  if(!rail)throw new Error('Missing toolbox rail for '+selector);
+  const railToggle=rail.querySelector('.toolbox-rail-toggle');
+  if(rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  if(el.classList.contains('collapsed')){
+    const toggle=el.querySelector('.scene-toolbox__toggle');
+    if(toggle)toggle.click();
+    el.classList.remove('collapsed');
+  }
+  const firstBox=rail.querySelector('.scene-toolbox');
+  if(firstBox&&firstBox!==el)rail.insertBefore(el,firstBox);
+  rail.scrollTop=0;
+  await wait(80);
+  const railRect=rail.getBoundingClientRect();
+  const elRect=el.getBoundingClientRect();
+  rail.scrollTop=Math.max(0,rail.scrollTop+(elRect.top-railRect.top)-64);
+  rail.scrollLeft=0;
+  await wait(300);
+  const firstBoxAfter=rail.querySelector('.scene-toolbox');
+  if(firstBoxAfter&&firstBoxAfter!==el)rail.insertBefore(el,firstBoxAfter);
+  rail.scrollTop=0;
+  return true;
+})()
+"@ | Out-Null
+            $rect = [pscustomobject]@{ x = 800; y = 0; width = 640; height = 1100 }
+        } else {
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  let el=document.querySelector(selector);
+  if(!el)throw new Error('Missing screenshot element: '+selector);
+  const rail=el.closest('.toolbox-rail');
+  if(rail){
+    if(el.classList.contains('collapsed')){
+      const toggle=el.querySelector('.scene-toolbox__toggle');
+      if(toggle)toggle.click();
+      el.classList.remove('collapsed');
+    }
+    rail.scrollTop=Math.max(0,el.offsetTop-64);
+    rail.scrollLeft=0;
+    await wait(260);
+    const r=rail.getBoundingClientRect();
+    return JSON.stringify({
+      x:Math.max(0,Math.floor(r.left)),
+      y:Math.max(0,Math.floor(r.top)),
+      width:Math.ceil(r.width),
+      height:Math.ceil(r.height)
+    });
+  } else {
+    el.scrollIntoView({block:'start',inline:'nearest'});
+  }
+  await wait(220);
+  const rects=[el.getBoundingClientRect()];
+  const header=el.querySelector('.scene-toolbox__header');
+  const body=el.querySelector('.scene-toolbox__body');
+  if(header)rects.push(header.getBoundingClientRect());
+  if(body)rects.push(body.getBoundingClientRect());
+  const left=Math.min(...rects.map(r=>r.left));
+  const top=Math.min(...rects.map(r=>r.top));
+  const right=Math.max(...rects.map(r=>r.right));
+  const bottom=Math.max(...rects.map(r=>r.bottom));
+  const pad=10;
+  const topPad=el.classList.contains('scene-toolbox')?120:pad;
+  const scrollX=rail?0:window.scrollX;
+  const scrollY=rail?0:window.scrollY;
+  const x=Math.max(0,Math.floor(left+scrollX-pad));
+  const y=Math.max(0,Math.floor(top+scrollY-topPad));
+  const width=Math.ceil(right-left+pad*2);
+  const height=Math.ceil(bottom-top+topPad+pad);
+  if(width<40||height<40)throw new Error('Screenshot element is too small: '+selector);
+  return JSON.stringify({x,y,width,height});
+})()
+"@
+        if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
+        }
+        $result = Send-Cdp "Page.captureScreenshot" @{
+            format = "png"
+            fromSurface = $true
+            captureBeyondViewport = $true
+            clip = @{
+                x = [double]$rect.x
+                y = [double]$rect.y
+                width = [double]$rect.width
+                height = [double]$rect.height
+                scale = 1
+            }
+        }
+        if (-not $result.result.data) {
+            $rectJson = $rect | ConvertTo-Json -Compress
+            throw "Chrome returned an empty screenshot for $Selector with clip $rectJson"
+        }
         $file = Join-Path $outPath $Name
         [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($result.result.data))
         Write-Host "Captured $file"
@@ -206,6 +336,7 @@ try {
 })()
 "@
     Save-Screenshot "fixture-controller-expanded.png"
+    Save-Screenshot "fixture-controller.png"
 
     Eval-Js @"
 (async()=>{
@@ -251,6 +382,57 @@ try {
 })()
 "@
     Save-Screenshot "fixture-controller-scene-box.png"
+
+    Eval-Js @"
+(async()=>{
+  docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:false});
+  docShots.ensureDemoGroups();
+  docShots.selectDemoGroups();
+  docShots.setSceneBox({visible:true,open:true});
+  docShots.setGroupsBox({visible:true,open:true});
+  function openToolbox(id){
+    const box=document.getElementById(id);
+    const toggle=document.getElementById(id+'Toggle');
+    if(!box)return;
+    box.style.display='';
+    if(box.classList.contains('collapsed')&&toggle)toggle.click();
+  }
+  ['paletteBox','fanToolbox'].forEach(openToolbox);
+  if(typeof renderSavedGroupsList==='function')renderSavedGroupsList();
+  if(typeof renderSceneSlotMatrix==='function')renderSceneSlotMatrix();
+  if(typeof renderPaletteSlotMatrix==='function')renderPaletteSlotMatrix();
+  if(typeof renderFanToolbox==='function')renderFanToolbox();
+  await docShots.wait(600);
+})()
+"@
+    Save-ElementScreenshot "#groupsBox" "fixture-controller-toolbox-groups.png"
+    Save-ElementScreenshot "#sceneBox" "fixture-controller-toolbox-scenes.png"
+    Save-ElementScreenshot "#paletteBox" "fixture-controller-toolbox-palettes.png"
+    Save-ElementScreenshot "#fanToolbox" "fixture-controller-toolbox-fanout.png"
+
+    Eval-Js @"
+(async()=>{
+  docShots.setToolboxRail({collapsed:false});
+  docShots.setSceneBox({visible:true,open:true});
+  if(!Array.isArray(scenes))scenes=[];
+  if(!scenes.some(s=>parseInt(s.slot,10)===0)){
+    scenes.push({id:'doc_scene_tile',name:'Warm look',slot:0,values:{},visual:{type:'visual',color:'#305a36',image:''}});
+  }else{
+    const s=scenes.find(s=>parseInt(s.slot,10)===0);
+    s.name=s.name||'Warm look';
+    s.visual=s.visual||{type:'visual',color:'#305a36',image:''};
+  }
+  if(typeof renderSlotMatrix==='function')renderSlotMatrix();
+  await docShots.wait(200);
+  if(typeof openSceneVisualModal==='function')openSceneVisualModal(0);
+  await docShots.wait(300);
+  const name=document.getElementById('paletteVisualName');
+  if(name)name.value='Warm look';
+})()
+"@
+    Save-ElementScreenshot "#paletteVisualModal .modal" "fixture-controller-edit-tile.png"
+    Eval-Js "document.getElementById('paletteVisualClose2')?.click();"
 
     Eval-Js @"
 (async()=>{
@@ -350,15 +532,6 @@ try {
     box.style.display='';
     if(box.classList.contains('collapsed')&&toggle)toggle.click();
   }
-  function position(id,x,y,w,h){
-    const box=document.getElementById(id);
-    if(!box)return;
-    box.style.left=x+'px';
-    box.style.top=y+'px';
-    box.style.right='auto';
-    if(w)box.style.width=w+'px';
-    if(h)box.style.height=h+'px';
-  }
   function expandPanel(id){
     const panel=document.getElementById(id);
     const btn=document.querySelector('[data-panel-toggle="'+id+'"]');
@@ -372,17 +545,26 @@ try {
   if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
   expandPanel('participationPanel');
   expandPanel('stepEditorSection');
-  ['stepsBox','browserPlaybackBox','chaseBox'].forEach(openToolbox);
+  ['stepsBox','browserPlaybackBox','chaseBox','chaserPaletteBox'].forEach(openToolbox);
+  const chaseBox=document.getElementById('chaseBox');
+  const paletteBox=document.getElementById('chaserPaletteBox');
+  if(chaseBox&&paletteBox)chaseBox.after(paletteBox);
   const groups=document.getElementById('chaserGroupsBox');
   const groupsToggle=document.getElementById('chaserGroupsToggle');
   if(groups){
     groups.style.display='';
     if(groups.classList.contains('collapsed')&&groupsToggle)groupsToggle.click();
-    position('chaserGroupsBox',760,20,380);
   }
-  position('stepsBox',20,110,380,520);
-  position('browserPlaybackBox',625,600,430);
-  position('chaseBox',1165,265,255);
+  if(window.DmxCommon&&typeof DmxCommon.initToolboxRail==='function'){
+    DmxCommon.initToolboxRail(document.getElementById('chaserToolboxRail'),[
+      {box:'chaserGroupsBox',type:'groups'},
+      {box:'chaseBox',type:'chases'},
+      {box:'stepsBox',type:'steps'},
+      {box:'chaserPaletteBox',type:'palettes'},
+      {box:'fanToolbox',type:'fan'},
+      {box:'browserPlaybackBox',type:'browserPlayback'}
+    ]);
+  }
   if(typeof setup==='object'&&Array.isArray(setup.fixtures)&&typeof fixtureProfile==='function'&&typeof controlKey==='function'){
     if(window.DmxCommon&&typeof DmxCommon.saveSharedGroupSelection==='function')DmxCommon.saveSharedGroupSelection([]);
     if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
@@ -439,6 +621,24 @@ try {
   if(typeof drawParticipation==='function')drawParticipation();
   if(typeof drawStepEditor==='function')drawStepEditor();
   if(typeof refreshChaserGroupActions==='function')refreshChaserGroupActions();
+  const chaseBox2=document.getElementById('chaseBox');
+  const paletteBox2=document.getElementById('chaserPaletteBox');
+  if(chaseBox2&&paletteBox2){
+    chaseBox2.after(paletteBox2);
+    openToolbox('chaserPaletteBox');
+  }
+  if(window.DmxCommon&&typeof DmxCommon.initToolboxRail==='function'){
+    DmxCommon.initToolboxRail(document.getElementById('chaserToolboxRail'),[
+      {box:'chaserGroupsBox',type:'groups'},
+      {box:'chaseBox',type:'chases'},
+      {box:'stepsBox',type:'steps'},
+      {box:'chaserPaletteBox',type:'palettes'},
+      {box:'fanToolbox',type:'fan'},
+      {box:'browserPlaybackBox',type:'browserPlayback'}
+    ]);
+  }
+  document.querySelector('main')?.scrollTo(0,0);
+  window.scrollTo(0,0);
   window.__docChaserState={
     steps:document.querySelectorAll('#stepList [data-step-index]').length,
     stepCount:document.getElementById('stepCount')?.textContent||'',
@@ -457,6 +657,86 @@ try {
         Write-Host "Chaser docshot state: steps=$($state.steps), stepCount=$($state.stepCount), editEnabled=$($state.editEnabled), status=$($state.status)"
     }
     Save-Screenshot "chaser.png"
+
+    $motionUrl = $BaseUrl.TrimEnd('/') + "/dmx_motion.html?docshot=$cacheBust"
+    Send-Cdp "Page.navigate" @{ url = $motionUrl } | Out-Null
+    Start-Sleep -Seconds 2
+
+    if ($socket) { $socket.Dispose() }
+    $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing
+    $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_motion.html*" } | Select-Object -First 1).webSocketDebuggerUrl
+    if (-not $wsUrl) { throw "Could not find Motion FX tab after navigation." }
+    $socket = [System.Net.WebSockets.ClientWebSocket]::new()
+    $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult() | Out-Null
+    $script:cdpId = 0
+    Send-Cdp "Page.enable" | Out-Null
+    Send-Cdp "Runtime.enable" | Out-Null
+
+    for ($i = 0; $i -lt 40; $i++) {
+        $navState = Send-Cdp "Runtime.evaluate" @{
+            expression = "document.readyState === 'complete'"
+            returnByValue = $true
+        }
+        if ($navState.result.result.value) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    Start-Sleep -Milliseconds 500
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=500)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<40;i++){
+    if(typeof setup==='object'&&Array.isArray(setup.fixtures)&&setup.fixtures.length&&document.getElementById('motionEffectBox'))break;
+    await wait(250);
+  }
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail&&rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  localStorage.setItem('toolboxRailCollapsed','0');
+  if(window.DmxCommon&&typeof DmxCommon.saveSharedGroupSelection==='function')DmxCommon.saveSharedGroupSelection([]);
+  if(typeof motionGroupsBox!=='undefined'&&motionGroupsBox?.clearSelection)motionGroupsBox.clearSelection();
+  if(typeof motionGroupsBox!=='undefined'&&motionGroupsBox?.loadGroups)await motionGroupsBox.loadGroups();
+  function openToolbox(id){
+    const box=document.getElementById(id);
+    const toggle=document.getElementById(id+'Toggle');
+    if(!box)return;
+    box.style.display='';
+    if(box.classList.contains('collapsed')&&toggle)toggle.click();
+  }
+  ['motionGroupsBox','motionEffectBox','motionSavedEffectBox','motionSceneBox','motionPaletteBox'].forEach(openToolbox);
+  if(typeof renderMotionEffectSlots==='function')renderMotionEffectSlots();
+  if(typeof renderMotionSceneSlots==='function')renderMotionSceneSlots();
+  if(typeof renderMotionPaletteSlots==='function')renderMotionPaletteSlots();
+  if(typeof renderMotionPreview==='function')renderMotionPreview();
+  await wait(800);
+})()
+"@
+    Save-ElementScreenshot "#motionGroupsBox" "motion-toolbox-groups.png"
+    Save-ElementScreenshot "#motionEffectBox" "motion-toolbox-effect-parameters.png"
+    Save-ElementScreenshot "#motionSavedEffectBox" "motion-toolbox-effects.png"
+    Save-ElementScreenshot "#motionSceneBox" "motion-toolbox-scenes.png"
+    Save-ElementScreenshot "#motionPaletteBox" "motion-toolbox-palettes.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(!Array.isArray(motionEffects))motionEffects=[];
+  if(!motionEffects.some(e=>parseInt(e.slot,10)===0)){
+    motionEffects.push({id:'doc_motion_effect_tile',name:'Slow circle',slot:0,recipe:{},visual:{type:'visual',color:'#365a40',image:''}});
+  }else{
+    const e=motionEffects.find(e=>parseInt(e.slot,10)===0);
+    e.name=e.name||'Slow circle';
+    e.visual=e.visual||{type:'visual',color:'#365a40',image:''};
+  }
+  if(typeof renderMotionEffectMatrix==='function')renderMotionEffectMatrix();
+  await wait();
+  if(typeof openMotionEffectVisualModal==='function')openMotionEffectVisualModal(0);
+  await wait();
+  const name=document.getElementById('motionEffectVisualName');
+  if(name)name.value='Slow circle';
+})()
+"@
+    Save-ElementScreenshot "#motionEffectVisualModal .modal" "motion-edit-tile.png"
 }
 finally {
     if ($socket) { $socket.Dispose() }

@@ -10,12 +10,14 @@ $webDir = Join-Path $repoRoot "web"
 $assetsDir = Join-Path $webDir "assets"
 $apiDir = Join-Path $repoRoot "api"
 $docsDir = Join-Path $repoRoot "docs"
+$versionSource = Join-Path $repoRoot "VERSION"
 
 $source = Join-Path $webDir "dmx_fixture_controller.html"
 $apiSource = Join-Path $apiDir "fixture_setup.php"
 $motionSource = Join-Path $webDir "dmx_motion.html"
 $chaserSource = Join-Path $webDir "dmx_chaser.html"
 $benchSource = Join-Path $webDir "dmx_benchmark.html"
+$monitorSource = Join-Path $webDir "dmx_monitor.html"
 $gpioSource      = Join-Path $webDir "dmx_gpio.html"
 $chaserApiSource = Join-Path $apiDir "chaser_setup.php"
 $motionApiSource = Join-Path $apiDir "motion_setup.php"
@@ -35,6 +37,7 @@ $apiTarget = Join-Path $targetDir "fixture_setup.php"
 $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $benchTargetDir "index.html"
+$monitorTarget = Join-Path $targetDir "dmx_monitor.html"
 $gpioTarget      = Join-Path $targetDir "dmx_gpio.html"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
@@ -45,6 +48,7 @@ $uiStateTarget   = Join-Path $targetDir "ui_state.php"
 $manualTarget    = Join-Path $targetDir "user-manual.html"
 $manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
 $manualScreenshotsTarget = Join-Path $targetDir "screenshots"
+$versionTarget = Join-Path $targetDir "VERSION"
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Source file not found: $source"
@@ -75,6 +79,10 @@ if (Test-Path -LiteralPath $benchSource) {
     New-Item -ItemType Directory -Force -Path $benchTargetDir | Out-Null
     Copy-Item -LiteralPath $benchSource -Destination $benchTarget -Force
     Write-Host "Copied benchmark to $benchTarget"
+}
+if (Test-Path -LiteralPath $monitorSource) {
+    Copy-Item -LiteralPath $monitorSource -Destination $monitorTarget -Force
+    Write-Host "Copied DMX monitor to $monitorTarget"
 }
 if (Test-Path -LiteralPath $gpioSource) {
     Copy-Item -LiteralPath $gpioSource -Destination $gpioTarget -Force
@@ -116,6 +124,10 @@ if (Test-Path -LiteralPath $manualScreenshotsSource) {
     New-Item -ItemType Directory -Force -Path $manualScreenshotsTarget | Out-Null
     Copy-Item -Path (Join-Path $manualScreenshotsSource "*") -Destination $manualScreenshotsTarget -Force
     Write-Host "Copied user manual screenshots to $manualScreenshotsTarget"
+}
+if (Test-Path -LiteralPath $versionSource) {
+    Copy-Item -LiteralPath $versionSource -Destination $versionTarget -Force
+    Write-Host "Copied app version to $versionTarget"
 }
 
 $dataFiles = @(

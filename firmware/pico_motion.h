@@ -7,31 +7,40 @@
 extern "C" {
 #endif
 
-#define MFX_MAX_SLOTS    32
-#define MFX_MAX_FIXTURES 8
+#define MFX_MAX_SLOTS    64
+#define MFX_MAX_TARGETS  8
 
 typedef enum {
     MFX_CIRCLE     = 0,
     MFX_FIGURE8    = 1,
     MFX_PAN_SWING  = 2,
     MFX_TILT_SWING = 3,
+    MFX_SINE       = 4,
+    MFX_PULSE      = 5,
 } mfx_type_t;
+
+typedef enum {
+    MFX_TARGET_SCALAR8   = 0,
+    MFX_TARGET_SCALAR16  = 1,
+    MFX_TARGET_PANTILT8  = 2,
+    MFX_TARGET_PANTILT16 = 3,
+} mfx_target_kind_t;
 
 typedef struct {
     bool     enabled;
-    bool     is_16bit;
-    uint16_t pan_ch;
-    uint16_t pan_fine_ch;
-    uint16_t tilt_ch;
-    uint16_t tilt_fine_ch;
+    mfx_target_kind_t kind;
+    uint16_t ch1;
+    uint16_t fine1;
+    uint16_t ch2;
+    uint16_t fine2;
     float    phase_offset_deg;  /* -180 ... +180 */
     float    max_val;           /* 255.0 or 65535.0 */
-} mfx_fixture_t;
+} mfx_target_t;
 
 /* Summary returned by mfx_get_status() */
 typedef struct {
-    uint32_t active_mask;   /* bitmask: bit i = slot i is playing  */
-    uint32_t loaded_mask;   /* bitmask: bit i = slot i is loaded   */
+    uint64_t active_mask;   /* bitmask: bit i = slot i is playing  */
+    uint64_t loaded_mask;   /* bitmask: bit i = slot i is loaded   */
     float    elapsed_s;     /* elapsed of the lowest active slot   */
 } mfx_status_t;
 
@@ -41,7 +50,7 @@ typedef struct {
     bool     active;
     int      type;
     float    bpm;
-    uint16_t fixture_count;
+    uint16_t target_count;
 } mfx_slot_info_t;
 
 void mfx_init(void);

@@ -24,7 +24,14 @@ if ($method === 'GET') {
         exit;
     }
 
-    echo json_encode(['ok' => true, 'exists' => true, 'groups' => $data['groups'] ?? [], 'baseUrl' => $data['baseUrl'] ?? null]);
+    echo json_encode([
+        'ok' => true,
+        'exists' => true,
+        'groups' => $data['groups'] ?? [],
+        'baseUrl' => $data['baseUrl'] ?? null,
+        'appVersion' => $data['appVersion'] ?? null,
+        'schemaVersion' => $data['schemaVersion'] ?? null,
+    ]);
     exit;
 }
 

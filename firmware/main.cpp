@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include "pico/stdlib.h"
 #include "pico/sync.h"
@@ -693,6 +694,42 @@ static void build_dmx_base_response(void)
     }
 }
 
+static void build_dmx_output_response(void)
+{
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+
+    size_t used = (size_t)snprintf(
+        http_dmx_base_json,
+        sizeof(http_dmx_base_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"channels\":%u,\"frame_count\":%lu,\"values\":[",
+        status.channels,
+        (unsigned long)status.frame_count);
+
+    for (uint16_t ch = 1; ch <= status.channels; ch++) {
+        int written = snprintf(
+            http_dmx_base_json + used,
+            sizeof(http_dmx_base_json) - used,
+            "%s%u",
+            ch == 1 ? "" : ",",
+            dmx_engine_get_output_channel(ch));
+        if (written < 0) break;
+        used += (size_t)written;
+    }
+
+    if (used + 4 < sizeof(http_dmx_base_json)) {
+        snprintf(http_dmx_base_json + used, sizeof(http_dmx_base_json) - used, "]}\n");
+    } else {
+        http_dmx_base_json[sizeof(http_dmx_base_json) - 1] = '\0';
+    }
+}
+
 static void build_dmx_values_response(const char *name)
 {
     uint16_t first = 1;
@@ -816,9 +853,9 @@ static void build_motion_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active_mask\":%lu,\"loaded_mask\":%lu,\"elapsed_s\":%.2f}\n",
-        (unsigned long)s.active_mask,
-        (unsigned long)s.loaded_mask,
+        "{\"ok\":true,\"active_mask\":%" PRIu64 ",\"loaded_mask\":%" PRIu64 ",\"elapsed_s\":%.2f}\n",
+        (uint64_t)s.active_mask,
+        (uint64_t)s.loaded_mask,
         (double)s.elapsed_s);
 }
 
@@ -836,14 +873,15 @@ static void build_motion_slots_response()
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"type\":%d,\"bpm\":%.2f,\"fixture_count\":%u}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"type\":%d,\"bpm\":%.2f,\"target_count\":%u,\"fixture_count\":%u}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded ? "true" : "false",
             info.active ? "true" : "false",
             info.type,
             (double)info.bpm,
-            info.fixture_count);
+            info.target_count,
+            info.target_count);
     }
     snprintf(http_playback_json + used, sizeof(http_playback_json) - used, "]}\n");
 }
@@ -912,6 +950,16 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 
     if (path_matches(name, "/dmx/base")) {
         build_dmx_base_response();
+        file->data = http_dmx_base_json;
+        file->len = (int)strlen(http_dmx_base_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/output.json") ||
+        path_matches(name, "/dmx/output")) {
+        build_dmx_output_response();
         file->data = http_dmx_base_json;
         file->len = (int)strlen(http_dmx_base_json);
         file->index = file->len;
@@ -1125,7 +1173,7 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
     }
 
     /* ----- Motion endpoints ------------------------------------------- */
-    /* /motion/start        — start slot 0 (backward compat)
+    /* /motion/start        — start slot 0
        /motion/start/<N>    — start slot N */
     if (path_matches(name, "/motion/start")) {
         uint8_t slot = 0;

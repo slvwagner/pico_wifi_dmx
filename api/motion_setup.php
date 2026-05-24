@@ -9,7 +9,7 @@ if (!is_dir($dataDir)) {
 }
 $dataFile = $dataDir . DIRECTORY_SEPARATOR . 'motion_setup.json';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-const PICO_SLOT_COUNT = 32;
+const PICO_SLOT_COUNT = 64;
 
 function readDataFile(string $path): array {
     if (!is_file($path)) return [];
@@ -25,7 +25,13 @@ if ($method === 'GET') {
         $slots = isset($data['pico_slots']) && is_array($data['pico_slots'])
                  ? array_pad($data['pico_slots'], PICO_SLOT_COUNT, null) : array_fill(0, PICO_SLOT_COUNT, null);
         $url   = isset($data['pico_url']) ? $data['pico_url'] : null;
-        echo json_encode(['ok' => true, 'pico_slots' => $slots, 'pico_url' => $url]);
+        echo json_encode([
+            'ok' => true,
+            'pico_slots' => $slots,
+            'pico_url' => $url,
+            'appVersion' => $data['appVersion'] ?? null,
+            'schemaVersion' => $data['schemaVersion'] ?? null,
+        ]);
         exit;
     }
 

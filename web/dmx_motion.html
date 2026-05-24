@@ -13,11 +13,30 @@ main{max-width:none;width:100%;margin:0}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .xy-dot{width:12px;height:12px}
 .readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
-.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;overflow-y:auto;min-height:0}
-#fxPanel{display:flex;flex-direction:column;max-height:70vh}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
-.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
+#motionEffectBox label{gap:4px;font-size:12px}
+#motionEffectBox input[type=number],#motionEffectBox select{padding:7px 8px}
+#motionEffectBox input[type=range]{width:100%}
+#motionEffectBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto;padding:10px;gap:8px}
+.motion-effect-grid{display:grid;grid-template-columns:1fr 82px;gap:8px;align-items:end}
+.motion-effect-grid label:first-child{grid-column:1/-1}
+.motion-effect-slider{display:grid;grid-template-columns:1fr 42px;gap:6px;align-items:center}
+.motion-effect-preview{height:auto!important;max-width:400px!important;aspect-ratio:1/1}
+.motion-participant-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.motion-kind{border:1px solid var(--line);border-radius:999px;padding:2px 7px;color:var(--accent);font-size:11px}
+.motion-scalar-preview{height:9px;border-radius:999px;background:#101820;border:1px solid var(--line);overflow:hidden}
+.motion-scalar-preview span{display:block;height:100%;background:var(--accent);width:0%}
+.motion-control-row{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,.8fr) minmax(160px,.9fr);gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.motion-control-row label{min-width:0}
+.motion-control-row input[type=range]{width:100%}
+.motion-control-row .small{align-self:center}
+.motion-fixture-matrix{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.motion-fixture-tile{min-height:156px;cursor:pointer;align-content:start;position:relative;user-select:none}
+.motion-fixture-tile:hover{border-color:var(--accent)}
+.motion-fixture-tile.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}
+.motion-tile-title{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:18px}
+.motion-tile-value{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:16px}
+.motion-tile-xy{width:100%!important;height:auto!important;max-width:100%;aspect-ratio:1.45/1;min-height:84px}
+@media(max-width:900px){.motion-control-row{grid-template-columns:1fr}}
 #motionGroupModal input[type=range]{width:100%}
 #motionGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #motionGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
@@ -41,53 +60,33 @@ main{max-width:none;width:100%;margin:0}
   </div>
 </header>
 
-<section class="panel">
-  <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <h2>Effect Parameters</h2>
-    <span style="display:flex;gap:8px;align-items:center">
-      <span class="mode-badge">🖥 Browser</span>
-      <button class="primary" id="startStop">▶ Start</button>
-    </span>
-  </div>
-  <div class="toolbar">
-    <label>Effect
-      <select id="effectType">
-        <option value="circle">Circle</option>
-        <option value="figure8">Figure-8</option>
-        <option value="panSwing">Pan Swing</option>
-        <option value="tiltSwing">Tilt Swing</option>
-      </select>
-    </label>
-    <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
-    <label>Pan amplitude <span id="panAmpVal">20</span>%<input id="panAmp" type="range" min="0" max="100" value="20"></label>
-    <label>Tilt amplitude <span id="tiltAmpVal">15</span>%<input id="tiltAmp" type="range" min="0" max="100" value="15"></label>
-    <label>Phase spread <span id="phaseSpreadVal">0</span>°<input id="phaseSpread" type="range" min="0" max="360" value="0"></label>
-    <label>Update rate (Hz)<input id="updateRate" type="number" min="5" max="50" value="25"></label>
-  </div>
-  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
-    <div>
-      <div class="small" style="margin-bottom:6px">Motion path preview (normalized)</div>
-      <canvas id="pathCanvas" width="200" height="200" style="border:1px solid var(--line);border-radius:8px;background:#0a0d10;display:block"></canvas>
-    </div>
-    <div class="small" style="max-width:360px;align-self:center;line-height:1.7">
-      Center positions are loaded from the Fixture Controller setup. Adjust them per-fixture below without affecting the static setup.<br><br>
-      <b>Phase spread</b> offsets fixtures evenly around the cycle — e.g. 360° with 3 fixtures gives 0°, 120°, 240°, creating a wave effect. Individual phase offsets stack on top.
-    </div>
-  </div>
-</section>
-
 <section class="panel" id="fxPanel">
-  <h2>Fixtures with Pan/Tilt</h2>
-  <div id="noFixtures" class="small" style="display:none">
-    No fixtures with Pan/Tilt controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first</a>
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h2>Participating Controls</h2>
+    <div class="buttons">
+      <button id="btnMotionSave" style="padding:6px 10px;font-size:12px" title="Save editable motion preset on the server">Save</button>
+      <button id="btnMotionLoad" style="padding:6px 10px;font-size:12px" title="Load editable motion preset from the server">Load</button>
+      <button id="btnMotionExport" class="icon-btn export-btn" title="Export motion JSON"></button>
+      <button id="btnMotionImport" class="icon-btn import-btn" title="Import motion JSON"></button>
+      <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
+      <button class="collapse-btn" data-panel-toggle="fxPanel" title="Collapse Participating Controls">−</button>
+    </div>
   </div>
-  <div class="fx-grid" id="fixtureList" style="flex:1"></div>
-  <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px;flex-shrink:0">
-    <button id="btnMotionSave" title="Save editable motion preset on the server">Save Preset</button>
-    <button id="btnMotionLoad" title="Load editable motion preset from the server">Load Preset</button>
-    <button id="btnMotionExport" class="icon-btn export-btn" title="Export motion JSON"></button>
-    <button id="btnMotionImport" class="icon-btn import-btn" title="Import motion JSON"></button>
-    <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
+  <div class="panel-body">
+    <div class="small" style="margin-bottom:10px">Select one effect target, then click fixture tiles to decide which fixtures are driven. Pico upload supports pan/tilt and scalar targets.</div>
+    <div id="noFixtures" class="small" style="display:none">
+      No compatible fixture controls found. <a href="index.html" style="color:var(--accent)">Set up fixtures first</a>
+    </div>
+    <div class="toolbar" id="motionControlTools" style="margin-bottom:10px">
+      <button id="btnMotionAll">All</button>
+      <button id="btnMotionNone">None</button>
+      <label>Effect target
+        <select id="motionControlFilter"></select>
+      </label>
+      <span class="small" id="motionControlHint">Select a group to filter by control.</span>
+    </div>
+    <div class="motion-fixture-matrix" id="fixtureList"></div>
+    <div class="small">Click fixture tiles to include or exclude them from the selected effect target.</div>
   </div>
 </section>
 
@@ -106,7 +105,6 @@ main{max-width:none;width:100%;margin:0}
       BPM
       <input id="picoMotionBpm" class="pico-number" type="number" min="0.1" max="600" step="1" value="30">
     </label>
-    <button class="primary" id="btnPicoMotionUpload" title="Send current preset to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoMotionStartSlot" title="Run the already-loaded selected Pico slot">&#x25B6; Start Slot</button>
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
     <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
@@ -137,9 +135,76 @@ main{max-width:none;width:100%;margin:0}
 </div>
 <div id="motionGroupModalBody" class="modal-body"></div>
 <div class="buttons" style="padding-top:4px">
-<button id="sendMotionGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeMotionGroupModal2">Close</button>
 </div>
+</div>
+</div>
+
+<div id="motionEffectBox" class="scene-toolbox scene-toolbox--effects">
+<div id="motionEffectHdr" class="scene-toolbox__header">
+  <span style="font-weight:700;font-size:13px">Effect Parameters</span>
+  <div class="toolbox-header-actions">
+    <button class="toolbox-collapse-group" data-collapse-group="motion-effects" title="Collapse all effect toolboxes">-- all</button>
+    <button id="motionEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+  </div>
+</div>
+<div class="scene-toolbox__body">
+  <div style="display:grid;gap:8px">
+    <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
+      <span class="mode-badge">Browser</span>
+      <button class="primary" id="startStop">Start</button>
+    </div>
+    <div class="motion-effect-grid">
+    <label>Effect
+      <select id="effectType">
+        <option value="circle">Circle</option>
+        <option value="figure8">Figure-8</option>
+        <option value="panSwing">Pan Swing</option>
+        <option value="tiltSwing">Tilt Swing</option>
+        <option value="sine">Sine</option>
+        <option value="pulse">Pulse</option>
+      </select>
+    </label>
+    <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
+    <label>Hz<input id="updateRate" type="number" min="5" max="50" value="25"></label>
+    </div>
+    <label>Pan / scalar amp
+      <span class="motion-effect-slider"><input id="panAmp" type="range" min="0" max="100" value="20"><span><span id="panAmpVal">20</span>%</span></span>
+    </label>
+    <label>Tilt amp
+      <span class="motion-effect-slider"><input id="tiltAmp" type="range" min="0" max="100" value="15"><span><span id="tiltAmpVal">15</span>%</span></span>
+    </label>
+    <label>Phase spread
+      <span class="motion-effect-slider"><input id="phaseSpread" type="range" min="0" max="360" value="0"><span><span id="phaseSpreadVal">0</span>°</span></span>
+    </label>
+    <div>
+      <div class="small" style="margin-bottom:6px">Effect preview</div>
+      <canvas id="pathCanvas" class="motion-effect-preview" width="200" height="200" style="border:1px solid var(--line);border-radius:8px;background:#0a0d10;display:block;width:100%;max-width:240px"></canvas>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="motionSavedEffectBox" class="scene-toolbox scene-toolbox--effects">
+<div id="motionSavedEffectHdr" class="scene-toolbox__header">
+  <span style="font-weight:700;font-size:13px">Effects</span>
+  <div class="toolbox-header-actions">
+    <button class="toolbox-collapse-group" data-collapse-group="motion-effects" title="Collapse all effect toolboxes">-- all</button>
+    <button id="motionSavedEffectBoxToggle" class="scene-toolbox__toggle">—</button>
+  </div>
+</div>
+<div class="scene-toolbox__body">
+  <div class="slot-actions">
+    <button id="exportMotionEffectsBtn" class="icon-btn export-btn" title="Export effects JSON"></button>
+    <button id="importMotionEffectsBtn" class="icon-btn import-btn" title="Import effects JSON"></button>
+    <input id="importMotionEffectsFile" type="file" accept=".json,application/json" style="display:none">
+  </div>
+  <div class="small" style="color:var(--muted)">Click an empty slot to save the current effect recipe. Click a filled slot to recall it.</div>
+  <div class="slot-actions">
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionEffectCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionEffectRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+  </div>
+  <div id="motionEffectMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
 
@@ -154,18 +219,65 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
+<div id="motionPaletteBox" class="scene-toolbox scene-toolbox--palettes">
+<div class="scene-toolbox__header" id="motionPaletteHdr">
+  <span style="font-weight:700;font-size:13px">Palettes</span>
+  <button id="motionPaletteBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div class="scene-toolbox__body">
+  <div class="slot-actions">
+    <button id="motionExportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
+    <button id="motionImportPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
+    <input id="motionImportPalettesFile" type="file" accept=".json,application/json" style="display:none">
+  </div>
+  <div class="small" style="color:var(--muted)">Click a palette to use compatible values as the effect center.</div>
+  <div class="slot-actions">
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+  </div>
+  <div id="motionPaletteMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="motionEffectVisualModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Edit Tile</h2>
+<button id="motionEffectVisualClose" style="font-size:16px;padding:6px 14px">x</button>
+</div>
+<div class="modal-body">
+<label>Target<select id="motionEffectVisualTarget"></select></label>
+<label>Name<input id="motionEffectVisualName" type="text"></label>
+<div id="motionEffectColorVisualWrap">
+<label>Background color<input id="motionEffectVisualColor" type="color" value="#225a50"></label>
+<button id="motionEffectVisualResetColor" type="button">Default background</button>
+</div>
+<div id="motionEffectImageVisualWrap" class="wheel-editor">
+<label>Upload visual<input id="motionEffectVisualImage" type="file" accept="image/*"></label>
+<canvas id="motionEffectVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+<div class="buttons"><button id="motionEffectVisualClear" type="button">No icon</button></div>
+</div>
+<div id="motionEffectVisualHint" class="small"></div>
+</div>
+<div class="buttons">
+<button id="motionEffectVisualSave" class="primary">Save tile</button>
+<button id="motionEffectVisualClose2">Close</button>
+</div>
+</div>
+</div>
+
 <aside id="motionToolboxRail" class="toolbox-rail" aria-label="Motion effects toolboxes"></aside>
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const motionToolboxRail=document.getElementById('motionToolboxRail');
-DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionSceneBox',type:'scenes'}]);
+DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motionEffect'},{box:'motionSavedEffectBox',type:'effects'},{box:'motionSceneBox',type:'scenes'},{box:'motionPaletteBox',type:'palettes'}]);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
-const PICO_SLOT_COUNT=32;
+const PICO_SLOT_COUNT=64;
 function populatePicoMotionSlotSelect(){
   const sel=document.getElementById('picoMotionSlot');
   sel.innerHTML=Array.from({length:PICO_SLOT_COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join('');
@@ -176,6 +288,7 @@ populatePicoMotionSlotSelect();
 const baseUrlEl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl);
 let motionGroupsBox=null;
+let collapsedMotionPartFixtures=new Set(JSON.parse(localStorage.getItem('motionPartCollapsedFix')||'[]'));
 motionGroupsBox=DmxCommon.initGroupsToolbox({
   page:'motion',
   idPrefix:'motionGroups',
@@ -184,6 +297,7 @@ motionGroupsBox=DmxCommon.initGroupsToolbox({
   showEdit:true,
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
+  editRequiresSelection:false,
   canEdit:()=>getMotionGroupCommonControls().length>0,
   onEdit:()=>openMotionGroupModal(),
   onSelectionChange:()=>applyMotionGroupSelection(true)
@@ -199,15 +313,97 @@ function sendChannel(ch,value){
 // ---- setup loading ----
 let setup={};
 let lastSetupJson='';
-// motionFixtures: [{fixture, control, enabled, phaseOffset(deg), basePan, baseTilt}]
+// motionFixtures: [{fixture, control, enabled, phaseOffset(deg), kind, basePan, baseTilt, baseValue}]
 let motionFixtures=[];
+let selectedMotionTargetKey='';
 
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
 
 function getStoredCenter(f,c){
   const v=(setup.values||{})[f.id+':'+c.id];
   if(c.type==='panTilt16')return v??{pan:32768,tilt:32768};
+  if(c.type==='panTilt8')return v??{pan:128,tilt:128};
   return v??{pan:128,tilt:128};
+}
+function isMotionControl(c){
+  return c&&(c.type==='panTilt16'||c.type==='panTilt8'||c.type==='slider16'||c.channel>=1);
+}
+function motionControlKind(c){
+  return(c.type==='panTilt16'||c.type==='panTilt8')?'panTilt':(c.type==='slider16'?'scalar16':'scalar8');
+}
+function motionControlKey(c){
+  if(!c)return'';
+  const axis=motionControlKind(c)==='panTilt'?'panTilt':'value';
+  return c.type+':'+(c.label||'Control')+':'+axis;
+}
+function motionControlLabel(c){
+  if(!c)return'Control';
+  const kind=motionControlKind(c);
+  if(kind==='panTilt')return c.label||'Pan/Tilt';
+  return(c.label||'Control')+(kind==='scalar16'?' 16-bit':'');
+}
+function scalarMax(c){return c.type==='slider16'?65535:255;}
+const EFFECTS={
+  circle:{label:'Circle',target:'panTilt'},
+  figure8:{label:'Figure-8',target:'panTilt'},
+  panSwing:{label:'Pan Swing',target:'panTilt'},
+  tiltSwing:{label:'Tilt Swing',target:'panTilt'},
+  sine:{label:'Sine',target:'scalar'},
+  pulse:{label:'Pulse',target:'scalar'}
+};
+function currentMotionTargetKind(){
+  return motionFixtures.find(mf=>motionControlKey(mf.control)===selectedMotionTargetKey)?.kind||'';
+}
+function effectTargetFamily(){
+  const kind=currentMotionTargetKind();
+  if(!kind)return'';
+  return kind==='panTilt'?'panTilt':'scalar';
+}
+function effectOptionsForTarget(){
+  const family=effectTargetFamily();
+  if(!family)return[];
+  return Object.entries(EFFECTS).filter(([,meta])=>meta.target===family).map(([value,meta])=>({value,label:meta.label}));
+}
+function populateEffectTypeFilter(preferred){
+  const sel=document.getElementById('effectType');
+  if(!sel)return;
+  const old=preferred||sel.value;
+  const opts=effectOptionsForTarget();
+  sel.innerHTML=opts.length?opts.map(o=>`<option value="${o.value}">${o.label}</option>`).join(''):'<option value="">None</option>';
+  sel.value=opts.some(o=>o.value===old)?old:(opts[0]?.value||'');
+  sel.disabled=!opts.length;
+  drawPathPreview();
+}
+function scopedMotionFixtures(){
+  const ids=motionTargetFixtureIds();
+  return motionFixtures.filter(mf=>!ids||ids.has(String(mf.fixture.id)));
+}
+function getStoredScalar(f,c){
+  const v=(setup.values||{})[f.id+':'+c.id];
+  if(typeof v==='number')return v;
+  return scalarMax(c)===65535?0:0;
+}
+function ensureMotionTarget(){
+  const opts=motionControlOptions();
+  if(!opts.length||!opts.some(o=>o.key===selectedMotionTargetKey))selectedMotionTargetKey='';
+  localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
+}
+function motionTargetFixtureIds(){
+  const selected=(motionGroupsBox?.selectedGroups?.()||[]);
+  return selected.length?new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String)):null;
+}
+function setMotionTarget(key,{enableMatches=false}={}){
+  selectedMotionTargetKey=key||'';
+  localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
+  const selectedIds=motionTargetFixtureIds();
+  motionFixtures.forEach(mf=>{
+    const matches=motionControlKey(mf.control)===selectedMotionTargetKey;
+    const inGroup=!selectedIds||selectedIds.has(String(mf.fixture.id));
+    mf.enabled=enableMatches&&matches&&inGroup;
+  });
+  drawFixtureList();
+  drawPathPreview();
+  refreshMotionGroupActions();
 }
 
 async function loadSetup(auto=false){
@@ -242,18 +438,21 @@ function applySetup(){
   motionFixtures=[];
   (setup.fixtures||[]).forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
-    const c=p.controls.find(cc=>cc.type==='panTilt16'||cc.type==='panTilt8');
-    if(!c)return;
-    const center=getStoredCenter(f,c);
-    const ex=prev.get(f.id+':'+c.id);
-    motionFixtures.push({
-      fixture:f,control:c,
-      enabled:ex?ex.enabled:true,
-      phaseOffset:ex?ex.phaseOffset:0,
-      basePan:ex?ex.basePan:center.pan,
-      baseTilt:ex?ex.baseTilt:center.tilt
+    p.controls.filter(isMotionControl).forEach(c=>{
+      const center=getStoredCenter(f,c);
+      const ex=prev.get(f.id+':'+c.id);
+      const kind=motionControlKind(c);
+      motionFixtures.push({
+        fixture:f,control:c,kind,
+        enabled:ex?ex.enabled:false,
+        phaseOffset:ex?ex.phaseOffset:0,
+        basePan:ex?ex.basePan:center.pan,
+        baseTilt:ex?ex.baseTilt:center.tilt,
+        baseValue:ex?ex.baseValue:getStoredScalar(f,c)
+      });
     });
   });
+  ensureMotionTarget();
   applyMotionGroupSelection(false);
   drawFixtureList();
   drawPathPreview();
@@ -261,49 +460,87 @@ function applySetup(){
 
 function applyMotionGroupSelection(redraw=true){
   const selected=motionGroupsBox?.selectedGroups?.()||[];
-  if(!selected.length)return;
-  const selectedFixtureIds=new Set(selected.flatMap(g=>g.fixtureIds||[]));
-  motionFixtures.forEach(mf=>{mf.enabled=selectedFixtureIds.has(mf.fixture.id);});
+  ensureMotionTarget();
+  if(!selected.length){
+    if(redraw){drawFixtureList();drawPathPreview();}
+    refreshMotionGroupActions();
+    return;
+  }
+  const selectedFixtureIds=new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String));
+  motionFixtures.forEach(mf=>{
+    mf.enabled=selectedFixtureIds.has(String(mf.fixture.id))&&motionControlKey(mf.control)===selectedMotionTargetKey;
+  });
   if(redraw){
     drawFixtureList();
     drawPathPreview();
     setStatus('Motion fixtures set from '+selected.length+' group'+(selected.length===1?'':'s'));
   }
+  refreshMotionGroupActions();
+}
+function clearMotionGroupSelection(){
+  if(motionGroupsBox?.clearSelection)motionGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+}
+function refreshMotionGroupActions(){
+  if(motionGroupsBox?.refreshActions)motionGroupsBox.refreshActions();
+  else if(motionGroupsBox?.render)motionGroupsBox.render();
 }
 
 function motionGroupFixtureIds(){
-  return [...new Set((motionGroupsBox?.selectedGroups?.()||[]).flatMap(g=>g.fixtureIds||[]))]
-    .filter(id=>(setup.fixtures||[]).some(f=>f.id===id));
+  return [...new Set(motionGroupEditFixtures().map(mf=>mf.fixture.id))];
 }
-function motionGroupKey(c){return c.type+':'+c.label;}
-function findMatchingMotionControl(f,key){
-  return(fixtureProfile(f)?.controls||[]).find(c=>motionGroupKey(c)===key)||null;
+function motionGroupKey(c){return motionControlKey(c);}
+function motionGroupEditFixtures(){
+  const selected=(motionGroupsBox?.selectedGroups?.()||[]);
+  const selectedIds=selected.length?new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String)):null;
+  return motionFixtures.filter(mf=>
+    motionGroupKey(mf.control)===selectedMotionTargetKey &&
+    (selectedIds?selectedIds.has(String(mf.fixture.id)):mf.enabled)
+  );
 }
 function getMotionGroupCommonControls(){
-  const ids=motionGroupFixtureIds();
-  const fxList=ids.map(id=>(setup.fixtures||[]).find(f=>f.id===id)).filter(Boolean);
-  if(fxList.length<2)return[];
-  const first=(fixtureProfile(fxList[0])?.controls||[]).filter(c=>c.type==='panTilt16'||c.type==='panTilt8');
-  return first.filter(c=>fxList.every(f=>!!findMatchingMotionControl(f,motionGroupKey(c))));
+  const editFixtures=motionGroupEditFixtures();
+  if(editFixtures.length<2)return[];
+  const controls=new Map();
+  editFixtures.forEach(mf=>{
+    const key=motionGroupKey(mf.control);
+    if(!controls.has(key))controls.set(key,{control:mf.control,count:0});
+    controls.get(key).count++;
+  });
+  return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
 }
 function motionGroupValue(c){
-  const ids=motionGroupFixtureIds();
-  const firstId=ids.find(id=>motionFixtures.some(mf=>mf.fixture.id===id&&motionGroupKey(mf.control)===motionGroupKey(c)));
-  const mf=motionFixtures.find(m=>m.fixture.id===firstId&&motionGroupKey(m.control)===motionGroupKey(c));
+  const mf=motionGroupEditFixtures().find(m=>motionGroupKey(m.control)===motionGroupKey(c));
+  if(motionControlKind(c)!=='panTilt')return mf?.baseValue??0;
   const max=c.type==='panTilt16'?65535:255;
   return{pan:mf?.basePan??Math.round(max/2),tilt:mf?.baseTilt??Math.round(max/2)};
 }
 function setMotionGroupValue(c,v){
-  const ids=new Set(motionGroupFixtureIds());
-  motionFixtures.forEach(mf=>{
-    if(!ids.has(mf.fixture.id)||motionGroupKey(mf.control)!==motionGroupKey(c))return;
-    mf.basePan=v.pan;
-    mf.baseTilt=v.tilt;
+  motionGroupEditFixtures().forEach(mf=>{
+    if(motionGroupKey(mf.control)!==motionGroupKey(c))return;
+    if(mf.kind==='panTilt'){
+      mf.basePan=v.pan;
+      mf.baseTilt=v.tilt;
+    }else mf.baseValue=v;
   });
 }
 function renderMotionGroupControl(c){
   const key=motionGroupKey(c);
   const v=motionGroupValue(c);
+  if(motionControlKind(c)!=='panTilt'){
+    const max=scalarMax(c);
+    const b=bytes16(v);
+    const bytes=c.type==='slider16'?`
+    <div class="byte-sliders">
+      <label>Coarse <span data-mg-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-mg="${key}" data-byte-part="coarse"></label>
+      <label>Fine <span data-mg-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-mg="${key}" data-byte-part="fine"></label>
+    </div>`:'';
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='slider16'?'16-bit scalar':'8-bit scalar'} · effect center</span></div>
+      <div class="row"><span class="readout" data-mg-readout="${key}">${Math.round(v)}</span><button data-mg="${key}" data-mg-center="1">Zero</button></div>
+      <label>Value<input type="range" min="0" max="${max}" step="1" value="${Math.round(v)}" data-mg="${key}"></label>
+      ${bytes}
+    </div>`;
+  }
   const max=c.type==='panTilt16'?65535:255;
   const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
   const bytes=c.type==='panTilt16'?`
@@ -324,6 +561,20 @@ function renderMotionGroupControl(c){
 function updateMotionGroupDisplay(c){
   const key=motionGroupKey(c);
   const v=motionGroupValue(c);
+  if(motionControlKind(c)!=='panTilt'){
+    document.querySelectorAll(`[data-mg-readout="${key}"]`).forEach(el=>el.textContent=Math.round(v));
+    document.querySelectorAll(`input[data-mg="${key}"]:not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+    if(c.type==='slider16'){
+      const b=bytes16(v);
+      ['coarse','fine'].forEach(part=>{
+        document.querySelectorAll(`input[data-mg="${key}"][data-byte-part="${part}"]`).forEach(el=>{if(el.value!=b[part])el.value=b[part];});
+        document.querySelectorAll(`[data-mg-byte="${key}"][data-byte-part="${part}"]`).forEach(el=>el.textContent=b[part]);
+      });
+    }
+    drawFixtureList();
+    drawPathPreview();
+    return;
+  }
   const max=c.type==='panTilt16'?65535:255;
   const pad=document.querySelector(`[data-mgxy="${key}"]`);
   const dot=pad?.querySelector('.xy-dot');
@@ -343,12 +594,17 @@ function updateMotionGroupDisplay(c){
   drawPathPreview();
 }
 function sendMotionGroupControl(c){
-  const ids=new Set(motionGroupFixtureIds());
+  const targets=motionGroupEditFixtures().filter(mf=>motionGroupKey(mf.control)===motionGroupKey(c));
   const batch={};
-  motionFixtures.forEach(mf=>{
-    if(!ids.has(mf.fixture.id)||motionGroupKey(mf.control)!==motionGroupKey(c))return;
+  targets.forEach(mf=>{
     const f=mf.fixture,fc=mf.control;
-    if(fc.type==='panTilt16'){
+    if(mf.kind==='scalar16'){
+      const b=bytes16(mf.baseValue);
+      batch[absolute(f.start,fc.channel)]=b.coarse;
+      batch[absolute(f.start,fc.fine??fc.channel+1)]=b.fine;
+    }else if(mf.kind==='scalar8'){
+      batch[absolute(f.start,fc.channel)]=mf.baseValue;
+    }else if(fc.type==='panTilt16'){
       const panB=bytes16(mf.basePan),tiltB=bytes16(mf.baseTilt);
       batch[absolute(f.start,fc.pan)]=panB.coarse;
       batch[absolute(f.start,fc.panFine??fc.pan+1)]=panB.fine;
@@ -360,18 +616,18 @@ function sendMotionGroupControl(c){
     }
   });
   sendBatch(batch);
-  setStatus('Group motion center sent to '+ids.size+' fixture'+(ids.size===1?'':'s'));
+  setStatus('Group effect center sent to '+targets.length+' fixture'+(targets.length===1?'':'s'));
 }
 function openMotionGroupModal(){
   const common=getMotionGroupCommonControls();
-  if(!common.length){setStatus('Select a group with at least two motion fixtures',true);return;}
+  if(!common.length){setStatus('Select at least two participating fixtures for the current effect target',true);return;}
   const n=motionGroupFixtureIds().length;
-  document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common motion control'+(common.length===1?'':'s');
+  document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common effect control'+(common.length===1?'':'s');
   document.getElementById('motionGroupModalBody').innerHTML=common.map(c=>renderMotionGroupControl(c)).join('');
-  document.getElementById('motionGroupModal').style.display='flex';
+  DmxCommon.showModal('motionGroupModal');
 }
 function closeMotionGroupModal(){
-  document.getElementById('motionGroupModal').style.display='none';
+  DmxCommon.hideModal('motionGroupModal');
   drawFixtureList();
   drawPathPreview();
 }
@@ -379,13 +635,20 @@ function handleMotionGroupInput(target){
   const key=target.dataset.mg;if(!key)return;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
   let v=motionGroupValue(c);
-  const max=c.type==='panTilt16'?65535:255;
-  if(target.dataset.bytePart){
+  if(motionControlKind(c)!=='panTilt'){
+    if(target.dataset.bytePart){
+      const b=bytes16(v);
+      b[target.dataset.bytePart]=clamp(target.value,0,255);
+      v=(b.coarse<<8)|b.fine;
+    }else v=clamp(target.value,0,scalarMax(c));
+  }else if(target.dataset.bytePart){
+    const max=c.type==='panTilt16'?65535:255;
     const axis=target.dataset.byteAxis;
     const b=bytes16(v[axis]);
     b[target.dataset.bytePart]=clamp(target.value,0,255);
     v={...v,[axis]:(b.coarse<<8)|b.fine};
   }else if(target.dataset.axis){
+    const max=c.type==='panTilt16'?65535:255;
     v={...v,[target.dataset.axis]:clamp(target.value,0,max)};
   }
   setMotionGroupValue(c,v);
@@ -395,15 +658,14 @@ function handleMotionGroupInput(target){
 document.getElementById('closeMotionGroupModal').onclick=closeMotionGroupModal;
 document.getElementById('closeMotionGroupModal2').onclick=closeMotionGroupModal;
 document.getElementById('motionGroupModal').addEventListener('click',e=>{if(e.target===document.getElementById('motionGroupModal'))closeMotionGroupModal();});
-document.getElementById('sendMotionGroupBtn').onclick=()=>getMotionGroupCommonControls().forEach(c=>sendMotionGroupControl(c));
 const motionGroupModalBody=document.getElementById('motionGroupModalBody');
 motionGroupModalBody.oninput=e=>handleMotionGroupInput(e.target);
 motionGroupModalBody.addEventListener('click',e=>{
   const key=e.target.dataset.mg;if(!key)return;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
   if(e.target.dataset.mgCenter){
-    const max=c.type==='panTilt16'?65535:255;
-    const v={pan:Math.round(max/2),tilt:Math.round(max/2)};
+    const max=motionControlKind(c)==='panTilt'?(c.type==='panTilt16'?65535:255):scalarMax(c);
+    const v=motionControlKind(c)==='panTilt'?{pan:Math.round(max/2),tilt:Math.round(max/2)}:0;
     setMotionGroupValue(c,v);
     updateMotionGroupDisplay(c);
     sendMotionGroupControl(c);
@@ -420,6 +682,7 @@ motionGroupModalBody.addEventListener('pointermove',e=>{
 function setMotionGroupXY(e,pad){
   const key=pad.dataset.mgxy;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
+  if(motionControlKind(c)!=='panTilt')return;
   const r=pad.getBoundingClientRect();
   const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
   const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
@@ -441,7 +704,13 @@ async function syncBaseFromPico(){
     if(!Array.isArray(vals))return;
     motionFixtures.forEach(mf=>{
       const c=mf.control,f=mf.fixture;
-      if(c.type==='panTilt16'){
+      if(mf.kind==='scalar16'){
+        const coarseIdx=absolute(f.start,c.channel)-1;
+        const fineIdx=absolute(f.start,c.fine??c.channel+1)-1;
+        mf.baseValue=(((vals[coarseIdx]??0)<<8)|(vals[fineIdx]??0));
+      }else if(mf.kind==='scalar8'){
+        mf.baseValue=vals[absolute(f.start,c.channel)-1]??0;
+      }else if(c.type==='panTilt16'){
         const panIdx  =absolute(f.start,c.pan)-1;
         const fineIdx =absolute(f.start,c.panFine??c.pan+1)-1;
         const tiltIdx =absolute(f.start,c.tilt)-1;
@@ -463,49 +732,137 @@ const COLORS=['#37c4a4','#ffbc6b','#ff7a7a','#7ab4ff','#c4a437','#d37aff'];
 function drawFixtureList(){
   const listEl=document.getElementById('fixtureList');
   document.getElementById('noFixtures').style.display=motionFixtures.length?'none':'block';
+  ensureMotionTarget();
+  populateMotionControlFilter();
   listEl.innerHTML='';
+  if(!selectedMotionTargetKey){
+    const hint=document.getElementById('motionControlHint');
+    if(hint)hint.textContent='Effect Target: None';
+    listEl.innerHTML='<div class="small">Choose an Effect Target, then select fixtures with All, Groups, or individual fixture tiles.</div>';
+    refreshMotionGroupActions();
+    return;
+  }
+  const selected=(motionGroupsBox?.selectedGroups?.()||[]);
+  const selectedIds=selected.length?new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String)):null;
+  const groups=new Map();
   motionFixtures.forEach((mf,i)=>{
+    if(motionControlKey(mf.control)!==selectedMotionTargetKey)return;
+    if(selectedIds&&!selectedIds.has(String(mf.fixture.id)))return;
+    const id=String(mf.fixture.id);
+    if(!groups.has(id))groups.set(id,{fixture:mf.fixture,profile:fixtureProfile(mf.fixture),items:[]});
+    groups.get(id).items.push({mf,i});
+  });
+  const fixtureGroups=Array.from(groups.values());
+  const hint=document.getElementById('motionControlHint');
+  const target=motionControlOptions().find(o=>o.key===selectedMotionTargetKey);
+  if(hint)hint.textContent=(target?target.label:'No target')+(selected.length?' · filtering '+selected.length+' selected group'+(selected.length===1?'':'s'):' · no group filter');
+  if(selectedIds&&!fixtureGroups.length){
+    listEl.innerHTML='<div class="small">Selected groups have no compatible effect controls in this setup.</div>';
+    return;
+  }
+  if(!fixtureGroups.length){
+    listEl.innerHTML='<div class="small">No compatible effect controls selected.</div>';
+    return;
+  }
+  fixtureGroups.forEach(group=>{
+    const f=group.fixture,p=group.profile;
+    const entry=group.items[0];
+    if(!entry)return;
+    const {mf,i}=entry;
     const c=mf.control;
-    const max=c.type==='panTilt16'?65535:255;
+    const isPanTilt=mf.kind==='panTilt';
+    const max=isPanTilt?(c.type==='panTilt16'?65535:255):scalarMax(c);
     const color=COLORS[i%COLORS.length];
+    const meta=isPanTilt?(c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'):(c.type==='slider16'?'Scalar 16-bit':'Scalar 8-bit');
     const item=document.createElement('div');
-    item.className='item'+(mf.enabled?' active':'');
-    item.innerHTML=`
-      <div class="row" style="justify-content:space-between">
-        <label style="flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:14px">
-          <input type="checkbox" data-mf="${i}" data-f="enabled" ${mf.enabled?'checked':''} style="width:16px;height:16px;padding:0;accent-color:var(--accent)">
-          <strong style="border-left:3px solid ${color};padding-left:8px">${mf.fixture.name}</strong>
-        </label>
-        <span class="small">${c.type==='panTilt16'?'16-bit':'8-bit'} · start ch ${mf.fixture.start}</span>
-      </div>
-      <div class="row">
-        <div class="xy-mini">
+    item.className='item motion-fixture-tile'+(mf.enabled?' active':'');
+    item.dataset.fixId=f.id;
+    item.dataset.mf=String(i);
+    const preview=isPanTilt
+      ? `<div class="xy-mini motion-tile-xy">
           <div class="xy-dot" id="dot${i}" style="left:${mf.basePan/max*100}%;top:${100-mf.baseTilt/max*100}%;background:${color};box-shadow:0 0 0 1px ${color}"></div>
         </div>
-        <div>
-          <div class="small">Live position</div>
-          <div class="readout" id="pos${i}" style="color:${color}">Pan ${Math.round(mf.basePan)} · Tilt ${Math.round(mf.baseTilt)}</div>
-        </div>
-      </div>`;
+        <div class="motion-tile-value" id="pos${i}">Pan ${Math.round(mf.basePan)} · Tilt ${Math.round(mf.baseTilt)}</div>`
+      : `<div class="motion-scalar-preview"><span id="bar${i}" style="width:${mf.baseValue/max*100}%;background:${color}"></span></div>
+        <div class="motion-tile-value" id="pos${i}">${Math.round(mf.baseValue)} / ${max}</div>`;
+    item.innerHTML=`
+      <div class="motion-tile-title">${DmxCommon.escapeHtml(f.name)}</div>
+      <div class="small">${DmxCommon.escapeHtml(p?.name||'Profile')} · ch ${f.start}</div>
+      <div class="motion-participant-meta">
+        <span class="motion-kind">${meta}</span>
+      </div>
+      ${preview}
+    `;
     listEl.appendChild(item);
   });
 
-  listEl.oninput=e=>{
-    const i=parseInt(e.target.dataset.mf,10);
-    if(isNaN(i))return;
+  listEl.onclick=e=>{
+    const tile=e.target.closest('[data-mf]');
+    if(!tile)return;
+    const i=parseInt(tile.dataset.mf,10);
     const mf=motionFixtures[i];
-    const f=e.target.dataset.f;
-    if(f==='enabled'){
-      mf.enabled=e.target.checked;
-      e.target.closest('.item').className='item'+(mf.enabled?' active':'');
-      drawPathPreview();
-    }
+    if(!mf)return;
+    mf.enabled=!mf.enabled;
+    tile.classList.toggle('active',mf.enabled);
+    drawPathPreview();
+    refreshMotionGroupActions();
   };
+}
+
+function motionControlOptions(){
+  const map=new Map();
+  scopedMotionFixtures().forEach(mf=>{
+    const key=motionControlKey(mf.control);
+    if(!map.has(key))map.set(key,{key,label:motionControlLabel(mf.control),kind:mf.kind,count:0});
+    map.get(key).count++;
+  });
+  return Array.from(map.values());
+}
+function populateMotionControlFilter(){
+  const sel=document.getElementById('motionControlFilter');
+  if(!sel)return;
+  const old=sel.value;
+  const opts=motionControlOptions();
+  const targetOptions=opts.map(o=>`<option value="${DmxCommon.escapeHtml(o.key)}">${DmxCommon.escapeHtml(o.label)} (${o.count})</option>`).join('');
+  sel.innerHTML='<option value="">None</option>'+targetOptions;
+  if(opts.some(o=>o.key===selectedMotionTargetKey))sel.value=selectedMotionTargetKey;
+  else if(opts.some(o=>o.key===old))sel.value=old;
+  else sel.value='';
+  sel.disabled=!opts.length;
+  populateEffectTypeFilter();
+}
+function setMotionParticipationByKey(key,mode){
+  if(key&&key!==selectedMotionTargetKey)selectedMotionTargetKey=key;
+  const selectedIds=motionTargetFixtureIds();
+  motionFixtures.forEach(mf=>{
+    const matches=motionControlKey(mf.control)===selectedMotionTargetKey;
+    const inGroup=!selectedIds||selectedIds.has(String(mf.fixture.id));
+    if(mode==='all'||mode==='only')mf.enabled=matches&&inGroup;
+    else if(mode==='none')mf.enabled=false;
+  });
+  localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
+  drawFixtureList();
+  drawPathPreview();
+  refreshMotionGroupActions();
 }
 
 // ---- path preview canvas ----
 const pathCanvas=document.getElementById('pathCanvas');
 const pathCtx=pathCanvas.getContext('2d');
+function syncPathCanvasResolution(){
+  const rect=pathCanvas.getBoundingClientRect();
+  const dpr=Math.max(1,window.devicePixelRatio||1);
+  const cssW=Math.max(1,Math.round(rect.width));
+  const cssH=Math.max(1,Math.round(rect.height));
+  const pixelW=Math.max(1,Math.round(cssW*dpr));
+  const pixelH=Math.max(1,Math.round(cssH*dpr));
+  if(pathCanvas.width!==pixelW||pathCanvas.height!==pixelH){
+    pathCanvas.width=pixelW;
+    pathCanvas.height=pixelH;
+  }
+  pathCtx.setTransform(dpr,0,0,dpr,0,0);
+  return{w:cssW,h:cssH};
+}
 
 function effectOffset(t,type){
   switch(type){
@@ -513,12 +870,14 @@ function effectOffset(t,type){
     case 'figure8':  return{pan:Math.sin(t),tilt:Math.sin(2*t)};
     case 'panSwing': return{pan:Math.sin(t),tilt:0};
     case 'tiltSwing':return{pan:0,tilt:Math.sin(t)};
+    case 'sine':     return{pan:Math.sin(t),tilt:Math.sin(t)};
+    case 'pulse':    return{pan:Math.sin(t)>=0?1:-1,tilt:Math.sin(t)>=0?1:-1};
     default:         return{pan:0,tilt:0};
   }
 }
 
 function drawPathPreview(){
-  const w=pathCanvas.width,h=pathCanvas.height;
+  const {w,h}=syncPathCanvasResolution();
   const type=document.getElementById('effectType').value;
   const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
   const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
@@ -629,6 +988,36 @@ function sendBatch(map){
   fetch(root+'/dmx/b',{method:'POST',body:pairs,cache:'no-store'}).catch(()=>{});
 }
 
+function sendMotionTargetValue(mf,value,batchMap){
+  const f=mf.fixture,c=mf.control;
+  if(mf.kind==='scalar16'){
+    const b=bytes16(value);
+    batchMap[absolute(f.start,c.channel)]=b.coarse;
+    batchMap[absolute(f.start,c.fine??c.channel+1)]=b.fine;
+  }else if(mf.kind==='scalar8'){
+    batchMap[absolute(f.start,c.channel)]=value;
+  }
+}
+function addMotionControlValueToBatch(mf,value,batchMap){
+  const f=mf.fixture,c=mf.control;
+  if(mf.kind==='panTilt'){
+    const fallback=c.type==='panTilt16'?32768:128;
+    const v=(value&&typeof value==='object')?value:{pan:fallback,tilt:fallback};
+    if(c.type==='panTilt16'){
+      const panB=bytes16(v.pan??fallback),tiltB=bytes16(v.tilt??fallback);
+      batchMap[absolute(f.start,c.pan)]=panB.coarse;
+      batchMap[absolute(f.start,c.panFine??c.pan+1)]=panB.fine;
+      batchMap[absolute(f.start,c.tilt)]=tiltB.coarse;
+      batchMap[absolute(f.start,c.tiltFine??c.tilt+1)]=tiltB.fine;
+    }else{
+      batchMap[absolute(f.start,c.pan)]=v.pan??fallback;
+      batchMap[absolute(f.start,c.tilt)]=v.tilt??fallback;
+    }
+  }else{
+    sendMotionTargetValue(mf,typeof value==='number'?value:0,batchMap);
+  }
+}
+
 function tick(){
   const elapsed=(performance.now()-startTime)/1000;
   const bpm=clamp(document.getElementById('bpm').value,1,600);
@@ -646,11 +1035,20 @@ function tick(){
     const autoPhase=enabled.length>1?spread*i/enabled.length:0;
     const phase=mf.phaseOffset*Math.PI/180+autoPhase;
     const off=effectOffset(angle+phase,type);
-    const max=c.type==='panTilt16'?65535:255;
+    const max=mf.kind==='panTilt'?(c.type==='panTilt16'?65535:255):scalarMax(c);
     const half=max/2;
+    if(mf.kind!=='panTilt'){
+      const newVal=clamp(mf.baseValue+off.pan*pAmp*half,0,max);
+      sendMotionTargetValue(mf,newVal,batchMap);
+      const idx=motionFixtures.indexOf(mf);
+      const bar=document.getElementById('bar'+idx);
+      if(bar)bar.style.width=(newVal/max*100)+'%';
+      const posEl=document.getElementById('pos'+idx);
+      if(posEl)posEl.textContent=Math.round(newVal)+' / '+max;
+      return;
+    }
     const newPan=clamp(mf.basePan+off.pan*pAmp*half,0,max);
     const newTilt=clamp(mf.baseTilt+off.tilt*tAmp*half,0,max);
-
     if(c.type==='panTilt16'){
       const pan=bytes16(newPan),tilt=bytes16(newTilt);
       batchMap[absolute(f.start,c.pan)]=pan.coarse;
@@ -677,43 +1075,75 @@ function tick(){
 // ---- event wiring ----
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
 document.getElementById('effectType').onchange=drawPathPreview;
+document.getElementById('btnMotionAll').onclick=()=>{
+  if(!selectedMotionTargetKey){setStatus('Choose an Effect Target first',true);return;}
+  clearMotionGroupSelection();
+  setMotionParticipationByKey(selectedMotionTargetKey,'all');
+  collapsedMotionPartFixtures.clear();
+  localStorage.setItem('motionPartCollapsedFix','[]');
+  drawFixtureList();drawPathPreview();
+};
+document.getElementById('btnMotionNone').onclick=()=>{
+  setMotionParticipationByKey(selectedMotionTargetKey,'none');
+  collapsedMotionPartFixtures=new Set((setup.fixtures||[]).map(f=>f.id));
+  localStorage.setItem('motionPartCollapsedFix',JSON.stringify([...collapsedMotionPartFixtures]));
+  drawFixtureList();drawPathPreview();
+};
+document.getElementById('motionControlFilter').onchange=e=>setMotionTarget(e.target.value,{enableMatches:false});
+document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
+  const panel=document.getElementById(btn.dataset.panelToggle);
+  if(!panel)return;
+  const key='motionPanelCollapsed:'+btn.dataset.panelToggle;
+  const setCollapsed=collapsed=>{
+    panel.classList.toggle('collapsed-panel',collapsed);
+    btn.textContent=collapsed?'+':'−';
+    btn.title=(collapsed?'Expand ':'Collapse ')+(panel.querySelector('h2')?.textContent.trim()||'panel');
+    localStorage.setItem(key,collapsed?'1':'');
+  };
+  setCollapsed(localStorage.getItem(key)==='1');
+  btn.onclick=()=>setCollapsed(!panel.classList.contains('collapsed-panel'));
+});
 ['panAmp','tiltAmp','phaseSpread'].forEach(id=>{
   const el=document.getElementById(id);
   const valEl=document.getElementById(id+'Val');
   el.oninput=()=>{valEl.textContent=el.value;drawPathPreview();};
 });
+window.addEventListener('resize',drawPathPreview);
 
 // ---- Pico Motion FX ----
-const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3};
+const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5};
 function serializeMotionForPico(){
   const type=document.getElementById('effectType').value;
   const bpm=parseFloat(document.getElementById('bpm').value);
-  const panAmp=parseFloat(document.getElementById('panAmp').value)/100;
-  const tiltAmp=parseFloat(document.getElementById('tiltAmp').value)/100;
+  const amp1=parseFloat(document.getElementById('panAmp').value)/100;
+  const amp2=parseFloat(document.getElementById('tiltAmp').value)/100;
   const spread=parseFloat(document.getElementById('phaseSpread').value);
   const lines=[
+    'FX 1',
     'TYPE '+(typeMapPico[type]??0),
     'BPM '+bpm.toFixed(4),
-    'PANAMP '+panAmp.toFixed(6),
-    'TILTAMP '+tiltAmp.toFixed(6),
+    'AMP1 '+amp1.toFixed(6),
+    'AMP2 '+amp2.toFixed(6),
     'SPREAD '+spread.toFixed(4),
   ];
-  motionFixtures.forEach(mf=>{
+  motionFixtures.filter(mf=>mf.enabled&&motionControlKey(mf.control)===selectedMotionTargetKey).forEach(mf=>{
     const c=mf.control,f=mf.fixture;
-    const is16=c.type==='panTilt16'?1:0;
-    const panCh=absolute(f.start,c.pan);
-    const panFine=is16?absolute(f.start,c.panFine??c.pan+1):0;
-    const tiltCh=absolute(f.start,c.tilt);
-    const tiltFine=is16?absolute(f.start,c.tiltFine??c.tilt+1):0;
-    lines.push('FIX '+(mf.enabled?1:0)+' '+panCh+' '+panFine+' '+tiltCh+' '+tiltFine+' '+is16+' '+
-      mf.phaseOffset.toFixed(2));
+    if(mf.kind==='panTilt'){
+      const is16=c.type==='panTilt16';
+      const kind=is16?'pantilt16':'pantilt8';
+      lines.push('TARGET '+kind+' 1 '+absolute(f.start,c.pan)+' '+(is16?absolute(f.start,c.panFine??c.pan+1):0)+' '+absolute(f.start,c.tilt)+' '+(is16?absolute(f.start,c.tiltFine??c.tilt+1):0)+' '+mf.phaseOffset.toFixed(2));
+    }else{
+      const is16=mf.kind==='scalar16';
+      const kind=is16?'scalar16':'scalar8';
+      lines.push('TARGET '+kind+' 1 '+absolute(f.start,c.channel)+' '+(is16?absolute(f.start,c.fine??c.channel+1):0)+' 0 0 '+mf.phaseOffset.toFixed(2));
+    }
   });
   lines.push('END');
   return lines.join('\n');
 }
 
 let picoMotionTimer=null;
-const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing'];
+const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing','Sine','Pulse'];
 let _lastSlots=null; // cached for selection-highlight re-render
 let _lastActiveMask=0;
 let _lastMotionReportedSlotCount=PICO_SLOT_COUNT;
@@ -730,13 +1160,13 @@ function ensureMotionSlotSupported(){
 
 function renderMotionSlotStrip(slots, activeMask){
   _lastMotionReportedSlotCount=slots.length;
-  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
+  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
   _lastSlots=slots; _lastActiveMask=activeMask;
   const strip=document.getElementById('motionSlotStrip');
   const sel=selectedMotionSlot();
   strip.innerHTML='';
   slots.forEach(s=>{
-    const alive=!!(activeMask&(1<<s.slot));
+    const alive=!!s.active;
     const loaded=s.loaded;
     const selected=s.slot===sel;
     const unsupported=!!s.unsupported;
@@ -763,15 +1193,19 @@ function renderMotionSlotStrip(slots, activeMask){
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
-      (loaded?'<div style="font-size:11px;color:var(--muted)">'+s.fixture_count+' fix</div>':'') +
+      (loaded?'<div style="font-size:11px;color:var(--muted)">'+(s.target_count??s.fixture_count??0)+' tgt</div>':'') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
         '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
         '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
     d.onclick=()=>{
       if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
+      const wasSelected=selectedMotionSlot()===s.slot;
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask);
+      if(!loaded)uploadCurrentMotionToSlot(s.slot,false);
+      else if(wasSelected)uploadCurrentMotionToSlot(s.slot,true);
+      else setPicoMotionStatus('Selected slot '+s.slot+' · click again to replace with current effect','var(--muted)');
     };
     const delBtn=d.querySelector('[data-delete-motion-slot]');
     if(delBtn){
@@ -798,8 +1232,8 @@ async function deleteMotionSlot(slot){
       setPicoMotionStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
     }
     if(_lastSlots){
-      _lastSlots[slot]={slot:slot,loaded:false,active:false,type:0,bpm:30,fixture_count:0};
-      renderMotionSlotStrip(_lastSlots,_lastActiveMask & ~(1<<slot));
+      _lastSlots[slot]={slot:slot,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0};
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask);
     }
     pollPicoMotionStatus();
   }catch(e){
@@ -823,14 +1257,13 @@ async function pollPicoMotionStatus(){
   try{
     const st=await fetch(root+'/motion/status').then(r=>r.json());
     if(st.ok){
-      const activeSlots=[];
-      for(let i=0;i<PICO_SLOT_COUNT;i++) if(st.active_mask&(1<<i)) activeSlots.push(i);
+      /* fetch slot details sequentially to avoid overwhelming the Pico */
+      const sl=await fetch(root+'/motion/slots').then(r=>r.json());
+      const activeSlots=(sl?.slots||[]).filter(s=>s.active).map(s=>s.slot);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
         :'Stopped';
       setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
-      /* fetch slot details sequentially to avoid overwhelming the Pico */
-      const sl=await fetch(root+'/motion/slots').then(r=>r.json());
       if(sl.ok) renderMotionSlotStrip(sl.slots,st.active_mask);
     }
   }catch(e){setPicoMotionStatus('No response','var(--bad)');}
@@ -864,13 +1297,14 @@ async function restoreAllMotionSlots(){
   pollPicoMotionStatus();
 }
 
-document.getElementById('btnPicoMotionUpload').onclick=async()=>{
-  if(motionFixtures.filter(m=>m.enabled).length===0){setPicoMotionStatus('No enabled fixtures','var(--warn)');return;}
+async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
+  if(motionFixtures.filter(m=>m.enabled&&motionControlKey(m.control)===selectedMotionTargetKey).length===0){setPicoMotionStatus('No enabled targets for upload','var(--warn)');return;}
+  document.getElementById('picoMotionSlot').value=slot;
   if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
-  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  if(confirmOverwrite&&!confirm('Replace Pico motion slot '+slot+' with the current effect?'))return;
   const body=serializeMotionForPico();
   setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
@@ -881,7 +1315,7 @@ document.getElementById('btnPicoMotionUpload').onclick=async()=>{
     setPicoMotionStatus('Uploaded current preset to slot '+slot,'var(--accent)');
     pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
-};
+}
 document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;
 
 document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
@@ -936,8 +1370,12 @@ document.getElementById('btnPicoMotionStop').onclick=async()=>{
 
 // ---- motion data serialization ----
 function motionData(){
-  return{
+  return DmxCommon.versionedPayload({
     baseUrl:baseUrlEl.value,
+    targetKey:selectedMotionTargetKey,
+    effects:motionEffects,
+    effectCols:motionEffectCols,
+    effectRows:motionEffectRows,
     params:{
       effectType:document.getElementById('effectType').value,
       bpm:+document.getElementById('bpm').value,
@@ -948,23 +1386,29 @@ function motionData(){
     },
     fixtures:motionFixtures.map(mf=>({
       fixtureId:mf.fixture.id,controlId:mf.control.id,
-      enabled:mf.enabled,phaseOffset:mf.phaseOffset,
-      basePan:mf.basePan,baseTilt:mf.baseTilt,
+      kind:mf.kind,enabled:mf.enabled,phaseOffset:mf.phaseOffset,
+      basePan:mf.basePan,baseTilt:mf.baseTilt,baseValue:mf.baseValue,
     }))
-  };
+  });
 }
 function applyMotionData(data){
   if(!data)return;
   if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+  if(data.targetKey){
+    selectedMotionTargetKey=data.targetKey;
+    localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
+  }
   const p=data.params;
   if(p){
-    if(p.effectType!==undefined)document.getElementById('effectType').value=p.effectType;
     if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
     if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
     if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
     if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
     if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
   }
+  if(Array.isArray(data.effects))motionEffects=data.effects;
+  if(data.effectCols)motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectCols)||4));
+  if(data.effectRows)motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectRows)||4));
   if(Array.isArray(data.fixtures)){
     data.fixtures.forEach(saved=>{
       const mf=motionFixtures.find(m=>m.fixture.id===saved.fixtureId&&m.control.id===saved.controlId);
@@ -975,9 +1419,17 @@ function applyMotionData(data){
       else if(saved.panCenter!==undefined)mf.basePan=saved.panCenter;  // backwards compat
       if(saved.baseTilt!==undefined)mf.baseTilt=saved.baseTilt;
       else if(saved.tiltCenter!==undefined)mf.baseTilt=saved.tiltCenter;  // backwards compat
+      if(saved.baseValue!==undefined)mf.baseValue=saved.baseValue;
     });
   }
+  ensureMotionTarget();
+  populateEffectTypeFilter(p?.effectType);
+  motionFixtures.forEach(mf=>{
+    if(motionControlKey(mf.control)!==selectedMotionTargetKey)mf.enabled=false;
+  });
   drawFixtureList();drawPathPreview();
+  refreshMotionGroupActions();
+  renderMotionEffectMatrix();
 }
 async function saveMotionToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
@@ -1004,8 +1456,7 @@ document.getElementById('btnMotionLoad').onclick=async()=>{
   else setStatus('No saved motion setup found on server',true);
 };
 document.getElementById('btnMotionExport').onclick=()=>{
-  const blob=new Blob([JSON.stringify(motionData(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_motion.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_motion.json',motionData());
   setStatus('dmx_motion.json downloaded');
 };
 document.getElementById('btnMotionImport').onclick=()=>document.getElementById('motionImportFile').click();
@@ -1019,9 +1470,8 @@ document.getElementById('btnExportMotionSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
   if(!j.ok){setStatus('Export slots error',true);return;}
-  const exportData={pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots};
-  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='motion_slots.json';a.click();URL.revokeObjectURL(a.href);
+  const exportData=DmxCommon.versionedPayload({pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots});
+  DmxCommon.downloadJson('motion_slots.json',exportData);
   setStatus('motion_slots.json downloaded');
 };
 document.getElementById('btnImportMotionSlots').onclick=()=>document.getElementById('importMotionSlotsFile').click();
@@ -1064,9 +1514,217 @@ document.getElementById('importMotionSlotsFile').onchange=async e=>{
   reader.readAsText(file);
 };
 
+// ---- saved effects toolbox (effect recipe, no center/base values) ----
+let motionEffects=[];
+let motionEffectCols=4,motionEffectRows=4;
+const MOTION_EFFECT_GRID_MAX=32;
+let motionEffectVisualDefault=(()=> {
+  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('motionEffectVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  catch(_){return{type:'visual',color:'#225a50',image:''};}
+})();
+function currentMotionEffectRecipe(){
+  return{
+    targetKey:selectedMotionTargetKey,
+    params:{
+      effectType:document.getElementById('effectType').value,
+      bpm:+document.getElementById('bpm').value,
+      panAmp:+document.getElementById('panAmp').value,
+      tiltAmp:+document.getElementById('tiltAmp').value,
+      phaseSpread:+document.getElementById('phaseSpread').value,
+      updateRate:+document.getElementById('updateRate').value
+    },
+    fixtures:motionFixtures
+      .filter(mf=>motionControlKey(mf.control)===selectedMotionTargetKey&&mf.enabled)
+      .map(mf=>({fixtureId:mf.fixture.id,controlId:mf.control.id,phaseOffset:mf.phaseOffset||0}))
+  };
+}
+function requiredMotionEffectSlots(){
+  return motionEffects.reduce((max,e)=>Math.max(max,(parseInt(e.slot,10)||0)+1),0);
+}
+function normalizeMotionEffectGrid(priority='cols'){
+  const needed=requiredMotionEffectSlots();
+  motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(motionEffectCols)||4));
+  motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(motionEffectRows)||4));
+  if(needed&&motionEffectCols*motionEffectRows<needed){
+    if(priority==='rows'){
+      motionEffectCols=Math.max(motionEffectCols,Math.ceil(needed/motionEffectRows));
+      if(motionEffectCols>MOTION_EFFECT_GRID_MAX){motionEffectCols=MOTION_EFFECT_GRID_MAX;motionEffectRows=Math.ceil(needed/motionEffectCols);}
+    }else{
+      motionEffectRows=Math.max(motionEffectRows,Math.ceil(needed/motionEffectCols));
+      if(motionEffectRows>MOTION_EFFECT_GRID_MAX){motionEffectRows=MOTION_EFFECT_GRID_MAX;motionEffectCols=Math.ceil(needed/motionEffectRows);}
+    }
+  }
+  const colsInput=document.getElementById('motionEffectCols');
+  const rowsInput=document.getElementById('motionEffectRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/motionEffectRows));colsInput.value=motionEffectCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/motionEffectCols));rowsInput.value=motionEffectRows;}
+}
+function renderMotionEffectMatrix(){
+  const grid=document.getElementById('motionEffectMatrix');
+  if(!grid)return;
+  normalizeMotionEffectGrid();
+  const total=motionEffectCols*motionEffectRows;
+  grid.style.gridTemplateColumns='repeat('+motionEffectCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const e=motionEffects.find(fx=>parseInt(fx.slot,10)===i);
+    if(e)html+=`<div class="slot filled" data-motion-effect-slot="${i}" title="Click: recall effect" style="${DmxCommon.slotVisualStyle(e)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-effect-slot',i,'Edit effect tile')}<button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
+    else html+=`<div class="slot" data-motion-effect-slot="${i}" title="Click to save current effect">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-motion-effect-slot]').forEach(el=>{
+    el.addEventListener('click',()=>motionEffectSlotClick(parseInt(el.dataset.motionEffectSlot,10)));
+  });
+  grid.querySelectorAll('[data-del-motion-effect]').forEach(btn=>{
+    btn.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const slot=parseInt(btn.dataset.delMotionEffect,10);
+      const e=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
+      if(!e||!confirm('Delete effect "'+(e.name||('Effect '+(slot+1)))+'"?'))return;
+      motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
+      renderMotionEffectMatrix();
+      saveMotionEffectsServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-motion-effect-slot]').forEach(btn=>{
+    btn.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      openMotionEffectVisualModal(parseInt(btn.dataset.visualMotionEffectSlot,10));
+    });
+  });
+}
+function motionEffectSlotClick(slot){
+  const saved=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
+  if(saved){recallMotionEffect(saved);return;}
+  const recipe=currentMotionEffectRecipe();
+  if(!recipe.fixtures.length){setStatus('Select at least one participating fixture before saving an effect',true);return;}
+  const name=(prompt('Effect name:','Effect '+(slot+1))||'').trim();
+  if(!name)return;
+  motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
+  motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:JSON.parse(JSON.stringify(motionEffectVisualDefault))});
+  renderMotionEffectMatrix();
+  saveMotionEffectsServer();
+  setStatus('Saved effect "'+name+'"');
+}
+function recallMotionEffect(effect){
+  const recipe=effect.recipe||effect;
+  if(!recipe.targetKey){setStatus('Effect has no target data',true);return;}
+  clearMotionGroupSelection();
+  selectedMotionTargetKey=recipe.targetKey;
+  localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
+  const p=recipe.params||{};
+  if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
+  if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
+  if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
+  if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
+  if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
+  const selected=new Set((recipe.fixtures||[]).map(f=>String(f.fixtureId)+':'+String(f.controlId)));
+  motionFixtures.forEach(mf=>{
+    const key=String(mf.fixture.id)+':'+String(mf.control.id);
+    mf.enabled=motionControlKey(mf.control)===selectedMotionTargetKey&&selected.has(key);
+    const saved=(recipe.fixtures||[]).find(f=>String(f.fixtureId)===String(mf.fixture.id)&&String(f.controlId)===String(mf.control.id));
+    if(saved&&saved.phaseOffset!==undefined)mf.phaseOffset=saved.phaseOffset;
+  });
+  populateMotionControlFilter();
+  populateEffectTypeFilter(p.effectType);
+  drawFixtureList();
+  drawPathPreview();
+  refreshMotionGroupActions();
+  setStatus('Recalled effect "'+(effect.name||'Effect')+'"');
+}
+function saveMotionEffectsServer(){
+  saveMotionToServer();
+}
+function exportMotionEffectsJson(){
+  DmxCommon.downloadJson('dmx_motion_effects.json',DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,effects:motionEffects,effectCols:motionEffectCols,effectRows:motionEffectRows}));
+}
+function importMotionEffectsJson(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const effects=Array.isArray(data)?data:data.effects;
+      if(!Array.isArray(effects))throw new Error('Expected {effects:[...]} or an array');
+      motionEffects=effects;
+      if(data.effectCols)motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectCols)||4));
+      if(data.effectRows)motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectRows)||4));
+      renderMotionEffectMatrix();
+      saveMotionEffectsServer();
+      setStatus('Imported '+motionEffects.length+' effect(s)');
+    }catch(err){setStatus('Effect import failed: '+err.message,true);}
+  };
+  reader.readAsText(file);
+}
+const motionEffectVisualEditor=DmxCommon.initSlotVisualEditor({
+  modalId:'motionEffectVisualModal',
+  targetId:'motionEffectVisualTarget',
+  colorWrapId:'motionEffectColorVisualWrap',
+  imageWrapId:'motionEffectImageVisualWrap',
+  colorInputId:'motionEffectVisualColor',
+  nameInputId:'motionEffectVisualName',
+  resetColorBtnId:'motionEffectVisualResetColor',
+  canvasId:'motionEffectVisualCanvas',
+  imageInputId:'motionEffectVisualImage',
+  clearBtnId:'motionEffectVisualClear',
+  hintId:'motionEffectVisualHint',
+  saveBtnId:'motionEffectVisualSave',
+  closeIds:['motionEffectVisualClose','motionEffectVisualClose2']
+});
+function openMotionEffectVisualModal(slot){
+  motionEffectVisualEditor?.open({
+    targetLabel:'saved effects',
+    defaultVisual:motionEffectVisualDefault,
+    targets:motionEffects
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0))
+      .map(e=>({key:String(parseInt(e.slot,10)||0),item:e,label:'Slot '+((parseInt(e.slot,10)||0)+1)+': '+(e.name||'Effect')})),
+    selectedKey:slot,
+    onSaveDefault:visual=>{
+      motionEffectVisualDefault=visual;
+      localStorage.setItem('motionEffectVisualDefault',JSON.stringify(visual));
+      setStatus('Default effect visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderMotionEffectMatrix();
+      saveMotionEffectsServer();
+      setStatus('Updated effect visual for "'+(target.name||'Effect')+'"');
+    }
+  });
+}
+let motionPaletteVisualDefault={type:'visual',color:'#225a50',image:''};
+function openMotionPaletteVisualModal(slot){
+  motionEffectVisualEditor?.open({
+    targetLabel:'palettes',
+    hint:'Choose a name, background color, and optional drawing/upload for this palette tile. The palette scope and DMX values stay unchanged.',
+    defaultColor:'#225a50',
+    defaultVisual:motionPaletteVisualDefault,
+    targets:motionPalettes
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0))
+      .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')})),
+    selectedKey:slot,
+    onSaveDefault:visual=>{
+      motionPaletteVisualDefault=visual;
+      setStatus('Default palette visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderMotionPaletteMatrix();
+      saveMotionPalettesServer();
+      setStatus('Updated palette tile for "'+(target.name||'Palette')+'"');
+    }
+  });
+}
+document.getElementById('motionEffectCols').addEventListener('input',e=>{motionEffectCols=e.target.value;normalizeMotionEffectGrid('cols');renderMotionEffectMatrix();saveMotionEffectsServer();});
+document.getElementById('motionEffectRows').addEventListener('input',e=>{motionEffectRows=e.target.value;normalizeMotionEffectGrid('rows');renderMotionEffectMatrix();saveMotionEffectsServer();});
+document.getElementById('exportMotionEffectsBtn').onclick=exportMotionEffectsJson;
+document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile').click();
+document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
+
 loadSetup().finally(async()=>{
   try{
-    const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,fixture_count:0}));
+    const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0}));
     renderMotionSlotStrip(dummy,0);
   }catch(e){console.warn('slot strip init error',e);}
   await loadMotionFromServer();
@@ -1126,6 +1784,11 @@ function applySceneAsCenter(s){
   motionFixtures.forEach(mf=>{
     const v=(s.values||{})[mf.fixture.id+':'+mf.control.id];
     if(v==null)return;
+    if(mf.kind!=='panTilt'){
+      mf.baseValue=typeof v==='number'?v:(mf.baseValue??0);
+      sendMotionTargetValue(mf,mf.baseValue,batchMap);
+      return;
+    }
     const max=mf.control.type==='panTilt16'?32768:128;
     mf.basePan =typeof v==='object'?(v.pan??max):max;
     mf.baseTilt=typeof v==='object'?(v.tilt??max):max;
@@ -1154,6 +1817,139 @@ function loadMotionScenesServer(){
     renderMotionSlotGrid();
   }).catch(()=>{motionScenes=[];renderMotionSlotGrid();});
 }
+
+// ---- palette toolbox (recall compatible values as motion centers) ----
+let motionPalettes=[];
+let motionPaletteCols=4,motionPaletteRows=4;
+const MOTION_PALETTE_GRID_MAX=32;
+function requiredMotionPaletteSlots(){
+  return motionPalettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
+}
+function normalizeMotionPaletteGrid(priority='cols'){
+  const needed=requiredMotionPaletteSlots();
+  motionPaletteCols=Math.max(1,Math.min(MOTION_PALETTE_GRID_MAX,parseInt(motionPaletteCols)||4));
+  motionPaletteRows=Math.max(1,Math.min(MOTION_PALETTE_GRID_MAX,parseInt(motionPaletteRows)||4));
+  if(needed&&motionPaletteCols*motionPaletteRows<needed){
+    if(priority==='rows'){
+      motionPaletteCols=Math.max(motionPaletteCols,Math.ceil(needed/motionPaletteRows));
+      if(motionPaletteCols>MOTION_PALETTE_GRID_MAX){motionPaletteCols=MOTION_PALETTE_GRID_MAX;motionPaletteRows=Math.ceil(needed/motionPaletteCols);}
+    }else{
+      motionPaletteRows=Math.max(motionPaletteRows,Math.ceil(needed/motionPaletteCols));
+      if(motionPaletteRows>MOTION_PALETTE_GRID_MAX){motionPaletteRows=MOTION_PALETTE_GRID_MAX;motionPaletteCols=Math.ceil(needed/motionPaletteRows);}
+    }
+  }
+  const colsInput=document.getElementById('motionPaletteCols');
+  const rowsInput=document.getElementById('motionPaletteRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/motionPaletteRows));colsInput.value=motionPaletteCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/motionPaletteCols));rowsInput.value=motionPaletteRows;}
+}
+function renderMotionPaletteMatrix(){
+  const grid=document.getElementById('motionPaletteMatrix');
+  if(!grid)return;
+  normalizeMotionPaletteGrid();
+  const total=motionPaletteCols*motionPaletteRows;
+  grid.style.gridTemplateColumns='repeat('+motionPaletteCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const p=motionPalettes.find(pl=>parseInt(pl.slot,10)===i);
+    if(p)html+=`<div class="slot filled" data-motion-palette-slot="${i}" title="Click: recall palette" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-palette-slot',i,'Edit palette tile')}<div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${escMotionHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
+    else html+=`<div class="slot readonly" data-motion-palette-slot="${i}">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('.slot.filled').forEach(el=>{
+    const idx=parseInt(el.dataset.motionPaletteSlot,10);
+    el.addEventListener('click',()=>{const p=motionPalettes.find(pl=>parseInt(pl.slot,10)===idx);if(p)recallMotionPalette(p);});
+  });
+  grid.querySelectorAll('[data-visual-motion-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openMotionPaletteVisualModal(parseInt(btn.dataset.visualMotionPaletteSlot,10));
+    });
+  });
+}
+function compatibleMotionPaletteEntries(paletteValues){
+  const entries=[];
+  Object.entries(paletteValues||{}).forEach(([key,value])=>{
+    const [fixtureId,controlId]=String(key).split(':');
+    const mf=motionFixtures.find(m=>String(m.fixture.id)===fixtureId&&String(m.control.id)===controlId);
+    if(!mf)return;
+    if(mf.kind==='panTilt'&&(!value||typeof value!=='object'))return;
+    if(mf.kind!=='panTilt'&&typeof value!=='number')return;
+    entries.push({mf,value,key});
+  });
+  return entries;
+}
+function recallMotionPalette(p){
+  const entries=compatibleMotionPaletteEntries(p.values||{});
+  if(!entries.length){setStatus('Palette has no compatible Motion FX controls in this setup',true);return;}
+  motionGroupsBox?.clearSelection?.();
+  DmxCommon.saveSharedGroupSelection([]);
+  const currentTargetEntries=entries.filter(e=>motionControlKey(e.mf.control)===selectedMotionTargetKey);
+  const activeEntries=currentTargetEntries.length?currentTargetEntries:entries;
+  selectedMotionTargetKey=motionControlKey(activeEntries[0].mf.control);
+  localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
+  const batchMap={};
+  motionFixtures.forEach(mf=>mf.enabled=false);
+  activeEntries.forEach(({mf,value})=>{
+    if(mf.kind==='panTilt'){
+      const fallback=mf.control.type==='panTilt16'?32768:128;
+      const v=(value&&typeof value==='object')?value:{pan:fallback,tilt:fallback};
+      mf.basePan=v.pan??mf.basePan??fallback;
+      mf.baseTilt=v.tilt??mf.baseTilt??fallback;
+      addMotionControlValueToBatch(mf,{pan:mf.basePan,tilt:mf.baseTilt},batchMap);
+    }else if(typeof value==='number'){
+      mf.baseValue=clamp(value,0,scalarMax(mf.control));
+      addMotionControlValueToBatch(mf,mf.baseValue,batchMap);
+    }
+    mf.enabled=motionControlKey(mf.control)===selectedMotionTargetKey;
+  });
+  populateMotionControlFilter();
+  sendBatch(batchMap);
+  drawFixtureList();
+  drawPathPreview();
+  setStatus('Motion center set from palette "'+(p.name||'Palette')+'"');
+}
+function saveMotionPalettesServer(){
+  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,palettes:motionPalettes,paletteCols:motionPaletteCols,paletteRows:motionPaletteRows}))})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Palettes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Palettes save error: '+e.message,true));
+}
+function loadMotionPalettesServer(){
+  fetch('palette_setup.php',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){
+      if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=d.baseUrl;
+      motionPalettes=d.palettes||[];
+      if(d.paletteCols)motionPaletteCols=Math.max(1,Math.min(MOTION_PALETTE_GRID_MAX,parseInt(d.paletteCols)||4));
+      if(d.paletteRows)motionPaletteRows=Math.max(1,Math.min(MOTION_PALETTE_GRID_MAX,parseInt(d.paletteRows)||4));
+    }else motionPalettes=[];
+    renderMotionPaletteMatrix();
+  }).catch(()=>{motionPalettes=[];renderMotionPaletteMatrix();});
+}
+function exportMotionPalettesJson(){
+  DmxCommon.downloadJson('dmx_palettes.json',DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,palettes:motionPalettes,paletteCols:motionPaletteCols,paletteRows:motionPaletteRows}));
+}
+function importMotionPalettesJson(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!Array.isArray(data.palettes))throw new Error('Expected {palettes:[...]}');
+      motionPalettes=data.palettes;
+      if(data.paletteCols)motionPaletteCols=Math.max(1,Math.min(MOTION_PALETTE_GRID_MAX,parseInt(data.paletteCols)||4));
+      if(data.paletteRows)motionPaletteRows=Math.max(1,Math.min(MOTION_PALETTE_GRID_MAX,parseInt(data.paletteRows)||4));
+      renderMotionPaletteMatrix();
+      saveMotionPalettesServer();
+      setStatus('Imported '+motionPalettes.length+' palette(s)');
+    }catch(err){setStatus('Palette import failed: '+err.message,true);}
+  };
+  reader.readAsText(file);
+}
+document.getElementById('motionPaletteCols').addEventListener('input',e=>{motionPaletteCols=e.target.value;normalizeMotionPaletteGrid('cols');renderMotionPaletteMatrix();saveMotionPalettesServer();});
+document.getElementById('motionPaletteRows').addEventListener('input',e=>{motionPaletteRows=e.target.value;normalizeMotionPaletteGrid('rows');renderMotionPaletteMatrix();saveMotionPalettesServer();});
+document.getElementById('motionExportPalettesBtn').onclick=exportMotionPalettesJson;
+document.getElementById('motionImportPalettesBtn').onclick=()=>document.getElementById('motionImportPalettesFile').click();
+document.getElementById('motionImportPalettesFile').onchange=e=>{if(e.target.files[0])importMotionPalettesJson(e.target.files[0]);e.target.value='';};
+
 const motionSceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'motionSceneBox',
   headerId:'motionSceneHdr',
@@ -1162,7 +1958,62 @@ const motionSceneToolbox=DmxCommon.initFloatingToolbox({
   collapsedStorageKey:'motionSceneBoxCollapsed',
   uiStatePage:'motion'
 });
+const motionEffectToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'motionEffectBox',
+  headerId:'motionEffectHdr',
+  toggleId:'motionEffectBoxToggle',
+  posStorageKey:'motionEffectBoxPos',
+  collapsedStorageKey:'motionEffectBoxCollapsed',
+  uiStatePage:'motion',
+  uiStatePosKey:'motionEffectBoxPos',
+  uiStateCollapsedKey:'motionEffectBoxCollapsed'
+});
+const motionSavedEffectToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'motionSavedEffectBox',
+  headerId:'motionSavedEffectHdr',
+  toggleId:'motionSavedEffectBoxToggle',
+  posStorageKey:'motionSavedEffectBoxPos',
+  collapsedStorageKey:'motionSavedEffectBoxCollapsed',
+  uiStatePage:'motion',
+  uiStatePosKey:'motionSavedEffectBoxPos',
+  uiStateCollapsedKey:'motionSavedEffectBoxCollapsed'
+});
+const motionEffectsCollapseGroup=[
+  {id:'motionEffectBox',toolbox:motionEffectToolbox},
+  {id:'motionSavedEffectBox',toolbox:motionSavedEffectToolbox}
+];
+function updateMotionEffectsCollapseButtons(){
+  const boxes=motionEffectsCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const allCollapsed=boxes.length&&boxes.every(box=>box.classList.contains('collapsed'));
+  document.querySelectorAll('[data-collapse-group="motion-effects"]').forEach(btn=>{
+    btn.textContent=allCollapsed?'+ all':'-- all';
+    btn.title=allCollapsed?'Uncollapse all effect toolboxes':'Collapse all effect toolboxes';
+  });
+}
+function toggleMotionEffectsCollapseGroup(){
+  const boxes=motionEffectsCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const collapse=boxes.some(box=>!box.classList.contains('collapsed'));
+  motionEffectsCollapseGroup.forEach(cfg=>cfg.toolbox?.setCollapsed?.(collapse,true));
+  updateMotionEffectsCollapseButtons();
+}
+document.querySelectorAll('[data-collapse-group="motion-effects"]').forEach(btn=>btn.addEventListener('click',toggleMotionEffectsCollapseGroup));
+['motionEffectBoxToggle','motionSavedEffectBoxToggle'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',()=>setTimeout(updateMotionEffectsCollapseButtons,0));
+});
+updateMotionEffectsCollapseButtons();
+setTimeout(updateMotionEffectsCollapseButtons,500);
+const motionPaletteToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'motionPaletteBox',
+  headerId:'motionPaletteHdr',
+  toggleId:'motionPaletteBoxToggle',
+  posStorageKey:'motionPaletteBoxPos',
+  collapsedStorageKey:'motionPaletteBoxCollapsed',
+  uiStatePage:'motion',
+  uiStatePosKey:'motionPaletteBoxPos',
+  uiStateCollapsedKey:'motionPaletteBoxCollapsed'
+});
 loadMotionScenesServer();
+loadMotionPalettesServer();
 // ── UI State persistence ─────────────────────────────────────────────────────────
 function saveUiStateServer(key,val){
   DmxCommon.saveUiState('motion',key,val);

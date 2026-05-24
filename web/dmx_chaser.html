@@ -28,26 +28,23 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
 .chaser-card-rows{display:grid;gap:16px}
 .panel.collapsed-panel .panel-body{display:none}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
-.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #chaserGroupModal input[type=range]{width:100%}
 #chaserGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #chaserGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-#chaseBox{top:20px;right:20px;min-width:220px;max-width:320px}
-#chaserGroupsBox{right:300px}
-#stepsBox{top:110px;left:20px;right:auto;width:380px;height:520px;max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);resize:both;overflow:hidden}
-#browserPlaybackBox{top:620px;left:20px;right:auto;width:430px;max-width:calc(100vw - 40px)}
 #chaseBox .scene-toolbox__header,#stepsBox .scene-toolbox__header,#browserPlaybackBox .scene-toolbox__header{background:#8d3a7e}
 #stepsBox .scene-toolbox__body{height:calc(100% - 43px);max-height:none;overflow:auto;align-content:start}
 #stepsBoxBody>.buttons:first-child{position:sticky;top:0;z-index:2;background:var(--panel);border-bottom:1px solid var(--line);padding-bottom:10px;margin:-12px -12px 0;padding:12px}
 #browserPlaybackBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto}
 #browserPlaybackBox .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end}
 .chaser-toolbox-actions{display:flex;gap:6px;align-items:center}
-.chaser-collapse-all{padding:3px 8px;font-size:12px;line-height:1;min-width:64px}
 #participationList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 #stepList .item{cursor:pointer}
+#stepList .item[draggable="true"]{cursor:grab}
+#stepList .item.step-dragging{opacity:.45;cursor:grabbing}
+#stepList .item.step-pointer-dragging{opacity:.7;cursor:grabbing;touch-action:none}
+#stepList .item.step-drop-before{box-shadow:-3px 0 0 var(--accent),0 0 0 1px var(--accent) inset}
+#stepList .item.step-drop-after{box-shadow:3px 0 0 var(--accent),0 0 0 1px var(--accent) inset}
 .progress-bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1}
 .progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.05s linear}
 .step-num{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:5px;background:#22303a;font-weight:700;font-size:12px;flex-shrink:0;padding:0 4px}
@@ -92,11 +89,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       <div class="row" style="justify-content:space-between;align-items:center">
         <h2>Participating Controls</h2>
         <div class="buttons">
-          <button id="btnSavePart" style="padding:6px 10px;font-size:12px">Save</button>
-          <button id="btnLoadPart" style="padding:6px 10px;font-size:12px">Load</button>
-          <button id="btnExportPart" class="icon-btn export-btn" title="Export participating JSON"></button>
-          <button id="btnImportPart" class="icon-btn import-btn" title="Import participating JSON"></button>
-          <input id="importPartFile" type="file" accept=".json,application/json" style="display:none">
           <button class="collapse-btn" data-panel-toggle="participationPanel" title="Collapse Participating Controls">−</button>
         </div>
       </div>
@@ -128,7 +120,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <label>Fade %<input id="edFade" type="number" min="0" max="100" value="0"></label>
         <button id="btnApplyMeta">Apply</button>
         <button id="btnCaptureToStep">⬇ Capture from FC</button>
-        <button id="btnSaveStepScene">Save as Scene</button>
       </div>
     <div id="editorHint" class="small">Select a step to edit its values.</div>
     <div class="surface" id="stepSurface"></div>
@@ -137,9 +128,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 
   <div id="stepsBox" class="scene-toolbox">
     <div id="stepsBoxHdr" class="scene-toolbox__header">
-      <span style="font-weight:700;font-size:13px">Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
+      <span style="font-weight:700;font-size:13px">Chase Steps (<span id="stepCount">0</span>/<span id="stepMax">32</span>)</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="stepsBox" title="Toggle compact layout for Steps and Browser Playback">Compact</button>
+        <button class="toolbox-collapse-group" data-collapse-group="chaser-playback" title="Collapse all chaser playback toolboxes">-- all</button>
         <button id="stepsBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -161,9 +152,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 
   <section id="browserPlaybackBox" class="scene-toolbox">
     <div id="browserPlaybackBoxHdr" class="scene-toolbox__header">
-      <span style="font-weight:700;font-size:13px">Browser Playback</span>
+      <span style="font-weight:700;font-size:13px">Chase Playback</span>
       <div class="chaser-toolbox-actions">
-        <button class="chaser-collapse-all" data-anchor-box="browserPlaybackBox" title="Toggle compact layout for Steps and Browser Playback">Compact</button>
+        <button class="toolbox-collapse-group" data-collapse-group="chaser-playback" title="Collapse all chaser playback toolboxes">-- all</button>
         <button id="browserPlaybackBoxToggle" class="scene-toolbox__toggle">—</button>
       </div>
     </div>
@@ -233,7 +224,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <option value="reverse">Reverse</option>
       </select>
     </label>
-    <button class="primary" id="btnPicoUpload" title="Send current chase to the selected Pico slot without starting it">&#x2B06; Upload to Slot</button>
     <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
     <button id="btnPicoPauseSlot">Pause</button>
     <button id="btnPicoResumeSlot">Resume</button>
@@ -265,7 +255,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <button id="closeChaserGroupModal" class="collapse-btn">x</button>
 </div>
 <div id="chaserGroupModalBody" class="modal-body"></div>
-<div class="buttons">
+<div class="buttons" style="justify-content:space-between">
+<button id="chaserGroupApplyAllSource">All</button>
 <button id="closeChaserGroupModal2">Close</button>
 </div>
 </div>
@@ -275,6 +266,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div id="chaseBoxHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Chases</span>
 <div class="chaser-toolbox-actions">
+<button class="toolbox-collapse-group" data-collapse-group="chaser-playback" title="Collapse all chaser playback toolboxes">-- all</button>
 <button id="chaseBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
 </div>
@@ -282,7 +274,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div class="buttons">
 <button id="exportChasesBtn" class="icon-btn export-btn" title="Export chases JSON"></button>
 <button id="importChasesBtn" class="icon-btn import-btn" title="Import chases JSON"></button>
-<button id="chaseVisualBtn" class="palette-merge-btn" title="Edit the chase visual">Visual</button>
 <input id="importChasesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -296,11 +287,12 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div id="chaseVisualModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Slot Visual</h2>
+<h2>Edit Tile</h2>
 <button id="chaseVisualClose" class="collapse-btn">x</button>
 </div>
 <div class="modal-body">
 <label>Target<select id="chaseVisualTarget"></select></label>
+<label>Name<input id="chaseVisualName" type="text"></label>
 <div id="chaseVisualColorWrap">
 <label>Background color<input id="chaseVisualColor" type="color" value="#225a50"></label>
 <button id="chaseVisualResetColor" type="button">Default background</button>
@@ -318,9 +310,30 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div id="chaseVisualHint" class="small"></div>
 </div>
 <div class="buttons" style="padding-top:4px">
-<button id="chaseVisualSave" class="primary">Save visual</button>
+<button id="chaseVisualSave" class="primary">Save tile</button>
 <button id="chaseVisualClose2">Close</button>
 </div>
+</div>
+</div>
+
+<div id="chaserPaletteBox" class="scene-toolbox scene-toolbox--palettes">
+<div id="chaserPaletteHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Palettes</span>
+<button id="chaserPaletteBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="chaserPaletteBoxBody" class="scene-toolbox__body">
+<div class="buttons">
+<button id="exportChaserPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
+<button id="importChaserPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
+<button id="mergeChaserPaletteBtn" class="palette-merge-btn" title="Merge selected step values into an existing palette">Merge</button>
+<input id="importChaserPalettesFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step. Merge adds selected step values to an existing palette.</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+</div>
+<div id="chaserPaletteMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
 
@@ -355,13 +368,15 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <script>
 document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
 const chaserToolboxRail=document.getElementById('chaserToolboxRail');
-DmxCommon.initToolboxRail(chaserToolboxRail,[
+const chaserToolboxRailEntries=[
   {box:'chaserGroupsBox',type:'groups'},
   {box:'chaseBox',type:'chases'},
   {box:'stepsBox',type:'steps'},
+  {box:'chaserPaletteBox',type:'palettes'},
   {box:'fanToolbox',type:'fan'},
   {box:'browserPlaybackBox',type:'browserPlayback'}
-]);
+];
+DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -409,7 +424,7 @@ chaserGroupsBox=DmxCommon.initGroupsToolbox({
   baseUrlInput:baseUrlEl,
   onStatus:setStatus,
   editRequiresSelection:false,
-  canEdit:()=>selectedStepIdx>=0&&getChaserGroupEditableControls().length>0,
+  canEdit:()=>chaserGroupEditFixtures().length>=2&&getChaserGroupEditableControls().length>0,
   onEdit:()=>openChaserGroupModal(),
   onSelectionChange:()=>applyChaserGroupSelection(true)
 });
@@ -507,6 +522,17 @@ function applyChaserGroupSelection(redraw=true){
     setStatus(selected.length?'Chaser filtered to '+selected.length+' group'+(selected.length===1?'':'s'):'Chaser group filter cleared');
   }
 }
+function clearChaserGroupSelectionForParticipationEdit(){
+  const selected=chaserGroupsBox?.selectedGroups?.()||[];
+  if(!selected.length)return false;
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+  return true;
+}
+function refreshChaserGroupActionsSoon(){
+  refreshChaserGroupActions();
+  setTimeout(()=>refreshChaserGroupActions(),0);
+}
 function sendEditedControlValue(f,c,val){
   const batchMap={};
   collectChannels(f,c,val,batchMap);
@@ -524,7 +550,7 @@ function selectedChaserGroupFixtures(){
   if(!ids)return[];
   return(setup.fixtures||[]).filter(f=>ids.has(String(f.id)));
 }
-function chaserGroupEditFixtures(){
+function chaserGroupScopeFixtures(){
   const selected=selectedChaserGroupFixtures();
   if(selected.length)return selected;
   const seen=new Set();
@@ -533,6 +559,12 @@ function chaserGroupEditFixtures(){
     if(!seen.has(id)){seen.add(id);fixtures.push(item.f);}
     return fixtures;
   },[]);
+}
+function chaserGroupEditFixtures(){
+  return chaserGroupScopeFixtures().filter(f=>{
+    const p=fixtureProfile(f);if(!p)return false;
+    return p.controls.some(c=>isChaserGroupControlParticipating(f,c));
+  });
 }
 
 function firstStepFixtureId(step=steps[selectedStepIdx]){
@@ -587,6 +619,11 @@ function getChaserGroupEditableControls(){
   });
   return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
 }
+function chaserGroupEditState(){
+  const fixtures=chaserGroupEditFixtures();
+  const controls=getChaserGroupEditableControls();
+  return{fixtures,controls,canOpen:selectedStepIdx>=0&&fixtures.length>=2};
+}
 function chaserGroupControlByDataKey(dataKey){
   const key=decodeURIComponent(dataKey||'');
   return getChaserGroupEditableControls().find(c=>chaserGroupKey(c)===key)||null;
@@ -611,12 +648,45 @@ function getChaserGroupValue(c){
   }
   return defaultValue(c);
 }
+function getChaserGroupSourceValue(c){
+  const key=chaserGroupKey(c);
+  const fx=chaserGroupEditFixtures();
+  const sourceId=ensureSourceFixture();
+  const source=fx.find(f=>String(f.id)===String(sourceId));
+  if(source){
+    const mc=findChaserGroupControl(source,key);
+    if(mc&&isChaserGroupControlParticipating(source,mc)){
+      const v=getStepVal(source,mc);
+      return v!==undefined?JSON.parse(JSON.stringify(v)):defaultValue(mc);
+    }
+  }
+  return defaultValue(c);
+}
 function setChaserGroupValue(c,val){
+  stopPlaybackForManualEdit();
+  if(selectedStepIdx<0&&steps.length<CHASER_MAX_STEPS){
+    const initial={};
+    getParticipatingList().forEach(({f,c:pc})=>{initial[controlKey(f,pc)]=defaultValue(pc);});
+    const s=makeStep(null,initial);
+    steps.push(s);
+    selectedStepIdx=steps.length-1;
+    activeStepValueKeys=new Set(Object.keys(initial));
+    sourceFixtureId=firstStepFixtureId(s);
+    drawStepList();
+  }
   const key=chaserGroupKey(c);
   chaserGroupEditFixtures().forEach(f=>{
     const mc=findChaserGroupControl(f,key);
     if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
   });
+}
+function applyChaserGroupSourceValue(c,options={}){
+  setChaserGroupValue(c,getChaserGroupSourceValue(c));
+  if(!options.deferRefresh){
+    updateChaserGroupControlDisplay(c);
+    drawStepEditor();
+    refreshFanBasesFromStep();
+  }
 }
 function renderChaserGroupControl(c){
   const key=chaserGroupDataKey(c),gca=`data-cg="${key}"`;
@@ -630,7 +700,7 @@ function renderChaserGroupControl(c){
       <label>Tilt coarse <span data-cg-byte="${key}" data-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
       <label>Tilt fine <span data-cg-byte="${key}" data-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
     </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
       <div class="xy-pad" data-cgxy="${key}"><div class="xy-dot" style="left:${(v.pan??Math.round(max/2))/max*100}%;top:${100-(v.tilt??Math.round(max/2))/max*100}%"></div></div>
       <div class="row"><span class="readout" data-cg-readout="${key}">Pan ${Math.round(v.pan??Math.round(max/2))} · Tilt ${Math.round(v.tilt??Math.round(max/2))}</span><button ${gca} data-cg-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.pan??Math.round(max/2))}" ${gca} data-axis="pan"></label>
@@ -641,7 +711,7 @@ function renderChaserGroupControl(c){
     const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
       <label>Color<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
       ${parts.map((part,i)=>`<label>${names[i]} <span data-cg-part="${key}" data-part="${part}">${Math.round(v[part]??0)}</span><input type="range" min="0" max="255" value="${Math.round(v[part]??0)}" ${gca} data-part="${part}"></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-cg-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-cg-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-cg-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-cg-color="#0000ff" ${gca}></button></div></div>`;
@@ -649,7 +719,7 @@ function renderChaserGroupControl(c){
   if(c.type==='wheel'){
     const wv=v??0;
     const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
       <div class="tabs">${(c.options||[]).map(o=>`<button class="tab${o.value===wv?' active':''}" data-cg-wheel="${o.value}" ${gca}>${icon(o)}${o.name}</button>`).join('')}</div>
       <input type="range" min="0" max="255" value="${wv}" ${gca}></div>`;
   }
@@ -659,7 +729,7 @@ function renderChaserGroupControl(c){
       <label>Coarse <span data-cg-byte="${key}" data-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
       <label>Fine <span data-cg-byte="${key}" data-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
     </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span></div>
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span><button ${gca} data-cg-apply-source="1" title="Apply Source value to this control on all fixtures">Apply source</button></div>
     <input type="range" min="0" max="${max}" step="1" value="${Math.round(sv)}" ${gca}>${extra}</div>`;
 }
 function updateChaserGroupControlDisplay(c){
@@ -707,20 +777,26 @@ function updateChaserGroupControlDisplay(c){
   }
 }
 function openChaserGroupModal(){
-  if(selectedStepIdx<0){setStatus('Select a step before editing a group',true);return;}
-  const common=getChaserGroupEditableControls();
-  if(!common.length){setStatus('Select a step with at least two matching participating controls first',true);return;}
-  const n=chaserGroupEditFixtures().length;
-  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - step '+(selectedStepIdx+1)+' - '+n+' fixture'+(n===1?'':'s')+' · '+common.length+' participating control'+(common.length===1?'':'s');
-  document.getElementById('chaserGroupModalBody').innerHTML=common.map(c=>renderChaserGroupControl(c)).join('');
-  document.getElementById('chaserGroupModal').style.display='flex';
+  const state=chaserGroupEditState();
+  if(state.fixtures.length<2||!state.controls.length){setStatus('Select at least one matching participating control on two or more fixtures first',true);return;}
+  const n=state.fixtures.length;
+  const titleStep=selectedStepIdx>=0?'step '+(selectedStepIdx+1):'new step';
+  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - '+titleStep+' - '+n+' fixture'+(n===1?'':'s')+' · '+state.controls.length+' matching control'+(state.controls.length===1?'':'s');
+  document.getElementById('chaserGroupModalBody').innerHTML=state.controls.map(c=>renderChaserGroupControl(c)).join('');
+  DmxCommon.showModal('chaserGroupModal');
 }
-function closeChaserGroupModal(){document.getElementById('chaserGroupModal').style.display='none';drawStepEditor();}
+function closeChaserGroupModal(){DmxCommon.hideModal('chaserGroupModal');drawStepEditor();}
 
 function groupControlKey(c){return c.label+'|'+c.type;}
-function groupControlOptions(){
+function groupControlFixtureIds(){
   const selectedFixtureIds=selectedChaserGroupFixtureIds();
-  if(!selectedFixtureIds)return[];
+  if(selectedFixtureIds)return selectedFixtureIds;
+  const visible=scopedParticipationFixtures();
+  if(visible.length)return new Set(visible.map(f=>String(f.id)));
+  return new Set((setup.fixtures||[]).filter(f=>fixtureProfile(f)).map(f=>String(f.id)));
+}
+function groupControlOptions(){
+  const selectedFixtureIds=groupControlFixtureIds();
   const opts=new Map();
   (setup.fixtures||[]).forEach(f=>{
     if(!selectedFixtureIds.has(String(f.id)))return;
@@ -744,20 +820,21 @@ function drawGroupControlTools(){
   const old=sel.value;
   sel.innerHTML=opts.map(o=>`<option value="${o.key}">${o.label} (${o.type})</option>`).join('');
   if(opts.some(o=>o.key===old))sel.value=old;
-  const enabled=selectedGroups.length>0&&opts.length>0;
+  const enabled=opts.length>0;
   sel.disabled=!enabled;onlyBtn.disabled=!enabled;addBtn.disabled=!enabled;
   hint.textContent=selectedGroups.length
     ?(opts.length?'Apply one control to '+selectedGroups.length+' selected group'+(selectedGroups.length===1?'':'s'):'Selected groups have no controls.')
-    :'Select one or more groups first.';
+    :(opts.length?'Apply one control to the current participating-control scope.':'No fixture controls available.');
 }
 
 function applyGroupControlSelection(mode){
   activeStepValueKeys=null;
-  const selectedFixtureIds=selectedChaserGroupFixtureIds();
+  const selectedFixtureIds=groupControlFixtureIds();
   const wanted=document.getElementById('groupControlSelect').value;
-  if(!selectedFixtureIds||!wanted){setStatus('Select a group and a control first',true);return;}
+  if(!selectedFixtureIds.size||!wanted){setStatus('Select a fixture scope and a control first',true);return;}
   if(mode==='only')Object.keys(participating).forEach(k=>participating[k]=false);
   let changed=0;
+  const label=document.getElementById('groupControlSelect').selectedOptions[0]?.textContent||'control';
   (setup.fixtures||[]).forEach(f=>{
     if(!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
@@ -767,9 +844,10 @@ function applyGroupControlSelection(mode){
       changed++;
     });
   });
+  clearChaserGroupSelectionForParticipationEdit();
   drawParticipation();
   drawStepEditor();
-  const label=document.getElementById('groupControlSelect').selectedOptions[0]?.textContent||'control';
+  refreshChaserGroupActionsSoon();
   setStatus((mode==='only'?'Selected only ':'Added ')+label+' for '+changed+' fixture control'+(changed===1?'':'s'));
 }
 
@@ -989,6 +1067,11 @@ function drawParticipation(){
     if(e.target.dataset.key){
       if(activeStepValueKeys instanceof Set)activeStepValueKeys.add(e.target.dataset.key);
       participating[e.target.dataset.key]=e.target.checked;
+      if(clearChaserGroupSelectionForParticipationEdit()){
+        drawStepEditor();
+        refreshChaserGroupActionsSoon();
+        return;
+      }
       drawStepEditor();
       const item=e.target.closest('.item');
       if(item){
@@ -1000,6 +1083,7 @@ function drawParticipation(){
           item.querySelector('.ctrl-summary').innerHTML=chips;
         }
       }
+      refreshChaserGroupActionsSoon();
     }
   };
   el.onclick=e=>{
@@ -1151,6 +1235,25 @@ function moveStep(idx,dir){
   refreshChaserGroupActions();
   refreshFanBasesFromStep();
 }
+function reorderStep(fromIdx,toIdx){
+  if(fromIdx<0||fromIdx>=steps.length||toIdx<0||toIdx>=steps.length||fromIdx===toIdx)return;
+  const [step]=steps.splice(fromIdx,1);
+  steps.splice(toIdx,0,step);
+  const remap=idx=>{
+    if(idx<0)return idx;
+    if(idx===fromIdx)return toIdx;
+    if(fromIdx<toIdx&&idx>fromIdx&&idx<=toIdx)return idx-1;
+    if(fromIdx>toIdx&&idx>=toIdx&&idx<fromIdx)return idx+1;
+    return idx;
+  };
+  selectedStepIdx=remap(selectedStepIdx);
+  activeStepIdx=remap(activeStepIdx);
+  drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
+  setStatus('Step moved to position '+(toIdx+1));
+}
 
 async function clearChaserGroupSelectionForLoadedStep(){
   if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
@@ -1158,7 +1261,8 @@ async function clearChaserGroupSelectionForLoadedStep(){
   await new Promise(resolve=>setTimeout(resolve,0));
 }
 function refreshChaserGroupActions(){
-  if(chaserGroupsBox?.render)chaserGroupsBox.render();
+  if(chaserGroupsBox?.refreshActions)chaserGroupsBox.refreshActions();
+  else if(chaserGroupsBox?.render)chaserGroupsBox.render();
 }
 
 async function captureFromFC(stepIdx){
@@ -1222,6 +1326,7 @@ function drawStepList(){
   el.innerHTML='';
   if(!steps.length){
     el.innerHTML='<div class="small">No steps yet. Use Add step or Capture + Add.</div>';
+    refreshChaserGroupActions();
     return;
   }
   steps.forEach((s,i)=>{
@@ -1230,6 +1335,7 @@ function drawStepList(){
     const item=document.createElement('div');
     item.className='item'+(isActive?' active-step':'')+(isSel?' edit-step':'');
     item.dataset.stepIndex=i;
+    item.draggable=true;
     item.innerHTML=`
       <div class="step-card-head">
         <span class="step-num${isActive?' playing':''}">${i+1}</span>
@@ -1241,13 +1347,121 @@ function drawStepList(){
       `;
     el.appendChild(item);
   });
+  let suppressStepClick=false;
   el.onclick=e=>{
+    if(suppressStepClick){suppressStepClick=false;return;}
     const item=e.target.closest('[data-step-index]');
     if(item)selectStepForEdit(parseInt(item.dataset.stepIndex));
   };
+  let dragFrom=-1,dropTarget=-1,dropAfter=false;
+  const clearDropMarks=()=>{
+    el.querySelectorAll('.step-drop-before,.step-drop-after').forEach(node=>node.classList.remove('step-drop-before','step-drop-after'));
+  };
+  const markDropTarget=(item,clientX,clientY)=>{
+    if(!item||dragFrom<0)return;
+    clearDropMarks();
+    const rect=item.getBoundingClientRect();
+    const horizontal=rect.width>=rect.height;
+    dropAfter=horizontal?clientX>rect.left+rect.width/2:clientY>rect.top+rect.height/2;
+    dropTarget=parseInt(item.dataset.stepIndex,10);
+    item.classList.add(dropAfter?'step-drop-after':'step-drop-before');
+  };
+  const finishStepDrop=()=>{
+    clearDropMarks();
+    const from=dragFrom;
+    let to=dropTarget;
+    if(to<0||from<0)return;
+    if(dropAfter)to++;
+    if(from<to)to--;
+    to=Math.max(0,Math.min(steps.length-1,to));
+    reorderStep(from,to);
+  };
+  el.ondragstart=e=>{
+    const item=e.target.closest('[data-step-index]');
+    if(!item)return;
+    dragFrom=parseInt(item.dataset.stepIndex,10);
+    item.classList.add('step-dragging');
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',String(dragFrom));
+  };
+  el.ondragover=e=>{
+    const item=e.target.closest('[data-step-index]');
+    if(!item||dragFrom<0)return;
+    e.preventDefault();
+    markDropTarget(item,e.clientX,e.clientY);
+  };
+  el.ondragleave=e=>{
+    if(!el.contains(e.relatedTarget))clearDropMarks();
+  };
+  el.ondrop=e=>{
+    e.preventDefault();
+    const raw=e.dataTransfer.getData('text/plain');
+    const from=parseInt(raw,10);
+    if(Number.isFinite(from))dragFrom=from;
+    finishStepDrop();
+    dragFrom=dropTarget=-1;dropAfter=false;
+  };
+  el.ondragend=()=>{
+    el.querySelectorAll('.step-dragging').forEach(node=>node.classList.remove('step-dragging'));
+    clearDropMarks();
+    dragFrom=dropTarget=-1;dropAfter=false;
+  };
+  let pointerDrag=null;
+  el.onpointerdown=e=>{
+    const item=e.target.closest('[data-step-index]');
+    if(!item||e.target.closest('button,input,select,textarea,label'))return;
+    pointerDrag={
+      id:e.pointerId,
+      item,
+      from:parseInt(item.dataset.stepIndex,10),
+      startX:e.clientX,
+      startY:e.clientY,
+      active:false
+    };
+  };
+  el.onpointermove=e=>{
+    if(!pointerDrag||pointerDrag.id!==e.pointerId)return;
+    const dx=e.clientX-pointerDrag.startX;
+    const dy=e.clientY-pointerDrag.startY;
+    if(!pointerDrag.active&&Math.hypot(dx,dy)<8)return;
+    if(!pointerDrag.active){
+      pointerDrag.active=true;
+      dragFrom=pointerDrag.from;
+      pointerDrag.item.classList.add('step-pointer-dragging');
+      pointerDrag.item.setPointerCapture?.(e.pointerId);
+    }
+    e.preventDefault();
+    const target=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('[data-step-index]');
+    if(target&&el.contains(target))markDropTarget(target,e.clientX,e.clientY);
+  };
+  el.onpointerup=e=>{
+    if(!pointerDrag||pointerDrag.id!==e.pointerId)return;
+    if(pointerDrag.active){
+      finishStepDrop();
+      pointerDrag.item.releasePointerCapture?.(e.pointerId);
+      pointerDrag.item.classList.remove('step-pointer-dragging');
+      suppressStepClick=true;
+      setTimeout(()=>{suppressStepClick=false;},0);
+    }
+    pointerDrag=null;
+    dragFrom=dropTarget=-1;dropAfter=false;
+  };
+  el.onpointercancel=e=>{
+    if(pointerDrag?.item)pointerDrag.item.classList.remove('step-pointer-dragging');
+    pointerDrag=null;
+    dragFrom=dropTarget=-1;dropAfter=false;
+    clearDropMarks();
+  };
+  refreshChaserGroupActions();
 }
 
 async function selectStepForEdit(idx){
+  stopPlaybackForManualEdit();
+  const result=loadStepIntoEditor(idx);
+  setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
+}
+function loadStepIntoEditor(idx,options={}){
+  if(idx<0||idx>=steps.length)return{active:0,removed:0};
   selectedStepIdx=idx;
   const result=applyStepParticipating(steps[idx]);
   sourceFixtureId=firstStepFixtureId(steps[idx]);
@@ -1256,7 +1470,10 @@ async function selectStepForEdit(idx){
   drawStepEditor();
   refreshChaserGroupActions();
   refreshFanBasesFromStep();
-  setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
+  if(options.scroll){
+    document.querySelector(`#stepList [data-step-index="${idx}"]`)?.scrollIntoView({block:'nearest'});
+  }
+  return result;
 }
 
 // ---- step editor ----
@@ -1327,6 +1544,7 @@ function drawStepEditor(){
 }
 
 function handleXY(e,pad){
+  stopPlaybackForManualEdit();
   const fi=parseInt(pad.dataset.xyf),ci=parseInt(pad.dataset.xyc);
   const f=setup.fixtures?.find(x=>x.id===fi);
   const p=f&&fixtureProfile(f);const c=p?.controls.find(x=>x.id===ci);
@@ -1340,6 +1558,7 @@ function handleXY(e,pad){
 }
 
 function handleStepInput(e){
+  stopPlaybackForManualEdit();
   const fi=parseInt(e.target.dataset.fi),ci=parseInt(e.target.dataset.ci);
   if(isNaN(fi)||isNaN(ci))return;
   const f=setup.fixtures?.find(x=>x.id===fi);
@@ -1376,6 +1595,7 @@ function handleStepInput(e){
 }
 
 function handleStepClick(e){
+  stopPlaybackForManualEdit();
   const fi=parseInt(e.target.dataset.fi),ci=parseInt(e.target.dataset.ci);
   if(isNaN(fi)||isNaN(ci))return;
   const f=setup.fixtures?.find(x=>x.id===fi);
@@ -1422,6 +1642,11 @@ function handleChaserGroupInput(e){
 
 function handleChaserGroupClick(e){
   const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
+  if(e.target.dataset.cgApplySource){
+    applyChaserGroupSourceValue(c);
+    setStatus('Source value applied to '+c.label);
+    return;
+  }
   if(e.target.dataset.cgCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
     setChaserGroupValue(c,v);updateChaserGroupControlDisplay(c);drawStepEditor();refreshFanBasesFromStep();return;
@@ -1452,6 +1677,15 @@ function setChaserGroupXY(e,pad){
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
 document.getElementById('closeChaserGroupModal2').onclick=closeChaserGroupModal;
+document.getElementById('chaserGroupApplyAllSource').onclick=()=>{
+  const controls=getChaserGroupEditableControls();
+  if(!controls.length)return;
+  controls.forEach(c=>applyChaserGroupSourceValue(c,{deferRefresh:true}));
+  controls.forEach(c=>updateChaserGroupControlDisplay(c));
+  drawStepEditor();
+  refreshFanBasesFromStep();
+  setStatus('Source values applied to '+controls.length+' control'+(controls.length===1?'':'s'));
+};
 document.getElementById('chaserGroupModal').addEventListener('click',e=>{if(e.target===document.getElementById('chaserGroupModal'))closeChaserGroupModal();});
 const chaserGroupModalBody=document.getElementById('chaserGroupModalBody');
 chaserGroupModalBody.oninput=handleChaserGroupInput;
@@ -1465,9 +1699,9 @@ chaserGroupModalBody.addEventListener('pointermove',e=>{
   setChaserGroupXY(e,pad);
 });
 
-function updateStepDisplay(f,c){
+function updateStepDisplay(f,c,overrideValue){
   const fi=f.id,ci=c.id;
-  const v=getStepVal(f,c)??defaultValue(c);
+  const v=overrideValue??getStepVal(f,c)??defaultValue(c);
   if(c.type==='panTilt16'||c.type==='panTilt8'){
     const max=c.type==='panTilt8'?255:65535;
     const pad=document.querySelector(`[data-xyf="${fi}"][data-xyc="${ci}"]`);
@@ -1586,6 +1820,18 @@ let stepEnteredAt=null;
 let prevOutput={};
 let currentOutput={};
 let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
+let playbackVisualFrame=0;
+
+function schedulePlaybackVisualUpdate(ptList){
+  if(playbackVisualFrame)return;
+  playbackVisualFrame=requestAnimationFrame(()=>{
+    playbackVisualFrame=0;
+    (ptList||getParticipatingList()).forEach(({f,c})=>{
+      const k=controlKey(f,c);
+      if(currentOutput[k]!==undefined)updateStepDisplay(f,c,currentOutput[k]);
+    });
+  });
+}
 
 function startPlayback(){
   if(!steps.length){setStatus('Add some steps first',true);return;}
@@ -1607,7 +1853,7 @@ function startPlayback(){
   const hz=clamp(document.getElementById('updateRate').value,5,50);
   playIntervalId=setInterval(playbackTick,1000/hz);
   setStatus('Playing…');
-  drawStepList();
+  loadStepIntoEditor(activeStepIdx,{scroll:true});
 }
 function pausePlayback(){
   playing=false;clearInterval(playIntervalId);
@@ -1633,6 +1879,9 @@ function stopPlayback(){
   setStatus('Stopped');
   drawStepList();
 }
+function stopPlaybackForManualEdit(){
+  if(playing||activeStepIdx>=0)stopPlayback();
+}
 
 function playbackTick(){
   if(!steps.length){stopPlayback();return;}
@@ -1653,6 +1902,7 @@ function playbackTick(){
     currentOutput[k]=val;
     collectChannels(f,c,val,batchMap);
   });
+  schedulePlaybackVisualUpdate(ptList);
   sendBatch(batchMap);
   const progress=Math.min(100,elapsed/durMs*100);
   document.getElementById('stepProgress').style.width=progress+'%';
@@ -1671,13 +1921,13 @@ function advanceStep(){
   }
   activeStepIdx=next;
   stepEnteredAt=performance.now();
-  drawStepList();
+  loadStepIntoEditor(activeStepIdx,{scroll:true});
 }
 
 function manualStep(dir){
   if(!steps.length)return;
-  const ptList=getParticipatingList();
-  ptList.forEach(({f,c})=>{const k=controlKey(f,c);prevOutput[k]=currentOutput[k]??steps[Math.max(0,activeStepIdx)]?.values[k]??defaultValue(c);});
+  const previousIdx=activeStepIdx;
+  getParticipatingList().forEach(({f,c})=>{const k=controlKey(f,c);prevOutput[k]=currentOutput[k]??steps[Math.max(0,previousIdx)]?.values[k]??defaultValue(c);});
   if(activeStepIdx<0){
     activeStepIdx=dir>0?0:steps.length-1;
   }else{
@@ -1687,15 +1937,16 @@ function manualStep(dir){
     activeStepIdx=next;
   }
   stepEnteredAt=performance.now();
+  loadStepIntoEditor(activeStepIdx,{scroll:true});
   if(!playing){
     const step=steps[activeStepIdx];
     const batchMap={};
+    const ptList=getParticipatingList();
     ptList.forEach(({f,c})=>collectChannels(f,c,step.values[controlKey(f,c)]??defaultValue(c),batchMap));
     sendBatch(batchMap);
     setStatus('Step '+(activeStepIdx+1)+': '+step.label);
     document.getElementById('btnStop').disabled=false;
   }
-  drawStepList();
 }
 
 // ---- tap tempo ----
@@ -1813,13 +2064,13 @@ function normalizeChaseGrid(priority='cols'){
   if(sr){chaseSlotRows=Math.max(1,Math.min(CHASE_SLOT_GRID_MAX,parseInt(sr)||4));document.getElementById('chaseSlotRows').value=chaseSlotRows;}
 })();
 function currentChaseSlotData(){
-  return{
+  return DmxCommon.versionedPayload({
     baseUrl:baseUrlEl.value,
     playback:picoPlaybackOptions(),
     browserPlayback:browserPlaybackOptions(),
     steps:JSON.parse(JSON.stringify(steps)),
     participating:JSON.parse(JSON.stringify(participating))
-  };
+  });
 }
 function renderChaseSlotMatrix(){
   const grid=document.getElementById('chaseSlotMatrix');
@@ -1829,7 +2080,7 @@ function renderChaseSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const chase=savedChases.find(c=>c.slot===i);
-    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase" style="${DmxCommon.slotVisualStyle(chase)}"><button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
+    if(chase)html+=`<div class="slot filled" data-chase-slot="${i}" title="Click: load chase" style="${DmxCommon.slotVisualStyle(chase)}">${DmxCommon.slotVisualButtonHtml('data-visual-chase-slot',i,'Edit chase tile')}<button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
     else html+=`<div class="slot" data-chase-slot="${i}" title="Click to save chase here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1841,6 +2092,10 @@ function renderChaseSlotMatrix(){
     if(!confirm('Delete chase "'+chase.name+'"?'))return;
     savedChases.splice(savedChases.indexOf(chase),1);
     renderChaseSlotMatrix();saveChasesServer();
+  }));
+  grid.querySelectorAll('[data-visual-chase-slot]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    openChaseVisualModal(parseInt(btn.dataset.visualChaseSlot,10));
   }));
 }
 function chaseSlotClick(idx){
@@ -1867,7 +2122,7 @@ async function loadChaseSlot(chase){
 }
 async function saveChasesServer(){
   try{
-    const body={baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows};
+    const body=DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows});
     const r=await fetch('chaser_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
     if(!j.ok)setStatus('Chases save failed: '+j.error,true);
@@ -1885,8 +2140,7 @@ async function loadChasesServer(){
   renderChaseSlotMatrix();
 }
 function exportChasesJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_chases.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_chases.json',DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,chases:savedChases,chaseSlotCols,chaseSlotRows}));
 }
 function importChasesJson(file){
   const fr=new FileReader();
@@ -1910,6 +2164,7 @@ const chaseVisualEditor=DmxCommon.initSlotVisualEditor({
   colorWrapId:'chaseVisualColorWrap',
   imageWrapId:'chaseVisualImageWrap',
   colorInputId:'chaseVisualColor',
+  nameInputId:'chaseVisualName',
   resetColorBtnId:'chaseVisualResetColor',
   canvasId:'chaseVisualCanvas',
   imageInputId:'chaseVisualImage',
@@ -1918,7 +2173,7 @@ const chaseVisualEditor=DmxCommon.initSlotVisualEditor({
   saveBtnId:'chaseVisualSave',
   closeIds:['chaseVisualClose','chaseVisualClose2']
 });
-function openChaseVisualModal(){
+function openChaseVisualModal(slot){
   chaseVisualEditor.open({
     targetLabel:'Chases',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the chase slot; loading still uses the stored chase data.',
@@ -1928,6 +2183,7 @@ function openChaseVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
       .map(chase=>({key:String(parseInt(chase.slot,10)||0),item:chase,label:'Slot '+((parseInt(chase.slot,10)||0)+1)+': '+(chase.name||'Chase')})),
+    selectedKey:slot,
     onSaveDefault:visual=>{
       chaseVisualDefault=visual;
       saveChaseVisualDefault();
@@ -1945,7 +2201,6 @@ document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotC
 document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=e.target.value;normalizeChaseGrid('rows');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('exportChasesBtn').onclick=exportChasesJson;
 document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile').click();
-document.getElementById('chaseVisualBtn').onclick=openChaseVisualModal;
 document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
 const chaseToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaseBox',
@@ -1992,225 +2247,35 @@ const fanToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'fanToolboxPos',
   uiStateCollapsedKey:'fanToolboxCollapsed'
 });
-const chaserCompactBoxes=[
-  {id:'stepsBox',toolbox:stepsToolbox,posKey:'stepsBoxPos',collapsedKey:'stepsBoxCollapsed',sizeKey:'stepsBoxSize'},
-  {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox,posKey:'browserPlaybackBoxPos',collapsedKey:'browserPlaybackBoxCollapsed'}
+const chaserPlaybackCollapseGroup=[
+  {id:'chaseBox',toolbox:chaseToolbox},
+  {id:'stepsBox',toolbox:stepsToolbox},
+  {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox}
 ];
-function boxSnapshot(cfg){
-  const box=document.getElementById(cfg.id);
-  if(!box)return null;
-  const snap={
-    id:cfg.id,
-    collapsed:box.classList.contains('collapsed'),
-    pos:{x:parseInt(box.style.left)||Math.round(box.offsetLeft)||0,y:parseInt(box.style.top)||Math.round(box.offsetTop)||0}
-  };
-  if(cfg.sizeKey)snap.size={w:Math.round(box.offsetWidth),h:Math.round(box.offsetHeight)};
-  return snap;
-}
-function saveToolboxPosition(cfg,pos){
-  cfg.toolbox?.applyPosition?.(pos);
-  localStorage.setItem(cfg.posKey,JSON.stringify(pos));
-  DmxCommon.saveUiState('chaser',cfg.posKey,pos);
-}
-function compactNeighborPosition(anchorBox,otherBox){
-  const gap=8;
-  const ar=anchorBox.getBoundingClientRect();
-  const or=otherBox.getBoundingClientRect();
-  const acx=ar.left+ar.width/2,acy=ar.top+ar.height/2;
-  const ocx=or.left+or.width/2,ocy=or.top+or.height/2;
-  let x=ar.left,y=ar.top;
-  if(Math.abs(ocx-acx)>Math.abs(ocy-acy)){
-    x=ocx>=acx?ar.right+gap:ar.left-otherBox.offsetWidth-gap;
-    y=ar.top;
-  }else{
-    x=ar.left;
-    y=ocy>=acy?ar.bottom+gap:ar.top-otherBox.offsetHeight-gap;
-  }
-  return{
-    x:Math.max(0,Math.min(window.innerWidth-otherBox.offsetWidth,Math.round(x))),
-    y:Math.max(0,Math.min(window.innerHeight-otherBox.offsetHeight,Math.round(y)))
-  };
-}
-function restoreChaserCompactState(saved){
-  if(!saved?.boxes)return;
-  saved.boxes.forEach(s=>{
-    const cfg=chaserCompactBoxes.find(b=>b.id===s.id);
-    if(!cfg)return;
-    if(s.size&&cfg.sizeKey)cfg.toolbox?.applySize?.(s.size);
-    if(s.pos)saveToolboxPosition(cfg,s.pos);
-    cfg.toolbox?.setCollapsed?.(false,true);
+function updateChaserPlaybackCollapseButtons(){
+  const boxes=chaserPlaybackCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const allCollapsed=boxes.length&&boxes.every(box=>box.classList.contains('collapsed'));
+  document.querySelectorAll('[data-collapse-group="chaser-playback"]').forEach(btn=>{
+    btn.textContent=allCollapsed?'+ all':'-- all';
+    btn.title=allCollapsed?'Uncollapse all chaser playback toolboxes':'Collapse all chaser playback toolboxes';
   });
+}
+function toggleChaserPlaybackCollapseGroup(){
   localStorage.removeItem('chaserCompactState');
   DmxCommon.saveUiState('chaser','chaserCompactState',null);
+  const boxes=chaserPlaybackCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
+  const collapse=boxes.some(box=>!box.classList.contains('collapsed'));
+  chaserPlaybackCollapseGroup.forEach(cfg=>cfg.toolbox?.setCollapsed?.(collapse,true));
+  updateChaserPlaybackCollapseButtons();
 }
-function exitChaserCompactModeWithCurrentLayout(){
-  let saved=null;
-  try{saved=JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){}
-  if(!saved)return;
-  chaserCompactBoxes.forEach(cfg=>{
-    const box=document.getElementById(cfg.id);
-    if(!box)return;
-    saveToolboxPosition(cfg,{x:parseInt(box.style.left)||box.offsetLeft||0,y:parseInt(box.style.top)||box.offsetTop||0});
-    DmxCommon.saveUiState('chaser',cfg.collapsedKey,box.classList.contains('collapsed'));
-  });
-  localStorage.removeItem('chaserCompactState');
-  DmxCommon.saveUiState('chaser','chaserCompactState',null);
-}
-function moveOtherCompactBoxBelowOpened(openedId){
-  const openedCfg=chaserCompactBoxes.find(cfg=>cfg.id===openedId);
-  const otherCfg=chaserCompactBoxes.find(cfg=>cfg.id!==openedId);
-  const opened=document.getElementById(openedCfg?.id);
-  const other=document.getElementById(otherCfg?.id);
-  if(!opened||!other||!otherCfg)return;
-  const ar=opened.getBoundingClientRect();
-  const or=other.getBoundingClientRect();
-  if(!rectsOverlap(ar,or))return;
-  const gap=8;
-  let x=ar.left;
-  let y=ar.bottom+gap;
-  if(y+other.offsetHeight>window.innerHeight)y=ar.top-other.offsetHeight-gap;
-  const pos={
-    x:Math.max(0,Math.min(window.innerWidth-other.offsetWidth,Math.round(x))),
-    y:Math.max(0,Math.min(window.innerHeight-other.offsetHeight,Math.round(y)))
-  };
-  saveToolboxPosition(otherCfg,pos);
-}
-function exitChaserCompactModeAfterOpening(openedId){
-  moveOtherCompactBoxBelowOpened(openedId);
-  exitChaserCompactModeWithCurrentLayout();
-}
-function toggleChaserCompact(anchorId){
-  let saved=null;
-  try{saved=JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){}
-  if(saved){restoreChaserCompactState(saved);return;}
-  const snapshot={anchorId,boxes:chaserCompactBoxes.map(boxSnapshot).filter(Boolean)};
-  localStorage.setItem('chaserCompactState',JSON.stringify(snapshot));
-  DmxCommon.saveUiState('chaser','chaserCompactState',snapshot);
-
-  const anchorCfg=chaserCompactBoxes.find(b=>b.id===anchorId)||chaserCompactBoxes[0];
-  const otherCfg=chaserCompactBoxes.find(b=>b.id!==anchorCfg.id);
-  const anchorBox=document.getElementById(anchorCfg.id);
-  const otherBox=document.getElementById(otherCfg?.id);
-  anchorCfg.toolbox?.setCollapsed?.(true,true);
-  otherCfg?.toolbox?.setCollapsed?.(true,true);
-  if(anchorBox&&otherBox&&otherCfg){
-    const pos=compactNeighborPosition(anchorBox,otherBox);
-    saveToolboxPosition(otherCfg,pos);
-  }
-}
-document.querySelectorAll('.chaser-collapse-all').forEach(btn=>btn.addEventListener('click',()=>toggleChaserCompact(btn.dataset.anchorBox)));
-['stepsBoxToggle','browserPlaybackBoxToggle'].forEach(toggleId=>{
-  const toggle=document.getElementById(toggleId);
-  if(!toggle)return;
-  toggle.addEventListener('click',()=>{
-    setTimeout(()=>{
-      const openedId=toggleId.replace('Toggle','');
-      const box=document.getElementById(openedId);
-      if(box&&!box.classList.contains('collapsed'))exitChaserCompactModeAfterOpening(openedId);
-    },80);
-  });
+document.querySelectorAll('[data-collapse-group="chaser-playback"]').forEach(btn=>btn.addEventListener('click',toggleChaserPlaybackCollapseGroup));
+['chaseBoxToggle','stepsBoxToggle','browserPlaybackBoxToggle'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',()=>setTimeout(updateChaserPlaybackCollapseButtons,0));
 });
-function initCompactPairDrag(){
-  let drag=null;
-  function compactActive(){
-    try{return !!JSON.parse(localStorage.getItem('chaserCompactState')||'null');}catch(_){return false;}
-  }
-  function pairSnapshot(){
-    return chaserCompactBoxes.map(cfg=>{
-      const box=document.getElementById(cfg.id);
-      return box?{cfg,box,x:parseInt(box.style.left)||box.offsetLeft||0,y:parseInt(box.style.top)||box.offsetTop||0}:null;
-    }).filter(Boolean);
-  }
-  function clampPos(box,x,y){
-    return{
-      x:Math.max(0,Math.min(window.innerWidth-box.offsetWidth,Math.round(x))),
-      y:Math.max(0,Math.min(window.innerHeight-box.offsetHeight,Math.round(y)))
-    };
-  }
-  function moveDrag(e){
-    if(!drag)return;
-    e.preventDefault();
-    e.stopImmediatePropagation?.();
-    const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
-    drag.boxes.forEach(({box,x,y})=>{
-      const p=clampPos(box,x+dx,y+dy);
-      box.style.left=p.x+'px';
-      box.style.top=p.y+'px';
-      box.style.right='auto';
-    });
-  }
-  function endDrag(e){
-    if(!drag)return;
-    e.preventDefault();
-    e.stopImmediatePropagation?.();
-    drag.boxes.forEach(({cfg,box})=>saveToolboxPosition(cfg,{x:parseInt(box.style.left)||0,y:parseInt(box.style.top)||0}));
-    const header=drag.header;
-    drag=null;
-    if(header)header.style.cursor='grab';
-  }
-  ['stepsBoxHdr','browserPlaybackBoxHdr'].forEach(headerId=>{
-    const header=document.getElementById(headerId);
-    if(!header)return;
-    header.addEventListener('pointerdown',e=>{
-      if(!compactActive()||e.target.closest('button'))return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      try{header.setPointerCapture(e.pointerId);}catch(_){}
-      drag={id:e.pointerId,startX:e.clientX,startY:e.clientY,boxes:pairSnapshot(),header};
-      header.style.cursor='grabbing';
-    },true);
-    header.addEventListener('pointermove',e=>{
-      if(!drag||drag.id!==e.pointerId)return;
-      moveDrag(e);
-    },true);
-    header.addEventListener('pointerup',e=>{
-      if(!drag||drag.id!==e.pointerId)return;
-      endDrag(e);
-    },true);
-  });
-  window.addEventListener('pointermove',e=>{if(drag&&drag.id===e.pointerId)moveDrag(e);},true);
-  window.addEventListener('pointerup',e=>{if(drag&&drag.id===e.pointerId)endDrag(e);},true);
-}
-initCompactPairDrag();
-function rectsOverlap(a,b){
-  return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
-}
-function placeInitialChaseToolbox(){
-  const box=document.getElementById('chaseBox');
-  const groups=document.getElementById('chaserGroupsBox');
-  if(!box||!groups)return;
-  const savedLocal=!!localStorage.getItem('chaseBoxPos');
-  DmxCommon.loadUiState('chaser').then(st=>{
-    if(!savedLocal&&st.chaseBoxPos)chaseToolbox.applyPosition(st.chaseBoxPos);
-    setTimeout(()=>{
-      const br=box.getBoundingClientRect();
-      const gr=groups.getBoundingClientRect();
-      if(!rectsOverlap(br,gr))return;
-      const x=gr.left-box.offsetWidth-20;
-      let pos;
-      if(x>=0){
-        pos={x,y:Math.max(0,Math.round(gr.top))};
-      }else{
-        const y=Math.min(Math.max(0,Math.round(gr.bottom+16)),Math.max(0,window.innerHeight-box.offsetHeight));
-        pos={x:Math.max(0,window.innerWidth-box.offsetWidth-20),y};
-      }
-      chaseToolbox.applyPosition(pos);
-      localStorage.setItem('chaseBoxPos',JSON.stringify(pos));
-      DmxCommon.saveUiState('chaser','chaseBoxPos',pos);
-    },300);
-  }).catch(()=>{});
-}
-placeInitialChaseToolbox();
-function restoreFloatingToolbox(toolbox,posKey,sizeKey){
-  const savedLocal=!!localStorage.getItem(posKey);
-  const savedSizeLocal=sizeKey&&!!localStorage.getItem(sizeKey);
-  DmxCommon.loadUiState('chaser').then(st=>{
-    if(!savedLocal&&st[posKey])toolbox.applyPosition(st[posKey]);
-    if(sizeKey&&!savedSizeLocal&&st[sizeKey])toolbox.applySize(st[sizeKey]);
-  }).catch(()=>{});
-}
-restoreFloatingToolbox(stepsToolbox,'stepsBoxPos','stepsBoxSize');
-restoreFloatingToolbox(browserPlaybackToolbox,'browserPlaybackBoxPos');
+updateChaserPlaybackCollapseButtons();
+setTimeout(updateChaserPlaybackCollapseButtons,500);
+['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>localStorage.removeItem(key));
+['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>DmxCommon.saveUiState('chaser',key,null));
 loadChasesServer();
 
 function applyParticipatingData(data,redraw=true){
@@ -2229,52 +2294,296 @@ function applyParticipatingData(data,redraw=true){
   if(redraw){drawParticipation();drawStepEditor();}
 }
 
-async function saveSelectedStepAsScene(){
+// ---- palette toolbox (save/recall selected step values) ----
+let chaserPalettes=[];
+let chaserPaletteCols=4,chaserPaletteRows=4;
+const CHASER_PALETTE_GRID_MAX=32;
+let chaserPaletteVisualDefault=(()=>{
+  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('chaserPaletteVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  catch(_){return {type:'visual',color:'#225a50',image:''};}
+})();
+function saveChaserPaletteVisualDefault(){
+  localStorage.setItem('chaserPaletteVisualDefault',JSON.stringify(chaserPaletteVisualDefault));
+}
+function currentChaserPaletteVisualForSave(){
+  return JSON.parse(JSON.stringify(chaserPaletteVisualDefault));
+}
+function requiredChaserPaletteSlots(){
+  return chaserPalettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
+}
+function normalizeChaserPaletteGrid(priority='cols'){
+  const needed=requiredChaserPaletteSlots();
+  chaserPaletteCols=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(chaserPaletteCols)||4));
+  chaserPaletteRows=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(chaserPaletteRows)||4));
+  if(needed&&chaserPaletteCols*chaserPaletteRows<needed){
+    if(priority==='rows'){
+      chaserPaletteCols=Math.max(chaserPaletteCols,Math.ceil(needed/chaserPaletteRows));
+      if(chaserPaletteCols>CHASER_PALETTE_GRID_MAX){chaserPaletteCols=CHASER_PALETTE_GRID_MAX;chaserPaletteRows=Math.ceil(needed/chaserPaletteCols);}
+    }else{
+      chaserPaletteRows=Math.max(chaserPaletteRows,Math.ceil(needed/chaserPaletteCols));
+      if(chaserPaletteRows>CHASER_PALETTE_GRID_MAX){chaserPaletteRows=CHASER_PALETTE_GRID_MAX;chaserPaletteCols=Math.ceil(needed/chaserPaletteRows);}
+    }
+  }
+  const colsInput=document.getElementById('chaserPaletteCols');
+  const rowsInput=document.getElementById('chaserPaletteRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/chaserPaletteRows));colsInput.value=chaserPaletteCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/chaserPaletteCols));rowsInput.value=chaserPaletteRows;}
+}
+function chaserPaletteScopeForValues(values){
+  const scopes=new Set();
+  Object.keys(values||{}).forEach(key=>{
+    const parts=String(key).split(':');
+    const f=setup.fixtures?.find(fx=>String(fx.id)===parts[0]);
+    const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+    if(!c){scopes.add('all');return;}
+    const label=String(c.label||'').toLowerCase();
+    if(c.type==='panTilt16'||c.type==='panTilt8'||/\b(pan|tilt|position|pos)\b/.test(label))scopes.add('position');
+    else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)||/colou?r|rgb|cmy|white|amber/.test(label))scopes.add('color');
+    else if(/dimmer|intensity|shutter/.test(label))scopes.add('dimmer');
+    else if(/gobo|beam|prism|zoom|focus|iris|frost|strobe|shutter/.test(label))scopes.add('beam');
+    else scopes.add('all');
+  });
+  return scopes.size===1?[...scopes][0]:'all';
+}
+function chaserPaletteScopeLabel(scope){
+  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',all:'All controls'}[scope]||'Palette';
+}
+function validStepPaletteValues(values){
+  const valid=validControlKeySet();
+  const out={};
+  Object.entries(values||{}).forEach(([key,value])=>{if(valid.has(key))out[key]=JSON.parse(JSON.stringify(value));});
+  return out;
+}
+function applyChaserPaletteParticipatingKeys(keys){
+  const valid=validControlKeySet();
+  const next={};
+  valid.forEach(k=>{next[k]=false;});
+  const active=[];
+  keys.forEach(k=>{
+    if(valid.has(k)){
+      next[k]=true;
+      active.push(k);
+    }
+  });
+  participating=next;
+  activeStepValueKeys=new Set(active);
+  return active.length;
+}
+function firstFixtureIdFromKeys(keys){
+  for(const key of keys){
+    const fixtureId=String(key).split(':')[0];
+    if((setup.fixtures||[]).some(f=>String(f.id)===fixtureId))return fixtureId;
+  }
+  return null;
+}
+function selectedStepPaletteValues(){
   const step=steps[selectedStepIdx];
-  if(!step){setStatus('Select a step before saving a scene',true);return;}
-  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Scene save needs the XAMPP server',true);return;}
-  try{
-    const r=await fetch('scene_setup.php',{cache:'no-store'});
-    const j=await r.json();
-    const scenes=(j.ok&&j.exists&&Array.isArray(j.scenes))?j.scenes:[];
-    const slotCols=j.slotCols||4,slotRows=j.slotRows||4,total=slotCols*slotRows;
-    let slot=0;
-    while(slot<total&&scenes.some(s=>s.slot===slot))slot++;
-    if(slot>=total){setStatus('No free scene slot available',true);return;}
-    const name=prompt('Scene name','Chaser '+(selectedStepIdx+1)+' - '+(step.label||'Step'));
-    if(!name)return;
-    scenes.push({id:'scene_'+Date.now(),name,slot,values:JSON.parse(JSON.stringify(step.values||{}))});
-    const wr=await fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrlEl.value,scenes,slotCols,slotRows})});
-    const wj=await wr.json();
-    if(wj.ok)setStatus('Saved scene "'+name+'" to slot '+(slot+1));
-    else setStatus('Scene save failed: '+wj.error,true);
-  }catch(err){setStatus('Scene save failed: '+err.message,true);}
+  if(!step)return null;
+  return validStepPaletteValues(step.values||{});
 }
-async function saveParticipatingToServer(){
-  if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
-  try{
-    const r=await fetch('chaser_setup.php?participating',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(participating)});
-    const j=await r.json();
-    if(j.ok)setStatus('Participating controls saved');
-    else setStatus('Save failed: '+j.error,true);
-  }catch(err){setStatus('Save failed: '+err.message,true);}
+function renderChaserPaletteMatrix(){
+  const grid=document.getElementById('chaserPaletteMatrix');
+  if(!grid)return;
+  normalizeChaserPaletteGrid('cols');
+  const total=chaserPaletteCols*chaserPaletteRows;
+  grid.style.gridTemplateColumns='repeat('+chaserPaletteCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===i);
+    if(p)html+=`<div class="slot filled" data-chaser-palette-slot="${i}" title="Click: recall palette into selected step" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-chaser-palette-slot',i,'Edit palette tile')}<button class="slot-del" data-del-chaser-palette="${i}" title="Delete palette">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${DmxCommon.escapeHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
+    else html+=`<div class="slot" data-chaser-palette-slot="${i}" title="Click to save selected step values as palette">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-chaser-palette-slot]').forEach(el=>{
+    const idx=parseInt(el.dataset.chaserPaletteSlot,10);
+    el.addEventListener('click',()=>chaserPaletteSlotClick(idx));
+  });
+  grid.querySelectorAll('[data-del-chaser-palette]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const idx=parseInt(btn.dataset.delChaserPalette,10);
+      const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===idx);if(!p)return;
+      if(!confirm('Delete palette "'+(p.name||('Palette '+(idx+1)))+'"?'))return;
+      chaserPalettes=chaserPalettes.filter(pl=>parseInt(pl.slot,10)!==idx);
+      renderChaserPaletteMatrix();
+      saveChaserPalettesServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-chaser-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openChaserPaletteVisualModal(parseInt(btn.dataset.visualChaserPaletteSlot,10));
+    });
+  });
 }
-async function loadParticipatingFromServer(){
-  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
-  try{
-    const r=await fetch('chaser_setup.php?participating',{cache:'no-store'});
-    const j=await r.json();
-    if(r.ok&&j.ok&&j.exists&&j.participating){applyParticipatingData(j.participating);return true;}
-  }catch(_){}
-  return false;
+function chaserPaletteSlotClick(idx){
+  const existing=chaserPalettes.find(pl=>parseInt(pl.slot,10)===idx);
+  if(existing){recallChaserPalette(existing);return;}
+  const values=selectedStepPaletteValues();
+  if(!values||!Object.keys(values).length){setStatus('Select a step with values before saving a palette',true);return;}
+  const step=steps[selectedStepIdx];
+  const name=(prompt('Palette name:',(step?.label||'Step')+' palette')||'').trim();
+  if(!name)return;
+  const scope=chaserPaletteScopeForValues(values);
+  chaserPalettes=chaserPalettes.filter(pl=>parseInt(pl.slot,10)!==idx);
+  chaserPalettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values,visual:currentChaserPaletteVisualForSave()});
+  renderChaserPaletteMatrix();
+  saveChaserPalettesServer();
+  setStatus('Saved step '+(selectedStepIdx+1)+' as palette "'+name+'" ('+chaserPaletteScopeLabel(scope)+')');
 }
+function mergeChaserPaletteButtonClick(){
+  const values=selectedStepPaletteValues();
+  if(!values||!Object.keys(values).length){setStatus('Select a step with values before merging a palette',true);return;}
+  if(!chaserPalettes.length){setStatus('No saved palettes to merge into',true);return;}
+  const list=chaserPalettes
+    .slice()
+    .sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0))
+    .map(p=>(parseInt(p.slot,10)+1)+': '+(p.name||'Palette')+' ('+chaserPaletteScopeLabel(p.scope||'all')+')')
+    .join('\n');
+  const answer=(prompt('Merge selected step values into palette slot:\n'+list,'1')||'').trim();
+  if(!answer)return;
+  const slot=Math.max(0,parseInt(answer,10)-1);
+  const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===slot);
+  if(!p){setStatus('Palette slot '+(slot+1)+' is empty',true);return;}
+  mergeSelectedStepIntoChaserPalette(p,values);
+}
+function mergeSelectedStepIntoChaserPalette(p,values){
+  const currentScope=chaserPaletteScopeForValues(values);
+  const savedScope=p.scope||'all';
+  if(savedScope===currentScope||savedScope==='all'){
+    mergeChaserPaletteValues(p,values,savedScope==='all'?'all':currentScope);
+    return;
+  }
+  if(confirm('Palette "'+(p.name||'Palette')+'" is '+chaserPaletteScopeLabel(savedScope)+', but the selected step values are '+chaserPaletteScopeLabel(currentScope)+'.\n\nChange this palette scope to All controls and merge?')){
+    mergeChaserPaletteValues(p,values,'all');
+  }
+}
+function mergeChaserPaletteValues(p,values,nextScope){
+  const keys=Object.keys(values||{});
+  if(!keys.length){setStatus('Selected step has no compatible values to merge',true);return;}
+  p.values={...(p.values||{}),...values};
+  p.scope=nextScope;
+  if(!p.visual)p.visual=currentChaserPaletteVisualForSave();
+  renderChaserPaletteMatrix();
+  saveChaserPalettesServer();
+  setStatus('Merged '+keys.length+' value'+(keys.length===1?'':'s')+' into palette "'+(p.name||'Palette')+'"');
+}
+function recallChaserPalette(p){
+  const values=validStepPaletteValues(p.values||{});
+  const keys=Object.keys(values);
+  if(!keys.length){setStatus('Palette has no compatible controls in this setup',true);return;}
+  let step=steps[selectedStepIdx];
+  if(!step){
+    if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
+    step=makeStep((p.name||'Palette')+' step',values);
+    steps.push(step);
+    selectedStepIdx=steps.length-1;
+  }
+  Object.assign(step.values,values);
+  applyChaserPaletteParticipatingKeys(keys);
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+  sourceFixtureId=firstFixtureIdFromKeys(keys)||firstStepFixtureId(step);
+  const batchMap={};
+  keys.forEach(key=>{
+    const parts=String(key).split(':');
+    const f=setup.fixtures?.find(fx=>String(fx.id)===parts[0]);
+    const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+    if(f&&c)collectChannels(f,c,values[key],batchMap);
+  });
+  sendBatch(batchMap);
+  drawParticipation();
+  drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
+  setStatus('Recalled palette "'+(p.name||'Palette')+'" into step '+(selectedStepIdx+1)+' and loaded '+keys.length+' participating control'+(keys.length===1?'':'s'));
+}
+function saveChaserPalettesServer(){
+  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows}))})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Palettes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Palettes save error: '+e.message,true));
+}
+function loadChaserPalettesServer(){
+  fetch('palette_setup.php',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(d.ok&&d.exists){
+      if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=d.baseUrl;
+      chaserPalettes=Array.isArray(d.palettes)?d.palettes:[];
+      if(d.paletteCols)chaserPaletteCols=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(d.paletteCols)||4));
+      if(d.paletteRows)chaserPaletteRows=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(d.paletteRows)||4));
+    }else chaserPalettes=[];
+    renderChaserPaletteMatrix();
+  }).catch(()=>{chaserPalettes=[];renderChaserPaletteMatrix();});
+}
+function exportChaserPalettesJson(){
+  DmxCommon.downloadJson('dmx_palettes.json',DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,palettes:chaserPalettes,paletteCols:chaserPaletteCols,paletteRows:chaserPaletteRows}));
+}
+function importChaserPalettesJson(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!Array.isArray(data.palettes))throw new Error('Expected {palettes:[...]}');
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+      chaserPalettes=data.palettes;
+      if(data.paletteCols)chaserPaletteCols=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(data.paletteCols)||4));
+      if(data.paletteRows)chaserPaletteRows=Math.max(1,Math.min(CHASER_PALETTE_GRID_MAX,parseInt(data.paletteRows)||4));
+      renderChaserPaletteMatrix();
+      saveChaserPalettesServer();
+      setStatus('Imported '+chaserPalettes.length+' palette(s)');
+    }catch(err){setStatus('Palette import failed: '+err.message,true);}
+  };
+  reader.readAsText(file);
+}
+function openChaserPaletteVisualModal(slot){
+  chaseVisualEditor.open({
+    targetLabel:'Palettes',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the palette slot; recall still uses the stored palette values.',
+    defaultColor:'#225a50',
+    defaultVisual:chaserPaletteVisualDefault,
+    targets:chaserPalettes
+      .slice()
+      .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
+      .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+chaserPaletteScopeLabel(p.scope||'all')+')'})),
+    selectedKey:slot,
+    onSaveDefault:visual=>{
+      chaserPaletteVisualDefault=visual;
+      saveChaserPaletteVisualDefault();
+      setStatus('Default palette visual updated');
+    },
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderChaserPaletteMatrix();
+      saveChaserPalettesServer();
+      setStatus('Updated palette visual for "'+(target.name||'Palette')+'"');
+    }
+  });
+}
+document.getElementById('chaserPaletteCols').addEventListener('input',e=>{chaserPaletteCols=e.target.value;normalizeChaserPaletteGrid('cols');renderChaserPaletteMatrix();saveChaserPalettesServer();});
+document.getElementById('chaserPaletteRows').addEventListener('input',e=>{chaserPaletteRows=e.target.value;normalizeChaserPaletteGrid('rows');renderChaserPaletteMatrix();saveChaserPalettesServer();});
+document.getElementById('exportChaserPalettesBtn').onclick=exportChaserPalettesJson;
+document.getElementById('importChaserPalettesBtn').onclick=()=>document.getElementById('importChaserPalettesFile').click();
+document.getElementById('mergeChaserPaletteBtn').onclick=mergeChaserPaletteButtonClick;
+document.getElementById('importChaserPalettesFile').onchange=e=>{if(e.target.files[0])importChaserPalettesJson(e.target.files[0]);e.target.value='';};
+const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'chaserPaletteBox',
+  headerId:'chaserPaletteHdr',
+  toggleId:'chaserPaletteBoxToggle',
+  posStorageKey:'chaserPaletteBoxPos',
+  collapsedStorageKey:'chaserPaletteBoxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'chaserPaletteBoxPos',
+  uiStateCollapsedKey:'chaserPaletteBoxCollapsed'
+});
+loadChaserPalettesServer();
+DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
+
 document.getElementById('btnExportSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
   if(!j.ok){setStatus('Export slots error',true);return;}
-  const exportData={pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots};
-  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chaser_slots.json';a.click();URL.revokeObjectURL(a.href);
+  const exportData=DmxCommon.versionedPayload({pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots});
+  DmxCommon.downloadJson('chaser_slots.json',exportData);
   setStatus('chaser_slots.json downloaded');
 };
 document.getElementById('btnImportSlots').onclick=()=>document.getElementById('importSlotsFile').click();
@@ -2395,7 +2704,6 @@ document.getElementById('btnApplyMeta').onclick=()=>{
   document.getElementById('editorTitle').textContent='#'+(selectedStepIdx+1)+' – '+step.label;
   setStatus('Step meta updated');
 };
-document.getElementById('btnSaveStepScene').onclick=()=>saveSelectedStepAsScene();
 document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
   const panel=document.getElementById(btn.dataset.panelToggle);
   const key='chaserPanelCollapsed_'+btn.dataset.panelToggle;
@@ -2409,48 +2717,33 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
   btn.onclick=()=>setCollapsed(!panel.classList.contains('collapsed-panel'));
 });
 document.getElementById('btnSelAll').onclick=()=>{
+  stopPlaybackForManualEdit();
   activeStepValueKeys=null;
+  selectedStepIdx=-1;
+  sourceFixtureId=null;
   Object.keys(participating).forEach(k=>participating[k]=true);
+  clearChaserGroupSelectionForParticipationEdit();
   collapsedPartFixtures.clear();
   localStorage.setItem('chaserPartCollapsedFix','[]');
   drawParticipation();
+  drawStepList();
   drawStepEditor();
+  refreshFanBasesFromStep();
+  refreshChaserGroupActionsSoon();
+  setStatus('All participating controls selected. Step editing context cleared; existing steps are unchanged.');
 };
 document.getElementById('btnSelNone').onclick=()=>{
   activeStepValueKeys=null;
   Object.keys(participating).forEach(k=>participating[k]=false);
+  clearChaserGroupSelectionForParticipationEdit();
   collapsedPartFixtures=new Set((setup.fixtures||[]).map(f=>f.id));
   localStorage.setItem('chaserPartCollapsedFix',JSON.stringify([...collapsedPartFixtures]));
   drawParticipation();
   drawStepEditor();
+  refreshChaserGroupActionsSoon();
 };
 document.getElementById('btnGroupControlOnly').onclick=()=>applyGroupControlSelection('only');
 document.getElementById('btnGroupControlAdd').onclick=()=>applyGroupControlSelection('add');
-document.getElementById('btnSavePart').onclick=()=>saveParticipatingToServer();
-document.getElementById('btnLoadPart').onclick=async()=>{
-  const loaded=await loadParticipatingFromServer();
-  if(loaded)setStatus('Participating controls loaded from server');
-  else setStatus('No saved participating controls found',true);
-};
-document.getElementById('btnExportPart').onclick=()=>{
-  const blob=new Blob([JSON.stringify({participating},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_participating.json';a.click();URL.revokeObjectURL(a.href);
-  setStatus('dmx_participating.json downloaded');
-};
-document.getElementById('btnImportPart').onclick=()=>document.getElementById('importPartFile').click();
-document.getElementById('importPartFile').onchange=e=>{
-  const file=e.target.files?.[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    try{
-      const data=JSON.parse(reader.result);
-      applyParticipatingData(data.participating??data);
-      setStatus('Participating controls imported from '+file.name);
-    }catch(err){alert('Invalid JSON: '+err.message);}
-    e.target.value='';
-  };
-  reader.readAsText(file);
-};
 
 // ---- Pico realtime playback ----
 function serializeChaserForPico(){
@@ -2535,8 +2828,12 @@ function renderChaserSlotStrip(slots, activeMask) {
       '</div>';
     d.onclick = () => {
       if(unsupported){setPicoStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
+      const wasSelected=selectedChaserSlot()===s.slot;
       document.getElementById('picoSlot').value = s.slot;
       renderChaserSlotStrip(slots, activeMask);
+      if(!loaded)uploadCurrentChaseToSlot(s.slot,false);
+      else if(wasSelected)uploadCurrentChaseToSlot(s.slot,true);
+      else setPicoStatus('Selected slot '+s.slot+' · click again to replace with current chase','var(--muted)');
     };
     const delBtn = d.querySelector('[data-delete-chaser-slot]');
     if(delBtn){
@@ -2630,14 +2927,15 @@ async function restoreAllChaserSlots(){
   pollPicoStatus();
 }
 
-document.getElementById('btnPicoUpload').onclick=async()=>{
+async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
   if(steps.length===0){setPicoStatus('No steps to upload','var(--warn)');return;}
   if(steps.length>CHASER_MAX_STEPS){setPicoStatus('Chaser slots support max '+CHASER_MAX_STEPS+' steps','var(--bad)');return;}
+  document.getElementById('picoSlot').value=slot;
   if(!ensureChaserSlotSupported())return;
   stopPlayback(); // stop browser playback so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
-  const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  if(confirmOverwrite&&!confirm('Replace Pico chaser slot '+slot+' with the current chase?'))return;
   const body=serializeChaserForPico();
   setPicoStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
@@ -2648,7 +2946,7 @@ document.getElementById('btnPicoUpload').onclick=async()=>{
     setPicoStatus('Uploaded current chase to slot '+slot,'var(--accent)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
-};
+}
 document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
 
 document.getElementById('btnPicoPlaySlot').onclick=async()=>{

@@ -575,6 +575,18 @@ uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count)
     return count;
 }
 
+uint8_t dmx_engine_get_output_channel(uint16_t channel)
+{
+    if (!dmx_state.initialized || channel < 1 || channel > dmx_state.channels) {
+        return 0;
+    }
+
+    critical_section_enter_blocking(&dmx_state.lock);
+    uint8_t value = encode_value(dmx_state.frame[channel]);
+    critical_section_exit(&dmx_state.lock);
+    return value;
+}
+
 bool dmx_engine_set_base_channel(uint16_t channel, uint8_t value)
 {
     if (channel < 1 || channel > DMX_ENGINE_MAX_CHANNELS) return false;

@@ -48,11 +48,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fan-preview-card strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
-.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
-.card.selected{border-color:var(--accent)}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}.sel-btn.on{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+.fixture-card{cursor:pointer;user-select:none}.fixture-card:hover{border-color:var(--accent)}.fixture-card .control{cursor:auto;user-select:auto}.card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
 </style>
 </head>
 <body>
@@ -73,7 +70,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 <section class="panel">
 <div class="toolbar">
-<label><input id="live" type="checkbox" checked> Live send</label>
 <button id="exportCsv" class="icon-btn export-btn" title="Export patch CSV"></button>
 <button id="exportJson" class="icon-btn export-btn" title="Export setup JSON"></button>
 <button id="importJson" class="icon-btn import-btn" title="Import setup JSON"></button>
@@ -225,7 +221,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="buttons" style="padding-top:4px">
 <button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default all</button>
 <button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout all</button>
-<button id="sendGroupBtn" class="primary">Send all to Pico</button>
 <button id="closeGroupModal2">Close</button>
 </div>
 </div>
@@ -263,7 +258,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportScenesBtn" class="icon-btn export-btn" title="Export scenes JSON"></button>
 <button id="importScenesBtn" class="icon-btn import-btn" title="Import scenes JSON"></button>
 <button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
-<button id="sceneVisualBtn" class="palette-merge-btn" title="Edit the scene visual">Visual</button>
 <input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -284,7 +278,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
 <button id="importPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
 <button id="mergePaletteBtn" class="palette-merge-btn" title="Merge current scoped values into an existing palette">Merge</button>
-<button id="paletteVisualBtn" class="palette-merge-btn" title="Edit the palette visual">Visual</button>
 <input id="importPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <label>Scope<select id="paletteScope">
@@ -306,11 +299,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="paletteVisualModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Slot Visual</h2>
+<h2>Edit Tile</h2>
 <button id="paletteVisualClose" style="font-size:16px;padding:6px 14px">✕</button>
 </div>
 <div class="modal-body">
 <label>Target<select id="paletteVisualTarget"></select></label>
+<label>Name<input id="paletteVisualName" type="text"></label>
 <div id="paletteColorVisualWrap">
 <label>Background color<input id="paletteVisualColor" type="color" value="#225a50"></label>
 <button id="paletteVisualResetColor" type="button">Default background</button>
@@ -328,7 +322,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="paletteVisualHint" class="small"></div>
 </div>
 <div class="buttons" style="padding-top:4px">
-<button id="paletteVisualSave" class="primary">Save visual</button>
+<button id="paletteVisualSave" class="primary">Save tile</button>
 <button id="paletteVisualClose2">Close</button>
 </div>
 </div>
@@ -378,7 +372,6 @@ let editingControlId=0;
 const values={};
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl);
-const live=document.getElementById('live');
 const statusEl=document.getElementById('status');
 const profilesEl=document.getElementById('profiles');
 const patchProfile=document.getElementById('patchProfile');
@@ -416,6 +409,7 @@ function rgbToCmyk(hex){
 }
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
+function autoSendEnabled(){return !!endpoint();}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
@@ -508,14 +502,17 @@ function wheelOptionsText(options){
 }
 
 function duplicateWheelOptionValueError(options){
-  const seen=new Map();
+  const byValue=new Map();
   for(const option of options||[]){
     const value=clamp(option.value,0,255);
-    if(seen.has(value)){
-      return 'Wheel option DMX value '+value+' is used by "'+seen.get(value)+'" and "'+(option.name||'Value')+'". Each wheel option needs a unique DMX value.';
-    }
-    seen.set(value,option.name||'Value');
+    if(!byValue.has(value))byValue.set(value,[]);
+    byValue.get(value).push(option.name||'Value');
   }
+  const duplicates=[];
+  byValue.forEach((names,value)=>{
+    if(names.length>1)duplicates.push('DMX '+value+': '+names.map(name=>'"'+name+'"').join(', '));
+  });
+  if(duplicates.length)return 'Wheel option DMX values must be unique. Duplicate assignments: '+duplicates.join('; ')+'.';
   return '';
 }
 
@@ -995,10 +992,9 @@ function patchFixture(){
   scheduleSetupAutosave();
 }
 
-function saveData(){return {baseUrl:baseUrl.value,live:live.checked,profiles,fixtures};}
+function saveData(){return DmxCommon.versionedPayload({baseUrl:baseUrl.value,profiles,fixtures});}
 function applyData(data){
   baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
-  if(data?.live!==undefined)live.checked=data.live;
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
   Object.keys(values).forEach(k=>delete values[k]);
@@ -1160,11 +1156,12 @@ function drawSurface(){
     const coll=collapsedFixtureIds.has(f.id);
     const hasDefault=p.controls.some(c=>c.defaultValue!=null);
     const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
-    const card=document.createElement('article');card.className='card'+(sel?' selected':'');
-    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button><button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    const card=document.createElement('article');card.className='card fixture-card'+(sel?' selected':'');card.dataset.fixtureCard=f.id;
+    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   updateGroupBar();
+  updateGroupActionButtons();
   renderFanToolbox();
 }
 
@@ -1215,6 +1212,12 @@ function updateControlDisplay(f,c){
     el.textContent=c.type==='wheel'?'CH '+absolute(f.start,c.channel)+' · '+v:v;
   });
   document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"]:not([data-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='wheel'){
+    document.querySelectorAll(`button[data-fixture="${f.id}"][data-control="${c.id}"][data-wheel]`).forEach(el=>{
+      el.classList.toggle('active',Number(el.dataset.wheel)===Number(v));
+    });
+    return;
+  }
   if(c.type==='slider16'){
     const b=bytes16(v);
     document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
@@ -1379,7 +1382,7 @@ function applyFanToController(options={}){
   });
   drawSurface();
   writeLiveValues(true);
-  if(live.checked){
+  if(autoSendEnabled()){
     const root=endpoint();
     if(root){
       const pairs=[];
@@ -1527,7 +1530,7 @@ surfaceEl.oninput=e=>{
   }else if(e.target.dataset.part){
     const v=getValue(f,c,{a:0,b:0,c:0});v[e.target.dataset.part]=clamp(e.target.value,0,255);setValue(f,c,v);
   }else setValue(f,c,clamp(e.target.value,0,c.type==='slider16'?65535:255));
-  if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
   updateControlDisplay(f,c);
   writeLiveValues();
 };
@@ -1538,7 +1541,7 @@ surfaceEl.onclick=e=>{
   if(!f||!c)return;
   if(e.target.dataset.centerPantilt){
     setValue(f,c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});
-    if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
     updateControlDisplay(f,c);
     return;
   }
@@ -1550,11 +1553,14 @@ surfaceEl.onclick=e=>{
     }
     else if(c.type==='cmy')setValue(f,c,rgbToCmy(e.target.dataset.color));
     else if(c.type==='cmyk')setValue(f,c,rgbToCmyk(e.target.dataset.color));
-    sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
   }
   if(e.target.dataset.wheel!==undefined){
     setValue(f,c,clamp(e.target.dataset.wheel,0,255));
-    if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
+    updateControlDisplay(f,c);
+    writeLiveValues();
+    return;
   }
   if(e.target.dataset.sendFixture)sendControl(f,c).catch(err=>setStatus(err.message,true));
 };
@@ -1574,7 +1580,7 @@ function setXY(e,pad){
   const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
   const max=c.type==='panTilt8'?255:65535;
   setValue(f,c,{pan:Math.round(x*max),tilt:Math.round((1-y)*max)});
-  if(live.checked)sendControl(f,c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
   updateControlDisplay(f,c);
 }
 
@@ -1630,11 +1636,9 @@ patchProfile.onchange=()=>{
   if(profile)document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
 };
 baseUrl.addEventListener('input',scheduleSetupAutosave);
-live.addEventListener('change',scheduleSetupAutosave);
 document.getElementById('exportCsv').onclick=exportCsv;
 document.getElementById('exportJson').onclick=()=>{
-  const blob=new Blob([JSON.stringify(saveData(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='fixture_setup.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('fixture_setup.json',saveData());
   setStatus('fixture_setup.json downloaded');
 };
 document.getElementById('importJson').onclick=()=>document.getElementById('importJsonFile').click();
@@ -1738,8 +1742,16 @@ function findMatchingControl(f,key){
 function getGroupCommonControls(){
   const fxList=[...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
   if(fxList.length<2)return[];
-  const first=fixtureProfile(fxList[0])?.controls||[];
-  return first.filter(c=>fxList.every(f=>!!(fixtureProfile(f)?.controls||[]).find(cc=>groupKey(cc)===groupKey(c))));
+  const controls=new Map();
+  fxList.forEach(f=>{
+    const p=fixtureProfile(f);if(!p)return;
+    p.controls.forEach(c=>{
+      const key=groupKey(c);
+      if(!controls.has(key))controls.set(key,{control:c,count:0});
+      controls.get(key).count++;
+    });
+  });
+  return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
 }
 function getActiveGroupControlScope(){
   if(fanAffectedKeys.size)return fanAffectedKeys;
@@ -1819,10 +1831,21 @@ function updateGroupBar(){
   const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:'';
   const note=n>1?(' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
   const label=n?`<strong>${n} fixture${n>1?'s':''} selected</strong>${note}`:'<strong>No fixtures selected</strong>';
-  bar.innerHTML=`<span>${label}</span>${scope}<button class="primary" id="openGroupEdit"${n>1&&common.length?'':' disabled'}>Group Edit</button><button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
-  document.getElementById('openGroupEdit').onclick=()=>{if(n>1&&common.length)openGroupModal();};
+  bar.innerHTML=`<span>${label}</span>${scope}<button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
   document.getElementById('saveGroupBtn').onclick=()=>{if(n)saveCurrentGroup();};
+  document.getElementById('selectAllFixtures').onclick=selectAllFixtures;
   document.getElementById('clearSelection').onclick=clearGroupSelection;
+}
+function selectAllFixtures(){
+  selectedFixtureIds=new Set(fixtures.map(f=>f.id));
+  activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  drawSurface();
 }
 function clearGroupSelection(){
   selectedFixtureIds.clear();
@@ -1840,7 +1863,7 @@ function renderGroupControl(c){
   const gca=`data-gc="${key}"`;
   if(c.type==='panTilt16'){
     const v=getGroupValue(c);const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 16-bit · all fixtures</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 16-bit · matching fixtures</span></div>
       <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
       <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="65535" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
@@ -1856,7 +1879,7 @@ function renderGroupControl(c){
   }
   if(c.type==='panTilt8'){
     const v=getGroupValue(c);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 8-bit · all fixtures</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 8-bit · matching fixtures</span></div>
       <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
       <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
@@ -1867,7 +1890,7 @@ function renderGroupControl(c){
     const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · all fixtures</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · matching fixtures</span></div>
       <label>Color picker<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
       ${parts.map((part,i)=>`<label>${names[i]} <span data-gc-part="${key}" data-part="${part}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" ${gca} data-part="${part}"></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-gc-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-gc-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-gc-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-gc-color="#0000ff" ${gca}></button></div></div>`;
@@ -1943,9 +1966,9 @@ function openGroupModal(){
   const scoped=!!getActiveGroupControlScope();
   document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s');
   document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
-  document.getElementById('groupModal').style.display='flex';
+  DmxCommon.showModal('groupModal');
 }
-function closeGroupModal(){document.getElementById('groupModal').style.display='none';drawSurface();}
+function closeGroupModal(){DmxCommon.hideModal('groupModal');drawSurface();}
 document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
@@ -1978,10 +2001,6 @@ async function recallGroupFixtureValues(which){
 }
 document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue');
 document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
-document.getElementById('sendGroupBtn').onclick=()=>{
-  const common=getGroupEditableControls();
-  Promise.all(common.map(c=>sendGroupControl(c))).catch(err=>setStatus(err.message,true));
-};
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
   const key=e.target.dataset.gc;if(!key)return;
@@ -2004,7 +2023,7 @@ groupModalBody.oninput=e=>{
     v=clamp(e.target.value,0,c.type==='slider16'?65535:255);
   }
   setGroupValue(c,v);
-  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
   updateGroupControlDisplay(c);
   writeLiveValues();
 };
@@ -2014,18 +2033,18 @@ groupModalBody.addEventListener('click',e=>{
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
   if(e.target.dataset.gcCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
-    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+    setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
   }
   if(e.target.dataset.gcColor!==undefined){
     let v=getGroupValue(c);
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.gcColor);v={...(typeof v==='object'?v:{a:0,b:0,c:0}),a:rgb.a,b:rgb.b,c:rgb.c};}
     else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.gcColor);
     else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.gcColor);
-    setGroupValue(c,v);sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
+    setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
   }
   if(e.target.dataset.gcWheel!==undefined){
     const v=clamp(e.target.dataset.gcWheel,0,255);
-    setGroupValue(c,v);if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+    setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
     document.querySelectorAll(`[data-gc="${key}"].tab`).forEach(btn=>btn.classList.toggle('active',parseInt(btn.dataset.gcWheel)===v));
     updateGroupControlDisplay(c);return;
   }
@@ -2048,11 +2067,24 @@ function setGroupXY(e,pad){
   const max=c.type==='panTilt8'?255:65535;
   const v={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
   setGroupValue(c,v);
-  if(live.checked)sendGroupControl(c).catch(err=>setStatus(err.message,true));
+  if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
   updateGroupControlDisplay(c);
   writeLiveValues();
 }
-// Capture-phase listener: intercepts Select + Collapse + Recall buttons before surfaceEl.onclick fires
+function toggleManualFixtureSelection(id){
+  if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
+  activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  drawSurface();
+}
+function isFixtureCardInteractiveClick(target){
+  return !!target.closest('button,input,select,textarea,a,label,.control,.xy-pad,.xy-mini,.tabs,.swatches');
+}
+// Capture-phase listener: intercepts fixture card selection + Collapse + Recall buttons before surfaceEl.onclick fires
 surfaceEl.addEventListener('click',e=>{
   const col=e.target.closest('[data-collapse-fixture]');
   if(col){
@@ -2065,16 +2097,10 @@ surfaceEl.addEventListener('click',e=>{
   }
   const rec=e.target.closest('[data-recall-fixture]');
   if(rec){e.stopPropagation();recallFixtureValues(parseInt(rec.dataset.recallFixture,10),rec.dataset.recallWhich);return;}
-  const sel=e.target.closest('[data-select-fixture]');if(!sel)return;
+  if(isFixtureCardInteractiveClick(e.target))return;
+  const card=e.target.closest('[data-fixture-card]');if(!card)return;
   e.stopPropagation();
-  const id=parseInt(sel.dataset.selectFixture,10);
-  if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
-  activeSavedGroupIds.clear();
-  sceneFixtureFilterActive=false;
-  activeControlScopeKeys.clear();
-  fanAffectedKeys.clear();
-  renderSavedGroupsList();
-  drawSurface();
+  toggleManualFixtureSelection(parseInt(card.dataset.fixtureCard,10));
 },true);
 // ── End group-edit ────────────────────────────────────────────────────
 
@@ -2120,7 +2146,15 @@ function loadSavedGroups(){
   fetch('group_setup.php').then(r=>r.json()).then(d=>{
     if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
     savedGroups=normalizeSavedGroups(d.groups);
-    DmxCommon.loadSharedGroupSelection().then(ids=>{applySharedGroupSelection(ids);renderSavedGroupsList();drawSurface();});
+    DmxCommon.loadSharedGroupSelection().then(ids=>{
+      if(ids.length){
+        applySharedGroupSelection(ids);
+      }else{
+        activeSavedGroupIds.clear();
+      }
+      renderSavedGroupsList();
+      drawSurface();
+    });
   }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
 }
 function clampGroupLayout(priority='cols'){
@@ -2174,10 +2208,10 @@ function updateGroupActionButtons(){
   const editBtn=document.getElementById('editSelectedGroups');
   if(renameBtn)renameBtn.disabled=selected.length!==1;
   if(deleteBtn)deleteBtn.disabled=selected.length===0;
-  if(editBtn)editBtn.disabled=selected.length===0||selectedFixtureIds.size<2||!getGroupEditableControls().length;
+  if(editBtn)editBtn.disabled=selectedFixtureIds.size<2||!getGroupEditableControls().length;
 }
 function saveSavedGroupsToServer(){
-  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups})})
+  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}))})
     .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
     .catch(e=>setStatus('Groups save error: '+e.message));
 }
@@ -2272,17 +2306,15 @@ function renameSelectedGroup(){
   renderSavedGroupsList();saveSavedGroupsToServer();
 }
 function editSelectedGroups(){
-  if(selectedSavedGroupEntries().length<1)return;
   const common=getGroupEditableControls();
   if(selectedFixtureIds.size<2||!common.length){
-    setStatus('Select a group with at least two matching controls to edit',true);
+    setStatus('Select at least two fixtures with matching controls to edit',true);
     return;
   }
   openGroupModal();
 }
 function exportGroupsJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,groups:savedGroups},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_groups.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_groups.json',DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}));
 }
 function importGroupsJson(file){
   const fr=new FileReader();
@@ -2426,7 +2458,7 @@ function renderSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}"><button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
+    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}">${DmxCommon.slotVisualButtonHtml('data-visual-slot',i,'Edit scene tile')}<button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
     else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2443,6 +2475,12 @@ function renderSlotMatrix(){
       if(!confirm('Delete scene "'+s.name+'"?'))return;
       scenes.splice(scenes.indexOf(s),1);
       renderSlotMatrix();saveScenesServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openSceneVisualModal(parseInt(btn.dataset.visualSlot,10));
     });
   });
 }
@@ -2623,7 +2661,7 @@ function recallScene(s){
   Object.assign(values,recalledValues);
   drawSurface();
   writeLiveValues(true);
-  if(live.checked){
+  if(autoSendEnabled()){
     const root=endpoint();
     if(root){
       const pairs=[];
@@ -2666,7 +2704,7 @@ async function clearAllChannels(){
   }
 }
 function saveScenesServer(){
-  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,scenes,slotCols,slotRows})})
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,scenes,slotCols,slotRows}))})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
     .catch(e=>setStatus('Scenes save error: '+e.message,true));
 }
@@ -2682,8 +2720,7 @@ function loadScenesServer(){
   }).catch(()=>{scenes=[];renderSlotMatrix();});
 }
 function exportScenesJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,scenes,slotCols,slotRows},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_scenes.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_scenes.json',DmxCommon.versionedPayload({baseUrl:baseUrl.value,scenes,slotCols,slotRows}));
 }
 function importScenesJson(file){
   const fr=new FileReader();
@@ -2704,7 +2741,6 @@ function importScenesJson(file){
 document.getElementById('exportScenesBtn').onclick=exportScenesJson;
 document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
 document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
-document.getElementById('sceneVisualBtn').onclick=openSceneVisualModal;
 document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
 const sceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'sceneBox',
@@ -2780,7 +2816,7 @@ function renderPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=palettes.find(pl=>pl.slot===i);
-    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}"><button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
+    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-palette-slot',i,'Edit palette tile')}<button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
     else html+=`<div class="slot" data-palette-slot="${i}" title="Click to save palette here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2796,6 +2832,12 @@ function renderPaletteMatrix(){
       if(!confirm('Delete palette "'+p.name+'"?'))return;
       palettes.splice(palettes.indexOf(p),1);
       renderPaletteMatrix();savePalettesServer();
+    });
+  });
+  grid.querySelectorAll('[data-visual-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      openPaletteVisualModal(parseInt(btn.dataset.visualPaletteSlot,10));
     });
   });
 }
@@ -2887,7 +2929,7 @@ function recallPalette(p){
   Object.assign(values,paletteValues);
   drawSurface();
   writeLiveValues(true);
-  if(live.checked){
+  if(autoSendEnabled()){
     const root=endpoint();
     if(root){
       const pairs=[];
@@ -2903,7 +2945,7 @@ function recallPalette(p){
   setStatus('Recalled palette: "'+p.name+'"');
 }
 function savePalettesServer(){
-  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows})})
+  fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows}))})
     .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Palettes save failed: '+d.error,true);})
     .catch(e=>setStatus('Palettes save error: '+e.message,true));
 }
@@ -2919,8 +2961,7 @@ function loadPalettesServer(){
   }).catch(()=>{palettes=[];renderPaletteMatrix();});
 }
 function exportPalettesJson(){
-  const blob=new Blob([JSON.stringify({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dmx_palettes.json';a.click();URL.revokeObjectURL(a.href);
+  DmxCommon.downloadJson('dmx_palettes.json',DmxCommon.versionedPayload({baseUrl:baseUrl.value,palettes,paletteCols,paletteRows}));
 }
 function importPalettesJson(file){
   const fr=new FileReader();
@@ -2944,6 +2985,7 @@ const slotVisualEditor=DmxCommon.initSlotVisualEditor({
   colorWrapId:'paletteColorVisualWrap',
   imageWrapId:'paletteBeamVisualWrap',
   colorInputId:'paletteVisualColor',
+  nameInputId:'paletteVisualName',
   resetColorBtnId:'paletteVisualResetColor',
   canvasId:'paletteVisualCanvas',
   imageInputId:'paletteVisualImage',
@@ -2952,7 +2994,7 @@ const slotVisualEditor=DmxCommon.initSlotVisualEditor({
   saveBtnId:'paletteVisualSave',
   closeIds:['paletteVisualClose','paletteVisualClose2']
 });
-function openPaletteVisualModal(){
+function openPaletteVisualModal(slot){
   const scope=currentPaletteScope();
   slotVisualEditor.open({
     targetLabel:paletteScopeLabel(scope)+' palettes',
@@ -2963,6 +3005,7 @@ function openPaletteVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
       .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+paletteScopeLabel(p.scope||'all')+')'})),
+    selectedKey:slot,
     onSaveDefault:visual=>{
       paletteVisualDefaults[scope]=visual;
       savePaletteVisualDefaults();
@@ -2976,7 +3019,7 @@ function openPaletteVisualModal(){
     }
   });
 }
-function openSceneVisualModal(){
+function openSceneVisualModal(slot){
   slotVisualEditor.open({
     targetLabel:'Scenes',
     hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the scene slot; scene recall still uses the stored DMX values.',
@@ -2986,6 +3029,7 @@ function openSceneVisualModal(){
       .slice()
       .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
       .map(s=>({key:String(parseInt(s.slot,10)||0),item:s,label:'Slot '+((parseInt(s.slot,10)||0)+1)+': '+(s.name||'Scene')})),
+    selectedKey:slot,
     onSaveDefault:visual=>{
       sceneVisualDefault=visual;
       saveSceneVisualDefault();
@@ -3002,7 +3046,6 @@ function openSceneVisualModal(){
 document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile').click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
-document.getElementById('paletteVisualBtn').onclick=openPaletteVisualModal;
 document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
 const paletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'paletteBox',

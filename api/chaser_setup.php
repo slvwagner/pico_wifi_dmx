@@ -25,19 +25,13 @@ if ($method === 'GET') {
         $slots  = isset($data['pico_slots']) && is_array($data['pico_slots'])
                   ? array_pad($data['pico_slots'], PICO_SLOT_COUNT, null) : array_fill(0, PICO_SLOT_COUNT, null);
         $url    = isset($data['pico_url']) ? $data['pico_url'] : null;
-        echo json_encode(['ok' => true, 'pico_slots' => $slots, 'pico_url' => $url]);
-        exit;
-    }
-
-    // ?participating — return just participating controls
-    if (isset($_GET['participating'])) {
-        if (!is_file($dataFile)) {
-            echo json_encode(['ok' => true, 'exists' => false, 'participating' => null]);
-            exit;
-        }
-        $data = readDataFile($dataFile);
-        $p = isset($data['participating']) ? $data['participating'] : null;
-        echo json_encode(['ok' => true, 'exists' => $p !== null, 'participating' => $p]);
+        echo json_encode([
+            'ok' => true,
+            'pico_slots' => $slots,
+            'pico_url' => $url,
+            'appVersion' => $data['appVersion'] ?? null,
+            'schemaVersion' => $data['schemaVersion'] ?? null,
+        ]);
         exit;
     }
 
@@ -117,28 +111,7 @@ if ($method === 'POST') {
         exit;
     }
 
-    // ?participating — save just participating controls
-    if (isset($_GET['participating'])) {
-        $raw = file_get_contents('php://input');
-        $data = json_decode($raw === false ? '' : $raw, true);
-        if (!is_array($data)) {
-            http_response_code(400);
-            echo json_encode(['ok' => false, 'error' => 'Request body must be a JSON object']);
-            exit;
-        }
-        $existing = readDataFile($dataFile);
-        $existing['participating'] = $data;
-        $json = json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
-            http_response_code(500);
-            echo json_encode(['ok' => false, 'error' => 'Could not write chaser file']);
-            exit;
-        }
-        echo json_encode(['ok' => true]);
-        exit;
-    }
-
-    // default POST — save chase slots/toolbox state (preserve existing pico_slots and participating).
+    // default POST — save chase slots/toolbox state (preserve existing pico_slots).
     // Loose top-level editable steps are intentionally not persisted; saved chases keep
     // their own nested step data inside the "chases" array.
     $raw  = file_get_contents('php://input');
@@ -157,9 +130,6 @@ if ($method === 'POST') {
         $data['pico_url'] = trim((string)$data['baseUrl']);
     } elseif (isset($existing['pico_url'])) {
         $data['pico_url'] = $existing['pico_url'];
-    }
-    if (isset($existing['participating'])) {
-        $data['participating'] = $existing['participating'];
     }
     if (!isset($data['chases']) && isset($existing['chases'])) {
         $data['chases'] = $existing['chases'];

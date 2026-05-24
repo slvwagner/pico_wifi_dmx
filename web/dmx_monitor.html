@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DMX Buffer Monitor</title>
+<link rel="stylesheet" href="assets/dmx-ui.css">
+<script src="assets/dmx-common.js"></script>
+<style>
+main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
+.monitor-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.monitor-toolbar input[type=number]{width:90px}
+.dmx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px}
+.dmx-tile{min-height:48px;border:1px solid var(--line);border-radius:6px;background:#0a0d10;color:var(--text);padding:6px;display:grid;gap:3px;align-content:center}
+.dmx-tile.changed{border-color:var(--accent);box-shadow:0 0 0 1px rgba(53,210,178,.45) inset}
+.dmx-ch{font-size:11px;color:var(--muted)}
+.dmx-val{font-size:18px;font-weight:800;line-height:1}
+.dmx-bar{height:3px;border-radius:2px;background:rgba(53,210,178,.18);overflow:hidden}
+.dmx-fill{height:100%;width:0;background:var(--accent)}
+.monitor-status{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.monitor-status b{color:var(--text)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    <h1>DMX Buffer Monitor</h1>
+    <div class="status" id="status">Ready</div>
+  </div>
+  <div class="toolbar">
+    <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <a class="nav" href="index.html">Controller</a>
+    <a class="nav" href="dmx_chaser.html">Chaser</a>
+    <a class="nav" href="dmx_motion.html">Motion</a>
+    <a class="nav" href="test/">Benchmark</a>
+    <a class="nav" href="user-manual.html#7-benchmark" target="_blank">Manual</a>
+  </div>
+</header>
+
+<section class="panel">
+  <div class="monitor-toolbar">
+    <button class="primary" id="refreshBtn">Refresh</button>
+    <label>Buffer
+      <select id="bufferMode">
+        <option value="output">DMX output</option>
+        <option value="base">Base / position</option>
+      </select>
+    </label>
+    <label><input id="autoRefresh" type="checkbox" checked> Auto refresh</label>
+    <label>Refresh ms<input id="refreshMs" type="number" min="50" max="10000" step="50" value="500"></label>
+    <label>Refresh Hz<input id="refreshHz" type="number" min="0.1" max="20" step="0.1" value="2"></label>
+    <button id="clearHighlightsBtn">Clear highlights</button>
+    <div class="monitor-status">
+      <span>Channels: <b id="channelCount">—</b></span>
+      <span>Frame: <b id="frameCount">—</b></span>
+      <span>Changed: <b id="changedCount">—</b></span>
+      <span>Last update: <b id="lastUpdate">—</b></span>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="dmx-grid" id="dmxGrid"></div>
+</section>
+</main>
+
+<script>
+const baseUrlEl=document.getElementById('baseUrl');
+const statusEl=document.getElementById('status');
+const grid=document.getElementById('dmxGrid');
+const channelCountEl=document.getElementById('channelCount');
+const frameCountEl=document.getElementById('frameCount');
+const changedCountEl=document.getElementById('changedCount');
+const lastUpdateEl=document.getElementById('lastUpdate');
+const autoRefreshEl=document.getElementById('autoRefresh');
+const refreshMsEl=document.getElementById('refreshMs');
+const refreshHzEl=document.getElementById('refreshHz');
+const bufferModeEl=document.getElementById('bufferMode');
+let values=Array(512).fill(0);
+let previous=null;
+let timer=null;
+let busy=false;
+
+DmxCommon.bindBaseUrl(baseUrlEl,statusEl);
+
+function rootUrl(){
+  return baseUrlEl.value.trim().replace(/\/+$/,'');
+}
+
+function render(nextValues,changedSet=new Set()){
+  values=nextValues.slice(0,512);
+  let html='';
+  for(let i=0;i<512;i++){
+    const v=values[i]||0;
+    const pct=Math.round(v/255*100);
+    const changed=changedSet.has(i);
+    const bg=v?`background:linear-gradient(180deg,rgba(53,210,178,${0.12+0.38*v/255}),#0a0d10)`: '';
+    html+=`<div class="dmx-tile${changed?' changed':''}" style="${bg}"><div class="dmx-ch">CH ${i+1}</div><div class="dmx-val">${v}</div><div class="dmx-bar"><div class="dmx-fill" style="width:${pct}%"></div></div></div>`;
+  }
+  grid.innerHTML=html;
+}
+
+async function refreshMonitor(){
+  const root=rootUrl();
+  if(!root){statusEl.textContent='Set Pico base URL to monitor buffers';return;}
+  if(busy)return;
+  busy=true;
+  try{
+    const mode=bufferModeEl.value;
+    const endpoint=mode==='base'?'/dmx/base.json':'/dmx/output.json';
+    const r=await fetch(root+endpoint,{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const raw=Array.isArray(data)?data:(Array.isArray(data.values)?data.values:[]);
+    const next=raw.map(v=>Math.max(0,Math.min(255,Math.round(v||0))));
+    const changed=new Set();
+    if(previous){
+      next.forEach((v,i)=>{if(previous[i]!==v)changed.add(i);});
+    }
+    previous=next.slice();
+    render(next,changed);
+    channelCountEl.textContent=(data.channels||next.length||512);
+    frameCountEl.textContent=mode==='output'?(data.frame_count??'—'):'base';
+    changedCountEl.textContent=changed.size;
+    lastUpdateEl.textContent=new Date().toLocaleTimeString();
+    statusEl.textContent=(mode==='base'?'Base / position buffer':'DMX output frame')+' read from Pico';
+  }catch(err){
+    statusEl.textContent='Monitor failed: '+err.message;
+  }finally{
+    busy=false;
+  }
+}
+
+function restartTimer(){
+  if(timer)clearInterval(timer);
+  if(autoRefreshEl.checked){
+    const ms=syncRefreshFromMs();
+    timer=setInterval(refreshMonitor,ms);
+  }
+}
+
+function clampRefreshMs(ms){
+  return Math.max(50,Math.min(10000,Math.round(ms||500)));
+}
+
+function syncRefreshFromMs(){
+  const ms=clampRefreshMs(parseFloat(refreshMsEl.value));
+  refreshMsEl.value=String(ms);
+  refreshHzEl.value=String(Math.round((1000/ms)*10)/10);
+  return ms;
+}
+
+function syncRefreshFromHz(){
+  const hz=Math.max(0.1,Math.min(20,parseFloat(refreshHzEl.value)||2));
+  refreshHzEl.value=String(Math.round(hz*10)/10);
+  const ms=clampRefreshMs(1000/hz);
+  refreshMsEl.value=String(ms);
+  return ms;
+}
+
+document.getElementById('refreshBtn').onclick=refreshMonitor;
+document.getElementById('clearHighlightsBtn').onclick=()=>{previous=values.slice();render(values);changedCountEl.textContent='0';};
+autoRefreshEl.onchange=restartTimer;
+refreshMsEl.onchange=()=>{syncRefreshFromMs();restartTimer();};
+refreshHzEl.onchange=()=>{syncRefreshFromHz();restartTimer();};
+bufferModeEl.onchange=()=>{previous=null;changedCountEl.textContent='—';refreshMonitor();};
+baseUrlEl.addEventListener('change',()=>{refreshMonitor();restartTimer();});
+
+render(values);
+syncRefreshFromMs();
+refreshMonitor();
+restartTimer();
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 # New Features
 
+## 01
 - Define a shared "Output enabled" / offline programming model for live-show safety.
   Editing should be possible without changing DMX output, especially for Controller, Chaser, and Motion FX.
   Uploading chase or motion data to Pico memory slots should still be allowed while offline because it is only data transfer.
@@ -11,7 +12,15 @@ Do we want “offline programming” to be a global system mode, or page-specifi
 
 Global is simpler and safer. Page-specific is more flexible, but easier to misunderstand during a show.
 
+## 02
+
+
 # Debug
+
+
+
+## 01
+
 
 
 # Error fixing
