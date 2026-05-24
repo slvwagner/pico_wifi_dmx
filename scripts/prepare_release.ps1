@@ -21,6 +21,26 @@ function Get-FileSha256($Path) {
     (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
+function Resolve-CommandPath($Name, [string[]]$Fallbacks) {
+    $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($cmd) {
+        return $cmd.Source
+    }
+    foreach ($candidate in $Fallbacks) {
+        $expanded = [Environment]::ExpandEnvironmentVariables($candidate)
+        if (Test-Path -LiteralPath $expanded) {
+            return $expanded
+        }
+    }
+    throw "Could not find $Name. Add it to PATH or install the Pico/VS Code build tools."
+}
+
+$cmakeExe = Resolve-CommandPath "cmake" @(
+    "%USERPROFILE%\.pico-sdk\cmake\v3.31.5\bin\cmake.exe",
+    "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
+    "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+)
+
 if (-not $Version) {
     $versionFile = Join-Path $repoRoot "VERSION"
     if (-not (Test-Path -LiteralPath $versionFile)) {
@@ -52,7 +72,7 @@ if (-not $AllowDirty) {
 
 if ($Build) {
     Invoke-Step "Build firmware" {
-        cmake --build $BuildDir
+        & $cmakeExe --build $BuildDir
     }
 }
 
