@@ -127,6 +127,7 @@ try {
             Invoke-Step "Capture page overview screenshots" {
                 Save-PageScreenshot "motion-fx.png" ($BaseUrl.TrimEnd('/') + "/dmx_motion.html")
                 Save-PageScreenshot "gpio-control.png" ($BaseUrl.TrimEnd('/') + "/dmx_gpio.html")
+                Save-PageScreenshot "dmx-monitor.png" ($BaseUrl.TrimEnd('/') + "/dmx_monitor.html")
                 Save-PageScreenshot "benchmark.png" ($BaseUrl.TrimEnd('/') + "/test/")
             }
         }

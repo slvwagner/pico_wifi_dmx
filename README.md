@@ -45,6 +45,7 @@ pico_wifi_dmx/
 │  ├─ dmx_chaser.html
 │  ├─ dmx_motion.html
 │  ├─ dmx_gpio.html
+│  ├─ dmx_monitor.html
 │  ├─ dmx_benchmark.html
 │  └─ assets/
 │     ├─ dmx-common.js       Shared toolbox, base URL, visual, fan helpers
@@ -199,7 +200,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Motion FX | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
-| DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
+| DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh interval and rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
 | FPS Benchmark | `web/dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
 ### Screenshots
@@ -273,6 +274,12 @@ This means the normal workflow is: recall or set the base value first, then star
 The GPIO Control page maps physical Pico inputs to lighting actions. Digital GPIO pins can trigger actions such as DMX clear, output-only clear, chaser play/stop/toggle, pause/resume, motion start/stop/toggle, and tap tempo. ADC pins can be mapped to continuous values such as chaser speed multiplier or Motion FX BPM.
 
 The page protects reserved hardware pins and already-used pins, then sends the mapping to the Pico with `POST /gpio/config` when a Pico base URL is set. Once uploaded, the Pico polls the inputs on Core 0 and runs the actions directly, so the browser does not need to stay open during operation.
+
+**DMX Buffer Monitor**
+
+![DMX Buffer Monitor page](docs/screenshots/dmx-monitor.png)
+
+The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selector to switch between the actual live output frame and the base/position buffer used as the Motion FX center. Use **Refresh ms** or **Refresh Hz** to choose how often the selected buffer is read; both fields stay synchronized.
 
 **Benchmark**
 
