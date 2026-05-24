@@ -1,7 +1,8 @@
 param(
-    [string]$XamppHtdocs = "E:\Software\xampp\htdocs",
-    [string]$AppFolder = "dmx",
-    [string]$BaseUrl = "http://localhost/dmx/",
+    [string]$XamppHtdocs = "",
+    [string]$AppFolder = "",
+    [string]$BaseUrl = "",
+    [string]$ChromePath = "",
     [string]$ManualDataDir = "docs/manual-data",
     [switch]$SkipInitialSync,
     [switch]$SkipScreenshots,
@@ -11,8 +12,15 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "local_path_config.ps1")
+$localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
+if (-not $XamppHtdocs) { $XamppHtdocs = $localPaths.xamppHtdocs }
+if (-not $AppFolder) { $AppFolder = $localPaths.appFolder }
+if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
+if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
+
 $screenshotsDir = Join-Path $repoRoot "docs\screenshots"
-$chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+$chrome = $ChromePath
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
 $xamppDataPath = Join-Path (Join-Path $XamppHtdocs $AppFolder) "data"
 
@@ -107,7 +115,7 @@ Push-Location $repoRoot
 try {
     if (-not $SkipInitialSync) {
         Invoke-Step "Sync current web app to XAMPP for screenshot source" {
-            & (Join-Path $PSScriptRoot "sync_fixture_controller_to_xampp.ps1") -XamppHtdocs $XamppHtdocs -AppFolder $AppFolder
+            & (Join-Path $PSScriptRoot "sync_fixture_controller_to_xampp.ps1") -XamppHtdocs $XamppHtdocs -AppFolder $AppFolder -BaseUrl $BaseUrl
         }
     }
 
@@ -120,8 +128,8 @@ try {
             }
 
             Invoke-Step "Capture deterministic controller screenshots" {
-                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
-                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots"
+                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath
+                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots" -XamppDataDir $xamppDataPath -ChromePath $ChromePath
             }
 
             Invoke-Step "Capture page overview screenshots" {
@@ -139,11 +147,11 @@ try {
     }
 
     Invoke-Step "Build dark-mode user manual HTML and PDF" {
-        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual.html" -PdfPath "docs/user-manual.pdf"
+        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual.html" -PdfPath "docs/user-manual.pdf" -ChromePath $ChromePath
     }
 
     Invoke-Step "Refresh companion manual HTML" {
-        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual-print.html" -PdfPath "docs/user-manual.pdf"
+        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual-print.html" -PdfPath "docs/user-manual.pdf" -ChromePath $ChromePath
     }
 
     Invoke-Step "Wait for generated PDF to finish writing" {
@@ -152,7 +160,7 @@ try {
 
     if (-not $SkipFinalSync) {
         Invoke-Step "Sync rebuilt manual and screenshots to XAMPP" {
-            & (Join-Path $PSScriptRoot "sync_fixture_controller_to_xampp.ps1") -XamppHtdocs $XamppHtdocs -AppFolder $AppFolder
+            & (Join-Path $PSScriptRoot "sync_fixture_controller_to_xampp.ps1") -XamppHtdocs $XamppHtdocs -AppFolder $AppFolder -BaseUrl $BaseUrl
         }
     }
 

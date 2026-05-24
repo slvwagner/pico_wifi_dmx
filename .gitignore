@@ -4,5 +4,6 @@ node_modules/
 test-results/
 playwright-report/
 tests/pathconfig.local.json
+config/local-paths.json
 debug.log
 !.vscode/*

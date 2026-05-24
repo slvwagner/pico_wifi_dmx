@@ -1,11 +1,18 @@
 param(
-    [string]$XamppHtdocs = "E:\Software\xampp\htdocs",
-    [string]$AppFolder = "dmx"
+    [string]$XamppHtdocs = "",
+    [string]$AppFolder = "",
+    [string]$BaseUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "local_path_config.ps1")
+$localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
+if (-not $XamppHtdocs) { $XamppHtdocs = $localPaths.xamppHtdocs }
+if (-not $AppFolder) { $AppFolder = $localPaths.appFolder }
+if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
+
 $webDir = Join-Path $repoRoot "web"
 $assetsDir = Join-Path $webDir "assets"
 $apiDir = Join-Path $repoRoot "api"
@@ -174,4 +181,4 @@ Set-Content -LiteralPath $htaccessTarget -Value "Require all denied" -Encoding A
 
 Write-Host "Copied fixture controller to $target"
 Write-Host "Copied setup API to $apiTarget"
-Write-Host "Open http://localhost/$AppFolder/"
+Write-Host "Open $BaseUrl"

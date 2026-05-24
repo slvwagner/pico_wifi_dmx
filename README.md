@@ -46,11 +46,30 @@ cd D:\Projects\pico_wifi_dmx
 .\scripts\sync_fixture_controller_to_xampp.ps1
 ```
 
-The default XAMPP target is:
+The example XAMPP target is:
 
 ```text
 E:\Software\xampp\htdocs\dmx\
 ```
+
+If your XAMPP install lives somewhere else, copy the local path config example and adjust it:
+
+```powershell
+Copy-Item config\local-paths.example.json config\local-paths.json
+```
+
+Example:
+
+```json
+{
+  "xamppHtdocs": "E:/Software/xampp/htdocs",
+  "appFolder": "dmx",
+  "baseUrl": "http://localhost/dmx/",
+  "chromePath": "C:/Program Files/Google/Chrome/Application/chrome.exe"
+}
+```
+
+`config/local-paths.json` is ignored by Git. The sync and documentation scripts read it automatically. Command-line script parameters still override the config when needed.
 
 Open the UI:
 
@@ -147,7 +166,13 @@ npm install
 npx playwright install chromium
 ```
 
-Configure local paths if your XAMPP or Pico URL differs:
+Configure script paths if your XAMPP, browser, or served app URL differs:
+
+```powershell
+Copy-Item config\local-paths.example.json config\local-paths.json
+```
+
+Configure UI test and Pico hardware-test URLs separately:
 
 ```powershell
 Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
@@ -755,7 +780,7 @@ HTML files are developed locally and synced to XAMPP with:
 .\scripts\sync_fixture_controller_to_xampp.ps1
 ```
 
-Target: `E:\Software\xampp\htdocs\dmx\`
+By default the scripts use the example XAMPP target `E:\Software\xampp\htdocs\dmx\`. To use another location, create `config/local-paths.json` from `config/local-paths.example.json` or pass `-XamppHtdocs`, `-AppFolder`, and `-BaseUrl` directly to the script.
 
 ---
 
