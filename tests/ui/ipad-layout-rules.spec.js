@@ -235,6 +235,163 @@ test.describe('iPad layout rules', () => {
     });
   });
 
+  test('iPad bottom toolbox rail scrolls the full last toolbox without nested body clipping', async ({ page }) => {
+    for (const cfg of [
+      { label: 'Controller', path: '' },
+      { label: 'Chaser', path: 'dmx_chaser.html' },
+      { label: 'Motion', path: 'dmx_motion.html' }
+    ]) {
+      await page.setViewportSize({ width: 768, height: 1024 });
+      await openDmxPage(page, cfg.path);
+      const layout = await page.evaluate(async label => {
+        const rail = document.querySelector('.toolbox-rail');
+        document.querySelectorAll('.toolbox-rail .scene-toolbox.collapsed .scene-toolbox__toggle').forEach(btn => btn.click());
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const boxes = Array.from(rail.querySelectorAll('.scene-toolbox')).filter(box => getComputedStyle(box).display !== 'none');
+        const last = boxes[boxes.length - 1];
+        const body = last.querySelector('.scene-toolbox__body');
+        rail.scrollTop = Math.max(0, last.offsetTop - 24);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const railRectAtTop = rail.getBoundingClientRect();
+        const lastRectAtTop = last.getBoundingClientRect();
+        const firstChild = body?.firstElementChild;
+        const firstChildRect = firstChild?.getBoundingClientRect();
+        rail.scrollTop = rail.scrollHeight;
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const railRect = rail.getBoundingClientRect();
+        const lastRect = last.getBoundingClientRect();
+        const lastChild = body?.lastElementChild;
+        const lastChildRect = lastChild?.getBoundingClientRect();
+        return {
+          label,
+          lastId: last.id,
+          railTopAtStart: Math.round(railRectAtTop.top),
+          lastTopAtStart: Math.round(lastRectAtTop.top),
+          firstChildTopAtStart: firstChildRect ? Math.round(firstChildRect.top) : null,
+          firstChildBottomAtStart: firstChildRect ? Math.round(firstChildRect.bottom) : null,
+          railTop: Math.round(railRect.top),
+          railBottom: Math.round(railRect.bottom),
+          railHeight: Math.round(railRect.height),
+          lastTop: Math.round(lastRect.top),
+          lastBottom: Math.round(lastRect.bottom),
+          lastHeight: Math.round(lastRect.height),
+          lastChildTop: lastChildRect ? Math.round(lastChildRect.top) : null,
+          lastChildBottom: lastChildRect ? Math.round(lastChildRect.bottom) : null,
+          lastBodyOverflowY: getComputedStyle(body).overflowY
+        };
+      }, cfg.label);
+
+      expect(layout.lastTopAtStart, layout.label + ' ' + layout.lastId).toBeGreaterThanOrEqual(layout.railTopAtStart + 18);
+      expect(layout.firstChildBottomAtStart, layout.label + ' ' + layout.lastId).toBeGreaterThan(layout.railTopAtStart);
+      expect(layout.lastChildTop, layout.label + ' ' + layout.lastId).toBeLessThan(layout.railBottom);
+      expect(layout.lastChildBottom, layout.label + ' ' + layout.lastId).toBeLessThanOrEqual(layout.railBottom - 18);
+      expect(layout.lastBodyOverflowY, layout.label + ' ' + layout.lastId).toBe('visible');
+    }
+  });
+
+  test('iPad bottom toolbox rail scrolls expanded last toolbox into view', async ({ page }) => {
+    for (const cfg of [
+      { label: 'Controller', path: '' },
+      { label: 'Chaser', path: 'dmx_chaser.html' },
+      { label: 'Motion', path: 'dmx_motion.html' }
+    ]) {
+      await page.setViewportSize({ width: 768, height: 1024 });
+      await openDmxPage(page, cfg.path);
+      const layout = await page.evaluate(async label => {
+        const rail = document.querySelector('.toolbox-rail');
+        const boxes = Array.from(rail.querySelectorAll('.scene-toolbox')).filter(box => getComputedStyle(box).display !== 'none');
+        boxes.forEach(box => {
+          if (!box.classList.contains('collapsed')) box.querySelector('.scene-toolbox__toggle')?.click();
+        });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const last = boxes[boxes.length - 1];
+        const toggle = last.querySelector('.scene-toolbox__toggle');
+        const before = last.classList.contains('collapsed');
+        toggle.click();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const railRect = rail.getBoundingClientRect();
+        const lastRect = last.getBoundingClientRect();
+        return {
+          label,
+          lastId: last.id,
+          before,
+          after: last.classList.contains('collapsed'),
+          railTop: Math.round(railRect.top),
+          railBottom: Math.round(railRect.bottom),
+          lastTop: Math.round(lastRect.top),
+          lastBottom: Math.round(lastRect.bottom),
+          scrollTop: rail.scrollTop,
+          bodyDisplay: getComputedStyle(last.querySelector('.scene-toolbox__body')).display
+        };
+      }, cfg.label);
+
+      expect(layout.before, layout.label + ' ' + layout.lastId).toBe(true);
+      expect(layout.after, layout.label + ' ' + layout.lastId).toBe(false);
+      expect(layout.lastTop, layout.label + ' ' + layout.lastId).toBeGreaterThanOrEqual(layout.railTop + 8);
+      expect(layout.lastTop, layout.label + ' ' + layout.lastId).toBeLessThanOrEqual(layout.railBottom - 120);
+      expect(layout.lastBottom, layout.label + ' ' + layout.lastId).toBeGreaterThan(layout.lastTop + 80);
+      expect(layout.bodyDisplay, layout.label + ' ' + layout.lastId).not.toBe('none');
+      expect(layout.scrollTop, layout.label + ' ' + layout.lastId).toBeGreaterThan(0);
+    }
+  });
+
+  test('iPad touch scroll containers keep real bottom scroll space on every toolbox page', async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: loadPathConfig().xamppBaseUrl,
+      viewport: { width: 1024, height: 768 },
+      deviceScaleFactor: 2,
+      hasTouch: true,
+      isMobile: true
+    });
+    const page = await context.newPage();
+    try {
+      for (const cfg of [
+        { label: 'Controller', path: '' },
+        { label: 'Chaser', path: 'dmx_chaser.html' },
+        { label: 'Motion', path: 'dmx_motion.html' }
+      ]) {
+        await openDmxPage(page, cfg.path);
+        const layout = await page.evaluate(async label => {
+          const rail = document.querySelector('.toolbox-rail');
+          const main = document.querySelector('main');
+          document.querySelectorAll('.toolbox-rail .scene-toolbox.collapsed .scene-toolbox__toggle').forEach(btn => btn.click());
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          rail.scrollTop = rail.scrollHeight;
+          main.scrollTop = main.scrollHeight;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const boxes = Array.from(rail.querySelectorAll('.scene-toolbox')).filter(box => getComputedStyle(box).display !== 'none');
+          const last = boxes[boxes.length - 1];
+          const railRect = rail.getBoundingClientRect();
+          const mainRect = main.getBoundingClientRect();
+          const lastRect = last.getBoundingClientRect();
+          return {
+            label,
+            coarse: matchMedia('(pointer:coarse)').matches,
+            mainAfterDisplay: getComputedStyle(main, '::after').display,
+            mainAfterHeight: parseFloat(getComputedStyle(main, '::after').height),
+            railAfterDisplay: getComputedStyle(rail, '::after').display,
+            railAfterHeight: parseFloat(getComputedStyle(rail, '::after').height),
+            railBottom: Math.round(railRect.bottom),
+            lastBottom: Math.round(lastRect.bottom),
+            mainBottom: Math.round(mainRect.bottom),
+            mainScrollTop: main.scrollTop,
+            railScrollTop: rail.scrollTop
+          };
+        }, cfg.label);
+
+        expect(layout.coarse, cfg.label).toBe(true);
+        expect(layout.mainAfterDisplay, cfg.label).toBe('block');
+        expect(layout.railAfterDisplay, cfg.label).toBe('block');
+        expect(layout.mainAfterHeight, cfg.label).toBeGreaterThanOrEqual(90);
+        expect(layout.railAfterHeight, cfg.label).toBeGreaterThanOrEqual(180);
+        expect(layout.lastBottom, cfg.label).toBeLessThan(layout.railBottom);
+        expect(layout.railScrollTop, cfg.label).toBeGreaterThan(0);
+      }
+    } finally {
+      await context.close();
+    }
+  });
+
   test('all pages expose their expected toolboxes in the toolbox rail', async ({ page }) => {
     for (const cfg of [
       {

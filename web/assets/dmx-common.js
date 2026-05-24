@@ -547,6 +547,14 @@
       if(collapsedKey)localStorage.setItem(collapsedKey,c?'1':'');
       if(save&&page)saveUiState(page,uiCollapsedKey,c);
       clampBox();
+      if(!c&&inToolboxRail()){
+        requestAnimationFrame(()=>{
+          const rail=box.closest('.toolbox-rail');
+          if(!rail)return;
+          const top=Math.max(0,box.offsetTop-12);
+          rail.scrollTo({top,behavior:'auto'});
+        });
+      }
     }
 
     if(box&&posKey&&!inToolboxRail()){

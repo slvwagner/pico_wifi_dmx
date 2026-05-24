@@ -89,6 +89,37 @@ test.describe('Motion FX established rules', () => {
     expect(result.after.panelHeight).toBeLessThan(result.before.panelHeight * 0.45);
   });
 
+  [
+    { name: 'desktop rail', width: 1180, height: 900 },
+    { name: 'iPad landscape', width: 1024, height: 768 },
+    { name: 'iPad portrait', width: 820, height: 1180 }
+  ].forEach(viewport => {
+    test(`running status text does not move the sticky header toolbar on ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+      const result = await page.evaluate(() => {
+        const toolbar = document.querySelector('header .toolbar');
+        const status = document.getElementById('status');
+        status.textContent = 'Running · 1.0s · 8 ch/s';
+        const before = toolbar.getBoundingClientRect();
+        status.textContent = 'Running · 1234567.0s · 999999 ch/s';
+        const after = toolbar.getBoundingClientRect();
+        return {
+          beforeLeft: before.left,
+          beforeTop: before.top,
+          beforeRight: before.right,
+          afterLeft: after.left,
+          afterTop: after.top,
+          afterRight: after.right
+        };
+      });
+
+      expect(result.afterLeft).toBeCloseTo(result.beforeLeft, 0);
+      expect(result.afterTop).toBeCloseTo(result.beforeTop, 0);
+      expect(result.afterRight).toBeCloseTo(result.beforeRight, 0);
+    });
+  });
+
   test('Effect Target starts at None and does not enable fixtures automatically', async ({ page }) => {
     const initial = await page.evaluate(() => ({
       target: selectedMotionTargetKey,
