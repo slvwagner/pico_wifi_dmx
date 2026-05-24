@@ -669,6 +669,8 @@ GPIO Control does not use the shared toolbox sidebar. Its setup is kept in norma
 
 The GPIO editor loads its mapping setup from the XAMPP server first, using `gpio_setup.php` and `data/gpio_setup.json`. Browser storage is only a fallback if the server file is not available. Adding, removing, or changing a mapping autosaves the setup back to the server, so a PC and iPad should show the same mappings after reload.
 
+Chaser GPIO actions do not define their own playmode. They start, stop, pause, resume, toggle, or tap the selected Pico chaser slot. The playmode belongs to that slot, so the button follows whatever was uploaded from the Chaser page: **Single**, **Loop**, **Loop N**, or **Ping Pong**, plus forward/reverse direction. When a Pico base URL is set, the GPIO page reads the chaser slot status and shows the slot mode, direction, loop state, step count, and live/ready state beside chaser mappings and chaser speed ADC mappings.
+
 Digital GPIO pins can trigger:
 
 - DMX clear

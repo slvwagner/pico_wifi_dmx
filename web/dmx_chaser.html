@@ -174,7 +174,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
           <option value="ping_pong">Ping Pong</option>
         </select>
       </label>
-      <label>Loops
+      <label id="browserLoopCountField">Loops
         <input id="browserLoopCount" type="number" min="1" max="999" value="2" title="Used for Loop N">
       </label>
       <label>Direction
@@ -232,7 +232,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <option value="ping_pong">Ping Pong</option>
       </select>
     </label>
-    <label class="pico-field">
+    <label class="pico-field" id="picoLoopCountField">
       Loops
       <input id="picoLoopCount" class="pico-number" type="number" min="1" max="999" step="1" value="2">
     </label>
@@ -2043,6 +2043,7 @@ function syncPicoPlaybackControlsFromBrowser(){
   if(picoDir)picoDir.value=mode.direction;
   if(picoLoops&&mode.loopCount>0)picoLoops.value=mode.loopCount;
   else if(picoLoops&&mode.mode==='single')picoLoops.value=1;
+  updateChaserLoopCountVisibility();
 }
 function syncBrowserPlaybackControlsFromPico(){
   const mode=document.getElementById('picoChaserMode')?.value||'loop';
@@ -2050,11 +2051,21 @@ function syncBrowserPlaybackControlsFromPico(){
   document.getElementById('browserPlayMode').value=mode;
   document.getElementById('browserLoopCount').value=loops;
   document.getElementById('browserDirection').value=document.getElementById('picoDirection')?.value||'forward';
-  updateBrowserLoopCountState();
+  updateChaserLoopCountVisibility();
 }
-function updateBrowserLoopCountState(){
-  const loopCount=document.getElementById('browserLoopCount');
-  if(loopCount)loopCount.disabled=(document.getElementById('browserPlayMode')?.value||'loop')!=='loop_n';
+function updateLoopCountFieldVisibility(modeId,fieldId,inputId){
+  const isLoopN=(document.getElementById(modeId)?.value||'loop')==='loop_n';
+  const field=document.getElementById(fieldId);
+  const input=document.getElementById(inputId);
+  if(field){
+    field.hidden=!isLoopN;
+    field.style.display=isLoopN?'':'none';
+  }
+  if(input)input.disabled=!isLoopN;
+}
+function updateChaserLoopCountVisibility(){
+  updateLoopCountFieldVisibility('browserPlayMode','browserLoopCountField','browserLoopCount');
+  updateLoopCountFieldVisibility('picoChaserMode','picoLoopCountField','picoLoopCount');
 }
 function browserPlaybackOptions(){
   const mode=browserPlayModeOptions();
@@ -2081,7 +2092,7 @@ function applyBrowserPlaybackOptions(opts={}){
   if(opts.beatsPerStep!==undefined)document.getElementById('beatsPerStep').value=String(clamp(opts.beatsPerStep,0.25,8));
   if(opts.defaultFade!==undefined)document.getElementById('globalFade').value=clamp(opts.defaultFade,0,100);
   if(opts.updateRate!==undefined)document.getElementById('updateRate').value=clamp(opts.updateRate,5,50);
-  updateBrowserLoopCountState();
+  updateChaserLoopCountVisibility();
   syncPicoPlaybackControlsFromBrowser();
 }
 function applyChaserData(data,redraw=true){
@@ -2737,15 +2748,15 @@ document.getElementById('bpmInput').oninput=applyBpmToSteps;
 document.getElementById('beatsPerStep').onchange=applyBpmToSteps;
 ['browserPlayMode','browserLoopCount','browserDirection','updateRate'].forEach(id=>{
   const el=document.getElementById(id);
-  if(el)el.addEventListener('input',()=>{updateBrowserLoopCountState();syncPicoPlaybackControlsFromBrowser();scheduleBrowserPlaybackAutosave();});
-  if(el)el.addEventListener('change',()=>{updateBrowserLoopCountState();syncPicoPlaybackControlsFromBrowser();scheduleBrowserPlaybackAutosave();});
+  if(el)el.addEventListener('input',()=>{updateChaserLoopCountVisibility();syncPicoPlaybackControlsFromBrowser();scheduleBrowserPlaybackAutosave();});
+  if(el)el.addEventListener('change',()=>{updateChaserLoopCountVisibility();syncPicoPlaybackControlsFromBrowser();scheduleBrowserPlaybackAutosave();});
 });
 ['picoChaserMode','picoLoopCount','picoDirection'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('input',()=>{syncBrowserPlaybackControlsFromPico();scheduleBrowserPlaybackAutosave();});
   if(el)el.addEventListener('change',()=>{syncBrowserPlaybackControlsFromPico();scheduleBrowserPlaybackAutosave();});
 });
-updateBrowserLoopCountState();
+updateChaserLoopCountVisibility();
 function applyGlobalFadeToSteps(showStatus=false){
   const f=clamp(document.getElementById('globalFade').value,0,100);
   steps.forEach(s=>s.fade=f);

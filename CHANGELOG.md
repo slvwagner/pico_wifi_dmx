@@ -8,6 +8,8 @@ Changed:
 - Added Chaser play direction and Ping Pong playback for browser Chase Playback and Pico chaser slots.
 - Made Pico playback slot tiles describe loop state, direction, and Ping Pong state explicitly on separate lines.
 - Replaced the old chaser Loop/Ping Pong checkbox combination with one explicit Chase Playback mode selector: Single, Loop, Loop N, and Ping Pong. Pico uploads now derive playmode, loop count, and direction from those browser playback controls.
+- Updated GPIO Control so chaser mappings and chaser speed ADC mappings show the selected Pico slot's playmode, direction, loop state, step count, and live/ready state.
+- Hid chaser loop-count controls unless the selected playmode is Loop N, in both Chase Playback and Pico Playback.
 
 ## 0.9.2 - 2026-05-24
 

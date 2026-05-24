@@ -139,6 +139,58 @@ test.describe('Browser playback established rules', () => {
     expect(state.playbackInfo).toBe('Stopped');
   });
 
+  test('Loop count fields are only visible for Loop N mode', async ({ page }) => {
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    const states = await page.evaluate(() => {
+      function snapshot() {
+        const browserField = document.getElementById('browserLoopCountField');
+        const picoField = document.getElementById('picoLoopCountField');
+        return {
+          browserHidden: browserField.hidden,
+          browserDisplay: getComputedStyle(browserField).display,
+          browserHeight: Math.round(browserField.getBoundingClientRect().height),
+          browserDisabled: document.getElementById('browserLoopCount').disabled,
+          picoHidden: picoField.hidden,
+          picoDisplay: getComputedStyle(picoField).display,
+          picoHeight: Math.round(picoField.getBoundingClientRect().height),
+          picoDisabled: document.getElementById('picoLoopCount').disabled,
+          picoMode: document.getElementById('picoChaserMode').value
+        };
+      }
+      updateChaserLoopCountVisibility();
+      const initial = snapshot();
+
+      document.getElementById('browserPlayMode').value = 'loop_n';
+      syncPicoPlaybackControlsFromBrowser();
+      const loopN = snapshot();
+
+      document.getElementById('browserPlayMode').value = 'ping_pong';
+      syncPicoPlaybackControlsFromBrowser();
+      const pingPong = snapshot();
+
+      document.getElementById('picoChaserMode').value = 'loop_n';
+      syncBrowserPlaybackControlsFromPico();
+      const picoLoopN = snapshot();
+
+      return { initial, loopN, pingPong, picoLoopN };
+    });
+
+    expect(states.initial).toMatchObject({ browserHidden: true, browserDisplay: 'none', browserHeight: 0, browserDisabled: true, picoHidden: true, picoDisplay: 'none', picoHeight: 0, picoDisabled: true });
+    expect(states.loopN.browserDisplay).not.toBe('none');
+    expect(states.loopN.picoDisplay).not.toBe('none');
+    expect(states.loopN.browserHeight).toBeGreaterThan(0);
+    expect(states.loopN.picoHeight).toBeGreaterThan(0);
+    expect(states.loopN).toMatchObject({ browserHidden: false, browserDisabled: false, picoHidden: false, picoDisabled: false, picoMode: 'loop_n' });
+    expect(states.pingPong).toMatchObject({ browserHidden: true, browserDisplay: 'none', browserHeight: 0, browserDisabled: true, picoHidden: true, picoDisplay: 'none', picoHeight: 0, picoDisabled: true, picoMode: 'ping_pong' });
+    expect(states.picoLoopN.browserDisplay).not.toBe('none');
+    expect(states.picoLoopN.picoDisplay).not.toBe('none');
+    expect(states.picoLoopN.browserHeight).toBeGreaterThan(0);
+    expect(states.picoLoopN.picoHeight).toBeGreaterThan(0);
+    expect(states.picoLoopN).toMatchObject({ browserHidden: false, browserDisabled: false, picoHidden: false, picoDisabled: false, picoMode: 'loop_n' });
+  });
+
   test('Pico chaser serialization uses browser playback mode, loop count, and direction', async ({ page }) => {
     await openDmxPage(page, 'dmx_chaser.html');
     await injectChaserCompactSetup(page);

@@ -448,7 +448,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 
 ### Pico chaser
 
-Up to **32 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, loop flag, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+Up to **32 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -481,7 +481,7 @@ STEP …
 END
 ```
 
-`MODE` supports `single`, `loop`, and `loop_n`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
+`MODE` supports `single`, `loop`, `loop_n`, and `ping_pong`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
 
 Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforces the same limit so Chase Playback and Pico playback use the same chase shape.
 
@@ -732,6 +732,7 @@ The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
 - Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`) and disables pins already used by another mapping.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
+- Chaser GPIO actions use the playmode stored in the selected Pico chaser slot. The GPIO page reads `/chaser/slots` and shows the slot's Single/Loop/Loop N/Ping Pong mode, direction, loop state, and step count beside chaser mappings.
 - The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
 - Supported pulls: `pullup`, `pulldown`.
 - Supported triggers: `falling`, `rising`, `both`.
