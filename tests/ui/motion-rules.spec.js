@@ -22,6 +22,7 @@ test.describe('Motion FX established rules', () => {
         body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
       });
     });
+    await page.addInitScript(() => sessionStorage.removeItem('dmxMotionWorkingState'));
     await openDmxPage(page, 'dmx_motion.html');
     await injectMotionCompactSetup(page);
   });
@@ -274,6 +275,7 @@ test.describe('Motion FX navigation rules', () => {
     });
 
     await openDmxPage(page, 'dmx_motion.html');
+    await page.locator('#btnMotionLoad').click();
     await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);
     await expect(page.locator('#motionGroupsEdit')).toBeEnabled();
 
@@ -292,5 +294,73 @@ test.describe('Motion FX navigation rules', () => {
     expect(state.enabledFixtures.sort()).toEqual([101, 102]);
     expect(state.commonControls).toEqual([targetKey]);
     expect(state.groupEditDisabled).toBe(false);
+  });
+
+  test('hard reload resets Effect Target to None even when a saved motion setup exists', async ({ page }) => {
+    const profiles = [{
+      id: 1,
+      name: 'Profile A',
+      mode: 'test',
+      channels: 8,
+      controls: [
+        { id: 12, type: 'panTilt16', label: 'Pan/Tilt', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 }
+      ]
+    }];
+    const fixtures = [
+      { id: 101, name: 'A 1', profileId: 1, start: 1 },
+      { id: 102, name: 'A 2', profileId: 1, start: 21 }
+    ];
+    const targetKey = 'panTilt16:Pan/Tilt:panTilt';
+    const motionState = {
+      baseUrl: '',
+      targetKey,
+      params: { effectType: 'circle', bpm: 60, panAmp: 25, tiltAmp: 25, phaseSpread: 0, updateRate: 20 },
+      effects: [{ id: 'fx_1', name: 'Circle', slot: 0, recipe: { targetKey, params: {}, fixtures: [] } }],
+      fixtures: fixtures.map(f => ({
+        fixtureId: f.id,
+        controlId: 12,
+        kind: 'panTilt',
+        enabled: true,
+        phaseOffset: 0,
+        basePan: 32768,
+        baseTilt: 32768
+      }))
+    };
+
+    await page.route('**/fixture_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, setup: { baseUrl: '', profiles, fixtures, values: {} } })
+      });
+    });
+    await page.route('**/motion_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, motion: motionState, pico_slots: [] })
+      });
+    });
+    await page.route('**/group_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, baseUrl: '', groups: [] })
+      });
+    });
+    await page.route('**/ui_state.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
+      });
+    });
+
+    await openDmxPage(page, 'dmx_motion.html');
+    await page.locator('#btnMotionLoad').click();
+    await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#motionControlFilter')).toHaveValue('');
+    await expect(page.locator('#motionEffectMatrix .slot.filled')).toHaveCount(1);
   });
 });

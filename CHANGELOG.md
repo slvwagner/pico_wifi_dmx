@@ -11,6 +11,7 @@ Fixed:
 - Prevented new scenes, palettes, chases, chaser palettes, and motion effects from inheriting old default visual icons; defaults now keep only the background color.
 - Serialized scene saves so deleting a scene cannot be overwritten by an earlier pending scene save.
 - Clarified Motion FX amplitude controls: scalar targets now show one **Amplitude** slider and force the hidden tilt amplitude to zero for preview and Pico upload.
+- Changed Motion FX startup so hard reload resets **Effect target** to **None**, while normal same-tab navigation restores the current working state from session storage; saved server presets now apply only through **Load**, import, or saved Effect recall.
 
 ## 0.9.1 - 2026-05-24
 
