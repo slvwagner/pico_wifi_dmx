@@ -190,10 +190,34 @@ async function injectMotionCompactSetup(page) {
   }, { profilesData: compactProfiles, fixturesData: compactFixtures });
 }
 
+async function routeMotionCompactServerSetup(page) {
+  await page.route('**/fixture_setup.php**', async route => {
+    if (route.request().method() !== 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          baseUrl: '',
+          profiles: compactProfiles,
+          fixtures: compactFixtures,
+          values: {}
+        }
+      })
+    });
+  });
+}
+
 module.exports = {
   loadPathConfig,
   openDmxPage,
   routeControllerCompactServerSetup,
+  routeMotionCompactServerSetup,
   injectControllerCompactSetup,
   injectChaserCompactSetup,
   injectMotionCompactSetup

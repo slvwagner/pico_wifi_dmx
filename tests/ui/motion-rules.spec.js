@@ -1,8 +1,9 @@
 const { test, expect } = require('@playwright/test');
-const { openDmxPage, injectMotionCompactSetup } = require('./helpers/dmx-page');
+const { openDmxPage, routeMotionCompactServerSetup, injectMotionCompactSetup } = require('./helpers/dmx-page');
 
 test.describe('Motion FX established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await routeMotionCompactServerSetup(page);
     await page.route('**/group_setup.php**', async route => {
       if (route.request().method() !== 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
@@ -123,7 +124,9 @@ test.describe('Motion FX established rules', () => {
       setMotionTarget(motionControlKey(pan.control));
       const panTiltState = {
         panLabel: document.getElementById('panAmpLabel').childNodes[0].nodeValue.trim(),
-        tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display
+        tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display,
+        tiltValue: document.getElementById('tiltAmp').value,
+        serializedAmp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
       };
       return { scalarState, panTiltState };
     });
@@ -135,6 +138,8 @@ test.describe('Motion FX established rules', () => {
     expect(result.scalarState.serializedAmp2).toBe('AMP2 0.000000');
     expect(result.panTiltState.panLabel).toBe('Pan amp');
     expect(result.panTiltState.tiltDisplay).not.toBe('none');
+    expect(result.panTiltState.tiltValue).toBe('37');
+    expect(result.panTiltState.serializedAmp2).toBe('AMP2 0.370000');
   });
 
   test('All enables every fixture for the current effect target and clears group filtering', async ({ page }) => {

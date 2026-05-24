@@ -375,18 +375,28 @@ function populateEffectTypeFilter(preferred){
   updateEffectParameterUi();
   drawPathPreview();
 }
+let lastEffectParameterFamily='';
+let lastPanTiltTiltAmp=15;
 function updateEffectParameterUi(){
   const family=effectTargetFamily();
   const panLabel=document.getElementById('panAmpLabel');
   const tiltLabel=document.getElementById('tiltAmpLabel');
   const tilt=document.getElementById('tiltAmp');
   const tiltVal=document.getElementById('tiltAmpVal');
+  if(family==='scalar'&&lastEffectParameterFamily!=='scalar'&&tilt){
+    const currentTilt=clamp(tilt.value,0,100);
+    if(lastEffectParameterFamily==='panTilt'||currentTilt>0)lastPanTiltTiltAmp=currentTilt;
+  }
   if(panLabel)panLabel.childNodes[0].nodeValue=family==='scalar'?'Amplitude':'Pan amp';
   if(tiltLabel)tiltLabel.style.display=family==='scalar'?'none':'grid';
   if(family==='scalar'&&tilt){
     tilt.value=0;
     if(tiltVal)tiltVal.textContent='0';
+  }else if(family==='panTilt'&&lastEffectParameterFamily==='scalar'&&tilt){
+    tilt.value=lastPanTiltTiltAmp;
+    if(tiltVal)tiltVal.textContent=String(lastPanTiltTiltAmp);
   }
+  lastEffectParameterFamily=family;
 }
 function scopedMotionFixtures(){
   const ids=motionTargetFixtureIds();
@@ -1121,7 +1131,11 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
 ['panAmp','tiltAmp','phaseSpread'].forEach(id=>{
   const el=document.getElementById(id);
   const valEl=document.getElementById(id+'Val');
-  el.oninput=()=>{valEl.textContent=el.value;drawPathPreview();};
+  el.oninput=()=>{
+    valEl.textContent=el.value;
+    if(id==='tiltAmp'&&effectTargetFamily()==='panTilt')lastPanTiltTiltAmp=clamp(el.value,0,100);
+    drawPathPreview();
+  };
 });
 window.addEventListener('resize',drawPathPreview);
 
