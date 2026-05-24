@@ -31,18 +31,20 @@ test.describe('Toolbox visual tile rules', () => {
         visualPointerEvents: visualStyle.pointerEvents,
         labelPosition: labelStyle.position,
         labelAlignSelf: labelStyle.alignSelf,
+        labelBackground: labelStyle.backgroundColor,
         labelZIndex: labelStyle.zIndex
       };
     });
 
     expect(state.visualPosition).toBe('absolute');
-    expect(state.visualInset).toEqual(['4px', '4px', '16px', '4px']);
+    expect(state.visualInset).toEqual(['0px', '0px', '0px', '0px']);
     expect(state.visualBorder).toBe('0px');
     expect(state.visualBackgroundSize).toBe('contain');
     expect(state.visualBackgroundPosition).toBe('50% 0%');
     expect(state.visualPointerEvents).toBe('none');
     expect(state.labelPosition).toBe('relative');
     expect(state.labelAlignSelf).toBe('end');
+    expect(state.labelBackground).toBe('rgb(50, 90, 54)');
     expect(state.labelZIndex).toBe('1');
   });
 
