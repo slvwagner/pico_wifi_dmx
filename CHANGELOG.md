@@ -15,6 +15,7 @@ Fixed:
 - Made Motion FX amplitude controls effect-aware for one-axis effects: **Pan Swing** uses only **Pan amp**, **Tilt Swing** uses only **Tilt amp**, and unused axes are hidden and uploaded as zero.
 - Fixed compact collapse layout for Chaser and Motion main cards so the sticky page header keeps a stable height and following cards move up instead of leaving empty space.
 - Fixed the toolbox sidebar width divider so it stays visible and draggable while the toolbox area is scrolled.
+- Fixed Controller iPad toolbox resizing so restored wide sidebar states cannot squeeze fixture cards, Pan/Tilt XY pads, or byte sliders into a broken horizontal-overflow layout.
 
 ## 0.9.1 - 2026-05-24
 

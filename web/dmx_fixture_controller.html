@@ -16,7 +16,12 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:220px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
+.control{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.fixture-card,.fixture-card>div,.fixture-card .fixture-head,.fixture-card .control,.fixture-card .control-head,.fixture-card .row,.fixture-card .byte-sliders,.fixture-card label{min-width:0;max-width:100%}
+.fixture-card>div,.fixture-card .fixture-head,.fixture-card .control,.fixture-card .control-head,.fixture-card .row,.fixture-card .byte-sliders,.fixture-card label,.fixture-card .xy-pad{width:100%!important}
+.fixture-card input[type=range]{min-width:0;width:100%;max-width:100%}
+.fixture-card .xy-pad{width:100%;max-width:100%;height:var(--xy-pad-height,auto);min-height:160px}
+.fixture-card .readout{min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .fixture-head{display:grid;gap:6px;align-items:start;height:58px;overflow:hidden}
 .fixture-title{display:flex;gap:8px;align-items:baseline;min-width:0;flex-wrap:nowrap;height:24px;overflow:hidden}
@@ -38,7 +43,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #savedGroupsList .item{cursor:pointer}
 #savedGroupsList .item:hover{border-color:var(--accent)}
 .readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}.bytes{color:var(--muted);font-size:13px}
-.byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.byte-sliders{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
@@ -364,6 +369,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
+fixtureToolboxRail.dataset.minMainWidth='460';
 DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'fanToolbox',type:'fan'}]);
 const maxDmx=512;
 let profiles=[];
@@ -1161,9 +1167,29 @@ function drawSurface(){
     card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
+  resizeFixtureXyPads();
   updateGroupBar();
   updateGroupActionButtons();
   renderFanToolbox();
+}
+
+function resizeFixtureXyPads(){
+  document.querySelectorAll('.fixture-card .xy-pad').forEach(pad=>{
+    const parentW=pad.parentElement?.clientWidth||0;
+    const ownW=pad.getBoundingClientRect().width||pad.clientWidth||0;
+    const w=parentW?Math.min(parentW,ownW||parentW):ownW;
+    if(w>0)pad.style.setProperty('--xy-pad-height',Math.round(w/1.55)+'px');
+  });
+}
+
+let xyPadResizeQueued=false;
+function queueFixtureXyPadResize(){
+  if(xyPadResizeQueued)return;
+  xyPadResizeQueued=true;
+  requestAnimationFrame(()=>{
+    xyPadResizeQueued=false;
+    resizeFixtureXyPads();
+  });
 }
 
 function updateControlDisplay(f,c){
@@ -2407,6 +2433,14 @@ loadSetup().then(ok=>{
   });
 }).catch(()=>addDefaultProfile());
 loadSavedGroups();
+window.addEventListener('resize',queueFixtureXyPadResize);
+window.addEventListener('toolboxrailresize',queueFixtureXyPadResize);
+if(window.ResizeObserver){
+  const surfaceResizeObserver=new ResizeObserver(queueFixtureXyPadResize);
+  surfaceResizeObserver.observe(surfaceEl);
+  const mainEl=document.querySelector('main');
+  if(mainEl)surfaceResizeObserver.observe(mainEl);
+}
 window.addEventListener('storage',e=>{
   if(e.key!=='selectedGroupIds')return;
   try{

@@ -125,26 +125,44 @@ test.describe('iPad layout rules', () => {
     expect(layout.lineWidth).toBeGreaterThanOrEqual(6);
   });
 
-  test('Controller fixture tiles stay inside the control surface after resizing the toolbox rail wide', async ({ page }) => {
+  test('Controller fixture tiles keep a usable layout after resizing the toolbox rail wide', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await openDmxPage(page, '');
 
-    const layout = await page.evaluate(() => {
-      document.documentElement.style.setProperty('--toolbox-rail-width', '640px');
-      window.dispatchEvent(new Event('resize'));
+    const layout = await page.evaluate(async () => {
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const resizer = document.querySelector('.toolbox-rail-resizer');
+      const rect = resizer.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      resizer.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 10, pointerType: 'touch', clientX: x, clientY: y }));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 10, pointerType: 'touch', clientX: 20, clientY: y }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 10, pointerType: 'touch', clientX: 20, clientY: y }));
+      await new Promise(resolve => setTimeout(resolve, 220));
       const surface = document.getElementById('surface');
       const columns = document.querySelector('.columns');
+      const rail = document.querySelector('.toolbox-rail');
       const cards = Array.from(document.querySelectorAll('[data-fixture-card]')).slice(0, 4).map(card => {
         const r = card.getBoundingClientRect();
+        const actions = card.querySelector('.fixture-actions');
+        const readout = card.querySelector('.readout');
+        const xyPad = card.querySelector('.xy-pad');
+        const xyRect = xyPad?.getBoundingClientRect();
         return {
           width: Math.round(r.width),
           left: Math.round(r.left),
           right: Math.round(r.right),
-          overflow: card.scrollWidth - card.clientWidth
+          overflow: card.scrollWidth - card.clientWidth,
+          actionOverflow: actions ? actions.scrollWidth - actions.clientWidth : 0,
+          readoutLines: readout ? Math.round(readout.getBoundingClientRect().height / parseFloat(getComputedStyle(readout).lineHeight || '1')) : 0,
+          xyWidth: xyRect ? Math.round(xyRect.width) : 0,
+          xyHeight: xyRect ? Math.round(xyRect.height) : 0
         };
       });
       const surfaceRect = surface.getBoundingClientRect();
       return {
+        railWidth: Math.round(rail.getBoundingClientRect().width),
+        mainWidth: Math.round(document.querySelector('main').getBoundingClientRect().width),
         surfaceWidth: Math.round(surfaceRect.width),
         surfaceOverflow: surface.scrollWidth - surface.clientWidth,
         columnsOverflow: columns.scrollWidth - columns.clientWidth,
@@ -152,12 +170,22 @@ test.describe('iPad layout rules', () => {
       };
     });
 
-    expect(layout.surfaceWidth).toBeLessThan(360);
+    expect(layout.railWidth).toBeLessThanOrEqual(564);
+    expect(layout.mainWidth).toBeGreaterThanOrEqual(460);
+    expect(layout.surfaceWidth).toBeGreaterThanOrEqual(360);
     expect(layout.surfaceOverflow).toBeLessThanOrEqual(1);
     expect(layout.columnsOverflow).toBeLessThanOrEqual(1);
     for (const card of layout.cards) {
       expect(card.width).toBeLessThanOrEqual(layout.surfaceWidth + 1);
       expect(card.overflow).toBeLessThanOrEqual(1);
+      expect(card.actionOverflow).toBeLessThanOrEqual(1);
+      expect(card.readoutLines).toBeLessThanOrEqual(1);
+      if (card.xyWidth) {
+        expect(card.xyWidth).toBeLessThanOrEqual(card.width - 30);
+        expect(card.xyHeight).toBeGreaterThan(150);
+        expect(card.xyHeight).toBeLessThan(260);
+        expect(card.xyWidth / card.xyHeight).toBeCloseTo(1.55, 1);
+      }
     }
   });
 

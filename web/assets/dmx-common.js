@@ -178,9 +178,15 @@
     return selected;
   }
 
+  function toolboxRailMinMainWidth(){
+    const rail=document.querySelector('.toolbox-rail');
+    const configured=parseInt(rail?.dataset?.minMainWidth||'',10);
+    return configured>0?configured:360;
+  }
+
   function clampToolboxRailWidth(value){
     const min=300;
-    const max=Math.max(min,Math.min(760,window.innerWidth-360));
+    const max=Math.max(min,Math.min(760,window.innerWidth-toolboxRailMinMainWidth()));
     return Math.max(min,Math.min(max,parseInt(value,10)||0));
   }
 
@@ -188,6 +194,7 @@
     if(window.matchMedia&&window.matchMedia('(max-width:900px)').matches)return;
     const width=clampToolboxRailWidth(value);
     document.documentElement.style.setProperty('--toolbox-rail-width',width+'px');
+    window.dispatchEvent(new CustomEvent('toolboxrailresize',{detail:{width}}));
     if(save){
       localStorage.setItem(TOOLBOX_WIDTH_KEY,String(width));
       saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,width);
