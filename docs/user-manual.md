@@ -653,6 +653,8 @@ GPIO Control maps physical Pico inputs to lighting actions.
 
 GPIO Control does not use the shared toolbox sidebar. Its setup is kept in normal page panels because GPIO mapping is configuration work, not a live fixture/scene/palette workflow.
 
+The GPIO editor loads its mapping setup from the XAMPP server first, using `gpio_setup.php` and `data/gpio_setup.json`. Browser storage is only a fallback if the server file is not available. Adding, removing, or changing a mapping autosaves the setup back to the server, so a PC and iPad should show the same mappings after reload.
+
 Digital GPIO pins can trigger:
 
 - DMX clear
@@ -681,6 +683,8 @@ Only GPIO26, GPIO27, and GPIO28 support ADC input on the Pico 2 W.
 7. Upload the config to the Pico.
 
 The page disables reserved pins and pins already used by other mappings.
+
+Editing the mapping saves the setup on the XAMPP server, but the Pico only receives it after **Push to Pico**. Use **Read from Pico** when the Pico already has the mapping you want to bring back into the editor.
 
 ### Add an ADC Mapping
 

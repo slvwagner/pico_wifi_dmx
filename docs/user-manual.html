@@ -612,6 +612,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/gpio-control.png" alt="GPIO Control"></p>
 <p>GPIO Control maps physical Pico inputs to lighting actions.</p>
 <p>GPIO Control does not use the shared toolbox sidebar. Its setup is kept in normal page panels because GPIO mapping is configuration work, not a live fixture/scene/palette workflow.</p>
+<p>The GPIO editor loads its mapping setup from the XAMPP server first, using <code>gpio_setup.php</code> and <code>data/gpio_setup.json</code>. Browser storage is only a fallback if the server file is not available. Adding, removing, or changing a mapping autosaves the setup back to the server, so a PC and iPad should show the same mappings after reload.</p>
 <p>Digital GPIO pins can trigger:</p>
 <ul>
 <li>DMX clear</li>
@@ -639,6 +640,7 @@ strong { color: #ffffff; }
 <li>Upload the config to the Pico.</li>
 </ol>
 <p>The page disables reserved pins and pins already used by other mappings.</p>
+<p>Editing the mapping saves the setup on the XAMPP server, but the Pico only receives it after <strong>Push to Pico</strong>. Use <strong>Read from Pico</strong> when the Pico already has the mapping you want to bring back into the editor.</p>
 <h3 id="add-an-adc-mapping">Add an ADC Mapping</h3>
 <ol>
 <li>Add an ADC mapping.</li>

@@ -481,7 +481,7 @@ When browser motion starts, the page fetches `/dmx/values.json` from the Pico an
 
 The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
 
-- The page stores mappings locally in the browser and pushes the active mapping set to the Pico with `POST /gpio/config`.
+- The page loads and autosaves mappings on the XAMPP server through `gpio_setup.php` / `data/gpio_setup.json`, with browser `localStorage` only as a fallback. The active mapping set is pushed to the Pico with `POST /gpio/config`.
 - **Export JSON / Import JSON** saves or restores the GPIO editor setup, including Pico base URL, enabled state, and all mappings.
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
 - Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`) and disables pins already used by another mapping.
@@ -521,7 +521,7 @@ Firmware endpoints:
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
 | `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
 
-This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page or export a JSON backup and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
+This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or export a JSON backup and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
 
 ### Server-side Persistence
 
@@ -536,6 +536,7 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `group_setup.php` | `data/group_setup.json` | Fixture group definitions |
 | `chaser_setup.php` | `data/chaser_setup.json` | Saved chases, Chaser toolbox grid config, mirrored Pico slot payloads |
 | `motion_setup.php` | `data/motion_setup.json` | Motion FX browser setup, saved effect recipes, and saved Pico slot payloads |
+| `gpio_setup.php` | `data/gpio_setup.json` | GPIO/ADC editor mappings, enabled state, Pico base URL |
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, and toolbox collapse state |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
