@@ -27,6 +27,68 @@ test.describe('Motion FX established rules', () => {
     await injectMotionCompactSetup(page);
   });
 
+  test('Participating Controls card stays compact when collapsed', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const panel = document.getElementById('fxPanel');
+      const btn = document.querySelector('[data-panel-toggle="fxPanel"]');
+      if (panel.classList.contains('collapsed-panel')) btn.click();
+      const expandedHeight = panel.getBoundingClientRect().height;
+      btn.click();
+      const collapsedHeight = panel.getBoundingClientRect().height;
+      return {
+        expandedHeight,
+        collapsedHeight,
+        bodyHidden: getComputedStyle(panel.querySelector('.panel-body')).display === 'none'
+      };
+    });
+
+    expect(result.bodyHidden).toBe(true);
+    expect(result.collapsedHeight).toBeLessThan(result.expandedHeight * 0.45);
+    expect(result.collapsedHeight).toBeLessThanOrEqual(50);
+  });
+
+  test('collapsing Participating Controls keeps the sticky header height stable', async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 900 });
+    await routeMotionCompactServerSetup(page);
+    await page.route('**/group_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, baseUrl: '', groups: [] })
+      });
+    });
+    await page.route('**/ui_state.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
+      });
+    });
+    await page.addInitScript(() => sessionStorage.removeItem('dmxMotionWorkingState'));
+    await openDmxPage(page, 'dmx_motion.html');
+    await injectMotionCompactSetup(page);
+
+    const result = await page.evaluate(() => {
+      const header = document.querySelector('header');
+      const panel = document.getElementById('fxPanel');
+      const btn = document.querySelector('[data-panel-toggle="fxPanel"]');
+      if (panel.classList.contains('collapsed-panel')) btn.click();
+      const before = {
+        headerHeight: header.getBoundingClientRect().height,
+        panelHeight: panel.getBoundingClientRect().height
+      };
+      btn.click();
+      const after = {
+        headerHeight: header.getBoundingClientRect().height,
+        panelHeight: panel.getBoundingClientRect().height
+      };
+      return { before, after };
+    });
+
+    expect(result.after.headerHeight).toBeCloseTo(result.before.headerHeight, 0);
+    expect(result.after.panelHeight).toBeLessThan(result.before.panelHeight * 0.45);
+  });
+
   test('Effect Target starts at None and does not enable fixtures automatically', async ({ page }) => {
     const initial = await page.evaluate(() => ({
       target: selectedMotionTargetKey,
