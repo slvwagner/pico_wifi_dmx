@@ -2,6 +2,44 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('iPad layout rules', () => {
+  for (const [label, path] of [
+    ['Controller', ''],
+    ['Chaser', 'dmx_chaser.html'],
+    ['Motion', 'dmx_motion.html']
+  ]) {
+    test(`${label} iPad landscape shares the same draggable toolbox divider`, async ({ page }) => {
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await openDmxPage(page, path);
+
+      const result = await page.evaluate(async () => {
+        const rail = document.querySelector('.toolbox-rail');
+        const resizer = document.querySelector('.toolbox-rail-resizer');
+        localStorage.removeItem('toolboxRailWidth');
+        document.documentElement.style.removeProperty('--toolbox-rail-width');
+        const before = Math.round(rail.getBoundingClientRect().width);
+        const rect = resizer.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        resizer.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 9, pointerType: 'touch', clientX: x, clientY: y }));
+        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 9, pointerType: 'touch', clientX: x - 80, clientY: y }));
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 9, pointerType: 'touch', clientX: x - 80, clientY: y }));
+        await new Promise(resolve => setTimeout(resolve, 20));
+        return {
+          before,
+          after: Math.round(rail.getBoundingClientRect().width),
+          hitWidth: parseFloat(getComputedStyle(resizer).width),
+          visibleWidth: parseFloat(getComputedStyle(resizer, '::after').width),
+          saved: parseInt(localStorage.getItem('toolboxRailWidth') || '0', 10)
+        };
+      });
+
+      expect(result.hitWidth).toBeGreaterThanOrEqual(32);
+      expect(result.visibleWidth).toBeGreaterThanOrEqual(6);
+      expect(result.after).toBeGreaterThan(result.before + 40);
+      expect(result.saved).toBe(result.after);
+    });
+  }
+
   test('iPad landscape keeps the toolbox rail as a right-side workspace', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await openDmxPage(page, '');
@@ -33,8 +71,44 @@ test.describe('iPad layout rules', () => {
     expect(layout.railWidth).toBeGreaterThanOrEqual(360);
     expect(layout.mainWidth).toBeLessThan(1024);
     expect(layout.resizerDisplay).not.toBe('none');
-    expect(layout.resizerWidth).toBeGreaterThanOrEqual(20);
+    expect(layout.resizerWidth).toBeGreaterThanOrEqual(32);
     expect(layout.groupsBodyOverflow).toBeLessThanOrEqual(1);
+  });
+
+  test('Controller fixture tiles stay inside the control surface after resizing the toolbox rail wide', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await openDmxPage(page, '');
+
+    const layout = await page.evaluate(() => {
+      document.documentElement.style.setProperty('--toolbox-rail-width', '640px');
+      window.dispatchEvent(new Event('resize'));
+      const surface = document.getElementById('surface');
+      const columns = document.querySelector('.columns');
+      const cards = Array.from(document.querySelectorAll('[data-fixture-card]')).slice(0, 4).map(card => {
+        const r = card.getBoundingClientRect();
+        return {
+          width: Math.round(r.width),
+          left: Math.round(r.left),
+          right: Math.round(r.right),
+          overflow: card.scrollWidth - card.clientWidth
+        };
+      });
+      const surfaceRect = surface.getBoundingClientRect();
+      return {
+        surfaceWidth: Math.round(surfaceRect.width),
+        surfaceOverflow: surface.scrollWidth - surface.clientWidth,
+        columnsOverflow: columns.scrollWidth - columns.clientWidth,
+        cards
+      };
+    });
+
+    expect(layout.surfaceWidth).toBeLessThan(360);
+    expect(layout.surfaceOverflow).toBeLessThanOrEqual(1);
+    expect(layout.columnsOverflow).toBeLessThanOrEqual(1);
+    for (const card of layout.cards) {
+      expect(card.width).toBeLessThanOrEqual(layout.surfaceWidth + 1);
+      expect(card.overflow).toBeLessThanOrEqual(1);
+    }
   });
 
   test('iPad portrait uses the bottom toolbox rail and keeps touch targets finger-sized', async ({ page }) => {

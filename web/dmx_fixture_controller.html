@@ -10,7 +10,7 @@
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
 .panel,.card{align-content:start}
-.columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:14px}
 #controlSurfacePanel{display:flex;flex-direction:column;gap:8px}
 #surface{scrollbar-gutter:stable}
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:220px}textarea{min-height:70px;min-width:260px}
@@ -20,6 +20,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .fixture-head{display:grid;gap:6px;align-items:start;height:58px;overflow:hidden}
 .fixture-title{display:flex;gap:8px;align-items:baseline;min-width:0;flex-wrap:nowrap;height:24px;overflow:hidden}
+.fixture-title h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
 #savedGroupsList{display:grid;gap:8px;align-content:start}

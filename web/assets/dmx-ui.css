@@ -105,6 +105,11 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox.collapsed .scene-toolbox__body{display:none}
 .scene-toolbox__body{padding:12px;display:grid;gap:10px}
 .scene-toolbox__toggle{padding:3px 10px;font-size:15px;line-height:1;min-width:28px}
+.scene-toolbox__resize{display:none;position:absolute;left:0;right:0;bottom:-8px;height:18px;cursor:ns-resize;touch-action:none;z-index:3}
+.scene-toolbox__resize::after{content:"";position:absolute;left:50%;bottom:5px;width:48px;height:4px;border-radius:999px;background:rgba(156,175,191,.5);transform:translateX(-50%)}
+.scene-toolbox.resizable:not(.collapsed) .scene-toolbox__resize{display:block}
+.scene-toolbox.resizing{user-select:none}
+.scene-toolbox.resizing .scene-toolbox__resize::after{background:var(--accent)}
 .toolbox-header-actions{display:flex;gap:6px;align-items:center}
 .toolbox-collapse-group{padding:3px 8px;font-size:15px;line-height:1;min-width:56px}
 .toolbox-rail-layout{height:100vh;overflow:hidden}
@@ -113,8 +118,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .toolbox-rail{position:fixed;top:0;right:0;width:var(--toolbox-rail-width,max(380px,33vw));height:100vh;z-index:180;display:flex;flex-direction:column;gap:12px;padding:20px 16px 20px 12px;box-sizing:border-box;overflow:auto;background:linear-gradient(180deg,rgba(10,13,16,.98),rgba(13,18,22,.96));border-left:1px solid var(--line);box-shadow:-12px 0 30px rgba(0,0,0,.38);overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;direction:ltr;scrollbar-gutter:stable}
 .toolbox-rail-header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px;padding:0 4px 2px;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
 .toolbox-rail-toggle{min-width:28px;height:28px;min-height:28px;padding:2px 8px;line-height:1;font-size:18px}
-.toolbox-rail-resizer{position:absolute;top:0;bottom:0;left:-10px;width:20px;cursor:ew-resize;z-index:2;touch-action:none}
-.toolbox-rail-resizer::after{content:"";position:absolute;top:0;bottom:0;left:8px;width:4px;background:rgba(139,154,166,.45)}
+.toolbox-rail-resizer{position:absolute;top:0;bottom:0;left:-16px;width:32px;cursor:ew-resize;z-index:2;touch-action:none}
+.toolbox-rail-resizer::after{content:"";position:absolute;top:0;bottom:0;left:13px;width:6px;background:rgba(139,154,166,.5)}
 .toolbox-rail-resizer:hover::after,.toolbox-rail-resizing .toolbox-rail-resizer::after{background:var(--accent)}
 .toolbox-rail-resizing{cursor:ew-resize;user-select:none}
 .toolbox-rail::before{display:none}
@@ -138,7 +143,7 @@ body.toolbox-rail-collapsed .toolbox-rail-resizer,body.toolbox-rail-collapsed .t
 .toolbox-rail .groups-edit-btn{grid-column:1/-1;grid-row:auto;min-height:44px;align-self:start}
 .toolbox-rail .scene-slot-matrix,.toolbox-rail .groups-matrix{overflow-x:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .toolbox-rail .slot{width:auto;min-width:54px}
-.toolbox-rail #stepsBox{height:min(520px,45vh);max-height:none;resize:vertical;overflow:hidden}
+.toolbox-rail #stepsBox{height:min(520px,45vh);max-height:none;resize:none;overflow:hidden}
 .toolbox-rail #stepsBox.collapsed{height:auto!important;resize:none}
 .toolbox-rail #browserPlaybackBox .scene-toolbox__body{max-height:none}
 .scene-slot-matrix{display:grid;gap:5px;overflow-x:auto}

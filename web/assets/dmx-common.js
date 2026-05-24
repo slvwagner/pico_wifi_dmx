@@ -185,7 +185,7 @@
   }
 
   function setToolboxRailWidth(value,{save=false}={}){
-    if(window.matchMedia&&window.matchMedia('(max-width:1100px)').matches)return;
+    if(window.matchMedia&&window.matchMedia('(max-width:900px)').matches)return;
     const width=clampToolboxRailWidth(value);
     document.documentElement.style.setProperty('--toolbox-rail-width',width+'px');
     if(save){
@@ -257,7 +257,7 @@
       if(!active)return;
       active=false;
       document.body.classList.remove('toolbox-rail-resizing');
-      handle.releasePointerCapture?.(e.pointerId);
+      try{handle.releasePointerCapture?.(e.pointerId);}catch(_){}
       setToolboxRailWidth(window.innerWidth-e.clientX,{save:true});
       window.removeEventListener('pointermove',onMove);
       window.removeEventListener('pointerup',onUp);
@@ -267,7 +267,7 @@
       if(window.matchMedia&&window.matchMedia('(max-width:900px)').matches)return;
       active=true;
       document.body.classList.add('toolbox-rail-resizing');
-      handle.setPointerCapture?.(e.pointerId);
+      try{handle.setPointerCapture?.(e.pointerId);}catch(_){}
       e.preventDefault();
       window.addEventListener('pointermove',onMove);
       window.addEventListener('pointerup',onUp);
@@ -398,6 +398,7 @@
     let dragOffset={x:0,y:0};
     let sizeSaveTimer=0;
     let observedOnce=false;
+    let resizeDrag=null;
     function inToolboxRail(){
       return !!box?.closest('.toolbox-rail');
     }
@@ -462,6 +463,51 @@
       },250);
     }
 
+    function saveSizeNow(){
+      if(!resizable||!box||box.classList.contains('collapsed'))return;
+      const size=currentSize();
+      if(!size)return;
+      if(sizeKey)localStorage.setItem(sizeKey,JSON.stringify(size));
+      if(page)saveUiState(page,uiSizeKey,size);
+    }
+
+    function ensureResizeHandle(){
+      if(!resizable||!box||box.querySelector('.scene-toolbox__resize'))return;
+      box.classList.add('resizable');
+      const handle=document.createElement('div');
+      handle.className='scene-toolbox__resize';
+      handle.title='Drag to resize toolbox height';
+      box.appendChild(handle);
+      const onMove=e=>{
+        if(!resizeDrag)return;
+        const dy=e.clientY-resizeDrag.y;
+        const maxHeight=Math.max(minHeight,Math.round(window.innerHeight-20));
+        const next=Math.max(minHeight,Math.min(maxHeight,resizeDrag.h+dy));
+        box.style.height=next+'px';
+        e.preventDefault();
+      };
+      const onUp=e=>{
+        if(!resizeDrag)return;
+        resizeDrag=null;
+        box.classList.remove('resizing');
+        try{handle.releasePointerCapture?.(e.pointerId);}catch(_){}
+        saveSizeNow();
+        window.removeEventListener('pointermove',onMove);
+        window.removeEventListener('pointerup',onUp);
+        window.removeEventListener('pointercancel',onUp);
+      };
+      handle.addEventListener('pointerdown',e=>{
+        if(box.classList.contains('collapsed'))return;
+        resizeDrag={y:e.clientY,h:box.offsetHeight||minHeight};
+        box.classList.add('resizing');
+        try{handle.setPointerCapture?.(e.pointerId);}catch(_){}
+        e.preventDefault();
+        window.addEventListener('pointermove',onMove);
+        window.addEventListener('pointerup',onUp);
+        window.addEventListener('pointercancel',onUp);
+      });
+    }
+
     function setCollapsed(collapsed,save){
       if(!box)return;
       const c=!!collapsed;
@@ -480,7 +526,7 @@
           box.style.resize='none';
         }else if(!c){
           box.classList.remove('collapsed');
-          box.style.resize=inToolboxRail()?'vertical':'both';
+          box.style.resize=inToolboxRail()?'none':'both';
           let size=null;
           if(sizeKey){
             try{size=JSON.parse(localStorage.getItem(sizeKey)||'null');}catch(_){}
@@ -502,6 +548,7 @@
     if(box&&sizeKey){
       try{applySize(JSON.parse(localStorage.getItem(sizeKey)||'null'));}catch(_){}
     }
+    ensureResizeHandle();
     if(collapsedKey&&localStorage.getItem(collapsedKey)==='1')setCollapsed(true,false);
 
     if(box&&header){
