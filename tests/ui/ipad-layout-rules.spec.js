@@ -92,6 +92,39 @@ test.describe('iPad layout rules', () => {
     expect(layout.groupsBodyOverflow).toBeLessThanOrEqual(1);
   });
 
+  test('toolbox divider stays visible while the toolbox rail is scrolled', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await openDmxPage(page, 'dmx_chaser.html');
+
+    const layout = await page.evaluate(async () => {
+      const rail = document.querySelector('.toolbox-rail');
+      const resizer = document.querySelector('.toolbox-rail-resizer');
+      const stepsBox = document.getElementById('stepsBox');
+      if (stepsBox) stepsBox.style.height = '900px';
+      rail.scrollTop = 600;
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const railRect = rail.getBoundingClientRect();
+      const resizerRect = resizer.getBoundingClientRect();
+      const lineWidth = parseFloat(getComputedStyle(resizer, '::after').width);
+      return {
+        railScrollTop: rail.scrollTop,
+        railLeft: Math.round(railRect.left),
+        resizerTop: Math.round(resizerRect.top),
+        resizerBottom: Math.round(resizerRect.bottom),
+        resizerLeft: Math.round(resizerRect.left),
+        resizerRight: Math.round(resizerRect.right),
+        lineWidth
+      };
+    });
+
+    expect(layout.railScrollTop).toBeGreaterThan(100);
+    expect(layout.resizerTop).toBe(0);
+    expect(layout.resizerBottom).toBe(768);
+    expect(layout.resizerLeft).toBeLessThan(layout.railLeft);
+    expect(layout.resizerRight).toBeGreaterThan(layout.railLeft);
+    expect(layout.lineWidth).toBeGreaterThanOrEqual(6);
+  });
+
   test('Controller fixture tiles stay inside the control surface after resizing the toolbox rail wide', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await openDmxPage(page, '');
