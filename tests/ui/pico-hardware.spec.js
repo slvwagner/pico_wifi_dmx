@@ -68,7 +68,6 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
       'SPEED 1.00',
       'STEP 200 0',
       'CH 1 64',
-      'END',
       'STEP 200 0',
       'CH 1 0',
       'END'
@@ -109,4 +108,3 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await waitForSlot(request, 'motion', slot, s => !s.active);
   });
 });
-
