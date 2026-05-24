@@ -388,7 +388,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/chaser-edit-tile.png" alt="Chaser Edit Tile modal"></p>
 <p><img src="screenshots/chaser-toolbox-palettes.png" alt="Chaser Palettes toolbox"></p>
 <ul>
-<li><strong>Chase Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.</li>
+<li><strong>Chase Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. In the Toolboxes sidebar, drag the lower edge of the Chase Steps box to set its height. The top buttons remain visible while the step list scrolls inside the box.</li>
 <li><strong>Chases</strong>, <strong>Chase Steps</strong>, and <strong>Chase Playback</strong> share one toolbox color and collapse together. Use <strong>-- all</strong> on any of those boxes to collapse the whole color group, and <strong>+ all</strong> to reopen it.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-steps.png" alt="Chaser Chase Steps toolbox"></p>
@@ -408,7 +408,7 @@ strong { color: #ffffff; }
 </ul>
 <p><img src="screenshots/chaser-toolbox-browser-playback.png" alt="Chaser Chase Playback toolbox"></p>
 <p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
-<p>The collapse state, toolbox order, shared sidebar width, and the Chase Steps box size are stored by the server UI-state file, so the working layout survives reloads.</p>
+<p>The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads.</p>
 <h3 id="chase-steps-toolbox-buttons">Chase Steps Toolbox Buttons</h3>
 <p>The <strong>Chase Steps</strong> toolbox uses shared action buttons instead of per-step buttons. Click a step card to select the step first; the selected step is highlighted and loaded into <strong>Edit Step</strong>.</p>
 <ul>

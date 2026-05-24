@@ -363,7 +363,7 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
-- **Chase Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. The box can be resized, and its top buttons remain visible while the list scrolls.
+- **Chase Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. In the Toolboxes sidebar, drag the lower edge of the Chase Steps box to set its height. The top buttons remain visible while the step list scrolls inside the box.
 - **Chases**, **Chase Steps**, and **Chase Playback** share one toolbox color and collapse together. Use **-- all** on any of those boxes to collapse the whole color group, and **+ all** to reopen it.
 
 ![Chaser Chase Steps toolbox](screenshots/chaser-toolbox-steps.png)
@@ -385,7 +385,7 @@ The Chaser page uses several toolboxes:
 
 On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
-The collapse state, toolbox order, shared sidebar width, and the Chase Steps box size are stored by the server UI-state file, so the working layout survives reloads.
+The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads.
 
 ### Chase Steps Toolbox Buttons
 

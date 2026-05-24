@@ -7,6 +7,26 @@ test.describe('Chaser established rules', () => {
     await injectChaserCompactSetup(page);
   });
 
+  test('Chase Steps toolbox is vertically resizable in the toolbox rail', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const box = document.getElementById('stepsBox');
+      box.classList.add('collapsed');
+      stepsToolbox.setCollapsed(false, false);
+      const style = getComputedStyle(box);
+      return {
+        resize: style.resize,
+        overflow: style.overflow,
+        height: box.offsetHeight,
+        bodyOverflow: getComputedStyle(document.getElementById('stepsBoxBody')).overflowY
+      };
+    });
+
+    expect(state.resize).toBe('vertical');
+    expect(state.overflow).toBe('hidden');
+    expect(state.height).toBeGreaterThan(200);
+    expect(state.bodyOverflow).toBe('auto');
+  });
+
   test('All clears selected step/edit context but keeps existing steps', async ({ page }) => {
     const result = await page.evaluate(() => {
       const f = setup.fixtures[0];

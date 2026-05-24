@@ -130,7 +130,7 @@ body.toolbox-rail-collapsed .toolbox-rail-resizer,body.toolbox-rail-collapsed .t
 .toolbox-rail .scene-toolbox--groups{overflow:visible}
 .toolbox-rail .scene-slot-matrix,.toolbox-rail .groups-matrix{overflow-x:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .toolbox-rail .slot{width:auto;min-width:54px}
-.toolbox-rail #stepsBox{height:min(520px,45vh);max-height:none;resize:vertical}
+.toolbox-rail #stepsBox{height:min(520px,45vh);max-height:none;resize:vertical;overflow:hidden}
 .toolbox-rail #stepsBox.collapsed{height:auto!important;resize:none}
 .toolbox-rail #browserPlaybackBox .scene-toolbox__body{max-height:none}
 .scene-slot-matrix{display:grid;gap:5px;overflow-x:auto}

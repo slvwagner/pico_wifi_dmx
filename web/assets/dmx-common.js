@@ -436,7 +436,7 @@
           box.style.resize='none';
         }else if(!c){
           box.classList.remove('collapsed');
-          box.style.resize='both';
+          box.style.resize=inToolboxRail()?'vertical':'both';
           let size=null;
           if(sizeKey){
             try{size=JSON.parse(localStorage.getItem(sizeKey)||'null');}catch(_){}
