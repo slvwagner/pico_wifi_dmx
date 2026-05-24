@@ -79,7 +79,7 @@ target_compile_definitions(pico_wifi_dmx PRIVATE
 )
 
 pico_set_program_name(pico_wifi_dmx "pico-wifi-dmx")
-pico_set_program_version(pico_wifi_dmx "0.9.2")
+pico_set_program_version(pico_wifi_dmx "0.9.3")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(pico_wifi_dmx 0)

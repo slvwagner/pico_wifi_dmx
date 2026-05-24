@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.3 - 2026-05-24
+
+Changed:
+
+- Working title: Playmodes.
+
 ## 0.9.2 - 2026-05-24
 
 Changed:

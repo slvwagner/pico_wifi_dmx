@@ -357,7 +357,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "0.9.2",
+  "appVersion": "0.9.3",
   "schemaVersion": 1
 }
 ```
