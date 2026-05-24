@@ -29,6 +29,158 @@ User-facing operating instructions are in [docs/user-manual.md](docs/user-manual
 
 ---
 
+## Getting Started
+
+### Run the software
+
+Install the runtime tools:
+
+- **XAMPP for Windows** with Apache and PHP enabled. The browser UI uses PHP files in `api/` to save JSON setup data.
+- A modern browser such as Chrome, Edge, or Safari.
+- A Raspberry Pi Pico 2 W flashed with the `pico_wifi_dmx` firmware.
+
+Copy the web app to XAMPP:
+
+```powershell
+cd D:\Projects\pico_wifi_dmx
+.\scripts\sync_fixture_controller_to_xampp.ps1
+```
+
+The default XAMPP target is:
+
+```text
+E:\Software\xampp\htdocs\dmx\
+```
+
+Open the UI:
+
+```text
+http://localhost/dmx/
+```
+
+Enter the Pico base URL shown in the Pico serial log, for example:
+
+```text
+http://192.168.0.24/
+```
+
+Setup data is saved in XAMPP under `dmx/data/*.json`. Use the page-level JSON export buttons before large changes when you want an extra backup.
+
+### Install the firmware
+
+Use a prebuilt `pico_wifi_dmx.uf2` from your release folder when available. To install it:
+
+1. Hold the Pico 2 W **BOOTSEL** button while plugging it into USB.
+2. Wait for the `RPI-RP2` drive to appear.
+3. Copy `pico_wifi_dmx.uf2` to that drive.
+4. The Pico reboots automatically.
+5. Open the serial log and note the printed Pico URL.
+
+If no prebuilt UF2 is available, build it from source with the developer steps below.
+
+### Build the firmware from source
+
+Install the firmware build tools:
+
+- **Raspberry Pi Pico VS Code extension**. This is the easiest Windows setup because it installs/locates the Pico SDK, CMake, Ninja, ARM GCC, picotool, and OpenOCD.
+- **Visual Studio Code**
+- Recommended VS Code extensions:
+  - Raspberry Pi Pico
+  - C/C++
+  - CMake Tools
+  - PowerShell
+
+Configure WiFi and build:
+
+```powershell
+cd D:\Projects\pico_wifi_dmx
+cmake -S . -B build -G Ninja `
+  -DWIFI_SSID="your_ssid" `
+  -DWIFI_PASSWORD="your_password"
+
+cmake --build build
+```
+
+The firmware output is:
+
+```text
+build/pico_wifi_dmx.uf2
+```
+
+Optional firmware settings:
+
+```powershell
+-DDMX_TX_PIN=2 -DDMX_TRIGGER_PIN=3
+-DDMX_CHANNELS=512
+```
+
+Flash with BOOTSEL by copying the UF2, or use picotool/OpenOCD as described in the deeper firmware sections below.
+
+### Getting Started for Developers
+
+Install the development/test tools:
+
+- Git
+- Node.js LTS with `npm`
+- XAMPP with Apache/PHP
+- Chrome or Edge for Playwright screenshots/tests
+- PowerShell 7 recommended
+- Firmware build tools from the previous section
+
+Install JavaScript test dependencies from the project root:
+
+```powershell
+cd D:\Projects\pico_wifi_dmx
+npm install
+npx playwright install chromium
+```
+
+Configure local paths if your XAMPP or Pico URL differs:
+
+```powershell
+Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
+```
+
+Edit `tests/pathconfig.local.json` for your machine:
+
+```json
+{
+  "xamppBaseUrl": "http://localhost/dmx/",
+  "picoBaseUrl": "http://192.168.0.24/",
+  "hardwareTests": {
+    "enabled": false
+  }
+}
+```
+
+Normal development loop:
+
+```powershell
+.\scripts\sync_fixture_controller_to_xampp.ps1
+npm run test:ui
+```
+
+Run real Pico hardware tests only when a Pico is connected and you accept that the configured test channels/slots may be overwritten:
+
+```powershell
+npm run test:pico
+```
+
+After UI/manual changes, regenerate the deterministic documentation screenshots and dark-mode manual:
+
+```powershell
+.\scripts\update_user_manual.ps1
+```
+
+Important developer checks:
+
+- Keep generated folders such as `build/`, `node_modules/`, and `test-results/` out of Git.
+- Add behavior rules to Playwright tests when a UI workflow is fixed or intentionally changed.
+- Update `CHANGELOG.md` whenever a user-visible bug fix or workflow change is made.
+- Update `VERSION` and the matching firmware version in `CMakeLists.txt` when preparing a release.
+
+---
+
 ## Automated Tests
 
 Regression tests live in [tests](tests/). The UI tests use Playwright against the XAMPP-served app and cover established workflow rules for Controller, Chaser, Motion FX, browser chase playback timing/fade behavior, and the DMX Buffer Monitor.
@@ -114,6 +266,7 @@ pico_wifi_dmx/
 │  ├─ chaser_setup.php       Chases and mirrored Pico chaser slots
 │  ├─ motion_setup.php       Motion presets and mirrored Pico motion slots
 │  ├─ group_setup.php        Saved fixture groups
+│  ├─ gpio_setup.php         GPIO editor setup
 │  └─ ui_state.php           Shared toolbox/sidebar layout state
 ├─ docs/                     User manual, generated PDF, screenshots
 │  ├─ manual-data/           Deterministic JSON baseline for screenshots

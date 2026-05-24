@@ -20,6 +20,8 @@ Getting started needs to be written for a user
 Getting starded for a developper 
 1.  installing dependencis to build firmware / vs code and the needed extentions, testing envirnoment needed and how to install e.g  on windows 
 
+I think there should be more but can you shortly check 
+
 
 
 # Debug
