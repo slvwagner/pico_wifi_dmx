@@ -50,6 +50,9 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#checkCore0 .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkCore1 .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkHttp .check-detail')).toContainText('peak 138us');
+    await expect(page.locator('#timingHistoryBody tr')).toHaveCount(1);
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('9729us');
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('138us');
 
     await page.locator('#btnBufferReadback').click();
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Pass');
@@ -79,5 +82,8 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#checkCore0 .check-state')).toHaveText('Warn');
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Warn');
     await expect(page.locator('#checkWrite .check-state')).toHaveText('Pass');
+    await expect(page.locator('#timingHistoryBody tr')).toHaveCount(1);
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('WARN');
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('logs unavailable');
   });
 });

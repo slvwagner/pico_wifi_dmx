@@ -600,7 +600,7 @@ The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selec
 
 ![Pico Performance Test page](docs/screenshots/benchmark.png)
 
-The Pico Performance Test page checks the whole browser-to-Pico path. It reads `/status.json` and `/logs.txt`, parses the Core0/Core1 timing lines, verifies that a known DMX batch can be read back from both `/dmx/output.json` and `/dmx/base.json`, and keeps the former frame-rate benchmark as the DMX Write Test. The write result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
+The Pico Performance Test page checks the whole browser-to-Pico path. It reads `/status.json` and `/logs.txt`, parses the Core0/Core1 timing lines, verifies that a known DMX batch can be read back from both `/dmx/output.json` and `/dmx/base`, and keeps the former frame-rate benchmark as the DMX Write Test. Timing History records Core0/Core1 slack, HTTP peak, DMX counters, and buffer state for repeated checks. The write result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
 
 Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
 

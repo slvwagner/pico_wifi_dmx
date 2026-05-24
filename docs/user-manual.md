@@ -742,6 +742,8 @@ The write-test result panel shows:
 
 Use **Run Full Test** to run the Pico status/log check, buffer readback, write test, and a final timing-log check in one sequence.
 
+The **Timing History** table records each Pico timing check. A manual **Check Pico** adds one row immediately. **Run Full Test** records the final post-load timing sample, so the row reflects Core0/Core1 slack after the write and readback checks have run.
+
 Use **Export CSV** to save results for later comparison.
 
 Pico Performance Test and GPIO Control link to the **DMX Buffer Monitor**.

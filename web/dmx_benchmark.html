@@ -95,6 +95,17 @@ th{color:var(--muted);font-weight:600}
 </section>
 
 <section class="panel">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h2>Timing History</h2>
+    <button id="btnClearTimingHistory">Clear</button>
+  </div>
+  <table>
+    <thead><tr><th>Run</th><th>Time</th><th>Status</th><th>Core0 slack</th><th>Core0 late</th><th>Core1 slack</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th></tr></thead>
+    <tbody id="timingHistoryBody"></tbody>
+  </table>
+</section>
+
+<section class="panel">
   <div class="section-head">
     <h2>DMX Write Test</h2>
   </div>
@@ -108,8 +119,8 @@ th{color:var(--muted);font-weight:600}
     </select></label>
     <label>Start channel<input id="channel" type="number" min="1" max="512" value="1"></label>
     <label>Value<input id="value" type="number" min="0" max="255" value="128"></label>
-    <label title="1 = single /dmx/set, 2+ = POST /dmx/b with N consecutive channels in the request body">Channels / request<input id="chPerReq" type="number" min="1" max="512" value="1"></label>
-    <label>Request count<input id="reqCount" type="number" min="10" max="5000" value="200"></label>
+    <label title="1 = single /dmx/set, 2+ = POST /dmx/b with N consecutive channels in the request body">Channels / request<input id="chPerReq" type="number" min="1" max="512" value="512"></label>
+    <label>Request count<input id="reqCount" type="number" min="10" max="5000" value="2000"></label>
     <label>Duration s<input id="durationSec" type="number" min="0" max="3600" value="0"></label>
     <button class="primary" id="btnStart">▶ Start</button>
     <button class="stop" id="btnStop" disabled>■ Stop</button>
@@ -178,7 +189,7 @@ th{color:var(--muted);font-weight:600}
 
 <section class="panel">
   <div class="row" style="justify-content:space-between;align-items:center">
-    <h2>Run History</h2>
+    <h2>Write History</h2>
     <button id="btnClearHistory">Clear</button>
   </div>
   <table>
@@ -227,6 +238,36 @@ function latestMatch(text,re){
   return matches.length?matches[matches.length-1]:null;
 }
 
+let timingHistory=[];
+let lastBufferSnapshot={state:'idle',detail:'not run'};
+
+function timingStateLabel(state){
+  return state==='pass'?'PASS':state==='warn'?'WARN':state==='bad'?'FAIL':'IDLE';
+}
+
+function renderTimingHistory(){
+  const body=document.getElementById('timingHistoryBody');
+  body.innerHTML=timingHistory.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.time}</td>
+      <td>${timingStateLabel(r.statusState)}</td>
+      <td>${r.core0Slack}</td>
+      <td>${r.core0Late}</td>
+      <td>${r.core1Slack}</td>
+      <td>${r.httpPeak}</td>
+      <td>${r.dmx}</td>
+      <td>${timingStateLabel(r.bufferState)}</td>
+    </tr>`
+  ).join('');
+}
+
+function addTimingHistory(row){
+  timingHistory.push(row);
+  if(timingHistory.length>12)timingHistory.shift();
+  renderTimingHistory();
+}
+
 function parseCoreTiming(logText){
   const core0=latestMatch(logText,/Core0 perf: samples=(\d+) work_us mean=(\d+) peak=(\d+) slack_us mean=(\d+) min=(\d+) late=(\d+) peak_late=(\d+)/g);
   const core1=latestMatch(logText,/Core1 perf: samples=(\d+) work_us mean=(\d+) peak=(\d+) slack_us mean=(\d+) min=(\d+) late=(\d+) peak_late=(\d+)/g);
@@ -241,50 +282,109 @@ function parseCoreTiming(logText){
 }
 
 function renderCoreTiming(parsed){
+  const row={
+    core0State:'warn',
+    core0Slack:'no data',
+    core0Late:'no data',
+    core1State:'warn',
+    core1Slack:'no data',
+    core1Late:'no data',
+    httpState:'warn',
+    httpPeak:'no data',
+    dmxState:'warn',
+    dmx:'no data'
+  };
   if(parsed.core0){
     const c=parsed.core0;
     const state=c.late>0?'bad':c.slackMin<1000?'warn':'pass';
+    row.core0State=state;
+    row.core0Slack=c.slackMin+'us';
+    row.core0Late=String(c.late);
     setCheck('checkCore0',state,'Core0 DMX loop','work mean '+c.mean+'us, peak '+c.peak+'us, min slack '+c.slackMin+'us, late '+c.late);
   }else setCheck('checkCore0','warn','Core0 DMX loop','No Core0 perf line found in /logs.txt.');
 
   if(parsed.core1){
     const c=parsed.core1;
     const state=c.late>0?'bad':c.slackMin<100000?'warn':'pass';
+    row.core1State=state;
+    row.core1Slack=c.slackMin+'us';
+    row.core1Late=String(c.late);
     setCheck('checkCore1',state,'Core1 service loop','work mean '+c.mean+'us, peak '+c.peak+'us, min slack '+c.slackMin+'us, late '+c.late);
   }else setCheck('checkCore1','warn','Core1 service loop','No Core1 perf line found in /logs.txt.');
 
   if(parsed.http){
     const h=parsed.http;
-    setCheck('checkHttp',h.peak>10000?'warn':'pass','HTTP callbacks','calls '+h.calls+', work mean '+h.mean+'us, peak '+h.peak+'us');
+    const state=h.peak>10000?'warn':'pass';
+    row.httpState=state;
+    row.httpPeak=h.peak+'us';
+    setCheck('checkHttp',state,'HTTP callbacks','calls '+h.calls+', work mean '+h.mean+'us, peak '+h.peak+'us');
   }else setCheck('checkHttp','warn','HTTP callbacks','No HTTP timing line found in /logs.txt.');
 
   if(parsed.dmx){
     const d=parsed.dmx;
     const state=(d.frameTimeouts>1||d.resyncs>1)?'warn':'pass';
+    row.dmxState=state;
+    row.dmx='f '+d.frames+' / t '+d.frameTimeouts+' / r '+d.resyncs;
     setCheck('checkDmx',state,'DMX frame counters','frames '+d.frames+', skipped '+d.skipped+', timeouts '+d.frameTimeouts+', resyncs '+d.resyncs);
   }else setCheck('checkDmx','warn','DMX frame counters','No Core0 dmx line found in /logs.txt.');
+  return row;
 }
 
-async function checkPico(){
+function overallTimingState(row){
+  return [row.statusState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('bad')?'bad'
+    : [row.statusState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('warn')?'warn'
+    : 'pass';
+}
+
+async function checkPico(options={}){
+  const record=options.record!==false;
   try{
     setStatus('Checking Pico status and logs...');
     const status=await fetchPicoJson('/status.json');
-    setCheck('checkStatus','pass','Pico status','DMX '+(status.dmx&&status.dmx.running?'running':'available')+', '+((status.dmx&&status.dmx.channels)||'?')+' channels, frame '+((status.dmx&&status.dmx.frame_count)||'?'));
+    const statusDetail='DMX '+(status.dmx&&status.dmx.running?'running':'available')+', '+((status.dmx&&status.dmx.channels)||'?')+' channels, frame '+((status.dmx&&status.dmx.frame_count)||'?');
+    setCheck('checkStatus','pass','Pico status',statusDetail);
+    let historyRow=null;
     try{
       const logs=await fetchPicoText('/logs.txt');
-      renderCoreTiming(parseCoreTiming(logs));
+      historyRow=renderCoreTiming(parseCoreTiming(logs));
       setStatus('Pico check complete.');
     }catch(logError){
       setCheck('checkCore0','warn','Core0 DMX loop','/logs.txt could not be read: '+logError.message);
       setCheck('checkCore1','warn','Core1 service loop','/logs.txt could not be read: '+logError.message);
       setCheck('checkHttp','warn','HTTP callbacks','/logs.txt could not be read: '+logError.message);
       setCheck('checkDmx','warn','DMX frame counters','/logs.txt could not be read: '+logError.message);
+      historyRow={core0State:'warn',core0Slack:'logs unavailable',core0Late:'logs unavailable',core1State:'warn',core1Slack:'logs unavailable',core1Late:'logs unavailable',httpState:'warn',httpPeak:'logs unavailable',dmxState:'warn',dmx:'logs unavailable'};
       setStatus('Pico status OK; logs unavailable, probably old firmware without /logs.txt CORS.');
     }
+    historyRow.time=new Date().toLocaleTimeString();
+    historyRow.statusState='pass';
+    historyRow.status=statusDetail;
+    historyRow.bufferState=lastBufferSnapshot.state;
+    historyRow.buffer=lastBufferSnapshot.detail;
+    historyRow.overall=overallTimingState(historyRow);
+    if(record)addTimingHistory(historyRow);
     return true;
   }catch(e){
     setStatus(e.message,true);
     setCheck('checkStatus','bad','Pico status',e.message);
+    if(record)addTimingHistory({
+      time:new Date().toLocaleTimeString(),
+      statusState:'bad',
+      status:e.message,
+      core0State:'idle',
+      core0Slack:'not checked',
+      core0Late:'not checked',
+      core1State:'idle',
+      core1Slack:'not checked',
+      core1Late:'not checked',
+      httpState:'idle',
+      httpPeak:'not checked',
+      dmxState:'idle',
+      dmx:'not checked',
+      bufferState:lastBufferSnapshot.state,
+      buffer:lastBufferSnapshot.detail,
+      overall:'bad'
+    });
     return false;
   }
 }
@@ -301,7 +401,7 @@ updateModeHint();
 let running=false,latencies=[],errorMarks=[],errors=0,testStart=0,testChPerReq=1,lastRun=null,history=[];
 
 const PRESETS={
-  quick:{chPerReq:1,reqCount:100,durationSec:0},
+  quick:{chPerReq:512,reqCount:2000,durationSec:0},
   scene:{chPerReq:64,reqCount:120,durationSec:0},
   stress:{chPerReq:128,reqCount:500,durationSec:0},
   soak:{chPerReq:32,reqCount:5000,durationSec:30},
@@ -452,6 +552,7 @@ async function runBufferReadback(){
     if(mismatches.length){
       const detail=mismatches.slice(0,4).join('; ')+(mismatches.length>4?' ...':'');
       setCheck('checkBuffer','bad','Buffer readback',mismatches.length+' mismatches: '+detail);
+      lastBufferSnapshot={state:'bad',detail:mismatches.length+' mismatches'};
       document.getElementById('bufferResult').textContent='Readback failed: '+detail;
       setStatus('Buffer readback failed',true);
       return false;
@@ -460,11 +561,13 @@ async function runBufferReadback(){
       ? safeCount+' channels from '+ch+' read back as '+val+' in output and base buffers.'
       : safeCount+' channels from '+ch+' read back as '+val+' in output buffer; base buffer unavailable: '+baseError.message;
     setCheck('checkBuffer',base?'pass':'warn','Buffer readback',detail);
+    lastBufferSnapshot={state:base?'pass':'warn',detail};
     document.getElementById('bufferResult').textContent=detail;
     setStatus('Buffer readback complete.');
     return !!base;
   }catch(e){
     setCheck('checkBuffer','bad','Buffer readback',e.message);
+    lastBufferSnapshot={state:'bad',detail:e.message};
     document.getElementById('bufferResult').textContent=e.message;
     setStatus(e.message,true);
     return false;
@@ -553,7 +656,7 @@ async function runTest(){
 async function runFullPerformanceTest(){
   document.getElementById('btnRunFull').disabled=true;
   try{
-    await checkPico();
+    await checkPico({record:false});
     await runBufferReadback();
     await runTest();
     await checkPico();
@@ -568,6 +671,7 @@ document.getElementById('btnStart').onclick=runTest;
 document.getElementById('btnStop').onclick=()=>{running=false;};
 document.getElementById('btnExport').onclick=exportCsv;
 document.getElementById('btnClearHistory').onclick=()=>{history=[];renderHistory();};
+document.getElementById('btnClearTimingHistory').onclick=()=>{timingHistory=[];renderTimingHistory();};
 document.getElementById('btnCheckPico').onclick=checkPico;
 document.getElementById('btnBufferReadback').onclick=runBufferReadback;
 document.getElementById('btnRunFull').onclick=runFullPerformanceTest;

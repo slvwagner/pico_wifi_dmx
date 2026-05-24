@@ -13,6 +13,7 @@ Added:
 - Added Core1 HTTP callback timing to the performance log.
 - Reworked the former Frame Rate Test into the Pico Performance Test with Pico status checks, firmware log parsing, DMX/base buffer readback, the existing write benchmark, and automated UI coverage.
 - Hardened the Pico Performance Test so old firmware readback/log issues show as warnings, and added `/dmx/base.json` as a firmware alias for `/dmx/base`.
+- Added Timing History to the Pico Performance Test so repeated Pico status/timing checks can be compared separately from DMX write history.
 
 ## 0.9.0 - Unreleased
 
