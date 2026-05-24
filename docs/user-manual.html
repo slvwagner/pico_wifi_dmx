@@ -382,7 +382,7 @@ strong { color: #ffffff; }
 <li>Double-click the resize line to reset the default width.</li>
 <li>The page content and the toolbox sidebar scroll independently. The page scrollbar sits beside the toolbox separation line, while the toolbox scrollbar stays inside the toolbox sidebar.</li>
 <li>Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.</li>
-<li>Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens.</li>
+<li>Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens. On iPad, toolbox reordering uses the app&#39;s pointer drag on the colored header instead of Safari&#39;s native drag/drop; the header also suppresses text selection/copy callouts as much as Safari allows.</li>
 <li>On narrow screens, the sidebar changes into a bottom toolbox drawer.</li>
 </ul>
 <p>The Chaser page uses several toolboxes:</p>
@@ -421,7 +421,8 @@ strong { color: #ffffff; }
 </ul>
 <p><img src="screenshots/chaser-toolbox-browser-playback.png" alt="Chaser Chase Playback toolbox"></p>
 <p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
-<p>The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads.</p>
+<p>The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads. Collapsing <strong>Participating Controls</strong> or <strong>Edit Step</strong> only hides that card body: the sticky page header keeps the same height, and the next card moves up to use the freed space.</p>
+<p><img src="screenshots/chaser-collapsed-work-area.png" alt="Chaser collapsed work area"></p>
 <h3 id="chase-steps-toolbox-buttons">Chase Steps Toolbox Buttons</h3>
 <p>The <strong>Chase Steps</strong> toolbox uses shared action buttons instead of per-step buttons. Click a step card to select the step first; the selected step is highlighted and loaded into <strong>Edit Step</strong>.</p>
 <ul>
@@ -551,9 +552,12 @@ strong { color: #ffffff; }
 <li>Pan/tilt targets: Circle, Figure-8, Pan swing, Tilt swing</li>
 <li>Scalar targets: Sine, Pulse</li>
 </ul>
-<p>Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the <strong>Pan / scalar amplitude</strong> as the effect depth.</p>
+<p>Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the <strong>Amplitude</strong> slider as the effect depth.</p>
 <p>The <strong>Participating Controls</strong> panel uses an <strong>Effect target</strong> dropdown. The default target is <strong>None</strong>. With <strong>None</strong> selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.</p>
+<p>Hard reload, including Ctrl+F5, resets <strong>Effect target</strong> to <strong>None</strong> and clears playback participation. Normal navigation away from Motion FX and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use <strong>Load</strong>, import a Motion JSON file, or recall a saved <strong>Effect</strong> tile when you want to explicitly restore saved target and participant data.</p>
 <p>One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.</p>
+<p>The <strong>Participating Controls</strong> card can be collapsed when you only need the toolboxes. In collapsed mode it stays compact and does not change the sticky page-header height.</p>
+<p><img src="screenshots/motion-participating-controls-collapsed.png" alt="Motion collapsed Participating Controls"></p>
 <p>The fixture matrix is a selection and preview surface:</p>
 <ul>
 <li>Click a fixture tile to include or exclude it from the effect.</li>
@@ -563,7 +567,7 @@ strong { color: #ffffff; }
 <li>Pan/tilt targets show a small XY plot with the current position.</li>
 <li>Scalar targets show a small value bar with the current value.</li>
 </ul>
-<p>Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the <strong>Effect Parameters</strong> toolbox.</p>
+<p>Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the <strong>Effect Parameters</strong> toolbox. The amplitude controls are target-aware and effect-aware. Circle and Figure-8 show <strong>Pan amp</strong> and <strong>Tilt amp</strong>. Pan Swing shows only <strong>Pan amp</strong>. Tilt Swing shows only <strong>Tilt amp</strong>. Scalar effects show one <strong>Amplitude</strong> slider. Hidden axes are forced to zero for preview and Pico upload, but their last two-axis values are remembered when you return to Circle or Figure-8.</p>
 <p>The <strong>Effect</strong> dropdown is target-aware. It only shows effects that make sense for the selected <strong>Effect target</strong>.</p>
 <p>The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.</p>
 <p>The Motion FX page also includes the shared <strong>Palettes</strong> toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens <strong>Edit Tile</strong> so palette names and visuals can be adjusted from Motion too. Motion recalls, imports, exports, and saves the shared palette JSON.</p>
@@ -575,7 +579,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/motion-toolbox-groups.png" alt="Motion Groups toolbox"></p>
 <p><strong>Groups</strong> filters the fixture matrix for the selected effect target. When <strong>Effect target</strong> is <strong>None</strong>, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available when two or more fixtures have that target. For example, after a hard reload, choosing <strong>Dimmer</strong> lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.</p>
 <p><img src="screenshots/motion-toolbox-effect-parameters.png" alt="Motion Effect Parameters toolbox"></p>
-<p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls.</p>
+<p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one <strong>Amplitude</strong> control.</p>
 <p><img src="screenshots/motion-toolbox-effects.png" alt="Motion Effects toolbox"></p>
 <p><strong>Effects</strong> stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, amplitude, spread, and phase offsets. It does not store fixed center values.</p>
 <p><img src="screenshots/motion-toolbox-scenes.png" alt="Motion Scenes toolbox"></p>
@@ -586,7 +590,8 @@ strong { color: #ffffff; }
 <p>The Pico Motion slot upload now uses the same selected <strong>Effect target</strong> as the browser page.</p>
 <ul>
 <li>If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.</li>
-<li>If the target is scalar, the uploaded slot stores that one control&#39;s DMX channel address and plays one-axis effects such as sine or pulse.</li>
+<li>If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses <code>AMP1</code> and zero <code>AMP2</code>; Tilt Swing uses zero <code>AMP1</code> and <code>AMP2</code>.</li>
+<li>If the target is scalar, the uploaded slot stores that one control&#39;s DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use <code>AMP1</code> for <strong>Amplitude</strong> and force <code>AMP2</code> to zero.</li>
 <li>Click an empty Pico slot to upload the current effect to that slot.</li>
 <li>Click a loaded slot once to select it for start, stop, or BPM changes.</li>
 <li>Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.</li>
@@ -695,6 +700,7 @@ strong { color: #ffffff; }
 <p>Use <strong>DMX output</strong> to see the actual output frame currently held by the DMX engine, including values produced by Pico-side Chaser or Motion FX playback.</p>
 <p>Use <strong>Base / position</strong> to inspect the scene base buffer used as the center for Motion FX.</p>
 <p>Use <strong>Refresh ms</strong> to control the polling interval directly. Use <strong>Refresh Hz</strong> when you prefer rate instead. Both fields stay synchronized, so <code>500 ms</code> is shown as <code>2 Hz</code>. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. <strong>Auto refresh</strong> starts or stops polling without changing the selected buffer.</p>
+<p>Use <strong>Clear all</strong> when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.</p>
 <h2 id="9-backup-and-import">9. Backup and Import</h2>
 <p>Most setup data is stored as JSON files on the XAMPP server in the <code>data/</code> folder.</p>
 <p>The UI also offers export/import buttons for:</p>

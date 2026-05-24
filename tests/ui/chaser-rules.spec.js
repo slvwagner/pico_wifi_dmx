@@ -7,6 +7,66 @@ test.describe('Chaser established rules', () => {
     await injectChaserCompactSetup(page);
   });
 
+  test('Participating Controls and Edit Step cards stay compact when collapsed', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const measure = panelId => {
+        const panel = document.getElementById(panelId);
+        const btn = document.querySelector(`[data-panel-toggle="${panelId}"]`);
+        if (panel.classList.contains('collapsed-panel')) btn.click();
+        const expandedHeight = panel.getBoundingClientRect().height;
+        btn.click();
+        const collapsedHeight = panel.getBoundingClientRect().height;
+        return {
+          expandedHeight,
+          collapsedHeight,
+          bodyHidden: getComputedStyle(panel.querySelector('.panel-body')).display === 'none'
+        };
+      };
+      return {
+        participation: measure('participationPanel'),
+        editStep: measure('stepEditorSection')
+      };
+    });
+
+    for (const state of [result.participation, result.editStep]) {
+      expect(state.bodyHidden).toBe(true);
+      expect(state.collapsedHeight).toBeLessThan(state.expandedHeight * 0.45);
+      expect(state.collapsedHeight).toBeLessThanOrEqual(60);
+    }
+  });
+
+  test('collapsing Participating Controls keeps the sticky header stable and moves Edit Step up', async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 900 });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    const result = await page.evaluate(() => {
+      const header = document.querySelector('header');
+      const participation = document.getElementById('participationPanel');
+      const editStep = document.getElementById('stepEditorSection');
+      const btn = document.querySelector('[data-panel-toggle="participationPanel"]');
+      if (participation.classList.contains('collapsed-panel')) btn.click();
+      const before = {
+        headerHeight: header.getBoundingClientRect().height,
+        participationHeight: participation.getBoundingClientRect().height,
+        editTop: editStep.getBoundingClientRect().top
+      };
+      btn.click();
+      const after = {
+        headerHeight: header.getBoundingClientRect().height,
+        participationHeight: participation.getBoundingClientRect().height,
+        editTop: editStep.getBoundingClientRect().top
+      };
+      return { before, after };
+    });
+
+    const panelShrink = result.before.participationHeight - result.after.participationHeight;
+    const editMove = result.before.editTop - result.after.editTop;
+    expect(result.after.headerHeight).toBeCloseTo(result.before.headerHeight, 0);
+    expect(panelShrink).toBeGreaterThan(100);
+    expect(editMove).toBeGreaterThan(panelShrink - 4);
+  });
+
   test('Chase Steps toolbox is vertically resizable in the toolbox rail', async ({ page }) => {
     const state = await page.evaluate(() => {
       const box = document.getElementById('stepsBox');
@@ -188,5 +248,46 @@ test.describe('Chaser established rules', () => {
     expect(result.selectedStepIdx).toBe(1);
     expect(result.list).toEqual(['103:31']);
     expect(result.activeKeys).toEqual(['103:31']);
+  });
+
+  test('iPad Pan/Tilt step Center button stays anchored while values change digit length', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    const result = await page.evaluate(async () => {
+      const f = setup.fixtures[0];
+      const c = fixtureProfile(f).controls.find(ctrl => ctrl.type === 'panTilt16');
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating[controlKey(f, c)] = true;
+      steps = [makeStep('Pan/Tilt step', { [controlKey(f, c)]: { pan: 1, tilt: 1 } })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      sourceFixtureId = String(f.id);
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const button = document.querySelector('#stepSurface [data-center="1"]');
+      const readout = document.querySelector('#stepSurface [data-readoutf][data-readoutc]');
+      const before = {
+        buttonLeft: Math.round(button.getBoundingClientRect().left),
+        readoutText: readout.textContent
+      };
+      setStepVal(f, c, { pan: 65535, tilt: 65535 });
+      updateStepDisplay(f, c);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      return {
+        before,
+        after: {
+          buttonLeft: Math.round(button.getBoundingClientRect().left),
+          readoutText: readout.textContent
+        }
+      };
+    });
+
+    expect(result.before.readoutText).toContain('Pan 1');
+    expect(result.after.readoutText).toContain('Pan 65535');
+    expect(result.after.buttonLeft).toBe(result.before.buttonLeft);
   });
 });

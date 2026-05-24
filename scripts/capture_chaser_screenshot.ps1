@@ -389,6 +389,24 @@ try {
     Invoke-PageScript $expression | Out-Null
     Save-ElementScreenshot "#participationPanel" "chaser-participating-controls.png"
     Save-ElementScreenshot "#stepEditorSection" "chaser-edit-step.png"
+    $expression = @'
+(async()=>{
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const participation=document.getElementById('participationPanel');
+  const participationBtn=document.querySelector('[data-panel-toggle="participationPanel"]');
+  const editStep=document.getElementById('stepEditorSection');
+  const editBtn=document.querySelector('[data-panel-toggle="stepEditorSection"]');
+  if(participation&&!participation.classList.contains('collapsed-panel')&&participationBtn)participationBtn.click();
+  if(editStep&&editStep.classList.contains('collapsed-panel')&&editBtn)editBtn.click();
+  const main=document.querySelector('main');
+  if(main)main.scrollTop=0;
+  window.scrollTo(0,0);
+  await wait(350);
+  return true;
+})()
+'@
+    Invoke-PageScript $expression | Out-Null
+    Save-ElementScreenshot ".chaser-card-rows" "chaser-collapsed-work-area.png"
     Save-ElementScreenshot "#picoPanel" "chaser-pico-playback.png"
 }
 finally {

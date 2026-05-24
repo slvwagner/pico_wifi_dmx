@@ -717,6 +717,27 @@ try {
   await wait(800);
 })()
 "@
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  const panel=document.getElementById('fxPanel');
+  const btn=document.querySelector('[data-panel-toggle="fxPanel"]');
+  if(panel&&!panel.classList.contains('collapsed-panel')&&btn)btn.click();
+  document.querySelector('main')?.scrollTo(0,0);
+  window.scrollTo(0,0);
+  await wait();
+})()
+"@
+    Save-ElementScreenshot "#fxPanel" "motion-participating-controls-collapsed.png"
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  const panel=document.getElementById('fxPanel');
+  const btn=document.querySelector('[data-panel-toggle="fxPanel"]');
+  if(panel&&panel.classList.contains('collapsed-panel')&&btn)btn.click();
+  await wait();
+})()
+"@
     Save-ElementScreenshot "#motionGroupsBox" "motion-toolbox-groups.png"
     Save-ElementScreenshot "#motionEffectBox" "motion-toolbox-effect-parameters.png"
     Save-ElementScreenshot "#motionSavedEffectBox" "motion-toolbox-effects.png"

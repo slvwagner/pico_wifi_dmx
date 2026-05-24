@@ -60,7 +60,7 @@ main{max-width:none;width:100%;margin:0}
   </div>
 </header>
 
-<section class="panel" id="fxPanel">
+<section class="panel compact-collapse-panel" id="fxPanel">
   <div class="row" style="justify-content:space-between;align-items:center">
     <h2>Participating Controls</h2>
     <div class="buttons">
@@ -168,10 +168,10 @@ main{max-width:none;width:100%;margin:0}
     <label>BPM<input id="bpm" type="number" min="1" max="600" value="30"></label>
     <label>Hz<input id="updateRate" type="number" min="5" max="50" value="25"></label>
     </div>
-    <label>Pan / scalar amp
+    <label id="panAmpLabel">Pan amp
       <span class="motion-effect-slider"><input id="panAmp" type="range" min="0" max="100" value="20"><span><span id="panAmpVal">20</span>%</span></span>
     </label>
-    <label>Tilt amp
+    <label id="tiltAmpLabel">Tilt amp
       <span class="motion-effect-slider"><input id="tiltAmp" type="range" min="0" max="100" value="15"><span><span id="tiltAmpVal">15</span>%</span></span>
     </label>
     <label>Phase spread
@@ -316,6 +316,11 @@ let lastSetupJson='';
 // motionFixtures: [{fixture, control, enabled, phaseOffset(deg), kind, basePan, baseTilt, baseValue}]
 let motionFixtures=[];
 let selectedMotionTargetKey='';
+const MOTION_WORKING_STATE_KEY='dmxMotionWorkingState';
+function isHardPageReload(){
+  const nav=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];
+  return nav?.type==='reload'||performance.navigation?.type===1;
+}
 
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
 
@@ -372,7 +377,70 @@ function populateEffectTypeFilter(preferred){
   sel.innerHTML=opts.length?opts.map(o=>`<option value="${o.value}">${o.label}</option>`).join(''):'<option value="">None</option>';
   sel.value=opts.some(o=>o.value===old)?old:(opts[0]?.value||'');
   sel.disabled=!opts.length;
+  updateEffectParameterUi();
   drawPathPreview();
+}
+let lastEffectParameterFamily='';
+let lastEffectAxisMode='';
+let lastPanTiltPanAmp=20;
+let lastPanTiltTiltAmp=15;
+function effectAxisMode(){
+  const family=effectTargetFamily();
+  if(family==='scalar')return'scalar';
+  if(family!=='panTilt')return'none';
+  const type=document.getElementById('effectType')?.value||'';
+  if(type==='panSwing')return'pan';
+  if(type==='tiltSwing')return'tilt';
+  return'both';
+}
+function axisModeShowsPan(mode){
+  return mode==='both'||mode==='pan';
+}
+function axisModeShowsTilt(mode){
+  return mode==='both'||mode==='tilt';
+}
+function updateEffectParameterUi(){
+  const family=effectTargetFamily();
+  const mode=effectAxisMode();
+  const panLabel=document.getElementById('panAmpLabel');
+  const pan=document.getElementById('panAmp');
+  const panVal=document.getElementById('panAmpVal');
+  const tiltLabel=document.getElementById('tiltAmpLabel');
+  const tilt=document.getElementById('tiltAmp');
+  const tiltVal=document.getElementById('tiltAmpVal');
+  if(axisModeShowsPan(lastEffectAxisMode)&&!axisModeShowsPan(mode)&&pan){
+    lastPanTiltPanAmp=clamp(pan.value,0,100);
+  }
+  if(axisModeShowsTilt(lastEffectAxisMode)&&!axisModeShowsTilt(mode)&&tilt){
+    lastPanTiltTiltAmp=clamp(tilt.value,0,100);
+  }
+  if(family==='scalar'&&lastEffectParameterFamily!=='scalar'&&tilt){
+    const currentPan=pan?clamp(pan.value,0,100):0;
+    if(lastEffectParameterFamily==='panTilt'||currentPan>0)lastPanTiltPanAmp=currentPan;
+    const currentTilt=clamp(tilt.value,0,100);
+    if(lastEffectParameterFamily==='panTilt'||currentTilt>0)lastPanTiltTiltAmp=currentTilt;
+  }
+  if(panLabel){
+    panLabel.childNodes[0].nodeValue=mode==='scalar'?'Amplitude':'Pan amp';
+    panLabel.style.display=mode==='tilt'?'none':'';
+  }
+  if(tiltLabel)tiltLabel.style.display=(mode==='scalar'||mode==='pan')?'none':'';
+  if(mode==='scalar'||mode==='pan'){
+    tilt.value=0;
+    if(tiltVal)tiltVal.textContent='0';
+  }else if(axisModeShowsTilt(mode)&&!axisModeShowsTilt(lastEffectAxisMode)&&tilt){
+    tilt.value=lastPanTiltTiltAmp;
+    if(tiltVal)tiltVal.textContent=String(lastPanTiltTiltAmp);
+  }
+  if(mode==='tilt'&&pan){
+    pan.value=0;
+    if(panVal)panVal.textContent='0';
+  }else if(axisModeShowsPan(mode)&&!axisModeShowsPan(lastEffectAxisMode)&&pan){
+    pan.value=lastPanTiltPanAmp;
+    if(panVal)panVal.textContent=String(lastPanTiltPanAmp);
+  }
+  lastEffectParameterFamily=family;
+  lastEffectAxisMode=mode;
 }
 function scopedMotionFixtures(){
   const ids=motionTargetFixtureIds();
@@ -401,9 +469,11 @@ function setMotionTarget(key,{enableMatches=false}={}){
     const inGroup=!selectedIds||selectedIds.has(String(mf.fixture.id));
     mf.enabled=enableMatches&&matches&&inGroup;
   });
+  populateEffectTypeFilter();
   drawFixtureList();
   drawPathPreview();
   refreshMotionGroupActions();
+  saveMotionWorkingState();
 }
 
 async function loadSetup(auto=false){
@@ -806,6 +876,7 @@ function drawFixtureList(){
     tile.classList.toggle('active',mf.enabled);
     drawPathPreview();
     refreshMotionGroupActions();
+    saveMotionWorkingState();
   };
 }
 
@@ -844,6 +915,7 @@ function setMotionParticipationByKey(key,mode){
   drawFixtureList();
   drawPathPreview();
   refreshMotionGroupActions();
+  saveMotionWorkingState();
 }
 
 // ---- path preview canvas ----
@@ -879,8 +951,9 @@ function effectOffset(t,type){
 function drawPathPreview(){
   const {w,h}=syncPathCanvasResolution();
   const type=document.getElementById('effectType').value;
-  const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
-  const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
+  const mode=effectAxisMode();
+  const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
+  const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
 
@@ -1023,8 +1096,9 @@ function tick(){
   const bpm=clamp(document.getElementById('bpm').value,1,600);
   const angle=elapsed*(bpm/60)*Math.PI*2;
   const type=document.getElementById('effectType').value;
-  const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
-  const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
+  const mode=effectAxisMode();
+  const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
+  const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
   const batchMap={};
@@ -1074,7 +1148,7 @@ function tick(){
 
 // ---- event wiring ----
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
-document.getElementById('effectType').onchange=drawPathPreview;
+document.getElementById('effectType').onchange=()=>{updateEffectParameterUi();drawPathPreview();saveMotionWorkingState();};
 document.getElementById('btnMotionAll').onclick=()=>{
   if(!selectedMotionTargetKey){setStatus('Choose an Effect Target first',true);return;}
   clearMotionGroupSelection();
@@ -1106,7 +1180,16 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
 ['panAmp','tiltAmp','phaseSpread'].forEach(id=>{
   const el=document.getElementById(id);
   const valEl=document.getElementById(id+'Val');
-  el.oninput=()=>{valEl.textContent=el.value;drawPathPreview();};
+  el.oninput=()=>{
+    valEl.textContent=el.value;
+    if(id==='tiltAmp'&&effectTargetFamily()==='panTilt')lastPanTiltTiltAmp=clamp(el.value,0,100);
+    drawPathPreview();
+    saveMotionWorkingState();
+  };
+});
+['bpm','updateRate'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('input',saveMotionWorkingState);
 });
 window.addEventListener('resize',drawPathPreview);
 
@@ -1115,8 +1198,9 @@ const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5};
 function serializeMotionForPico(){
   const type=document.getElementById('effectType').value;
   const bpm=parseFloat(document.getElementById('bpm').value);
-  const amp1=parseFloat(document.getElementById('panAmp').value)/100;
-  const amp2=parseFloat(document.getElementById('tiltAmp').value)/100;
+  const mode=effectAxisMode();
+  const amp1=mode==='tilt'?0:parseFloat(document.getElementById('panAmp').value)/100;
+  const amp2=(mode==='scalar'||mode==='pan')?0:parseFloat(document.getElementById('tiltAmp').value)/100;
   const spread=parseFloat(document.getElementById('phaseSpread').value);
   const lines=[
     'FX 1',
@@ -1391,11 +1475,29 @@ function motionData(){
     }))
   });
 }
-function applyMotionData(data){
+function motionWorkingData(){
+  const data=motionData();
+  delete data.effects;
+  delete data.effectCols;
+  delete data.effectRows;
+  return data;
+}
+function saveMotionWorkingState(){
+  try{sessionStorage.setItem(MOTION_WORKING_STATE_KEY,JSON.stringify(motionWorkingData()));}catch(_){}
+}
+function restoreMotionWorkingState(){
+  try{
+    const raw=sessionStorage.getItem(MOTION_WORKING_STATE_KEY);
+    if(!raw)return false;
+    applyMotionData(JSON.parse(raw),{includeEffects:false,saveWorkingState:false});
+    return true;
+  }catch(_){return false;}
+}
+function applyMotionData(data,{includeEffects=true,saveWorkingState:saveState=true}={}){
   if(!data)return;
   if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
-  if(data.targetKey){
-    selectedMotionTargetKey=data.targetKey;
+  if(Object.prototype.hasOwnProperty.call(data,'targetKey')){
+    selectedMotionTargetKey=data.targetKey||'';
     localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
   }
   const p=data.params;
@@ -1406,9 +1508,11 @@ function applyMotionData(data){
     if(p.phaseSpread!==undefined){document.getElementById('phaseSpread').value=p.phaseSpread;document.getElementById('phaseSpreadVal').textContent=p.phaseSpread;}
     if(p.updateRate!==undefined)document.getElementById('updateRate').value=p.updateRate;
   }
-  if(Array.isArray(data.effects))motionEffects=data.effects;
-  if(data.effectCols)motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectCols)||4));
-  if(data.effectRows)motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectRows)||4));
+  if(includeEffects){
+    if(Array.isArray(data.effects))motionEffects=data.effects;
+    if(data.effectCols)motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectCols)||4));
+    if(data.effectRows)motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectRows)||4));
+  }
   if(Array.isArray(data.fixtures)){
     data.fixtures.forEach(saved=>{
       const mf=motionFixtures.find(m=>m.fixture.id===saved.fixtureId&&m.control.id===saved.controlId);
@@ -1430,6 +1534,7 @@ function applyMotionData(data){
   drawFixtureList();drawPathPreview();
   refreshMotionGroupActions();
   renderMotionEffectMatrix();
+  if(saveState)saveMotionWorkingState();
 }
 async function saveMotionToServer(){
   if(location.protocol!=='http:'&&location.protocol!=='https:'){setStatus('Save to server unavailable — use Export instead',true);return;}
@@ -1448,6 +1553,20 @@ async function loadMotionFromServer(){
     if(r.ok&&j.ok&&j.exists&&j.motion){applyMotionData(j.motion);return true;}
   }catch(_){}
   return false;
+}
+async function loadMotionEffectCatalogFromServer(){
+  if(location.protocol!=='http:'&&location.protocol!=='https:')return false;
+  try{
+    const r=await fetch('motion_setup.php',{cache:'no-store'});
+    const j=await r.json();
+    if(!(r.ok&&j.ok&&j.exists&&j.motion))return false;
+    const data=j.motion;
+    if(Array.isArray(data.effects))motionEffects=data.effects;
+    if(data.effectCols)motionEffectCols=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectCols)||4));
+    if(data.effectRows)motionEffectRows=Math.max(1,Math.min(MOTION_EFFECT_GRID_MAX,parseInt(data.effectRows)||4));
+    renderMotionEffectMatrix();
+    return true;
+  }catch(_){return false;}
 }
 document.getElementById('btnMotionSave').onclick=()=>saveMotionToServer();
 document.getElementById('btnMotionLoad').onclick=async()=>{
@@ -1519,9 +1638,16 @@ let motionEffects=[];
 let motionEffectCols=4,motionEffectRows=4;
 const MOTION_EFFECT_GRID_MAX=32;
 let motionEffectVisualDefault=(()=> {
-  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('motionEffectVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('motionEffectVisualDefault')||'null'),'#225a50');}
   catch(_){return{type:'visual',color:'#225a50',image:''};}
 })();
+function saveMotionEffectVisualDefault(){
+  localStorage.setItem('motionEffectVisualDefault',JSON.stringify(motionEffectVisualDefault));
+}
+saveMotionEffectVisualDefault();
+function currentMotionEffectVisualForSave(){
+  return DmxCommon.normalizeSlotVisualDefault(motionEffectVisualDefault,'#225a50');
+}
 function currentMotionEffectRecipe(){
   return{
     targetKey:selectedMotionTargetKey,
@@ -1601,7 +1727,7 @@ function motionEffectSlotClick(slot){
   const name=(prompt('Effect name:','Effect '+(slot+1))||'').trim();
   if(!name)return;
   motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
-  motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:JSON.parse(JSON.stringify(motionEffectVisualDefault))});
+  motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:currentMotionEffectVisualForSave()});
   renderMotionEffectMatrix();
   saveMotionEffectsServer();
   setStatus('Saved effect "'+name+'"');
@@ -1630,6 +1756,7 @@ function recallMotionEffect(effect){
   drawFixtureList();
   drawPathPreview();
   refreshMotionGroupActions();
+  saveMotionWorkingState();
   setStatus('Recalled effect "'+(effect.name||'Effect')+'"');
 }
 function saveMotionEffectsServer(){
@@ -1680,8 +1807,8 @@ function openMotionEffectVisualModal(slot){
       .map(e=>({key:String(parseInt(e.slot,10)||0),item:e,label:'Slot '+((parseInt(e.slot,10)||0)+1)+': '+(e.name||'Effect')})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      motionEffectVisualDefault=visual;
-      localStorage.setItem('motionEffectVisualDefault',JSON.stringify(visual));
+      motionEffectVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
+      saveMotionEffectVisualDefault();
       setStatus('Default effect visual updated');
     },
     onSaveTarget:(target,visual)=>{
@@ -1693,6 +1820,9 @@ function openMotionEffectVisualModal(slot){
   });
 }
 let motionPaletteVisualDefault={type:'visual',color:'#225a50',image:''};
+function currentMotionPaletteVisualForSave(){
+  return DmxCommon.normalizeSlotVisualDefault(motionPaletteVisualDefault,'#225a50');
+}
 function openMotionPaletteVisualModal(slot){
   motionEffectVisualEditor?.open({
     targetLabel:'palettes',
@@ -1705,7 +1835,7 @@ function openMotionPaletteVisualModal(slot){
       .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      motionPaletteVisualDefault=visual;
+      motionPaletteVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
       setStatus('Default palette visual updated');
     },
     onSaveTarget:(target,visual)=>{
@@ -1727,7 +1857,8 @@ loadSetup().finally(async()=>{
     const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0}));
     renderMotionSlotStrip(dummy,0);
   }catch(e){console.warn('slot strip init error',e);}
-  await loadMotionFromServer();
+  await loadMotionEffectCatalogFromServer();
+  if(!isHardPageReload())restoreMotionWorkingState();
   // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(root){

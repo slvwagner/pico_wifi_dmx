@@ -15,14 +15,10 @@ Global is simpler and safer. Page-specific is more flexible, but easier to misun
 ## 02
 
 
-# Debug
-
-
+# Bugs
 
 ## 01
 
 
-
-# Error fixing
 
 

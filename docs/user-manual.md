@@ -358,7 +358,7 @@ Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on des
 - Double-click the resize line to reset the default width.
 - The page content and the toolbox sidebar scroll independently. The page scrollbar sits beside the toolbox separation line, while the toolbox scrollbar stays inside the toolbox sidebar.
 - Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.
-- Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens.
+- Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens. On iPad, toolbox reordering uses the app's pointer drag on the colored header instead of Safari's native drag/drop; the header also suppresses text selection/copy callouts as much as Safari allows.
 - On narrow screens, the sidebar changes into a bottom toolbox drawer.
 
 The Chaser page uses several toolboxes:
@@ -400,7 +400,9 @@ The Chaser page uses several toolboxes:
 
 On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
-The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads.
+The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads. Collapsing **Participating Controls** or **Edit Step** only hides that card body: the sticky page header keeps the same height, and the next card moves up to use the freed space.
+
+![Chaser collapsed work area](screenshots/chaser-collapsed-work-area.png)
 
 ### Chase Steps Toolbox Buttons
 
@@ -563,11 +565,17 @@ Supported effects include:
 - Pan/tilt targets: Circle, Figure-8, Pan swing, Tilt swing
 - Scalar targets: Sine, Pulse
 
-Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Pan / scalar amplitude** as the effect depth.
+Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Amplitude** slider as the effect depth.
 
 The **Participating Controls** panel uses an **Effect target** dropdown. The default target is **None**. With **None** selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.
 
+Hard reload, including Ctrl+F5, resets **Effect target** to **None** and clears playback participation. Normal navigation away from Motion FX and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use **Load**, import a Motion JSON file, or recall a saved **Effect** tile when you want to explicitly restore saved target and participant data.
+
 One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.
+
+The **Participating Controls** card can be collapsed when you only need the toolboxes. In collapsed mode it stays compact and does not change the sticky page-header height.
+
+![Motion collapsed Participating Controls](screenshots/motion-participating-controls-collapsed.png)
 
 The fixture matrix is a selection and preview surface:
 
@@ -578,7 +586,7 @@ The fixture matrix is a selection and preview surface:
 - Pan/tilt targets show a small XY plot with the current position.
 - Scalar targets show a small value bar with the current value.
 
-Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox.
+Center values come from the current base buffer or from recalling a scene as the motion center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox. The amplitude controls are target-aware and effect-aware. Circle and Figure-8 show **Pan amp** and **Tilt amp**. Pan Swing shows only **Pan amp**. Tilt Swing shows only **Tilt amp**. Scalar effects show one **Amplitude** slider. Hidden axes are forced to zero for preview and Pico upload, but their last two-axis values are remembered when you return to Circle or Figure-8.
 
 The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
 
@@ -602,7 +610,7 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 
 ![Motion Effect Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 
-**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls.
+**Effect Parameters** is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one **Amplitude** control.
 
 ![Motion Effects toolbox](screenshots/motion-toolbox-effects.png)
 
@@ -621,7 +629,8 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 The Pico Motion slot upload now uses the same selected **Effect target** as the browser page.
 
 - If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
-- If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse.
+- If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses `AMP1` and zero `AMP2`; Tilt Swing uses zero `AMP1` and `AMP2`.
+- If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use `AMP1` for **Amplitude** and force `AMP2` to zero.
 - Click an empty Pico slot to upload the current effect to that slot.
 - Click a loaded slot once to select it for start, stop, or BPM changes.
 - Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
@@ -759,6 +768,8 @@ Use **DMX output** to see the actual output frame currently held by the DMX engi
 Use **Base / position** to inspect the scene base buffer used as the center for Motion FX.
 
 Use **Refresh ms** to control the polling interval directly. Use **Refresh Hz** when you prefer rate instead. Both fields stay synchronized, so `500 ms` is shown as `2 Hz`. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. **Auto refresh** starts or stops polling without changing the selected buffer.
+
+Use **Clear all** when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.
 
 ## 9. Backup and Import
 
