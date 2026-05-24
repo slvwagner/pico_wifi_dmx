@@ -44,11 +44,18 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 
 ## Running UI Tests
 
-These tests require Node.js and `npm` on PATH. Install the Playwright dependency once:
+These tests require Node.js and `npm` on PATH. From the project root, install the test environment once:
 
 ```powershell
+cd D:\Projects\pico_wifi_dmx
 npm install
 npx playwright install chromium
+```
+
+Make sure XAMPP is running and the app has been synced to the configured web folder:
+
+```powershell
+.\scripts\sync_fixture_controller_to_xampp.ps1
 ```
 
 Run the tests against the XAMPP app:

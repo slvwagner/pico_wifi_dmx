@@ -131,7 +131,9 @@ Use **Default** or **Blackout** on a fixture card to recall the stored values fo
 
 Use **Select** to include a fixture in group editing.
 
-When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Saved Groups card to filter the control surface.
+After a hard page reload, no fixture cards are selected automatically. This keeps Group Edit disabled until you deliberately choose the fixtures you want to edit.
+
+Use **Select All** in the group bar above the control surface when you want to select every patched fixture. Use **Deselect all** to clear the current manual selection. When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Groups toolbox to filter the control surface.
 
 ### Fixture Controller Toolboxes
 
@@ -293,7 +295,7 @@ The Saved Groups card shows groups in a compact matrix. Each group has four acti
 
 More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.
 
-The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use **Show all** to clear the saved-group filter and return to the full fixture list.
+The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use **Select All** to select every patched fixture explicitly. Use **Deselect all** to clear a manual fixture selection. When a saved-group filter is active, the same button is shown as **Show all** and clears the saved-group filter to return to the full fixture list.
 
 Group selection is shared across toolbox pages that use the Groups toolbox. It is a working filter: selecting groups limits the visible fixtures for controller editing, Fan Out targeting, and Chaser participating-control setup. Recalling a scene, editing a saved chase step, or loading a saved chase clears the group filter because the recalled data itself becomes the source of truth.
 
@@ -302,6 +304,8 @@ Group selection is shared across toolbox pages that use the Groups toolbox. It i
 1. Load a saved group or select multiple fixtures.
 2. Click **Group Edit**.
 3. Adjust common controls in the modal.
+
+On the Fixture Controller, **Group Edit** requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press **Select All** before opening Group Edit.
 
 The Group Edit modal only shows controls that exist on at least two selected fixtures. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.
 

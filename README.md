@@ -33,9 +33,23 @@ User-facing operating instructions are in [docs/user-manual.md](docs/user-manual
 
 Regression tests live in [tests](tests/). The UI tests use Playwright against the XAMPP-served app and cover established workflow rules for Controller, Chaser, Motion FX, browser chase playback timing/fade behavior, and the DMX Buffer Monitor.
 
+First-time setup on Windows:
+
 ```powershell
+cd D:\Projects\pico_wifi_dmx
 npm install
 npx playwright install chromium
+```
+
+Make sure XAMPP is running and the app is available at the configured URL before running the UI tests. If needed, sync the current project files into XAMPP first:
+
+```powershell
+.\scripts\sync_fixture_controller_to_xampp.ps1
+```
+
+Run the normal UI regression tests:
+
+```powershell
 npm run test:ui
 ```
 

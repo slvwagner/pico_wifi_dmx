@@ -1,5 +1,9 @@
 const { test, expect } = require('@playwright/test');
-const { openDmxPage, injectControllerCompactSetup } = require('./helpers/dmx-page');
+const {
+  openDmxPage,
+  routeControllerCompactServerSetup,
+  injectControllerCompactSetup
+} = require('./helpers/dmx-page');
 
 test.describe('Fixture Controller established rules', () => {
   test.beforeEach(async ({ page }) => {
@@ -148,5 +152,145 @@ test.describe('Fixture Controller established rules', () => {
       { id: 101, base: 128, finalVal: 78 },
       { id: 104, base: 128, finalVal: 178 }
     ]);
+  });
+});
+
+test.describe('Fixture Controller reload rules', () => {
+  test('Group Edit enables after a hard reload and manual fixture selection with no group filter', async ({ page }) => {
+    await routeControllerCompactServerSetup(page);
+    await openDmxPage(page, '');
+    await page.reload({ waitUntil: 'networkidle' });
+
+    await expect(page.locator('[data-select-fixture="101"]')).toBeVisible();
+    await expect(page.locator('[data-select-fixture="102"]')).toBeVisible();
+    let state = await page.evaluate(() => ({
+      selectedFixtures: [...selectedFixtureIds],
+      selectedGroups: selectedSavedGroups().length,
+      disabled: document.getElementById('openGroupEdit').disabled
+    }));
+    expect(state.selectedFixtures).toEqual([]);
+    expect(state.selectedGroups).toBe(0);
+    expect(state.disabled).toBe(true);
+
+    await page.locator('[data-select-fixture="101"]').click();
+    await page.locator('[data-select-fixture="102"]').click();
+
+    state = await page.evaluate(() => ({
+      selectedFixtures: [...selectedFixtureIds],
+      selectedGroups: selectedSavedGroups().length,
+      sharedGroups: JSON.parse(localStorage.getItem('selectedGroupIds') || '[]'),
+      controls: getGroupEditableControls().map(groupKey),
+      disabled: document.getElementById('openGroupEdit').disabled,
+      toolboxDisabled: document.getElementById('editSelectedGroups')?.disabled
+    }));
+
+    expect(state.selectedFixtures.sort()).toEqual([101, 102]);
+    expect(state.selectedGroups).toBe(0);
+    expect(state.sharedGroups).toEqual([]);
+    expect(state.controls).toContain('slider8:Dimmer');
+    expect(state.disabled).toBe(false);
+    expect(state.toolboxDisabled).toBe(false);
+  });
+
+  test('Select All is the explicit way to enable Group Edit for all fixtures after hard reload', async ({ page }) => {
+    await routeControllerCompactServerSetup(page);
+    await openDmxPage(page, '');
+    await page.reload({ waitUntil: 'networkidle' });
+
+    await expect(page.locator('#selectAllFixtures')).toBeVisible();
+    await expect(page.locator('#openGroupEdit')).toBeDisabled();
+    await page.locator('#selectAllFixtures').click();
+
+    const state = await page.evaluate(() => ({
+      selectedFixtures: [...selectedFixtureIds],
+      selectedGroups: selectedSavedGroups().length,
+      controls: getGroupEditableControls().map(groupKey),
+      disabled: document.getElementById('openGroupEdit').disabled,
+      toolboxDisabled: document.getElementById('editSelectedGroups')?.disabled
+    }));
+
+    expect(state.selectedFixtures.sort()).toEqual([101, 102, 103]);
+    expect(state.selectedGroups).toBe(0);
+    expect(state.controls).toContain('slider8:Dimmer');
+    expect(state.disabled).toBe(false);
+    expect(state.toolboxDisabled).toBe(false);
+  });
+
+  test('late empty group selection load does not clear manual fixture selection after hard reload', async ({ page }) => {
+    let releaseGroups;
+    const groupsReady = new Promise(resolve => { releaseGroups = resolve; });
+
+    await page.route('**/fixture_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: '',
+            profiles: [
+              {
+                id: 1,
+                name: 'Profile A',
+                mode: 'test',
+                channels: 8,
+                controls: [
+                  { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 }
+                ]
+              }
+            ],
+            fixtures: [
+              { id: 101, name: 'A 1', profileId: 1, start: 1 },
+              { id: 102, name: 'A 2', profileId: 1, start: 11 }
+            ],
+            values: {}
+          }
+        })
+      });
+    });
+    await page.route('**/group_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await groupsReady;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, baseUrl: '', groups: [] })
+      });
+    });
+    await page.route('**/ui_state.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
+      });
+    });
+
+    await openDmxPage(page, '');
+    await expect(page.locator('[data-select-fixture="101"]')).toBeVisible();
+    await page.locator('[data-select-fixture="101"]').click();
+    await page.locator('[data-select-fixture="102"]').click();
+    releaseGroups();
+    await page.waitForResponse(response => response.url().includes('group_setup.php') && response.request().method() === 'GET');
+    await page.waitForTimeout(100);
+
+    const state = await page.evaluate(() => ({
+      selectedFixtures: [...selectedFixtureIds],
+      selectedGroups: selectedSavedGroups().length,
+      disabled: document.getElementById('openGroupEdit').disabled,
+      toolboxDisabled: document.getElementById('editSelectedGroups')?.disabled
+    }));
+
+    expect(state.selectedFixtures.sort()).toEqual([101, 102]);
+    expect(state.selectedGroups).toBe(0);
+    expect(state.disabled).toBe(false);
+    expect(state.toolboxDisabled).toBe(false);
   });
 });

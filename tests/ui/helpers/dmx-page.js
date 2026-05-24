@@ -49,6 +49,59 @@ const compactFixtures = [
   { id: 103, name: 'C 1', profileId: 3, start: 41 }
 ];
 
+async function routeControllerCompactServerSetup(page) {
+  await page.route('**/fixture_setup.php**', async route => {
+    const method = route.request().method();
+    if (method !== 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          baseUrl: '',
+          profiles: compactProfiles,
+          fixtures: compactFixtures,
+          values: {}
+        }
+      })
+    });
+  });
+
+  await page.route('**/group_setup.php**', async route => {
+    const method = route.request().method();
+    if (method !== 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        baseUrl: '',
+        groups: [{ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} }]
+      })
+    });
+  });
+
+  await page.route('**/ui_state.php**', async route => {
+    if (route.request().method() !== 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
+    });
+  });
+}
+
 async function injectControllerCompactSetup(page) {
   await page.evaluate(({ profilesData, fixturesData }) => {
     profiles = JSON.parse(JSON.stringify(profilesData));
@@ -137,6 +190,7 @@ async function injectMotionCompactSetup(page) {
 module.exports = {
   loadPathConfig,
   openDmxPage,
+  routeControllerCompactServerSetup,
   injectControllerCompactSetup,
   injectChaserCompactSetup,
   injectMotionCompactSetup

@@ -1835,10 +1835,22 @@ function updateGroupBar(){
   const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:'';
   const note=n>1?(' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
   const label=n?`<strong>${n} fixture${n>1?'s':''} selected</strong>${note}`:'<strong>No fixtures selected</strong>';
-  bar.innerHTML=`<span>${label}</span>${scope}<button class="primary" id="openGroupEdit"${n>1&&common.length?'':' disabled'}>Group Edit</button><button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
+  bar.innerHTML=`<span>${label}</span>${scope}<button class="primary" id="openGroupEdit"${n>1&&common.length?'':' disabled'}>Group Edit</button><button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
   document.getElementById('openGroupEdit').onclick=()=>{if(n>1&&common.length)openGroupModal();};
   document.getElementById('saveGroupBtn').onclick=()=>{if(n)saveCurrentGroup();};
+  document.getElementById('selectAllFixtures').onclick=selectAllFixtures;
   document.getElementById('clearSelection').onclick=clearGroupSelection;
+}
+function selectAllFixtures(){
+  selectedFixtureIds=new Set(fixtures.map(f=>f.id));
+  activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  drawSurface();
 }
 function clearGroupSelection(){
   selectedFixtureIds.clear();
@@ -2133,7 +2145,15 @@ function loadSavedGroups(){
   fetch('group_setup.php').then(r=>r.json()).then(d=>{
     if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
     savedGroups=normalizeSavedGroups(d.groups);
-    DmxCommon.loadSharedGroupSelection().then(ids=>{applySharedGroupSelection(ids);renderSavedGroupsList();drawSurface();});
+    DmxCommon.loadSharedGroupSelection().then(ids=>{
+      if(ids.length){
+        applySharedGroupSelection(ids);
+      }else{
+        activeSavedGroupIds.clear();
+      }
+      renderSavedGroupsList();
+      drawSurface();
+    });
   }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
 }
 function clampGroupLayout(priority='cols'){
