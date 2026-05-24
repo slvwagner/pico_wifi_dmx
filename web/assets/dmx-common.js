@@ -771,11 +771,28 @@
     return contrastBlack>=contrastWhite?'#06110e':'#ffffff';
   }
 
+  function luminanceForColor(hex){
+    const value=String(hex||'').replace('#','');
+    if(!/^[0-9a-f]{6}$/i.test(value))return 0;
+    const r=parseInt(value.slice(0,2),16)/255;
+    const g=parseInt(value.slice(2,4),16)/255;
+    const b=parseInt(value.slice(4,6),16)/255;
+    const linear=v=>v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);
+    return 0.2126*linear(r)+0.7152*linear(g)+0.0722*linear(b);
+  }
+
   function slotVisualStyle(item){
     const visual=normalizeSlotVisual(item&&item.visual);
     if(!visual||!visual.color)return '';
     const text=contrastTextForColor(visual.color);
-    return `background:${visual.color};border-color:${visual.color};color:${text}`;
+    const lum=luminanceForColor(visual.color);
+    const overlay=lum>0.45?'rgba(0,0,0,.28)':'rgba(255,255,255,.18)';
+    const ring=lum>0.45?'rgba(0,0,0,.5)':'rgba(1,255,230,.45)';
+    const actionColor=lum>0.45?'#06110e':'#01ffe6';
+    const actionHover=lum>0.45?'rgba(0,0,0,.14)':'rgba(1,255,230,.12)';
+    const actionHoverStrong=lum>0.45?'rgba(0,0,0,.22)':'rgba(1,255,230,.18)';
+    const actionBorder=lum>0.45?'rgba(0,0,0,.35)':'rgba(1,255,230,.35)';
+    return `background:${visual.color};border-color:${visual.color};color:${text};--slot-highlight-overlay:${overlay};--slot-highlight-ring:${ring};--slot-action-color:${actionColor};--slot-action-hover:${actionHover};--slot-action-hover-strong:${actionHoverStrong};--slot-action-border:${actionBorder}`;
   }
 
   function slotVisualHtml(item){
