@@ -12,6 +12,7 @@ Added:
 - Reworked the former Frame Rate Test into the Pico Performance Test with Pico status checks, firmware log parsing, DMX/base buffer readback, the existing write benchmark, and automated UI coverage.
 - Added Timing History to the Pico Performance Test so repeated Pico status/timing checks can be compared separately from DMX write history.
 - Added release preparation tooling that builds firmware, runs UI tests, copies the UF2 into `release/v<version>/`, and writes a manifest plus SHA256 checksum.
+- Added a `-RunHardwareTests` release-script option that initializes the local Pico test config when missing and includes real hardware tests in the release run.
 - Added configurable local path setup for XAMPP/script paths.
 
 Fixed:

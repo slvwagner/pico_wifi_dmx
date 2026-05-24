@@ -215,6 +215,18 @@ Prepare a release package after versions, tests, and changelog are ready:
 .\scripts\prepare_release.ps1 -Build
 ```
 
+To include the real Pico hardware tests in the release run, use:
+
+```powershell
+.\scripts\prepare_release.ps1 -Build -RunHardwareTests
+```
+
+If `tests\pathconfig.local.json` does not exist, the script creates it from `tests\pathconfig.example.json`. It will not overwrite an existing local config. You can override the Pico address for one run with `-PicoBaseUrl`:
+
+```powershell
+.\scripts\prepare_release.ps1 -Build -RunHardwareTests -PicoBaseUrl "http://192.168.0.24/"
+```
+
 Important developer checks:
 
 - Keep generated folders such as `build/`, `node_modules/`, and `test-results/` out of Git.
@@ -379,8 +391,10 @@ npm run test:pico
 7. Create the release package:
 
 ```powershell
-.\scripts\prepare_release.ps1
+.\scripts\prepare_release.ps1 -Build
 ```
+
+To run the real Pico endpoint and slot tests as part of the release package, add `-RunHardwareTests`. The script creates `tests\pathconfig.local.json` from `tests\pathconfig.example.json` if it is missing, then runs the full Playwright suite with hardware tests enabled.
 
 The script copies `build/pico_wifi_dmx.uf2` into:
 

@@ -105,6 +105,14 @@ Then run:
 npm run test:pico
 ```
 
+The release script can also enable the hardware tests for a full release run:
+
+```powershell
+.\scripts\prepare_release.ps1 -Build -RunHardwareTests
+```
+
+If `tests\pathconfig.local.json` does not exist, the release script creates it from `tests\pathconfig.example.json`. It does not overwrite an existing local config. Use `-PicoBaseUrl "http://192.168.0.24/"` to override the Pico address for one release run.
+
 You can also use environment variables for a temporary run:
 
 ```powershell

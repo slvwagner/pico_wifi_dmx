@@ -4,7 +4,9 @@ param(
     [string]$OutDir = "release",
     [switch]$Build,
     [switch]$SkipTests,
-    [switch]$AllowDirty
+    [switch]$AllowDirty,
+    [switch]$RunHardwareTests,
+    [string]$PicoBaseUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -83,6 +85,35 @@ if ($Build) {
     }
 }
 
+if ($RunHardwareTests -and -not $SkipTests) {
+    Invoke-Step "Enable real Pico hardware tests" {
+        $localConfig = Join-Path $repoRoot "tests\pathconfig.local.json"
+        $exampleConfig = Join-Path $repoRoot "tests\pathconfig.example.json"
+        if (-not (Test-Path -LiteralPath $localConfig)) {
+            if (-not (Test-Path -LiteralPath $exampleConfig)) {
+                throw "Could not find tests\pathconfig.example.json to initialize hardware test config."
+            }
+            Copy-Item -LiteralPath $exampleConfig -Destination $localConfig
+            Write-Host "Created tests\pathconfig.local.json from tests\pathconfig.example.json"
+        } else {
+            Write-Host "Using existing tests\pathconfig.local.json"
+        }
+
+        if ($PicoBaseUrl) {
+            $env:DMX_PICO_BASE_URL = $PicoBaseUrl
+            Write-Host "Using Pico base URL from -PicoBaseUrl: $PicoBaseUrl"
+        }
+        $env:DMX_RUN_HARDWARE_TESTS = "true"
+
+        $config = Get-Content -LiteralPath $localConfig -Raw | ConvertFrom-Json
+        $effectivePicoBaseUrl = if ($PicoBaseUrl) { $PicoBaseUrl } else { [string]$config.picoBaseUrl }
+        if (-not $effectivePicoBaseUrl) {
+            throw "Hardware tests requested, but Pico base URL is empty. Set tests\pathconfig.local.json picoBaseUrl or pass -PicoBaseUrl."
+        }
+        Write-Host "Hardware tests enabled for $effectivePicoBaseUrl"
+    }
+}
+
 if (-not $SkipTests) {
     Invoke-Step "Run UI regression tests" {
         Invoke-Native "UI regression tests" { npm run test:ui }
@@ -114,6 +145,9 @@ $manifest = [ordered]@{
     branch = $branch
     commit = $commit
     createdAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    tests = @{
+        hardware = [bool]$RunHardwareTests
+    }
     firmware = @{
         file = $firmwareName
         sizeBytes = (Get-Item -LiteralPath $firmwareOut).Length
