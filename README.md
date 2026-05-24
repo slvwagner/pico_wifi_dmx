@@ -1,27 +1,26 @@
 # pico_wifi_dmx
 
-WiFi-controlled DMX512 controller firmware for the Raspberry Pi Pico 2 W (RP2350). Can contoll a full DMX universe per unit. Provides real-time DMX output driven either from a browser-based UI or autonomously on the Pico itself, with no dependency on network latency for live playback.
+WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). One Pico drives one full 512-channel DMX universe. The browser can be used for setup and live editing, while chases and motion effects can also run autonomously on the Pico so show playback does not depend on browser timing or WiFi latency.
 
-Browser-based user interface with the following features:
+## Overview
 
-- Fixture definition
-- Fixture patching, including multi-fixture patch runs with automatic numbering and optional Saved Group creation
-- Fixture groups with saved group selection, multi-select filtering, rename, delete, and compact group matrix layout
-- Scene editing and saving to palettes
-- Palette toolbox for reusable partial looks that recall as overlays
-- Fan Out toolbox on the Fixture Controller to shape selected groups directly into scene values with affected controls highlighted
-- Effect creation, such as swing, circle, and figure-8
-- Effects are relative to the scene position
-- 32 effects can be saved on the Pico and run simultaneously
-- Chaser tool to create chases, add, edit, duplicate steps, and capture channel values to create steps
-- Participating fixture controls can be defined for chases, which helps edit only the intended controls and channels
-- 32 chasers with 32 steps each can be saved to the Pico
-- Preview for all tools
-- Real-time running of all chaser and effect slots on the Pico hardware
-- Real-time GPIO control to run, stop, set speed, and pause chases and effects
-- Simple user interface to define each GPIO pin by choosing a pin and assigning an action
-- All data is stored server-side and can be exported or imported as JSON files
-- Fixture profile controls support add and edit workflows in one editor. Editing a control automatically opens the Add / Edit Control card.
+The project combines firmware, a XAMPP-hosted web interface, JSON-based setup storage, and automated tests/documentation for a complete small lighting-control workflow.
+
+Core features:
+
+- **Fixture Controller** — define fixture profiles, patch one or many fixtures, edit live values, recall Default/Blackout values, create fixture groups, save scenes, and build reusable palettes.
+- **Shared Toolboxes sidebar** — scenes, groups, palettes, fan out, chases, chase steps, playback, and motion effects live in a shared resizable sidebar. Layout, width, order, collapse state, and group selection are stored server-side and shared across pages.
+- **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
+- **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
+- **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
+- **Chaser** — create step-based chases, define participating controls, add/capture/duplicate/reorder steps, edit step values, use browser playback for preview, and upload chases into Pico slots for standalone playback.
+- **Motion FX** — apply circle, figure-8, pan swing, tilt swing, sine, and pulse effects to compatible fixture controls. Effects are relative to the current base/scene value and can be saved as reusable recipes or uploaded to Pico motion slots.
+- **Pico Playback** — run chaser and motion slots directly on the Pico with play/stop, pause/resume, direction, loop modes, BPM/speed changes, and slot status readback.
+- **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control.
+- **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
+- **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, and write throughput against a real Pico.
+- **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; pages also provide JSON import/export where useful.
+- **Release tooling** — scripts sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots, run tests, build firmware, and prepare release packages.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
@@ -586,7 +585,7 @@ The Chaser page builds step-based sequences. A chase is made from multiple steps
 
 Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
 
-The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, use the header arrow to collapse or reopen the sidebar, and drag toolbox headers to reorder them. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, and Motion FX. Filled scene, palette, chase, and effect slots use a small top-left pencil icon to open **Edit Tile** for renaming and visual appearance; the small `x` remains the delete control. The Chaser also has a Palettes toolbox: empty palette slots save the selected step's fixture/control values, and filled palette slots recall compatible values into the selected step.
+The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, use the header arrow to collapse or reopen the sidebar, and drag toolbox headers to reorder them. The colored toolbox header is the only reorder handle; on iPad it uses app pointer dragging instead of Safari's native drag/drop to avoid unwanted open/search behavior. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, and Motion FX. Filled scene, palette, chase, and effect slots use a small top-left pencil icon to open **Edit Tile** for renaming and visual appearance; the small `x` remains the delete control. The Chaser also has a Palettes toolbox: empty palette slots save the selected step's fixture/control values, and filled palette slots recall compatible values into the selected step.
 
 **Motion FX**
 

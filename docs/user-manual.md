@@ -358,7 +358,7 @@ Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on des
 - Double-click the resize line to reset the default width.
 - The page content and the toolbox sidebar scroll independently. The page scrollbar sits beside the toolbox separation line, while the toolbox scrollbar stays inside the toolbox sidebar.
 - Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.
-- Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens.
+- Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens. On iPad, toolbox reordering uses the app's pointer drag on the colored header instead of Safari's native drag/drop; the header also suppresses text selection/copy callouts as much as Safari allows.
 - On narrow screens, the sidebar changes into a bottom toolbox drawer.
 
 The Chaser page uses several toolboxes:
