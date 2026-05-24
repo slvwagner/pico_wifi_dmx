@@ -27,6 +27,7 @@ typedef struct {
     bool     playing;
     bool     paused;
     uint16_t current_step;
+    int8_t   direction_step;
     uint32_t step_entered_us;
     uint32_t paused_elapsed_us;
     uint16_t completed_loops;
@@ -43,6 +44,11 @@ static uint16_t start_step_for_slot(const chaser_slot_data_t *sd)
     if (sd->direction == CHASER_DIR_REVERSE && sd->step_count > 0)
         return (uint16_t)(sd->step_count - 1);
     return 0;
+}
+
+static int8_t start_direction_for_slot(const chaser_slot_data_t *sd)
+{
+    return sd->direction == CHASER_DIR_REVERSE ? -1 : 1;
 }
 
 /* ---------- init --------------------------------------------------------- */
@@ -99,6 +105,9 @@ bool chaser_load_slot(uint8_t slot, const char *body, size_t len)
                 tmp.loop = false;
             } else if (strcmp(mode, "loop_n") == 0 || strcmp(mode, "loopn") == 0) {
                 tmp.mode = CHASER_MODE_LOOP_N;
+                tmp.loop = true;
+            } else if (strcmp(mode, "ping_pong") == 0 || strcmp(mode, "pingpong") == 0) {
+                tmp.mode = CHASER_MODE_PING_PONG;
                 tmp.loop = true;
             } else {
                 tmp.mode = CHASER_MODE_LOOP;
@@ -162,6 +171,7 @@ void chaser_play(uint8_t slot)
     critical_section_enter_blocking(&chaser_lock);
     if (slot_data[slot].loaded && slot_data[slot].step_count > 0) {
         play_state[slot].current_step    = start_step_for_slot(&slot_data[slot]);
+        play_state[slot].direction_step  = start_direction_for_slot(&slot_data[slot]);
         play_state[slot].step_entered_us = 0;
         play_state[slot].paused_elapsed_us = 0;
         play_state[slot].completed_loops = 0;
@@ -215,6 +225,7 @@ void chaser_stop(void)
         play_state[i].playing = false;
         play_state[i].paused = false;
         play_state[i].current_step = start_step_for_slot(&slot_data[i]);
+        play_state[i].direction_step = start_direction_for_slot(&slot_data[i]);
         play_state[i].step_entered_us = 0;
         play_state[i].paused_elapsed_us = 0;
         play_state[i].completed_loops = 0;
@@ -229,6 +240,7 @@ void chaser_stop_slot(uint8_t slot)
     play_state[slot].playing = false;
     play_state[slot].paused = false;
     play_state[slot].current_step = start_step_for_slot(&slot_data[slot]);
+    play_state[slot].direction_step = start_direction_for_slot(&slot_data[slot]);
     play_state[slot].step_entered_us = 0;
     play_state[slot].paused_elapsed_us = 0;
     play_state[slot].completed_loops = 0;
@@ -334,13 +346,21 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             for (uint16_t i = 0; i < step.ch_count; i++)
                 ps->from_values[sd->channels[step.ch_start + i].channel] =
                     sd->channels[step.ch_start + i].value;
-            int next = (int)ps->current_step + (sd->direction == CHASER_DIR_REVERSE ? -1 : 1);
+            if (ps->direction_step == 0)
+                ps->direction_step = start_direction_for_slot(sd);
+            int next = (int)ps->current_step + ps->direction_step;
             bool cycle_done = next < 0 || next >= (int)sd->step_count;
             if (cycle_done) {
                 ps->completed_loops++;
-                if (sd->mode == CHASER_MODE_LOOP ||
+                if (sd->mode == CHASER_MODE_PING_PONG && sd->step_count > 1) {
+                    ps->direction_step = (int8_t)-ps->direction_step;
+                    next = (int)ps->current_step + ps->direction_step;
+                    if (next < 0) next = 0;
+                    if (next >= (int)sd->step_count) next = (int)sd->step_count - 1;
+                } else if (sd->mode == CHASER_MODE_LOOP ||
                     (sd->mode == CHASER_MODE_LOOP_N && ps->completed_loops < sd->loop_count)) {
                     next = (int)start_step_for_slot(sd);
+                    ps->direction_step = start_direction_for_slot(sd);
                 } else {
                     ps->playing = false;
                     ps->paused = false;

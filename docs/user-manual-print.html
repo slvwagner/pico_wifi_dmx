@@ -415,12 +415,13 @@ strong { color: #ffffff; }
 </ul>
 <p><img src="screenshots/chaser-toolbox-fanout.png" alt="Chaser Fan Out toolbox"></p>
 <ul>
-<li><strong>Chase Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico. The <strong>Fade % (all steps)</strong> field applies one fade value to every step immediately. Use <strong>Edit Step &gt; Fade %</strong> when one step needs its own fade value.</li>
+<li><strong>Chase Playback</strong> runs the current chase from the browser for checking timing and fades before uploading to the Pico. <strong>Mode</strong> chooses <strong>Single</strong>, <strong>Loop</strong>, <strong>Loop N</strong>, or <strong>Ping Pong</strong>. <strong>Direction</strong> chooses whether playback starts at the first step and moves forward or starts at the last step and moves backward. <strong>Loops</strong> is only used by <strong>Loop N</strong>; normal <strong>Loop</strong> runs forever. <strong>Ping Pong</strong> reverses at the end of the chase instead of jumping back to the first or last step. The <strong>Fade % (all steps)</strong> field applies one fade value to every step immediately. Use <strong>Edit Step &gt; Fade %</strong> when one step needs its own fade value.</li>
 <li>While Chase Playback runs, the currently playing step automatically becomes the selected step. This means <strong>Edit Step</strong> follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.</li>
 <li>Selecting a step in <strong>Chase Steps</strong> or manually changing controls in <strong>Edit Step</strong> stops browser Chase Playback. This prevents playback from immediately overwriting the values you are trying to edit.</li>
 </ul>
 <p><img src="screenshots/chaser-toolbox-browser-playback.png" alt="Chaser Chase Playback toolbox"></p>
 <p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
+<p>Saved chases also recall the playback controls that were saved with them, including browser mode, Loop N count, Ping Pong, direction, BPM, and Pico speed. The Chases toolbox tiles still show only the chase name and visual so they stay consistent with the other toolboxes. Uploading to a Pico slot uses the current <strong>Chase Playback</strong> playmode, loop count, and direction, so the Pico slot behaves like the chase you previewed in the browser. Per-slot playback details are shown in the <strong>Pico Playback</strong> slot tiles after a chase has been uploaded to a Pico slot. Each loaded Pico slot shows compact lines for loop state, direction, and Ping Pong state.</p>
 <p>The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads. Collapsing <strong>Participating Controls</strong> or <strong>Edit Step</strong> only hides that card body: the sticky page header keeps the same height, and the next card moves up to use the freed space.</p>
 <p><img src="screenshots/chaser-collapsed-work-area.png" alt="Chaser collapsed work area"></p>
 <h3 id="chase-steps-toolbox-buttons">Chase Steps Toolbox Buttons</h3>
@@ -539,10 +540,12 @@ strong { color: #ffffff; }
 <li>Single run</li>
 <li>Loop</li>
 <li>Loop N times</li>
+<li>Ping Pong</li>
 <li>Forward or reverse direction</li>
 <li>Speed multiplier</li>
 <li>Pause and resume</li>
 </ul>
+<p>Direction sets the first playback direction for the slot. In Ping Pong mode the Pico reverses direction whenever it reaches either end of the chase.</p>
 <p>Each chaser slot supports up to 32 steps.</p>
 <h2 id="5-motion-fx">5. Motion FX</h2>
 <p><img src="screenshots/motion-fx.png" alt="Motion FX"></p>

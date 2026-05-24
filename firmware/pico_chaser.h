@@ -27,6 +27,7 @@ typedef enum {
     CHASER_MODE_SINGLE = 0,
     CHASER_MODE_LOOP,
     CHASER_MODE_LOOP_N,
+    CHASER_MODE_PING_PONG,
 } chaser_mode_t;
 
 typedef enum {

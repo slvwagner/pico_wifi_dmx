@@ -166,7 +166,23 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       <button class="stop" id="btnStop" disabled>■ Stop</button>
       <button id="btnPrev">◀ Prev</button>
       <button id="btnNext">Next ▶</button>
-      <label><input id="loopCheck" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;padding:0;vertical-align:middle"> Loop</label>
+      <label>Mode
+        <select id="browserPlayMode">
+          <option value="single">Single</option>
+          <option value="loop" selected>Loop</option>
+          <option value="loop_n">Loop N</option>
+          <option value="ping_pong">Ping Pong</option>
+        </select>
+      </label>
+      <label>Loops
+        <input id="browserLoopCount" type="number" min="1" max="999" value="2" title="Used for Loop N">
+      </label>
+      <label>Direction
+        <select id="browserDirection">
+          <option value="forward">Forward</option>
+          <option value="reverse">Reverse</option>
+        </select>
+      </label>
       <label>BPM<input id="bpmInput" type="number" min="1" max="600" value="120"></label>
       <label>Beats/step
         <select id="beatsPerStep">
@@ -213,6 +229,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
         <option value="single">Single</option>
         <option value="loop" selected>Loop</option>
         <option value="loop_n">Loop N</option>
+        <option value="ping_pong">Ping Pong</option>
       </select>
     </label>
     <label class="pico-field">
@@ -1823,6 +1840,23 @@ let prevOutput={};
 let currentOutput={};
 let sentToPico={};  // last DMX values actually sent; only changed channels are transmitted
 let playbackVisualFrame=0;
+let playbackDirectionStep=1;
+let playbackCompletedCycles=0;
+
+function directionStepFromSelect(){
+  return document.getElementById('browserDirection')?.value==='reverse'?-1:1;
+}
+function browserStartStepIndex(){
+  return directionStepFromSelect()<0?steps.length-1:0;
+}
+function browserPlayModeOptions(){
+  const mode=document.getElementById('browserPlayMode')?.value||'loop';
+  const loop=mode!=='single';
+  const pingPong=mode==='ping_pong';
+  const loopCount=mode==='loop_n'?clamp(document.getElementById('browserLoopCount')?.value||1,1,999):0;
+  const direction=document.getElementById('browserDirection')?.value||'forward';
+  return {loop,pingPong,loopCount,direction,mode};
+}
 
 function schedulePlaybackVisualUpdate(ptList){
   if(playbackVisualFrame)return;
@@ -1847,7 +1881,9 @@ function startPlayback(){
     setPicoStatus('Stopped (browser took over)','var(--muted)');
   }
   playing=true;
-  activeStepIdx=0;
+  playbackDirectionStep=directionStepFromSelect();
+  activeStepIdx=browserStartStepIndex();
+  playbackCompletedCycles=0;
   stepEnteredAt=performance.now();
   prevOutput={};currentOutput={};sentToPico={};
   document.getElementById('btnPlay').textContent='⏸ Pause';
@@ -1916,10 +1952,27 @@ function playbackTick(){
 function advanceStep(){
   const ptList=getParticipatingList();
   ptList.forEach(({f,c})=>{const k=controlKey(f,c);prevOutput[k]=steps[activeStepIdx].values[k]??defaultValue(c);});
-  let next=activeStepIdx+1;
-  if(next>=steps.length){
-    if(document.getElementById('loopCheck').checked)next=0;
-    else{stopPlayback();return;}
+  if(!playbackDirectionStep)playbackDirectionStep=directionStepFromSelect();
+  let next=activeStepIdx+playbackDirectionStep;
+  const outside=next<0||next>=steps.length;
+  if(outside){
+    const mode=browserPlayModeOptions();
+    const loop=mode.loop;
+    const pingPong=mode.pingPong;
+    const loopLimit=mode.loopCount;
+    playbackCompletedCycles++;
+    if(loop&&loopLimit>0&&playbackCompletedCycles>=loopLimit){
+      stopPlayback();return;
+    }
+    if(pingPong&&loop&&steps.length>1){
+      playbackDirectionStep*=-1;
+      next=activeStepIdx+playbackDirectionStep;
+    }else if(loop){
+      playbackDirectionStep=directionStepFromSelect();
+      next=browserStartStepIndex();
+    }else{
+      stopPlayback();return;
+    }
   }
   activeStepIdx=next;
   stepEnteredAt=performance.now();
@@ -1934,8 +1987,8 @@ function manualStep(dir){
     activeStepIdx=dir>0?0:steps.length-1;
   }else{
     let next=activeStepIdx+dir;
-    if(next>=steps.length)next=document.getElementById('loopCheck').checked?0:steps.length-1;
-    if(next<0)next=document.getElementById('loopCheck').checked?steps.length-1:0;
+    if(next>=steps.length)next=browserPlayModeOptions().loop?0:steps.length-1;
+    if(next<0)next=browserPlayModeOptions().loop?steps.length-1:0;
     activeStepIdx=next;
   }
   stepEnteredAt=performance.now();
@@ -1967,10 +2020,11 @@ document.getElementById('btnTap').onclick=()=>{
 
 // ---- save / load chaser ----
 function picoPlaybackOptions(){
+  const browserMode=browserPlayModeOptions();
   return {
-    mode:document.getElementById('picoChaserMode')?.value||'loop',
-    loopCount:clamp(document.getElementById('picoLoopCount')?.value||2,1,999),
-    direction:document.getElementById('picoDirection')?.value||'forward',
+    mode:browserMode.mode,
+    loopCount:browserMode.loopCount>0?browserMode.loopCount:clamp(document.getElementById('picoLoopCount')?.value||2,1,999),
+    direction:browserMode.direction,
     speed:clamp(document.getElementById('picoSpeed')?.value||1,0.1,10)
   };
 }
@@ -1980,9 +2034,36 @@ function applyPicoPlaybackOptions(opts={}){
   if(opts.direction)document.getElementById('picoDirection').value=opts.direction;
   if(opts.speed!==undefined)document.getElementById('picoSpeed').value=clamp(opts.speed,0.1,10);
 }
+function syncPicoPlaybackControlsFromBrowser(){
+  const mode=browserPlayModeOptions();
+  const picoMode=document.getElementById('picoChaserMode');
+  const picoLoops=document.getElementById('picoLoopCount');
+  const picoDir=document.getElementById('picoDirection');
+  if(picoMode)picoMode.value=mode.mode;
+  if(picoDir)picoDir.value=mode.direction;
+  if(picoLoops&&mode.loopCount>0)picoLoops.value=mode.loopCount;
+  else if(picoLoops&&mode.mode==='single')picoLoops.value=1;
+}
+function syncBrowserPlaybackControlsFromPico(){
+  const mode=document.getElementById('picoChaserMode')?.value||'loop';
+  const loops=clamp(document.getElementById('picoLoopCount')?.value||1,1,999);
+  document.getElementById('browserPlayMode').value=mode;
+  document.getElementById('browserLoopCount').value=loops;
+  document.getElementById('browserDirection').value=document.getElementById('picoDirection')?.value||'forward';
+  updateBrowserLoopCountState();
+}
+function updateBrowserLoopCountState(){
+  const loopCount=document.getElementById('browserLoopCount');
+  if(loopCount)loopCount.disabled=(document.getElementById('browserPlayMode')?.value||'loop')!=='loop_n';
+}
 function browserPlaybackOptions(){
+  const mode=browserPlayModeOptions();
   return {
-    loop:!!document.getElementById('loopCheck')?.checked,
+    loop:mode.loop,
+    pingPong:mode.pingPong,
+    loopCount:mode.loopCount,
+    mode:mode.mode,
+    direction:mode.direction,
     bpm:clamp(document.getElementById('bpmInput')?.value||120,1,600),
     beatsPerStep:clamp(document.getElementById('beatsPerStep')?.value||1,0.25,8),
     defaultFade:clamp(document.getElementById('globalFade')?.value||0,0,100),
@@ -1990,17 +2071,25 @@ function browserPlaybackOptions(){
   };
 }
 function applyBrowserPlaybackOptions(opts={}){
-  if(opts.loop!==undefined)document.getElementById('loopCheck').checked=!!opts.loop;
+  if(opts.mode)document.getElementById('browserPlayMode').value=opts.mode;
+  else if(opts.loop!==undefined||opts.pingPong!==undefined){
+    document.getElementById('browserPlayMode').value=!opts.loop?'single':opts.pingPong?'ping_pong':(opts.loopCount>0?'loop_n':'loop');
+  }
+  if(opts.loopCount!==undefined)document.getElementById('browserLoopCount').value=clamp(opts.loopCount||1,1,999);
+  if(opts.direction)document.getElementById('browserDirection').value=opts.direction;
   if(opts.bpm!==undefined)document.getElementById('bpmInput').value=clamp(opts.bpm,1,600);
   if(opts.beatsPerStep!==undefined)document.getElementById('beatsPerStep').value=String(clamp(opts.beatsPerStep,0.25,8));
   if(opts.defaultFade!==undefined)document.getElementById('globalFade').value=clamp(opts.defaultFade,0,100);
   if(opts.updateRate!==undefined)document.getElementById('updateRate').value=clamp(opts.updateRate,5,50);
+  updateBrowserLoopCountState();
+  syncPicoPlaybackControlsFromBrowser();
 }
 function applyChaserData(data,redraw=true){
   data=remapChaserKeysForCurrentSetup(data);
   if(data?.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
   if(data?.playback)applyPicoPlaybackOptions(data.playback);
   if(data?.browserPlayback)applyBrowserPlaybackOptions(data.browserPlayback);
+  else if(data?.playback)syncBrowserPlaybackControlsFromPico();
   if(Array.isArray(data?.steps)){
     steps=data.steps.slice(0,CHASER_MAX_STEPS);
     if(data.steps.length>CHASER_MAX_STEPS)setStatus('Imported chase was trimmed to '+CHASER_MAX_STEPS+' steps',true);
@@ -2280,6 +2369,7 @@ setTimeout(updateChaserPlaybackCollapseButtons,500);
 ['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>localStorage.removeItem(key));
 ['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>DmxCommon.saveUiState('chaser',key,null));
 loadChasesServer();
+loadSavedChaserSlotInfo();
 
 function applyParticipatingData(data,redraw=true){
   if(data&&typeof data==='object'){
@@ -2645,11 +2735,17 @@ function scheduleBrowserPlaybackAutosave(){
 function applyBpmToSteps(){const d=calcDefaultDuration();steps.forEach(s=>s.duration=d);drawStepList();scheduleBrowserPlaybackAutosave();}
 document.getElementById('bpmInput').oninput=applyBpmToSteps;
 document.getElementById('beatsPerStep').onchange=applyBpmToSteps;
-['loopCheck','updateRate'].forEach(id=>{
+['browserPlayMode','browserLoopCount','browserDirection','updateRate'].forEach(id=>{
   const el=document.getElementById(id);
-  if(el)el.addEventListener('input',scheduleBrowserPlaybackAutosave);
-  if(el)el.addEventListener('change',scheduleBrowserPlaybackAutosave);
+  if(el)el.addEventListener('input',()=>{updateBrowserLoopCountState();syncPicoPlaybackControlsFromBrowser();scheduleBrowserPlaybackAutosave();});
+  if(el)el.addEventListener('change',()=>{updateBrowserLoopCountState();syncPicoPlaybackControlsFromBrowser();scheduleBrowserPlaybackAutosave();});
 });
+['picoChaserMode','picoLoopCount','picoDirection'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.addEventListener('input',()=>{syncBrowserPlaybackControlsFromPico();scheduleBrowserPlaybackAutosave();});
+  if(el)el.addEventListener('change',()=>{syncBrowserPlaybackControlsFromPico();scheduleBrowserPlaybackAutosave();});
+});
+updateBrowserLoopCountState();
 function applyGlobalFadeToSteps(showStatus=false){
   const f=clamp(document.getElementById('globalFade').value,0,100);
   steps.forEach(s=>s.fade=f);
@@ -2778,6 +2874,7 @@ function setPicoStatus(msg,color){
 let _lastChaserSlots = null;
 let _lastChaserActiveMask = 0;
 let _lastChaserReportedSlotCount = PICO_SLOT_COUNT;
+let savedPicoChaserSlotInfo = Array.from({length:PICO_SLOT_COUNT},()=>null);
 
 function selectedChaserSlot(){
   return parseInt(document.getElementById('picoSlot').value)||0;
@@ -2789,6 +2886,64 @@ function ensureChaserSlotSupported(){
   return false;
 }
 
+function chaserSlotLoopLine(s){
+  const mode=Number(s?.mode);
+  const loopOn=!!s?.loop||mode===1||mode===2||mode===3;
+  if(mode===2)return 'Loop '+(Number(s?.loop_count)||1)+'x';
+  return 'Loop '+(loopOn?'on':'off');
+}
+
+function chaserSlotDirectionLine(s){
+  return Number(s?.direction)===1?'Reverse':'Forward';
+}
+
+function chaserSlotPingPongLine(s){
+  return 'Ping Pong '+(Number(s?.mode)===3?'on':'off');
+}
+
+function parseChaserPicoSlotPayload(body,slot=0){
+  if(!body)return null;
+  const info={slot,loaded:true,active:false,paused:false,loop:true,mode:1,direction:0,loop_count:1,current_step:0,step_count:0,speed_mult:1};
+  String(body).split(/\r?\n/).forEach(line=>{
+    const trimmed=line.trim();
+    if(!trimmed)return;
+    if(trimmed.startsWith('LOOP ')){
+      info.loop=parseInt(trimmed.slice(5),10)!==0;
+      if(!info.loop)info.mode=0;
+    }else if(trimmed.startsWith('MODE ')){
+      const mode=trimmed.slice(5).trim();
+      if(mode==='single'||mode==='once'){info.mode=0;info.loop=false;}
+      else if(mode==='loop_n'||mode==='loopn'){info.mode=2;info.loop=true;}
+      else if(mode==='ping_pong'||mode==='pingpong'){info.mode=3;info.loop=true;}
+      else {info.mode=1;info.loop=true;}
+    }else if(trimmed.startsWith('LOOPS ')){
+      info.loop_count=Math.max(1,parseInt(trimmed.slice(6),10)||1);
+    }else if(trimmed.startsWith('DIR ')){
+      const dir=trimmed.slice(4).trim();
+      info.direction=(dir==='reverse'||dir==='rev')?1:0;
+    }else if(trimmed.startsWith('SPEED ')){
+      info.speed_mult=Math.max(0.1,Math.min(10,parseFloat(trimmed.slice(6))||1));
+    }else if(trimmed.startsWith('STEP ')){
+      info.step_count++;
+    }
+  });
+  return info.step_count>0?info:null;
+}
+
+function mergeSavedChaserSlotInfo(slot){
+  if(!slot)return slot;
+  const saved=savedPicoChaserSlotInfo[Number(slot.slot)||0];
+  if(!saved||!slot.loaded)return slot;
+  return Object.assign({},slot,{
+    loop:saved.loop,
+    mode:saved.mode,
+    direction:saved.direction,
+    loop_count:saved.loop_count,
+    speed_mult:saved.speed_mult||slot.speed_mult,
+    step_count:slot.step_count||saved.step_count
+  });
+}
+
 function renderChaserSlotStrip(slots, activeMask) {
   const strip = document.getElementById('chaserSlotStrip');
   if (!strip) return;
@@ -2797,6 +2952,7 @@ function renderChaserSlotStrip(slots, activeMask) {
   const selected = selectedChaserSlot();
   strip.innerHTML = '';
   slots.forEach(s => {
+    s=mergeSavedChaserSlotInfo(s);
     const alive  = !!(activeMask & (1 << s.slot));
     const paused = !!s.paused;
     const loaded = s.loaded;
@@ -2813,8 +2969,9 @@ function renderChaserSlotStrip(slots, activeMask) {
       'transition:border-color .15s,box-shadow .15s','user-select:none'
     ].filter(Boolean).join(';');
     const stepsLabel = unsupported ? 'FW old' : loaded ? s.step_count + ' steps' : '\u2014';
-    const modeLabel = s.mode===0?'single':s.mode===2?'loop '+(s.loop_count||1):'loop';
-    const dirLabel = s.direction===1?'rev':'fwd';
+    const loopLine = chaserSlotLoopLine(s);
+    const dirLine = chaserSlotDirectionLine(s);
+    const pingPongLine = chaserSlotPingPongLine(s);
     const deleteButton = loaded && !unsupported
       ? '<button type="button" data-delete-chaser-slot="' + s.slot + '" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
       : '';
@@ -2822,7 +2979,7 @@ function renderChaserSlotStrip(slots, activeMask) {
       deleteButton +
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
-      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + modeLabel + ' / ' + dirLabel + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
+      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + loopLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + dirLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + pingPongLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
       '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' +
         (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
@@ -2909,16 +3066,28 @@ async function saveChaserSlotToServer(slot, body){
   if(location.protocol!=='http:'&&location.protocol!=='https:')return;
   const url=baseUrlEl.value.replace(/\/+$/,'');
   const params='slot='+slot+(url?'&pico_url='+encodeURIComponent(url):'');
+  savedPicoChaserSlotInfo[slot]=parseChaserPicoSlotPayload(body,slot);
   try{await fetch('chaser_setup.php?'+params,{method:'POST',body,headers:{'Content-Type':'text/plain'}});}catch(_){}
+}
+async function loadSavedChaserSlotInfo(){
+  try{
+    const r=await fetch('chaser_setup.php?slots',{cache:'no-store'});
+    const j=await r.json();
+    if(!j.ok)return;
+    const slots=Array.isArray(j.pico_slots)?j.pico_slots:[];
+    savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
+    if(_lastChaserSlots)renderChaserSlotStrip(_lastChaserSlots,_lastChaserActiveMask);
+  }catch(_){}
 }
 async function restoreAllChaserSlots(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setPicoStatus('Restore error: '+e.message,'var(--bad)');return;}
-  if(!j.ok){setPicoStatus('Restore error','var(--bad)');return;}
-  const slots=j.pico_slots||[];
-  let count=0;
+    if(!j.ok){setPicoStatus('Restore error','var(--bad)');return;}
+    const slots=j.pico_slots||[];
+    savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
+    let count=0;
   for(let i=0;i<slots.length;i++){
     if(!slots[i])continue;
     try{
@@ -2946,7 +3115,7 @@ async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
     const r=await fetch(root+'/chaser/load/'+slot,{method:'POST',body,headers:{'Content-Type':'text/plain'}});
     const j=await r.json();
     if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
-    saveChaserSlotToServer(slot, body); // persist to server (fire-and-forget)
+    await saveChaserSlotToServer(slot, body);
     setPicoStatus('Uploaded current chase to slot '+slot,'var(--accent)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
@@ -3049,6 +3218,7 @@ drawStepEditor();
         const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
         if(!savedUrl||savedUrl===root){
           const slots=j.pico_slots||[];
+          savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
           for(let i=0;i<slots.length;i++){
             if(!slots[i])continue;
             try{await fetch(root+'/chaser/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
