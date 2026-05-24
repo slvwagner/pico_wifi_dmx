@@ -15,14 +15,10 @@ Global is simpler and safer. Page-specific is more flexible, but easier to misun
 ## 02
 
 
-# Debug
-
-
+# Bugs
 
 ## 01
-I just foud out that there are more effects just using a single controll such as Pan Swing or tilt Swing so we need to take care of that too
 
 
-# Error fixing
 
 
