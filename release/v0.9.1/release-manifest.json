@@ -1,0 +1,11 @@
+{
+  "version": "0.9.1",
+  "branch": "0.9.1",
+  "commit": "000816c",
+  "createdAt": "2026-05-24T16:27:08Z",
+  "firmware": {
+    "sha256": "96749d0809cbc3c10cd8e310c1fef1e28043ab48a52692adc2556dcf23c197e2",
+    "sizeBytes": 878080,
+    "file": "pico_wifi_dmx-v0.9.1.uf2"
+  }
+}
