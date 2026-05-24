@@ -157,6 +157,7 @@ body.toolbox-rail-collapsed .toolbox-rail-resizer,body.toolbox-rail-collapsed .t
 .toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"]{cursor:grab;touch-action:none}
 .toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"]:active{cursor:grabbing}
 .toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"] button{cursor:pointer}
+.toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"],.toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"] *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .toolbox-rail .chaser-collapse-all{display:none}
 .toolbox-rail .scene-toolbox--groups{overflow:visible}
 .toolbox-rail .groups-toolbar{grid-template-columns:44px 44px minmax(0,1fr) minmax(0,1fr);align-items:start}
