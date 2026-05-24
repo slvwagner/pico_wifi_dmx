@@ -5,6 +5,7 @@ async function openDmxPage(page, path = '') {
   await page.addInitScript(() => {
     localStorage.setItem('dmxPicoBaseUrl', '');
     localStorage.setItem('selectedGroupIds', '[]');
+    localStorage.removeItem('motionEffectTargetKey');
   });
   const suffix = path ? path : '';
   await page.goto(suffix + (suffix.includes('?') ? '&' : '?') + 'test=' + Date.now());
@@ -182,6 +183,8 @@ async function injectMotionCompactSetup(page) {
     motionGroupsBox.render();
     selectedMotionTargetKey = '';
     drawFixtureList();
+    const motionFilter = document.getElementById('motionControlFilter');
+    if (motionFilter) motionFilter.value = '';
     drawPathPreview();
     refreshMotionGroupActions();
   }, { profilesData: compactProfiles, fixturesData: compactFixtures });

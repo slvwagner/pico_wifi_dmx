@@ -31,7 +31,8 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 - GPIO ADC mappings only offer GPIO26, GPIO27, and GPIO28.
 - GPIO mapping dropdowns mark reserved or already-used pins unavailable.
 - GPIO loads saved mappings from the XAMPP server, autosaves edits back to the server, and preserves those mappings across a fresh device-style reload.
-- GPIO and Benchmark pages link to the DMX Buffer Monitor.
+- GPIO and Pico Performance pages link to the DMX Buffer Monitor.
+- Pico Performance Test parses firmware timing logs and verifies DMX/base buffer readback against a configured Pico base URL.
 - Controller wheel/indexed controls reject duplicate DMX option values.
 - Controller scene recall clears group selection and filters to involved fixtures.
 - Controller palette recall applies only stored values and leaves unrelated values untouched.
@@ -103,6 +104,14 @@ Then run:
 ```powershell
 npm run test:pico
 ```
+
+The release script can also enable the hardware tests for a full release run:
+
+```powershell
+.\scripts\prepare_release.ps1 -Build -RunHardwareTests
+```
+
+If `tests\pathconfig.local.json` does not exist, the release script creates it from `tests\pathconfig.example.json`. It does not overwrite an existing local config. Use `-PicoBaseUrl "http://192.168.0.24/"` to override the Pico address for one release run.
 
 You can also use environment variables for a temporary run:
 
