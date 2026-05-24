@@ -769,6 +769,8 @@ Use **Base / position** to inspect the scene base buffer used as the center for 
 
 Use **Refresh ms** to control the polling interval directly. Use **Refresh Hz** when you prefer rate instead. Both fields stay synchronized, so `500 ms` is shown as `2 Hz`. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. **Auto refresh** starts or stops polling without changing the selected buffer.
 
+Use **Clear all** when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.
+
 ## 9. Backup and Import
 
 Most setup data is stored as JSON files on the XAMPP server in the `data/` folder.

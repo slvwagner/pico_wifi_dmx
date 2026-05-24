@@ -607,7 +607,7 @@ The page protects reserved hardware pins and already-used pins, then sends the m
 
 ![DMX Buffer Monitor page](docs/screenshots/dmx-monitor.png)
 
-The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selector to switch between the actual live output frame and the base/position buffer used as the Motion FX center. Use **Refresh ms** or **Refresh Hz** to choose how often the selected buffer is read; both fields stay synchronized.
+The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selector to switch between the actual live output frame and the base/position buffer used as the Motion FX center. Use **Refresh ms** or **Refresh Hz** to choose how often the selected buffer is read; both fields stay synchronized. **Clear all** clears both Pico buffers and refreshes the displayed values.
 
 **Pico Performance Test**
 

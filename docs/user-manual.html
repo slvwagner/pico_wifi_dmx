@@ -700,6 +700,7 @@ strong { color: #ffffff; }
 <p>Use <strong>DMX output</strong> to see the actual output frame currently held by the DMX engine, including values produced by Pico-side Chaser or Motion FX playback.</p>
 <p>Use <strong>Base / position</strong> to inspect the scene base buffer used as the center for Motion FX.</p>
 <p>Use <strong>Refresh ms</strong> to control the polling interval directly. Use <strong>Refresh Hz</strong> when you prefer rate instead. Both fields stay synchronized, so <code>500 ms</code> is shown as <code>2 Hz</code>. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. <strong>Auto refresh</strong> starts or stops polling without changing the selected buffer.</p>
+<p>Use <strong>Clear all</strong> when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.</p>
 <h2 id="9-backup-and-import">9. Backup and Import</h2>
 <p>Most setup data is stored as JSON files on the XAMPP server in the <code>data/</code> folder.</p>
 <p>The UI also offers export/import buttons for:</p>

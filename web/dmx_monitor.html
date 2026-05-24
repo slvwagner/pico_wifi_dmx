@@ -51,6 +51,7 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
     <label>Refresh ms<input id="refreshMs" type="number" min="50" max="10000" step="50" value="50"></label>
     <label>Refresh Hz<input id="refreshHz" type="number" min="0.1" max="20" step="0.1" value="20"></label>
     <button id="clearHighlightsBtn">Clear highlights</button>
+    <button id="clearAllBtn" class="danger">Clear all</button>
     <div class="monitor-status">
       <span>Channels: <b id="channelCount">—</b></span>
       <span>Frame: <b id="frameCount">—</b></span>
@@ -80,7 +81,9 @@ const bufferModeEl=document.getElementById('bufferMode');
 let values=Array(512).fill(0);
 let previous=null;
 let timer=null;
-let busy=false;
+let refreshBusy=false;
+let clearBusy=false;
+let monitorGeneration=0;
 
 DmxCommon.bindBaseUrl(baseUrlEl,statusEl);
 
@@ -104,8 +107,9 @@ function render(nextValues,changedSet=new Set()){
 async function refreshMonitor(){
   const root=rootUrl();
   if(!root){statusEl.textContent='Set Pico base URL to monitor buffers';return;}
-  if(busy)return;
-  busy=true;
+  if(refreshBusy||clearBusy)return;
+  const generation=monitorGeneration;
+  refreshBusy=true;
   try{
     const mode=bufferModeEl.value;
     const endpoint=mode==='base'?'/dmx/base.json':'/dmx/output.json';
@@ -114,6 +118,7 @@ async function refreshMonitor(){
     const data=await r.json();
     const raw=Array.isArray(data)?data:(Array.isArray(data.values)?data.values:[]);
     const next=raw.map(v=>Math.max(0,Math.min(255,Math.round(v||0))));
+    if(generation!==monitorGeneration)return;
     const changed=new Set();
     if(previous){
       next.forEach((v,i)=>{if(previous[i]!==v)changed.add(i);});
@@ -128,7 +133,31 @@ async function refreshMonitor(){
   }catch(err){
     statusEl.textContent='Monitor failed: '+err.message;
   }finally{
-    busy=false;
+    refreshBusy=false;
+  }
+}
+
+async function clearAllBuffers(){
+  const root=rootUrl();
+  if(!root){statusEl.textContent='Set Pico base URL to clear buffers';return;}
+  if(clearBusy)return;
+  clearBusy=true;
+  monitorGeneration++;
+  try{
+    const r=await fetch(root+'/dmx/clear',{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    values=Array(512).fill(0);
+    previous=values.slice();
+    render(values);
+    changedCountEl.textContent='0';
+    frameCountEl.textContent='—';
+    lastUpdateEl.textContent=new Date().toLocaleTimeString();
+    statusEl.textContent='DMX output and base buffers cleared';
+  }catch(err){
+    statusEl.textContent='Clear failed: '+err.message;
+  }finally{
+    clearBusy=false;
+    refreshMonitor();
   }
 }
 
@@ -161,6 +190,7 @@ function syncRefreshFromHz(){
 
 document.getElementById('refreshBtn').onclick=refreshMonitor;
 document.getElementById('clearHighlightsBtn').onclick=()=>{previous=values.slice();render(values);changedCountEl.textContent='0';};
+document.getElementById('clearAllBtn').onclick=clearAllBuffers;
 autoRefreshEl.onchange=restartTimer;
 refreshMsEl.onchange=()=>{syncRefreshFromMs();restartTimer();};
 refreshHzEl.onchange=()=>{syncRefreshFromHz();restartTimer();};
