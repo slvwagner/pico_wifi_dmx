@@ -52,7 +52,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
-.card.selected{border-color:var(--accent)}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}.sel-btn.on{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+.fixture-card{cursor:pointer;user-select:none}.fixture-card:hover{border-color:var(--accent)}.fixture-card .control{cursor:auto;user-select:auto}.card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
 </style>
 </head>
 <body>
@@ -1159,8 +1159,8 @@ function drawSurface(){
     const coll=collapsedFixtureIds.has(f.id);
     const hasDefault=p.controls.some(c=>c.defaultValue!=null);
     const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
-    const card=document.createElement('article');card.className='card'+(sel?' selected':'');
-    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn${sel?' on':''}" data-select-fixture="${f.id}">${sel?'✓ Selected':'Select'}</button><button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    const card=document.createElement('article');card.className='card fixture-card'+(sel?' selected':'');card.dataset.fixtureCard=f.id;
+    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   updateGroupBar();
@@ -1835,8 +1835,7 @@ function updateGroupBar(){
   const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:'';
   const note=n>1?(' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
   const label=n?`<strong>${n} fixture${n>1?'s':''} selected</strong>${note}`:'<strong>No fixtures selected</strong>';
-  bar.innerHTML=`<span>${label}</span>${scope}<button class="primary" id="openGroupEdit"${n>1&&common.length?'':' disabled'}>Group Edit</button><button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
-  document.getElementById('openGroupEdit').onclick=()=>{if(n>1&&common.length)openGroupModal();};
+  bar.innerHTML=`<span>${label}</span>${scope}<button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
   document.getElementById('saveGroupBtn').onclick=()=>{if(n)saveCurrentGroup();};
   document.getElementById('selectAllFixtures').onclick=selectAllFixtures;
   document.getElementById('clearSelection').onclick=clearGroupSelection;
@@ -2076,7 +2075,20 @@ function setGroupXY(e,pad){
   updateGroupControlDisplay(c);
   writeLiveValues();
 }
-// Capture-phase listener: intercepts Select + Collapse + Recall buttons before surfaceEl.onclick fires
+function toggleManualFixtureSelection(id){
+  if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
+  activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  drawSurface();
+}
+function isFixtureCardInteractiveClick(target){
+  return !!target.closest('button,input,select,textarea,a,label,.control,.xy-pad,.xy-mini,.tabs,.swatches');
+}
+// Capture-phase listener: intercepts fixture card selection + Collapse + Recall buttons before surfaceEl.onclick fires
 surfaceEl.addEventListener('click',e=>{
   const col=e.target.closest('[data-collapse-fixture]');
   if(col){
@@ -2089,17 +2101,10 @@ surfaceEl.addEventListener('click',e=>{
   }
   const rec=e.target.closest('[data-recall-fixture]');
   if(rec){e.stopPropagation();recallFixtureValues(parseInt(rec.dataset.recallFixture,10),rec.dataset.recallWhich);return;}
-  const sel=e.target.closest('[data-select-fixture]');if(!sel)return;
+  if(isFixtureCardInteractiveClick(e.target))return;
+  const card=e.target.closest('[data-fixture-card]');if(!card)return;
   e.stopPropagation();
-  const id=parseInt(sel.dataset.selectFixture,10);
-  if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
-  activeSavedGroupIds.clear();
-  sceneFixtureFilterActive=false;
-  activeControlScopeKeys.clear();
-  fanAffectedKeys.clear();
-  DmxCommon.saveSharedGroupSelection([]);
-  renderSavedGroupsList();
-  drawSurface();
+  toggleManualFixtureSelection(parseInt(card.dataset.fixtureCard,10));
 },true);
 // ── End group-edit ────────────────────────────────────────────────────
 

@@ -129,7 +129,7 @@ Wheel / indexed controls require unique DMX option values. If two wheel options 
 
 Use **Default** or **Blackout** on a fixture card to recall the stored values for that fixture only.
 
-Use **Select** to include a fixture in group editing.
+Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Default, Blackout, or collapse controls does not change fixture selection.
 
 After a hard page reload, no fixture cards are selected automatically. This keeps Group Edit disabled until you deliberately choose the fixtures you want to edit.
 
@@ -305,7 +305,7 @@ Group selection is shared across toolbox pages that use the Groups toolbox. It i
 2. Click **Group Edit**.
 3. Adjust common controls in the modal.
 
-On the Fixture Controller, **Group Edit** requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press **Select All** before opening Group Edit.
+On the Fixture Controller, **Group Edit** lives in the **Groups** toolbox. It requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press **Select All** before opening Group Edit from the Groups toolbox.
 
 The Group Edit modal only shows controls that exist on at least two selected fixtures. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.
 

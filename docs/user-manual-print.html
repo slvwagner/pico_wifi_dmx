@@ -212,7 +212,7 @@ strong { color: #ffffff; }
 </ul>
 <p>Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing.</p>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> on a fixture card to recall the stored values for that fixture only.</p>
-<p>Use <strong>Select</strong> to include a fixture in group editing.</p>
+<p>Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Default, Blackout, or collapse controls does not change fixture selection.</p>
 <p>After a hard page reload, no fixture cards are selected automatically. This keeps Group Edit disabled until you deliberately choose the fixtures you want to edit.</p>
 <p>Use <strong>Select All</strong> in the group bar above the control surface when you want to select every patched fixture. Use <strong>Deselect all</strong> to clear the current manual selection. When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Groups toolbox to filter the control surface.</p>
 <h3 id="fixture-controller-toolboxes">Fixture Controller Toolboxes</h3>
@@ -341,7 +341,7 @@ strong { color: #ffffff; }
 <li>Click <strong>Group Edit</strong>.</li>
 <li>Adjust common controls in the modal.</li>
 </ol>
-<p>On the Fixture Controller, <strong>Group Edit</strong> requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press <strong>Select All</strong> before opening Group Edit.</p>
+<p>On the Fixture Controller, <strong>Group Edit</strong> lives in the <strong>Groups</strong> toolbox. It requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press <strong>Select All</strong> before opening Group Edit from the Groups toolbox.</p>
 <p>The Group Edit modal only shows controls that exist on at least two selected fixtures. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.</p>
 <p>When a Pico base URL is set, each Group Edit change is sent to the Pico immediately. To use Group Edit browser-only, clear the Pico base URL first.</p>
 <p>If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, <strong>Group Edit</strong> uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.</p>

@@ -21,11 +21,13 @@ test.describe('Fixture Controller established rules', () => {
       drawSurface();
       return {
         controls: getGroupEditableControls().map(groupKey),
-        disabled: document.getElementById('openGroupEdit').disabled
+        groupBarButtonExists: !!document.getElementById('openGroupEdit'),
+        toolboxDisabled: document.getElementById('editSelectedGroups').disabled
       };
     });
 
-    expect(state.disabled).toBe(false);
+    expect(state.groupBarButtonExists).toBe(false);
+    expect(state.toolboxDisabled).toBe(false);
     expect(state.controls).toContain('slider8:Dimmer');
     expect(state.controls).not.toContain('panTilt16:Pan/Tilt');
     expect(state.controls).not.toContain('wheel:Gobo');
@@ -62,7 +64,7 @@ test.describe('Fixture Controller established rules', () => {
       DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
       renderSavedGroupsList();
       drawSurface();
-      document.querySelector('[data-select-fixture="101"]').click();
+      document.querySelector('[data-fixture-card="101"]').click();
       return {
         selectedGroups: selectedSavedGroups().length,
         shared: JSON.parse(localStorage.getItem('selectedGroupIds') || '[]')
@@ -71,6 +73,28 @@ test.describe('Fixture Controller established rules', () => {
 
     expect(result.selectedGroups).toBe(0);
     expect(result.shared).toEqual([]);
+  });
+
+  test('fixture card click toggles selection while controls do not', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const card = document.querySelector('[data-fixture-card="101"]');
+      const hasLegacySelectButton = !!document.querySelector('[data-select-fixture]');
+      card.querySelector('.fixture-head').click();
+      const afterCardClick = [...selectedFixtureIds];
+      const selectedCard = document.querySelector('[data-fixture-card="101"]');
+      selectedCard.querySelector('input[type="range"]').click();
+      const afterSliderClick = [...selectedFixtureIds];
+      const selectedStyle = {
+        borderColor: getComputedStyle(selectedCard).borderColor,
+        boxShadow: getComputedStyle(selectedCard).boxShadow
+      };
+      return { hasLegacySelectButton, afterCardClick, afterSliderClick, selectedStyle };
+    });
+
+    expect(result.hasLegacySelectButton).toBe(false);
+    expect(result.afterCardClick).toEqual([101]);
+    expect(result.afterSliderClick).toEqual([101]);
+    expect(result.selectedStyle.boxShadow).not.toBe('none');
   });
 
   test('wheel controls reject duplicate DMX option values', async ({ page }) => {
@@ -156,31 +180,32 @@ test.describe('Fixture Controller established rules', () => {
 });
 
 test.describe('Fixture Controller reload rules', () => {
-  test('Group Edit enables after a hard reload and manual fixture selection with no group filter', async ({ page }) => {
+  test('toolbox Group Edit enables after a hard reload and manual fixture selection with no group filter', async ({ page }) => {
     await routeControllerCompactServerSetup(page);
     await openDmxPage(page, '');
     await page.reload({ waitUntil: 'networkidle' });
 
-    await expect(page.locator('[data-select-fixture="101"]')).toBeVisible();
-    await expect(page.locator('[data-select-fixture="102"]')).toBeVisible();
+    await expect(page.locator('[data-fixture-card="101"]')).toBeVisible();
+    await expect(page.locator('[data-fixture-card="102"]')).toBeVisible();
     let state = await page.evaluate(() => ({
       selectedFixtures: [...selectedFixtureIds],
       selectedGroups: selectedSavedGroups().length,
-      disabled: document.getElementById('openGroupEdit').disabled
+      groupBarButtonExists: !!document.getElementById('openGroupEdit'),
+      toolboxDisabled: document.getElementById('editSelectedGroups')?.disabled
     }));
     expect(state.selectedFixtures).toEqual([]);
     expect(state.selectedGroups).toBe(0);
-    expect(state.disabled).toBe(true);
+    expect(state.groupBarButtonExists).toBe(false);
+    expect(state.toolboxDisabled).toBe(true);
 
-    await page.locator('[data-select-fixture="101"]').click();
-    await page.locator('[data-select-fixture="102"]').click();
+    await page.locator('[data-fixture-card="101"] .fixture-head').click();
+    await page.locator('[data-fixture-card="102"] .fixture-head').click();
 
     state = await page.evaluate(() => ({
       selectedFixtures: [...selectedFixtureIds],
       selectedGroups: selectedSavedGroups().length,
       sharedGroups: JSON.parse(localStorage.getItem('selectedGroupIds') || '[]'),
       controls: getGroupEditableControls().map(groupKey),
-      disabled: document.getElementById('openGroupEdit').disabled,
       toolboxDisabled: document.getElementById('editSelectedGroups')?.disabled
     }));
 
@@ -188,31 +213,29 @@ test.describe('Fixture Controller reload rules', () => {
     expect(state.selectedGroups).toBe(0);
     expect(state.sharedGroups).toEqual([]);
     expect(state.controls).toContain('slider8:Dimmer');
-    expect(state.disabled).toBe(false);
     expect(state.toolboxDisabled).toBe(false);
   });
 
-  test('Select All is the explicit way to enable Group Edit for all fixtures after hard reload', async ({ page }) => {
+  test('Select All is the explicit way to enable toolbox Group Edit for all fixtures after hard reload', async ({ page }) => {
     await routeControllerCompactServerSetup(page);
     await openDmxPage(page, '');
     await page.reload({ waitUntil: 'networkidle' });
 
     await expect(page.locator('#selectAllFixtures')).toBeVisible();
-    await expect(page.locator('#openGroupEdit')).toBeDisabled();
+    await expect(page.locator('#openGroupEdit')).toHaveCount(0);
+    await expect(page.locator('#editSelectedGroups')).toBeDisabled();
     await page.locator('#selectAllFixtures').click();
 
     const state = await page.evaluate(() => ({
       selectedFixtures: [...selectedFixtureIds],
       selectedGroups: selectedSavedGroups().length,
       controls: getGroupEditableControls().map(groupKey),
-      disabled: document.getElementById('openGroupEdit').disabled,
       toolboxDisabled: document.getElementById('editSelectedGroups')?.disabled
     }));
 
     expect(state.selectedFixtures.sort()).toEqual([101, 102, 103]);
     expect(state.selectedGroups).toBe(0);
     expect(state.controls).toContain('slider8:Dimmer');
-    expect(state.disabled).toBe(false);
     expect(state.toolboxDisabled).toBe(false);
   });
 
@@ -274,9 +297,9 @@ test.describe('Fixture Controller reload rules', () => {
     });
 
     await openDmxPage(page, '');
-    await expect(page.locator('[data-select-fixture="101"]')).toBeVisible();
-    await page.locator('[data-select-fixture="101"]').click();
-    await page.locator('[data-select-fixture="102"]').click();
+    await expect(page.locator('[data-fixture-card="101"]')).toBeVisible();
+    await page.locator('[data-fixture-card="101"] .fixture-head').click();
+    await page.locator('[data-fixture-card="102"] .fixture-head').click();
     releaseGroups();
     await page.waitForResponse(response => response.url().includes('group_setup.php') && response.request().method() === 'GET');
     await page.waitForTimeout(100);
@@ -284,13 +307,11 @@ test.describe('Fixture Controller reload rules', () => {
     const state = await page.evaluate(() => ({
       selectedFixtures: [...selectedFixtureIds],
       selectedGroups: selectedSavedGroups().length,
-      disabled: document.getElementById('openGroupEdit').disabled,
       toolboxDisabled: document.getElementById('editSelectedGroups')?.disabled
     }));
 
     expect(state.selectedFixtures.sort()).toEqual([101, 102]);
     expect(state.selectedGroups).toBe(0);
-    expect(state.disabled).toBe(false);
     expect(state.toolboxDisabled).toBe(false);
   });
 });

@@ -3,6 +3,24 @@ const { openDmxPage, injectMotionCompactSetup } = require('./helpers/dmx-page');
 
 test.describe('Motion FX established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/group_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, baseUrl: '', groups: [] })
+      });
+    });
+    await page.route('**/ui_state.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
+      });
+    });
     await openDmxPage(page, 'dmx_motion.html');
     await injectMotionCompactSetup(page);
   });
