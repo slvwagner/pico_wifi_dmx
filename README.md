@@ -68,15 +68,27 @@ Setup data is saved in XAMPP under `dmx/data/*.json`. Use the page-level JSON ex
 
 ### Install the firmware
 
-Use a prebuilt `pico_wifi_dmx.uf2` from your release folder when available. To install it:
+The latest committed firmware release is stored in:
+
+```text
+release/v0.9.0/pico_wifi_dmx-v0.9.0.uf2
+```
+
+Use that prebuilt UF2 when you only want to install the software and do not need to build from source. To install it:
 
 1. Hold the Pico 2 W **BOOTSEL** button while plugging it into USB.
 2. Wait for the `RPI-RP2` drive to appear.
-3. Copy `pico_wifi_dmx.uf2` to that drive.
+3. Copy `release/v0.9.0/pico_wifi_dmx-v0.9.0.uf2` to that drive.
 4. The Pico reboots automatically.
 5. Open the serial log and note the printed Pico URL.
 
-If no prebuilt UF2 is available, build it from source with the developer steps below.
+The matching checksum is stored beside it in:
+
+```text
+release/v0.9.0/pico_wifi_dmx-v0.9.0.uf2.sha256
+```
+
+Future releases use the same pattern: `release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2`. If no prebuilt UF2 is available, build it from source with the developer steps below.
 
 ### Build the firmware from source
 
