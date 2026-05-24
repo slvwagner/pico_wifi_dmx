@@ -48,9 +48,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fan-preview-card strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
-.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 .fixture-card{cursor:pointer;user-select:none}.fixture-card:hover{border-color:var(--accent)}.fixture-card .control{cursor:auto;user-select:auto}.card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
 </style>
@@ -1970,9 +1967,9 @@ function openGroupModal(){
   const scoped=!!getActiveGroupControlScope();
   document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s');
   document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
-  document.getElementById('groupModal').style.display='flex';
+  DmxCommon.showModal('groupModal');
 }
-function closeGroupModal(){document.getElementById('groupModal').style.display='none';drawSurface();}
+function closeGroupModal(){DmxCommon.hideModal('groupModal');drawSurface();}
 document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});

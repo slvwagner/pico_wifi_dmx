@@ -809,6 +809,16 @@
     return `<button class="slot-visual-btn" ${dataAttr}="${escapeHtml(String(value))}" title="${escapeHtml(title||'Edit visual')}" aria-label="${escapeHtml(title||'Edit visual')}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11.5V13h1.5l7-7L10 4.5l-7 7Z"/><path d="M11 3.5l1.5-1.5L14 3.5 12.5 5 11 3.5Z"/></svg></button>`;
   }
 
+  function showModal(modal){
+    const el=typeof modal==='string'?document.getElementById(modal):modal;
+    if(el)el.style.display='flex';
+  }
+
+  function hideModal(modal){
+    const el=typeof modal==='string'?document.getElementById(modal):modal;
+    if(el)el.style.display='none';
+  }
+
   function initSlotVisualEditor(options){
     const modal=document.getElementById(options.modalId);
     const targetSelect=document.getElementById(options.targetId);
@@ -941,11 +951,11 @@
       hint.textContent=config.hint||'Choose a background color and optionally draw/upload a visual.';
       clearCanvas();
       loadEditor();
-      modal.style.display='flex';
+      showModal(modal);
     }
 
     function close(){
-      modal.style.display='none';
+      hideModal(modal);
     }
 
     function save(){
@@ -1023,6 +1033,8 @@
     slotVisualStyle,
     slotVisualHtml,
     slotVisualButtonHtml,
+    showModal,
+    hideModal,
     initSlotVisualEditor
   };
 })();

@@ -57,6 +57,45 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.afterC).toBe(result.beforeC);
   });
 
+  test('Group Edit modal fits controls horizontally and only scrolls vertically', async ({ page }) => {
+    const layout = await page.evaluate(() => {
+      const profileA = profiles.find(p => p.id === 1);
+      const profileB = profiles.find(p => p.id === 2);
+      const wheelOptions = Array.from({ length: 18 }, (_, i) => ({
+        name: 'Long wheel option ' + (i + 1),
+        value: i * 10
+      }));
+      for (let i = 0; i < 48; i++) {
+        profileA.controls.push({ id: 1000 + i, type: 'slider8', label: 'Shared Control ' + i, channel: 1 });
+        profileB.controls.push({ id: 2000 + i, type: 'slider8', label: 'Shared Control ' + i, channel: 1 });
+      }
+      profileA.controls.push({ id: 3000, type: 'wheel', label: 'Long Wheel', channel: 1, options: wheelOptions });
+      profileB.controls.push({ id: 4000, type: 'wheel', label: 'Long Wheel', channel: 1, options: wheelOptions });
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      openGroupModal();
+
+      const body = document.getElementById('groupModalBody');
+      const style = getComputedStyle(body);
+      return {
+        overflowX: style.overflowX,
+        overflowY: style.overflowY,
+        clientWidth: body.clientWidth,
+        scrollWidth: body.scrollWidth,
+        clientHeight: body.clientHeight,
+        scrollHeight: body.scrollHeight
+      };
+    });
+
+    expect(layout.overflowX).toBe('hidden');
+    expect(layout.overflowY).toBe('auto');
+    expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);
+    expect(layout.scrollHeight).toBeGreaterThan(layout.clientHeight);
+  });
+
   test('manual fixture selection clears the shared Groups toolbox selection', async ({ page }) => {
     const result = await page.evaluate(() => {
       activeSavedGroupIds = new Set([savedGroupKey(savedGroups[0], 0)]);

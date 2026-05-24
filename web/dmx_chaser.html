@@ -28,9 +28,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
 .chaser-card-rows{display:grid;gap:16px}
 .panel.collapsed-panel .panel-body{display:none}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
-.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #chaserGroupModal input[type=range]{width:100%}
 #chaserGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #chaserGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
@@ -786,9 +783,9 @@ function openChaserGroupModal(){
   const titleStep=selectedStepIdx>=0?'step '+(selectedStepIdx+1):'new step';
   document.getElementById('chaserGroupModalTitle').textContent='Group Edit - '+titleStep+' - '+n+' fixture'+(n===1?'':'s')+' · '+state.controls.length+' matching control'+(state.controls.length===1?'':'s');
   document.getElementById('chaserGroupModalBody').innerHTML=state.controls.map(c=>renderChaserGroupControl(c)).join('');
-  document.getElementById('chaserGroupModal').style.display='flex';
+  DmxCommon.showModal('chaserGroupModal');
 }
-function closeChaserGroupModal(){document.getElementById('chaserGroupModal').style.display='none';drawStepEditor();}
+function closeChaserGroupModal(){DmxCommon.hideModal('chaserGroupModal');drawStepEditor();}
 
 function groupControlKey(c){return c.label+'|'+c.type;}
 function groupControlFixtureIds(){

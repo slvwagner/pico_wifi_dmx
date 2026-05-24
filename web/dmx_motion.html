@@ -37,9 +37,6 @@ main{max-width:none;width:100%;margin:0}
 .motion-tile-value{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:16px}
 .motion-tile-xy{width:100%!important;height:auto!important;max-width:100%;aspect-ratio:1.45/1;min-height:84px}
 @media(max-width:900px){.motion-control-row{grid-template-columns:1fr}}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;gap:12px}
-.modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0}
 #motionGroupModal input[type=range]{width:100%}
 #motionGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #motionGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
@@ -627,10 +624,10 @@ function openMotionGroupModal(){
   const n=motionGroupFixtureIds().length;
   document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common effect control'+(common.length===1?'':'s');
   document.getElementById('motionGroupModalBody').innerHTML=common.map(c=>renderMotionGroupControl(c)).join('');
-  document.getElementById('motionGroupModal').style.display='flex';
+  DmxCommon.showModal('motionGroupModal');
 }
 function closeMotionGroupModal(){
-  document.getElementById('motionGroupModal').style.display='none';
+  DmxCommon.hideModal('motionGroupModal');
   drawFixtureList();
   drawPathPreview();
 }
