@@ -28,7 +28,7 @@ test.describe('Pico Performance Test established rules', () => {
       contentType: 'application/json',
       body: '{"ok":true}'
     }));
-    const values = Array.from({ length: 512 }, (_, index) => index < 16 ? 73 : 0);
+    const values = Array.from({ length: 512 }, () => 73);
     await page.route('http://127.0.0.1:18992/dmx/output.json', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -56,7 +56,7 @@ test.describe('Pico Performance Test established rules', () => {
 
     await page.locator('#btnBufferReadback').click();
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Pass');
-    await expect(page.locator('#bufferResult')).toContainText('16 channels from 1');
+    await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
   });
 
   test('full test keeps write checks useful when old firmware blocks logs or base readback', async ({ page }) => {
@@ -85,5 +85,6 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#timingHistoryBody tr')).toHaveCount(1);
     await expect(page.locator('#timingHistoryBody tr').first()).toContainText('WARN');
     await expect(page.locator('#timingHistoryBody tr').first()).toContainText('logs unavailable');
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('no base');
   });
 });

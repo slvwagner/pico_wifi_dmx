@@ -86,7 +86,7 @@ th{color:var(--muted);font-weight:600}
     <h2>Buffer Readback</h2>
     <div class="toolbar">
       <label>Start channel<input id="bufferChannel" type="number" min="1" max="512" value="1"></label>
-      <label>Channels<input id="bufferCount" type="number" min="1" max="512" value="16"></label>
+      <label>Channels<input id="bufferCount" type="number" min="1" max="512" value="512"></label>
       <label>Value<input id="bufferValue" type="number" min="0" max="255" value="73"></label>
       <button id="btnBufferReadback">Read Back</button>
     </div>
@@ -120,7 +120,7 @@ th{color:var(--muted);font-weight:600}
     <label>Start channel<input id="channel" type="number" min="1" max="512" value="1"></label>
     <label>Value<input id="value" type="number" min="0" max="255" value="128"></label>
     <label title="1 = single /dmx/set, 2+ = POST /dmx/b with N consecutive channels in the request body">Channels / request<input id="chPerReq" type="number" min="1" max="512" value="512"></label>
-    <label>Request count<input id="reqCount" type="number" min="10" max="5000" value="2000"></label>
+    <label>Request count<input id="reqCount" type="number" min="10" max="5000" value="500"></label>
     <label>Duration s<input id="durationSec" type="number" min="0" max="3600" value="0"></label>
     <button class="primary" id="btnStart">▶ Start</button>
     <button class="stop" id="btnStop" disabled>■ Stop</button>
@@ -245,6 +245,12 @@ function timingStateLabel(state){
   return state==='pass'?'PASS':state==='warn'?'WARN':state==='bad'?'FAIL':'IDLE';
 }
 
+function shortBufferLabel(snapshot){
+  const state=timingStateLabel(snapshot&&snapshot.state);
+  const detail=(snapshot&&snapshot.shortDetail)||'not run';
+  return state+' '+detail;
+}
+
 function renderTimingHistory(){
   const body=document.getElementById('timingHistoryBody');
   body.innerHTML=timingHistory.map((r,i)=>`
@@ -257,7 +263,7 @@ function renderTimingHistory(){
       <td>${r.core1Slack}</td>
       <td>${r.httpPeak}</td>
       <td>${r.dmx}</td>
-      <td>${timingStateLabel(r.bufferState)}</td>
+      <td>${r.bufferLabel}</td>
     </tr>`
   ).join('');
 }
@@ -361,6 +367,7 @@ async function checkPico(options={}){
     historyRow.status=statusDetail;
     historyRow.bufferState=lastBufferSnapshot.state;
     historyRow.buffer=lastBufferSnapshot.detail;
+    historyRow.bufferLabel=shortBufferLabel(lastBufferSnapshot);
     historyRow.overall=overallTimingState(historyRow);
     if(record)addTimingHistory(historyRow);
     return true;
@@ -383,6 +390,7 @@ async function checkPico(options={}){
       dmx:'not checked',
       bufferState:lastBufferSnapshot.state,
       buffer:lastBufferSnapshot.detail,
+      bufferLabel:shortBufferLabel(lastBufferSnapshot),
       overall:'bad'
     });
     return false;
@@ -401,7 +409,7 @@ updateModeHint();
 let running=false,latencies=[],errorMarks=[],errors=0,testStart=0,testChPerReq=1,lastRun=null,history=[];
 
 const PRESETS={
-  quick:{chPerReq:512,reqCount:2000,durationSec:0},
+  quick:{chPerReq:512,reqCount:500,durationSec:0},
   scene:{chPerReq:64,reqCount:120,durationSec:0},
   stress:{chPerReq:128,reqCount:500,durationSec:0},
   soak:{chPerReq:32,reqCount:5000,durationSec:30},
@@ -552,7 +560,7 @@ async function runBufferReadback(){
     if(mismatches.length){
       const detail=mismatches.slice(0,4).join('; ')+(mismatches.length>4?' ...':'');
       setCheck('checkBuffer','bad','Buffer readback',mismatches.length+' mismatches: '+detail);
-      lastBufferSnapshot={state:'bad',detail:mismatches.length+' mismatches'};
+      lastBufferSnapshot={state:'bad',detail:mismatches.length+' mismatches: '+detail,shortDetail:mismatches.length+' mismatch'+(mismatches.length===1?'':'es')+' · '+mismatches[0]};
       document.getElementById('bufferResult').textContent='Readback failed: '+detail;
       setStatus('Buffer readback failed',true);
       return false;
@@ -561,13 +569,13 @@ async function runBufferReadback(){
       ? safeCount+' channels from '+ch+' read back as '+val+' in output and base buffers.'
       : safeCount+' channels from '+ch+' read back as '+val+' in output buffer; base buffer unavailable: '+baseError.message;
     setCheck('checkBuffer',base?'pass':'warn','Buffer readback',detail);
-    lastBufferSnapshot={state:base?'pass':'warn',detail};
+    lastBufferSnapshot={state:base?'pass':'warn',detail,shortDetail:(base?'ch ':'output ch ')+ch+'-'+(ch+safeCount-1)+' = '+val+(base?'':' · no base')};
     document.getElementById('bufferResult').textContent=detail;
     setStatus('Buffer readback complete.');
     return !!base;
   }catch(e){
     setCheck('checkBuffer','bad','Buffer readback',e.message);
-    lastBufferSnapshot={state:'bad',detail:e.message};
+    lastBufferSnapshot={state:'bad',detail:e.message,shortDetail:e.message};
     document.getElementById('bufferResult').textContent=e.message;
     setStatus(e.message,true);
     return false;
