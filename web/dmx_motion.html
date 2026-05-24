@@ -318,7 +318,7 @@ let setup={};
 let lastSetupJson='';
 // motionFixtures: [{fixture, control, enabled, phaseOffset(deg), kind, basePan, baseTilt, baseValue}]
 let motionFixtures=[];
-let selectedMotionTargetKey=localStorage.getItem('motionEffectTargetKey')||'';
+let selectedMotionTargetKey='';
 
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
 
@@ -358,10 +358,13 @@ function currentMotionTargetKind(){
   return motionFixtures.find(mf=>motionControlKey(mf.control)===selectedMotionTargetKey)?.kind||'';
 }
 function effectTargetFamily(){
-  return currentMotionTargetKind()==='panTilt'?'panTilt':'scalar';
+  const kind=currentMotionTargetKind();
+  if(!kind)return'';
+  return kind==='panTilt'?'panTilt':'scalar';
 }
 function effectOptionsForTarget(){
   const family=effectTargetFamily();
+  if(!family)return[];
   return Object.entries(EFFECTS).filter(([,meta])=>meta.target===family).map(([value,meta])=>({value,label:meta.label}));
 }
 function populateEffectTypeFilter(preferred){
@@ -369,8 +372,9 @@ function populateEffectTypeFilter(preferred){
   if(!sel)return;
   const old=preferred||sel.value;
   const opts=effectOptionsForTarget();
-  sel.innerHTML=opts.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+  sel.innerHTML=opts.length?opts.map(o=>`<option value="${o.value}">${o.label}</option>`).join(''):'<option value="">None</option>';
   sel.value=opts.some(o=>o.value===old)?old:(opts[0]?.value||'');
+  sel.disabled=!opts.length;
   drawPathPreview();
 }
 function scopedMotionFixtures(){
@@ -384,10 +388,7 @@ function getStoredScalar(f,c){
 }
 function ensureMotionTarget(){
   const opts=motionControlOptions();
-  if(!opts.length){selectedMotionTargetKey='';return;}
-  if(!opts.some(o=>o.key===selectedMotionTargetKey)){
-    selectedMotionTargetKey=opts[0].key;
-  }
+  if(!opts.length||!opts.some(o=>o.key===selectedMotionTargetKey))selectedMotionTargetKey='';
   localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
 }
 function motionTargetFixtureIds(){
@@ -446,7 +447,7 @@ function applySetup(){
       const kind=motionControlKind(c);
       motionFixtures.push({
         fixture:f,control:c,kind,
-        enabled:ex?ex.enabled:kind==='panTilt',
+        enabled:ex?ex.enabled:false,
         phaseOffset:ex?ex.phaseOffset:0,
         basePan:ex?ex.basePan:center.pan,
         baseTilt:ex?ex.baseTilt:center.tilt,
@@ -737,6 +738,13 @@ function drawFixtureList(){
   ensureMotionTarget();
   populateMotionControlFilter();
   listEl.innerHTML='';
+  if(!selectedMotionTargetKey){
+    const hint=document.getElementById('motionControlHint');
+    if(hint)hint.textContent='Effect Target: None';
+    listEl.innerHTML='<div class="small">Choose an Effect Target, then select fixtures with All, Groups, or individual fixture tiles.</div>';
+    refreshMotionGroupActions();
+    return;
+  }
   const selected=(motionGroupsBox?.selectedGroups?.()||[]);
   const selectedIds=selected.length?new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String)):null;
   const groups=new Map();
@@ -818,11 +826,11 @@ function populateMotionControlFilter(){
   if(!sel)return;
   const old=sel.value;
   const opts=motionControlOptions();
-  sel.innerHTML=opts.length
-    ? opts.map(o=>`<option value="${DmxCommon.escapeHtml(o.key)}">${DmxCommon.escapeHtml(o.label)} (${o.count})</option>`).join('')
-    : '<option value="">No targets available</option>';
+  const targetOptions=opts.map(o=>`<option value="${DmxCommon.escapeHtml(o.key)}">${DmxCommon.escapeHtml(o.label)} (${o.count})</option>`).join('');
+  sel.innerHTML='<option value="">None</option>'+targetOptions;
   if(opts.some(o=>o.key===selectedMotionTargetKey))sel.value=selectedMotionTargetKey;
   else if(opts.some(o=>o.key===old))sel.value=old;
+  else sel.value='';
   sel.disabled=!opts.length;
   populateEffectTypeFilter();
 }
@@ -1071,6 +1079,7 @@ function tick(){
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
 document.getElementById('effectType').onchange=drawPathPreview;
 document.getElementById('btnMotionAll').onclick=()=>{
+  if(!selectedMotionTargetKey){setStatus('Choose an Effect Target first',true);return;}
   clearMotionGroupSelection();
   setMotionParticipationByKey(selectedMotionTargetKey,'all');
   collapsedMotionPartFixtures.clear();
@@ -1083,7 +1092,7 @@ document.getElementById('btnMotionNone').onclick=()=>{
   localStorage.setItem('motionPartCollapsedFix',JSON.stringify([...collapsedMotionPartFixtures]));
   drawFixtureList();drawPathPreview();
 };
-document.getElementById('motionControlFilter').onchange=e=>setMotionTarget(e.target.value,{enableMatches:true});
+document.getElementById('motionControlFilter').onchange=e=>setMotionTarget(e.target.value,{enableMatches:false});
 document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
   const panel=document.getElementById(btn.dataset.panelToggle);
   if(!panel)return;
@@ -1422,6 +1431,7 @@ function applyMotionData(data){
     if(motionControlKey(mf.control)!==selectedMotionTargetKey)mf.enabled=false;
   });
   drawFixtureList();drawPathPreview();
+  refreshMotionGroupActions();
   renderMotionEffectMatrix();
 }
 async function saveMotionToServer(){

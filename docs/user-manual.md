@@ -550,14 +550,16 @@ Supported effects include:
 
 Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Pan / scalar amplitude** as the effect depth.
 
-The **Participating Controls** panel uses an **Effect target** dropdown. One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Changing the effect target rebuilds the fixture matrix and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.
+The **Participating Controls** panel uses an **Effect target** dropdown. The default target is **None**. With **None** selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.
+
+One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.
 
 The fixture matrix is a selection and preview surface:
 
 - Click a fixture tile to include or exclude it from the effect.
 - Use **All** to clear any group filter and enable every fixture for the current target.
 - Use **None** to disable every visible fixture for the current target.
-- Selecting groups applies an additional filter and hides fixtures outside the selected groups.
+- Selecting groups applies an additional filter and enables compatible fixtures inside the selected groups.
 - Pan/tilt targets show a small XY plot with the current position.
 - Scalar targets show a small value bar with the current value.
 
@@ -581,7 +583,7 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 
 ![Motion Groups toolbox](screenshots/motion-toolbox-groups.png)
 
-**Groups** filters the fixture matrix for the selected effect target. Pressing **All** clears the group filter and enables every fixture available for the current target. **Group Edit** edits compatible selected target controls across two or more fixtures.
+**Groups** filters the fixture matrix for the selected effect target. When **Effect target** is **None**, Group Edit is disabled. After choosing a real target, pressing **All** clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. **Group Edit** edits compatible selected target controls across two or more enabled fixtures.
 
 ![Motion Effect Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 

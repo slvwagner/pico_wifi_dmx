@@ -539,13 +539,14 @@ strong { color: #ffffff; }
 <li>Scalar targets: Sine, Pulse</li>
 </ul>
 <p>Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the <strong>Pan / scalar amplitude</strong> as the effect depth.</p>
-<p>The <strong>Participating Controls</strong> panel uses an <strong>Effect target</strong> dropdown. One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Changing the effect target rebuilds the fixture matrix and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.</p>
+<p>The <strong>Participating Controls</strong> panel uses an <strong>Effect target</strong> dropdown. The default target is <strong>None</strong>. With <strong>None</strong> selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.</p>
+<p>One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.</p>
 <p>The fixture matrix is a selection and preview surface:</p>
 <ul>
 <li>Click a fixture tile to include or exclude it from the effect.</li>
 <li>Use <strong>All</strong> to clear any group filter and enable every fixture for the current target.</li>
 <li>Use <strong>None</strong> to disable every visible fixture for the current target.</li>
-<li>Selecting groups applies an additional filter and hides fixtures outside the selected groups.</li>
+<li>Selecting groups applies an additional filter and enables compatible fixtures inside the selected groups.</li>
 <li>Pan/tilt targets show a small XY plot with the current position.</li>
 <li>Scalar targets show a small value bar with the current value.</li>
 </ul>
@@ -559,7 +560,7 @@ strong { color: #ffffff; }
 <h3 id="motion-fx-toolboxes">Motion FX Toolboxes</h3>
 <p>The Motion FX page uses five toolboxes in the shared sidebar.</p>
 <p><img src="screenshots/motion-toolbox-groups.png" alt="Motion Groups toolbox"></p>
-<p><strong>Groups</strong> filters the fixture matrix for the selected effect target. Pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. <strong>Group Edit</strong> edits compatible selected target controls across two or more fixtures.</p>
+<p><strong>Groups</strong> filters the fixture matrix for the selected effect target. When <strong>Effect target</strong> is <strong>None</strong>, Group Edit is disabled. After choosing a real target, pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. <strong>Group Edit</strong> edits compatible selected target controls across two or more enabled fixtures.</p>
 <p><img src="screenshots/motion-toolbox-effect-parameters.png" alt="Motion Effect Parameters toolbox"></p>
 <p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls.</p>
 <p><img src="screenshots/motion-toolbox-effects.png" alt="Motion Effects toolbox"></p>

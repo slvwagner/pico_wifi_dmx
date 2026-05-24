@@ -168,7 +168,7 @@ async function injectMotionCompactSetup(page) {
           fixture: f,
           control: c,
           kind,
-          enabled: kind === 'panTilt',
+          enabled: false,
           phaseOffset: 0,
           basePan: kind === 'panTilt' ? 32768 : 0,
           baseTilt: kind === 'panTilt' ? 32768 : 0,
@@ -180,7 +180,7 @@ async function injectMotionCompactSetup(page) {
     motionGroupsBox.groups.push({ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} });
     motionGroupsBox.clearSelection();
     motionGroupsBox.render();
-    selectedMotionTargetKey = motionControlOptions()[0]?.key || '';
+    selectedMotionTargetKey = '';
     drawFixtureList();
     drawPathPreview();
     refreshMotionGroupActions();
