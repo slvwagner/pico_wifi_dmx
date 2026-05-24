@@ -13,15 +13,6 @@ Do we want “offline programming” to be a global system mode, or page-specifi
 Global is simpler and safer. Page-specific is more flexible, but easier to misunderstand during a show.
 
 ## 02
-Getting started needs to be written for a user 
-1.  installing all dependencies to runn the software
-2.  how to download an install the firmware
-
-Getting starded for a developper 
-1.  installing dependencis to build firmware / vs code and the needed extentions, testing envirnoment needed and how to install e.g  on windows 
-
-I think there should be more but can you shortly check 
-
 
 
 # Debug

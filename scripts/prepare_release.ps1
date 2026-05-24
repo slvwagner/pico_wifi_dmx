@@ -17,6 +17,13 @@ function Invoke-Step($Name, [scriptblock]$Action) {
     & $Action
 }
 
+function Invoke-Native([string]$Name, [scriptblock]$Action) {
+    & $Action
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Name failed with exit code $LASTEXITCODE."
+    }
+}
+
 function Get-FileSha256($Path) {
     (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
@@ -72,13 +79,13 @@ if (-not $AllowDirty) {
 
 if ($Build) {
     Invoke-Step "Build firmware" {
-        & $cmakeExe --build $BuildDir
+        Invoke-Native "Firmware build" { & $cmakeExe --build $BuildDir }
     }
 }
 
 if (-not $SkipTests) {
     Invoke-Step "Run UI regression tests" {
-        npm run test:ui
+        Invoke-Native "UI regression tests" { npm run test:ui }
     }
 }
 
