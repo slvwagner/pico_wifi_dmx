@@ -1519,9 +1519,16 @@ let motionEffects=[];
 let motionEffectCols=4,motionEffectRows=4;
 const MOTION_EFFECT_GRID_MAX=32;
 let motionEffectVisualDefault=(()=> {
-  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('motionEffectVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('motionEffectVisualDefault')||'null'),'#225a50');}
   catch(_){return{type:'visual',color:'#225a50',image:''};}
 })();
+function saveMotionEffectVisualDefault(){
+  localStorage.setItem('motionEffectVisualDefault',JSON.stringify(motionEffectVisualDefault));
+}
+saveMotionEffectVisualDefault();
+function currentMotionEffectVisualForSave(){
+  return DmxCommon.normalizeSlotVisualDefault(motionEffectVisualDefault,'#225a50');
+}
 function currentMotionEffectRecipe(){
   return{
     targetKey:selectedMotionTargetKey,
@@ -1601,7 +1608,7 @@ function motionEffectSlotClick(slot){
   const name=(prompt('Effect name:','Effect '+(slot+1))||'').trim();
   if(!name)return;
   motionEffects=motionEffects.filter(fx=>parseInt(fx.slot,10)!==slot);
-  motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:JSON.parse(JSON.stringify(motionEffectVisualDefault))});
+  motionEffects.push({id:'motion_effect_'+Date.now(),name,slot,recipe,visual:currentMotionEffectVisualForSave()});
   renderMotionEffectMatrix();
   saveMotionEffectsServer();
   setStatus('Saved effect "'+name+'"');
@@ -1680,8 +1687,8 @@ function openMotionEffectVisualModal(slot){
       .map(e=>({key:String(parseInt(e.slot,10)||0),item:e,label:'Slot '+((parseInt(e.slot,10)||0)+1)+': '+(e.name||'Effect')})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      motionEffectVisualDefault=visual;
-      localStorage.setItem('motionEffectVisualDefault',JSON.stringify(visual));
+      motionEffectVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
+      saveMotionEffectVisualDefault();
       setStatus('Default effect visual updated');
     },
     onSaveTarget:(target,visual)=>{
@@ -1693,6 +1700,9 @@ function openMotionEffectVisualModal(slot){
   });
 }
 let motionPaletteVisualDefault={type:'visual',color:'#225a50',image:''};
+function currentMotionPaletteVisualForSave(){
+  return DmxCommon.normalizeSlotVisualDefault(motionPaletteVisualDefault,'#225a50');
+}
 function openMotionPaletteVisualModal(slot){
   motionEffectVisualEditor?.open({
     targetLabel:'palettes',
@@ -1705,7 +1715,7 @@ function openMotionPaletteVisualModal(slot){
       .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      motionPaletteVisualDefault=visual;
+      motionPaletteVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
       setStatus('Default palette visual updated');
     },
     onSaveTarget:(target,visual)=>{

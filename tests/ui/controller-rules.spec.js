@@ -57,6 +57,93 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.afterC).toBe(result.beforeC);
   });
 
+  test('scene saves are serialized so deleting a scene removes its visual from the server payload', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const calls = [];
+      const resolvers = [];
+      window.fetch = (_url, options = {}) => new Promise(resolve => {
+        calls.push(JSON.parse(options.body || '{}'));
+        resolvers.push(resolve);
+      });
+      const okResponse = () => ({ json: () => Promise.resolve({ ok: true }) });
+
+      try {
+        sceneSaveQueue = Promise.resolve();
+        scenes = [{
+          id: 'scene_test',
+          name: 'Scene Test',
+          slot: 0,
+          values: {},
+          visual: { type: 'visual', color: '#123456', image: 'data:image/png;base64,OLD' }
+        }];
+        const firstSave = saveScenesServer();
+        scenes = [];
+        const deleteSave = saveScenesServer();
+        for (let i = 0; i < 10 && calls.length < 1; i++) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        const beforeFirstResolves = calls.length;
+        resolvers[0](okResponse());
+        await firstSave;
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const afterFirstResolves = calls.length;
+        resolvers[1](okResponse());
+        await deleteSave;
+
+        return {
+          beforeFirstResolves,
+          afterFirstResolves,
+          firstSceneCount: calls[0].scenes.length,
+          deleteSceneCount: calls[1].scenes.length,
+          deletePayloadHasImage: JSON.stringify(calls[1]).includes('data:image')
+        };
+      } finally {
+        window.fetch = originalFetch;
+      }
+    });
+
+    expect(result.beforeFirstResolves).toBe(1);
+    expect(result.afterFirstResolves).toBe(2);
+    expect(result.firstSceneCount).toBe(1);
+    expect(result.deleteSceneCount).toBe(0);
+    expect(result.deletePayloadHasImage).toBe(false);
+  });
+
+  test('saving a scene never copies the default scene icon into the scene tile', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      window.fetch = (_url, _options = {}) => Promise.resolve({ json: () => Promise.resolve({ ok: true }) });
+      try {
+        sceneSaveQueue = Promise.resolve();
+        scenes = [];
+        selectedFixtureIds = new Set([101]);
+        activeSavedGroupIds.clear();
+        sceneFixtureFilterActive = false;
+        activeControlScopeKeys.clear();
+        fanAffectedKeys.clear();
+        sceneVisualDefault = {
+          type: 'visual',
+          color: '#654321',
+          image: 'data:image/png;base64,SHOULD_NOT_COPY'
+        };
+
+        saveSceneToSlot(0, 'No Icon Scene');
+        await sceneSaveQueue;
+
+        return {
+          visual: scenes[0].visual,
+          renderedIcon: !!document.querySelector('#slotMatrix .slot .palette-visual')
+        };
+      } finally {
+        window.fetch = originalFetch;
+      }
+    });
+
+    expect(result.visual).toEqual({ type: 'visual', color: '#654321', image: '' });
+    expect(result.renderedIcon).toBe(false);
+  });
+
   test('Group Edit syncs mixed fixture controls from fixtures that actually own the control', async ({ page }) => {
     const result = await page.evaluate(() => {
       fixtures.push({ id: 104, name: 'B 2', profileId: 2, start: 61 });

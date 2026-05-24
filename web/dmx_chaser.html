@@ -2022,14 +2022,15 @@ let savedChases=[];
 let chaseSlotCols=4,chaseSlotRows=4;
 const CHASE_SLOT_GRID_MAX=32;
 let chaseVisualDefault=(()=>{
-  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('chaseVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('chaseVisualDefault')||'null'),'#225a50');}
   catch(_){return {type:'visual',color:'#225a50',image:''};}
 })();
 function saveChaseVisualDefault(){
   localStorage.setItem('chaseVisualDefault',JSON.stringify(chaseVisualDefault));
 }
+saveChaseVisualDefault();
 function currentChaseVisualForSave(){
-  return JSON.parse(JSON.stringify(chaseVisualDefault));
+  return DmxCommon.normalizeSlotVisualDefault(chaseVisualDefault,'#225a50');
 }
 function requiredChaseSlots(){
   return savedChases.reduce((max,c)=>Math.max(max,(parseInt(c.slot,10)||0)+1),0);
@@ -2185,7 +2186,7 @@ function openChaseVisualModal(slot){
       .map(chase=>({key:String(parseInt(chase.slot,10)||0),item:chase,label:'Slot '+((parseInt(chase.slot,10)||0)+1)+': '+(chase.name||'Chase')})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      chaseVisualDefault=visual;
+      chaseVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
       saveChaseVisualDefault();
       setStatus('Default chase visual updated');
     },
@@ -2299,14 +2300,15 @@ let chaserPalettes=[];
 let chaserPaletteCols=4,chaserPaletteRows=4;
 const CHASER_PALETTE_GRID_MAX=32;
 let chaserPaletteVisualDefault=(()=>{
-  try{return DmxCommon.normalizeSlotVisual(JSON.parse(localStorage.getItem('chaserPaletteVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('chaserPaletteVisualDefault')||'null'),'#225a50');}
   catch(_){return {type:'visual',color:'#225a50',image:''};}
 })();
 function saveChaserPaletteVisualDefault(){
   localStorage.setItem('chaserPaletteVisualDefault',JSON.stringify(chaserPaletteVisualDefault));
 }
+saveChaserPaletteVisualDefault();
 function currentChaserPaletteVisualForSave(){
-  return JSON.parse(JSON.stringify(chaserPaletteVisualDefault));
+  return DmxCommon.normalizeSlotVisualDefault(chaserPaletteVisualDefault,'#225a50');
 }
 function requiredChaserPaletteSlots(){
   return chaserPalettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
@@ -2547,7 +2549,7 @@ function openChaserPaletteVisualModal(slot){
       .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+chaserPaletteScopeLabel(p.scope||'all')+')'})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      chaserPaletteVisualDefault=visual;
+      chaserPaletteVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
       saveChaserPaletteVisualDefault();
       setStatus('Default palette visual updated');
     },

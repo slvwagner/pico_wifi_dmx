@@ -6,6 +6,11 @@ Changed:
 
 - Working title: Bugfixing.
 
+Fixed:
+
+- Prevented new scenes, palettes, chases, chaser palettes, and motion effects from inheriting old default visual icons; defaults now keep only the background color.
+- Serialized scene saves so deleting a scene cannot be overwritten by an earlier pending scene save.
+
 ## 0.9.1 - 2026-05-24
 
 Changed:

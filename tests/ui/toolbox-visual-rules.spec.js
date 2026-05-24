@@ -2,6 +2,108 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Toolbox visual tile rules', () => {
+  test('shared visual default normalization strips icons but keeps colors', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    const visual = await page.evaluate(() => DmxCommon.normalizeSlotVisualDefault({
+      type: 'visual',
+      color: '#abcdef',
+      image: 'data:image/png;base64,SHOULD_NOT_COPY'
+    }, '#225a50'));
+
+    expect(visual).toEqual({ type: 'visual', color: '#abcdef', image: '' });
+  });
+
+  test('new scenes inherit default color but not default icon image', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('sceneVisualDefault', JSON.stringify({
+        type: 'visual',
+        color: '#123456',
+        image: 'data:image/png;base64,SHOULD_NOT_COPY'
+      }));
+    });
+    await page.goto('index.html?test=' + Date.now());
+    const state = await page.evaluate(() => {
+      return {
+        visual: currentSceneVisualForSave(),
+        stored: JSON.parse(localStorage.getItem('sceneVisualDefault'))
+      };
+    });
+    expect(state.visual).toEqual({ type: 'visual', color: '#123456', image: '' });
+    expect(state.stored).toEqual({ type: 'visual', color: '#123456', image: '' });
+  });
+
+  test('new controller palettes inherit default color but not default icon image', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('paletteVisualDefaults', JSON.stringify({
+        color: {
+          type: 'visual',
+          color: '#234567',
+          image: 'data:image/png;base64,SHOULD_NOT_COPY'
+        }
+      }));
+    });
+    await openDmxPage(page, '');
+
+    const state = await page.evaluate(() => {
+      document.getElementById('paletteScope').value = 'color';
+      return {
+        visual: currentPaletteVisualForSave(),
+        stored: JSON.parse(localStorage.getItem('paletteVisualDefaults')).color
+      };
+    });
+
+    expect(state.visual).toEqual({ type: 'visual', color: '#234567', image: '' });
+    expect(state.stored).toEqual({ type: 'visual', color: '#234567', image: '' });
+  });
+
+  test('new chases and chaser palettes inherit default color but not default icon image', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('chaseVisualDefault', JSON.stringify({
+        type: 'visual',
+        color: '#345678',
+        image: 'data:image/png;base64,SHOULD_NOT_COPY'
+      }));
+      localStorage.setItem('chaserPaletteVisualDefault', JSON.stringify({
+        type: 'visual',
+        color: '#456789',
+        image: 'data:image/png;base64,SHOULD_NOT_COPY'
+      }));
+    });
+    await openDmxPage(page, 'dmx_chaser.html');
+
+    const state = await page.evaluate(() => ({
+      chaseVisual: currentChaseVisualForSave(),
+      paletteVisual: currentChaserPaletteVisualForSave(),
+      storedChase: JSON.parse(localStorage.getItem('chaseVisualDefault')),
+      storedPalette: JSON.parse(localStorage.getItem('chaserPaletteVisualDefault'))
+    }));
+
+    expect(state.chaseVisual).toEqual({ type: 'visual', color: '#345678', image: '' });
+    expect(state.paletteVisual).toEqual({ type: 'visual', color: '#456789', image: '' });
+    expect(state.storedChase).toEqual({ type: 'visual', color: '#345678', image: '' });
+    expect(state.storedPalette).toEqual({ type: 'visual', color: '#456789', image: '' });
+  });
+
+  test('new motion effects inherit default color but not default icon image', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('motionEffectVisualDefault', JSON.stringify({
+        type: 'visual',
+        color: '#56789a',
+        image: 'data:image/png;base64,SHOULD_NOT_COPY'
+      }));
+    });
+    await openDmxPage(page, 'dmx_motion.html');
+
+    const state = await page.evaluate(() => ({
+      visual: currentMotionEffectVisualForSave(),
+      stored: JSON.parse(localStorage.getItem('motionEffectVisualDefault'))
+    }));
+
+    expect(state.visual).toEqual({ type: 'visual', color: '#56789a', image: '' });
+    expect(state.stored).toEqual({ type: 'visual', color: '#56789a', image: '' });
+  });
+
   test('user visual is rendered as a large borderless centered layer under the tile text', async ({ page }) => {
     await openDmxPage(page, '');
 

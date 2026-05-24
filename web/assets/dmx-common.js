@@ -849,6 +849,15 @@
     return null;
   }
 
+  function normalizeSlotVisualDefault(visual,fallbackColor){
+    const normalized=normalizeSlotVisual(visual);
+    return {
+      type:'visual',
+      color:(normalized&&normalized.color)||fallbackColor||'#225a50',
+      image:''
+    };
+  }
+
   function contrastTextForColor(hex){
     const value=String(hex||'').replace('#','');
     if(!/^[0-9a-f]{6}$/i.test(value))return '#ffffff';
@@ -1169,6 +1178,7 @@
     initFloatingToolbox,
     initGroupsToolbox,
     normalizeSlotVisual,
+    normalizeSlotVisualDefault,
     slotVisualStyle,
     slotVisualHtml,
     slotVisualButtonHtml,

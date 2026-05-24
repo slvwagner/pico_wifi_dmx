@@ -2420,15 +2420,19 @@ window.addEventListener('storage',e=>{
 let scenes=[];
 let slotCols=4,slotRows=4;
 const SCENE_SLOT_GRID_MAX=32;
+function sceneDefaultVisualWithoutIcon(visual){
+  return DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
+}
 let sceneVisualDefault=(()=>{
-  try{return normalizePaletteVisual(JSON.parse(localStorage.getItem('sceneVisualDefault')||'null'))||{type:'visual',color:'#225a50',image:''};}
+  try{return sceneDefaultVisualWithoutIcon(JSON.parse(localStorage.getItem('sceneVisualDefault')||'null'));}
   catch(_){return {type:'visual',color:'#225a50',image:''};}
 })();
 function saveSceneVisualDefault(){
   localStorage.setItem('sceneVisualDefault',JSON.stringify(sceneVisualDefault));
 }
+saveSceneVisualDefault();
 function currentSceneVisualForSave(){
-  return cloneValue(sceneVisualDefault);
+  return sceneDefaultVisualWithoutIcon(sceneVisualDefault);
 }
 function normalizePaletteVisual(visual){
   return DmxCommon.normalizeSlotVisual(visual);
@@ -2726,10 +2730,21 @@ async function clearAllChannels(){
     setStatus('Local values cleared; Pico clear failed: '+err.message,true);
   }
 }
+let sceneSaveQueue=Promise.resolve();
 function saveScenesServer(){
-  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,scenes,slotCols,slotRows}))})
-    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
-    .catch(e=>setStatus('Scenes save error: '+e.message,true));
+  const payload=DmxCommon.versionedPayload({
+    baseUrl:baseUrl.value,
+    scenes:cloneValue(scenes),
+    slotCols,
+    slotRows
+  });
+  sceneSaveQueue=sceneSaveQueue.catch(()=>{}).then(()=>fetch('scene_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  })).then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);return d;})
+    .catch(e=>{setStatus('Scenes save error: '+e.message,true);throw e;});
+  return sceneSaveQueue;
 }
 function loadScenesServer(){
   fetch('scene_setup.php').then(r=>r.json()).then(d=>{
@@ -2786,11 +2801,11 @@ let paletteVisualDefaults=(()=>{
   try{
     const saved=JSON.parse(localStorage.getItem('paletteVisualDefaults')||'{}');
     return {
-      position:normalizePaletteVisual(saved.position)||{type:'visual',color:'#225a50',image:''},
-      color:normalizePaletteVisual(saved.color)||{type:'visual',color:'#225a50',image:''},
-      beam:normalizePaletteVisual(saved.beam)||{type:'visual',color:'#225a50',image:''},
-      dimmer:normalizePaletteVisual(saved.dimmer)||{type:'visual',color:'#225a50',image:''},
-      all:normalizePaletteVisual(saved.all)||{type:'visual',color:'#225a50',image:''}
+      position:DmxCommon.normalizeSlotVisualDefault(saved.position,'#225a50'),
+      color:DmxCommon.normalizeSlotVisualDefault(saved.color,'#225a50'),
+      beam:DmxCommon.normalizeSlotVisualDefault(saved.beam,'#225a50'),
+      dimmer:DmxCommon.normalizeSlotVisualDefault(saved.dimmer,'#225a50'),
+      all:DmxCommon.normalizeSlotVisualDefault(saved.all,'#225a50')
     };
   }catch(_){
     return {position:{type:'visual',color:'#225a50',image:''},color:{type:'visual',color:'#225a50',image:''},beam:{type:'visual',color:'#225a50',image:''},dimmer:{type:'visual',color:'#225a50',image:''},all:{type:'visual',color:'#225a50',image:''}};
@@ -2799,9 +2814,10 @@ let paletteVisualDefaults=(()=>{
 function savePaletteVisualDefaults(){
   localStorage.setItem('paletteVisualDefaults',JSON.stringify(paletteVisualDefaults));
 }
+savePaletteVisualDefaults();
 function currentPaletteVisualForSave(){
   const scope=currentPaletteScope();
-  return cloneValue(paletteVisualDefaults[scope]||{type:'visual',color:'#225a50',image:''});
+  return DmxCommon.normalizeSlotVisualDefault(paletteVisualDefaults[scope],'#225a50');
 }
 function requiredPaletteSlots(){
   return palettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
@@ -3030,7 +3046,7 @@ function openPaletteVisualModal(slot){
       .map(p=>({key:String(parseInt(p.slot,10)||0),item:p,label:'Slot '+((parseInt(p.slot,10)||0)+1)+': '+(p.name||'Palette')+' ('+paletteScopeLabel(p.scope||'all')+')'})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      paletteVisualDefaults[scope]=visual;
+      paletteVisualDefaults[scope]=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');
       savePaletteVisualDefaults();
       setStatus('Default '+paletteScopeLabel(scope)+' palette visual updated');
     },
@@ -3054,7 +3070,7 @@ function openSceneVisualModal(slot){
       .map(s=>({key:String(parseInt(s.slot,10)||0),item:s,label:'Slot '+((parseInt(s.slot,10)||0)+1)+': '+(s.name||'Scene')})),
     selectedKey:slot,
     onSaveDefault:visual=>{
-      sceneVisualDefault=visual;
+      sceneVisualDefault=sceneDefaultVisualWithoutIcon(visual);
       saveSceneVisualDefault();
       setStatus('Default scene visual updated');
     },
