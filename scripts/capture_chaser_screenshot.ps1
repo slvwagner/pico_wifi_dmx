@@ -1,15 +1,22 @@
 param(
-    [string]$BaseUrl = "http://localhost/dmx/",
+    [string]$BaseUrl = "",
     [string]$OutDir = "docs/screenshots",
     [string]$ManualDataDir = "docs/manual-data",
-    [string]$XamppDataDir = "E:\Software\xampp\htdocs\dmx\data",
+    [string]$XamppDataDir = "",
+    [string]$ChromePath = "",
     [int]$Port = 9240
 )
 
 $ErrorActionPreference = "Stop"
 
-$chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "local_path_config.ps1")
+$localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
+if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
+if (-not $XamppDataDir) { $XamppDataDir = Join-Path (Join-Path $localPaths.xamppHtdocs $localPaths.appFolder) "data" }
+if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
+
+$chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
 $profileDir = Join-Path $env:TEMP "pico-dmx-chaser-docshot"

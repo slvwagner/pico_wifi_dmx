@@ -7,14 +7,17 @@
 <link rel="stylesheet" href="assets/dmx-ui.css">
 <script src="assets/dmx-common.js"></script>
 <style>
-main{max-width:1160px;margin:0 auto;padding:20px;display:grid;gap:16px}
+main{max-width:1160px;width:100%;margin:0 auto;padding:20px;display:grid;gap:16px;overflow-x:hidden}
 h2{font-size:16px}
 input[type=number]{width:86px}input[type=url]{min-width:220px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
-.mapping{background:#10161b;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:12px;min-width:0}
+.mapping{background:#10161b;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px;min-width:0}
 .mapping.dup{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
-.mapping-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
-.mapping-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.mapping-head{display:flex;justify-content:space-between;gap:10px;align-items:center;min-width:0}
+.mapping-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr));gap:10px;min-width:0}
+.mapping-fields label{min-width:0}
+.mapping select,.mapping input{width:100%;min-width:0}
+.mapping-head button{flex-shrink:0}
 .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--muted);font-size:12px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
 .dot.on{background:var(--accent)}
@@ -85,6 +88,7 @@ const DIGITAL_ACTIONS=['dmx_clear','dmx_output_clear','stop_all','chaser_play','
 const ADC_ACTIONS=['chaser_speed','motion_bpm'];
 let mappings=[];
 let adcMappings=[];
+let saveTimer=null;
 const baseUrl=document.getElementById('baseUrl');
 const statusEl=document.getElementById('status');
 
@@ -181,12 +185,43 @@ function loadLocal(){
   }catch(_){mappings=DEFAULT_MAPPINGS.map(normalize);adcMappings=DEFAULT_ADC_MAPPINGS.map(normalizeAdc);}
   if(localStorage.getItem('dmxGPIOEnabled')!==null)document.getElementById('gpioEnabled').checked=localStorage.getItem('dmxGPIOEnabled')!=='0';
 }
+async function loadSavedConfig(){
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    try{
+      const r=await fetch('gpio_setup.php',{cache:'no-store'});
+      const data=await r.json();
+      if(r.ok&&data.ok&&data.exists){
+        applyGPIOData(data);
+        localStorage.setItem('dmxGPIOConfig',JSON.stringify(gpioData()));
+        localStorage.setItem('dmxGPIOEnabled',document.getElementById('gpioEnabled').checked?'1':'0');
+        setStatus('GPIO setup loaded from server');
+        return;
+      }
+    }catch(_){}
+  }
+  loadLocal();
+}
+function saveServer(){
+  if(!(location.protocol==='http:'||location.protocol==='https:'))return;
+  fetch('gpio_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gpioData())})
+    .then(r=>r.json())
+    .then(j=>{if(!j.ok)setStatus('GPIO server save failed: '+(j.error||'unknown error'),true);})
+    .catch(err=>setStatus('GPIO server save error: '+err.message,true));
+}
 function saveLocal(){
   if(!validatePins())return false;
   localStorage.setItem('dmxGPIOConfig',JSON.stringify(gpioData()));
   localStorage.setItem('dmxGPIOEnabled',document.getElementById('gpioEnabled').checked?'1':'0');
+  saveServer();
   setStatus('GPIO config saved locally');
   return true;
+}
+function autosaveSetup(){
+  if(saveTimer)clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    saveTimer=null;
+    saveLocal();
+  },250);
 }
 function gpioData(){
   return DmxCommon.versionedPayload({
@@ -345,12 +380,14 @@ document.getElementById('addMapping').onclick=()=>{
   const pin=Array.from({length:29},(_,i)=>i).find(p=>!used.has(p))??14;
   mappings.push(normalize({pin,pull:'pullup',trigger:'falling',action:'dmx_clear',slot:0,beat_div:1,debounce_ms:30}));
   render();
+  autosaveSetup();
 };
 document.getElementById('addAdcMapping').onclick=()=>{
   const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin)));
   const pin=[26,27,28].find(p=>!used.has(p))||26;
   adcMappings.push(normalizeAdc({pin,action:'chaser_speed',slot:0,min_x100:10,max_x100:300}));
   render();
+  autosaveSetup();
 };
 document.getElementById('pushConfig').onclick=pushConfig;
 document.getElementById('pullConfig').onclick=pullConfig;
@@ -364,12 +401,14 @@ document.getElementById('importConfigFile').addEventListener('change',e=>{
 });
 document.getElementById('clearLocal').onclick=()=>{if(confirm('Clear local GPIO mappings?')){mappings=[];saveLocal();render();}};
 document.getElementById('gpioEnabled').addEventListener('change',render);
+document.getElementById('gpioEnabled').addEventListener('change',autosaveSetup);
 document.getElementById('mappingList').addEventListener('change',e=>{
   const card=e.target.closest('[data-idx]');if(!card)return;
   const i=parseInt(card.dataset.idx);const field=e.target.dataset.field;if(!field)return;
   mappings[i][field]=e.target.value;
   mappings[i]=normalize(mappings[i]);
   render();
+  autosaveSetup();
 });
 document.getElementById('mappingList').addEventListener('change',e=>{
   const card=e.target.closest('[data-adc-idx]');if(!card)return;
@@ -385,19 +424,21 @@ document.getElementById('mappingList').addEventListener('change',e=>{
   }
   adcMappings[i]=normalizeAdc(adcMappings[i]);
   render();
+  autosaveSetup();
 });
 document.getElementById('mappingList').addEventListener('click',e=>{
   const rem=e.target.dataset.remove;if(rem===undefined)return;
   mappings.splice(parseInt(rem),1);
   render();
+  autosaveSetup();
 });
 document.getElementById('mappingList').addEventListener('click',e=>{
   const rem=e.target.dataset.removeAdc;if(rem===undefined)return;
   adcMappings.splice(parseInt(rem),1);
   render();
+  autosaveSetup();
 });
-loadLocal();
-render();
+loadSavedConfig().then(render);
 setInterval(pollStatus,1000);
 pollStatus();
 </script>

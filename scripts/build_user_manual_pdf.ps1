@@ -2,12 +2,17 @@ param(
     [string]$MarkdownPath = "docs/user-manual.md",
     [string]$HtmlPath = "docs/user-manual.html",
     [string]$PdfPath = "docs/user-manual.pdf",
+    [string]$ChromePath = "",
     [int]$Port = 9230
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "local_path_config.ps1")
+$localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
+if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
+
 $mdFull = Join-Path $repoRoot $MarkdownPath
 $htmlFull = Join-Path $repoRoot $HtmlPath
 $pdfFull = Join-Path $repoRoot $PdfPath
@@ -285,7 +290,7 @@ $($body -join "`n")
 
 Set-Content -LiteralPath $htmlFull -Value $html -Encoding UTF8
 
-$chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+$chrome = $ChromePath
 if (-not (Test-Path -LiteralPath $chrome)) {
     throw "Chrome not found: $chrome"
 }

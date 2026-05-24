@@ -17,14 +17,43 @@ test.describe('Chaser established rules', () => {
         resize: style.resize,
         overflow: style.overflow,
         height: box.offsetHeight,
-        bodyOverflow: getComputedStyle(document.getElementById('stepsBoxBody')).overflowY
+        bodyOverflow: getComputedStyle(document.getElementById('stepsBoxBody')).overflowY,
+        resizeHandle: !!box.querySelector('.scene-toolbox__resize')
       };
     });
 
-    expect(state.resize).toBe('vertical');
+    expect(state.resize).toBe('none');
     expect(state.overflow).toBe('hidden');
     expect(state.height).toBeGreaterThan(200);
     expect(state.bodyOverflow).toBe('auto');
+    expect(state.resizeHandle).toBe(true);
+  });
+
+  test('Chase Steps toolbox height can be changed with the touch resize handle', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    const result = await page.evaluate(async () => {
+      const box = document.getElementById('stepsBox');
+      stepsToolbox.setCollapsed(false, false);
+      box.style.height = '320px';
+      const handle = box.querySelector('.scene-toolbox__resize');
+      const rect = handle.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const before = box.offsetHeight;
+      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, pointerType: 'touch', clientX: x, clientY: y }));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, pointerType: 'touch', clientX: x, clientY: y + 120 }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7, pointerType: 'touch', clientX: x, clientY: y + 120 }));
+      await new Promise(resolve => setTimeout(resolve, 20));
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem('stepsBoxSize') || 'null'); } catch (_) {}
+      return { before, after: box.offsetHeight, saved };
+    });
+
+    expect(result.after).toBeGreaterThan(result.before + 80);
+    expect(result.saved.h).toBe(result.after);
   });
 
   test('All clears selected step/edit context but keeps existing steps', async ({ page }) => {

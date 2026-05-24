@@ -1,11 +1,18 @@
 param(
-    [string]$XamppHtdocs = "E:\Software\xampp\htdocs",
-    [string]$AppFolder = "dmx"
+    [string]$XamppHtdocs = "",
+    [string]$AppFolder = "",
+    [string]$BaseUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "local_path_config.ps1")
+$localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
+if (-not $XamppHtdocs) { $XamppHtdocs = $localPaths.xamppHtdocs }
+if (-not $AppFolder) { $AppFolder = $localPaths.appFolder }
+if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
+
 $webDir = Join-Path $repoRoot "web"
 $assetsDir = Join-Path $webDir "assets"
 $apiDir = Join-Path $repoRoot "api"
@@ -24,6 +31,7 @@ $motionApiSource = Join-Path $apiDir "motion_setup.php"
 $groupApiSource  = Join-Path $apiDir "group_setup.php"
 $sceneApiSource  = Join-Path $apiDir "scene_setup.php"
 $paletteApiSource = Join-Path $apiDir "palette_setup.php"
+$gpioApiSource    = Join-Path $apiDir "gpio_setup.php"
 $uiStateSource   = Join-Path $apiDir "ui_state.php"
 $manualSource    = Join-Path $docsDir "user-manual.html"
 $manualPdfSource = Join-Path $docsDir "user-manual.pdf"
@@ -44,6 +52,7 @@ $motionApiTarget = Join-Path $targetDir "motion_setup.php"
 $groupApiTarget  = Join-Path $targetDir "group_setup.php"
 $sceneApiTarget  = Join-Path $targetDir "scene_setup.php"
 $paletteApiTarget = Join-Path $targetDir "palette_setup.php"
+$gpioApiTarget    = Join-Path $targetDir "gpio_setup.php"
 $uiStateTarget   = Join-Path $targetDir "ui_state.php"
 $manualTarget    = Join-Path $targetDir "user-manual.html"
 $manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
@@ -108,6 +117,10 @@ if (Test-Path -LiteralPath $paletteApiSource) {
     Copy-Item -LiteralPath $paletteApiSource -Destination $paletteApiTarget -Force
     Write-Host "Copied palettes API to $paletteApiTarget"
 }
+if (Test-Path -LiteralPath $gpioApiSource) {
+    Copy-Item -LiteralPath $gpioApiSource -Destination $gpioApiTarget -Force
+    Write-Host "Copied GPIO API to $gpioApiTarget"
+}
 if (Test-Path -LiteralPath $uiStateSource) {
     Copy-Item -LiteralPath $uiStateSource -Destination $uiStateTarget -Force
     Write-Host "Copied UI state API to $uiStateTarget"
@@ -135,6 +148,7 @@ $dataFiles = @(
     "fixture_live_values.json",
     "scene_setup.json",
     "palette_setup.json",
+    "gpio_setup.json",
     "group_setup.json",
     "chaser_setup.json",
     "motion_setup.json",
@@ -167,4 +181,4 @@ Set-Content -LiteralPath $htaccessTarget -Value "Require all denied" -Encoding A
 
 Write-Host "Copied fixture controller to $target"
 Write-Host "Copied setup API to $apiTarget"
-Write-Host "Open http://localhost/$AppFolder/"
+Write-Host "Open $BaseUrl"

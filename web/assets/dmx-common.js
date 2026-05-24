@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.8.0';
+  const APP_VERSION='0.9.0';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -185,7 +185,7 @@
   }
 
   function setToolboxRailWidth(value,{save=false}={}){
-    if(window.matchMedia&&window.matchMedia('(max-width:1100px)').matches)return;
+    if(window.matchMedia&&window.matchMedia('(max-width:900px)').matches)return;
     const width=clampToolboxRailWidth(value);
     document.documentElement.style.setProperty('--toolbox-rail-width',width+'px');
     if(save){
@@ -257,17 +257,17 @@
       if(!active)return;
       active=false;
       document.body.classList.remove('toolbox-rail-resizing');
-      handle.releasePointerCapture?.(e.pointerId);
+      try{handle.releasePointerCapture?.(e.pointerId);}catch(_){}
       setToolboxRailWidth(window.innerWidth-e.clientX,{save:true});
       window.removeEventListener('pointermove',onMove);
       window.removeEventListener('pointerup',onUp);
       window.removeEventListener('pointercancel',onUp);
     };
     handle.addEventListener('pointerdown',e=>{
-      if(window.matchMedia&&window.matchMedia('(max-width:1100px)').matches)return;
+      if(window.matchMedia&&window.matchMedia('(max-width:900px)').matches)return;
       active=true;
       document.body.classList.add('toolbox-rail-resizing');
-      handle.setPointerCapture?.(e.pointerId);
+      try{handle.setPointerCapture?.(e.pointerId);}catch(_){}
       e.preventDefault();
       window.addEventListener('pointermove',onMove);
       window.addEventListener('pointerup',onUp);
@@ -398,6 +398,7 @@
     let dragOffset={x:0,y:0};
     let sizeSaveTimer=0;
     let observedOnce=false;
+    let resizeDrag=null;
     function inToolboxRail(){
       return !!box?.closest('.toolbox-rail');
     }
@@ -462,6 +463,51 @@
       },250);
     }
 
+    function saveSizeNow(){
+      if(!resizable||!box||box.classList.contains('collapsed'))return;
+      const size=currentSize();
+      if(!size)return;
+      if(sizeKey)localStorage.setItem(sizeKey,JSON.stringify(size));
+      if(page)saveUiState(page,uiSizeKey,size);
+    }
+
+    function ensureResizeHandle(){
+      if(!resizable||!box||box.querySelector('.scene-toolbox__resize'))return;
+      box.classList.add('resizable');
+      const handle=document.createElement('div');
+      handle.className='scene-toolbox__resize';
+      handle.title='Drag to resize toolbox height';
+      box.appendChild(handle);
+      const onMove=e=>{
+        if(!resizeDrag)return;
+        const dy=e.clientY-resizeDrag.y;
+        const maxHeight=Math.max(minHeight,Math.round(window.innerHeight-20));
+        const next=Math.max(minHeight,Math.min(maxHeight,resizeDrag.h+dy));
+        box.style.height=next+'px';
+        e.preventDefault();
+      };
+      const onUp=e=>{
+        if(!resizeDrag)return;
+        resizeDrag=null;
+        box.classList.remove('resizing');
+        try{handle.releasePointerCapture?.(e.pointerId);}catch(_){}
+        saveSizeNow();
+        window.removeEventListener('pointermove',onMove);
+        window.removeEventListener('pointerup',onUp);
+        window.removeEventListener('pointercancel',onUp);
+      };
+      handle.addEventListener('pointerdown',e=>{
+        if(box.classList.contains('collapsed'))return;
+        resizeDrag={y:e.clientY,h:box.offsetHeight||minHeight};
+        box.classList.add('resizing');
+        try{handle.setPointerCapture?.(e.pointerId);}catch(_){}
+        e.preventDefault();
+        window.addEventListener('pointermove',onMove);
+        window.addEventListener('pointerup',onUp);
+        window.addEventListener('pointercancel',onUp);
+      });
+    }
+
     function setCollapsed(collapsed,save){
       if(!box)return;
       const c=!!collapsed;
@@ -480,7 +526,7 @@
           box.style.resize='none';
         }else if(!c){
           box.classList.remove('collapsed');
-          box.style.resize=inToolboxRail()?'vertical':'both';
+          box.style.resize=inToolboxRail()?'none':'both';
           let size=null;
           if(sizeKey){
             try{size=JSON.parse(localStorage.getItem(sizeKey)||'null');}catch(_){}
@@ -502,6 +548,7 @@
     if(box&&sizeKey){
       try{applySize(JSON.parse(localStorage.getItem(sizeKey)||'null'));}catch(_){}
     }
+    ensureResizeHandle();
     if(collapsedKey&&localStorage.getItem(collapsedKey)==='1')setCollapsed(true,false);
 
     if(box&&header){
@@ -634,8 +681,9 @@
     function applyLayout(priority='cols'){
       clampLayout(priority);
       const list=document.getElementById(listId);
-      if(list)list.style.gridTemplateColumns='repeat('+cols+',minmax(170px,1fr))';
-      if(box){
+      const inRail=!!box?.closest('.toolbox-rail');
+      if(list)list.style.gridTemplateColumns='repeat('+cols+','+(inRail?'minmax(0,1fr)':'minmax(170px,1fr)')+')';
+      if(box&&!inRail){
         const width=Math.max(280,cols*178+24);
         box.style.width=Math.min(Math.max(280,window.innerWidth-24),width)+'px';
       }
@@ -854,12 +902,56 @@
 
   function showModal(modal){
     const el=typeof modal==='string'?document.getElementById(modal):modal;
-    if(el)el.style.display='flex';
+    if(el){
+      enableModalTouchScroll(el);
+      el.style.display='flex';
+    }
   }
 
   function hideModal(modal){
     const el=typeof modal==='string'?document.getElementById(modal):modal;
     if(el)el.style.display='none';
+  }
+
+  function enableModalTouchScroll(modal){
+    const body=modal?.querySelector?.('.modal-body');
+    if(!body||body.dataset.touchScrollBound==='1')return;
+    body.dataset.touchScrollBound='1';
+    let touch=null;
+    const isFormControl=target=>!!target.closest('button,input,select,textarea,label');
+    body.addEventListener('touchstart',e=>{
+      const t=e.touches&&e.touches[0];
+      if(!t)return;
+      touch={
+        x:t.clientX,
+        y:t.clientY,
+        lastY:t.clientY,
+        scrollTop:body.scrollTop,
+        target:e.target,
+        mode:null
+      };
+    },{passive:true});
+    body.addEventListener('touchmove',e=>{
+      if(!touch||body.scrollHeight<=body.clientHeight+1)return;
+      const t=e.touches&&e.touches[0];
+      if(!t)return;
+      const dx=t.clientX-touch.x;
+      const dy=t.clientY-touch.y;
+      if(touch.mode===null){
+        const startsOnXY=!!touch.target.closest('.xy-pad,.xy-mini');
+        if(isFormControl(touch.target)&&!startsOnXY){
+          touch.mode='native';
+          return;
+        }
+        if(startsOnXY&&Math.abs(dy)<Math.abs(dx)+12&&Math.abs(dy)<18)return;
+        touch.mode='scroll';
+      }
+      if(touch.mode!=='scroll')return;
+      const next=touch.scrollTop-dy;
+      body.scrollTop=Math.max(0,Math.min(body.scrollHeight-body.clientHeight,next));
+      e.preventDefault();
+    },{passive:false});
+    ['touchend','touchcancel'].forEach(type=>body.addEventListener(type,()=>{touch=null;},{passive:true}));
   }
 
   function initSlotVisualEditor(options){

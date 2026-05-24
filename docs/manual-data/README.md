@@ -4,9 +4,11 @@ This folder contains a deterministic snapshot of the JSON data from the local XA
 
 `scripts/update_user_manual.ps1` copies these files into the XAMPP `data` folder before any screenshot is captured, then restores the live XAMPP data afterwards. That keeps the user manual reproducible even if the live XAMPP setup changes during testing.
 
-Source at capture time:
+Source at capture time on the development machine:
 
 `E:\Software\xampp\htdocs\dmx\data`
+
+That path is only an example of the machine that created this baseline. The documentation scripts read `config/local-paths.json` when present, so another machine can use a different XAMPP folder without changing the baseline files.
 
 Included files:
 

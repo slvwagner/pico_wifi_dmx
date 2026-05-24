@@ -315,6 +315,21 @@ If the controller is currently scoped by a recalled scene, recalled palette, or 
 
 Use **Default all** or **Blackout all** to recall the stored default or blackout values for every fixture in the selected group.
 
+### Group Edit Contract
+
+Controller, Chaser, and Motion FX all use the same basic Group Edit idea: the modal is available when the current page scope contains at least one editable control on two or more fixtures. The fixtures do not need to use the same fixture profile.
+
+Keep these rules as the contract:
+
+- Mixed fixture types are allowed.
+- A control is editable only when the page can match it by control identity, such as type and label.
+- Wheel / indexed controls are stricter: same-named wheels are kept separate when their option lists differ, so a MAC Gobo wheel and a Scanner Gobo wheel are not accidentally edited as one control.
+- The modal shows the matching fixture/profile scope for each control.
+- Editing a control writes only to fixtures that actually have the matching control.
+- Incompatible fixtures remain selected but are ignored for that specific control.
+- Group selection is a filter. If groups are selected, Group Edit uses only compatible fixtures inside those groups.
+- Direct scope changes, such as Select All, Participating Controls All, or Motion All, clear the saved-group filter and make the page scope the source of truth.
+
 ## 4. Chaser
 
 ![Chaser](screenshots/chaser.png)
@@ -413,7 +428,7 @@ The **Group control** dropdown is built from the fixtures currently visible in t
 
 **All** selects every valid participating control for all patched fixtures, clears the Groups filter, expands the participating fixture list, stops browser Chase Playback, clears the selected step, clears **Edit Step**, clears the Source fixture, and resets Fan Out bases. Existing steps in **Chase Steps** are not deleted. After **All**, use **Add step**, **Capture + Add**, or **Group Edit** to create or edit a step from the full participating-control scope.
 
-**Group Edit** edits the current participating-control scope. It becomes available when the current scope contains at least one matching selected control on two or more participating fixtures. A step does not need to be selected first. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edit into that step. If a step is selected, Group Edit edits that selected step.
+**Group Edit** edits the current participating-control scope. It becomes available when the current scope contains at least one matching selected control on two or more participating fixtures, even when those fixtures use different fixture profiles. A step does not need to be selected first. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edit into that step. If a step is selected, Group Edit edits that selected step.
 
 The fixtures may use different profiles; the modal only shows matching controls that are actually selected as participating controls and exist on at least two fixtures. For example, if only Dimmer is selected, Group Edit opens with Dimmer only and applies it to every involved fixture that has a matching Dimmer control.
 
@@ -583,7 +598,7 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 
 ![Motion Groups toolbox](screenshots/motion-toolbox-groups.png)
 
-**Groups** filters the fixture matrix for the selected effect target. When **Effect target** is **None**, Group Edit is disabled. After choosing a real target, pressing **All** clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. **Group Edit** edits compatible selected target controls across two or more enabled fixtures.
+**Groups** filters the fixture matrix for the selected effect target. When **Effect target** is **None**, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available when two or more fixtures have that target. For example, after a hard reload, choosing **Dimmer** lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Pressing **All** clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.
 
 ![Motion Effect Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 
@@ -638,6 +653,8 @@ GPIO Control maps physical Pico inputs to lighting actions.
 
 GPIO Control does not use the shared toolbox sidebar. Its setup is kept in normal page panels because GPIO mapping is configuration work, not a live fixture/scene/palette workflow.
 
+The GPIO editor loads its mapping setup from the XAMPP server first, using `gpio_setup.php` and `data/gpio_setup.json`. Browser storage is only a fallback if the server file is not available. Adding, removing, or changing a mapping autosaves the setup back to the server, so a PC and iPad should show the same mappings after reload.
+
 Digital GPIO pins can trigger:
 
 - DMX clear
@@ -666,6 +683,8 @@ Only GPIO26, GPIO27, and GPIO28 support ADC input on the Pico 2 W.
 7. Upload the config to the Pico.
 
 The page disables reserved pins and pins already used by other mappings.
+
+Editing the mapping saves the setup on the XAMPP server, but the Pico only receives it after **Push to Pico**. Use **Read from Pico** when the Pico already has the mapping you want to bring back into the editor.
 
 ### Add an ADC Mapping
 

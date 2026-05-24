@@ -30,6 +30,7 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 - Motion FX Group Edit uses the selected effect target and requires two matching participating fixtures.
 - GPIO ADC mappings only offer GPIO26, GPIO27, and GPIO28.
 - GPIO mapping dropdowns mark reserved or already-used pins unavailable.
+- GPIO loads saved mappings from the XAMPP server, autosaves edits back to the server, and preserves those mappings across a fresh device-style reload.
 - GPIO and Benchmark pages link to the DMX Buffer Monitor.
 - Controller wheel/indexed controls reject duplicate DMX option values.
 - Controller scene recall clears group selection and filters to involved fixtures.
@@ -40,6 +41,7 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 - Chaser step selection rebuilds the active edit scope from the selected step values.
 - Buffer Monitor keeps **Refresh ms** and **Refresh Hz** synchronized.
 - Shared UI version badge is rendered, and JSON export payloads include `appVersion` and `schemaVersion`.
+- iPad portrait uses a bottom toolbox rail with finger-sized targets; iPad landscape keeps the right-side toolbox workspace.
 - Browser Chase Playback sends fade interpolation at the configured update rate.
 - Real Pico hardware tests can verify `/dmx/output.json`, `/dmx/base.json`, chaser slot upload/play/stop, and motion slot upload/start/stop when enabled in the path config.
 

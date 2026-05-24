@@ -1,13 +1,19 @@
 param(
-    [string]$BaseUrl = "http://localhost/dmx/",
+    [string]$BaseUrl = "",
     [string]$OutDir = "docs/screenshots",
+    [string]$ChromePath = "",
     [int]$Port = 9224
 )
 
 $ErrorActionPreference = "Stop"
 
-$chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "local_path_config.ps1")
+$localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
+if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
+if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
+
+$chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
 $profileDir = Join-Path $env:TEMP "pico-dmx-docshots"
 
