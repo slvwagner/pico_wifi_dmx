@@ -172,6 +172,12 @@ After UI/manual changes, regenerate the deterministic documentation screenshots 
 .\scripts\update_user_manual.ps1
 ```
 
+Prepare a release package after versions, tests, and changelog are ready:
+
+```powershell
+.\scripts\prepare_release.ps1 -Build
+```
+
 Important developer checks:
 
 - Keep generated folders such as `build/`, `node_modules/`, and `test-results/` out of Git.
@@ -303,7 +309,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "0.8.0",
+  "appVersion": "0.9.0",
   "schemaVersion": 1
 }
 ```
@@ -311,6 +317,41 @@ Stored/exported JSON files include:
 `appVersion` tells you which application wrote the file. `schemaVersion` is for future data-format migrations; current imports stay backward compatible with older JSON files that do not contain these fields. Firmware program version is kept in `CMakeLists.txt` with `pico_set_program_version(...)`.
 
 Release notes belong in `CHANGELOG.md` whenever the version changes.
+
+### Release Checklist
+
+Before tagging or publishing a release:
+
+1. Decide the release version, for example `0.9.0`.
+2. Update `VERSION`.
+3. Update `pico_set_program_version(...)` in `CMakeLists.txt` to the same value.
+4. Move the matching section in `CHANGELOG.md` from `Unreleased` to the release date.
+5. Build and test the firmware/UI:
+
+```powershell
+cmake --build build
+npm run test:ui
+```
+
+6. Optional, when a Pico is connected and safe test channels/slots are configured:
+
+```powershell
+npm run test:pico
+```
+
+7. Create the release package:
+
+```powershell
+.\scripts\prepare_release.ps1
+```
+
+The script copies `build/pico_wifi_dmx.uf2` into:
+
+```text
+release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
+```
+
+It also writes a SHA256 checksum and `release-manifest.json` containing the version, branch, commit, firmware size, and checksum. The `release/` directory is intentionally not ignored so the firmware package can be committed if you want it in Git. For public distribution, a GitHub Release asset is usually cleaner than committing every binary artifact forever; this repository supports either workflow.
 
 ---
 
