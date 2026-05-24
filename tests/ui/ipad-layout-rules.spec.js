@@ -92,6 +92,63 @@ test.describe('iPad layout rules', () => {
     expect(layout.groupsBodyOverflow).toBeLessThanOrEqual(1);
   });
 
+  test('iPad toolbox reorder uses pointer dragging instead of native browser drag', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await openDmxPage(page, 'dmx_chaser.html');
+
+    const result = await page.evaluate(async () => {
+      const rail = document.querySelector('.toolbox-rail');
+      const boxes = () => [...rail.querySelectorAll('.scene-toolbox[data-toolbox-type]')];
+      const first = boxes()[0];
+      const second = boxes()[1];
+      const header = first.querySelector('.scene-toolbox__header');
+      const start = header.getBoundingClientRect();
+      const target = second.getBoundingClientRect();
+      const nativeDragPrevented = (() => {
+        const ev = new DragEvent('dragstart', { bubbles: true, cancelable: true });
+        header.dispatchEvent(ev);
+        return ev.defaultPrevented;
+      })();
+      header.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 31,
+        pointerType: 'touch',
+        clientX: start.left + start.width / 2,
+        clientY: start.top + start.height / 2
+      }));
+      rail.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 31,
+        pointerType: 'touch',
+        clientX: target.left + target.width / 2,
+        clientY: target.bottom - 4
+      }));
+      rail.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 31,
+        pointerType: 'touch',
+        clientX: target.left + target.width / 2,
+        clientY: target.bottom - 4
+      }));
+      await new Promise(resolve => setTimeout(resolve, 20));
+      return {
+        nativeDragPrevented,
+        headerDraggable: header.draggable,
+        before: first.dataset.toolboxType,
+        order: boxes().map(box => box.dataset.toolboxType),
+        saved: JSON.parse(localStorage.getItem('toolboxRailOrder') || '[]')
+      };
+    });
+
+    expect(result.nativeDragPrevented).toBe(true);
+    expect(result.headerDraggable).toBe(false);
+    expect(result.order[1]).toBe(result.before);
+    expect(result.saved[1]).toBe(result.before);
+  });
+
   test('toolbox divider stays visible while the toolbox rail is scrolled', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await openDmxPage(page, 'dmx_chaser.html');

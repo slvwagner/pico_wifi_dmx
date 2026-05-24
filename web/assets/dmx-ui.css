@@ -153,6 +153,7 @@ body.toolbox-rail-collapsed .toolbox-rail-resizer,body.toolbox-rail-collapsed .t
 .toolbox-rail .scene-toolbox.toolbox-dragging{opacity:.72;outline:2px solid var(--accent)}
 .toolbox-rail .scene-toolbox.toolbox-drop-before{box-shadow:0 -3px 0 var(--accent)}
 .toolbox-rail .scene-toolbox.toolbox-drop-after{box-shadow:0 3px 0 var(--accent)}
+.toolbox-rail .scene-toolbox,.toolbox-rail .scene-toolbox *{-webkit-user-drag:none}
 .toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"]{cursor:grab;touch-action:none}
 .toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"]:active{cursor:grabbing}
 .toolbox-rail .scene-toolbox__header[data-toolbox-drag-handle="1"] button{cursor:pointer}

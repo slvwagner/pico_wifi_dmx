@@ -292,7 +292,7 @@
     box.draggable=false;
     const header=box.querySelector('.scene-toolbox__header');
     if(!header)return;
-    header.draggable=true;
+    header.draggable=false;
     header.dataset.toolboxDragHandle='1';
     header.title=header.title||'Drag to reorder toolbox';
   }
@@ -358,32 +358,53 @@
     if(rail.dataset.toolboxRailInit==='1')return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
     rail.dataset.toolboxRailInit='1';
 
-    rail.addEventListener('dragstart',e=>{
-      const handle=e.target.closest('.scene-toolbox__header[data-toolbox-drag-handle="1"]');
-      const box=handle?.closest('.scene-toolbox[data-toolbox-type]');
-      if(!box||e.target.closest('button,input,select,textarea,a')){e.preventDefault();return;}
-      box.classList.add('toolbox-dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain',box.dataset.toolboxType||box.id);
-    });
-    rail.addEventListener('dragend',e=>{
-      const box=e.target.closest('.scene-toolbox[data-toolbox-type]');
-      if(box)box.classList.remove('toolbox-dragging');
-      rail.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(el=>el.classList.remove('toolbox-drop-before','toolbox-drop-after'));
+    let reorderDrag=null;
+    const clearDropMarks=()=>rail.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(el=>el.classList.remove('toolbox-drop-before','toolbox-drop-after'));
+    const finishReorderDrag=()=>{
+      if(!reorderDrag)return;
+      reorderDrag.box.classList.remove('toolbox-dragging');
+      try{reorderDrag.handle.releasePointerCapture?.(reorderDrag.pointerId);}catch(_){}
+      reorderDrag=null;
+      clearDropMarks();
       saveSharedToolboxOrder(rail);
-    });
-    rail.addEventListener('dragover',e=>{
-      const dragging=rail.querySelector('.toolbox-dragging');
-      if(!dragging)return;
-      const target=e.target.closest('.scene-toolbox[data-toolbox-type]');
-      if(!target||target===dragging)return;
+    };
+    const moveReorderDrag=e=>{
+      if(!reorderDrag||e.pointerId!==reorderDrag.pointerId)return;
       e.preventDefault();
+      const dragging=reorderDrag.box;
+      const target=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'))
+        .filter(box=>box!==dragging)
+        .find(box=>{
+          const rect=box.getBoundingClientRect();
+          return e.clientY>=rect.top&&e.clientY<=rect.bottom;
+        });
+      if(!target)return;
+      clearDropMarks();
       const rect=target.getBoundingClientRect();
       const before=e.clientY<rect.top+rect.height/2;
       target.classList.toggle('toolbox-drop-before',before);
       target.classList.toggle('toolbox-drop-after',!before);
       if(before)rail.insertBefore(dragging,target);
       else rail.insertBefore(dragging,target.nextSibling);
+    };
+    rail.addEventListener('pointerdown',e=>{
+      const handle=e.target.closest('.scene-toolbox__header[data-toolbox-drag-handle="1"]');
+      const box=handle?.closest('.scene-toolbox[data-toolbox-type]');
+      if(!box||e.target.closest('button,input,select,textarea,a'))return;
+      reorderDrag={box,handle,pointerId:e.pointerId};
+      box.classList.add('toolbox-dragging');
+      try{handle.setPointerCapture?.(e.pointerId);}catch(_){}
+      e.preventDefault();
+    });
+    rail.addEventListener('pointermove',moveReorderDrag);
+    rail.addEventListener('pointerup',e=>{
+      if(reorderDrag&&e.pointerId===reorderDrag.pointerId)finishReorderDrag();
+    });
+    rail.addEventListener('pointercancel',e=>{
+      if(reorderDrag&&e.pointerId===reorderDrag.pointerId)finishReorderDrag();
+    });
+    rail.addEventListener('dragstart',e=>{
+      e.preventDefault();
     });
     return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
   }
