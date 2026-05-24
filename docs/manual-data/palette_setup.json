@@ -1,6 +1,763 @@
 {
     "baseUrl": "http://192.168.0.24/",
-    "palettes": [],
+    "palettes": [
+        {
+            "id": "palette_1779576483032",
+            "name": "Step 1 palette",
+            "slot": 0,
+            "scope": "color",
+            "values": {
+                "1779345825924:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345826114:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825324:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825913:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825298:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825843:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345925999:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925551:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926148:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925829:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926277:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925842:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925733:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925743:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926042:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925722:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925855:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926119:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345960283:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959308:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345960046:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959395:1778957848813": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345982358:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345981636:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345981768:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345981741:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982552:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982382:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982186:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982530:1779135381320": {
+                    "a": 255,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779426865425:1779426758542": 20,
+                "1779426864754:1779426758542": 20,
+                "1779426865292:1779426758542": 20,
+                "1779426865610:1779426758542": 20,
+                "1779426865022:1779426758542": 20,
+                "1779426864908:1779426758542": 20
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#ff0000",
+                "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAYAAAA5ZDbSAAAPd0lEQVR4AexdC5AcVRW9vTM7Mzszu1mNChh+pfyqtApLBBVIgABBKX4GEgwhGORTmCKiVUFRPmIpiiRVsUJJCamCSPiEEC0ghL9AwARJ/JQoFiIoIgqhAkl257c7s7ueMzvt9va8Nzu7293T3dtb+6Zf3/dev3vf6Xvve7d/bUMiQ1EK7xi0SfQX6hGIAA41vCIRwBHAIR+BkIsXaXAEcMhHIOTiRRocARzKEZgyQkUaHHKoI4AjgEM+AiEXL9LgCOCQj0DIxYs0OAI45CMQcvEiDZ5aAIdc2ikoXqTBIQc9AjgCOOQjEHLxIg2OAA75CIRcvEiDI4BDPgIhFy/S4CrA4f2JAA4vtlXJIoCrwxDenwjg8GJblcy3AC/rSMpJnRm5MJOSxZkOOaUzjZSRpdg/M5uW2dg/Honbs7Mdcj3qL02nUGekHmksY51z0YbHmou63+xIycuxWHUAwv7jO4CvTiVlxrSs3Izt8/GY3JNIyL2Jdnk2HkeKyW3Yf6w9Lluw/wIStw+3t8uPUf+2ZAJ1RuqRxjLWeQBt7kHbTah7Syohn+7KyPxMGidGSs4B+HOR7kI/YQO8zS8CrQQ4H+zulBXQxJ1t3rD1YCKGEyMhGwH+JqSLYCkO68rKdpxYfhmXyfLhzUhquHwl1iaPQ6Omd3fJVTCvecOo1hySoerW/Z/h/qz9/BM8HQvXcCQ03EoPar4lAH8bWjr9A51yOLTlDPjEnG2cDTFaPp4vwUd/fFpny/mYLAONAZ7s0W3tt8JnHgAz/FP4y9wYIJpabG5th3J3t2ZA3moz5Lvg1d3O3D26ZwBvhl87AbPed2pm2BRLB6BROwG+1F+Rb5T65ZRyRb6AdAXyZ4F2YnlAZleQsD0H+9cX++rqkTYPZbNRZ0F/WRb3leXDfGGF2XltW8eDUSvA5m5MyLAJ7L8nAK+Hn50Dv6YaJaMGpL1scV+/9O3qkfvyRflJsSQP5QryINJNyN+XL8gjubw82ouE7d3Y/06pr64eaXeh7FHUWZMvyq2Fory1u1dWYvs5nBxHIM0F8IcNDGq9fsnOWMD2PQF4EfzsWONiatE0aBiBvbWgHlr6xoVY3hzYnZUu+PEuTNA+BLM/Hakb+/tjiXXHGMudJdDkzTg5tiLdC+A/C6ANDYPdgzV7rSn3O9l1gI/pzCrHwAS0DbqTBahdGMcTYErfhYYpG4DIWfdxMPMbEnF522iTPmh/H5DphdnPIRWxvwNLrMuw3Dkxm0GL5v7T6F9Xcwksia4sCHTXAf5dXN2FATCWwW8Wd/XKewB1J9JjMKWNBm011soFANmoTrUMJ8tv2mNCbV6VbK+SGv281TY6qoXm1eozBgfligjg6lgof2bD75qaaq1A2tpcUW6A37TSx8q/2wy4PIjBHxFq85XpDvkozPd6BDKGqfW/W3EyWKlsTh73C7h5pkxq9WKJA2kLZs4GNNV+qCMHBmR+uWwnj7k/C75SW8lUO0WF93BiLEIocn+sa+0afSf89fsotzcj31+cAI/247R63zWAP4HJjk645YV+XVFD+iUwlxchKSsZDRCuNdiBdS01eo7FP78Jn10rHtkgty/M81VYkiEb6H/XAH5NM3CfhPYeXalMeNBuwez6pZ6c/AIm/upiv1wDP34H8ktK5aZf+rUZJvmg2gk408KL9RS5HbPrCTPpo4auANxIe38FMCYr/6FYt34Z5vO6UkmuhR8/D/mVWB8XsW6eg2BII6HoW9n/v3ECzsNs+ziY/WtxkpBm8AdpFkAnHdnA/zcaiwkLp9PewwHMATB9Ez5wEw035gpiBdoE1GxqWOYED8H/MsJ2DU6SJ7AmXg2tfXVPTp7sLZjVA791HOBP1UyfamTux+Cr6G7QTKCPqQxKvEEHl0CL/wVtpsZegKiW2ydgA1ZcKXIc4L9hsFSceqG9qn6fgWb+FVqZsjrYWkVqN8H9fEguDdbEGrVxHODBUYcf2VnvofaO9Dqco1Y+iv67LRErgmuaay6j5lhm1sOtwvHrOMCGZlw4yJoiT8hHY+K0rSf//74Miy8mcQtm1vTHzIcpOQ4wNcM+QCqavY4X+zzJzBmzvb8KCBfAH2MTqv9xAdyc5EZdNcOmLXUVPCRwxrzXkNqRvIP5w1FdWaFf9pAlV7tyFGDeEWnnVjG3sVfxfH9driRZW6+mlflTrE3OhyaHBWRHAV7VkbQNm1R1dzomN4b454/+eCXWvOTIBNaockqKyIu4AnYyLkuGAWTHAH4bcd7+4fGp+12oix/X1fSOwDUvl25WYM3eSSO4h2BNz4sRJj2IW8cAHtRIH8MF/eW1UKCmSsvIDLw0CoKQMQZC5mXSgfXLjgHMwVAlVYBBVa8VNM6qGZacPkb49KFEXIJqsh0DeI9hKDHibTXKAp8Q6Y//i0gXTXYjlmiygwiyYwAPqEaHU+gmrtOqmnpN44UGrpGp1bq+CXLQ/LJjAH8QM+W6gYFStxPkugJ/ErhGJtC8CdDKoT1Pv3xxukMIuL3Mb/uOAawTbAAg68r8SOdVpT8gpGlfJ9t5XZtsD4RfdgzgHVgmmWtK62AoTbe1gg/zNNPv7eqRZvwyn9bwsyY7BvBeg0MIFdSrqwGqDzFsiiWa67H88n8Q3vSzX3YMYN2IDekKAkI3/TKjcY1Ypl/+YSrpO7/sGMAzoMGqAaCJDvplOPrlF+iXVRNJi9A/QKjWb0spxwCmnB/TBAyej48VL2Jrf6eqX97dK7ypj5yq5huk0x8f5aM7RBwFeGGf+mb21QF/BJPAmWljriD0ywdqLBbr7TYMoV9mvtXJUYBnVnjZvF6knRC4nhpciumXqdU6KajJH+lu/RsCJgNwnWy6s5qwB90P24WlX2Ycm4+72svMfYZv+Yirud+KraMA84xmUgkSBj9sl4uybsfk67gyp5L20uF9xuIvTqeGd1rw6yjA5P+Mfuorc6PTOkR+RlPCsUeQVxeKVb+sk2htMiGtsmCOA3x6efREy5xtvo6AgG4Agk4nyIv6y7JIM8mkfBe26DYgxwG2+2EzksUbAl4MwXKJYKkSQeZzUtxay80TnBGvI1uwfHIcYAo4+nn5EXFnaNbJIzWCnaPsnHhRThNY8wSnZJx08YE35r1KjgPciPFvtXCy0YgvJ8sI8jO9BUTgDeVhn060e+qPXQE4ownp/bI9LkG/iU2Jmo1IkJdqHh7Poe78bBq/3vy7AjBfVqZjfwkulOvKAkJvis0VxZIQaFVlRroWYNKlKnOa5grAjPScXFGvDcuwXMtDFLpsBMiavPpdX2yzEaaaW7eTKwCT6Z/li6J7/1QxZKFLyqtKvKHvpoIaZK4qVG2cprkGMM1Tl4bbV2zvpdJUCwX5HFtcwBSqQ/N8lFnu1NY1gMlgh2ay9VR7TBiMZ52pmvoxz/ZCdlcBPh3RHZUQXA/OasGiX8WL2zTeq6bqo4K5iIruNM1VgC9H6G5vmCJz0W9lnq8VvngKzKh5r5pVbq/zrgJMP/xcj37Rz0dCwm6qN2DtrwLVIwVu+t1hKh6bohHkZZqHz2iqT8sG4wbypoRVVPptu/plqKoXkyuaT5rkoAbrebkUvphAq2q8GovJaZ3hBfkRTChFcWvpeX3qy6qqMZoMzROACa5u0U///CqWTbyHaU42E6rZNT8VVOJsWWGPL/PomWlPAOYZyEX/jbZFP8E1OACsgMR3SM7zME6LLl3936bxvwfhqhpPelc7rx3cM4DZ39xyRVIWe2UFl+VMfEcGbyBnPuipap4VQpyF1YWC7ArJU4B51r60Jy98dUIjae5MentJrREvEy3je6lLFutkHodWi3MSc9/tracAUxiCvK0nJ3zuR/dkPZdOvMWF9YOantTMng8eHNJeZXJDVs8BNoXgk3sbcLVF984q3uKyf3fW04vjJm9ObLfG1fe1eGmeKUfLAGbnnHg9j0AI86q0w2gTfm+Jz/us12iEql2raZenU8KvwKj48NI8s/+WAkwGaLJprpnXpeficeG3l6jR6zUzU11b9+mje+D3H9ZpTsYZuPhCeUe3cHev5QBTPJrrMxAMYb5Rokbz4xrU6M0aE9iovRdlp3ZmpEczqkdhFeEFD9Y+NKxYq3iTX4FwpnUJpeuVs9DnoNE03Xz2hxrNSZmuvpf08zNp+WOsDXNno67bNJaHd+WLdXS3CW1ud9Ds8Wm6uIQ6pjIgjZ73MTB85jEZy6ZG8zUKXDu3EuhzAe79Cf1jshtyRdGXmhI5v/UNwBSNID/dmxd+3o5m2/oCb5brEmfcfPia4U5Tq3V13aBf0ZGSBxqAO6s8ICe2wDxTVl8BTIbMxInXjt29wge7mjHdZjtTq2d2ZTxZYtFq/LzBTYRJXGh4IF8w2fN861uAzZF4IpeXPbt6q2+82QsxXJM+1nYbrlLRT1OrGVUiEGO1mUj5qbgSpmuXhN9dC7+ru09c185Juu8BNoWlRr+5JydHw0ePx5cRWH7tjEAf25WWs3H9+UqY1NuSCWH6arpDrupIyrPjWH7xhOF3GfeelpXXcCXM5NG65cvUfo+w7Jmam+6sdd3Mt7l5cDeOza+o5Hf1yBPw1fyA1Xj62B6Ly8NYo66CSV2KYATT3Yh7r0wl5RRcxToUgH0l0yFrEu2yCYD/CMB/DfVuRPlNaMMl0D6owxOG32Xc1eCJyVWI0h08DoszHjnGU9c9gMfDxQTqmk/YE2hepRqPVuu6ewOArQO4l2ZSMheAfx/A3g5N/x6AvhZa/2usvd9HHV37IZhklvEdHgtbrLnkgymwAJN5JgJ9b64g1OplWEvzyT7SJ5OsS7HxHIftGFu/ptQ3nmau1g08wNbRuQED+w/4afprJzTaemzmTQ1lXpXY5wqYZlVZq2ihAtgcRK6hqdHLC0U5ZHBAqFVm2WS21FBVe078Fvf1V63I/Batd1V8kRZKgCkY09f7yvJnzGTf3J2rTsquK5bkM5iFHw8QFiD2fSlAOQL7nbgIwPrWhOWrdXdUfgi+lrfdEFR+zJITv1tttyONatDCnVADbB1X+uqrS/2yBbPvx+Gz12B9ejNA2Yr9nQiobMJ2ZqUi++KC/MEDg3I4gO/GLJiP3zCitg/o++FEWICT5u84aV6GKyCojL5Z+/FbfsoAPNbAnwRAn+otyOt7euUvPTnZDsB3AMTdAJ8RtTdAfw35NTD7fgfVKmsEsHU0QpiPAHYaVJ8dLwLYZ4A4zU4EsNMj6rPjRQD7DBCn2YkAdnpEfXa8CGCfAeI0OxHATo+oz44XAewzQJxmJwLY6RH12fE8A9hnck8Zdv4HAAD//zASoocAAAAGSURBVAMAl6LsTMGoiiYAAAAASUVORK5CYII="
+            }
+        },
+        {
+            "id": "palette_1779576880670",
+            "name": "Step 1 palette",
+            "slot": 1,
+            "scope": "color",
+            "values": {
+                "1779345825924:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345826114:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825324:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825913:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825298:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825843:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345925999:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925551:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926148:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925829:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926277:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925842:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925733:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925743:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926042:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925722:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345925855:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345926119:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345960283:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959308:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345960046:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959395:1778957848813": {
+                    "a": 0,
+                    "b": 255,
+                    "c": 0,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345982358:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345981636:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345981768:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345981741:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982552:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982382:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982186:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779345982530:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 0
+                },
+                "1779426865425:1779426758542": 0,
+                "1779426864754:1779426758542": 0,
+                "1779426865292:1779426758542": 0,
+                "1779426865610:1779426758542": 0,
+                "1779426865022:1779426758542": 0,
+                "1779426864908:1779426758542": 0
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#225a50",
+                "image": ""
+            }
+        },
+        {
+            "id": "palette_1779576921877",
+            "name": "Step 3 palette",
+            "slot": 2,
+            "scope": "color",
+            "values": {
+                "1779345825924:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345826114:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825324:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825913:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825298:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825843:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345925999:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345925551:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345926148:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345925829:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345926277:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345925842:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345925733:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345925743:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345926042:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345925722:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345925855:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345926119:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345960283:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959308:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345960046:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959395:1778957848813": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345982358:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345981636:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345981768:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345981741:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345982552:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345982382:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345982186:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779345982530:1779135381320": {
+                    "a": 0,
+                    "b": 0,
+                    "c": 255
+                },
+                "1779426865425:1779426758542": 150,
+                "1779426864754:1779426758542": 150,
+                "1779426865292:1779426758542": 150,
+                "1779426865610:1779426758542": 150,
+                "1779426865022:1779426758542": 150,
+                "1779426864908:1779426758542": 150
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#0400ff",
+                "image": ""
+            }
+        },
+        {
+            "id": "palette_1779577652810",
+            "name": "Step 3 palette step palette",
+            "slot": 3,
+            "scope": "color",
+            "values": {
+                "1779345825924:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345826114:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825324:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825913:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825298:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345825843:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345925999:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345925551:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345926148:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345925829:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345926277:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345925842:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345925733:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345925743:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345926042:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345925722:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345925855:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345926119:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345960283:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959308:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345960046:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345959395:1778957848813": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255,
+                    "w": 0,
+                    "amber": 0
+                },
+                "1779345982358:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345981636:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345981768:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345981741:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345982552:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345982382:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345982186:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779345982530:1779135381320": {
+                    "a": 0,
+                    "b": 251,
+                    "c": 255
+                },
+                "1779426865425:1779426758542": 150,
+                "1779426864754:1779426758542": 150,
+                "1779426865292:1779426758542": 150,
+                "1779426865610:1779426758542": 150,
+                "1779426865022:1779426758542": 150,
+                "1779426864908:1779426758542": 150
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#00ffd5",
+                "image": "data:image/png;base64,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"
+            }
+        }
+    ],
     "paletteCols": 4,
     "paletteRows": 4
 }

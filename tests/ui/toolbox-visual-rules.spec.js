@@ -29,6 +29,7 @@ test.describe('Toolbox visual tile rules', () => {
         visualBackgroundSize: visualStyle.backgroundSize,
         visualPointerEvents: visualStyle.pointerEvents,
         labelPosition: labelStyle.position,
+        labelAlignSelf: labelStyle.alignSelf,
         labelZIndex: labelStyle.zIndex
       };
     });
@@ -39,6 +40,7 @@ test.describe('Toolbox visual tile rules', () => {
     expect(state.visualBackgroundSize).toBe('contain');
     expect(state.visualPointerEvents).toBe('none');
     expect(state.labelPosition).toBe('relative');
+    expect(state.labelAlignSelf).toBe('end');
     expect(state.labelZIndex).toBe('1');
   });
 });
