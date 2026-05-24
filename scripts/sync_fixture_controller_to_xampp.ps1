@@ -16,6 +16,7 @@ $apiSource = Join-Path $apiDir "fixture_setup.php"
 $motionSource = Join-Path $webDir "dmx_motion.html"
 $chaserSource = Join-Path $webDir "dmx_chaser.html"
 $benchSource = Join-Path $webDir "dmx_benchmark.html"
+$monitorSource = Join-Path $webDir "dmx_monitor.html"
 $gpioSource      = Join-Path $webDir "dmx_gpio.html"
 $chaserApiSource = Join-Path $apiDir "chaser_setup.php"
 $motionApiSource = Join-Path $apiDir "motion_setup.php"
@@ -35,6 +36,7 @@ $apiTarget = Join-Path $targetDir "fixture_setup.php"
 $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $benchTargetDir "index.html"
+$monitorTarget = Join-Path $targetDir "dmx_monitor.html"
 $gpioTarget      = Join-Path $targetDir "dmx_gpio.html"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
@@ -75,6 +77,10 @@ if (Test-Path -LiteralPath $benchSource) {
     New-Item -ItemType Directory -Force -Path $benchTargetDir | Out-Null
     Copy-Item -LiteralPath $benchSource -Destination $benchTarget -Force
     Write-Host "Copied benchmark to $benchTarget"
+}
+if (Test-Path -LiteralPath $monitorSource) {
+    Copy-Item -LiteralPath $monitorSource -Destination $monitorTarget -Force
+    Write-Host "Copied DMX monitor to $monitorTarget"
 }
 if (Test-Path -LiteralPath $gpioSource) {
     Copy-Item -LiteralPath $gpioSource -Destination $gpioTarget -Force

@@ -38,6 +38,7 @@ void dmx_engine_poll(void);
 void dmx_engine_stop(void);
 bool dmx_engine_set_channel(uint16_t channel, uint8_t value);
 uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count);
+uint8_t dmx_engine_get_output_channel(uint16_t channel);
 void dmx_engine_clear_output(void);
 void dmx_engine_clear(void);
 void dmx_engine_get_status(dmx_engine_status_t *status);

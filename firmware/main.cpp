@@ -694,6 +694,42 @@ static void build_dmx_base_response(void)
     }
 }
 
+static void build_dmx_output_response(void)
+{
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+
+    size_t used = (size_t)snprintf(
+        http_dmx_base_json,
+        sizeof(http_dmx_base_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"channels\":%u,\"frame_count\":%lu,\"values\":[",
+        status.channels,
+        (unsigned long)status.frame_count);
+
+    for (uint16_t ch = 1; ch <= status.channels; ch++) {
+        int written = snprintf(
+            http_dmx_base_json + used,
+            sizeof(http_dmx_base_json) - used,
+            "%s%u",
+            ch == 1 ? "" : ",",
+            dmx_engine_get_output_channel(ch));
+        if (written < 0) break;
+        used += (size_t)written;
+    }
+
+    if (used + 4 < sizeof(http_dmx_base_json)) {
+        snprintf(http_dmx_base_json + used, sizeof(http_dmx_base_json) - used, "]}\n");
+    } else {
+        http_dmx_base_json[sizeof(http_dmx_base_json) - 1] = '\0';
+    }
+}
+
 static void build_dmx_values_response(const char *name)
 {
     uint16_t first = 1;
@@ -914,6 +950,16 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 
     if (path_matches(name, "/dmx/base")) {
         build_dmx_base_response();
+        file->data = http_dmx_base_json;
+        file->len = (int)strlen(http_dmx_base_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/output.json") ||
+        path_matches(name, "/dmx/output")) {
+        build_dmx_output_response();
         file->data = http_dmx_base_json;
         file->len = (int)strlen(http_dmx_base_json);
         file->index = file->len;

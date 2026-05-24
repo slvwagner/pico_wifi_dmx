@@ -111,6 +111,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 | `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
 | `/dmx/clear` | GET | Zero all channels and clear the scene base buffer |
 | `/dmx/output_clear` | GET | Zero live DMX output channels only; preserve the scene base buffer |
+| `/dmx/output.json` | GET | Read the actual live DMX output frame as `{"ok":true,"channels":N,"frame_count":N,"values":[...]}` |
 | `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
 | `/dmx/values.json` | GET | Read all channel values |
 
@@ -198,6 +199,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Motion FX | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
+| DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
 | FPS Benchmark | `web/dmx_benchmark.html` | Measure Pico HTTP latency for single-channel, scene-sized batch, stress, and soak-test DMX update patterns with percentile stats |
 
 ### Screenshots

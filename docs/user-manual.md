@@ -711,6 +711,8 @@ The result panel shows:
 
 Use **Export CSV** to save results for later comparison.
 
+Benchmark and GPIO Control link to the **DMX Buffer Monitor**. The monitor displays all 512 channels as tiles and reads one Pico buffer at a time. Use **DMX output** to see the actual output frame currently held by the DMX engine, including values produced by Pico-side Chaser or Motion FX playback. Use **Base / position** to inspect the scene base buffer used as the center for Motion FX. **Refresh Hz** controls how often the selected buffer is polled.
+
 ## 8. Backup and Import
 
 Most setup data is stored as JSON files on the XAMPP server in the `data/` folder.
