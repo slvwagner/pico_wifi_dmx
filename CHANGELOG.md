@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2 - Unreleased
+
+Changed:
+
+- Working title: Bugfixing.
+
 ## 0.9.1 - 2026-05-24
 
 Changed:
