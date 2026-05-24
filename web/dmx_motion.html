@@ -381,27 +381,66 @@ function populateEffectTypeFilter(preferred){
   drawPathPreview();
 }
 let lastEffectParameterFamily='';
+let lastEffectAxisMode='';
+let lastPanTiltPanAmp=20;
 let lastPanTiltTiltAmp=15;
+function effectAxisMode(){
+  const family=effectTargetFamily();
+  if(family==='scalar')return'scalar';
+  if(family!=='panTilt')return'none';
+  const type=document.getElementById('effectType')?.value||'';
+  if(type==='panSwing')return'pan';
+  if(type==='tiltSwing')return'tilt';
+  return'both';
+}
+function axisModeShowsPan(mode){
+  return mode==='both'||mode==='pan';
+}
+function axisModeShowsTilt(mode){
+  return mode==='both'||mode==='tilt';
+}
 function updateEffectParameterUi(){
   const family=effectTargetFamily();
+  const mode=effectAxisMode();
   const panLabel=document.getElementById('panAmpLabel');
+  const pan=document.getElementById('panAmp');
+  const panVal=document.getElementById('panAmpVal');
   const tiltLabel=document.getElementById('tiltAmpLabel');
   const tilt=document.getElementById('tiltAmp');
   const tiltVal=document.getElementById('tiltAmpVal');
+  if(axisModeShowsPan(lastEffectAxisMode)&&!axisModeShowsPan(mode)&&pan){
+    lastPanTiltPanAmp=clamp(pan.value,0,100);
+  }
+  if(axisModeShowsTilt(lastEffectAxisMode)&&!axisModeShowsTilt(mode)&&tilt){
+    lastPanTiltTiltAmp=clamp(tilt.value,0,100);
+  }
   if(family==='scalar'&&lastEffectParameterFamily!=='scalar'&&tilt){
+    const currentPan=pan?clamp(pan.value,0,100):0;
+    if(lastEffectParameterFamily==='panTilt'||currentPan>0)lastPanTiltPanAmp=currentPan;
     const currentTilt=clamp(tilt.value,0,100);
     if(lastEffectParameterFamily==='panTilt'||currentTilt>0)lastPanTiltTiltAmp=currentTilt;
   }
-  if(panLabel)panLabel.childNodes[0].nodeValue=family==='scalar'?'Amplitude':'Pan amp';
-  if(tiltLabel)tiltLabel.style.display=family==='scalar'?'none':'grid';
-  if(family==='scalar'&&tilt){
+  if(panLabel){
+    panLabel.childNodes[0].nodeValue=mode==='scalar'?'Amplitude':'Pan amp';
+    panLabel.style.display=mode==='tilt'?'none':'';
+  }
+  if(tiltLabel)tiltLabel.style.display=(mode==='scalar'||mode==='pan')?'none':'';
+  if(mode==='scalar'||mode==='pan'){
     tilt.value=0;
     if(tiltVal)tiltVal.textContent='0';
-  }else if(family==='panTilt'&&lastEffectParameterFamily==='scalar'&&tilt){
+  }else if(axisModeShowsTilt(mode)&&!axisModeShowsTilt(lastEffectAxisMode)&&tilt){
     tilt.value=lastPanTiltTiltAmp;
     if(tiltVal)tiltVal.textContent=String(lastPanTiltTiltAmp);
   }
+  if(mode==='tilt'&&pan){
+    pan.value=0;
+    if(panVal)panVal.textContent='0';
+  }else if(axisModeShowsPan(mode)&&!axisModeShowsPan(lastEffectAxisMode)&&pan){
+    pan.value=lastPanTiltPanAmp;
+    if(panVal)panVal.textContent=String(lastPanTiltPanAmp);
+  }
   lastEffectParameterFamily=family;
+  lastEffectAxisMode=mode;
 }
 function scopedMotionFixtures(){
   const ids=motionTargetFixtureIds();
@@ -912,8 +951,9 @@ function effectOffset(t,type){
 function drawPathPreview(){
   const {w,h}=syncPathCanvasResolution();
   const type=document.getElementById('effectType').value;
-  const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
-  const tAmp=effectTargetFamily()==='scalar'?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
+  const mode=effectAxisMode();
+  const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
+  const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
 
@@ -1056,8 +1096,9 @@ function tick(){
   const bpm=clamp(document.getElementById('bpm').value,1,600);
   const angle=elapsed*(bpm/60)*Math.PI*2;
   const type=document.getElementById('effectType').value;
-  const pAmp=clamp(document.getElementById('panAmp').value,0,100)/100;
-  const tAmp=clamp(document.getElementById('tiltAmp').value,0,100)/100;
+  const mode=effectAxisMode();
+  const pAmp=mode==='tilt'?0:clamp(document.getElementById('panAmp').value,0,100)/100;
+  const tAmp=(mode==='scalar'||mode==='pan')?0:clamp(document.getElementById('tiltAmp').value,0,100)/100;
   const spread=clamp(document.getElementById('phaseSpread').value,0,360)*Math.PI/180;
   const enabled=motionFixtures.filter(mf=>mf.enabled);
   const batchMap={};
@@ -1107,7 +1148,7 @@ function tick(){
 
 // ---- event wiring ----
 document.getElementById('startStop').onclick=()=>{running?stopMotion():startMotion();};
-document.getElementById('effectType').onchange=()=>{drawPathPreview();saveMotionWorkingState();};
+document.getElementById('effectType').onchange=()=>{updateEffectParameterUi();drawPathPreview();saveMotionWorkingState();};
 document.getElementById('btnMotionAll').onclick=()=>{
   if(!selectedMotionTargetKey){setStatus('Choose an Effect Target first',true);return;}
   clearMotionGroupSelection();
@@ -1157,8 +1198,9 @@ const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5};
 function serializeMotionForPico(){
   const type=document.getElementById('effectType').value;
   const bpm=parseFloat(document.getElementById('bpm').value);
-  const amp1=parseFloat(document.getElementById('panAmp').value)/100;
-  const amp2=effectTargetFamily()==='scalar'?0:parseFloat(document.getElementById('tiltAmp').value)/100;
+  const mode=effectAxisMode();
+  const amp1=mode==='tilt'?0:parseFloat(document.getElementById('panAmp').value)/100;
+  const amp2=(mode==='scalar'||mode==='pan')?0:parseFloat(document.getElementById('tiltAmp').value)/100;
   const spread=parseFloat(document.getElementById('phaseSpread').value);
   const lines=[
     'FX 1',

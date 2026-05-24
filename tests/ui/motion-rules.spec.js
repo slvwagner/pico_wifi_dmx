@@ -109,6 +109,8 @@ test.describe('Motion FX established rules', () => {
 
   test('scalar targets show one amplitude slider and force hidden tilt amplitude to zero', async ({ page }) => {
     const result = await page.evaluate(() => {
+      document.getElementById('panAmp').value = 22;
+      document.getElementById('panAmpVal').textContent = '22';
       document.getElementById('tiltAmp').value = 37;
       document.getElementById('tiltAmpVal').textContent = '37';
       const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');
@@ -125,8 +127,11 @@ test.describe('Motion FX established rules', () => {
       setMotionTarget(motionControlKey(pan.control));
       const panTiltState = {
         panLabel: document.getElementById('panAmpLabel').childNodes[0].nodeValue.trim(),
+        panDisplay: getComputedStyle(document.getElementById('panAmpLabel')).display,
+        panValue: document.getElementById('panAmp').value,
         tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display,
         tiltValue: document.getElementById('tiltAmp').value,
+        serializedAmp1: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP1 ')),
         serializedAmp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
       };
       return { scalarState, panTiltState };
@@ -138,9 +143,79 @@ test.describe('Motion FX established rules', () => {
     expect(result.scalarState.tiltText).toBe('0');
     expect(result.scalarState.serializedAmp2).toBe('AMP2 0.000000');
     expect(result.panTiltState.panLabel).toBe('Pan amp');
+    expect(result.panTiltState.panDisplay).not.toBe('none');
+    expect(result.panTiltState.panValue).toBe('22');
     expect(result.panTiltState.tiltDisplay).not.toBe('none');
     expect(result.panTiltState.tiltValue).toBe('37');
+    expect(result.panTiltState.serializedAmp1).toBe('AMP1 0.220000');
     expect(result.panTiltState.serializedAmp2).toBe('AMP2 0.370000');
+  });
+
+  test('one-axis pan and tilt swing effects hide and zero the unused axis without losing two-axis values', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
+      setMotionTarget(motionControlKey(pan.control));
+      document.getElementById('panAmp').value = 44;
+      document.getElementById('panAmpVal').textContent = '44';
+      document.getElementById('tiltAmp').value = 66;
+      document.getElementById('tiltAmpVal').textContent = '66';
+
+      const effect = document.getElementById('effectType');
+      effect.value = 'panSwing';
+      effect.dispatchEvent(new Event('change'));
+      const panSwing = {
+        panDisplay: getComputedStyle(document.getElementById('panAmpLabel')).display,
+        panValue: document.getElementById('panAmp').value,
+        tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display,
+        tiltValue: document.getElementById('tiltAmp').value,
+        amp1: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP1 ')),
+        amp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
+      };
+
+      effect.value = 'tiltSwing';
+      effect.dispatchEvent(new Event('change'));
+      const tiltSwing = {
+        panDisplay: getComputedStyle(document.getElementById('panAmpLabel')).display,
+        panValue: document.getElementById('panAmp').value,
+        tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display,
+        tiltValue: document.getElementById('tiltAmp').value,
+        amp1: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP1 ')),
+        amp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
+      };
+
+      effect.value = 'circle';
+      effect.dispatchEvent(new Event('change'));
+      const circle = {
+        panDisplay: getComputedStyle(document.getElementById('panAmpLabel')).display,
+        panValue: document.getElementById('panAmp').value,
+        tiltDisplay: getComputedStyle(document.getElementById('tiltAmpLabel')).display,
+        tiltValue: document.getElementById('tiltAmp').value,
+        amp1: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP1 ')),
+        amp2: serializeMotionForPico().split('\n').find(line => line.startsWith('AMP2 '))
+      };
+      return { panSwing, tiltSwing, circle };
+    });
+
+    expect(result.panSwing.panDisplay).not.toBe('none');
+    expect(result.panSwing.panValue).toBe('44');
+    expect(result.panSwing.tiltDisplay).toBe('none');
+    expect(result.panSwing.tiltValue).toBe('0');
+    expect(result.panSwing.amp1).toBe('AMP1 0.440000');
+    expect(result.panSwing.amp2).toBe('AMP2 0.000000');
+
+    expect(result.tiltSwing.panDisplay).toBe('none');
+    expect(result.tiltSwing.panValue).toBe('0');
+    expect(result.tiltSwing.tiltDisplay).not.toBe('none');
+    expect(result.tiltSwing.tiltValue).toBe('66');
+    expect(result.tiltSwing.amp1).toBe('AMP1 0.000000');
+    expect(result.tiltSwing.amp2).toBe('AMP2 0.660000');
+
+    expect(result.circle.panDisplay).not.toBe('none');
+    expect(result.circle.panValue).toBe('44');
+    expect(result.circle.tiltDisplay).not.toBe('none');
+    expect(result.circle.tiltValue).toBe('66');
+    expect(result.circle.amp1).toBe('AMP1 0.440000');
+    expect(result.circle.amp2).toBe('AMP2 0.660000');
   });
 
   test('All enables every fixture for the current effect target and clears group filtering', async ({ page }) => {
