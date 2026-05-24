@@ -38,26 +38,14 @@ Install the runtime tools:
 - A modern browser such as Chrome, Edge, or Safari.
 - A Raspberry Pi Pico 2 W flashed with the `pico_wifi_dmx` firmware.
 
-Copy the web app to XAMPP:
+Configure the local paths first. The scripts use `config/local-paths.json` as their default path configuration for your machine:
 
 ```powershell
 cd D:\Projects\pico_wifi_dmx
-.\scripts\sync_fixture_controller_to_xampp.ps1
-```
-
-The example XAMPP target is:
-
-```text
-E:\Software\xampp\htdocs\dmx\
-```
-
-If your XAMPP install lives somewhere else, copy the local path config example and adjust it:
-
-```powershell
 Copy-Item config\local-paths.example.json config\local-paths.json
 ```
 
-Example:
+Edit `config/local-paths.json` so it matches your XAMPP installation, app folder, browser URL, and Chrome path:
 
 ```json
 {
@@ -68,7 +56,19 @@ Example:
 }
 ```
 
-`config/local-paths.json` is ignored by Git. The sync and documentation scripts read it automatically. Command-line script parameters still override the config when needed.
+These values mean the web app will be copied to:
+
+```text
+E:\Software\xampp\htdocs\dmx\
+```
+
+`config/local-paths.json` is ignored by Git. Keep your real machine paths there. The sync, manual screenshot/PDF, README screenshot, and release helper scripts read this file automatically. If you pass path parameters directly to a script, those command-line values override the config file for that run.
+
+Copy the web app to XAMPP:
+
+```powershell
+.\scripts\sync_fixture_controller_to_xampp.ps1
+```
 
 Open the UI:
 
@@ -89,21 +89,21 @@ Setup data is saved in XAMPP under `dmx/data/*.json`. Use the page-level JSON ex
 The latest committed firmware release is stored in:
 
 ```text
-release/v0.9.0/pico_wifi_dmx-v0.9.0.uf2
+release/v0.9.2/pico_wifi_dmx-v0.9.2.uf2
 ```
 
 Use that prebuilt UF2 when you only want to install the software and do not need to build from source. To install it:
 
 1. Hold the Pico 2 W **BOOTSEL** button while plugging it into USB.
 2. Wait for the `RPI-RP2` drive to appear.
-3. Copy `release/v0.9.0/pico_wifi_dmx-v0.9.0.uf2` to that drive.
+3. Copy `release/v0.9.2/pico_wifi_dmx-v0.9.2.uf2` to that drive.
 4. The Pico reboots automatically.
 5. Open the serial log and note the printed Pico URL.
 
 The matching checksum is stored beside it in:
 
 ```text
-release/v0.9.0/pico_wifi_dmx-v0.9.0.uf2.sha256
+release/v0.9.2/pico_wifi_dmx-v0.9.2.uf2.sha256
 ```
 
 Future releases use the same pattern: `release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2`. If no prebuilt UF2 is available, build it from source with the developer steps below.
