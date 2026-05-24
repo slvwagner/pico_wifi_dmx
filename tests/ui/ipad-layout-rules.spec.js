@@ -1,5 +1,22 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
+const { loadPathConfig } = require('./helpers/pathconfig');
+
+async function touchDrag(context, page, x, y, deltaY) {
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x, y, id: 1 }]
+  });
+  for (let i = 1; i <= 8; i++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y: y + (deltaY * i / 8), id: 1 }]
+    });
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(100);
+}
 
 test.describe('iPad layout rules', () => {
   for (const [label, path] of [
@@ -157,9 +174,48 @@ test.describe('iPad layout rules', () => {
     });
   });
 
-  test('iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
+  test('all pages expose their expected toolboxes in the toolbox rail', async ({ page }) => {
+    for (const cfg of [
+      {
+        path: '',
+        rail: 'fixtureToolboxRail',
+        boxes: ['groupsBox', 'sceneBox', 'paletteBox', 'fanToolbox']
+      },
+      {
+        path: 'dmx_chaser.html',
+        rail: 'chaserToolboxRail',
+        boxes: ['chaserGroupsBox', 'chaseBox', 'stepsBox', 'chaserPaletteBox', 'fanToolbox', 'browserPlaybackBox']
+      },
+      {
+        path: 'dmx_motion.html',
+        rail: 'motionToolboxRail',
+        boxes: ['motionGroupsBox', 'motionEffectBox', 'motionSavedEffectBox', 'motionSceneBox', 'motionPaletteBox']
+      }
+    ]) {
+      await openDmxPage(page, cfg.path);
+      const state = await page.evaluate(({ railId, boxIds }) => {
+        const rail = document.getElementById(railId);
+        return {
+          hasRail: !!rail,
+          missing: boxIds.filter(id => !document.getElementById(id)),
+          outsideRail: boxIds.filter(id => {
+            const box = document.getElementById(id);
+            return box && rail && !rail.contains(box);
+          }),
+          toolboxCount: rail ? rail.querySelectorAll('.scene-toolbox').length : 0
+        };
+      }, { railId: cfg.rail, boxIds: cfg.boxes });
+
+      expect(state.hasRail).toBe(true);
+      expect(state.missing).toEqual([]);
+      expect(state.outsideRail).toEqual([]);
+      expect(state.toolboxCount).toBeGreaterThanOrEqual(cfg.boxes.length);
+    }
+  });
+
+  test('Controller iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
     const context = await browser.newContext({
-      baseURL: require('./helpers/pathconfig').loadPathConfig().xamppBaseUrl,
+      baseURL: loadPathConfig().xamppBaseUrl,
       viewport: { width: 768, height: 1024 },
       isMobile: true,
       hasTouch: true
@@ -220,22 +276,138 @@ test.describe('iPad layout rules', () => {
       expect(before.scrollHeight).toBeGreaterThan(before.clientHeight + 500);
       expect(before.touchAction).toContain('pan-y');
 
-      const cdp = await context.newCDPSession(page);
-      await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchStart',
-        touchPoints: [{ x: before.x, y: before.y, id: 1 }]
-      });
-      for (let i = 1; i <= 8; i++) {
-        await cdp.send('Input.dispatchTouchEvent', {
-          type: 'touchMove',
-          touchPoints: [{ x: before.x, y: before.y - i * 55, id: 1 }]
-        });
-      }
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      await page.waitForTimeout(100);
+      await touchDrag(context, page, before.x, before.y, -440);
 
       const after = await page.evaluate(() => document.getElementById('groupModalBody').scrollTop);
       expect(after).toBeGreaterThan(180);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('Chaser iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: loadPathConfig().xamppBaseUrl,
+      viewport: { width: 768, height: 1024 },
+      isMobile: true,
+      hasTouch: true
+    });
+    const page = await context.newPage();
+    try {
+      await openDmxPage(page, 'dmx_chaser.html');
+      await page.evaluate(() => {
+        const controls = [
+          { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 },
+          { id: 12, type: 'panTilt16', label: 'Pan/Tilt', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 },
+          ...Array.from({ length: 30 }, (_, i) => ({ id: 1000 + i, type: 'slider8', label: 'Modal Scroll Control ' + i, channel: 6 }))
+        ];
+        setup = {
+          baseUrl: '',
+          profiles: [{ id: 1, name: 'iPad Chaser Profile', mode: 'test', channels: 64, controls }],
+          fixtures: [
+            { id: 101, name: 'Chaser A', profileId: 1, start: 1 },
+            { id: 102, name: 'Chaser B', profileId: 1, start: 81 }
+          ],
+          values: {}
+        };
+        steps = [];
+        selectedStepIdx = -1;
+        activeStepValueKeys = null;
+        sourceFixtureId = null;
+        participating = {};
+        setup.fixtures.forEach(f => controls.forEach(c => participating[controlKey(f, c)] = true));
+        chaserGroupsBox.groups.length = 0;
+        chaserGroupsBox.clearSelection();
+        drawParticipation();
+        drawStepList();
+        drawStepEditor();
+        openChaserGroupModal();
+      });
+
+      const before = await page.evaluate(() => {
+        const body = document.getElementById('chaserGroupModalBody');
+        const pad = body.querySelector('.xy-pad');
+        const rect = pad.getBoundingClientRect();
+        return {
+          scrollTop: body.scrollTop,
+          clientHeight: body.clientHeight,
+          scrollHeight: body.scrollHeight,
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+          touchAction: getComputedStyle(body).touchAction
+        };
+      });
+
+      expect(before.scrollHeight).toBeGreaterThan(before.clientHeight + 500);
+      expect(before.touchAction).toContain('pan-y');
+      await touchDrag(context, page, before.x, before.y, -440);
+      const after = await page.evaluate(() => document.getElementById('chaserGroupModalBody').scrollTop);
+      expect(after).toBeGreaterThan(180);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('Motion iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: loadPathConfig().xamppBaseUrl,
+      viewport: { width: 768, height: 1024 },
+      isMobile: true,
+      hasTouch: true
+    });
+    const page = await context.newPage();
+    try {
+      await openDmxPage(page, 'dmx_motion.html');
+      await page.evaluate(() => {
+        const control = { id: 11, type: 'panTilt16', label: 'Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 };
+        setup = {
+          baseUrl: '',
+          profiles: [{ id: 1, name: 'iPad Motion Profile', mode: 'test', channels: 8, controls: [control] }],
+          fixtures: [
+            { id: 101, name: 'Motion A', profileId: 1, start: 1 },
+            { id: 102, name: 'Motion B', profileId: 1, start: 21 }
+          ],
+          values: {}
+        };
+        motionFixtures = [];
+        setup.fixtures.forEach(f => {
+          motionFixtures.push({
+            fixture: f,
+            control,
+            kind: motionControlKind(control),
+            enabled: true,
+            phaseOffset: 0,
+            basePan: 32768,
+            baseTilt: 32768,
+            baseValue: 0
+          });
+        });
+        motionGroupsBox.groups.length = 0;
+        motionGroupsBox.clearSelection();
+        selectedMotionTargetKey = motionControlKey(control);
+        drawFixtureList();
+        openMotionGroupModal();
+      });
+
+      const before = await page.evaluate(() => {
+        const body = document.getElementById('motionGroupModalBody');
+        const pad = body.querySelector('.xy-pad');
+        const rect = pad.getBoundingClientRect();
+        return {
+          scrollTop: body.scrollTop,
+          clientHeight: body.clientHeight,
+          scrollHeight: body.scrollHeight,
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+          touchAction: getComputedStyle(body).touchAction
+        };
+      });
+
+      expect(before.scrollHeight).toBeGreaterThan(before.clientHeight + 100);
+      expect(before.touchAction).toContain('pan-y');
+      await touchDrag(context, page, before.x, before.y, -260);
+      const after = await page.evaluate(() => document.getElementById('motionGroupModalBody').scrollTop);
+      expect(after).toBeGreaterThan(80);
     } finally {
       await context.close();
     }

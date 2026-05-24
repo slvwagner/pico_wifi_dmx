@@ -493,10 +493,10 @@ function motionGroupKey(c){return motionControlKey(c);}
 function motionGroupEditFixtures(){
   const selected=(motionGroupsBox?.selectedGroups?.()||[]);
   const selectedIds=selected.length?new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String)):null;
-  return motionFixtures.filter(mf=>
-    motionGroupKey(mf.control)===selectedMotionTargetKey &&
-    (selectedIds?selectedIds.has(String(mf.fixture.id)):mf.enabled)
-  );
+  const matches=motionFixtures.filter(mf=>motionGroupKey(mf.control)===selectedMotionTargetKey);
+  if(selectedIds)return matches.filter(mf=>selectedIds.has(String(mf.fixture.id)));
+  const enabled=matches.filter(mf=>mf.enabled);
+  return enabled.length?enabled:matches;
 }
 function getMotionGroupCommonControls(){
   const editFixtures=motionGroupEditFixtures();

@@ -55,7 +55,37 @@ test.describe('Motion FX established rules', () => {
     expect(afterTarget.target).toContain('Dimmer');
     expect(afterTarget.enabled).toBe(0);
     expect(afterTarget.visible.sort()).toEqual(['A 1', 'B 1']);
-    expect(afterTarget.groupEdit).toBe(false);
+    expect(afterTarget.groupEdit).toBe(true);
+  });
+
+  test('choosing Dimmer after reload enables Group Edit across different fixture types without enabling playback', async ({ page }) => {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await injectMotionCompactSetup(page);
+
+    const result = await page.evaluate(() => {
+      const sel = document.getElementById('motionControlFilter');
+      const dimmer = [...sel.options].find(o => o.textContent.includes('Dimmer'));
+      sel.value = dimmer.value;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return {
+        selectedTarget: selectedMotionTargetKey,
+        enabledFixtures: motionFixtures.filter(mf => mf.enabled).length,
+        editFixtures: motionGroupEditFixtures().map(mf => ({
+          fixture: mf.fixture.id,
+          profile: fixtureProfile(mf.fixture)?.name,
+          label: mf.control.label
+        })),
+        controls: getMotionGroupCommonControls().map(motionGroupKey),
+        groupEditDisabled: document.getElementById('motionGroupsEdit')?.disabled
+      };
+    });
+
+    expect(result.selectedTarget).toContain('Dimmer');
+    expect(result.enabledFixtures).toBe(0);
+    expect(result.editFixtures.map(f => f.fixture).sort()).toEqual([101, 102]);
+    expect(new Set(result.editFixtures.map(f => f.profile)).size).toBe(2);
+    expect(result.controls).toEqual(['slider8:Dimmer:value']);
+    expect(result.groupEditDisabled).toBe(false);
   });
 
   test('effect dropdown is filtered by the selected target family', async ({ page }) => {
