@@ -421,7 +421,8 @@ strong { color: #ffffff; }
 </ul>
 <p><img src="screenshots/chaser-toolbox-browser-playback.png" alt="Chaser Chase Playback toolbox"></p>
 <p>On page load, the Chaser working area starts with no steps selected. Use the <strong>Chases</strong> toolbox to recall a saved chase. Loading a chase from the <strong>Chases</strong> box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.</p>
-<p>The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads.</p>
+<p>The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads. Collapsing <strong>Participating Controls</strong> or <strong>Edit Step</strong> only hides that card body: the sticky page header keeps the same height, and the next card moves up to use the freed space.</p>
+<p><img src="screenshots/chaser-collapsed-work-area.png" alt="Chaser collapsed work area"></p>
 <h3 id="chase-steps-toolbox-buttons">Chase Steps Toolbox Buttons</h3>
 <p>The <strong>Chase Steps</strong> toolbox uses shared action buttons instead of per-step buttons. Click a step card to select the step first; the selected step is highlighted and loaded into <strong>Edit Step</strong>.</p>
 <ul>
@@ -555,6 +556,8 @@ strong { color: #ffffff; }
 <p>The <strong>Participating Controls</strong> panel uses an <strong>Effect target</strong> dropdown. The default target is <strong>None</strong>. With <strong>None</strong> selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.</p>
 <p>Hard reload, including Ctrl+F5, resets <strong>Effect target</strong> to <strong>None</strong> and clears playback participation. Normal navigation away from Motion FX and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use <strong>Load</strong>, import a Motion JSON file, or recall a saved <strong>Effect</strong> tile when you want to explicitly restore saved target and participant data.</p>
 <p>One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.</p>
+<p>The <strong>Participating Controls</strong> card can be collapsed when you only need the toolboxes. In collapsed mode it stays compact and does not change the sticky page-header height.</p>
+<p><img src="screenshots/motion-participating-controls-collapsed.png" alt="Motion collapsed Participating Controls"></p>
 <p>The fixture matrix is a selection and preview surface:</p>
 <ul>
 <li>Click a fixture tile to include or exclude it from the effect.</li>

@@ -400,7 +400,9 @@ The Chaser page uses several toolboxes:
 
 On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
-The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads.
+The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads. Collapsing **Participating Controls** or **Edit Step** only hides that card body: the sticky page header keeps the same height, and the next card moves up to use the freed space.
+
+![Chaser collapsed work area](screenshots/chaser-collapsed-work-area.png)
 
 ### Chase Steps Toolbox Buttons
 
@@ -570,6 +572,10 @@ The **Participating Controls** panel uses an **Effect target** dropdown. The def
 Hard reload, including Ctrl+F5, resets **Effect target** to **None** and clears playback participation. Normal navigation away from Motion FX and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use **Load**, import a Motion JSON file, or recall a saved **Effect** tile when you want to explicitly restore saved target and participant data.
 
 One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.
+
+The **Participating Controls** card can be collapsed when you only need the toolboxes. In collapsed mode it stays compact and does not change the sticky page-header height.
+
+![Motion collapsed Participating Controls](screenshots/motion-participating-controls-collapsed.png)
 
 The fixture matrix is a selection and preview surface:
 
