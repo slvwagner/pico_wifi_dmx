@@ -13,6 +13,8 @@ tests/
 
 Use `docs/manual-data/` for the larger manual screenshot baseline. Use `tests/fixtures/` only for compact data that belongs directly to automated tests.
 
+Environment paths are configured in `tests/pathconfig.json`. For machine-specific settings, copy `tests/pathconfig.example.json` to `tests/pathconfig.local.json`; the local file is ignored by Git.
+
 ## Implemented Rule Tests
 
 - Controller Group Edit is available when a matching control exists on at least two selected fixtures.
@@ -37,6 +39,8 @@ Use `docs/manual-data/` for the larger manual screenshot baseline. Use `tests/fi
 - Chaser **Add step** starts from default/fallback values for selected participating controls.
 - Chaser step selection rebuilds the active edit scope from the selected step values.
 - Buffer Monitor keeps **Refresh ms** and **Refresh Hz** synchronized.
+- Browser Chase Playback sends fade interpolation at the configured update rate.
+- Real Pico hardware tests can verify `/dmx/output.json`, `/dmx/base.json`, chaser slot upload/play/stop, and motion slot upload/start/stop when enabled in the path config.
 
 ## Running UI Tests
 
@@ -58,4 +62,42 @@ The default base URL is `http://localhost/dmx/`. Override it when needed:
 ```powershell
 $env:DMX_TEST_BASE_URL = "http://localhost/dmx/"
 npm run test:ui
+```
+
+## Running Real Pico Tests
+
+Real Pico tests are skipped by default. Enable them only when the Pico is connected and it is safe for the test to write DMX values and overwrite the configured test slots.
+
+```powershell
+Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
+```
+
+Edit `tests/pathconfig.local.json`:
+
+```json
+{
+  "xamppBaseUrl": "http://localhost/dmx/",
+  "picoBaseUrl": "http://192.168.0.24/",
+  "hardwareTests": {
+    "enabled": true,
+    "dmxTestChannels": [1, 2],
+    "chaserSlot": 31,
+    "motionSlot": 63,
+    "requestTimeoutMs": 5000
+  }
+}
+```
+
+Then run:
+
+```powershell
+npm run test:pico
+```
+
+You can also use environment variables for a temporary run:
+
+```powershell
+$env:DMX_PICO_BASE_URL = "http://192.168.0.24/"
+$env:DMX_RUN_HARDWARE_TESTS = "true"
+npm run test:pico
 ```

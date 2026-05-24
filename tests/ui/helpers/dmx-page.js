@@ -1,4 +1,5 @@
 const { expect } = require('@playwright/test');
+const { loadPathConfig } = require('./pathconfig');
 
 async function openDmxPage(page, path = '') {
   await page.addInitScript(() => {
@@ -134,6 +135,7 @@ async function injectMotionCompactSetup(page) {
 }
 
 module.exports = {
+  loadPathConfig,
   openDmxPage,
   injectControllerCompactSetup,
   injectChaserCompactSetup,

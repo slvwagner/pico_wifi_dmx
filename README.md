@@ -31,7 +31,7 @@ User-facing operating instructions are in [docs/user-manual.md](docs/user-manual
 
 ## Automated Tests
 
-Regression tests live in [tests](tests/). The UI tests use Playwright against the XAMPP-served app and cover established workflow rules for Controller, Chaser, Motion FX, and the DMX Buffer Monitor.
+Regression tests live in [tests](tests/). The UI tests use Playwright against the XAMPP-served app and cover established workflow rules for Controller, Chaser, Motion FX, browser chase playback timing/fade behavior, and the DMX Buffer Monitor.
 
 ```powershell
 npm install
@@ -39,7 +39,36 @@ npx playwright install chromium
 npm run test:ui
 ```
 
-The default test URL is `http://localhost/dmx/`. Set `DMX_TEST_BASE_URL` to use another served copy.
+The default test URL is `http://localhost/dmx/`. It is defined in [tests/pathconfig.json](tests/pathconfig.json), so the same tests can run if the XAMPP installation moves.
+
+For a local machine-specific setup, copy the example file and edit the copy:
+
+```powershell
+Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
+```
+
+`tests/pathconfig.local.json` is ignored by Git. Use it for:
+
+- `xamppBaseUrl`: the served web UI, for example `http://localhost/dmx/`
+- `picoBaseUrl`: the real Pico API, for example `http://192.168.0.24/`
+- `hardwareTests.enabled`: set to `true` only when the Pico is connected and available
+- `hardwareTests.dmxTestChannels`: channels the test may write while checking `/dmx/output.json`
+- `hardwareTests.chaserSlot` and `hardwareTests.motionSlot`: slots the test may overwrite while checking upload/play/stop behavior
+
+The hardware tests are opt-in because they write real DMX values and overwrite the configured chaser/motion test slots. Run them explicitly with:
+
+```powershell
+npm run test:pico
+```
+
+Environment variables can override the config for one terminal session:
+
+```powershell
+$env:DMX_TEST_BASE_URL = "http://localhost/dmx/"
+$env:DMX_PICO_BASE_URL = "http://192.168.0.24/"
+$env:DMX_RUN_HARDWARE_TESTS = "true"
+npm run test:pico
+```
 
 ---
 
@@ -84,7 +113,9 @@ pico_wifi_dmx/
 ├─ tests/                    Automated regression tests
 │  ├─ ui/                    Browser workflow tests against the served UI
 │  ├─ unit/                  Pure rule/helper tests
-│  └─ fixtures/              Compact deterministic test data
+│  ├─ fixtures/              Compact deterministic test data
+│  ├─ pathconfig.json        Tracked default test environment config
+│  └─ pathconfig.example.json Example local/XAMPP/Pico config
 ├─ CMakeLists.txt            Pico SDK build configuration
 ├─ pico_sdk_import.cmake     Pico SDK import helper
 ├─ LICENSE                   Non-commercial license declaration

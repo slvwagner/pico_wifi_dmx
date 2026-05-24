@@ -3,10 +3,10 @@
   "private": true,
   "scripts": {
     "test:ui": "playwright test",
+    "test:pico": "playwright test tests/ui/pico-hardware.spec.js",
     "test": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0"
   }
 }
-
