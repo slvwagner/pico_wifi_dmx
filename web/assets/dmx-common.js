@@ -902,12 +902,56 @@
 
   function showModal(modal){
     const el=typeof modal==='string'?document.getElementById(modal):modal;
-    if(el)el.style.display='flex';
+    if(el){
+      enableModalTouchScroll(el);
+      el.style.display='flex';
+    }
   }
 
   function hideModal(modal){
     const el=typeof modal==='string'?document.getElementById(modal):modal;
     if(el)el.style.display='none';
+  }
+
+  function enableModalTouchScroll(modal){
+    const body=modal?.querySelector?.('.modal-body');
+    if(!body||body.dataset.touchScrollBound==='1')return;
+    body.dataset.touchScrollBound='1';
+    let touch=null;
+    const isFormControl=target=>!!target.closest('button,input,select,textarea,label');
+    body.addEventListener('touchstart',e=>{
+      const t=e.touches&&e.touches[0];
+      if(!t)return;
+      touch={
+        x:t.clientX,
+        y:t.clientY,
+        lastY:t.clientY,
+        scrollTop:body.scrollTop,
+        target:e.target,
+        mode:null
+      };
+    },{passive:true});
+    body.addEventListener('touchmove',e=>{
+      if(!touch||body.scrollHeight<=body.clientHeight+1)return;
+      const t=e.touches&&e.touches[0];
+      if(!t)return;
+      const dx=t.clientX-touch.x;
+      const dy=t.clientY-touch.y;
+      if(touch.mode===null){
+        const startsOnXY=!!touch.target.closest('.xy-pad,.xy-mini');
+        if(isFormControl(touch.target)&&!startsOnXY){
+          touch.mode='native';
+          return;
+        }
+        if(startsOnXY&&Math.abs(dy)<Math.abs(dx)+12&&Math.abs(dy)<18)return;
+        touch.mode='scroll';
+      }
+      if(touch.mode!=='scroll')return;
+      const next=touch.scrollTop-dy;
+      body.scrollTop=Math.max(0,Math.min(body.scrollHeight-body.clientHeight,next));
+      e.preventDefault();
+    },{passive:false});
+    ['touchend','touchcancel'].forEach(type=>body.addEventListener(type,()=>{touch=null;},{passive:true}));
   }
 
   function initSlotVisualEditor(options){

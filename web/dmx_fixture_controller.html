@@ -1726,7 +1726,13 @@ document.getElementById('addWheelOption').onclick=()=>{
 let selectedFixtureIds=new Set();
 let collapsedFixtureIds=new Set(JSON.parse(localStorage.getItem('fixtureCardCollapsed')||'[]'));
 let groupValues={};
-function groupKey(c){return c.type+':'+c.label;}
+function groupCompatibilitySignature(c){
+  if(c.type==='wheel'){
+    return '|options:'+(c.options||[]).map(o=>encodeURIComponent(o.name||'')+'='+clamp(o.value,0,255)).join(';');
+  }
+  return '';
+}
+function groupKey(c){return c.type+':'+c.label+groupCompatibilitySignature(c);}
 function defaultValueForControl(c){
   if(c.type==='panTilt16')return{pan:32768,tilt:32768};
   if(c.type==='panTilt8')return{pan:128,tilt:128};
@@ -1790,6 +1796,18 @@ function firstSelectedFixtureWithGroupControl(c){
   }
   return null;
 }
+function groupControlTargets(c){
+  const key=groupKey(c);
+  return[...selectedFixtureIds].map(id=>fixtures.find(fx=>fx.id===id)).filter(Boolean).filter(f=>{
+    const fc=findMatchingControl(f,key);
+    return fc&&isGroupControlInScope(f,fc);
+  });
+}
+function groupControlScopeText(c){
+  const targets=groupControlTargets(c);
+  const names=[...new Set(targets.map(f=>fixtureProfile(f)?.name||'Unknown profile'))];
+  return targets.length+' matching fixture'+(targets.length===1?'':'s')+(names.length?' · '+names.join(', '):'');
+}
 function getGroupValue(c){
   const key=groupKey(c);
   if(groupValues[key]===undefined)groupValues[key]=defaultValueForControl(c);
@@ -1805,9 +1823,11 @@ function setGroupValue(c,v){
   });
 }
 function syncGroupValuesFromFirstSelected(common=getGroupCommonControls()){
-  const firstFx=fixtures.find(f=>selectedFixtureIds.has(f.id));
-  if(!firstFx)return;
-  common.forEach(c=>{groupValues[groupKey(c)]=cloneValue(getValue(firstFx,c,defaultValueForControl(c)));});
+  common.forEach(c=>{
+    const match=firstSelectedFixtureWithGroupControl(c);
+    if(!match)return;
+    groupValues[groupKey(c)]=cloneValue(getValue(match.fixture,match.control,defaultValueForControl(match.control)));
+  });
 }
 async function sendGroupControl(c){
   const root=endpoint();if(!root)throw new Error('Set Pico base URL first');
@@ -1862,9 +1882,10 @@ function clearGroupSelection(){
 function renderGroupControl(c){
   const key=groupKey(c);
   const gca=`data-gc="${key}"`;
+  const scope=`<span class="bytes">${escHtml(groupControlScopeText(c))}</span>`;
   if(c.type==='panTilt16'){
     const v=getGroupValue(c);const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 16-bit · matching fixtures</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 16-bit</span>${scope}</div>
       <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
       <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="65535" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
@@ -1880,7 +1901,7 @@ function renderGroupControl(c){
   }
   if(c.type==='panTilt8'){
     const v=getGroupValue(c);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 8-bit · matching fixtures</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 8-bit</span>${scope}</div>
       <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
       <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
@@ -1891,7 +1912,7 @@ function renderGroupControl(c){
     const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · matching fixtures</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()}</span>${scope}</div>
       <label>Color picker<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
       ${parts.map((part,i)=>`<label>${names[i]} <span data-gc-part="${key}" data-part="${part}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" ${gca} data-part="${part}"></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-gc-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-gc-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-gc-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-gc-color="#0000ff" ${gca}></button></div></div>`;
@@ -1899,7 +1920,7 @@ function renderGroupControl(c){
   if(c.type==='wheel'){
     const v=getGroupValue(c);
     const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}</span>${scope}</div>
       <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-gc-wheel="${o.value}" ${gca}>${icon(o)}${o.name}</button>`).join('')}</div>
       <input type="range" min="0" max="255" value="${v}" ${gca}></div>`;
   }
@@ -1909,7 +1930,7 @@ function renderGroupControl(c){
       <label>Coarse <span data-gc-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
       <label>Fine <span data-gc-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
     </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-gc-readout="${key}">${v}</span><span class="bytes">${c.type} · all fixtures</span></div>
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-gc-readout="${key}">${v}</span><span class="bytes">${c.type}</span>${scope}</div>
     <input type="range" min="0" max="${max}" step="1" value="${v}" ${gca}>${extra}</div>`;
 }
 function updateGroupControlDisplay(c){
@@ -1965,7 +1986,7 @@ function openGroupModal(){
   });
   const n=selectedFixtureIds.size;
   const scoped=!!getActiveGroupControlScope();
-  document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s');
+  document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' selected · '+common.length+' '+(scoped?'scoped':'editable')+' control'+(common.length===1?'':'s');
   document.getElementById('groupModalBody').innerHTML=common.map(c=>renderGroupControl(c)).join('');
   DmxCommon.showModal('groupModal');
 }

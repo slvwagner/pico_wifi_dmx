@@ -156,4 +156,88 @@ test.describe('iPad layout rules', () => {
       expect(target.height).toBeGreaterThanOrEqual(44);
     });
   });
+
+  test('iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: require('./helpers/pathconfig').loadPathConfig().xamppBaseUrl,
+      viewport: { width: 768, height: 1024 },
+      isMobile: true,
+      hasTouch: true
+    });
+    const page = await context.newPage();
+    try {
+      await openDmxPage(page, '');
+      await page.evaluate(() => {
+        const extra = Array.from({ length: 36 }, (_, i) => ({
+          id: 1000 + i,
+          type: 'slider8',
+          label: 'Modal Scroll Control ' + i,
+          channel: 6
+        }));
+        profiles = [{
+          id: 1,
+          name: 'iPad Profile',
+          mode: 'test',
+          channels: 64,
+          controls: [
+            { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 },
+            { id: 12, type: 'panTilt16', label: 'Pan/Tilt', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 },
+            ...extra
+          ]
+        }];
+        fixtures = [
+          { id: 101, name: 'iPad A', profileId: 1, start: 1 },
+          { id: 102, name: 'iPad B', profileId: 1, start: 81 }
+        ];
+        Object.keys(values).forEach(key => delete values[key]);
+        savedGroups = [];
+        activeSavedGroupIds.clear();
+        sceneFixtureFilterActive = false;
+        activeControlScopeKeys.clear();
+        fanAffectedKeys.clear();
+        drawProfiles();
+        drawPatched();
+        renderSavedGroupsList();
+        drawSurface();
+        selectAllFixtures();
+        openGroupModal();
+      });
+
+      const before = await page.evaluate(() => {
+        const body = document.getElementById('groupModalBody');
+        const pad = body.querySelector('.xy-pad');
+        const rect = pad.getBoundingClientRect();
+        return {
+          scrollTop: body.scrollTop,
+          clientHeight: body.clientHeight,
+          scrollHeight: body.scrollHeight,
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+          touchAction: getComputedStyle(body).touchAction
+        };
+      });
+
+      expect(before.scrollHeight).toBeGreaterThan(before.clientHeight + 500);
+      expect(before.touchAction).toContain('pan-y');
+
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: before.x, y: before.y, id: 1 }]
+      });
+      for (let i = 1; i <= 8; i++) {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [{ x: before.x, y: before.y - i * 55, id: 1 }]
+        });
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForTimeout(100);
+
+      const after = await page.evaluate(() => document.getElementById('groupModalBody').scrollTop);
+      expect(after).toBeGreaterThan(180);
+    } finally {
+      await context.close();
+    }
+  });
 });
