@@ -96,6 +96,64 @@ test.describe('Fixture Controller established rules', () => {
     expect(layout.scrollHeight).toBeGreaterThan(layout.clientHeight);
   });
 
+  test('Group Edit modal scrolls to the last control on desktop and iPad-sized viewports', async ({ page }) => {
+    async function measureAtViewport(width, height) {
+      await page.setViewportSize({ width, height });
+      return page.evaluate(() => {
+        closeGroupModal?.();
+        const profileA = profiles.find(p => p.id === 1);
+        const profileB = profiles.find(p => p.id === 2);
+        profileA.controls = profileA.controls.filter(c => c.id < 5000);
+        profileB.controls = profileB.controls.filter(c => c.id < 5000);
+        for (let i = 0; i < 64; i++) {
+          profileA.controls.push({ id: 5000 + i, type: 'slider8', label: 'Scrollable Control ' + i, channel: 1 });
+          profileB.controls.push({ id: 6000 + i, type: 'slider8', label: 'Scrollable Control ' + i, channel: 1 });
+        }
+        selectedFixtureIds = new Set([101, 102]);
+        activeSavedGroupIds.clear();
+        sceneFixtureFilterActive = false;
+        activeControlScopeKeys.clear();
+        fanAffectedKeys.clear();
+        openGroupModal();
+
+        const modal = document.querySelector('#groupModal .modal');
+        const body = document.getElementById('groupModalBody');
+        const controls = body.querySelectorAll('.control');
+        body.scrollTop = body.scrollHeight;
+        const last = controls[controls.length - 1];
+        const lastRect = last.getBoundingClientRect();
+        const bodyRect = body.getBoundingClientRect();
+        const footerRect = document.querySelector('#groupModal .buttons').getBoundingClientRect();
+        return {
+          viewportHeight: window.innerHeight,
+          modalHeight: modal.getBoundingClientRect().height,
+          bodyClientHeight: body.clientHeight,
+          bodyScrollHeight: body.scrollHeight,
+          bodyScrollTop: body.scrollTop,
+          bodyOverflowX: getComputedStyle(body).overflowX,
+          bodyOverflowY: getComputedStyle(body).overflowY,
+          horizontalOverflow: body.scrollWidth - body.clientWidth,
+          lastReachable: lastRect.bottom <= bodyRect.bottom + 2,
+          footerVisible: footerRect.bottom <= window.innerHeight && footerRect.top >= 0
+        };
+      });
+    }
+
+    const desktop = await measureAtViewport(1440, 900);
+    const ipad = await measureAtViewport(768, 1024);
+
+    for (const layout of [desktop, ipad]) {
+      expect(layout.modalHeight).toBeLessThanOrEqual(layout.viewportHeight);
+      expect(layout.bodyOverflowX).toBe('hidden');
+      expect(layout.bodyOverflowY).toBe('auto');
+      expect(layout.horizontalOverflow).toBeLessThanOrEqual(1);
+      expect(layout.bodyScrollHeight).toBeGreaterThan(layout.bodyClientHeight + 100);
+      expect(layout.bodyScrollTop).toBeGreaterThan(100);
+      expect(layout.lastReachable).toBe(true);
+      expect(layout.footerVisible).toBe(true);
+    }
+  });
+
   test('manual fixture selection clears the shared Groups toolbox selection', async ({ page }) => {
     const result = await page.evaluate(() => {
       activeSavedGroupIds = new Set([savedGroupKey(savedGroups[0], 0)]);

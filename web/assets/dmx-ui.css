@@ -65,7 +65,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;width:min(760px,calc(100vw - 32px));max-width:760px;max-height:90vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 18px 70px rgba(0,0,0,.55)}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0;overscroll-behavior:contain}
 #groupModal .modal,#chaserGroupModal .modal,#motionGroupModal .modal{width:min(760px,calc(100vw - 32px));max-width:760px;overflow:hidden}
-#groupModal .modal-body,#chaserGroupModal .modal-body,#motionGroupModal .modal-body{overflow-x:hidden;overflow-y:auto;min-width:0}
+#groupModal .modal>div:first-child,#chaserGroupModal .modal>div:first-child,#motionGroupModal .modal>div:first-child,#groupModal .modal>.buttons,#chaserGroupModal .modal>.buttons,#motionGroupModal .modal>.buttons{flex:0 0 auto}
+#groupModal .modal-body,#chaserGroupModal .modal-body,#motionGroupModal .modal-body{overflow-x:hidden;overflow-y:auto;min-width:0;flex:0 1 auto;max-height:min(620px,calc(100dvh - 170px));padding-right:4px;-webkit-overflow-scrolling:touch}
 #groupModal .control,#chaserGroupModal .control,#motionGroupModal .control{min-width:0;max-width:100%;overflow:hidden}
 #groupModal .control-head,#chaserGroupModal .control-head,#motionGroupModal .control-head{min-width:0}
 #groupModal .control label,#chaserGroupModal .control label,#motionGroupModal .control label{min-width:0;max-width:100%}
