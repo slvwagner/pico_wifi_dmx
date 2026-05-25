@@ -12,6 +12,8 @@ Changed:
 - Hid chaser loop-count controls unless the selected playmode is Loop N, in both Chase Playback and Pico Playback.
 - Made the release script regenerate the user manual, PDF, and deterministic screenshots before packaging, with `-SkipManual` available for quick local packages.
 - Normalized generated user-manual PDF metadata so repeated manual/release runs no longer dirty the tree only because of PDF timestamps.
+- Added a screenshot manifest check so README/manual image filenames are owned by one capture path and duplicate screenshot outputs fail early.
+- Stabilized generated PNG writes by keeping existing screenshots when the newly captured pixels are identical, preventing release runs from stopping on byte-only PNG differences.
 
 ## 0.9.2 - 2026-05-24
 
