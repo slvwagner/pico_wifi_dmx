@@ -31,6 +31,48 @@ function Get-FileSha256($Path) {
     (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
+function ConvertTo-ComparableReleaseManifest($ManifestObject) {
+    $docs = [ordered]@{}
+    if ($ManifestObject.docs) {
+        foreach ($name in @("user-manual.md", "user-manual.html", "user-manual-print.html", "user-manual.pdf", "screenshots")) {
+            if ($ManifestObject.docs.PSObject.Properties.Name -contains $name) {
+                $entry = $ManifestObject.docs.$name
+                if ($name -eq "screenshots") {
+                    $docs[$name] = @{ count = [int]$entry.count }
+                } else {
+                    $docs[$name] = @{
+                        sizeBytes = [int64]$entry.sizeBytes
+                        sha256 = [string]$entry.sha256
+                    }
+                }
+            } elseif ($ManifestObject.docs.Contains($name)) {
+                $entry = $ManifestObject.docs[$name]
+                if ($name -eq "screenshots") {
+                    $docs[$name] = @{ count = [int]$entry.count }
+                } else {
+                    $docs[$name] = @{
+                        sizeBytes = [int64]$entry.sizeBytes
+                        sha256 = [string]$entry.sha256
+                    }
+                }
+            }
+        }
+    }
+
+    return [ordered]@{
+        version = [string]$ManifestObject.version
+        branch = [string]$ManifestObject.branch
+        tests = @{ hardware = [bool]$ManifestObject.tests.hardware }
+        docsGenerated = [bool]$ManifestObject.docsGenerated
+        firmware = @{
+            file = [string]$ManifestObject.firmware.file
+            sizeBytes = [int64]$ManifestObject.firmware.sizeBytes
+            sha256 = [string]$ManifestObject.firmware.sha256
+        }
+        docs = $docs
+    } | ConvertTo-Json -Depth 6 -Compress
+}
+
 function Resolve-CommandPath($Name, [string[]]$Fallbacks) {
     $cmd = Get-Command $Name -ErrorAction SilentlyContinue
     if ($cmd) {
@@ -206,6 +248,19 @@ if (Test-Path -LiteralPath $screenshotsSrc) {
 }
 
 $manifestPath = Join-Path $releaseDir "release-manifest.json"
+if (Test-Path -LiteralPath $manifestPath) {
+    try {
+        $existingManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $existingComparable = ConvertTo-ComparableReleaseManifest $existingManifest
+        $newComparable = ConvertTo-ComparableReleaseManifest ([pscustomobject]$manifest)
+        if ($existingComparable -eq $newComparable) {
+            $manifest.commit = [string]$existingManifest.commit
+            $manifest.createdAt = [string]$existingManifest.createdAt
+        }
+    } catch {
+        Write-Warning "Could not compare existing release manifest; rewriting it. $($_.Exception.Message)"
+    }
+}
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8
 
 Write-Host ""

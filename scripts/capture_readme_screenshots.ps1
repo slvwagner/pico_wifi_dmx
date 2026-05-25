@@ -642,6 +642,10 @@ try {
       {box:'browserPlaybackBox',type:'browserPlayback'}
     ]);
   }
+  const overviewRail=document.querySelector('.toolbox-rail');
+  const overviewRailToggle=overviewRail?.querySelector('.toolbox-rail-toggle');
+  if(overviewRail&&!overviewRail.classList.contains('collapsed')&&overviewRailToggle)overviewRailToggle.click();
+  localStorage.setItem('toolboxRailCollapsed','1');
   document.querySelector('main')?.scrollTo(0,0);
   window.scrollTo(0,0);
   window.__docChaserState={
