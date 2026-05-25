@@ -76,6 +76,23 @@ Open the UI:
 http://localhost/dmx/
 ```
 
+On Ubuntu, you can run the browser UI directly from the repository without XAMPP:
+
+```bash
+cd ~/SW-Entwicklung/pico_wifi_dmx
+php -S 127.0.0.1:8000 scripts/dev-router.php
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000/
+```
+
+If port `8000` is already in use, choose another port in both commands, for example `8002`.
+
+The built-in PHP server stores setup JSON under `api/data/`. This is local runtime data and is ignored by Git.
+
 Enter the Pico base URL shown in the Pico serial log, for example:
 
 ```text
@@ -129,6 +146,23 @@ cmake -S . -B build -G Ninja `
   -DWIFI_PASSWORD="your_password"
 
 cmake --build build
+```
+
+On Ubuntu, use the same CMake options with shell quoting:
+
+```bash
+cd ~/SW-Entwicklung/pico_wifi_dmx
+cmake -S . -B build -G Ninja \
+  -DWIFI_SSID="your_ssid" \
+  -DWIFI_PASSWORD="your_password"
+
+cmake --build build
+```
+
+If CMake cannot find the Pico SDK, install the Raspberry Pi Pico VS Code extension on Ubuntu or point CMake at an SDK checkout:
+
+```bash
+export PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.2.0"
 ```
 
 The firmware output is:
