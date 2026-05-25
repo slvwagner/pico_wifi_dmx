@@ -293,6 +293,35 @@ Run the normal UI regression tests:
 npm run test:ui
 ```
 
+On Ubuntu, point the tests at the PHP dev server instead of the default XAMPP URL:
+
+```bash
+cd ~/SW-Entwicklung/pico_wifi_dmx
+php -S 127.0.0.1:8002 scripts/dev-router.php
+```
+
+Create `tests/pathconfig.local.json`:
+
+```json
+{
+  "xamppBaseUrl": "http://127.0.0.1:8002/",
+  "picoBaseUrl": "",
+  "hardwareTests": {
+    "enabled": false
+  }
+}
+```
+
+Then run:
+
+```bash
+npm install
+npx playwright install chromium
+npm run test:ui
+```
+
+If every UI test fails immediately with a Chromium launch error such as `sandbox_host_linux.cc` and `Operation not permitted`, run the tests from a normal Ubuntu terminal rather than from a restricted shell/container. The app may be fine; Chromium simply could not start.
+
 The default test URL is `http://localhost/dmx/`. It is defined in [tests/pathconfig.json](tests/pathconfig.json), so the same tests can run if the XAMPP installation moves.
 
 For a local machine-specific setup, copy the example file and edit the copy:
