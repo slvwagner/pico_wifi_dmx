@@ -129,13 +129,14 @@ if ($firmwareVersion -ne $Version) {
 
 if (-not $SkipManual) {
     Invoke-Step "Regenerate manual, PDF, and screenshots" {
-        $manualArgs = @{}
-        if ($XamppHtdocs) { $manualArgs.XamppHtdocs = $XamppHtdocs }
-        if ($AppFolder) { $manualArgs.AppFolder = $AppFolder }
-        if ($BaseUrl) { $manualArgs.BaseUrl = $BaseUrl }
-        if ($ChromePath) { $manualArgs.ChromePath = $ChromePath }
-        if ($ScreenshotBaseUrl) { $manualArgs.ScreenshotBaseUrl = $ScreenshotBaseUrl }
-        & (Join-Path $PSScriptRoot "update_user_manual.ps1") @manualArgs
+        $manualScript = Join-Path $PSScriptRoot "update_user_manual.ps1"
+        $manualArgs = @("-NoProfile", "-File", $manualScript)
+        if ($XamppHtdocs) { $manualArgs += @("-XamppHtdocs", $XamppHtdocs) }
+        if ($AppFolder) { $manualArgs += @("-AppFolder", $AppFolder) }
+        if ($BaseUrl) { $manualArgs += @("-BaseUrl", $BaseUrl) }
+        if ($ChromePath) { $manualArgs += @("-ChromePath", $ChromePath) }
+        if ($ScreenshotBaseUrl) { $manualArgs += @("-ScreenshotBaseUrl", $ScreenshotBaseUrl) }
+        Invoke-Native "Manual generation" { & (Get-Process -Id $PID).Path @manualArgs }
     }
 }
 
