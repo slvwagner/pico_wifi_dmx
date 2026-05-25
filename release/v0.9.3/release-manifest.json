@@ -1,8 +1,8 @@
 {
   "version": "0.9.3",
   "branch": "main",
-  "commit": "c791a2f",
-  "createdAt": "2026-05-25T09:00:26Z",
+  "commit": "ac06b3a",
+  "createdAt": "2026-05-25T09:24:03Z",
   "tests": {
     "hardware": true
   },
@@ -29,8 +29,8 @@
       "sha256": "0af945600f2e150546e20a53fb0cb166dc1b9d3397e7b3b742bcd8c01c03f9b3"
     },
     "user-manual.pdf": {
-      "sizeBytes": 2282821,
-      "sha256": "2ca6abfc0902a4bf66e71f188e75a3ee10395ff992aef3b2b543f7826ab08081"
+      "sizeBytes": 2260638,
+      "sha256": "a6a43d1b8be33623163cb11c3223ca26d511900a24303293babbd90631138598"
     }
   }
 }
