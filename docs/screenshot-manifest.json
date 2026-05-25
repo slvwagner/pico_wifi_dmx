@@ -1,0 +1,184 @@
+{
+  "screenshots": [
+    {
+      "file": "fixture-controller.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "README and manual controller overview"
+    },
+    {
+      "file": "fixture-controller-expanded.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller expanded reference"
+    },
+    {
+      "file": "fixture-controller-profile-controls.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "fixture profiles and add/edit control"
+    },
+    {
+      "file": "fixture-controller-saved-groups.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "saved groups matrix"
+    },
+    {
+      "file": "fixture-controller-scene-box.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller scene area"
+    },
+    {
+      "file": "fixture-controller-toolbox-groups.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller groups toolbox"
+    },
+    {
+      "file": "fixture-controller-toolbox-scenes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller scenes toolbox"
+    },
+    {
+      "file": "fixture-controller-toolbox-palettes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller palettes toolbox"
+    },
+    {
+      "file": "fixture-controller-toolbox-fanout.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller fan out toolbox"
+    },
+    {
+      "file": "fixture-controller-edit-tile.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "shared visual edit modal"
+    },
+    {
+      "file": "fixture-controller-live-controls.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller live control surface"
+    },
+    {
+      "file": "fixture-controller-group-modal.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "group edit modal"
+    },
+    {
+      "file": "chaser-readme.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "README chaser overview without toolbox focus"
+    },
+    {
+      "file": "motion-participating-controls-collapsed.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion collapsed participating controls"
+    },
+    {
+      "file": "motion-toolbox-groups.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion groups toolbox"
+    },
+    {
+      "file": "motion-toolbox-effect-parameters.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion effect parameters toolbox"
+    },
+    {
+      "file": "motion-toolbox-effects.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion effects toolbox"
+    },
+    {
+      "file": "motion-toolbox-scenes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion scenes toolbox"
+    },
+    {
+      "file": "motion-toolbox-palettes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion palettes toolbox"
+    },
+    {
+      "file": "motion-edit-tile.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion visual edit modal"
+    },
+    {
+      "file": "chaser.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "manual chaser overview with toolbox sidebar"
+    },
+    {
+      "file": "chaser-toolbox-groups.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser groups toolbox"
+    },
+    {
+      "file": "chaser-toolbox-chases.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser chases toolbox"
+    },
+    {
+      "file": "chaser-toolbox-steps.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser steps toolbox"
+    },
+    {
+      "file": "chaser-toolbox-palettes.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser palettes toolbox"
+    },
+    {
+      "file": "chaser-toolbox-fanout.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser fan out toolbox"
+    },
+    {
+      "file": "chaser-toolbox-browser-playback.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser playback toolbox"
+    },
+    {
+      "file": "chaser-edit-tile.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser visual edit modal"
+    },
+    {
+      "file": "chaser-participating-controls.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser participating controls"
+    },
+    {
+      "file": "chaser-edit-step.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser edit step"
+    },
+    {
+      "file": "chaser-collapsed-work-area.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser collapsed work area"
+    },
+    {
+      "file": "chaser-pico-playback.png",
+      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "purpose": "chaser pico playback"
+    },
+    {
+      "file": "motion-fx.png",
+      "owner": "scripts/update_user_manual.ps1",
+      "purpose": "motion page overview"
+    },
+    {
+      "file": "gpio-control.png",
+      "owner": "scripts/update_user_manual.ps1",
+      "purpose": "GPIO page overview"
+    },
+    {
+      "file": "dmx-monitor.png",
+      "owner": "scripts/update_user_manual.ps1",
+      "purpose": "DMX buffer monitor overview"
+    },
+    {
+      "file": "benchmark.png",
+      "owner": "scripts/update_user_manual.ps1",
+      "purpose": "Pico performance test overview"
+    }
+  ]
+}

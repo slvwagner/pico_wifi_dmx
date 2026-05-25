@@ -113,6 +113,10 @@ function Wait-FileStable {
 
 Push-Location $repoRoot
 try {
+    Invoke-Step "Validate screenshot manifest" {
+        & (Join-Path $PSScriptRoot "check_screenshot_manifest.ps1")
+    }
+
     if (-not $SkipInitialSync) {
         Invoke-Step "Sync current web app to XAMPP for screenshot source" {
             & (Join-Path $PSScriptRoot "sync_fixture_controller_to_xampp.ps1") -XamppHtdocs $XamppHtdocs -AppFolder $AppFolder -BaseUrl $BaseUrl
@@ -143,6 +147,10 @@ try {
             Invoke-Step "Restore live XAMPP data after screenshots" {
                 Restore-ManualDataSnapshot -BackupDir $script:manualDataBackup
             }
+        }
+
+        Invoke-Step "Verify screenshot manifest files" {
+            & (Join-Path $PSScriptRoot "check_screenshot_manifest.ps1") -RequireFiles
         }
     }
 
