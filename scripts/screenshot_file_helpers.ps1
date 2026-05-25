@@ -1,5 +1,31 @@
 $ErrorActionPreference = "Stop"
 
+function Get-PicoDmxTempPath {
+    param([string]$Name)
+
+    $root = $env:TEMP
+    if (-not $root) { $root = $env:TMPDIR }
+    if (-not $root) { $root = [IO.Path]::GetTempPath() }
+    return Join-Path $root $Name
+}
+
+function Start-PicoDmxProcess {
+    param(
+        [string]$FilePath,
+        [string[]]$ArgumentList = @(),
+        [string]$WorkingDirectory = ""
+    )
+
+    $params = @{
+        FilePath = $FilePath
+        ArgumentList = $ArgumentList
+        PassThru = $true
+    }
+    if ($WorkingDirectory) { $params.WorkingDirectory = $WorkingDirectory }
+    if ($IsWindows) { $params.WindowStyle = "Hidden" }
+    return Start-Process @params
+}
+
 function Test-PngPixelsEqual {
     param(
         [string]$Path,

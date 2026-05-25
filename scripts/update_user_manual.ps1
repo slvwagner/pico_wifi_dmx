@@ -78,7 +78,7 @@ function Start-DataSnapshot {
     if (-not (Test-Path -LiteralPath $manualDataPath)) {
         throw "Manual data baseline not found: $manualDataPath"
     }
-    $backup = Join-Path $env:TEMP ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+    $backup = Get-PicoDmxTempPath ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
     New-Item -ItemType Directory -Force -Path $backup | Out-Null
     if (Test-Path -LiteralPath $DestinationDir) {
         Copy-JsonFiles -SourceDir $DestinationDir -DestinationDir $backup
@@ -145,7 +145,7 @@ function Start-ScreenshotServer {
     $port = Get-FreeTcpPort
     $base = "http://127.0.0.1:$port"
     $router = Join-Path $PSScriptRoot "dev-router.php"
-    $process = Start-Process -FilePath $phpPath -ArgumentList @("-S", "127.0.0.1:$port", $router) -WorkingDirectory $repoRoot -WindowStyle Hidden -PassThru
+    $process = Start-PicoDmxProcess -FilePath $phpPath -ArgumentList @("-S", "127.0.0.1:$port", $router) -WorkingDirectory $repoRoot
     $ready = $false
     for ($i = 0; $i -lt 40; $i++) {
         try {

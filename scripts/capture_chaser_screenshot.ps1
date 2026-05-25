@@ -20,8 +20,8 @@ if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 $chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
-$profileDir = Join-Path $env:TEMP ("pico-dmx-chaser-docshot-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
-$backupDataDir = Join-Path $env:TEMP ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+$profileDir = Get-PicoDmxTempPath ("pico-dmx-chaser-docshot-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+$backupDataDir = Get-PicoDmxTempPath ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
 $url = $BaseUrl.TrimEnd("/") + "/dmx_chaser.html?docshot=" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
@@ -52,7 +52,7 @@ $args = @(
     $url
 )
 
-$chromeProcess = Start-Process -FilePath $chrome -ArgumentList $args -WindowStyle Hidden -PassThru
+$chromeProcess = Start-PicoDmxProcess -FilePath $chrome -ArgumentList $args
 $socket = $null
 
 try {

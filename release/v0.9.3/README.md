@@ -480,6 +480,18 @@ npm run test:pico
 .\scripts\prepare_release.ps1 -Build
 ```
 
+On Ubuntu with XAMPP, pass the local XAMPP and Chrome paths explicitly:
+
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass \
+  -File scripts/prepare_release.ps1 \
+  -Build \
+  -XamppHtdocs /opt/lampp/htdocs/editable \
+  -AppFolder dmx \
+  -BaseUrl http://localhost/editable/dmx/ \
+  -ChromePath /usr/bin/google-chrome
+```
+
 For a quick local package that reuses the already-generated manual assets, add `-SkipManual`.
 
 To run the real Pico endpoint and slot tests as part of the release package, add `-RunHardwareTests`. The script creates `tests\pathconfig.local.json` from `tests\pathconfig.example.json` if it is missing, then runs the full Playwright suite with hardware tests enabled.

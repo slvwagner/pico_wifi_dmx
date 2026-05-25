@@ -336,7 +336,10 @@ if (-not (Test-Path -LiteralPath $chrome)) {
     throw "Chrome not found: $chrome"
 }
 
-$profileDir = Join-Path $env:TEMP ("pico-dmx-pdf-" + [System.Guid]::NewGuid().ToString("N"))
+$tempRoot = $env:TEMP
+if (-not $tempRoot) { $tempRoot = $env:TMPDIR }
+if (-not $tempRoot) { $tempRoot = [IO.Path]::GetTempPath() }
+$profileDir = Join-Path $tempRoot ("pico-dmx-pdf-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 $args = @(

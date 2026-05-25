@@ -7,7 +7,12 @@ param(
     [switch]$SkipTests,
     [switch]$AllowDirty,
     [switch]$RunHardwareTests,
-    [string]$PicoBaseUrl = ""
+    [string]$PicoBaseUrl = "",
+    [string]$XamppHtdocs = "",
+    [string]$AppFolder = "",
+    [string]$BaseUrl = "",
+    [string]$ChromePath = "",
+    [string]$ScreenshotBaseUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -117,7 +122,13 @@ if ($firmwareVersion -ne $Version) {
 
 if (-not $SkipManual) {
     Invoke-Step "Regenerate manual, PDF, and screenshots" {
-        & (Join-Path $PSScriptRoot "update_user_manual.ps1")
+        $manualArgs = @{}
+        if ($XamppHtdocs) { $manualArgs.XamppHtdocs = $XamppHtdocs }
+        if ($AppFolder) { $manualArgs.AppFolder = $AppFolder }
+        if ($BaseUrl) { $manualArgs.BaseUrl = $BaseUrl }
+        if ($ChromePath) { $manualArgs.ChromePath = $ChromePath }
+        if ($ScreenshotBaseUrl) { $manualArgs.ScreenshotBaseUrl = $ScreenshotBaseUrl }
+        & (Join-Path $PSScriptRoot "update_user_manual.ps1") @manualArgs
     }
 }
 
