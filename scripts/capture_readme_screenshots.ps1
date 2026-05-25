@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "local_path_config.ps1")
+. (Join-Path $PSScriptRoot "screenshot_file_helpers.ps1")
 $localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
 if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
 if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
@@ -122,8 +123,7 @@ try {
         param([string]$Name)
         $result = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
         $file = Join-Path $outPath $Name
-        [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($result.result.data))
-        Write-Host "Captured $file"
+        Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
     }
 
     function Save-ElementScreenshot {
@@ -232,8 +232,7 @@ try {
             throw "Chrome returned an empty screenshot for $Selector with clip $rectJson"
         }
         $file = Join-Path $outPath $Name
-        [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($result.result.data))
-        Write-Host "Captured $file"
+        Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
     }
 
     Send-Cdp "Page.enable" | Out-Null

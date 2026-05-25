@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "local_path_config.ps1")
+. (Join-Path $PSScriptRoot "screenshot_file_helpers.ps1")
 $localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
 if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
 if (-not $XamppDataDir) { $XamppDataDir = Join-Path (Join-Path $localPaths.xamppHtdocs $localPaths.appFolder) "data" }
@@ -223,8 +224,7 @@ try {
             throw "Chrome returned an empty screenshot for $Selector with clip $rectJson"
         }
         $file = Join-Path $outPath $Name
-        [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($shot.result.data))
-        Write-Host "Captured $file"
+        Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($shot.result.data))
     }
 
     Send-Cdp "Page.enable" | Out-Null
@@ -298,8 +298,7 @@ try {
 
     $shot = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
     $file = Join-Path $outPath "chaser.png"
-    [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($shot.result.data))
-    Write-Host "Captured $file"
+    Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($shot.result.data))
 
     Save-ElementScreenshot "#chaserGroupsBox" "chaser-toolbox-groups.png"
     Save-ElementScreenshot "#chaseBox" "chaser-toolbox-chases.png"

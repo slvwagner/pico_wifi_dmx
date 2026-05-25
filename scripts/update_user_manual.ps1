@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "local_path_config.ps1")
+. (Join-Path $PSScriptRoot "screenshot_file_helpers.ps1")
 $localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
 if (-not $XamppHtdocs) { $XamppHtdocs = $localPaths.xamppHtdocs }
 if (-not $AppFolder) { $AppFolder = $localPaths.appFolder }
@@ -46,11 +47,14 @@ function Save-PageScreenshot {
     }
     New-Item -ItemType Directory -Force -Path $screenshotsDir | Out-Null
     $out = Join-Path $screenshotsDir $Name
-    & $chrome --headless=new --disable-gpu --hide-scrollbars "--window-size=$Width,$Height" "--screenshot=$out" $Url | Out-Null
-    if (-not (Test-Path -LiteralPath $out)) {
-        throw "Screenshot was not created: $out"
+    $tempOut = Join-Path $screenshotsDir (".tmp-" + [IO.Path]::GetFileName($Name))
+    & $chrome --headless=new --disable-gpu --hide-scrollbars "--window-size=$Width,$Height" "--screenshot=$tempOut" $Url | Out-Null
+    if (-not (Test-Path -LiteralPath $tempOut)) {
+        throw "Screenshot was not created: $tempOut"
     }
-    Write-Host "Captured $out"
+    $bytes = [IO.File]::ReadAllBytes($tempOut)
+    Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
+    Write-PngIfChanged -Path $out -Bytes $bytes
 }
 
 function Copy-JsonFiles {
