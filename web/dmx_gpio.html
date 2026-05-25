@@ -18,6 +18,9 @@ input[type=number]{width:86px}input[type=url]{min-width:220px}
 .mapping-fields label{min-width:0}
 .mapping select,.mapping input{width:100%;min-width:0}
 .mapping-head button{flex-shrink:0}
+.slot-info{grid-column:1/-1;color:var(--muted);font-size:12px;line-height:1.35;padding:7px 9px;border:1px solid rgba(255,255,255,.08);border-radius:6px;background:rgba(255,255,255,.025)}
+.slot-info.ready{color:var(--accent)}
+.slot-info.warn{color:var(--warn)}
 .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--muted);font-size:12px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
 .dot.on{background:var(--accent)}
@@ -89,6 +92,7 @@ const ADC_ACTIONS=['chaser_speed','motion_bpm'];
 let mappings=[];
 let adcMappings=[];
 let saveTimer=null;
+let chaserSlotInfo=[];
 const baseUrl=document.getElementById('baseUrl');
 const statusEl=document.getElementById('status');
 
@@ -98,6 +102,37 @@ function esc(s){return DmxCommon.escapeHtml(s);}
 function clamp(v,lo,hi){return DmxCommon.clampInt(v,lo,hi);}
 function actionNeedsSlot(a){return a.startsWith('chaser_')||a.startsWith('motion_');}
 function actionIsTap(a){return a==='chaser_tap'||a==='motion_tap';}
+function actionIsChaserSlot(a){return a.startsWith('chaser_');}
+function chaserModeLabel(mode){
+  const n=parseInt(mode,10);
+  if(n===0)return 'Single';
+  if(n===2)return 'Loop N';
+  if(n===3)return 'Ping Pong';
+  return 'Loop';
+}
+function chaserLoopLabel(slot){
+  const mode=parseInt(slot?.mode,10);
+  if(mode===0)return 'Loop off';
+  if(mode===2)return 'Loop '+(parseInt(slot?.loop_count,10)||1)+'x';
+  return 'Loop on';
+}
+function chaserDirectionLabel(slot){return parseInt(slot?.direction,10)===1?'Reverse':'Forward';}
+function chaserSlotSummary(slotIndex){
+  const slot=chaserSlotInfo[slotIndex];
+  if(!slot)return 'Slot '+slotIndex+' playmode not read yet';
+  if(!slot.loaded)return 'Slot '+slotIndex+' is empty on the Pico';
+  const state=slot.active?'live':slot.paused?'paused':'ready';
+  return 'Slot '+slotIndex+' · '+chaserModeLabel(slot.mode)+' · '+chaserDirectionLabel(slot)+' · '+chaserLoopLabel(slot)+' · '+(slot.step_count||0)+' steps · '+state;
+}
+function updateChaserSlotInfoBadges(){
+  document.querySelectorAll('[data-chaser-slot-info]').forEach(el=>{
+    const slot=parseInt(el.dataset.chaserSlotInfo,10)||0;
+    const info=chaserSlotInfo[slot];
+    el.textContent=chaserSlotSummary(slot);
+    el.classList.toggle('ready',!!info?.loaded);
+    el.classList.toggle('warn',!!info&&!info.loaded);
+  });
+}
 function normalize(m){
   return {
     pin:clamp(m.pin,0,28),
@@ -272,6 +307,7 @@ function render(){
   const digitalHtml=mappings.map((m,i)=>{
     m=normalize(m);
     const slotDisabled=actionNeedsSlot(m.action)?'':'disabled';
+    const slotInfo=actionIsChaserSlot(m.action)?`<div class="slot-info" data-chaser-slot-info="${m.slot}">${esc(chaserSlotSummary(m.slot))}</div>`:'';
     const beatControl=actionIsTap(m.action)
       ? `<label>Beat<select data-field="beat_div"><option value="1"${m.beat_div===1?' selected':''}>1 beat</option><option value="2"${m.beat_div===2?' selected':''}>1/2 beat</option><option value="4"${m.beat_div===4?' selected':''}>1/4 beat</option><option value="8"${m.beat_div===8?' selected':''}>1/8 beat</option><option value="16"${m.beat_div===16?' selected':''}>1/16 beat</option></select></label>`
       : '';
@@ -287,6 +323,7 @@ function render(){
         <label>Slot<input type="number" min="0" max="${PICO_SLOT_COUNT-1}" value="${m.slot}" data-field="slot" ${slotDisabled}></label>
         ${beatControl}
         <label>Debounce ms<input type="number" min="5" max="1000" value="${m.debounce_ms}" data-field="debounce_ms"></label>
+        ${slotInfo}
       </div>
     </div>`;
   }).join('');
@@ -298,6 +335,7 @@ function render(){
     const step=isBpm?'0.1':'0.01';
     const minAttr=isBpm?'1':'0.1';
     const maxAttr=isBpm?'300':'10';
+    const slotInfo=m.action==='chaser_speed'?`<div class="slot-info" data-chaser-slot-info="${m.slot}">${esc(chaserSlotSummary(m.slot))}</div>`:'';
     return `<div class="mapping${dups.has('A'+i)?' dup':''}" data-adc-idx="${i}">
       <div class="mapping-head"><strong>ADC ${isBpm?'BPM':'Speed'} ${i+1}</strong><button class="danger" data-remove-adc="${i}">Remove</button></div>
       <div class="mapping-fields">
@@ -306,6 +344,7 @@ function render(){
         <label>Slot<input type="number" min="0" max="${PICO_SLOT_COUNT-1}" value="${m.slot}" data-adc-field="slot"></label>
         <label>${minLabel}<input type="number" min="${minAttr}" max="${maxAttr}" step="${step}" value="${(m.min_x100/100).toFixed(isBpm?1:2)}" data-adc-field="${isBpm?'min_bpm':'min_speed'}"></label>
         <label>${maxLabel}<input type="number" min="${minAttr}" max="${maxAttr}" step="${step}" value="${(m.max_x100/100).toFixed(isBpm?1:2)}" data-adc-field="${isBpm?'max_bpm':'max_speed'}"></label>
+        ${slotInfo}
       </div>
     </div>`;
   }).join('');
@@ -314,6 +353,7 @@ function render(){
   const msg=duplicatePinMessage();
   if(msg)setStatus(msg,true);
   else if(statusEl.classList.contains('bad')&&statusEl.textContent.includes('already mapped'))setStatus('Ready');
+  updateChaserSlotInfoBadges();
 }
 async function pushConfig(){
   const root=endpoint();
@@ -372,6 +412,16 @@ async function pollStatus(){
     document.getElementById('onlineText').textContent='not connected';
     document.getElementById('gpioStatus').textContent=e.message;
   }
+}
+async function pollChaserSlots(){
+  const root=endpoint();
+  if(!root){chaserSlotInfo=[];updateChaserSlotInfoBadges();return;}
+  try{
+    const j=await fetch(root+'/chaser/slots',{cache:'no-store'}).then(r=>r.json());
+    if(!j.ok||!Array.isArray(j.slots))throw new Error(j.error||'chaser slots failed');
+    chaserSlotInfo=j.slots;
+    updateChaserSlotInfoBadges();
+  }catch(_){}
 }
 
 DmxCommon.bindBaseUrl(baseUrl,{fallback:baseUrl.value});
@@ -440,7 +490,9 @@ document.getElementById('mappingList').addEventListener('click',e=>{
 });
 loadSavedConfig().then(render);
 setInterval(pollStatus,1000);
+setInterval(pollChaserSlots,1000);
 pollStatus();
+pollChaserSlots();
 </script>
 </body>
 </html>

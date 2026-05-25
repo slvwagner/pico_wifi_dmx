@@ -13,9 +13,9 @@ Core features:
 - **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
 - **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
-- **Chaser** — create step-based chases, define participating controls, add/capture/duplicate/reorder steps, edit step values, use browser playback for preview, and upload chases into Pico slots for standalone playback.
+- **Chaser** — create step-based chases, define participating controls, add/capture/duplicate/reorder steps, edit step values, use browser playback with direction and ping-pong preview, and upload chases into Pico slots for standalone playback.
 - **Motion FX** — apply circle, figure-8, pan swing, tilt swing, sine, and pulse effects to compatible fixture controls. Effects are relative to the current base/scene value and can be saved as reusable recipes or uploaded to Pico motion slots.
-- **Pico Playback** — run chaser and motion slots directly on the Pico with play/stop, pause/resume, direction, loop modes, BPM/speed changes, and slot status readback.
+- **Pico Playback** — run chaser and motion slots directly on the Pico with play/stop, pause/resume, direction, loop and ping-pong modes, BPM/speed changes, and slot status readback.
 - **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control.
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, and write throughput against a real Pico.
@@ -391,7 +391,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "0.9.2",
+  "appVersion": "0.9.3",
   "schemaVersion": 1
 }
 ```
@@ -460,6 +460,8 @@ The chaser and motion FX configurations are uploaded to the Pico via HTTP POST. 
 
 Starting Chase Playback automatically stops any running Pico playback, and vice versa (mutual exclusion).
 
+Chase Playback is the source of truth for chaser playmode. Choose **Single**, **Loop**, **Loop N**, or **Ping Pong**, then choose forward or reverse direction. The **Loops** value is only used for **Loop N**; normal **Loop** means loop forever. Uploading to a Pico chaser slot uses those same Chase Playback mode, loop count, and direction settings, while Pico speed remains slot-specific.
+
 ---
 
 ## HTTP API
@@ -480,7 +482,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 
 ### Pico chaser
 
-Up to **32 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, loop flag, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+Up to **32 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -513,7 +515,7 @@ STEP …
 END
 ```
 
-`MODE` supports `single`, `loop`, and `loop_n`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
+`MODE` supports `single`, `loop`, `loop_n`, and `ping_pong`. `LOOPS` is used by `loop_n`. `DIR` supports `forward` and `reverse`. `SPEED` is the slot speed multiplier and can still be changed live with `/chaser/speed/<N>/<mult_x100>`.
 
 Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforces the same limit so Chase Playback and Pico playback use the same chase shape.
 
@@ -764,6 +766,7 @@ The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
 - Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`) and disables pins already used by another mapping.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
+- Chaser GPIO actions use the playmode stored in the selected Pico chaser slot. The GPIO page reads `/chaser/slots` and shows the slot's Single/Loop/Loop N/Ping Pong mode, direction, loop state, and step count beside chaser mappings.
 - The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
 - Supported pulls: `pullup`, `pulldown`.
 - Supported triggers: `falling`, `rising`, `both`.

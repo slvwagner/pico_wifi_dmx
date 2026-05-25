@@ -171,4 +171,56 @@ test.describe('GPIO established rules', () => {
       layout.cards.forEach(card => expect(card.width).toBeLessThanOrEqual(layout.viewportWidth - 40));
     }
   });
+
+  test('chaser GPIO mappings show the Pico slot playmode and direction readback', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/chaser/slots', async route => {
+      const slots = Array.from({ length: 32 }, (_, slot) => ({
+        slot,
+        loaded: false,
+        active: false,
+        paused: false,
+        loop: false,
+        mode: 0,
+        direction: 0,
+        loop_count: 1,
+        completed_loops: 0,
+        current_step: 0,
+        step_count: 0,
+        speed_mult: 1
+      }));
+      slots[2] = {
+        slot: 2,
+        loaded: true,
+        active: false,
+        paused: false,
+        loop: true,
+        mode: 3,
+        direction: 1,
+        loop_count: 1,
+        completed_loops: 0,
+        current_step: 0,
+        step_count: 4,
+        speed_mult: 1.25
+      };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+    });
+
+    const text = await page.evaluate(async () => {
+      baseUrl.value = 'http://127.0.0.1:18991/';
+      mappings = [
+        { pin: 16, pull: 'pullup', trigger: 'falling', action: 'chaser_toggle', slot: 2, debounce_ms: 30 }
+      ];
+      adcMappings = [
+        { pin: 26, action: 'chaser_speed', slot: 2, min_x100: 10, max_x100: 300 }
+      ];
+      render();
+      await pollChaserSlots();
+      return [...document.querySelectorAll('[data-chaser-slot-info]')].map(el => el.textContent);
+    });
+
+    expect(text).toEqual([
+      'Slot 2 · Ping Pong · Reverse · Loop on · 4 steps · ready',
+      'Slot 2 · Ping Pong · Reverse · Loop on · 4 steps · ready'
+    ]);
+  });
 });

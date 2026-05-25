@@ -392,13 +392,15 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Fan Out toolbox](screenshots/chaser-toolbox-fanout.png)
 
-- **Chase Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
+- **Chase Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. **Mode** chooses **Single**, **Loop**, **Loop N**, or **Ping Pong**. **Direction** chooses whether playback starts at the first step and moves forward or starts at the last step and moves backward. **Loops** is only used by **Loop N**; normal **Loop** runs forever. **Ping Pong** reverses at the end of the chase instead of jumping back to the first or last step. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
 - While Chase Playback runs, the currently playing step automatically becomes the selected step. This means **Edit Step** follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.
 - Selecting a step in **Chase Steps** or manually changing controls in **Edit Step** stops browser Chase Playback. This prevents playback from immediately overwriting the values you are trying to edit.
 
 ![Chaser Chase Playback toolbox](screenshots/chaser-toolbox-browser-playback.png)
 
 On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
+
+Saved chases also recall the playback controls that were saved with them, including browser mode, Loop N count, Ping Pong, direction, BPM, and Pico speed. The Chases toolbox tiles still show only the chase name and visual so they stay consistent with the other toolboxes. Uploading to a Pico slot uses the current **Chase Playback** playmode, loop count, and direction, so the Pico slot behaves like the chase you previewed in the browser. Per-slot playback details are shown in the **Pico Playback** slot tiles after a chase has been uploaded to a Pico slot. Each loaded Pico slot shows compact lines for loop state, direction, and Ping Pong state.
 
 The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads. Collapsing **Participating Controls** or **Edit Step** only hides that card body: the sticky page header keeps the same height, and the next card moves up to use the freed space.
 
@@ -548,9 +550,12 @@ Supported playback options:
 - Single run
 - Loop
 - Loop N times
+- Ping Pong
 - Forward or reverse direction
 - Speed multiplier
 - Pause and resume
+
+Direction sets the first playback direction for the slot. In Ping Pong mode the Pico reverses direction whenever it reaches either end of the chase.
 
 Each chaser slot supports up to 32 steps.
 
@@ -663,6 +668,8 @@ GPIO Control maps physical Pico inputs to lighting actions.
 GPIO Control does not use the shared toolbox sidebar. Its setup is kept in normal page panels because GPIO mapping is configuration work, not a live fixture/scene/palette workflow.
 
 The GPIO editor loads its mapping setup from the XAMPP server first, using `gpio_setup.php` and `data/gpio_setup.json`. Browser storage is only a fallback if the server file is not available. Adding, removing, or changing a mapping autosaves the setup back to the server, so a PC and iPad should show the same mappings after reload.
+
+Chaser GPIO actions do not define their own playmode. They start, stop, pause, resume, toggle, or tap the selected Pico chaser slot. The playmode belongs to that slot, so the button follows whatever was uploaded from the Chaser page: **Single**, **Loop**, **Loop N**, or **Ping Pong**, plus forward/reverse direction. When a Pico base URL is set, the GPIO page reads the chaser slot status and shows the slot mode, direction, loop state, step count, and live/ready state beside chaser mappings and chaser speed ADC mappings.
 
 Digital GPIO pins can trigger:
 
