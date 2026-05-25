@@ -56,7 +56,7 @@ function Save-PageScreenshot {
     $separator = if ($shotUrl.Contains("?")) { "&" } else { "?" }
     $shotUrl = $shotUrl + $separator + "docshot=" + ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
     try {
-        & $chrome --headless=new --disable-gpu --hide-scrollbars --no-first-run "--user-data-dir=$profileDir" "--window-size=$Width,$Height" "--screenshot=$tempOut" $shotUrl | Out-Null
+        & $chrome --headless=new --disable-gpu --disable-background-networking --disable-component-update --disable-default-apps --disable-extensions --disable-sync "--disable-features=MediaRouter,OptimizationHints" --hide-scrollbars --no-first-run "--user-data-dir=$profileDir" "--window-size=$Width,$Height" "--screenshot=$tempOut" $shotUrl | Out-Null
         if (-not (Test-Path -LiteralPath $tempOut)) {
             throw "Screenshot was not created: $tempOut"
         }
