@@ -58,11 +58,13 @@ Added:
 - Added release preparation tooling that builds firmware, runs UI tests, copies the UF2 into `release/v<version>/`, and writes a manifest plus SHA256 checksum.
 - Added a `-RunHardwareTests` release-script option that initializes the local Pico test config when missing and includes real hardware tests in the release run.
 - Added configurable local path setup for XAMPP/script paths.
+- Documented the Ubuntu release workflow expectation that generated manual assets may need one committed refresh before the final clean release run.
 
 Fixed:
 
 - Hardened the Pico Performance Test so old firmware readback/log issues show as warnings instead of hiding successful write-test results.
 - Added `/dmx/base.json` as a firmware alias for `/dmx/base` and CORS headers for Pico log/base readback endpoints.
+- Avoided unnecessary PNG rewrites on Linux when exact screenshot bytes already match, even if the optional pixel comparison backend is unavailable.
 
 ## 0.9.0 - Unreleased
 

@@ -555,7 +555,7 @@ release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
 
 It also writes a SHA256 checksum and `release-manifest.json` containing the version, branch, commit, firmware size, and checksum. The `release/` directory is intentionally not ignored so the firmware package can be committed if you want it in Git. For public distribution, a GitHub Release asset is usually cleaner than committing every binary artifact forever; this repository supports either workflow.
 
-The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package.
+The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
 
 ---
 

@@ -109,6 +109,23 @@ function Write-PngIfChanged {
         [byte[]]$Bytes
     )
 
+    if (Test-Path -LiteralPath $Path) {
+        $existingBytes = [IO.File]::ReadAllBytes($Path)
+        if ($existingBytes.Length -eq $Bytes.Length) {
+            $sameBytes = $true
+            for ($i = 0; $i -lt $Bytes.Length; $i++) {
+                if ($existingBytes[$i] -ne $Bytes[$i]) {
+                    $sameBytes = $false
+                    break
+                }
+            }
+            if ($sameBytes) {
+                Write-Host "Unchanged $Path"
+                return
+            }
+        }
+    }
+
     if (Test-PngPixelsEqual -Path $Path -Bytes $Bytes) {
         Write-Host "Unchanged $Path"
         return
