@@ -1852,33 +1852,35 @@ document.getElementById('exportMotionEffectsBtn').onclick=exportMotionEffectsJso
 document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile').click();
 document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
 
-loadSetup().finally(async()=>{
-  try{
-    const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0}));
-    renderMotionSlotStrip(dummy,0);
-  }catch(e){console.warn('slot strip init error',e);}
-  await loadMotionEffectCatalogFromServer();
-  if(!isHardPageReload())restoreMotionWorkingState();
-  // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(root){
+if(!new URLSearchParams(location.search).has('docshot_overview')){
+  loadSetup().finally(async()=>{
     try{
-      const r=await fetch('motion_setup.php?slots');
-      const j=await r.json();
-      if(j.ok){
-        const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
-        if(!savedUrl||savedUrl===root){
-          const slots=j.pico_slots||[];
-          for(let i=0;i<slots.length;i++){
-            if(!slots[i])continue;
-            try{await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
+      const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0}));
+      renderMotionSlotStrip(dummy,0);
+    }catch(e){console.warn('slot strip init error',e);}
+    await loadMotionEffectCatalogFromServer();
+    if(!isHardPageReload())restoreMotionWorkingState();
+    // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
+    const root=baseUrlEl.value.replace(/\/+$/,'');
+    if(root){
+      try{
+        const r=await fetch('motion_setup.php?slots');
+        const j=await r.json();
+        if(j.ok){
+          const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
+          if(!savedUrl||savedUrl===root){
+            const slots=j.pico_slots||[];
+            for(let i=0;i<slots.length;i++){
+              if(!slots[i])continue;
+              try{await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
+            }
+            pollPicoMotionStatus();
           }
-          pollPicoMotionStatus();
         }
-      }
-    }catch(_){}
-  }
-});
+      }catch(_){}
+    }
+  });
+}
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
 function requiredMotionSceneSlots(){

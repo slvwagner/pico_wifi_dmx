@@ -229,7 +229,7 @@ try {
 
             Invoke-Step "Capture page overview screenshots" {
                 Copy-JsonFiles -SourceDir $manualDataPath -DestinationDir $localApiDataPath
-                Save-PageScreenshot "motion-fx.png" ($script:screenshotServer.BaseUrl + "/dmx_motion.html")
+                Save-PageScreenshot "motion-fx.png" ($script:screenshotServer.BaseUrl + "/dmx_motion.html?docshot_overview=1")
                 Save-PageScreenshot "gpio-control.png" ($script:screenshotServer.BaseUrl + "/dmx_gpio.html")
                 Save-PageScreenshot "dmx-monitor.png" ($script:screenshotServer.BaseUrl + "/dmx_monitor.html")
                 Save-PageScreenshot "benchmark.png" ($script:screenshotServer.BaseUrl + "/test/")
