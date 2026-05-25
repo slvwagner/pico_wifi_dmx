@@ -258,11 +258,13 @@ Run real Pico hardware tests only when a Pico is connected and you accept that t
 npm run test:pico
 ```
 
-After UI/manual changes, regenerate the deterministic documentation screenshots and dark-mode manual:
+After UI/manual changes, you can regenerate the deterministic documentation screenshots and dark-mode manual directly:
 
 ```powershell
 .\scripts\update_user_manual.ps1
 ```
+
+The release script runs this manual/screenshot step automatically unless `-SkipManual` is passed.
 
 Prepare a release package after versions, tests, and changelog are ready:
 
@@ -459,30 +461,26 @@ Before tagging or publishing a release:
 2. Update `VERSION`.
 3. Update `pico_set_program_version(...)` in `CMakeLists.txt` to the same value.
 4. Move the matching section in `CHANGELOG.md` from `Unreleased` to the release date.
-5. Rebuild the manual and deterministic screenshots when user-facing behavior or screenshots changed:
-
-```powershell
-.\scripts\update_user_manual.ps1
-```
-
-6. Build and test the firmware/UI:
+5. Build and test the firmware/UI:
 
 ```powershell
 cmake --build build
 npm run test:ui
 ```
 
-7. Optional, when a Pico is connected and safe test channels/slots are configured:
+6. Optional, when a Pico is connected and safe test channels/slots are configured:
 
 ```powershell
 npm run test:pico
 ```
 
-8. Create the release package:
+7. Create the release package. This regenerates the manual, PDF, and deterministic screenshots before packaging:
 
 ```powershell
 .\scripts\prepare_release.ps1 -Build
 ```
+
+For a quick local package that reuses the already-generated manual assets, add `-SkipManual`.
 
 To run the real Pico endpoint and slot tests as part of the release package, add `-RunHardwareTests`. The script creates `tests\pathconfig.local.json` from `tests\pathconfig.example.json` if it is missing, then runs the full Playwright suite with hardware tests enabled.
 
@@ -494,7 +492,7 @@ release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
 
 It also writes a SHA256 checksum and `release-manifest.json` containing the version, branch, commit, firmware size, and checksum. The `release/` directory is intentionally not ignored so the firmware package can be committed if you want it in Git. For public distribution, a GitHub Release asset is usually cleaner than committing every binary artifact forever; this repository supports either workflow.
 
-The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. Run `scripts/update_user_manual.ps1` before packaging when those generated manual assets should change.
+The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package.
 
 ---
 

@@ -3,6 +3,7 @@ param(
     [string]$BuildDir = "build",
     [string]$OutDir = "release",
     [switch]$Build,
+    [switch]$SkipManual,
     [switch]$SkipTests,
     [switch]$AllowDirty,
     [switch]$RunHardwareTests,
@@ -72,10 +73,16 @@ if ($firmwareVersion -ne $Version) {
     throw "Version mismatch: VERSION is '$Version' but CMake firmware version is '$firmwareVersion'. Update both before release."
 }
 
+if (-not $SkipManual) {
+    Invoke-Step "Regenerate manual, PDF, and screenshots" {
+        & (Join-Path $PSScriptRoot "update_user_manual.ps1")
+    }
+}
+
 if (-not $AllowDirty) {
     $dirty = git status --porcelain
     if ($dirty) {
-        throw "Working tree has uncommitted changes. Commit/stash them or pass -AllowDirty for a local test package."
+        throw "Working tree has uncommitted changes. Commit/stash them or pass -AllowDirty for a local test package. If the manual step changed generated docs/screenshots, review and commit those release assets first."
     }
 }
 
@@ -148,6 +155,7 @@ $manifest = [ordered]@{
     tests = @{
         hardware = [bool]$RunHardwareTests
     }
+    docsGenerated = -not [bool]$SkipManual
     firmware = @{
         file = $firmwareName
         sizeBytes = (Get-Item -LiteralPath $firmwareOut).Length
