@@ -46,6 +46,47 @@ function Convert-InlineMarkdown {
     return $html
 }
 
+function Normalize-PdfMetadata {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return }
+    $encoding = [System.Text.Encoding]::GetEncoding(28591)
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $text = $encoding.GetString($bytes)
+    $fixedDate = "D:20000101000000+00'00'"
+    $normalized = [regex]::Replace($text, '/CreationDate \(D:\d{14}\+00''00''\)', "/CreationDate ($fixedDate)")
+    $normalized = [regex]::Replace($normalized, '/ModDate \(D:\d{14}\+00''00''\)', "/ModDate ($fixedDate)")
+    if ($normalized -ne $text) {
+        [System.IO.File]::WriteAllBytes($Path, $encoding.GetBytes($normalized))
+    }
+}
+
+function Wait-FileStable {
+    param([string]$Path, [int]$TimeoutSeconds = 30)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastLength = -1
+    $stableCount = 0
+    while ((Get-Date) -lt $deadline) {
+        if (Test-Path -LiteralPath $Path) {
+            try {
+                $item = Get-Item -LiteralPath $Path
+                $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+                $stream.Close()
+                if ($item.Length -eq $lastLength) {
+                    $stableCount++
+                    if ($stableCount -ge 2) { return }
+                } else {
+                    $lastLength = $item.Length
+                    $stableCount = 0
+                }
+            } catch {
+                $stableCount = 0
+            }
+        }
+        Start-Sleep -Milliseconds 200
+    }
+    throw "Timed out waiting for PDF to finish writing: $Path"
+}
+
 function New-HeadingId {
     param([string]$Text)
     $slug = $Text.ToLowerInvariant()
@@ -295,7 +336,7 @@ if (-not (Test-Path -LiteralPath $chrome)) {
     throw "Chrome not found: $chrome"
 }
 
-$profileDir = Join-Path $env:TEMP "pico-dmx-pdf"
+$profileDir = Join-Path $env:TEMP ("pico-dmx-pdf-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 $args = @(
@@ -308,6 +349,13 @@ $args = @(
     "file:///$($htmlFull.Replace('\','/'))"
 )
 
-& $chrome @args
+try {
+    Remove-Item -LiteralPath $pdfFull -Force -ErrorAction SilentlyContinue
+    & $chrome @args
+    Wait-FileStable -Path $pdfFull
+    Normalize-PdfMetadata -Path $pdfFull
+} finally {
+    Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+}
 Write-Host "Wrote $htmlFull"
 Write-Host "Wrote $pdfFull"

@@ -11,6 +11,7 @@ Changed:
 - Updated GPIO Control so chaser mappings and chaser speed ADC mappings show the selected Pico slot's playmode, direction, loop state, step count, and live/ready state.
 - Hid chaser loop-count controls unless the selected playmode is Loop N, in both Chase Playback and Pico Playback.
 - Made the release script regenerate the user manual, PDF, and deterministic screenshots before packaging, with `-SkipManual` available for quick local packages.
+- Normalized generated user-manual PDF metadata so repeated manual/release runs no longer dirty the tree only because of PDF timestamps.
 
 ## 0.9.2 - 2026-05-24
 
