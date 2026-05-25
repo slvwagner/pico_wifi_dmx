@@ -93,6 +93,28 @@ If port `8000` is already in use, choose another port in both commands, for exam
 
 The built-in PHP server stores setup JSON under `api/data/`. This is local runtime data and is ignored by Git.
 
+`127.0.0.1` is only reachable from the same Ubuntu machine. To use the UI from another device on the network, deploy it into XAMPP instead. On Ubuntu XAMPP installs commonly live under `/opt/lampp`; this project can still use the PowerShell sync script:
+
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass \
+  -File scripts/sync_fixture_controller_to_xampp.ps1 \
+  -XamppHtdocs /opt/lampp/htdocs \
+  -AppFolder dmx \
+  -BaseUrl http://localhost/dmx/
+```
+
+If your XAMPP `htdocs` root is not writable by your user, deploy under a writable subfolder, for example:
+
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass \
+  -File scripts/sync_fixture_controller_to_xampp.ps1 \
+  -XamppHtdocs /opt/lampp/htdocs/editable \
+  -AppFolder dmx \
+  -BaseUrl http://localhost/editable/dmx/
+```
+
+Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device.
+
 Enter the Pico base URL shown in the Pico serial log, for example:
 
 ```text
