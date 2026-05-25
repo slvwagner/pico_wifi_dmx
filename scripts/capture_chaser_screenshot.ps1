@@ -38,11 +38,11 @@ Copy-Item -Path (Join-Path $XamppDataDir "*.json") -Destination $backupDataDir -
 Copy-Item -Path (Join-Path $manualDataPath "*.json") -Destination $XamppDataDir -Force
 
 function New-ChromeArgs {
-    param([string]$ProfileDir)
+    param([string]$ProfileDir, [int]$DebugPort)
     return @(
         "--headless=new",
         "--remote-debugging-address=127.0.0.1",
-        "--remote-debugging-port=$Port",
+        "--remote-debugging-port=$DebugPort",
         "--disable-gpu",
         "--hide-scrollbars",
         "--no-first-run",
@@ -56,13 +56,16 @@ $chromeProcess = $null
 $socket = $null
 
 try {
-    $jsonUrl = "http://127.0.0.1:$Port/json"
+    $jsonUrl = ""
     $tabs = $null
     $lastChromeError = ""
     for ($attempt = 1; $attempt -le 3 -and -not $tabs; $attempt++) {
+        $jsonUrl = ""
         $profileDir = Get-PicoDmxTempPath ("pico-dmx-chaser-docshot-" + [System.Guid]::NewGuid().ToString("N"))
         New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
-        $chromeProcess = Start-PicoDmxProcess -FilePath $chrome -ArgumentList (New-ChromeArgs -ProfileDir $profileDir)
+        $debugPort = if ($Port -gt 0) { $Port } else { Get-FreeTcpPort }
+        $jsonUrl = "http://127.0.0.1:$debugPort/json"
+        $chromeProcess = Start-PicoDmxProcess -FilePath $chrome -ArgumentList (New-ChromeArgs -ProfileDir $profileDir -DebugPort $debugPort)
         for ($i = 0; $i -lt 80; $i++) {
             if ($chromeProcess -and $chromeProcess.HasExited) {
                 $lastChromeError = "Chrome exited before debug endpoint became ready. Exit code: $($chromeProcess.ExitCode)"

@@ -9,6 +9,17 @@ function Get-PicoDmxTempPath {
     return Join-Path $root $Name
 }
 
+function Get-FreeTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    try {
+        $listener.Start()
+        return $listener.LocalEndpoint.Port
+    }
+    finally {
+        $listener.Stop()
+    }
+}
+
 function Start-PicoDmxProcess {
     param(
         [string]$FilePath,
