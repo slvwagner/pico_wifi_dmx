@@ -1,25 +1,29 @@
 {
   "version": "0.9.3",
   "branch": "main",
-  "commit": "5a053ab",
-  "createdAt": "2026-05-25T09:44:19Z",
+  "commit": "20dc937",
+  "createdAt": "2026-05-25T09:56:24Z",
   "tests": {
-    "hardware": false
+    "hardware": true
   },
   "docsGenerated": true,
   "firmware": {
-    "sha256": "b30a556ab95674dc2a64aac35a6b776421021c55d065d4f8612fc11879efdaf6",
+    "sizeBytes": 905728,
     "file": "pico_wifi_dmx-v0.9.3.uf2",
-    "sizeBytes": 905728
+    "sha256": "b30a556ab95674dc2a64aac35a6b776421021c55d065d4f8612fc11879efdaf6"
   },
   "docs": {
-    "user-manual.md": {
-      "sha256": "1b166ebbf0675dd64c0755ee3b8a2c05b1a70b8ca6623f846baeb58d02a1a11b",
-      "sizeBytes": 59343
+    "user-manual.pdf": {
+      "sha256": "d8ce474382eb52a4031a7ebed02cc3c6dadf29614b945e86a02894c81e93dd33",
+      "sizeBytes": 3085622
     },
     "user-manual-print.html": {
       "sha256": "5de54877723de4448c8d189074c72d4fe36e85ed7a77037f17d368f989b517fa",
       "sizeBytes": 71580
+    },
+    "user-manual.md": {
+      "sha256": "1b166ebbf0675dd64c0755ee3b8a2c05b1a70b8ca6623f846baeb58d02a1a11b",
+      "sizeBytes": 59343
     },
     "user-manual.html": {
       "sha256": "5de54877723de4448c8d189074c72d4fe36e85ed7a77037f17d368f989b517fa",
@@ -27,10 +31,6 @@
     },
     "screenshots": {
       "count": 36
-    },
-    "user-manual.pdf": {
-      "sha256": "0eb1cdb7c626175c0ea10d096241b56909a68157f1e860885f8707d9af6d9525",
-      "sizeBytes": 3085630
     }
   }
 }
