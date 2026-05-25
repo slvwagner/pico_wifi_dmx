@@ -18,6 +18,7 @@ Changed:
 - Made the manual screenshot and release scripts work on Ubuntu PowerShell too by using cross-platform temporary paths, Linux-safe process launching, and release-time XAMPP/Chrome path overrides.
 - Kept unchanged release manifests from being rewritten on repeat release runs, preserving ISO timestamps and preventing ordering-only JSON churn.
 - Isolated page overview screenshot captures in fresh Chrome profiles so repeated release runs cannot inherit stale browser state and alternate Motion FX screenshots.
+- Hardened Chrome DevTools startup for deterministic screenshot captures with unique temporary profiles, loopback-only debug binding, and longer readiness checks.
 
 ## 0.9.2 - 2026-05-24
 

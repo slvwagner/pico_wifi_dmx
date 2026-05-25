@@ -20,7 +20,7 @@ if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 $chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
-$profileDir = Get-PicoDmxTempPath ("pico-dmx-chaser-docshot-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+$profileDir = Get-PicoDmxTempPath ("pico-dmx-chaser-docshot-" + [System.Guid]::NewGuid().ToString("N"))
 $backupDataDir = Get-PicoDmxTempPath ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
 $url = $BaseUrl.TrimEnd("/") + "/dmx_chaser.html?docshot=" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
@@ -43,6 +43,7 @@ Copy-Item -Path (Join-Path $manualDataPath "*.json") -Destination $XamppDataDir 
 
 $args = @(
     "--headless=new",
+    "--remote-debugging-address=127.0.0.1",
     "--remote-debugging-port=$Port",
     "--disable-gpu",
     "--hide-scrollbars",
@@ -58,15 +59,18 @@ $socket = $null
 try {
     $jsonUrl = "http://127.0.0.1:$Port/json"
     $tabs = $null
-    for ($i = 0; $i -lt 40; $i++) {
+    for ($i = 0; $i -lt 80; $i++) {
+        if ($chromeProcess -and $chromeProcess.HasExited) {
+            throw "Chrome exited before debug endpoint became ready. Exit code: $($chromeProcess.ExitCode)"
+        }
         try {
-            $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing
+            $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing -TimeoutSec 2
             if ($tabs) { break }
         } catch {
             Start-Sleep -Milliseconds 250
         }
     }
-    if (-not $tabs) { throw "Chrome debug endpoint did not become ready." }
+    if (-not $tabs) { throw "Chrome debug endpoint did not become ready at $jsonUrl." }
 
     $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_chaser.html*" } | Select-Object -First 1).webSocketDebuggerUrl
     if (-not $wsUrl) { throw "Could not find Chaser tab." }
