@@ -672,7 +672,7 @@ The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, de
 
 **Chaser**
 
-![Chaser page](docs/screenshots/chaser.png)
+![Chaser page](docs/screenshots/chaser-readme.png)
 
 The Chaser page builds step-based sequences. A chase is made from multiple steps; each step stores DMX channel values plus timing and fade settings. The participating-controls panel decides which fixture controls are part of the chase, so editing a chase does not accidentally touch unrelated channels.
 

@@ -662,7 +662,7 @@ try {
         $state = $chaserState.result.result.value
         Write-Host "Chaser docshot state: steps=$($state.steps), stepCount=$($state.stepCount), editEnabled=$($state.editEnabled), status=$($state.status)"
     }
-    Save-Screenshot "chaser.png"
+    Save-Screenshot "chaser-readme.png"
 
     $motionUrl = $BaseUrl.TrimEnd('/') + "/dmx_motion.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $motionUrl } | Out-Null
