@@ -1,36 +1,36 @@
 {
   "version": "0.9.3",
   "branch": "main",
-  "commit": "9bd0f6d",
-  "createdAt": "2026-05-25T07:57:26Z",
+  "commit": "4006ac6",
+  "createdAt": "2026-05-25T08:18:16Z",
   "tests": {
-    "hardware": false
+    "hardware": true
   },
-  "docsGenerated": false,
+  "docsGenerated": true,
   "firmware": {
-    "file": "pico_wifi_dmx-v0.9.3.uf2",
     "sha256": "31ee027aaa5cc35265011d38301209002961a160170a56327a57b210d84e8804",
+    "file": "pico_wifi_dmx-v0.9.3.uf2",
     "sizeBytes": 878592
   },
   "docs": {
+    "user-manual.html": {
+      "sha256": "b9c5ed3a6294a2085def9b1edb8312908e052ba40bb52b033972bfae205d1963",
+      "sizeBytes": 71698
+    },
     "user-manual.md": {
       "sha256": "0af945600f2e150546e20a53fb0cb166dc1b9d3397e7b3b742bcd8c01c03f9b3",
       "sizeBytes": 60181
     },
-    "user-manual.html": {
-      "sha256": "79591813d2a4c0fba5ceb34d81f6e39a2ba8af33d93af87cadb4041a290f34df",
-      "sizeBytes": 72341
+    "user-manual.pdf": {
+      "sha256": "6503a47d893574586558a9d2289a0353fc34210b7bf71973bf0cd886fee4966e",
+      "sizeBytes": 2178243
+    },
+    "user-manual-print.html": {
+      "sha256": "b9c5ed3a6294a2085def9b1edb8312908e052ba40bb52b033972bfae205d1963",
+      "sizeBytes": 71698
     },
     "screenshots": {
       "count": 35
-    },
-    "user-manual-print.html": {
-      "sha256": "79591813d2a4c0fba5ceb34d81f6e39a2ba8af33d93af87cadb4041a290f34df",
-      "sizeBytes": 72341
-    },
-    "user-manual.pdf": {
-      "sha256": "3841213de80521a57954634223a6616027c2ba78283f1fafc649cd6e5e7e0de4",
-      "sizeBytes": 2176779
     }
   }
 }
