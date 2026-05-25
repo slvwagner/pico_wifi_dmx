@@ -16,47 +16,61 @@ if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 
 $chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
-$profileDir = Get-PicoDmxTempPath ("pico-dmx-docshots-" + [System.Guid]::NewGuid().ToString("N"))
+$profileDir = $null
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
-if (Test-Path -LiteralPath $profileDir) {
-    Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
-}
-New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 $startUrl = $BaseUrl
 $startUrl += ($(if ($startUrl.Contains("?")) { "&" } else { "?" }) + "docshot=$cacheBust")
 
-$args = @(
-    "--headless=new",
-    "--remote-debugging-address=127.0.0.1",
-    "--remote-debugging-port=$Port",
-    "--disable-gpu",
-    "--hide-scrollbars",
-    "--no-first-run",
-    "--user-data-dir=$profileDir",
-    "--window-size=1440,1100",
-    $startUrl
-)
+function New-ChromeArgs {
+    param([string]$ProfileDir)
+    return @(
+        "--headless=new",
+        "--remote-debugging-address=127.0.0.1",
+        "--remote-debugging-port=$Port",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--no-first-run",
+        "--user-data-dir=$ProfileDir",
+        "--window-size=1440,1100",
+        $startUrl
+    )
+}
 
-$chromeProcess = Start-PicoDmxProcess -FilePath $chrome -ArgumentList $args
+$chromeProcess = $null
 
 try {
     $jsonUrl = "http://127.0.0.1:$Port/json"
     $tabs = $null
-    for ($i = 0; $i -lt 80; $i++) {
-        if ($chromeProcess -and $chromeProcess.HasExited) {
-            throw "Chrome exited before debug endpoint became ready. Exit code: $($chromeProcess.ExitCode)"
+    $lastChromeError = ""
+    for ($attempt = 1; $attempt -le 3 -and -not $tabs; $attempt++) {
+        $profileDir = Get-PicoDmxTempPath ("pico-dmx-docshots-" + [System.Guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+        $chromeProcess = Start-PicoDmxProcess -FilePath $chrome -ArgumentList (New-ChromeArgs -ProfileDir $profileDir)
+        for ($i = 0; $i -lt 80; $i++) {
+            if ($chromeProcess -and $chromeProcess.HasExited) {
+                $lastChromeError = "Chrome exited before debug endpoint became ready. Exit code: $($chromeProcess.ExitCode)"
+                break
+            }
+            try {
+                $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing -TimeoutSec 2
+                if ($tabs) { break }
+            } catch {
+                Start-Sleep -Milliseconds 250
+            }
         }
-        try {
-            $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing -TimeoutSec 2
-            if ($tabs) { break }
-        } catch {
-            Start-Sleep -Milliseconds 250
+        if (-not $tabs) {
+            if ($chromeProcess -and -not $chromeProcess.HasExited) { Stop-Process -Id $chromeProcess.Id -Force -ErrorAction SilentlyContinue }
+            if ($profileDir -and (Test-Path -LiteralPath $profileDir)) { Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue }
+            Start-Sleep -Milliseconds 500
         }
     }
-    if (-not $tabs) { throw "Chrome debug endpoint did not become ready at $jsonUrl." }
+    if (-not $tabs) {
+        if ($lastChromeError) { throw "$lastChromeError Last endpoint: $jsonUrl." }
+        throw "Chrome debug endpoint did not become ready at $jsonUrl."
+    }
 
     $wsUrl = ($tabs | Where-Object { $_.url -like "$BaseUrl*" } | Select-Object -First 1).webSocketDebuggerUrl
     if (-not $wsUrl) { $wsUrl = $tabs[0].webSocketDebuggerUrl }

@@ -20,15 +20,11 @@ if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 $chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
-$profileDir = Get-PicoDmxTempPath ("pico-dmx-chaser-docshot-" + [System.Guid]::NewGuid().ToString("N"))
+$profileDir = $null
 $backupDataDir = Get-PicoDmxTempPath ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
 $url = $BaseUrl.TrimEnd("/") + "/dmx_chaser.html?docshot=" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
-if (Test-Path -LiteralPath $profileDir) {
-    Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
-}
-New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
 if (-not (Test-Path -LiteralPath $manualDataPath)) {
     throw "Manual data baseline not found: $manualDataPath"
@@ -41,36 +37,54 @@ New-Item -ItemType Directory -Force -Path $backupDataDir | Out-Null
 Copy-Item -Path (Join-Path $XamppDataDir "*.json") -Destination $backupDataDir -Force -ErrorAction SilentlyContinue
 Copy-Item -Path (Join-Path $manualDataPath "*.json") -Destination $XamppDataDir -Force
 
-$args = @(
-    "--headless=new",
-    "--remote-debugging-address=127.0.0.1",
-    "--remote-debugging-port=$Port",
-    "--disable-gpu",
-    "--hide-scrollbars",
-    "--no-first-run",
-    "--user-data-dir=$profileDir",
-    "--window-size=1440,1100",
-    $url
-)
+function New-ChromeArgs {
+    param([string]$ProfileDir)
+    return @(
+        "--headless=new",
+        "--remote-debugging-address=127.0.0.1",
+        "--remote-debugging-port=$Port",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--no-first-run",
+        "--user-data-dir=$ProfileDir",
+        "--window-size=1440,1100",
+        $url
+    )
+}
 
-$chromeProcess = Start-PicoDmxProcess -FilePath $chrome -ArgumentList $args
+$chromeProcess = $null
 $socket = $null
 
 try {
     $jsonUrl = "http://127.0.0.1:$Port/json"
     $tabs = $null
-    for ($i = 0; $i -lt 80; $i++) {
-        if ($chromeProcess -and $chromeProcess.HasExited) {
-            throw "Chrome exited before debug endpoint became ready. Exit code: $($chromeProcess.ExitCode)"
+    $lastChromeError = ""
+    for ($attempt = 1; $attempt -le 3 -and -not $tabs; $attempt++) {
+        $profileDir = Get-PicoDmxTempPath ("pico-dmx-chaser-docshot-" + [System.Guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+        $chromeProcess = Start-PicoDmxProcess -FilePath $chrome -ArgumentList (New-ChromeArgs -ProfileDir $profileDir)
+        for ($i = 0; $i -lt 80; $i++) {
+            if ($chromeProcess -and $chromeProcess.HasExited) {
+                $lastChromeError = "Chrome exited before debug endpoint became ready. Exit code: $($chromeProcess.ExitCode)"
+                break
+            }
+            try {
+                $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing -TimeoutSec 2
+                if ($tabs) { break }
+            } catch {
+                Start-Sleep -Milliseconds 250
+            }
         }
-        try {
-            $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing -TimeoutSec 2
-            if ($tabs) { break }
-        } catch {
-            Start-Sleep -Milliseconds 250
+        if (-not $tabs) {
+            if ($chromeProcess -and -not $chromeProcess.HasExited) { Stop-Process -Id $chromeProcess.Id -Force -ErrorAction SilentlyContinue }
+            if ($profileDir -and (Test-Path -LiteralPath $profileDir)) { Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue }
+            Start-Sleep -Milliseconds 500
         }
     }
-    if (-not $tabs) { throw "Chrome debug endpoint did not become ready at $jsonUrl." }
+    if (-not $tabs) {
+        if ($lastChromeError) { throw "$lastChromeError Last endpoint: $jsonUrl." }
+        throw "Chrome debug endpoint did not become ready at $jsonUrl."
+    }
 
     $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_chaser.html*" } | Select-Object -First 1).webSocketDebuggerUrl
     if (-not $wsUrl) { throw "Could not find Chaser tab." }
