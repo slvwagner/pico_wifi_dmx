@@ -223,11 +223,12 @@ try {
             }
 
             Invoke-Step "Capture deterministic controller screenshots" {
-                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath -Port (Get-FreeTcpPort)
-                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -XamppDataDir $localApiDataPath -ChromePath $ChromePath -Port (Get-FreeTcpPort)
+                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath -Port 0
+                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -XamppDataDir $localApiDataPath -ChromePath $ChromePath -Port 0
             }
 
             Invoke-Step "Capture page overview screenshots" {
+                Copy-JsonFiles -SourceDir $manualDataPath -DestinationDir $localApiDataPath
                 Save-PageScreenshot "motion-fx.png" ($script:screenshotServer.BaseUrl + "/dmx_motion.html")
                 Save-PageScreenshot "gpio-control.png" ($script:screenshotServer.BaseUrl + "/dmx_gpio.html")
                 Save-PageScreenshot "dmx-monitor.png" ($script:screenshotServer.BaseUrl + "/dmx_monitor.html")

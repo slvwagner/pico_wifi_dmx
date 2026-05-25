@@ -9,6 +9,17 @@ function Get-PicoDmxTempPath {
     return Join-Path $root $Name
 }
 
+function Get-FreeTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    try {
+        $listener.Start()
+        return $listener.LocalEndpoint.Port
+    }
+    finally {
+        $listener.Stop()
+    }
+}
+
 function Start-PicoDmxProcess {
     param(
         [string]$FilePath,
@@ -24,6 +35,17 @@ function Start-PicoDmxProcess {
     if ($WorkingDirectory) { $params.WorkingDirectory = $WorkingDirectory }
     if ($IsWindows) { $params.WindowStyle = "Hidden" }
     return Start-Process @params
+}
+
+function Stop-PicoDmxChromeProfileProcesses {
+    param([string]$ProfileDir)
+
+    if (-not $ProfileDir) { return }
+    if (-not ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT)) { return }
+
+    Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($ProfileDir) } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
 
 function Test-PngPixelsEqual {
