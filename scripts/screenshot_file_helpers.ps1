@@ -3,7 +3,8 @@ $ErrorActionPreference = "Stop"
 function Test-PngPixelsEqual {
     param(
         [string]$Path,
-        [byte[]]$Bytes
+        [byte[]]$Bytes,
+        [int]$MaxDifferingPixels = 64
     )
 
     if (-not (Test-Path -LiteralPath $Path)) { return $false }
@@ -34,8 +35,24 @@ function Test-PngPixelsEqual {
                     $candidateBytes = New-Object byte[] $length
                     [System.Runtime.InteropServices.Marshal]::Copy($existingData.Scan0, $existingBytes, 0, $length)
                     [System.Runtime.InteropServices.Marshal]::Copy($candidateData.Scan0, $candidateBytes, 0, $length)
-                    for ($i = 0; $i -lt $length; $i++) {
-                        if ($existingBytes[$i] -ne $candidateBytes[$i]) { return $false }
+                    $differentPixels = 0
+                    $stride = [Math]::Abs($existingData.Stride)
+                    for ($y = 0; $y -lt $existing.Height; $y++) {
+                        $rowOffset = $y * $stride
+                        for ($x = 0; $x -lt $existing.Width; $x++) {
+                            $offset = $rowOffset + ($x * 4)
+                            if (
+                                $existingBytes[$offset] -ne $candidateBytes[$offset] -or
+                                $existingBytes[$offset + 1] -ne $candidateBytes[$offset + 1] -or
+                                $existingBytes[$offset + 2] -ne $candidateBytes[$offset + 2] -or
+                                $existingBytes[$offset + 3] -ne $candidateBytes[$offset + 3]
+                            ) {
+                                $differentPixels++
+                                if ($differentPixels -gt $MaxDifferingPixels) {
+                                    return $false
+                                }
+                            }
+                        }
                     }
                 }
                 finally {
