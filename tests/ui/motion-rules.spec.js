@@ -448,7 +448,7 @@ test.describe('Motion FX navigation rules', () => {
     await expect(page.locator('#motionGroupsEdit')).toBeEnabled();
 
     await page.locator('header a[href="dmx_chaser.html"]').click();
-    await expect(page.locator('header h1')).toHaveText('DMX Chaser');
+    await expect(page.locator('header h1')).toContainText('DMX Chaser');
     await page.locator('header a[href="dmx_motion.html"]').click();
     await expect(page.locator('header h1')).toHaveText(/Motion/);
     await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);

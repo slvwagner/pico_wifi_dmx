@@ -153,9 +153,8 @@ $manifest = [ordered]@{
         sizeBytes = (Get-Item -LiteralPath $firmwareOut).Length
         sha256 = $sha256
     }
+    docs = @{}
 }
-$manifestPath = Join-Path $releaseDir "release-manifest.json"
-$manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestPath -Encoding utf8
 
 foreach ($name in @("README.md", "CHANGELOG.md", "LICENSE", "VERSION")) {
     $src = Join-Path $repoRoot $name
@@ -163,6 +162,43 @@ foreach ($name in @("README.md", "CHANGELOG.md", "LICENSE", "VERSION")) {
         Copy-Item -LiteralPath $src -Destination (Join-Path $releaseDir $name) -Force
     }
 }
+
+$docsOutDir = Join-Path $releaseDir "docs"
+if (-not (Test-Path -LiteralPath $docsOutDir)) {
+    New-Item -ItemType Directory -Path $docsOutDir | Out-Null
+}
+
+$manualFiles = @(
+    "user-manual.md",
+    "user-manual.html",
+    "user-manual-print.html",
+    "user-manual.pdf"
+)
+foreach ($name in $manualFiles) {
+    $src = Join-Path (Join-Path $repoRoot "docs") $name
+    if (Test-Path -LiteralPath $src) {
+        $dst = Join-Path $docsOutDir $name
+        Copy-Item -LiteralPath $src -Destination $dst -Force
+        $manifest.docs[$name] = @{
+            sizeBytes = (Get-Item -LiteralPath $dst).Length
+            sha256 = Get-FileSha256 $dst
+        }
+    }
+}
+
+$screenshotsSrc = Join-Path (Join-Path $repoRoot "docs") "screenshots"
+$screenshotsOut = Join-Path $docsOutDir "screenshots"
+if (Test-Path -LiteralPath $screenshotsSrc) {
+    New-Item -ItemType Directory -Force -Path $screenshotsOut | Out-Null
+    Copy-Item -Path (Join-Path $screenshotsSrc "*") -Destination $screenshotsOut -Force
+    $screenshotCount = (Get-ChildItem -LiteralPath $screenshotsOut -File | Measure-Object).Count
+    $manifest.docs["screenshots"] = @{
+        count = $screenshotCount
+    }
+}
+
+$manifestPath = Join-Path $releaseDir "release-manifest.json"
+$manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8
 
 Write-Host ""
 Write-Host "Release package ready:"
