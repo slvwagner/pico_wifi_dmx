@@ -124,20 +124,30 @@ test.describe('GPIO established rules', () => {
   });
 
   test('iPad layout keeps all GPIO mapping tiles reachable without horizontal overflow', async ({ page }) => {
+    const saved = {
+      ok: true,
+      exists: true,
+      baseUrl: '',
+      enabled: true,
+      mappings: [16, 17, 18, 19].map((pin, i) => ({
+        pin,
+        pull: 'pullup',
+        trigger: 'falling',
+        action: ['dmx_clear', 'chaser_toggle', 'chaser_pause', 'chaser_pause_toggle'][i],
+        slot: 0,
+        debounce_ms: 30
+      })),
+      adcMappings: []
+    };
+    await page.route('**/gpio_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) });
+    });
     await page.addInitScript(() => {
-      localStorage.setItem('dmxGPIOConfig', JSON.stringify({
-        baseUrl: '',
-        enabled: true,
-        mappings: [16, 17, 18, 19].map((pin, i) => ({
-          pin,
-          pull: 'pullup',
-          trigger: 'falling',
-          action: ['dmx_clear', 'chaser_toggle', 'chaser_pause', 'chaser_pause_toggle'][i],
-          slot: 0,
-          debounce_ms: 30
-        })),
-        adcMappings: []
-      }));
+      localStorage.removeItem('dmxGPIOConfig');
     });
     for (const viewport of [
       { width: 768, height: 1024 },
