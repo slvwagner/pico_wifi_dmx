@@ -345,6 +345,13 @@ New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 $args = @(
     "--headless=new",
     "--disable-gpu",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-default-apps",
+    "--disable-extensions",
+    "--disable-sync",
+    "--disable-features=MediaRouter,OptimizationHints",
+    "--no-sandbox",
     "--no-first-run",
     "--user-data-dir=$profileDir",
     "--print-to-pdf=$pdfFull",

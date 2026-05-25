@@ -38,6 +38,7 @@ function New-ChromeArgs {
         "--disable-sync",
         "--disable-features=MediaRouter,OptimizationHints",
         "--hide-scrollbars",
+        "--no-sandbox",
         "--no-first-run",
         "--user-data-dir=$ProfileDir",
         "--window-size=1440,1100",
