@@ -130,7 +130,7 @@ if ($firmwareVersion -ne $Version) {
 if (-not $SkipManual) {
     Invoke-Step "Regenerate manual, PDF, and screenshots" {
         $manualScript = Join-Path $PSScriptRoot "update_user_manual.ps1"
-        $manualArgs = @("-NoProfile", "-File", $manualScript)
+        $manualArgs = @("-File", $manualScript)
         if ($XamppHtdocs) { $manualArgs += @("-XamppHtdocs", $XamppHtdocs) }
         if ($AppFolder) { $manualArgs += @("-AppFolder", $AppFolder) }
         if ($BaseUrl) { $manualArgs += @("-BaseUrl", $BaseUrl) }
