@@ -492,6 +492,31 @@ pwsh -NoProfile -ExecutionPolicy Bypass \
   -ChromePath /usr/bin/google-chrome
 ```
 
+Or store those Ubuntu paths once in ignored local config:
+
+```bash
+cp config/local-paths.example.json config/local-paths.json
+```
+
+Then edit `config/local-paths.json`:
+
+```json
+{
+  "xamppHtdocs": "/opt/lampp/htdocs/editable",
+  "appFolder": "dmx",
+  "baseUrl": "http://localhost/editable/dmx/",
+  "chromePath": "/usr/bin/google-chrome"
+}
+```
+
+With that local config in place, the Ubuntu release command is shorter:
+
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass \
+  -File scripts/prepare_release.ps1 \
+  -Build
+```
+
 For a quick local package that reuses the already-generated manual assets, add `-SkipManual`.
 
 To run the real Pico endpoint and slot tests as part of the release package, add `-RunHardwareTests`. The script creates `tests\pathconfig.local.json` from `tests\pathconfig.example.json` if it is missing, then runs the full Playwright suite with hardware tests enabled.
@@ -508,6 +533,16 @@ pwsh -NoProfile -ExecutionPolicy Bypass \
   -AppFolder dmx \
   -BaseUrl http://localhost/editable/dmx/ \
   -ChromePath /usr/bin/google-chrome
+```
+
+If `config/local-paths.json` already contains the Ubuntu paths, the same hardware-test release command can be shortened to:
+
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass \
+  -File scripts/prepare_release.ps1 \
+  -Build \
+  -RunHardwareTests \
+  -PicoBaseUrl "http://192.168.0.24/"
 ```
 
 Replace `-PicoBaseUrl` with the URL printed by the Pico serial log. Hardware tests write the configured DMX test channels and overwrite the configured chaser/motion test slots.
