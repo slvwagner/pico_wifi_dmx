@@ -16,7 +16,7 @@ if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 
 $chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
-$profileDir = Join-Path $env:TEMP "pico-dmx-docshots"
+$profileDir = Join-Path $env:TEMP ("pico-dmx-docshots-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
 if (Test-Path -LiteralPath $profileDir) {

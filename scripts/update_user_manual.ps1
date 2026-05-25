@@ -4,6 +4,7 @@ param(
     [string]$BaseUrl = "",
     [string]$ChromePath = "",
     [string]$ManualDataDir = "docs/manual-data",
+    [string]$ScreenshotBaseUrl = "",
     [switch]$SkipInitialSync,
     [switch]$SkipScreenshots,
     [switch]$SkipFinalSync
@@ -24,6 +25,7 @@ $screenshotsDir = Join-Path $repoRoot "docs\screenshots"
 $chrome = $ChromePath
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
 $xamppDataPath = Join-Path (Join-Path $XamppHtdocs $AppFolder) "data"
+$localApiDataPath = Join-Path (Join-Path $repoRoot "api") "data"
 
 function Invoke-Step {
     param(
@@ -69,25 +71,100 @@ function Copy-JsonFiles {
     Copy-Item -Path (Join-Path $SourceDir "*.json") -Destination $DestinationDir -Force -ErrorAction SilentlyContinue
 }
 
-function Start-ManualDataSnapshot {
+function Start-DataSnapshot {
+    param(
+        [string]$DestinationDir
+    )
     if (-not (Test-Path -LiteralPath $manualDataPath)) {
         throw "Manual data baseline not found: $manualDataPath"
     }
-    if (-not (Test-Path -LiteralPath $xamppDataPath)) {
-        throw "XAMPP data directory not found: $xamppDataPath"
-    }
     $backup = Join-Path $env:TEMP ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
     New-Item -ItemType Directory -Force -Path $backup | Out-Null
-    Copy-JsonFiles -SourceDir $xamppDataPath -DestinationDir $backup
-    Copy-JsonFiles -SourceDir $manualDataPath -DestinationDir $xamppDataPath
+    if (Test-Path -LiteralPath $DestinationDir) {
+        Copy-JsonFiles -SourceDir $DestinationDir -DestinationDir $backup
+    }
+    Copy-JsonFiles -SourceDir $manualDataPath -DestinationDir $DestinationDir
     return $backup
 }
 
-function Restore-ManualDataSnapshot {
-    param([string]$BackupDir)
+function Restore-DataSnapshot {
+    param(
+        [string]$BackupDir,
+        [string]$DestinationDir
+    )
+    if (-not $DestinationDir) { return }
+    if (Test-Path -LiteralPath $DestinationDir) {
+        Remove-Item -LiteralPath $DestinationDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
     if ($BackupDir -and (Test-Path -LiteralPath $BackupDir)) {
-        Copy-JsonFiles -SourceDir $BackupDir -DestinationDir $xamppDataPath
+        $backupFiles = @(Get-ChildItem -LiteralPath $BackupDir -File -Filter "*.json" -ErrorAction SilentlyContinue)
+        if ($backupFiles.Count) {
+            New-Item -ItemType Directory -Force -Path $DestinationDir | Out-Null
+            Copy-JsonFiles -SourceDir $BackupDir -DestinationDir $DestinationDir
+        }
         Remove-Item -LiteralPath $BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-FreeTcpPort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    try {
+        $listener.Start()
+        return $listener.LocalEndpoint.Port
+    }
+    finally {
+        $listener.Stop()
+    }
+}
+
+function Start-ScreenshotServer {
+    param([string]$Url)
+    if ($Url) {
+        return [pscustomobject]@{
+            BaseUrl = $Url.TrimEnd('/')
+            Process = $null
+        }
+    }
+
+    $php = Get-Command php -ErrorAction SilentlyContinue
+    $phpPath = if ($php) { $php.Source } else { "" }
+    if (-not $phpPath) {
+        $htdocsPath = Resolve-Path -LiteralPath $XamppHtdocs -ErrorAction SilentlyContinue
+        if ($htdocsPath) {
+            $xamppRoot = Split-Path -Parent $htdocsPath.Path
+            $xamppPhp = Join-Path (Join-Path $xamppRoot "php") "php.exe"
+            if (Test-Path -LiteralPath $xamppPhp) {
+                $phpPath = $xamppPhp
+            }
+        }
+    }
+    if (-not $phpPath) {
+        throw "PHP was not found on PATH or under the configured XAMPP path. Install PHP or pass -ScreenshotBaseUrl to a local dev-router instance."
+    }
+
+    $port = Get-FreeTcpPort
+    $base = "http://127.0.0.1:$port"
+    $router = Join-Path $PSScriptRoot "dev-router.php"
+    $process = Start-Process -FilePath $phpPath -ArgumentList @("-S", "127.0.0.1:$port", $router) -WorkingDirectory $repoRoot -WindowStyle Hidden -PassThru
+    $ready = $false
+    for ($i = 0; $i -lt 40; $i++) {
+        try {
+            $response = Invoke-WebRequest -Uri ($base + "/VERSION") -UseBasicParsing -TimeoutSec 2
+            if ($response.StatusCode -eq 200) {
+                $ready = $true
+                break
+            }
+        } catch {
+            Start-Sleep -Milliseconds 250
+        }
+    }
+    if (-not $ready) {
+        if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+        throw "Screenshot PHP server did not start at $base"
+    }
+    return [pscustomobject]@{
+        BaseUrl = $base
+        Process = $process
     }
 }
 
@@ -121,35 +198,38 @@ try {
         & (Join-Path $PSScriptRoot "check_screenshot_manifest.ps1")
     }
 
-    if (-not $SkipInitialSync) {
-        Invoke-Step "Sync current web app to XAMPP for screenshot source" {
-            & (Join-Path $PSScriptRoot "sync_fixture_controller_to_xampp.ps1") -XamppHtdocs $XamppHtdocs -AppFolder $AppFolder -BaseUrl $BaseUrl
-        }
-    }
-
     if (-not $SkipScreenshots) {
         $script:manualDataBackup = $null
+        $script:screenshotServer = $null
         try {
-            Invoke-Step "Use manual data baseline for screenshots" {
-                $script:manualDataBackup = Start-ManualDataSnapshot
-                Write-Host "Copied manual data from $manualDataPath to $xamppDataPath"
+            Invoke-Step "Use local manual data baseline for screenshots" {
+                $script:manualDataBackup = Start-DataSnapshot -DestinationDir $localApiDataPath
+                Write-Host "Copied manual data from $manualDataPath to $localApiDataPath"
+            }
+
+            Invoke-Step "Start local screenshot server" {
+                $script:screenshotServer = Start-ScreenshotServer -Url $ScreenshotBaseUrl
+                Write-Host "Capturing manual screenshots from $($script:screenshotServer.BaseUrl)"
             }
 
             Invoke-Step "Capture deterministic controller screenshots" {
-                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath
-                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $BaseUrl -OutDir "docs/screenshots" -XamppDataDir $xamppDataPath -ChromePath $ChromePath
+                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath -Port (Get-FreeTcpPort)
+                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -XamppDataDir $localApiDataPath -ChromePath $ChromePath -Port (Get-FreeTcpPort)
             }
 
             Invoke-Step "Capture page overview screenshots" {
-                Save-PageScreenshot "motion-fx.png" ($BaseUrl.TrimEnd('/') + "/dmx_motion.html")
-                Save-PageScreenshot "gpio-control.png" ($BaseUrl.TrimEnd('/') + "/dmx_gpio.html")
-                Save-PageScreenshot "dmx-monitor.png" ($BaseUrl.TrimEnd('/') + "/dmx_monitor.html")
-                Save-PageScreenshot "benchmark.png" ($BaseUrl.TrimEnd('/') + "/test/")
+                Save-PageScreenshot "motion-fx.png" ($script:screenshotServer.BaseUrl + "/dmx_motion.html")
+                Save-PageScreenshot "gpio-control.png" ($script:screenshotServer.BaseUrl + "/dmx_gpio.html")
+                Save-PageScreenshot "dmx-monitor.png" ($script:screenshotServer.BaseUrl + "/dmx_monitor.html")
+                Save-PageScreenshot "benchmark.png" ($script:screenshotServer.BaseUrl + "/test/")
             }
         }
         finally {
-            Invoke-Step "Restore live XAMPP data after screenshots" {
-                Restore-ManualDataSnapshot -BackupDir $script:manualDataBackup
+            Invoke-Step "Restore local screenshot data" {
+                Restore-DataSnapshot -BackupDir $script:manualDataBackup -DestinationDir $localApiDataPath
+                if ($script:screenshotServer -and $script:screenshotServer.Process -and -not $script:screenshotServer.Process.HasExited) {
+                    Stop-Process -Id $script:screenshotServer.Process.Id -Force
+                }
             }
         }
 

@@ -20,7 +20,7 @@ if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 $chrome = $ChromePath
 $outPath = Join-Path $repoRoot $OutDir
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
-$profileDir = Join-Path $env:TEMP "pico-dmx-chaser-docshot"
+$profileDir = Join-Path $env:TEMP ("pico-dmx-chaser-docshot-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
 $backupDataDir = Join-Path $env:TEMP ("pico-dmx-manual-data-backup-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
 $url = $BaseUrl.TrimEnd("/") + "/dmx_chaser.html?docshot=" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
