@@ -50,12 +50,22 @@ function Save-PageScreenshot {
     New-Item -ItemType Directory -Force -Path $screenshotsDir | Out-Null
     $out = Join-Path $screenshotsDir $Name
     $tempOut = Join-Path $screenshotsDir (".tmp-" + [IO.Path]::GetFileName($Name))
-    & $chrome --headless=new --disable-gpu --hide-scrollbars "--window-size=$Width,$Height" "--screenshot=$tempOut" $Url | Out-Null
-    if (-not (Test-Path -LiteralPath $tempOut)) {
-        throw "Screenshot was not created: $tempOut"
+    $profileDir = Get-PicoDmxTempPath ("pico-dmx-page-shot-" + [System.Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+    $shotUrl = $Url
+    $separator = if ($shotUrl.Contains("?")) { "&" } else { "?" }
+    $shotUrl = $shotUrl + $separator + "docshot=" + ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+    try {
+        & $chrome --headless=new --disable-gpu --hide-scrollbars --no-first-run "--user-data-dir=$profileDir" "--window-size=$Width,$Height" "--screenshot=$tempOut" $shotUrl | Out-Null
+        if (-not (Test-Path -LiteralPath $tempOut)) {
+            throw "Screenshot was not created: $tempOut"
+        }
+        $bytes = [IO.File]::ReadAllBytes($tempOut)
     }
-    $bytes = [IO.File]::ReadAllBytes($tempOut)
-    Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
+    finally {
+        Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
     Write-PngIfChanged -Path $out -Bytes $bytes
 }
 
