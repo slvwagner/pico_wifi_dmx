@@ -496,6 +496,22 @@ For a quick local package that reuses the already-generated manual assets, add `
 
 To run the real Pico endpoint and slot tests as part of the release package, add `-RunHardwareTests`. The script creates `tests\pathconfig.local.json` from `tests\pathconfig.example.json` if it is missing, then runs the full Playwright suite with hardware tests enabled.
 
+Example Ubuntu hardware-test release command for this local XAMPP layout:
+
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass \
+  -File scripts/prepare_release.ps1 \
+  -Build \
+  -RunHardwareTests \
+  -PicoBaseUrl "http://192.168.0.24/" \
+  -XamppHtdocs /opt/lampp/htdocs/editable \
+  -AppFolder dmx \
+  -BaseUrl http://localhost/editable/dmx/ \
+  -ChromePath /usr/bin/google-chrome
+```
+
+Replace `-PicoBaseUrl` with the URL printed by the Pico serial log. Hardware tests write the configured DMX test channels and overwrite the configured chaser/motion test slots.
+
 The script copies `build/pico_wifi_dmx.uf2` into:
 
 ```text
