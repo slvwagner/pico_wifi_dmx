@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.4 - 2026-06-16
+
+Changed:
+
+- Added a shared Pico base URL connection indicator across the browser UI.
+- The Pico base URL field now checks `/status.json`, turns dark green when connected, dark red when unreachable, and keeps polling so it can recover after flashing or rebooting the Pico.
+- Updated the user manual and generated manual assets for the Pico URL connection indicator.
+
 ## 0.9.3 - 2026-05-24
 
 Changed:
