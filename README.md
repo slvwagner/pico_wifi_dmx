@@ -212,6 +212,19 @@ Optional firmware settings:
 -DDMX_CHANNELS=512
 ```
 
+Default hardware wiring:
+
+```text
+Pico GPIO2 -> RS-485/DMX driver DI input
+Pico GND   -> RS-485/DMX driver GND
+Pico 3V3   -> RS-485/DMX driver VCC, if the module supports 3.3 V
+Driver D+  -> DMX XLR pin 3
+Driver D-  -> DMX XLR pin 2
+Shield/GND -> DMX XLR pin 1
+```
+
+Do not connect Pico GPIO2 directly to a DMX cable. DMX uses an RS-485 differential line, so the Pico output must go through a suitable RS-485/DMX line driver. GPIO3 is only the optional frame-trigger/debug pin, not a DMX data output.
+
 Flash with BOOTSEL by copying the UF2, or use picotool/OpenOCD as described in the deeper firmware sections below.
 
 ### Getting Started for Developers
@@ -1020,6 +1033,8 @@ Optional overrides:
 # Universe size — limits channels in firmware and UI (default 512)
 -DDMX_CHANNELS=46
 ```
+
+The default DMX data output is Pico `GPIO2`. Connect that pin to the `DI` or transmit input of an RS-485/DMX driver module. Then connect the driver's differential output to the DMX connector: `D+` to XLR pin 3, `D-` to XLR pin 2, and ground/shield to XLR pin 1. The optional `DMX_TRIGGER_PIN` on GPIO3 is a debug/frame trigger signal only.
 
 ---
 
