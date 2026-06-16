@@ -70,12 +70,6 @@ Copy the web app to XAMPP:
 .\scripts\sync_fixture_controller_to_xampp.ps1
 ```
 
-Or use the deployment wrapper, which syncs the app and verifies the deployed pages:
-
-```powershell
-.\scripts\update_xampp_server.ps1
-```
-
 Open the UI:
 
 ```text
@@ -99,11 +93,11 @@ If port `8000` is already in use, choose another port in both commands, for exam
 
 The built-in PHP server stores setup JSON under `api/data/`. This is local runtime data and is ignored by Git.
 
-`127.0.0.1` is only reachable from the same Ubuntu machine. To use the UI from another device on the network, deploy it into XAMPP instead. On Ubuntu XAMPP installs commonly live under `/opt/lampp`; this project can use the PowerShell deployment wrapper:
+`127.0.0.1` is only reachable from the same Ubuntu machine. To use the UI from another device on the network, deploy it into XAMPP instead. On Ubuntu XAMPP installs commonly live under `/opt/lampp`; this project can still use the PowerShell sync script:
 
 ```bash
 pwsh -NoProfile -ExecutionPolicy Bypass \
-  -File scripts/update_xampp_server.ps1 \
+  -File scripts/sync_fixture_controller_to_xampp.ps1 \
   -XamppHtdocs /opt/lampp/htdocs \
   -AppFolder dmx \
   -BaseUrl http://localhost/dmx/
@@ -113,16 +107,10 @@ If your XAMPP `htdocs` root is not writable by your user, deploy under a writabl
 
 ```bash
 pwsh -NoProfile -ExecutionPolicy Bypass \
-  -File scripts/update_xampp_server.ps1 \
+  -File scripts/sync_fixture_controller_to_xampp.ps1 \
   -XamppHtdocs /opt/lampp/htdocs/editable \
   -AppFolder dmx \
   -BaseUrl http://localhost/editable/dmx/
-```
-
-After `config/local-paths.json` contains the Ubuntu paths, updating this machine's XAMPP copy is just:
-
-```bash
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/update_xampp_server.ps1
 ```
 
 Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device.
@@ -426,7 +414,6 @@ pico_wifi_dmx/
 │  └─ screenshots/           Generated manual/README screenshots
 ├─ scripts/                  XAMPP sync and documentation automation
 │  ├─ sync_fixture_controller_to_xampp.ps1
-│  ├─ update_xampp_server.ps1
 │  ├─ update_user_manual.ps1
 │  ├─ capture_readme_screenshots.ps1
 │  ├─ capture_chaser_screenshot.ps1
@@ -963,7 +950,7 @@ HTML files are developed locally and synced to XAMPP with:
 .\scripts\sync_fixture_controller_to_xampp.ps1
 ```
 
-Use `.\scripts\update_xampp_server.ps1` when you also want a quick HTTP verification after the sync. By default the scripts use the example XAMPP target `E:\Software\xampp\htdocs\dmx\`. To use another location, create `config/local-paths.json` from `config/local-paths.example.json` or pass `-XamppHtdocs`, `-AppFolder`, and `-BaseUrl` directly to the script.
+By default the scripts use the example XAMPP target `E:\Software\xampp\htdocs\dmx\`. To use another location, create `config/local-paths.json` from `config/local-paths.example.json` or pass `-XamppHtdocs`, `-AppFolder`, and `-BaseUrl` directly to the script.
 
 ---
 
@@ -991,7 +978,6 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 | `api/motion_setup.php` | REST handler — save/load Motion FX setup, saved effect recipes, and mirrored Pico slot payloads (`data/motion_setup.json`) |
 | `api/ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
 | `scripts/sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
-| `scripts/update_xampp_server.ps1` | PowerShell script — runs the XAMPP sync and verifies the deployed pages respond |
 
 ---
 

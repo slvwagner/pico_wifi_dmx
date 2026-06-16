@@ -147,6 +147,7 @@ strong { color: #ffffff; }
 <ol>
 <li>Open <code>http://localhost/dmx/</code>.</li>
 <li>Enter the Pico base URL, for example <code>http://192.168.0.24/</code>.</li>
+<li>The Pico base URL field checks <code>/status.json</code> automatically. It turns dark green when the Pico is reachable, dark red when it cannot connect, and keeps retrying in the background so it can recover after flashing or rebooting the Pico.</li>
 <li>Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.</li>
 <li>Fixture setup changes are autosaved to the XAMPP server. Use JSON export before large changes when you want an extra backup.</li>
 </ol>
