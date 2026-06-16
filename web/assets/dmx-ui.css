@@ -17,6 +17,10 @@ h3{font-size:15px;margin:0}
 label{display:grid;gap:6px;color:var(--muted);font-size:13px}
 input,button,select,textarea{font:inherit}
 input[type=number],input[type=url],input[type=text],select,textarea{padding:10px;background:#0a0d10;color:var(--text);border:1px solid var(--line);border-radius:6px}
+input[type=url].pico-url-empty{background:#0a0d10;border-color:var(--line)}
+input[type=url].pico-url-checking{background:#17212a;border-color:#45606f}
+input[type=url].pico-url-connected{background:#08281e;border-color:#238966;box-shadow:0 0 0 1px rgba(55,196,164,.28) inset}
+input[type=url].pico-url-disconnected{background:#2b1010;border-color:#8c3535;box-shadow:0 0 0 1px rgba(255,122,122,.24) inset}
 input[type=number]{width:90px}
 input[type=url]{min-width:220px}
 input[type=text]{min-width:120px}

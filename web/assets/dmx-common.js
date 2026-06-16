@@ -76,17 +76,142 @@
     return input.value;
   }
 
+  function setPicoUrlStatus(input,status,message=''){
+    if(!input)return;
+    ['pico-url-empty','pico-url-checking','pico-url-connected','pico-url-disconnected'].forEach(cls=>input.classList.remove(cls));
+    const normalized=status||'empty';
+    input.dataset.picoStatus=normalized;
+    input.classList.add('pico-url-'+normalized);
+    input.title=message||(
+      normalized==='connected'?'Pico connected':
+      normalized==='disconnected'?'Pico not reachable':
+      normalized==='checking'?'Checking Pico connection':
+      'Enter Pico base URL'
+    );
+  }
+
+  async function checkPicoConnection(input,options={}){
+    if(!input)return 'empty';
+    const raw=String(input.value||'').trim();
+    if(!raw){
+      setPicoUrlStatus(input,'empty');
+      return 'empty';
+    }
+    let root='';
+    const normalizedRoot=()=>{
+      const current=String(input.value||'').trim();
+      if(!/^https?:\/\//i.test(current))return '';
+      try{return new URL(current,location.href).href.replace(/\/+$/,'');}
+      catch(_){return '';}
+    };
+    try{
+      if(!/^https?:\/\//i.test(raw))throw new Error('Use http:// or https://');
+      root=new URL(raw,location.href).href.replace(/\/+$/,'');
+    }catch(e){
+      setPicoUrlStatus(input,'disconnected','Invalid Pico URL - use http:// or https://');
+      return 'invalid';
+    }
+
+    const token=String(Date.now())+Math.random();
+    input.dataset.picoCheckToken=token;
+    if(options.showChecking!==false)setPicoUrlStatus(input,'checking','Checking Pico connection...');
+    const timeoutMs=Number.isFinite(options.timeoutMs)?options.timeoutMs:1500;
+    const controller=typeof AbortController!=='undefined'?new AbortController():null;
+    const timeout=setTimeout(()=>controller?.abort(),timeoutMs);
+    try{
+      const r=await fetch(root+'/status.json',{cache:'no-store',signal:controller?.signal});
+      if(input.dataset.picoCheckToken!==token)return 'stale';
+      if(normalizedRoot()!==root)return 'stale';
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const j=await r.json();
+      if(!j||!j.dmx)throw new Error('Unexpected Pico status response');
+      const channels=j.dmx.channels||'?';
+      const frame=j.dmx.frame_count??'?';
+      setPicoUrlStatus(input,'connected','Pico connected - '+channels+' channels - frame '+frame);
+      return 'connected';
+    }catch(e){
+      if(input.dataset.picoCheckToken===token&&normalizedRoot()===root){
+        setPicoUrlStatus(input,'disconnected','Pico not reachable: '+(e.name==='AbortError'?'timeout':e.message));
+      }
+      return 'disconnected';
+    }finally{
+      clearTimeout(timeout);
+    }
+  }
+
+  function observeInputValue(input,onChange){
+    const proto=Object.getPrototypeOf(input);
+    const desc=proto&&Object.getOwnPropertyDescriptor(proto,'value');
+    if(!desc||typeof desc.get!=='function'||typeof desc.set!=='function')return;
+    Object.defineProperty(input,'value',{
+      configurable:true,
+      get(){return desc.get.call(this);},
+      set(value){
+        const before=desc.get.call(this);
+        desc.set.call(this,value);
+        if(value!==before)onChange();
+      }
+    });
+  }
+
   function bindBaseUrl(input,options={}){
     if(!input)return;
+    if(options&&options.nodeType===1)options={};
     applyBaseUrl(input,options.fallback);
     let timer=0;
-    input.addEventListener('input',()=>{
+    let checkTimer=0;
+    let pollTimer=0;
+    let checking=false;
+    let pendingCheck=false;
+    const connectedPollMs=Number.isFinite(options.connectedPollMs)?options.connectedPollMs:10000;
+    const disconnectedPollMs=Number.isFinite(options.disconnectedPollMs)?options.disconnectedPollMs:3000;
+    const clearPoll=()=>clearTimeout(pollTimer);
+    const schedulePoll=status=>{
+      clearPoll();
+      if(!input.value.trim()||status==='empty'||status==='invalid')return;
+      const wait=status==='connected'?connectedPollMs:disconnectedPollMs;
+      pollTimer=setTimeout(()=>runCheck(false),wait);
+    };
+    const runCheck=async(showChecking=true)=>{
+      if(checking){
+        pendingCheck=true;
+        return;
+      }
+      checking=true;
+      try{
+        const status=await checkPicoConnection(input,{...options,showChecking});
+        if(status!=='stale')schedulePoll(status);
+      }finally{
+        checking=false;
+        if(pendingCheck){
+          pendingCheck=false;
+          runCheck(true);
+        }
+      }
+    };
+    const scheduleCheck=()=>{
+      clearTimeout(checkTimer);
+      clearPoll();
+      const wait=Number.isFinite(options.checkDebounceMs)?options.checkDebounceMs:650;
+      checkTimer=setTimeout(()=>runCheck(true),wait);
+    };
+    observeInputValue(input,scheduleCheck);
+    const handleInput=()=>{
       localStorage.setItem(BASE_URL_KEY,input.value);
+      scheduleCheck();
       if(typeof options.onInput!=='function')return;
       clearTimeout(timer);
       const wait=Number.isFinite(options.debounceMs)?options.debounceMs:0;
       timer=setTimeout(()=>options.onInput(input.value),wait);
+    };
+    input.addEventListener('input',handleInput);
+    input.addEventListener('change',scheduleCheck);
+    input.addEventListener('blur',()=>runCheck(true));
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible')scheduleCheck();
+      else clearPoll();
     });
+    scheduleCheck();
   }
 
   function preferStoredBaseUrl(input,fallback=''){
