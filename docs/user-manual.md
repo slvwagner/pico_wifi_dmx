@@ -52,27 +52,6 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 4. Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.
 5. Fixture setup changes are autosaved to the XAMPP server. Use JSON export before large changes when you want an extra backup.
 
-### Create a Fixture Profile
-
-![Fixture profile and control editor](screenshots/fixture-controller-profile-controls.png)
-
-A fixture profile describes the DMX personality of one fixture type.
-
-1. Open **Fixture Profiles**.
-2. Enter a profile name, mode name, and channel count.
-3. Click **Add profile**.
-4. Select the profile.
-5. Use **Add / Edit Control** to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.
-
-Each control stores its own DMX channel mapping. For example, a moving head can have:
-
-- Dimmer on channel 1
-- Pan/Tilt 16-bit on channels 2/3 and 4/5
-- RGBWA color on channels 6-10
-- Gobo wheel on channel 12
-
-To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
-
 ### Fixture Library
 
 ![Fixture Library search and mode preview](screenshots/fixture-controller-fixture-library.png)
@@ -96,6 +75,27 @@ The converter keeps the richer Open Fixture Library data where the controller ca
 - Wheel DMX ranges are preserved. Normal slot buttons send the midpoint of the range.
 - Adjustable wheel functions such as `WheelShake`, `WheelRotation`, and `WheelSlotRotation` show a bounded speed/range slider after you select that option.
 - Unsupported or ambiguous channels are kept as simple 8-bit sliders so no channel is silently lost.
+
+### Create a Fixture Profile
+
+![Fixture profile and control editor](screenshots/fixture-controller-profile-controls.png)
+
+A fixture profile describes the DMX personality of one fixture type. Use this section when the wanted fixture is not available in the **Fixture Library**, or when you want to fine-tune an imported profile.
+
+1. Open **Fixture Profiles**.
+2. Enter a profile name, mode name, and channel count.
+3. Click **Add profile**.
+4. Select the profile.
+5. Use **Add / Edit Control** to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.
+
+Each control stores its own DMX channel mapping. For example, a moving head can have:
+
+- Dimmer on channel 1
+- Pan/Tilt 16-bit on channels 2/3 and 4/5
+- RGBWA color on channels 6-10
+- Gobo wheel on channel 12
+
+To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
 
 ### Default and Blackout Values
 
@@ -378,6 +378,12 @@ The Chaser screenshot is captured with the important boxes visible on purpose: *
 7. Click an empty Pico slot to upload the current chase to that slot.
 8. Play the slot from the Pico.
 
+### Main Work Area
+
+The Chaser page is arranged from top to bottom as **Participating Controls**, **Edit Step**, and **Pico Playback**. Use the cards in that order when building a chase: choose the fixture controls that may participate, edit the selected step values, then upload or play Pico slots after the chase behaves correctly.
+
+The **Toolboxes** sidebar sits beside the main work area on desktop-sized screens. It contains the repeated tools for Groups, Chases, Palettes, Chase Steps, Fan Out, and Chase Playback.
+
 ### Toolbox Sidebar
 
 Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on desktop-sized screens.
@@ -601,6 +607,8 @@ Supported effects include:
 
 Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Amplitude** slider as the effect depth.
 
+### Participating Controls
+
 The **Participating Controls** panel uses an **Effect target** dropdown. The default target is **None**. With **None** selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.
 
 Hard reload, including Ctrl+F5, resets **Effect target** to **None** and clears playback participation. Normal navigation away from Motion FX and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use **Load**, import a Motion JSON file, or recall a saved **Effect** tile when you want to explicitly restore saved target and participant data.
@@ -634,6 +642,22 @@ The **Effects** toolbox stores reusable effect recipes. Click an empty effect sl
 
 **Effect Parameters** and **Effects** share one toolbox color and collapse together. Use **-- all** on either box to collapse the whole effect group, and **+ all** to reopen it.
 
+### Pico Motion Slots
+
+The Pico Motion slot upload now uses the same selected **Effect target** as the browser page.
+
+- If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
+- If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses `AMP1` and zero `AMP2`; Tilt Swing uses zero `AMP1` and `AMP2`.
+- If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use `AMP1` for **Amplitude** and force `AMP2` to zero.
+- Click an empty Pico slot to upload the current effect to that slot.
+- Click a loaded slot once to select it for start, stop, or BPM changes.
+- Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
+- Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
+- The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
+- Up to 64 Motion FX slots can be loaded on the Pico.
+
+For scalar targets, set the current value first, then upload/start the slot. For example, set a dimmer to its desired base brightness and use Sine if you want the Pico to pulse above and below that base value.
+
 ### Motion FX Toolboxes
 
 The Motion FX page uses five toolboxes in the shared sidebar.
@@ -657,22 +681,6 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 ![Motion Palettes toolbox](screenshots/motion-toolbox-palettes.png)
 
 **Palettes** recalls compatible palette values into Motion FX. A position palette can set pan/tilt centers, while color, dimmer, or beam palettes can set scalar centers when the selected effect target matches.
-
-### Pico Motion Slots
-
-The Pico Motion slot upload now uses the same selected **Effect target** as the browser page.
-
-- If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
-- If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses `AMP1` and zero `AMP2`; Tilt Swing uses zero `AMP1` and `AMP2`.
-- If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use `AMP1` for **Amplitude** and force `AMP2` to zero.
-- Click an empty Pico slot to upload the current effect to that slot.
-- Click a loaded slot once to select it for start, stop, or BPM changes.
-- Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
-- Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
-- The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
-- Up to 64 Motion FX slots can be loaded on the Pico.
-
-For scalar targets, set the current value first, then upload/start the slot. For example, set a dimmer to its desired base brightness and use Sine if you want the Pico to pulse above and below that base value.
 
 ### Recommended Workflow
 

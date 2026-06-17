@@ -151,24 +151,6 @@ strong { color: #ffffff; }
 <li>Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.</li>
 <li>Fixture setup changes are autosaved to the XAMPP server. Use JSON export before large changes when you want an extra backup.</li>
 </ol>
-<h3 id="create-a-fixture-profile">Create a Fixture Profile</h3>
-<p><img src="screenshots/fixture-controller-profile-controls.png" alt="Fixture profile and control editor"></p>
-<p>A fixture profile describes the DMX personality of one fixture type.</p>
-<ol>
-<li>Open <strong>Fixture Profiles</strong>.</li>
-<li>Enter a profile name, mode name, and channel count.</li>
-<li>Click <strong>Add profile</strong>.</li>
-<li>Select the profile.</li>
-<li>Use <strong>Add / Edit Control</strong> to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.</li>
-</ol>
-<p>Each control stores its own DMX channel mapping. For example, a moving head can have:</p>
-<ul>
-<li>Dimmer on channel 1</li>
-<li>Pan/Tilt 16-bit on channels 2/3 and 4/5</li>
-<li>RGBWA color on channels 6-10</li>
-<li>Gobo wheel on channel 12</li>
-</ul>
-<p>To change an existing control, click <strong>Edit</strong> in the Fixture Profiles list. The <strong>Add / Edit Control</strong> card opens automatically and loads the selected control. After editing, click <strong>Save control</strong>. The <strong>Fixture Profiles</strong> collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.</p>
 <h3 id="fixture-library">Fixture Library</h3>
 <p><img src="screenshots/fixture-controller-fixture-library.png" alt="Fixture Library search and mode preview"></p>
 <p>The <strong>Fixture Library</strong> panel imports fixture profiles from the converted Open Fixture Library export. Use it when you want to start from an existing fixture definition instead of building every channel by hand.</p>
@@ -190,6 +172,24 @@ strong { color: #ffffff; }
 <li>Adjustable wheel functions such as <code>WheelShake</code>, <code>WheelRotation</code>, and <code>WheelSlotRotation</code> show a bounded speed/range slider after you select that option.</li>
 <li>Unsupported or ambiguous channels are kept as simple 8-bit sliders so no channel is silently lost.</li>
 </ul>
+<h3 id="create-a-fixture-profile">Create a Fixture Profile</h3>
+<p><img src="screenshots/fixture-controller-profile-controls.png" alt="Fixture profile and control editor"></p>
+<p>A fixture profile describes the DMX personality of one fixture type. Use this section when the wanted fixture is not available in the <strong>Fixture Library</strong>, or when you want to fine-tune an imported profile.</p>
+<ol>
+<li>Open <strong>Fixture Profiles</strong>.</li>
+<li>Enter a profile name, mode name, and channel count.</li>
+<li>Click <strong>Add profile</strong>.</li>
+<li>Select the profile.</li>
+<li>Use <strong>Add / Edit Control</strong> to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.</li>
+</ol>
+<p>Each control stores its own DMX channel mapping. For example, a moving head can have:</p>
+<ul>
+<li>Dimmer on channel 1</li>
+<li>Pan/Tilt 16-bit on channels 2/3 and 4/5</li>
+<li>RGBWA color on channels 6-10</li>
+<li>Gobo wheel on channel 12</li>
+</ul>
+<p>To change an existing control, click <strong>Edit</strong> in the Fixture Profiles list. The <strong>Add / Edit Control</strong> card opens automatically and loads the selected control. After editing, click <strong>Save control</strong>. The <strong>Fixture Profiles</strong> collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.</p>
 <h3 id="default-and-blackout-values">Default and Blackout Values</h3>
 <p>Each control can store a <strong>Default</strong> value and a <strong>Blackout</strong> value.</p>
 <p>Default values are useful for a normal starting look, for example:</p>
@@ -398,6 +398,9 @@ strong { color: #ffffff; }
 <li>Click an empty Pico slot to upload the current chase to that slot.</li>
 <li>Play the slot from the Pico.</li>
 </ol>
+<h3 id="main-work-area">Main Work Area</h3>
+<p>The Chaser page is arranged from top to bottom as <strong>Participating Controls</strong>, <strong>Edit Step</strong>, and <strong>Pico Playback</strong>. Use the cards in that order when building a chase: choose the fixture controls that may participate, edit the selected step values, then upload or play Pico slots after the chase behaves correctly.</p>
+<p>The <strong>Toolboxes</strong> sidebar sits beside the main work area on desktop-sized screens. It contains the repeated tools for Groups, Chases, Palettes, Chase Steps, Fan Out, and Chase Playback.</p>
 <h3 id="toolbox-sidebar">Toolbox Sidebar</h3>
 <p>Controller, Chaser, and Motion FX use a shared right-side toolbox sidebar on desktop-sized screens.</p>
 <ul>
@@ -580,6 +583,7 @@ strong { color: #ffffff; }
 <li>Scalar targets: Sine, Pulse</li>
 </ul>
 <p>Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the <strong>Amplitude</strong> slider as the effect depth.</p>
+<h3 id="participating-controls-2">Participating Controls</h3>
 <p>The <strong>Participating Controls</strong> panel uses an <strong>Effect target</strong> dropdown. The default target is <strong>None</strong>. With <strong>None</strong> selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.</p>
 <p>Hard reload, including Ctrl+F5, resets <strong>Effect target</strong> to <strong>None</strong> and clears playback participation. Normal navigation away from Motion FX and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use <strong>Load</strong>, import a Motion JSON file, or recall a saved <strong>Effect</strong> tile when you want to explicitly restore saved target and participant data.</p>
 <p>One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.</p>
@@ -601,18 +605,6 @@ strong { color: #ffffff; }
 <p>The <strong>Effects</strong> toolbox stores reusable effect recipes. Click an empty effect slot to save the selected Effect target, participating fixtures, effect type, BPM, amplitudes, spread, and phase offsets. Effects do not store the current center/base values, so the same saved effect can be reused with different scene or palette centers. Clicking a saved effect recalls the recipe without sending DMX and without uploading to a Pico slot. The small pencil opens <strong>Edit Tile</strong> for the effect name, background, and optional drawing/upload.</p>
 <p><img src="screenshots/motion-edit-tile.png" alt="Motion Edit Tile modal"></p>
 <p><strong>Effect Parameters</strong> and <strong>Effects</strong> share one toolbox color and collapse together. Use <strong>-- all</strong> on either box to collapse the whole effect group, and <strong>+ all</strong> to reopen it.</p>
-<h3 id="motion-fx-toolboxes">Motion FX Toolboxes</h3>
-<p>The Motion FX page uses five toolboxes in the shared sidebar.</p>
-<p><img src="screenshots/motion-toolbox-groups.png" alt="Motion Groups toolbox"></p>
-<p><strong>Groups</strong> filters the fixture matrix for the selected effect target. When <strong>Effect target</strong> is <strong>None</strong>, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available when two or more fixtures have that target. For example, after a hard reload, choosing <strong>Dimmer</strong> lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.</p>
-<p><img src="screenshots/motion-toolbox-effect-parameters.png" alt="Motion Effect Parameters toolbox"></p>
-<p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one <strong>Amplitude</strong> control.</p>
-<p><img src="screenshots/motion-toolbox-effects.png" alt="Motion Effects toolbox"></p>
-<p><strong>Effects</strong> stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, amplitude, spread, and phase offsets. It does not store fixed center values.</p>
-<p><img src="screenshots/motion-toolbox-scenes.png" alt="Motion Scenes toolbox"></p>
-<p><strong>Scenes</strong> is read-only on Motion FX. Recalling a scene updates the motion center/base values used by effects. When a Pico base URL is set, the stored values are also sent to the Pico.</p>
-<p><img src="screenshots/motion-toolbox-palettes.png" alt="Motion Palettes toolbox"></p>
-<p><strong>Palettes</strong> recalls compatible palette values into Motion FX. A position palette can set pan/tilt centers, while color, dimmer, or beam palettes can set scalar centers when the selected effect target matches.</p>
 <h3 id="pico-motion-slots">Pico Motion Slots</h3>
 <p>The Pico Motion slot upload now uses the same selected <strong>Effect target</strong> as the browser page.</p>
 <ul>
@@ -627,6 +619,18 @@ strong { color: #ffffff; }
 <li>Up to 64 Motion FX slots can be loaded on the Pico.</li>
 </ul>
 <p>For scalar targets, set the current value first, then upload/start the slot. For example, set a dimmer to its desired base brightness and use Sine if you want the Pico to pulse above and below that base value.</p>
+<h3 id="motion-fx-toolboxes">Motion FX Toolboxes</h3>
+<p>The Motion FX page uses five toolboxes in the shared sidebar.</p>
+<p><img src="screenshots/motion-toolbox-groups.png" alt="Motion Groups toolbox"></p>
+<p><strong>Groups</strong> filters the fixture matrix for the selected effect target. When <strong>Effect target</strong> is <strong>None</strong>, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available when two or more fixtures have that target. For example, after a hard reload, choosing <strong>Dimmer</strong> lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.</p>
+<p><img src="screenshots/motion-toolbox-effect-parameters.png" alt="Motion Effect Parameters toolbox"></p>
+<p><strong>Effect Parameters</strong> is the live effect editor. It contains the target-aware effect dropdown, BPM, amplitude, phase spread, browser preview controls, and the Pico slot upload/play controls. The shown amplitude controls follow the selected effect: two-axis effects show both axes, Pan Swing and Tilt Swing show only the moving axis, and scalar targets show one <strong>Amplitude</strong> control.</p>
+<p><img src="screenshots/motion-toolbox-effects.png" alt="Motion Effects toolbox"></p>
+<p><strong>Effects</strong> stores reusable effect recipes. It saves the selected target, fixture participation, effect type, BPM, amplitude, spread, and phase offsets. It does not store fixed center values.</p>
+<p><img src="screenshots/motion-toolbox-scenes.png" alt="Motion Scenes toolbox"></p>
+<p><strong>Scenes</strong> is read-only on Motion FX. Recalling a scene updates the motion center/base values used by effects. When a Pico base URL is set, the stored values are also sent to the Pico.</p>
+<p><img src="screenshots/motion-toolbox-palettes.png" alt="Motion Palettes toolbox"></p>
+<p><strong>Palettes</strong> recalls compatible palette values into Motion FX. A position palette can set pan/tilt centers, while color, dimmer, or beam palettes can set scalar centers when the selected effect target matches.</p>
 <h3 id="recommended-workflow">Recommended Workflow</h3>
 <ol>
 <li>Use the Fixture Controller to position the fixtures.</li>
