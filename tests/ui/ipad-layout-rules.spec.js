@@ -24,6 +24,94 @@ test.describe('iPad layout rules', () => {
     ['Chaser', 'dmx_chaser.html'],
     ['Motion', 'dmx_motion.html']
   ]) {
+    test(`${label} iPad landscape keeps the header sticky during document scroll`, async ({ browser }) => {
+      const context = await browser.newContext({
+        baseURL: loadPathConfig().xamppBaseUrl,
+        viewport: { width: 1024, height: 768 },
+        deviceScaleFactor: 2,
+        hasTouch: true,
+        isMobile: true
+      });
+      const page = await context.newPage();
+      try {
+        await openDmxPage(page, path);
+        const result = await page.evaluate(async () => {
+          const main = document.querySelector('main');
+          const header = document.querySelector('header');
+          const spacer = document.createElement('div');
+          spacer.style.height = '1400px';
+          spacer.style.gridColumn = '1 / -1';
+          main.appendChild(spacer);
+          window.scrollTo(0, 420);
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const rect = header.getBoundingClientRect();
+          return {
+            scrollY: window.scrollY,
+            headerTop: Math.round(rect.top),
+            mainOverflowY: getComputedStyle(main).overflowY,
+            bodyOverflowY: getComputedStyle(document.body).overflowY
+          };
+        });
+
+        expect(result.scrollY).toBeGreaterThan(250);
+        expect(Math.abs(result.headerTop)).toBeLessThanOrEqual(1);
+        expect(result.mainOverflowY).toBe('visible');
+        expect(result.bodyOverflowY).not.toBe('hidden');
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  for (const [label, path] of [
+    ['Controller', ''],
+    ['Chaser', 'dmx_chaser.html'],
+    ['Motion', 'dmx_motion.html']
+  ]) {
+    test(`${label} iPad portrait keeps the header sticky during document scroll`, async ({ browser }) => {
+      const context = await browser.newContext({
+        baseURL: loadPathConfig().xamppBaseUrl,
+        viewport: { width: 768, height: 1024 },
+        deviceScaleFactor: 2,
+        hasTouch: true,
+        isMobile: true
+      });
+      const page = await context.newPage();
+      try {
+        await openDmxPage(page, path);
+        const result = await page.evaluate(async () => {
+          const main = document.querySelector('main');
+          const header = document.querySelector('header');
+          const spacer = document.createElement('div');
+          spacer.style.height = '1400px';
+          spacer.style.gridColumn = '1 / -1';
+          main.appendChild(spacer);
+          window.scrollTo(0, 420);
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const rect = header.getBoundingClientRect();
+          return {
+            scrollY: window.scrollY,
+            headerTop: Math.round(rect.top),
+            mainOverflowY: getComputedStyle(main).overflowY,
+            bodyOverflowY: getComputedStyle(document.body).overflowY
+          };
+        });
+
+        expect(result.scrollY).toBeGreaterThan(250);
+        expect(Math.abs(result.headerTop)).toBeLessThanOrEqual(1);
+        expect(result.mainOverflowY).toBe('visible');
+        expect(result.bodyOverflowY).not.toBe('hidden');
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  for (const [label, path] of [
+    ['Controller', ''],
+    ['Chaser', 'dmx_chaser.html'],
+    ['Motion', 'dmx_motion.html']
+  ]) {
     test(`${label} iPad landscape shares the same draggable toolbox divider`, async ({ page }) => {
       await page.setViewportSize({ width: 1024, height: 768 });
       await openDmxPage(page, path);

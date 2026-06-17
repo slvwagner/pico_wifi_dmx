@@ -47,6 +47,19 @@ test.describe('Motion FX established rules', () => {
     expect(result.collapsedHeight).toBeLessThanOrEqual(50);
   });
 
+  test('Pico Motion panel has a persistent collapse button', async ({ page }) => {
+    await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toBeVisible();
+    await expect(page.locator('#picoMotionPanel .panel-body')).toBeVisible();
+
+    await page.locator('[data-panel-toggle="picoMotionPanel"]').click();
+    await expect(page.locator('#picoMotionPanel .panel-body')).toBeHidden();
+    await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#picoMotionPanel .panel-body')).toBeHidden();
+    await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
+  });
+
   test('collapsing Participating Controls keeps the sticky header height stable', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 900 });
     await routeMotionCompactServerSetup(page);

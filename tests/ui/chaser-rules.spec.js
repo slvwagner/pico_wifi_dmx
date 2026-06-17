@@ -35,6 +35,19 @@ test.describe('Chaser established rules', () => {
     }
   });
 
+  test('Pico Playback panel has a persistent collapse button', async ({ page }) => {
+    await expect(page.locator('[data-panel-toggle="picoPanel"]')).toBeVisible();
+    await expect(page.locator('#picoPanel .panel-body')).toBeVisible();
+
+    await page.locator('[data-panel-toggle="picoPanel"]').click();
+    await expect(page.locator('#picoPanel .panel-body')).toBeHidden();
+    await expect(page.locator('[data-panel-toggle="picoPanel"]')).toHaveText('+');
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#picoPanel .panel-body')).toBeHidden();
+    await expect(page.locator('[data-panel-toggle="picoPanel"]')).toHaveText('+');
+  });
+
   test('collapsing Participating Controls keeps the sticky header stable and moves Edit Step up', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 900 });
     await openDmxPage(page, 'dmx_chaser.html');
@@ -230,6 +243,65 @@ test.describe('Chaser established rules', () => {
     expect(result.sourceFixtureId).toBe('101');
   });
 
+  test('Edit Step numeric inputs update values and stay in sync with sliders', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      steps = [makeStep('Numeric edit', { '101:11': 10, '101:12': { pan: 32768, tilt: 32768 } })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      sourceFixtureId = '101';
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+
+      const dimmerNumber = document.querySelector('input[type="number"][data-fi="101"][data-ci="11"]:not([data-axis]):not([data-part])');
+      dimmerNumber.value = '123';
+      dimmerNumber.dispatchEvent(new Event('input', { bubbles: true }));
+
+      const panNumber = document.querySelector('input[type="number"][data-fi="101"][data-ci="12"][data-axis="pan"]');
+      panNumber.value = '45678';
+      panNumber.dispatchEvent(new Event('input', { bubbles: true }));
+
+      return {
+        dimmerValue: steps[0].values['101:11'],
+        dimmerSlider: document.querySelector('input[type="range"][data-fi="101"][data-ci="11"]:not([data-axis]):not([data-part])').value,
+        dimmerReadout: document.querySelector('[data-readoutf="101"][data-readoutc="11"]').textContent,
+        panValue: steps[0].values['101:12'].pan,
+        panSlider: document.querySelector('input[type="range"][data-fi="101"][data-ci="12"][data-axis="pan"]').value,
+        panReadout: document.querySelector('[data-readoutf="101"][data-readoutc="12"]').textContent
+      };
+    });
+
+    expect(result.dimmerValue).toBe(123);
+    expect(result.dimmerSlider).toBe('123');
+    expect(result.dimmerReadout).toBe('123');
+    expect(result.panValue).toBe(45678);
+    expect(result.panSlider).toBe('45678');
+    expect(result.panReadout).toContain('Pan 45678');
+  });
+
+  test('Matrix controls are excluded from chaser participation until matrix step editing exists', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      setup.profiles.push({
+        id: 90,
+        name: 'Matrix Profile',
+        mode: '2x2',
+        channels: 12,
+        controls: [{ id: 91, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 2 }]
+      });
+      setup.fixtures.push({ id: 190, name: 'Matrix Fixture', profileId: 90, start: 101 });
+      rebuildParticipation();
+      return {
+        hasMatrixParticipation: Object.keys(participating).some(key => key === '190:91'),
+        listedControls: getParticipatingList().map(({ f, c }) => f.id + ':' + c.type),
+        checkboxCount: document.querySelectorAll('#participationList input[data-key="190:91"]').length
+      };
+    });
+
+    expect(state.hasMatrixParticipation).toBe(false);
+    expect(state.listedControls).not.toContain('190:matrixRgb');
+    expect(state.checkboxCount).toBe(0);
+  });
+
   test('selecting a step rebuilds the edit scope from that step values', async ({ page }) => {
     const result = await page.evaluate(async () => {
       steps = [
@@ -289,5 +361,50 @@ test.describe('Chaser established rules', () => {
     expect(result.before.readoutText).toContain('Pan 1');
     expect(result.after.readoutText).toContain('Pan 65535');
     expect(result.after.buttonLeft).toBe(result.before.buttonLeft);
+  });
+
+  test('Update chase only writes back to the last recalled chase', async ({ page }) => {
+    const state = await page.evaluate(async () => {
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      saveChasesServer = async () => {};
+      savedChases = [];
+      steps = [makeStep('Saved step', { '101:11': 10 })];
+      selectedStepIdx = 0;
+      drawStepList();
+      saveChaseToSlot(0, 'Recall target');
+      const disabledAfterSave = document.getElementById('btnUpdateChase').disabled;
+
+      await loadChaseSlot(savedChases[0]);
+      const disabledAfterRecall = document.getElementById('btnUpdateChase').disabled;
+      steps[0].label = 'Edited recalled step';
+      steps[0].values['101:11'] = 77;
+      await updateActiveRecalledChase();
+      const buttonAfterUpdate = {
+        text: document.getElementById('btnUpdateChase').textContent,
+        success: document.getElementById('btnUpdateChase').classList.contains('success')
+      };
+
+      steps = [makeStep('New chase draft', { '101:11': 22 })];
+      saveChaseToSlot(1, 'New draft');
+      const disabledAfterNewSave = document.getElementById('btnUpdateChase').disabled;
+
+      return {
+        disabledAfterSave,
+        disabledAfterRecall,
+        updatedLabel: savedChases.find(c => c.slot === 0).data.steps[0].label,
+        updatedValue: savedChases.find(c => c.slot === 0).data.steps[0].values['101:11'],
+        buttonAfterUpdate,
+        disabledAfterNewSave
+      };
+    });
+
+    expect(state.disabledAfterSave).toBe(true);
+    expect(state.disabledAfterRecall).toBe(false);
+    expect(state.updatedLabel).toBe('Edited recalled step');
+    expect(state.updatedValue).toBe(77);
+    expect(state.buttonAfterUpdate.text).toBe('Updated');
+    expect(state.buttonAfterUpdate.success).toBe(true);
+    expect(state.disabledAfterNewSave).toBe(true);
   });
 });

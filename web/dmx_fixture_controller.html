@@ -44,6 +44,18 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #savedGroupsList .item:hover{border-color:var(--accent)}
 .readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}.bytes{color:var(--muted);font-size:13px}
 .byte-sliders{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.matrix-control{display:grid;gap:10px}
+.matrix-grid{display:grid;gap:4px;max-width:100%;touch-action:manipulation}
+.matrix-pixel{aspect-ratio:1/1;min-width:22px;min-height:22px;padding:0;border-radius:4px;border:1px solid var(--line);background:#000}
+.matrix-pixel:hover{border-color:var(--accent)}
+.fixture-library-layout{display:grid;grid-template-columns:minmax(260px,360px) minmax(0,1fr);gap:12px;align-items:start}
+.fixture-library-results{display:grid;gap:8px;max-height:420px;overflow:auto;align-content:start}
+.fixture-library-result{width:100%;text-align:left;display:grid;gap:2px;padding:9px 10px;background:#10161b}
+.fixture-library-result.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.fixture-library-preview{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px;min-height:120px}
+.fixture-library-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.fixture-library-controls label{min-width:220px;flex:1 1 260px}
+.fixture-library-control-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
@@ -54,6 +66,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fan-preview-card strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
+@media(max-width:900px){.fixture-library-layout{grid-template-columns:1fr}}
 #groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 .fixture-card{cursor:pointer;user-select:none}.fixture-card:hover{border-color:var(--accent)}.fixture-card .control{cursor:auto;user-select:auto}.card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
 </style>
@@ -80,6 +93,24 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="exportJson" class="icon-btn export-btn" title="Export setup JSON"></button>
 <button id="importJson" class="icon-btn import-btn" title="Import setup JSON"></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+</section>
+
+<section class="panel" id="fixtureLibraryPanel">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+<h2>Fixture Library</h2>
+<button id="fixtureLibraryCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+</div>
+<div id="fixtureLibraryBody">
+<div class="fixture-library-controls">
+<label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket"></label>
+<button id="loadFixtureLibrary">Load library</button>
+</div>
+<div class="small" id="fixtureLibraryStatus">Library not loaded.</div>
+<div class="fixture-library-layout">
+<div id="fixtureLibraryResults" class="fixture-library-results"><div class="small">Load the fixture library to search fixtures.</div></div>
+<div id="fixtureLibraryPreview" class="fixture-library-preview"><div class="small">Select a fixture to preview modes and controls.</div></div>
+</div>
 </div>
 </section>
 
@@ -121,6 +152,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <option value="rgbwa">RGBWA color</option>
 <option value="cmy">CMY color</option>
 <option value="cmyk">CMYK color</option>
+<option value="matrixRgb">RGB pixel matrix</option>
 <option value="wheel">Wheel / indexed values</option>
 </select>
 </label>
@@ -376,6 +408,7 @@ let profiles=[];
 let fixtures=[];
 let activeProfileId=0;
 let editingControlId=0;
+let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
 const values={};
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl);
@@ -386,6 +419,7 @@ const patchedEl=document.getElementById('patched');
 const surfaceEl=document.getElementById('surface');
 let sceneFixtureFilterActive=false;
 let activeControlScopeKeys=new Set();
+let activeFixtureFilterIds=new Set();
 
 function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
@@ -402,6 +436,26 @@ function hexToRgb(hex){
   const m=(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);
   const n=parseInt(m?m[1]:'000000',16);
   return {a:(n>>16)&255,b:(n>>8)&255,c:n&255};
+}
+function matrixWidth(c){return Math.max(1,Math.min(64,parseInt(c.width,10)||1));}
+function matrixHeight(c){return Math.max(1,Math.min(64,parseInt(c.height,10)||1));}
+function matrixPixelCount(c){return matrixWidth(c)*matrixHeight(c);}
+function matrixPixelChannels(c,index){
+  const start=clamp(c.channel,1,512);
+  const base=start+index*3;
+  return {a:base,b:base+1,c:base+2};
+}
+function matrixDefaultValue(c,color={a:0,b:0,c:0}){
+  return {pixels:Array.from({length:matrixPixelCount(c)},()=>({a:clamp(color.a,0,255),b:clamp(color.b,0,255),c:clamp(color.c,0,255)}))};
+}
+function normalizeMatrixValue(c,value){
+  const fallback=matrixDefaultValue(c);
+  const pixels=Array.isArray(value?.pixels)?value.pixels:[];
+  fallback.pixels=fallback.pixels.map((pixel,index)=>{
+    const v=pixels[index]||pixel;
+    return {a:clamp(v.a,0,255),b:clamp(v.b,0,255),c:clamp(v.c,0,255)};
+  });
+  return fallback;
 }
 function rgbToCmy(hex){
   const rgb=hexToRgb(hex);
@@ -485,6 +539,15 @@ async function sendControl(f,c,silent=false){
     if(c.type==='rgbw'||c.type==='rgbwa')await sendChannel(absolute(f.start,c.w),v.w);
     if(c.type==='rgbwa')await sendChannel(absolute(f.start,c.amber),v.amber);
     if(c.type==='cmyk')await sendChannel(absolute(f.start,c.k),v.k);
+  }else if(c.type==='matrixRgb'){
+    const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
+    for(let i=0;i<matrixPixelCount(c);i++){
+      const ch=matrixPixelChannels(c,i);
+      if(!channelOk(f,ch.a)||!channelOk(f,ch.b)||!channelOk(f,ch.c))throw new Error(c.label+' pixel channels out of range');
+      await sendChannel(absolute(f.start,ch.a),v.pixels[i].a);
+      await sendChannel(absolute(f.start,ch.b),v.pixels[i].b);
+      await sendChannel(absolute(f.start,ch.c),v.pixels[i].c);
+    }
   }else{
     if(!channelOk(f,c.channel))throw new Error(c.label+' channel out of range');
     await sendChannel(absolute(f.start,c.channel),getValue(f,c,0));
@@ -497,7 +560,14 @@ function parseWheelOptions(text){
     const parts=line.split('=');
     const meta=(parts.slice(1).join('=')||'0').split('|');
     const visual=(meta[1]||'').trim();
-    const option={name:(parts[0]||'Value').trim(),value:clamp(meta[0],0,255)};
+    const rawValue=(meta[0]||'0').trim();
+    const rangeMatch=rawValue.match(/^(\d+)\s*-\s*(\d+)$/);
+    const option={name:(parts[0]||'Value').trim(),value:clamp(rawValue,0,255)};
+    if(rangeMatch){
+      const start=clamp(rangeMatch[1],0,255),end=clamp(rangeMatch[2],0,255);
+      option.range=[Math.min(start,end),Math.max(start,end)];
+      option.value=Math.round((option.range[0]+option.range[1])/2);
+    }
     if(visual.startsWith('#'))option.color=visual;
     else if(visual.startsWith('data:image/'))option.image=visual;
     return option;
@@ -505,13 +575,24 @@ function parseWheelOptions(text){
 }
 
 function wheelOptionsText(options){
-  return (options||[]).map(o=>o.name+'='+clamp(o.value,0,255)+(o.image?'|'+o.image:(o.color?'|'+o.color:''))).join('\n');
+  return (options||[]).map(o=>{
+    const range=wheelOptionRange(o);
+    const value=range?range[0]+'-'+range[1]:clamp(o.value,0,255);
+    return o.name+'='+value+(o.image?'|'+o.image:(o.color?'|'+o.color:''));
+  }).join('\n');
 }
+
+const wheelOptionRange=DmxCommon.wheelOptionRange;
+const wheelOptionValue=DmxCommon.wheelOptionValue;
+const wheelOptionMatches=DmxCommon.wheelOptionMatches;
+const selectedWheelOption=DmxCommon.selectedWheelOption;
+const wheelOptionTitle=DmxCommon.wheelOptionTitle;
+const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
 
 function duplicateWheelOptionValueError(options){
   const byValue=new Map();
   for(const option of options||[]){
-    const value=clamp(option.value,0,255);
+    const value=wheelOptionValue(option);
     if(!byValue.has(value))byValue.set(value,[]);
     byValue.get(value).push(option.name||'Value');
   }
@@ -576,13 +657,14 @@ function controlFromEditor(existingId=0){
   else if(type==='rgbw')control={...control,a,b,c:c||b+1,w:d||c+1||b+2};
   else if(type==='rgbwa')control={...control,a,b,c:c||b+1,w:d||c+1||b+2,amber:e||d+1||c+2||b+3};
   else if(type==='cmyk')control={...control,a,b,c:c||b+1,k:d||c+1||b+2};
+  else if(type==='matrixRgb')control={...control,channel:a,width:Math.max(1,Math.min(64,b||4)),height:Math.max(1,Math.min(64,c||4))};
   else if(type==='wheel')control={...control,channel:a,options:parseWheelOptions(document.getElementById('wheelOptions').value)};
   else if(type==='slider16')control={...control,channel:a,fine:b};
   else control={...control,channel:a};
   // Default value (all types, nullable)
   const is16bit=type==='panTilt16'||type==='slider16';
   const isPanTiltType=type==='panTilt16'||type==='panTilt8';
-  const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk','matrixRgb'].includes(type);
   const ptMax=is16bit?65535:255;
   if(document.getElementById('defNone').checked){
     control.defaultValue=null;
@@ -595,6 +677,7 @@ function controlFromEditor(existingId=0){
     else if(type==='cmyk'){const ck=rgbToCmyk(hex);ck.k=clamp(parseInt(document.getElementById('defExtra').value)||0,0,255);control.defaultValue=ck;}
     else if(type==='rgbw'){const rgb=hexToRgb(hex);control.defaultValue={...rgb,w:clamp(parseInt(document.getElementById('defExtra').value)||0,0,255)};}
     else if(type==='rgbwa'){const rgb=hexToRgb(hex);control.defaultValue={...rgb,w:clamp(parseInt(document.getElementById('defExtra').value)||0,0,255),amber:clamp(parseInt(document.getElementById('defAmber').value)||0,0,255)};}
+    else if(type==='matrixRgb')control.defaultValue=matrixDefaultValue(control,hexToRgb(hex));
   }else{
     control.defaultValue=Math.round(clamp(parseFloat(document.getElementById('defNum').value)||0,0,is16bit?65535:255));
   }
@@ -610,6 +693,7 @@ function controlFromEditor(existingId=0){
     else if(type==='cmyk'){const ck=rgbToCmyk(hex);ck.k=clamp(parseInt(document.getElementById('blkExtra').value)||0,0,255);control.blackoutValue=ck;}
     else if(type==='rgbw'){const rgb=hexToRgb(hex);control.blackoutValue={...rgb,w:clamp(parseInt(document.getElementById('blkExtra').value)||0,0,255)};}
     else if(type==='rgbwa'){const rgb=hexToRgb(hex);control.blackoutValue={...rgb,w:clamp(parseInt(document.getElementById('blkExtra').value)||0,0,255),amber:clamp(parseInt(document.getElementById('blkAmber').value)||0,0,255)};}
+    else if(type==='matrixRgb')control.blackoutValue=matrixDefaultValue(control,hexToRgb(hex));
   }else{
     control.blackoutValue=Math.round(clamp(parseFloat(document.getElementById('blkNum').value)||0,0,is16bit?65535:255));
   }
@@ -624,6 +708,7 @@ function controlChannels(control){
   if(control.type==='rgbw')return [control.a,control.b,control.c,control.w];
   if(control.type==='rgbwa')return [control.a,control.b,control.c,control.w,control.amber];
   if(control.type==='cmyk')return [control.a,control.b,control.c,control.k];
+  if(control.type==='matrixRgb')return Array.from({length:matrixPixelCount(control)*3},(_,i)=>control.channel+i);
   return [control.channel];
 }
 
@@ -636,6 +721,7 @@ function controlChannelText(control){
   if(control.type==='rgbwa')return 'R '+control.a+', G '+control.b+', B '+control.c+', W '+control.w+', A '+control.amber;
   if(control.type==='cmy')return 'C '+control.a+', M '+control.b+', Y '+control.c;
   if(control.type==='cmyk')return 'C '+control.a+', M '+control.b+', Y '+control.c+', K '+control.k;
+  if(control.type==='matrixRgb')return matrixWidth(control)+'×'+matrixHeight(control)+' RGB from CH '+control.channel+' to '+(control.channel+matrixPixelCount(control)*3-1);
   return 'CH '+control.channel;
 }
 
@@ -666,7 +752,8 @@ function channelCountForType(type){
     rgbw:4,
     rgbwa:5,
     cmy:3,
-    cmyk:4
+    cmyk:4,
+    matrixRgb:1
   }[type]||1;
 }
 
@@ -716,6 +803,7 @@ function defaultControlLabel(type){
     rgbwa:'RGBWA color',
     cmy:'CMY color',
     cmyk:'CMYK color',
+    matrixRgb:'RGB pixel matrix',
     wheel:'Wheel'
   }[type]||'Control';
 }
@@ -769,8 +857,8 @@ function loadControlEditor(control){
   document.getElementById('controlType').value=control.type;
   document.getElementById('controlLabel').value=control.label;
   document.getElementById('controlA').value=control.pan||control.channel||control.a||1;
-  document.getElementById('controlB').value=control.panFine||control.fine||control.tilt||control.b||3;
-  document.getElementById('controlC').value=control.tilt||control.c||0;
+  document.getElementById('controlB').value=control.type==='matrixRgb'?(control.width||4):(control.panFine||control.fine||control.tilt||control.b||3);
+  document.getElementById('controlC').value=control.type==='matrixRgb'?(control.height||4):(control.tilt||control.c||0);
   document.getElementById('controlD').value=control.tiltFine||control.w||control.k||0;
   document.getElementById('controlE').value=control.amber||0;
   document.getElementById('wheelOptions').value=wheelOptionsText(control.options)||document.getElementById('wheelOptions').value;
@@ -789,12 +877,13 @@ function loadControlEditor(control){
       document.getElementById('defPan').value=pan;
       document.getElementById('defTilt').value=tilt;
     }else{
-      const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type);
+      const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk','matrixRgb'].includes(control.type);
       if(isColorType){
         if(control.type==='rgb'||control.type==='rgbw'||control.type==='rgbwa')
           document.getElementById('defColor').value=rgbHex(dv);
         else if(control.type==='cmy')document.getElementById('defColor').value=cmyHex(dv);
         else if(control.type==='cmyk'){document.getElementById('defColor').value=cmykHex(dv);document.getElementById('defExtra').value=dv.k??0;}
+        else if(control.type==='matrixRgb')document.getElementById('defColor').value=rgbHex(normalizeMatrixValue(control,dv).pixels[0]);
         if(control.type==='rgbw'||control.type==='rgbwa')document.getElementById('defExtra').value=dv.w??0;
         if(control.type==='rgbwa')document.getElementById('defAmber').value=dv.amber??0;
       }else{
@@ -808,13 +897,14 @@ function loadControlEditor(control){
       document.getElementById('blkPan').value=typeof bv==='object'?(bv.pan??0):bv;
       document.getElementById('blkTilt').value=typeof bv==='object'?(bv.tilt??0):bv;
     }else{
-      const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type);
+      const isColorType=['rgb','rgbw','rgbwa','cmy','cmyk','matrixRgb'].includes(control.type);
       const bv=control.blackoutValue;
       if(isColorType&&typeof bv==='object'){
         if(control.type==='rgb'||control.type==='rgbw'||control.type==='rgbwa')
           document.getElementById('blkColor').value=rgbHex(bv);
         else if(control.type==='cmy')document.getElementById('blkColor').value=cmyHex(bv);
         else if(control.type==='cmyk'){document.getElementById('blkColor').value=cmykHex(bv);document.getElementById('blkExtra').value=bv.k??0;}
+        else if(control.type==='matrixRgb')document.getElementById('blkColor').value=rgbHex(normalizeMatrixValue(control,bv).pixels[0]);
         if(control.type==='rgbw'||control.type==='rgbwa')document.getElementById('blkExtra').value=bv.w??0;
         if(control.type==='rgbwa')document.getElementById('blkAmber').value=bv.amber??0;
       }else{
@@ -839,7 +929,8 @@ function updateControlChannelInputs(fillChannels=false){
     rgbw:['Red','Green','Blue','White',''],
     rgbwa:['Red','Green','Blue','White','Amber'],
     cmy:['Cyan','Magenta','Yellow',''],
-    cmyk:['Cyan','Magenta','Yellow','Key','']
+    cmyk:['Cyan','Magenta','Yellow','Key',''],
+    matrixRgb:['Start channel','Width','Height','','']
   }[type]||['Channel','','','',''];
   ['A','B','C','D','E'].forEach((letter,index)=>{
     const wrap=document.getElementById('control'+letter+'Wrap');
@@ -857,13 +948,14 @@ function updateControlChannelInputs(fillChannels=false){
     rgbwa:'Uses five channels: red, green, blue, white, and amber. The color picker controls RGB; white and amber are manual.',
     cmy:'Uses three channels: cyan, magenta, and yellow. The color picker converts RGB to CMY.',
     cmyk:'Uses four channels: cyan, magenta, yellow, and key/black. The color picker converts RGB to CMYK.',
+    matrixRgb:'Uses sequential RGB channels for a rectangular pixel grid. Start 1, Width 4, Height 2 uses channels 1-24.',
     wheel:'Uses one channel with named indexed values. Add color swatches, uploaded images, or drawings for each value.'
   };
   document.getElementById('controlHint').textContent=hints[type]||'';
   document.getElementById('wheelEditorWrap').style.display=type==='wheel'?'grid':'none';
 
   // Default / blackout field visibility and presets
-  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk','matrixRgb'].includes(type);
   const is16bit=type==='panTilt16'||type==='slider16';
   const ptMax=is16bit?65535:255;
   document.getElementById('defExtraLabel').textContent=type==='cmyk'?'K':'W';
@@ -884,6 +976,7 @@ function updateControlChannelInputs(fillChannels=false){
     else if(type==='rgbwa'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=127;document.getElementById('defAmber').value=0;document.getElementById('blkColor').value='#000000';document.getElementById('blkExtra').value=0;document.getElementById('blkAmber').value=0;}
     else if(type==='cmy'){document.getElementById('defColor').value='#7f7f7f';document.getElementById('blkColor').value='#000000';}
     else if(type==='cmyk'){document.getElementById('defColor').value='#000000';document.getElementById('defExtra').value=0;document.getElementById('blkColor').value='#000000';document.getElementById('blkExtra').value=0;}
+    else if(type==='matrixRgb'){document.getElementById('controlB').value=4;document.getElementById('controlC').value=4;document.getElementById('defColor').value='#000000';document.getElementById('blkColor').value='#000000';}
   }
   updateEditorXYDots();
   applyNoneCheckboxes();
@@ -891,7 +984,7 @@ function updateControlChannelInputs(fillChannels=false){
 
 function applyNoneCheckboxes(){
   const type=document.getElementById('controlType').value;
-  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type);
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk','matrixRgb'].includes(type);
   const isPanTilt=type==='panTilt16'||type==='panTilt8';
   const defNone=document.getElementById('defNone').checked;
   const blkNone=document.getElementById('blkNone').checked;
@@ -909,6 +1002,97 @@ function applyNoneCheckboxes(){
   document.getElementById('blkColorWrap').style.display=(!blkNone&&isColor)?'grid':'none';
   document.getElementById('blkExtraWrap').style.display=(!blkNone&&(type==='rgbw'||type==='rgbwa'||type==='cmyk'))?'grid':'none';
   document.getElementById('blkAmberWrap').style.display=(!blkNone&&type==='rgbwa')?'grid':'none';
+}
+
+async function loadFixtureLibrary(){
+  const status=document.getElementById('fixtureLibraryStatus');
+  const btn=document.getElementById('loadFixtureLibrary');
+  status.textContent='Loading fixture library...';
+  btn.disabled=true;
+  try{
+    const r=await fetch('assets/fixture-library.json',{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    fixtureLibraryState.data=await r.json();
+    fixtureLibraryState.selectedKey='';
+    fixtureLibraryState.selectedModeIndex=0;
+    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' library fixtures.';
+    renderFixtureLibraryResults();
+  }catch(err){
+    status.textContent='Fixture library unavailable. Run scripts/build_fixture_library.ps1 first. '+err.message;
+    document.getElementById('fixtureLibraryResults').innerHTML='<div class="small">No library data loaded.</div>';
+  }finally{
+    btn.disabled=false;
+  }
+}
+function fixtureLibrarySearchText(fixture){
+  return [fixture.manufacturerName,fixture.name,fixture.key,(fixture.categories||[]).join(' '),(fixture.modes||[]).map(m=>m.name+' '+m.shortName).join(' ')].join(' ').toLowerCase();
+}
+function renderFixtureLibraryResults(){
+  const resultsEl=document.getElementById('fixtureLibraryResults');
+  const previewEl=document.getElementById('fixtureLibraryPreview');
+  const data=fixtureLibraryState.data;
+  if(!data?.fixtures?.length){
+    resultsEl.innerHTML='<div class="small">Load the fixture library to search fixtures.</div>';
+    previewEl.innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
+    return;
+  }
+  const q=document.getElementById('fixtureLibrarySearch').value.trim().toLowerCase();
+  const terms=q.split(/\s+/).filter(Boolean);
+  fixtureLibraryState.filtered=data.fixtures.filter(f=>terms.every(term=>fixtureLibrarySearchText(f).includes(term))).slice(0,80);
+  if(!fixtureLibraryState.filtered.some(f=>f.key===fixtureLibraryState.selectedKey)){
+    fixtureLibraryState.selectedKey=fixtureLibraryState.filtered[0]?.key||'';
+    fixtureLibraryState.selectedModeIndex=0;
+  }
+  resultsEl.innerHTML=fixtureLibraryState.filtered.map(f=>`<button class="fixture-library-result${f.key===fixtureLibraryState.selectedKey?' active':''}" data-library-key="${escHtml(f.key)}"><strong>${escHtml(f.name)}</strong><span class="small">${escHtml(f.manufacturerName)} · ${(f.modes||[]).length} mode${(f.modes||[]).length===1?'':'s'}</span></button>`).join('')||'<div class="small">No matching fixtures.</div>';
+  renderFixtureLibraryPreview();
+}
+function selectedLibraryFixture(){
+  return (fixtureLibraryState.data?.fixtures||[]).find(f=>f.key===fixtureLibraryState.selectedKey)||null;
+}
+function selectedLibraryMode(){
+  const fixture=selectedLibraryFixture();
+  return fixture?.modes?.[fixtureLibraryState.selectedModeIndex]||fixture?.modes?.[0]||null;
+}
+function renderFixtureLibraryPreview(){
+  const el=document.getElementById('fixtureLibraryPreview');
+  const fixture=selectedLibraryFixture();
+  if(!fixture){el.innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';return;}
+  const mode=selectedLibraryMode();
+  const profile=mode?.profile;
+  const controls=profile?.controls||[];
+  const warnings=[...(mode?.warnings||[])];
+  el.innerHTML=`<div>
+      <h3>${escHtml(fixture.manufacturerName)} · ${escHtml(fixture.name)}</h3>
+      <div class="small">${escHtml((fixture.categories||[]).join(', ')||'Uncategorized')}</div>
+    </div>
+    <div class="toolbar">
+      <label>Mode<select id="fixtureLibraryMode">${(fixture.modes||[]).map((m,i)=>`<option value="${i}" ${i===fixtureLibraryState.selectedModeIndex?'selected':''}>${escHtml(m.name||('Mode '+(i+1)))} · ${m.channels}ch</option>`).join('')}</select></label>
+      <button id="importFixtureLibraryProfile" class="primary" ${profile?'':'disabled'}>Import profile</button>
+    </div>
+    ${warnings.length?`<div class="small bad">${warnings.map(escHtml).join(' ')}</div>`:''}
+    <div class="small">${controls.length} converted control${controls.length===1?'':'s'} · ${profile?.channels||0} channels</div>
+    <div class="fixture-library-control-list">${controls.map(c=>`<div class="ctrl-chip">${escHtml(c.label)} <span style="opacity:.65">(${escHtml(c.type)} · ${escHtml(controlChannelText(c))})</span></div>`).join('')||'<div class="small">No supported controls in this mode.</div>'}</div>`;
+}
+function cloneLibraryProfile(profile,fixture){
+  const next=JSON.parse(JSON.stringify(profile));
+  next.id=uid();
+  next.name=(fixture.manufacturerName?fixture.manufacturerName+' ':'')+(profile.name||fixture.name||'Library fixture');
+  next.mode=profile.mode||'Library mode';
+  next.controls=(next.controls||[]).map(control=>({...control,id:uid()}));
+  return next;
+}
+function importSelectedLibraryProfile(){
+  const fixture=selectedLibraryFixture();
+  const mode=selectedLibraryMode();
+  if(!fixture||!mode?.profile){setStatus('Select a library fixture mode first',true);return;}
+  const profile=cloneLibraryProfile(mode.profile,fixture);
+  profiles.push(profile);
+  activeProfileId=profile.id;
+  loadProfileEditor(profile);
+  resetControlEditor();
+  draw();
+  scheduleSetupAutosave();
+  setStatus('Imported library profile: '+profile.name+' ('+profile.mode+')');
 }
 
 function addControl(){
@@ -1132,9 +1316,20 @@ function renderControl(f,c){
   if(c.type==='wheel'){
     const v=getValue(f,c,0);
     const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
-    return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}</span></div>
-      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-wheel="${o.value}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${o.name}</button>`).join('')}</div>
+    const active=selectedWheelOption(c,v);
+    return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}${active?' · '+escHtml(active.name):''}</span></div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
+      <div data-wheel-range-host="${f.id}:${c.id}">${wheelRangeSliderHtml(active,v,`data-fixture="${f.id}" data-control="${c.id}"`,escHtml)}</div>
       <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>`;
+  }
+  if(c.type==='matrixRgb'){
+    const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
+    const w=matrixWidth(c),h=matrixHeight(c);
+    return `<div class="${controlClass(f,c)} matrix-control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">${w}×${h} RGB · CH ${absolute(f.start,c.channel)}-${absolute(f.start,c.channel+matrixPixelCount(c)*3-1)}</span></div>
+      <div class="toolbar"><label>Paint color<input type="color" value="#ffffff" data-matrix-paint-color="1" data-fixture="${f.id}" data-control="${c.id}"></label><button data-matrix-fill="1" data-fixture="${f.id}" data-control="${c.id}">Fill all</button><button data-matrix-clear="1" data-fixture="${f.id}" data-control="${c.id}">Clear</button></div>
+      <div class="matrix-grid" data-matrix-grid="${f.id}:${c.id}" style="grid-template-columns:repeat(${w},minmax(22px,1fr))">
+        ${v.pixels.map((pixel,i)=>`<button class="matrix-pixel" data-matrix-pixel="${i}" data-fixture="${f.id}" data-control="${c.id}" title="Pixel ${i+1}" style="background:${rgbHex(pixel)}"></button>`).join('')}
+      </div></div>`;
   }
   const max=c.type==='slider16'?65535:255;
   const v=getValue(f,c,0);
@@ -1150,9 +1345,10 @@ function renderControl(f,c){
 
 function drawSurface(){
   surfaceEl.innerHTML='';
-  const groupFilterActive=activeSavedGroupIds.size>0;
+  const groupFilterActive=activeSavedGroupIds.size>0||activeFixtureFilterIds.size>0;
   const selectionFilterActive=groupFilterActive||sceneFixtureFilterActive;
-  const visibleFixtures=selectionFilterActive?fixtures.filter(f=>selectedFixtureIds.has(f.id)):fixtures;
+  const visibleIds=activeFixtureFilterIds.size?activeFixtureFilterIds:selectedFixtureIds;
+  const visibleFixtures=selectionFilterActive?fixtures.filter(f=>visibleIds.has(f.id)):fixtures;
   if(selectionFilterActive&&!visibleFixtures.length){
     surfaceEl.innerHTML='<div class="small">'+(groupFilterActive?'Selected groups':'Recalled scene')+' have no patched fixtures in this setup. <button onclick="clearGroupSelection()">Show all</button></div>';
   }
@@ -1193,7 +1389,7 @@ function queueFixtureXyPadResize(){
 }
 
 function updateControlDisplay(f,c){
-  const v=getValue(f,c,c.type==='panTilt16'?{pan:32768,tilt:32768}:(c.type==='panTilt8'?{pan:128,tilt:128}:((c.type==='rgb'||c.type==='cmy')?{a:0,b:0,c:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:(c.type==='cmyk'?{a:0,b:0,c:0,k:0}:0))))));
+  const v=getValue(f,c,c.type==='panTilt16'?{pan:32768,tilt:32768}:(c.type==='panTilt8'?{pan:128,tilt:128}:((c.type==='rgb'||c.type==='cmy')?{a:0,b:0,c:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:(c.type==='cmyk'?{a:0,b:0,c:0,k:0}:(c.type==='matrixRgb'?matrixDefaultValue(c):0)))))));
   if(c.type==='panTilt16'){
     const pad=document.querySelector(`[data-xy-fixture="${f.id}"][data-control="${c.id}"]`);
     const dot=pad?.querySelector('.xy-dot');
@@ -1235,13 +1431,27 @@ function updateControlDisplay(f,c){
     document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
     return;
   }
+  if(c.type==='matrixRgb'){
+    const mv=normalizeMatrixValue(c,v);
+    document.querySelectorAll(`button[data-fixture="${f.id}"][data-control="${c.id}"][data-matrix-pixel]`).forEach(el=>{
+      const pixel=mv.pixels[parseInt(el.dataset.matrixPixel,10)]||{a:0,b:0,c:0};
+      el.style.background=rgbHex(pixel);
+    });
+    return;
+  }
   document.querySelectorAll(`[data-readout-fixture="${f.id}"][data-readout-control="${c.id}"]`).forEach(el=>{
-    el.textContent=c.type==='wheel'?'CH '+absolute(f.start,c.channel)+' · '+v:v;
+    const active=c.type==='wheel'?selectedWheelOption(c,v):null;
+    el.textContent=c.type==='wheel'?'CH '+absolute(f.start,c.channel)+' · '+v+(active?' · '+active.name:''):v;
   });
   document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"]:not([data-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
   if(c.type==='wheel'){
+    document.querySelectorAll(`[data-wheel-range-host="${f.id}:${c.id}"]`).forEach(el=>{
+      const active=selectedWheelOption(c,v);
+      el.innerHTML=wheelRangeSliderHtml(active,v,`data-fixture="${f.id}" data-control="${c.id}"`,escHtml);
+    });
     document.querySelectorAll(`button[data-fixture="${f.id}"][data-control="${c.id}"][data-wheel]`).forEach(el=>{
-      el.classList.toggle('active',Number(el.dataset.wheel)===Number(v));
+      const option=(c.options||[])[parseInt(el.dataset.wheelOptionIndex,10)];
+      el.classList.toggle('active',option?wheelOptionMatches(option,v):Number(el.dataset.wheel)===Number(v));
     });
     return;
   }
@@ -1476,6 +1686,7 @@ function recallFanPreset(){
   }
   if(!selectedFixtureIds.size&&Array.isArray(preset.fixtureIds)){
     activeSavedGroupIds.clear();
+    activeFixtureFilterIds.clear();
     selectedFixtureIds=new Set(preset.fixtureIds.filter(id=>fixtures.some(f=>f.id===id)));
     DmxCommon.saveSharedGroupSelection([]);
   }
@@ -1528,6 +1739,7 @@ surfaceEl.oninput=e=>{
   const p=f&&fixtureProfile(f);
   const c=p&&p.controls.find(x=>x.id===parseInt(e.target.dataset.control,10));
   if(!f||!c)return;
+  if(e.target.dataset.matrixPaintColor)return;
   if(e.target.dataset.colorPicker){
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){
       const current=getValue(f,c,c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0}));
@@ -1562,10 +1774,27 @@ surfaceEl.oninput=e=>{
   writeLiveValues();
 };
 surfaceEl.onclick=e=>{
-  const f=fixtures.find(x=>x.id===parseInt(e.target.dataset.fixture||e.target.dataset.sendFixture,10));
+  const actionTarget=e.target.closest('[data-fixture],[data-send-fixture]')||e.target;
+  const controlTarget=e.target.closest('[data-control]')||e.target;
+  const f=fixtures.find(x=>x.id===parseInt(actionTarget.dataset.fixture||actionTarget.dataset.sendFixture,10));
   const p=f&&fixtureProfile(f);
-  const c=p&&p.controls.find(x=>x.id===parseInt(e.target.dataset.control,10));
+  const c=p&&p.controls.find(x=>x.id===parseInt(controlTarget.dataset.control,10));
   if(!f||!c)return;
+  if(c.type==='matrixRgb'&&(e.target.dataset.matrixPixel!==undefined||e.target.dataset.matrixFill||e.target.dataset.matrixClear)){
+    const current=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
+    const picker=e.target.closest('.matrix-control')?.querySelector('[data-matrix-paint-color]');
+    const color=e.target.dataset.matrixClear?{a:0,b:0,c:0}:hexToRgb(picker?.value||'#ffffff');
+    if(e.target.dataset.matrixPixel!==undefined){
+      current.pixels[parseInt(e.target.dataset.matrixPixel,10)]=color;
+    }else{
+      current.pixels=current.pixels.map(()=>({...color}));
+    }
+    setValue(f,c,current);
+    if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
+    updateControlDisplay(f,c);
+    writeLiveValues();
+    return;
+  }
   if(e.target.dataset.centerPantilt){
     setValue(f,c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});
     if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
@@ -1582,8 +1811,9 @@ surfaceEl.onclick=e=>{
     else if(c.type==='cmyk')setValue(f,c,rgbToCmyk(e.target.dataset.color));
     if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));drawSurface();return;
   }
-  if(e.target.dataset.wheel!==undefined){
-    setValue(f,c,clamp(e.target.dataset.wheel,0,255));
+  const wheelButton=e.target.closest('[data-wheel]');
+  if(wheelButton){
+    setValue(f,c,clamp(wheelButton.dataset.wheel,0,255));
     if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
     updateControlDisplay(f,c);
     writeLiveValues();
@@ -1616,6 +1846,24 @@ document.getElementById('saveProfile').onclick=saveProfile;
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
+document.getElementById('loadFixtureLibrary').onclick=loadFixtureLibrary;
+document.getElementById('fixtureLibrarySearch').addEventListener('input',()=>renderFixtureLibraryResults());
+document.getElementById('fixtureLibraryResults').onclick=e=>{
+  const btn=e.target.closest('[data-library-key]');
+  if(!btn)return;
+  fixtureLibraryState.selectedKey=btn.dataset.libraryKey;
+  fixtureLibraryState.selectedModeIndex=0;
+  renderFixtureLibraryResults();
+};
+document.getElementById('fixtureLibraryPreview').addEventListener('change',e=>{
+  if(e.target.id==='fixtureLibraryMode'){
+    fixtureLibraryState.selectedModeIndex=parseInt(e.target.value,10)||0;
+    renderFixtureLibraryPreview();
+  }
+});
+document.getElementById('fixtureLibraryPreview').addEventListener('click',e=>{
+  if(e.target.id==='importFixtureLibraryProfile')importSelectedLibraryProfile();
+});
 document.getElementById('defNone').onchange=applyNoneCheckboxes;
 document.getElementById('blkNone').onchange=applyNoneCheckboxes;
 setupEditorXYPad('defXYPad','defXYDot','defPan','defTilt');
@@ -1632,6 +1880,17 @@ function resolveDmxBytes(f,c){
     const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key'];
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     parts.forEach((p,i)=>out.push({ch:absolute(f.start,c[p]),val:v[p],param:names[i]}));
+  }
+  else if(c.type==='matrixRgb'){
+    const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
+    v.pixels.forEach((pixel,index)=>{
+      const ch=matrixPixelChannels(c,index);
+      out.push(
+        {ch:absolute(f.start,ch.a),val:pixel.a,param:'Pixel '+(index+1)+' Red'},
+        {ch:absolute(f.start,ch.b),val:pixel.b,param:'Pixel '+(index+1)+' Green'},
+        {ch:absolute(f.start,ch.c),val:pixel.c,param:'Pixel '+(index+1)+' Blue'}
+      );
+    });
   }
   else out.push({ch:absolute(f.start,c.channel),val:getValue(f,c,0),param:c.type==='wheel'?'Wheel':'Value'});
   return out;
@@ -1767,6 +2026,7 @@ function defaultValueForControl(c){
   if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
   if(c.type==='cmy')return{a:0,b:0,c:0};
   if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  if(c.type==='matrixRgb')return matrixDefaultValue(c);
   return 0;
 }
 function findMatchingControl(f,key){
@@ -1774,11 +2034,13 @@ function findMatchingControl(f,key){
 }
 function getGroupCommonControls(){
   const fxList=[...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
-  if(fxList.length<2)return[];
+  if(fxList.length===1)return(fixtureProfile(fxList[0])?.controls||[]).filter(c=>c.type!=='matrixRgb'&&isGroupControlInScope(fxList[0],c));
+  if(fxList.length<1)return[];
   const controls=new Map();
   fxList.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
+      if(c.type==='matrixRgb')return;
       const key=groupKey(c);
       if(!controls.has(key))controls.set(key,{control:c,count:0});
       controls.get(key).count++;
@@ -1798,13 +2060,15 @@ function isGroupControlInScope(f,c){
 }
 function getGroupEditableControls(){
   const fxList=[...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
-  if(fxList.length<2)return[];
+  if(fxList.length===1)return(fixtureProfile(fxList[0])?.controls||[]).filter(c=>c.type!=='matrixRgb'&&isGroupControlInScope(fxList[0],c));
+  if(fxList.length<1)return[];
   const scope=getActiveGroupControlScope();
   if(!scope)return getGroupCommonControls();
   const controls=new Map();
   fxList.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
+      if(c.type==='matrixRgb')return;
       if(!scope.has(controlKey(f,c)))return;
       const key=groupKey(c);
       if(!controls.has(key))controls.set(key,{control:c,count:0});
@@ -1872,13 +2136,14 @@ function updateGroupBar(){
   const bar=document.getElementById('groupBar');
   const n=selectedFixtureIds.size;
   const activeGroups=selectedSavedGroups();
+  const filtered=activeGroups.length||activeFixtureFilterIds.size;
   bar.style.display='flex';
   const common=getGroupEditableControls();
   const scoped=!!getActiveGroupControlScope();
-  const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:'';
-  const note=n>1?(' · '+common.length+' '+(scoped?'scoped':'common')+' control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
+  const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:(activeFixtureFilterIds.size?'<span class="small">Filtered group selection</span>':'');
+  const note=n?(' · '+common.length+' '+(n>1?(scoped?'scoped':'common'):'editable')+' control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
   const label=n?`<strong>${n} fixture${n>1?'s':''} selected</strong>${note}`:'<strong>No fixtures selected</strong>';
-  bar.innerHTML=`<span>${label}</span>${scope}<button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||activeGroups.length)?'':' disabled'}>${activeGroups.length?'Show all':'Deselect all'}</button>`;
+  bar.innerHTML=`<span>${label}</span>${scope}<button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||filtered)?'':' disabled'}>${filtered?'Show all':'Deselect all'}</button>`;
   document.getElementById('saveGroupBtn').onclick=()=>{if(n)saveCurrentGroup();};
   document.getElementById('selectAllFixtures').onclick=selectAllFixtures;
   document.getElementById('clearSelection').onclick=clearGroupSelection;
@@ -1888,6 +2153,7 @@ function selectAllFixtures(){
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
   fanState.bases={};
   fanAffectedKeys.clear();
   DmxCommon.saveSharedGroupSelection([]);
@@ -1899,6 +2165,7 @@ function clearGroupSelection(){
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
   fanState.bases={};
   fanAffectedKeys.clear();
   DmxCommon.saveSharedGroupSelection([]);
@@ -1946,8 +2213,10 @@ function renderGroupControl(c){
   if(c.type==='wheel'){
     const v=getGroupValue(c);
     const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}</span>${scope}</div>
-      <div class="tabs">${(c.options||[]).map(o=>`<button class="tab ${o.value===v?'active':''}" data-gc-wheel="${o.value}" ${gca}>${icon(o)}${o.name}</button>`).join('')}</div>
+    const active=selectedWheelOption(c,v);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}${active?' · '+escHtml(active.name):''}</span>${scope}</div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
+      <div data-gc-wheel-range-host="${key}">${wheelRangeSliderHtml(active,v,gca,escHtml)}</div>
       <input type="range" min="0" max="255" value="${v}" ${gca}></div>`;
   }
   const max=c.type==='slider16'?65535:255;
@@ -1993,8 +2262,22 @@ function updateGroupControlDisplay(c){
     document.querySelectorAll(`input[data-gc="${key}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
     return;
   }
-  document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>el.textContent=c.type==='wheel'?'Wheel · '+v:v);
+  document.querySelectorAll(`[data-gc-readout="${key}"]`).forEach(el=>{
+    const active=c.type==='wheel'?selectedWheelOption(c,v):null;
+    el.textContent=c.type==='wheel'?'Wheel · '+v+(active?' · '+active.name:''):v;
+  });
   document.querySelectorAll(`input[data-gc="${key}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='wheel'){
+    document.querySelectorAll(`[data-gc-wheel-range-host="${key}"]`).forEach(el=>{
+      const active=selectedWheelOption(c,v);
+      el.innerHTML=wheelRangeSliderHtml(active,v,`data-gc="${key}"`,escHtml);
+    });
+    document.querySelectorAll(`button[data-gc="${key}"][data-gc-wheel]`).forEach(el=>{
+      const option=(c.options||[])[parseInt(el.dataset.gcWheelOptionIndex,10)];
+      el.classList.toggle('active',option?wheelOptionMatches(option,v):parseInt(el.dataset.gcWheel,10)===v);
+    });
+    return;
+  }
   if(c.type==='slider16'){
     const b=bytes16(v);
     document.querySelectorAll(`input[data-gc="${key}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
@@ -2051,7 +2334,8 @@ document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues(
 document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
-  const key=e.target.dataset.gc;if(!key)return;
+  const target=e.target.closest('[data-gc]')||e.target;
+  const key=target.dataset.gc;if(!key)return;
   const common=getGroupEditableControls();
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
   let v=getGroupValue(c);
@@ -2076,24 +2360,24 @@ groupModalBody.oninput=e=>{
   writeLiveValues();
 };
 groupModalBody.addEventListener('click',e=>{
-  const key=e.target.dataset.gc;if(!key)return;
+  const target=e.target.closest('[data-gc]')||e.target;
+  const key=target.dataset.gc;if(!key)return;
   const common=getGroupEditableControls();
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
-  if(e.target.dataset.gcCenter){
+  if(target.dataset.gcCenter){
     const v=c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
     setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
   }
-  if(e.target.dataset.gcColor!==undefined){
+  if(target.dataset.gcColor!==undefined){
     let v=getGroupValue(c);
-    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.dataset.gcColor);v={...(typeof v==='object'?v:{a:0,b:0,c:0}),a:rgb.a,b:rgb.b,c:rgb.c};}
-    else if(c.type==='cmy')v=rgbToCmy(e.target.dataset.gcColor);
-    else if(c.type==='cmyk')v=rgbToCmyk(e.target.dataset.gcColor);
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(target.dataset.gcColor);v={...(typeof v==='object'?v:{a:0,b:0,c:0}),a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')v=rgbToCmy(target.dataset.gcColor);
+    else if(c.type==='cmyk')v=rgbToCmyk(target.dataset.gcColor);
     setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));updateGroupControlDisplay(c);return;
   }
-  if(e.target.dataset.gcWheel!==undefined){
-    const v=clamp(e.target.dataset.gcWheel,0,255);
+  if(target.dataset.gcWheel!==undefined){
+    const v=clamp(target.dataset.gcWheel,0,255);
     setGroupValue(c,v);if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
-    document.querySelectorAll(`[data-gc="${key}"].tab`).forEach(btn=>btn.classList.toggle('active',parseInt(btn.dataset.gcWheel)===v));
     updateGroupControlDisplay(c);return;
   }
 });
@@ -2120,6 +2404,14 @@ function setGroupXY(e,pad){
   writeLiveValues();
 }
 function toggleManualFixtureSelection(id){
+  if(activeSavedGroupIds.size){
+    const materialized=new Set();
+    selectedSavedGroups().forEach(g=>(g.fixtureIds||[]).forEach(fixtureId=>{
+      if(fixtures.some(f=>f.id===fixtureId))materialized.add(fixtureId);
+    }));
+    selectedFixtureIds=materialized;
+    activeFixtureFilterIds=new Set(materialized);
+  }
   if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
@@ -2177,6 +2469,7 @@ function applySharedGroupSelection(ids){
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
   savedGroups.forEach((g,i)=>{if(wanted.has(String(g.id)))activeSavedGroupIds.add(savedGroupKey(g,i));});
   fanState.bases={};
   fanAffectedKeys.clear();
@@ -2257,7 +2550,7 @@ function updateGroupActionButtons(){
   const editBtn=document.getElementById('editSelectedGroups');
   if(renameBtn)renameBtn.disabled=selected.length!==1;
   if(deleteBtn)deleteBtn.disabled=selected.length===0;
-  if(editBtn)editBtn.disabled=selectedFixtureIds.size<2||!getGroupEditableControls().length;
+  if(editBtn)editBtn.disabled=selectedFixtureIds.size<1||!getGroupEditableControls().length;
 }
 function saveSavedGroupsToServer(){
   fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}))})
@@ -2312,6 +2605,7 @@ function toggleGroup(i){
   if(activeSavedGroupIds.has(key))activeSavedGroupIds.delete(key);else activeSavedGroupIds.add(key);
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
   fanState.bases={};
   fanAffectedKeys.clear();
   rebuildSelectionFromSavedGroups();
@@ -2324,6 +2618,7 @@ function loadGroup(i){
   activeSavedGroupIds.add(savedGroupKey(g,i));
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
   fanState.bases={};
   fanAffectedKeys.clear();
   rebuildSelectionFromSavedGroups();
@@ -2339,6 +2634,7 @@ function deleteSelectedGroups(){
   const keys=new Set(selected.map(entry=>entry.key));
   savedGroups=savedGroups.filter((g,i)=>!keys.has(savedGroupKey(g,i)));
   activeSavedGroupIds.clear();
+  activeFixtureFilterIds.clear();
   DmxCommon.saveSharedGroupSelection([]);
   renderSavedGroupsList();saveSavedGroupsToServer();
   rebuildSelectionFromSavedGroups();
@@ -2356,8 +2652,8 @@ function renameSelectedGroup(){
 }
 function editSelectedGroups(){
   const common=getGroupEditableControls();
-  if(selectedFixtureIds.size<2||!common.length){
-    setStatus('Select at least two fixtures with matching controls to edit',true);
+  if(selectedFixtureIds.size<1||!common.length){
+    setStatus('Select at least one fixture with editable controls',true);
     return;
   }
   openGroupModal();
@@ -2372,7 +2668,7 @@ function importGroupsJson(file){
       const data=JSON.parse(e.target.result);
       if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
       if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
-      savedGroups=normalizeSavedGroups(data.groups);activeSavedGroupIds.clear();DmxCommon.saveSharedGroupSelection([]);renderSavedGroupsList();saveSavedGroupsToServer();
+      savedGroups=normalizeSavedGroups(data.groups);activeSavedGroupIds.clear();activeFixtureFilterIds.clear();DmxCommon.saveSharedGroupSelection([]);renderSavedGroupsList();saveSavedGroupsToServer();
       setStatus('Imported '+savedGroups.length+' group(s)');
     }catch(err){setStatus('Import failed: '+err.message);}
   };
@@ -2712,6 +3008,7 @@ function recallScene(s){
   const recalledValues=normalizedSceneValues(s.values);
   selectedFixtureIds.clear();
   activeSavedGroupIds.clear();
+  activeFixtureFilterIds.clear();
   sceneFixtureIdsFromValues(recalledValues).forEach(id=>selectedFixtureIds.add(id));
   sceneFixtureFilterActive=selectedFixtureIds.size>0;
   activeControlScopeKeys=new Set(Object.keys(recalledValues||{}).map(String));
@@ -2992,6 +3289,7 @@ function recallPalette(p){
   if(!involved.length){setStatus('Palette has no valid fixtures in this setup',true);return;}
   selectedFixtureIds.clear();
   activeSavedGroupIds.clear();
+  activeFixtureFilterIds.clear();
   involved.forEach(id=>selectedFixtureIds.add(id));
   sceneFixtureFilterActive=true;
   activeControlScopeKeys=new Set(Object.keys(paletteValues||{}).map(String));
@@ -3167,6 +3465,7 @@ loadFanPresets();
 [
   ['patchCollapseBtn',      'patchBody',       'patchCollapsed'],
   ['profilesCollapseBtn',   'profilesBody',    'profilesCollapsed'],
+  ['fixtureLibraryCollapseBtn','fixtureLibraryBody','fixtureLibraryCollapsed'],
 ].forEach(([btnId, bodyId, storageKey])=>{
   const btn=document.getElementById(btnId);
   const body=document.getElementById(bodyId);
@@ -3249,7 +3548,8 @@ function saveUiStateServer(key,val){
       renderSavedGroupsList();
     }
     [['patchCollapsed','patchBody','patchCollapseBtn'],
-     ['profilesCollapsed','profilesBody','profilesCollapseBtn']].forEach(([key,bodyId,btnId])=>{
+     ['profilesCollapsed','profilesBody','profilesCollapseBtn'],
+     ['fixtureLibraryCollapsed','fixtureLibraryBody','fixtureLibraryCollapseBtn']].forEach(([key,bodyId,btnId])=>{
       if(st[key]===undefined)return;
       const c=!!st[key];
       localStorage.setItem(key,c?'1':'');

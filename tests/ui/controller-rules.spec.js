@@ -57,6 +57,26 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.afterC).toBe(result.beforeC);
   });
 
+  test('Group Edit can edit a single selected fixture', async ({ page }) => {
+    await page.locator('[data-fixture-card="101"] .fixture-head').click();
+    await expect(page.locator('#editSelectedGroups')).toBeEnabled();
+    await page.locator('#editSelectedGroups').click();
+    await expect(page.locator('#groupModal')).toBeVisible();
+    await page.locator('#groupModalBody .control', { hasText: 'Dimmer' }).locator('input[type="range"]:not([data-byte-part])').fill('88');
+
+    const state = await page.evaluate(() => ({
+      selectedFixtures: [...selectedFixtureIds],
+      value: values['101:11'],
+      otherFixtureValue: values['102:21'],
+      title: document.getElementById('groupModalTitle').textContent
+    }));
+
+    expect(state.selectedFixtures).toEqual([101]);
+    expect(state.value).toBe(88);
+    expect(state.otherFixtureValue).not.toBe(88);
+    expect(state.title).toContain('1 fixture selected');
+  });
+
   test('scene saves are serialized so deleting a scene removes its visual from the server payload', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const originalFetch = window.fetch;
@@ -340,7 +360,7 @@ test.describe('Fixture Controller established rules', () => {
     }
   });
 
-  test('manual fixture selection clears the shared Groups toolbox selection', async ({ page }) => {
+  test('manual fixture selection refines a group without losing the fixture filter', async ({ page }) => {
     const result = await page.evaluate(() => {
       activeSavedGroupIds = new Set([savedGroupKey(savedGroups[0], 0)]);
       rebuildSelectionFromSavedGroups();
@@ -350,12 +370,20 @@ test.describe('Fixture Controller established rules', () => {
       document.querySelector('[data-fixture-card="101"]').click();
       return {
         selectedGroups: selectedSavedGroups().length,
-        shared: JSON.parse(localStorage.getItem('selectedGroupIds') || '[]')
+        selectedFixtures: [...selectedFixtureIds].sort(),
+        shared: JSON.parse(localStorage.getItem('selectedGroupIds') || '[]'),
+        filteredFixtures: [...activeFixtureFilterIds].sort(),
+        visibleCards: [...document.querySelectorAll('#surface article h2')].map(el => el.textContent),
+        groupBarText: document.getElementById('groupBar').textContent
       };
     });
 
     expect(result.selectedGroups).toBe(0);
+    expect(result.selectedFixtures).toEqual([102]);
     expect(result.shared).toEqual([]);
+    expect(result.filteredFixtures).toEqual([101, 102]);
+    expect(result.visibleCards).toEqual(['A 1', 'B 1']);
+    expect(result.groupBarText).toContain('Filtered group selection');
   });
 
   test('fixture card click toggles selection while controls do not', async ({ page }) => {
@@ -390,6 +418,198 @@ test.describe('Fixture Controller established rules', () => {
     expect(message).toContain('DMX 0');
     expect(message).toContain('"Open"');
     expect(message).toContain('"Closed"');
+  });
+
+  test('RGB matrix controls render pixels and resolve sequential DMX channels', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      profiles = [{
+        id: 900,
+        name: 'Matrix Bar',
+        mode: '2x2',
+        channels: 12,
+        controls: [{
+          id: 901,
+          type: 'matrixRgb',
+          label: 'Pixels',
+          channel: 1,
+          width: 2,
+          height: 2
+        }]
+      }];
+      fixtures = [{ id: 902, name: 'Matrix 1', profileId: 900, start: 101 }];
+      Object.keys(values).forEach(key => delete values[key]);
+      activeProfileId = 900;
+      selectedFixtureIds = new Set();
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      draw();
+
+      const picker = document.querySelector('[data-matrix-paint-color][data-fixture="902"][data-control="901"]');
+      picker.value = '#336699';
+      document.querySelector('[data-matrix-pixel="2"][data-fixture="902"][data-control="901"]').click();
+
+      return {
+        channelText: controlChannelText(profiles[0].controls[0]),
+        pixelCount: document.querySelectorAll('[data-matrix-pixel][data-fixture="902"][data-control="901"]').length,
+        value: values['902:901'].pixels[2],
+        bytes: resolveDmxBytes(fixtures[0], profiles[0].controls[0]).filter(row => row.val > 0)
+      };
+    });
+
+    expect(result.channelText).toBe('2×2 RGB from CH 1 to 12');
+    expect(result.pixelCount).toBe(4);
+    expect(result.value).toEqual({ a: 51, b: 102, c: 153 });
+    expect(result.bytes).toEqual([
+      { ch: 107, val: 51, param: 'Pixel 3 Red' },
+      { ch: 108, val: 102, param: 'Pixel 3 Green' },
+      { ch: 109, val: 153, param: 'Pixel 3 Blue' }
+    ]);
+  });
+
+  test('Fixture Library imports a converted OFL mode as a controller profile', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
+    await page.locator('#loadFixtureLibrary').click();
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
+    await page.locator('#fixtureLibrarySearch').fill('american dj inno pocket spot');
+    await page.locator('[data-library-key="american-dj/inno-pocket-spot"]').click();
+    await page.locator('#fixtureLibraryMode').selectOption('1');
+    await page.locator('#importFixtureLibraryProfile').click();
+
+    const profile = await page.evaluate(() => {
+      const imported = profiles.find(p => p.name === 'American DJ Inno Pocket Spot' && p.mode === '11-channel');
+      return imported ? {
+        name: imported.name,
+        mode: imported.mode,
+        channels: imported.channels,
+        controls: imported.controls.map(c => ({ type: c.type, label: c.label, pan: c.pan, panFine: c.panFine, tilt: c.tilt, tiltFine: c.tiltFine, channel: c.channel }))
+      } : null;
+    });
+
+    expect(profile).toBeTruthy();
+    expect(profile.channels).toBe(11);
+    expect(profile.controls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'panTilt16', label: 'Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }),
+      expect.objectContaining({ type: 'wheel', label: 'Color Wheel', channel: 5 }),
+      expect.objectContaining({ type: 'slider8', label: 'Dimmer', channel: 8 })
+    ]));
+  });
+
+  test('Fixture Library preserves OFL wheel slot names, ranges, and colors', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
+    await page.locator('#loadFixtureLibrary').click();
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
+    await page.locator('#fixtureLibrarySearch').fill('fun generation picospot 20 led');
+    await page.locator('[data-library-key="fun-generation/picospot-20-led"]').click();
+    await page.locator('#fixtureLibraryMode').selectOption('0');
+    await page.locator('#importFixtureLibraryProfile').click();
+
+    const state = await page.evaluate(() => {
+      const profile = profiles.find(p => p.name === 'Fun Generation PicoSpot 20 LED' && p.mode === '5-channel');
+      const wheel = profile.controls.find(c => c.label === 'Color Wheel');
+      const red = wheel.options.find(o => o.name === 'Red');
+      const rotation = wheel.options.find(o => o.kind === 'WheelRotation');
+      fixtures.splice(0, fixtures.length, { id: 9901, name: 'PicoSpot', profileId: profile.id, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['9901:' + wheel.id] = 18;
+      drawSurface();
+      const activeButton = document.querySelector(`[data-fixture="9901"][data-control="${wheel.id}"][data-wheel].active`);
+      return {
+        red,
+        rotation,
+        selectedAtRangeValue: selectedWheelOption(wheel, 18)?.name,
+        textFormat: wheelOptionsText([red]),
+        activeButtonText: activeButton?.textContent.trim(),
+        activeTitle: activeButton?.getAttribute('title')
+      };
+    });
+
+    expect(state.red).toEqual(expect.objectContaining({
+      value: 16,
+      range: [11, 21],
+      kind: 'WheelSlot',
+      slotNumber: 2,
+      color: '#ff0000'
+    }));
+    expect(state.rotation).toEqual(expect.objectContaining({
+      value: 216,
+      range: [176, 255],
+      kind: 'WheelRotation'
+    }));
+    expect(state.selectedAtRangeValue).toBe('Red');
+    expect(state.textFormat).toBe('Red=11-21|#ff0000');
+    expect(state.activeButtonText).toContain('Red');
+    expect(state.activeTitle).toBe('DMX 11-21 · WheelSlot');
+  });
+
+  test('OFL wheel shake ranges expose a bounded speed slider', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
+    await page.locator('#loadFixtureLibrary').click();
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
+    await page.locator('#fixtureLibrarySearch').fill('fun generation picospot 20 led');
+    await page.locator('[data-library-key="fun-generation/picospot-20-led"]').click();
+    await page.locator('#fixtureLibraryMode').selectOption('2');
+    await page.locator('#importFixtureLibraryProfile').click();
+
+    const state = await page.evaluate(() => {
+      const profile = profiles.find(p => p.name === 'Fun Generation PicoSpot 20 LED' && p.mode === '11-channel');
+      const gobo = profile.controls.find(c => c.label === 'Gobo Wheel');
+      const shake = gobo.options.find(o => o.kind === 'WheelShake' && o.slotNumber === 2);
+      fixtures.splice(0, fixtures.length, { id: 9902, name: 'PicoSpot 11ch', profileId: profile.id, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['9902:' + gobo.id] = 130;
+      drawSurface();
+      const host = document.querySelector(`[data-wheel-range-host="9902:${gobo.id}"]`);
+      const slider = host?.querySelector('input[type="range"]');
+      const button = document.querySelector(`[data-fixture="9902"][data-control="${gobo.id}"][data-wheel-option-index="${gobo.options.indexOf(shake)}"]`);
+      const sliderValueBeforeButton = slider?.value;
+      button.click();
+      const sliderAfterButton = document.querySelector(`[data-wheel-range-host="9902:${gobo.id}"] input[type="range"]`);
+      return {
+        shake,
+        selectedAt130: DmxCommon.selectedWheelOption(gobo, 130)?.name,
+        sliderMin: slider?.getAttribute('min'),
+        sliderMax: slider?.getAttribute('max'),
+        sliderValue: sliderValueBeforeButton,
+        sliderValueAfterButton: sliderAfterButton?.value,
+        sliderLabel: host?.textContent,
+        buttonValue: button.dataset.wheel,
+        valueAfterButton: values['9902:' + gobo.id]
+      };
+    });
+
+    expect(state.shake).toEqual(expect.objectContaining({
+      value: 133,
+      range: [125, 140],
+      kind: 'WheelShake',
+      slotNumber: 2,
+      shakeSpeedStart: 'slow',
+      shakeSpeedEnd: 'fast'
+    }));
+    expect(state.selectedAt130).toContain('shake');
+    expect(state.sliderMin).toBe('125');
+    expect(state.sliderMax).toBe('140');
+    expect(state.sliderValue).toBe('130');
+    expect(state.sliderValueAfterButton).toBe('133');
+    expect(state.sliderLabel).toContain('Shake speed');
+    expect(state.sliderLabel).toContain('slow to fast');
+    expect(state.buttonValue).toBe('133');
+    expect(state.valueAfterButton).toBe(133);
+  });
+
+  test('Fixture Library panel has a persistent collapse button', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
+    await expect(page.locator('#fixtureLibraryCollapseBtn')).toBeVisible();
+    await expect(page.locator('#fixtureLibraryBody')).toBeVisible();
+
+    await page.locator('#fixtureLibraryCollapseBtn').click();
+    await expect(page.locator('#fixtureLibraryBody')).toBeHidden();
+    await expect(page.locator('#fixtureLibraryCollapseBtn')).toHaveText('+');
+
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.locator('#fixtureLibraryBody')).toBeHidden();
+    await expect(page.locator('#fixtureLibraryCollapseBtn')).toHaveText('+');
   });
 
   test('scene recall clears groups and filters the surface to involved fixtures', async ({ page }) => {

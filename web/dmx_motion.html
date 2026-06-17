@@ -91,7 +91,12 @@ main{max-width:none;width:100%;margin:0}
 </section>
 
 <!-- Pico Motion FX -->
-<section class="panel pico-panel">
+<section class="panel pico-panel compact-collapse-panel" id="picoMotionPanel">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h2>Pico Motion</h2>
+    <button class="collapse-btn" data-panel-toggle="picoMotionPanel" title="Collapse Pico Motion">−</button>
+  </div>
+  <div class="panel-body">
   <div class="pico-controls">
     <span class="mode-badge mode-badge--pico">&#x2699; Pico Motion</span>
     <label class="pico-field">
@@ -123,6 +128,7 @@ main{max-width:none;width:100%;margin:0}
   </div>
   <!-- Slot status strip -->
   <div id="motionSlotStrip" class="pico-slot-strip"></div>
+  </div>
 </section>
 
 </main>

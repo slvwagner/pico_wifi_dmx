@@ -70,6 +70,79 @@
     return inverted?ordered.reverse():ordered;
   }
 
+  function wheelOptionRange(option){
+    const range=option&&option.range;
+    if(Array.isArray(range)&&range.length>=2){
+      const start=clampInt(range[0],0,255);
+      const end=clampInt(range[1],0,255);
+      return [Math.min(start,end),Math.max(start,end)];
+    }
+    return null;
+  }
+
+  function wheelOptionValue(option){
+    const range=wheelOptionRange(option);
+    if(range)return Math.round((range[0]+range[1])/2);
+    return clampInt(option&&option.value,0,255);
+  }
+
+  function wheelOptionMatches(option,value){
+    const v=clampInt(value,0,255);
+    const range=wheelOptionRange(option);
+    return range?v>=range[0]&&v<=range[1]:wheelOptionValue(option)===v;
+  }
+
+  function selectedWheelOption(control,value){
+    return ((control&&control.options)||[]).find(option=>wheelOptionMatches(option,value))||null;
+  }
+
+  function wheelOptionTitle(option){
+    const range=wheelOptionRange(option);
+    const details=[range?'DMX '+range[0]+'-'+range[1]:'DMX '+wheelOptionValue(option)];
+    if(option&&option.kind)details.push(option.kind);
+    return details.join(' · ');
+  }
+
+  function wheelOptionIsAdjustable(option){
+    const range=wheelOptionRange(option);
+    if(!range||range[0]===range[1])return false;
+    const kind=String(option&&option.kind||'');
+    return kind==='WheelShake'||kind==='WheelRotation'||kind==='WheelSlotRotation'||
+      !!(option&&(option.speedStart||option.speedEnd||option.shakeSpeedStart||option.shakeSpeedEnd));
+  }
+
+  function wheelOptionRangeLabel(option){
+    const kind=String(option&&option.kind||'');
+    if(kind==='WheelShake')return 'Shake speed';
+    if(kind==='WheelRotation')return 'Rotation speed';
+    if(kind==='WheelSlotRotation')return 'Slot rotation';
+    return 'Range value';
+  }
+
+  function wheelOptionRangeText(option){
+    const start=option&&(option.shakeSpeedStart||option.speedStart);
+    const end=option&&(option.shakeSpeedEnd||option.speedEnd);
+    if(start&&end)return String(start)+' to '+String(end);
+    if(start)return String(start);
+    if(end)return String(end);
+    const range=wheelOptionRange(option);
+    return range?'DMX '+range[0]+'-'+range[1]:'';
+  }
+
+  function wheelRangeSliderHtml(option,value,attrs='',escape=escapeHtml){
+    if(!wheelOptionIsAdjustable(option))return '';
+    const range=wheelOptionRange(option);
+    const v=clampInt(value,range[0],range[1]);
+    const label=escape(wheelOptionRangeLabel(option));
+    const text=escape(wheelOptionRangeText(option));
+    return `<div class="wheel-range-control" data-wheel-range-panel="1">
+      <label>${label} <span class="bytes" data-wheel-range-readout="1">${v}</span>
+        <input type="range" min="${range[0]}" max="${range[1]}" step="1" value="${v}" ${attrs}>
+      </label>
+      <div class="small">${text}</div>
+    </div>`;
+  }
+
   function applyBaseUrl(input,fallback=''){
     if(!input)return '';
     input.value=localStorage.getItem(BASE_URL_KEY)||fallback||'';
@@ -1328,6 +1401,15 @@
     clampInt,
     clampFloat,
     fanOrderedFixtures,
+    wheelOptionRange,
+    wheelOptionValue,
+    wheelOptionMatches,
+    selectedWheelOption,
+    wheelOptionTitle,
+    wheelOptionIsAdjustable,
+    wheelOptionRangeLabel,
+    wheelOptionRangeText,
+    wheelRangeSliderHtml,
     applyBaseUrl,
     bindBaseUrl,
     preferStoredBaseUrl,
