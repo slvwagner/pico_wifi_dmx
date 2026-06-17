@@ -470,7 +470,6 @@ test.describe('Fixture Controller established rules', () => {
 
   test('Fixture Library imports a converted OFL mode as a controller profile', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
-    await page.locator('#loadFixtureLibrary').click();
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
     await page.locator('#fixtureLibrarySearch').fill('american dj inno pocket spot');
     await page.locator('[data-library-key="american-dj/inno-pocket-spot"]').click();
@@ -498,7 +497,6 @@ test.describe('Fixture Controller established rules', () => {
 
   test('Fixture Library preserves OFL wheel slot names, ranges, and colors', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
-    await page.locator('#loadFixtureLibrary').click();
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
     await page.locator('#fixtureLibrarySearch').fill('fun generation picospot 20 led');
     await page.locator('[data-library-key="fun-generation/picospot-20-led"]').click();
@@ -545,7 +543,6 @@ test.describe('Fixture Controller established rules', () => {
 
   test('OFL wheel shake ranges expose a bounded speed slider', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
-    await page.locator('#loadFixtureLibrary').click();
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
     await page.locator('#fixtureLibrarySearch').fill('fun generation picospot 20 led');
     await page.locator('[data-library-key="fun-generation/picospot-20-led"]').click();

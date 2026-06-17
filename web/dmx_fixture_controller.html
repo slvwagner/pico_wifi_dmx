@@ -103,12 +103,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="fixtureLibraryBody">
 <div class="fixture-library-controls">
-<label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket"></label>
-<button id="loadFixtureLibrary">Load library</button>
+<label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket" disabled></label>
+<button id="retryFixtureLibrary" style="display:none">Retry</button>
 </div>
-<div class="small" id="fixtureLibraryStatus">Library not loaded.</div>
+<div class="small" id="fixtureLibraryStatus">Loading fixture library...</div>
 <div class="fixture-library-layout">
-<div id="fixtureLibraryResults" class="fixture-library-results"><div class="small">Load the fixture library to search fixtures.</div></div>
+<div id="fixtureLibraryResults" class="fixture-library-results"><div class="small">Loading fixture library...</div></div>
 <div id="fixtureLibraryPreview" class="fixture-library-preview"><div class="small">Select a fixture to preview modes and controls.</div></div>
 </div>
 </div>
@@ -1020,11 +1020,20 @@ function applyNoneCheckboxes(){
   document.getElementById('blkAmberWrap').style.display=(!blkNone&&type==='rgbwa')?'grid':'none';
 }
 
-async function loadFixtureLibrary(){
+async function loadFixtureLibrary(options={}){
+  const force=!!options.force;
+  if(fixtureLibraryState.data&&!force){
+    renderFixtureLibraryResults();
+    return fixtureLibraryState.data;
+  }
   const status=document.getElementById('fixtureLibraryStatus');
-  const btn=document.getElementById('loadFixtureLibrary');
+  const retry=document.getElementById('retryFixtureLibrary');
+  const search=document.getElementById('fixtureLibrarySearch');
   status.textContent='Loading fixture library...';
-  btn.disabled=true;
+  if(retry){retry.style.display='none';retry.disabled=true;}
+  if(search)search.disabled=true;
+  document.getElementById('fixtureLibraryResults').innerHTML='<div class="small">Loading fixture library...</div>';
+  document.getElementById('fixtureLibraryPreview').innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
   try{
     const r=await fetch('assets/fixture-library.json',{cache:'no-store'});
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -1032,12 +1041,17 @@ async function loadFixtureLibrary(){
     fixtureLibraryState.selectedKey='';
     fixtureLibraryState.selectedModeIndex=0;
     status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' library fixtures.';
+    if(search)search.disabled=false;
     renderFixtureLibraryResults();
+    return fixtureLibraryState.data;
   }catch(err){
     status.textContent='Fixture library unavailable. Run scripts/build_fixture_library.ps1 first. '+err.message;
-    document.getElementById('fixtureLibraryResults').innerHTML='<div class="small">No library data loaded.</div>';
+    document.getElementById('fixtureLibraryResults').innerHTML='<div class="small">Fixture library could not be loaded.</div>';
+    if(retry){retry.style.display='';retry.disabled=false;}
+    if(search)search.disabled=true;
+    return null;
   }finally{
-    btn.disabled=false;
+    if(retry&&retry.style.display==='none')retry.disabled=false;
   }
 }
 function fixtureLibrarySearchText(fixture){
@@ -1048,7 +1062,7 @@ function renderFixtureLibraryResults(){
   const previewEl=document.getElementById('fixtureLibraryPreview');
   const data=fixtureLibraryState.data;
   if(!data?.fixtures?.length){
-    resultsEl.innerHTML='<div class="small">Load the fixture library to search fixtures.</div>';
+    resultsEl.innerHTML='<div class="small">Fixture library is loading or unavailable.</div>';
     previewEl.innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
     return;
   }
@@ -1862,7 +1876,7 @@ document.getElementById('saveProfile').onclick=saveProfile;
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
-document.getElementById('loadFixtureLibrary').onclick=loadFixtureLibrary;
+document.getElementById('retryFixtureLibrary').onclick=()=>loadFixtureLibrary({force:true});
 document.getElementById('fixtureLibrarySearch').addEventListener('input',()=>renderFixtureLibraryResults());
 document.getElementById('fixtureLibraryResults').onclick=e=>{
   const btn=e.target.closest('[data-library-key]');
@@ -3581,6 +3595,7 @@ function saveUiStateServer(key,val){
     }
   }catch(_){}
 })();
+loadFixtureLibrary();
 </script>
 </body>
 </html>

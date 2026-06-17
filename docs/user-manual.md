@@ -58,12 +58,13 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 
 The **Fixture Library** panel imports fixture profiles from the converted Open Fixture Library export. Use it when you want to start from an existing fixture definition instead of building every channel by hand.
 
-1. Click **Load library**.
-2. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
-3. Select the matching fixture from the results list.
-4. Choose the desired DMX mode from the **Mode** dropdown.
-5. Review the converted controls and channel count in the preview.
-6. Click **Import profile**.
+The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a **Retry** button.
+
+1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
+2. Select the matching fixture from the results list.
+3. Choose the desired DMX mode from the **Mode** dropdown.
+4. Review the converted controls and channel count in the preview.
+5. Click **Import profile**.
 
 The imported fixture is added to **Fixture Profiles** and becomes the active profile. You can edit it like any manually created profile, including changing labels, defaults, blackout values, and wheel options.
 
