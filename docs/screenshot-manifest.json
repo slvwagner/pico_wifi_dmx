@@ -16,6 +16,11 @@
       "purpose": "fixture profiles and add/edit control"
     },
     {
+      "file": "fixture-controller-fixture-library.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "fixture library search and mode preview"
+    },
+    {
       "file": "fixture-controller-saved-groups.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "saved groups matrix"
@@ -54,6 +59,11 @@
       "file": "fixture-controller-live-controls.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "controller live control surface"
+    },
+    {
+      "file": "fixture-controller-ofl-wheel-range.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "fixture library OFL wheel range control"
     },
     {
       "file": "fixture-controller-group-modal.png",

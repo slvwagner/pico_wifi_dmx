@@ -389,6 +389,35 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:true});
+  docShots.setSceneBox({visible:false});
+  docShots.setGroupsBox({visible:false});
+  if(typeof setSectionCollapsed==='function')setSectionCollapsed('fixtureLibraryCollapseBtn','fixtureLibraryBody','fixtureLibraryCollapsed',false);
+  const status=document.getElementById('status');
+  if(status) status.textContent='Fixture Library import';
+  await loadFixtureLibrary();
+  const search=document.getElementById('fixtureLibrarySearch');
+  if(search){
+    search.value='fun generation picospot 20 led';
+    search.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  await docShots.wait(300);
+  fixtureLibraryState.selectedKey='fun-generation/picospot-20-led';
+  fixtureLibraryState.selectedModeIndex=2;
+  renderFixtureLibraryResults();
+  await docShots.wait(300);
+  document.getElementById('fixtureLibraryPanel')?.scrollIntoView({block:'start'});
+  window.scrollBy(0,-80);
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:true});
+  await docShots.wait();
+})()
+"@
+    Save-Screenshot "fixture-controller-fixture-library.png"
+
+    Eval-Js @"
+(async()=>{
+  docShots.setSetupSections({profiles:true,patch:true});
   docShots.setToolboxRail({collapsed:false});
   docShots.setSceneBox({visible:false});
   docShots.setGroupsBox({visible:true,open:true});
@@ -486,6 +515,47 @@ try {
 })()
 "@
     Save-Screenshot "fixture-controller-live-controls.png"
+
+    Eval-Js @"
+(async()=>{
+  docShots.setSetupSections({profiles:true,patch:true});
+  docShots.setToolboxRail({collapsed:true});
+  docShots.clearGroupFilter();
+  docShots.setSceneBox({visible:false});
+  docShots.setGroupsBox({visible:false});
+  const status=document.getElementById('status');
+  if(status) status.textContent='OFL wheel range control';
+  const response=await fetch('assets/fixture-library.json?docshot=$cacheBust',{cache:'no-store'});
+  const library=await response.json();
+  const fixture=library.fixtures.find(f=>f.key==='fun-generation/picospot-20-led');
+  const mode=fixture.modes.find(m=>m.name==='11-channel');
+  const profile=JSON.parse(JSON.stringify(mode.profile));
+  profile.id=880001;
+  profile.name='Fun Generation PicoSpot 20 LED';
+  profile.controls.forEach((control,index)=>control.id=880010+index);
+  profiles.splice(0,profiles.length,profile);
+  fixtures.splice(0,fixtures.length,{id:880101,name:'PicoSpot 20 LED',profileId:profile.id,start:1});
+  Object.keys(values).forEach(key=>delete values[key]);
+  const gobo=profile.controls.find(control=>control.label==='Gobo Wheel');
+  const shake=gobo.options.find(option=>option.kind==='WheelShake'&&option.slotNumber===2);
+  values[fixtures[0].id+':'+gobo.id]=130;
+  activeProfileId=profile.id;
+  selectedFixtureIds.clear();
+  collapsedFixtureIds.clear();
+  if(typeof loadProfileEditor==='function')loadProfileEditor(profile);
+  if(typeof resetControlEditor==='function')resetControlEditor();
+  if(typeof draw==='function')draw();
+  await docShots.wait(400);
+  const goboControl=[...document.querySelectorAll('#surface .control')]
+    .find(control=>control.querySelector('h3')?.textContent?.trim()==='Gobo Wheel');
+  goboControl?.scrollIntoView({block:'center'});
+  window.scrollBy(0,-120);
+  await docShots.wait(300);
+  docShots.setToolboxRail({collapsed:true});
+  await docShots.wait();
+})()
+"@
+    Save-Screenshot "fixture-controller-ofl-wheel-range.png"
 
     Eval-Js @"
 (async()=>{

@@ -564,6 +564,13 @@ test.describe('Fixture Controller established rules', () => {
       const slider = host?.querySelector('input[type="range"]');
       const button = document.querySelector(`[data-fixture="9902"][data-control="${gobo.id}"][data-wheel-option-index="${gobo.options.indexOf(shake)}"]`);
       const sliderValueBeforeButton = slider?.value;
+      slider.focus();
+      slider.value = '131';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      const sliderAfterInput = document.querySelector(`[data-wheel-range-host="9902:${gobo.id}"] input[type="range"]`);
+      const preservedDuringInput = slider === sliderAfterInput;
+      const valueAfterInput = values['9902:' + gobo.id];
+      const sliderValueAfterInput = sliderAfterInput?.value;
       button.click();
       const sliderAfterButton = document.querySelector(`[data-wheel-range-host="9902:${gobo.id}"] input[type="range"]`);
       return {
@@ -572,6 +579,9 @@ test.describe('Fixture Controller established rules', () => {
         sliderMin: slider?.getAttribute('min'),
         sliderMax: slider?.getAttribute('max'),
         sliderValue: sliderValueBeforeButton,
+        valueAfterInput,
+        preservedDuringInput,
+        sliderValueAfterInput,
         sliderValueAfterButton: sliderAfterButton?.value,
         sliderLabel: host?.textContent,
         buttonValue: button.dataset.wheel,
@@ -591,6 +601,9 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.sliderMin).toBe('125');
     expect(state.sliderMax).toBe('140');
     expect(state.sliderValue).toBe('130');
+    expect(state.valueAfterInput).toBe(131);
+    expect(state.preservedDuringInput).toBe(true);
+    expect(state.sliderValueAfterInput).toBe('131');
     expect(state.sliderValueAfterButton).toBe('133');
     expect(state.sliderLabel).toContain('Shake speed');
     expect(state.sliderLabel).toContain('slow to fast');

@@ -625,7 +625,23 @@ const wheelOptionValue=DmxCommon.wheelOptionValue;
 const wheelOptionMatches=DmxCommon.wheelOptionMatches;
 const selectedWheelOption=DmxCommon.selectedWheelOption;
 const wheelOptionTitle=DmxCommon.wheelOptionTitle;
+const wheelOptionRange=DmxCommon.wheelOptionRange;
+const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
 const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
+function updateWheelRangeHost(host,option,value,attrs){
+  const range=wheelOptionRange(option);
+  if(wheelOptionIsAdjustable(option)&&range){
+    const input=host.querySelector('input[type="range"]');
+    const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
+    if(sameRange){
+      const v=clamp(value,range[0],range[1]);
+      if(document.activeElement!==input&&Number(input.value)!==v)input.value=v;
+      host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>el.textContent=v);
+      return;
+    }
+  }
+  host.innerHTML=wheelRangeSliderHtml(option,value,attrs,escAttr);
+}
 function findChaserGroupControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>isChaserControlSupported(c)&&chaserGroupKey(c)===key)||null;
 }
@@ -809,7 +825,7 @@ function updateChaserGroupControlDisplay(c){
   if(c.type==='wheel'){
     document.querySelectorAll(`[data-cg-wheel-range-host="${key}"]`).forEach(el=>{
       const active=selectedWheelOption(c,v??0);
-      el.innerHTML=wheelRangeSliderHtml(active,v??0,`data-cg="${key}"`,escAttr);
+      updateWheelRangeHost(el,active,v??0,`data-cg="${key}"`);
     });
     document.querySelectorAll(`button[data-cg="${key}"][data-cg-wheel]`).forEach(el=>{
       const option=(c.options||[])[parseInt(el.dataset.cgWheelOptionIndex,10)];
@@ -1792,7 +1808,7 @@ function updateStepDisplay(f,c,overrideValue){
     const active=selectedWheelOption(c,sv);
     document.querySelectorAll(`[data-readoutf="${fi}"][data-readoutc="${ci}"]`).forEach(el=>{el.textContent='CH '+absolute(f.start,c.channel)+' · '+Math.round(sv)+(active?' · '+active.name:'');});
     document.querySelectorAll(`[data-wheel-range-host="${fi}:${ci}"]`).forEach(el=>{
-      el.innerHTML=wheelRangeSliderHtml(active,sv,`data-fi="${fi}" data-ci="${ci}"`,escAttr);
+      updateWheelRangeHost(el,active,sv,`data-fi="${fi}" data-ci="${ci}"`);
     });
     document.querySelectorAll(`button[data-fi="${fi}"][data-ci="${ci}"][data-wheel]`).forEach(el=>{
       const option=(c.options||[])[parseInt(el.dataset.wheelOptionIndex,10)];

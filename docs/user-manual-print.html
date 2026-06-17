@@ -169,6 +169,27 @@ strong { color: #ffffff; }
 <li>Gobo wheel on channel 12</li>
 </ul>
 <p>To change an existing control, click <strong>Edit</strong> in the Fixture Profiles list. The <strong>Add / Edit Control</strong> card opens automatically and loads the selected control. After editing, click <strong>Save control</strong>. The <strong>Fixture Profiles</strong> collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.</p>
+<h3 id="fixture-library">Fixture Library</h3>
+<p><img src="screenshots/fixture-controller-fixture-library.png" alt="Fixture Library search and mode preview"></p>
+<p>The <strong>Fixture Library</strong> panel imports fixture profiles from the converted Open Fixture Library export. Use it when you want to start from an existing fixture definition instead of building every channel by hand.</p>
+<ol>
+<li>Click <strong>Load library</strong>.</li>
+<li>Type part of the manufacturer, fixture name, category, or mode in <strong>Search manufacturer or fixture</strong>.</li>
+<li>Select the matching fixture from the results list.</li>
+<li>Choose the desired DMX mode from the <strong>Mode</strong> dropdown.</li>
+<li>Review the converted controls and channel count in the preview.</li>
+<li>Click <strong>Import profile</strong>.</li>
+</ol>
+<p>The imported fixture is added to <strong>Fixture Profiles</strong> and becomes the active profile. You can edit it like any manually created profile, including changing labels, defaults, blackout values, and wheel options.</p>
+<p>The converter keeps the richer Open Fixture Library data where the controller can use it:</p>
+<ul>
+<li>Pan/tilt channels are grouped as 8-bit or 16-bit pan/tilt controls when matching channels are present.</li>
+<li>RGB, RGBW, and RGBWA color intensity channels are grouped into color controls.</li>
+<li>Wheel slots keep their OFL names and colors when the library provides them.</li>
+<li>Wheel DMX ranges are preserved. Normal slot buttons send the midpoint of the range.</li>
+<li>Adjustable wheel functions such as <code>WheelShake</code>, <code>WheelRotation</code>, and <code>WheelSlotRotation</code> show a bounded speed/range slider after you select that option.</li>
+<li>Unsupported or ambiguous channels are kept as simple 8-bit sliders so no channel is silently lost.</li>
+</ul>
 <h3 id="default-and-blackout-values">Default and Blackout Values</h3>
 <p>Each control can store a <strong>Default</strong> value and a <strong>Blackout</strong> value.</p>
 <p>Default values are useful for a normal starting look, for example:</p>
@@ -212,6 +233,8 @@ strong { color: #ffffff; }
 <li>Coarse/fine sliders for 16-bit channels</li>
 </ul>
 <p>Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing.</p>
+<p>Fixture profiles imported from the <strong>Fixture Library</strong> keep richer Open Fixture Library wheel information when it is available. Wheel slots use their real names and colors, for example <code>White</code>, <code>Red</code>, or <code>Gobo 2</code>. If an OFL wheel option covers a DMX range, the button sends the middle of that range so the value is safely inside the fixture function. Adjustable wheel ranges such as <code>WheelShake</code>, <code>WheelRotation</code>, and <code>WheelSlotRotation</code> also show a bounded range slider after you select them. For example, the Fun Generation PicoSpot 20 LED in 11-channel mode imports <code>Gobo 2 shake</code> as a wheel button and shows a <strong>Shake speed</strong> slider limited to its real DMX range.</p>
+<p><img src="screenshots/fixture-controller-ofl-wheel-range.png" alt="OFL wheel range control"></p>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> on a fixture card to recall the stored values for that fixture only.</p>
 <p>Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Default, Blackout, or collapse controls does not change fixture selection.</p>
 <p>After a hard page reload, no fixture cards are selected automatically. This keeps Group Edit disabled until you deliberately choose the fixtures you want to edit.</p>

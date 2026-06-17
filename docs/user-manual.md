@@ -73,6 +73,30 @@ Each control stores its own DMX channel mapping. For example, a moving head can 
 
 To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
 
+### Fixture Library
+
+![Fixture Library search and mode preview](screenshots/fixture-controller-fixture-library.png)
+
+The **Fixture Library** panel imports fixture profiles from the converted Open Fixture Library export. Use it when you want to start from an existing fixture definition instead of building every channel by hand.
+
+1. Click **Load library**.
+2. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
+3. Select the matching fixture from the results list.
+4. Choose the desired DMX mode from the **Mode** dropdown.
+5. Review the converted controls and channel count in the preview.
+6. Click **Import profile**.
+
+The imported fixture is added to **Fixture Profiles** and becomes the active profile. You can edit it like any manually created profile, including changing labels, defaults, blackout values, and wheel options.
+
+The converter keeps the richer Open Fixture Library data where the controller can use it:
+
+- Pan/tilt channels are grouped as 8-bit or 16-bit pan/tilt controls when matching channels are present.
+- RGB, RGBW, and RGBWA color intensity channels are grouped into color controls.
+- Wheel slots keep their OFL names and colors when the library provides them.
+- Wheel DMX ranges are preserved. Normal slot buttons send the midpoint of the range.
+- Adjustable wheel functions such as `WheelShake`, `WheelRotation`, and `WheelSlotRotation` show a bounded speed/range slider after you select that option.
+- Unsupported or ambiguous channels are kept as simple 8-bit sliders so no channel is silently lost.
+
 ### Default and Blackout Values
 
 Each control can store a **Default** value and a **Blackout** value.
@@ -127,6 +151,10 @@ Each fixture card contains the controls from its profile:
 - Coarse/fine sliders for 16-bit channels
 
 Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing.
+
+Fixture profiles imported from the **Fixture Library** keep richer Open Fixture Library wheel information when it is available. Wheel slots use their real names and colors, for example `White`, `Red`, or `Gobo 2`. If an OFL wheel option covers a DMX range, the button sends the middle of that range so the value is safely inside the fixture function. Adjustable wheel ranges such as `WheelShake`, `WheelRotation`, and `WheelSlotRotation` also show a bounded range slider after you select them. For example, the Fun Generation PicoSpot 20 LED in 11-channel mode imports `Gobo 2 shake` as a wheel button and shows a **Shake speed** slider limited to its real DMX range.
+
+![OFL wheel range control](screenshots/fixture-controller-ofl-wheel-range.png)
 
 Use **Default** or **Blackout** on a fixture card to recall the stored values for that fixture only.
 

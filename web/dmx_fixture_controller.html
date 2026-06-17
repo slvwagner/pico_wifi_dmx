@@ -582,12 +582,28 @@ function wheelOptionsText(options){
   }).join('\n');
 }
 
-const wheelOptionRange=DmxCommon.wheelOptionRange;
 const wheelOptionValue=DmxCommon.wheelOptionValue;
 const wheelOptionMatches=DmxCommon.wheelOptionMatches;
 const selectedWheelOption=DmxCommon.selectedWheelOption;
 const wheelOptionTitle=DmxCommon.wheelOptionTitle;
+const wheelOptionRange=DmxCommon.wheelOptionRange;
+const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
 const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
+
+function updateWheelRangeHost(host,option,value,attrs){
+  const range=wheelOptionRange(option);
+  if(wheelOptionIsAdjustable(option)&&range){
+    const input=host.querySelector('input[type="range"]');
+    const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
+    if(sameRange){
+      const v=clamp(value,range[0],range[1]);
+      if(document.activeElement!==input&&Number(input.value)!==v)input.value=v;
+      host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>el.textContent=v);
+      return;
+    }
+  }
+  host.innerHTML=wheelRangeSliderHtml(option,value,attrs,escHtml);
+}
 
 function duplicateWheelOptionValueError(options){
   const byValue=new Map();
@@ -1447,7 +1463,7 @@ function updateControlDisplay(f,c){
   if(c.type==='wheel'){
     document.querySelectorAll(`[data-wheel-range-host="${f.id}:${c.id}"]`).forEach(el=>{
       const active=selectedWheelOption(c,v);
-      el.innerHTML=wheelRangeSliderHtml(active,v,`data-fixture="${f.id}" data-control="${c.id}"`,escHtml);
+      updateWheelRangeHost(el,active,v,`data-fixture="${f.id}" data-control="${c.id}"`);
     });
     document.querySelectorAll(`button[data-fixture="${f.id}"][data-control="${c.id}"][data-wheel]`).forEach(el=>{
       const option=(c.options||[])[parseInt(el.dataset.wheelOptionIndex,10)];
@@ -2270,7 +2286,7 @@ function updateGroupControlDisplay(c){
   if(c.type==='wheel'){
     document.querySelectorAll(`[data-gc-wheel-range-host="${key}"]`).forEach(el=>{
       const active=selectedWheelOption(c,v);
-      el.innerHTML=wheelRangeSliderHtml(active,v,`data-gc="${key}"`,escHtml);
+      updateWheelRangeHost(el,active,v,`data-gc="${key}"`);
     });
     document.querySelectorAll(`button[data-gc="${key}"][data-gc-wheel]`).forEach(el=>{
       const option=(c.options||[])[parseInt(el.dataset.gcWheelOptionIndex,10)];
