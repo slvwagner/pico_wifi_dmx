@@ -476,21 +476,58 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setToolboxRail({collapsed:false});
-  docShots.setSceneBox({visible:true,open:true});
-  if(!Array.isArray(scenes))scenes=[];
-  if(!scenes.some(s=>parseInt(s.slot,10)===0)){
-    scenes.push({id:'doc_scene_tile',name:'Warm look',slot:0,values:{},visual:{type:'visual',color:'#305a36',image:''}});
-  }else{
-    const s=scenes.find(s=>parseInt(s.slot,10)===0);
-    s.name=s.name||'Warm look';
-    s.visual=s.visual||{type:'visual',color:'#305a36',image:''};
+  docShots.setSceneBox({visible:false});
+  function makeDocTileImage(){
+    const c=document.createElement('canvas');
+    c.width=120;c.height=120;
+    const ctx=c.getContext('2d');
+    ctx.clearRect(0,0,120,120);
+    const beam=ctx.createLinearGradient(20,18,100,105);
+    beam.addColorStop(0,'rgba(255,255,255,.98)');
+    beam.addColorStop(.42,'rgba(255,220,90,.82)');
+    beam.addColorStop(1,'rgba(255,120,40,.08)');
+    ctx.fillStyle=beam;
+    ctx.beginPath();
+    ctx.moveTo(22,18);
+    ctx.lineTo(98,100);
+    ctx.lineTo(66,110);
+    ctx.lineTo(12,34);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.9)';
+    ctx.lineWidth=7;
+    ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(24,27);
+    ctx.lineTo(67,78);
+    ctx.stroke();
+    ctx.fillStyle='rgba(255,235,120,.95)';
+    ctx.beginPath();
+    ctx.arc(78,88,16,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle='rgba(8,18,24,.55)';
+    ctx.lineWidth=4;
+    ctx.stroke();
+    return c.toDataURL('image/png');
   }
-  if(typeof renderSlotMatrix==='function')renderSlotMatrix();
+  const scope=document.getElementById('paletteScope');
+  if(scope)scope.value='color';
+  if(!Array.isArray(palettes))palettes=[];
+  let p=palettes.find(p=>parseInt(p.slot,10)===0);
+  if(!p){
+    p={id:'doc_palette_tile',name:'Warm beam',slot:0,scope:'color',values:{},visual:{type:'visual',color:'#7a2e20',image:makeDocTileImage()}};
+    palettes.push(p);
+  }else{
+    p.name='Warm beam';
+    p.scope=p.scope||'color';
+    p.visual={type:'visual',color:'#7a2e20',image:makeDocTileImage()};
+  }
+  if(typeof renderPaletteMatrix==='function')renderPaletteMatrix();
   await docShots.wait(200);
-  if(typeof openSceneVisualModal==='function')openSceneVisualModal(0);
+  if(typeof openPaletteVisualModal==='function')openPaletteVisualModal(0);
   await docShots.wait(300);
   const name=document.getElementById('paletteVisualName');
-  if(name)name.value='Warm look';
+  if(name)name.value='Warm beam';
 })()
 "@
     Save-ElementScreenshot "#paletteVisualModal .modal" "fixture-controller-edit-tile.png"
