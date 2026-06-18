@@ -480,7 +480,7 @@ Stored/exported JSON files include:
 
 The complete show backup exported from the Fixture Controller is `pico_dmx_setup.json`. It wraps the individual server-side JSON stores into one portable file with `type: "pico_wifi_dmx_full_setup"` and the same version metadata.
 
-Complete setup exports also include a `project` block and `setupFormatVersion`. Import refuses files with a newer setup format than the running software supports, so future migrations can be handled deliberately instead of silently loading incompatible data.
+Complete setup exports also include a `project` block and `setupFormatVersion`. Import runs the setup through a versioned migration guard before writing anything to the server. Older supported setup formats are upgraded step-by-step to the current format; files with a newer setup format than the running software supports are refused with a clear update-software message.
 
 Release notes belong in `CHANGELOG.md` whenever the version changes.
 

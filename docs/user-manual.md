@@ -832,7 +832,7 @@ The exported setup file includes:
 - GPIO mappings
 - Toolbox layout, collapse state, grid sizes, and other saved UI state
 
-The file also stores the project name, project version, export time, and setup format version. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.
+The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.
 
 Use **Import Setup** on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.
 

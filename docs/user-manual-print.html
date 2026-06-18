@@ -747,7 +747,7 @@ strong { color: #ffffff; }
 <li>GPIO mappings</li>
 <li>Toolbox layout, collapse state, grid sizes, and other saved UI state</li>
 </ul>
-<p>The file also stores the project name, project version, export time, and setup format version. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.</p>
+<p>The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.</p>
 <p>Use <strong>Import Setup</strong> on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.</p>
 <p><strong>Patch CSV</strong> is separate. It exports the patched DMX channel table for documentation or troubleshooting, not for restoring the show.</p>
 <h2 id="9-clear-functions">9. Clear Functions</h2>

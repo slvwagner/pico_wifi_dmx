@@ -1971,13 +1971,8 @@ function normalizeFullSetupPayload(data){
 function fullSetupFormatVersion(data){
   return parseInt(data?.setupFormatVersion??data?.schemaVersion??1,10)||1;
 }
-async function exportFullSetup(){
-  try{
-    await saveSetup();
-  }catch(err){
-    setStatus('Export continues with browser setup; server save failed: '+err.message,true);
-  }
-  const full=DmxCommon.versionedPayload({
+function fullSetupMetadata(){
+  return {
     type:FULL_SETUP_TYPE,
     project:{
       id:PROJECT_ID,
@@ -1985,7 +1980,56 @@ async function exportFullSetup(){
       version:DmxCommon.appVersion()
     },
     setupFormatVersion:FULL_SETUP_FORMAT_VERSION,
-    minimumAppVersion:DmxCommon.appVersion(),
+    minimumAppVersion:DmxCommon.appVersion()
+  };
+}
+function migrateFullSetupToV2(setup){
+  const migrated={...setup};
+  migrated.type=FULL_SETUP_TYPE;
+  migrated.project=migrated.project&&typeof migrated.project==='object'
+    ? {id:migrated.project.id||PROJECT_ID,name:migrated.project.name||'Pico WiFi DMX',version:migrated.project.version||migrated.appVersion||DmxCommon.appVersion()}
+    : {id:PROJECT_ID,name:'Pico WiFi DMX',version:migrated.appVersion||DmxCommon.appVersion()};
+  migrated.setupFormatVersion=2;
+  migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
+  return migrated;
+}
+function migrateFullSetupPayload(setup){
+  let migrated=JSON.parse(JSON.stringify(setup||{}));
+  let version=fullSetupFormatVersion(migrated);
+  if(version>FULL_SETUP_FORMAT_VERSION){
+    throw new Error('Setup file format '+version+' is newer than this software supports ('+FULL_SETUP_FORMAT_VERSION+'). Please update the controller software before importing.');
+  }
+  while(version<FULL_SETUP_FORMAT_VERSION){
+    if(version===1){
+      migrated=migrateFullSetupToV2(migrated);
+      version=2;
+    }else{
+      throw new Error('No migration path from setup file format '+version+' to '+FULL_SETUP_FORMAT_VERSION+'.');
+    }
+  }
+  migrated={...fullSetupMetadata(),...migrated,setupFormatVersion:FULL_SETUP_FORMAT_VERSION};
+  migrated.project={...fullSetupMetadata().project,...(migrated.project||{})};
+  return migrated;
+}
+function validateFullSetupPayload(setup){
+  if(!setup||typeof setup!=='object')throw new Error('Setup file is empty or invalid.');
+  if(setup.type!==FULL_SETUP_TYPE)throw new Error('Setup file type is not '+FULL_SETUP_TYPE+'.');
+  if(fullSetupFormatVersion(setup)!==FULL_SETUP_FORMAT_VERSION)throw new Error('Setup file was not migrated to the current format.');
+  if(!setup.fixture||typeof setup.fixture!=='object')throw new Error('Setup file is missing fixture setup data.');
+  ['groups','scenes','palettes','chaser','motion','gpio','uiState'].forEach(key=>{
+    if(setup[key]===undefined)throw new Error('Setup file is missing '+key+' data.');
+  });
+  if(setup.liveValues!==undefined&&(!setup.liveValues||typeof setup.liveValues!=='object'))throw new Error('Setup file live values must be an object.');
+  return setup;
+}
+async function exportFullSetup(){
+  try{
+    await saveSetup();
+  }catch(err){
+    setStatus('Export continues with browser setup; server save failed: '+err.message,true);
+  }
+  const full=DmxCommon.versionedPayload({
+    ...fullSetupMetadata(),
     exportedAt:new Date().toISOString(),
     fixture:saveData(),
     liveValues:cloneValue(values),
@@ -2013,27 +2057,24 @@ async function importFullSetup(data){
     setStatus('Imported fixture setup');
     return;
   }
-  const fileFormat=fullSetupFormatVersion(full);
-  if(fileFormat>FULL_SETUP_FORMAT_VERSION){
-    throw new Error('Setup file format '+fileFormat+' is newer than this software supports ('+FULL_SETUP_FORMAT_VERSION+'). Please update the controller software before importing.');
-  }
+  const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
   if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, motion effects, GPIO mappings, live values, and saved UI layout.'))return;
-  if(full.fixture)await postSetupPayload('fixture_setup.php',full.fixture);
-  if(full.liveValues&&typeof full.liveValues==='object')await postSetupPayload('fixture_setup.php?livevalues',full.liveValues);
-  if(full.groups)await postSetupPayload('group_setup.php',{baseUrl:full.groups.baseUrl||full.fixture?.baseUrl||'',groups:Array.isArray(full.groups.groups)?full.groups.groups:[]});
-  if(full.scenes)await postSetupPayload('scene_setup.php',{baseUrl:full.scenes.baseUrl||full.fixture?.baseUrl||'',scenes:Array.isArray(full.scenes.scenes)?full.scenes.scenes:[],slotCols:full.scenes.slotCols||4,slotRows:full.scenes.slotRows||4});
-  if(full.palettes)await postSetupPayload('palette_setup.php',{baseUrl:full.palettes.baseUrl||full.fixture?.baseUrl||'',palettes:Array.isArray(full.palettes.palettes)?full.palettes.palettes:[],paletteCols:full.palettes.paletteCols||4,paletteRows:full.palettes.paletteRows||4});
-  if(full.chaser&&typeof full.chaser==='object')await postSetupPayload('chaser_setup.php',full.chaser);
-  if(full.motion&&typeof full.motion==='object')await postSetupPayload('motion_setup.php',full.motion);
-  if(full.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:full.gpio.baseUrl||full.fixture?.baseUrl||'',enabled:full.gpio.enabled!==false,mappings:Array.isArray(full.gpio.mappings)?full.gpio.mappings:[],adcMappings:Array.isArray(full.gpio.adcMappings)?full.gpio.adcMappings:[]});
-  if(full.uiState&&typeof full.uiState==='object'){
-    for(const [page,state] of Object.entries(full.uiState)){
+  if(migrated.fixture)await postSetupPayload('fixture_setup.php',migrated.fixture);
+  if(migrated.liveValues&&typeof migrated.liveValues==='object')await postSetupPayload('fixture_setup.php?livevalues',migrated.liveValues);
+  if(migrated.groups)await postSetupPayload('group_setup.php',{baseUrl:migrated.groups.baseUrl||migrated.fixture?.baseUrl||'',groups:Array.isArray(migrated.groups.groups)?migrated.groups.groups:[]});
+  if(migrated.scenes)await postSetupPayload('scene_setup.php',{baseUrl:migrated.scenes.baseUrl||migrated.fixture?.baseUrl||'',scenes:Array.isArray(migrated.scenes.scenes)?migrated.scenes.scenes:[],slotCols:migrated.scenes.slotCols||4,slotRows:migrated.scenes.slotRows||4});
+  if(migrated.palettes)await postSetupPayload('palette_setup.php',{baseUrl:migrated.palettes.baseUrl||migrated.fixture?.baseUrl||'',palettes:Array.isArray(migrated.palettes.palettes)?migrated.palettes.palettes:[],paletteCols:migrated.palettes.paletteCols||4,paletteRows:migrated.palettes.paletteRows||4});
+  if(migrated.chaser&&typeof migrated.chaser==='object')await postSetupPayload('chaser_setup.php',migrated.chaser);
+  if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
+  if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
+  if(migrated.uiState&&typeof migrated.uiState==='object'){
+    for(const [page,state] of Object.entries(migrated.uiState)){
       if(state&&typeof state==='object')await postSetupPayload('ui_state.php',{page,state});
     }
   }
-  applyData(full.fixture||{});
+  applyData(migrated.fixture||{});
   Object.keys(values).forEach(k=>delete values[k]);
-  Object.assign(values,full.liveValues||{});
+  Object.assign(values,migrated.liveValues||{});
   writeLiveValues(true);
   localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
   setStatus('Complete setup imported. Reloading...');
