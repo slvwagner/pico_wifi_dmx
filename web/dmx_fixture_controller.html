@@ -56,6 +56,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-library-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .fixture-library-controls label{min-width:220px;flex:1 1 260px}
 .fixture-library-control-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px}
+.profile-editor-block{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:12px;display:grid;gap:10px}
+.profile-editor-block .toolbar{align-items:end}
+.profile-list-block{display:grid;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.profile-list-title{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase}
 .setup-files-card .toolbar{align-items:center}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
@@ -128,6 +132,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="profilesCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
 <div id="profilesBody">
+<div class="profile-editor-block">
 <div class="toolbar">
 <label>Name<input id="profileName" type="text" value="Moving Head 16ch"></label>
 <label>Mode<input id="profileMode" type="text" value="16ch"></label>
@@ -135,7 +140,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="addProfile">Add profile</button>
 <button id="updateFixtureLibraryProfile" title="Save the selected fixture profile into the fixture library">Update Library</button>
 </div>
+</div>
+<div class="profile-list-block">
+<div class="profile-list-title"><span>Saved profiles</span><span class="small">Select a profile to edit or patch</span></div>
 <div class="list" id="profiles"></div>
+</div>
 </div>
 </div>
 
