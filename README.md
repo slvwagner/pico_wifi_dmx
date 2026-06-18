@@ -19,7 +19,8 @@ Core features:
 - **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control.
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, and write throughput against a real Pico.
-- **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; pages also provide JSON import/export where useful.
+- **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico slot payloads, and saved UI layout.
+- **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
 - **Release tooling** — scripts sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots, run tests, build firmware, and prepare release packages.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
@@ -133,7 +134,7 @@ Enter the Pico base URL shown in the Pico serial log, for example:
 http://192.168.0.24/
 ```
 
-Setup data is saved in XAMPP under `dmx/data/*.json`. Use the page-level JSON export buttons before large changes when you want an extra backup.
+Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Setup Files > Export Setup** before large changes when you want an extra backup of the complete show setup.
 
 ### Install the firmware
 
@@ -477,6 +478,10 @@ Stored/exported JSON files include:
 
 `appVersion` tells you which application wrote the file. `schemaVersion` is for future data-format migrations; current imports stay backward compatible with older JSON files that do not contain these fields. Firmware program version is kept in `CMakeLists.txt` with `pico_set_program_version(...)`.
 
+The complete show backup exported from the Fixture Controller is `pico_dmx_setup.json`. It wraps the individual server-side JSON stores into one portable file with `type: "pico_wifi_dmx_full_setup"` and the same version metadata.
+
+Complete setup exports also include a `project` block and `setupFormatVersion`. Import refuses files with a newer setup format than the running software supports, so future migrations can be handled deliberately instead of silently loading incompatible data.
+
 Release notes belong in `CHANGELOG.md` whenever the version changes.
 
 ### Release Checklist
@@ -729,6 +734,8 @@ The Fixture Controller is the main setup and live-control page. It defines fixtu
 
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
+The **Setup Files** card is the user-facing backup point. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, motion effects, GPIO mappings, mirrored Pico slot payloads, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table.
+
 Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
 
 The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
@@ -757,7 +764,7 @@ The Chaser **Palettes** toolbox can save the selected step values into an empty 
 
 ![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
 
-The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, deleting, exporting, and importing looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a custom tile name, background color, and optional drawn/uploaded visual as a label in the slot grid, with controls to reset the background or remove the icon.
+The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, and deleting looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a custom tile name, background color, and optional drawn/uploaded visual as a label in the slot grid, with controls to reset the background or remove the icon.
 
 **Chaser**
 
@@ -837,7 +844,7 @@ Fixtures can be organised into named **Saved Groups** (stored server-side via `g
 - A collapsible **Group Bar** appears above the fixture list; clicking a group instantly selects all its fixtures and scrolls to the first one.
 - The **Group Edit** modal can recall **Default all** or **Blackout all** for every selected fixture at once, using each fixture profile's own stored default/blackout values.
 - Groups can be edited (rename, change member list) or deleted from the Saved Groups panel.
-- Export / import the whole group store as JSON using the toolbar icon buttons.
+- Groups are included in the complete **Export Setup** / **Import Setup** backup from the Fixture Controller.
 
 ### Fixture Controller — Default and Blackout Values
 
@@ -859,7 +866,7 @@ The **Scene Toolbox** sits in the shared right-side Toolboxes sidebar.
 - **Save scene** — snapshots every channel value for every patched fixture into a named slot.
 - **Recall scene** — clears the active group/fixture selection, restores all stored controller values, updates the Chaser live-value snapshot, and sends the values to the Pico in one batch request when a Pico base URL is set.
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
-- **Clear all channels** — the red `×` icon next to the scene JSON import/export buttons asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
+- **Clear all channels** — the red `×` icon asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
 - Slots are stored server-side in `data/scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
 - Sidebar width and toolbox order are shared across toolbox pages via `data/ui_state.json`; collapsed state is also persisted.
 - Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `data/fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.
@@ -908,7 +915,7 @@ When browser motion starts, the page fetches `/dmx/values.json` from the Pico an
 The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
 
 - The page loads and autosaves mappings on the XAMPP server through `gpio_setup.php` / `data/gpio_setup.json`, with browser `localStorage` only as a fallback. The active mapping set is pushed to the Pico with `POST /gpio/config`.
-- **Export JSON / Import JSON** saves or restores the GPIO editor setup, including Pico base URL, enabled state, and all mappings.
+- GPIO mappings are included in the complete **Export Setup** / **Import Setup** backup from the Fixture Controller, including Pico base URL, enabled state, digital mappings, and ADC mappings.
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
 - Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`) and disables pins already used by another mapping.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
@@ -948,7 +955,7 @@ Firmware endpoints:
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
 | `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
 
-This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or export a JSON backup and push again after flashing/restarting. Pico-side persistence can be added later once the action model is proven.
+This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or use **Export Setup** before flashing/restarting so the mapping set can be restored and pushed again. Pico-side persistence can be added later once the action model is proven.
 
 ### Server-side Persistence
 
@@ -967,6 +974,8 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, and toolbox collapse state |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
+
+The controller's complete setup export reads these same endpoints and writes one `pico_dmx_setup.json` file. Importing that file posts each subsystem back to its existing endpoint, so the pages continue to use the normal autosave files after restore.
 
 ### Development sync
 

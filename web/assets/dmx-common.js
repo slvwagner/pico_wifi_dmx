@@ -844,7 +844,6 @@
     const listId=idPrefix+'List';
     const colsId=idPrefix+'Cols';
     const rowsId=idPrefix+'Rows';
-    const importFileId=idPrefix+'ImportFile';
     const statePrefix=idPrefix;
     const layoutPrefix=options.layoutStoragePrefix||'groupsBox';
     let groups=[];
@@ -863,12 +862,9 @@
       </div>
       <div class="scene-toolbox__body">
         <div class="groups-toolbar">
-          <button id="${idPrefix}Export" class="icon-btn export-btn" title="Export groups JSON"></button>
-          <button id="${idPrefix}Import" class="icon-btn import-btn" title="Import groups JSON"></button>
           <button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
           <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>
           ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
-          <input id="${importFileId}" type="file" accept=".json,application/json" style="display:none">
           <div class="groups-layout-controls">
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="${rowsId}" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
@@ -1022,9 +1018,9 @@
       saveSharedGroupSelection(selectedGroupIds());
       render('cols');notify();
     });
-    document.getElementById(idPrefix+'Export').onclick=exportGroups;
-    document.getElementById(idPrefix+'Import').onclick=()=>document.getElementById(importFileId).click();
-    document.getElementById(importFileId).onchange=e=>{if(e.target.files[0])importGroups(e.target.files[0]);e.target.value='';};
+    if(document.getElementById(idPrefix+'Export'))document.getElementById(idPrefix+'Export').onclick=exportGroups;
+    if(document.getElementById(idPrefix+'Import'))document.getElementById(idPrefix+'Import').onclick=()=>document.getElementById(idPrefix+'ImportFile')?.click();
+    if(document.getElementById(idPrefix+'ImportFile'))document.getElementById(idPrefix+'ImportFile').onchange=e=>{if(e.target.files[0])importGroups(e.target.files[0]);e.target.value='';};
     document.getElementById(idPrefix+'Rename').onclick=()=>{
       const selected=selectedGroups();if(selected.length!==1)return;
       const g=selected[0];

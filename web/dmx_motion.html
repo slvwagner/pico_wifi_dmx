@@ -66,9 +66,6 @@ main{max-width:none;width:100%;margin:0}
     <div class="buttons">
       <button id="btnMotionSave" style="padding:6px 10px;font-size:12px" title="Save editable motion preset on the server">Save</button>
       <button id="btnMotionLoad" style="padding:6px 10px;font-size:12px" title="Load editable motion preset from the server">Load</button>
-      <button id="btnMotionExport" class="icon-btn export-btn" title="Export motion JSON"></button>
-      <button id="btnMotionImport" class="icon-btn import-btn" title="Import motion JSON"></button>
-      <input id="motionImportFile" type="file" accept=".json,application/json" style="display:none">
       <button class="collapse-btn" data-panel-toggle="fxPanel" title="Collapse Participating Controls">−</button>
     </div>
   </div>
@@ -118,9 +115,6 @@ main{max-width:none;width:100%;margin:0}
   </div>
   <div class="pico-actions">
     <span class="pico-slots-label">Pico slots:</span>
-    <button id="btnExportMotionSlots" class="icon-btn export-btn" title="Export Pico motion slots JSON"></button>
-    <button id="btnImportMotionSlots" class="icon-btn import-btn" title="Import Pico motion slots JSON"></button>
-    <input id="importMotionSlotsFile" type="file" accept=".json,application/json" style="display:none">
   </div>
   <div class="pico-status">
     <span id="picoMotionStatusDot" class="pico-status-dot"></span>
@@ -200,11 +194,6 @@ main{max-width:none;width:100%;margin:0}
   </div>
 </div>
 <div class="scene-toolbox__body">
-  <div class="slot-actions">
-    <button id="exportMotionEffectsBtn" class="icon-btn export-btn" title="Export effects JSON"></button>
-    <button id="importMotionEffectsBtn" class="icon-btn import-btn" title="Import effects JSON"></button>
-    <input id="importMotionEffectsFile" type="file" accept=".json,application/json" style="display:none">
-  </div>
   <div class="small" style="color:var(--muted)">Click an empty slot to save the current effect recipe. Click a filled slot to recall it.</div>
   <div class="slot-actions">
     <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionEffectCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
@@ -231,11 +220,6 @@ main{max-width:none;width:100%;margin:0}
   <button id="motionPaletteBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
 <div class="scene-toolbox__body">
-  <div class="slot-actions">
-    <button id="motionExportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
-    <button id="motionImportPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
-    <input id="motionImportPalettesFile" type="file" accept=".json,application/json" style="display:none">
-  </div>
   <div class="small" style="color:var(--muted)">Click a palette to use compatible values as the effect center.</div>
   <div class="slot-actions">
     <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
@@ -1580,18 +1564,18 @@ document.getElementById('btnMotionLoad').onclick=async()=>{
   if(loaded)setStatus('Motion setup loaded from server');
   else setStatus('No saved motion setup found on server',true);
 };
-document.getElementById('btnMotionExport').onclick=()=>{
+if(document.getElementById('btnMotionExport'))document.getElementById('btnMotionExport').onclick=()=>{
   DmxCommon.downloadJson('dmx_motion.json',motionData());
   setStatus('dmx_motion.json downloaded');
 };
-document.getElementById('btnMotionImport').onclick=()=>document.getElementById('motionImportFile').click();
-document.getElementById('motionImportFile').onchange=e=>{
+if(document.getElementById('btnMotionImport'))document.getElementById('btnMotionImport').onclick=()=>document.getElementById('motionImportFile')?.click();
+if(document.getElementById('motionImportFile'))document.getElementById('motionImportFile').onchange=e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=()=>{try{applyMotionData(JSON.parse(reader.result));setStatus('Motion setup imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';}
   reader.readAsText(file);
 };
-document.getElementById('btnExportMotionSlots').onclick=async()=>{
+if(document.getElementById('btnExportMotionSlots'))document.getElementById('btnExportMotionSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
   if(!j.ok){setStatus('Export slots error',true);return;}
@@ -1599,8 +1583,8 @@ document.getElementById('btnExportMotionSlots').onclick=async()=>{
   DmxCommon.downloadJson('motion_slots.json',exportData);
   setStatus('motion_slots.json downloaded');
 };
-document.getElementById('btnImportMotionSlots').onclick=()=>document.getElementById('importMotionSlotsFile').click();
-document.getElementById('importMotionSlotsFile').onchange=async e=>{
+if(document.getElementById('btnImportMotionSlots'))document.getElementById('btnImportMotionSlots').onclick=()=>document.getElementById('importMotionSlotsFile')?.click();
+if(document.getElementById('importMotionSlotsFile'))document.getElementById('importMotionSlotsFile').onchange=async e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=async()=>{
@@ -1854,9 +1838,9 @@ function openMotionPaletteVisualModal(slot){
 }
 document.getElementById('motionEffectCols').addEventListener('input',e=>{motionEffectCols=e.target.value;normalizeMotionEffectGrid('cols');renderMotionEffectMatrix();saveMotionEffectsServer();});
 document.getElementById('motionEffectRows').addEventListener('input',e=>{motionEffectRows=e.target.value;normalizeMotionEffectGrid('rows');renderMotionEffectMatrix();saveMotionEffectsServer();});
-document.getElementById('exportMotionEffectsBtn').onclick=exportMotionEffectsJson;
-document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile').click();
-document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
+if(document.getElementById('exportMotionEffectsBtn'))document.getElementById('exportMotionEffectsBtn').onclick=exportMotionEffectsJson;
+if(document.getElementById('importMotionEffectsBtn'))document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile')?.click();
+if(document.getElementById('importMotionEffectsFile'))document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
 
 if(!new URLSearchParams(location.search).has('docshot_overview')){
   loadSetup().finally(async()=>{
@@ -2085,9 +2069,9 @@ function importMotionPalettesJson(file){
 }
 document.getElementById('motionPaletteCols').addEventListener('input',e=>{motionPaletteCols=e.target.value;normalizeMotionPaletteGrid('cols');renderMotionPaletteMatrix();saveMotionPalettesServer();});
 document.getElementById('motionPaletteRows').addEventListener('input',e=>{motionPaletteRows=e.target.value;normalizeMotionPaletteGrid('rows');renderMotionPaletteMatrix();saveMotionPalettesServer();});
-document.getElementById('motionExportPalettesBtn').onclick=exportMotionPalettesJson;
-document.getElementById('motionImportPalettesBtn').onclick=()=>document.getElementById('motionImportPalettesFile').click();
-document.getElementById('motionImportPalettesFile').onchange=e=>{if(e.target.files[0])importMotionPalettesJson(e.target.files[0]);e.target.value='';};
+if(document.getElementById('motionExportPalettesBtn'))document.getElementById('motionExportPalettesBtn').onclick=exportMotionPalettesJson;
+if(document.getElementById('motionImportPalettesBtn'))document.getElementById('motionImportPalettesBtn').onclick=()=>document.getElementById('motionImportPalettesFile')?.click();
+if(document.getElementById('motionImportPalettesFile'))document.getElementById('motionImportPalettesFile').onchange=e=>{if(e.target.files[0])importMotionPalettesJson(e.target.files[0]);e.target.value='';};
 
 const motionSceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'motionSceneBox',

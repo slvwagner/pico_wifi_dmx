@@ -56,9 +56,6 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
     <button id="pushConfig">Push to Pico</button>
     <button id="pullConfig">Read from Pico</button>
     <button id="saveLocal">Save local</button>
-    <button id="exportConfig" class="icon-btn export-btn" title="Export GPIO config JSON"></button>
-    <button id="importConfig" class="icon-btn import-btn" title="Import GPIO config JSON"></button>
-    <input id="importConfigFile" type="file" accept=".json,application/json" style="display:none">
     <button id="clearLocal" class="danger">Clear local</button>
   </div>
   <div id="mappingList" class="grid"></div>
@@ -442,9 +439,9 @@ document.getElementById('addAdcMapping').onclick=()=>{
 document.getElementById('pushConfig').onclick=pushConfig;
 document.getElementById('pullConfig').onclick=pullConfig;
 document.getElementById('saveLocal').onclick=()=>{saveLocal();render();};
-document.getElementById('exportConfig').onclick=exportGPIOConfig;
-document.getElementById('importConfig').onclick=()=>document.getElementById('importConfigFile').click();
-document.getElementById('importConfigFile').addEventListener('change',e=>{
+if(document.getElementById('exportConfig'))document.getElementById('exportConfig').onclick=exportGPIOConfig;
+if(document.getElementById('importConfig'))document.getElementById('importConfig').onclick=()=>document.getElementById('importConfigFile')?.click();
+if(document.getElementById('importConfigFile'))document.getElementById('importConfigFile').addEventListener('change',e=>{
   const file=e.target.files&&e.target.files[0];
   e.target.value='';
   if(file)importGPIOConfig(file);

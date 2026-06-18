@@ -50,7 +50,7 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 2. Enter the Pico base URL, for example `http://192.168.0.24/`.
 3. The Pico base URL field checks `/status.json` automatically. It turns dark green when the Pico is reachable, dark red when it cannot connect, and keeps retrying in the background so it can recover after flashing or rebooting the Pico.
 4. Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.
-5. Fixture setup changes are autosaved to the XAMPP server. Use JSON export before large changes when you want an extra backup.
+5. Fixture setup changes are autosaved to the XAMPP server. Use **Export Setup** before large changes when you want an extra backup of the complete show setup.
 
 ### Fixture Library
 
@@ -818,19 +818,25 @@ Use **Clear all** when you want to clear both Pico buffers from the monitor page
 
 ## 9. Backup and Import
 
-Most setup data is stored as JSON files on the XAMPP server in the `data/` folder.
+Use **Fixture Controller > Setup Files > Export Setup** before large changes or before moving the show to another computer.
 
-The UI also offers export/import buttons for:
+The exported setup file includes:
 
-- Fixture setup
+- Fixture profiles and patched fixtures
+- Current live fixture values
 - Groups
 - Scenes
 - Palettes
-- Chaser setup
-- Motion FX setup
-- GPIO setup
+- Saved chases and saved Pico chaser slot payloads
+- Motion FX settings, saved effects, and saved Pico motion slot payloads
+- GPIO mappings
+- Toolbox layout, collapse state, grid sizes, and other saved UI state
 
-Use JSON export before large changes so a known-good setup can be restored later.
+The file also stores the project name, project version, export time, and setup format version. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.
+
+Use **Import Setup** on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.
+
+**Patch CSV** is separate. It exports the patched DMX channel table for documentation or troubleshooting, not for restoring the show.
 
 ## 9. Clear Functions
 

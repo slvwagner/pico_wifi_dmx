@@ -149,7 +149,7 @@ strong { color: #ffffff; }
 <li>Enter the Pico base URL, for example <code>http://192.168.0.24/</code>.</li>
 <li>The Pico base URL field checks <code>/status.json</code> automatically. It turns dark green when the Pico is reachable, dark red when it cannot connect, and keeps retrying in the background so it can recover after flashing or rebooting the Pico.</li>
 <li>Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.</li>
-<li>Fixture setup changes are autosaved to the XAMPP server. Use JSON export before large changes when you want an extra backup.</li>
+<li>Fixture setup changes are autosaved to the XAMPP server. Use <strong>Export Setup</strong> before large changes when you want an extra backup of the complete show setup.</li>
 </ol>
 <h3 id="fixture-library">Fixture Library</h3>
 <p><img src="screenshots/fixture-controller-fixture-library.png" alt="Fixture Library search and mode preview"></p>
@@ -734,18 +734,22 @@ strong { color: #ffffff; }
 <p>Use <strong>Refresh ms</strong> to control the polling interval directly. Use <strong>Refresh Hz</strong> when you prefer rate instead. Both fields stay synchronized, so <code>500 ms</code> is shown as <code>2 Hz</code>. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. <strong>Auto refresh</strong> starts or stops polling without changing the selected buffer.</p>
 <p>Use <strong>Clear all</strong> when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.</p>
 <h2 id="9-backup-and-import">9. Backup and Import</h2>
-<p>Most setup data is stored as JSON files on the XAMPP server in the <code>data/</code> folder.</p>
-<p>The UI also offers export/import buttons for:</p>
+<p>Use <strong>Fixture Controller &gt; Setup Files &gt; Export Setup</strong> before large changes or before moving the show to another computer.</p>
+<p>The exported setup file includes:</p>
 <ul>
-<li>Fixture setup</li>
+<li>Fixture profiles and patched fixtures</li>
+<li>Current live fixture values</li>
 <li>Groups</li>
 <li>Scenes</li>
 <li>Palettes</li>
-<li>Chaser setup</li>
-<li>Motion FX setup</li>
-<li>GPIO setup</li>
+<li>Saved chases and saved Pico chaser slot payloads</li>
+<li>Motion FX settings, saved effects, and saved Pico motion slot payloads</li>
+<li>GPIO mappings</li>
+<li>Toolbox layout, collapse state, grid sizes, and other saved UI state</li>
 </ul>
-<p>Use JSON export before large changes so a known-good setup can be restored later.</p>
+<p>The file also stores the project name, project version, export time, and setup format version. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.</p>
+<p>Use <strong>Import Setup</strong> on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.</p>
+<p><strong>Patch CSV</strong> is separate. It exports the patched DMX channel table for documentation or troubleshooting, not for restoring the show.</p>
 <h2 id="9-clear-functions">9. Clear Functions</h2>
 <p>There are two different clear actions:</p>
 <table>

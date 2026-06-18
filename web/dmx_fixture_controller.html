@@ -56,6 +56,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-library-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .fixture-library-controls label{min-width:220px;flex:1 1 260px}
 .fixture-library-control-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px}
+.setup-files-card .toolbar{align-items:center}
+.setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
+.setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
@@ -87,11 +90,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </header>
 
-<section class="panel">
+<section class="panel setup-files-card">
+<h2>Setup Files</h2>
 <div class="toolbar">
-<button id="exportCsv" class="icon-btn export-btn" title="Export patch CSV"></button>
-<button id="exportJson" class="icon-btn export-btn" title="Export setup JSON"></button>
-<button id="importJson" class="icon-btn import-btn" title="Import setup JSON"></button>
+<button id="exportCsv" class="icon-btn export-btn" title="Export patched fixtures and DMX channels as CSV"><span>Patch CSV</span></button>
+<button id="exportJson" class="icon-btn export-btn" title="Export the complete show setup file"><span>Export Setup</span></button>
+<button id="importJson" class="icon-btn import-btn" title="Import a complete show setup file"><span>Import Setup</span></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 </section>
@@ -271,12 +275,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="groupsBoxBody" class="scene-toolbox__body">
 <div class="groups-toolbar">
-<button id="exportGroupsJson" class="icon-btn export-btn" title="Export groups JSON"></button>
-<button id="importGroupsJson" class="icon-btn import-btn" title="Import groups JSON"></button>
 <button id="renameSelectedGroup" title="Rename selected group">Rename</button>
 <button id="deleteSelectedGroups" class="danger" title="Delete selected groups">Delete</button>
 <button id="editSelectedGroups" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>
-<input id="importGroupsFile" type="file" accept=".json,application/json" style="display:none">
 <div class="groups-layout-controls">
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="groupCols" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="groupRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
@@ -293,10 +294,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="sceneBoxBody" class="scene-toolbox__body">
 <div class="buttons">
-<button id="exportScenesBtn" class="icon-btn export-btn" title="Export scenes JSON"></button>
-<button id="importScenesBtn" class="icon-btn import-btn" title="Import scenes JSON"></button>
 <button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
-<input id="importScenesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
@@ -313,10 +311,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="paletteBoxBody" class="scene-toolbox__body">
 <div class="buttons">
-<button id="exportPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
-<button id="importPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
 <button id="mergePaletteBtn" class="palette-merge-btn" title="Merge current scoped values into an existing palette">Merge</button>
-<input id="importPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <label>Scope<select id="paletteScope">
 <option value="position">Position</option>
@@ -409,6 +404,9 @@ let fixtures=[];
 let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
+const FULL_SETUP_TYPE='pico_wifi_dmx_full_setup';
+const FULL_SETUP_FORMAT_VERSION=2;
+const PROJECT_ID='pico_wifi_dmx';
 const values={};
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl);
@@ -1953,20 +1951,103 @@ patchProfile.onchange=()=>{
 };
 baseUrl.addEventListener('input',scheduleSetupAutosave);
 document.getElementById('exportCsv').onclick=exportCsv;
-document.getElementById('exportJson').onclick=()=>{
-  DmxCommon.downloadJson('fixture_setup.json',saveData());
-  setStatus('fixture_setup.json downloaded');
-};
+async function fetchSetupPayload(url,prop,fallback){
+  try{
+    const r=await fetch(url,{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    if(prop)return j.exists===false?fallback:j[prop]??fallback;
+    return j;
+  }catch(err){
+    console.warn('Setup export skipped '+url,err);
+    return fallback;
+  }
+}
+function normalizeFullSetupPayload(data){
+  if(data?.type===FULL_SETUP_TYPE)return data;
+  if(data?.data?.type===FULL_SETUP_TYPE)return data.data;
+  return null;
+}
+function fullSetupFormatVersion(data){
+  return parseInt(data?.setupFormatVersion??data?.schemaVersion??1,10)||1;
+}
+async function exportFullSetup(){
+  try{
+    await saveSetup();
+  }catch(err){
+    setStatus('Export continues with browser setup; server save failed: '+err.message,true);
+  }
+  const full=DmxCommon.versionedPayload({
+    type:FULL_SETUP_TYPE,
+    project:{
+      id:PROJECT_ID,
+      name:'Pico WiFi DMX',
+      version:DmxCommon.appVersion()
+    },
+    setupFormatVersion:FULL_SETUP_FORMAT_VERSION,
+    minimumAppVersion:DmxCommon.appVersion(),
+    exportedAt:new Date().toISOString(),
+    fixture:saveData(),
+    liveValues:cloneValue(values),
+    groups:await fetchSetupPayload('group_setup.php',null,{ok:true,exists:false,groups:[]}),
+    scenes:await fetchSetupPayload('scene_setup.php',null,{ok:true,exists:false,scenes:[],slotCols:4,slotRows:4}),
+    palettes:await fetchSetupPayload('palette_setup.php',null,{ok:true,exists:false,palettes:[],paletteCols:4,paletteRows:4}),
+    chaser:await fetchSetupPayload('chaser_setup.php','chaser',{}),
+    motion:await fetchSetupPayload('motion_setup.php','motion',{}),
+    gpio:await fetchSetupPayload('gpio_setup.php',null,{ok:true,exists:false,enabled:true,mappings:[],adcMappings:[]}),
+    uiState:(await fetchSetupPayload('ui_state.php',null,{ok:true,exists:false,state:{}})).state||{}
+  },2);
+  DmxCommon.downloadJson('pico_dmx_setup.json',full);
+  setStatus('Complete setup exported');
+}
+async function postSetupPayload(url,data){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data||{})});
+  const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
+  if(!r.ok||!j.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
+}
+async function importFullSetup(data){
+  const full=normalizeFullSetupPayload(data);
+  if(!full){
+    applyData(data);
+    scheduleSetupAutosave();
+    setStatus('Imported fixture setup');
+    return;
+  }
+  const fileFormat=fullSetupFormatVersion(full);
+  if(fileFormat>FULL_SETUP_FORMAT_VERSION){
+    throw new Error('Setup file format '+fileFormat+' is newer than this software supports ('+FULL_SETUP_FORMAT_VERSION+'). Please update the controller software before importing.');
+  }
+  if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, motion effects, GPIO mappings, live values, and saved UI layout.'))return;
+  if(full.fixture)await postSetupPayload('fixture_setup.php',full.fixture);
+  if(full.liveValues&&typeof full.liveValues==='object')await postSetupPayload('fixture_setup.php?livevalues',full.liveValues);
+  if(full.groups)await postSetupPayload('group_setup.php',{baseUrl:full.groups.baseUrl||full.fixture?.baseUrl||'',groups:Array.isArray(full.groups.groups)?full.groups.groups:[]});
+  if(full.scenes)await postSetupPayload('scene_setup.php',{baseUrl:full.scenes.baseUrl||full.fixture?.baseUrl||'',scenes:Array.isArray(full.scenes.scenes)?full.scenes.scenes:[],slotCols:full.scenes.slotCols||4,slotRows:full.scenes.slotRows||4});
+  if(full.palettes)await postSetupPayload('palette_setup.php',{baseUrl:full.palettes.baseUrl||full.fixture?.baseUrl||'',palettes:Array.isArray(full.palettes.palettes)?full.palettes.palettes:[],paletteCols:full.palettes.paletteCols||4,paletteRows:full.palettes.paletteRows||4});
+  if(full.chaser&&typeof full.chaser==='object')await postSetupPayload('chaser_setup.php',full.chaser);
+  if(full.motion&&typeof full.motion==='object')await postSetupPayload('motion_setup.php',full.motion);
+  if(full.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:full.gpio.baseUrl||full.fixture?.baseUrl||'',enabled:full.gpio.enabled!==false,mappings:Array.isArray(full.gpio.mappings)?full.gpio.mappings:[],adcMappings:Array.isArray(full.gpio.adcMappings)?full.gpio.adcMappings:[]});
+  if(full.uiState&&typeof full.uiState==='object'){
+    for(const [page,state] of Object.entries(full.uiState)){
+      if(state&&typeof state==='object')await postSetupPayload('ui_state.php',{page,state});
+    }
+  }
+  applyData(full.fixture||{});
+  Object.keys(values).forEach(k=>delete values[k]);
+  Object.assign(values,full.liveValues||{});
+  writeLiveValues(true);
+  localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
+  setStatus('Complete setup imported. Reloading...');
+  setTimeout(()=>location.reload(),600);
+}
+document.getElementById('exportJson').onclick=()=>exportFullSetup().catch(err=>showError('Setup export failed: '+err.message));
 document.getElementById('importJson').onclick=()=>document.getElementById('importJsonFile').click();
 document.getElementById('importJsonFile').onchange=e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=()=>{
+  reader.onload=async()=>{
     try{
       const data=JSON.parse(reader.result);
-      applyData(data);
-      setStatus('Setup imported from '+file.name);
-      scheduleSetupAutosave();
+      await importFullSetup(data);
     }catch(err){showError('Invalid JSON: '+err.message);}
     e.target.value='';
   };
@@ -2704,9 +2785,9 @@ function importGroupsJson(file){
   };
   fr.readAsText(file);
 }
-document.getElementById('exportGroupsJson').onclick=exportGroupsJson;
-document.getElementById('importGroupsJson').onclick=()=>document.getElementById('importGroupsFile').click();
-document.getElementById('importGroupsFile').onchange=e=>{if(e.target.files[0])importGroupsJson(e.target.files[0]);e.target.value='';};
+if(document.getElementById('exportGroupsJson'))document.getElementById('exportGroupsJson').onclick=exportGroupsJson;
+if(document.getElementById('importGroupsJson'))document.getElementById('importGroupsJson').onclick=()=>document.getElementById('importGroupsFile')?.click();
+if(document.getElementById('importGroupsFile'))document.getElementById('importGroupsFile').onchange=e=>{if(e.target.files[0])importGroupsJson(e.target.files[0]);e.target.value='';};
 document.getElementById('renameSelectedGroup').onclick=renameSelectedGroup;
 document.getElementById('deleteSelectedGroups').onclick=deleteSelectedGroups;
 document.getElementById('editSelectedGroups').onclick=editSelectedGroups;
@@ -3137,10 +3218,10 @@ function importScenesJson(file){
   };
   fr.readAsText(file);
 }
-document.getElementById('exportScenesBtn').onclick=exportScenesJson;
-document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile').click();
+if(document.getElementById('exportScenesBtn'))document.getElementById('exportScenesBtn').onclick=exportScenesJson;
+if(document.getElementById('importScenesBtn'))document.getElementById('importScenesBtn').onclick=()=>document.getElementById('importScenesFile')?.click();
 document.getElementById('clearAllChannelsBtn').onclick=clearAllChannels;
-document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
+if(document.getElementById('importScenesFile'))document.getElementById('importScenesFile').onchange=e=>{if(e.target.files[0])importScenesJson(e.target.files[0]);e.target.value='';};
 const sceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'sceneBox',
   headerId:'sceneBoxHdr',
@@ -3444,10 +3525,10 @@ function openSceneVisualModal(slot){
     }
   });
 }
-document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
-document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile').click();
+if(document.getElementById('exportPalettesBtn'))document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
+if(document.getElementById('importPalettesBtn'))document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile')?.click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
-document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
+if(document.getElementById('importPalettesFile'))document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
 const paletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'paletteBox',
   headerId:'paletteBoxHdr',

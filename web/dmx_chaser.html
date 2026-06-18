@@ -262,9 +262,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
   </div>
   <div class="pico-actions">
     <span class="pico-slots-label">Pico slots:</span>
-    <button id="btnExportSlots" class="icon-btn export-btn" title="Export Pico chaser slots JSON"></button>
-    <button id="btnImportSlots" class="icon-btn import-btn" title="Import Pico chaser slots JSON"></button>
-    <input id="importSlotsFile" type="file" accept=".json,application/json" style="display:none">
   </div>
   <div class="pico-status">
     <span id="picoStatusDot" class="pico-status-dot"></span>
@@ -300,11 +297,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 <div id="chaseBoxBody" class="scene-toolbox__body">
-<div class="buttons">
-<button id="exportChasesBtn" class="icon-btn export-btn" title="Export chases JSON"></button>
-<button id="importChasesBtn" class="icon-btn import-btn" title="Import chases JSON"></button>
-<input id="importChasesFile" type="file" accept=".json,application/json" style="display:none">
-</div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaseSlotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
@@ -352,10 +344,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 <div id="chaserPaletteBoxBody" class="scene-toolbox__body">
 <div class="buttons">
-<button id="exportChaserPalettesBtn" class="icon-btn export-btn" title="Export palettes JSON"></button>
-<button id="importChaserPalettesBtn" class="icon-btn import-btn" title="Import palettes JSON"></button>
 <button id="mergeChaserPaletteBtn" class="palette-merge-btn" title="Merge selected step values into an existing palette">Merge</button>
-<input id="importChaserPalettesFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 <div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step. Merge adds selected step values to an existing palette.</div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -2424,9 +2413,9 @@ function openChaseVisualModal(slot){
 }
 document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=e.target.value;normalizeChaseGrid('cols');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=e.target.value;normalizeChaseGrid('rows');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
-document.getElementById('exportChasesBtn').onclick=exportChasesJson;
-document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile').click();
-document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
+if(document.getElementById('exportChasesBtn'))document.getElementById('exportChasesBtn').onclick=exportChasesJson;
+if(document.getElementById('importChasesBtn'))document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile')?.click();
+if(document.getElementById('importChasesFile'))document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
 const chaseToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaseBox',
   headerId:'chaseBoxHdr',
@@ -2789,10 +2778,10 @@ function openChaserPaletteVisualModal(slot){
 }
 document.getElementById('chaserPaletteCols').addEventListener('input',e=>{chaserPaletteCols=e.target.value;normalizeChaserPaletteGrid('cols');renderChaserPaletteMatrix();saveChaserPalettesServer();});
 document.getElementById('chaserPaletteRows').addEventListener('input',e=>{chaserPaletteRows=e.target.value;normalizeChaserPaletteGrid('rows');renderChaserPaletteMatrix();saveChaserPalettesServer();});
-document.getElementById('exportChaserPalettesBtn').onclick=exportChaserPalettesJson;
-document.getElementById('importChaserPalettesBtn').onclick=()=>document.getElementById('importChaserPalettesFile').click();
+if(document.getElementById('exportChaserPalettesBtn'))document.getElementById('exportChaserPalettesBtn').onclick=exportChaserPalettesJson;
+if(document.getElementById('importChaserPalettesBtn'))document.getElementById('importChaserPalettesBtn').onclick=()=>document.getElementById('importChaserPalettesFile')?.click();
 document.getElementById('mergeChaserPaletteBtn').onclick=mergeChaserPaletteButtonClick;
-document.getElementById('importChaserPalettesFile').onchange=e=>{if(e.target.files[0])importChaserPalettesJson(e.target.files[0]);e.target.value='';};
+if(document.getElementById('importChaserPalettesFile'))document.getElementById('importChaserPalettesFile').onchange=e=>{if(e.target.files[0])importChaserPalettesJson(e.target.files[0]);e.target.value='';};
 const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaserPaletteBox',
   headerId:'chaserPaletteHdr',
@@ -2806,7 +2795,7 @@ const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
 loadChaserPalettesServer();
 DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
 
-document.getElementById('btnExportSlots').onclick=async()=>{
+if(document.getElementById('btnExportSlots'))document.getElementById('btnExportSlots').onclick=async()=>{
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
   if(!j.ok){setStatus('Export slots error',true);return;}
@@ -2814,8 +2803,8 @@ document.getElementById('btnExportSlots').onclick=async()=>{
   DmxCommon.downloadJson('chaser_slots.json',exportData);
   setStatus('chaser_slots.json downloaded');
 };
-document.getElementById('btnImportSlots').onclick=()=>document.getElementById('importSlotsFile').click();
-document.getElementById('importSlotsFile').onchange=async e=>{
+if(document.getElementById('btnImportSlots'))document.getElementById('btnImportSlots').onclick=()=>document.getElementById('importSlotsFile')?.click();
+if(document.getElementById('importSlotsFile'))document.getElementById('importSlotsFile').onchange=async e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=async()=>{
