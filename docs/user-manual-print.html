@@ -155,6 +155,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/fixture-controller-fixture-library.png" alt="Fixture Library search and mode preview"></p>
 <p>The <strong>Fixture Library</strong> panel imports fixture profiles from the converted Open Fixture Library export. Use it when you want to start from an existing fixture definition instead of building every channel by hand.</p>
 <p>The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a <strong>Retry</strong> button.</p>
+<p>Use <strong>Export Library</strong> to download the currently loaded fixture catalog as <code>pico_dmx_fixture_library.json</code>. Use <strong>Import Library</strong> to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset.</p>
 <ol>
 <li>Type part of the manufacturer, fixture name, category, or mode in <strong>Search manufacturer or fixture</strong>.</li>
 <li>Select the matching fixture from the results list.</li>
@@ -745,6 +746,7 @@ strong { color: #ffffff; }
 <li>Saved chases and saved Pico chaser slot payloads</li>
 <li>Motion FX settings, saved effects, and saved Pico motion slot payloads</li>
 <li>GPIO mappings</li>
+<li>Custom imported fixture library catalog, if one is saved on the XAMPP server</li>
 <li>Toolbox layout, collapse state, grid sizes, and other saved UI state</li>
 </ul>
 <p>The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.</p>

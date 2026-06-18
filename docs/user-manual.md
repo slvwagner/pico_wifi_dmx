@@ -60,6 +60,8 @@ The **Fixture Library** panel imports fixture profiles from the converted Open F
 
 The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a **Retry** button.
 
+Use **Export Library** to download the currently loaded fixture catalog as `pico_dmx_fixture_library.json`. Use **Import Library** to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset.
+
 1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
 2. Select the matching fixture from the results list.
 3. Choose the desired DMX mode from the **Mode** dropdown.
@@ -830,6 +832,7 @@ The exported setup file includes:
 - Saved chases and saved Pico chaser slot payloads
 - Motion FX settings, saved effects, and saved Pico motion slot payloads
 - GPIO mappings
+- Custom imported fixture library catalog, if one is saved on the XAMPP server
 - Toolbox layout, collapse state, grid sizes, and other saved UI state
 
 The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.

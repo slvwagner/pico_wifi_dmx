@@ -9,6 +9,7 @@ The project combines firmware, a XAMPP-hosted web interface, JSON-based setup st
 Core features:
 
 - **Fixture Controller** — define fixture profiles, patch one or many fixtures, edit live values, recall Default/Blackout values, create fixture groups, save scenes, and build reusable palettes.
+- **Fixture Library** — load fixture profiles from the converted Open Fixture Library catalog, and export/import the fixture catalog itself when moving or replacing the library.
 - **Shared Toolboxes sidebar** — scenes, groups, palettes, fan out, chases, chase steps, playback, and motion effects live in a shared resizable sidebar. Layout, width, order, collapse state, and group selection are stored server-side and shared across pages.
 - **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
@@ -19,7 +20,7 @@ Core features:
 - **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control.
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, and write throughput against a real Pico.
-- **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico slot payloads, and saved UI layout.
+- **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico slot payloads, custom fixture library data, and saved UI layout.
 - **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
 - **Release tooling** — scripts sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots, run tests, build firmware, and prepare release packages.
 
@@ -734,7 +735,9 @@ The Fixture Controller is the main setup and live-control page. It defines fixtu
 
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
-The **Setup Files** card is the user-facing backup point. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, motion effects, GPIO mappings, mirrored Pico slot payloads, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table.
+The **Setup Files** card is the user-facing backup point. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, motion effects, GPIO mappings, mirrored Pico slot payloads, custom fixture library data, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table.
+
+The Fixture Library panel loads the built-in converted Open Fixture Library catalog by default. **Export Library** downloads the currently loaded catalog as `pico_dmx_fixture_library.json`; **Import Library** saves a converted fixture catalog to the XAMPP server so it becomes the preferred library for all browsers. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`.
 
 Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
 
@@ -971,6 +974,7 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `chaser_setup.php` | `data/chaser_setup.json` | Saved chases, Chaser toolbox grid config, mirrored Pico slot payloads |
 | `motion_setup.php` | `data/motion_setup.json` | Motion FX browser setup, saved effect recipes, and saved Pico slot payloads |
 | `gpio_setup.php` | `data/gpio_setup.json` | GPIO/ADC editor mappings, enabled state, Pico base URL |
+| `fixture_library.php` | `data/fixture_library.json` | Optional custom converted fixture library catalog |
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, and toolbox collapse state |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.

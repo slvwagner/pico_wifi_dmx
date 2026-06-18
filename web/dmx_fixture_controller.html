@@ -108,6 +108,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="fixtureLibraryBody">
 <div class="fixture-library-controls">
 <label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket" disabled></label>
+<button id="exportFixtureLibrary" title="Export the currently loaded fixture library catalog">Export Library</button>
+<button id="importFixtureLibrary" title="Import a converted fixture library catalog">Import Library</button>
+<input id="importFixtureLibraryFile" type="file" accept=".json,application/json" style="display:none">
 <button id="retryFixtureLibrary" style="display:none">Retry</button>
 </div>
 <div class="small" id="fixtureLibraryStatus">Loading fixture library...</div>
@@ -1030,15 +1033,27 @@ async function loadFixtureLibrary(options={}){
   status.textContent='Loading fixture library...';
   if(retry){retry.style.display='none';retry.disabled=true;}
   if(search)search.disabled=true;
+  fixtureLibraryState.data=null;
   document.getElementById('fixtureLibraryResults').innerHTML='<div class="small">Loading fixture library...</div>';
   document.getElementById('fixtureLibraryPreview').innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
   try{
-    const r=await fetch('assets/fixture-library.json',{cache:'no-store'});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    fixtureLibraryState.data=await r.json();
+    let loadedFrom='built-in';
+    try{
+      const serverResponse=await fetch('fixture_library.php',{cache:'no-store'});
+      const serverJson=await serverResponse.json();
+      if(serverResponse.ok&&serverJson.ok&&serverJson.exists&&serverJson.library?.fixtures?.length){
+        fixtureLibraryState.data=normalizeFixtureLibrary(serverJson.library);
+        loadedFrom='custom';
+      }
+    }catch(_){}
+    if(!fixtureLibraryState.data){
+      const r=await fetch('assets/fixture-library.json',{cache:'no-store'});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      fixtureLibraryState.data=normalizeFixtureLibrary(await r.json());
+    }
     fixtureLibraryState.selectedKey='';
     fixtureLibraryState.selectedModeIndex=0;
-    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' library fixtures.';
+    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.';
     if(search)search.disabled=false;
     renderFixtureLibraryResults();
     return fixtureLibraryState.data;
@@ -1051,6 +1066,39 @@ async function loadFixtureLibrary(options={}){
   }finally{
     if(retry&&retry.style.display==='none')retry.disabled=false;
   }
+}
+function normalizeFixtureLibrary(data){
+  if(!data||typeof data!=='object'||!Array.isArray(data.fixtures))throw new Error('Expected fixture library JSON with a fixtures array');
+  return {
+    schemaVersion:data.schemaVersion||1,
+    source:data.source||'Imported fixture library',
+    generatedAt:data.generatedAt||new Date().toISOString(),
+    fixtureCount:data.fixtureCount||data.fixtures.length,
+    fixtures:data.fixtures
+  };
+}
+async function saveFixtureLibraryToServer(library){
+  const r=await fetch('fixture_library.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(library)});
+  const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
+  if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+}
+function exportCurrentFixtureLibrary(){
+  if(!fixtureLibraryState.data?.fixtures?.length){setStatus('Fixture library is not loaded yet',true);return;}
+  DmxCommon.downloadJson('pico_dmx_fixture_library.json',fixtureLibraryState.data);
+  setStatus('Fixture library exported');
+}
+async function importFixtureLibraryFile(file){
+  const text=await file.text();
+  const library=normalizeFixtureLibrary(JSON.parse(text));
+  await saveFixtureLibraryToServer(library);
+  fixtureLibraryState.data=library;
+  fixtureLibraryState.selectedKey='';
+  fixtureLibraryState.selectedModeIndex=0;
+  const search=document.getElementById('fixtureLibrarySearch');
+  if(search)search.disabled=false;
+  document.getElementById('fixtureLibraryStatus').textContent='Imported '+library.fixtureCount+' library fixtures from '+file.name+'.';
+  renderFixtureLibraryResults();
+  setStatus('Fixture library imported');
 }
 function fixtureLibrarySearchText(fixture){
   return [fixture.manufacturerName,fixture.name,fixture.key,(fixture.categories||[]).join(' '),(fixture.modes||[]).map(m=>m.name+' '+m.shortName).join(' ')].join(' ').toLowerCase();
@@ -1875,6 +1923,12 @@ document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
 document.getElementById('retryFixtureLibrary').onclick=()=>loadFixtureLibrary({force:true});
+document.getElementById('exportFixtureLibrary').onclick=exportCurrentFixtureLibrary;
+document.getElementById('importFixtureLibrary').onclick=()=>document.getElementById('importFixtureLibraryFile').click();
+document.getElementById('importFixtureLibraryFile').onchange=e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  importFixtureLibraryFile(file).catch(err=>showError('Fixture library import failed: '+err.message)).finally(()=>{e.target.value='';});
+};
 document.getElementById('fixtureLibrarySearch').addEventListener('input',()=>renderFixtureLibraryResults());
 document.getElementById('fixtureLibraryResults').onclick=e=>{
   const btn=e.target.closest('[data-library-key]');
@@ -2039,6 +2093,7 @@ async function exportFullSetup(){
     chaser:await fetchSetupPayload('chaser_setup.php','chaser',{}),
     motion:await fetchSetupPayload('motion_setup.php','motion',{}),
     gpio:await fetchSetupPayload('gpio_setup.php',null,{ok:true,exists:false,enabled:true,mappings:[],adcMappings:[]}),
+    fixtureLibrary:await fetchSetupPayload('fixture_library.php','library',null),
     uiState:(await fetchSetupPayload('ui_state.php',null,{ok:true,exists:false,state:{}})).state||{}
   },2);
   DmxCommon.downloadJson('pico_dmx_setup.json',full);
@@ -2067,6 +2122,7 @@ async function importFullSetup(data){
   if(migrated.chaser&&typeof migrated.chaser==='object')await postSetupPayload('chaser_setup.php',migrated.chaser);
   if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
   if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
+  if(migrated.fixtureLibrary)await saveFixtureLibraryToServer(normalizeFixtureLibrary(migrated.fixtureLibrary));
   if(migrated.uiState&&typeof migrated.uiState==='object'){
     for(const [page,state] of Object.entries(migrated.uiState)){
       if(state&&typeof state==='object')await postSetupPayload('ui_state.php',{page,state});
