@@ -77,6 +77,124 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.title).toContain('1 fixture selected');
   });
 
+  test('saved group tiles use corner edit tile and delete actions without toggling selection', async ({ page }) => {
+    await page.evaluate(() => {
+      savedGroups = [{ id: 'grp_test', name: 'Front Wash', fixtureIds: [101, 102], values: {} }];
+      activeSavedGroupIds.clear();
+      renderSavedGroupsList();
+      drawSurface();
+    });
+
+    await expect(page.locator('[data-edit-group="0"]')).toBeVisible();
+    await expect(page.locator('[data-delete-group="0"]')).toBeVisible();
+    await expect(page.locator('#renameSelectedGroup')).toHaveCount(0);
+    await expect(page.locator('#deleteSelectedGroups')).toHaveCount(0);
+
+    await page.locator('[data-edit-group="0"]').click();
+    await expect(page.locator('#paletteVisualModal')).toBeVisible();
+    await page.locator('#paletteVisualName').fill('Renamed Wash');
+    await page.locator('#paletteVisualColor').fill('#115577');
+    await page.locator('#paletteVisualSave').click();
+    await expect(page.locator('#paletteVisualModal')).toBeHidden();
+
+    let state = await page.evaluate(() => ({
+      name: savedGroups[0].name,
+      visual: savedGroups[0].visual,
+      tileStyle: {
+        background: getComputedStyle(document.querySelector('[data-group-index="0"]')).backgroundColor,
+        borderColor: getComputedStyle(document.querySelector('[data-group-index="0"]')).borderColor
+      },
+      selectedGroups: selectedSavedGroups().length
+    }));
+    expect(state.name).toBe('Renamed Wash');
+    expect(state.visual).toEqual(expect.objectContaining({ type: 'visual', color: '#115577' }));
+    expect(state.tileStyle.background).toBe('rgb(17, 85, 119)');
+    expect(state.tileStyle.borderColor).toBe('rgb(17, 85, 119)');
+    expect(state.selectedGroups).toBe(0);
+
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      await dialog.accept();
+    });
+    await page.locator('[data-delete-group="0"]').click();
+
+    state = await page.evaluate(() => ({
+      count: savedGroups.length,
+      selectedGroups: selectedSavedGroups().length
+    }));
+    expect(state).toEqual({ count: 0, selectedGroups: 0 });
+  });
+
+  test('Groups toolbox places layout controls below the full-width edit button', async ({ page }) => {
+    await page.evaluate(() => {
+      savedGroups = [{ id: 'grp_test', name: 'Front Wash', fixtureIds: [101, 102], values: {} }];
+      renderSavedGroupsList();
+    });
+
+    const layout = await page.evaluate(() => {
+      const toolbar = document.querySelector('#groupsBox .groups-toolbar').getBoundingClientRect();
+      const button = document.getElementById('editSelectedGroups').getBoundingClientRect();
+      const controls = document.querySelector('#groupsBox .groups-layout-controls').getBoundingClientRect();
+      return {
+        toolbarWidth: Math.round(toolbar.width),
+        buttonWidth: Math.round(button.width),
+        buttonLeft: Math.round(button.left),
+        toolbarLeft: Math.round(toolbar.left),
+        controlsTop: Math.round(controls.top),
+        buttonBottom: Math.round(button.bottom),
+        controlsLeft: Math.round(controls.left)
+      };
+    });
+
+    expect(layout.buttonLeft).toBe(layout.toolbarLeft);
+    expect(layout.buttonWidth).toBeCloseTo(layout.toolbarWidth, 1);
+    expect(layout.controlsTop).toBeGreaterThanOrEqual(layout.buttonBottom);
+    expect(layout.controlsLeft).toBe(layout.toolbarLeft);
+  });
+
+  test('Control Surface group actions align left below the selection summary', async ({ page }) => {
+    await page.evaluate(() => {
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      activeFixtureFilterIds.clear();
+      drawSurface();
+    });
+
+    const layout = await page.evaluate(() => {
+      const summary = document.querySelector('#groupBar .group-bar-summary').getBoundingClientRect();
+      const actions = document.querySelector('#groupBar .group-bar-actions').getBoundingClientRect();
+      const save = document.getElementById('saveGroupBtn').getBoundingClientRect();
+      return {
+        summaryLeft: Math.round(summary.left),
+        summaryBottom: Math.round(summary.bottom),
+        actionsLeft: Math.round(actions.left),
+        actionsTop: Math.round(actions.top),
+        saveLeft: Math.round(save.left)
+      };
+    });
+
+    expect(layout.actionsTop).toBeGreaterThanOrEqual(layout.summaryBottom);
+    expect(layout.actionsLeft).toBe(layout.summaryLeft);
+    expect(layout.saveLeft).toBe(layout.summaryLeft);
+  });
+
+  test('Show card can collapse its project file buttons', async ({ page }) => {
+    await expect(page.locator('.setup-files-card h2')).toHaveText('Show');
+    await expect(page.locator('#newShow')).toBeVisible();
+    await expect(page.locator('#exportJson')).toBeVisible();
+
+    await page.locator('#showCollapseBtn').click();
+    await expect(page.locator('#showBody')).toBeHidden();
+    await expect(page.locator('#showCollapseBtn')).toHaveText('+');
+    await expect(page.locator('#newShow')).toBeHidden();
+
+    await page.locator('#showCollapseBtn').click();
+    await expect(page.locator('#showBody')).toBeVisible();
+    await expect(page.locator('#showCollapseBtn')).toHaveText('−');
+  });
+
   test('scene saves are serialized so deleting a scene removes its visual from the server payload', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const originalFetch = window.fetch;
@@ -406,6 +524,38 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.afterCardClick).toEqual([101]);
     expect(result.afterSliderClick).toEqual([101]);
     expect(result.selectedStyle.boxShadow).not.toBe('none');
+  });
+
+  test('saved fixture profile header selects the profile like fixture card headers', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length,
+        { id: 9201, name: 'Profile A', mode: '1ch', channels: 1, controls: [] },
+        { id: 9202, name: 'Profile B', mode: '2ch', channels: 2, controls: [] }
+      );
+      activeProfileId = 9201;
+      loadProfileEditor(profiles[0]);
+      drawProfiles();
+      setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false);
+    });
+
+    await page.locator('[data-profile-card-head="9202"]').click();
+
+    const selected = await page.evaluate(() => ({
+      activeProfileId,
+      name: document.getElementById('profileName').value,
+      mode: document.getElementById('profileMode').value,
+      activeCards: [...document.querySelectorAll('#profiles .item.active')].map(el => el.dataset.profileCard),
+      selectedStyle: {
+        boxShadow: getComputedStyle(document.querySelector('[data-profile-card="9202"]')).boxShadow,
+        background: getComputedStyle(document.querySelector('[data-profile-card="9202"]')).backgroundColor
+      }
+    }));
+    expect(selected.activeProfileId).toBe(9202);
+    expect(selected.name).toBe('Profile B');
+    expect(selected.mode).toBe('2ch');
+    expect(selected.activeCards).toEqual(['9202']);
+    expect(selected.selectedStyle.boxShadow).not.toBe('none');
+    expect(selected.selectedStyle.background).toBe('rgb(16, 36, 31)');
   });
 
   test('wheel controls reject duplicate DMX option values', async ({ page }) => {

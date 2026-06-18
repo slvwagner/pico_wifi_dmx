@@ -382,7 +382,7 @@ test.describe('Chaser established rules', () => {
       await updateActiveRecalledChase();
       const buttonAfterUpdate = {
         text: document.getElementById('btnUpdateChase').textContent,
-        success: document.getElementById('btnUpdateChase').classList.contains('success')
+        success: document.getElementById('btnUpdateChase').classList.contains('button-feedback--success')
       };
 
       steps = [makeStep('New chase draft', { '101:11': 22 })];

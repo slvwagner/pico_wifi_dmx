@@ -10,7 +10,6 @@
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
 .item{padding:12px;gap:10px}
-.item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .xy-dot{width:12px;height:12px}
 .readout{font-size:18px;line-height:1;color:var(--accent);font-weight:700}
 #motionEffectBox label{gap:4px;font-size:12px}
@@ -30,9 +29,7 @@ main{max-width:none;width:100%;margin:0}
 .motion-control-row input[type=range]{width:100%}
 .motion-control-row .small{align-self:center}
 .motion-fixture-matrix{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
-.motion-fixture-tile{min-height:156px;cursor:pointer;align-content:start;position:relative;user-select:none}
-.motion-fixture-tile:hover{border-color:var(--accent)}
-.motion-fixture-tile.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}
+.motion-fixture-tile{min-height:156px;align-content:start;position:relative}
 .motion-tile-title{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:18px}
 .motion-tile-value{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:16px}
 .motion-tile-xy{width:100%!important;height:auto!important;max-width:100%;aspect-ratio:1.45/1;min-height:84px}
@@ -835,7 +832,7 @@ function drawFixtureList(){
     const color=COLORS[i%COLORS.length];
     const meta=isPanTilt?(c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'):(c.type==='slider16'?'Scalar 16-bit':'Scalar 8-bit');
     const item=document.createElement('div');
-    item.className='item motion-fixture-tile'+(mf.enabled?' active':'');
+    item.className=DmxCommon.selectableCardClass('item motion-fixture-tile',mf.enabled);
     item.dataset.fixId=f.id;
     item.dataset.mf=String(i);
     const preview=isPanTilt
@@ -863,7 +860,7 @@ function drawFixtureList(){
     const mf=motionFixtures[i];
     if(!mf)return;
     mf.enabled=!mf.enabled;
-    tile.classList.toggle('active',mf.enabled);
+    DmxCommon.setSelectableState(tile,mf.enabled);
     drawPathPreview();
     refreshMotionGroupActions();
     saveMotionWorkingState();

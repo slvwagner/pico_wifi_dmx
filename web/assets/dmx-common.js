@@ -84,6 +84,16 @@
     }
   }
 
+  function selectableCardClass(base='',selected=false,selectedClass='active'){
+    return [base,'selectable-card',selected?selectedClass:''].filter(Boolean).join(' ');
+  }
+
+  function setSelectableState(element,selected=false,selectedClass='active'){
+    if(!element)return;
+    element.classList.add('selectable-card');
+    element.classList.toggle(selectedClass,!!selected);
+  }
+
   function initVersionBadge(){
     const apply=version=>{
       const v=String(version||appVersion()).trim();
@@ -1016,7 +1026,7 @@
         const g=groups[i];
         if(!g){html+='<div class="group-empty" title="Empty group slot"></div>';continue;}
         const active=selectedIds.has(key(g,i));
-        html+=`<div class="item${active?' active':''}" data-group-index="${i}" title="Select or deselect group">
+        html+=`<div class="${selectableCardClass('item',active)}" data-group-index="${i}" title="Select or deselect group">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escapeHtml(g.name||('Group '+(i+1)))}</strong><span class="small">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
         </div>`;
       }
@@ -1447,6 +1457,8 @@
     feedbackButton,
     restoreButtonFeedback,
     withButtonFeedback,
+    selectableCardClass,
+    setSelectableState,
     clampInt,
     clampFloat,
     fanOrderedFixtures,

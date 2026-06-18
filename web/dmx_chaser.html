@@ -2171,7 +2171,6 @@ function applyChaserData(data,redraw=true){
 // ---- floating chase toolbox ----
 let savedChases=[];
 let activeRecalledChaseSlot=null;
-let updateChaseFeedbackTimer=null;
 let chaseSlotCols=4,chaseSlotRows=4;
 const CHASE_SLOT_GRID_MAX=32;
 let chaseVisualDefault=(()=>{
@@ -2234,25 +2233,9 @@ function activeRecalledChase(){
   return savedChases.find(c=>chaseSlotIndex(c.slot)===activeRecalledChaseSlot)||null;
 }
 function resetUpdateChaseFeedback(){
-  if(updateChaseFeedbackTimer){clearTimeout(updateChaseFeedbackTimer);updateChaseFeedbackTimer=null;}
   const btn=document.getElementById('btnUpdateChase');
   if(!btn)return;
-  btn.classList.remove('success');
-  btn.textContent='Update chase';
-}
-function showUpdateChaseConfirmation(chase){
-  const btn=document.getElementById('btnUpdateChase');
-  if(!btn)return;
-  if(updateChaseFeedbackTimer)clearTimeout(updateChaseFeedbackTimer);
-  btn.classList.add('success');
-  btn.textContent='Updated';
-  btn.title='Updated "'+chase.name+'"';
-  updateChaseFeedbackTimer=setTimeout(()=>{
-    btn.classList.remove('success');
-    btn.textContent='Update chase';
-    updateChaseFeedbackTimer=null;
-    refreshUpdateChaseButton();
-  },1800);
+  DmxCommon.restoreButtonFeedback(btn);
 }
 function refreshUpdateChaseButton(){
   const btn=document.getElementById('btnUpdateChase');
@@ -2327,7 +2310,9 @@ async function updateActiveRecalledChase(){
   refreshUpdateChaseButton();
   const saved=await saveChasesServer();
   if(saved!==false){
-    showUpdateChaseConfirmation(chase);
+    const btn=document.getElementById('btnUpdateChase');
+    DmxCommon.feedbackButton(btn,'success','Updated',{restoreAfter:1800});
+    setTimeout(refreshUpdateChaseButton,1800);
     setStatus('Updated chase "'+chase.name+'"');
   }
 }

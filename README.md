@@ -135,7 +135,7 @@ Enter the Pico base URL shown in the Pico serial log, for example:
 http://192.168.0.24/
 ```
 
-Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Setup Files > Export Setup** before large changes when you want an extra backup of the complete show setup.
+Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Setup** before large changes when you want an extra backup of the complete show setup.
 
 ### Install the firmware
 
@@ -735,7 +735,7 @@ The Fixture Controller is the main setup and live-control page. It defines fixtu
 
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
-The **Setup Files** card is the user-facing backup point. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, motion effects, GPIO mappings, mirrored Pico slot payloads, custom fixture library data, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table.
+The **Show** card is the user-facing project point. **New Show** starts a fresh show after confirmation, clearing fixture setup, live values, groups, scenes, palettes, saved chases, motion effects, GPIO mappings, mirrored Pico slot payloads, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, motion effects, GPIO mappings, mirrored Pico slot payloads, custom fixture library data, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table. The card can be collapsed when those buttons are not needed.
 
 The Fixture Library panel loads the built-in converted Open Fixture Library catalog by default. **Export Library** downloads the currently loaded catalog as `pico_dmx_fixture_library.json`; **Import Library** saves a converted fixture catalog to the XAMPP server so it becomes the preferred library for all browsers. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`.
 
@@ -759,7 +759,7 @@ The live control surface shows patched fixtures as cards. Each card contains the
 
 ![Saved Groups matrix](docs/screenshots/fixture-controller-saved-groups.png)
 
-Saved Groups are shown in a compact matrix. Each group has Select and Deselect on the top row, with smaller Rename and Delete buttons below. Selecting a saved group filters the control surface to that group's fixtures. Multiple groups can be selected at the same time; the surface shows the union of all selected group fixtures, and Show all clears the filter.
+Saved Groups are shown in a compact matrix. Each filled group tile has a small pencil icon that opens **Edit Tile** for the group name, background color, and optional visual; the small `x` deletes the group, matching scene and palette tiles. Selecting a saved group filters the control surface to that group's fixtures. Multiple groups can be selected at the same time; the surface shows the union of all selected group fixtures, and Show all clears the filter.
 
 ![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
 
@@ -848,7 +848,7 @@ Fixtures can be organised into named **Saved Groups** (stored server-side via `g
 - Create a group and assign any subset of patched fixtures to it.
 - A collapsible **Group Bar** appears above the fixture list; clicking a group instantly selects all its fixtures and scrolls to the first one.
 - The **Group Edit** modal can recall **Default all** or **Blackout all** for every selected fixture at once, using each fixture profile's own stored default/blackout values.
-- Groups can be edited (rename, change member list) or deleted from the Saved Groups panel.
+- Groups can be edited with **Edit Tile** for name and visual appearance, or deleted from the Saved Groups panel.
 - Groups are included in the complete **Export Setup** / **Import Setup** backup from the Fixture Controller.
 
 ### Fixture Controller — Default and Blackout Values

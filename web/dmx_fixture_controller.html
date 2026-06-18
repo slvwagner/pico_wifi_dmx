@@ -15,7 +15,6 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction
 #surface{scrollbar-gutter:stable}
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:220px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
-.item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .control{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
 .fixture-card,.fixture-card>div,.fixture-card .fixture-head,.fixture-card .control,.fixture-card .control-head,.fixture-card .row,.fixture-card .byte-sliders,.fixture-card label{min-width:0;max-width:100%}
 .fixture-card>div,.fixture-card .fixture-head,.fixture-card .control,.fixture-card .control-head,.fixture-card .row,.fixture-card .byte-sliders,.fixture-card label,.fixture-card .xy-pad{width:100%!important}
@@ -23,14 +22,18 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-card .xy-pad{width:100%;max-width:100%;height:var(--xy-pad-height,auto);min-height:160px}
 .fixture-card .readout{min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-.fixture-head{display:grid;gap:6px;align-items:start;height:58px;overflow:hidden}
-.fixture-title{display:flex;gap:8px;align-items:baseline;min-width:0;flex-wrap:nowrap;height:24px;overflow:hidden}
+.fixture-head{display:grid;grid-template-rows:minmax(0,1fr) 28px;gap:6px;align-items:start;height:74px;overflow:hidden}
+.fixture-title{display:grid;gap:2px;align-items:start;min-width:0;overflow:hidden}
 .fixture-title h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
 #savedGroupsList{display:grid;gap:8px;align-content:start}
 #savedGroupsList .item{align-content:start}
 #savedGroupsList .group-empty{min-height:94px;border:1px dashed var(--line);border-radius:8px;background:#0a0d10;opacity:.45}
+#savedGroupsList .group-tile{position:relative;min-height:94px;padding:22px 10px 10px;display:grid;align-content:end}
+#savedGroupsList .group-tile-content{position:relative;z-index:1;display:grid;gap:3px;min-width:0}
+#savedGroupsList .group-tile-name{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#savedGroupsList .group-tile-meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #patched{display:grid;gap:12px}
 #patchBody>#patched{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 #patched .patched-row{display:grid;gap:8px}
@@ -40,8 +43,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .patch-actions-grid button{width:100%;min-width:0}
 .patch-actions-grid .minor{padding:3px 8px;font-size:12px;line-height:1.1;min-height:0}
-#savedGroupsList .item{cursor:pointer}
-#savedGroupsList .item:hover{border-color:var(--accent)}
 .readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}.bytes{color:var(--muted);font-size:13px}
 .byte-sliders{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .matrix-control{display:grid;gap:10px}
@@ -60,6 +61,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .profile-editor-block .toolbar{align-items:end}
 .profile-list-block{display:grid;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
 .profile-list-title{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase}
+.profile-card{gap:10px}
+.profile-card-head{display:grid;gap:2px;cursor:pointer;border-radius:6px;padding:8px;margin:-4px -4px 0}
+.profile-card-head h3{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:17px}
+.profile-card-head .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-card-actions{padding-top:2px}
+.profile-card-controls{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--line);cursor:auto;user-select:auto}
+.profile-control-list{display:grid;gap:6px}
+.profile-control-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.profile-control-desc{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-control-actions{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.profile-control-actions button{padding:5px 9px;font-size:12px;line-height:1.2;min-height:0}
 .setup-files-card .toolbar{align-items:center}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
@@ -74,8 +86,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 @media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
 @media(max-width:900px){.fixture-library-layout{grid-template-columns:1fr}}
-#groupBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
-.fixture-card{cursor:pointer;user-select:none}.fixture-card:hover{border-color:var(--accent)}.fixture-card .control{cursor:auto;user-select:auto}.card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
+#groupBar{display:grid;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+#groupBar .group-bar-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0}
+#groupBar .group-bar-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
+.fixture-card .control{cursor:auto;user-select:auto}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
 </style>
 </head>
 <body>
@@ -95,8 +109,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </header>
 
 <section class="panel setup-files-card">
-<h2>Setup Files</h2>
-<div class="toolbar">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+<h2>Show</h2>
+<button id="showCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+</div>
+<div id="showBody" class="toolbar">
+<button id="newShow" class="danger" title="Start a fresh show setup">New Show</button>
 <button id="exportCsv" class="icon-btn export-btn" title="Export patched fixtures and DMX channels as CSV"><span>Patch CSV</span></button>
 <button id="exportJson" class="icon-btn export-btn" title="Export the complete show setup file"><span>Export Setup</span></button>
 <button id="importJson" class="icon-btn import-btn" title="Import a complete show setup file"><span>Import Setup</span></button>
@@ -138,7 +156,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label>Mode<input id="profileMode" type="text" value="16ch"></label>
 <label>Channels<input id="profileChannels" type="number" min="1" max="512" value="16"></label>
 <button id="addProfile">Add profile</button>
-<button id="updateFixtureLibraryProfile" title="Save the selected fixture profile into the fixture library">Update Library</button>
 </div>
 </div>
 <div class="profile-list-block">
@@ -290,8 +307,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="groupsBoxBody" class="scene-toolbox__body">
 <div class="groups-toolbar">
-<button id="renameSelectedGroup" title="Rename selected group">Rename</button>
-<button id="deleteSelectedGroups" class="danger" title="Delete selected groups">Delete</button>
 <button id="editSelectedGroups" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>
 <div class="groups-layout-controls">
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="groupCols" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
@@ -740,16 +755,25 @@ async function updateSelectedProfileInFixtureLibrary(){
   if(!commitProfileEditor())throw new Error('Profile could not be updated');
   const saved=activeProfile();
   if(!saved)throw new Error('Select a profile first');
+  return updateProfileInFixtureLibrary(saved);
+}
+async function updateProfileInFixtureLibrary(profile){
   const library=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true}));
-  const result=upsertProfileIntoFixtureLibrary(library,saved);
+  const result=upsertProfileIntoFixtureLibrary(library,profile);
   await saveFixtureLibraryToServer(library);
   fixtureLibraryState.data=library;
   fixtureLibraryState.selectedKey=result.fixture.key;
-  fixtureLibraryState.selectedModeIndex=Math.max(0,(result.fixture.modes||[]).findIndex(mode=>libraryModeMatchesProfile(mode,saved)));
+  fixtureLibraryState.selectedModeIndex=Math.max(0,(result.fixture.modes||[]).findIndex(mode=>libraryModeMatchesProfile(mode,profile)));
   renderFixtureLibraryResults();
   document.getElementById('fixtureLibraryStatus').textContent='Updated library fixture '+result.fixture.name+' · '+result.mode.name+'.';
-  setStatus('Fixture library updated from profile: '+saved.name+' ('+saved.mode+')');
+  setStatus('Fixture library updated from profile: '+profile.name+' ('+profile.mode+')');
   return result;
+}
+async function updateProfileCardInFixtureLibrary(profileId){
+  const profile=profiles.find(item=>item.id===parseInt(profileId,10));
+  if(!profile)throw new Error('Select a profile first');
+  selectProfile(profile.id,{status:false});
+  return updateProfileInFixtureLibrary(profile);
 }
 
 function controlFromEditor(existingId=0){
@@ -1404,11 +1428,13 @@ function drawProfiles(){
   profiles.forEach(p=>{
     const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name+' ('+p.mode+', '+p.channels+'ch)';patchProfile.appendChild(opt);
     const used=[...new Set(p.controls.flatMap(controlChannels).filter(ch=>ch>=1&&ch<=p.channels))].sort((a,b)=>a-b);
-    const item=document.createElement('div');item.className='item'+(p.id===activeProfileId?' active':'');
-    item.innerHTML=`<div class="row"><strong>${p.name}</strong><span class="small">Mode ${p.mode} · ${p.channels} channels · ${p.controls.length} controls</span></div>
-      <div class="buttons"><button data-profile="${p.id}">Select</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
+    const item=document.createElement('div');item.className=DmxCommon.selectableCardClass('item profile-card',p.id===activeProfileId);item.dataset.profileCard=p.id;
+    item.innerHTML=`<div class="profile-card-head" data-profile-card-head="${p.id}" title="Select this fixture profile"><h3>${escHtml(p.name)}</h3><span class="small">Mode ${escHtml(p.mode)} · ${p.channels} channels · ${p.controls.length} controls</span></div>
+      <div class="buttons profile-card-actions"><button data-update-profile-library="${p.id}" title="Save this profile into the fixture library">Update Library</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
+      <div class="profile-card-controls">
       <div class="small">Used channels: ${used.join(', ')||'none'}</div>
-      <div class="list">${p.controls.map(c=>`<div class="row"><span class="small">${c.label} (${c.type}) · ${controlChannelText(c)}</span><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div>`).join('')||'<div class="small">No controls yet</div>'}</div>`;
+      <div class="profile-control-list">${p.controls.map(c=>`<div class="profile-control-row"><span class="small profile-control-desc">${escHtml(c.label)} (${escHtml(c.type)}) · ${escHtml(controlChannelText(c))}</span><div class="profile-control-actions"><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div></div>`).join('')||'<div class="small">No controls yet</div>'}</div>
+      </div>`;
     profilesEl.appendChild(item);
   });
   if(profiles.some(p=>p.id===selectedPatchProfileId))patchProfile.value=selectedPatchProfileId;
@@ -1529,8 +1555,8 @@ function drawSurface(){
     const coll=collapsedFixtureIds.has(f.id);
     const hasDefault=p.controls.some(c=>c.defaultValue!=null);
     const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
-    const card=document.createElement('article');card.className='card fixture-card'+(sel?' selected':'');card.dataset.fixtureCard=f.id;
-    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${f.name}</h2><span class="small">${p.name} · ${p.mode} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    const card=document.createElement('article');card.className=DmxCommon.selectableCardClass('card fixture-card',sel,'selected');card.dataset.fixtureCard=f.id;
+    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${escHtml(f.name)}</h2><span class="small">${escHtml(p.name)} · ${escHtml(p.mode)} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   resizeFixtureXyPads();
@@ -1909,26 +1935,50 @@ function recallFanPreset(){
   setStatus('Fan Out preset recalled: '+preset.name);
 }
 
+function refreshProfileSelectionUi(){
+  profilesEl.querySelectorAll('[data-profile-card]').forEach(card=>{
+    DmxCommon.setSelectableState(card,parseInt(card.dataset.profileCard,10)===activeProfileId);
+  });
+  if(profiles.some(p=>p.id===activeProfileId))patchProfile.value=activeProfileId;
+}
+function selectProfile(profileId,options={}){
+  activeProfileId=parseInt(profileId,10);
+  const p=activeProfile();
+  if(p)loadProfileEditor(p);
+  if(!editingControlId)updateControlChannelInputs(true);
+  refreshProfileSelectionUi();
+  if(options.status!==false)setStatus('Selected profile: '+(p?.name||'Profile'));
+}
 profilesEl.onclick=e=>{
-  const select=e.target.dataset.profile;
-  const remove=e.target.dataset.removeProfile;
-  const editControl=e.target.dataset.editControl;
-  const removeControl=e.target.dataset.removeControl;
+  const selectBtn=e.target.closest('button[data-profile]:not([data-edit-control]):not([data-remove-control])');
+  const profileHead=e.target.closest('[data-profile-card-head]');
+  const profileCard=e.target.closest('[data-profile-card]');
+  const updateLibraryBtn=e.target.closest('[data-update-profile-library]');
+  const removeBtn=e.target.closest('[data-remove-profile]');
+  const editControlBtn=e.target.closest('[data-edit-control]');
+  const removeControlBtn=e.target.closest('[data-remove-control]');
+  const profileControlArea=e.target.closest('.profile-card-controls');
+  const select=selectBtn?.dataset.profile||profileHead?.dataset.profileCardHead||(!profileControlArea?profileCard?.dataset.profileCard:null);
+  const updateLibrary=updateLibraryBtn?.dataset.updateProfileLibrary;
+  const remove=removeBtn?.dataset.removeProfile;
+  const editControl=editControlBtn?.dataset.editControl;
+  const removeControl=removeControlBtn?.dataset.removeControl;
+  if(updateLibrary){
+    DmxCommon.withButtonFeedback(updateLibraryBtn,{busy:'Updating...',success:'Updated',error:'Failed'},()=>updateProfileCardInFixtureLibrary(updateLibrary)).catch(err=>showError('Fixture library update failed: '+err.message));
+    return;
+  }
   if(select){
-    activeProfileId=parseInt(select,10);
-    const p=activeProfile();
-    if(p)loadProfileEditor(p);
-    if(!editingControlId)updateControlChannelInputs(true);
+    selectProfile(select);
   }
   if(editControl){
-    const p=profiles.find(profile=>profile.id===parseInt(e.target.dataset.profile,10));
+    const p=profiles.find(profile=>profile.id===parseInt(editControlBtn.dataset.profile,10));
     const c=p?.controls.find(control=>control.id===parseInt(editControl,10));
     if(p&&c){activeProfileId=p.id;loadProfileEditor(p);loadControlEditor(c);setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);setSectionCollapsed(null,'addControlBody',null,false);setStatus('Editing '+c.label);}
     draw();
     return;
   }
   if(removeControl){
-    const p=profiles.find(profile=>profile.id===parseInt(e.target.dataset.profile,10));
+    const p=profiles.find(profile=>profile.id===parseInt(removeControlBtn.dataset.profile,10));
     if(p){
       p.controls=p.controls.filter(control=>control.id!==parseInt(removeControl,10));
       if(editingControlId===parseInt(removeControl,10))resetControlEditor();
@@ -2056,7 +2106,6 @@ document.getElementById('addProfile').onclick=e=>DmxCommon.withButtonFeedback(e.
   el.addEventListener('input',handleProfileEditorInput);
   el.addEventListener('change',handleProfileEditorInput);
 });
-document.getElementById('updateFixtureLibraryProfile').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Updating...',success:'Updated',error:'Failed'},updateSelectedProfileInFixtureLibrary).catch(err=>showError('Fixture library update failed: '+err.message));
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
@@ -2243,6 +2292,93 @@ async function postSetupPayload(url,data){
   const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
   if(!r.ok||!j.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
 }
+async function clearPicoSlots(url,count){
+  await Promise.all(Array.from({length:count},(_,i)=>postSetupPayload(url+'?delete_slot='+i,{})));
+}
+function resetShowLocalState(){
+  clearTimeout(setupAutosaveTimer);
+  clearTimeout(_writeLiveValuesTimer);
+  profiles=[];
+  fixtures=[];
+  Object.keys(values).forEach(k=>delete values[k]);
+  activeProfileId=0;
+  editingControlId=0;
+  savedGroups=[];
+  activeSavedGroupIds.clear();
+  selectedFixtureIds=new Set();
+  groupValues={};
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
+  fanAffectedKeys.clear();
+  fanState.controlKey='';
+  fanState.mode='symmetric';
+  fanState.spread=0;
+  fanState.fromOffset=0;
+  fanState.toOffset=0;
+  fanState.inverted=false;
+  fanState.bases={};
+  fanPresets=[];
+  scenes=[];
+  palettes=[];
+  slotCols=4;slotRows=4;
+  paletteCols=4;paletteRows=4;
+  groupCols=2;groupRows=4;
+  collapsedFixtureIds.clear();
+  ['dmxFixtureController','dmxFCLiveValues','selectedGroupIds','fixtureCardCollapsed','groupsBoxCols','groupsBoxRows','sceneSlotCols','sceneSlotRows','paletteSlotCols','paletteSlotRows'].forEach(key=>localStorage.removeItem(key));
+  DmxCommon.saveSharedGroupSelection([]);
+  addDefaultProfile();
+  resetControlEditor();
+  document.getElementById('slotCols').value=slotCols;
+  document.getElementById('slotRows').value=slotRows;
+  document.getElementById('paletteCols').value=paletteCols;
+  document.getElementById('paletteRows').value=paletteRows;
+  document.getElementById('groupCols').value=groupCols;
+  document.getElementById('groupRows').value=groupRows;
+  renderSavedGroupsList();
+  renderSlotMatrix();
+  renderPaletteMatrix();
+  renderFanToolbox();
+  draw();
+}
+async function startNewShow(){
+  if(!confirm('Start a fresh show?\n\nThis clears fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico playback slots, and saved toolbox layout. The fixture library is kept.'))return;
+  const showBaseUrl=baseUrl.value;
+  resetShowLocalState();
+  baseUrl.value=showBaseUrl;
+  localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
+  const fixturePayload=saveData();
+  const emptyUiState={
+    fixture:{
+      patchCollapsed:false,
+      profilesCollapsed:false,
+      fixtureLibraryCollapsed:false,
+      fixtureCardCollapsed:[],
+      fanOutPresets:[],
+      groupsBoxCols:2,
+      groupsBoxRows:4,
+      groupsBoxCollapsed:false,
+      sceneBoxCollapsed:false,
+      paletteBoxCollapsed:false,
+      fanToolboxCollapsed:false
+    },
+    toolboxes:{selectedGroupIds:[],groupsBoxCols:2,groupsBoxRows:4},
+    chaser:{},
+    motion:{}
+  };
+  await postSetupPayload('fixture_setup.php',fixturePayload);
+  await postSetupPayload('fixture_setup.php?livevalues',{});
+  await postSetupPayload('group_setup.php',{baseUrl:showBaseUrl,groups:[]});
+  await postSetupPayload('scene_setup.php',{baseUrl:showBaseUrl,scenes:[],slotCols:4,slotRows:4});
+  await postSetupPayload('palette_setup.php',{baseUrl:showBaseUrl,palettes:[],paletteCols:4,paletteRows:4});
+  await postSetupPayload('chaser_setup.php',{baseUrl:showBaseUrl,chases:[],chaseSlotCols:4,chaseSlotRows:4});
+  await clearPicoSlots('chaser_setup.php',32);
+  await postSetupPayload('motion_setup.php',{baseUrl:showBaseUrl,effects:[],effectSlotCols:4,effectSlotRows:4});
+  await clearPicoSlots('motion_setup.php',64);
+  await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
+  for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
+  setStatus('New show started');
+}
 async function importFullSetup(data){
   const full=normalizeFullSetupPayload(data);
   if(!full){
@@ -2277,6 +2413,7 @@ async function importFullSetup(data){
 }
 document.getElementById('exportJson').onclick=()=>exportFullSetup().catch(err=>showError('Setup export failed: '+err.message));
 document.getElementById('importJson').onclick=()=>document.getElementById('importJsonFile').click();
+document.getElementById('newShow').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Starting...',success:'Started',error:'Failed'},startNewShow).catch(err=>showError('New show failed: '+err.message));
 document.getElementById('importJsonFile').onchange=e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
@@ -2484,13 +2621,13 @@ function updateGroupBar(){
   const n=selectedFixtureIds.size;
   const activeGroups=selectedSavedGroups();
   const filtered=activeGroups.length||activeFixtureFilterIds.size;
-  bar.style.display='flex';
+  bar.style.display='grid';
   const common=getGroupEditableControls();
   const scoped=!!getActiveGroupControlScope();
   const scope=activeGroups.length?`<span class="small">Groups: ${activeGroups.map(g=>escHtml(g.name)).join(', ')}</span>`:(activeFixtureFilterIds.size?'<span class="small">Filtered group selection</span>':'');
   const note=n?(' · '+common.length+' '+(n>1?(scoped?'scoped':'common'):'editable')+' control'+(common.length===1?'':'s')+(common.length?'':' (no matching controls)')):'';
   const label=n?`<strong>${n} fixture${n>1?'s':''} selected</strong>${note}`:'<strong>No fixtures selected</strong>';
-  bar.innerHTML=`<span>${label}</span>${scope}<button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||filtered)?'':' disabled'}>${filtered?'Show all':'Deselect all'}</button>`;
+  bar.innerHTML=`<div class="group-bar-summary"><span>${label}</span>${scope}</div><div class="group-bar-actions"><button id="saveGroupBtn"${n?'':' disabled'}>Save Group</button><button id="selectAllFixtures"${fixtures.length?'':' disabled'}>Select All</button><button id="clearSelection"${(n||filtered)?'':' disabled'}>${filtered?'Show all':'Deselect all'}</button></div>`;
   document.getElementById('saveGroupBtn').onclick=()=>{if(n)saveCurrentGroup();};
   document.getElementById('selectAllFixtures').onclick=selectAllFixtures;
   document.getElementById('clearSelection').onclick=clearGroupSelection;
@@ -2890,12 +3027,7 @@ function selectedSavedGroupEntries(){
   return savedGroups.map((g,i)=>({g,i,key:savedGroupKey(g,i)})).filter(entry=>activeSavedGroupIds.has(entry.key));
 }
 function updateGroupActionButtons(){
-  const selected=selectedSavedGroupEntries();
-  const renameBtn=document.getElementById('renameSelectedGroup');
-  const deleteBtn=document.getElementById('deleteSelectedGroups');
   const editBtn=document.getElementById('editSelectedGroups');
-  if(renameBtn)renameBtn.disabled=selected.length!==1;
-  if(deleteBtn)deleteBtn.disabled=selected.length===0;
   if(editBtn)editBtn.disabled=selectedFixtureIds.size<1||!getGroupEditableControls().length;
 }
 function saveSavedGroupsToServer(){
@@ -2925,11 +3057,21 @@ function renderSavedGroupsList(priority='cols'){
       continue;
     }
     const active=activeSavedGroupIds.has(savedGroupKey(g,i));
-    html+=`<div class="item${active?' active':''}" onclick="toggleGroup(${i})" title="Select or deselect group">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(g.name)}</strong><span class="small">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
+    html+=`<div class="${DmxCommon.selectableCardClass('item group-tile',active)}" data-group-index="${i}" title="Select or deselect group" style="${slotVisualStyle(g)}">
+    ${DmxCommon.slotVisualButtonHtml('data-edit-group',i,'Edit group tile')}
+    <button class="slot-del" data-delete-group="${i}" title="Delete group">×</button>
+    <div class="group-tile-content">${paletteSlotVisualHtml(g)}<span class="group-tile-name">${escHtml(g.name)}</span><span class="group-tile-meta">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
   </div>`;
   }
   el.innerHTML=html;
+  el.onclick=e=>{
+    const edit=e.target.closest('[data-edit-group]');
+    if(edit){e.stopPropagation();openGroupVisualModal(parseInt(edit.dataset.editGroup,10));return;}
+    const del=e.target.closest('[data-delete-group]');
+    if(del){e.stopPropagation();deleteGroup(parseInt(del.dataset.deleteGroup,10));return;}
+    const tile=e.target.closest('[data-group-index]');
+    if(tile)toggleGroup(parseInt(tile.dataset.groupIndex,10));
+  };
   updateGroupActionButtons();
 }
 function saveCurrentGroup(){
@@ -2987,14 +3129,30 @@ function deleteSelectedGroups(){
   drawSurface();
   setStatus('Deleted '+selected.length+' group'+(selected.length===1?'':'s'));
 }
+function deleteGroup(i){
+  const g=savedGroups[i];if(!g)return;
+  if(!confirm('Delete group "'+(g.name||('Group '+(i+1)))+'"?'))return;
+  const remainingSelectedIds=selectedSavedGroupIds().filter(id=>String(id)!==String(g.id));
+  savedGroups.splice(i,1);
+  activeFixtureFilterIds.clear();
+  applySharedGroupSelection(remainingSelectedIds);
+  DmxCommon.saveSharedGroupSelection(remainingSelectedIds);
+  renderSavedGroupsList();saveSavedGroupsToServer();
+  drawSurface();
+  setStatus('Deleted group: '+(g.name||('Group '+(i+1))));
+}
 function renameSelectedGroup(){
   const selected=selectedSavedGroupEntries();
   if(selected.length!==1)return;
-  const {g,i}=selected[0];
+  renameGroup(selected[0].i);
+}
+function renameGroup(i){
+  const g=savedGroups[i];if(!g)return;
   const name=(prompt('Group name:',g.name||('Group '+(i+1)))||'').trim();
   if(!name||name===g.name)return;
   g.name=name;
   renderSavedGroupsList();saveSavedGroupsToServer();
+  setStatus('Renamed group: '+name);
 }
 function editSelectedGroups(){
   const common=getGroupEditableControls();
@@ -3023,8 +3181,6 @@ function importGroupsJson(file){
 if(document.getElementById('exportGroupsJson'))document.getElementById('exportGroupsJson').onclick=exportGroupsJson;
 if(document.getElementById('importGroupsJson'))document.getElementById('importGroupsJson').onclick=()=>document.getElementById('importGroupsFile')?.click();
 if(document.getElementById('importGroupsFile'))document.getElementById('importGroupsFile').onchange=e=>{if(e.target.files[0])importGroupsJson(e.target.files[0]);e.target.value='';};
-document.getElementById('renameSelectedGroup').onclick=renameSelectedGroup;
-document.getElementById('deleteSelectedGroups').onclick=deleteSelectedGroups;
 document.getElementById('editSelectedGroups').onclick=editSelectedGroups;
 (()=>{
   const gc=localStorage.getItem('groupsBoxCols'),gr=localStorage.getItem('groupsBoxRows');
@@ -3760,6 +3916,25 @@ function openSceneVisualModal(slot){
     }
   });
 }
+function openGroupVisualModal(index){
+  const group=savedGroups[index];
+  if(!group)return;
+  slotVisualEditor.open({
+    targetLabel:'Group tiles',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the saved group; group selection still uses the stored fixtures and values.',
+    defaultColor:'#075b66',
+    defaultVisual:{type:'visual',color:'#075b66',image:''},
+    targets:savedGroups.map((g,i)=>({key:String(i),item:g,label:'Group '+(i+1)+': '+(g.name||'Group')+' ('+(g.fixtureIds?.length||0)+' fixture'+((g.fixtureIds?.length||0)===1?'':'s')+')'})),
+    selectedKey:String(index),
+    onSaveDefault:()=>{},
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      renderSavedGroupsList();
+      saveSavedGroupsToServer();
+      setStatus('Updated group tile for "'+target.name+'"');
+    }
+  });
+}
 if(document.getElementById('exportPalettesBtn'))document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 if(document.getElementById('importPalettesBtn'))document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile')?.click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
@@ -3809,6 +3984,7 @@ loadFanPresets();
 
 // ── Collapsible sections ──────────────────────────────────────────────
 [
+  ['showCollapseBtn',       'showBody',        'showCollapsed'],
   ['patchCollapseBtn',      'patchBody',       'patchCollapsed'],
   ['profilesCollapseBtn',   'profilesBody',    'profilesCollapsed'],
   ['fixtureLibraryCollapseBtn','fixtureLibraryBody','fixtureLibraryCollapsed'],
@@ -3893,7 +4069,8 @@ function saveUiStateServer(key,val){
       applyGroupsBoxLayout();
       renderSavedGroupsList();
     }
-    [['patchCollapsed','patchBody','patchCollapseBtn'],
+    [['showCollapsed','showBody','showCollapseBtn'],
+     ['patchCollapsed','patchBody','patchCollapseBtn'],
      ['profilesCollapsed','profilesBody','profilesCollapseBtn'],
      ['fixtureLibraryCollapsed','fixtureLibraryBody','fixtureLibraryCollapseBtn']].forEach(([key,bodyId,btnId])=>{
       if(st[key]===undefined)return;

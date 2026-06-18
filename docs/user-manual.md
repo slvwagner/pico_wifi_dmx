@@ -179,7 +179,9 @@ The Fixture Controller uses four toolboxes in the shared right-side **Toolboxes*
 
 ![Controller Groups toolbox](screenshots/fixture-controller-toolbox-groups.png)
 
-**Groups** stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, rename one selected group, delete selected groups after confirmation, import/export group JSON, and open **Group Edit** when the current scope supports it.
+**Show** is the project-level card for setup files. **New Show** starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico playback slots, and saved toolbox layout while keeping the reusable fixture library. **Export Setup** downloads the complete show backup, **Import Setup** restores one, and **Patch CSV** exports the patched channel table. The card can be collapsed when you do not need these buttons.
+
+**Groups** stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small `x`, import/export group JSON, and open **Group Edit** when the current scope supports it.
 
 ![Controller Scenes toolbox](screenshots/fixture-controller-toolbox-scenes.png)
 
@@ -328,8 +330,8 @@ The Saved Groups card shows groups in a compact matrix. Each group has four acti
 
 - **Select** adds the group to the active group filter.
 - **Deselect** removes only that group from the active filter.
-- **Rename** changes the saved group name.
-- **Delete** removes the saved group.
+- The small pencil on a group tile opens **Edit Tile** for that saved group's name, background color, and optional drawn/uploaded visual.
+- The small `x` on a group tile removes that saved group after confirmation.
 
 More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.
 
@@ -826,7 +828,7 @@ Use **Clear all** when you want to clear both Pico buffers from the monitor page
 
 ## 9. Backup and Import
 
-Use **Fixture Controller > Setup Files > Export Setup** before large changes or before moving the show to another computer.
+Use **Fixture Controller > Show > Export Setup** before large changes or before moving the show to another computer.
 
 The exported setup file includes:
 

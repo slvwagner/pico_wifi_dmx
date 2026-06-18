@@ -246,7 +246,8 @@ strong { color: #ffffff; }
 <h3 id="fixture-controller-toolboxes">Fixture Controller Toolboxes</h3>
 <p>The Fixture Controller uses four toolboxes in the shared right-side <strong>Toolboxes</strong> sidebar.</p>
 <p><img src="screenshots/fixture-controller-toolbox-groups.png" alt="Controller Groups toolbox"></p>
-<p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, rename one selected group, delete selected groups after confirmation, import/export group JSON, and open <strong>Group Edit</strong> when the current scope supports it.</p>
+<p><strong>Show</strong> is the project-level card for setup files. <strong>New Show</strong> starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico playback slots, and saved toolbox layout while keeping the reusable fixture library. <strong>Export Setup</strong> downloads the complete show backup, <strong>Import Setup</strong> restores one, and <strong>Patch CSV</strong> exports the patched channel table. The card can be collapsed when you do not need these buttons.</p>
+<p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small <code>x</code>, import/export group JSON, and open <strong>Group Edit</strong> when the current scope supports it.</p>
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Controller Scenes toolbox"></p>
 <p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, and the small top-left pencil icon opens <strong>Edit Tile</strong> for that slot&#39;s name, background, and optional drawing/upload.</p>
 <p><img src="screenshots/fixture-controller-toolbox-palettes.png" alt="Controller Palettes toolbox"></p>
@@ -357,8 +358,8 @@ strong { color: #ffffff; }
 <ul>
 <li><strong>Select</strong> adds the group to the active group filter.</li>
 <li><strong>Deselect</strong> removes only that group from the active filter.</li>
-<li><strong>Rename</strong> changes the saved group name.</li>
-<li><strong>Delete</strong> removes the saved group.</li>
+<li>The small pencil on a group tile opens <strong>Edit Tile</strong> for that saved group&#39;s name, background color, and optional drawn/uploaded visual.</li>
+<li>The small <code>x</code> on a group tile removes that saved group after confirmation.</li>
 </ul>
 <p>More than one saved group can be selected at the same time. The control surface shows the union of all fixtures from the selected groups. This makes it possible to work with several fixture groups together without editing the group definitions.</p>
 <p>The group bar above the control surface shows how many fixtures are selected and which saved groups are active. Use <strong>Select All</strong> to select every patched fixture explicitly. Use <strong>Deselect all</strong> to clear a manual fixture selection. When a saved-group filter is active, the same button is shown as <strong>Show all</strong> and clears the saved-group filter to return to the full fixture list.</p>
@@ -738,7 +739,7 @@ strong { color: #ffffff; }
 <p>Use <strong>Refresh ms</strong> to control the polling interval directly. Use <strong>Refresh Hz</strong> when you prefer rate instead. Both fields stay synchronized, so <code>500 ms</code> is shown as <code>2 Hz</code>. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. <strong>Auto refresh</strong> starts or stops polling without changing the selected buffer.</p>
 <p>Use <strong>Clear all</strong> when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.</p>
 <h2 id="9-backup-and-import">9. Backup and Import</h2>
-<p>Use <strong>Fixture Controller &gt; Setup Files &gt; Export Setup</strong> before large changes or before moving the show to another computer.</p>
+<p>Use <strong>Fixture Controller &gt; Show &gt; Export Setup</strong> before large changes or before moving the show to another computer.</p>
 <p>The exported setup file includes:</p>
 <ul>
 <li>Fixture profiles and patched fixtures</li>
