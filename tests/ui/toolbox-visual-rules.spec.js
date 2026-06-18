@@ -14,6 +14,76 @@ test.describe('Toolbox visual tile rules', () => {
     expect(visual).toEqual({ type: 'visual', color: '#abcdef', image: '' });
   });
 
+  test('saved group scene and palette tiles share the common edge style', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    const state = await page.evaluate(() => {
+      savedGroups = [{ id: 'grp_edge', name: 'Group Edge', fixtureIds: [], values: {}, visual: { type: 'visual', color: '#225a50', image: '' } }];
+      scenes = [{ id: 'scene_edge', name: 'Scene Edge', slot: 0, values: { '101:1': 1 }, visual: { type: 'visual', color: '#225a50', image: '' } }];
+      palettes = [{ id: 'palette_edge', name: 'Palette Edge', slot: 0, scope: 'all', values: { '101:1': 1 }, visual: { type: 'visual', color: '#225a50', image: '' } }];
+      renderSavedGroupsList();
+      renderSlotMatrix();
+      renderPaletteMatrix();
+
+      const sample = selector => {
+        const el = document.querySelector(selector);
+        const style = getComputedStyle(el);
+        return {
+          className: el.className,
+          borderStyle: style.borderTopStyle,
+          borderWidth: style.borderTopWidth,
+          borderColor: style.borderTopColor,
+          radius: style.borderTopLeftRadius
+        };
+      };
+
+      return {
+        group: sample('#savedGroupsList [data-group-index="0"]'),
+        scene: sample('#slotMatrix [data-slot="0"]'),
+        palette: sample('#paletteMatrix [data-palette-slot="0"]')
+      };
+    });
+
+    for (const tile of [state.group, state.scene, state.palette]) {
+      expect(tile.className).toContain('saved-tile');
+      expect(tile.borderStyle).toBe('solid');
+      expect(tile.borderWidth).toBe('1px');
+    }
+    expect(state.scene.borderColor).toBe(state.group.borderColor);
+    expect(state.palette.borderColor).toBe(state.group.borderColor);
+    expect(state.scene.radius).toBe(state.group.radius);
+    expect(state.palette.radius).toBe(state.group.radius);
+  });
+
+  test('empty scene and palette tiles use the same solid edge language', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    const state = await page.evaluate(() => {
+      scenes = [];
+      palettes = [];
+      renderSlotMatrix();
+      renderPaletteMatrix();
+
+      const sample = selector => {
+        const el = document.querySelector(selector);
+        const style = getComputedStyle(el);
+        return {
+          borderStyle: style.borderTopStyle,
+          borderWidth: style.borderTopWidth,
+          radius: style.borderTopLeftRadius
+        };
+      };
+
+      return {
+        scene: sample('#slotMatrix [data-slot="0"]'),
+        palette: sample('#paletteMatrix [data-palette-slot="0"]')
+      };
+    });
+
+    expect(state.scene).toEqual({ borderStyle: 'solid', borderWidth: '1px', radius: '8px' });
+    expect(state.palette).toEqual(state.scene);
+  });
+
   test('new scenes inherit default color but not default icon image', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('sceneVisualDefault', JSON.stringify({

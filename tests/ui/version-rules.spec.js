@@ -25,12 +25,10 @@ test.describe('Project versioning rules', () => {
         if (typeof savedGroups !== 'undefined' && typeof renderSavedGroupsList === 'function') {
           savedGroups.splice(0, savedGroups.length, group);
           renderSavedGroupsList();
-        } else if (typeof chaserGroupsBox !== 'undefined' && chaserGroupsBox?.render) {
-          chaserGroupsBox.groups.splice(0, chaserGroupsBox.groups.length, group);
-          chaserGroupsBox.render();
-        } else if (typeof motionGroupsBox !== 'undefined' && motionGroupsBox?.render) {
-          motionGroupsBox.groups.splice(0, motionGroupsBox.groups.length, group);
-          motionGroupsBox.render();
+        } else if (typeof chaserGroupsBox !== 'undefined' && chaserGroupsBox?.setGroups) {
+          chaserGroupsBox.setGroups([group]);
+        } else if (typeof motionGroupsBox !== 'undefined' && motionGroupsBox?.setGroups) {
+          motionGroupsBox.setGroups([group]);
         }
       });
       await expect(page.locator('.scene-toolbox--groups .groups-toolbar').first()).toBeVisible();
@@ -59,6 +57,82 @@ test.describe('Project versioning rules', () => {
       expect(layout.layoutTop).toBeGreaterThanOrEqual(layout.editBottom);
       expect(layout.hasSelectableCard).toBe(true);
     }
+  });
+
+  test('Controller refuses to overwrite saved groups when the group file did not load', async ({ page }) => {
+    let groupPosts = 0;
+    await page.route('**/group_setup.php**', async route => {
+      if (route.request().method() === 'POST') {
+        groupPosts += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: '{"ok":false,"error":"temporary group load failure"}'
+      });
+    });
+
+    await openDmxPage(page, '');
+    await expect(page.locator('#status')).toContainText('Groups load failed');
+
+    const result = await page.evaluate(() => {
+      createSavedGroup('Should Not Save', [101], {});
+      return {
+        savedGroups: savedGroups.length,
+        status: document.getElementById('status').textContent
+      };
+    });
+
+    expect(groupPosts).toBe(0);
+    expect(result.savedGroups).toBe(0);
+    expect(result.status).toContain('Cannot create group until saved groups have loaded');
+  });
+
+  test('Shared Groups toolbox keeps loaded groups when a later reload fails', async ({ page }) => {
+    let failGroupLoad = false;
+    let groupPosts = 0;
+    await page.route('**/group_setup.php**', async route => {
+      if (route.request().method() === 'POST') {
+        groupPosts += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      if (failGroupLoad) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: '{"ok":false,"error":"temporary group load failure"}'
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          baseUrl: '',
+          groups: [{ id: 'grp_keep', name: 'Keep Me', fixtureIds: [101], values: {} }]
+        })
+      });
+    });
+
+    await openDmxPage(page, 'dmx_chaser.html');
+    await expect(page.locator('#chaserGroupsBox [data-group-index="0"]')).toContainText('Keep Me');
+
+    failGroupLoad = true;
+    const result = await page.evaluate(async () => {
+      const loaded = await chaserGroupsBox.loadGroups();
+      return {
+        loaded,
+        groups: chaserGroupsBox.groups.map(g => g.name)
+      };
+    });
+
+    expect(result.loaded).toBe(false);
+    expect(result.groups).toEqual(['Keep Me']);
+    expect(groupPosts).toBe(0);
   });
 
   test('complete setup import migrates old setup format and rejects future formats', async ({ page }) => {
@@ -237,10 +311,11 @@ test.describe('Project versioning rules', () => {
           scenes: findPost('scene_setup.php')?.body,
           palettes: findPost('palette_setup.php')?.body,
           chaser: findPost('chaser_setup.php')?.body,
-          motion: findPost('motion_setup.php')?.body,
+          motion: findPost('motion_setup.php?reset_show')?.body,
           gpio: findPost('gpio_setup.php')?.body,
           uiStatePosts: countPosts('ui_state.php'),
           chaserSlotDeletes: countPosts('chaser_setup.php?delete_slot='),
+          motionShowResets: countPosts('motion_setup.php?reset_show'),
           motionSlotDeletes: countPosts('motion_setup.php?delete_slot='),
           fixtureLibraryPosts: countPosts('fixture_library.php'),
           local: {
@@ -270,10 +345,13 @@ test.describe('Project versioning rules', () => {
     expect(result.palettes.palettes).toEqual([]);
     expect(result.chaser.chases).toEqual([]);
     expect(result.motion.effects).toEqual([]);
+    expect(result.motion.pico_slots).toHaveLength(64);
+    expect(result.motion.pico_slots.every(slot => slot === null)).toBe(true);
     expect(result.gpio).toMatchObject({ enabled: true, mappings: [], adcMappings: [] });
     expect(result.uiStatePosts).toBeGreaterThanOrEqual(3);
     expect(result.chaserSlotDeletes).toBe(32);
-    expect(result.motionSlotDeletes).toBe(64);
+    expect(result.motionShowResets).toBe(1);
+    expect(result.motionSlotDeletes).toBe(0);
     expect(result.fixtureLibraryPosts).toBe(0);
     expect(result.local).toMatchObject({
       profiles: 1,
@@ -286,6 +364,56 @@ test.describe('Project versioning rules', () => {
       selectedGroups: 0,
       status: 'New show started'
     });
+  });
+
+  test('motion setup reset clears saved effects and Pico slots atomically', async ({ page }) => {
+    let motionState = {
+      baseUrl: 'http://old-pico/',
+      effects: [{ id: 'fx_old', name: 'Old effect', slot: 0, recipe: {} }],
+      effectCols: 6,
+      effectRows: 2,
+      pico_slots: Array.from({ length: 64 }, (_, i) => i === 0 ? 'OLD SLOT' : null)
+    };
+    await page.route('**/motion_setup.php**', async route => {
+      const url = new URL(route.request().url());
+      const method = route.request().method();
+      if (method === 'POST' && url.searchParams.has('reset_show')) {
+        const body = JSON.parse(route.request().postData() || '{}');
+        motionState = {
+          ...body,
+          effects: [],
+          effectCols: body.effectCols || 4,
+          effectRows: body.effectRows || 4,
+          pico_slots: Array(64).fill(null)
+        };
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, motion: motionState })
+      });
+    });
+    await openDmxPage(page, '');
+
+    const result = await page.evaluate(async () => {
+      await postSetupPayload('motion_setup.php?reset_show', {
+        baseUrl: 'http://new-pico/',
+        effects: [],
+        effectCols: 4,
+        effectRows: 4,
+        pico_slots: Array(64).fill(null)
+      });
+      const r = await fetch('motion_setup.php');
+      return (await r.json()).motion;
+    });
+
+    expect(result.effects).toEqual([]);
+    expect(result.effectCols).toBe(4);
+    expect(result.effectRows).toBe(4);
+    expect(result.pico_slots).toHaveLength(64);
+    expect(result.pico_slots.every(slot => slot === null)).toBe(true);
   });
 
   test('fixture library catalog can be exported and imported separately', async ({ page }) => {
@@ -318,7 +446,9 @@ test.describe('Project versioning rules', () => {
     });
     await openDmxPage(page, '');
     await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', true));
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
+    await expect(page.locator('#profilesBody')).toBeHidden();
 
     const download = await Promise.all([
       page.waitForEvent('download'),
@@ -350,6 +480,8 @@ test.describe('Project versioning rules', () => {
 
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Imported 1 library fixtures');
     await expect(page.locator('#fixtureLibraryResults')).toContainText('Demo Fixture');
+    await expect(page.locator('#profilesBody')).toBeVisible();
+    await expect(page.locator('#profilesCollapseBtn')).toHaveText('−');
     expect(importedLibrary).toMatchObject({ source: 'Test import', fixtureCount: 1 });
   });
 

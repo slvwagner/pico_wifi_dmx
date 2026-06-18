@@ -88,6 +88,10 @@
     return [base,'selectable-card',selected?selectedClass:''].filter(Boolean).join(' ');
   }
 
+  function savedTileClass(base='',selected=false,selectedClass='active'){
+    return selectableCardClass([base,'saved-tile'].filter(Boolean).join(' '),selected,selectedClass);
+  }
+
   function setSelectableState(element,selected=false,selectedClass='active'){
     if(!element)return;
     element.classList.add('selectable-card');
@@ -444,7 +448,7 @@
 
   function clampToolboxRailWidth(value){
     const min=300;
-    const max=Math.max(min,Math.min(760,window.innerWidth-toolboxRailMinMainWidth()));
+    const max=Math.max(min,Math.min(Math.round(window.innerWidth*2/3),window.innerWidth-toolboxRailMinMainWidth()));
     return Math.max(min,Math.min(max,parseInt(value,10)||0));
   }
 
@@ -907,6 +911,7 @@
     const statePrefix=idPrefix;
     const layoutPrefix=options.layoutStoragePrefix||'groupsBox';
     let groups=[];
+    let groupsLoaded=false;
     let selectedIds=new Set();
     let cols=parseInt(localStorage.getItem(layoutPrefix+'Cols')||localStorage.getItem(statePrefix+'Cols'))||2;
     let rows=parseInt(localStorage.getItem(layoutPrefix+'Rows')||localStorage.getItem(statePrefix+'Rows'))||4;
@@ -947,6 +952,14 @@
     });
 
     function key(g,i){return g.id||('idx_'+i);}
+    function normalizeGroups(nextGroups){
+      return (Array.isArray(nextGroups)?nextGroups:[]).map((g,i)=>({
+        ...g,
+        id:g.id||('grp_'+Date.now()+'_'+i),
+        fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],
+        values:g.values||{}
+      }));
+    }
     function selectedGroups(){return groups.filter((g,i)=>selectedIds.has(key(g,i)));}
     function selectedGroupIds(){return selectedGroups().map(g=>g.id).filter(Boolean);}
     function applySharedSelection(ids){
@@ -1026,7 +1039,7 @@
         const g=groups[i];
         if(!g){html+='<div class="group-empty" title="Empty group slot"></div>';continue;}
         const active=selectedIds.has(key(g,i));
-        html+=`<div class="${selectableCardClass('item',active)}" data-group-index="${i}" title="Select or deselect group">
+        html+=`<div class="${savedTileClass('item',active)}" data-group-index="${i}" title="Select or deselect group">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escapeHtml(g.name||('Group '+(i+1)))}</strong><span class="small">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
         </div>`;
       }
@@ -1034,21 +1047,35 @@
       updateActions();
     }
     async function saveGroups(){
+      if(!groupsLoaded){
+        options.onStatus?.('Groups not saved: saved groups have not loaded from the server yet.',true);
+        return false;
+      }
       try{
         const r=await fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(versionedPayload({baseUrl:options.baseUrlInput?.value||'',groups}))});
         const j=await r.json();
         if(!j.ok)options.onStatus?.('Groups save failed: '+j.error,true);
-      }catch(err){options.onStatus?.('Groups save error: '+err.message,true);}
+        return !!j.ok;
+      }catch(err){options.onStatus?.('Groups save error: '+err.message,true);return false;}
     }
     async function loadGroups(){
+      let loaded=false;
       try{
-        const d=await fetch('group_setup.php',{cache:'no-store'}).then(r=>r.json());
+        const r=await fetch('group_setup.php',{cache:'no-store'});
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        const d=await r.json();
+        if(d.ok===false)throw new Error(d.error||'Groups load failed');
         if(d.baseUrl&&options.baseUrlInput&&!localStorage.getItem(BASE_URL_KEY))options.baseUrlInput.value=d.baseUrl;
-        groups=Array.isArray(d.groups)?d.groups.map((g,i)=>({...g,id:g.id||('grp_'+Date.now()+'_'+i),fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],values:g.values||{}})):[];
-      }catch(_){groups=[];}
+        groups=normalizeGroups(d.groups);
+        groupsLoaded=true;
+        loaded=true;
+      }catch(err){
+        options.onStatus?.('Groups load failed; keeping the last known group list. '+err.message,true);
+      }
       applySharedSelection(await loadSharedGroupSelection());
       render();
       notify();
+      return loaded;
     }
     function exportGroups(){
       downloadJson('dmx_groups.json',versionedPayload({baseUrl:options.baseUrlInput?.value||'',groups}));
@@ -1060,7 +1087,8 @@
           const data=JSON.parse(e.target.result);
           if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
           if(data.baseUrl&&options.baseUrlInput&&!localStorage.getItem(BASE_URL_KEY))options.baseUrlInput.value=data.baseUrl;
-          groups=data.groups.map((g,i)=>({...g,id:g.id||('grp_'+Date.now()+'_'+i),fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],values:g.values||{}}));
+          groups=normalizeGroups(data.groups);
+          groupsLoaded=true;
           selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
           options.onStatus?.('Imported '+groups.length+' group(s)');
         }catch(err){options.onStatus?.('Import failed: '+err.message,true);}
@@ -1123,7 +1151,14 @@
       render();
       notify();
     }
-    return {box,toolbox,loadGroups,render,refreshActions:updateActions,selectedGroups,clearSelection,get groups(){return groups;}};
+    function setGroups(nextGroups){
+      groups=normalizeGroups(nextGroups);
+      groupsLoaded=true;
+      applySharedSelection(Array.from(selectedIds));
+      render();
+      notify();
+    }
+    return {box,toolbox,loadGroups,render,refreshActions:updateActions,selectedGroups,clearSelection,setGroups,get groups(){return groups;}};
   }
 
   function normalizeSlotVisual(visual){
@@ -1458,6 +1493,7 @@
     restoreButtonFeedback,
     withButtonFeedback,
     selectableCardClass,
+    savedTileClass,
     setSelectableState,
     clampInt,
     clampFloat,

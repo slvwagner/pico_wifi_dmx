@@ -140,10 +140,8 @@ async function injectChaserCompactSetup(page) {
       if (!p) return;
       p.controls.forEach(c => participating[controlKey(f, c)] = true);
     });
-    chaserGroupsBox.groups.length = 0;
-    chaserGroupsBox.groups.push({ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} });
+    chaserGroupsBox.setGroups([{ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} }]);
     chaserGroupsBox.clearSelection();
-    chaserGroupsBox.render();
     drawParticipation();
     drawStepList();
     drawStepEditor();
@@ -177,10 +175,8 @@ async function injectMotionCompactSetup(page) {
         });
       });
     });
-    motionGroupsBox.groups.length = 0;
-    motionGroupsBox.groups.push({ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} });
+    motionGroupsBox.setGroups([{ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} }]);
     motionGroupsBox.clearSelection();
-    motionGroupsBox.render();
     selectedMotionTargetKey = '';
     drawFixtureList();
     const motionFilter = document.getElementById('motionControlFilter');

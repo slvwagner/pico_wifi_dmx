@@ -138,8 +138,8 @@ test.describe('iPad layout rules', () => {
         };
       });
 
-      expect(result.hitWidth).toBeGreaterThanOrEqual(32);
-      expect(result.visibleWidth).toBeGreaterThanOrEqual(6);
+      expect(result.hitWidth).toBeGreaterThanOrEqual(24);
+      expect(result.visibleWidth).toBeGreaterThanOrEqual(8);
       expect(result.after).toBeGreaterThan(result.before + 40);
       expect(result.saved).toBe(result.after);
     });
@@ -155,14 +155,19 @@ test.describe('iPad layout rules', () => {
       const resizer = document.querySelector('.toolbox-rail-resizer');
       const railRect = rail.getBoundingClientRect();
       const mainRect = main.getBoundingClientRect();
+      const resizerRect = resizer.getBoundingClientRect();
       return {
         railTop: Math.round(railRect.top),
         railRight: Math.round(window.innerWidth - railRect.right),
+        railLeft: Math.round(railRect.left),
         railHeight: Math.round(railRect.height),
         railWidth: Math.round(railRect.width),
         mainWidth: Math.round(mainRect.width),
+        mainRight: Math.round(mainRect.right),
         resizerDisplay: getComputedStyle(resizer).display,
         resizerWidth: parseFloat(getComputedStyle(resizer).width),
+        resizerLeft: Math.round(resizerRect.left),
+        resizerRight: Math.round(resizerRect.right),
         groupsBodyOverflow: (() => {
           const body = document.querySelector('#groupsBox .scene-toolbox__body');
           return body ? body.scrollWidth - body.clientWidth : 0;
@@ -176,7 +181,10 @@ test.describe('iPad layout rules', () => {
     expect(layout.railWidth).toBeGreaterThanOrEqual(360);
     expect(layout.mainWidth).toBeLessThan(1024);
     expect(layout.resizerDisplay).not.toBe('none');
-    expect(layout.resizerWidth).toBeGreaterThanOrEqual(32);
+    expect(layout.resizerWidth).toBeGreaterThanOrEqual(24);
+    expect(layout.resizerLeft).toBeGreaterThanOrEqual(layout.railLeft);
+    expect(layout.resizerRight).toBeLessThanOrEqual(layout.railLeft + 28);
+    expect(layout.mainRight).toBeLessThanOrEqual(layout.resizerLeft);
     expect(layout.groupsBodyOverflow).toBeLessThanOrEqual(1);
   });
 
@@ -265,9 +273,9 @@ test.describe('iPad layout rules', () => {
     expect(layout.railScrollTop).toBeGreaterThan(100);
     expect(layout.resizerTop).toBe(0);
     expect(layout.resizerBottom).toBe(768);
-    expect(layout.resizerLeft).toBeLessThan(layout.railLeft);
-    expect(layout.resizerRight).toBeGreaterThan(layout.railLeft);
-    expect(layout.lineWidth).toBeGreaterThanOrEqual(6);
+    expect(layout.resizerLeft).toBeGreaterThanOrEqual(layout.railLeft);
+    expect(layout.resizerRight).toBeLessThanOrEqual(layout.railLeft + 28);
+    expect(layout.lineWidth).toBeGreaterThanOrEqual(8);
   });
 
   test('Controller fixture tiles keep a usable layout after resizing the toolbox rail wide', async ({ page }) => {
@@ -315,9 +323,10 @@ test.describe('iPad layout rules', () => {
       };
     });
 
-    expect(layout.railWidth).toBeLessThanOrEqual(564);
-    expect(layout.mainWidth).toBeGreaterThanOrEqual(460);
-    expect(layout.surfaceWidth).toBeGreaterThanOrEqual(360);
+    expect(layout.railWidth).toBeLessThanOrEqual(Math.ceil(1024 * 2 / 3));
+    expect(layout.railWidth).toBeGreaterThan(620);
+    expect(layout.mainWidth).toBeGreaterThanOrEqual(320);
+    expect(layout.surfaceWidth).toBeGreaterThanOrEqual(260);
     expect(layout.surfaceOverflow).toBeLessThanOrEqual(1);
     expect(layout.columnsOverflow).toBeLessThanOrEqual(1);
     for (const card of layout.cards) {
@@ -327,9 +336,10 @@ test.describe('iPad layout rules', () => {
       expect(card.readoutLines).toBeLessThanOrEqual(1);
       if (card.xyWidth) {
         expect(card.xyWidth).toBeLessThanOrEqual(card.width - 30);
-        expect(card.xyHeight).toBeGreaterThan(150);
+        expect(card.xyHeight).toBeGreaterThan(120);
         expect(card.xyHeight).toBeLessThan(260);
-        expect(card.xyWidth / card.xyHeight).toBeCloseTo(1.55, 1);
+        expect(card.xyWidth / card.xyHeight).toBeGreaterThan(1.45);
+        expect(card.xyWidth / card.xyHeight).toBeLessThan(1.65);
       }
     }
   });
@@ -679,7 +689,7 @@ test.describe('iPad layout rules', () => {
         sourceFixtureId = null;
         participating = {};
         setup.fixtures.forEach(f => controls.forEach(c => participating[controlKey(f, c)] = true));
-        chaserGroupsBox.groups.length = 0;
+        chaserGroupsBox.setGroups([]);
         chaserGroupsBox.clearSelection();
         drawParticipation();
         drawStepList();
@@ -745,7 +755,7 @@ test.describe('iPad layout rules', () => {
             baseValue: 0
           });
         });
-        motionGroupsBox.groups.length = 0;
+        motionGroupsBox.setGroups([]);
         motionGroupsBox.clearSelection();
         selectedMotionTargetKey = motionControlKey(control);
         drawFixtureList();

@@ -377,9 +377,7 @@ test.describe('Motion FX established rules', () => {
 
   test('selected groups filter the fixture matrix for the current target', async ({ page }) => {
     await page.evaluate(() => {
-      motionGroupsBox.groups.length = 0;
-      motionGroupsBox.groups.push({ id: 'grp_a', name: 'A only', fixtureIds: [101], values: {} });
-      motionGroupsBox.render();
+      motionGroupsBox.setGroups([{ id: 'grp_a', name: 'A only', fixtureIds: [101], values: {} }]);
       const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');
       selectedMotionTargetKey = motionControlKey(scalar.control);
       setMotionParticipationByKey(selectedMotionTargetKey, 'all');

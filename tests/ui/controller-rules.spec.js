@@ -401,6 +401,8 @@ test.describe('Fixture Controller established rules', () => {
       const body = document.getElementById('groupModalBody');
       const style = getComputedStyle(body);
       return {
+        defaultLabel: document.getElementById('defaultGroupBtn')?.textContent,
+        blackoutLabel: document.getElementById('blackoutGroupBtn')?.textContent,
         overflowX: style.overflowX,
         overflowY: style.overflowY,
         clientWidth: body.clientWidth,
@@ -412,6 +414,8 @@ test.describe('Fixture Controller established rules', () => {
       };
     });
 
+    expect(layout.defaultLabel).toBe('Default');
+    expect(layout.blackoutLabel).toBe('Blackout');
     expect(layout.overflowX).toBe('hidden');
     expect(layout.overflowY).toBe('auto');
     expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);

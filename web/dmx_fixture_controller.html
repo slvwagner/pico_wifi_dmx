@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css">
-<script src="assets/dmx-common.js"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.4">
+<script src="assets/dmx-common.js?v=0.9.4"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -293,8 +293,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="groupModalBody" class="modal-body"></div>
 <div class="buttons" style="padding-top:4px">
-<button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default all</button>
-<button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout all</button>
+<button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default</button>
+<button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout</button>
 <button id="closeGroupModal2">Close</button>
 </div>
 </div>
@@ -426,7 +426,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
-fixtureToolboxRail.dataset.minMainWidth='460';
+fixtureToolboxRail.dataset.minMainWidth='360';
 DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'fanToolbox',type:'fan'}]);
 const maxDmx=512;
 let profiles=[];
@@ -1199,6 +1199,9 @@ async function saveFixtureLibraryToServer(library){
   const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
   if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
 }
+function openFixtureProfilesSection(){
+  setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);
+}
 function exportCurrentFixtureLibrary(){
   if(!fixtureLibraryState.data?.fixtures?.length){setStatus('Fixture library is not loaded yet',true);throw new Error('Fixture library is not loaded yet');}
   DmxCommon.downloadJson('pico_dmx_fixture_library.json',fixtureLibraryState.data);
@@ -1216,6 +1219,7 @@ async function importFixtureLibraryFile(file){
   if(search)search.disabled=false;
   document.getElementById('fixtureLibraryStatus').textContent='Imported '+library.fixtureCount+' library fixtures from '+file.name+'.';
   renderFixtureLibraryResults();
+  openFixtureProfilesSection();
   setStatus('Fixture library imported');
 }
 function fixtureLibrarySearchText(fixture){
@@ -1286,6 +1290,7 @@ function importSelectedLibraryProfile(){
   resetControlEditor();
   draw();
   scheduleSetupAutosave();
+  openFixtureProfilesSection();
   setStatus('Imported library profile: '+profile.name+' ('+profile.mode+')');
   return profile;
 }
@@ -2304,6 +2309,7 @@ function resetShowLocalState(){
   activeProfileId=0;
   editingControlId=0;
   savedGroups=[];
+  savedGroupsLoaded=true;
   activeSavedGroupIds.clear();
   selectedFixtureIds=new Set();
   groupValues={};
@@ -2373,8 +2379,7 @@ async function startNewShow(){
   await postSetupPayload('palette_setup.php',{baseUrl:showBaseUrl,palettes:[],paletteCols:4,paletteRows:4});
   await postSetupPayload('chaser_setup.php',{baseUrl:showBaseUrl,chases:[],chaseSlotCols:4,chaseSlotRows:4});
   await clearPicoSlots('chaser_setup.php',32);
-  await postSetupPayload('motion_setup.php',{baseUrl:showBaseUrl,effects:[],effectSlotCols:4,effectSlotRows:4});
-  await clearPicoSlots('motion_setup.php',64);
+  await postSetupPayload('motion_setup.php?reset_show',{baseUrl:showBaseUrl,effects:[],effectCols:4,effectRows:4,pico_slots:Array(64).fill(null)});
   await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
   for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
   setStatus('New show started');
@@ -2929,6 +2934,7 @@ surfaceEl.addEventListener('click',e=>{
 
 // ── Saved Groups ─────────────────────────────────────────────────────
 let savedGroups=[];
+let savedGroupsLoaded=false;
 let activeSavedGroupIds=new Set();
 let groupCols=2,groupRows=4;
 function escHtml(s){return DmxCommon.escapeHtml(s);}
@@ -2968,8 +2974,10 @@ function rebuildSelectionFromSavedGroups(){
 }
 function loadSavedGroups(){
   fetch('group_setup.php').then(r=>r.json()).then(d=>{
+    if(d.ok===false)throw new Error(d.error||'Groups load failed');
     if(d.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=d.baseUrl;
     savedGroups=normalizeSavedGroups(d.groups);
+    savedGroupsLoaded=true;
     DmxCommon.loadSharedGroupSelection().then(ids=>{
       if(ids.length){
         applySharedGroupSelection(ids);
@@ -2979,7 +2987,11 @@ function loadSavedGroups(){
       renderSavedGroupsList();
       drawSurface();
     });
-  }).catch(()=>{savedGroups=[];renderSavedGroupsList();});
+  }).catch(err=>{
+    savedGroupsLoaded=false;
+    setStatus('Groups load failed; keeping the current group list. '+err.message,true);
+    renderSavedGroupsList();
+  });
 }
 function clampGroupLayout(priority='cols'){
   const groupCount=savedGroups.length;
@@ -3031,11 +3043,19 @@ function updateGroupActionButtons(){
   if(editBtn)editBtn.disabled=selectedFixtureIds.size<1||!getGroupEditableControls().length;
 }
 function saveSavedGroupsToServer(){
-  fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}))})
+  if(!savedGroupsLoaded){
+    setStatus('Groups not saved: saved groups have not loaded from the server yet.',true);
+    return Promise.resolve(false);
+  }
+  return fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}))})
     .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
     .catch(e=>setStatus('Groups save error: '+e.message));
 }
 function createSavedGroup(name,fixtureIds,values={}){
+  if(!savedGroupsLoaded){
+    setStatus('Cannot create group until saved groups have loaded from the server.',true);
+    return;
+  }
   savedGroups.push({id:'grp_'+Date.now()+'_'+Math.floor(Math.random()*1000),name,fixtureIds:[...fixtureIds],values:{...values}});
   renderSavedGroupsList();
   saveSavedGroupsToServer();
@@ -3057,7 +3077,7 @@ function renderSavedGroupsList(priority='cols'){
       continue;
     }
     const active=activeSavedGroupIds.has(savedGroupKey(g,i));
-    html+=`<div class="${DmxCommon.selectableCardClass('item group-tile',active)}" data-group-index="${i}" title="Select or deselect group" style="${slotVisualStyle(g)}">
+    html+=`<div class="${DmxCommon.savedTileClass('item group-tile',active)}" data-group-index="${i}" title="Select or deselect group" style="${slotVisualStyle(g)}">
     ${DmxCommon.slotVisualButtonHtml('data-edit-group',i,'Edit group tile')}
     <button class="slot-del" data-delete-group="${i}" title="Delete group">×</button>
     <div class="group-tile-content">${paletteSlotVisualHtml(g)}<span class="group-tile-name">${escHtml(g.name)}</span><span class="group-tile-meta">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
@@ -3172,7 +3192,13 @@ function importGroupsJson(file){
       const data=JSON.parse(e.target.result);
       if(!Array.isArray(data.groups))throw new Error('Expected {groups:[...]}');
       if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrl.value=data.baseUrl;
-      savedGroups=normalizeSavedGroups(data.groups);activeSavedGroupIds.clear();activeFixtureFilterIds.clear();DmxCommon.saveSharedGroupSelection([]);renderSavedGroupsList();saveSavedGroupsToServer();
+      savedGroups=normalizeSavedGroups(data.groups);
+      savedGroupsLoaded=true;
+      activeSavedGroupIds.clear();
+      activeFixtureFilterIds.clear();
+      DmxCommon.saveSharedGroupSelection([]);
+      renderSavedGroupsList();
+      saveSavedGroupsToServer();
       setStatus('Imported '+savedGroups.length+' group(s)');
     }catch(err){setStatus('Import failed: '+err.message);}
   };
@@ -3317,7 +3343,7 @@ function renderSlotMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const s=scenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="slot filled" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}">${DmxCommon.slotVisualButtonHtml('data-visual-slot',i,'Edit scene tile')}<button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
+    if(s)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}" data-slot="${i}" title="Click: recall" style="${slotVisualStyle(s)}">${DmxCommon.slotVisualButtonHtml('data-visual-slot',i,'Edit scene tile')}<button class="slot-del" data-del-slot="${i}" title="Delete scene">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(s)}<span class="palette-slot-name">${escHtml(s.name)}</span></div></div>`;
     else html+=`<div class="slot" data-slot="${i}" title="Click to save scene here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -3688,7 +3714,7 @@ function renderPaletteMatrix(){
   let html='';
   for(let i=0;i<total;i++){
     const p=palettes.find(pl=>pl.slot===i);
-    if(p)html+=`<div class="slot filled" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-palette-slot',i,'Edit palette tile')}<button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
+    if(p)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}" data-palette-slot="${i}" title="Click: recall palette" style="${slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-palette-slot',i,'Edit palette tile')}<button class="slot-del" data-del-palette-slot="${i}" title="Delete palette">×</button><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name)}</span></div></div>`;
     else html+=`<div class="slot" data-palette-slot="${i}" title="Click to save palette here">${i+1}</div>`;
   }
   grid.innerHTML=html;

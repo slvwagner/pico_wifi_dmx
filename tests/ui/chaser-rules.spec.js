@@ -200,9 +200,7 @@ test.describe('Chaser established rules', () => {
 
   test('None clears participating controls, collapses fixtures, and clears groups', async ({ page }) => {
     await page.evaluate(() => {
-      chaserGroupsBox.groups.length = 0;
-      chaserGroupsBox.groups.push({ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} });
-      chaserGroupsBox.render();
+      chaserGroupsBox.setGroups([{ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} }]);
     });
     await page.locator('#chaserGroupsBox [data-group-index="0"]').click();
 

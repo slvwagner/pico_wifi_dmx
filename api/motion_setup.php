@@ -52,6 +52,30 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    // ?reset_show — atomically clear saved motion effects and all Pico motion slots for a fresh show
+    if (isset($_GET['reset_show'])) {
+        $raw = file_get_contents('php://input');
+        $data = json_decode($raw === false ? '' : $raw, true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+        $data['effects'] = [];
+        $data['effectCols'] = isset($data['effectCols']) ? (int)$data['effectCols'] : 4;
+        $data['effectRows'] = isset($data['effectRows']) ? (int)$data['effectRows'] : 4;
+        $data['pico_slots'] = array_fill(0, PICO_SLOT_COUNT, null);
+        if (isset($data['baseUrl']) && trim((string)$data['baseUrl']) !== '') {
+            $data['pico_url'] = trim((string)$data['baseUrl']);
+        }
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not reset motion file']);
+            exit;
+        }
+        echo json_encode(['ok' => true, 'file' => basename($dataFile)]);
+        exit;
+    }
+
     // ?delete_slot=N — delete a saved Pico slot payload
     if (isset($_GET['delete_slot'])) {
         $slotIdx = (int)$_GET['delete_slot'];
