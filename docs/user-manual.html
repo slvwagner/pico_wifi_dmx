@@ -155,6 +155,7 @@ strong { color: #ffffff; }
 <p><img src="screenshots/fixture-controller-fixture-library.png" alt="Fixture Library search and mode preview"></p>
 <p>The <strong>Fixture Library</strong> panel imports fixture profiles from the converted Open Fixture Library export. Use it when you want to start from an existing fixture definition instead of building every channel by hand.</p>
 <p>The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a <strong>Retry</strong> button.</p>
+<p>Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, <strong>Update Library</strong> changes to <strong>Updating...</strong> and then <strong>Updated</strong> when the fixture library write is complete.</p>
 <p>Use <strong>Export Library</strong> to download the currently loaded fixture catalog as <code>pico_dmx_fixture_library.json</code>. Use <strong>Import Library</strong> to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset.</p>
 <ol>
 <li>Type part of the manufacturer, fixture name, category, or mode in <strong>Search manufacturer or fixture</strong>.</li>
@@ -178,7 +179,7 @@ strong { color: #ffffff; }
 <p>A fixture profile describes the DMX personality of one fixture type. Use this section when the wanted fixture is not available in the <strong>Fixture Library</strong>, or when you want to fine-tune an imported profile.</p>
 <ol>
 <li>Open <strong>Fixture Profiles</strong>.</li>
-<li>Enter a profile name, mode name, and channel count.</li>
+<li>Enter a profile name, mode name, and channel count. These fields update the selected profile automatically.</li>
 <li>Click <strong>Add profile</strong>.</li>
 <li>Select the profile.</li>
 <li>Use <strong>Add / Edit Control</strong> to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.</li>
@@ -191,6 +192,7 @@ strong { color: #ffffff; }
 <li>Gobo wheel on channel 12</li>
 </ul>
 <p>To change an existing control, click <strong>Edit</strong> in the Fixture Profiles list. The <strong>Add / Edit Control</strong> card opens automatically and loads the selected control. After editing, click <strong>Save control</strong>. The <strong>Fixture Profiles</strong> collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.</p>
+<p>Click <strong>Update Library</strong> when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added.</p>
 <h3 id="default-and-blackout-values">Default and Blackout Values</h3>
 <p>Each control can store a <strong>Default</strong> value and a <strong>Blackout</strong> value.</p>
 <p>Default values are useful for a normal starting look, for example:</p>
@@ -237,6 +239,7 @@ strong { color: #ffffff; }
 <p>Fixture profiles imported from the <strong>Fixture Library</strong> keep richer Open Fixture Library wheel information when it is available. Wheel slots use their real names and colors, for example <code>White</code>, <code>Red</code>, or <code>Gobo 2</code>. If an OFL wheel option covers a DMX range, the button sends the middle of that range so the value is safely inside the fixture function. Adjustable wheel ranges such as <code>WheelShake</code>, <code>WheelRotation</code>, and <code>WheelSlotRotation</code> also show a bounded range slider after you select them. For example, the Fun Generation PicoSpot 20 LED in 11-channel mode imports <code>Gobo 2 shake</code> as a wheel button and shows a <strong>Shake speed</strong> slider limited to its real DMX range.</p>
 <p><img src="screenshots/fixture-controller-ofl-wheel-range.png" alt="OFL wheel range control"></p>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> on a fixture card to recall the stored values for that fixture only.</p>
+<p>Use the small button in the <strong>Control Surface</strong> header to collapse all visible fixture cards or expand them again. The button affects only the fixtures currently shown by the active group, scene, or palette filter.</p>
 <p>Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Default, Blackout, or collapse controls does not change fixture selection.</p>
 <p>After a hard page reload, no fixture cards are selected automatically. This keeps Group Edit disabled until you deliberately choose the fixtures you want to edit.</p>
 <p>Use <strong>Select All</strong> in the group bar above the control surface when you want to select every patched fixture. Use <strong>Deselect all</strong> to clear the current manual selection. When you manually select fixture cards, the control surface stays visible so you can keep building or adjusting the selection. Saved Groups can also be selected from the Groups toolbox to filter the control surface.</p>

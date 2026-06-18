@@ -739,6 +739,8 @@ The **Setup Files** card is the user-facing backup point. **Export Setup** downl
 
 The Fixture Library panel loads the built-in converted Open Fixture Library catalog by default. **Export Library** downloads the currently loaded catalog as `pico_dmx_fixture_library.json`; **Import Library** saves a converted fixture catalog to the XAMPP server so it becomes the preferred library for all browsers. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`.
 
+Setup command buttons use shared direct feedback: while work is running the button shows a short busy label, then briefly switches to a success or failure label such as **Added**, **Updated**, **Imported**, or **Failed** before returning to its normal text.
+
 Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
 
 The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
@@ -749,11 +751,11 @@ The Palettes toolbox stores reusable partial looks such as positions, colors, go
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
-The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. The Add / Edit Control card edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed. Clicking Edit on an existing control opens this editor automatically. Collapsing Fixture Profiles also hides the Add / Edit Control card.
+The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. Profile name, mode, and channel count update the selected profile automatically and are included in the normal setup autosave. The Add / Edit Control card edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed. Clicking Edit on an existing control opens this editor automatically. **Update Library** writes the selected profile back into the fixture library catalog on the XAMPP server, replacing the matching fixture mode or adding a new custom fixture entry. Collapsing Fixture Profiles also hides the Add / Edit Control card.
 
 ![Fixture live control cards](docs/screenshots/fixture-controller-live-controls.png)
 
-The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. The Default and Blackout buttons recall the stored values for one fixture, while Select adds the fixture to group editing.
+The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. The Control Surface header has a compact collapse toggle for all currently visible fixture cards. The Default and Blackout buttons recall the stored values for one fixture, while Select adds the fixture to group editing.
 
 ![Saved Groups matrix](docs/screenshots/fixture-controller-saved-groups.png)
 

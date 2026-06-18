@@ -132,8 +132,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label>Name<input id="profileName" type="text" value="Moving Head 16ch"></label>
 <label>Mode<input id="profileMode" type="text" value="16ch"></label>
 <label>Channels<input id="profileChannels" type="number" min="1" max="512" value="16"></label>
-<button class="primary" id="addProfile">Add profile</button>
-<button id="saveProfile">Save profile</button>
+<button id="addProfile">Add profile</button>
+<button id="updateFixtureLibraryProfile" title="Save the selected fixture profile into the fixture library">Update Library</button>
 </div>
 <div class="list" id="profiles"></div>
 </div>
@@ -250,7 +250,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </section>
 
 <section class="panel" id="controlSurfacePanel">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Control Surface</h2>
+<button id="surfaceCollapseAllBtn" class="scene-toolbox__toggle" title="Collapse all visible fixtures" aria-label="Collapse all visible fixtures">—</button>
+</div>
 <div id="groupBar" style="display:none"></div>
 <div class="surface" id="surface"></div>
 </section>
@@ -637,6 +640,12 @@ function addDefaultProfile(){
 function addProfile(){
   const p={id:uid(),name:document.getElementById('profileName').value||'Fixture',mode:document.getElementById('profileMode').value||'mode',channels:clamp(document.getElementById('profileChannels').value,1,512),controls:[]};
   profiles.push(p);activeProfileId=p.id;draw();scheduleSetupAutosave();
+  setStatus('Profile added: '+p.name+' ('+p.mode+')');
+  return p;
+}
+
+function handleProfileEditorInput(){
+  commitProfileEditor({silent:true});
 }
 
 function loadProfileEditor(profile){
@@ -645,18 +654,93 @@ function loadProfileEditor(profile){
   document.getElementById('profileChannels').value=profile.channels||1;
 }
 
-function saveProfile(){
+function commitProfileEditor(options={}){
+  const {silent=false}=options;
   const profile=activeProfile();
-  if(!profile){showError('Select a profile first');return;}
+  if(!profile){if(!silent)showError('Select a profile first');return false;}
   const channels=clamp(document.getElementById('profileChannels').value,1,512);
   const used=[...new Set(profile.controls.flatMap(controlChannels).filter(ch=>ch>=1))];
   const highest=used.reduce((max,ch)=>Math.max(max,ch),0);
-  if(highest>channels){showError('Profile uses channel '+highest+', so channel count cannot be lower than '+highest);return;}
+  if(highest>channels){
+    document.getElementById('profileChannels').value=profile.channels||highest;
+    showError('Profile uses channel '+highest+', so channel count cannot be lower than '+highest);
+    return false;
+  }
+  const nextName=document.getElementById('profileName').value||'Fixture';
+  const nextMode=document.getElementById('profileMode').value||'mode';
+  const changed=profile.name!==nextName||profile.mode!==nextMode||profile.channels!==channels;
   profile.name=document.getElementById('profileName').value||'Fixture';
   profile.mode=document.getElementById('profileMode').value||'mode';
   profile.channels=channels;
-  setStatus('Profile saved');
-  draw();scheduleSetupAutosave();
+  if(changed){
+    draw();
+    scheduleSetupAutosave();
+    if(!silent)setStatus('Profile updated');
+  }
+  return true;
+}
+
+function fixtureLibraryKeyFromName(name){
+  return String(name||'fixture').trim().toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'fixture';
+}
+function profileMatchesLibraryFixture(profile,fixture){
+  const fullName=((fixture.manufacturerName?fixture.manufacturerName+' ':'')+(fixture.name||'')).trim().toLowerCase();
+  const fixtureName=String(fixture.name||'').trim().toLowerCase();
+  const profileName=String(profile.name||'').trim().toLowerCase();
+  if(profileName&&profileName===fullName)return true;
+  if(profileName&&profileName===fixtureName)return true;
+  return (fixture.modes||[]).some(mode=>String(mode?.profile?.name||'').trim().toLowerCase()===profileName);
+}
+function libraryModeMatchesProfile(mode,profile){
+  const profileMode=String(profile.mode||'').trim().toLowerCase();
+  return String(mode?.name||'').trim().toLowerCase()===profileMode||String(mode?.profile?.mode||'').trim().toLowerCase()===profileMode;
+}
+function libraryProfileFromControllerProfile(profile){
+  return {
+    name:profile.name||'Fixture',
+    mode:profile.mode||'mode',
+    channels:clamp(profile.channels||1,1,512),
+    controls:JSON.parse(JSON.stringify(profile.controls||[])).map(control=>({...control,id:control.id||uid()}))
+  };
+}
+function upsertProfileIntoFixtureLibrary(library,profile){
+  const cleanProfile=libraryProfileFromControllerProfile(profile);
+  const fixtureName=cleanProfile.name;
+  let fixture=library.fixtures.find(candidate=>profileMatchesLibraryFixture(cleanProfile,candidate));
+  if(!fixture){
+    const key='custom/'+fixtureLibraryKeyFromName(fixtureName);
+    fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
+    library.fixtures.push(fixture);
+  }
+  const mode={name:cleanProfile.mode,channels:cleanProfile.channels,profile:cleanProfile,warnings:[]};
+  const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,cleanProfile));
+  if(!Array.isArray(fixture.modes))fixture.modes=[];
+  if(modeIndex>=0)fixture.modes[modeIndex]=mode;
+  else fixture.modes.push(mode);
+  fixture.modes.sort((a,b)=>(a.channels||0)-(b.channels||0)||String(a.name||'').localeCompare(String(b.name||'')));
+  library.fixtureCount=library.fixtures.length;
+  library.generatedAt=new Date().toISOString();
+  library.source=library.source&&library.source!=='Built-in fixture library' ? library.source : 'Controller edited fixture library';
+  return {fixture,mode};
+}
+async function updateSelectedProfileInFixtureLibrary(){
+  const profile=activeProfile();
+  if(!profile)throw new Error('Select a profile first');
+  if(!commitProfileEditor())throw new Error('Profile could not be updated');
+  const saved=activeProfile();
+  if(!saved)throw new Error('Select a profile first');
+  const library=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true}));
+  const result=upsertProfileIntoFixtureLibrary(library,saved);
+  await saveFixtureLibraryToServer(library);
+  fixtureLibraryState.data=library;
+  fixtureLibraryState.selectedKey=result.fixture.key;
+  fixtureLibraryState.selectedModeIndex=Math.max(0,(result.fixture.modes||[]).findIndex(mode=>libraryModeMatchesProfile(mode,saved)));
+  renderFixtureLibraryResults();
+  document.getElementById('fixtureLibraryStatus').textContent='Updated library fixture '+result.fixture.name+' · '+result.mode.name+'.';
+  setStatus('Fixture library updated from profile: '+saved.name+' ('+saved.mode+')');
+  return result;
 }
 
 function controlFromEditor(existingId=0){
@@ -1083,9 +1167,10 @@ async function saveFixtureLibraryToServer(library){
   if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
 }
 function exportCurrentFixtureLibrary(){
-  if(!fixtureLibraryState.data?.fixtures?.length){setStatus('Fixture library is not loaded yet',true);return;}
+  if(!fixtureLibraryState.data?.fixtures?.length){setStatus('Fixture library is not loaded yet',true);throw new Error('Fixture library is not loaded yet');}
   DmxCommon.downloadJson('pico_dmx_fixture_library.json',fixtureLibraryState.data);
   setStatus('Fixture library exported');
+  return true;
 }
 async function importFixtureLibraryFile(file){
   const text=await file.text();
@@ -1160,7 +1245,7 @@ function cloneLibraryProfile(profile,fixture){
 function importSelectedLibraryProfile(){
   const fixture=selectedLibraryFixture();
   const mode=selectedLibraryMode();
-  if(!fixture||!mode?.profile){setStatus('Select a library fixture mode first',true);return;}
+  if(!fixture||!mode?.profile){setStatus('Select a library fixture mode first',true);throw new Error('Select a library fixture mode first');}
   const profile=cloneLibraryProfile(mode.profile,fixture);
   profiles.push(profile);
   activeProfileId=profile.id;
@@ -1169,6 +1254,7 @@ function importSelectedLibraryProfile(){
   draw();
   scheduleSetupAutosave();
   setStatus('Imported library profile: '+profile.name+' ('+profile.mode+')');
+  return profile;
 }
 
 function addControl(){
@@ -1421,10 +1507,9 @@ function renderControl(f,c){
 
 function drawSurface(){
   surfaceEl.innerHTML='';
+  const visibleFixtures=visibleSurfaceFixtures();
   const groupFilterActive=activeSavedGroupIds.size>0||activeFixtureFilterIds.size>0;
   const selectionFilterActive=groupFilterActive||sceneFixtureFilterActive;
-  const visibleIds=activeFixtureFilterIds.size?activeFixtureFilterIds:selectedFixtureIds;
-  const visibleFixtures=selectionFilterActive?fixtures.filter(f=>visibleIds.has(f.id)):fixtures;
   if(selectionFilterActive&&!visibleFixtures.length){
     surfaceEl.innerHTML='<div class="small">'+(groupFilterActive?'Selected groups':'Recalled scene')+' have no patched fixtures in this setup. <button onclick="clearGroupSelection()">Show all</button></div>';
   }
@@ -1443,6 +1528,45 @@ function drawSurface(){
   updateGroupBar();
   updateGroupActionButtons();
   renderFanToolbox();
+  updateSurfaceCollapseAllButton();
+}
+
+function visibleSurfaceFixtures(){
+  const selectionFilterActive=activeSavedGroupIds.size>0||activeFixtureFilterIds.size>0||sceneFixtureFilterActive;
+  const visibleIds=activeFixtureFilterIds.size?activeFixtureFilterIds:selectedFixtureIds;
+  return selectionFilterActive?fixtures.filter(f=>visibleIds.has(f.id)):fixtures;
+}
+
+function persistCollapsedFixtureCards(){
+  const ids=[...collapsedFixtureIds];
+  localStorage.setItem('fixtureCardCollapsed',JSON.stringify(ids));
+  saveUiStateServer('fixtureCardCollapsed',ids);
+}
+
+function updateSurfaceCollapseAllButton(){
+  const btn=document.getElementById('surfaceCollapseAllBtn');
+  if(!btn)return;
+  const visible=visibleSurfaceFixtures();
+  const hasVisible=visible.length>0;
+  const allCollapsed=hasVisible&&visible.every(f=>collapsedFixtureIds.has(f.id));
+  btn.textContent=allCollapsed?'+':'—';
+  btn.disabled=!hasVisible;
+  btn.title=allCollapsed?'Expand all visible fixtures':'Collapse all visible fixtures';
+  btn.setAttribute('aria-label',btn.title);
+  btn.setAttribute('aria-expanded',String(!allCollapsed));
+}
+
+function toggleAllVisibleFixtureCards(){
+  const visible=visibleSurfaceFixtures();
+  if(!visible.length){setStatus('No visible fixtures to collapse',true);return;}
+  const allCollapsed=visible.every(f=>collapsedFixtureIds.has(f.id));
+  visible.forEach(f=>{
+    if(allCollapsed)collapsedFixtureIds.delete(f.id);
+    else collapsedFixtureIds.add(f.id);
+  });
+  persistCollapsedFixtureCards();
+  drawSurface();
+  setStatus((allCollapsed?'Expanded':'Collapsed')+' '+visible.length+' visible fixture'+(visible.length===1?'':'s'));
 }
 
 function resizeFixtureXyPads(){
@@ -1917,17 +2041,22 @@ function setXY(e,pad){
   updateControlDisplay(f,c);
 }
 
-document.getElementById('addProfile').onclick=addProfile;
-document.getElementById('saveProfile').onclick=saveProfile;
+document.getElementById('addProfile').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Adding...',success:'Added',error:'Failed'},async()=>addProfile()).catch(err=>showError(err.message||'Add profile failed'));
+['profileName','profileMode','profileChannels'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',handleProfileEditorInput);
+  el.addEventListener('change',handleProfileEditorInput);
+});
+document.getElementById('updateFixtureLibraryProfile').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Updating...',success:'Updated',error:'Failed'},updateSelectedProfileInFixtureLibrary).catch(err=>showError('Fixture library update failed: '+err.message));
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
 document.getElementById('retryFixtureLibrary').onclick=()=>loadFixtureLibrary({force:true});
-document.getElementById('exportFixtureLibrary').onclick=exportCurrentFixtureLibrary;
+document.getElementById('exportFixtureLibrary').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Exporting...',success:'Exported',error:'Failed'},async()=>exportCurrentFixtureLibrary()).catch(err=>showError('Fixture library export failed: '+err.message));
 document.getElementById('importFixtureLibrary').onclick=()=>document.getElementById('importFixtureLibraryFile').click();
 document.getElementById('importFixtureLibraryFile').onchange=e=>{
   const file=e.target.files?.[0];if(!file)return;
-  importFixtureLibraryFile(file).catch(err=>showError('Fixture library import failed: '+err.message)).finally(()=>{e.target.value='';});
+  DmxCommon.withButtonFeedback(document.getElementById('importFixtureLibrary'),{busy:'Importing...',success:'Imported',error:'Failed'},()=>importFixtureLibraryFile(file)).catch(err=>showError('Fixture library import failed: '+err.message)).finally(()=>{e.target.value='';});
 };
 document.getElementById('fixtureLibrarySearch').addEventListener('input',()=>renderFixtureLibraryResults());
 document.getElementById('fixtureLibraryResults').onclick=e=>{
@@ -1944,7 +2073,7 @@ document.getElementById('fixtureLibraryPreview').addEventListener('change',e=>{
   }
 });
 document.getElementById('fixtureLibraryPreview').addEventListener('click',e=>{
-  if(e.target.id==='importFixtureLibraryProfile')importSelectedLibraryProfile();
+  if(e.target.id==='importFixtureLibraryProfile')DmxCommon.withButtonFeedback(e.target,{busy:'Importing...',success:'Imported',error:'Failed'},async()=>importSelectedLibraryProfile()).catch(err=>showError(err.message||'Import profile failed'));
 });
 document.getElementById('defNone').onchange=applyNoneCheckboxes;
 document.getElementById('blkNone').onchange=applyNoneCheckboxes;
@@ -1998,6 +2127,7 @@ document.getElementById('nextFreeAddr').onclick=()=>{
   if(!profile){setStatus('Select a profile first',true);return;}
   document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
 };
+document.getElementById('surfaceCollapseAllBtn').onclick=toggleAllVisibleFixtureCards;
 patchProfile.onchange=()=>{
   const profileId=parseInt(patchProfile.value,10);
   const profile=profiles.find(p=>p.id===profileId);
@@ -2639,8 +2769,7 @@ surfaceEl.addEventListener('click',e=>{
     e.stopPropagation();
     const id=parseInt(col.dataset.collapseFixture,10);
     if(collapsedFixtureIds.has(id))collapsedFixtureIds.delete(id);else collapsedFixtureIds.add(id);
-    localStorage.setItem('fixtureCardCollapsed',JSON.stringify([...collapsedFixtureIds]));
-    saveUiStateServer('fixtureCardCollapsed',[...collapsedFixtureIds]);
+    persistCollapsedFixtureCards();
     drawSurface();return;
   }
   const rec=e.target.closest('[data-recall-fixture]');

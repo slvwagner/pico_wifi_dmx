@@ -34,6 +34,56 @@
     URL.revokeObjectURL(a.href);
   }
 
+  function feedbackButton(button,state,label='',options={}){
+    if(!button)return;
+    const restoreAfter=options.restoreAfter===undefined?1100:options.restoreAfter;
+    const token=String(Date.now()+Math.random());
+    if(!button.dataset.feedbackOriginalHtml){
+      button.dataset.feedbackOriginalHtml=button.innerHTML;
+      button.dataset.feedbackOriginalDisabled=button.disabled?'1':'';
+    }
+    clearTimeout(button._dmxFeedbackTimer);
+    button.dataset.feedbackToken=token;
+    button.classList.remove('button-feedback--busy','button-feedback--success','button-feedback--error');
+    button.classList.add('button-feedback');
+    if(state)button.classList.add('button-feedback--'+state);
+    if(label)button.textContent=label;
+    button.disabled=state==='busy'||options.disabled===true;
+    button.setAttribute('aria-busy',state==='busy'?'true':'false');
+    if(state!=='busy'&&restoreAfter!==null){
+      button._dmxFeedbackTimer=setTimeout(()=>restoreButtonFeedback(button,token),restoreAfter);
+    }
+  }
+
+  function restoreButtonFeedback(button,token=''){
+    if(!button)return;
+    if(token&&button.dataset.feedbackToken!==token)return;
+    clearTimeout(button._dmxFeedbackTimer);
+    button.classList.remove('button-feedback','button-feedback--busy','button-feedback--success','button-feedback--error');
+    button.removeAttribute('aria-busy');
+    if(button.dataset.feedbackOriginalHtml!==undefined){
+      button.innerHTML=button.dataset.feedbackOriginalHtml;
+      button.disabled=button.dataset.feedbackOriginalDisabled==='1';
+      delete button.dataset.feedbackOriginalHtml;
+      delete button.dataset.feedbackOriginalDisabled;
+      delete button.dataset.feedbackToken;
+    }
+  }
+
+  async function withButtonFeedback(button,labels,action,options={}){
+    const btn=typeof button==='string'?document.getElementById(button):button;
+    const text=labels||{};
+    feedbackButton(btn,'busy',text.busy||'Working...',options);
+    try{
+      const result=await action();
+      feedbackButton(btn,'success',text.success||'Done',options);
+      return result;
+    }catch(err){
+      feedbackButton(btn,'error',text.error||'Failed',options);
+      throw err;
+    }
+  }
+
   function initVersionBadge(){
     const apply=version=>{
       const v=String(version||appVersion()).trim();
@@ -1394,6 +1444,9 @@
     appVersion,
     versionedPayload,
     downloadJson,
+    feedbackButton,
+    restoreButtonFeedback,
+    withButtonFeedback,
     clampInt,
     clampFloat,
     fanOrderedFixtures,

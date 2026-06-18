@@ -60,6 +60,8 @@ The **Fixture Library** panel imports fixture profiles from the converted Open F
 
 The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a **Retry** button.
 
+Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, **Update Library** changes to **Updating...** and then **Updated** when the fixture library write is complete.
+
 Use **Export Library** to download the currently loaded fixture catalog as `pico_dmx_fixture_library.json`. Use **Import Library** to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset.
 
 1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
@@ -86,7 +88,7 @@ The converter keeps the richer Open Fixture Library data where the controller ca
 A fixture profile describes the DMX personality of one fixture type. Use this section when the wanted fixture is not available in the **Fixture Library**, or when you want to fine-tune an imported profile.
 
 1. Open **Fixture Profiles**.
-2. Enter a profile name, mode name, and channel count.
+2. Enter a profile name, mode name, and channel count. These fields update the selected profile automatically.
 3. Click **Add profile**.
 4. Select the profile.
 5. Use **Add / Edit Control** to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.
@@ -99,6 +101,8 @@ Each control stores its own DMX channel mapping. For example, a moving head can 
 - Gobo wheel on channel 12
 
 To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
+
+Click **Update Library** when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added.
 
 ### Default and Blackout Values
 
@@ -160,6 +164,8 @@ Fixture profiles imported from the **Fixture Library** keep richer Open Fixture 
 ![OFL wheel range control](screenshots/fixture-controller-ofl-wheel-range.png)
 
 Use **Default** or **Blackout** on a fixture card to recall the stored values for that fixture only.
+
+Use the small button in the **Control Surface** header to collapse all visible fixture cards or expand them again. The button affects only the fixtures currently shown by the active group, scene, or palette filter.
 
 Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Default, Blackout, or collapse controls does not change fixture selection.
 

@@ -32,6 +32,10 @@ button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}
 button.success{background:#103b30;border-color:#2f9e7d;color:var(--accent);font-weight:700}
 button.danger,button.stop{background:#3c1b1b;border-color:#763232;color:var(--bad)}
 button.stop{font-weight:700}
+button.button-feedback{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+button.button-feedback--busy{background:#182531;border-color:#45606f;color:var(--muted)}
+button.button-feedback--success{background:#0e342a;border-color:#2f9e7d;color:var(--accent);box-shadow:0 0 0 1px rgba(55,196,164,.26) inset}
+button.button-feedback--error{background:#3c1b1b;border-color:#8c3535;color:var(--bad);box-shadow:0 0 0 1px rgba(255,122,122,.22) inset}
 button:disabled{opacity:.45;cursor:not-allowed}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 a.nav:hover{color:var(--text);border-color:var(--text)}

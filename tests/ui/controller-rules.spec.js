@@ -622,6 +622,38 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#fixtureLibraryCollapseBtn')).toHaveText('+');
   });
 
+  test('Control Surface header collapses and expands all visible fixture cards', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 9100,
+        name: 'Dimmer Profile',
+        mode: '1ch',
+        channels: 1,
+        controls: [{ id: 9101, type: 'slider8', label: 'Dimmer', channel: 1 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9102, name: 'Fixture A', profileId: 9100, start: 1 },
+        { id: 9103, name: 'Fixture B', profileId: 9100, start: 2 }
+      );
+      collapsedFixtureIds.clear();
+      drawSurface();
+    });
+
+    await expect(page.locator('#surfaceCollapseAllBtn')).toHaveText('—');
+    await page.locator('#surfaceCollapseAllBtn').click();
+    await expect(page.locator('#surfaceCollapseAllBtn')).toHaveText('+');
+    await expect(page.locator('[data-fixture-card="9102"] [data-control="9101"]')).toBeHidden();
+    await expect(page.locator('[data-fixture-card="9103"] [data-control="9101"]')).toBeHidden();
+
+    const collapsed = await page.evaluate(() => [...collapsedFixtureIds].sort());
+    expect(collapsed).toEqual([9102, 9103]);
+
+    await page.locator('#surfaceCollapseAllBtn').click();
+    await expect(page.locator('#surfaceCollapseAllBtn')).toHaveText('—');
+    await expect(page.locator('[data-fixture-card="9102"] [data-control="9101"]')).toBeVisible();
+    await expect(page.locator('[data-fixture-card="9103"] [data-control="9101"]')).toBeVisible();
+  });
+
   test('scene recall clears groups and filters the surface to involved fixtures', async ({ page }) => {
     const result = await page.evaluate(() => {
       activeSavedGroupIds = new Set([savedGroupKey(savedGroups[0], 0)]);
