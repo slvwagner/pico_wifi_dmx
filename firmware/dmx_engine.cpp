@@ -455,8 +455,8 @@ bool dmx_engine_init(const dmx_engine_config_t *config)
     memset(dmx_state.frame, 0, sizeof(dmx_state.frame));
     memset(dmx_state.tx_frame, 0, sizeof(dmx_state.tx_frame));
     memset(dmx_state.dirty_mask, 0, sizeof(dmx_state.dirty_mask));
-    dmx_state.frame[0] = dmx_state.start_code;
-    dmx_state.tx_frame[0] = dmx_state.start_code;
+    dmx_state.frame[0] = encode_value(dmx_state.start_code);
+    dmx_state.tx_frame[0] = encode_value(dmx_state.start_code);
     for (uint16_t i = 1; i <= dmx_state.channels; ++i) {
         dmx_state.frame[i] = encode_value(0);
         dmx_state.tx_frame[i] = encode_value(0);
@@ -608,7 +608,7 @@ void dmx_engine_clear_output(void)
 
     critical_section_enter_blocking(&dmx_state.lock);
     memset(dmx_state.frame, encode_value(0), sizeof(dmx_state.frame));
-    dmx_state.frame[0] = dmx_state.start_code;
+    dmx_state.frame[0] = encode_value(dmx_state.start_code);
     memset(dmx_state.dirty_mask, 1, dmx_state.channels + 1u);
     dmx_state.dirty_first = 0;
     dmx_state.dirty_last = dmx_state.channels;

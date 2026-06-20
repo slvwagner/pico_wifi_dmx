@@ -227,6 +227,22 @@ Shield/GND -> DMX XLR pin 1
 
 Do not connect Pico GPIO2 directly to a DMX cable. DMX uses an RS-485 differential line, so the Pico output must go through a suitable RS-485/DMX line driver. GPIO3 is only the optional frame-trigger/debug pin, not a DMX data output.
 
+DMX signal generation and timing:
+
+| Signal part | Value |
+|-------------|-------|
+| Output method | PIO control state machine + PIO data state machine + DMA |
+| Line rate | 250 kbaud DMX, 4 us per bit |
+| Break | about 92 us |
+| Mark After Break | about 12 us |
+| Slot time | about 44 us |
+| Frame slots | 513 total: start code + 512 data channels |
+| Channel numbering | HTTP/UI channel 1 is the first data slot after the start-code slot |
+| Default start code | logical `0x00`, encoded before transmission |
+| Default refresh | 43 Hz, limited by full-frame duration |
+
+The DMX byte stream is encoded for the RS-485/DMX driver path used by this project. Channel values and the start-code slot are both encoded before DMA sends the frame to PIO. This keeps the logical DMX start code at `0x00` while matching the working wire-level signal used by the tested Zeitmessung Pico 2 W DMX implementation.
+
 Flash with BOOTSEL by copying the UF2, or use picotool/OpenOCD as described in the deeper firmware sections below.
 
 ### Getting Started for Developers
@@ -1002,8 +1018,8 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 | File | Description |
 |------|-------------|
 | `firmware/main.cpp` | Core 0/1 entry points, HTTP endpoint handlers, custom lwIP fs callbacks, DMX UI lock, POST callbacks for chaser/motion upload |
-| `firmware/dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
-| `firmware/dmx_native.pio` | PIO program for 250 kbaud DMX framing |
+| `firmware/dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, start-code encoding, DMA scheduling, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
+| `firmware/dmx_native.pio` | PIO program for 250 kbaud DMX framing: Break, Mark After Break, slot timing, and bit serialization |
 | `firmware/pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
 | `firmware/pico_motion.cpp` / `.h` | Pico-side generic FX oscillator — **64 independent slots**, pan/tilt and scalar targets, simultaneous playback with bigger-wins channel merge, target-aware axis writes, 100 Hz tick, hardware spinlock |
 | `firmware/gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |

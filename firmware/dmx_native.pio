@@ -5,7 +5,7 @@
 .define public MAB 21
 
     wait 1 irq 0
-    pull
+    pull block
     mov y, osr
 
 .wrap_target
@@ -18,7 +18,7 @@ break_loop:
     nop               [7]
     jmp x-- break_loop
 
-    set pins, 0       [5]
+    set pins, 0
     set x, MAB        [1]
 mab_loop:
     set pins, 0       [1]
