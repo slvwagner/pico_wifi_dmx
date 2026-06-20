@@ -218,6 +218,23 @@ final value = snapshotted base value + spread offset
 
 For example, with five fixtures and a spread of `100`, the offsets are `-50`, `-25`, `0`, `+25`, and `+50`. If every fixture has a base value of `128`, the result is `78`, `103`, `128`, `153`, and `178`. If the fixtures have different base values, each fixture still keeps its own base as the starting point.
 
+The offset is assigned by fixture position in the current Fan Out order:
+
+```text
+fixture position = 0 ... fixture count - 1
+offset position = fixture position / (fixture count - 1)
+```
+
+In **Symmetric spread**, the first fixture receives `-spread / 2`, the last fixture receives `+spread / 2`, and fixtures between them are spaced evenly. In **Start to end** mode, the first fixture receives the **From** offset, the last fixture receives the **To** offset, and fixtures between them are spaced evenly.
+
+Fan Out order is important:
+
+- If one or more saved groups are selected, the Controller uses the fixture order stored inside those groups. When several groups are selected, the groups are read in selected group order and duplicate fixtures are skipped after their first appearance.
+- If no saved group is selected, the Controller uses the manual fixture selection order from the Control Surface.
+- **Invert** reverses this calculated order. It does not change the saved group, patch order, or fixture selection.
+
+For a physical left-to-right fan, the saved group fixture order must match the physical fixture order. If a group was saved in a different order, the Fan Out math is still correct, but the visible stage result can look crossed or random.
+
 Use **Save** in the Fan Out toolbox to store the fan setup itself: selected group or fixture IDs, selected control, mode, spread, and From/To offsets. Use **Recall** to restore that fan setup later. Recalling a Fan Out preset reapplies the fan to the controller values; it does not create a scene by itself. Use the Scene Toolbox when you want to store the resulting lighting look.
 
 ### Palette Toolbox
@@ -437,7 +454,7 @@ The Chaser page uses several toolboxes:
 
 - **Fan Out** is a live step-shaping tool. It works on the currently selected step and writes directly into **Edit Step** as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.
 - **Fan Out control selection** is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step's participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.
-- **Invert** reverses the fixture order for the Fan Out calculation. Use it when the spread shape is right but should run from the opposite side of the fixture row.
+- **Fan Out order** comes from the current participating fixture/control list. If a group filter is active, only fixtures inside the selected groups participate, but the calculation still follows the participating order that is shown for the current step/scope. **Invert** reverses this calculated order. Use it when the spread shape is right but should run from the opposite side of the fixture row.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
 - Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** updates the selected step immediately. When a Pico base URL is set, those changed selected-step values are also sent to the Pico. Chase Playback sends the current chase continuously while it runs and therefore requires a Pico base URL.
