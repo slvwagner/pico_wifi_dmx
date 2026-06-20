@@ -172,6 +172,46 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.fineStep).toBe('1');
   });
 
+  test('16-bit fine relative nudges borrow and carry across coarse bytes with edge clamps', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      values['101:12'] = { pan: 256, tilt: 255 };
+      drawSurface();
+      const control = [...document.querySelectorAll('[data-fixture-card="101"] .control')]
+        .find(el => el.textContent.includes('Pan/Tilt'));
+      const row = label => [...control.querySelectorAll('.relative-control')]
+        .find(el => el.textContent.includes(label));
+      row('Pan fine').querySelector('[data-relative-dir="-1"]').click();
+      const afterBorrow = {
+        value: { ...values['101:12'] },
+        panCoarse: control.querySelector('[data-byte-readout="panCoarse"]').textContent,
+        panFine: control.querySelector('[data-byte-readout="panFine"]').textContent
+      };
+      row('Tilt fine').querySelector('[data-relative-dir="1"]').click();
+      const afterCarry = {
+        value: { ...values['101:12'] },
+        tiltCoarse: control.querySelector('[data-byte-readout="tiltCoarse"]').textContent,
+        tiltFine: control.querySelector('[data-byte-readout="tiltFine"]').textContent
+      };
+      values['101:12'] = { pan: 0, tilt: 65535 };
+      updateControlDisplay(fixtures.find(f => f.id === 101), fixtureProfile(fixtures.find(f => f.id === 101)).controls.find(c => c.id === 12));
+      row('Pan fine').querySelector('[data-relative-dir="-1"]').click();
+      row('Tilt fine').querySelector('[data-relative-dir="1"]').click();
+      return {
+        afterBorrow,
+        afterCarry,
+        edge: values['101:12']
+      };
+    });
+
+    expect(state.afterBorrow.value.pan).toBe(255);
+    expect(state.afterBorrow.panCoarse).toBe('0');
+    expect(state.afterBorrow.panFine).toBe('255');
+    expect(state.afterCarry.value.tilt).toBe(256);
+    expect(state.afterCarry.tiltCoarse).toBe('1');
+    expect(state.afterCarry.tiltFine).toBe('0');
+    expect(state.edge).toEqual({ pan: 0, tilt: 65535 });
+  });
+
   test('Group Edit relative nudge keeps each fixture relative to its own current value', async ({ page }) => {
     await page.evaluate(() => {
       values['101:11'] = 10;
