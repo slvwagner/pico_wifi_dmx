@@ -1364,9 +1364,26 @@ function applyData(data){
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
   Object.keys(values).forEach(k=>delete values[k]);
   Object.assign(values,data?.values||{});
+  try{
+    const cached=JSON.parse(localStorage.getItem('dmxFCLiveValues')||'{}');
+    if(cached&&typeof cached==='object')Object.assign(values,cached);
+  }catch(_){}
   activeProfileId=profiles[0]?.id||0;
   if(!profiles.length)addDefaultProfile();
   draw();
+}
+async function syncLiveValuesSnapshot(options={}){
+  let live=null;
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    try{live=await DmxCommon.fetchFixtureLiveValues();}catch(_){live=null;}
+  }
+  if(!live){
+    try{live=JSON.parse(localStorage.getItem('dmxFCLiveValues')||'{}');}catch(_){live=null;}
+  }
+  if(!live||typeof live!=='object'||Array.isArray(live)||!Object.keys(live).length)return false;
+  Object.assign(values,live);
+  if(options.redraw)drawSurface();
+  return true;
 }
 
 async function saveSetup(){
@@ -1393,10 +1410,10 @@ async function loadSetup(){
   if(location.protocol==='http:'||location.protocol==='https:'){
     const r=await fetch('fixture_setup.php',{cache:'no-store'});
     const j=await r.json();
-    if(r.ok&&j.ok&&j.exists){applyData(j.setup);setStatus('Setup loaded from server');return true;}
+    if(r.ok&&j.ok&&j.exists){applyData(j.setup);await syncLiveValuesSnapshot({redraw:true});setStatus('Setup loaded from server');return true;}
   }
   const raw=localStorage.getItem('dmxFixtureController');
-  if(raw){applyData(JSON.parse(raw));setStatus('Setup loaded from browser');return true;}
+  if(raw){applyData(JSON.parse(raw));await syncLiveValuesSnapshot({redraw:true});setStatus('Setup loaded from browser');return true;}
   return false;
 }
 
@@ -3244,6 +3261,15 @@ window.addEventListener('storage',e=>{
     renderSavedGroupsList();
     drawSurface();
   }catch(_){}
+});
+let liveValuesRefreshTimer=null;
+function scheduleLiveValuesRefresh(){
+  clearTimeout(liveValuesRefreshTimer);
+  liveValuesRefreshTimer=setTimeout(()=>syncLiveValuesSnapshot({redraw:true}),120);
+}
+window.addEventListener('focus',scheduleLiveValuesRefresh);
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)scheduleLiveValuesRefresh();
 });
 
 // ── Scene Toolbox ─────────────────────────────────────────────────────

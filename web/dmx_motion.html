@@ -653,8 +653,10 @@ function updateMotionGroupDisplay(c){
 function sendMotionGroupControl(c){
   const targets=motionGroupEditFixtures().filter(mf=>motionGroupKey(mf.control)===motionGroupKey(c));
   const batch={};
+  const livePatch={};
   targets.forEach(mf=>{
     const f=mf.fixture,fc=mf.control;
+    livePatch[f.id+':'+fc.id]=mf.kind==='panTilt'?{pan:mf.basePan,tilt:mf.baseTilt}:mf.baseValue;
     if(mf.kind==='scalar16'){
       const b=bytes16(mf.baseValue);
       batch[absolute(f.start,fc.channel)]=b.coarse;
@@ -673,7 +675,12 @@ function sendMotionGroupControl(c){
     }
   });
   sendBatch(batch);
+  publishMotionLiveValues(livePatch);
   setStatus('Group effect center sent to '+targets.length+' fixture'+(targets.length===1?'':'s'));
+}
+function publishMotionLiveValues(patch){
+  if(!patch||!Object.keys(patch).length)return;
+  DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
 }
 function openMotionGroupModal(){
   const common=getMotionGroupCommonControls();
@@ -1905,17 +1912,20 @@ function renderMotionSlotGrid(){
 }
 function applySceneAsCenter(s){
   const batchMap={};
+  const livePatch={};
   motionFixtures.forEach(mf=>{
     const v=(s.values||{})[mf.fixture.id+':'+mf.control.id];
     if(v==null)return;
     if(mf.kind!=='panTilt'){
       mf.baseValue=typeof v==='number'?v:(mf.baseValue??0);
+      livePatch[mf.fixture.id+':'+mf.control.id]=mf.baseValue;
       sendMotionTargetValue(mf,mf.baseValue,batchMap);
       return;
     }
     const max=mf.control.type==='panTilt16'?32768:128;
     mf.basePan =typeof v==='object'?(v.pan??max):max;
     mf.baseTilt=typeof v==='object'?(v.tilt??max):max;
+    livePatch[mf.fixture.id+':'+mf.control.id]={pan:mf.basePan,tilt:mf.baseTilt};
     const c=mf.control,f=mf.fixture;
     if(c.type==='panTilt16'){
       const panCh=absolute(f.start,c.pan);
@@ -1931,6 +1941,7 @@ function applySceneAsCenter(s){
     }
   });
   sendBatch(batchMap);
+  publishMotionLiveValues(livePatch);
   drawFixtureList();drawPathPreview();
   setStatus('Motion base set from scene "'+s.name+'"');
 }
@@ -2013,6 +2024,7 @@ function recallMotionPalette(p){
   selectedMotionTargetKey=motionControlKey(activeEntries[0].mf.control);
   localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
   const batchMap={};
+  const livePatch={};
   motionFixtures.forEach(mf=>mf.enabled=false);
   activeEntries.forEach(({mf,value})=>{
     if(mf.kind==='panTilt'){
@@ -2020,15 +2032,18 @@ function recallMotionPalette(p){
       const v=(value&&typeof value==='object')?value:{pan:fallback,tilt:fallback};
       mf.basePan=v.pan??mf.basePan??fallback;
       mf.baseTilt=v.tilt??mf.baseTilt??fallback;
+      livePatch[mf.fixture.id+':'+mf.control.id]={pan:mf.basePan,tilt:mf.baseTilt};
       addMotionControlValueToBatch(mf,{pan:mf.basePan,tilt:mf.baseTilt},batchMap);
     }else if(typeof value==='number'){
       mf.baseValue=clamp(value,0,scalarMax(mf.control));
+      livePatch[mf.fixture.id+':'+mf.control.id]=mf.baseValue;
       addMotionControlValueToBatch(mf,mf.baseValue,batchMap);
     }
     mf.enabled=motionControlKey(mf.control)===selectedMotionTargetKey;
   });
   populateMotionControlFilter();
   sendBatch(batchMap);
+  publishMotionLiveValues(livePatch);
   drawFixtureList();
   drawPathPreview();
   setStatus('Motion center set from palette "'+(p.name||'Palette')+'"');

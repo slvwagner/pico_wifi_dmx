@@ -273,6 +273,46 @@ test.describe('Motion FX established rules', () => {
     expect(result.threeFixtures).toEqual([0, 180, 360]);
   });
 
+  test('scene center changes publish Motion values to shared live values', async ({ page }) => {
+    let postedValues = null;
+    await page.unroute('**/fixture_setup.php**');
+    await page.route('**/fixture_setup.php**', async route => {
+      const url = route.request().url();
+      if (url.includes('livevalues')) {
+        if (route.request().method() === 'GET') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ok: true, exists: true, values: { '102:21': 55 } })
+          });
+          return;
+        }
+        postedValues = JSON.parse(route.request().postData() || '{}');
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, setup: { baseUrl: '', profiles: [], fixtures: [], values: {} } })
+      });
+    });
+
+    await page.evaluate(() => {
+      applySceneAsCenter({
+        name: 'Position Center',
+        values: {
+          '101:12': { pan: 1234, tilt: 5678 }
+        }
+      });
+    });
+
+    await expect.poll(() => postedValues).toMatchObject({
+      '102:21': 55,
+      '101:12': { pan: 1234, tilt: 5678 }
+    });
+  });
+
   test('one-axis pan and tilt swing effects hide and zero the unused axis without losing two-axis values', async ({ page }) => {
     const result = await page.evaluate(() => {
       const pan = motionFixtures.find(mf => mf.kind === 'panTilt');

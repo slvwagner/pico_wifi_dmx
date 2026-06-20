@@ -34,6 +34,32 @@
     URL.revokeObjectURL(a.href);
   }
 
+  async function fetchFixtureLiveValues(){
+    if(!isHttp())return null;
+    const r=await fetch('fixture_setup.php?livevalues',{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok||!j.ok||!j.exists||!j.values||typeof j.values!=='object')return null;
+    return j.values;
+  }
+
+  async function mergeFixtureLiveValues(patch){
+    if(!isHttp()||!patch||typeof patch!=='object'||Array.isArray(patch))return false;
+    let values={};
+    try{
+      values=await fetchFixtureLiveValues()||{};
+    }catch(_){
+      values={};
+    }
+    Object.assign(values,patch);
+    const r=await fetch('fixture_setup.php?livevalues',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(values)
+    });
+    const j=await r.json().catch(()=>({}));
+    return r.ok&&j.ok;
+  }
+
   function feedbackButton(button,state,label='',options={}){
     if(!button)return;
     const restoreAfter=options.restoreAfter===undefined?1100:options.restoreAfter;
@@ -1688,6 +1714,8 @@
     appVersion,
     versionedPayload,
     downloadJson,
+    fetchFixtureLiveValues,
+    mergeFixtureLiveValues,
     feedbackButton,
     restoreButtonFeedback,
     withButtonFeedback,

@@ -77,6 +77,40 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.title).toContain('1 fixture selected');
   });
 
+  test('Controller can refresh live values changed by another page', async ({ page }) => {
+    await page.route('**/fixture_setup.php**', async route => {
+      if (route.request().url().includes('livevalues')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ok: true,
+            exists: true,
+            values: {
+              '101:12': { pan: 2222, tilt: 3333 }
+            }
+          })
+        });
+        return;
+      }
+      await route.fallback();
+    });
+
+    const state = await page.evaluate(async () => {
+      values['101:12'] = { pan: 1, tilt: 2 };
+      drawSurface();
+      await syncLiveValuesSnapshot({ redraw: true });
+      return {
+        value: values['101:12'],
+        readout: document.querySelector('[data-readout-fixture="101"][data-readout-control="12"]')?.textContent || ''
+      };
+    });
+
+    expect(state.value).toEqual({ pan: 2222, tilt: 3333 });
+    expect(state.readout).toContain('Pan 2222');
+    expect(state.readout).toContain('Tilt 3333');
+  });
+
   test('saved group first fixture becomes Controller Group Edit source', async ({ page }) => {
     await page.evaluate(() => {
       savedGroups = [{ id: 'grp_reverse', name: 'Reverse Pair', fixtureIds: [102, 101], values: {} }];
