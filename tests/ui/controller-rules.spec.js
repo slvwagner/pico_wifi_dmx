@@ -111,6 +111,96 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.readout).toContain('Tilt 3333');
   });
 
+  test('single fixture controls can nudge values relative to the current value', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      values['101:12'] = { pan: 1000, tilt: 2000 };
+      drawSurface();
+      const control = [...document.querySelectorAll('[data-fixture-card="101"] .control')]
+        .find(el => el.textContent.includes('Pan/Tilt'));
+      const panRows = [...control.querySelectorAll('.relative-control')]
+        .filter(el => el.textContent.includes('Pan'));
+      const tiltRows = [...control.querySelectorAll('.relative-control')]
+        .filter(el => el.textContent.includes('Tilt'));
+      panRows.find(el => el.textContent.includes('coarse')).querySelector('[data-relative-dir="1"]').click();
+      panRows.find(el => el.textContent.includes('fine')).querySelector('[data-relative-dir="1"]').click();
+      tiltRows.find(el => el.textContent.includes('fine')).querySelector('[data-relative-dir="-1"]').click();
+      return {
+        value: values['101:12'],
+        readout: document.querySelector('[data-readout-fixture="101"][data-readout-control="12"]')?.textContent || ''
+      };
+    });
+
+    expect(state.value).toEqual({ pan: 1257, tilt: 1999 });
+    expect(state.readout).toContain('Pan 1257');
+    expect(state.readout).toContain('Tilt 1999');
+  });
+
+  test('16-bit slider controls expose coarse and fine relative nudges', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      profiles.push({
+        id: 7001,
+        name: '16 Bit Dimmer',
+        mode: '2ch',
+        channels: 2,
+        controls: [{ id: 7002, type: 'slider16', label: 'Dimmer 16', channel: 1, fine: 2 }]
+      });
+      fixtures.splice(0, fixtures.length, { id: 7003, name: '16 Bit Fixture', profileId: 7001, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['7003:7002'] = 1000;
+      selectedFixtureIds = new Set();
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      drawSurface();
+      const control = document.querySelector('[data-fixture-card="7003"] .control');
+      const coarse = [...control.querySelectorAll('.relative-control')].find(el => el.textContent.includes('Coarse'));
+      const fine = [...control.querySelectorAll('.relative-control')].find(el => el.textContent.includes('Fine'));
+      coarse.querySelector('[data-relative-dir="1"]').click();
+      fine.querySelector('[data-relative-dir="-1"]').click();
+      return {
+        value: values['7003:7002'],
+        readout: document.querySelector('[data-readout-fixture="7003"][data-readout-control="7002"]')?.textContent || '',
+        coarseStep: coarse.querySelector('[data-relative-step]').value,
+        fineStep: fine.querySelector('[data-relative-step]').value
+      };
+    });
+
+    expect(state.value).toBe(1255);
+    expect(state.readout).toBe('1255');
+    expect(state.coarseStep).toBe('256');
+    expect(state.fineStep).toBe('1');
+  });
+
+  test('Group Edit relative nudge keeps each fixture relative to its own current value', async ({ page }) => {
+    await page.evaluate(() => {
+      values['101:11'] = 10;
+      values['102:21'] = 80;
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      drawSurface();
+    });
+
+    await page.locator('#editSelectedGroups').click();
+    await expect(page.locator('#groupModal')).toBeVisible();
+    const dimmer = page.locator('#groupModalBody .control', { hasText: 'Dimmer' });
+    await dimmer.locator('[data-relative-step]').fill('5');
+    await dimmer.locator('[data-relative-dir="1"]').click();
+
+    const state = await page.evaluate(() => ({
+      a: values['101:11'],
+      b: values['102:21'],
+      modalReadout: document.querySelector('#groupModalBody [data-gc-readout]')?.textContent || ''
+    }));
+
+    expect(state.a).toBe(15);
+    expect(state.b).toBe(85);
+    expect(state.modalReadout).toBe('15');
+  });
+
   test('saved group first fixture becomes Controller Group Edit source', async ({ page }) => {
     await page.evaluate(() => {
       savedGroups = [{ id: 'grp_reverse', name: 'Reverse Pair', fixtureIds: [102, 101], values: {} }];

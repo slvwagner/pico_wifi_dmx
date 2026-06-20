@@ -16,6 +16,10 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:220px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .control{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.relative-control{display:grid;grid-template-columns:auto minmax(72px,100px) auto;gap:6px;align-items:end}
+.relative-control label{display:grid;gap:4px;min-width:0}
+.relative-control input[type=number]{width:100%;min-width:0}
+.relative-control button{min-width:38px;padding:6px 10px}
 .fixture-card,.fixture-card>div,.fixture-card .fixture-head,.fixture-card .control,.fixture-card .control-head,.fixture-card .row,.fixture-card .byte-sliders,.fixture-card label{min-width:0;max-width:100%}
 .fixture-card>div,.fixture-card .fixture-head,.fixture-card .control,.fixture-card .control-head,.fixture-card .row,.fixture-card .byte-sliders,.fixture-card label,.fixture-card .xy-pad{width:100%!important}
 .fixture-card input[type=range]{min-width:0;width:100%;max-width:100%}
@@ -477,6 +481,49 @@ function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
 function cloneValue(v){return v&&typeof v==='object'?JSON.parse(JSON.stringify(v)):v;}
+function relativeControlHtml(attrs,max,step,label='Relative'){
+  const delta=Math.max(1,Math.round(Number(step)||1));
+  return `<div class="relative-control">
+    <button type="button" data-relative-dir="-1" ${attrs} title="Decrease relative to the current value">−</button>
+    <label>${label}<input type="number" min="1" max="${max}" step="${delta}" value="${delta}" ${attrs} data-relative-step="1"></label>
+    <button type="button" data-relative-dir="1" ${attrs} title="Increase relative to the current value">+</button>
+  </div>`;
+}
+function defaultValueForControl(c){
+  if(c.type==='panTilt16')return{pan:32768,tilt:32768};
+  if(c.type==='panTilt8')return{pan:128,tilt:128};
+  if(c.type==='rgb'||c.type==='cmy')return{a:0,b:0,c:0};
+  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
+  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
+  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  if(c.type==='matrixRgb')return matrixDefaultValue(c);
+  return 0;
+}
+function relativeStepFromButton(button){
+  const wrap=button.closest('.relative-control');
+  const input=wrap?.querySelector('[data-relative-step]');
+  return Math.max(1,Math.round(Number(input?.value)||1));
+}
+function applyRelativeToFixture(f,c,part,delta){
+  if(!f||!c||!delta)return false;
+  if(c.type==='matrixRgb')return false;
+  if(part==='pan'||part==='tilt'){
+    const is8=c.type==='panTilt8';
+    const cur={...(getValue(f,c,is8?{pan:128,tilt:128}:{pan:32768,tilt:32768})||{})};
+    cur[part]=clamp((cur[part]??(is8?128:32768))+delta,0,is8?255:65535);
+    setValue(f,c,cur);
+    return true;
+  }
+  if(['a','b','c','w','amber','k'].includes(part)){
+    const cur={...(getValue(f,c,defaultValueForControl(c))||{})};
+    cur[part]=clamp((cur[part]??0)+delta,0,255);
+    setValue(f,c,cur);
+    return true;
+  }
+  const max=c.type==='slider16'?65535:255;
+  setValue(f,c,clamp((Number(getValue(f,c,0))||0)+delta,0,max));
+  return true;
+}
 let _writeLiveValuesTimer=null;
 function writeLiveValues(immediate=false){
   const doWrite=()=>{
@@ -1471,11 +1518,15 @@ function renderControl(f,c){
       <div class="xy-pad" data-xy-fixture="${f.id}" data-control="${c.id}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
       <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-center-pantilt="1" data-fixture="${f.id}" data-control="${c.id}">Center Pan/Tilt</button></div>
       <label>Pan fine position<input type="range" min="0" max="65535" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
+      ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="pan"`,65535,256,'Pan coarse relative')}
+      ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="pan"`,65535,1,'Pan fine relative')}
       <div class="byte-sliders">
         <label>Pan coarse <span data-byte-readout="panCoarse" data-fixture="${f.id}" data-control="${c.id}">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="pan" data-byte-part="coarse"></label>
         <label>Pan fine <span data-byte-readout="panFine" data-fixture="${f.id}" data-control="${c.id}">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="pan" data-byte-part="fine"></label>
       </div>
       <label>Tilt fine position<input type="range" min="0" max="65535" step="1" value="${v.tilt}" data-fixture="${f.id}" data-control="${c.id}" data-axis="tilt"></label>
+      ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="tilt"`,65535,256,'Tilt coarse relative')}
+      ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="tilt"`,65535,1,'Tilt fine relative')}
       <div class="byte-sliders">
         <label>Tilt coarse <span data-byte-readout="tiltCoarse" data-fixture="${f.id}" data-control="${c.id}">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="tilt" data-byte-part="coarse"></label>
         <label>Tilt fine <span data-byte-readout="tiltFine" data-fixture="${f.id}" data-control="${c.id}">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" data-fixture="${f.id}" data-control="${c.id}" data-byte-axis="tilt" data-byte-part="fine"></label>
@@ -1487,7 +1538,9 @@ function renderControl(f,c){
       <div class="xy-pad" data-xy-fixture="${f.id}" data-control="${c.id}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
       <div class="row"><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">Pan ${v.pan} · Tilt ${v.tilt}</span><button data-center-pantilt="1" data-fixture="${f.id}" data-control="${c.id}">Center Pan/Tilt</button></div>
       <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" data-fixture="${f.id}" data-control="${c.id}" data-axis="pan"></label>
-      <label>Tilt<input type="range" min="0" max="255" step="1" value="${v.tilt}" data-fixture="${f.id}" data-control="${c.id}" data-axis="tilt"></label></div>`;
+      ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="pan"`,255,1,'Pan relative')}
+      <label>Tilt<input type="range" min="0" max="255" step="1" value="${v.tilt}" data-fixture="${f.id}" data-control="${c.id}" data-axis="tilt"></label>
+      ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="tilt"`,255,1,'Tilt relative')}</div>`;
   }
   if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
     const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0})));
@@ -1503,7 +1556,7 @@ function renderControl(f,c){
       : `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)}`;
     return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${channels}</span></div>
       <label>Color picker<input type="color" value="${color}" data-fixture="${f.id}" data-control="${c.id}" data-color-picker="1"></label>
-      ${parts.map((part,i)=>`<label>${names[i]} <span data-color-value="${part}" data-fixture="${f.id}" data-control="${c.id}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" data-fixture="${f.id}" data-control="${c.id}" data-part="${part}"></label>`).join('')}
+      ${parts.map((part,i)=>`<label>${names[i]} <span data-color-value="${part}" data-fixture="${f.id}" data-control="${c.id}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" data-fixture="${f.id}" data-control="${c.id}" data-part="${part}"></label>${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="${part}"`,255,1,names[i]+' relative')}`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-color="#ffffff" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#f00" data-color="#ff0000" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#0f0" data-color="#00ff00" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#00f" data-color="#0000ff" data-fixture="${f.id}" data-control="${c.id}"></button></div></div>`;
   }
   if(c.type==='wheel'){
@@ -1513,7 +1566,8 @@ function renderControl(f,c){
     return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}${active?' · '+escHtml(active.name):''}</span></div>
       <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-wheel-range-host="${f.id}:${c.id}">${wheelRangeSliderHtml(active,v,`data-fixture="${f.id}" data-control="${c.id}"`,escHtml)}</div>
-      <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>`;
+      <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}">
+      ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="value"`,255,1)}</div>`;
   }
   if(c.type==='matrixRgb'){
     const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
@@ -1533,7 +1587,11 @@ function renderControl(f,c){
       <label>Fine <span data-byte-readout="fine" data-fixture="${f.id}" data-control="${c.id}">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-fixture="${f.id}" data-control="${c.id}" data-byte-part="fine"></label>
     </div>`:'';
   return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-readout-fixture="${f.id}" data-readout-control="${c.id}">${v}</span><span class="bytes">CH ${chText}</span></div>
-    <input type="range" min="0" max="${max}" step="1" value="${v}" data-fixture="${f.id}" data-control="${c.id}">${extra}</div>`;
+    <input type="range" min="0" max="${max}" step="1" value="${v}" data-fixture="${f.id}" data-control="${c.id}">
+    ${c.type==='slider16'
+      ? relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="value"`,max,256,'Coarse relative')+
+        relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="value"`,max,1,'Fine relative')
+      : relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="value"`,max,1)}${extra}</div>`;
 }
 
 function drawSurface(){
@@ -1948,6 +2006,7 @@ surfaceEl.oninput=e=>{
   const p=f&&fixtureProfile(f);
   const c=p&&p.controls.find(x=>x.id===parseInt(e.target.dataset.control,10));
   if(!f||!c)return;
+  if(e.target.dataset.relativeStep)return;
   if(e.target.dataset.matrixPaintColor)return;
   if(e.target.dataset.colorPicker){
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){
@@ -1983,6 +2042,23 @@ surfaceEl.oninput=e=>{
   writeLiveValues();
 };
 surfaceEl.onclick=e=>{
+  const relativeTarget=e.target.closest('[data-relative-dir]');
+  if(relativeTarget&&relativeTarget.dataset.relativeFixture&&relativeTarget.dataset.relativeControl){
+    const f=fixtures.find(x=>x.id===parseInt(relativeTarget.dataset.relativeFixture,10));
+    const p=f&&fixtureProfile(f);
+    const c=p&&p.controls.find(x=>x.id===parseInt(relativeTarget.dataset.relativeControl,10));
+    if(!f||!c)return;
+    const part=relativeTarget.dataset.relativePart||'value';
+    const step=relativeStepFromButton(relativeTarget);
+    const dir=parseInt(relativeTarget.dataset.relativeDir,10)<0?-1:1;
+    if(applyRelativeToFixture(f,c,part,dir*step)){
+      if(autoSendEnabled())sendControl(f,c).catch(err=>setStatus(err.message,true));
+      updateControlDisplay(f,c);
+      writeLiveValues();
+      setStatus(f.name+' '+c.label+' '+(dir>0?'+':'-')+step);
+    }
+    return;
+  }
   const actionTarget=e.target.closest('[data-fixture],[data-send-fixture]')||e.target;
   const controlTarget=e.target.closest('[data-control]')||e.target;
   const f=fixtures.find(x=>x.id===parseInt(actionTarget.dataset.fixture||actionTarget.dataset.sendFixture,10));
@@ -2465,17 +2541,6 @@ const fanOut=DmxCommon.createFanOutController({
   getValue,
   setValue
 });
-function defaultValueForControl(c){
-  if(c.type==='panTilt16')return{pan:32768,tilt:32768};
-  if(c.type==='panTilt8')return{pan:128,tilt:128};
-  if(c.type==='rgb')return{a:0,b:0,c:0};
-  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
-  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
-  if(c.type==='cmy')return{a:0,b:0,c:0};
-  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
-  if(c.type==='matrixRgb')return matrixDefaultValue(c);
-  return 0;
-}
 function findMatchingControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>groupKey(c)===key)||null;
 }
@@ -2588,6 +2653,19 @@ function setGroupValue(c,v){
     setValue(f,fc,v);
   });
 }
+function applyRelativeToGroup(c,part,delta){
+  const key=groupKey(c);
+  let changed=0;
+  [...selectedFixtureIds].forEach(id=>{
+    const f=fixtures.find(fx=>fx.id===id);if(!f)return;
+    const fc=findMatchingControl(f,key);if(!fc)return;
+    if(!isGroupControlInScope(f,fc))return;
+    if(applyRelativeToFixture(f,fc,part,delta))changed++;
+  });
+  const match=firstSelectedFixtureWithGroupControl(c);
+  if(match)groupValues[key]=cloneValue(getValue(match.fixture,match.control,defaultValueForControl(match.control)));
+  return changed;
+}
 function syncGroupValuesFromFirstSelected(common=getGroupCommonControls()){
   common.forEach(c=>{
     const match=firstSelectedFixtureWithGroupControl(c);
@@ -2660,11 +2738,15 @@ function renderGroupControl(c){
       <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
       <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="65535" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
+      ${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="pan"`,65535,256,'Pan coarse relative')}
+      ${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="pan"`,65535,1,'Pan fine relative')}
       <div class="byte-sliders">
         <label>Pan coarse <span data-gc-byte="${key}" data-byte-part="panCoarse">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" ${gca} data-byte-axis="pan" data-byte-part="coarse"></label>
         <label>Pan fine <span data-gc-byte="${key}" data-byte-part="panFine">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" ${gca} data-byte-axis="pan" data-byte-part="fine"></label>
       </div>
       <label>Tilt<input type="range" min="0" max="65535" step="1" value="${v.tilt}" ${gca} data-axis="tilt"></label>
+      ${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="tilt"`,65535,256,'Tilt coarse relative')}
+      ${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="tilt"`,65535,1,'Tilt fine relative')}
       <div class="byte-sliders">
         <label>Tilt coarse <span data-gc-byte="${key}" data-byte-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
         <label>Tilt fine <span data-gc-byte="${key}" data-byte-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
@@ -2676,7 +2758,9 @@ function renderGroupControl(c){
       <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
       <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
       <label>Pan<input type="range" min="0" max="255" step="1" value="${v.pan}" ${gca} data-axis="pan"></label>
-      <label>Tilt<input type="range" min="0" max="255" step="1" value="${v.tilt}" ${gca} data-axis="tilt"></label></div>`;
+      ${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="pan"`,255,1,'Pan relative')}
+      <label>Tilt<input type="range" min="0" max="255" step="1" value="${v.tilt}" ${gca} data-axis="tilt"></label>
+      ${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="tilt"`,255,1,'Tilt relative')}</div>`;
   }
   if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
     const v=getGroupValue(c);
@@ -2685,7 +2769,7 @@ function renderGroupControl(c){
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()}</span>${scope}</div>
       <label>Color picker<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
-      ${parts.map((part,i)=>`<label>${names[i]} <span data-gc-part="${key}" data-part="${part}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" ${gca} data-part="${part}"></label>`).join('')}
+      ${parts.map((part,i)=>`<label>${names[i]} <span data-gc-part="${key}" data-part="${part}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" ${gca} data-part="${part}"></label>${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="${part}"`,255,1,names[i]+' relative')}`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-gc-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-gc-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-gc-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-gc-color="#0000ff" ${gca}></button></div></div>`;
   }
   if(c.type==='wheel'){
@@ -2695,7 +2779,8 @@ function renderGroupControl(c){
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}${active?' · '+escHtml(active.name):''}</span>${scope}</div>
       <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-gc-wheel-range-host="${key}">${wheelRangeSliderHtml(active,v,gca,escHtml)}</div>
-      <input type="range" min="0" max="255" value="${v}" ${gca}></div>`;
+      <input type="range" min="0" max="255" value="${v}" ${gca}>
+      ${relativeControlHtml(`data-relative-gc="${key}" data-relative-part="value"`,255,1)}</div>`;
   }
   const max=c.type==='slider16'?65535:255;
   const v=getGroupValue(c);const b=bytes16(v);
@@ -2704,7 +2789,11 @@ function renderGroupControl(c){
       <label>Fine <span data-gc-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
     </div>`:'';
   return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-gc-readout="${key}">${v}</span><span class="bytes">${c.type}</span>${scope}</div>
-    <input type="range" min="0" max="${max}" step="1" value="${v}" ${gca}>${extra}</div>`;
+    <input type="range" min="0" max="${max}" step="1" value="${v}" ${gca}>
+    ${c.type==='slider16'
+      ? relativeControlHtml(`data-relative-gc="${key}" data-relative-part="value"`,max,256,'Coarse relative')+
+        relativeControlHtml(`data-relative-gc="${key}" data-relative-part="value"`,max,1,'Fine relative')
+      : relativeControlHtml(`data-relative-gc="${key}" data-relative-part="value"`,max,1)}${extra}</div>`;
 }
 function updateGroupControlDisplay(c){
   const key=groupKey(c);const v=getGroupValue(c);
@@ -2812,6 +2901,7 @@ groupModalBody.oninput=e=>{
   const key=target.dataset.gc;if(!key)return;
   const common=getGroupEditableControls();
   const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+  if(e.target.dataset.relativeStep)return;
   let v=getGroupValue(c);
   if(e.target.dataset.colorPicker){
     if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(e.target.value);v={...v,a:rgb.a,b:rgb.b,c:rgb.c};}
@@ -2834,6 +2924,23 @@ groupModalBody.oninput=e=>{
   writeLiveValues();
 };
 groupModalBody.addEventListener('click',e=>{
+  const relativeTarget=e.target.closest('[data-relative-dir]');
+  if(relativeTarget&&relativeTarget.dataset.relativeGc){
+    const key=relativeTarget.dataset.relativeGc;
+    const common=getGroupEditableControls();
+    const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
+    const part=relativeTarget.dataset.relativePart||'value';
+    const step=relativeStepFromButton(relativeTarget);
+    const dir=parseInt(relativeTarget.dataset.relativeDir,10)<0?-1:1;
+    const changed=applyRelativeToGroup(c,part,dir*step);
+    if(changed){
+      if(autoSendEnabled())sendGroupControl(c).catch(err=>setStatus(err.message,true));
+      updateGroupControlDisplay(c);
+      writeLiveValues();
+      setStatus('Group '+c.label+' '+(dir>0?'+':'-')+step+' on '+changed+' fixture'+(changed===1?'':'s'));
+    }
+    return;
+  }
   const target=e.target.closest('[data-gc]')||e.target;
   const key=target.dataset.gc;if(!key)return;
   const common=getGroupEditableControls();
