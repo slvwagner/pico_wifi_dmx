@@ -77,6 +77,44 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.title).toContain('1 fixture selected');
   });
 
+  test('saved group first fixture becomes Controller Group Edit source', async ({ page }) => {
+    await page.evaluate(() => {
+      savedGroups = [{ id: 'grp_reverse', name: 'Reverse Pair', fixtureIds: [102, 101], values: {} }];
+      values['101:11'] = 11;
+      values['102:21'] = 88;
+      activeSavedGroupIds.clear();
+      renderSavedGroupsList();
+      drawSurface();
+    });
+
+    await page.locator('[data-group-index="0"]').click();
+    await expect(page.locator('[data-fixture-card="102"]')).toHaveClass(/source-fixture/);
+    await expect(page.locator('[data-fixture-card="102"] h2')).toContainText('Source');
+
+    await page.locator('#editSelectedGroups').click();
+    await expect(page.locator('#groupModal')).toBeVisible();
+
+    const initial = await page.evaluate(() => ({
+      sourceFixtureId,
+      selectedFixtures: [...selectedFixtureIds],
+      modalValue: document.querySelector('#groupModalBody [data-gc-readout]')?.textContent
+    }));
+
+    expect(initial.sourceFixtureId).toBe('102');
+    expect(initial.selectedFixtures).toEqual([102, 101]);
+    expect(initial.modalValue).toBe('88');
+    await expect(page.locator('#groupModal')).not.toContainText('Apply source');
+
+    await page.locator('#groupModalBody .control', { hasText: 'Dimmer' }).locator('input[type="range"]:not([data-byte-part])').fill('89');
+    const after = await page.evaluate(() => ({
+      a: values['101:11'],
+      b: values['102:21']
+    }));
+
+    expect(after.a).toBe(89);
+    expect(after.b).toBe(89);
+  });
+
   test('saved group tiles use corner edit tile and delete actions without toggling selection', async ({ page }) => {
     await page.evaluate(() => {
       savedGroups = [{ id: 'grp_test', name: 'Front Wash', fixtureIds: [101, 102], values: {} }];
@@ -862,7 +900,7 @@ test.describe('Fixture Controller established rules', () => {
       values['101:11'] = 128;
       values['104:11'] = 128;
       drawSurface();
-      const dimmer = fanControlOptions().find(o => o.label === 'Dimmer' && o.key === '11:value');
+      const dimmer = fanControlOptions().find(o => o.label === 'Dimmer' && o.key === 'slider8:Dimmer:value');
       fanState.controlKey = dimmer.key;
       snapshotFanBases();
       fanState.mode = 'symmetric';
@@ -875,6 +913,165 @@ test.describe('Fixture Controller established rules', () => {
       { id: 101, base: 128, finalVal: 78 },
       { id: 104, base: 128, finalVal: 178 }
     ]);
+  });
+
+  test('Fan Out core behavior is provided by DmxCommon', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const valuesByKey = { '1:11': 128, '2:21': 128 };
+      const fixturesData = [
+        { id: 1, controls: [{ id: 11, type: 'slider8', label: 'Dimmer', channel: 1 }] },
+        { id: 2, controls: [{ id: 21, type: 'slider8', label: 'Dimmer', channel: 1 }] }
+      ];
+      const state = { controlKey: '', mode: 'symmetric', spread: 100, fromOffset: 0, toOffset: 0, inverted: false, bases: {} };
+      const fan = DmxCommon.createFanOutController({
+        state,
+        controlsFor: fixture => fixture.controls,
+        compatibilityKey: control => control.type + ':' + control.label,
+        controlId: control => control.id,
+        controlLabel: control => control.label,
+        controlType: control => control.type,
+        hasChannel: control => control.channel >= 1,
+        fixtureId: fixture => fixture.id,
+        getValue: (fixture, control, def = 0) => valuesByKey[fixture.id + ':' + control.id] ?? def,
+        setValue: (fixture, control, value) => { valuesByKey[fixture.id + ':' + control.id] = value; }
+      });
+
+      const options = fan.controlOptions(fixturesData);
+      state.controlKey = options[0].key;
+      fan.snapshotBases(fixturesData);
+      const preview = fan.computedValues(fixturesData).map(item => ({ id: item.fixture.id, base: item.base, finalVal: item.finalVal }));
+      fan.apply(fixturesData);
+      fan.resetOffsets();
+      return { options, preview, valuesByKey, spread: state.spread, fromOffset: state.fromOffset, toOffset: state.toOffset };
+    });
+
+    expect(result.options).toEqual([{ key: 'slider8:Dimmer:value', label: 'Dimmer', max: 255 }]);
+    expect(result.preview).toEqual([
+      { id: 1, base: 128, finalVal: 78 },
+      { id: 2, base: 128, finalVal: 178 }
+    ]);
+    expect(result.valuesByKey).toMatchObject({ '1:11': 78, '2:21': 178 });
+    expect(result).toMatchObject({ spread: 0, fromOffset: 0, toOffset: 0 });
+  });
+
+  test('Fan Out works across fixtures with matching controls but different control ids', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      values['101:11'] = 128;
+      values['102:21'] = 128;
+      drawSurface();
+
+      const options = fanControlOptions().map(o => ({ key: o.key, label: o.label }));
+      const dimmer = fanControlOptions().find(o => o.label === 'Dimmer');
+      if (dimmer) {
+        fanState.controlKey = dimmer.key;
+        snapshotFanBases();
+        fanState.mode = 'symmetric';
+        fanState.spread = 100;
+        applyFanToController({ silent: true });
+      }
+      return {
+        options,
+        dimmerKey: dimmer?.key || '',
+        a: values['101:11'],
+        b: values['102:21'],
+        affected: [...fanAffectedKeys].sort(),
+        status: document.getElementById('status').textContent
+      };
+    });
+
+    expect(result.options).toEqual([{ key: 'slider8:Dimmer:value', label: 'Dimmer' }]);
+    expect(result.dimmerKey).toBe('slider8:Dimmer:value');
+    expect(result.a).toBe(78);
+    expect(result.b).toBe(178);
+    expect(result.affected).toEqual(['101:11', '102:21']);
+  });
+
+  test('Fan Out control selection resets spread offsets to zero', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      selectedFixtureIds = new Set([101]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      drawSurface();
+      renderFanToolbox();
+
+      const select = document.getElementById('fanControlSelect');
+      const options = [...select.options].map(option => option.value);
+      fanState.controlKey = options[0];
+      fanState.mode = 'symmetric';
+      fanState.spread = 120;
+      fanState.fromOffset = -40;
+      fanState.toOffset = 40;
+      renderFanToolbox();
+
+      select.value = options[1];
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+
+      return {
+        optionCount: options.length,
+        controlKey: fanState.controlKey,
+        spread: fanState.spread,
+        fromOffset: fanState.fromOffset,
+        toOffset: fanState.toOffset,
+        slider: document.getElementById('fanSpread').value,
+        readout: document.getElementById('fanSpreadReadout').textContent
+      };
+    });
+
+    expect(result.optionCount).toBeGreaterThan(1);
+    expect(result.spread).toBe(0);
+    expect(result.fromOffset).toBe(0);
+    expect(result.toOffset).toBe(0);
+    expect(result.slider).toBe('0');
+    expect(result.readout).toBe('0');
+  });
+
+  test('Fan Out Clear resets the shaping controls', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys = new Set(['101:11']);
+      drawSurface();
+      renderFanToolbox();
+
+      const option = fanControlOptions().find(o => o.label === 'Dimmer');
+      fanState.controlKey = option.key;
+      fanState.mode = 'range';
+      fanState.spread = 90;
+      fanState.fromOffset = -30;
+      fanState.toOffset = 60;
+      fanState.inverted = true;
+      renderFanToolbox();
+      document.getElementById('fanClear').click();
+
+      return {
+        spread: fanState.spread,
+        fromOffset: fanState.fromOffset,
+        toOffset: fanState.toOffset,
+        inverted: fanState.inverted,
+        affected: [...fanAffectedKeys],
+        slider: document.getElementById('fanSpread').value,
+        readout: document.getElementById('fanSpreadReadout').textContent,
+        invertText: document.getElementById('fanInvert').textContent
+      };
+    });
+
+    expect(result.spread).toBe(0);
+    expect(result.fromOffset).toBe(0);
+    expect(result.toOffset).toBe(0);
+    expect(result.inverted).toBe(false);
+    expect(result.affected).toEqual([]);
+    expect(result.slider).toBe('0');
+    expect(result.readout).toBe('0');
+    expect(result.invertText).toBe('Invert');
   });
 });
 

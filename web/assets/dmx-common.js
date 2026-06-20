@@ -134,6 +134,199 @@
     return inverted?ordered.reverse():ordered;
   }
 
+  function fanOutToolboxHtml(options={}){
+    const hint=escapeHtml(options.hint||'Select a group to fan fixtures.');
+    return `<div id="fanToolbox" class="scene-toolbox scene-toolbox--fan">
+<div id="fanToolboxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Fan Out</span>
+<button id="fanToolboxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="fanToolboxBody" class="scene-toolbox__body">
+<div style="display:grid;gap:10px">
+<div class="small" id="fanScopeHint">${hint}</div>
+<label>Control<select id="fanControlSelect"></select></label>
+<label>Mode<select id="fanMode"><option value="symmetric">Symmetric spread</option><option value="range">Start to end</option></select></label>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end">
+<label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
+<button id="fanInvert" title="Reverse fixture order for Fan Out">Invert</button>
+</div>
+<div id="fanRangeWrap" style="display:none;gap:8px">
+<label>From<input id="fanFrom" type="number" value="0"></label>
+<label>To<input id="fanTo" type="number" value="0"></label>
+</div>
+<div class="buttons">
+<button id="fanSave">Save</button>
+<button id="fanRecall">Recall</button>
+<button id="fanSnapshot">Snapshot</button>
+<button class="primary" id="fanApply">Apply</button>
+<button id="fanClear">Clear</button>
+</div>
+<div id="fanPreview" class="fan-preview"></div>
+</div>
+</div>
+</div>`;
+  }
+
+  function mountFanOutToolbox(target,options={}){
+    const el=typeof target==='string'?document.getElementById(target):target;
+    if(!el)return null;
+    el.outerHTML=fanOutToolboxHtml(options);
+    return document.getElementById('fanToolbox');
+  }
+
+  function createFanOutController(config){
+    const state=config.state||{controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,inverted:false,bases:{}};
+    const clampValue=(value,min,max)=>Math.max(min,Math.min(max,Math.round(parseFloat(value)||0)));
+    const controlsFor=fixture=>config.controlsFor?.(fixture)||[];
+    const controlId=control=>String(config.controlId?.(control)??control?.id??'');
+    const controlRef=control=>String(config.compatibilityKey?.(control)??controlId(control));
+    const controlLabel=control=>String(config.controlLabel?.(control)??control?.label??'Control');
+    const controlType=control=>String(config.controlType?.(control)??control?.type??'');
+    const hasChannel=control=>!!config.hasChannel?.(control);
+    const getValue=(fixture,control,def)=>config.getValue?.(fixture,control,def);
+    const setValue=(fixture,control,value)=>config.setValue?.(fixture,control,value);
+
+    function axisDefault(control,axis){
+      const max=controlType(control)==='panTilt8'?255:65535;
+      return axis==='pan'||axis==='tilt'?{pan:Math.round(max/2),tilt:Math.round(max/2)}:0;
+    }
+    function isFanControl(control,axis){
+      const type=controlType(control);
+      if((axis==='pan'||axis==='tilt')&&(type==='panTilt16'||type==='panTilt8'))return true;
+      if(axis==='value'&&(type==='slider16'||hasChannel(control)))return true;
+      return false;
+    }
+    function findControl(fixture,ref,axis){
+      const text=String(ref||'');
+      const control=/^\d+$/.test(text)
+        ? controlsFor(fixture).find(ctrl=>controlId(ctrl)===text)
+        : controlsFor(fixture).find(ctrl=>controlRef(ctrl)===text);
+      return control&&isFanControl(control,axis)?control:null;
+    }
+    function parseControlKey(key=state.controlKey){
+      const text=String(key||'');
+      const idx=text.lastIndexOf(':');
+      if(idx<0)return{controlId:text,axis:'value'};
+      return{controlId:text.slice(0,idx),axis:text.slice(idx+1)||'value'};
+    }
+    function controlOptions(fixtures){
+      const ordered=Array.isArray(fixtures)?fixtures.filter(Boolean):[];
+      if(typeof config.optionEntries==='function'){
+        const byKey=new Map();
+        const entries=config.optionEntries(ordered)||[];
+        const minFixtures=Math.max(1,config.minOptionFixtures??ordered.length);
+        entries.forEach(entry=>{
+          const fixture=entry?.fixture;
+          const control=entry?.control;
+          if(!fixture||!control||controlType(control)==='matrixRgb')return;
+          const ref=controlRef(control);
+          const add=(axis,label,max)=>{
+            if(!isFanControl(control,axis))return;
+            const key=ref+':'+axis;
+            const option=byKey.get(key)||{key,label,max,fixtureIds:new Set()};
+            option.fixtureIds.add(String(config.fixtureId?.(fixture)??fixture?.id??''));
+            byKey.set(key,option);
+          };
+          const type=controlType(control);
+          if(type==='panTilt16'){add('pan',controlLabel(control)+' Pan',65535);add('tilt',controlLabel(control)+' Tilt',65535);}
+          else if(type==='panTilt8'){add('pan',controlLabel(control)+' Pan',255);add('tilt',controlLabel(control)+' Tilt',255);}
+          else if(type==='slider16')add('value',controlLabel(control),65535);
+          else if(hasChannel(control))add('value',controlLabel(control),255);
+        });
+        return Array.from(byKey.values()).filter(option=>option.fixtureIds.size>=minFixtures).map(({fixtureIds,...option})=>option);
+      }
+      const first=ordered[0];
+      if(!first)return[];
+      const opts=[];
+      controlsFor(first).forEach(control=>{
+        if(controlType(control)==='matrixRgb')return;
+        const ref=controlRef(control);
+        const add=(axis,label,max)=>{
+          if(ordered.every(fixture=>findControl(fixture,ref,axis)))opts.push({key:ref+':'+axis,label,max});
+        };
+        const type=controlType(control);
+        if(type==='panTilt16'){add('pan',controlLabel(control)+' Pan',65535);add('tilt',controlLabel(control)+' Tilt',65535);}
+        else if(type==='panTilt8'){add('pan',controlLabel(control)+' Pan',255);add('tilt',controlLabel(control)+' Tilt',255);}
+        else if(type==='slider16')add('value',controlLabel(control),65535);
+        else if(hasChannel(control))add('value',controlLabel(control),255);
+      });
+      return opts;
+    }
+    function maxValue(fixtures){
+      const opt=controlOptions(fixtures).find(o=>o.key===state.controlKey);
+      return opt?.max||255;
+    }
+    function controlValue(fixture,control,axis){
+      const value=getValue(fixture,control,axisDefault(control,axis));
+      return (axis==='pan'||axis==='tilt')?(value&&value[axis]!==undefined?value[axis]:axisDefault(control,axis)[axis]):value;
+    }
+    function baseKey(fixture,control,axis){
+      return String(config.fixtureId?.(fixture)??fixture?.id??'')+':'+controlId(control)+':'+axis;
+    }
+    function setControlValue(fixture,control,axis,value,fixtures){
+      const next=clampValue(value,0,maxValue(fixtures));
+      if(axis==='pan'||axis==='tilt'){
+        const cur={...(getValue(fixture,control,axisDefault(control,axis))||axisDefault(control,axis))};
+        cur[axis]=next;
+        setValue(fixture,control,cur);
+      }else{
+        setValue(fixture,control,next);
+      }
+    }
+    function resetOffsets(){
+      state.spread=0;
+      state.fromOffset=0;
+      state.toOffset=0;
+    }
+    function snapshotBases(fixtures){
+      const ordered=Array.isArray(fixtures)?fixtures.filter(Boolean):[];
+      const {controlId:ref,axis}=parseControlKey();
+      state.bases={};
+      ordered.forEach(fixture=>{
+        const control=findControl(fixture,ref,axis);
+        if(control)state.bases[baseKey(fixture,control,axis)]=controlValue(fixture,control,axis);
+      });
+    }
+    function ensureBases(fixtures){
+      const ordered=Array.isArray(fixtures)?fixtures.filter(Boolean):[];
+      const {controlId:ref,axis}=parseControlKey();
+      ordered.forEach(fixture=>{
+        const control=findControl(fixture,ref,axis);
+        if(!control)return;
+        const key=baseKey(fixture,control,axis);
+        if(state.bases[key]!==undefined)return;
+        state.bases[key]=controlValue(fixture,control,axis);
+      });
+    }
+    function computedValues(fixtures){
+      const ordered=fanOrderedFixtures(fixtures,state.inverted);
+      const max=maxValue(fixtures);
+      const {controlId:ref,axis}=parseControlKey();
+      const count=ordered.length;
+      const from=state.mode==='range'?parseFloat(state.fromOffset)||0:-(parseFloat(state.spread)||0)/2;
+      const to=state.mode==='range'?parseFloat(state.toOffset)||0:(parseFloat(state.spread)||0)/2;
+      return ordered.map((fixture,i)=>{
+        const control=findControl(fixture,ref,axis);
+        const t=count>1?i/(count-1):0;
+        const base=control?(state.bases[baseKey(fixture,control,axis)]??controlValue(fixture,control,axis)):Math.round(max/2);
+        const offset=from+(to-from)*t;
+        return{fixture,control,axis,base,offset,finalVal:clampValue(base+offset,0,max)};
+      });
+    }
+    function apply(fixtures){
+      ensureBases(fixtures);
+      const affected=[];
+      computedValues(fixtures).forEach(({fixture,control,axis,finalVal})=>{
+        if(!control)return;
+        setControlValue(fixture,control,axis,finalVal,fixtures);
+        affected.push({fixture,control,axis,finalVal});
+      });
+      return affected;
+    }
+
+    return{state,controlOptions,findControl,parseControlKey,maxValue,controlValue,baseKey,setControlValue,resetOffsets,snapshotBases,ensureBases,computedValues,apply};
+  }
+
   function wheelOptionRange(option){
     const range=option&&option.range;
     if(Array.isArray(range)&&range.length>=2){
@@ -1151,6 +1344,12 @@
       render();
       notify();
     }
+    function selectGroups(ids){
+      applySharedSelection(ids);
+      saveSharedGroupSelection(selectedGroupIds());
+      render();
+      notify();
+    }
     function setGroups(nextGroups){
       groups=normalizeGroups(nextGroups);
       groupsLoaded=true;
@@ -1158,7 +1357,7 @@
       render();
       notify();
     }
-    return {box,toolbox,loadGroups,render,refreshActions:updateActions,selectedGroups,clearSelection,setGroups,get groups(){return groups;}};
+    return {box,toolbox,loadGroups,render,refreshActions:updateActions,selectedGroups,selectGroups,clearSelection,setGroups,get groups(){return groups;}};
   }
 
   function normalizeSlotVisual(visual){
@@ -1498,6 +1697,9 @@
     clampInt,
     clampFloat,
     fanOrderedFixtures,
+    fanOutToolboxHtml,
+    mountFanOutToolbox,
+    createFanOutController,
     wheelOptionRange,
     wheelOptionValue,
     wheelOptionMatches,

@@ -714,7 +714,6 @@ function handleMotionGroupInput(target){
 }
 document.getElementById('closeMotionGroupModal').onclick=closeMotionGroupModal;
 document.getElementById('closeMotionGroupModal2').onclick=closeMotionGroupModal;
-document.getElementById('motionGroupModal').addEventListener('click',e=>{if(e.target===document.getElementById('motionGroupModal'))closeMotionGroupModal();});
 const motionGroupModalBody=document.getElementById('motionGroupModalBody');
 motionGroupModalBody.oninput=e=>handleMotionGroupInput(e.target);
 motionGroupModalBody.addEventListener('click',e=>{
@@ -935,6 +934,11 @@ function effectOffset(t,type){
   }
 }
 
+function motionAutoPhase(spread,index,count){
+  return count>1?spread*index/(count-1):0;
+}
+window.motionAutoPhase=motionAutoPhase;
+
 function drawPathPreview(){
   const {w,h}=syncPathCanvasResolution();
   const type=document.getElementById('effectType').value;
@@ -966,7 +970,7 @@ function drawPathPreview(){
   }
 
   enabled.forEach((mf,i)=>{
-    const autoPhase=enabled.length>1?spread*i/enabled.length:0;
+    const autoPhase=motionAutoPhase(spread,i,enabled.length);
     const phase=mf.phaseOffset*Math.PI/180+autoPhase;
     const color=COLORS[motionFixtures.indexOf(mf)%COLORS.length];
     const STEPS=120;
@@ -1093,7 +1097,7 @@ function tick(){
   enabled.forEach((mf,i)=>{
     const c=mf.control;
     const f=mf.fixture;
-    const autoPhase=enabled.length>1?spread*i/enabled.length:0;
+    const autoPhase=motionAutoPhase(spread,i,enabled.length);
     const phase=mf.phaseOffset*Math.PI/180+autoPhase;
     const off=effectOffset(angle+phase,type);
     const max=mf.kind==='panTilt'?(c.type==='panTilt16'?65535:255):scalarMax(c);

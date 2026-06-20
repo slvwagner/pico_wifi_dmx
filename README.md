@@ -763,7 +763,7 @@ Saved Groups are shown in a compact matrix. Each filled group tile has a small p
 
 ![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
 
-The Group Edit modal appears when multiple compatible fixtures are selected or when a saved group is loaded. It shows controls that exist on at least two selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. On the Chaser page, **Apply source** copies the selected Source fixture's value for one control to all matching participating fixtures, and **All** applies every editable Source value in the modal. The modal can also recall Default all or Blackout all; normal edits are sent to the Pico when a Pico base URL is set.
+The Group Edit modal appears when compatible fixtures are selected or when a saved group is loaded. It shows matching controls for the selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. The selected **Source** fixture supplies the values shown when the modal opens, but opening the modal does not overwrite other fixtures or send output. Values are applied only when the user edits a modal control; on pages with live output, those edits are sent to the Pico when a Pico base URL is set. The Controller modal can also recall **Default** or **Blackout** for the selected group.
 
 The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, or **Merge** the selected step values into an existing palette. Filled palette slots use the small top-left pencil icon to open **Edit Tile** for renaming and visual appearance. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
 
@@ -847,7 +847,7 @@ Fixtures can be organised into named **Saved Groups** (stored server-side via `g
 
 - Create a group and assign any subset of patched fixtures to it.
 - A collapsible **Group Bar** appears above the fixture list; clicking a group instantly selects all its fixtures and scrolls to the first one.
-- The **Group Edit** modal can recall **Default all** or **Blackout all** for every selected fixture at once, using each fixture profile's own stored default/blackout values.
+- The **Group Edit** modal can recall **Default** or **Blackout** for every selected fixture at once, using each fixture profile's own stored default/blackout values.
 - Groups can be edited with **Edit Tile** for name and visual appearance, or deleted from the Saved Groups panel.
 - Groups are included in the complete **Export Setup** / **Import Setup** backup from the Fixture Controller.
 

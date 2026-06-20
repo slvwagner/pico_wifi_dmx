@@ -372,9 +372,11 @@ strong { color: #ffffff; }
 </ol>
 <p>On the Fixture Controller, <strong>Group Edit</strong> lives in the <strong>Groups</strong> toolbox. It requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press <strong>Select All</strong> before opening Group Edit from the Groups toolbox.</p>
 <p>The Group Edit modal only shows controls that exist on at least two selected fixtures. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.</p>
-<p>When a Pico base URL is set, each Group Edit change is sent to the Pico immediately. To use Group Edit browser-only, clear the Pico base URL first.</p>
+<p>The selected <strong>Source</strong> fixture is the template for the modal values. When you open Group Edit, the modal reads the Source fixture&#39;s current matching control values and shows those values in the sliders, wheel buttons, color controls, and XY pads. Opening the modal does not overwrite the other selected fixtures and does not send DMX by itself.</p>
+<p>The source selection is automatic. Loading a saved group makes the first fixture stored in that group the Source. With manual fixture selection, the clicked/selected fixture becomes the Source; if that fixture is removed from the selection, the page picks the next selected fixture that can provide the control.</p>
+<p>The values are applied when you actually edit a control in the modal. Moving a slider, choosing a wheel slot, changing a color, pressing Center, or using Default/Blackout writes that value to every selected fixture that has the matching control. When a Pico base URL is set, each Group Edit change is sent to the Pico immediately. To use Group Edit browser-only, clear the Pico base URL first.</p>
 <p>If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, <strong>Group Edit</strong> uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.</p>
-<p>Use <strong>Default all</strong> or <strong>Blackout all</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
+<p>Use <strong>Default</strong> or <strong>Blackout</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
 <h3 id="group-edit-contract">Group Edit Contract</h3>
 <p>Controller, Chaser, and Motion FX all use the same basic Group Edit idea: the modal is available when the current page scope contains at least one editable control on two or more fixtures. The fixtures do not need to use the same fixture profile.</p>
 <p>Keep these rules as the contract:</p>
@@ -383,7 +385,9 @@ strong { color: #ffffff; }
 <li>A control is editable only when the page can match it by control identity, such as type and label.</li>
 <li>Wheel / indexed controls are stricter: same-named wheels are kept separate when their option lists differ, so a MAC Gobo wheel and a Scanner Gobo wheel are not accidentally edited as one control.</li>
 <li>The modal shows the matching fixture/profile scope for each control.</li>
+<li>Opening the modal reads the Source fixture values into the modal but does not apply or send anything yet.</li>
 <li>Editing a control writes only to fixtures that actually have the matching control.</li>
+<li>The first edit in the modal is the moment the value is written to the group; on pages with live output, that edit is also sent to the Pico when a Pico base URL is set.</li>
 <li>Incompatible fixtures remain selected but are ignored for that specific control.</li>
 <li>Group selection is a filter. If groups are selected, Group Edit uses only compatible fixtures inside those groups.</li>
 <li>Direct scope changes, such as Select All, Participating Controls All, or Motion All, clear the saved-group filter and make the page scope the source of truth.</li>
@@ -475,8 +479,9 @@ strong { color: #ffffff; }
 <p>The <strong>Group control</strong> dropdown is built from the fixtures currently visible in the participating-control scope, not from the controls that are already ticked. With no Groups filter, the dropdown stays based on all visible patched fixtures even after <strong>Only</strong> narrows the selected participating controls. With a Groups filter, the dropdown is based on the selected groups. When an edited step is active, the visible step fixtures define the dropdown scope.</p>
 <p><strong>All</strong> selects every valid participating control for all patched fixtures, clears the Groups filter, expands the participating fixture list, stops browser Chase Playback, clears the selected step, clears <strong>Edit Step</strong>, clears the Source fixture, and resets Fan Out bases. Existing steps in <strong>Chase Steps</strong> are not deleted. After <strong>All</strong>, use <strong>Add step</strong>, <strong>Capture + Add</strong>, or <strong>Group Edit</strong> to create or edit a step from the full participating-control scope.</p>
 <p><strong>Group Edit</strong> edits the current participating-control scope. It becomes available when the current scope contains at least one matching selected control on two or more participating fixtures, even when those fixtures use different fixture profiles. A step does not need to be selected first. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edit into that step. If a step is selected, Group Edit edits that selected step.</p>
-<p>The fixtures may use different profiles; the modal only shows matching controls that are actually selected as participating controls and exist on at least two fixtures. For example, if only Dimmer is selected, Group Edit opens with Dimmer only and applies it to every involved fixture that has a matching Dimmer control.</p>
-<p>Group Edit uses the <strong>Source</strong> fixture from <strong>Edit Step</strong> as the reference value. Opening the modal does not automatically overwrite the other fixtures. Use <strong>Apply source</strong> on one control to copy that Source value to all matching participating fixtures for that control only. Use <strong>All</strong> at the lower-left of the modal to copy the Source values for every editable control in the modal.</p>
+<p>The fixtures may use different profiles; the modal only shows matching controls that are actually selected as participating controls and exist on at least two fixtures. For example, if only Dimmer is selected, Group Edit opens with Dimmer only and applies a changed Dimmer value to every involved fixture that has a matching Dimmer control.</p>
+<p>Group Edit uses the <strong>Source</strong> fixture from <strong>Edit Step</strong> as the reference value. Opening the modal reads the Source fixture&#39;s current selected-step values into the modal controls. It does not automatically overwrite the other fixtures, does not create a new step, and does not send output by itself.</p>
+<p>The values are written when you change a control in the modal. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edited value into that step. If a step is selected, the edit writes into that selected step. When a Pico base URL is set, changed selected-step values are also sent to the Pico.</p>
 <h3 id="chaser-selection-rules">Chaser Selection Rules</h3>
 <p>The Chaser page has two different selection modes: defining a new participating-control set, and editing or recalling an existing step. They intentionally behave differently.</p>
 <p>Keep these rules as the contract for the Chaser page:</p>
@@ -491,6 +496,7 @@ strong { color: #ffffff; }
 <li>Group filters are only temporary scope builders. Direct Participating Controls changes clear the group filter.</li>
 <li><strong>All</strong> clears the selected step/edit context but keeps the existing step list unchanged.</li>
 <li><strong>Group Edit</strong> does not require a selected step. If no step is selected, the first Group Edit value change creates a new step from the current participating controls. If a step is selected, Group Edit edits that step.</li>
+<li>Opening <strong>Group Edit</strong> loads the current Source fixture values into the modal only. The output or selected step changes only after you edit a modal control.</li>
 </ul>
 <p>When you define participating controls manually:</p>
 <ul>

@@ -27,6 +27,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-title h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
+.fixture-card.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
 #savedGroupsList{display:grid;gap:8px;align-content:start}
 #savedGroupsList .item{align-content:start}
 #savedGroupsList .group-empty{min-height:94px;border:1px dashed var(--line);border-radius:8px;background:#0a0d10;opacity:.45}
@@ -391,40 +392,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
-<div id="fanToolbox" class="scene-toolbox scene-toolbox--fan">
-<div id="fanToolboxHdr" class="scene-toolbox__header">
-<span style="font-weight:700;font-size:13px">Fan Out</span>
-<button id="fanToolboxToggle" class="scene-toolbox__toggle">—</button>
-</div>
-<div id="fanToolboxBody" class="scene-toolbox__body">
-<div style="display:grid;gap:10px">
-<div class="small" id="fanScopeHint">Select a group to fan fixtures.</div>
-<label>Control<select id="fanControlSelect"></select></label>
-<label>Mode<select id="fanMode"><option value="symmetric">Symmetric spread</option><option value="range">Start to end</option></select></label>
-<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end">
-<label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
-<button id="fanInvert" title="Reverse fixture order for Fan Out">Invert</button>
-</div>
-<div id="fanRangeWrap" style="display:none;gap:8px">
-<label>From<input id="fanFrom" type="number" value="0"></label>
-<label>To<input id="fanTo" type="number" value="0"></label>
-</div>
-<div class="buttons">
-<button id="fanSave">Save</button>
-<button id="fanRecall">Recall</button>
-<button id="fanSnapshot">Snapshot</button>
-<button class="primary" id="fanApply">Apply</button>
-<button id="fanClear">Clear</button>
-</div>
-<div id="fanPreview" class="fan-preview"></div>
-</div>
-</div>
-</div>
+<div id="fanToolboxMount"></div>
 
 <aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
+DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group to fan fixtures.'});
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
 fixtureToolboxRail.dataset.minMainWidth='360';
 DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'fanToolbox',type:'fan'}]);
@@ -1547,6 +1521,7 @@ function renderControl(f,c){
 
 function drawSurface(){
   surfaceEl.innerHTML='';
+  ensureGroupSourceFixture();
   const visibleFixtures=visibleSurfaceFixtures();
   const groupFilterActive=activeSavedGroupIds.size>0||activeFixtureFilterIds.size>0;
   const selectionFilterActive=groupFilterActive||sceneFixtureFilterActive;
@@ -1557,11 +1532,12 @@ function drawSurface(){
     const p=fixtureProfile(f);
     if(!p)return;
     const sel=selectedFixtureIds.has(f.id);
+    const isSource=String(f.id)===String(sourceFixtureId||'')&&sel;
     const coll=collapsedFixtureIds.has(f.id);
     const hasDefault=p.controls.some(c=>c.defaultValue!=null);
     const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
-    const card=document.createElement('article');card.className=DmxCommon.selectableCardClass('card fixture-card',sel,'selected');card.dataset.fixtureCard=f.id;
-    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${escHtml(f.name)}</h2><span class="small">${escHtml(p.name)} · ${escHtml(p.mode)} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    const card=document.createElement('article');card.className=DmxCommon.selectableCardClass('card fixture-card'+(isSource?' source-fixture':''),sel,'selected');card.dataset.fixtureCard=f.id;
+    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${escHtml(f.name)}${isSource?' <span class="ctrl-chip">Source</span>':''}</h2><span class="small">${escHtml(p.name)} · ${escHtml(p.mode)} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   resizeFixtureXyPads();
@@ -1730,91 +1706,35 @@ function fanFixtureOrder(){
   return ids.map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
 }
 function fanControlOptions(){
-  const ordered=fanFixtureOrder();
-  const first=ordered[0];
-  const profile=first&&fixtureProfile(first);
-  if(!profile)return[];
-  const opts=[];
-  profile.controls.forEach(c=>{
-    const add=(axis,label,max)=>{
-      if(ordered.every(f=>findFanControl(f,c.id,axis)))opts.push({key:c.id+':'+axis,label,max});
-    };
-    if(c.type==='panTilt16'){add('pan',c.label+' Pan',65535);add('tilt',c.label+' Tilt',65535);}
-    else if(c.type==='panTilt8'){add('pan',c.label+' Pan',255);add('tilt',c.label+' Tilt',255);}
-    else if(c.type==='slider16')add('value',c.label,65535);
-    else if(c.channel>=1)add('value',c.label,255);
-  });
-  return opts;
+  return fanOut.controlOptions(fanFixtureOrder());
 }
-function findFanControl(f,controlId,axis){
-  const c=fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===String(controlId));
-  if(!c)return null;
-  if((axis==='pan'||axis==='tilt')&&(c.type==='panTilt16'||c.type==='panTilt8'))return c;
-  if(axis==='value'&&(c.type==='slider16'||c.channel>=1))return c;
-  return null;
+function findFanControl(f,controlRef,axis){
+  return fanOut.findControl(f,controlRef,axis);
 }
 function parseFanControlKey(key=fanState.controlKey){
-  const parts=String(key||'').split(':');
-  return{controlId:parts[0],axis:parts[1]||'value'};
+  return fanOut.parseControlKey(key);
 }
 function fanMaxValue(){
-  const opt=fanControlOptions().find(o=>o.key===fanState.controlKey);
-  return opt?.max||255;
+  return fanOut.maxValue(fanFixtureOrder());
 }
 function fanGetValue(f,c,axis){
-  if(axis==='pan'||axis==='tilt'){
-    const max=c.type==='panTilt8'?255:65535;
-    return getValue(f,c,{pan:Math.round(max/2),tilt:Math.round(max/2)})[axis];
-  }
-  return getValue(f,c,0);
+  return fanOut.controlValue(f,c,axis);
 }
 function fanBaseKey(f,c,axis){
-  return f.id+':'+c.id+':'+axis;
+  return fanOut.baseKey(f,c,axis);
 }
 function fanSetValue(f,c,axis,val){
-  val=clamp(Math.round(val),0,fanMaxValue());
-  if(axis==='pan'||axis==='tilt'){
-    const max=c.type==='panTilt8'?255:65535;
-    const cur={...getValue(f,c,{pan:Math.round(max/2),tilt:Math.round(max/2)})};
-    cur[axis]=val;
-    setValue(f,c,cur);
-  }else setValue(f,c,val);
+  fanOut.setControlValue(f,c,axis,val,fanFixtureOrder());
 }
 function snapshotFanBases(){
-  const ordered=fanFixtureOrder();
-  const {controlId,axis}=parseFanControlKey();
-  fanState.bases={};
-  ordered.forEach(f=>{
-    const c=findFanControl(f,controlId,axis);
-    if(c)fanState.bases[fanBaseKey(f,c,axis)]=fanGetValue(f,c,axis);
-  });
+  fanOut.snapshotBases(fanFixtureOrder());
   renderFanToolbox();
 }
 function ensureFanBases(){
-  const ordered=fanFixtureOrder();
-  const {controlId,axis}=parseFanControlKey();
-  ordered.forEach(f=>{
-    const c=findFanControl(f,controlId,axis);
-    if(!c)return;
-    const key=fanBaseKey(f,c,axis);
-    if(fanState.bases[key]!==undefined)return;
-    fanState.bases[key]=fanGetValue(f,c,axis);
-  });
+  fanOut.ensureBases(fanFixtureOrder());
 }
 function fanComputedValues(){
-  const ordered=DmxCommon.fanOrderedFixtures(fanFixtureOrder(),fanState.inverted);
-  const max=fanMaxValue();
-  const {controlId,axis}=parseFanControlKey();
-  const count=ordered.length;
-  const from=fanState.mode==='range'?parseFloat(fanState.fromOffset)||0:-(parseFloat(fanState.spread)||0)/2;
-  const to=fanState.mode==='range'?parseFloat(fanState.toOffset)||0:(parseFloat(fanState.spread)||0)/2;
-  return ordered.map((f,i)=>{
-    const c=findFanControl(f,controlId,axis);
-    const t=count>1?i/(count-1):0;
-    const base=c?(fanState.bases[fanBaseKey(f,c,axis)]??fanGetValue(f,c,axis)):Math.round(max/2);
-    const offset=from+(to-from)*t;
-    return{fixture:f,base,offset,finalVal:clamp(Math.round(base+offset),0,max)};
-  });
+  return fanOut.computedValues(fanFixtureOrder());
 }
 function renderFanToolbox(){
   const hint=document.getElementById('fanScopeHint');if(!hint)return;
@@ -1850,12 +1770,9 @@ function applyFanToController(options={}){
   const ordered=fanFixtureOrder();
   const {controlId,axis}=parseFanControlKey();
   if(!ordered.length||!controlId){setStatus('Select a group and fan control first',true);return;}
-  ensureFanBases();
   fanAffectedKeys=new Set();
-  fanComputedValues().forEach(({fixture,finalVal})=>{
-    const c=findFanControl(fixture,controlId,axis);if(!c)return;
-    fanSetValue(fixture,c,axis,finalVal);
-    fanAffectedKeys.add(controlKey(fixture,c));
+  fanOut.apply(ordered).forEach(({fixture,control})=>{
+    fanAffectedKeys.add(controlKey(fixture,control));
   });
   drawSurface();
   writeLiveValues(true);
@@ -1875,6 +1792,17 @@ function applyFanToController(options={}){
 function liveFanUpdate(){
   renderFanToolbox();
   applyFanToController({silent:true});
+}
+function clearFanOut(){
+  fanState.spread=0;
+  fanState.fromOffset=0;
+  fanState.toOffset=0;
+  fanState.inverted=false;
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  renderFanToolbox();
+  drawSurface();
+  setStatus('Fan Out shaping reset');
 }
 function fanPresetPayload(name){
   return{
@@ -2498,6 +2426,7 @@ document.getElementById('addWheelOption').onclick=()=>{
 
 // ── Group-edit ────────────────────────────────────────────────────────
 let selectedFixtureIds=new Set();
+let sourceFixtureId=null;
 let collapsedFixtureIds=new Set(JSON.parse(localStorage.getItem('fixtureCardCollapsed')||'[]'));
 let groupValues={};
 function groupCompatibilitySignature(c){
@@ -2507,6 +2436,18 @@ function groupCompatibilitySignature(c){
   return '';
 }
 function groupKey(c){return c.type+':'+c.label+groupCompatibilitySignature(c);}
+const fanOut=DmxCommon.createFanOutController({
+  state:fanState,
+  controlsFor:f=>fixtureProfile(f)?.controls||[],
+  compatibilityKey:groupKey,
+  controlId:c=>c.id,
+  controlLabel:c=>c.label,
+  controlType:c=>c.type,
+  hasChannel:c=>c.channel>=1,
+  fixtureId:f=>f.id,
+  getValue,
+  setValue
+});
 function defaultValueForControl(c){
   if(c.type==='panTilt16')return{pan:32768,tilt:32768};
   if(c.type==='panTilt8')return{pan:128,tilt:128};
@@ -2520,6 +2461,29 @@ function defaultValueForControl(c){
 }
 function findMatchingControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>groupKey(c)===key)||null;
+}
+function firstSelectedGroupFixtureId(){
+  for(const {g} of selectedSavedGroupEntries()){
+    for(const id of g.fixtureIds||[]){
+      if(fixtures.some(f=>String(f.id)===String(id)))return String(id);
+    }
+  }
+  return null;
+}
+function ensureGroupSourceFixture(){
+  const groupSource=firstSelectedGroupFixtureId();
+  if(groupSource){
+    sourceFixtureId=groupSource;
+    return sourceFixtureId;
+  }
+  const current=String(sourceFixtureId||'');
+  if(current&&selectedFixtureIds.has(parseInt(current,10))&&fixtures.some(f=>String(f.id)===current))return current;
+  const first=[...selectedFixtureIds].find(id=>fixtures.some(f=>String(f.id)===String(id)));
+  sourceFixtureId=first==null?null:String(first);
+  return sourceFixtureId;
+}
+function setGroupSourceFixture(fixtureId){
+  sourceFixtureId=fixtureId==null?null:String(fixtureId);
 }
 function getGroupCommonControls(){
   const fxList=[...selectedFixtureIds].map(id=>fixtures.find(f=>f.id===id)).filter(Boolean);
@@ -2568,6 +2532,12 @@ function getGroupEditableControls(){
 }
 function firstSelectedFixtureWithGroupControl(c){
   const key=groupKey(c);
+  const sourceId=ensureGroupSourceFixture();
+  if(sourceId){
+    const source=fixtures.find(fx=>String(fx.id)===String(sourceId));
+    const fc=source&&findMatchingControl(source,key);
+    if(fc&&selectedFixtureIds.has(source.id)&&isGroupControlInScope(source,fc))return{fixture:source,control:fc};
+  }
   for(const id of selectedFixtureIds){
     const f=fixtures.find(fx=>fx.id===id);if(!f)continue;
     const fc=findMatchingControl(f,key);
@@ -2639,6 +2609,7 @@ function updateGroupBar(){
 }
 function selectAllFixtures(){
   selectedFixtureIds=new Set(fixtures.map(f=>f.id));
+  sourceFixtureId=fixtures[0]?String(fixtures[0].id):null;
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
@@ -2651,6 +2622,7 @@ function selectAllFixtures(){
 }
 function clearGroupSelection(){
   selectedFixtureIds.clear();
+  sourceFixtureId=null;
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
@@ -2777,11 +2749,8 @@ function updateGroupControlDisplay(c){
 }
 function openGroupModal(){
   const common=getGroupEditableControls();if(!common.length)return;
-  common.forEach(c=>{
-    const match=firstSelectedFixtureWithGroupControl(c);
-    const key=groupKey(c);
-    if(match&&groupValues[key]===undefined)groupValues[key]=cloneValue(getValue(match.fixture,match.control,defaultValueForControl(c)));
-  });
+  ensureGroupSourceFixture();
+  syncGroupValuesFromFirstSelected(common);
   const n=selectedFixtureIds.size;
   const scoped=!!getActiveGroupControlScope();
   document.getElementById('groupModalTitle').textContent='Group Edit — '+n+' fixture'+(n>1?'s':'')+' selected · '+common.length+' '+(scoped?'scoped':'editable')+' control'+(common.length===1?'':'s');
@@ -2791,7 +2760,6 @@ function openGroupModal(){
 function closeGroupModal(){DmxCommon.hideModal('groupModal');drawSurface();}
 document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
-document.getElementById('groupModal').addEventListener('click',e=>{if(e.target===document.getElementById('groupModal'))closeGroupModal();});
 async function recallGroupFixtureValues(which){
   const ids=[...selectedFixtureIds];
   const editableKeys=new Set(getGroupEditableControls().map(c=>groupKey(c)));
@@ -2902,6 +2870,8 @@ function toggleManualFixtureSelection(id){
     activeFixtureFilterIds=new Set(materialized);
   }
   if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
+  if(selectedFixtureIds.has(id))setGroupSourceFixture(id);
+  else if(String(sourceFixtureId||'')===String(id))sourceFixtureId=null;
   activeSavedGroupIds.clear();
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
@@ -2963,6 +2933,7 @@ function applySharedGroupSelection(ids){
   fanState.bases={};
   fanAffectedKeys.clear();
   rebuildSelectionFromSavedGroups();
+  ensureGroupSourceFixture();
 }
 function rebuildSelectionFromSavedGroups(){
   selectedFixtureIds.clear();
@@ -2971,6 +2942,7 @@ function rebuildSelectionFromSavedGroups(){
     (g.fixtureIds||[]).forEach(id=>{if(fixtures.some(f=>f.id===id))selectedFixtureIds.add(id);});
     Object.assign(groupValues,g.values||{});
   });
+  ensureGroupSourceFixture();
 }
 function loadSavedGroups(){
   fetch('group_setup.php').then(r=>r.json()).then(d=>{
@@ -3990,6 +3962,7 @@ const fanToolbox=DmxCommon.initFloatingToolbox({
 });
 document.getElementById('fanControlSelect').addEventListener('change',e=>{
   fanState.controlKey=e.target.value;
+  fanOut.resetOffsets();
   fanState.bases={};
   fanAffectedKeys.clear();
   snapshotFanBases();
@@ -4004,7 +3977,7 @@ document.getElementById('fanSnapshot').onclick=()=>{snapshotFanBases();setStatus
 document.getElementById('fanApply').onclick=applyFanToController;
 document.getElementById('fanSave').onclick=saveFanPreset;
 document.getElementById('fanRecall').onclick=recallFanPreset;
-document.getElementById('fanClear').onclick=()=>{fanAffectedKeys.clear();fanState.bases={};drawSurface();setStatus('Fan Out highlight cleared');};
+document.getElementById('fanClear').onclick=clearFanOut;
 loadFanPresets();
 // ── End Fan Out toolbox ───────────────────────────────────────────────
 

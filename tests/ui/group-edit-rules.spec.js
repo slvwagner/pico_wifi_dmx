@@ -18,6 +18,11 @@ test.describe('Cross-page Group Edit contract', () => {
 
     await expect(page.locator('#groupModal')).toBeVisible();
     await expect(page.locator('#groupModalBody .control h3')).toHaveText(['Dimmer']);
+
+    await page.locator('#groupModal').click({ position: { x: 8, y: 8 } });
+    await expect(page.locator('#groupModal')).toBeVisible();
+    await page.locator('#closeGroupModal2').click();
+    await expect(page.locator('#groupModal')).toBeHidden();
   });
 
   test('Chaser: Participating Controls All enables Group Edit without a selected step', async ({ page }) => {
@@ -30,6 +35,11 @@ test.describe('Cross-page Group Edit contract', () => {
 
     await expect(page.locator('#chaserGroupModal')).toBeVisible();
     await expect(page.locator('#chaserGroupModalBody .control h3')).toHaveText(['Dimmer']);
+
+    await page.locator('#chaserGroupModal').click({ position: { x: 8, y: 8 } });
+    await expect(page.locator('#chaserGroupModal')).toBeVisible();
+    await page.locator('#closeChaserGroupModal2').click();
+    await expect(page.locator('#chaserGroupModal')).toBeHidden();
   });
 
   test('Motion: choosing Dimmer enables Group Edit across fixture types without enabling playback', async ({ page }) => {
@@ -51,5 +61,13 @@ test.describe('Cross-page Group Edit contract', () => {
 
     expect(state.enabledPlaybackFixtures).toBe(0);
     expect(state.editProfiles.sort()).toEqual(['Profile A', 'Profile B']);
+
+    await page.locator('#motionGroupsEdit').click();
+    await expect(page.locator('#motionGroupModal')).toBeVisible();
+    await expect(page.locator('#motionGroupModalBody .control h3')).toHaveText(['Dimmer']);
+    await page.locator('#motionGroupModal').click({ position: { x: 8, y: 8 } });
+    await expect(page.locator('#motionGroupModal')).toBeVisible();
+    await page.locator('#closeMotionGroupModal2').click();
+    await expect(page.locator('#motionGroupModal')).toBeHidden();
   });
 });

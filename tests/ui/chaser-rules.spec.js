@@ -1,5 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage, injectChaserCompactSetup } = require('./helpers/dmx-page');
+const fs = require('fs');
+const path = require('path');
 
 test.describe('Chaser established rules', () => {
   test.beforeEach(async ({ page }) => {
@@ -33,6 +35,51 @@ test.describe('Chaser established rules', () => {
       expect(state.collapsedHeight).toBeLessThan(state.expandedHeight * 0.45);
       expect(state.collapsedHeight).toBeLessThanOrEqual(60);
     }
+  });
+
+  test('Fan Out toolbox layout comes from shared common markup', async ({ page }) => {
+    const repoRoot = path.resolve(__dirname, '../..');
+    const controllerHtml = fs.readFileSync(path.join(repoRoot, 'web/dmx_fixture_controller.html'), 'utf8');
+    const chaserHtml = fs.readFileSync(path.join(repoRoot, 'web/dmx_chaser.html'), 'utf8');
+    const commonJs = fs.readFileSync(path.join(repoRoot, 'web/assets/dmx-common.js'), 'utf8');
+
+    expect((controllerHtml.match(/scene-toolbox--fan/g) || []).length).toBe(0);
+    expect((chaserHtml.match(/scene-toolbox--fan/g) || []).length).toBe(0);
+    expect(commonJs).toContain('function fanOutToolboxHtml');
+    expect(controllerHtml).toContain('DmxCommon.mountFanOutToolbox');
+    expect(chaserHtml).toContain('DmxCommon.mountFanOutToolbox');
+
+    const chaserLayout = await page.evaluate(() => ({
+      labels: [...document.querySelectorAll('#fanToolbox label')].map(label => label.childNodes[0]?.textContent.trim()),
+      inputs: [...document.querySelectorAll('#fanToolbox select,#fanToolbox input')].map(input => ({ id: input.id, type: input.tagName === 'SELECT' ? 'select' : input.type })),
+      buttons: [...document.querySelectorAll('#fanToolbox button')].map(button => button.id)
+    }));
+
+    await openDmxPage(page, '');
+    const controllerLayout = await page.evaluate(() => ({
+      labels: [...document.querySelectorAll('#fanToolbox label')].map(label => label.childNodes[0]?.textContent.trim()),
+      inputs: [...document.querySelectorAll('#fanToolbox select,#fanToolbox input')].map(input => ({ id: input.id, type: input.tagName === 'SELECT' ? 'select' : input.type })),
+      buttons: [...document.querySelectorAll('#fanToolbox button')].map(button => button.id)
+    }));
+
+    expect(chaserLayout).toEqual(controllerLayout);
+  });
+
+  test('Fan Out spread slider fills the shared toolbox width on Chaser', async ({ page }) => {
+    const layout = await page.evaluate(() => {
+      const slider = document.getElementById('fanSpread');
+      const label = document.getElementById('fanSpreadWrap');
+      const row = slider.closest('div');
+      return {
+        sliderWidth: slider.getBoundingClientRect().width,
+        labelWidth: label.getBoundingClientRect().width,
+        rowWidth: row.getBoundingClientRect().width
+      };
+    });
+
+    expect(layout.sliderWidth).toBeGreaterThan(180);
+    expect(layout.sliderWidth).toBeGreaterThan(layout.labelWidth * 0.9);
+    expect(layout.labelWidth).toBeGreaterThan(layout.rowWidth * 0.55);
   });
 
   test('Pico Playback panel has a persistent collapse button', async ({ page }) => {
@@ -182,6 +229,270 @@ test.describe('Chaser established rules', () => {
     expect(state.canEdit).toBe(true);
   });
 
+  test('selected group uses its first fixture as the group edit source', async ({ page }) => {
+    await page.evaluate(() => {
+      chaserGroupsBox.setGroups([{ id: 'grp_reverse', name: 'Reverse Pair', fixtureIds: [102, 101], values: {} }]);
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      participating['102:21'] = true;
+      steps = [makeStep('Source group step', { '101:11': 11, '102:21': 88 })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      sourceFixtureId = '101';
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+    });
+    await page.locator('#chaserGroupsBox [data-group-index="0"]').click();
+
+    const state = await page.evaluate(() => {
+      const control = getChaserGroupEditableControls().find(c => c.label === 'Dimmer');
+      applyChaserGroupSourceValue(control);
+      return {
+        sourceFixtureId,
+        selectedGroups: chaserGroupsBox.selectedGroups().map(g => g.id),
+        sourceCards: [...document.querySelectorAll('#stepSurface .source-fixture')].map(card => ({
+          fixtureId: card.dataset.sourceFixture,
+          title: card.querySelector('h2')?.textContent.trim()
+        })),
+        values: steps[0].values
+      };
+    });
+
+    expect(state.selectedGroups).toEqual(['grp_reverse']);
+    expect(state.sourceFixtureId).toBe('102');
+    expect(state.sourceCards).toEqual([{ fixtureId: '102', title: 'B 1 Source' }]);
+    expect(state.values['101:11']).toBe(88);
+    expect(state.values['102:21']).toBe(88);
+  });
+
+  test('Chaser Fan Out uses the shared common controller for step values', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      participating['102:21'] = true;
+      steps = [makeStep('Fan step', { '101:11': 50, '102:21': 50 })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      sourceFixtureId = '101';
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      renderFanToolbox();
+
+      const option = fanControlOptions().find(o => o.label === 'Dimmer');
+      fanState.controlKey = option.key;
+      fanState.mode = 'symmetric';
+      fanState.spread = 100;
+      fanState.inverted = false;
+      applyFanToStep({ silent: true });
+
+      return {
+        commonApply: typeof chaserFanOut.apply,
+        commonOptions: chaserFanOut.controlOptions(fanFixtureOrder()).map(o => o.label),
+        values: steps[0].values
+      };
+    });
+
+    expect(state.commonApply).toBe('function');
+    expect(state.commonOptions).toContain('Dimmer');
+    expect(state.values['101:11']).toBe(0);
+    expect(state.values['102:21']).toBe(100);
+  });
+
+  test('Chaser Fan Out control selection resets spread offsets', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      participating['102:21'] = true;
+      setup.profiles.find(p => p.id === 1).controls.push({ id: 13, type: 'wheel', label: 'Gobo', channel: 6, options: [{ name: 'Open', value: 0 }] });
+      setup.profiles.find(p => p.id === 2).controls.push({ id: 23, type: 'wheel', label: 'Gobo', channel: 5, options: [{ name: 'Open', value: 0 }] });
+      participating['101:13'] = true;
+      participating['102:23'] = true;
+      participating['101:12'] = true;
+      steps = [makeStep('Fan reset step', {
+        '101:11': 10,
+        '102:21': 20,
+        '101:13': 0,
+        '102:23': 0
+      })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      renderFanToolbox();
+
+      const options = fanControlOptions();
+      fanState.controlKey = options[0].key;
+      fanState.spread = 80;
+      fanState.fromOffset = -40;
+      fanState.toOffset = 40;
+      const select = document.getElementById('fanControlSelect');
+      select.value = options[1].key;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+
+      return {
+        controlKey: fanState.controlKey,
+        spread: fanState.spread,
+        fromOffset: fanState.fromOffset,
+        toOffset: fanState.toOffset
+      };
+    });
+
+    expect(state.controlKey).toBeTruthy();
+    expect(state.spread).toBe(0);
+    expect(state.fromOffset).toBe(0);
+    expect(state.toOffset).toBe(0);
+  });
+
+  test('Chaser Fan Out exposes the same actions and can save and recall a preset', async ({ page }) => {
+    const state = await page.evaluate(async () => {
+      DmxCommon.saveUiState = async () => ({ ok: true });
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      participating['102:21'] = true;
+      steps = [makeStep('Fan preset step', { '101:11': 40, '102:21': 40 })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      sourceFixtureId = '101';
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      renderFanToolbox();
+
+      const option = fanControlOptions().find(o => o.label === 'Dimmer');
+      fanState.controlKey = option.key;
+      fanState.mode = 'range';
+      fanState.spread = 44;
+      fanState.fromOffset = -20;
+      fanState.toOffset = 60;
+      fanState.inverted = true;
+
+      const originalPrompt = window.prompt;
+      window.prompt = () => 'Chaser Fan';
+      saveFanPreset();
+      fanState.mode = 'symmetric';
+      fanState.spread = 0;
+      fanState.fromOffset = 0;
+      fanState.toOffset = 0;
+      fanState.inverted = false;
+      window.prompt = () => '1';
+      recallFanPreset();
+      window.prompt = originalPrompt;
+
+      return {
+        buttons: ['fanSave', 'fanRecall', 'fanSnapshot', 'fanApply', 'fanClear'].map(id => ({
+          id,
+          exists: !!document.getElementById(id),
+          disabled: document.getElementById(id)?.disabled
+        })),
+        presetCount: fanPresets.length,
+        state: {
+          controlKey: fanState.controlKey,
+          mode: fanState.mode,
+          spread: fanState.spread,
+          fromOffset: fanState.fromOffset,
+          toOffset: fanState.toOffset,
+          inverted: fanState.inverted
+        }
+      };
+    });
+
+    expect(state.buttons.every(button => button.exists)).toBe(true);
+    expect(state.buttons.find(button => button.id === 'fanRecall').disabled).toBe(false);
+    expect(state.presetCount).toBe(1);
+    expect(state.state.mode).toBe('range');
+    expect(state.state.spread).toBe(44);
+    expect(state.state.fromOffset).toBe(-20);
+    expect(state.state.toOffset).toBe(60);
+    expect(state.state.inverted).toBe(true);
+  });
+
+  test('Chaser Fan Out can apply from participating fixtures without a selected step', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      participating['102:21'] = true;
+      steps = [];
+      selectedStepIdx = -1;
+      activeStepValueKeys = null;
+      sourceFixtureId = null;
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      renderFanToolbox();
+
+      const option = fanControlOptions().find(o => o.label === 'Dimmer');
+      fanState.controlKey = option.key;
+      fanState.mode = 'symmetric';
+      fanState.spread = 100;
+      applyFanToStep({ silent: true });
+
+      return {
+        controlsDisabled: ['fanControlSelect', 'fanSpread', 'fanApply', 'fanSave'].map(id => document.getElementById(id).disabled),
+        selectedStepIdx,
+        steps: steps.length,
+        activeKeys: [...activeStepValueKeys],
+        values: steps[0]?.values
+      };
+    });
+
+    expect(state.controlsDisabled.every(Boolean)).toBe(false);
+    expect(state.selectedStepIdx).toBe(0);
+    expect(state.steps).toBe(1);
+    expect(state.activeKeys.sort()).toEqual(['101:11', '102:21']);
+    expect(state.values['101:11']).toBe(0);
+    expect(state.values['102:21']).toBe(50);
+  });
+
+  test('Chaser Group Edit modal updates values without redrawing the page behind it', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      participating['102:21'] = true;
+      steps = [makeStep('Group modal step', { '101:11': 10, '102:21': 20 })];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(steps[0].values));
+      sourceFixtureId = '101';
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      openChaserGroupModal();
+
+      let redrawCount = 0;
+      const originalDrawStepEditor = drawStepEditor;
+      drawStepEditor = function patchedDrawStepEditor() {
+        redrawCount += 1;
+        return originalDrawStepEditor();
+      };
+
+      const slider = document.querySelector('#chaserGroupModalBody input[type="range"][data-cg]:not([data-axis]):not([data-part]):not([data-byte-part])');
+      slider.value = '77';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      const duringModal = {
+        redrawCount,
+        modalReadout: document.querySelector('#chaserGroupModalBody [data-cg-readout]').textContent,
+        values: { ...steps[0].values }
+      };
+
+      closeChaserGroupModal();
+      const afterClose = {
+        redrawCount,
+        stepReadout: document.querySelector('#stepSurface [data-readoutf="101"][data-readoutc="11"]').textContent
+      };
+      drawStepEditor = originalDrawStepEditor;
+      return { duringModal, afterClose };
+    });
+
+    expect(state.duringModal.redrawCount).toBe(0);
+    expect(state.duringModal.modalReadout).toBe('77');
+    expect(state.duringModal.values['101:11']).toBe(77);
+    expect(state.duringModal.values['102:21']).toBe(77);
+    expect(state.afterClose.redrawCount).toBeGreaterThan(0);
+    expect(state.afterClose.stepReadout).toBe('77');
+  });
+
   test('Only selects one control type without reducing the fixture scope when no group filter is active', async ({ page }) => {
     const result = await page.evaluate(() => {
       document.getElementById('groupControlSelect').value = 'Dimmer|slider8';
@@ -196,6 +507,29 @@ test.describe('Chaser established rules', () => {
     expect(result.selectedGroups).toBe(0);
     expect(result.participatingKeys.sort()).toEqual(['101:11', '102:21']);
     expect([...new Set(result.fixtures)].sort()).toEqual([101, 102]);
+  });
+
+  test('Only keeps the selected group filter while changing participating controls', async ({ page }) => {
+    await page.evaluate(() => {
+      chaserGroupsBox.setGroups([{ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} }]);
+    });
+    await page.locator('#chaserGroupsBox [data-group-index="0"]').click();
+
+    const result = await page.evaluate(() => {
+      document.getElementById('groupControlSelect').value = 'Dimmer|slider8';
+      document.getElementById('btnGroupControlOnly').click();
+      return {
+        selectedGroups: chaserGroupsBox.selectedGroups().map(g => g.id),
+        participatingKeys: Object.entries(participating).filter(([, v]) => v).map(([k]) => k),
+        visibleFixtures: [...new Set(getParticipatingList().map(item => item.f.id))],
+        status: document.getElementById('status').textContent
+      };
+    });
+
+    expect(result.selectedGroups).toEqual(['grp_dimmer']);
+    expect(result.participatingKeys.sort()).toEqual(['101:11', '102:21']);
+    expect(result.visibleFixtures.sort()).toEqual([101, 102]);
+    expect(result.status).toContain('Selected only');
   });
 
   test('None clears participating controls, collapses fixtures, and clears groups', async ({ page }) => {

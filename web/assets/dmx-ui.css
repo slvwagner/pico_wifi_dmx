@@ -110,6 +110,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox--palettes .scene-toolbox__header{background:rgb(50,90,54)}
 .scene-toolbox--fan .scene-toolbox__header{background:#5a171a}
 .scene-toolbox--effects .scene-toolbox__header{background:#17425a}
+.scene-toolbox--fan input[type=range]{width:100%;min-width:0}
+.scene-toolbox--fan label{min-width:0}
 .fan-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
 .fan-preview-card{border:1px solid var(--line);border-radius:7px;background:#0a0d10;padding:7px;text-align:center}
 .fan-preview-card.active{border-color:rgba(244,114,182,.75)}

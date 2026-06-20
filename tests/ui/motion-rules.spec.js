@@ -257,6 +257,22 @@ test.describe('Motion FX established rules', () => {
     expect(result.panTiltState.serializedAmp2).toBe('AMP2 0.370000');
   });
 
+  test('phase spread spans from the first to the last enabled fixture', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const degrees = value => Math.round(value * 180 / Math.PI);
+      const fullSpread = Math.PI * 2;
+      return {
+        oneFixture: [0].map(i => degrees(window.motionAutoPhase(fullSpread, i, 1))),
+        twoFixtures: [0, 1].map(i => degrees(window.motionAutoPhase(fullSpread, i, 2))),
+        threeFixtures: [0, 1, 2].map(i => degrees(window.motionAutoPhase(fullSpread, i, 3)))
+      };
+    });
+
+    expect(result.oneFixture).toEqual([0]);
+    expect(result.twoFixtures).toEqual([0, 360]);
+    expect(result.threeFixtures).toEqual([0, 180, 360]);
+  });
+
   test('one-axis pan and tilt swing effects hide and zero the unused axis without losing two-axis values', async ({ page }) => {
     const result = await page.evaluate(() => {
       const pan = motionFixtures.find(mf => mf.kind === 'panTilt');

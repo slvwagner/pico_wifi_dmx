@@ -270,7 +270,7 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             mfx_target_t *t = &sn->targets[i];
             if (!t->enabled) continue;
 
-            float auto_phase = (sn->enabled_count > 1) ? spread_rad * ti / (float)sn->enabled_count : 0.0f;
+            float auto_phase = (sn->enabled_count > 1) ? spread_rad * ti / (float)(sn->enabled_count - 1) : 0.0f;
             float phase = t->phase_offset_deg * MFX_PI / 180.0f + auto_phase;
             float off1, off2;
             effect_offset(angle + phase, sn->type, &off1, &off2);
