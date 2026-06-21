@@ -1107,9 +1107,78 @@ test.describe('Fixture Controller established rules', () => {
       kind: 'WheelRotation'
     }));
     expect(state.selectedAtRangeValue).toBe('Red');
-    expect(state.textFormat).toBe('Red=11-21|#ff0000');
+    expect(state.textFormat).toBe('Red=11-21|#ff0000|kind=WheelSlot|slot=2');
     expect(state.activeButtonText).toContain('Red');
     expect(state.activeTitle).toBe('DMX 11-21 · WheelSlot');
+  });
+
+  test('manual wheel option editor supports ranges and OFL-style metadata', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const text = [
+        'Open=0-15|kind=WheelSlot|slot=1',
+        'Gobo 2=16-31|kind=WheelSlot|slot=2',
+        'Gobo 3=32-46|kind=WheelSlot|slot=3',
+        'Gobo 4=47-62|kind=WheelSlot|slot=4',
+        'Gobo 5=63-78|kind=WheelSlot|slot=5',
+        'Gobo 6=79-93|kind=WheelSlot|slot=6',
+        'Gobo 7=94-109|kind=WheelSlot|slot=7',
+        'Gobo 8=110-124|kind=WheelSlot|slot=8',
+        'Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast',
+        'Gobo 3 shake=141-156|kind=WheelShake|slot=3|shake=slow-fast',
+        'Gobo 4 shake=157-171|kind=WheelShake|slot=4|shake=slow-fast',
+        'Gobo 5 shake=172-187|kind=WheelShake|slot=5|shake=slow-fast',
+        'Gobo 6 shake=188-203|kind=WheelShake|slot=6|shake=slow-fast',
+        'Gobo 7 shake=204-218|kind=WheelShake|slot=7|shake=slow-fast',
+        'Gobo 8 shake=219-249|kind=WheelShake|slot=8|shake=slow-fast',
+        'Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW'
+      ].join('\n');
+      const options = parseWheelOptions(text);
+      const wheel = { id: 8801, type: 'wheel', label: 'Gobo Wheel', channel: 1, options };
+      const shake = options.find(o => o.name === 'Gobo 2 shake');
+      const rotation = options.find(o => o.kind === 'WheelRotation');
+      profiles.splice(0, profiles.length, { id: 8800, name: 'Manual wheel', mode: 'test', channels: 1, controls: [wheel] });
+      fixtures.splice(0, fixtures.length, { id: 8802, name: 'Manual wheel fixture', profileId: 8800, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['8802:8801'] = 130;
+      drawSurface();
+      const host = document.querySelector('[data-wheel-range-host="8802:8801"]');
+      return {
+        count: options.length,
+        gobo2: options.find(o => o.name === 'Gobo 2'),
+        shake,
+        rotation,
+        selectedAt130: selectedWheelOption(wheel, 130)?.name,
+        sliderMin: host?.querySelector('input[type="range"]')?.getAttribute('min'),
+        sliderMax: host?.querySelector('input[type="range"]')?.getAttribute('max'),
+        sliderLabel: host?.textContent,
+        formattedShake: wheelOptionsText([shake]),
+        formattedRotation: wheelOptionsText([rotation])
+      };
+    });
+
+    expect(state.count).toBe(16);
+    expect(state.gobo2).toEqual(expect.objectContaining({ value: 24, range: [16, 31], kind: 'WheelSlot', slotNumber: 2 }));
+    expect(state.shake).toEqual(expect.objectContaining({
+      value: 133,
+      range: [125, 140],
+      kind: 'WheelShake',
+      slotNumber: 2,
+      shakeSpeedStart: 'slow',
+      shakeSpeedEnd: 'fast'
+    }));
+    expect(state.rotation).toEqual(expect.objectContaining({
+      value: 253,
+      range: [250, 255],
+      kind: 'WheelRotation',
+      speedStart: 'slow CW',
+      speedEnd: 'fast CW'
+    }));
+    expect(state.selectedAt130).toBe('Gobo 2 shake');
+    expect(state.sliderMin).toBe('125');
+    expect(state.sliderMax).toBe('140');
+    expect(state.sliderLabel).toContain('Shake speed');
+    expect(state.formattedShake).toBe('Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast');
+    expect(state.formattedRotation).toBe('Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW');
   });
 
   test('Update Library preserves rich OFL wheel metadata when edited profile options are plain text', async ({ page }) => {

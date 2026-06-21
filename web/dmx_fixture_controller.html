@@ -212,6 +212,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label>Wheel options, one per line: name=value
 <textarea id="wheelOptions">Open=0</textarea>
 </label>
+<div class="small">Ranges and OFL-style metadata are supported, for example <code>Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast</code> or <code>Rotation=250-255|kind=WheelRotation|speed=slow CW-fast CW</code>.</div>
 <div class="wheel-editor">
 <div class="toolbar">
 <label>Option name<input id="wheelName" type="text" value="Open"></label>
@@ -616,7 +617,6 @@ function parseWheelOptions(text){
   return text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
     const parts=line.split('=');
     const meta=(parts.slice(1).join('=')||'0').split('|');
-    const visual=(meta[1]||'').trim();
     const rawValue=(meta[0]||'0').trim();
     const rangeMatch=rawValue.match(/^(\d+)\s*-\s*(\d+)$/);
     const option={name:(parts[0]||'Value').trim(),value:clamp(rawValue,0,255)};
@@ -625,17 +625,54 @@ function parseWheelOptions(text){
       option.range=[Math.min(start,end),Math.max(start,end)];
       option.value=Math.round((option.range[0]+option.range[1])/2);
     }
-    if(visual.startsWith('#'))option.color=visual;
-    else if(visual.startsWith('data:image/'))option.image=visual;
+    meta.slice(1).map(item=>item.trim()).filter(Boolean).forEach(item=>applyWheelOptionMeta(option,item));
     return option;
   });
+}
+
+function applyWheelOptionMeta(option,item){
+  const pair=item.match(/^([a-zA-Z][\w-]*)\s*=\s*(.*)$/);
+  if(!pair){
+    if(item.startsWith('#'))option.color=item;
+    else if(item.startsWith('data:image/'))option.image=item;
+    return;
+  }
+  const key=pair[1].trim().toLowerCase();
+  const value=pair[2].trim();
+  if(key==='color')option.color=value;
+  else if(key==='image')option.image=value;
+  else if(key==='kind'||key==='type')option.kind=value;
+  else if(key==='slot'||key==='slotnumber')option.slotNumber=clamp(value,0,999);
+  else if(key==='slotstart'||key==='slotnumberstart')option.slotNumberStart=clamp(value,0,999);
+  else if(key==='slotend'||key==='slotnumberend')option.slotNumberEnd=clamp(value,0,999);
+  else if(key==='speed')applyWheelOptionRangeText(option,value,'speedStart','speedEnd');
+  else if(key==='shake')applyWheelOptionRangeText(option,value,'shakeSpeedStart','shakeSpeedEnd');
+  else if(key==='speedstart')option.speedStart=value;
+  else if(key==='speedend')option.speedEnd=value;
+  else if(key==='shakespeedstart')option.shakeSpeedStart=value;
+  else if(key==='shakespeedend')option.shakeSpeedEnd=value;
+}
+
+function applyWheelOptionRangeText(option,value,startKey,endKey){
+  const parts=value.split(/\s*(?:->|=>|\.\.| to |-)\s*/).map(part=>part.trim()).filter(Boolean);
+  if(parts[0])option[startKey]=parts[0];
+  if(parts.length>1)option[endKey]=parts.slice(1).join(' ');
 }
 
 function wheelOptionsText(options){
   return (options||[]).map(o=>{
     const range=wheelOptionRange(o);
     const value=range?range[0]+'-'+range[1]:clamp(o.value,0,255);
-    return o.name+'='+value+(o.image?'|'+o.image:(o.color?'|'+o.color:''));
+    const meta=[];
+    if(o.color)meta.push(o.color);
+    if(o.image)meta.push(o.image);
+    if(o.kind)meta.push('kind='+o.kind);
+    if(o.slotNumber!==undefined)meta.push('slot='+o.slotNumber);
+    if(o.slotNumberStart!==undefined)meta.push('slotStart='+o.slotNumberStart);
+    if(o.slotNumberEnd!==undefined)meta.push('slotEnd='+o.slotNumberEnd);
+    if(o.shakeSpeedStart||o.shakeSpeedEnd)meta.push('shake='+(o.shakeSpeedStart||'')+'-'+(o.shakeSpeedEnd||''));
+    if(o.speedStart||o.speedEnd)meta.push('speed='+(o.speedStart||'')+'-'+(o.speedEnd||''));
+    return o.name+'='+value+(meta.length?'|'+meta.join('|'):'');
   }).join('\n');
 }
 
