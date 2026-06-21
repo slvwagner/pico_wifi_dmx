@@ -759,7 +759,7 @@ The Fixture Library panel loads the built-in converted Open Fixture Library cata
 .\scripts\sync_fixture_library_from_xampp.ps1
 ```
 
-The script validates `schemaVersion`, `fixtureCount`, unique fixture keys, and the fixture/mode arrays before writing the project asset.
+The script validates `schemaVersion`, `fixtureCount`, unique fixture keys, and the fixture/mode arrays before writing the project asset. If the XAMPP library differs from the bundled asset, it reviews added, removed, and changed fixtures one by one and asks whether to take the XAMPP version or keep the bundled version. Use `-AcceptAllChanges` for an intentional full refresh, `-KeepExistingChanges` to keep the current bundled fixture edits, or `-DryRun` to review without writing.
 
 Setup command buttons use shared direct feedback: while work is running the button shows a short busy label, then briefly switches to a success or failure label such as **Added**, **Updated**, **Imported**, or **Failed** before returning to its normal text.
 
