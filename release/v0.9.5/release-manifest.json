@@ -1,0 +1,36 @@
+{
+  "version": "0.9.5",
+  "branch": "feature/matrix-fixtures",
+  "commit": "fa21395",
+  "createdAt": "2026-06-21T19:55:56Z",
+  "tests": {
+    "hardware": false
+  },
+  "docsGenerated": true,
+  "firmware": {
+    "file": "pico_wifi_dmx-v0.9.5.uf2",
+    "sizeBytes": 879104,
+    "sha256": "ad5874b6cf3020c651d86268aa4379e1bc98c1d327f236d02bb7d27bae023a46"
+  },
+  "docs": {
+    "user-manual.md": {
+      "sizeBytes": 76448,
+      "sha256": "575964d1df74816cd20fa1d2330c426cb51f9aaa9c468555e0e0d562fae89cc2"
+    },
+    "user-manual.html": {
+      "sizeBytes": 89951,
+      "sha256": "006a9e60ced77afa4b66c0c0a30f790b501ed6e44b0ae45c364a846264a96e0a"
+    },
+    "user-manual-print.html": {
+      "sizeBytes": 89951,
+      "sha256": "006a9e60ced77afa4b66c0c0a30f790b501ed6e44b0ae45c364a846264a96e0a"
+    },
+    "user-manual.pdf": {
+      "sizeBytes": 2389656,
+      "sha256": "3a74f1c4a8a93532d8d29f6106d4dec4b3fcd6def8aed18011eb464e3447c2d5"
+    },
+    "screenshots": {
+      "count": 38
+    }
+  }
+}
