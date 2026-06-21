@@ -18,7 +18,8 @@ Changed:
 - Enhanced Fan Out with shared common-code layout, autosaved working state, spread step-size controls, +/- fine adjustment buttons, and a signed Spread slider centered at `0` so negative Spread replaces the old Invert button.
 - Unified Fan Out behavior between Controller and Chaser pages so both use the same source/order model and full-width Spread layout.
 - Added relative value editing for live controls, with dedicated fine adjustment for 16-bit channels and correct fine-channel underflow/overflow carry into the coarse channel.
-- Added Pan/Tilt fixture profile mapping options for reversing Pan DMX, reversing Tilt DMX, and swapping Pan/Tilt physical axes while keeping the UI values logical.
+- Added Pan/Tilt fixture profile mapping options for reversing Pan DMX, reversing Tilt DMX, and swapping Pan/Tilt physical axes while keeping the UI values logical. Saving an edited Pan/Tilt control now immediately reapplies the current live value to patched fixtures when a Pico base URL is set, so mounting-correction changes take effect right away.
+- Extended Pico Motion upload/firmware support so 16-bit Pan/Tilt motion targets keep coarse/fine channels, swapped axes use the correct physical channels, and optional reverse flags invert motion around the current base value.
 - Removed redundant absolute Pan/Tilt coarse/fine sliders where the Pan/Tilt plot and relative controls now provide the practical movement workflow.
 - Added autosaved relative step-size settings for Group Edit so the user-selected fine movement increments survive reloads.
 - Fixed Motion FX phase spread handling so the preview/output reflects the intended `0..360` degree range.
@@ -34,9 +35,11 @@ Fixed:
 - Fixed group tile drag/drop by giving groups the same numbered slot model used by scenes and palettes.
 - Fixed page navigation losing saved groups by keeping toolbox group state persisted server-side.
 - Fixed fixture profile cards so title/description layout and profile selection hover behavior match Control Surface fixture cards.
+- Fixed fixture library updates so show-specific Pan/Tilt reverse/swap mounting corrections are cleared from the reusable library copy.
 - Fixed toolbox scrollbar usability by widening scrollbars, allowing the toolbox width up to two thirds of the screen, and highlighting the scroll thumb on hover.
 - Fixed sticky controller/toolbox behavior across iPad portrait/landscape layouts.
 - Fixed Fan Out spread reset and source/order inconsistencies across Controller and Chaser workflows.
+- Fixed browser Motion FX stop behavior so a running effect restores the stored base position instead of making the last moving output become the next effect center.
 - Fixed group edit modal close behavior so it only closes through explicit close controls.
 
 ## 0.9.4 - 2026-06-16

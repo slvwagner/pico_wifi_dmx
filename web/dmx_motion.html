@@ -1038,8 +1038,10 @@ async function startMotion(){
 }
 
 function stopMotion(){
+  const wasRunning=running;
   running=false;
   clearInterval(intervalId);
+  if(wasRunning)restoreMotionBaseOutput();
   document.getElementById('startStop').textContent='▶ Start';
   document.getElementById('startStop').className='primary';
   setStatus('Stopped');
@@ -1057,6 +1059,19 @@ function sendBatch(map){
   },[]).join(',');
   if(!pairs)return;
   fetch(root+'/dmx/b',{method:'POST',body:pairs,cache:'no-store'}).catch(()=>{});
+}
+
+function restoreMotionBaseOutput(){
+  const enabled=motionFixtures.filter(mf=>mf.enabled);
+  if(!enabled.length)return;
+  const batchMap={};
+  enabled.forEach(mf=>{
+    if(mf.kind==='panTilt')addMotionControlValueToBatch(mf,{pan:mf.basePan,tilt:mf.baseTilt},batchMap);
+    else addMotionControlValueToBatch(mf,mf.baseValue,batchMap);
+  });
+  sendBatch(batchMap);
+  drawFixtureList();
+  drawPathPreview();
 }
 
 function sendMotionTargetValue(mf,value,batchMap){

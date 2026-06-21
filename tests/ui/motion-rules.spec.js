@@ -276,6 +276,50 @@ test.describe('Motion FX established rules', () => {
     expect(result).toBe('TARGET pantilt16 1 4 5 2 3 0.00 1 1');
   });
 
+  test('stopping browser motion restores the base position instead of adopting the moving output', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const sent = [];
+      const originalFetch = window.fetch;
+      window.fetch = async (url, options = {}) => {
+        const text = String(url);
+        if (text.includes('/dmx/b')) {
+          sent.push({ url: text, body: options.body || '' });
+          return { ok: true, json: async () => ({ ok: true }) };
+        }
+        return originalFetch(url, options);
+      };
+      baseUrlEl.value = location.origin;
+      const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
+      motionFixtures.forEach(mf => { mf.enabled = mf === pan; });
+      selectedMotionTargetKey = motionControlKey(pan.control);
+      pan.basePan = 0x1234;
+      pan.baseTilt = 0xabcd;
+      sentToPico = {
+        2: 0x99,
+        3: 0x88,
+        4: 0x77,
+        5: 0x66
+      };
+      running = true;
+      intervalId = setInterval(() => {}, 1000);
+      stopMotion();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      window.fetch = originalFetch;
+      return {
+        sent,
+        basePan: pan.basePan,
+        baseTilt: pan.baseTilt,
+        running
+      };
+    });
+
+    expect(result.running).toBe(false);
+    expect(result.basePan).toBe(0x1234);
+    expect(result.baseTilt).toBe(0xabcd);
+    expect(result.sent).toHaveLength(1);
+    expect(result.sent[0].body).toBe('2:18,3:52,4:171,5:205');
+  });
+
   test('phase spread spans from the first to the last enabled fixture', async ({ page }) => {
     const result = await page.evaluate(() => {
       const degrees = value => Math.round(value * 180 / Math.PI);

@@ -670,7 +670,7 @@ Supported effects include:
 - Pan/tilt targets: Circle, Figure-8, Pan swing, Tilt swing
 - Scalar targets: Sine, Pulse
 
-Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Amplitude** slider as the effect depth.
+Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the **Amplitude** slider as the effect depth. Browser playback is only an overlay for testing; when you press **Stop**, Motion FX restores the stored base values to the output so the last moving effect position does not become the next center.
 
 ### Participating Controls
 
