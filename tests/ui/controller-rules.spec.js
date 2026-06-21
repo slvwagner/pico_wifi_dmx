@@ -1182,7 +1182,10 @@ test.describe('Fixture Controller established rules', () => {
   });
 
   test('guided wheel editor modal writes rich wheel metadata', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
     await page.locator('#controlType').selectOption('wheel');
+    await page.locator('#openControlDetails').click();
+    await expect(page.locator('#controlDetailsModal')).toBeVisible();
     await page.locator('#wheelOptions').fill('Open=0-15\nGobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast\nStrobe=11-255|kind=ShutterStrobe|speed=slow-fast');
     await page.locator('#openWheelOptionsModal').click();
     await expect(page.locator('#wheelOptionsModal')).toBeVisible();
@@ -1299,6 +1302,31 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.strobeLabel).toContain('Strobe speed');
     expect(state.goboIconStyle).toContain('background-color:#123456');
     expect(state.goboIconStyle).toContain('background-image:url(');
+  });
+
+  test('control details live in modal below compact profile fields', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
+    const profilePanel = page.locator('section.panel', { hasText: 'Fixture Profiles' });
+    await expect(profilePanel).toContainText('Add / Edit Control');
+    await expect(profilePanel.locator('#controlType')).toBeVisible();
+    await expect(profilePanel.locator('#controlLabel')).toBeVisible();
+    await expect(page.locator('#controlDetailsModal')).toBeHidden();
+
+    await page.locator('#controlType').selectOption('slider8');
+    await page.locator('#openControlDetails').click();
+    await expect(page.locator('#controlDetailsModal')).toBeVisible();
+    await expect(page.locator('#defBlkCard')).toBeVisible();
+    await expect(page.locator('#wheelEditorWrap')).toBeHidden();
+    await expect(page.locator('#panTiltOptions')).toBeHidden();
+    await page.locator('#closeControlDetailsModal2').click();
+    await expect(page.locator('#controlDetailsModal')).toBeHidden();
+
+    await page.locator('#controlType').selectOption('wheel');
+    await page.locator('#openControlDetails').click();
+    await expect(page.locator('#wheelEditorWrap')).toBeVisible();
+    await expect(page.locator('#controlDetailsTitle')).toContainText('Add Wheel');
+    await expect(page.locator('#wheelName')).toHaveCount(0);
+    await expect(page.locator('#addWheelOption')).toHaveCount(0);
   });
 
   test('Update Library preserves rich OFL wheel metadata when edited profile options are plain text', async ({ page }) => {

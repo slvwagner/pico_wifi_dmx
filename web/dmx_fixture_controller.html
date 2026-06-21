@@ -79,11 +79,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .profile-control-actions button{padding:5px 9px;font-size:12px;line-height:1.2;min-height:0}
 .pantilt-options{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding-top:4px}
 .pantilt-options label{display:flex;flex-direction:row;align-items:center;gap:6px}
+.profile-control-editor-box{border:1px solid var(--line);border-radius:8px;background:#0f151a;padding:12px;display:grid;gap:10px;margin-top:12px}
+.profile-control-editor-box #typeChannelsCard{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
+.control-details-actions{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .setup-files-card .toolbar{align-items:center}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
-.wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
+.wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
 .control.fan-affected{border-color:rgba(244,114,182,.85);box-shadow:0 0 0 1px rgba(244,114,182,.35) inset;background:rgba(244,114,182,.07)}
 .fan-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
@@ -150,8 +153,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </section>
 
-<section class="columns">
-<div class="panel">
+<section class="panel" id="profilesSection">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Fixture Profiles</h2>
 <button id="profilesCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
@@ -165,20 +167,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="addProfile">Add profile</button>
 </div>
 </div>
-<div class="profile-list-block">
-<div class="profile-list-title"><span>Saved profiles</span><span class="small">Select a profile to edit or patch</span></div>
-<div class="list" id="profiles"></div>
-</div>
-</div>
-</div>
 
-<div class="panel">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-<h2>Add / Edit Control</h2>
-<button id="addControlCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+<div id="addControlBody" class="profile-control-editor-box">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div>
+<div style="font-size:13px;font-weight:700;color:var(--text)">Add / Edit Control</div>
+<div class="small">Choose type, label, and channel mapping here. Detailed settings open in the control modal.</div>
 </div>
-<div id="addControlBody">
-<div id="typeChannelsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px">
+<button id="openControlDetails" class="primary" type="button">Configure control</button>
+<button id="addControlCollapseBtn" type="button" style="display:none">−</button>
+</div>
+<div id="typeChannelsCard">
 <div style="font-size:13px;font-weight:600;color:var(--text)">Type, Label &amp; Channels</div>
 <div class="toolbar">
 <label>Type
@@ -203,6 +202,26 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label id="controlDWrap"><span id="controlDLabel">Ch D</span><input id="controlD" type="number" min="1" max="512" value="0"></label>
 <label id="controlEWrap"><span id="controlELabel">Ch E</span><input id="controlE" type="number" min="1" max="512" value="0"></label>
 </div>
+<div class="small" id="controlHint"></div>
+</div>
+<div class="buttons">
+<button id="cancelEdit">Cancel edit</button>
+</div>
+</div>
+<div class="profile-list-block">
+<div class="profile-list-title"><span>Saved profiles</span><span class="small">Select a profile to edit or patch</span></div>
+<div class="list" id="profiles"></div>
+</div>
+</div>
+</section>
+
+<div id="controlDetailsModal" class="modal-overlay" style="display:none">
+<div class="modal wide-modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div><h2 id="controlDetailsTitle">Control Details</h2><div class="small" id="controlDetailsSummary">Configure default, blackout, and type-specific control settings.</div></div>
+<button id="closeControlDetailsModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div class="modal-body">
 <div id="panTiltOptions" class="pantilt-options">
 <label><input id="panReverse" type="checkbox"> Reverse Pan DMX</label>
 <label><input id="tiltReverse" type="checkbox"> Reverse Tilt DMX</label>
@@ -214,20 +233,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </label>
 <div class="small">Ranges and OFL-style metadata are supported, for example <code>Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast</code> or <code>Rotation=250-255|kind=WheelRotation|speed=slow CW-fast CW</code>.</div>
 <div class="wheel-editor">
-<div class="toolbar">
-<label>Option name<input id="wheelName" type="text" value="Open"></label>
-<label>DMX value<input id="wheelValue" type="number" min="0" max="255" value="0"></label>
-<label>Color<input id="wheelColor" type="color" value="#ffffff"></label>
-<label>Upload image<input id="wheelImage" type="file" accept="image/*"></label>
+<div class="buttons"><button id="openWheelOptionsModal" type="button" class="primary">Guided wheel editor</button></div>
+<div class="small">Use the guided table to add wheel rows, set DMX ranges, choose function metadata, assign colors, upload icons, or draw icons. The text box remains available for advanced manual edits.</div>
 </div>
-<div class="toolbar">
-<canvas id="goboCanvas" class="gobo-canvas" width="120" height="120"></canvas>
-<div class="buttons"><button id="clearGobo" type="button">Clear drawing</button><button id="addWheelOption" type="button">Add quick option</button><button id="openWheelOptionsModal" type="button" class="primary">Guided wheel editor</button></div>
-</div>
-<div class="small">Wheel option format: Name=value|#color or Name=value|image-data. Uploaded images and drawings are saved inside the setup JSON.</div>
-</div>
-</div>
-<div class="small" id="controlHint"></div>
 </div>
 <div id="defBlkCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:12px">
 <div style="font-size:13px;font-weight:600;color:var(--text)">Default &amp; Blackout</div>
@@ -262,13 +270,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 </div>
-<div id="actionsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<div id="actionsCard" class="control-details-actions">
 <button class="primary" id="addControl">Add control</button>
-<button id="cancelEdit">Cancel edit</button>
+<button id="closeControlDetailsModal2" type="button">Close</button>
 </div>
 </div>
 </div>
-</section>
+</div>
 
 <section class="panel" id="patchSection">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
@@ -1278,6 +1286,41 @@ function loadControlEditor(control){
   updateEditorXYDots();
 }
 
+function controlTypeHint(type){
+  return ({
+    panTilt16:'Uses four channels: pan coarse, pan fine, tilt coarse, and tilt fine.',
+    panTilt8:'Uses two channels: pan and tilt.',
+    slider8:'Uses one channel for an 8-bit value from 0 to 255.',
+    slider16:'Uses two channels: coarse and fine for one 16-bit value.',
+    rgb:'Uses three channels: red, green, and blue. The color picker controls all three.',
+    rgbw:'Uses four channels: red, green, blue, and white. The color picker controls RGB; white is manual.',
+    rgbwa:'Uses five channels: red, green, blue, white, and amber. The color picker controls RGB; white and amber are manual.',
+    cmy:'Uses three channels: cyan, magenta, and yellow. The color picker converts RGB to CMY.',
+    cmyk:'Uses four channels: cyan, magenta, yellow, and key/black. The color picker converts RGB to CMYK.',
+    matrixRgb:'Uses sequential RGB channels for a rectangular pixel grid. Start 1, Width 4, Height 2 uses channels 1-24.',
+    wheel:'Uses one channel with named indexed values. Add color swatches, uploaded images, drawings, ranges, and OFL-style metadata for each value.'
+  })[type]||'';
+}
+
+function updateControlDetailsHeader(){
+  const type=document.getElementById('controlType').value;
+  const label=document.getElementById('controlLabel').value||defaultControlLabel(type);
+  const action=editingControlId?'Edit':'Add';
+  document.getElementById('controlDetailsTitle').textContent=action+' '+label;
+  document.getElementById('controlDetailsSummary').textContent=controlTypeHint(type)||'Configure default, blackout, and type-specific control settings.';
+  document.getElementById('openControlDetails').textContent=editingControlId?'Edit control details':'Configure control';
+}
+
+function openControlDetailsModal(){
+  updateControlChannelInputs(false);
+  updateControlDetailsHeader();
+  DmxCommon.showModal('controlDetailsModal');
+}
+
+function closeControlDetailsModal(){
+  DmxCommon.hideModal('controlDetailsModal');
+}
+
 function updateControlChannelInputs(fillChannels=false){
   const type=document.getElementById('controlType').value;
   if(fillChannels)autoFillControlChannels();
@@ -1301,20 +1344,7 @@ function updateControlChannelInputs(fillChannels=false){
     wrap.style.display=labels[index]?'grid':'none';
     label.textContent=labels[index]||('Ch '+letter);
   });
-  const hints={
-    panTilt16:'Uses four channels: pan coarse, pan fine, tilt coarse, and tilt fine.',
-    panTilt8:'Uses two channels: pan and tilt.',
-    slider8:'Uses one channel for an 8-bit value from 0 to 255.',
-    slider16:'Uses two channels: coarse and fine for one 16-bit value.',
-    rgb:'Uses three channels: red, green, and blue. The color picker controls all three.',
-    rgbw:'Uses four channels: red, green, blue, and white. The color picker controls RGB; white is manual.',
-    rgbwa:'Uses five channels: red, green, blue, white, and amber. The color picker controls RGB; white and amber are manual.',
-    cmy:'Uses three channels: cyan, magenta, and yellow. The color picker converts RGB to CMY.',
-    cmyk:'Uses four channels: cyan, magenta, yellow, and key/black. The color picker converts RGB to CMYK.',
-    matrixRgb:'Uses sequential RGB channels for a rectangular pixel grid. Start 1, Width 4, Height 2 uses channels 1-24.',
-    wheel:'Uses one channel with named indexed values. Add color swatches, uploaded images, or drawings for each value.'
-  };
-  document.getElementById('controlHint').textContent=hints[type]||'';
+  document.getElementById('controlHint').textContent=controlTypeHint(type);
   document.getElementById('panTiltOptions').style.display=(type==='panTilt16'||type==='panTilt8')?'flex':'none';
   document.getElementById('wheelEditorWrap').style.display=type==='wheel'?'grid':'none';
 
@@ -1344,6 +1374,7 @@ function updateControlChannelInputs(fillChannels=false){
   }
   updateEditorXYDots();
   applyNoneCheckboxes();
+  updateControlDetailsHeader();
 }
 
 function applyNoneCheckboxes(){
@@ -1569,6 +1600,7 @@ function addControl(){
     setStatus('Control added');
   }
   resetControlEditor();
+  closeControlDetailsModal();
   draw();
   scheduleSetupAutosave();
 }
@@ -2234,7 +2266,7 @@ profilesEl.onclick=e=>{
   if(editControl){
     const p=profiles.find(profile=>profile.id===parseInt(editControlBtn.dataset.profile,10));
     const c=p?.controls.find(control=>control.id===parseInt(editControl,10));
-    if(p&&c){activeProfileId=p.id;loadProfileEditor(p);loadControlEditor(c);setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);setSectionCollapsed(null,'addControlBody',null,false);setStatus('Editing '+c.label);}
+    if(p&&c){activeProfileId=p.id;loadProfileEditor(p);loadControlEditor(c);setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);setSectionCollapsed(null,'addControlBody',null,false);openControlDetailsModal();setStatus('Editing '+c.label);}
     draw();
     return;
   }
@@ -2388,6 +2420,10 @@ document.getElementById('addProfile').onclick=e=>DmxCommon.withButtonFeedback(e.
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
+document.getElementById('controlLabel').addEventListener('input',updateControlDetailsHeader);
+document.getElementById('openControlDetails').onclick=openControlDetailsModal;
+document.getElementById('closeControlDetailsModal').onclick=closeControlDetailsModal;
+document.getElementById('closeControlDetailsModal2').onclick=closeControlDetailsModal;
 document.getElementById('retryFixtureLibrary').onclick=()=>loadFixtureLibrary({force:true});
 document.getElementById('exportFixtureLibrary').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Exporting...',success:'Exported',error:'Failed'},async()=>exportCurrentFixtureLibrary()).catch(err=>showError('Fixture library export failed: '+err.message));
 document.getElementById('importFixtureLibrary').onclick=()=>document.getElementById('importFixtureLibraryFile').click();
@@ -2704,70 +2740,6 @@ document.getElementById('importJsonFile').onchange=e=>{
     e.target.value='';
   };
   reader.readAsText(file);
-};
-
-const goboCanvas=document.getElementById('goboCanvas');
-const goboCtx=goboCanvas.getContext('2d');
-let goboDrawing=false;
-let uploadedWheelImage='';
-let goboTouched=false;
-function clearGobo(){
-  goboCtx.fillStyle='#000000';
-  goboCtx.fillRect(0,0,goboCanvas.width,goboCanvas.height);
-  goboCtx.beginPath();
-  goboCtx.strokeStyle='#ffffff';
-  goboCtx.lineWidth=6;
-  goboCtx.lineCap='round';
-  uploadedWheelImage='';
-  goboTouched=false;
-  document.getElementById('wheelImage').value='';
-}
-function drawGobo(e){
-  const rect=goboCanvas.getBoundingClientRect();
-  const x=(e.clientX-rect.left)*goboCanvas.width/rect.width;
-  const y=(e.clientY-rect.top)*goboCanvas.height/rect.height;
-  if(!goboDrawing){
-    goboCtx.beginPath();
-    goboCtx.moveTo(x,y);
-    return;
-  }
-  goboCtx.lineTo(x,y);
-  goboCtx.stroke();
-  goboCtx.beginPath();
-  goboCtx.moveTo(x,y);
-  goboTouched=true;
-}
-goboCanvas.addEventListener('pointerdown',e=>{goboDrawing=false;goboCanvas.setPointerCapture(e.pointerId);drawGobo(e);goboDrawing=true;uploadedWheelImage='';goboTouched=true;});
-goboCanvas.addEventListener('pointermove',e=>{if(goboDrawing)drawGobo(e);});
-goboCanvas.addEventListener('pointerup',()=>{goboDrawing=false;uploadedWheelImage='';});
-goboCanvas.addEventListener('pointercancel',()=>{goboDrawing=false;});
-document.getElementById('clearGobo').onclick=clearGobo;
-document.getElementById('wheelImage').onchange=e=>{
-  const file=e.target.files?.[0];
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const img=new Image();
-    img.onload=()=>{
-      clearGobo();
-      goboCtx.drawImage(img,0,0,goboCanvas.width,goboCanvas.height);
-      uploadedWheelImage=goboCanvas.toDataURL('image/png');
-      goboTouched=true;
-    };
-    img.src=reader.result;
-  };
-  reader.readAsDataURL(file);
-};
-document.getElementById('addWheelOption').onclick=()=>{
-  const name=document.getElementById('wheelName').value||'Value';
-  const value=clamp(document.getElementById('wheelValue').value,0,255);
-  const image=uploadedWheelImage||goboCanvas.toDataURL('image/png');
-  const color=document.getElementById('wheelColor').value;
-  const useImage=goboTouched&&image;
-  const visual=useImage?image:color;
-  const text=document.getElementById('wheelOptions');
-  text.value=(text.value.trim()?text.value.trim()+'\n':'')+name+'='+value+'|'+visual;
-  setStatus('Wheel option added');
 };
 
 let wheelOptionsModalRows=[];
@@ -3955,7 +3927,6 @@ const groupsBox=groupsToolbox.box;
 // ── End saved-groups ──────────────────────────────────────────────────
 
 updateControlChannelInputs(true);
-clearGobo();
 loadSetup().then(ok=>{
   if(!ok){addDefaultProfile();return;}
   // Auto-collapse setup panels on first load when a saved setup exists

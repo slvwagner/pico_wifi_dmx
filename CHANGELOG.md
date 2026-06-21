@@ -10,6 +10,8 @@ Changed:
 - Added direct numeric DMX value inputs for wheel controls on the Controller surface and in Controller Group Edit.
 - Extended the manual wheel-option editor syntax so ranges can include OFL-style metadata such as `WheelSlot`, `WheelShake`, `WheelRotation`, slot numbers, and speed labels.
 - Added a guided wheel-option editor modal for editing indexed wheel ranges and OFL-style metadata without writing the raw syntax by hand.
+- Reworked Fixture Profiles into a single card with compact control type/channel fields and a dedicated Control Details modal for default/blackout, pan/tilt mapping, color, and guided wheel settings.
+- Removed the older inline wheel quick-add controls so wheel colors, uploads, drawings, and metadata are handled in the Guided wheel editor table.
 - Added `ShutterStrobe` wheel metadata support so shutter/strobe ranges can show a bounded strobe-speed control.
 - Replaced the Controller palette merge slot prompt with a visual palette matrix picker.
 - Made shared toolbox tile text backgrounds transparent so tile icons remain visible behind labels.

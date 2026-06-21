@@ -91,7 +91,9 @@ A fixture profile describes the DMX personality of one fixture type. Use this se
 2. Enter a profile name, mode name, and channel count. These fields update the selected profile automatically.
 3. Click **Add profile**.
 4. Select the profile.
-5. Use **Add / Edit Control** to add controls such as dimmer, pan/tilt, RGB, RGBW, RGBWA, wheel, or 16-bit slider.
+5. In **Add / Edit Control**, choose the control type, label, and channel mapping.
+6. Click **Configure control** to open the control details modal, then set default/blackout values and type-specific options.
+7. Click **Add control** or **Save control** in the modal.
 
 Each control stores its own DMX channel mapping. For example, a moving head can have:
 
@@ -100,7 +102,9 @@ Each control stores its own DMX channel mapping. For example, a moving head can 
 - RGBWA color on channels 6-10
 - Gobo wheel on channel 12
 
-Pan/Tilt controls also have fixture-profile mapping options:
+Simple 8-bit and 16-bit sliders only need channel mapping plus optional **Default** and **Blackout** values in the modal. Color controls add a color picker and any extra white, amber, or key channels. Wheel / indexed controls add the wheel editor and guided wheel editor so DMX ranges, colors, icons, and OFL-style function metadata can be entered without writing the raw text by hand.
+
+Pan/Tilt controls also have fixture-profile mapping options in the control details modal:
 
 - **Reverse Pan DMX** sends the logical Pan value as `max - value`.
 - **Reverse Tilt DMX** sends the logical Tilt value as `max - value`.
@@ -108,7 +112,7 @@ Pan/Tilt controls also have fixture-profile mapping options:
 
 These options belong to the fixture profile, so every patched fixture using that profile follows the same mapping. The controller, chaser, and browser motion output keep showing logical Pan/Tilt values; only the physical DMX bytes are changed. This means scenes, palettes, chases, and motion centers remain readable even when a fixture is mounted backwards or rotated.
 
-To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. If a Pico base URL is set, saving an existing control immediately resends the current live value for every patched fixture using that profile/control, so Pan/Tilt reverse or axis-swap changes are applied to the output right away. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
+To change an existing control, click **Edit** in the Fixture Profiles list. The compact **Add / Edit Control** fields load the selected type, label, and channels, and the control details modal opens automatically. After editing, click **Save control** in the modal. If a Pico base URL is set, saving an existing control immediately resends the current live value for every patched fixture using that profile/control, so Pan/Tilt reverse or axis-swap changes are applied to the output right away. The **Fixture Profiles** collapse button hides the profile list and the compact Add / Edit Control box together.
 
 Click **Update Library** when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added. For existing Open Fixture Library modes, Update Library preserves richer wheel metadata such as `WheelShake`, `WheelRotation`, slot numbers, and speed ranges even when the edited controller profile only shows plain wheel values. Pan/Tilt reverse and axis-swap options are not written into the fixture library, because they describe how a fixture is mounted in one show rather than the fixture's DMX personality.
 
@@ -168,9 +172,9 @@ Each fixture card contains the controls from its profile:
 
 For pan/tilt controls, drag inside the XY pad when you want to move directly to an absolute position. Use **Pan coarse relative**, **Pan fine relative**, **Tilt coarse relative**, and **Tilt fine relative** when you want to adjust from the current position without jumping to a new absolute value. The number field in each relative row sets how many DMX increments the next `-` or `+` click will move. The fine relative buttons move the combined 16-bit value by that many steps, including byte borrow and carry: for example `256 - 1` becomes coarse `0`, fine `255`, and `255 + 1` becomes coarse `1`, fine `0`. The value is clamped at the valid DMX range, so it cannot go below `0` or above `65535`. If the fixture profile reverses or swaps Pan/Tilt, the XY pad and relative controls still show logical Pan/Tilt movement while the DMX output is mapped for the physical fixture.
 
-Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing. On the Controller page and in Controller Group Edit, wheel controls can be changed with the option buttons, the DMX value slider, or the direct numeric DMX value field.
+Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the control details modal refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing. On the Controller page and in Controller Group Edit, wheel controls can be changed with the option buttons, the DMX value slider, or the direct numeric DMX value field.
 
-Use **Guided wheel editor** when creating or correcting indexed controls such as color wheels, gobo wheels, and shutter/strobe ranges. The modal lets you edit each option as fields: option name, DMX range start/end, function type, slot number, speed labels, background color, and optional drawn/uploaded icon. A wheel option button can show a color swatch, an icon, or an icon on top of the chosen color. This is the recommended way to define rich functions such as `WheelShake`, `WheelRotation`, and `ShutterStrobe` without memorizing the raw text syntax.
+Use **Guided wheel editor** when creating or correcting indexed controls such as color wheels, gobo wheels, and shutter/strobe ranges. The guided table is the normal place to edit wheel rows, including option name, DMX range start/end, function type, slot number, speed labels, background color, uploaded icon, or drawn icon. A wheel option button can show a color swatch, an icon, or an icon on top of the chosen color. This is the recommended way to define rich functions such as `WheelShake`, `WheelRotation`, and `ShutterStrobe` without memorizing the raw text syntax.
 
 The **Wheel options** text box remains editable for advanced use and accepts one option per line. Basic lines use `Name=DMX` or `Name=start-end`, for example `Open=0-15`. Richer OFL-style metadata can be added after pipe characters. Use `kind=WheelSlot` with `slot=2` for a named slot, `kind=WheelShake` with `shake=slow-fast` for a bounded shake speed range, `kind=WheelRotation` with `speed=slow CW-fast CW` for a bounded rotation range, and `kind=ShutterStrobe` with `speed=slow-fast` for a bounded strobe range. For example: `Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast`.
 
