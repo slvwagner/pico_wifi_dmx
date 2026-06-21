@@ -12,6 +12,7 @@ Changed:
 - Added a guided wheel-option editor modal for editing indexed wheel ranges and OFL-style metadata without writing the raw syntax by hand.
 - Added `ShutterStrobe` wheel metadata support so shutter/strobe ranges can show a bounded strobe-speed control.
 - Replaced the Controller palette merge slot prompt with a visual palette matrix picker.
+- Made shared toolbox tile text backgrounds transparent so tile icons remain visible behind labels.
 
 Fixed:
 
