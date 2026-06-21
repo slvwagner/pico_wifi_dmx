@@ -706,6 +706,13 @@ function wheelOptionsText(options){
     return o.name+'='+value+(meta.length?'|'+meta.join('|'):'');
   }).join('\n');
 }
+function wheelOptionIconHtml(o){
+  if(!o||(!o.color&&!o.image))return '';
+  const style=[];
+  if(o.color)style.push('background-color:'+escHtml(o.color));
+  if(o.image)style.push(`background-image:url('${String(o.image).replace(/'/g,'%27')}')`);
+  return `<span class="option-icon" style="${style.join(';')}"></span>`;
+}
 
 const wheelOptionValue=DmxCommon.wheelOptionValue;
 const wheelOptionMatches=DmxCommon.wheelOptionMatches;
@@ -1751,10 +1758,9 @@ function renderControl(f,c){
   }
   if(c.type==='wheel'){
     const v=getValue(f,c,0);
-    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
     const active=selectedWheelOption(c,v);
     return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}${active?' · '+escHtml(active.name):''}</span></div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fixture="${f.id}" data-control="${c.id}">${wheelOptionIconHtml(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-wheel-range-host="${f.id}:${c.id}">${wheelRangeSliderHtml(active,v,`data-fixture="${f.id}" data-control="${c.id}"`,escHtml)}</div>
       <div class="value-row"><input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"><input type="number" min="0" max="255" step="1" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>
       ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="value"`,255,1)}</div>`;
@@ -2755,8 +2761,15 @@ function wheelOptionEditorRow(option={}){
     slot:option.slotNumber??'',
     speedStart:option.shakeSpeedStart||option.speedStart||'',
     speedEnd:option.shakeSpeedEnd||option.speedEnd||'',
-    visual:option.color||option.image||''
+    color:option.color||'',
+    image:option.image||''
   };
+}
+function wheelOptionPreviewStyle(row){
+  const style=[];
+  if(row.color)style.push('background-color:'+escHtml(row.color));
+  if(row.image)style.push(`background-image:url('${String(row.image).replace(/'/g,'%27')}')`);
+  return style.join(';');
 }
 function renderWheelOptionsModal(){
   const body=document.getElementById('wheelOptionsModalBody');
@@ -2769,7 +2782,7 @@ function renderWheelOptionsModal(){
     ['ShutterStrobe','Shutter / strobe']
   ];
   body.innerHTML=`<div class="wheel-option-grid wheel-option-grid--header">
-    <span>Name</span><span>From</span><span>To</span><span>Function</span><span>Slot</span><span>Speed start</span><span>Speed end</span><span>Color / image</span><span></span>
+    <span>Name</span><span>From</span><span>To</span><span>Function</span><span>Slot</span><span>Speed start</span><span>Speed end</span><span>Visual</span><span></span>
   </div>
   <div id="wheelOptionsModalRows" style="display:grid;gap:8px">
   ${wheelOptionsModalRows.map((row,index)=>`<div class="wheel-option-grid" data-wheel-option-row="${index}">
@@ -2780,7 +2793,16 @@ function renderWheelOptionsModal(){
     <label>Slot<input type="number" min="0" max="999" step="1" value="${escHtml(row.slot)}" data-wheel-field="slot"></label>
     <label>Speed start<input type="text" value="${escHtml(row.speedStart)}" data-wheel-field="speedStart" placeholder="slow"></label>
     <label>Speed end<input type="text" value="${escHtml(row.speedEnd)}" data-wheel-field="speedEnd" placeholder="fast"></label>
-    <label>Color / image<input type="text" value="${escHtml(row.visual)}" data-wheel-field="visual" placeholder="#ff0000"></label>
+    <div class="wheel-option-visual">
+      <span class="wheel-option-preview" data-wheel-preview="${index}" style="${wheelOptionPreviewStyle(row)}"></span>
+      <div class="wheel-option-visual-fields">
+        <label>Color<input type="color" value="${escHtml(row.color||'#ffffff')}" data-wheel-color="${index}"></label>
+        <button type="button" data-clear-wheel-color="${index}" title="Clear background color">No color</button>
+        <button type="button" data-wheel-upload="${index}" title="Upload icon">Icon</button>
+        <input type="file" accept="image/*" data-wheel-file="${index}">
+        <button type="button" class="icon-btn" data-clear-wheel-image="${index}" title="Clear icon image">×</button>
+      </div>
+    </div>
     <button type="button" class="icon-btn danger" data-remove-wheel-row="${index}" title="Remove option">×</button>
   </div>`).join('')}
   </div>`;
@@ -2806,11 +2828,8 @@ function wheelOptionFromEditorRow(row){
   const end=clamp(row.end,0,255);
   const option={name:String(row.name||'Value').trim()||'Value',value:Math.round((Math.min(start,end)+Math.max(start,end))/2)};
   if(start!==end)option.range=[Math.min(start,end),Math.max(start,end)];
-  if(row.visual){
-    const visual=String(row.visual).trim();
-    if(visual.startsWith('#'))option.color=visual;
-    else if(visual.startsWith('data:image/'))option.image=visual;
-  }
+  if(row.color&&/^#[0-9a-f]{6}$/i.test(String(row.color).trim()))option.color=String(row.color).trim();
+  if(row.image&&String(row.image).startsWith('data:image/'))option.image=String(row.image);
   if(row.kind)option.kind=row.kind;
   if(row.slot!=='')option.slotNumber=clamp(row.slot,0,999);
   if(row.kind==='WheelShake'){
@@ -2840,13 +2859,57 @@ document.getElementById('addWheelOptionsModalRow').onclick=()=>{
   renderWheelOptionsModal();
 };
 document.getElementById('applyWheelOptionsModal').onclick=applyWheelOptionsModal;
-document.getElementById('wheelOptionsModalBody').addEventListener('input',syncWheelOptionsModalRows);
+document.getElementById('wheelOptionsModalBody').addEventListener('input',e=>{
+  const color=e.target.closest('[data-wheel-color]');
+  if(color){
+    const row=wheelOptionsModalRows[parseInt(color.dataset.wheelColor,10)];
+    if(row)row.color=color.value;
+    return;
+  }
+  syncWheelOptionsModalRows();
+});
 document.getElementById('wheelOptionsModalBody').addEventListener('click',e=>{
+  const upload=e.target.closest('[data-wheel-upload]');
+  if(upload){
+    const input=document.querySelector(`[data-wheel-file="${upload.dataset.wheelUpload}"]`);
+    input?.click();
+    return;
+  }
+  const clear=e.target.closest('[data-clear-wheel-image]');
+  if(clear){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(clear.dataset.clearWheelImage,10)];
+    if(row)row.image='';
+    renderWheelOptionsModal();
+    return;
+  }
+  const clearColor=e.target.closest('[data-clear-wheel-color]');
+  if(clearColor){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(clearColor.dataset.clearWheelColor,10)];
+    if(row)row.color='';
+    renderWheelOptionsModal();
+    return;
+  }
   const remove=e.target.closest('[data-remove-wheel-row]');
   if(!remove)return;
   syncWheelOptionsModalRows();
   wheelOptionsModalRows.splice(parseInt(remove.dataset.removeWheelRow,10),1);
   renderWheelOptionsModal();
+});
+document.getElementById('wheelOptionsModalBody').addEventListener('change',e=>{
+  const fileInput=e.target.closest('[data-wheel-file]');
+  if(!fileInput)return;
+  const file=fileInput.files?.[0];
+  const index=parseInt(fileInput.dataset.wheelFile,10);
+  const row=wheelOptionsModalRows[index];
+  if(!file||!row)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    row.image=String(reader.result||'');
+    renderWheelOptionsModal();
+  };
+  reader.readAsDataURL(file);
 });
 
 // ── Group-edit ────────────────────────────────────────────────────────
@@ -3122,10 +3185,9 @@ function renderGroupControl(c){
   }
   if(c.type==='wheel'){
     const v=getGroupValue(c);
-    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
     const active=selectedWheelOption(c,v);
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}${active?' · '+escHtml(active.name):''}</span>${scope}</div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${wheelOptionIconHtml(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-gc-wheel-range-host="${key}">${wheelRangeSliderHtml(active,v,gca,escHtml)}</div>
       <div class="value-row"><input type="range" min="0" max="255" value="${v}" ${gca}><input type="number" min="0" max="255" step="1" value="${v}" ${gca}></div>
       ${groupRelativeControlHtml(key,'value','default',255,1,'Relative')}</div>`;

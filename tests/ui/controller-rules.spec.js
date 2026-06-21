@@ -1196,6 +1196,17 @@ test.describe('Fixture Controller established rules', () => {
     await rows.nth(1).locator('[data-wheel-field="slot"]').fill('3');
     await rows.nth(1).locator('[data-wheel-field="speedStart"]').fill('slow');
     await rows.nth(1).locator('[data-wheel-field="speedEnd"]').fill('fast');
+    await expect(rows.nth(1).locator('[data-wheel-field="visual"]')).toHaveCount(0);
+    await rows.nth(1).locator('[data-wheel-color]').evaluate(input => {
+      input.value = '#123456';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await rows.nth(1).locator('[data-wheel-file]').setInputFiles({
+      name: 'gobo.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGOSHzRgAAAAABJRU5ErkJggg==', 'base64')
+    });
+    await expect.poll(() => page.evaluate(() => wheelOptionsModalRows[1].image.startsWith('data:image/png'))).toBe(true);
     await expect(rows.nth(2).locator('[data-wheel-field="kind"]')).toHaveValue('ShutterStrobe');
     await page.locator('#applyWheelOptionsModal').click();
 
@@ -1215,6 +1226,8 @@ test.describe('Fixture Controller established rules', () => {
       values['8812:8811'] = 120;
       updateControlDisplay(fixtures[0], wheel);
       const strobeHost = document.querySelector('[data-wheel-range-host="8812:8811"]');
+      const goboButton = document.querySelector('[data-fixture="8812"][data-control="8811"][data-wheel-option-index="1"]');
+      const goboIconStyle = goboButton?.querySelector('.option-icon')?.getAttribute('style') || '';
       return {
         text: document.getElementById('wheelOptions').value,
         shake,
@@ -1222,19 +1235,23 @@ test.describe('Fixture Controller established rules', () => {
         selectedAt150: selectedWheelOption(wheel, 150)?.name,
         sliderMin: shakeSliderMin,
         sliderMax: shakeSliderMax,
-        strobeLabel: strobeHost?.textContent
+        strobeLabel: strobeHost?.textContent,
+        goboIconStyle
       };
     });
 
-    expect(state.text).toContain('Gobo 3 shake=141-156|kind=WheelShake|slot=3|shake=slow-fast');
+    expect(state.text).toContain('Gobo 3 shake=141-156|#123456|data:image/png');
+    expect(state.text).toContain('kind=WheelShake|slot=3|shake=slow-fast');
     expect(state.shake).toEqual(expect.objectContaining({
       value: 149,
       range: [141, 156],
       kind: 'WheelShake',
       slotNumber: 3,
       shakeSpeedStart: 'slow',
-      shakeSpeedEnd: 'fast'
+      shakeSpeedEnd: 'fast',
+      color: '#123456'
     }));
+    expect(state.shake.image).toContain('data:image/png');
     expect(state.selectedAt150).toBe('Gobo 3 shake');
     expect(state.sliderMin).toBe('141');
     expect(state.sliderMax).toBe('156');
@@ -1245,6 +1262,8 @@ test.describe('Fixture Controller established rules', () => {
       speedEnd: 'fast'
     }));
     expect(state.strobeLabel).toContain('Strobe speed');
+    expect(state.goboIconStyle).toContain('background-color:#123456');
+    expect(state.goboIconStyle).toContain('background-image:url(');
   });
 
   test('Update Library preserves rich OFL wheel metadata when edited profile options are plain text', async ({ page }) => {
