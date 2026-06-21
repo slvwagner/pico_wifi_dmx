@@ -162234,7 +162234,7 @@
           "name": "11-channel",
           "channels": 11,
           "profile": {
-            "name": "Fun Generation PicoSpot 20 LED",
+            "name": "PicoSpot 20 LED",
             "mode": "11-channel",
             "channels": 11,
             "controls": [
@@ -211065,7 +211065,7 @@
           "name": "16-Bit Extended",
           "channels": 17,
           "profile": {
-            "name": "Martin Mac 250 Krypton",
+            "name": "Mac 250 Krypton",
             "mode": "16-Bit Extended",
             "channels": 17,
             "controls": [

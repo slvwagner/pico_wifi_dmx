@@ -750,6 +750,16 @@ function libraryModeMatchesProfile(mode,profile){
   const profileMode=String(profile.mode||'').trim().toLowerCase();
   return String(mode?.name||'').trim().toLowerCase()===profileMode||String(mode?.profile?.mode||'').trim().toLowerCase()===profileMode;
 }
+function canonicalLibraryProfileName(fixture,profileName){
+  const name=String(profileName||'').trim();
+  const manufacturer=String(fixture?.manufacturerName||'').trim();
+  const fixtureName=String(fixture?.name||'').trim();
+  if(!name||!manufacturer||!fixtureName||manufacturer.toLowerCase()==='custom')return name||fixtureName||'Fixture';
+  const displayName=(manufacturer+' '+fixtureName).trim().toLowerCase();
+  const duplicatedName=(manufacturer+' '+manufacturer+' '+fixtureName).trim().toLowerCase();
+  const normalized=name.toLowerCase();
+  return normalized===displayName||normalized===duplicatedName?fixtureName:name;
+}
 function libraryProfileFromControllerProfile(profile){
   return {
     name:profile.name||'Fixture',
@@ -840,6 +850,7 @@ function upsertProfileIntoFixtureLibrary(library,profile){
     fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
     library.fixtures.push(fixture);
   }
+  cleanProfile.name=canonicalLibraryProfileName(fixture,cleanProfile.name);
   const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,cleanProfile));
   if(!Array.isArray(fixture.modes))fixture.modes=[];
   const existingMode=modeIndex>=0?fixture.modes[modeIndex]:null;

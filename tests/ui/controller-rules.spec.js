@@ -1112,6 +1112,7 @@ test.describe('Fixture Controller established rules', () => {
       const rotation = gobo.options.find(o => o.name.includes('Rotation slow CW'));
       return {
         fixtureCount: library.fixtureCount,
+        profileName: savedMode.profile.name,
         shake,
         rotation,
         goboMetadataCount: gobo.options.filter(o => o.kind || o.slotNumber || o.slotNumberStart || o.slotNumberEnd).length
@@ -1119,6 +1120,7 @@ test.describe('Fixture Controller established rules', () => {
     });
 
     expect(result.fixtureCount).toBeGreaterThan(600);
+    expect(result.profileName).toBe('PicoSpot 20 LED');
     expect(result.shake).toEqual(expect.objectContaining({
       kind: 'WheelShake',
       slotNumber: 2,
