@@ -1198,21 +1198,34 @@ test.describe('Fixture Controller established rules', () => {
     await rows.nth(1).locator('[data-wheel-field="speedEnd"]').fill('fast');
     await expect(rows.nth(1).locator('[data-wheel-field="visual"]')).toHaveCount(0);
     await expect(rows.nth(1).locator('[data-clear-wheel-image]')).toHaveText('No icon');
+    await expect(rows.nth(1).locator('[data-wheel-draw]')).toHaveText('Draw');
     await rows.nth(1).locator('[data-wheel-color]').evaluate(input => {
       input.value = '#123456';
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await rows.nth(1).locator('[data-wheel-file]').setInputFiles({
+    await rows.nth(1).locator('[data-wheel-draw]').click();
+    await expect(page.locator('#wheelIconDrawModal')).toBeVisible();
+    const canvas = page.locator('#wheelIconCanvas');
+    const box = await canvas.boundingBox();
+    await page.mouse.move(box.x + 20, box.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 90, box.y + 80);
+    await page.mouse.up();
+    await page.locator('#saveWheelIconDrawing').click();
+    await expect(page.locator('#wheelIconDrawModal')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => wheelOptionsModalRows[1].image.startsWith('data:image/png'))).toBe(true);
+    await rows.nth(2).locator('[data-wheel-file]').setInputFiles({
       name: 'gobo.png',
       mimeType: 'image/png',
       buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGOSHzRgAAAAABJRU5ErkJggg==', 'base64')
     });
-    await expect.poll(() => page.evaluate(() => wheelOptionsModalRows[1].image.startsWith('data:image/png'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => wheelOptionsModalRows[2].image.startsWith('data:image/png'))).toBe(true);
     const layout = await rows.nth(1).evaluate(row => {
       const clearIcon = row.querySelector('[data-clear-wheel-image]').getBoundingClientRect();
       const removeOption = row.querySelector('[data-remove-wheel-row]').getBoundingClientRect();
       return {
         clearText: row.querySelector('[data-clear-wheel-image]').textContent.trim(),
+        drawText: row.querySelector('[data-wheel-draw]').textContent.trim(),
         noColorText: row.querySelector('[data-clear-wheel-color]').textContent.trim(),
         removeText: row.querySelector('[data-remove-wheel-row]').textContent.trim(),
         clearIconFits: row.querySelector('[data-clear-wheel-image]').scrollWidth <= row.querySelector('[data-clear-wheel-image]').clientWidth,
@@ -1223,6 +1236,7 @@ test.describe('Fixture Controller established rules', () => {
       };
     });
     expect(layout.clearText).toBe('No icon');
+    expect(layout.drawText).toBe('Draw');
     expect(layout.noColorText).toBe('No color');
     expect(layout.clearIconFits).toBe(true);
     expect(layout.clearColorFits).toBe(true);

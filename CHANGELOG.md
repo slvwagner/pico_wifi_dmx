@@ -15,6 +15,7 @@ Changed:
 - Made shared toolbox tile text backgrounds transparent so tile icons remain visible behind labels.
 - Streamlined Guided Wheel Editor visuals with row-level color pickers, icon upload/clear actions, and combined color-plus-icon rendering for wheel option buttons.
 - Cleaned up Guided Wheel Editor visual actions so clearing an icon is visually separate from removing the whole option row.
+- Added direct icon drawing for Guided Wheel Editor rows, so wheel option icons can be drawn, uploaded, or cleared in the same workflow.
 
 Fixed:
 

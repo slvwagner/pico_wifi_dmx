@@ -328,6 +328,26 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="wheelIconDrawModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div><h2>Draw Icon</h2><div class="small" id="wheelIconDrawTitle">Wheel option icon</div></div>
+<button id="closeWheelIconDrawModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div class="modal-body">
+<div class="toolbar wheel-icon-draw-tools">
+<label>Brush<input id="wheelIconBrushColor" type="color" value="#ffffff"></label>
+<button id="clearWheelIconDrawing" type="button">Clear drawing</button>
+</div>
+<canvas id="wheelIconCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="cancelWheelIconDrawing" type="button">Cancel</button>
+<button id="saveWheelIconDrawing" type="button" class="primary">Save icon</button>
+</div>
+</div>
+</div>
+
 <div id="groupsBox" class="scene-toolbox scene-toolbox--groups">
 <div id="groupsBoxHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Groups</span>
@@ -2751,6 +2771,9 @@ document.getElementById('addWheelOption').onclick=()=>{
 };
 
 let wheelOptionsModalRows=[];
+let wheelIconDrawRowIndex=null;
+let wheelIconDrawing=false;
+let wheelIconTouched=false;
 function wheelOptionEditorRow(option={}){
   const range=wheelOptionRange(option)||[wheelOptionValue(option),wheelOptionValue(option)];
   return {
@@ -2799,6 +2822,7 @@ function renderWheelOptionsModal(){
         <label>Color<input type="color" value="${escHtml(row.color||'#ffffff')}" data-wheel-color="${index}"></label>
         <button type="button" data-clear-wheel-color="${index}" title="Clear background color">No color</button>
         <button type="button" data-wheel-upload="${index}" title="Upload icon">Icon</button>
+        <button type="button" data-wheel-draw="${index}" title="Draw icon">Draw</button>
         <input type="file" accept="image/*" data-wheel-file="${index}">
         <button type="button" data-clear-wheel-image="${index}" title="Clear icon image">No icon</button>
       </div>
@@ -2823,6 +2847,73 @@ function openWheelOptionsModal(){
 function closeWheelOptionsModal(){
   DmxCommon.hideModal('wheelOptionsModal');
 }
+const wheelIconCanvas=document.getElementById('wheelIconCanvas');
+const wheelIconCtx=wheelIconCanvas.getContext('2d');
+function clearWheelIconCanvas(){
+  wheelIconCtx.clearRect(0,0,wheelIconCanvas.width,wheelIconCanvas.height);
+  wheelIconCtx.beginPath();
+  wheelIconTouched=false;
+}
+function wheelIconCanvasIsBlank(){
+  const data=wheelIconCtx.getImageData(0,0,wheelIconCanvas.width,wheelIconCanvas.height).data;
+  for(let i=3;i<data.length;i+=4){if(data[i]!==0)return false;}
+  return true;
+}
+function drawWheelIcon(e){
+  const rect=wheelIconCanvas.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*wheelIconCanvas.width/rect.width;
+  const y=(e.clientY-rect.top)*wheelIconCanvas.height/rect.height;
+  wheelIconCtx.strokeStyle=document.getElementById('wheelIconBrushColor').value||'#ffffff';
+  wheelIconCtx.lineWidth=6;
+  wheelIconCtx.lineCap='round';
+  wheelIconCtx.lineJoin='round';
+  if(!wheelIconDrawing){
+    wheelIconCtx.beginPath();
+    wheelIconCtx.moveTo(x,y);
+    return;
+  }
+  wheelIconCtx.lineTo(x,y);
+  wheelIconCtx.stroke();
+  wheelIconCtx.beginPath();
+  wheelIconCtx.moveTo(x,y);
+  wheelIconTouched=true;
+}
+function openWheelIconDrawModal(index){
+  syncWheelOptionsModalRows();
+  wheelIconDrawRowIndex=parseInt(index,10);
+  const row=wheelOptionsModalRows[wheelIconDrawRowIndex];
+  if(!row)return;
+  document.getElementById('wheelIconDrawTitle').textContent=row.name||'Wheel option icon';
+  wheelIconCanvas.style.backgroundColor=row.color||'#0a0d10';
+  clearWheelIconCanvas();
+  if(row.image){
+    const img=new Image();
+    img.onload=()=>{
+      clearWheelIconCanvas();
+      wheelIconCtx.drawImage(img,0,0,wheelIconCanvas.width,wheelIconCanvas.height);
+      wheelIconTouched=true;
+    };
+    img.src=row.image;
+  }
+  DmxCommon.showModal('wheelIconDrawModal');
+}
+function closeWheelIconDrawModal(){
+  DmxCommon.hideModal('wheelIconDrawModal');
+  wheelIconDrawRowIndex=null;
+}
+wheelIconCanvas.addEventListener('pointerdown',e=>{wheelIconDrawing=false;wheelIconCanvas.setPointerCapture(e.pointerId);drawWheelIcon(e);wheelIconDrawing=true;wheelIconTouched=true;});
+wheelIconCanvas.addEventListener('pointermove',e=>{if(wheelIconDrawing)drawWheelIcon(e);});
+wheelIconCanvas.addEventListener('pointerup',()=>{wheelIconDrawing=false;});
+wheelIconCanvas.addEventListener('pointercancel',()=>{wheelIconDrawing=false;});
+document.getElementById('clearWheelIconDrawing').onclick=clearWheelIconCanvas;
+document.getElementById('closeWheelIconDrawModal').onclick=closeWheelIconDrawModal;
+document.getElementById('cancelWheelIconDrawing').onclick=closeWheelIconDrawModal;
+document.getElementById('saveWheelIconDrawing').onclick=()=>{
+  const row=wheelOptionsModalRows[wheelIconDrawRowIndex];
+  if(row)row.image=wheelIconCanvasIsBlank()?'':wheelIconCanvas.toDataURL('image/png');
+  closeWheelIconDrawModal();
+  renderWheelOptionsModal();
+};
 function wheelOptionFromEditorRow(row){
   const start=clamp(row.start,0,255);
   const end=clamp(row.end,0,255);
@@ -2873,6 +2964,11 @@ document.getElementById('wheelOptionsModalBody').addEventListener('click',e=>{
   if(upload){
     const input=document.querySelector(`[data-wheel-file="${upload.dataset.wheelUpload}"]`);
     input?.click();
+    return;
+  }
+  const draw=e.target.closest('[data-wheel-draw]');
+  if(draw){
+    openWheelIconDrawModal(draw.dataset.wheelDraw);
     return;
   }
   const clear=e.target.closest('[data-clear-wheel-image]');
