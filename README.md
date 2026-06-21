@@ -777,7 +777,7 @@ The profile editor is where a fixture personality is described. The left side li
 
 ![Fixture live control cards](docs/screenshots/fixture-controller-live-controls.png)
 
-The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. The Control Surface header has a compact collapse toggle for all currently visible fixture cards. The Default and Blackout buttons recall the stored values for one fixture, while Select adds the fixture to group editing.
+The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. Wheel controls can be edited with their option buttons, the DMX value slider, or the direct numeric DMX value field. The Control Surface header has a compact collapse toggle for all currently visible fixture cards. The Default and Blackout buttons recall the stored values for one fixture, while Select adds the fixture to group editing.
 
 ![Saved Groups matrix](docs/screenshots/fixture-controller-saved-groups.png)
 
@@ -785,7 +785,7 @@ Saved Groups are shown in a compact matrix. Each filled group tile has a small p
 
 ![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
 
-The Group Edit modal appears when compatible fixtures are selected or when a saved group is loaded. It shows matching controls for the selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. The selected **Source** fixture supplies the values shown when the modal opens, but opening the modal does not overwrite other fixtures or send output. Values are applied only when the user edits a modal control; on pages with live output, those edits are sent to the Pico when a Pico base URL is set. The Controller modal can also recall **Default** or **Blackout** for the selected group.
+The Group Edit modal appears when compatible fixtures are selected or when a saved group is loaded. It shows matching controls for the selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. Wheel controls use the same option buttons, DMX slider, and direct numeric DMX value field as the normal control surface. The selected **Source** fixture supplies the values shown when the modal opens, but opening the modal does not overwrite other fixtures or send output. Values are applied only when the user edits a modal control; on pages with live output, those edits are sent to the Pico when a Pico base URL is set. The Controller modal can also recall **Default** or **Blackout** for the selected group.
 
 The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, or **Merge** the selected step values into an existing palette. Filled palette slots use the small top-left pencil icon to open **Edit Tile** for renaming and visual appearance. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
 

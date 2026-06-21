@@ -7,6 +7,7 @@ Changed:
 - Started the 0.9.6 development branch.
 - Added a fixture-library sync script to validate and refresh the bundled catalog from the current XAMPP fixture library.
 - The fixture-library sync script now reviews fixture-level differences before updating the bundled catalog, with interactive prompts plus accept-all, keep-existing, and dry-run modes.
+- Added direct numeric DMX value inputs for wheel controls on the Controller surface and in Controller Group Edit.
 
 Fixed:
 

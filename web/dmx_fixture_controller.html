@@ -1409,7 +1409,11 @@ function renderFixtureLibraryPreview(){
 function cloneLibraryProfile(profile,fixture){
   const next=JSON.parse(JSON.stringify(profile));
   next.id=uid();
-  next.name=(fixture.manufacturerName?fixture.manufacturerName+' ':'')+(profile.name||fixture.name||'Library fixture');
+  const manufacturer=String(fixture.manufacturerName||'').trim();
+  const fixtureName=String(fixture.name||'').trim();
+  const profileName=String(profile.name||fixtureName||'Library fixture').trim();
+  const fullFixtureName=(manufacturer?manufacturer+' ':'')+fixtureName;
+  next.name=manufacturer&&profileName.toLowerCase()===fullFixtureName.toLowerCase()?profileName:(manufacturer?manufacturer+' ':'')+profileName;
   next.mode=profile.mode||'Library mode';
   next.controls=(next.controls||[]).map(control=>({...control,id:uid()}));
   return next;
@@ -1684,7 +1688,7 @@ function renderControl(f,c){
     return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}${active?' · '+escHtml(active.name):''}</span></div>
       <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-wheel-range-host="${f.id}:${c.id}">${wheelRangeSliderHtml(active,v,`data-fixture="${f.id}" data-control="${c.id}"`,escHtml)}</div>
-      <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}">
+      <div class="value-row"><input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"><input type="number" min="0" max="255" step="1" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>
       ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="value"`,255,1)}</div>`;
   }
   if(c.type==='matrixRgb'){
@@ -2950,7 +2954,7 @@ function renderGroupControl(c){
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}${active?' · '+escHtml(active.name):''}</span>${scope}</div>
       <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-gc-wheel-range-host="${key}">${wheelRangeSliderHtml(active,v,gca,escHtml)}</div>
-      <input type="range" min="0" max="255" value="${v}" ${gca}>
+      <div class="value-row"><input type="range" min="0" max="255" value="${v}" ${gca}><input type="number" min="0" max="255" step="1" value="${v}" ${gca}></div>
       ${groupRelativeControlHtml(key,'value','default',255,1,'Relative')}</div>`;
   }
   const max=c.type==='slider16'?65535:255;

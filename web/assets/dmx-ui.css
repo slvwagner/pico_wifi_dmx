@@ -31,6 +31,9 @@ input[type=url]{min-width:220px}
 input[type=text]{min-width:120px}
 textarea{min-height:70px;min-width:260px}
 input[type=range]{accent-color:var(--accent)}
+.value-row{display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:10px;align-items:center}
+.value-row input[type=range]{width:100%;min-width:0}
+.value-row input[type=number]{width:88px;min-width:0;padding:8px}
 button{border:1px solid var(--line);background:#22303a;color:var(--text);padding:10px 14px;border-radius:6px;cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
 button.warn{background:#3c2b1b;border-color:#765332;color:var(--warn)}

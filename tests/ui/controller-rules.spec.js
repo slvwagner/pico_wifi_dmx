@@ -77,6 +77,34 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.title).toContain('1 fixture selected');
   });
 
+  test('wheel controls expose direct DMX value inputs on Controller and Group Edit', async ({ page }) => {
+    await page.evaluate(() => {
+      values['103:31'] = 0;
+      selectedFixtureIds = new Set([103]);
+      activeSavedGroupIds.clear();
+      drawSurface();
+    });
+
+    const controllerWheel = page.locator('[data-fixture-card="103"] .control', { hasText: 'Gobo' });
+    await expect(controllerWheel.locator('input[type="number"][data-fixture="103"][data-control="31"]')).toHaveValue('0');
+    await controllerWheel.locator('input[type="number"][data-fixture="103"][data-control="31"]').fill('77');
+    await expect(controllerWheel.locator('[data-readout-fixture="103"][data-readout-control="31"]')).toContainText('77');
+
+    await page.locator('#editSelectedGroups').click();
+    await expect(page.locator('#groupModal')).toBeVisible();
+    const groupWheel = page.locator('#groupModalBody .control', { hasText: 'Gobo' });
+    await expect(groupWheel.locator('input[type="number"][data-gc]')).toHaveValue('77');
+    await groupWheel.locator('input[type="number"][data-gc]').fill('88');
+
+    const state = await page.evaluate(() => ({
+      value: values['103:31'],
+      groupReadout: document.querySelector('[data-gc-readout^="wheel:Gobo"]')?.textContent || ''
+    }));
+
+    expect(state.value).toBe(88);
+    expect(state.groupReadout).toContain('88');
+  });
+
   test('Controller can refresh live values changed by another page', async ({ page }) => {
     await page.route('**/fixture_setup.php**', async route => {
       if (route.request().url().includes('livevalues')) {
