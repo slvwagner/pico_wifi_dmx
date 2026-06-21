@@ -194,7 +194,7 @@ The Fixture Controller uses four toolboxes in the shared right-side **Toolboxes*
 
 **Palettes** stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched. **Move** reorders palette tiles without recalling them.
 
-In Groups, Scenes, and Palettes, **Move** sits beside the **Cols** and **Rows** layout controls because it organizes the tile grid. Click **Move** to enable move mode, then drag a filled tile to a new position. While dragging, the source tile gets the same accent outline used when moving toolboxes, and the target position shows an accent insertion line. On touch screens, tap the filled source tile and then tap the destination. In Scenes and Palettes, dropping onto another filled tile swaps the two slots; in Groups, moving a tile reorders the saved group list.
+In Groups, Scenes, and Palettes, **Move** sits beside the **Cols** and **Rows** layout controls because it organizes the tile grid. Click **Move** to enable move mode, then drag a filled tile to a new position. While dragging, the source tile gets the same accent outline used when moving toolboxes, and the target position shows an accent insertion line. On touch screens, tap the filled source tile and then tap the destination. Dropping onto an empty slot moves the tile there; dropping onto another filled tile swaps the two slots. Groups use the same tile-slot behavior as Scenes and Palettes; the fixture order stored inside a group is not changed by moving the group tile.
 
 ![Controller Fan Out toolbox](screenshots/fixture-controller-toolbox-fanout.png)
 

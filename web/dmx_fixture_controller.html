@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.4">
-<script src="assets/dmx-common.js?v=0.9.4"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.5">
+<script src="assets/dmx-common.js?v=0.9.5"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -3087,12 +3087,53 @@ let groupCols=2,groupRows=4;
 function escHtml(s){return DmxCommon.escapeHtml(s);}
 function savedGroupKey(g,i){return g.id||('group_'+i);}
 function normalizeSavedGroups(groups){
-  return (Array.isArray(groups)?groups:[]).map((g,i)=>({
-    ...g,
-    id:g.id||('grp_'+Date.now()+'_'+i),
-    fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],
-    values:g.values||{}
-  }));
+  const used=new Set();
+  return (Array.isArray(groups)?groups:[]).map((g,i)=>{
+    let slot=parseInt(g.slot,10);
+    if(!Number.isFinite(slot)||slot<0||used.has(slot)){
+      slot=i;
+      while(used.has(slot))slot++;
+    }
+    used.add(slot);
+    return{
+      ...g,
+      id:g.id||('grp_'+Date.now()+'_'+i),
+      slot,
+      fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],
+      values:g.values||{}
+    };
+  }).sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0));
+}
+function groupSlot(g,i){
+  const slot=parseInt(g?.slot,10);
+  return Number.isFinite(slot)&&slot>=0?slot:i;
+}
+function ensureSavedGroupSlots(){
+  const used=new Set();
+  savedGroups.forEach((g,i)=>{
+    let slot=parseInt(g.slot,10);
+    if(!Number.isFinite(slot)||slot<0||used.has(slot)){
+      slot=i;
+      while(used.has(slot))slot++;
+      g.slot=slot;
+    }
+    used.add(slot);
+  });
+}
+function groupEntryAtSlot(slot){
+  ensureSavedGroupSlots();
+  return savedGroups.map((g,i)=>({g,i,slot:groupSlot(g,i)})).find(entry=>entry.slot===slot)||null;
+}
+function requiredGroupSlots(){
+  ensureSavedGroupSlots();
+  return savedGroups.reduce((max,g,i)=>Math.max(max,groupSlot(g,i)+1),0);
+}
+function firstFreeGroupSlot(){
+  ensureSavedGroupSlots();
+  const used=new Set(savedGroups.map((g,i)=>groupSlot(g,i)));
+  let slot=0;
+  while(used.has(slot))slot++;
+  return slot;
 }
 function selectedSavedGroups(){
   return savedGroups.filter((g,i)=>activeSavedGroupIds.has(savedGroupKey(g,i)));
@@ -3143,7 +3184,7 @@ function loadSavedGroups(){
   });
 }
 function clampGroupLayout(priority='cols'){
-  const groupCount=savedGroups.length;
+  const groupCount=requiredGroupSlots();
   groupCols=Math.max(1,Math.min(8,parseInt(groupCols)||2));
   groupRows=Math.max(1,Math.min(12,parseInt(groupRows)||4));
   if(groupCount&&groupCols*groupRows<groupCount){
@@ -3169,11 +3210,11 @@ function applyGroupsBoxLayout(priority='cols'){
   const colsInput=document.getElementById('groupCols');
   const rowsInput=document.getElementById('groupRows');
   if(colsInput){
-    colsInput.min=Math.max(1,Math.ceil(savedGroups.length/groupRows));
+    colsInput.min=Math.max(1,Math.ceil(requiredGroupSlots()/groupRows));
     colsInput.value=groupCols;
   }
   if(rowsInput){
-    rowsInput.min=Math.max(1,Math.ceil(savedGroups.length/groupCols));
+    rowsInput.min=Math.max(1,Math.ceil(requiredGroupSlots()/groupCols));
     rowsInput.value=groupRows;
   }
 }
@@ -3196,6 +3237,7 @@ function saveSavedGroupsToServer(){
     setStatus('Groups not saved: saved groups have not loaded from the server yet.',true);
     return Promise.resolve(false);
   }
+  ensureSavedGroupSlots();
   return fetch('group_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrl.value,groups:savedGroups}))})
     .then(r=>r.json()).then(d=>{if(d.ok)setStatus('Groups saved');else setStatus('Groups save failed: '+d.error);})
     .catch(e=>setStatus('Groups save error: '+e.message));
@@ -3205,12 +3247,13 @@ function createSavedGroup(name,fixtureIds,values={}){
     setStatus('Cannot create group until saved groups have loaded from the server.',true);
     return;
   }
-  savedGroups.push({id:'grp_'+Date.now()+'_'+Math.floor(Math.random()*1000),name,fixtureIds:[...fixtureIds],values:{...values}});
+  savedGroups.push({id:'grp_'+Date.now()+'_'+Math.floor(Math.random()*1000),name,slot:firstFreeGroupSlot(),fixtureIds:[...fixtureIds],values:{...values}});
   renderSavedGroupsList();
   saveSavedGroupsToServer();
 }
 function renderSavedGroupsList(priority='cols'){
   const el=document.getElementById('savedGroupsList');if(!el)return;
+  ensureSavedGroupSlots();
   applyGroupsBoxLayout(priority);
   el.classList.toggle('tile-move-mode',groupMoveMode);
   const moveBtn=document.getElementById('moveGroupsBtn');
@@ -3226,16 +3269,16 @@ function renderSavedGroupsList(priority='cols'){
   const total=savedGroups.length?groupCols*groupRows:0;
   let html='';
   for(let i=0;i<total;i++){
-    const g=savedGroups[i];
+    const entry=groupEntryAtSlot(i);
+    const g=entry?.g;
     if(!g){
-      html+=`<div class="group-empty" data-group-drop-index="${i}" title="${groupMoveMode?'Drop a group here':'Empty group slot'}">${groupMoveMode?'<span class="group-position-label">'+(i+1)+'</span>':''}</div>`;
+      html+=`<div class="group-empty ${groupMoveMode?'group-empty--move':''}" data-group-drop-index="${i}" title="${groupMoveMode?'Drop a group here':'Empty group slot'}">${groupMoveMode?i+1:''}</div>`;
       continue;
     }
-    const active=activeSavedGroupIds.has(savedGroupKey(g,i));
-    html+=`<div class="${DmxCommon.savedTileClass('item group-tile',active||groupMoveSelectedIndex===i)}" data-group-index="${i}" title="${groupMoveMode?'Drag to move, or tap this group and then a target position':'Select or deselect group'}" style="${slotVisualStyle(g)}">
-    ${groupMoveMode?'<span class="group-position-label">'+(i+1)+'</span>':''}
-    ${DmxCommon.slotVisualButtonHtml('data-edit-group',i,'Edit group tile')}
-    <button class="slot-del" data-delete-group="${i}" title="Delete group">×</button>
+    const active=activeSavedGroupIds.has(savedGroupKey(g,entry.i));
+    html+=`<div class="${DmxCommon.savedTileClass('item group-tile',active||groupMoveSelectedIndex===i)}" data-group-index="${entry.i}" data-group-slot="${i}" title="${groupMoveMode?'Drag to move, or tap this group and then a target position':'Select or deselect group'}" style="${slotVisualStyle(g)}">
+    ${DmxCommon.slotVisualButtonHtml('data-edit-group',entry.i,'Edit group tile')}
+    <button class="slot-del" data-delete-group="${entry.i}" title="Delete group">×</button>
     <div class="group-tile-content">${paletteSlotVisualHtml(g)}<span class="group-tile-name">${escHtml(g.name)}</span><span class="group-tile-meta">${g.fixtureIds.length} fixture${g.fixtureIds.length!==1?'s':''}</span></div>
   </div>`;
   }
@@ -3247,7 +3290,7 @@ function renderSavedGroupsList(priority='cols'){
     if(del){e.stopPropagation();deleteGroup(parseInt(del.dataset.deleteGroup,10));return;}
     const tile=e.target.closest('[data-group-index]');
     const empty=e.target.closest('[data-group-drop-index]');
-    if(tile)groupTileClick(parseInt(tile.dataset.groupIndex,10));
+    if(tile)groupTileClick(parseInt(tile.dataset.groupSlot,10));
     else if(empty)groupTileClick(parseInt(empty.dataset.groupDropIndex,10));
   };
   DmxCommon.initTileMoveGrid({
@@ -3255,8 +3298,8 @@ function renderSavedGroupsList(priority='cols'){
     button:'moveGroupsBtn',
     active:groupMoveMode,
     itemSelector:'[data-group-index],[data-group-drop-index]',
-    getIndex:tile=>parseInt(tile.dataset.groupIndex??tile.dataset.groupDropIndex,10),
-    canDrag:idx=>!!savedGroups[idx],
+    getIndex:tile=>parseInt(tile.dataset.groupSlot??tile.dataset.groupDropIndex,10),
+    canDrag:idx=>!!groupEntryAtSlot(idx),
     onMove:moveGroupTile
   });
   updateGroupActionButtons();
@@ -3267,39 +3310,42 @@ function toggleGroupMoveMode(){
   renderSavedGroupsList();
   setStatus(groupMoveMode?'Group move mode enabled: drag a group, or tap source and target positions':'Group move mode disabled');
 }
-function moveGroupTile(fromIndex,toIndex){
-  fromIndex=parseInt(fromIndex,10);
-  toIndex=parseInt(toIndex,10);
-  if(!Number.isFinite(fromIndex)||!Number.isFinite(toIndex)||fromIndex===toIndex||!savedGroups[fromIndex])return false;
-  const [moving]=savedGroups.splice(fromIndex,1);
-  const targetIndex=Math.max(0,Math.min(toIndex,savedGroups.length));
-  savedGroups.splice(targetIndex,0,moving);
-  activeSavedGroupIds.clear();
+function moveGroupTile(fromSlot,toSlot){
+  fromSlot=parseInt(fromSlot,10);
+  toSlot=parseInt(toSlot,10);
+  if(!Number.isFinite(fromSlot)||!Number.isFinite(toSlot)||fromSlot===toSlot)return false;
+  const moving=groupEntryAtSlot(fromSlot);
+  if(!moving)return false;
+  const target=groupEntryAtSlot(toSlot);
+  moving.g.slot=toSlot;
+  if(target)target.g.slot=fromSlot;
+  savedGroups.sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0));
   groupMoveSelectedIndex=null;
   renderSavedGroupsList();
   saveSavedGroupsToServer();
-  setStatus('Moved group "'+(moving.name||'Group')+'" to position '+(targetIndex+1));
+  setStatus((target?'Swapped group tiles':'Moved group "'+(moving.g.name||'Group')+'"')+' to position '+(toSlot+1));
   return true;
 }
-function groupTileClick(idx){
+function groupTileClick(slot){
   if(groupMoveMode){
     if(groupMoveSelectedIndex===null){
-      if(!savedGroups[idx]){setStatus('Group move mode is active: select a saved group first');return;}
-      groupMoveSelectedIndex=idx;
+      if(!groupEntryAtSlot(slot)){setStatus('Group move mode is active: select a saved group first');return;}
+      groupMoveSelectedIndex=slot;
       renderSavedGroupsList();
-      setStatus('Selected group '+(idx+1)+'. Tap another position to move it.');
+      setStatus('Selected group '+(slot+1)+'. Tap another position to move or swap it.');
       return;
     }
-    if(groupMoveSelectedIndex===idx){
+    if(groupMoveSelectedIndex===slot){
       groupMoveSelectedIndex=null;
       renderSavedGroupsList();
       setStatus('Group move selection cleared');
       return;
     }
-    moveGroupTile(groupMoveSelectedIndex,idx);
+    moveGroupTile(groupMoveSelectedIndex,slot);
     return;
   }
-  toggleGroup(idx);
+  const entry=groupEntryAtSlot(slot);
+  if(entry)toggleGroup(entry.i);
 }
 function saveCurrentGroup(){
   const name=(prompt('Group name:','Group '+(savedGroups.length+1))||'').trim();

@@ -1166,7 +1166,7 @@ test.describe('Fixture Controller established rules', () => {
       { id: 'pal_a', slot: 2 },
       { id: 'pal_b', slot: 3 }
     ]);
-    expect(palettePosts.at(-1).palettes.map(p => ({ id: p.id, slot: p.slot }))).toEqual([
+    await expect.poll(() => palettePosts.at(-1)?.palettes?.map(p => ({ id: p.id, slot: p.slot })), { timeout: 5000 }).toEqual([
       { id: 'pal_a', slot: 2 },
       { id: 'pal_b', slot: 3 }
     ]);
@@ -1312,7 +1312,7 @@ test.describe('Fixture Controller established rules', () => {
         activeButton: document.getElementById('moveGroupsBtn').classList.contains('active'),
         clickDidNotSelect,
         selectedForMove,
-        groups: savedGroups.map(g => g.id)
+        groups: savedGroups.map(g => ({ id: g.id, slot: g.slot }))
       };
     });
 
@@ -1320,9 +1320,16 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.activeButton).toBe(true);
     expect(state.clickDidNotSelect).toBe(true);
     expect(state.selectedForMove).toBe(true);
-    expect(state.groups).toEqual(['grp_b', 'grp_c', 'grp_a']);
-    await expect.poll(() => groupPosts.length, { timeout: 5000 }).toBeGreaterThan(0);
-    expect(groupPosts.at(-1).groups.map(g => g.id)).toEqual(['grp_b', 'grp_c', 'grp_a']);
+    expect(state.groups).toEqual([
+      { id: 'grp_c', slot: 0 },
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 2 }
+    ]);
+    await expect.poll(() => groupPosts.at(-1)?.groups?.map(g => ({ id: g.id, slot: g.slot })), { timeout: 5000 }).toEqual([
+      { id: 'grp_c', slot: 0 },
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 2 }
+    ]);
   });
 
   test('group move mode supports real drag and drop between group tiles', async ({ page }) => {
@@ -1357,9 +1364,71 @@ test.describe('Fixture Controller established rules', () => {
 
     await page.locator('[data-group-index="0"]').dragTo(page.locator('[data-group-index="2"]'));
 
-    await expect.poll(() => page.evaluate(() => savedGroups.map(g => g.id))).toEqual(['grp_b', 'grp_c', 'grp_a']);
-    await expect.poll(() => groupPosts.length, { timeout: 5000 }).toBeGreaterThan(0);
-    expect(groupPosts.at(-1).groups.map(g => g.id)).toEqual(['grp_b', 'grp_c', 'grp_a']);
+    await expect.poll(() => page.evaluate(() => savedGroups.map(g => ({ id: g.id, slot: g.slot })))).toEqual([
+      { id: 'grp_c', slot: 0 },
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 2 }
+    ]);
+    await expect.poll(() => groupPosts.at(-1)?.groups?.map(g => ({ id: g.id, slot: g.slot })), { timeout: 5000 }).toEqual([
+      { id: 'grp_c', slot: 0 },
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 2 }
+    ]);
+  });
+
+  test('group move mode supports mouse drag between group tiles', async ({ page }) => {
+    const groupPosts = [];
+    await page.route('**/group_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        groupPosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, groups: [] })
+      });
+    });
+
+    await page.evaluate(() => {
+      savedGroupsLoaded = true;
+      savedGroups = [
+        { id: 'grp_a', name: 'Group A', fixtureIds: [101], values: {} },
+        { id: 'grp_b', name: 'Group B', fixtureIds: [102], values: {} },
+        { id: 'grp_c', name: 'Group C', fixtureIds: [103], values: {} }
+      ];
+      groupCols = 3;
+      groupRows = 2;
+      activeSavedGroupIds.clear();
+      selectedFixtureIds.clear();
+      renderSavedGroupsList();
+      document.getElementById('moveGroupsBtn').click();
+    });
+
+    const source = page.locator('[data-group-index="0"]');
+    const target = page.locator('[data-group-index="2"]');
+    await source.scrollIntoViewIfNeeded();
+    await target.scrollIntoViewIfNeeded();
+    const sourceBox = await source.boundingBox();
+    const targetBox = await target.boundingBox();
+    expect(sourceBox).toBeTruthy();
+    expect(targetBox).toBeTruthy();
+    await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    await expect.poll(() => page.evaluate(() => savedGroups.map(g => ({ id: g.id, slot: g.slot })))).toEqual([
+      { id: 'grp_c', slot: 0 },
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 2 }
+    ]);
+    await expect.poll(() => groupPosts.at(-1)?.groups?.map(g => ({ id: g.id, slot: g.slot })), { timeout: 5000 }).toEqual([
+      { id: 'grp_c', slot: 0 },
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 2 }
+    ]);
   });
 
   test('group move mode supports dragging a group to an empty visible position', async ({ page }) => {
@@ -1394,9 +1463,14 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('[data-group-drop-index="4"]')).toContainText('5');
     await page.locator('[data-group-index="0"]').dragTo(page.locator('[data-group-drop-index="4"]'));
 
-    await expect.poll(() => page.evaluate(() => savedGroups.map(g => g.id))).toEqual(['grp_b', 'grp_a']);
-    await expect.poll(() => groupPosts.length, { timeout: 5000 }).toBeGreaterThan(0);
-    expect(groupPosts.at(-1).groups.map(g => g.id)).toEqual(['grp_b', 'grp_a']);
+    await expect.poll(() => page.evaluate(() => savedGroups.map(g => ({ id: g.id, slot: g.slot })))).toEqual([
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 4 }
+    ]);
+    await expect.poll(() => groupPosts.at(-1)?.groups?.map(g => ({ id: g.id, slot: g.slot })), { timeout: 5000 }).toEqual([
+      { id: 'grp_b', slot: 1 },
+      { id: 'grp_a', slot: 4 }
+    ]);
   });
 
   test('Fan Out symmetric spread calculates around snapshotted base values', async ({ page }) => {

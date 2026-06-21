@@ -1715,6 +1715,7 @@
     const grid=typeof options.grid==='string'?document.getElementById(options.grid):options.grid;
     const button=typeof options.button==='string'?document.getElementById(options.button):options.button;
     if(!grid)return;
+    if(grid._dmxTileMoveCleanup)grid._dmxTileMoveCleanup();
     const active=!!options.active;
     const selector=options.itemSelector||'[data-tile-move-index]';
     const getIndex=options.getIndex||((el)=>parseInt(el?.dataset?.tileMoveIndex,10));
@@ -1746,37 +1747,72 @@
       target.classList.toggle('toolbox-drop-before',before);
       target.classList.toggle('toolbox-drop-after',!before);
     };
+    const pointerMove=e=>{
+      if(!pointerDrag||pointerDrag.pointerId!==e.pointerId)return;
+      const moved=Math.abs(e.clientX-pointerDrag.startX)>4||Math.abs(e.clientY-pointerDrag.startY)>4;
+      if(!moved&&!pointerDrag.moved)return;
+      pointerDrag.moved=true;
+      pointerDrag.source.classList.add('toolbox-dragging');
+      pointerDrag.target=targetAtPoint(e.clientX,e.clientY,pointerDrag.source);
+      markTarget(pointerDrag.target,e.clientX);
+      e.preventDefault();
+    };
+    const pointerEnd=e=>{
+      if(!pointerDrag||pointerDrag.pointerId!==e.pointerId)return;
+      const drag=pointerDrag;
+      pointerDrag=null;
+      if(drag.moved&&drag.target){
+        const targetIndex=getIndex(drag.target);
+        onMove(drag.sourceIndex,targetIndex);
+      }
+      clearMarks();
+      window.removeEventListener('pointermove',pointerMove);
+      window.removeEventListener('pointerup',pointerEnd);
+      window.removeEventListener('pointercancel',pointerEnd);
+    };
+    const mouseMove=e=>{
+      if(!pointerDrag||pointerDrag.pointerId!=='mouse')return;
+      const moved=Math.abs(e.clientX-pointerDrag.startX)>4||Math.abs(e.clientY-pointerDrag.startY)>4;
+      if(!moved&&!pointerDrag.moved)return;
+      pointerDrag.moved=true;
+      pointerDrag.source.classList.add('toolbox-dragging');
+      pointerDrag.target=targetAtPoint(e.clientX,e.clientY,pointerDrag.source);
+      markTarget(pointerDrag.target,e.clientX);
+      e.preventDefault();
+    };
+    const mouseEnd=e=>{
+      if(!pointerDrag||pointerDrag.pointerId!=='mouse')return;
+      const drag=pointerDrag;
+      pointerDrag=null;
+      if(drag.moved&&drag.target){
+        const targetIndex=getIndex(drag.target);
+        onMove(drag.sourceIndex,targetIndex);
+      }
+      clearMarks();
+      window.removeEventListener('mousemove',mouseMove);
+      window.removeEventListener('mouseup',mouseEnd);
+    };
     grid.querySelectorAll(selector).forEach(el=>{
       const idx=getIndex(el);
-      el.draggable=active&&canDrag(idx,el);
-      el.addEventListener('pointerdown',e=>{
+      el.draggable=false;
+      const pointerDown=e=>{
         if(!active||!canDrag(idx,el)||e.target.closest('button,input,select,textarea,a'))return;
+        if(e.pointerType==='mouse')return;
         pointerDrag={source:el,sourceIndex:idx,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false,target:null};
-        try{el.setPointerCapture?.(e.pointerId);}catch(_){}
-      });
-      el.addEventListener('pointermove',e=>{
-        if(!pointerDrag||pointerDrag.pointerId!==e.pointerId||pointerDrag.source!==el)return;
-        const moved=Math.abs(e.clientX-pointerDrag.startX)>4||Math.abs(e.clientY-pointerDrag.startY)>4;
-        if(!moved&&!pointerDrag.moved)return;
-        pointerDrag.moved=true;
-        el.classList.add('toolbox-dragging');
-        pointerDrag.target=targetAtPoint(e.clientX,e.clientY,el);
-        markTarget(pointerDrag.target,e.clientX);
         e.preventDefault();
-      });
-      const endPointerDrag=e=>{
-        if(!pointerDrag||pointerDrag.pointerId!==e.pointerId||pointerDrag.source!==el)return;
-        const drag=pointerDrag;
-        pointerDrag=null;
-        try{el.releasePointerCapture?.(e.pointerId);}catch(_){}
-        if(drag.moved&&drag.target){
-          const targetIndex=getIndex(drag.target);
-          onMove(drag.sourceIndex,targetIndex);
-        }
-        clearMarks();
+        window.addEventListener('pointermove',pointerMove);
+        window.addEventListener('pointerup',pointerEnd);
+        window.addEventListener('pointercancel',pointerEnd);
       };
-      el.addEventListener('pointerup',endPointerDrag);
-      el.addEventListener('pointercancel',endPointerDrag);
+      const mouseDown=e=>{
+        if(pointerDrag||!active||!canDrag(idx,el)||e.target.closest('button,input,select,textarea,a'))return;
+        pointerDrag={source:el,sourceIndex:idx,pointerId:'mouse',startX:e.clientX,startY:e.clientY,moved:false,target:null};
+        e.preventDefault();
+        window.addEventListener('mousemove',mouseMove);
+        window.addEventListener('mouseup',mouseEnd);
+      };
+      el.addEventListener('pointerdown',pointerDown);
+      el.addEventListener('mousedown',mouseDown);
       el.addEventListener('dragstart',e=>{
         if(!active||!canDrag(idx,el)){
           e.preventDefault();
@@ -1812,6 +1848,14 @@
         clearMarks();
       });
     });
+    grid._dmxTileMoveCleanup=()=>{
+      window.removeEventListener('pointermove',pointerMove);
+      window.removeEventListener('pointerup',pointerEnd);
+      window.removeEventListener('pointercancel',pointerEnd);
+      window.removeEventListener('mousemove',mouseMove);
+      window.removeEventListener('mouseup',mouseEnd);
+      pointerDrag=null;
+    };
   }
 
   window.DmxCommon={
