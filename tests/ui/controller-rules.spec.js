@@ -1213,13 +1213,19 @@ test.describe('Fixture Controller established rules', () => {
       const removeOption = row.querySelector('[data-remove-wheel-row]').getBoundingClientRect();
       return {
         clearText: row.querySelector('[data-clear-wheel-image]').textContent.trim(),
+        noColorText: row.querySelector('[data-clear-wheel-color]').textContent.trim(),
         removeText: row.querySelector('[data-remove-wheel-row]').textContent.trim(),
+        clearIconFits: row.querySelector('[data-clear-wheel-image]').scrollWidth <= row.querySelector('[data-clear-wheel-image]').clientWidth,
+        clearColorFits: row.querySelector('[data-clear-wheel-color]').scrollWidth <= row.querySelector('[data-clear-wheel-color]').clientWidth,
         clearRight: clearIcon.right,
         removeLeft: removeOption.left,
         sameVerticalBand: !(clearIcon.bottom < removeOption.top || removeOption.bottom < clearIcon.top)
       };
     });
     expect(layout.clearText).toBe('No icon');
+    expect(layout.noColorText).toBe('No color');
+    expect(layout.clearIconFits).toBe(true);
+    expect(layout.clearColorFits).toBe(true);
     expect(layout.removeText).toBe('×');
     if (layout.sameVerticalBand) expect(layout.clearRight).toBeLessThanOrEqual(layout.removeLeft);
     await expect(rows.nth(2).locator('[data-wheel-field="kind"]')).toHaveValue('ShutterStrobe');

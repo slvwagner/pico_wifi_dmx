@@ -101,11 +101,11 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .wheel-option-grid .icon-btn{align-self:end}
 .wheel-option-visual{display:grid;grid-template-columns:34px minmax(0,1fr);gap:6px;align-items:end}
 .wheel-option-preview{width:34px;height:34px;border:1px solid var(--line);border-radius:6px;background-color:#0a0d10;background-size:cover;background-position:center}
-.wheel-option-visual-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:end}
-.wheel-option-visual-fields label{grid-column:1/-1}
+.wheel-option-visual-fields{display:flex;gap:6px;align-items:end;justify-content:start;flex-wrap:wrap;min-width:0}
+.wheel-option-visual-fields label{flex:1 0 100%}
 .wheel-option-visual-fields input[type=color]{height:34px;padding:2px}
 .wheel-option-visual-fields input[type=file]{display:none}
-.wheel-option-visual-fields button{min-height:34px;padding:5px 8px;min-width:0;white-space:nowrap}
+.wheel-option-visual-fields button{min-height:34px;padding:5px 8px;min-width:max-content;white-space:nowrap}
 @media(max-width:900px){.wheel-option-grid{grid-template-columns:1fr 1fr}.wheel-option-grid--header{display:none}.wheel-option-grid .icon-btn{width:100%}}
 #groupModal .modal,#chaserGroupModal .modal,#motionGroupModal .modal{width:min(760px,calc(100vw - 32px));max-width:760px;overflow:hidden}
 #groupModal .modal>div:first-child,#chaserGroupModal .modal>div:first-child,#motionGroupModal .modal>div:first-child,#groupModal .modal>.buttons,#chaserGroupModal .modal>.buttons,#motionGroupModal .modal>.buttons{flex:0 0 auto}
