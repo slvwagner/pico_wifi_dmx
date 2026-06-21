@@ -135,6 +135,29 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.readout).toContain('Tilt 1999');
   });
 
+  test('Pan/Tilt controls use XY pad and relative nudges without absolute sliders', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      drawSurface();
+      const control = [...document.querySelectorAll('[data-fixture-card="101"] .control')]
+        .find(el => el.textContent.includes('Pan/Tilt'));
+      return {
+        hasXY: !!control.querySelector('[data-xy-fixture]'),
+        axisSliders: control.querySelectorAll('input[data-axis], input[data-byte-axis]').length,
+        relativeRows: [...control.querySelectorAll('.relative-control')]
+          .map(el => el.querySelector('label')?.textContent.trim())
+      };
+    });
+
+    expect(state.hasXY).toBe(true);
+    expect(state.axisSliders).toBe(0);
+    expect(state.relativeRows).toEqual([
+      'Pan coarse relative',
+      'Pan fine relative',
+      'Tilt coarse relative',
+      'Tilt fine relative'
+    ]);
+  });
+
   test('16-bit slider controls expose coarse and fine relative nudges', async ({ page }) => {
     const state = await page.evaluate(() => {
       profiles.push({
@@ -183,14 +206,12 @@ test.describe('Fixture Controller established rules', () => {
       row('Pan fine').querySelector('[data-relative-dir="-1"]').click();
       const afterBorrow = {
         value: { ...values['101:12'] },
-        panCoarse: control.querySelector('[data-byte-readout="panCoarse"]').textContent,
-        panFine: control.querySelector('[data-byte-readout="panFine"]').textContent
+        panBytes: bytes16(values['101:12'].pan)
       };
       row('Tilt fine').querySelector('[data-relative-dir="1"]').click();
       const afterCarry = {
         value: { ...values['101:12'] },
-        tiltCoarse: control.querySelector('[data-byte-readout="tiltCoarse"]').textContent,
-        tiltFine: control.querySelector('[data-byte-readout="tiltFine"]').textContent
+        tiltBytes: bytes16(values['101:12'].tilt)
       };
       values['101:12'] = { pan: 0, tilt: 65535 };
       updateControlDisplay(fixtures.find(f => f.id === 101), fixtureProfile(fixtures.find(f => f.id === 101)).controls.find(c => c.id === 12));
@@ -204,11 +225,9 @@ test.describe('Fixture Controller established rules', () => {
     });
 
     expect(state.afterBorrow.value.pan).toBe(255);
-    expect(state.afterBorrow.panCoarse).toBe('0');
-    expect(state.afterBorrow.panFine).toBe('255');
+    expect(state.afterBorrow.panBytes).toEqual({ coarse: 0, fine: 255 });
     expect(state.afterCarry.value.tilt).toBe(256);
-    expect(state.afterCarry.tiltCoarse).toBe('1');
-    expect(state.afterCarry.tiltFine).toBe('0');
+    expect(state.afterCarry.tiltBytes).toEqual({ coarse: 1, fine: 0 });
     expect(state.edge).toEqual({ pan: 0, tilt: 65535 });
   });
 
@@ -239,6 +258,44 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.a).toBe(15);
     expect(state.b).toBe(85);
     expect(state.modalReadout).toBe('15');
+  });
+
+  test('Group Edit remembers relative step sizes and autosaves them to the server', async ({ page }) => {
+    const posts = [];
+    await page.route('**/ui_state.php', async route => {
+      if (route.request().method() === 'POST') {
+        posts.push(route.request().postDataJSON());
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+        return;
+      }
+      await route.fallback();
+    });
+
+    await page.evaluate(() => {
+      selectedFixtureIds = new Set([101]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      drawSurface();
+      openGroupModal();
+    });
+
+    const panFine = page.locator('#groupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-relative-step]');
+    await panFine.fill('7');
+
+    await expect.poll(() => posts, { timeout: 5000 }).toContainEqual(expect.objectContaining({
+      page: 'fixture',
+      state: expect.objectContaining({
+        groupEditRelativeSteps: expect.objectContaining({
+          'panTilt16:Pan/Tilt|pan|fine': 7
+        })
+      })
+    }));
+
+    await page.locator('#closeGroupModal').click();
+    await page.evaluate(() => openGroupModal());
+    await expect(page.locator('#groupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-relative-step]')).toHaveValue('7');
   });
 
   test('saved group first fixture becomes Controller Group Edit source', async ({ page }) => {
@@ -1054,6 +1111,294 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.scope).toEqual(['101:11']);
   });
 
+  test('palette move mode reorders tiles without recalling them', async ({ page }) => {
+    const palettePosts = [];
+    await page.route('**/palette_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        palettePosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, palettes: [], paletteCols: 4, paletteRows: 4 })
+      });
+    });
+
+    const state = await page.evaluate(() => {
+      palettes = [
+        { id: 'pal_a', name: 'Dimmer A', slot: 0, scope: 'dimmer', values: { '101:11': 99 } },
+        { id: 'pal_b', name: 'Dimmer B', slot: 2, scope: 'dimmer', values: { '102:21': 77 } }
+      ];
+      paletteCols = 4;
+      paletteRows = 1;
+      values['101:11'] = 10;
+      renderPaletteMatrix();
+      document.getElementById('movePaletteBtn').click();
+      document.querySelector('[data-palette-slot="0"]').click();
+      const clickDidNotRecall = values['101:11'] === 10;
+      const selectedForMove = paletteMoveSelectedSlot === 0;
+      document.querySelector('[data-palette-slot="3"]').click();
+      const afterMove = palettes.map(p => ({ id: p.id, slot: p.slot }));
+      const swapped = movePaletteSlot(3, 2);
+      return {
+        moveMode: paletteMoveMode,
+        clickDidNotRecall,
+        selectedForMove,
+        afterMove,
+        swapped,
+        afterSwap: palettes.map(p => ({ id: p.id, slot: p.slot })),
+        activeButton: document.getElementById('movePaletteBtn').classList.contains('active')
+      };
+    });
+
+    expect(state.moveMode).toBe(true);
+    expect(state.activeButton).toBe(true);
+    expect(state.clickDidNotRecall).toBe(true);
+    expect(state.selectedForMove).toBe(true);
+    expect(state.afterMove).toEqual([
+      { id: 'pal_b', slot: 2 },
+      { id: 'pal_a', slot: 3 }
+    ]);
+    expect(state.swapped).toBe(true);
+    expect(state.afterSwap).toEqual([
+      { id: 'pal_a', slot: 2 },
+      { id: 'pal_b', slot: 3 }
+    ]);
+    expect(palettePosts.at(-1).palettes.map(p => ({ id: p.id, slot: p.slot }))).toEqual([
+      { id: 'pal_a', slot: 2 },
+      { id: 'pal_b', slot: 3 }
+    ]);
+  });
+
+  test('palette move mode supports real drag and drop between slots', async ({ page }) => {
+    const palettePosts = [];
+    await page.route('**/palette_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        palettePosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, palettes: [], paletteCols: 4, paletteRows: 4 })
+      });
+    });
+
+    await page.evaluate(() => {
+      palettes = [
+        { id: 'pal_a', name: 'Dimmer A', slot: 0, scope: 'dimmer', values: { '101:11': 99 } },
+        { id: 'pal_b', name: 'Dimmer B', slot: 2, scope: 'dimmer', values: { '102:21': 77 } }
+      ];
+      paletteCols = 4;
+      paletteRows = 1;
+      renderPaletteMatrix();
+      document.getElementById('movePaletteBtn').click();
+    });
+
+    const source = page.locator('[data-palette-slot="0"]');
+    const target = page.locator('[data-palette-slot="3"]');
+    await source.dragTo(target);
+
+    await expect.poll(() => page.evaluate(() => palettes.map(p => ({ id: p.id, slot: p.slot })))).toEqual([
+      { id: 'pal_b', slot: 2 },
+      { id: 'pal_a', slot: 3 }
+    ]);
+    await expect.poll(() => palettePosts.length, { timeout: 5000 }).toBeGreaterThan(0);
+    expect(palettePosts.at(-1).palettes.map(p => ({ id: p.id, slot: p.slot }))).toEqual([
+      { id: 'pal_b', slot: 2 },
+      { id: 'pal_a', slot: 3 }
+    ]);
+  });
+
+  test('scene move mode reorders tiles without recalling them', async ({ page }) => {
+    const scenePosts = [];
+    await page.route('**/scene_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        scenePosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, scenes: [], slotCols: 4, slotRows: 4 })
+      });
+    });
+
+    const state = await page.evaluate(() => {
+      scenes = [
+        { id: 'scene_a', name: 'Scene A', slot: 0, values: { '101:11': 99 } },
+        { id: 'scene_b', name: 'Scene B', slot: 2, values: { '102:21': 77 } }
+      ];
+      slotCols = 4;
+      slotRows = 1;
+      values['101:11'] = 10;
+      renderSlotMatrix();
+      document.getElementById('moveScenesBtn').click();
+      document.querySelector('[data-slot="0"]').click();
+      const clickDidNotRecall = values['101:11'] === 10;
+      const selectedForMove = sceneMoveSelectedSlot === 0;
+      document.querySelector('[data-slot="3"]').click();
+      const afterMove = scenes.map(s => ({ id: s.id, slot: s.slot }));
+      const swapped = moveSceneSlot(3, 2);
+      return {
+        moveMode: sceneMoveMode,
+        clickDidNotRecall,
+        selectedForMove,
+        afterMove,
+        swapped,
+        afterSwap: scenes.map(s => ({ id: s.id, slot: s.slot })),
+        activeButton: document.getElementById('moveScenesBtn').classList.contains('active')
+      };
+    });
+
+    expect(state.moveMode).toBe(true);
+    expect(state.activeButton).toBe(true);
+    expect(state.clickDidNotRecall).toBe(true);
+    expect(state.selectedForMove).toBe(true);
+    expect(state.afterMove).toEqual([
+      { id: 'scene_b', slot: 2 },
+      { id: 'scene_a', slot: 3 }
+    ]);
+    expect(state.swapped).toBe(true);
+    expect(state.afterSwap).toEqual([
+      { id: 'scene_a', slot: 2 },
+      { id: 'scene_b', slot: 3 }
+    ]);
+    await expect.poll(() => scenePosts.length, { timeout: 5000 }).toBeGreaterThan(0);
+    expect(scenePosts.at(-1).scenes.map(s => ({ id: s.id, slot: s.slot }))).toEqual([
+      { id: 'scene_a', slot: 2 },
+      { id: 'scene_b', slot: 3 }
+    ]);
+  });
+
+  test('group move mode reorders saved group tiles without selecting them', async ({ page }) => {
+    const groupPosts = [];
+    await page.route('**/group_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        groupPosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, groups: [] })
+      });
+    });
+
+    const state = await page.evaluate(() => {
+      savedGroupsLoaded = true;
+      savedGroups = [
+        { id: 'grp_a', name: 'Group A', fixtureIds: [101], values: {} },
+        { id: 'grp_b', name: 'Group B', fixtureIds: [102], values: {} },
+        { id: 'grp_c', name: 'Group C', fixtureIds: [103], values: {} }
+      ];
+      groupCols = 3;
+      groupRows = 2;
+      activeSavedGroupIds.clear();
+      selectedFixtureIds.clear();
+      renderSavedGroupsList();
+      document.getElementById('moveGroupsBtn').click();
+      document.querySelector('[data-group-index="0"]').click();
+      const clickDidNotSelect = selectedFixtureIds.size === 0 && activeSavedGroupIds.size === 0;
+      const selectedForMove = groupMoveSelectedIndex === 0;
+      document.querySelector('[data-group-index="2"]').click();
+      return {
+        moveMode: groupMoveMode,
+        activeButton: document.getElementById('moveGroupsBtn').classList.contains('active'),
+        clickDidNotSelect,
+        selectedForMove,
+        groups: savedGroups.map(g => g.id)
+      };
+    });
+
+    expect(state.moveMode).toBe(true);
+    expect(state.activeButton).toBe(true);
+    expect(state.clickDidNotSelect).toBe(true);
+    expect(state.selectedForMove).toBe(true);
+    expect(state.groups).toEqual(['grp_b', 'grp_c', 'grp_a']);
+    await expect.poll(() => groupPosts.length, { timeout: 5000 }).toBeGreaterThan(0);
+    expect(groupPosts.at(-1).groups.map(g => g.id)).toEqual(['grp_b', 'grp_c', 'grp_a']);
+  });
+
+  test('group move mode supports real drag and drop between group tiles', async ({ page }) => {
+    const groupPosts = [];
+    await page.route('**/group_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        groupPosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, groups: [] })
+      });
+    });
+
+    await page.evaluate(() => {
+      savedGroupsLoaded = true;
+      savedGroups = [
+        { id: 'grp_a', name: 'Group A', fixtureIds: [101], values: {} },
+        { id: 'grp_b', name: 'Group B', fixtureIds: [102], values: {} },
+        { id: 'grp_c', name: 'Group C', fixtureIds: [103], values: {} }
+      ];
+      groupCols = 3;
+      groupRows = 2;
+      activeSavedGroupIds.clear();
+      selectedFixtureIds.clear();
+      renderSavedGroupsList();
+      document.getElementById('moveGroupsBtn').click();
+    });
+
+    await page.locator('[data-group-index="0"]').dragTo(page.locator('[data-group-index="2"]'));
+
+    await expect.poll(() => page.evaluate(() => savedGroups.map(g => g.id))).toEqual(['grp_b', 'grp_c', 'grp_a']);
+    await expect.poll(() => groupPosts.length, { timeout: 5000 }).toBeGreaterThan(0);
+    expect(groupPosts.at(-1).groups.map(g => g.id)).toEqual(['grp_b', 'grp_c', 'grp_a']);
+  });
+
+  test('group move mode supports dragging a group to an empty visible position', async ({ page }) => {
+    const groupPosts = [];
+    await page.route('**/group_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        groupPosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, groups: [] })
+      });
+    });
+
+    await page.evaluate(() => {
+      savedGroupsLoaded = true;
+      savedGroups = [
+        { id: 'grp_a', name: 'Group A', fixtureIds: [101], values: {} },
+        { id: 'grp_b', name: 'Group B', fixtureIds: [102], values: {} }
+      ];
+      groupCols = 3;
+      groupRows = 2;
+      activeSavedGroupIds.clear();
+      selectedFixtureIds.clear();
+      renderSavedGroupsList();
+      document.getElementById('moveGroupsBtn').click();
+    });
+
+    await expect(page.locator('[data-group-drop-index="4"]')).toContainText('5');
+    await page.locator('[data-group-index="0"]').dragTo(page.locator('[data-group-drop-index="4"]'));
+
+    await expect.poll(() => page.evaluate(() => savedGroups.map(g => g.id))).toEqual(['grp_b', 'grp_a']);
+    await expect.poll(() => groupPosts.length, { timeout: 5000 }).toBeGreaterThan(0);
+    expect(groupPosts.at(-1).groups.map(g => g.id)).toEqual(['grp_b', 'grp_a']);
+  });
+
   test('Fan Out symmetric spread calculates around snapshotted base values', async ({ page }) => {
     const result = await page.evaluate(() => {
       fixtures.push({ id: 104, name: 'A 2', profileId: 1, start: 61 });
@@ -1194,6 +1539,68 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.toOffset).toBe(0);
     expect(result.slider).toBe('0');
     expect(result.readout).toBe('0');
+  });
+
+  test('Fan Out spread can be nudged by a user-defined fine step', async ({ page }) => {
+    const posts = [];
+    await page.route('**/ui_state.php', async route => {
+      if (route.request().method() === 'POST') {
+        posts.push(route.request().postDataJSON());
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+        return;
+      }
+      await route.fallback();
+    });
+
+    const result = await page.evaluate(() => {
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      fanAffectedKeys.clear();
+      drawSurface();
+      renderFanToolbox();
+
+      const option = fanControlOptions().find(o => o.label === 'Dimmer');
+      fanState.controlKey = option.key;
+      fanState.mode = 'symmetric';
+      fanState.spread = 10;
+      renderFanToolbox();
+
+      document.getElementById('fanSpreadStep').value = '3';
+      document.getElementById('fanSpreadUp').click();
+      const afterUp = {
+        spread: fanState.spread,
+        slider: document.getElementById('fanSpread').value,
+        readout: document.getElementById('fanSpreadReadout').textContent
+      };
+      document.getElementById('fanSpreadDown').click();
+      document.getElementById('fanSpreadDown').click();
+      document.getElementById('fanSpreadDown').click();
+      document.getElementById('fanSpreadDown').click();
+      document.getElementById('fanSpreadDown').click();
+      return {
+        afterUp,
+        afterDown: {
+          spread: fanState.spread,
+          slider: document.getElementById('fanSpread').value,
+          readout: document.getElementById('fanSpreadReadout').textContent
+        }
+      };
+    });
+
+    expect(result.afterUp).toEqual({ spread: 13, slider: '13', readout: '13' });
+    expect(result.afterDown).toEqual({ spread: 0, slider: '0', readout: '0' });
+    await expect.poll(() => posts, { timeout: 5000 }).toContainEqual(expect.objectContaining({
+      page: 'fixture',
+      state: expect.objectContaining({
+        fanOutState: expect.objectContaining({
+          mode: 'symmetric',
+          spread: 0,
+          spreadStep: 3
+        })
+      })
+    }));
   });
 
   test('Fan Out Clear resets the shaping controls', async ({ page }) => {

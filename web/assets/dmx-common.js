@@ -176,6 +176,11 @@
 <label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
 <button id="fanInvert" title="Reverse fixture order for Fan Out">Invert</button>
 </div>
+<div id="fanSpreadNudgeWrap" class="fan-nudge-control">
+<button id="fanSpreadDown" type="button" title="Decrease Fan Out spread by the step size">−</button>
+<label>Spread step<input id="fanSpreadStep" type="number" min="1" max="255" step="1" value="1"></label>
+<button id="fanSpreadUp" type="button" title="Increase Fan Out spread by the step size">+</button>
+</div>
 <div id="fanRangeWrap" style="display:none;gap:8px">
 <label>From<input id="fanFrom" type="number" value="0"></label>
 <label>To<input id="fanTo" type="number" value="0"></label>
@@ -1706,6 +1711,109 @@
     return {open,close,normalize:normalizeSlotVisual,html:slotVisualHtml,style:slotVisualStyle};
   }
 
+  function initTileMoveGrid(options){
+    const grid=typeof options.grid==='string'?document.getElementById(options.grid):options.grid;
+    const button=typeof options.button==='string'?document.getElementById(options.button):options.button;
+    if(!grid)return;
+    const active=!!options.active;
+    const selector=options.itemSelector||'[data-tile-move-index]';
+    const getIndex=options.getIndex||((el)=>parseInt(el?.dataset?.tileMoveIndex,10));
+    const canDrag=options.canDrag||(()=>true);
+    const onMove=options.onMove||(()=>false);
+    let dragIndex=null;
+    let pointerDrag=null;
+
+    grid.classList.toggle('tile-move-mode',active);
+    if(button){
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',active?'true':'false');
+    }
+
+    const clearMarks=()=>grid.querySelectorAll('.toolbox-dragging,.toolbox-drop-before,.toolbox-drop-after').forEach(el=>el.classList.remove('toolbox-dragging','toolbox-drop-before','toolbox-drop-after'));
+    const targetAtPoint=(x,y,source)=>{
+      return Array.from(grid.querySelectorAll(selector))
+        .filter(el=>el!==source)
+        .find(el=>{
+          const rect=el.getBoundingClientRect();
+          return x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;
+        })||null;
+    };
+    const markTarget=(target,x)=>{
+      grid.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(item=>item.classList.remove('toolbox-drop-before','toolbox-drop-after'));
+      if(!target)return;
+      const rect=target.getBoundingClientRect();
+      const before=x<rect.left+rect.width/2;
+      target.classList.toggle('toolbox-drop-before',before);
+      target.classList.toggle('toolbox-drop-after',!before);
+    };
+    grid.querySelectorAll(selector).forEach(el=>{
+      const idx=getIndex(el);
+      el.draggable=active&&canDrag(idx,el);
+      el.addEventListener('pointerdown',e=>{
+        if(!active||!canDrag(idx,el)||e.target.closest('button,input,select,textarea,a'))return;
+        pointerDrag={source:el,sourceIndex:idx,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false,target:null};
+        try{el.setPointerCapture?.(e.pointerId);}catch(_){}
+      });
+      el.addEventListener('pointermove',e=>{
+        if(!pointerDrag||pointerDrag.pointerId!==e.pointerId||pointerDrag.source!==el)return;
+        const moved=Math.abs(e.clientX-pointerDrag.startX)>4||Math.abs(e.clientY-pointerDrag.startY)>4;
+        if(!moved&&!pointerDrag.moved)return;
+        pointerDrag.moved=true;
+        el.classList.add('toolbox-dragging');
+        pointerDrag.target=targetAtPoint(e.clientX,e.clientY,el);
+        markTarget(pointerDrag.target,e.clientX);
+        e.preventDefault();
+      });
+      const endPointerDrag=e=>{
+        if(!pointerDrag||pointerDrag.pointerId!==e.pointerId||pointerDrag.source!==el)return;
+        const drag=pointerDrag;
+        pointerDrag=null;
+        try{el.releasePointerCapture?.(e.pointerId);}catch(_){}
+        if(drag.moved&&drag.target){
+          const targetIndex=getIndex(drag.target);
+          onMove(drag.sourceIndex,targetIndex);
+        }
+        clearMarks();
+      };
+      el.addEventListener('pointerup',endPointerDrag);
+      el.addEventListener('pointercancel',endPointerDrag);
+      el.addEventListener('dragstart',e=>{
+        if(!active||!canDrag(idx,el)){
+          e.preventDefault();
+          return;
+        }
+        dragIndex=idx;
+        el.classList.add('toolbox-dragging');
+        if(e.dataTransfer){
+          e.dataTransfer.effectAllowed='move';
+          e.dataTransfer.setData('text/plain',String(idx));
+        }
+      });
+      el.addEventListener('dragover',e=>{
+        if(!active||dragIndex===null)return;
+        e.preventDefault();
+        grid.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(item=>item.classList.remove('toolbox-drop-before','toolbox-drop-after'));
+        const rect=el.getBoundingClientRect();
+        const before=e.clientX<rect.left+rect.width/2;
+        el.classList.toggle('toolbox-drop-before',before);
+        el.classList.toggle('toolbox-drop-after',!before);
+        if(e.dataTransfer)e.dataTransfer.dropEffect='move';
+      });
+      el.addEventListener('dragleave',()=>el.classList.remove('toolbox-drop-before','toolbox-drop-after'));
+      el.addEventListener('drop',e=>{
+        if(!active||dragIndex===null)return;
+        e.preventDefault();
+        onMove(dragIndex,idx);
+        dragIndex=null;
+        clearMarks();
+      });
+      el.addEventListener('dragend',()=>{
+        dragIndex=null;
+        clearMarks();
+      });
+    });
+  }
+
   window.DmxCommon={
     BASE_URL_KEY,
     APP_VERSION,
@@ -1752,6 +1860,7 @@
     slotVisualStyle,
     slotVisualHtml,
     slotVisualButtonHtml,
+    initTileMoveGrid,
     showModal,
     hideModal,
     initSlotVisualEditor

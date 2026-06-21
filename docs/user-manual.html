@@ -230,11 +230,13 @@ strong { color: #ffffff; }
 <p>Each fixture card contains the controls from its profile:</p>
 <ul>
 <li>Sliders for dimmer and simple channels</li>
-<li>XY pads for pan/tilt</li>
+<li>XY pads for absolute pan/tilt positioning</li>
+<li>Relative pan/tilt nudge controls for small position corrections</li>
 <li>Color pickers and swatches for color controls</li>
 <li>Wheel buttons for indexed wheel values</li>
-<li>Coarse/fine sliders for 16-bit channels</li>
+<li>Coarse/fine relative nudges for 16-bit channels</li>
 </ul>
+<p>For pan/tilt controls, drag inside the XY pad when you want to move directly to an absolute position. Use <strong>Pan coarse relative</strong>, <strong>Pan fine relative</strong>, <strong>Tilt coarse relative</strong>, and <strong>Tilt fine relative</strong> when you want to adjust from the current position without jumping to a new absolute value. The number field in each relative row sets how many DMX increments the next <code>-</code> or <code>+</code> click will move. The fine relative buttons move the combined 16-bit value by that many steps, including byte borrow and carry: for example <code>256 - 1</code> becomes coarse <code>0</code>, fine <code>255</code>, and <code>255 + 1</code> becomes coarse <code>1</code>, fine <code>0</code>. The value is clamped at the valid DMX range, so it cannot go below <code>0</code> or above <code>65535</code>.</p>
 <p>Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing.</p>
 <p>Fixture profiles imported from the <strong>Fixture Library</strong> keep richer Open Fixture Library wheel information when it is available. Wheel slots use their real names and colors, for example <code>White</code>, <code>Red</code>, or <code>Gobo 2</code>. If an OFL wheel option covers a DMX range, the button sends the middle of that range so the value is safely inside the fixture function. Adjustable wheel ranges such as <code>WheelShake</code>, <code>WheelRotation</code>, and <code>WheelSlotRotation</code> also show a bounded range slider after you select them. For example, the Fun Generation PicoSpot 20 LED in 11-channel mode imports <code>Gobo 2 shake</code> as a wheel button and shows a <strong>Shake speed</strong> slider limited to its real DMX range.</p>
 <p><img src="screenshots/fixture-controller-ofl-wheel-range.png" alt="OFL wheel range control"></p>
@@ -247,11 +249,12 @@ strong { color: #ffffff; }
 <p>The Fixture Controller uses four toolboxes in the shared right-side <strong>Toolboxes</strong> sidebar.</p>
 <p><img src="screenshots/fixture-controller-toolbox-groups.png" alt="Controller Groups toolbox"></p>
 <p><strong>Show</strong> is the project-level card for setup files. <strong>New Show</strong> starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico playback slots, and saved toolbox layout while keeping the reusable fixture library. <strong>Export Setup</strong> downloads the complete show backup, <strong>Import Setup</strong> restores one, and <strong>Patch CSV</strong> exports the patched channel table. The card can be collapsed when you do not need these buttons.</p>
-<p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small <code>x</code>, import/export group JSON, and open <strong>Group Edit</strong> when the current scope supports it.</p>
+<p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small <code>x</code>, import/export group JSON, reorder group tiles with <strong>Move</strong>, and open <strong>Group Edit</strong> when the current scope supports it.</p>
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Controller Scenes toolbox"></p>
-<p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, and the small top-left pencil icon opens <strong>Edit Tile</strong> for that slot&#39;s name, background, and optional drawing/upload.</p>
+<p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, <strong>Move</strong> reorders tiles, and the small top-left pencil icon opens <strong>Edit Tile</strong> for that slot&#39;s name, background, and optional drawing/upload.</p>
 <p><img src="screenshots/fixture-controller-toolbox-palettes.png" alt="Controller Palettes toolbox"></p>
-<p><strong>Palettes</strong> stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched.</p>
+<p><strong>Palettes</strong> stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched. <strong>Move</strong> reorders palette tiles without recalling them.</p>
+<p>In Groups, Scenes, and Palettes, <strong>Move</strong> sits beside the <strong>Cols</strong> and <strong>Rows</strong> layout controls because it organizes the tile grid. Click <strong>Move</strong> to enable move mode, then drag a filled tile to a new position. While dragging, the source tile gets the same accent outline used when moving toolboxes, and the target position shows an accent insertion line. On touch screens, tap the filled source tile and then tap the destination. In Scenes and Palettes, dropping onto another filled tile swaps the two slots; in Groups, moving a tile reorders the saved group list.</p>
 <p><img src="screenshots/fixture-controller-toolbox-fanout.png" alt="Controller Fan Out toolbox"></p>
 <p><strong>Fan Out</strong> shapes the currently selected fixtures or groups by spreading one compatible control through the selected order. It is documented in more detail below because its output can be saved as scenes or palettes.</p>
 <h3 id="fan-out-toolbox">Fan Out Toolbox</h3>
@@ -266,6 +269,8 @@ strong { color: #ffffff; }
 <li>The affected fixture controls are highlighted in the Control Surface.</li>
 <li>Save the resulting look with the Scene Toolbox if you want to keep the actual DMX look.</li>
 </ol>
+<p>In <strong>Symmetric spread</strong> mode, the <strong>Spread step</strong> field and the <code>-</code> / <code>+</code> buttons provide fine adjustment of the Spread value. Set the step size to the number of DMX increments you want to add or subtract, then click <code>-</code> or <code>+</code>. The buttons clamp at the valid range for the selected Fan Out control. <strong>Start to end</strong> mode hides the Spread nudge row because that mode is edited directly with the <strong>From</strong> and <strong>To</strong> number fields.</p>
+<p>The current Fan Out working state is autosaved to the XAMPP server UI-state file. This includes the selected Fan Out control, mode, Spread, Invert state, From/To offsets, and Spread step size, so the toolbox can restore the last working shape after a reload. Saved Fan Out presets are separate: use <strong>Save</strong> when you want to keep a named Fan Out recipe for later recall.</p>
 <p>The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand. When a Pico base URL is set, the changed DMX values are also sent to the Pico.</p>
 <p>Fan Out calculates from a stored base value for each fixture, control, and axis. <strong>Snapshot</strong> stores those base values. In <strong>Symmetric spread</strong>, the spread is added around the base values:</p>
 <pre><code>final value = snapshotted base value + spread offset</code></pre>
@@ -321,6 +326,15 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>This allows one <strong>Color</strong> palette to contain RGB controls, color wheels, and RGBWA controls from different fixture types while still remaining a Color palette.</li>
 <li>If the current scope differs from the saved palette scope, the controller asks whether to change the saved palette to <strong>All controls</strong> and merge.</li>
 <li>If you cancel a merge prompt, the palette is not changed.</li>
+</ul>
+<p>Use <strong>Move</strong> when you want to reorder palette tiles. The same interaction is also available in the Groups and Scenes toolboxes:</p>
+<ul>
+<li>Click <strong>Move</strong> to enable palette move mode.</li>
+<li>Drag a filled palette tile to an empty slot to move it there; the tile shows the same drag outline and insertion marker used for moving toolboxes.</li>
+<li>Drag a filled palette tile onto another filled palette tile to swap their positions.</li>
+<li>On touch screens, tap a filled tile to select it, then tap the destination slot.</li>
+<li>While Move is active, clicking a palette tile does not recall or save it.</li>
+<li>Click <strong>Move</strong> again when you are done organizing the palette grid.</li>
 </ul>
 <h2 id="2-scenes-and-palettes">2. Scenes And Palettes</h2>
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Scene Toolbox"></p>
@@ -383,9 +397,10 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 </ol>
 <p>On the Fixture Controller, <strong>Group Edit</strong> lives in the <strong>Groups</strong> toolbox. It requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press <strong>Select All</strong> before opening Group Edit from the Groups toolbox.</p>
 <p>The Group Edit modal only shows controls that exist on at least two selected fixtures. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.</p>
-<p>The selected <strong>Source</strong> fixture is the template for the modal values. When you open Group Edit, the modal reads the Source fixture&#39;s current matching control values and shows those values in the sliders, wheel buttons, color controls, and XY pads. Opening the modal does not overwrite the other selected fixtures and does not send DMX by itself.</p>
+<p>The selected <strong>Source</strong> fixture is the template for the modal values. When you open Group Edit, the modal reads the Source fixture&#39;s current matching control values and shows those values in the sliders, wheel buttons, color controls, XY pads, and relative nudge controls. Opening the modal does not overwrite the other selected fixtures and does not send DMX by itself.</p>
 <p>The source selection is automatic. Loading a saved group makes the first fixture stored in that group the Source. With manual fixture selection, the clicked/selected fixture becomes the Source; if that fixture is removed from the selection, the page picks the next selected fixture that can provide the control.</p>
-<p>The values are applied when you actually edit a control in the modal. Moving a slider, choosing a wheel slot, changing a color, pressing Center, or using Default/Blackout writes that value to every selected fixture that has the matching control. When a Pico base URL is set, each Group Edit change is sent to the Pico immediately. To use Group Edit browser-only, clear the Pico base URL first.</p>
+<p>The values are applied when you actually edit a control in the modal. Moving a slider, dragging an XY pad, choosing a wheel slot, changing a color, pressing Center, using relative nudges, or using Default/Blackout writes the change to every selected fixture that has the matching control. Absolute edits write the shown Source value to the matching fixtures. Relative nudges keep each selected fixture relative to its own current value, so a group pan/tilt nudge moves the selected fixtures together without forcing them all to the same absolute position. When a Pico base URL is set, each Group Edit change is sent to the Pico immediately. To use Group Edit browser-only, clear the Pico base URL first.</p>
+<p>Group Edit remembers the relative step-size fields you set, for example <strong>Pan fine relative</strong> or <strong>Tilt fine relative</strong>. Those settings are autosaved to the XAMPP server UI-state file and restored the next time Group Edit opens, so your preferred nudge sizes survive reloads.</p>
 <p>If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, <strong>Group Edit</strong> uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.</p>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
 <h3 id="group-edit-contract">Group Edit Contract</h3>

@@ -63,6 +63,10 @@ test.describe('Chaser established rules', () => {
     }));
 
     expect(chaserLayout).toEqual(controllerLayout);
+    expect(chaserLayout.inputs).toEqual(expect.arrayContaining([
+      { id: 'fanSpreadStep', type: 'number' }
+    ]));
+    expect(chaserLayout.buttons).toEqual(expect.arrayContaining(['fanSpreadDown', 'fanSpreadUp']));
   });
 
   test('Fan Out spread slider fills the shared toolbox width on Chaser', async ({ page }) => {
