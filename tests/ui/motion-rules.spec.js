@@ -257,6 +257,25 @@ test.describe('Motion FX established rules', () => {
     expect(result.panTiltState.serializedAmp2).toBe('AMP2 0.370000');
   });
 
+  test('Pico Motion Pan/Tilt target serializes swapped channels and reverse flags', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
+      Object.assign(pan.control, {
+        panReverse: true,
+        tiltReverse: true,
+        panTiltSwap: true
+      });
+      motionFixtures.forEach(mf => {
+        mf.enabled = mf === pan;
+      });
+      setMotionTarget(motionControlKey(pan.control), { enableMatches: false });
+      pan.enabled = true;
+      return serializeMotionForPico().split('\n').find(line => line.startsWith('TARGET pantilt16 '));
+    });
+
+    expect(result).toBe('TARGET pantilt16 1 4 5 2 3 0.00 1 1');
+  });
+
   test('phase spread spans from the first to the last enabled fixture', async ({ page }) => {
     const result = await page.evaluate(() => {
       const degrees = value => Math.round(value * 180 / Math.PI);

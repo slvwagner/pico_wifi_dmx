@@ -1857,6 +1857,82 @@
     };
   }
 
+  function panTiltMax(control){
+    return control?.type==='panTilt16'?65535:255;
+  }
+
+  function panTiltDefault(control){
+    const max=panTiltMax(control);
+    return {pan:Math.round(max/2),tilt:Math.round(max/2)};
+  }
+
+  function panTiltAxisValue(control,value,axis){
+    const fallback=panTiltDefault(control);
+    const source=value&&typeof value==='object'?value:fallback;
+    const max=panTiltMax(control);
+    return Math.max(0,Math.min(max,Math.round(parseFloat(source[axis]??fallback[axis])||0)));
+  }
+
+  function panTiltPhysicalAxis(control,logicalAxis){
+    const swapped=!!control?.panTiltSwap;
+    if(logicalAxis==='pan')return swapped?'tilt':'pan';
+    return swapped?'pan':'tilt';
+  }
+
+  function panTiltAxisReversed(control,logicalAxis){
+    return logicalAxis==='pan'?!!control?.panReverse:!!control?.tiltReverse;
+  }
+
+  function panTiltAxisMeta(control,physicalAxis){
+    if(physicalAxis==='pan')return {coarse:control?.pan,fine:control?.panFine??(control?.pan||0)+1,label:'Pan'};
+    return {coarse:control?.tilt,fine:control?.tiltFine??(control?.tilt||0)+1,label:'Tilt'};
+  }
+
+  function panTiltDmxRows(control,value,absoluteFn){
+    if(!control||!(control.type==='panTilt16'||control.type==='panTilt8'))return[];
+    const abs=typeof absoluteFn==='function'?absoluteFn:((rel)=>rel);
+    const max=panTiltMax(control);
+    const rows=[];
+    ['pan','tilt'].forEach(logicalAxis=>{
+      const physicalAxis=panTiltPhysicalAxis(control,logicalAxis);
+      const meta=panTiltAxisMeta(control,physicalAxis);
+      let logicalValue=panTiltAxisValue(control,value,logicalAxis);
+      if(panTiltAxisReversed(control,logicalAxis))logicalValue=max-logicalValue;
+      const logicalLabel=logicalAxis==='pan'?'Pan':'Tilt';
+      const mappingSuffix=control.panTiltSwap?' -> '+meta.label:'';
+      const reverseSuffix=panTiltAxisReversed(control,logicalAxis)?' reversed':'';
+      if(control.type==='panTilt16'){
+        const coarse=Math.floor(logicalValue/256);
+        const fine=logicalValue%256;
+        rows.push({ch:abs(meta.coarse),rel:meta.coarse,val:coarse,param:logicalLabel+' coarse'+mappingSuffix+reverseSuffix,logicalAxis,physicalAxis,part:'coarse'});
+        rows.push({ch:abs(meta.fine),rel:meta.fine,val:fine,param:logicalLabel+' fine'+mappingSuffix+reverseSuffix,logicalAxis,physicalAxis,part:'fine'});
+      }else{
+        rows.push({ch:abs(meta.coarse),rel:meta.coarse,val:logicalValue,param:logicalLabel+mappingSuffix+reverseSuffix,logicalAxis,physicalAxis,part:'value'});
+      }
+    });
+    return rows;
+  }
+
+  function panTiltValueFromDmx(control,readRel){
+    if(!control||!(control.type==='panTilt16'||control.type==='panTilt8'))return panTiltDefault(control);
+    const max=panTiltMax(control);
+    const value={};
+    ['pan','tilt'].forEach(logicalAxis=>{
+      const physicalAxis=panTiltPhysicalAxis(control,logicalAxis);
+      const meta=panTiltAxisMeta(control,physicalAxis);
+      let dmxValue;
+      if(control.type==='panTilt16'){
+        const coarse=readRel(meta.coarse)??0;
+        const fine=readRel(meta.fine)??0;
+        dmxValue=((coarse&255)<<8)|(fine&255);
+      }else{
+        dmxValue=readRel(meta.coarse)??Math.round(max/2);
+      }
+      value[logicalAxis]=panTiltAxisReversed(control,logicalAxis)?max-dmxValue:dmxValue;
+    });
+    return value;
+  }
+
   window.DmxCommon={
     BASE_URL_KEY,
     APP_VERSION,
@@ -1904,6 +1980,10 @@
     slotVisualHtml,
     slotVisualButtonHtml,
     initTileMoveGrid,
+    panTiltMax,
+    panTiltDefault,
+    panTiltDmxRows,
+    panTiltValueFromDmx,
     showModal,
     hideModal,
     initSlotVisualEditor

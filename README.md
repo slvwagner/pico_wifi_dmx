@@ -714,11 +714,11 @@ BPM <float>
 AMP1 <0.0–1.0>
 AMP2 <0.0–1.0>
 SPREAD <degrees>
-TARGET <scalar8|scalar16|pantilt8|pantilt16> <enabled> <ch1> <fine1> <ch2> <fine2> <phase_deg>
+TARGET <scalar8|scalar16|pantilt8|pantilt16> <enabled> <ch1> <fine1> <ch2> <fine2> <phase_deg> [reverse1] [reverse2]
 END
 ```
 
-The `TARGET` line contains DMX channel positions only. It does not store fixed center values. Instead, the effect center is read from the **scene base buffer** (`dmx_base_frame`) at tick time — see [Scene Base Buffer](#scene-base-buffer) below. Pan/tilt targets use both axes; scalar targets use `ch1`/`fine1` and ignore `ch2`/`fine2`.
+The `TARGET` line contains DMX channel positions only. It does not store fixed center values. Instead, the effect center is read from the **scene base buffer** (`dmx_base_frame`) at tick time — see [Scene Base Buffer](#scene-base-buffer) below. Pan/tilt targets use both axes; scalar targets use `ch1`/`fine1` and ignore `ch2`/`fine2`. The optional `reverse1` and `reverse2` flags are `0` or `1`; they invert the motion offset for target axis 1 and target axis 2 while keeping the current base value as the center. Older slot payloads without these flags remain valid.
 
 ---
 
@@ -759,7 +759,7 @@ Setup command buttons use shared direct feedback: while work is running the butt
 
 Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
 
-The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. Fan Out calculates from each fixture's base value plus an offset assigned by fixture position in the current Fan Out order. Saved groups use their stored fixture order; manual selections use the order fixtures were selected; **Invert** reverses that calculated order. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
+The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. Fan Out calculates from each fixture's base value plus an offset assigned by fixture position in the current Fan Out order. Saved groups use their stored fixture order; manual selections use the order fixtures were selected; in Symmetric spread mode, negative Spread runs the shape in the opposite direction. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
 
 The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. The small pencil on a filled tile opens **Edit Tile**, where you can rename the tile and set a background color plus an optional drawn/uploaded visual. Palette visuals are independent from scope, draw on the selected background color, and automatically choose a high-contrast brush color. They can reset to the default background or clear the icon entirely. Palette names and visuals are saved inside `data/palette_setup.json` together with the palette values.
 
@@ -767,7 +767,7 @@ The Palettes toolbox stores reusable partial looks such as positions, colors, go
 
 ![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
 
-The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. Profile name, mode, and channel count update the selected profile automatically and are included in the normal setup autosave. The Add / Edit Control card edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads; for color controls it exposes the color picker and extra white/amber channels where needed. Clicking Edit on an existing control opens this editor automatically. **Update Library** writes the selected profile back into the fixture library catalog on the XAMPP server, replacing the matching fixture mode or adding a new custom fixture entry. Collapsing Fixture Profiles also hides the Add / Edit Control card.
+The profile editor is where a fixture personality is described. The left side lists saved fixture profiles and their controls. Profile name, mode, and channel count update the selected profile automatically and are included in the normal setup autosave. The Add / Edit Control card edits the selected control type, channel mapping, label, and default/blackout values. For pan/tilt controls the editor shows XY pads plus profile-level mapping options to reverse Pan DMX, reverse Tilt DMX, or swap the physical Pan/Tilt axes while the UI keeps logical Pan/Tilt values. For color controls it exposes the color picker and extra white/amber channels where needed. Clicking Edit on an existing control opens this editor automatically. **Update Library** writes the selected profile back into the fixture library catalog on the XAMPP server, replacing the matching fixture mode or adding a new custom fixture entry. Pan/Tilt reverse and swap settings are cleared for the library copy because they are show-specific mounting corrections. Collapsing Fixture Profiles also hides the Add / Edit Control card.
 
 ![Fixture live control cards](docs/screenshots/fixture-controller-live-controls.png)
 

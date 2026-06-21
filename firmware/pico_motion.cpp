@@ -104,11 +104,12 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
             char kind_s[16] = {0};
             int enabled = 0;
             unsigned ch1 = 0, fine1 = 0, ch2 = 0, fine2 = 0;
+            int reverse1 = 0, reverse2 = 0;
             float phase = 0.0f;
-            int got = sscanf(line + 7, "%15s %d %u %u %u %u %f",
-                             kind_s, &enabled, &ch1, &fine1, &ch2, &fine2, &phase);
+            int got = sscanf(line + 7, "%15s %d %u %u %u %u %f %d %d",
+                             kind_s, &enabled, &ch1, &fine1, &ch2, &fine2, &phase, &reverse1, &reverse2);
             mfx_target_kind_t kind;
-            if (got == 7 && parse_kind(kind_s, &kind)) {
+            if (got >= 7 && parse_kind(kind_s, &kind)) {
                 mfx_target_t *t = &tmp.targets[tmp.target_count++];
                 t->enabled = enabled != 0;
                 t->kind = kind;
@@ -116,6 +117,8 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
                 t->fine1 = (uint16_t)fine1;
                 t->ch2 = (uint16_t)ch2;
                 t->fine2 = (uint16_t)fine2;
+                t->reverse1 = reverse1 != 0;
+                t->reverse2 = reverse2 != 0;
                 t->phase_offset_deg = phase;
                 t->max_val = (kind == MFX_TARGET_SCALAR16 || kind == MFX_TARGET_PANTILT16) ? 65535.0f : 255.0f;
             }
@@ -282,17 +285,20 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
                 if (moves_1) {
                     float base = target_is_16bit(t) ? (float)read_base16(t->ch1, t->fine1)
                                                     : (float)dmx_engine_get_base_channel(t->ch1);
-                    write_target_value(t, t->ch1, t->fine1, base + off1 * sn->amp1 * half, scratch, touched);
+                    float dir = t->reverse1 ? -1.0f : 1.0f;
+                    write_target_value(t, t->ch1, t->fine1, base + off1 * sn->amp1 * half * dir, scratch, touched);
                 }
                 if (moves_2) {
                     float base = target_is_16bit(t) ? (float)read_base16(t->ch2, t->fine2)
                                                     : (float)dmx_engine_get_base_channel(t->ch2);
-                    write_target_value(t, t->ch2, t->fine2, base + off2 * sn->amp2 * half, scratch, touched);
+                    float dir = t->reverse2 ? -1.0f : 1.0f;
+                    write_target_value(t, t->ch2, t->fine2, base + off2 * sn->amp2 * half * dir, scratch, touched);
                 }
             } else {
                 float base = target_is_16bit(t) ? (float)read_base16(t->ch1, t->fine1)
                                                 : (float)dmx_engine_get_base_channel(t->ch1);
-                write_target_value(t, t->ch1, t->fine1, base + off1 * sn->amp1 * half, scratch, touched);
+                float dir = t->reverse1 ? -1.0f : 1.0f;
+                write_target_value(t, t->ch1, t->fine1, base + off1 * sn->amp1 * half * dir, scratch, touched);
             }
             ti++;
         }

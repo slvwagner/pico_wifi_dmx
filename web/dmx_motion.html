@@ -263,6 +263,19 @@ DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motion
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
+function addPanTiltToBatch(f,c,value,batchMap){
+  DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)).forEach(row=>{batchMap[row.ch]=row.val;});
+}
+function panTiltPicoChannels(f,c){
+  const rows=DmxCommon.panTiltDmxRows(c,DmxCommon.panTiltDefault(c),rel=>absolute(f.start,rel));
+  const find=(axis,part)=>rows.find(row=>row.logicalAxis===axis&&row.part===part)?.ch||0;
+  return {
+    pan:find('pan','coarse'),
+    panFine:c.type==='panTilt16'?find('pan','fine'):0,
+    tilt:find('tilt','coarse'),
+    tiltFine:c.type==='panTilt16'?find('tilt','fine'):0
+  };
+}
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
 const PICO_SLOT_COUNT=64;
 function populatePicoMotionSlotSelect(){
@@ -663,15 +676,8 @@ function sendMotionGroupControl(c){
       batch[absolute(f.start,fc.fine??fc.channel+1)]=b.fine;
     }else if(mf.kind==='scalar8'){
       batch[absolute(f.start,fc.channel)]=mf.baseValue;
-    }else if(fc.type==='panTilt16'){
-      const panB=bytes16(mf.basePan),tiltB=bytes16(mf.baseTilt);
-      batch[absolute(f.start,fc.pan)]=panB.coarse;
-      batch[absolute(f.start,fc.panFine??fc.pan+1)]=panB.fine;
-      batch[absolute(f.start,fc.tilt)]=tiltB.coarse;
-      batch[absolute(f.start,fc.tiltFine??fc.tilt+1)]=tiltB.fine;
     }else{
-      batch[absolute(f.start,fc.pan)]=mf.basePan;
-      batch[absolute(f.start,fc.tilt)]=mf.baseTilt;
+      addPanTiltToBatch(f,fc,{pan:mf.basePan,tilt:mf.baseTilt},batch);
     }
   });
   sendBatch(batch);
@@ -773,16 +779,10 @@ async function syncBaseFromPico(){
         mf.baseValue=(((vals[coarseIdx]??0)<<8)|(vals[fineIdx]??0));
       }else if(mf.kind==='scalar8'){
         mf.baseValue=vals[absolute(f.start,c.channel)-1]??0;
-      }else if(c.type==='panTilt16'){
-        const panIdx  =absolute(f.start,c.pan)-1;
-        const fineIdx =absolute(f.start,c.panFine??c.pan+1)-1;
-        const tiltIdx =absolute(f.start,c.tilt)-1;
-        const tfineIdx=absolute(f.start,c.tiltFine??c.tilt+1)-1;
-        mf.basePan =(((vals[panIdx]??0)<<8)|(vals[fineIdx]??0));
-        mf.baseTilt=(((vals[tiltIdx]??0)<<8)|(vals[tfineIdx]??0));
       }else{
-        mf.basePan =vals[absolute(f.start,c.pan) -1]??128;
-        mf.baseTilt=vals[absolute(f.start,c.tilt)-1]??128;
+        const logical=DmxCommon.panTiltValueFromDmx(c,rel=>vals[absolute(f.start,rel)-1]);
+        mf.basePan=logical.pan;
+        mf.baseTilt=logical.tilt;
       }
     });
     drawFixtureList();
@@ -1074,16 +1074,7 @@ function addMotionControlValueToBatch(mf,value,batchMap){
   if(mf.kind==='panTilt'){
     const fallback=c.type==='panTilt16'?32768:128;
     const v=(value&&typeof value==='object')?value:{pan:fallback,tilt:fallback};
-    if(c.type==='panTilt16'){
-      const panB=bytes16(v.pan??fallback),tiltB=bytes16(v.tilt??fallback);
-      batchMap[absolute(f.start,c.pan)]=panB.coarse;
-      batchMap[absolute(f.start,c.panFine??c.pan+1)]=panB.fine;
-      batchMap[absolute(f.start,c.tilt)]=tiltB.coarse;
-      batchMap[absolute(f.start,c.tiltFine??c.tilt+1)]=tiltB.fine;
-    }else{
-      batchMap[absolute(f.start,c.pan)]=v.pan??fallback;
-      batchMap[absolute(f.start,c.tilt)]=v.tilt??fallback;
-    }
+    addPanTiltToBatch(f,c,{pan:v.pan??fallback,tilt:v.tilt??fallback},batchMap);
   }else{
     sendMotionTargetValue(mf,typeof value==='number'?value:0,batchMap);
   }
@@ -1121,16 +1112,7 @@ function tick(){
     }
     const newPan=clamp(mf.basePan+off.pan*pAmp*half,0,max);
     const newTilt=clamp(mf.baseTilt+off.tilt*tAmp*half,0,max);
-    if(c.type==='panTilt16'){
-      const pan=bytes16(newPan),tilt=bytes16(newTilt);
-      batchMap[absolute(f.start,c.pan)]=pan.coarse;
-      batchMap[absolute(f.start,c.panFine??c.pan+1)]=pan.fine;
-      batchMap[absolute(f.start,c.tilt)]=tilt.coarse;
-      batchMap[absolute(f.start,c.tiltFine??c.tilt+1)]=tilt.fine;
-    }else{
-      batchMap[absolute(f.start,c.pan)]=newPan;
-      batchMap[absolute(f.start,c.tilt)]=newTilt;
-    }
+    addPanTiltToBatch(f,c,{pan:newPan,tilt:newTilt},batchMap);
 
     // update mini XY pad
     const idx=motionFixtures.indexOf(mf);
@@ -1213,7 +1195,8 @@ function serializeMotionForPico(){
     if(mf.kind==='panTilt'){
       const is16=c.type==='panTilt16';
       const kind=is16?'pantilt16':'pantilt8';
-      lines.push('TARGET '+kind+' 1 '+absolute(f.start,c.pan)+' '+(is16?absolute(f.start,c.panFine??c.pan+1):0)+' '+absolute(f.start,c.tilt)+' '+(is16?absolute(f.start,c.tiltFine??c.tilt+1):0)+' '+mf.phaseOffset.toFixed(2));
+      const mapped=panTiltPicoChannels(f,c);
+      lines.push('TARGET '+kind+' 1 '+mapped.pan+' '+(is16?mapped.panFine:0)+' '+mapped.tilt+' '+(is16?mapped.tiltFine:0)+' '+mf.phaseOffset.toFixed(2)+' '+(c.panReverse?1:0)+' '+(c.tiltReverse?1:0));
     }else{
       const is16=mf.kind==='scalar16';
       const kind=is16?'scalar16':'scalar8';
@@ -1927,18 +1910,7 @@ function applySceneAsCenter(s){
     mf.baseTilt=typeof v==='object'?(v.tilt??max):max;
     livePatch[mf.fixture.id+':'+mf.control.id]={pan:mf.basePan,tilt:mf.baseTilt};
     const c=mf.control,f=mf.fixture;
-    if(c.type==='panTilt16'){
-      const panCh=absolute(f.start,c.pan);
-      const panFineCh=absolute(f.start,c.panFine??c.pan+1);
-      const tiltCh=absolute(f.start,c.tilt);
-      const tiltFineCh=absolute(f.start,c.tiltFine??c.tilt+1);
-      const panB=bytes16(mf.basePan),tiltB=bytes16(mf.baseTilt);
-      batchMap[panCh]=panB.coarse;batchMap[panFineCh]=panB.fine;
-      batchMap[tiltCh]=tiltB.coarse;batchMap[tiltFineCh]=tiltB.fine;
-    }else{
-      batchMap[absolute(f.start,c.pan)]=mf.basePan;
-      batchMap[absolute(f.start,c.tilt)]=mf.baseTilt;
-    }
+    addPanTiltToBatch(f,c,{pan:mf.basePan,tilt:mf.baseTilt},batchMap);
   });
   sendBatch(batchMap);
   publishMotionLiveValues(livePatch);

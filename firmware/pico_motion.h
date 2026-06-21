@@ -33,6 +33,8 @@ typedef struct {
     uint16_t fine1;
     uint16_t ch2;
     uint16_t fine2;
+    bool     reverse1;
+    bool     reverse2;
     float    phase_offset_deg;  /* -180 ... +180 */
     float    max_val;           /* 255.0 or 65535.0 */
 } mfx_target_t;

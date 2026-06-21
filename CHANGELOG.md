@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.9.5 - Unreleased
+
+Changed:
+
+- Added the converted fixture library workflow so profiles can be loaded from the Open Fixture Library export, imported/exported as a fixture catalog, and updated from edited fixture profiles.
+- Simplified fixture profile editing with autosave-first behavior, clearer profile actions, click feedback, and a cleaner visual split between profile actions and saved fixture cards.
+- Added complete show import/export with project versioning and a data schema guard so future releases can migrate saved setup data safely.
+- Expanded show backup coverage to include scenes, palettes, groups, chases, motion effects, GPIO mappings, live fader values, fixture library data, tile visuals, and toolbox layout/collapse state.
+- Renamed setup actions to user-facing show/setup language and added a fresh-show action for starting over from a clean project.
+- Made scene, palette, and group tiles share the same visual language, including edit/delete icons, solid tile borders, tile styling, and consistent hover/selection feedback.
+- Added tile Move mode for scenes, palettes, and groups so tiles can be rearranged by drag and drop using the same interaction style as toolbox reordering.
+- Added shared collapse/expand behavior and visual controls for fixture/profile/toolbox cards, including collapse-all support for Control Surface fixtures.
+- Reworked group editing so a selected fixture acts as the source/template for group edits, with source indication and clearer documentation of when source values are applied.
+- Made Group Edit available for single-fixture selections too, so the same workflow can be used for one fixture or many.
+- Improved fixture multi-selection and deselection so group filters stay stable while editing selected fixtures.
+- Enhanced Fan Out with shared common-code layout, autosaved working state, spread step-size controls, +/- fine adjustment buttons, and a signed Spread slider centered at `0` so negative Spread replaces the old Invert button.
+- Unified Fan Out behavior between Controller and Chaser pages so both use the same source/order model and full-width Spread layout.
+- Added relative value editing for live controls, with dedicated fine adjustment for 16-bit channels and correct fine-channel underflow/overflow carry into the coarse channel.
+- Added Pan/Tilt fixture profile mapping options for reversing Pan DMX, reversing Tilt DMX, and swapping Pan/Tilt physical axes while keeping the UI values logical.
+- Removed redundant absolute Pan/Tilt coarse/fine sliders where the Pan/Tilt plot and relative controls now provide the practical movement workflow.
+- Added autosaved relative step-size settings for Group Edit so the user-selected fine movement increments survive reloads.
+- Fixed Motion FX phase spread handling so the preview/output reflects the intended `0..360` degree range.
+- Fixed new-show cleanup so saved motion effects are removed when starting a fresh show.
+- Improved Chaser editing with an Update Chase action for recalled chases and visible user feedback after updates.
+- Added direct numeric editing for Chaser step values in addition to sliders.
+- Updated DMX output documentation with GPIO wiring, signal generation, start-channel behavior, and timing notes.
+- Updated the README and user manual for fixture library use, full show import/export, Fan Out, relative controls, tile movement, source-based Group Edit, and the latest screenshots.
+
+Fixed:
+
+- Fixed group tile persistence so saved group tile information is included in setup export/import.
+- Fixed group tile drag/drop by giving groups the same numbered slot model used by scenes and palettes.
+- Fixed page navigation losing saved groups by keeping toolbox group state persisted server-side.
+- Fixed fixture profile cards so title/description layout and profile selection hover behavior match Control Surface fixture cards.
+- Fixed toolbox scrollbar usability by widening scrollbars, allowing the toolbox width up to two thirds of the screen, and highlighting the scroll thumb on hover.
+- Fixed sticky controller/toolbox behavior across iPad portrait/landscape layouts.
+- Fixed Fan Out spread reset and source/order inconsistencies across Controller and Chaser workflows.
+- Fixed group edit modal close behavior so it only closes through explicit close controls.
+
 ## 0.9.4 - 2026-06-16
 
 Changed:

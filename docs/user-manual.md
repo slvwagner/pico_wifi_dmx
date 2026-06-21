@@ -100,9 +100,17 @@ Each control stores its own DMX channel mapping. For example, a moving head can 
 - RGBWA color on channels 6-10
 - Gobo wheel on channel 12
 
-To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
+Pan/Tilt controls also have fixture-profile mapping options:
 
-Click **Update Library** when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added.
+- **Reverse Pan DMX** sends the logical Pan value as `max - value`.
+- **Reverse Tilt DMX** sends the logical Tilt value as `max - value`.
+- **Swap Pan/Tilt axes** sends logical Pan through the fixture's Tilt channels and logical Tilt through the fixture's Pan channels.
+
+These options belong to the fixture profile, so every patched fixture using that profile follows the same mapping. The controller, chaser, and browser motion output keep showing logical Pan/Tilt values; only the physical DMX bytes are changed. This means scenes, palettes, chases, and motion centers remain readable even when a fixture is mounted backwards or rotated.
+
+To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. If a Pico base URL is set, saving an existing control immediately resends the current live value for every patched fixture using that profile/control, so Pan/Tilt reverse or axis-swap changes are applied to the output right away. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
+
+Click **Update Library** when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added. Pan/Tilt reverse and axis-swap options are not written into the fixture library, because they describe how a fixture is mounted in one show rather than the fixture's DMX personality.
 
 ### Default and Blackout Values
 
@@ -158,7 +166,7 @@ Each fixture card contains the controls from its profile:
 - Wheel buttons for indexed wheel values
 - Coarse/fine relative nudges for 16-bit channels
 
-For pan/tilt controls, drag inside the XY pad when you want to move directly to an absolute position. Use **Pan coarse relative**, **Pan fine relative**, **Tilt coarse relative**, and **Tilt fine relative** when you want to adjust from the current position without jumping to a new absolute value. The number field in each relative row sets how many DMX increments the next `-` or `+` click will move. The fine relative buttons move the combined 16-bit value by that many steps, including byte borrow and carry: for example `256 - 1` becomes coarse `0`, fine `255`, and `255 + 1` becomes coarse `1`, fine `0`. The value is clamped at the valid DMX range, so it cannot go below `0` or above `65535`.
+For pan/tilt controls, drag inside the XY pad when you want to move directly to an absolute position. Use **Pan coarse relative**, **Pan fine relative**, **Tilt coarse relative**, and **Tilt fine relative** when you want to adjust from the current position without jumping to a new absolute value. The number field in each relative row sets how many DMX increments the next `-` or `+` click will move. The fine relative buttons move the combined 16-bit value by that many steps, including byte borrow and carry: for example `256 - 1` becomes coarse `0`, fine `255`, and `255 + 1` becomes coarse `1`, fine `0`. The value is clamped at the valid DMX range, so it cannot go below `0` or above `65535`. If the fixture profile reverses or swaps Pan/Tilt, the XY pad and relative controls still show logical Pan/Tilt movement while the DMX output is mapped for the physical fixture.
 
 Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the Add / Edit Control card refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing.
 
@@ -689,7 +697,7 @@ Center values come from the current base buffer or from recalling a scene as the
 
 The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
 
-The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing.
+The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico Motion slots, and the Pico reads the effect center from its base buffer while playing. Pan/Tilt profile mapping is included in the uploaded target: swapped axes use the swapped physical channels, and reversed axes invert the motion offset around the current base value.
 
 The Motion FX page also includes the shared **Palettes** toolbox. Clicking a palette recalls any values that are compatible with Motion FX and uses them as the current effect center. For example, a position palette can set pan/tilt centers, while a dimmer or beam palette can set scalar centers. The small pencil opens **Edit Tile** so palette names and visuals can be adjusted from Motion too. Motion recalls, imports, exports, and saves the shared palette JSON.
 

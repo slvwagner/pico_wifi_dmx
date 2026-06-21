@@ -77,6 +77,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .profile-control-desc{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .profile-control-actions{display:flex;gap:6px;justify-content:flex-end;align-items:center}
 .profile-control-actions button{padding:5px 9px;font-size:12px;line-height:1.2;min-height:0}
+.pantilt-options{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding-top:4px}
+.pantilt-options label{display:flex;flex-direction:row;align-items:center;gap:6px}
 .setup-files-card .toolbar{align-items:center}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
@@ -200,6 +202,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label id="controlCWrap"><span id="controlCLabel">Ch C</span><input id="controlC" type="number" min="1" max="512" value="0"></label>
 <label id="controlDWrap"><span id="controlDLabel">Ch D</span><input id="controlD" type="number" min="1" max="512" value="0"></label>
 <label id="controlEWrap"><span id="controlELabel">Ch E</span><input id="controlE" type="number" min="1" max="512" value="0"></label>
+</div>
+<div id="panTiltOptions" class="pantilt-options">
+<label><input id="panReverse" type="checkbox"> Reverse Pan DMX</label>
+<label><input id="tiltReverse" type="checkbox"> Reverse Tilt DMX</label>
+<label><input id="panTiltSwap" type="checkbox"> Swap Pan/Tilt axes</label>
 </div>
 <div id="wheelEditorWrap">
 <label>Wheel options, one per line: name=value
@@ -570,16 +577,11 @@ async function sendControl(f,c,silent=false){
   if(c.type==='panTilt16'){
     const v=getValue(f,c,{pan:32768,tilt:32768});
     if(!channelOk(f,c.pan,2)||!channelOk(f,c.tilt,2))throw new Error('Pan/Tilt channels out of range');
-    const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
-    await sendChannel(absolute(f.start,c.pan),pan.coarse);
-    await sendChannel(absolute(f.start,c.panFine??c.pan+1),pan.fine);
-    await sendChannel(absolute(f.start,c.tilt),tilt.coarse);
-    await sendChannel(absolute(f.start,c.tiltFine??c.tilt+1),tilt.fine);
+    for(const row of DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val);
   }else if(c.type==='panTilt8'){
     const v=getValue(f,c,{pan:128,tilt:128});
     if(!channelOk(f,c.pan)||!channelOk(f,c.tilt))throw new Error('Pan/Tilt channels out of range');
-    await sendChannel(absolute(f.start,c.pan),v.pan);
-    await sendChannel(absolute(f.start,c.tilt),v.tilt);
+    for(const row of DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val);
   }else if(c.type==='slider16'){
     const v=bytes16(getValue(f,c,0));
     if(!channelOk(f,c.channel)||!channelOk(f,c.fine??c.channel+1))throw new Error(c.label+' channels out of range');
@@ -753,7 +755,15 @@ function libraryProfileFromControllerProfile(profile){
     name:profile.name||'Fixture',
     mode:profile.mode||'mode',
     channels:clamp(profile.channels||1,1,512),
-    controls:JSON.parse(JSON.stringify(profile.controls||[])).map(control=>({...control,id:control.id||uid()}))
+    controls:JSON.parse(JSON.stringify(profile.controls||[])).map(control=>{
+      const clean={...control,id:control.id||uid()};
+      if(clean.type==='panTilt16'||clean.type==='panTilt8'){
+        clean.panReverse=false;
+        clean.tiltReverse=false;
+        clean.panTiltSwap=false;
+      }
+      return clean;
+    })
   };
 }
 function upsertProfileIntoFixtureLibrary(library,profile){
@@ -822,6 +832,11 @@ function controlFromEditor(existingId=0){
   else if(type==='wheel')control={...control,channel:a,options:parseWheelOptions(document.getElementById('wheelOptions').value)};
   else if(type==='slider16')control={...control,channel:a,fine:b};
   else control={...control,channel:a};
+  if(type==='panTilt16'||type==='panTilt8'){
+    control.panReverse=!!document.getElementById('panReverse').checked;
+    control.tiltReverse=!!document.getElementById('tiltReverse').checked;
+    control.panTiltSwap=!!document.getElementById('panTiltSwap').checked;
+  }
   // Default value (all types, nullable)
   const is16bit=type==='panTilt16'||type==='slider16';
   const isPanTiltType=type==='panTilt16'||type==='panTilt8';
@@ -874,8 +889,8 @@ function controlChannels(control){
 }
 
 function controlChannelText(control){
-  if(control.type==='panTilt16')return 'Pan '+control.pan+'/'+(control.panFine??control.pan+1)+', Tilt '+control.tilt+'/'+(control.tiltFine??control.tilt+1);
-  if(control.type==='panTilt8')return 'Pan '+control.pan+', Tilt '+control.tilt;
+  if(control.type==='panTilt16')return 'Pan '+control.pan+'/'+(control.panFine??control.pan+1)+', Tilt '+control.tilt+'/'+(control.tiltFine??control.tilt+1)+panTiltProfileFlagsText(control);
+  if(control.type==='panTilt8')return 'Pan '+control.pan+', Tilt '+control.tilt+panTiltProfileFlagsText(control);
   if(control.type==='slider16')return (control.channel)+'/'+(control.fine??control.channel+1);
   if(control.type==='rgb')return 'R '+control.a+', G '+control.b+', B '+control.c;
   if(control.type==='rgbw')return 'R '+control.a+', G '+control.b+', B '+control.c+', W '+control.w;
@@ -884,6 +899,14 @@ function controlChannelText(control){
   if(control.type==='cmyk')return 'C '+control.a+', M '+control.b+', Y '+control.c+', K '+control.k;
   if(control.type==='matrixRgb')return matrixWidth(control)+'×'+matrixHeight(control)+' RGB from CH '+control.channel+' to '+(control.channel+matrixPixelCount(control)*3-1);
   return 'CH '+control.channel;
+}
+
+function panTiltProfileFlagsText(control){
+  const flags=[];
+  if(control.panReverse)flags.push('Pan reversed');
+  if(control.tiltReverse)flags.push('Tilt reversed');
+  if(control.panTiltSwap)flags.push('axes swapped');
+  return flags.length?' · '+flags.join(', '):'';
 }
 
 function validateControlChannels(profile,control){
@@ -1009,6 +1032,9 @@ function resetControlEditor(){
   document.getElementById('addControl').textContent='Add control';
   document.getElementById('controlType').value='slider8';
   document.getElementById('controlLabel').value=defaultControlLabel('slider8');
+  document.getElementById('panReverse').checked=false;
+  document.getElementById('tiltReverse').checked=false;
+  document.getElementById('panTiltSwap').checked=false;
   updateControlChannelInputs(true);
 }
 
@@ -1022,6 +1048,9 @@ function loadControlEditor(control){
   document.getElementById('controlC').value=control.type==='matrixRgb'?(control.height||4):(control.tilt||control.c||0);
   document.getElementById('controlD').value=control.tiltFine||control.w||control.k||0;
   document.getElementById('controlE').value=control.amber||0;
+  document.getElementById('panReverse').checked=!!control.panReverse;
+  document.getElementById('tiltReverse').checked=!!control.tiltReverse;
+  document.getElementById('panTiltSwap').checked=!!control.panTiltSwap;
   document.getElementById('wheelOptions').value=wheelOptionsText(control.options)||document.getElementById('wheelOptions').value;
   document.getElementById('defNone').checked=(control.defaultValue===null||control.defaultValue===undefined);
   document.getElementById('blkNone').checked=(control.blackoutValue===null||control.blackoutValue===undefined);
@@ -1113,6 +1142,7 @@ function updateControlChannelInputs(fillChannels=false){
     wheel:'Uses one channel with named indexed values. Add color swatches, uploaded images, or drawings for each value.'
   };
   document.getElementById('controlHint').textContent=hints[type]||'';
+  document.getElementById('panTiltOptions').style.display=(type==='panTilt16'||type==='panTilt8')?'flex':'none';
   document.getElementById('wheelEditorWrap').style.display=type==='wheel'?'grid':'none';
 
   // Default / blackout field visibility and presets
@@ -1322,6 +1352,22 @@ function importSelectedLibraryProfile(){
   return profile;
 }
 
+function resendControlForProfileFixtures(profile,control){
+  if(!profile||!control||!autoSendEnabled())return;
+  const targets=fixtures.filter(f=>f.profileId===profile.id);
+  if(!targets.length)return;
+  Promise.allSettled(targets.map(f=>sendControl(f,control,true))).then(results=>{
+    const failed=results.filter(r=>r.status==='rejected');
+    if(failed.length){
+      const msg=failed[0]?.reason?.message||'Control resend failed';
+      setStatus('Control updated, resend failed: '+msg,true);
+      return;
+    }
+    setStatus('Control updated and sent to '+targets.length+' fixture'+(targets.length===1?'':'s'));
+  });
+  writeLiveValues();
+}
+
 function addControl(){
   const p=profiles.find(profile=>profile.id===activeProfileId);
   if(!p){showError('Select a profile first');return;}
@@ -1340,6 +1386,7 @@ function addControl(){
     const index=p.controls.findIndex(c=>c.id===editingControlId);
     if(index>=0)p.controls[index]=control;
     setStatus('Control updated');
+    resendControlForProfileFixtures(p,control);
   }else{
     p.controls.push(control);
     setStatus('Control added');
@@ -2196,8 +2243,8 @@ setupEditorXYPad('blkXYPad','blkXYDot','blkPan','blkTilt');
 function csvEsc(v){v=String(v??'');return(v.includes(',')||v.includes('"')||v.includes('\n'))?'"'+v.replace(/"/g,'""')+'"':v;}
 function resolveDmxBytes(f,c){
   const out=[];
-  if(c.type==='panTilt16'){const v=getValue(f,c,{pan:32768,tilt:32768});const pan=bytes16(v.pan),tilt=bytes16(v.tilt);out.push({ch:absolute(f.start,c.pan),val:pan.coarse,param:'Pan coarse'},{ch:absolute(f.start,c.panFine??c.pan+1),val:pan.fine,param:'Pan fine'},{ch:absolute(f.start,c.tilt),val:tilt.coarse,param:'Tilt coarse'},{ch:absolute(f.start,c.tiltFine??c.tilt+1),val:tilt.fine,param:'Tilt fine'});}
-  else if(c.type==='panTilt8'){const v=getValue(f,c,{pan:128,tilt:128});out.push({ch:absolute(f.start,c.pan),val:v.pan,param:'Pan'},{ch:absolute(f.start,c.tilt),val:v.tilt,param:'Tilt'});}
+  if(c.type==='panTilt16'){const v=getValue(f,c,{pan:32768,tilt:32768});out.push(...DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)));}
+  else if(c.type==='panTilt8'){const v=getValue(f,c,{pan:128,tilt:128});out.push(...DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)));}
   else if(c.type==='slider16'){const v=bytes16(getValue(f,c,0));out.push({ch:absolute(f.start,c.channel),val:v.coarse,param:'Coarse'},{ch:absolute(f.start,c.fine??c.channel+1),val:v.fine,param:'Fine'});}
   else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
     const defVal=c.type==='cmyk'?{a:0,b:0,c:0,k:0}:c.type==='rgbw'?{a:0,b:0,c:0,w:0}:c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0};

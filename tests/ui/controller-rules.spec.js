@@ -158,6 +158,130 @@ test.describe('Fixture Controller established rules', () => {
     ]);
   });
 
+  test('Pan/Tilt profile options are saved and shown on the profile card', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const profile = profiles.find(p => p.id === 1);
+      const control = profile.controls.find(c => c.type === 'panTilt16');
+      activeProfileId = profile.id;
+      loadProfileEditor(profile);
+      loadControlEditor(control);
+      document.getElementById('panReverse').checked = true;
+      document.getElementById('tiltReverse').checked = true;
+      document.getElementById('panTiltSwap').checked = true;
+      addControl();
+      const saved = profile.controls.find(c => c.id === control.id);
+      return {
+        flags: {
+          panReverse: saved.panReverse,
+          tiltReverse: saved.tiltReverse,
+          panTiltSwap: saved.panTiltSwap
+        },
+        cardText: document.querySelector(`[data-profile-card="${profile.id}"]`)?.textContent || ''
+      };
+    });
+
+    expect(state.flags).toEqual({ panReverse: true, tiltReverse: true, panTiltSwap: true });
+    expect(state.cardText).toContain('Pan reversed');
+    expect(state.cardText).toContain('Tilt reversed');
+    expect(state.cardText).toContain('axes swapped');
+  });
+
+  test('Pan/Tilt profile reverse and swap map logical values to physical DMX channels', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const fixture = fixtures.find(f => f.id === 101);
+      const profile = fixtureProfile(fixture);
+      const control = profile.controls.find(c => c.id === 12);
+      Object.assign(control, {
+        panReverse: true,
+        tiltReverse: true,
+        panTiltSwap: true
+      });
+      values['101:12'] = { pan: 0x1234, tilt: 0xabcd };
+      return {
+        rows: resolveDmxBytes(fixture, control)
+          .filter(row => row.param.includes('Pan') || row.param.includes('Tilt'))
+          .map(row => ({ ch: row.ch, val: row.val, param: row.param })),
+        logicalFromDmx: DmxCommon.panTiltValueFromDmx(control, rel => ({
+          2: 0x54,
+          3: 0x32,
+          4: 0xed,
+          5: 0xcb
+        })[rel])
+      };
+    });
+
+    expect(state.rows).toEqual([
+      { ch: 4, val: 0xed, param: 'Pan coarse -> Tilt reversed' },
+      { ch: 5, val: 0xcb, param: 'Pan fine -> Tilt reversed' },
+      { ch: 2, val: 0x54, param: 'Tilt coarse -> Pan reversed' },
+      { ch: 3, val: 0x32, param: 'Tilt fine -> Pan reversed' }
+    ]);
+    expect(state.logicalFromDmx).toEqual({ pan: 0x1234, tilt: 0xabcd });
+  });
+
+  test('Update Library clears Pan/Tilt reverse and swap from exported fixture definitions', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const profile = {
+        id: 9100,
+        name: 'Mounted Head',
+        mode: '16ch',
+        channels: 16,
+        controls: [{
+          id: 9101,
+          type: 'panTilt16',
+          label: 'Pan/Tilt',
+          pan: 1,
+          panFine: 2,
+          tilt: 3,
+          tiltFine: 4,
+          panReverse: true,
+          tiltReverse: true,
+          panTiltSwap: true
+        }]
+      };
+      const exported = libraryProfileFromControllerProfile(profile);
+      return {
+        source: profile.controls[0],
+        exported: exported.controls[0]
+      };
+    });
+
+    expect(result.source).toMatchObject({ panReverse: true, tiltReverse: true, panTiltSwap: true });
+    expect(result.exported).toMatchObject({ panReverse: false, tiltReverse: false, panTiltSwap: false });
+  });
+
+  test('saving Pan/Tilt reverse or swap immediately resends current fixture values', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const sent = [];
+      sendChannel = async (ch, value) => sent.push({ ch, value });
+      baseUrl.value = location.origin;
+      const fixture = fixtures.find(f => f.id === 101);
+      const profile = fixtureProfile(fixture);
+      const control = profile.controls.find(c => c.id === 12);
+      values['101:12'] = { pan: 0x1234, tilt: 0xabcd };
+      activeProfileId = profile.id;
+      loadProfileEditor(profile);
+      loadControlEditor(control);
+      document.getElementById('panReverse').checked = true;
+      document.getElementById('tiltReverse').checked = true;
+      document.getElementById('panTiltSwap').checked = true;
+      addControl();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return {
+        sent,
+        saved: profile.controls.find(c => c.id === 12)
+      };
+    });
+
+    expect(result.saved).toMatchObject({ panReverse: true, tiltReverse: true, panTiltSwap: true });
+    expect(result.sent).toEqual([
+      { ch: 4, value: 0xed },
+      { ch: 5, value: 0xcb },
+      { ch: 2, value: 0x54 },
+      { ch: 3, value: 0x32 }
+    ]);
+  });
+
   test('16-bit slider controls expose coarse and fine relative nudges', async ({ page }) => {
     const state = await page.evaluate(() => {
       profiles.push({

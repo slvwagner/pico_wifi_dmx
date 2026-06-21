@@ -445,14 +445,9 @@ function sendBatch(map){
 function collectChannels(f,c,val,map){
   val=val??defaultValue(c);
   if(c.type==='panTilt16'){
-    const pan=bytes16(val.pan??32768),tilt=bytes16(val.tilt??32768);
-    map[absolute(f.start,c.pan)]=pan.coarse;
-    map[absolute(f.start,c.panFine??c.pan+1)]=pan.fine;
-    map[absolute(f.start,c.tilt)]=tilt.coarse;
-    map[absolute(f.start,c.tiltFine??c.tilt+1)]=tilt.fine;
+    DmxCommon.panTiltDmxRows(c,val,rel=>absolute(f.start,rel)).forEach(row=>{map[row.ch]=row.val;});
   }else if(c.type==='panTilt8'){
-    map[absolute(f.start,c.pan)]=val.pan??128;
-    map[absolute(f.start,c.tilt)]=val.tilt??128;
+    DmxCommon.panTiltDmxRows(c,val,rel=>absolute(f.start,rel)).forEach(row=>{map[row.ch]=row.val;});
   }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
     parts.forEach(p=>{map[absolute(f.start,c[p])]=val[p]??0;});
