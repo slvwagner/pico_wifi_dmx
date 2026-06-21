@@ -208,14 +208,14 @@ The Fixture Controller includes a **Fan Out** toolbox in the shared Toolboxes si
 2. In **Fan Out**, choose the control to shape, for example Dimmer, Pan, Tilt, or another compatible single-value control.
 3. Click **Snapshot** to use the current controller values as the fan base.
 4. Adjust **Spread**, or use **Start to end** mode with From/To offsets.
-5. Use **Invert** when the spread direction should run through the selected fixtures in the opposite order.
+5. In **Symmetric spread** mode, `0` is the center of the slider. Positive and negative Spread values run the same shape in opposite directions through the selected fixture order.
 6. The Control Surface updates continuously while you change the fan values.
 7. The affected fixture controls are highlighted in the Control Surface.
 8. Save the resulting look with the Scene Toolbox if you want to keep the actual DMX look.
 
-In **Symmetric spread** mode, the **Spread step** field and the `-` / `+` buttons provide fine adjustment of the Spread value. Set the step size to the number of DMX increments you want to add or subtract, then click `-` or `+`. The buttons clamp at the valid range for the selected Fan Out control. **Start to end** mode hides the Spread nudge row because that mode is edited directly with the **From** and **To** number fields.
+In **Symmetric spread** mode, the **Spread** slider is centered at `0` and can move into positive or negative values. Positive Spread sends the fan in one direction through the selected fixture order; negative Spread sends it in the opposite direction. The **Spread step** field and the `-` / `+` buttons provide fine adjustment of the signed Spread value. Set the step size to the number of DMX increments you want to add or subtract, then click `-` or `+`. The buttons clamp at the valid signed range for the selected Fan Out control. **Start to end** mode hides the Spread nudge row because that mode is edited directly with the **From** and **To** number fields.
 
-The current Fan Out working state is autosaved to the XAMPP server UI-state file. This includes the selected Fan Out control, mode, Spread, Invert state, From/To offsets, and Spread step size, so the toolbox can restore the last working shape after a reload. Saved Fan Out presets are separate: use **Save** when you want to keep a named Fan Out recipe for later recall.
+The current Fan Out working state is autosaved to the XAMPP server UI-state file. This includes the selected Fan Out control, mode, signed Spread, From/To offsets, and Spread step size, so the toolbox can restore the last working shape after a reload. Saved Fan Out presets are separate: use **Save** when you want to keep a named Fan Out recipe for later recall.
 
 The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand. When a Pico base URL is set, the changed DMX values are also sent to the Pico.
 
@@ -225,7 +225,7 @@ Fan Out calculates from a stored base value for each fixture, control, and axis.
 final value = snapshotted base value + spread offset
 ```
 
-For example, with five fixtures and a spread of `100`, the offsets are `-50`, `-25`, `0`, `+25`, and `+50`. If every fixture has a base value of `128`, the result is `78`, `103`, `128`, `153`, and `178`. If the fixtures have different base values, each fixture still keeps its own base as the starting point.
+For example, with five fixtures and a spread of `100`, the offsets are `-50`, `-25`, `0`, `+25`, and `+50`. If every fixture has a base value of `128`, the result is `78`, `103`, `128`, `153`, and `178`. With a spread of `-100`, the same offsets run in the opposite direction. If the fixtures have different base values, each fixture still keeps its own base as the starting point.
 
 The offset is assigned by fixture position in the current Fan Out order:
 
@@ -240,7 +240,7 @@ Fan Out order is important:
 
 - If one or more saved groups are selected, the Controller uses the fixture order stored inside those groups. When several groups are selected, the groups are read in selected group order and duplicate fixtures are skipped after their first appearance.
 - If no saved group is selected, the Controller uses the manual fixture selection order from the Control Surface.
-- **Invert** reverses this calculated order. It does not change the saved group, patch order, or fixture selection.
+- Negative **Spread** reverses the symmetric fan direction. It does not change the saved group, patch order, or fixture selection.
 
 For a physical left-to-right fan, the saved group fixture order must match the physical fixture order. If a group was saved in a different order, the Fan Out math is still correct, but the visible stage result can look crossed or random.
 
@@ -474,7 +474,7 @@ The Chaser page uses several toolboxes:
 
 - **Fan Out** is a live step-shaping tool. It works on the currently selected step and writes directly into **Edit Step** as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.
 - **Fan Out control selection** is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step's participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.
-- **Fan Out order** comes from the current participating fixture/control list. If a group filter is active, only fixtures inside the selected groups participate, but the calculation still follows the participating order that is shown for the current step/scope. **Invert** reverses this calculated order. Use it when the spread shape is right but should run from the opposite side of the fixture row.
+- **Fan Out order** comes from the current participating fixture/control list. If a group filter is active, only fixtures inside the selected groups participate, but the calculation still follows the participating order that is shown for the current step/scope. In Symmetric spread mode, negative Spread runs the shape from the opposite side of the fixture row.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
 - Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** updates the selected step immediately. When a Pico base URL is set, those changed selected-step values are also sent to the Pico. Chase Playback sends the current chase continuously while it runs and therefore requires a Pico base URL.

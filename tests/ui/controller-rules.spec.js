@@ -1498,6 +1498,42 @@ test.describe('Fixture Controller established rules', () => {
     ]);
   });
 
+  test('Fan Out negative spread reverses the symmetric direction without an Invert button', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      fixtures.push({ id: 104, name: 'A 2', profileId: 1, start: 61 });
+      selectedFixtureIds = new Set([101, 104]);
+      activeSavedGroupIds.clear();
+      sceneFixtureFilterActive = false;
+      activeControlScopeKeys.clear();
+      values['101:11'] = 128;
+      values['104:11'] = 128;
+      drawSurface();
+      const dimmer = fanControlOptions().find(o => o.label === 'Dimmer' && o.key === 'slider8:Dimmer:value');
+      fanState.controlKey = dimmer.key;
+      snapshotFanBases();
+      fanState.mode = 'symmetric';
+      fanState.spread = -100;
+      renderFanToolbox();
+      return {
+        preview: fanComputedValues().map(v => ({ id: v.fixture.id, base: v.base, finalVal: v.finalVal })),
+        sliderMin: document.getElementById('fanSpread').min,
+        sliderValue: document.getElementById('fanSpread').value,
+        readout: document.getElementById('fanSpreadReadout').textContent,
+        hasInvert: !!document.getElementById('fanInvert')
+      };
+    });
+
+    expect(result.preview).toEqual([
+      { id: 101, base: 128, finalVal: 178 },
+      { id: 104, base: 128, finalVal: 78 }
+    ]);
+    expect(result.sliderMin).toBe('-255');
+    expect(result.sliderValue).toBe('-100');
+    expect(result.readout).toBe('-100');
+    expect(result.hasInvert).toBe(false);
+  });
+
+
   test('Fan Out core behavior is provided by DmxCommon', async ({ page }) => {
     const result = await page.evaluate(() => {
       const valuesByKey = { '1:11': 128, '2:21': 128 };
@@ -1664,13 +1700,13 @@ test.describe('Fixture Controller established rules', () => {
     });
 
     expect(result.afterUp).toEqual({ spread: 13, slider: '13', readout: '13' });
-    expect(result.afterDown).toEqual({ spread: 0, slider: '0', readout: '0' });
+    expect(result.afterDown).toEqual({ spread: -2, slider: '-2', readout: '-2' });
     await expect.poll(() => posts, { timeout: 5000 }).toContainEqual(expect.objectContaining({
       page: 'fixture',
       state: expect.objectContaining({
         fanOutState: expect.objectContaining({
           mode: 'symmetric',
-          spread: 0,
+          spread: -2,
           spreadStep: 3
         })
       })
@@ -1705,7 +1741,7 @@ test.describe('Fixture Controller established rules', () => {
         affected: [...fanAffectedKeys],
         slider: document.getElementById('fanSpread').value,
         readout: document.getElementById('fanSpreadReadout').textContent,
-        invertText: document.getElementById('fanInvert').textContent
+        hasInvert: !!document.getElementById('fanInvert')
       };
     });
 
@@ -1716,7 +1752,7 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.affected).toEqual([]);
     expect(result.slider).toBe('0');
     expect(result.readout).toBe('0');
-    expect(result.invertText).toBe('Invert');
+    expect(result.hasInvert).toBe(false);
   });
 });
 

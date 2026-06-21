@@ -410,7 +410,7 @@ test.describe('Chaser established rules', () => {
     expect(state.state.spread).toBe(44);
     expect(state.state.fromOffset).toBe(-20);
     expect(state.state.toOffset).toBe(60);
-    expect(state.state.inverted).toBe(true);
+    expect(state.state.inverted).toBe(false);
   });
 
   test('Chaser Fan Out can apply from participating fixtures without a selected step', async ({ page }) => {

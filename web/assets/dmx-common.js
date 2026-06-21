@@ -173,8 +173,7 @@
 <label>Control<select id="fanControlSelect"></select></label>
 <label>Mode<select id="fanMode"><option value="symmetric">Symmetric spread</option><option value="range">Start to end</option></select></label>
 <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end">
-<label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="0" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
-<button id="fanInvert" title="Reverse fixture order for Fan Out">Invert</button>
+<label id="fanSpreadWrap">Spread<input id="fanSpread" type="range" min="-255" max="255" step="1" value="0"><span class="small" id="fanSpreadReadout">0</span></label>
 </div>
 <div id="fanSpreadNudgeWrap" class="fan-nudge-control">
 <button id="fanSpreadDown" type="button" title="Decrease Fan Out spread by the step size">−</button>
@@ -330,7 +329,7 @@
       });
     }
     function computedValues(fixtures){
-      const ordered=fanOrderedFixtures(fixtures,state.inverted);
+      const ordered=fanOrderedFixtures(fixtures,false);
       const max=maxValue(fixtures);
       const {controlId:ref,axis}=parseControlKey();
       const count=ordered.length;

@@ -1814,9 +1814,12 @@ function renderFanToolbox(){
   if(opts.some(o=>o.key===old))sel.value=old;
   else if(opts[0]){sel.value=opts[0].key;fanState.controlKey=opts[0].key;fanState.bases={};}
   const max=fanMaxValue();
+  if(fanState.inverted&&fanState.spread>0){fanState.spread=-fanState.spread;fanState.inverted=false;}
+  fanState.spread=clamp(fanState.spread,-max,max);
+  document.getElementById('fanSpread').min=-max;
   document.getElementById('fanSpread').max=max;
-  document.getElementById('fanSpread').step=max>255?256:1;
-  document.getElementById('fanSpread').value=clamp(fanState.spread,0,max);
+  document.getElementById('fanSpread').step=1;
+  document.getElementById('fanSpread').value=fanState.spread;
   document.getElementById('fanSpreadReadout').textContent=Math.round(fanState.spread||0);
   const nudgeStep=document.getElementById('fanSpreadStep');
   if(nudgeStep){
@@ -1824,11 +1827,7 @@ function renderFanToolbox(){
     fanSpreadStep=clamp(fanSpreadStep||1,1,max);
     nudgeStep.value=fanSpreadStep;
   }
-  const invertBtn=document.getElementById('fanInvert');
-  if(invertBtn){
-    invertBtn.classList.toggle('primary',!!fanState.inverted);
-    invertBtn.textContent=fanState.inverted?'Inverted':'Invert';
-  }
+  fanState.inverted=false;
   document.getElementById('fanMode').value=fanState.mode;
   document.getElementById('fanRangeWrap').style.display=fanState.mode==='range'?'flex':'none';
   const nudgeWrap=document.getElementById('fanSpreadNudgeWrap');
@@ -1836,7 +1835,7 @@ function renderFanToolbox(){
   document.getElementById('fanFrom').value=Math.round(fanState.fromOffset||0);
   document.getElementById('fanTo').value=Math.round(fanState.toOffset||0);
   hint.textContent=ordered.length?('Affecting '+ordered.length+' fixture'+(ordered.length===1?'':'s')+' in selected order'):'Select a saved group or fixture cards first.';
-  ['fanControlSelect','fanSpread','fanSpreadStep','fanSpreadDown','fanSpreadUp','fanInvert','fanMode','fanFrom','fanTo','fanSnapshot','fanApply','fanSave','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ordered.length||!opts.length;});
+  ['fanControlSelect','fanSpread','fanSpreadStep','fanSpreadDown','fanSpreadUp','fanMode','fanFrom','fanTo','fanSnapshot','fanApply','fanSave','fanClear'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!ordered.length||!opts.length;});
   document.getElementById('fanRecall').disabled=!fanPresets.length;
   const preview=document.getElementById('fanPreview');
   ensureFanBases();
@@ -1887,7 +1886,7 @@ function fanOutStatePayload(){
     controlKey:fanState.controlKey,
     mode:fanState.mode,
     spread:fanState.spread,
-    inverted:!!fanState.inverted,
+    inverted:false,
     fromOffset:fanState.fromOffset,
     toOffset:fanState.toOffset,
     spreadStep:fanSpreadStep
@@ -1898,7 +1897,8 @@ function applyFanOutStatePayload(state){
   fanState.controlKey=String(state.controlKey||fanState.controlKey||'');
   fanState.mode=state.mode==='range'?'range':'symmetric';
   fanState.spread=Number(state.spread)||0;
-  fanState.inverted=!!state.inverted;
+  if(state.inverted&&fanState.spread>0)fanState.spread=-fanState.spread;
+  fanState.inverted=false;
   fanState.fromOffset=Number(state.fromOffset)||0;
   fanState.toOffset=Number(state.toOffset)||0;
   fanSpreadStep=clamp(state.spreadStep||fanSpreadStep||1,1,65535);
@@ -1917,7 +1917,7 @@ function fanPresetPayload(name){
       controlKey:fanState.controlKey,
       mode:fanState.mode,
       spread:fanState.spread,
-      inverted:!!fanState.inverted,
+      inverted:false,
       fromOffset:fanState.fromOffset,
       toOffset:fanState.toOffset
     }
@@ -1963,7 +1963,8 @@ function recallFanPreset(){
     DmxCommon.saveSharedGroupSelection([]);
   }
   Object.assign(fanState,preset.state||{});
-  fanState.inverted=!!fanState.inverted;
+  if(fanState.inverted&&fanState.spread>0)fanState.spread=-fanState.spread;
+  fanState.inverted=false;
   fanState.bases={};
   fanAffectedKeys.clear();
   renderSavedGroupsList();
@@ -4377,18 +4378,18 @@ document.getElementById('fanControlSelect').addEventListener('change',e=>{
   drawSurface();
 });
 document.getElementById('fanMode').addEventListener('change',e=>{fanState.mode=e.target.value;liveFanUpdate();});
-document.getElementById('fanSpread').addEventListener('input',e=>{fanState.spread=clamp(e.target.value,0,fanMaxValue());liveFanUpdate();});
+document.getElementById('fanSpread').addEventListener('input',e=>{fanState.spread=clamp(e.target.value,-fanMaxValue(),fanMaxValue());liveFanUpdate();});
 function nudgeFanSpread(dir){
   const max=fanMaxValue();
   fanSpreadStep=clamp(document.getElementById('fanSpreadStep')?.value||fanSpreadStep||1,1,max);
   const step=fanSpreadStep;
-  fanState.spread=clamp((Number(fanState.spread)||0)+dir*step,0,max);
+  fanState.spread=clamp((Number(fanState.spread)||0)+dir*step,-max,max);
   liveFanUpdate();
 }
 document.getElementById('fanSpreadStep').addEventListener('input',e=>{fanSpreadStep=clamp(e.target.value||1,1,fanMaxValue());e.target.value=fanSpreadStep;saveFanOutStateSoon();});
 document.getElementById('fanSpreadDown').onclick=()=>nudgeFanSpread(-1);
 document.getElementById('fanSpreadUp').onclick=()=>nudgeFanSpread(1);
-document.getElementById('fanInvert').onclick=()=>{fanState.inverted=!fanState.inverted;liveFanUpdate();};
+if(document.getElementById('fanInvert'))document.getElementById('fanInvert').onclick=()=>{fanState.spread=-(Number(fanState.spread)||0);fanState.inverted=false;liveFanUpdate();};
 document.getElementById('fanFrom').addEventListener('input',e=>{fanState.fromOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
 document.getElementById('fanTo').addEventListener('input',e=>{fanState.toOffset=parseFloat(e.target.value)||0;liveFanUpdate();});
 document.getElementById('fanSnapshot').onclick=()=>{snapshotFanBases();setStatus('Fan Out bases snapshotted');};
