@@ -330,7 +330,8 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>Filled palette slots recall palettes. Merging is done with the separate <strong>Merge</strong> button so recall and edit actions stay distinct.</p>
 <p>Use <strong>Merge</strong> when you have a current fixture selection or active Fan Out result:</p>
 <ul>
-<li>The controller asks which saved palette slot should receive the current scoped values.</li>
+<li>The controller opens a palette matrix picker, so you choose the saved palette tile visually instead of typing a slot number.</li>
+<li>Empty slots are shown for orientation but cannot be selected as merge targets.</li>
 <li>If the current scope matches the saved palette scope, the values are merged and the palette keeps its scope.</li>
 <li>This allows one <strong>Color</strong> palette to contain RGB controls, color wheels, and RGBWA controls from different fixture types while still remaining a Color palette.</li>
 <li>If the current scope differs from the saved palette scope, the controller asks whether to change the saved palette to <strong>All controls</strong> and merge.</li>

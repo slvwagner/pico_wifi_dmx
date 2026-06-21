@@ -297,7 +297,8 @@ Filled palette slots recall palettes. Merging is done with the separate **Merge*
 
 Use **Merge** when you have a current fixture selection or active Fan Out result:
 
-- The controller asks which saved palette slot should receive the current scoped values.
+- The controller opens a palette matrix picker, so you choose the saved palette tile visually instead of typing a slot number.
+- Empty slots are shown for orientation but cannot be selected as merge targets.
 - If the current scope matches the saved palette scope, the values are merged and the palette keeps its scope.
 - This allows one **Color** palette to contain RGB controls, color wheels, and RGBWA controls from different fixture types while still remaining a Color palette.
 - If the current scope differs from the saved palette scope, the controller asks whether to change the saved palette to **All controls** and merge.

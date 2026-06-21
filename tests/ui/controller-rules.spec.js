@@ -1466,6 +1466,62 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.scope).toEqual(['101:11']);
   });
 
+  test('palette merge uses a visual matrix picker instead of a slot prompt', async ({ page }) => {
+    const palettePosts = [];
+    await page.route('**/palette_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        palettePosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, palettes: [], paletteCols: 4, paletteRows: 4 })
+      });
+    });
+
+    await page.evaluate(() => {
+      palettes = [
+        { id: 'pal_a', name: 'Dimmer A', slot: 0, scope: 'dimmer', values: { '101:11': 12 }, visual: { type: 'visual', color: '#225a50', image: '' } },
+        { id: 'pal_b', name: 'Dimmer B', slot: 2, scope: 'dimmer', values: { '102:21': 44 }, visual: { type: 'visual', color: '#553355', image: '' } }
+      ];
+      paletteCols = 4;
+      paletteRows = 1;
+      document.getElementById('paletteScope').value = 'dimmer';
+      selectedFixtureIds = new Set([101]);
+      values['101:11'] = 88;
+      renderPaletteMatrix();
+    });
+
+    let promptOpened = false;
+    page.on('dialog', async dialog => {
+      if (dialog.type() === 'prompt') promptOpened = true;
+      await dialog.accept();
+    });
+
+    await page.locator('#mergePaletteBtn').click();
+    await expect(page.locator('#paletteMergeModal')).toBeVisible();
+    await expect(page.locator('#paletteMergeMatrix [data-merge-palette-slot]')).toHaveCount(2);
+    await expect(page.locator('#paletteMergeMatrix [data-merge-empty-slot]')).toHaveCount(2);
+    await page.locator('#paletteMergeMatrix [data-merge-empty-slot="1"]').click();
+    await expect(page.locator('#paletteMergeModal')).toBeVisible();
+    await page.locator('#paletteMergeMatrix [data-merge-palette-slot="0"]').click();
+    await expect(page.locator('#paletteMergeModal')).toBeHidden();
+
+    const state = await page.evaluate(() => ({
+      paletteValue: palettes.find(p => p.id === 'pal_a').values['101:11'],
+      otherValue: palettes.find(p => p.id === 'pal_b').values['102:21'],
+      status: document.getElementById('status').textContent
+    }));
+
+    expect(promptOpened).toBe(false);
+    expect(state.paletteValue).toBe(88);
+    expect(state.otherValue).toBe(44);
+    expect(state.status).toContain('Merged 1 fixture into palette "Dimmer A"');
+    await expect.poll(() => palettePosts.at(-1)?.palettes?.find(p => p.id === 'pal_a')?.values?.['101:11'], { timeout: 5000 }).toBe(88);
+  });
+
   test('palette move mode reorders tiles without recalling them', async ({ page }) => {
     const palettePosts = [];
     await page.route('**/palette_setup.php', async route => {

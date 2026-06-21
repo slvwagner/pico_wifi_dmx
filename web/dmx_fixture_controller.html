@@ -390,6 +390,22 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="paletteMergeModal" class="modal-overlay" style="display:none">
+<div class="modal palette-merge-modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Merge Palette</h2>
+<button id="paletteMergeClose" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div class="modal-body">
+<div id="paletteMergeSummary" class="small"></div>
+<div id="paletteMergeMatrix" class="scene-slot-matrix palette-merge-matrix"></div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="paletteMergeClose2">Close</button>
+</div>
+</div>
+</div>
+
 <div id="paletteVisualModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
@@ -4421,36 +4437,62 @@ function paletteCanBuildCurrentValues(){
 function mergePaletteButtonClick(){
   if(!palettes.length){setStatus('No saved palettes to merge into',true);return;}
   if(!paletteCanBuildCurrentValues()){showError('Select fixtures or apply Fan Out before merging a palette.');return;}
-  const list=palettes
-    .slice()
-    .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
-    .map(p=>(p.slot+1)+': '+p.name+' ('+paletteScopeLabel(p.scope||'all')+')')
-    .join('\n');
-  const answer=(prompt('Merge current '+paletteScopeLabel(currentPaletteScope())+' values into palette slot:\n'+list,'1')||'').trim();
-  if(!answer)return;
-  const slot=(parseInt(answer,10)||1)-1;
-  const p=palettes.find(pl=>pl.slot===slot);
-  if(!p){setStatus('Palette slot '+(slot+1)+' is empty',true);return;}
-  mergeIntoPalette(p);
+  openPaletteMergeModal();
+}
+function renderPaletteMergeMatrix(){
+  const grid=document.getElementById('paletteMergeMatrix');
+  const summary=document.getElementById('paletteMergeSummary');
+  if(!grid)return;
+  normalizePaletteGrid('cols');
+  const total=paletteCols*paletteRows;
+  grid.style.setProperty('--palette-merge-cols',paletteCols);
+  grid.style.gridTemplateColumns='repeat('+paletteCols+',minmax(64px,1fr))';
+  if(summary)summary.textContent='Choose a saved palette tile to merge the current '+paletteScopeLabel(currentPaletteScope())+' values into.';
+  let html='';
+  for(let i=0;i<total;i++){
+    const p=palettes.find(pl=>pl.slot===i);
+    if(p){
+      html+=`<button type="button" class="${DmxCommon.savedTileClass('slot filled',false)}" data-merge-palette-slot="${i}" title="Merge into ${escHtml(p.name||('Palette '+(i+1)))}" style="${slotVisualStyle(p)}"><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name||('Palette '+(i+1)))}</span><span class="small">${escHtml(paletteScopeLabel(p.scope||'all'))}</span></div></button>`;
+    }else{
+      html+=`<div class="slot empty readonly" data-merge-empty-slot="${i}" title="Empty palette slot">${i+1}</div>`;
+    }
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-merge-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const slot=parseInt(btn.dataset.mergePaletteSlot,10);
+      const p=palettes.find(pl=>pl.slot===slot);
+      if(!p){setStatus('Palette slot '+(slot+1)+' is empty',true);return;}
+      if(mergeIntoPalette(p))closePaletteMergeModal();
+    });
+  });
+}
+function openPaletteMergeModal(){
+  renderPaletteMergeMatrix();
+  DmxCommon.showModal('paletteMergeModal');
+}
+function closePaletteMergeModal(){
+  DmxCommon.hideModal('paletteMergeModal');
 }
 function mergeIntoPalette(p){
   const currentScope=currentPaletteScope();
   const savedScope=p.scope||'all';
   if(savedScope===currentScope||savedScope==='all'){
     if(confirm('Merge current '+paletteScopeLabel(currentScope)+' values into palette "'+p.name+'"?')){
-      mergePaletteValues(p,savedScope==='all'?'all':currentScope);
+      return mergePaletteValues(p,savedScope==='all'?'all':currentScope);
     }
-    return;
+    return false;
   }
   if(confirm('Palette "'+p.name+'" is '+paletteScopeLabel(savedScope)+', but the current scope is '+paletteScopeLabel(currentScope)+'.\n\nChange this palette scope to All controls and merge?')){
-    mergePaletteValues(p,'all');
+    return mergePaletteValues(p,'all');
   }
+  return false;
 }
 function mergePaletteValues(p,nextScope){
   const paletteValues=currentPaletteSaveValues();
-  if(!paletteValues)return;
+  if(!paletteValues)return false;
   const fixtureCount=sceneFixtureIdsFromValues(paletteValues).length;
-  if(!fixtureCount){showError('Current palette scope has no matching fixture values to merge.');return;}
+  if(!fixtureCount){showError('Current palette scope has no matching fixture values to merge.');return false;}
   p.values={...(p.values||{}),...paletteValues};
   p.scope=nextScope;
   if(!p.visual){
@@ -4460,6 +4502,7 @@ function mergePaletteValues(p,nextScope){
   renderPaletteMatrix();
   savePalettesServer();
   setStatus('Merged '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+' into palette "'+p.name+'"');
+  return true;
 }
 function savePaletteToSlot(idx,name){
   const scope=currentPaletteScope();
@@ -4630,6 +4673,8 @@ function openGroupVisualModal(index){
 if(document.getElementById('exportPalettesBtn'))document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 if(document.getElementById('importPalettesBtn'))document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile')?.click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
+document.getElementById('paletteMergeClose').onclick=closePaletteMergeModal;
+document.getElementById('paletteMergeClose2').onclick=closePaletteMergeModal;
 document.getElementById('movePaletteBtn').onclick=togglePaletteMoveMode;
 if(document.getElementById('importPalettesFile'))document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
 const paletteToolbox=DmxCommon.initFloatingToolbox({
