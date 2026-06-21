@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "Open Fixture Library export",
-  "generatedAt": "06/21/2026 20:12:26",
+  "generatedAt": "06/21/2026 20:47:46",
   "fixtureCount": 623,
   "fixtures": [
     {
@@ -107692,45 +107692,48 @@
           "shortName": "32ch",
           "channels": 32,
           "profile": {
-            "name": "Alpha Spot QWO 800",
+            "name": "Clay Paky Alpha Spot QWO 800",
             "mode": "Standard 32-channel",
             "channels": 32,
             "controls": [
               {
-                "id": 1,
+                "id": 1782074663374,
                 "type": "panTilt16",
                 "label": "Pan/Tilt",
                 "tilt": 28,
                 "panFine": 27,
                 "tiltFine": 29,
-                "pan": 26
+                "pan": 26,
+                "panReverse": false,
+                "tiltReverse": false,
+                "panTiltSwap": false
               },
               {
-                "id": 2,
+                "id": 1782074663629,
                 "type": "slider8",
                 "label": "Cyan",
                 "channel": 1
               },
               {
-                "id": 3,
+                "id": 1782074663422,
                 "type": "slider8",
                 "label": "Magenta",
                 "channel": 2
               },
               {
-                "id": 4,
+                "id": 1782074664185,
                 "type": "slider8",
                 "label": "Yellow",
                 "channel": 3
               },
               {
-                "id": 5,
+                "id": 1782074664210,
                 "type": "slider8",
                 "label": "CTO",
                 "channel": 4
               },
               {
-                "id": 6,
+                "id": 1782074663485,
                 "type": "wheel",
                 "label": "Color Wheel",
                 "options": [
@@ -107966,37 +107969,34 @@
                 "channel": 5
               },
               {
-                "id": 7,
+                "id": 1782074663395,
                 "type": "slider8",
                 "label": "Color Macros",
                 "channel": 6
               },
               {
-                "id": 8,
+                "id": 1782074664185,
                 "type": "slider8",
                 "label": "Shutter / Strobe",
                 "channel": 7
               },
               {
-                "id": 9,
-                "type": "slider8",
+                "id": 1782074663783,
+                "type": "slider16",
                 "label": "Dimmer",
-                "channel": 8
+                "channel": 8,
+                "fine": 9,
+                "defaultValue": null,
+                "blackoutValue": null
               },
               {
-                "id": 10,
-                "type": "slider8",
-                "label": "Dimmer fine",
-                "channel": 9
-              },
-              {
-                "id": 11,
+                "id": 1782074663674,
                 "type": "slider8",
                 "label": "Iris",
                 "channel": 10
               },
               {
-                "id": 12,
+                "id": 1782074663931,
                 "type": "wheel",
                 "label": "Static Gobo Wheel",
                 "options": [
@@ -108221,7 +108221,7 @@
                 "channel": 11
               },
               {
-                "id": 13,
+                "id": 1782074663625,
                 "type": "wheel",
                 "label": "Rotating Gobo Wheel",
                 "options": [
@@ -108393,7 +108393,7 @@
                 "channel": 12
               },
               {
-                "id": 14,
+                "id": 1782074663701,
                 "type": "wheel",
                 "label": "Gobo Rotation",
                 "options": [
@@ -108549,7 +108549,7 @@
                 "channel": 13
               },
               {
-                "id": 15,
+                "id": 1782074663427,
                 "type": "wheel",
                 "label": "Gobo Rotation fine",
                 "options": [
@@ -108561,85 +108561,85 @@
                 "channel": 14
               },
               {
-                "id": 16,
+                "id": 1782074663777,
                 "type": "slider8",
                 "label": "Prism",
                 "channel": 15
               },
               {
-                "id": 17,
+                "id": 1782074663810,
                 "type": "slider8",
                 "label": "Prism Rotation",
                 "channel": 16
               },
               {
-                "id": 18,
+                "id": 1782074663829,
                 "type": "slider8",
                 "label": "Frost",
                 "channel": 17
               },
               {
-                "id": 19,
+                "id": 1782074664060,
                 "type": "slider8",
                 "label": "Animation Disk",
                 "channel": 18
               },
               {
-                "id": 20,
+                "id": 1782074663997,
                 "type": "slider8",
                 "label": "Animation Disk Rotation",
                 "channel": 19
               },
               {
-                "id": 21,
+                "id": 1782074663362,
                 "type": "slider8",
                 "label": "Focus",
                 "channel": 20
               },
               {
-                "id": 22,
+                "id": 1782074663891,
                 "type": "slider8",
                 "label": "Focus fine",
                 "channel": 21
               },
               {
-                "id": 23,
+                "id": 1782074663428,
                 "type": "slider8",
                 "label": "Zoom",
                 "channel": 22
               },
               {
-                "id": 24,
+                "id": 1782074663451,
                 "type": "slider8",
                 "label": "Autofocus Distance",
                 "channel": 23
               },
               {
-                "id": 25,
+                "id": 1782074663734,
                 "type": "slider8",
                 "label": "Autofocus Adjust",
                 "channel": 24
               },
               {
-                "id": 26,
+                "id": 1782074663801,
                 "type": "slider8",
                 "label": "Effects",
                 "channel": 25
               },
               {
-                "id": 27,
+                "id": 1782074663456,
                 "type": "slider8",
                 "label": "Function",
                 "channel": 30
               },
               {
-                "id": 28,
+                "id": 1782074664167,
                 "type": "slider8",
                 "label": "Reset",
                 "channel": 31
               },
               {
-                "id": 29,
+                "id": 1782074663351,
                 "type": "slider8",
                 "label": "Lamp Control",
                 "channel": 32
@@ -162234,7 +162234,7 @@
           "name": "11-channel",
           "channels": 11,
           "profile": {
-            "name": "PicoSpot 20 LED",
+            "name": "Fun Generation PicoSpot 20 LED",
             "mode": "11-channel",
             "channels": 11,
             "controls": [
