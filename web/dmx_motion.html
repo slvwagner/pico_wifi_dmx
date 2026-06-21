@@ -38,6 +38,11 @@ main{max-width:none;width:100%;margin:0}
 #motionGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #motionGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 #motionGroupModal .byte-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#motionGroupModal .relative-control{display:grid;grid-template-columns:auto minmax(72px,100px) auto;gap:6px;align-items:end}
+#motionGroupModal .relative-control label{display:grid;gap:4px;min-width:0}
+#motionGroupModal .relative-control input[type=number]{width:100%;min-width:0}
+#motionGroupModal .relative-control button{min-width:38px;padding:6px 10px}
+.motion-fixture-tile.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
 </style>
 </head>
 <body>
@@ -316,6 +321,7 @@ let lastSetupJson='';
 // motionFixtures: [{fixture, control, enabled, phaseOffset(deg), kind, basePan, baseTilt, baseValue}]
 let motionFixtures=[];
 let selectedMotionTargetKey='';
+let motionSourceFixtureId=null;
 const MOTION_WORKING_STATE_KEY='dmxMotionWorkingState';
 function isHardPageReload(){
   const nav=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];
@@ -348,6 +354,20 @@ function motionControlLabel(c){
   return(c.label||'Control')+(kind==='scalar16'?' 16-bit':'');
 }
 function scalarMax(c){return c.type==='slider16'?65535:255;}
+function relativeControlHtml(attrs,max,step,label='Relative',value=null){
+  const delta=Math.max(1,Math.round(step||1));
+  const current=value==null?delta:Math.max(1,Math.min(max,Math.round(parseFloat(value)||delta)));
+  return `<div class="relative-control">
+    <button type="button" data-relative-dir="-1" ${attrs} title="Decrease relative to the current value">−</button>
+    <label>${label}<input type="number" min="1" max="${max}" step="${delta}" value="${current}" ${attrs} data-relative-step="1"></label>
+    <button type="button" data-relative-dir="1" ${attrs} title="Increase relative to the current value">+</button>
+  </div>`;
+}
+function relativeStepFromButton(button){
+  const wrap=button.closest('.relative-control');
+  const input=wrap?.querySelector('[data-relative-step]');
+  return Math.max(1,Math.round(parseFloat(input?.value)||1));
+}
 const EFFECTS={
   circle:{label:'Circle',target:'panTilt'},
   figure8:{label:'Figure-8',target:'panTilt'},
@@ -568,9 +588,22 @@ function motionGroupEditFixtures(){
   const enabled=matches.filter(mf=>mf.enabled);
   return enabled.length?enabled:matches;
 }
+function ensureMotionGroupSourceFixture(){
+  const editFixtures=motionGroupEditFixtures();
+  if(!editFixtures.length){motionSourceFixtureId=null;return null;}
+  const current=String(motionSourceFixtureId||'');
+  if(current&&editFixtures.some(mf=>String(mf.fixture.id)===current))return current;
+  motionSourceFixtureId=String(editFixtures[0].fixture.id);
+  return motionSourceFixtureId;
+}
+function motionGroupSourceFixture(){
+  const sourceId=ensureMotionGroupSourceFixture();
+  return motionGroupEditFixtures().find(mf=>String(mf.fixture.id)===String(sourceId))||null;
+}
 function getMotionGroupCommonControls(){
   const editFixtures=motionGroupEditFixtures();
-  if(editFixtures.length<2)return[];
+  if(editFixtures.length===1)return[motionGroupSourceFixture()?.control].filter(Boolean);
+  if(editFixtures.length<1)return[];
   const controls=new Map();
   editFixtures.forEach(mf=>{
     const key=motionGroupKey(mf.control);
@@ -580,10 +613,17 @@ function getMotionGroupCommonControls(){
   return [...controls.values()].filter(item=>item.count>=2).map(item=>item.control);
 }
 function motionGroupValue(c){
-  const mf=motionGroupEditFixtures().find(m=>motionGroupKey(m.control)===motionGroupKey(c));
+  const source=motionGroupSourceFixture();
+  const mf=(source&&motionGroupKey(source.control)===motionGroupKey(c))?source:motionGroupEditFixtures().find(m=>motionGroupKey(m.control)===motionGroupKey(c));
   if(motionControlKind(c)!=='panTilt')return mf?.baseValue??0;
   const max=c.type==='panTilt16'?65535:255;
   return{pan:mf?.basePan??Math.round(max/2),tilt:mf?.baseTilt??Math.round(max/2)};
+}
+function motionGroupScopeText(c){
+  const targets=motionGroupEditFixtures().filter(mf=>motionGroupKey(mf.control)===motionGroupKey(c));
+  const source=motionGroupSourceFixture();
+  const sourceName=source?.fixture?.name||'None';
+  return targets.length+' matching fixture'+(targets.length===1?'':'s')+' · Source: '+sourceName;
 }
 function setMotionGroupValue(c,v){
   motionGroupEditFixtures().forEach(mf=>{
@@ -594,9 +634,23 @@ function setMotionGroupValue(c,v){
     }else mf.baseValue=v;
   });
 }
+function applyRelativeToMotionGroup(c,part,delta){
+  const key=motionGroupKey(c);
+  const targets=motionGroupEditFixtures().filter(mf=>motionGroupKey(mf.control)===key);
+  targets.forEach(mf=>{
+    if(mf.kind==='panTilt'){
+      const max=mf.control.type==='panTilt16'?65535:255;
+      if(part==='pan')mf.basePan=clamp((mf.basePan??Math.round(max/2))+delta,0,max);
+      else if(part==='tilt')mf.baseTilt=clamp((mf.baseTilt??Math.round(max/2))+delta,0,max);
+    }else{
+      mf.baseValue=clamp((mf.baseValue??0)+delta,0,scalarMax(mf.control));
+    }
+  });
+}
 function renderMotionGroupControl(c){
   const key=motionGroupKey(c);
   const v=motionGroupValue(c);
+  const scope=`<span class="bytes">${motionGroupScopeText(c)}</span>`;
   if(motionControlKind(c)!=='panTilt'){
     const max=scalarMax(c);
     const b=bytes16(v);
@@ -605,9 +659,13 @@ function renderMotionGroupControl(c){
       <label>Coarse <span data-mg-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-mg="${key}" data-byte-part="coarse"></label>
       <label>Fine <span data-mg-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-mg="${key}" data-byte-part="fine"></label>
     </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='slider16'?'16-bit scalar':'8-bit scalar'} · effect center</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='slider16'?'16-bit scalar':'8-bit scalar'} · effect center</span>${scope}</div>
       <div class="row"><span class="readout" data-mg-readout="${key}">${Math.round(v)}</span><button data-mg="${key}" data-mg-center="1">Zero</button></div>
       <label>Value<input type="range" min="0" max="${max}" step="1" value="${Math.round(v)}" data-mg="${key}"></label>
+      ${c.type==='slider16'
+        ? relativeControlHtml(`data-mg="${key}" data-relative-part="value"`,max,256,'Coarse relative')+
+          relativeControlHtml(`data-mg="${key}" data-relative-part="value"`,max,1,'Fine relative')
+        : relativeControlHtml(`data-mg="${key}" data-relative-part="value"`,max,1,'Relative')}
       ${bytes}
     </div>`;
   }
@@ -620,11 +678,16 @@ function renderMotionGroupControl(c){
       <label>Tilt coarse <span data-mg-byte="${key}" data-byte-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" data-mg="${key}" data-byte-axis="tilt" data-byte-part="coarse"></label>
       <label>Tilt fine <span data-mg-byte="${key}" data-byte-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" data-mg="${key}" data-byte-axis="tilt" data-byte-part="fine"></label>
     </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · motion center</span></div>
+  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · motion center</span>${scope}</div>
     <div class="xy-pad" data-mgxy="${key}"><div class="xy-dot" style="left:${v.pan/max*100}%;top:${100-v.tilt/max*100}%"></div></div>
     <div class="row"><span class="readout" data-mg-readout="${key}">Pan ${Math.round(v.pan)} · Tilt ${Math.round(v.tilt)}</span><button data-mg="${key}" data-mg-center="1">Center</button></div>
-    <label>Pan<input type="range" min="0" max="${max}" step="1" value="${v.pan}" data-mg="${key}" data-axis="pan"></label>
-    <label>Tilt<input type="range" min="0" max="${max}" step="1" value="${v.tilt}" data-mg="${key}" data-axis="tilt"></label>
+    ${c.type==='panTilt16'
+      ? relativeControlHtml(`data-mg="${key}" data-relative-part="pan"`,max,256,'Pan coarse relative')+
+        relativeControlHtml(`data-mg="${key}" data-relative-part="pan"`,max,1,'Pan fine relative')+
+        relativeControlHtml(`data-mg="${key}" data-relative-part="tilt"`,max,256,'Tilt coarse relative')+
+        relativeControlHtml(`data-mg="${key}" data-relative-part="tilt"`,max,1,'Tilt fine relative')
+      : relativeControlHtml(`data-mg="${key}" data-relative-part="pan"`,max,1,'Pan relative')+
+        relativeControlHtml(`data-mg="${key}" data-relative-part="tilt"`,max,1,'Tilt relative')}
     ${bytes}
   </div>`;
 }
@@ -633,7 +696,7 @@ function updateMotionGroupDisplay(c){
   const v=motionGroupValue(c);
   if(motionControlKind(c)!=='panTilt'){
     document.querySelectorAll(`[data-mg-readout="${key}"]`).forEach(el=>el.textContent=Math.round(v));
-    document.querySelectorAll(`input[data-mg="${key}"]:not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+    document.querySelectorAll(`input[data-mg="${key}"]:not([data-byte-part]):not([data-relative-step])`).forEach(el=>{if(el.value!=v)el.value=v;});
     if(c.type==='slider16'){
       const b=bytes16(v);
       ['coarse','fine'].forEach(part=>{
@@ -690,7 +753,8 @@ function publishMotionLiveValues(patch){
 }
 function openMotionGroupModal(){
   const common=getMotionGroupCommonControls();
-  if(!common.length){setStatus('Select at least two participating fixtures for the current effect target',true);return;}
+  if(!common.length){setStatus('Select at least one fixture for the current effect target',true);return;}
+  ensureMotionGroupSourceFixture();
   const n=motionGroupFixtureIds().length;
   document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common effect control'+(common.length===1?'':'s');
   document.getElementById('motionGroupModalBody').innerHTML=common.map(c=>renderMotionGroupControl(c)).join('');
@@ -702,6 +766,7 @@ function closeMotionGroupModal(){
   drawPathPreview();
 }
 function handleMotionGroupInput(target){
+  if(target.dataset.relativeStep)return;
   const key=target.dataset.mg;if(!key)return;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
   let v=motionGroupValue(c);
@@ -717,9 +782,6 @@ function handleMotionGroupInput(target){
     const b=bytes16(v[axis]);
     b[target.dataset.bytePart]=clamp(target.value,0,255);
     v={...v,[axis]:(b.coarse<<8)|b.fine};
-  }else if(target.dataset.axis){
-    const max=c.type==='panTilt16'?65535:255;
-    v={...v,[target.dataset.axis]:clamp(target.value,0,max)};
   }
   setMotionGroupValue(c,v);
   updateMotionGroupDisplay(c);
@@ -730,6 +792,17 @@ document.getElementById('closeMotionGroupModal2').onclick=closeMotionGroupModal;
 const motionGroupModalBody=document.getElementById('motionGroupModalBody');
 motionGroupModalBody.oninput=e=>handleMotionGroupInput(e.target);
 motionGroupModalBody.addEventListener('click',e=>{
+  const relativeTarget=e.target.closest('[data-relative-dir]');
+  if(relativeTarget&&relativeTarget.dataset.mg){
+    const key=relativeTarget.dataset.mg;
+    const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
+    const step=relativeStepFromButton(relativeTarget);
+    const dir=parseInt(relativeTarget.dataset.relativeDir,10)<0?-1:1;
+    applyRelativeToMotionGroup(c,relativeTarget.dataset.relativePart||'value',dir*step);
+    updateMotionGroupDisplay(c);
+    sendMotionGroupControl(c);
+    return;
+  }
   const key=e.target.dataset.mg;if(!key)return;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
   if(e.target.dataset.mgCenter){
@@ -799,6 +872,7 @@ function drawFixtureList(){
   populateMotionControlFilter();
   listEl.innerHTML='';
   if(!selectedMotionTargetKey){
+    motionSourceFixtureId=null;
     const hint=document.getElementById('motionControlHint');
     if(hint)hint.textContent='Effect Target: None';
     listEl.innerHTML='<div class="small">Choose an Effect Target, then select fixtures with All, Groups, or individual fixture tiles.</div>';
@@ -816,6 +890,7 @@ function drawFixtureList(){
     groups.get(id).items.push({mf,i});
   });
   const fixtureGroups=Array.from(groups.values());
+  ensureMotionGroupSourceFixture();
   const hint=document.getElementById('motionControlHint');
   const target=motionControlOptions().find(o=>o.key===selectedMotionTargetKey);
   if(hint)hint.textContent=(target?target.label:'No target')+(selected.length?' · filtering '+selected.length+' selected group'+(selected.length===1?'':'s'):' · no group filter');
@@ -837,8 +912,9 @@ function drawFixtureList(){
     const max=isPanTilt?(c.type==='panTilt16'?65535:255):scalarMax(c);
     const color=COLORS[i%COLORS.length];
     const meta=isPanTilt?(c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'):(c.type==='slider16'?'Scalar 16-bit':'Scalar 8-bit');
+    const isSource=String(motionSourceFixtureId||'')===String(f.id);
     const item=document.createElement('div');
-    item.className=DmxCommon.selectableCardClass('item motion-fixture-tile',mf.enabled);
+    item.className=DmxCommon.selectableCardClass('item motion-fixture-tile'+(isSource?' source-fixture':''),mf.enabled);
     item.dataset.fixId=f.id;
     item.dataset.mf=String(i);
     const preview=isPanTilt
@@ -865,8 +941,14 @@ function drawFixtureList(){
     const i=parseInt(tile.dataset.mf,10);
     const mf=motionFixtures[i];
     if(!mf)return;
-    mf.enabled=!mf.enabled;
-    DmxCommon.setSelectableState(tile,mf.enabled);
+    if(mf.enabled&&String(motionSourceFixtureId||'')!==String(mf.fixture.id)){
+      motionSourceFixtureId=String(mf.fixture.id);
+    }else{
+      mf.enabled=!mf.enabled;
+      if(mf.enabled)motionSourceFixtureId=String(mf.fixture.id);
+      else if(String(motionSourceFixtureId||'')===String(mf.fixture.id))motionSourceFixtureId=null;
+    }
+    drawFixtureList();
     drawPathPreview();
     refreshMotionGroupActions();
     saveMotionWorkingState();

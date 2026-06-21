@@ -23,6 +23,7 @@ Changed:
 - Removed redundant absolute Pan/Tilt coarse/fine sliders where the Pan/Tilt plot and relative controls now provide the practical movement workflow.
 - Added autosaved relative step-size settings for Group Edit so the user-selected fine movement increments survive reloads.
 - Fixed Motion FX phase spread handling so the preview/output reflects the intended `0..360` degree range.
+- Aligned Motion FX Group Edit with the Controller workflow: visible Source fixture, single-fixture editing, relative nudges, and XY-pad Pan/Tilt editing without duplicate absolute Pan/Tilt sliders.
 - Fixed new-show cleanup so saved motion effects are removed when starting a fresh show.
 - Improved Chaser editing with an Update Chase action for recalled chases and visible user feedback after updates.
 - Added direct numeric editing for Chaser step values in addition to sliders.

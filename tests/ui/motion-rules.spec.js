@@ -461,7 +461,7 @@ test.describe('Motion FX established rules', () => {
     expect(result.enabledFixtures.sort()).toEqual([101, 102]);
   });
 
-  test('Group Edit uses the selected effect target and requires two matching participating fixtures', async ({ page }) => {
+  test('Group Edit uses the selected effect target and matching participating fixtures', async ({ page }) => {
     const result = await page.evaluate(() => {
       const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');
       selectedMotionTargetKey = motionControlKey(scalar.control);
@@ -475,6 +475,79 @@ test.describe('Motion FX established rules', () => {
 
     expect(result.fixtures).toEqual([101, 102]);
     expect(result.controls).toEqual(['slider8:Dimmer:value']);
+  });
+
+  test('Motion Group Edit works for a single Pan/Tilt fixture with source and relative controls', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
+      selectedMotionTargetKey = motionControlKey(pan.control);
+      motionFixtures.forEach(mf => {
+        mf.enabled = mf === pan;
+        if (mf === pan) {
+          mf.basePan = 33000;
+          mf.baseTilt = 34000;
+        }
+      });
+      drawFixtureList();
+      refreshMotionGroupActions();
+      return {
+        source: motionSourceFixtureId,
+        controls: getMotionGroupCommonControls().map(motionGroupKey),
+        groupEditDisabled: document.getElementById('motionGroupsEdit').disabled
+      };
+    });
+
+    expect(state.source).toBe('101');
+    expect(state.controls).toEqual(['panTilt16:Pan/Tilt:panTilt']);
+    expect(state.groupEditDisabled).toBe(false);
+
+    await page.locator('#motionGroupsEdit').click();
+    await expect(page.locator('#motionGroupModal')).toBeVisible();
+    await expect(page.locator('#motionGroupModalBody')).toContainText('Source: A 1');
+    await expect(page.locator('#motionGroupModalBody')).toContainText('Pan coarse relative');
+    await expect(page.locator('#motionGroupModalBody')).toContainText('Pan fine relative');
+    await expect(page.locator('#motionGroupModalBody')).toContainText('Tilt coarse relative');
+    await expect(page.locator('#motionGroupModalBody')).toContainText('Tilt fine relative');
+    await expect(page.locator('#motionGroupModalBody input[data-axis]')).toHaveCount(0);
+  });
+
+  test('Motion Group Edit shows the source fixture and relative nudges keep fixture offsets', async ({ page }) => {
+    await page.evaluate(() => {
+      const scalarKey = motionControlKey(motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer').control);
+      selectedMotionTargetKey = scalarKey;
+      motionFixtures.forEach(mf => {
+        if (motionControlKey(mf.control) !== scalarKey) return;
+        mf.enabled = true;
+        mf.baseValue = mf.fixture.id === 101 ? 10 : 80;
+      });
+      drawFixtureList();
+      refreshMotionGroupActions();
+    });
+
+    await expect(page.locator('#fixtureList [data-fix-id="101"]')).toHaveClass(/source-fixture/);
+    await page.locator('#fixtureList [data-fix-id="102"]').click();
+    await expect(page.locator('#fixtureList [data-fix-id="102"]')).toHaveClass(/source-fixture/);
+
+    await page.locator('#motionGroupsEdit').click();
+    await expect(page.locator('#motionGroupModalBody')).toContainText('Source: B 1');
+    await page.locator('#motionGroupModalBody input[data-relative-step]').fill('5');
+    await page.locator('#motionGroupModalBody button[data-relative-dir="1"][data-relative-part="value"]').click();
+
+    const result = await page.evaluate(() => ({
+      source: motionSourceFixtureId,
+      values: motionFixtures
+        .filter(mf => motionGroupKey(mf.control) === selectedMotionTargetKey)
+        .map(mf => ({ fixture: mf.fixture.id, value: mf.baseValue }))
+        .sort((a, b) => a.fixture - b.fixture),
+      readout: document.querySelector('#motionGroupModalBody [data-mg-readout]')?.textContent
+    }));
+
+    expect(result.source).toBe('102');
+    expect(result.values).toEqual([
+      { fixture: 101, value: 15 },
+      { fixture: 102, value: 85 }
+    ]);
+    expect(result.readout).toBe('85');
   });
 
   test('None disables every visible fixture for the current effect target', async ({ page }) => {

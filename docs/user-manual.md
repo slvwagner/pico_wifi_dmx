@@ -390,7 +390,7 @@ Group selection is shared across toolbox pages that use the Groups toolbox. It i
 
 On the Fixture Controller, **Group Edit** lives in the **Groups** toolbox. It requires an explicit fixture selection. If nothing is selected, Group Edit is disabled. Select individual fixture cards, load one or more saved groups, or press **Select All** before opening Group Edit from the Groups toolbox.
 
-The Group Edit modal only shows controls that exist on at least two selected fixtures. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.
+The Group Edit modal shows controls that exist in the current edit scope. It can be used for one fixture or many fixtures where the page supports single-fixture editing. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.
 
 The selected **Source** fixture is the template for the modal values. When you open Group Edit, the modal reads the Source fixture's current matching control values and shows those values in the sliders, wheel buttons, color controls, XY pads, and relative nudge controls. Opening the modal does not overwrite the other selected fixtures and does not send DMX by itself.
 
@@ -400,13 +400,13 @@ The values are applied when you actually edit a control in the modal. Moving a s
 
 Group Edit remembers the relative step-size fields you set, for example **Pan fine relative** or **Tilt fine relative**. Those settings are autosaved to the XAMPP server UI-state file and restored the next time Group Edit opens, so your preferred nudge sizes survive reloads.
 
-If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, **Group Edit** uses that scope. In that case it shows only controls that are part of the active scope and exist on at least two selected fixtures. Editing a scoped control writes only to matching fixtures.
+If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, **Group Edit** uses that scope. In that case it shows only controls that are part of the active scope and exist in the selected fixture scope. Editing a scoped control writes only to matching fixtures.
 
 Use **Default** or **Blackout** to recall the stored default or blackout values for every fixture in the selected group.
 
 ### Group Edit Contract
 
-Controller, Chaser, and Motion FX all use the same basic Group Edit idea: the modal is available when the current page scope contains at least one editable control on two or more fixtures. The fixtures do not need to use the same fixture profile.
+Controller, Chaser, and Motion FX all use the same basic Group Edit idea: the modal is available when the current page scope contains at least one editable control. Controller and Motion FX can use the same modal for a single fixture or a group of fixtures; Chaser uses the current participating-control scope for step editing. The fixtures do not need to use the same fixture profile.
 
 Keep these rules as the contract:
 
@@ -729,7 +729,11 @@ The Motion FX page uses five toolboxes in the shared sidebar.
 
 ![Motion Groups toolbox](screenshots/motion-toolbox-groups.png)
 
-**Groups** filters the fixture matrix for the selected effect target. When **Effect target** is **None**, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available when two or more fixtures have that target. For example, after a hard reload, choosing **Dimmer** lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Pressing **All** clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.
+**Groups** filters the fixture matrix for the selected effect target. When **Effect target** is **None**, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available as soon as at least one fixture has that target. For example, after a hard reload, choosing **Dimmer** lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Choosing **Pan/Tilt** can also open Group Edit for a single moving light. Pressing **All** clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.
+
+The Motion FX fixture grid marks the current **Source** fixture with the same highlighted selection language used by the Controller. The Source fixture supplies the values shown in the Group Edit modal. Click another enabled fixture tile to make it the Source; click the current Source tile again when you want to remove that fixture from participation.
+
+Motion FX Group Edit uses the Controller-style motion controls: pan/tilt edits use the XY pad for absolute center placement and relative nudge rows for movement from the current values. The modal no longer exposes separate absolute Pan/Tilt sliders. Use **Pan coarse relative**, **Pan fine relative**, **Tilt coarse relative**, and **Tilt fine relative** for 16-bit moving lights when you want to move one fixture or a selected group without forcing every fixture to the same absolute value. Relative nudges keep each fixture offset from its own current center, then send the changed center values to the Pico when a Pico base URL is set.
 
 ![Motion Effect Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 
