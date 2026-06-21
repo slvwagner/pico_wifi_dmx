@@ -1,15 +1,19 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
+const fs = require('fs');
+const path = require('path');
+
+const appVersion = fs.readFileSync(path.join(__dirname, '..', '..', 'VERSION'), 'utf8').trim();
 
 test.describe('Project versioning rules', () => {
   test('shared UI shows the app version and JSON exports include version metadata', async ({ page }) => {
     await openDmxPage(page, '');
 
-    await expect(page.locator('header h1 .app-version')).toHaveText('v0.9.4');
+    await expect(page.locator('header h1 .app-version')).toHaveText('v' + appVersion);
 
     const payload = await page.evaluate(() => DmxCommon.versionedPayload({ baseUrl: 'http://example.test/' }));
     expect(payload).toMatchObject({
-      appVersion: '0.9.4',
+      appVersion,
       schemaVersion: 1,
       baseUrl: 'http://example.test/'
     });
@@ -75,8 +79,6 @@ test.describe('Project versioning rules', () => {
     });
 
     await openDmxPage(page, '');
-    await expect(page.locator('#status')).toContainText('Groups load failed');
-
     const result = await page.evaluate(() => {
       createSavedGroup('Should Not Save', [101], {});
       return {

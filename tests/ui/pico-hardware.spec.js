@@ -42,6 +42,8 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     const channels = hardware.dmxTestChannels || [1, 2];
     const [a, b] = channels;
 
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
     await getJson(request, '/dmx/clear');
     let output = await getJson(request, '/dmx/output.json');
     expect(output.ok).toBe(true);

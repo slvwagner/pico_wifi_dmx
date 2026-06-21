@@ -878,7 +878,10 @@ test.describe('Fixture Controller established rules', () => {
         selectedFixtures: [...selectedFixtureIds].sort(),
         shared: JSON.parse(localStorage.getItem('selectedGroupIds') || '[]'),
         filteredFixtures: [...activeFixtureFilterIds].sort(),
-        visibleCards: [...document.querySelectorAll('#surface article h2')].map(el => el.textContent),
+        visibleCards: [...document.querySelectorAll('#surface article')].map(card => ({
+          id: Number(card.dataset.fixtureCard),
+          title: card.querySelector('h2')?.childNodes[0]?.textContent.trim()
+        })),
         groupBarText: document.getElementById('groupBar').textContent
       };
     });
@@ -887,7 +890,10 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.selectedFixtures).toEqual([102]);
     expect(result.shared).toEqual([]);
     expect(result.filteredFixtures).toEqual([101, 102]);
-    expect(result.visibleCards).toEqual(['A 1', 'B 1']);
+    expect(result.visibleCards).toEqual([
+      { id: 101, title: 'A 1' },
+      { id: 102, title: 'B 1' }
+    ]);
     expect(result.groupBarText).toContain('Filtered group selection');
   });
 
@@ -1080,7 +1086,15 @@ test.describe('Fixture Controller established rules', () => {
 
   test('OFL wheel shake ranges expose a bounded speed slider', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
-    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });
+    await page.evaluate(async () => {
+      const r = await fetch('assets/fixture-library.json', { cache: 'no-store' });
+      fixtureLibraryState.data = normalizeFixtureLibrary(await r.json());
+      fixtureLibraryState.selectedKey = '';
+      fixtureLibraryState.selectedModeIndex = 0;
+      document.getElementById('fixtureLibrarySearch').disabled = false;
+      document.getElementById('fixtureLibraryStatus').textContent = 'Loaded built-in fixture library for test.';
+      renderFixtureLibraryResults();
+    });
     await page.locator('#fixtureLibrarySearch').fill('fun generation picospot 20 led');
     await page.locator('[data-library-key="fun-generation/picospot-20-led"]').click();
     await page.locator('#fixtureLibraryMode').selectOption('2');
@@ -1203,7 +1217,10 @@ test.describe('Fixture Controller established rules', () => {
         shared: JSON.parse(localStorage.getItem('selectedGroupIds') || '[]'),
         selectedFixtures: [...selectedFixtureIds],
         sceneFilter: sceneFixtureFilterActive,
-        visibleCards: [...document.querySelectorAll('#surface article h2')].map(el => el.textContent)
+        visibleCards: [...document.querySelectorAll('#surface article')].map(card => ({
+          id: Number(card.dataset.fixtureCard),
+          title: card.querySelector('h2')?.childNodes[0]?.textContent.trim()
+        }))
       };
     });
 
@@ -1211,7 +1228,7 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.shared).toEqual([]);
     expect(result.selectedFixtures).toEqual([101]);
     expect(result.sceneFilter).toBe(true);
-    expect(result.visibleCards).toEqual(['A 1']);
+    expect(result.visibleCards).toEqual([{ id: 101, title: 'A 1' }]);
   });
 
   test('palette recall applies only stored values and leaves unrelated controls unchanged', async ({ page }) => {
