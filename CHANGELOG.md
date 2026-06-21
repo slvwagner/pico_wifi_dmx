@@ -14,6 +14,7 @@ Changed:
 - Replaced the Controller palette merge slot prompt with a visual palette matrix picker.
 - Made shared toolbox tile text backgrounds transparent so tile icons remain visible behind labels.
 - Streamlined Guided Wheel Editor visuals with row-level color pickers, icon upload/clear actions, and combined color-plus-icon rendering for wheel option buttons.
+- Cleaned up Guided Wheel Editor visual actions so clearing an icon is visually separate from removing the whole option row.
 
 Fixed:
 

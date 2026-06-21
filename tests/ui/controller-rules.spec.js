@@ -1197,6 +1197,7 @@ test.describe('Fixture Controller established rules', () => {
     await rows.nth(1).locator('[data-wheel-field="speedStart"]').fill('slow');
     await rows.nth(1).locator('[data-wheel-field="speedEnd"]').fill('fast');
     await expect(rows.nth(1).locator('[data-wheel-field="visual"]')).toHaveCount(0);
+    await expect(rows.nth(1).locator('[data-clear-wheel-image]')).toHaveText('No icon');
     await rows.nth(1).locator('[data-wheel-color]').evaluate(input => {
       input.value = '#123456';
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1207,6 +1208,20 @@ test.describe('Fixture Controller established rules', () => {
       buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGOSHzRgAAAAABJRU5ErkJggg==', 'base64')
     });
     await expect.poll(() => page.evaluate(() => wheelOptionsModalRows[1].image.startsWith('data:image/png'))).toBe(true);
+    const layout = await rows.nth(1).evaluate(row => {
+      const clearIcon = row.querySelector('[data-clear-wheel-image]').getBoundingClientRect();
+      const removeOption = row.querySelector('[data-remove-wheel-row]').getBoundingClientRect();
+      return {
+        clearText: row.querySelector('[data-clear-wheel-image]').textContent.trim(),
+        removeText: row.querySelector('[data-remove-wheel-row]').textContent.trim(),
+        clearRight: clearIcon.right,
+        removeLeft: removeOption.left,
+        sameVerticalBand: !(clearIcon.bottom < removeOption.top || removeOption.bottom < clearIcon.top)
+      };
+    });
+    expect(layout.clearText).toBe('No icon');
+    expect(layout.removeText).toBe('×');
+    if (layout.sameVerticalBand) expect(layout.clearRight).toBeLessThanOrEqual(layout.removeLeft);
     await expect(rows.nth(2).locator('[data-wheel-field="kind"]')).toHaveValue('ShutterStrobe');
     await page.locator('#applyWheelOptionsModal').click();
 
