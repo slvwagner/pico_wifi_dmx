@@ -10,6 +10,7 @@ Changed:
 - Added direct numeric DMX value inputs for wheel controls on the Controller surface and in Controller Group Edit.
 - Extended the manual wheel-option editor syntax so ranges can include OFL-style metadata such as `WheelSlot`, `WheelShake`, `WheelRotation`, slot numbers, and speed labels.
 - Added a guided wheel-option editor modal for editing indexed wheel ranges and OFL-style metadata without writing the raw syntax by hand.
+- Added `ShutterStrobe` wheel metadata support so shutter/strobe ranges can show a bounded strobe-speed control.
 
 Fixed:
 

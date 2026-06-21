@@ -169,13 +169,20 @@ function Confirm-FixtureChange {
     if ($KeepExistingChanges -or $DecisionMode.Value -eq "skip-all") {
         return $false
     }
+    if ($DryRun) {
+        return $false
+    }
     if (-not [Environment]::UserInteractive) {
         throw "Fixture differences require user input. Re-run interactively, or use -AcceptAllChanges / -KeepExistingChanges."
     }
 
     while ($true) {
         $answer = Read-Host "$Prompt [y] take XAMPP / [n] keep bundled / [a] take all / [s] skip all / [q] abort"
-        switch (($answer -as [string]).Trim().ToLowerInvariant()) {
+        $normalizedAnswer = ($answer -as [string]).Trim().ToLowerInvariant()
+        if (-not $normalizedAnswer) {
+            throw "Fixture differences require a decision. Re-run interactively, or use -AcceptAllChanges / -KeepExistingChanges / -DryRun."
+        }
+        switch ($normalizedAnswer) {
             "y" { return $true }
             "yes" { return $true }
             "n" { return $false }

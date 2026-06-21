@@ -1183,12 +1183,12 @@ test.describe('Fixture Controller established rules', () => {
 
   test('guided wheel editor modal writes rich wheel metadata', async ({ page }) => {
     await page.locator('#controlType').selectOption('wheel');
-    await page.locator('#wheelOptions').fill('Open=0-15\nGobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast');
+    await page.locator('#wheelOptions').fill('Open=0-15\nGobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast\nStrobe=11-255|kind=ShutterStrobe|speed=slow-fast');
     await page.locator('#openWheelOptionsModal').click();
     await expect(page.locator('#wheelOptionsModal')).toBeVisible();
 
     const rows = page.locator('[data-wheel-option-row]');
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(3);
     await rows.nth(1).locator('[data-wheel-field="name"]').fill('Gobo 3 shake');
     await rows.nth(1).locator('[data-wheel-field="start"]').fill('141');
     await rows.nth(1).locator('[data-wheel-field="end"]').fill('156');
@@ -1196,11 +1196,13 @@ test.describe('Fixture Controller established rules', () => {
     await rows.nth(1).locator('[data-wheel-field="slot"]').fill('3');
     await rows.nth(1).locator('[data-wheel-field="speedStart"]').fill('slow');
     await rows.nth(1).locator('[data-wheel-field="speedEnd"]').fill('fast');
+    await expect(rows.nth(2).locator('[data-wheel-field="kind"]')).toHaveValue('ShutterStrobe');
     await page.locator('#applyWheelOptionsModal').click();
 
     const state = await page.evaluate(() => {
       const options = parseWheelOptions(document.getElementById('wheelOptions').value);
       const shake = options.find(o => o.name === 'Gobo 3 shake');
+      const strobe = options.find(o => o.name === 'Strobe');
       const wheel = { id: 8811, type: 'wheel', label: 'Gobo Wheel', channel: 1, options };
       profiles.splice(0, profiles.length, { id: 8810, name: 'Guided wheel', mode: 'test', channels: 1, controls: [wheel] });
       fixtures.splice(0, fixtures.length, { id: 8812, name: 'Guided wheel fixture', profileId: 8810, start: 1 });
@@ -1208,12 +1210,19 @@ test.describe('Fixture Controller established rules', () => {
       values['8812:8811'] = 150;
       drawSurface();
       const host = document.querySelector('[data-wheel-range-host="8812:8811"]');
+      const shakeSliderMin = host?.querySelector('input[type="range"]')?.getAttribute('min');
+      const shakeSliderMax = host?.querySelector('input[type="range"]')?.getAttribute('max');
+      values['8812:8811'] = 120;
+      updateControlDisplay(fixtures[0], wheel);
+      const strobeHost = document.querySelector('[data-wheel-range-host="8812:8811"]');
       return {
         text: document.getElementById('wheelOptions').value,
         shake,
+        strobe,
         selectedAt150: selectedWheelOption(wheel, 150)?.name,
-        sliderMin: host?.querySelector('input[type="range"]')?.getAttribute('min'),
-        sliderMax: host?.querySelector('input[type="range"]')?.getAttribute('max')
+        sliderMin: shakeSliderMin,
+        sliderMax: shakeSliderMax,
+        strobeLabel: strobeHost?.textContent
       };
     });
 
@@ -1229,6 +1238,13 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.selectedAt150).toBe('Gobo 3 shake');
     expect(state.sliderMin).toBe('141');
     expect(state.sliderMax).toBe('156');
+    expect(state.strobe).toEqual(expect.objectContaining({
+      kind: 'ShutterStrobe',
+      range: [11, 255],
+      speedStart: 'slow',
+      speedEnd: 'fast'
+    }));
+    expect(state.strobeLabel).toContain('Strobe speed');
   });
 
   test('Update Library preserves rich OFL wheel metadata when edited profile options are plain text', async ({ page }) => {

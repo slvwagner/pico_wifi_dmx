@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "Open Fixture Library export",
-  "generatedAt": "06/21/2026 20:47:46",
+  "generatedAt": "06/21/2026 21:48:41",
   "fixtureCount": 623,
   "fixtures": [
     {
@@ -162234,12 +162234,12 @@
           "name": "11-channel",
           "channels": 11,
           "profile": {
-            "name": "Fun Generation PicoSpot 20 LED",
+            "name": "PicoSpot 20 LED",
             "mode": "11-channel",
             "channels": 11,
             "controls": [
               {
-                "id": 1781945439180,
+                "id": 1782077404185,
                 "type": "panTilt16",
                 "label": "Pan/Tilt",
                 "tilt": 2,
@@ -162248,7 +162248,7 @@
                 "pan": 1
               },
               {
-                "id": 1781945438634,
+                "id": 1782077403582,
                 "type": "slider8",
                 "label": "Pan/Tilt Speed",
                 "channel": 5,
@@ -162256,7 +162256,7 @@
                 "blackoutValue": null
               },
               {
-                "id": 1781945438949,
+                "id": 1782077404200,
                 "type": "wheel",
                 "label": "Color Wheel",
                 "channel": 6,
@@ -162453,7 +162453,7 @@
                 "blackoutValue": null
               },
               {
-                "id": 1781945438980,
+                "id": 1782077403529,
                 "type": "wheel",
                 "label": "Gobo Wheel",
                 "channel": 7,
@@ -162638,7 +162638,7 @@
                 "blackoutValue": null
               },
               {
-                "id": 1781945438805,
+                "id": 1782077403841,
                 "type": "slider8",
                 "label": "Dimmer",
                 "channel": 8,
@@ -162646,21 +162646,46 @@
                 "blackoutValue": 0
               },
               {
-                "id": 1781945439354,
-                "type": "slider8",
+                "id": 1782077403842,
+                "type": "wheel",
                 "label": "Shutter / Strobe",
                 "channel": 9,
+                "options": [
+                  {
+                    "name": "Open",
+                    "value": 5,
+                    "range": [
+                      0,
+                      10
+                    ],
+                    "color": "#ffffff",
+                    "kind": "WheelSlot",
+                    "slotNumber": 1
+                  },
+                  {
+                    "name": "Strobe slow to fast",
+                    "value": 133,
+                    "range": [
+                      11,
+                      255
+                    ],
+                    "color": "#ff0000",
+                    "kind": "ShutterStrobe",
+                    "speedStart": "slow",
+                    "speedEnd": "fast"
+                  }
+                ],
                 "defaultValue": 0,
                 "blackoutValue": null
               },
               {
-                "id": 1781945438846,
+                "id": 1782077404319,
                 "type": "slider8",
                 "label": "Program",
                 "channel": 10
               },
               {
-                "id": 1781945438863,
+                "id": 1782077403693,
                 "type": "slider8",
                 "label": "Program Speed",
                 "channel": 11

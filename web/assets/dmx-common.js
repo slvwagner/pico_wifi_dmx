@@ -403,6 +403,7 @@
     if(kind==='WheelShake')return 'Shake speed';
     if(kind==='WheelRotation')return 'Rotation speed';
     if(kind==='WheelSlotRotation')return 'Slot rotation';
+    if(kind==='ShutterStrobe'||kind==='Strobe')return 'Strobe speed';
     return 'Range value';
   }
 
