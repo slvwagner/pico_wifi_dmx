@@ -222,7 +222,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div class="toolbar">
 <canvas id="goboCanvas" class="gobo-canvas" width="120" height="120"></canvas>
-<div class="buttons"><button id="clearGobo" type="button">Clear drawing</button><button id="addWheelOption" type="button">Add wheel option</button></div>
+<div class="buttons"><button id="clearGobo" type="button">Clear drawing</button><button id="addWheelOption" type="button">Add quick option</button><button id="openWheelOptionsModal" type="button" class="primary">Guided wheel editor</button></div>
 </div>
 <div class="small">Wheel option format: Name=value|#color or Name=value|image-data. Uploaded images and drawings are saved inside the setup JSON.</div>
 </div>
@@ -309,6 +309,21 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default</button>
 <button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout</button>
 <button id="closeGroupModal2">Close</button>
+</div>
+</div>
+</div>
+
+<div id="wheelOptionsModal" class="modal-overlay" style="display:none">
+<div class="modal wide-modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div><h2>Guided Wheel Editor</h2><div class="small">Edit wheel slots, ranges, shake and rotation metadata without writing the raw line syntax.</div></div>
+<button id="closeWheelOptionsModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div id="wheelOptionsModalBody" class="modal-body"></div>
+<div class="buttons" style="padding-top:4px">
+<button id="addWheelOptionsModalRow" type="button">Add option</button>
+<button id="cancelWheelOptionsModal" type="button">Cancel</button>
+<button id="applyWheelOptionsModal" type="button" class="primary">Apply options</button>
 </div>
 </div>
 </div>
@@ -2712,6 +2727,110 @@ document.getElementById('addWheelOption').onclick=()=>{
   text.value=(text.value.trim()?text.value.trim()+'\n':'')+name+'='+value+'|'+visual;
   setStatus('Wheel option added');
 };
+
+let wheelOptionsModalRows=[];
+function wheelOptionEditorRow(option={}){
+  const range=wheelOptionRange(option)||[wheelOptionValue(option),wheelOptionValue(option)];
+  return {
+    name:option.name||'Value',
+    start:range[0],
+    end:range[1],
+    kind:option.kind||'',
+    slot:option.slotNumber??'',
+    speedStart:option.shakeSpeedStart||option.speedStart||'',
+    speedEnd:option.shakeSpeedEnd||option.speedEnd||'',
+    visual:option.color||option.image||''
+  };
+}
+function renderWheelOptionsModal(){
+  const body=document.getElementById('wheelOptionsModalBody');
+  const kindOptions=[
+    ['','Plain'],
+    ['WheelSlot','Wheel slot'],
+    ['WheelShake','Wheel shake'],
+    ['WheelRotation','Wheel rotation'],
+    ['WheelSlotRotation','Slot rotation']
+  ];
+  body.innerHTML=`<div class="wheel-option-grid wheel-option-grid--header">
+    <span>Name</span><span>From</span><span>To</span><span>Function</span><span>Slot</span><span>Speed start</span><span>Speed end</span><span>Color / image</span><span></span>
+  </div>
+  <div id="wheelOptionsModalRows" style="display:grid;gap:8px">
+  ${wheelOptionsModalRows.map((row,index)=>`<div class="wheel-option-grid" data-wheel-option-row="${index}">
+    <label>Name<input type="text" value="${escHtml(row.name)}" data-wheel-field="name"></label>
+    <label>From<input type="number" min="0" max="255" step="1" value="${row.start}" data-wheel-field="start"></label>
+    <label>To<input type="number" min="0" max="255" step="1" value="${row.end}" data-wheel-field="end"></label>
+    <label>Function<select data-wheel-field="kind">${kindOptions.map(([value,label])=>`<option value="${value}" ${row.kind===value?'selected':''}>${label}</option>`).join('')}</select></label>
+    <label>Slot<input type="number" min="0" max="999" step="1" value="${escHtml(row.slot)}" data-wheel-field="slot"></label>
+    <label>Speed start<input type="text" value="${escHtml(row.speedStart)}" data-wheel-field="speedStart" placeholder="slow"></label>
+    <label>Speed end<input type="text" value="${escHtml(row.speedEnd)}" data-wheel-field="speedEnd" placeholder="fast"></label>
+    <label>Color / image<input type="text" value="${escHtml(row.visual)}" data-wheel-field="visual" placeholder="#ff0000"></label>
+    <button type="button" class="icon-btn danger" data-remove-wheel-row="${index}" title="Remove option">×</button>
+  </div>`).join('')}
+  </div>`;
+}
+function syncWheelOptionsModalRows(){
+  document.querySelectorAll('[data-wheel-option-row]').forEach(rowEl=>{
+    const index=parseInt(rowEl.dataset.wheelOptionRow,10);
+    const row=wheelOptionsModalRows[index];if(!row)return;
+    rowEl.querySelectorAll('[data-wheel-field]').forEach(input=>{row[input.dataset.wheelField]=input.value;});
+  });
+}
+function openWheelOptionsModal(){
+  wheelOptionsModalRows=parseWheelOptions(document.getElementById('wheelOptions').value).map(wheelOptionEditorRow);
+  if(!wheelOptionsModalRows.length)wheelOptionsModalRows=[wheelOptionEditorRow({name:'Open',value:0})];
+  renderWheelOptionsModal();
+  DmxCommon.showModal('wheelOptionsModal');
+}
+function closeWheelOptionsModal(){
+  DmxCommon.hideModal('wheelOptionsModal');
+}
+function wheelOptionFromEditorRow(row){
+  const start=clamp(row.start,0,255);
+  const end=clamp(row.end,0,255);
+  const option={name:String(row.name||'Value').trim()||'Value',value:Math.round((Math.min(start,end)+Math.max(start,end))/2)};
+  if(start!==end)option.range=[Math.min(start,end),Math.max(start,end)];
+  if(row.visual){
+    const visual=String(row.visual).trim();
+    if(visual.startsWith('#'))option.color=visual;
+    else if(visual.startsWith('data:image/'))option.image=visual;
+  }
+  if(row.kind)option.kind=row.kind;
+  if(row.slot!=='')option.slotNumber=clamp(row.slot,0,999);
+  if(row.kind==='WheelShake'){
+    if(row.speedStart)option.shakeSpeedStart=String(row.speedStart).trim();
+    if(row.speedEnd)option.shakeSpeedEnd=String(row.speedEnd).trim();
+  }else{
+    if(row.speedStart)option.speedStart=String(row.speedStart).trim();
+    if(row.speedEnd)option.speedEnd=String(row.speedEnd).trim();
+  }
+  return option;
+}
+function applyWheelOptionsModal(){
+  syncWheelOptionsModalRows();
+  const options=wheelOptionsModalRows.map(wheelOptionFromEditorRow);
+  document.getElementById('wheelOptions').value=wheelOptionsText(options);
+  closeWheelOptionsModal();
+  setStatus('Wheel options updated');
+}
+document.getElementById('openWheelOptionsModal').onclick=openWheelOptionsModal;
+document.getElementById('closeWheelOptionsModal').onclick=closeWheelOptionsModal;
+document.getElementById('cancelWheelOptionsModal').onclick=closeWheelOptionsModal;
+document.getElementById('addWheelOptionsModalRow').onclick=()=>{
+  syncWheelOptionsModalRows();
+  const last=wheelOptionsModalRows[wheelOptionsModalRows.length-1];
+  const nextStart=last?Math.min(255,clamp(last.end,0,255)+1):0;
+  wheelOptionsModalRows.push(wheelOptionEditorRow({name:'New option',range:[nextStart,nextStart]}));
+  renderWheelOptionsModal();
+};
+document.getElementById('applyWheelOptionsModal').onclick=applyWheelOptionsModal;
+document.getElementById('wheelOptionsModalBody').addEventListener('input',syncWheelOptionsModalRows);
+document.getElementById('wheelOptionsModalBody').addEventListener('click',e=>{
+  const remove=e.target.closest('[data-remove-wheel-row]');
+  if(!remove)return;
+  syncWheelOptionsModalRows();
+  wheelOptionsModalRows.splice(parseInt(remove.dataset.removeWheelRow,10),1);
+  renderWheelOptionsModal();
+});
 
 // ── Group-edit ────────────────────────────────────────────────────────
 let selectedFixtureIds=new Set();

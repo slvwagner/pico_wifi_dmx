@@ -1181,6 +1181,56 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.formattedRotation).toBe('Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW');
   });
 
+  test('guided wheel editor modal writes rich wheel metadata', async ({ page }) => {
+    await page.locator('#controlType').selectOption('wheel');
+    await page.locator('#wheelOptions').fill('Open=0-15\nGobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast');
+    await page.locator('#openWheelOptionsModal').click();
+    await expect(page.locator('#wheelOptionsModal')).toBeVisible();
+
+    const rows = page.locator('[data-wheel-option-row]');
+    await expect(rows).toHaveCount(2);
+    await rows.nth(1).locator('[data-wheel-field="name"]').fill('Gobo 3 shake');
+    await rows.nth(1).locator('[data-wheel-field="start"]').fill('141');
+    await rows.nth(1).locator('[data-wheel-field="end"]').fill('156');
+    await rows.nth(1).locator('[data-wheel-field="kind"]').selectOption('WheelShake');
+    await rows.nth(1).locator('[data-wheel-field="slot"]').fill('3');
+    await rows.nth(1).locator('[data-wheel-field="speedStart"]').fill('slow');
+    await rows.nth(1).locator('[data-wheel-field="speedEnd"]').fill('fast');
+    await page.locator('#applyWheelOptionsModal').click();
+
+    const state = await page.evaluate(() => {
+      const options = parseWheelOptions(document.getElementById('wheelOptions').value);
+      const shake = options.find(o => o.name === 'Gobo 3 shake');
+      const wheel = { id: 8811, type: 'wheel', label: 'Gobo Wheel', channel: 1, options };
+      profiles.splice(0, profiles.length, { id: 8810, name: 'Guided wheel', mode: 'test', channels: 1, controls: [wheel] });
+      fixtures.splice(0, fixtures.length, { id: 8812, name: 'Guided wheel fixture', profileId: 8810, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['8812:8811'] = 150;
+      drawSurface();
+      const host = document.querySelector('[data-wheel-range-host="8812:8811"]');
+      return {
+        text: document.getElementById('wheelOptions').value,
+        shake,
+        selectedAt150: selectedWheelOption(wheel, 150)?.name,
+        sliderMin: host?.querySelector('input[type="range"]')?.getAttribute('min'),
+        sliderMax: host?.querySelector('input[type="range"]')?.getAttribute('max')
+      };
+    });
+
+    expect(state.text).toContain('Gobo 3 shake=141-156|kind=WheelShake|slot=3|shake=slow-fast');
+    expect(state.shake).toEqual(expect.objectContaining({
+      value: 149,
+      range: [141, 156],
+      kind: 'WheelShake',
+      slotNumber: 3,
+      shakeSpeedStart: 'slow',
+      shakeSpeedEnd: 'fast'
+    }));
+    expect(state.selectedAt150).toBe('Gobo 3 shake');
+    expect(state.sliderMin).toBe('141');
+    expect(state.sliderMax).toBe('156');
+  });
+
   test('Update Library preserves rich OFL wheel metadata when edited profile options are plain text', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const r = await fetch('assets/fixture-library.json', { cache: 'no-store' });
