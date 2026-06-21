@@ -766,6 +766,71 @@ function libraryProfileFromControllerProfile(profile){
     })
   };
 }
+function wheelOptionIdentity(option){
+  const range=wheelOptionRange(option);
+  return [
+    String(option?.name||'').trim().toLowerCase(),
+    range?range.join('-'):String(wheelOptionValue(option))
+  ].join('|');
+}
+function wheelOptionValueIdentity(option){
+  const range=wheelOptionRange(option);
+  return range?range.join('-'):String(wheelOptionValue(option));
+}
+function mergeLibraryWheelOptions(existingOptions,newOptions){
+  const existingByIdentity=new Map();
+  const existingByValue=new Map();
+  (existingOptions||[]).forEach(option=>{
+    existingByIdentity.set(wheelOptionIdentity(option),option);
+    const valueKey=wheelOptionValueIdentity(option);
+    if(!existingByValue.has(valueKey))existingByValue.set(valueKey,[]);
+    existingByValue.get(valueKey).push(option);
+  });
+  return (newOptions||[]).map(option=>{
+    const exact=existingByIdentity.get(wheelOptionIdentity(option));
+    const byValue=existingByValue.get(wheelOptionValueIdentity(option))||[];
+    const existing=exact||byValue.find(candidate=>String(candidate.name||'').trim().toLowerCase()===String(option.name||'').trim().toLowerCase())||null;
+    return existing?{...existing,...option}:option;
+  });
+}
+function controlLibraryIdentity(control){
+  if(!control)return'';
+  if(control.type==='panTilt16'||control.type==='panTilt8'){
+    return [control.type,control.label,control.pan,control.panFine||'',control.tilt,control.tiltFine||''].join('|');
+  }
+  if(control.type==='slider16'){
+    return [control.type,control.label,control.channel,control.fine||''].join('|');
+  }
+  return [control.type,control.label,control.channel||''].join('|');
+}
+function mergeLibraryControlMetadata(existingControls,newControls){
+  const existingByIdentity=new Map();
+  const existingByLabel=new Map();
+  (existingControls||[]).forEach(control=>{
+    existingByIdentity.set(controlLibraryIdentity(control),control);
+    const labelKey=[control.type,control.label].join('|');
+    if(!existingByLabel.has(labelKey))existingByLabel.set(labelKey,[]);
+    existingByLabel.get(labelKey).push(control);
+  });
+  return (newControls||[]).map(control=>{
+    const exact=existingByIdentity.get(controlLibraryIdentity(control));
+    const byLabel=existingByLabel.get([control.type,control.label].join('|'))||[];
+    const existing=exact||byLabel.find(candidate=>candidate.channel===control.channel)||byLabel[0]||null;
+    const merged=existing?{...existing,...control}:control;
+    if(merged.type==='wheel'){
+      merged.options=mergeLibraryWheelOptions(existing?.options,control.options);
+    }
+    return merged;
+  });
+}
+function mergeLibraryModeProfileMetadata(existingMode,cleanProfile){
+  if(!existingMode?.profile)return cleanProfile;
+  return {
+    ...existingMode.profile,
+    ...cleanProfile,
+    controls:mergeLibraryControlMetadata(existingMode.profile.controls,cleanProfile.controls)
+  };
+}
 function upsertProfileIntoFixtureLibrary(library,profile){
   const cleanProfile=libraryProfileFromControllerProfile(profile);
   const fixtureName=cleanProfile.name;
@@ -775,9 +840,11 @@ function upsertProfileIntoFixtureLibrary(library,profile){
     fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
     library.fixtures.push(fixture);
   }
-  const mode={name:cleanProfile.mode,channels:cleanProfile.channels,profile:cleanProfile,warnings:[]};
   const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,cleanProfile));
   if(!Array.isArray(fixture.modes))fixture.modes=[];
+  const existingMode=modeIndex>=0?fixture.modes[modeIndex]:null;
+  const profileWithMetadata=mergeLibraryModeProfileMetadata(existingMode,cleanProfile);
+  const mode={...(existingMode||{}),name:cleanProfile.mode,channels:cleanProfile.channels,profile:profileWithMetadata,warnings:existingMode?.warnings||[]};
   if(modeIndex>=0)fixture.modes[modeIndex]=mode;
   else fixture.modes.push(mode);
   fixture.modes.sort((a,b)=>(a.channels||0)-(b.channels||0)||String(a.name||'').localeCompare(String(b.name||'')));

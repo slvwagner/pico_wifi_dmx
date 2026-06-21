@@ -1084,6 +1084,55 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.activeTitle).toBe('DMX 11-21 · WheelSlot');
   });
 
+  test('Update Library preserves rich OFL wheel metadata when edited profile options are plain text', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const r = await fetch('assets/fixture-library.json', { cache: 'no-store' });
+      const library = normalizeFixtureLibrary(await r.json());
+      const fixture = library.fixtures.find(f => f.key === 'fun-generation/picospot-20-led');
+      const mode = fixture.modes.find(m => m.name === '11-channel');
+      const editedProfile = JSON.parse(JSON.stringify(mode.profile));
+      editedProfile.controls.forEach(control => {
+        control.id = uid();
+        if (control.type !== 'wheel') return;
+        control.options = control.options.map(option => {
+          const plain = { name: option.name, value: DmxCommon.wheelOptionValue(option) };
+          const range = DmxCommon.wheelOptionRange(option);
+          if (range) plain.range = range;
+          if (option.color) plain.color = option.color;
+          if (option.image) plain.image = option.image;
+          return plain;
+        });
+      });
+
+      upsertProfileIntoFixtureLibrary(library, editedProfile);
+      const savedFixture = library.fixtures.find(f => f.key === 'fun-generation/picospot-20-led');
+      const savedMode = savedFixture.modes.find(m => m.name === '11-channel');
+      const gobo = savedMode.profile.controls.find(c => c.label === 'Gobo Wheel');
+      const shake = gobo.options.find(o => o.name === 'Gobo 2 shake');
+      const rotation = gobo.options.find(o => o.name.includes('Rotation slow CW'));
+      return {
+        fixtureCount: library.fixtureCount,
+        shake,
+        rotation,
+        goboMetadataCount: gobo.options.filter(o => o.kind || o.slotNumber || o.slotNumberStart || o.slotNumberEnd).length
+      };
+    });
+
+    expect(result.fixtureCount).toBeGreaterThan(600);
+    expect(result.shake).toEqual(expect.objectContaining({
+      kind: 'WheelShake',
+      slotNumber: 2,
+      shakeSpeedStart: 'slow',
+      shakeSpeedEnd: 'fast'
+    }));
+    expect(result.rotation).toEqual(expect.objectContaining({
+      kind: 'WheelRotation',
+      speedStart: 'slow CW',
+      speedEnd: 'fast CW'
+    }));
+    expect(result.goboMetadataCount).toBeGreaterThan(10);
+  });
+
   test('OFL wheel shake ranges expose a bounded speed slider', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
     await page.evaluate(async () => {

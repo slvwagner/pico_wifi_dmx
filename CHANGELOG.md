@@ -5,6 +5,11 @@
 Changed:
 
 - Started the 0.9.6 development branch.
+- Added a fixture-library sync script to validate and refresh the bundled catalog from the current XAMPP fixture library.
+
+Fixed:
+
+- Preserved rich Open Fixture Library wheel metadata when updating an existing fixture library profile from an edited controller profile, so adjustable ranges such as `WheelShake` and `WheelRotation` are not downgraded to plain wheel values.
 
 ## 0.9.5 - 2026-06-21
 

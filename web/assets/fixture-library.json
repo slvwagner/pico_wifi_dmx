@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "source": "Open Fixture Library export",
-  "generatedAt": "2026-06-17T06:45:49Z",
-  "fixtureCount": 621,
+  "generatedAt": "06/21/2026 20:12:26",
+  "fixtureCount": 623,
   "fixtures": [
     {
       "key": "5star-systems/spica-250m",
@@ -162232,15 +162232,14 @@
         },
         {
           "name": "11-channel",
-          "shortName": "11ch",
           "channels": 11,
           "profile": {
-            "name": "PicoSpot 20 LED",
+            "name": "Fun Generation PicoSpot 20 LED",
             "mode": "11-channel",
             "channels": 11,
             "controls": [
               {
-                "id": 1,
+                "id": 1781945439180,
                 "type": "panTilt16",
                 "label": "Pan/Tilt",
                 "tilt": 2,
@@ -162249,15 +162248,18 @@
                 "pan": 1
               },
               {
-                "id": 2,
+                "id": 1781945438634,
                 "type": "slider8",
                 "label": "Pan/Tilt Speed",
-                "channel": 5
+                "channel": 5,
+                "defaultValue": 0,
+                "blackoutValue": null
               },
               {
-                "id": 3,
+                "id": 1781945438949,
                 "type": "wheel",
                 "label": "Color Wheel",
+                "channel": 6,
                 "options": [
                   {
                     "name": "White",
@@ -162266,9 +162268,9 @@
                       0,
                       10
                     ],
+                    "color": "#ffffff",
                     "kind": "WheelSlot",
-                    "slotNumber": 1,
-                    "color": "#ffffff"
+                    "slotNumber": 1
                   },
                   {
                     "name": "Red",
@@ -162277,9 +162279,9 @@
                       11,
                       21
                     ],
+                    "color": "#ff0000",
                     "kind": "WheelSlot",
-                    "slotNumber": 2,
-                    "color": "#ff0000"
+                    "slotNumber": 2
                   },
                   {
                     "name": "Orange",
@@ -162288,9 +162290,9 @@
                       22,
                       32
                     ],
+                    "color": "#ff9900",
                     "kind": "WheelSlot",
-                    "slotNumber": 3,
-                    "color": "#ff9900"
+                    "slotNumber": 3
                   },
                   {
                     "name": "Yellow",
@@ -162299,9 +162301,9 @@
                       33,
                       43
                     ],
+                    "color": "#ffff00",
                     "kind": "WheelSlot",
-                    "slotNumber": 4,
-                    "color": "#ffff00"
+                    "slotNumber": 4
                   },
                   {
                     "name": "Green",
@@ -162310,9 +162312,9 @@
                       44,
                       54
                     ],
+                    "color": "#00ff00",
                     "kind": "WheelSlot",
-                    "slotNumber": 5,
-                    "color": "#00ff00"
+                    "slotNumber": 5
                   },
                   {
                     "name": "Blue",
@@ -162321,9 +162323,9 @@
                       55,
                       65
                     ],
+                    "color": "#0000ff",
                     "kind": "WheelSlot",
-                    "slotNumber": 6,
-                    "color": "#0000ff"
+                    "slotNumber": 6
                   },
                   {
                     "name": "Cyan",
@@ -162332,9 +162334,9 @@
                       66,
                       76
                     ],
+                    "color": "#00ffff",
                     "kind": "WheelSlot",
-                    "slotNumber": 7,
-                    "color": "#00ffff"
+                    "slotNumber": 7
                   },
                   {
                     "name": "Purple",
@@ -162343,9 +162345,9 @@
                       77,
                       87
                     ],
+                    "color": "#ff00ff",
                     "kind": "WheelSlot",
-                    "slotNumber": 8,
-                    "color": "#ff00ff"
+                    "slotNumber": 8
                   },
                   {
                     "name": "White / Red",
@@ -162447,12 +162449,14 @@
                     "speedEnd": "fast CW"
                   }
                 ],
-                "channel": 6
+                "defaultValue": 0,
+                "blackoutValue": null
               },
               {
-                "id": 4,
+                "id": 1781945438980,
                 "type": "wheel",
                 "label": "Gobo Wheel",
+                "channel": 7,
                 "options": [
                   {
                     "name": "Open",
@@ -162630,37 +162634,38 @@
                     "speedEnd": "fast CW"
                   }
                 ],
-                "channel": 7
+                "defaultValue": 0,
+                "blackoutValue": null
               },
               {
-                "id": 5,
+                "id": 1781945438805,
                 "type": "slider8",
                 "label": "Dimmer",
-                "channel": 8
+                "channel": 8,
+                "defaultValue": 127,
+                "blackoutValue": 0
               },
               {
-                "id": 6,
+                "id": 1781945439354,
                 "type": "slider8",
                 "label": "Shutter / Strobe",
-                "channel": 9
+                "channel": 9,
+                "defaultValue": 0,
+                "blackoutValue": null
               },
               {
-                "id": 7,
+                "id": 1781945438846,
                 "type": "slider8",
                 "label": "Program",
                 "channel": 10
               },
               {
-                "id": 8,
+                "id": 1781945438863,
                 "type": "slider8",
                 "label": "Program Speed",
                 "channel": 11
               }
-            ],
-            "library": {
-              "source": "ofl",
-              "manufacturer": "Fun Generation"
-            }
+            ]
           },
           "warnings": []
         }
@@ -211058,15 +211063,14 @@
         },
         {
           "name": "16-Bit Extended",
-          "shortName": "16EX",
           "channels": 17,
           "profile": {
-            "name": "Mac 250 Krypton",
+            "name": "Martin Mac 250 Krypton",
             "mode": "16-Bit Extended",
             "channels": 17,
             "controls": [
               {
-                "id": 1,
+                "id": 1781802031038,
                 "type": "panTilt16",
                 "label": "Pan/Tilt",
                 "tilt": 14,
@@ -211075,25 +211079,22 @@
                 "pan": 12
               },
               {
-                "id": 2,
+                "id": 1781802031259,
                 "type": "slider8",
                 "label": "Shutter / Maintenance",
                 "channel": 1
               },
               {
-                "id": 3,
-                "type": "slider8",
+                "id": 1781802031143,
+                "type": "slider16",
                 "label": "Dimmer",
-                "channel": 2
+                "channel": 2,
+                "fine": 3,
+                "defaultValue": null,
+                "blackoutValue": null
               },
               {
-                "id": 4,
-                "type": "slider8",
-                "label": "Dimmer fine",
-                "channel": 3
-              },
-              {
-                "id": 5,
+                "id": 1781802030963,
                 "type": "wheel",
                 "label": "Color Wheel",
                 "options": [
@@ -211418,7 +211419,7 @@
                 "channel": 4
               },
               {
-                "id": 6,
+                "id": 1781802031267,
                 "type": "wheel",
                 "label": "Color Wheel fine",
                 "options": [
@@ -211430,7 +211431,7 @@
                 "channel": 5
               },
               {
-                "id": 7,
+                "id": 1781802030724,
                 "type": "wheel",
                 "label": "Gobo Wheel",
                 "options": [
@@ -211704,55 +211705,37 @@
                 "channel": 6
               },
               {
-                "id": 8,
-                "type": "wheel",
+                "id": 1781802031522,
+                "type": "slider16",
                 "label": "Gobo Rotation",
-                "options": [
-                  {
-                    "name": "Open",
-                    "value": 0
-                  }
-                ],
-                "channel": 7
+                "channel": 7,
+                "fine": 8,
+                "defaultValue": null,
+                "blackoutValue": null
               },
               {
-                "id": 9,
-                "type": "wheel",
-                "label": "Gobo Rotation fine",
-                "options": [
-                  {
-                    "name": "Open",
-                    "value": 0
-                  }
-                ],
-                "channel": 8
-              },
-              {
-                "id": 10,
-                "type": "slider8",
+                "id": 1781802031164,
+                "type": "slider16",
                 "label": "Focus",
-                "channel": 9
+                "channel": 9,
+                "fine": 10,
+                "defaultValue": null,
+                "blackoutValue": null
               },
               {
-                "id": 11,
-                "type": "slider8",
-                "label": "Focus fine",
-                "channel": 10
-              },
-              {
-                "id": 12,
+                "id": 1781802031574,
                 "type": "slider8",
                 "label": "Prism / Macros",
                 "channel": 11
               },
               {
-                "id": 13,
+                "id": 1781802031507,
                 "type": "slider8",
                 "label": "Pan/Tilt Speed",
                 "channel": 16
               },
               {
-                "id": 14,
+                "id": 1781802030979,
                 "type": "wheel",
                 "label": "Dimmer/Focus/Color/Gobo/Prism Speed",
                 "options": [
@@ -211806,11 +211789,7 @@
                 ],
                 "channel": 17
               }
-            ],
-            "library": {
-              "source": "ofl",
-              "manufacturer": "Martin"
-            }
+            ]
           },
           "warnings": []
         }
@@ -328680,6 +328659,1187 @@
               "source": "ofl",
               "manufacturer": "VR Stage Lighting"
             }
+          },
+          "warnings": []
+        }
+      ]
+    },
+    {
+      "key": "custom/moving-head-16ch",
+      "manufacturerName": "Custom",
+      "name": "Moving Head 16ch",
+      "categories": [
+        "Custom"
+      ],
+      "modes": [
+        {
+          "name": "16ch",
+          "channels": 16,
+          "profile": {
+            "name": "Moving Head 16ch",
+            "mode": "16ch",
+            "channels": 16,
+            "controls": [
+              {
+                "id": 1781722697769,
+                "type": "panTilt16",
+                "label": "Pan/Tilt",
+                "tilt": 2,
+                "panFine": 3,
+                "tiltFine": 4,
+                "pan": 1
+              },
+              {
+                "id": 1781722697680,
+                "type": "slider8",
+                "label": "Pan/Tilt Speed",
+                "channel": 5
+              },
+              {
+                "id": 1781722698377,
+                "type": "wheel",
+                "label": "Color Wheel",
+                "options": [
+                  {
+                    "name": "White",
+                    "value": 5,
+                    "range": [
+                      0,
+                      10
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 1,
+                    "color": "#ffffff"
+                  },
+                  {
+                    "name": "Red",
+                    "value": 16,
+                    "range": [
+                      11,
+                      21
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 2,
+                    "color": "#ff0000"
+                  },
+                  {
+                    "name": "Orange",
+                    "value": 27,
+                    "range": [
+                      22,
+                      32
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 3,
+                    "color": "#ff9900"
+                  },
+                  {
+                    "name": "Yellow",
+                    "value": 38,
+                    "range": [
+                      33,
+                      43
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 4,
+                    "color": "#ffff00"
+                  },
+                  {
+                    "name": "Green",
+                    "value": 49,
+                    "range": [
+                      44,
+                      54
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 5,
+                    "color": "#00ff00"
+                  },
+                  {
+                    "name": "Blue",
+                    "value": 60,
+                    "range": [
+                      55,
+                      65
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 6,
+                    "color": "#0000ff"
+                  },
+                  {
+                    "name": "Cyan",
+                    "value": 71,
+                    "range": [
+                      66,
+                      76
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 7,
+                    "color": "#00ffff"
+                  },
+                  {
+                    "name": "Purple",
+                    "value": 82,
+                    "range": [
+                      77,
+                      87
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 8,
+                    "color": "#ff00ff"
+                  },
+                  {
+                    "name": "White / Red",
+                    "value": 93,
+                    "range": [
+                      88,
+                      98
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 1,
+                    "slotNumberEnd": 2
+                  },
+                  {
+                    "name": "Red / Orange",
+                    "value": 104,
+                    "range": [
+                      99,
+                      109
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 2,
+                    "slotNumberEnd": 3
+                  },
+                  {
+                    "name": "Orange / Yellow",
+                    "value": 115,
+                    "range": [
+                      110,
+                      120
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 3,
+                    "slotNumberEnd": 4
+                  },
+                  {
+                    "name": "Yellow / Green",
+                    "value": 126,
+                    "range": [
+                      121,
+                      131
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 4,
+                    "slotNumberEnd": 5
+                  },
+                  {
+                    "name": "Green / Blue",
+                    "value": 137,
+                    "range": [
+                      132,
+                      142
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 5,
+                    "slotNumberEnd": 6
+                  },
+                  {
+                    "name": "Blue / Cyan",
+                    "value": 148,
+                    "range": [
+                      143,
+                      153
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 6,
+                    "slotNumberEnd": 7
+                  },
+                  {
+                    "name": "Cyan / Purple",
+                    "value": 159,
+                    "range": [
+                      154,
+                      164
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 7,
+                    "slotNumberEnd": 8
+                  },
+                  {
+                    "name": "Purple / White",
+                    "value": 170,
+                    "range": [
+                      165,
+                      175
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 8,
+                    "slotNumberEnd": 9
+                  },
+                  {
+                    "name": "Rotation slow CW to fast CW",
+                    "value": 216,
+                    "range": [
+                      176,
+                      255
+                    ],
+                    "kind": "WheelRotation",
+                    "speedStart": "slow CW",
+                    "speedEnd": "fast CW"
+                  }
+                ],
+                "channel": 6
+              },
+              {
+                "id": 1781722697864,
+                "type": "wheel",
+                "label": "Gobo Wheel",
+                "options": [
+                  {
+                    "name": "Open",
+                    "value": 8,
+                    "range": [
+                      0,
+                      15
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 1
+                  },
+                  {
+                    "name": "Gobo 2",
+                    "value": 24,
+                    "range": [
+                      16,
+                      31
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 2
+                  },
+                  {
+                    "name": "Gobo 3",
+                    "value": 39,
+                    "range": [
+                      32,
+                      46
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 3
+                  },
+                  {
+                    "name": "Gobo 4",
+                    "value": 55,
+                    "range": [
+                      47,
+                      62
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 4
+                  },
+                  {
+                    "name": "Gobo 5",
+                    "value": 71,
+                    "range": [
+                      63,
+                      78
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 5
+                  },
+                  {
+                    "name": "Gobo 6",
+                    "value": 86,
+                    "range": [
+                      79,
+                      93
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 6
+                  },
+                  {
+                    "name": "Gobo 7",
+                    "value": 102,
+                    "range": [
+                      94,
+                      109
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 7
+                  },
+                  {
+                    "name": "Gobo 8",
+                    "value": 117,
+                    "range": [
+                      110,
+                      124
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 8
+                  },
+                  {
+                    "name": "Gobo 2 shake",
+                    "value": 133,
+                    "range": [
+                      125,
+                      140
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 2,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Gobo 3 shake",
+                    "value": 149,
+                    "range": [
+                      141,
+                      156
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 3,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Gobo 4 shake",
+                    "value": 164,
+                    "range": [
+                      157,
+                      171
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 4,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Gobo 5 shake",
+                    "value": 180,
+                    "range": [
+                      172,
+                      187
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 5,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Gobo 6 shake",
+                    "value": 196,
+                    "range": [
+                      188,
+                      203
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 6,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Gobo 7 shake",
+                    "value": 211,
+                    "range": [
+                      204,
+                      218
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 7,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Gobo 8 shake",
+                    "value": 234,
+                    "range": [
+                      219,
+                      249
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 8,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Rotation slow CW to fast CW",
+                    "value": 253,
+                    "range": [
+                      250,
+                      255
+                    ],
+                    "kind": "WheelRotation",
+                    "speedStart": "slow CW",
+                    "speedEnd": "fast CW"
+                  }
+                ],
+                "channel": 7
+              },
+              {
+                "id": 1781722697591,
+                "type": "slider8",
+                "label": "Dimmer",
+                "channel": 8
+              },
+              {
+                "id": 1781722697789,
+                "type": "slider8",
+                "label": "Shutter / Strobe",
+                "channel": 9
+              },
+              {
+                "id": 1781722697568,
+                "type": "slider8",
+                "label": "Program",
+                "channel": 10
+              },
+              {
+                "id": 1781722698107,
+                "type": "slider8",
+                "label": "Program Speed",
+                "channel": 11
+              }
+            ]
+          },
+          "warnings": []
+        }
+      ]
+    },
+    {
+      "key": "custom/martin-martin-mac-250-krypton",
+      "manufacturerName": "Custom",
+      "name": "Martin Martin Mac 250 Krypton",
+      "categories": [
+        "Custom"
+      ],
+      "modes": [
+        {
+          "name": "16-Bit Extended",
+          "channels": 17,
+          "profile": {
+            "name": "Martin Martin Mac 250 Krypton",
+            "mode": "16-Bit Extended",
+            "channels": 17,
+            "controls": [
+              {
+                "id": 1781796574726,
+                "type": "panTilt16",
+                "label": "Pan/Tilt",
+                "tilt": 14,
+                "panFine": 13,
+                "tiltFine": 15,
+                "pan": 12
+              },
+              {
+                "id": 1781796574171,
+                "type": "slider8",
+                "label": "Shutter / Maintenance",
+                "channel": 1
+              },
+              {
+                "id": 1781796574583,
+                "type": "slider16",
+                "label": "Dimmer",
+                "channel": 2,
+                "fine": 3,
+                "defaultValue": null,
+                "blackoutValue": null
+              },
+              {
+                "id": 1781796574386,
+                "type": "wheel",
+                "label": "Color Wheel",
+                "options": [
+                  {
+                    "name": "Open / Color 2",
+                    "value": 5,
+                    "range": [
+                      0,
+                      10
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 1,
+                    "slotNumberEnd": 2
+                  },
+                  {
+                    "name": "Color 2 / Yellow 603",
+                    "value": 16,
+                    "range": [
+                      11,
+                      21
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 2,
+                    "slotNumberEnd": 3
+                  },
+                  {
+                    "name": "Yellow 603 / Blue 104",
+                    "value": 27,
+                    "range": [
+                      22,
+                      32
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 3,
+                    "slotNumberEnd": 4
+                  },
+                  {
+                    "name": "Blue 104 / Pink 312",
+                    "value": 38,
+                    "range": [
+                      33,
+                      43
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 4,
+                    "slotNumberEnd": 5
+                  },
+                  {
+                    "name": "Pink 312 / Green 206",
+                    "value": 49,
+                    "range": [
+                      44,
+                      54
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 5,
+                    "slotNumberEnd": 6
+                  },
+                  {
+                    "name": "Green 206 / Blue 108",
+                    "value": 60,
+                    "range": [
+                      55,
+                      65
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 6,
+                    "slotNumberEnd": 7
+                  },
+                  {
+                    "name": "Blue 108 / Red 301",
+                    "value": 71,
+                    "range": [
+                      66,
+                      76
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 7,
+                    "slotNumberEnd": 8
+                  },
+                  {
+                    "name": "Red 301 / Magenta 507",
+                    "value": 82,
+                    "range": [
+                      77,
+                      87
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 8,
+                    "slotNumberEnd": 9
+                  },
+                  {
+                    "name": "Magenta 507 / Blue 101",
+                    "value": 93,
+                    "range": [
+                      88,
+                      98
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 9,
+                    "slotNumberEnd": 10
+                  },
+                  {
+                    "name": "Blue 101 / Orange 306",
+                    "value": 104,
+                    "range": [
+                      99,
+                      109
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 10,
+                    "slotNumberEnd": 11
+                  },
+                  {
+                    "name": "Orange 306 / Darkgreen",
+                    "value": 115,
+                    "range": [
+                      110,
+                      120
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 11,
+                    "slotNumberEnd": 12
+                  },
+                  {
+                    "name": "Darkgreen / Purple 502",
+                    "value": 126,
+                    "range": [
+                      121,
+                      131
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 12,
+                    "slotNumberEnd": 13
+                  },
+                  {
+                    "name": "Purple 502 / Open",
+                    "value": 137,
+                    "range": [
+                      132,
+                      142
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumberStart": 13,
+                    "slotNumberEnd": 14
+                  },
+                  {
+                    "name": "Open",
+                    "value": 151,
+                    "range": [
+                      143,
+                      159
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 1
+                  },
+                  {
+                    "name": "Color 2",
+                    "value": 162,
+                    "range": [
+                      160,
+                      163
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 2
+                  },
+                  {
+                    "name": "Yellow 603",
+                    "value": 166,
+                    "range": [
+                      164,
+                      167
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 3,
+                    "color": "#ede04b"
+                  },
+                  {
+                    "name": "Blue 104",
+                    "value": 170,
+                    "range": [
+                      168,
+                      171
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 4,
+                    "color": "#1e4f6f"
+                  },
+                  {
+                    "name": "Pink 312",
+                    "value": 174,
+                    "range": [
+                      172,
+                      175
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 5,
+                    "color": "#ffc0cb"
+                  },
+                  {
+                    "name": "Green 206",
+                    "value": 178,
+                    "range": [
+                      176,
+                      179
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 6,
+                    "color": "#97cda9"
+                  },
+                  {
+                    "name": "Blue 108",
+                    "value": 182,
+                    "range": [
+                      180,
+                      183
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 7,
+                    "color": "#3b4875"
+                  },
+                  {
+                    "name": "Red 301",
+                    "value": 186,
+                    "range": [
+                      184,
+                      187
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 8,
+                    "color": "#cb301e"
+                  },
+                  {
+                    "name": "Magenta 507",
+                    "value": 190,
+                    "range": [
+                      188,
+                      191
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 9,
+                    "color": "#8e507e"
+                  },
+                  {
+                    "name": "Blue 101",
+                    "value": 194,
+                    "range": [
+                      192,
+                      195
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 10,
+                    "color": "#385287"
+                  },
+                  {
+                    "name": "Orange 306",
+                    "value": 198,
+                    "range": [
+                      196,
+                      199
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 11,
+                    "color": "#ffa500"
+                  },
+                  {
+                    "name": "Darkgreen",
+                    "value": 202,
+                    "range": [
+                      200,
+                      203
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 12,
+                    "color": "#006400"
+                  },
+                  {
+                    "name": "Purple 502",
+                    "value": 206,
+                    "range": [
+                      204,
+                      207
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 13,
+                    "color": "#a666ea"
+                  },
+                  {
+                    "name": "Rotation slow CW to fast CW",
+                    "value": 217,
+                    "range": [
+                      208,
+                      226
+                    ],
+                    "kind": "WheelRotation",
+                    "speedStart": "slow CW",
+                    "speedEnd": "fast CW"
+                  },
+                  {
+                    "name": "Rotation slow CCW to fast CCW",
+                    "value": 236,
+                    "range": [
+                      227,
+                      245
+                    ],
+                    "kind": "WheelRotation",
+                    "speedStart": "slow CCW",
+                    "speedEnd": "fast CCW"
+                  },
+                  {
+                    "name": "Random color",
+                    "value": 251,
+                    "range": [
+                      246,
+                      255
+                    ],
+                    "kind": "Effect",
+                    "speedStart": "fast",
+                    "speedEnd": "slow"
+                  }
+                ],
+                "channel": 4
+              },
+              {
+                "id": 1781796574401,
+                "type": "wheel",
+                "label": "Color Wheel fine",
+                "options": [
+                  {
+                    "name": "Open",
+                    "value": 0
+                  }
+                ],
+                "channel": 5
+              },
+              {
+                "id": 1781796574272,
+                "type": "wheel",
+                "label": "Gobo Wheel",
+                "options": [
+                  {
+                    "name": "indexing",
+                    "value": 2,
+                    "range": [
+                      0,
+                      4
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 1
+                  },
+                  {
+                    "name": "indexing",
+                    "value": 8,
+                    "range": [
+                      5,
+                      10
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 2
+                  },
+                  {
+                    "name": "indexing",
+                    "value": 13,
+                    "range": [
+                      11,
+                      15
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 3
+                  },
+                  {
+                    "name": "indexing",
+                    "value": 18,
+                    "range": [
+                      16,
+                      20
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 4
+                  },
+                  {
+                    "name": "indexing",
+                    "value": 23,
+                    "range": [
+                      21,
+                      25
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 5
+                  },
+                  {
+                    "name": "indexing",
+                    "value": 28,
+                    "range": [
+                      26,
+                      30
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 6
+                  },
+                  {
+                    "name": "indexing",
+                    "value": 33,
+                    "range": [
+                      31,
+                      35
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 7
+                  },
+                  {
+                    "name": "indexing",
+                    "value": 39,
+                    "range": [
+                      36,
+                      42
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 8
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 47,
+                    "range": [
+                      43,
+                      50
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 1
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 55,
+                    "range": [
+                      51,
+                      58
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 2
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 62,
+                    "range": [
+                      59,
+                      65
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 3
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 70,
+                    "range": [
+                      66,
+                      73
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 4
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 78,
+                    "range": [
+                      74,
+                      81
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 5
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 86,
+                    "range": [
+                      82,
+                      89
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 6
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 93,
+                    "range": [
+                      90,
+                      96
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 7
+                  },
+                  {
+                    "name": "rotating",
+                    "value": 101,
+                    "range": [
+                      97,
+                      104
+                    ],
+                    "kind": "WheelSlot",
+                    "slotNumber": 8
+                  },
+                  {
+                    "name": "Affobet shake",
+                    "value": 112,
+                    "range": [
+                      105,
+                      119
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 8,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Splash shake",
+                    "value": 127,
+                    "range": [
+                      120,
+                      134
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 7,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Twisted triangle shake",
+                    "value": 142,
+                    "range": [
+                      135,
+                      149
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 6,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Happy Yins shake",
+                    "value": 157,
+                    "range": [
+                      150,
+                      164
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 5,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Fan shake",
+                    "value": 172,
+                    "range": [
+                      165,
+                      179
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 4,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Fat bar shake",
+                    "value": 187,
+                    "range": [
+                      180,
+                      194
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 3,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Eclipse shake",
+                    "value": 202,
+                    "range": [
+                      195,
+                      209
+                    ],
+                    "kind": "WheelShake",
+                    "slotNumber": 2,
+                    "shakeSpeedStart": "slow",
+                    "shakeSpeedEnd": "fast"
+                  },
+                  {
+                    "name": "Rotation slow CW to fast CW",
+                    "value": 221,
+                    "range": [
+                      210,
+                      232
+                    ],
+                    "kind": "WheelRotation",
+                    "speedStart": "slow CW",
+                    "speedEnd": "fast CW"
+                  },
+                  {
+                    "name": "Rotation fast CCW to slow CCW",
+                    "value": 244,
+                    "range": [
+                      233,
+                      255
+                    ],
+                    "kind": "WheelRotation",
+                    "speedStart": "fast CCW",
+                    "speedEnd": "slow CCW"
+                  }
+                ],
+                "channel": 6
+              },
+              {
+                "id": 1781796574163,
+                "type": "slider16",
+                "label": "Gobo Rotation",
+                "channel": 7,
+                "fine": 8,
+                "defaultValue": null,
+                "blackoutValue": null
+              },
+              {
+                "id": 1781796575023,
+                "type": "slider16",
+                "label": "Focus",
+                "channel": 9,
+                "fine": 10,
+                "defaultValue": null,
+                "blackoutValue": null
+              },
+              {
+                "id": 1781796574953,
+                "type": "slider8",
+                "label": "Prism / Macros",
+                "channel": 11
+              },
+              {
+                "id": 1781796574409,
+                "type": "slider8",
+                "label": "Pan/Tilt Speed",
+                "channel": 16
+              },
+              {
+                "id": 1781796574499,
+                "type": "wheel",
+                "label": "Dimmer/Focus/Color/Gobo/Prism Speed",
+                "options": [
+                  {
+                    "name": "Speed",
+                    "value": 1,
+                    "range": [
+                      0,
+                      2
+                    ],
+                    "kind": "Speed"
+                  },
+                  {
+                    "name": "Speed",
+                    "value": 124,
+                    "range": [
+                      3,
+                      245
+                    ],
+                    "kind": "Speed",
+                    "speedStart": "fast",
+                    "speedEnd": "slow"
+                  },
+                  {
+                    "name": "Override menu setting SCUT=OFF",
+                    "value": 247,
+                    "range": [
+                      246,
+                      248
+                    ],
+                    "kind": "Speed"
+                  },
+                  {
+                    "name": "Override menu setting SCUT=ON",
+                    "value": 250,
+                    "range": [
+                      249,
+                      251
+                    ],
+                    "kind": "Speed"
+                  },
+                  {
+                    "name": "Blackout while moving",
+                    "value": 254,
+                    "range": [
+                      252,
+                      255
+                    ],
+                    "kind": "Speed"
+                  }
+                ],
+                "channel": 17
+              }
+            ]
           },
           "warnings": []
         }

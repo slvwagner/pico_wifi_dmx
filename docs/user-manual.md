@@ -62,7 +62,7 @@ The library loads automatically when the controller page opens. While it is load
 
 Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, **Update Library** changes to **Updating...** and then **Updated** when the fixture library write is complete.
 
-Use **Export Library** to download the currently loaded fixture catalog as `pico_dmx_fixture_library.json`. Use **Import Library** to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset.
+Use **Export Library** to download the currently loaded fixture catalog as `pico_dmx_fixture_library.json`. Use **Import Library** to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script `scripts/sync_fixture_library_from_xampp.ps1` can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys.
 
 1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
 2. Select the matching fixture from the results list.
@@ -110,7 +110,7 @@ These options belong to the fixture profile, so every patched fixture using that
 
 To change an existing control, click **Edit** in the Fixture Profiles list. The **Add / Edit Control** card opens automatically and loads the selected control. After editing, click **Save control**. If a Pico base URL is set, saving an existing control immediately resends the current live value for every patched fixture using that profile/control, so Pan/Tilt reverse or axis-swap changes are applied to the output right away. The **Fixture Profiles** collapse button also controls the Add / Edit Control card, so both profile editing areas can be hidden together.
 
-Click **Update Library** when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added. Pan/Tilt reverse and axis-swap options are not written into the fixture library, because they describe how a fixture is mounted in one show rather than the fixture's DMX personality.
+Click **Update Library** when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added. For existing Open Fixture Library modes, Update Library preserves richer wheel metadata such as `WheelShake`, `WheelRotation`, slot numbers, and speed ranges even when the edited controller profile only shows plain wheel values. Pan/Tilt reverse and axis-swap options are not written into the fixture library, because they describe how a fixture is mounted in one show rather than the fixture's DMX personality.
 
 ### Default and Blackout Values
 
