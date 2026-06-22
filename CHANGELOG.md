@@ -5,6 +5,10 @@
 Changed:
 
 - Started the 0.9.6 development branch.
+- Added a dedicated Show Run page for operating a show from saved groups, scenes, palettes, and Pico chaser/motion slots while keeping setup editing on the existing pages.
+- Added Show Run layout controls, including a movable card matrix plus local Cols/Rows and Move mode for arranging operator-page groups, scenes, palettes, and Pico playback tiles.
+- Added a sticky **Edit Layout** toggle on Show Run so all card/tile Move and row/column controls stay hidden during normal show operation.
+- Added direct Show Run Pico playback controls for chaser slots and motion slots, including chaser play/pause/resume/speed actions and motion start/BPM actions.
 - Added a fixture-library sync script to validate and refresh the bundled catalog from the current XAMPP fixture library.
 - The fixture-library sync script now reviews fixture-level differences before updating the bundled catalog, with interactive prompts plus accept-all, keep-existing, and dry-run modes.
 - Added direct numeric DMX value inputs for wheel controls on the Controller surface and in Controller Group Edit.
@@ -24,6 +28,9 @@ Changed:
 
 Fixed:
 
+- Fixed Show Run tile Move mode so filled tile buttons can be dragged to another tile position while nested tile action buttons remain protected from accidental drag starts.
+- Fixed Show Run Pico Chaser Playback so it also reads live Pico `/chaser/slots` state; loaded Pico slots now appear even when the XAMPP mirrored slot payload file is empty.
+- Fixed Show Run Pico Motion Playback to read live Pico `/motion/slots` state and expose live-only loaded motion slots the same way as chaser slots.
 - Preserved rich Open Fixture Library wheel metadata when updating an existing fixture library profile from an edited controller profile, so adjustable ranges such as `WheelShake` and `WheelRotation` are not downgraded to plain wheel values.
 - Fixed PicoSpot-style shutter/strobe wheel ranges by adding `ShutterStrobe` metadata handling, so an imported or edited strobe range such as `11..255` renders as a bounded **Strobe speed** control instead of a generic wheel value.
 

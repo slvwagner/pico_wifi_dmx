@@ -133,6 +133,7 @@ strong { color: #ffffff; }
 <table>
 <thead><tr><th>Page</th><th>Purpose</th></tr></thead><tbody>
 <tr><td>Fixture Controller</td><td>Fixture profiles, patching, live control, groups, scenes, default and blackout values</td></tr>
+<tr><td>Show Run</td><td>Operator page for recalling saved groups, scenes, palettes, and Pico chaser/motion slots without editing setup</td></tr>
 <tr><td>Chaser</td><td>Step-based chases with fade, loop modes, direction, pause/resume, and Pico slot upload</td></tr>
 <tr><td>Motion FX</td><td>Continuous effects for pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, and gobo</td></tr>
 <tr><td>GPIO Control</td><td>Map Pico GPIO buttons and ADC inputs to lighting actions</td></tr>
@@ -435,7 +436,37 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Group selection is a filter. If groups are selected, Group Edit uses only compatible fixtures inside those groups.</li>
 <li>Direct scope changes, such as Select All, Participating Controls All, or Motion All, clear the saved-group filter and make the page scope the source of truth.</li>
 </ul>
-<h2 id="4-chaser">4. Chaser</h2>
+<h2 id="4-show-run">4. Show Run</h2>
+<p>The <strong>Show Run</strong> page is the operator page. Use it when the show has already been prepared on the Fixture Controller, Chaser, and Motion FX pages and you want fewer editing controls on screen.</p>
+<p>Open it from the <strong>Show</strong> navigation link or directly:</p>
+<pre><code>http://localhost/dmx/dmx_show.html</code></pre>
+<p>Show Run loads the current XAMPP show data:</p>
+<ul>
+<li>Fixture profiles and patched fixtures from <code>fixture_setup.php</code></li>
+<li>Saved groups from <code>group_setup.php</code></li>
+<li>Saved scenes from <code>scene_setup.php</code></li>
+<li>Saved palettes from <code>palette_setup.php</code></li>
+<li>Mirrored Pico chaser slots from <code>chaser_setup.php?slots</code></li>
+<li>Mirrored Pico motion slots from <code>motion_setup.php?slots</code></li>
+<li>Current live values from <code>fixture_setup.php?livevalues</code></li>
+</ul>
+<h3 id="show-target">Show Target</h3>
+<p>The <strong>Show Target</strong> section contains saved groups. Select one or more groups when you want scene, palette, or blackout recalls to affect only those fixtures. With no group selected, Show Run uses all stored fixture values.</p>
+<p>This target selection is an operator filter only. It does not edit the saved group definitions and it does not save setup data.</p>
+<p>The sticky title bar has <strong>Edit Layout</strong> on the right. Layout tools are hidden during normal operation. Click <strong>Edit Layout</strong> when you want to show the layout controls, then click <strong>Done Layout</strong> to return to the cleaner operator view.</p>
+<p>In layout edit mode, the top of Show Run has a page-level card matrix. Use <strong>Card cols</strong> and <strong>Card rows</strong> to choose how many operator cards fit in the page grid. Click <strong>Move Cards</strong> to arrange whole cards, for example moving <strong>Palettes</strong> to the top-left and <strong>Pico Motion Playback</strong> to the top-right. On touch screens, tap a card and then tap the destination card position.</p>
+<p>Each tile section on Show Run has <strong>Cols</strong>, <strong>Rows</strong>, and <strong>Move</strong> controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico motion slots. Click <strong>Move</strong>, then drag a filled tile to another position; on touch screens, tap the filled tile and then tap the destination tile. Show Run remembers these layout preferences in the browser, but it does not rewrite the saved toolbox setup on the server.</p>
+<h3 id="scenes-and-palettes">Scenes And Palettes</h3>
+<p>Click a scene tile to recall that scene. Click a palette tile to recall that palette. Show Run writes the recalled values to the live-value snapshot and sends the matching DMX channels to the Pico in one <code>/dmx/b</code> batch when a Pico base URL is set.</p>
+<p>If a group target is active, only stored values whose fixture IDs belong to the selected groups are recalled. This lets you reuse a scene or palette for part of the rig without opening the editing controller page.</p>
+<h3 id="blackout-and-playback">Blackout And Playback</h3>
+<p><strong>Blackout Target</strong> recalls each targeted fixture control&#39;s stored blackout value, writes it to the live-value snapshot, and sends the changed DMX channels to the Pico.</p>
+<p><strong>Pico Chaser Playback</strong> and <strong>Pico Motion Playback</strong> show the slots that were uploaded and mirrored from the Chaser and Motion FX pages. They also read live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty.</p>
+<p>Use the <strong>Pico Chaser Playback</strong> controls to choose a slot, set the slot speed, then <strong>Play Slot</strong>, <strong>Pause</strong>, <strong>Resume</strong>, <strong>Set Speed</strong>, or <strong>Stop Slot</strong>.</p>
+<p>Use the <strong>Pico Motion Playback</strong> controls the same way: choose a slot, set <strong>BPM</strong>, then <strong>Start Slot</strong>, <strong>Set BPM</strong>, or <strong>Stop Slot</strong>. Starting a mirrored slot reloads its payload before running it; starting a live-only Pico slot starts the already-loaded Pico slot without overwriting it.</p>
+<p>The global <strong>Stop Chaser</strong>, <strong>Stop Motion</strong>, and <strong>Stop All Playback</strong> buttons call the matching Pico stop endpoints.</p>
+<p>Show Run is intentionally read-mostly. It does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files.</p>
+<h2 id="5-chaser">5. Chaser</h2>
 <p><img src="screenshots/chaser.png" alt="Chaser"></p>
 <p>The Chaser page creates step-based sequences. The main page stays focused on <strong>Participating Controls</strong> and <strong>Edit Step</strong>, while the repeated working tools sit in the <strong>Toolboxes</strong> sidebar.</p>
 <p>The Chaser screenshot is captured with the important boxes visible on purpose: <strong>Groups</strong>, <strong>Chases</strong>, <strong>Chase Steps</strong>, and <strong>Chase Playback</strong>. Toolbox headers can be dragged up or down to reorder them in the sidebar. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.</p>
@@ -628,7 +659,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 </ul>
 <p>Direction sets the first playback direction for the slot. In Ping Pong mode the Pico reverses direction whenever it reaches either end of the chase.</p>
 <p>Each chaser slot supports up to 32 steps.</p>
-<h2 id="5-motion-fx">5. Motion FX</h2>
+<h2 id="6-motion-fx">6. Motion FX</h2>
 <p><img src="screenshots/motion-fx.png" alt="Motion FX"></p>
 <p>Motion FX creates continuous effects for one selected effect target at a time. It can drive a combined pan/tilt target, or one scalar DMX target such as dimmer, prism, gobo, zoom, or iris.</p>
 <p>Supported effects include:</p>
@@ -700,7 +731,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Use browser playback from the <strong>Effect Parameters</strong> toolbox when you want quick live testing before uploading.</li>
 </ol>
 <p>The Motion FX page also has a read-only scene toolbox. Clicking a scene updates the effect center. When a Pico base URL is set, it also sends the position to the Pico.</p>
-<h2 id="6-gpio-control">6. GPIO Control</h2>
+<h2 id="7-gpio-control">7. GPIO Control</h2>
 <p><img src="screenshots/gpio-control.png" alt="GPIO Control"></p>
 <p>GPIO Control maps physical Pico inputs to lighting actions.</p>
 <p>GPIO Control does not use the shared toolbox sidebar. Its setup is kept in normal page panels because GPIO mapping is configuration work, not a live fixture/scene/palette workflow.</p>
@@ -755,7 +786,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>1/16 beat</li>
 </ul>
 <p>The firmware ignores very long gaps between taps so stopping for a while does not create an extremely slow tempo when tapping resumes.</p>
-<h2 id="7-pico-performance-test">7. Pico Performance Test</h2>
+<h2 id="8-pico-performance-test">8. Pico Performance Test</h2>
 <p><img src="screenshots/benchmark.png" alt="Pico Performance Test"></p>
 <p>The Pico Performance Test page checks the full browser-to-Pico control path.</p>
 <p>Pico Performance Test does not use the shared toolbox sidebar. It is a developer/test page for measuring request performance, buffer readback, and firmware timing health.</p>
@@ -782,14 +813,14 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>The <strong>Timing History</strong> table records each Pico timing check. A manual <strong>Check Pico</strong> adds one row immediately. <strong>Run Full Test</strong> records the final post-load timing sample, so the row reflects Core0/Core1 slack after the write and readback checks have run.</p>
 <p>Use <strong>Export CSV</strong> to save results for later comparison.</p>
 <p>Pico Performance Test and GPIO Control link to the <strong>DMX Buffer Monitor</strong>.</p>
-<h2 id="8-dmx-buffer-monitor">8. DMX Buffer Monitor</h2>
+<h2 id="9-dmx-buffer-monitor">9. DMX Buffer Monitor</h2>
 <p><img src="screenshots/dmx-monitor.png" alt="DMX Buffer Monitor"></p>
 <p>The monitor displays all 512 channels as tiles and reads one Pico buffer at a time.</p>
 <p>Use <strong>DMX output</strong> to see the actual output frame currently held by the DMX engine, including values produced by Pico-side Chaser or Motion FX playback.</p>
 <p>Use <strong>Base / position</strong> to inspect the scene base buffer used as the center for Motion FX.</p>
 <p>Use <strong>Refresh ms</strong> to control the polling interval directly. Use <strong>Refresh Hz</strong> when you prefer rate instead. Both fields stay synchronized, so <code>500 ms</code> is shown as <code>2 Hz</code>. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. <strong>Auto refresh</strong> starts or stops polling without changing the selected buffer.</p>
 <p>Use <strong>Clear all</strong> when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.</p>
-<h2 id="9-backup-and-import">9. Backup and Import</h2>
+<h2 id="10-backup-and-import">10. Backup and Import</h2>
 <p>Use <strong>Fixture Controller &gt; Show &gt; Export Setup</strong> before large changes or before moving the show to another computer.</p>
 <p>The exported setup file includes:</p>
 <ul>
@@ -807,7 +838,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.</p>
 <p>Use <strong>Import Setup</strong> on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.</p>
 <p><strong>Patch CSV</strong> is separate. It exports the patched DMX channel table for documentation or troubleshooting, not for restoring the show.</p>
-<h2 id="9-clear-functions">9. Clear Functions</h2>
+<h2 id="11-clear-functions">11. Clear Functions</h2>
 <p>There are two different clear actions:</p>
 <table>
 <thead><tr><th>Action</th><th>What it clears</th><th>When to use</th></tr></thead><tbody>

@@ -17,6 +17,9 @@ test.describe('Project versioning rules', () => {
       schemaVersion: 1,
       baseUrl: 'http://example.test/'
     });
+
+    await openDmxPage(page, 'dmx_show.html');
+    await expect(page.locator('header h1 .app-version')).toHaveText('v' + appVersion);
   });
 
   test('Groups toolbox layout is shared on Controller, Chaser, and Motion pages', async ({ page }) => {

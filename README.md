@@ -436,6 +436,7 @@ pico_wifi_dmx/
 │  └─ lwipopts.h             lwIP configuration for the Pico web API
 ├─ web/                      Browser UI pages served by XAMPP
 │  ├─ dmx_fixture_controller.html
+│  ├─ dmx_show.html
 │  ├─ dmx_chaser.html
 │  ├─ dmx_motion.html
 │  ├─ dmx_gpio.html
@@ -730,6 +731,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Page | File | Description |
 |------|------|-------------|
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
+| Show Run | `web/dmx_show.html` | Run a show from saved groups, scenes, palettes, and Pico chaser/motion playback slots without editing setup data |
 | Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Motion FX | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |

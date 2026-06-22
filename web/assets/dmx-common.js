@@ -1731,6 +1731,10 @@
     }
 
     const clearMarks=()=>grid.querySelectorAll('.toolbox-dragging,.toolbox-drop-before,.toolbox-drop-after').forEach(el=>el.classList.remove('toolbox-dragging','toolbox-drop-before','toolbox-drop-after'));
+    const isBlockedDragStart=(target,source)=>{
+      const interactive=target.closest('button,input,select,textarea,a,label');
+      return !!interactive&&interactive!==source;
+    };
     const targetAtPoint=(x,y,source)=>{
       return Array.from(grid.querySelectorAll(selector))
         .filter(el=>el!==source)
@@ -1796,7 +1800,7 @@
       const idx=getIndex(el);
       el.draggable=false;
       const pointerDown=e=>{
-        if(!active||!canDrag(idx,el)||e.target.closest('button,input,select,textarea,a'))return;
+        if(!active||!canDrag(idx,el)||isBlockedDragStart(e.target,el))return;
         if(e.pointerType==='mouse')return;
         pointerDrag={source:el,sourceIndex:idx,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false,target:null};
         e.preventDefault();
@@ -1805,7 +1809,7 @@
         window.addEventListener('pointercancel',pointerEnd);
       };
       const mouseDown=e=>{
-        if(pointerDrag||!active||!canDrag(idx,el)||e.target.closest('button,input,select,textarea,a'))return;
+        if(pointerDrag||!active||!canDrag(idx,el)||isBlockedDragStart(e.target,el))return;
         pointerDrag={source:el,sourceIndex:idx,pointerId:'mouse',startX:e.clientX,startY:e.clientY,moved:false,target:null};
         e.preventDefault();
         window.addEventListener('mousemove',mouseMove);
