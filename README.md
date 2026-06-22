@@ -280,7 +280,7 @@ Edit `tests/pathconfig.local.json` for your machine:
 
 ```json
 {
-  "xamppBaseUrl": "http://localhost/dmx/",
+  "xamppBaseUrl": "http://localhost/dmx-test/",
   "picoBaseUrl": "http://192.168.0.24/",
   "hardwareTests": {
     "enabled": false
@@ -292,6 +292,7 @@ Normal development loop:
 
 ```powershell
 .\scripts\sync_fixture_controller_to_xampp.ps1
+.\scripts\sync_test_app_to_xampp.ps1
 npm run test:ui
 ```
 
@@ -348,10 +349,10 @@ npm install
 npx playwright install chromium
 ```
 
-Make sure XAMPP is running and the app is available at the configured URL before running the UI tests. If needed, sync the current project files into XAMPP first:
+Make sure XAMPP is running and the isolated test app is available at the configured URL before running the UI tests. The normal working app remains under `http://localhost/dmx/`; tests should use `http://localhost/dmx-test/` so they cannot touch your live show data. If needed, sync the current project files into the test app first:
 
 ```powershell
-.\scripts\sync_fixture_controller_to_xampp.ps1
+.\scripts\sync_test_app_to_xampp.ps1
 ```
 
 Run the normal UI regression tests:
@@ -389,7 +390,7 @@ npm run test:ui
 
 If every UI test fails immediately with a Chromium launch error such as `sandbox_host_linux.cc` and `Operation not permitted`, run the tests from a normal Ubuntu terminal rather than from a restricted shell/container. The app may be fine; Chromium simply could not start.
 
-The default test URL is `http://localhost/dmx/`. It is defined in [tests/pathconfig.json](tests/pathconfig.json), so the same tests can run if the XAMPP installation moves.
+The default test URL is `http://localhost/dmx-test/`. It is defined in [tests/pathconfig.json](tests/pathconfig.json), so the same tests can run if the XAMPP installation moves.
 
 For a local machine-specific setup, copy the example file and edit the copy:
 
@@ -399,7 +400,7 @@ Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
 
 `tests/pathconfig.local.json` is ignored by Git. Use it for:
 
-- `xamppBaseUrl`: the served web UI, for example `http://localhost/dmx/`
+- `xamppBaseUrl`: the isolated served test UI, for example `http://localhost/dmx-test/`
 - `picoBaseUrl`: the real Pico API, for example `http://192.168.0.24/`
 - `hardwareTests.enabled`: set to `true` only when the Pico is connected and available
 - `hardwareTests.dmxTestChannels`: channels the test may write while checking `/dmx/output.json`
@@ -414,7 +415,7 @@ npm run test:pico
 Environment variables can override the config for one terminal session:
 
 ```powershell
-$env:DMX_TEST_BASE_URL = "http://localhost/dmx/"
+$env:DMX_TEST_BASE_URL = "http://localhost/dmx-test/"
 $env:DMX_PICO_BASE_URL = "http://192.168.0.24/"
 $env:DMX_RUN_HARDWARE_TESTS = "true"
 npm run test:pico
@@ -768,6 +769,8 @@ Patch Fixtures supports one fixture at a time or a numbered run. Set a base name
 The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. Fan Out calculates from each fixture's base value plus an offset assigned by fixture position in the current Fan Out order. Saved groups use their stored fixture order; manual selections use the order fixtures were selected; in Symmetric spread mode, negative Spread runs the shape in the opposite direction. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
 
 The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. The small pencil on a filled tile opens **Edit Tile**, where you can rename the tile and set a background color plus an optional drawn/uploaded visual. Palette visuals are independent from scope, draw on the selected background color, and automatically choose a high-contrast brush color. They can reset to the default background or clear the icon entirely. Palette names and visuals are saved inside `data/palette_setup.json` together with the palette values. **Merge** opens a palette matrix picker so the target palette is chosen visually from the saved tiles instead of by entering a slot number.
+
+Palette scopes are based on common Open Fixture Library control names. Besides **Position**, **Color**, **Dimmer**, and **All controls**, the Controller offers focused scopes for **Shutter / Strobe**, **Gobo**, **Prism**, **Optics**, and **Programs / Effects**. Color matching includes individual library channels such as red, green, blue, cyan, magenta, yellow, UV, lime, CCT, CTO, hue, and saturation.
 
 ![Edit Tile modal](docs/screenshots/fixture-controller-edit-tile.png)
 

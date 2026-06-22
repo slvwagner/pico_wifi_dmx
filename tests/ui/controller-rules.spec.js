@@ -7,6 +7,7 @@ const {
 
 test.describe('Fixture Controller established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await routeControllerCompactServerSetup(page);
     await openDmxPage(page, '');
     await injectControllerCompactSetup(page);
   });
@@ -1546,6 +1547,51 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.selectedGroups).toBe(0);
     expect(result.selectedFixtures).toEqual([101]);
     expect(result.scope).toEqual(['101:11']);
+  });
+
+  test('palette scopes cover common fixture-library control families', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const sample = {
+        uv: { type: 'slider8', label: 'UV' },
+        redFine: { type: 'slider8', label: 'Red fine' },
+        cct: { type: 'slider8', label: 'CCT' },
+        dimmer: { type: 'slider8', label: 'Dimmer fine' },
+        strobe: { type: 'slider8', label: 'Strobe Frequency' },
+        shutter: { type: 'slider8', label: 'Shutter / Strobe' },
+        gobo: { type: 'wheel', label: 'Gobo Wheel' },
+        prism: { type: 'slider8', label: 'Prism Rotation' },
+        optics: { type: 'slider8', label: 'Focus fine' },
+        effects: { type: 'slider8', label: 'Program Speed' },
+        position: { type: 'panTilt16', label: 'Pan/Tilt' },
+        blueMaster: { type: 'slider8', label: 'Blue Master' }
+      };
+      const matches = (key, scope) => paletteControlMatchesScope(sample[key], scope);
+      return {
+        options: [...document.querySelectorAll('#paletteScope option')].map(option => option.value),
+        color: ['uv', 'redFine', 'cct', 'blueMaster'].every(key => matches(key, 'color')),
+        blueMasterNotDimmer: !matches('blueMaster', 'dimmer'),
+        dimmer: matches('dimmer', 'dimmer'),
+        shutter: matches('strobe', 'shutter') && matches('shutter', 'shutter'),
+        gobo: matches('gobo', 'gobo'),
+        prism: matches('prism', 'prism'),
+        optics: matches('optics', 'optics'),
+        effects: matches('effects', 'effects'),
+        position: matches('position', 'position'),
+        legacyBeamStillMatches: matches('gobo', 'beam') && matches('optics', 'beam')
+      };
+    });
+
+    expect(result.options).toEqual(['position', 'color', 'dimmer', 'shutter', 'gobo', 'prism', 'optics', 'effects', 'all']);
+    expect(result.color).toBe(true);
+    expect(result.blueMasterNotDimmer).toBe(true);
+    expect(result.dimmer).toBe(true);
+    expect(result.shutter).toBe(true);
+    expect(result.gobo).toBe(true);
+    expect(result.prism).toBe(true);
+    expect(result.optics).toBe(true);
+    expect(result.effects).toBe(true);
+    expect(result.position).toBe(true);
+    expect(result.legacyBeamStillMatches).toBe(true);
   });
 
   test('palette merge uses a visual matrix picker instead of a slot prompt', async ({ page }) => {

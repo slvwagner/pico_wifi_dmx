@@ -44,6 +44,16 @@ if ($method === 'POST') {
         exit;
     }
 
+    if (is_file($dataFile) && count($data['groups']) === 0) {
+        $existingRaw = file_get_contents($dataFile);
+        $existing = json_decode($existingRaw === false ? '' : $existingRaw, true);
+        if (is_array($existing) && isset($existing['groups']) && is_array($existing['groups']) && count($existing['groups']) > 0) {
+            $stamp = gmdate('Y-m-d\TH-i-s-v\Z');
+            $backupFile = $dataDir . DIRECTORY_SEPARATOR . 'group_setup.before-empty-overwrite.' . $stamp . '.json';
+            copy($dataFile, $backupFile);
+        }
+    }
+
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     if ($json === false || file_put_contents($dataFile, $json . PHP_EOL, LOCK_EX) === false) {
         http_response_code(500);

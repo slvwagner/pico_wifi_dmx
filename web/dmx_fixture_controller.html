@@ -404,8 +404,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label>Scope<select id="paletteScope">
 <option value="position">Position</option>
 <option value="color">Color</option>
-<option value="beam">Beam / Gobo</option>
 <option value="dimmer">Dimmer</option>
+<option value="shutter">Shutter / Strobe</option>
+<option value="gobo">Gobo</option>
+<option value="prism">Prism</option>
+<option value="optics">Optics</option>
+<option value="effects">Programs / Effects</option>
 <option value="all">All controls</option>
 </select></label>
 <div class="small">Empty slot saves the selected scope. Filled slot recalls as an overlay.</div>
@@ -4188,9 +4192,14 @@ function currentPaletteSaveValues(){
 function paletteControlMatchesScope(c,scope){
   const label=String(c.label||'').toLowerCase();
   if(scope==='all')return true;
-  if(scope==='position')return c.type==='panTilt16'||c.type==='panTilt8'||/\b(pan|tilt|position|pos)\b/.test(label);
-  if(scope==='color')return ['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)||/colou?r|rgb|cmy|white|amber/.test(label);
-  if(scope==='dimmer')return /dimmer|intensity|shutter/.test(label);
+  if(scope==='position')return c.type==='panTilt16'||c.type==='panTilt8'||/\b(pan|tilt|position|pos|movement)\b/.test(label);
+  if(scope==='color')return ['rgb','rgbw','rgbwa','cmy','cmyk','matrixRgb'].includes(c.type)||/\b(colou?r|rgb|cmy|red|green|blue|cyan|magenta|yellow|white|amber|uv|lime|indigo|hue|saturation|cct|ctc|cto|ctb|tint|kelvin|warm|cold)\b|color temperature/.test(label);
+  if(scope==='dimmer')return /\b(dimmer|dimming|intensity)\b/.test(label);
+  if(scope==='shutter')return /\b(shutter|strobe|flash)\b/.test(label);
+  if(scope==='gobo')return /\bgobo\b/.test(label);
+  if(scope==='prism')return /\bprism\b/.test(label);
+  if(scope==='optics')return /\b(focus|zoom|iris|frost|beam|diffuser|lens)\b/.test(label);
+  if(scope==='effects')return /\b(programs?|macro|macros|effect|effects|auto|show|chase|pattern|patterns|scene|preset|presets)\b/.test(label);
   if(scope==='beam')return /gobo|beam|prism|zoom|focus|iris|frost|strobe|shutter/.test(label);
   return false;
 }
@@ -4647,7 +4656,7 @@ function savePaletteToSlot(idx,name){
   setStatus('Palette "'+name+'" saved to slot '+(idx+1)+' ('+paletteScopeLabel(scope)+', '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');
 }
 function paletteScopeLabel(scope){
-  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',all:'All controls',fan:'Fan Out'}[scope]||'Palette';
+  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',shutter:'Shutter / Strobe',gobo:'Gobo',prism:'Prism',optics:'Optics',effects:'Programs / Effects',all:'All controls',fan:'Fan Out'}[scope]||'Palette';
 }
 function recallPalette(p){
   const paletteValues=normalizedSceneValues(p.values);

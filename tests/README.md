@@ -56,10 +56,10 @@ npm install
 npx playwright install chromium
 ```
 
-Make sure XAMPP is running and the app has been synced to the configured web folder:
+Make sure XAMPP is running and the isolated test app has been synced to the configured web folder. Do not run the automated UI tests against the live `http://localhost/dmx/` show folder:
 
 ```powershell
-.\scripts\sync_fixture_controller_to_xampp.ps1
+.\scripts\sync_test_app_to_xampp.ps1
 ```
 
 Run the tests against the XAMPP app:
@@ -68,10 +68,10 @@ Run the tests against the XAMPP app:
 npm run test:ui
 ```
 
-The default base URL is `http://localhost/dmx/`. Override it when needed:
+The default base URL is `http://localhost/dmx-test/`. Override it when needed:
 
 ```powershell
-$env:DMX_TEST_BASE_URL = "http://localhost/dmx/"
+$env:DMX_TEST_BASE_URL = "http://localhost/dmx-test/"
 npm run test:ui
 ```
 
@@ -87,7 +87,7 @@ Edit `tests/pathconfig.local.json`:
 
 ```json
 {
-  "xamppBaseUrl": "http://localhost/dmx/",
+  "xamppBaseUrl": "http://localhost/dmx-test/",
   "picoBaseUrl": "http://192.168.0.24/",
   "hardwareTests": {
     "enabled": true,

@@ -90,6 +90,32 @@ async function routeControllerCompactServerSetup(page) {
     });
   });
 
+  await page.route('**/scene_setup.php**', async route => {
+    const method = route.request().method();
+    if (method !== 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, exists: true, baseUrl: '', scenes: [], slotCols: 4, slotRows: 4 })
+    });
+  });
+
+  await page.route('**/palette_setup.php**', async route => {
+    const method = route.request().method();
+    if (method !== 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, exists: true, baseUrl: '', palettes: [], paletteCols: 4, paletteRows: 4 })
+    });
+  });
+
   await page.route('**/ui_state.php**', async route => {
     if (route.request().method() !== 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });

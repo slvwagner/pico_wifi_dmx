@@ -283,9 +283,13 @@ Palette save rules:
 - If Fan Out is active, the palette saves only the Fan Out affected controls.
 - If Fan Out is not active and fixtures are selected, the palette saves only the selected **Scope** for those fixtures.
 - **Position** saves pan/tilt or position controls.
-- **Color** saves RGB, RGBW, RGBWA, CMY, CMYK, and controls labeled as color-related.
-- **Beam / Gobo** saves controls labeled as gobo, beam, prism, zoom, focus, iris, frost, strobe, or shutter.
-- **Dimmer** saves controls labeled as dimmer, intensity, or shutter.
+- **Color** saves RGB, RGBW, RGBWA, CMY, CMYK, matrix RGB, and common fixture-library color channels such as red, green, blue, cyan, magenta, yellow, white, amber, UV, lime, hue, saturation, CCT, CTO, or tint.
+- **Dimmer** saves controls labeled as dimmer, dimming, or intensity.
+- **Shutter / Strobe** saves shutter, strobe, and flash controls.
+- **Gobo** saves gobo wheels and gobo rotation/index controls.
+- **Prism** saves prism and prism rotation controls.
+- **Optics** saves focus, zoom, iris, frost, beam, diffuser, or lens controls.
+- **Programs / Effects** saves program, macro, effect, auto show, chase, pattern, scene, or preset controls.
 - **All controls** saves every control on the selected fixtures and should be used deliberately.
 - If nothing is selected, the palette is not saved; select fixtures or apply Fan Out first.
 
