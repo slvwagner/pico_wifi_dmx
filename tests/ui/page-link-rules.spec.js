@@ -12,6 +12,16 @@ test.describe('Page link rules', () => {
     await expect(page.locator('header a.nav[href="../dmx_show.html"]')).toHaveText('Show');
   });
 
+  test('main pages label the effects page consistently', async ({ page }) => {
+    for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_gpio.html', 'dmx_monitor.html']) {
+      await openDmxPage(page, path);
+      await expect(page.locator('header a.nav[href="dmx_motion.html"]')).toHaveText('Effects');
+    }
+
+    await openDmxPage(page, 'test/');
+    await expect(page.locator('header a.nav[href="../dmx_motion.html"]')).toHaveText('Effects');
+  });
+
   test('GPIO and Pico Performance pages link to the DMX Buffer Monitor', async ({ page }) => {
     await openDmxPage(page, 'dmx_gpio.html');
     await expect(page.locator('header a.nav[href="dmx_monitor.html"]')).toHaveText('Monitor');

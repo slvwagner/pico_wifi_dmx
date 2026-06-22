@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage, routeMotionCompactServerSetup, injectMotionCompactSetup } = require('./helpers/dmx-page');
 
-test.describe('Motion FX established rules', () => {
+test.describe('Effects established rules', () => {
   test.beforeEach(async ({ page }) => {
     await routeMotionCompactServerSetup(page);
     await page.route('**/group_setup.php**', async route => {
@@ -47,7 +47,7 @@ test.describe('Motion FX established rules', () => {
     expect(result.collapsedHeight).toBeLessThanOrEqual(50);
   });
 
-  test('Pico Motion panel has a persistent collapse button', async ({ page }) => {
+  test('Pico Effects panel has a persistent collapse button', async ({ page }) => {
     await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toBeVisible();
     await expect(page.locator('#picoMotionPanel .panel-body')).toBeVisible();
 
@@ -257,7 +257,7 @@ test.describe('Motion FX established rules', () => {
     expect(result.panTiltState.serializedAmp2).toBe('AMP2 0.370000');
   });
 
-  test('Pico Motion Pan/Tilt target serializes swapped channels and reverse flags', async ({ page }) => {
+  test('Pico Effects Pan/Tilt target serializes swapped channels and reverse flags', async ({ page }) => {
     const result = await page.evaluate(() => {
       const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
       Object.assign(pan.control, {
@@ -336,7 +336,7 @@ test.describe('Motion FX established rules', () => {
     expect(result.threeFixtures).toEqual([0, 180, 360]);
   });
 
-  test('scene center changes publish Motion values to shared live values', async ({ page }) => {
+  test('scene center changes publish Effects values to shared live values', async ({ page }) => {
     let postedValues = null;
     await page.unroute('**/fixture_setup.php**');
     await page.route('**/fixture_setup.php**', async route => {
@@ -477,7 +477,7 @@ test.describe('Motion FX established rules', () => {
     expect(result.controls).toEqual(['slider8:Dimmer:value']);
   });
 
-  test('Motion Group Edit works for a single Pan/Tilt fixture with source and relative controls', async ({ page }) => {
+  test('Effects Group Edit works for a single Pan/Tilt fixture with source and relative controls', async ({ page }) => {
     const state = await page.evaluate(() => {
       const pan = motionFixtures.find(mf => mf.kind === 'panTilt');
       selectedMotionTargetKey = motionControlKey(pan.control);
@@ -511,7 +511,7 @@ test.describe('Motion FX established rules', () => {
     await expect(page.locator('#motionGroupModalBody input[data-axis]')).toHaveCount(0);
   });
 
-  test('Motion Group Edit shows the source fixture and relative nudges keep fixture offsets', async ({ page }) => {
+  test('Effects Group Edit shows the source fixture and relative nudges keep fixture offsets', async ({ page }) => {
     await page.evaluate(() => {
       const scalarKey = motionControlKey(motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer').control);
       selectedMotionTargetKey = scalarKey;
@@ -584,7 +584,7 @@ test.describe('Motion FX established rules', () => {
   });
 });
 
-test.describe('Motion FX navigation rules', () => {
+test.describe('Effects navigation rules', () => {
   test('restored selected target fixtures keep Group Edit enabled after navigating away and back', async ({ page }) => {
     const profiles = [{
       id: 1,
@@ -653,7 +653,7 @@ test.describe('Motion FX navigation rules', () => {
     await page.locator('header a[href="dmx_chaser.html"]').click();
     await expect(page.locator('header h1')).toContainText('DMX Chaser');
     await page.locator('header a[href="dmx_motion.html"]').click();
-    await expect(page.locator('header h1')).toHaveText(/Motion/);
+    await expect(page.locator('header h1')).toHaveText(/Effects/);
     await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);
 
     const state = await page.evaluate(() => ({
@@ -667,7 +667,7 @@ test.describe('Motion FX navigation rules', () => {
     expect(state.groupEditDisabled).toBe(false);
   });
 
-  test('hard reload resets Effect Target to None even when a saved motion setup exists', async ({ page }) => {
+  test('hard reload resets Effect Target to None even when a saved Effects setup exists', async ({ page }) => {
     const profiles = [{
       id: 1,
       name: 'Profile A',

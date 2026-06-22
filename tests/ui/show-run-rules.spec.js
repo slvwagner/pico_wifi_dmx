@@ -181,6 +181,27 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('keeps primary show actions on a second sticky header line', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const actionBar = page.locator('.header-actions');
+    await expect(actionBar).toBeVisible();
+    await expect(actionBar.getByRole('button', { name: 'Reload Show' })).toBeVisible();
+    await expect(actionBar.getByRole('button', { name: 'Stop All Playback' })).toBeVisible();
+    await expect(actionBar.getByRole('button', { name: 'Blackout Target' })).toBeVisible();
+    await expect(actionBar.getByRole('button', { name: 'Show All Fixtures' })).toBeVisible();
+
+    const mainBox = await page.locator('.header-main').boundingBox();
+    const actionBox = await actionBar.boundingBox();
+    expect(actionBox.y).toBeGreaterThan(mainBox.y + mainBox.height - 1);
+
+    const headerBox = await page.locator('header').boundingBox();
+    const lastButtonBox = await actionBar.getByRole('button', { name: 'Show All Fixtures' }).boundingBox();
+    expect(Math.abs((headerBox.x + headerBox.width - 14) - (lastButtonBox.x + lastButtonBox.width))).toBeLessThanOrEqual(2);
+  });
+
   test('starts and stops saved Pico playback slots', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
@@ -228,7 +249,7 @@ test.describe('Show Run page', () => {
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/chaser/play/1');
   });
 
-  test('offers Pico chaser and motion playback controls on Show Run', async ({ page }) => {
+  test('offers Pico chaser and effects playback controls on Show Run', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
@@ -284,6 +305,26 @@ test.describe('Show Run page', () => {
     const chaserTileWidth = await page.locator('#chaserSlots .playback-card').first().evaluate(el => el.getBoundingClientRect().width);
     expect(chaserTileWidth).toBeGreaterThan((chaserGridWidth / 2) - 12);
 
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('changing Pico Chaser playback rows does not change the Palettes layout', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#paletteCols').fill('2');
+    await page.locator('#paletteRows').fill('1');
+    await expect(page.locator('#paletteRows')).toHaveValue('1');
+    await expect(page.locator('#paletteGrid .slot')).toHaveCount(2);
+
+    await page.locator('#chaserRows').fill('2');
+
+    await expect(page.locator('#chaserRows')).toHaveValue('2');
+    await expect(page.locator('#chaserSlots .playback-card')).toHaveCount(8);
+    await expect(page.locator('#paletteRows')).toHaveValue('1');
+    await expect(page.locator('#paletteGrid .slot')).toHaveCount(2);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -345,7 +386,7 @@ test.describe('Show Run page', () => {
     await page.locator('#cardScene').click({ position: { x: 16, y: 16 } });
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
-    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Motion Playback');
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
     expect(calls.setupWrites).toBe(0);
   });
 });

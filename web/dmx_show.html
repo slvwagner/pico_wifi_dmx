@@ -11,8 +11,10 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif}
-header{position:sticky;top:0;z-index:90;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-header>div:first-child{flex:1 1 220px;min-width:220px;max-width:100%}
+header{position:sticky;top:0;z-index:90;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.header-main{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.header-title{flex:1 1 220px;min-width:220px;max-width:100%}
+.header-actions{display:flex;justify-content:flex-end;justify-self:end;width:max-content;max-width:100%;gap:10px;align-items:center;flex-wrap:wrap}
 h1{font-size:22px;margin:0}
 .app-version{font-size:12px;color:var(--muted);margin-left:8px;font-weight:500}
 a.nav{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:6px;min-height:44px;display:inline-flex;align-items:center}
@@ -77,28 +79,32 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .playback-card.empty{opacity:.55;align-content:end}
 .playback-card h3{margin:0;font-size:14px}
 .playback-actions{display:flex;gap:8px;flex-wrap:wrap}
-@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}header{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}header>div:first-child{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}}
+@media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}}
 </style>
 </head>
 <body>
 <header>
-  <div>
+  <div class="header-main">
+  <div class="header-title">
     <h1>Show Run</h1>
     <div id="status" class="status">Loading show...</div>
   </div>
   <div class="toolbar header-toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" value="http://192.168.0.24/"></label>
+    <a class="nav" href="index.html">Controller</a>
+    <a class="nav" href="dmx_show.html">Show</a>
+    <a class="nav" href="dmx_chaser.html">Chaser</a>
+    <a class="nav" href="dmx_motion.html">Effects</a>
+    <a class="nav" href="dmx_gpio.html">GPIO</a>
+    <a class="nav" href="user-manual.html">Manual</a>
+    <button id="editLayoutBtn" type="button">Edit Layout</button>
+  </div>
+  </div>
+  <div class="header-actions" aria-label="Show actions">
     <button id="reloadBtn">Reload Show</button>
     <button id="stopAllBtn" class="stop">Stop All Playback</button>
     <button id="blackoutBtn" class="warn">Blackout Target</button>
     <button id="clearFilterBtn">Show All Fixtures</button>
-    <a class="nav" href="index.html">Controller</a>
-    <a class="nav" href="dmx_show.html">Show</a>
-    <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_motion.html">Motion</a>
-    <a class="nav" href="dmx_gpio.html">GPIO</a>
-    <a class="nav" href="user-manual.html">Manual</a>
-    <button id="editLayoutBtn" type="button">Edit Layout</button>
   </div>
 </header>
 <main>
@@ -198,12 +204,12 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
     <section class="panel" id="cardMotion" data-show-card="motion">
       <div class="panel-head">
         <div>
-          <h2>Pico Motion Playback</h2>
-          <div class="small">Start saved Pico motion slots directly from the show page.</div>
+          <h2>Pico Effects Playback</h2>
+          <div class="small">Start saved Pico effect slots directly from the show page.</div>
         </div>
         <div class="panel-tools">
-          <button id="stopMotionBtn" class="stop">Stop Motion</button>
-          <div class="matrix-tools layout-tools" aria-label="Motion playback matrix layout">
+          <button id="stopMotionBtn" class="stop">Stop Effects</button>
+          <div class="matrix-tools layout-tools" aria-label="Effects playback matrix layout">
             <button id="motionMove" type="button">Move</button>
             <label>Cols<input id="motionCols" type="number" min="1" max="32" value="4"></label>
             <label>Rows<input id="motionRows" type="number" min="1" max="32" value="4"></label>
@@ -574,7 +580,8 @@ function renderKind(kind){
   if(kind==='group')renderGroups();
   else if(kind==='scene')renderScenes();
   else if(kind==='palette')renderPalettes();
-  else renderPlaybackSlots();
+  else if(kind==='chaser')renderChaserPlayback();
+  else if(kind==='motion')renderMotionPlayback();
 }
 function initMoveGrid(kind,gridId){
   const grid=document.getElementById(gridId);
@@ -767,7 +774,7 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots){
       payload:mirroredPayload,
       loaded:true,
       liveOnly:!!live&&!mirror,
-      label:live?'Pico motion '+i:slotPayloadLabel(mirroredSlots?.[i],i,'Motion'),
+      label:live?'Pico effect '+i:slotPayloadLabel(mirroredSlots?.[i],i,'Effect'),
       bpm:live?.bpm||mirror?.bpm||30,
       target_count:live?.target_count||mirror?.target_count||0,
       fixture_count:live?.fixture_count||mirror?.fixture_count||0,
@@ -800,9 +807,21 @@ function selectMotionSlot(slot){
   if(bpm&&slotData?.bpm)bpm.value=Math.round(Number(slotData.bpm)||30);
 }
 function renderPlaybackSlots(){
-  normalizeChaserGrid('cols');
-  normalizeMotionGrid('cols');
+  renderChaserPlayback();
+  renderMotionPlayback();
+}
+function renderChaserPlayback(priority='cols'){
+  normalizeChaserGrid(priority);
+  drawChaserPlayback();
+}
+function renderMotionPlayback(priority='cols'){
+  normalizeMotionGrid(priority);
+  drawMotionPlayback();
+}
+function drawChaserPlayback(){
   renderPlayback('chaserSlots',chaserSlots,'chaser');
+}
+function drawMotionPlayback(){
   renderPlayback('motionSlots',motionSlots,'motion');
 }
 function renderPlayback(containerId,slots,type){
@@ -818,7 +837,7 @@ function renderPlayback(containerId,slots,type){
     const item=entry?.item||null;
     const payload=type==='chaser'?item?.loaded:item?.loaded;
     const sourceSlot=item?.slot;
-    const label=type==='chaser'?(item?.label||('Pico slot '+sourceSlot)):(item?.label||('Pico motion '+sourceSlot));
+    const label=type==='chaser'?(item?.label||('Pico slot '+sourceSlot)):(item?.label||('Pico effect '+sourceSlot));
     const meta=type==='chaser'&&item
       ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}`
       :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}`:'Pico slot '+sourceSlot;
@@ -831,8 +850,8 @@ function renderPlayback(containerId,slots,type){
   container.querySelectorAll(`[data-${type}-stop]`).forEach(btn=>btn.addEventListener('click',()=>stopPicoSlot(type,parseInt(btn.dataset[type+'Stop'],10))));
   container.querySelectorAll('[data-show-tile-index]').forEach(el=>el.addEventListener('click',e=>{
     if(e.target.closest('button'))return;
-    if(type==='chaser'&&el.dataset.chaserSelect!==undefined){selectChaserSlot(el.dataset.chaserSelect);if(!moveMode[type]){renderPlaybackSlots();return;}}
-    if(type==='motion'&&el.dataset.motionSelect!==undefined){selectMotionSlot(el.dataset.motionSelect);if(!moveMode[type]){renderPlaybackSlots();return;}}
+    if(type==='chaser'&&el.dataset.chaserSelect!==undefined){selectChaserSlot(el.dataset.chaserSelect);if(!moveMode[type]){renderChaserPlayback();return;}}
+    if(type==='motion'&&el.dataset.motionSelect!==undefined){selectMotionSlot(el.dataset.motionSelect);if(!moveMode[type]){renderMotionPlayback();return;}}
     tileMoveClick(type,parseInt(el.dataset.showTileIndex,10));
   }));
   initMoveGrid(type,containerId);
@@ -925,8 +944,8 @@ async function setMotionSlotBpm(slot){
   if(!root)throw new Error('Set Pico base URL first');
   const bpm=Math.max(1,Math.min(600,parseInt(document.getElementById('motionControlBpm')?.value,10)||30));
   const r=await fetch(root+'/motion/bpm/'+slot+'/'+Math.round(bpm*10),{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico motion BPM failed: HTTP '+r.status);
-  setStatus('motion slot '+slot+' BPM set to '+bpm);
+  if(!r.ok)throw new Error('Pico effect BPM failed: HTTP '+r.status);
+  setStatus('effect slot '+slot+' BPM set to '+bpm);
 }
 async function startPicoSlot(type,slot){
   const root=endpoint();
@@ -1017,13 +1036,13 @@ document.getElementById('blackoutBtn').onclick=()=>DmxCommon.withButtonFeedback(
 document.getElementById('stopChaserBtn').onclick=()=>DmxCommon.withButtonFeedback('stopChaserBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('chaser')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopMotionBtn').onclick=()=>DmxCommon.withButtonFeedback('stopMotionBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('motion')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopAllBtn').onclick=()=>DmxCommon.withButtonFeedback('stopAllBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},async()=>{await Promise.allSettled([stopPico('chaser'),stopPico('motion')]);setStatus('All Pico playback stopped');}).catch(err=>setStatus(err.message,true));
-document.getElementById('chaserControlSlot').onchange=e=>{selectChaserSlot(e.target.value);renderPlaybackSlots();};
+document.getElementById('chaserControlSlot').onchange=e=>{selectChaserSlot(e.target.value);renderChaserPlayback();};
 document.getElementById('chaserControlPlay').onclick=()=>DmxCommon.withButtonFeedback('chaserControlPlay',{busy:'Playing...',success:'Playing',error:'Failed'},()=>startPicoSlot('chaser',chaserSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('chaserControlPause').onclick=()=>DmxCommon.withButtonFeedback('chaserControlPause',{busy:'Pausing...',success:'Paused',error:'Failed'},()=>pauseChaserSlot(chaserSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('chaserControlResume').onclick=()=>DmxCommon.withButtonFeedback('chaserControlResume',{busy:'Resuming...',success:'Resumed',error:'Failed'},()=>resumeChaserSlot(chaserSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('chaserControlSetSpeed').onclick=()=>DmxCommon.withButtonFeedback('chaserControlSetSpeed',{busy:'Setting...',success:'Speed Set',error:'Failed'},()=>setChaserSlotSpeed(chaserSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('chaserControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('chaserControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('chaser',chaserSelectedSlot)).catch(err=>setStatus(err.message,true));
-document.getElementById('motionControlSlot').onchange=e=>{selectMotionSlot(e.target.value);renderPlaybackSlots();};
+document.getElementById('motionControlSlot').onchange=e=>{selectMotionSlot(e.target.value);renderMotionPlayback();};
 document.getElementById('motionControlStart').onclick=()=>DmxCommon.withButtonFeedback('motionControlStart',{busy:'Starting...',success:'Started',error:'Failed'},()=>startPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonFeedback('motionControlSetBpm',{busy:'Setting...',success:'BPM Set',error:'Failed'},()=>setMotionSlotBpm(motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
@@ -1038,8 +1057,8 @@ bindCardInputs();
 bindMatrixInputs('group',normalizeGroupGrid,renderGroups,8,12);
 bindMatrixInputs('scene',normalizeSceneGrid,renderScenes,32,32);
 bindMatrixInputs('palette',normalizePaletteGrid,renderPalettes,32,32);
-bindMatrixInputs('chaser',normalizeChaserGrid,renderPlaybackSlots,32,32);
-bindMatrixInputs('motion',normalizeMotionGrid,renderPlaybackSlots,32,32);
+bindMatrixInputs('chaser',normalizeChaserGrid,drawChaserPlayback,32,32);
+bindMatrixInputs('motion',normalizeMotionGrid,drawMotionPlayback,32,32);
 loadShow().catch(err=>setStatus(err.message,true));
 </script>
 </body>

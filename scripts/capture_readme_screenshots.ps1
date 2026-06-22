@@ -812,7 +812,7 @@ try {
     if ($socket) { $socket.Dispose() }
     $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing
     $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_motion.html*" } | Select-Object -First 1).webSocketDebuggerUrl
-    if (-not $wsUrl) { throw "Could not find Motion FX tab after navigation." }
+    if (-not $wsUrl) { throw "Could not find Effects tab after navigation." }
     $socket = [System.Net.WebSockets.ClientWebSocket]::new()
     $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult() | Out-Null
     $script:cdpId = 0

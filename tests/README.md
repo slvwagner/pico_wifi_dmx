@@ -23,11 +23,11 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 - Chaser **All** clears the selected step/edit context but keeps the step list.
 - Chaser Group Edit can be available from participating controls without a selected step.
 - Chaser **Only** selects one control type without unexpectedly shrinking the fixture scope when no group filter is active.
-- Motion FX filters the effect dropdown by the selected target family.
-- Motion FX **All** clears group filtering and enables every fixture for the selected target.
-- Motion FX **None** disables every visible fixture for the selected target.
-- Motion FX group selection filters the fixture matrix.
-- Motion FX Group Edit uses the selected effect target and requires two matching participating fixtures.
+- Effects filters the effect dropdown by the selected target family.
+- Effects **All** clears group filtering and enables every fixture for the selected target.
+- Effects **None** disables every visible fixture for the selected target.
+- Effects group selection filters the fixture matrix.
+- Effects Group Edit uses the selected effect target and requires two matching participating fixtures.
 - GPIO ADC mappings only offer GPIO26, GPIO27, and GPIO28.
 - GPIO mapping dropdowns mark reserved or already-used pins unavailable.
 - GPIO loads saved mappings from the XAMPP server, autosaves edits back to the server, and preserves those mappings across a fresh device-style reload.
@@ -44,7 +44,7 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 - Shared UI version badge is rendered, and JSON export payloads include `appVersion` and `schemaVersion`.
 - iPad portrait uses a bottom toolbox rail with finger-sized targets; iPad landscape keeps the right-side toolbox workspace.
 - Browser Chase Playback sends fade interpolation at the configured update rate.
-- Real Pico hardware tests can verify `/dmx/output.json`, `/dmx/base.json`, chaser slot upload/play/stop, and motion slot upload/start/stop when enabled in the path config.
+- Real Pico hardware tests can verify `/dmx/output.json`, `/dmx/base.json`, chaser slot upload/play/stop, and effect slot upload/start/stop when enabled in the path config.
 
 ## Running UI Tests
 

@@ -42,7 +42,7 @@ test.describe('Cross-page Group Edit contract', () => {
     await expect(page.locator('#chaserGroupModal')).toBeHidden();
   });
 
-  test('Motion: choosing Dimmer enables Group Edit across fixture types without enabling playback', async ({ page }) => {
+  test('Effects: choosing Dimmer enables Group Edit across fixture types without enabling playback', async ({ page }) => {
     await openDmxPage(page, 'dmx_motion.html');
     await injectMotionCompactSetup(page);
 

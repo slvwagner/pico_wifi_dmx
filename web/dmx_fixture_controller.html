@@ -112,7 +112,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="toolbar">
 <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
 <a class="nav" href="dmx_show.html">Show</a>
-<a class="nav" href="dmx_motion.html">Motion</a>
+<a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
 <a class="nav" href="dmx_gpio.html">GPIO</a>
 <a class="nav" href="user-manual.html#1-fixture-controller" target="_blank">Manual</a>
@@ -2663,7 +2663,7 @@ function resetShowLocalState(){
   draw();
 }
 async function startNewShow(){
-  if(!confirm('Start a fresh show?\n\nThis clears fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico playback slots, and saved toolbox layout. The fixture library is kept.'))return;
+  if(!confirm('Start a fresh show?\n\nThis clears fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico playback slots, and saved toolbox layout. The fixture library is kept.'))return;
   const showBaseUrl=baseUrl.value;
   resetShowLocalState();
   baseUrl.value=showBaseUrl;
@@ -2708,7 +2708,7 @@ async function importFullSetup(data){
     return;
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
-  if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, motion effects, GPIO mappings, live values, and saved UI layout.'))return;
+  if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
   if(migrated.fixture)await postSetupPayload('fixture_setup.php',migrated.fixture);
   if(migrated.liveValues&&typeof migrated.liveValues==='object')await postSetupPayload('fixture_setup.php?livevalues',migrated.liveValues);
   if(migrated.groups)await postSetupPayload('group_setup.php',{baseUrl:migrated.groups.baseUrl||migrated.fixture?.baseUrl||'',groups:Array.isArray(migrated.groups.groups)?migrated.groups.groups:[]});

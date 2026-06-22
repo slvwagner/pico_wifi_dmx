@@ -86,7 +86,7 @@ if (Test-Path -LiteralPath $showSource) {
 }
 if (Test-Path -LiteralPath $motionSource) {
     Copy-Item -LiteralPath $motionSource -Destination $motionTarget -Force
-    Write-Host "Copied motion effects to $motionTarget"
+    Write-Host "Copied effects page to $motionTarget"
 }
 if (Test-Path -LiteralPath $chaserSource) {
     Copy-Item -LiteralPath $chaserSource -Destination $chaserTarget -Force
