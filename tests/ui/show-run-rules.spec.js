@@ -328,6 +328,33 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('allows Pico Effects playback to use a compact layout when only a high slot is loaded', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      liveMotionSlots: Array.from({ length: 64 }, (_, slot) => ({
+        slot,
+        loaded: slot === 63,
+        active: false,
+        bpm: 30,
+        target_count: slot === 63 ? 2 : 0,
+        fixture_count: slot === 63 ? 2 : 0
+      }))
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#motionCols').fill('4');
+    await page.locator('#motionRows').fill('1');
+
+    await expect(page.locator('#motionRows')).toHaveValue('1');
+    await expect(page.locator('#motionSlots .playback-card')).toHaveCount(4);
+    await expect(page.locator('#motionSlots')).toContainText('Pico effect 63');
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('lets the operator move palette tiles locally and still recall the moved palette', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);

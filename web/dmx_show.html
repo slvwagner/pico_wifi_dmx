@@ -462,7 +462,7 @@ function requiredSlots(items){
   return Math.max((items||[]).length?highestSlotIndex(items)+1:0,0);
 }
 function requiredPayloadSlots(slots){
-  return (slots||[]).reduce((max,item,index)=>item?index+1:max,0);
+  return (slots||[]).filter(item=>item&&item.loaded).length;
 }
 function normalizeMatrix(cols,rows,needed,maxCols=32,maxRows=32,priority='cols'){
   cols=Math.max(1,Math.min(maxCols,parseInt(cols,10)||1));
