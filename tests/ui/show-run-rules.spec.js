@@ -273,10 +273,16 @@ test.describe('Show Run page', () => {
     await page.locator('#sceneRows').fill('2');
     await expect(page.locator('#sceneGrid .slot')).toHaveCount(6);
     await expect(page.locator('#sceneGrid')).toHaveCSS('grid-template-columns', /.* .* .*/);
+    const sceneGridWidth = await page.locator('#sceneGrid').evaluate(el => el.getBoundingClientRect().width);
+    const sceneTileWidth = await page.locator('#sceneGrid .slot').first().evaluate(el => el.getBoundingClientRect().width);
+    expect(sceneTileWidth).toBeGreaterThan((sceneGridWidth / 3) - 12);
 
     await page.locator('#chaserCols').fill('2');
     await page.locator('#chaserRows').fill('2');
     await expect(page.locator('#chaserSlots .playback-card')).toHaveCount(4);
+    const chaserGridWidth = await page.locator('#chaserSlots').evaluate(el => el.getBoundingClientRect().width);
+    const chaserTileWidth = await page.locator('#chaserSlots .playback-card').first().evaluate(el => el.getBoundingClientRect().width);
+    expect(chaserTileWidth).toBeGreaterThan((chaserGridWidth / 2) - 12);
 
     expect(calls.setupWrites).toBe(0);
   });

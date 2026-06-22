@@ -9,6 +9,8 @@ Changed:
 - Added Show Run layout controls, including a movable card matrix plus local Cols/Rows and Move mode for arranging operator-page groups, scenes, palettes, and Pico playback tiles.
 - Added a sticky **Edit Layout** toggle on Show Run so all card/tile Move and row/column controls stay hidden during normal show operation.
 - Added direct Show Run Pico playback controls for chaser slots and motion slots, including chaser play/pause/resume/speed actions and motion start/BPM actions.
+- Aligned the Show Run sticky title bar with the shared page-header visual language used by the rest of the app.
+- Moved the Show Run Pico base URL and operator action buttons into the sticky title bar so the Pico target and show controls share the same layout and visual language as the other pages.
 - Added a fixture-library sync script to validate and refresh the bundled catalog from the current XAMPP fixture library.
 - The fixture-library sync script now reviews fixture-level differences before updating the bundled catalog, with interactive prompts plus accept-all, keep-existing, and dry-run modes.
 - Added direct numeric DMX value inputs for wheel controls on the Controller surface and in Controller Group Edit.
