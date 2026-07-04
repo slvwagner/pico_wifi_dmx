@@ -49,9 +49,10 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 
 1. Open `http://localhost/dmx/`.
 2. Enter the Pico base URL, for example `http://192.168.0.24/`.
-3. The Pico base URL field checks `/status.json` automatically. It turns dark green when the Pico is reachable, dark red when it cannot connect, and keeps retrying in the background so it can recover after flashing or rebooting the Pico.
-4. Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.
-5. Fixture setup changes are autosaved to the XAMPP server. Use **Export Setup** before large changes when you want an extra backup of the complete show setup.
+3. If DHCP changed the Pico address, click **Find Pico**. The XAMPP server listens briefly for the Pico's UDP discovery beacon and fills the URL when a Pico is found on the same LAN. The discovered URL is stored in the browser and saved back to the current page's XAMPP setup file on Controller, Chaser, Effects, and GPIO, so the other pages and other devices can reuse the corrected address after reload.
+4. The Pico base URL field checks `/status.json` automatically. It turns dark green when the Pico is reachable, dark red when it cannot connect, and keeps retrying in the background so it can recover after flashing or rebooting the Pico.
+5. Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.
+6. Fixture setup changes are autosaved to the XAMPP server. Use **Export Setup** before large changes when you want an extra backup of the complete show setup.
 
 ### Fixture Library
 

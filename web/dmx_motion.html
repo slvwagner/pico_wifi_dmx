@@ -58,7 +58,7 @@ main{max-width:none;width:100%;margin:0}
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_gpio.html">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.6">GPIO</a>
     <a class="nav" href="user-manual.html#6-effects" target="_blank">Manual</a>
   </div>
 </header>
@@ -292,7 +292,7 @@ populatePicoMotionSlotSelect();
 
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
-DmxCommon.bindBaseUrl(baseUrlEl);
+DmxCommon.bindBaseUrl(baseUrlEl,{onInput:()=>saveMotionToServer(),debounceMs:800});
 let motionGroupsBox=null;
 let collapsedMotionPartFixtures=new Set(JSON.parse(localStorage.getItem('motionPartCollapsedFix')||'[]'));
 motionGroupsBox=DmxCommon.initGroupsToolbox({

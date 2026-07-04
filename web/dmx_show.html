@@ -95,7 +95,7 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.6">GPIO</a>
     <a class="nav" href="user-manual.html">Manual</a>
     <button id="editLayoutBtn" type="button">Edit Layout</button>
   </div>
@@ -814,6 +814,21 @@ function selectMotionSlot(slot){
   const bpm=document.getElementById('motionControlBpm');
   if(bpm&&slotData?.bpm)bpm.value=Math.round(Number(slotData.bpm)||30);
 }
+function playbackSlotsForType(type){
+  return type==='chaser'?chaserSlots:motionSlots;
+}
+function drawPlaybackForType(type){
+  if(type==='chaser')drawChaserPlayback();
+  else drawMotionPlayback();
+}
+function updatePlaybackSlotState(type,slot,patch){
+  const slots=playbackSlotsForType(type);
+  const index=parseInt(slot,10);
+  if(!slots[index])return;
+  Object.assign(slots[index],patch);
+  if(type==='chaser'&&Number(index)===Number(chaserSelectedSlot))updateChaserPauseResumeButton();
+  drawPlaybackForType(type);
+}
 function renderPlaybackSlots(){
   renderChaserPlayback();
   renderMotionPlayback();
@@ -850,12 +865,18 @@ function renderPlayback(containerId,slots,type){
       ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}`
       :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}`:'Pico slot '+sourceSlot;
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
-    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',moveSelected[type]===i||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div><div class="playback-actions"><button class="primary" data-${type}-play="${sourceSlot}">Start</button><button data-${type}-stop="${sourceSlot}">Stop Slot</button></div></div>`;
+    const actionLabel=item?.active?'Stop':'Start';
+    const actionClass=item?.active?'stop':'primary';
+    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',moveSelected[type]===i||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div><div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button></div></div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
   container.innerHTML=html;
-  container.querySelectorAll(`[data-${type}-play]`).forEach(btn=>btn.addEventListener('click',()=>startPicoSlot(type,parseInt(btn.dataset[type+'Play'],10))));
-  container.querySelectorAll(`[data-${type}-stop]`).forEach(btn=>btn.addEventListener('click',()=>stopPicoSlot(type,parseInt(btn.dataset[type+'Stop'],10))));
+  container.querySelectorAll(`[data-${type}-toggle]`).forEach(btn=>btn.addEventListener('click',()=>{
+    const slot=parseInt(btn.dataset[type+'Toggle'],10);
+    const slotData=playbackSlotsForType(type)[slot];
+    const action=slotData?.active?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+    action.catch(err=>setStatus(err.message,true));
+  }));
   container.querySelectorAll('[data-show-tile-index]').forEach(el=>el.addEventListener('click',e=>{
     if(e.target.closest('button'))return;
     if(type==='chaser'&&el.dataset.chaserSelect!==undefined){selectChaserSlot(el.dataset.chaserSelect);if(!moveMode[type]){renderChaserPlayback();return;}}
@@ -916,12 +937,18 @@ async function stopPico(type){
   if(!root)throw new Error('Set Pico base URL first');
   const r=await fetch(root+'/'+type+'/stop',{cache:'no-store'});
   if(!r.ok)throw new Error('Pico '+type+' stop failed: HTTP '+r.status);
+  playbackSlotsForType(type).forEach(slot=>{
+    if(slot)Object.assign(slot,{active:false,paused:false});
+  });
+  if(type==='chaser')updateChaserPauseResumeButton();
+  drawPlaybackForType(type);
 }
 async function stopPicoSlot(type,slot){
   const root=endpoint();
   if(!root)throw new Error('Set Pico base URL first');
   const r=await fetch(root+'/'+type+'/stop/'+slot,{cache:'no-store'});
   if(!r.ok)throw new Error('Pico '+type+' slot stop failed: HTTP '+r.status);
+  updatePlaybackSlotState(type,slot,{active:false,paused:false});
   setStatus(type+' slot '+slot+' stopped');
 }
 async function pauseChaserSlot(slot){
@@ -978,10 +1005,7 @@ async function startPicoSlot(type,slot){
   const action=type==='chaser'?'play':'start';
   const run=await fetch(root+'/'+type+'/'+action+'/'+slot,{cache:'no-store'});
   if(!run.ok)throw new Error('Pico '+type+' start failed: HTTP '+run.status);
-  if(type==='chaser'&&slots[slot]){
-    slots[slot].paused=false;
-    updateChaserPauseResumeButton();
-  }
+  updatePlaybackSlotState(type,slot,type==='chaser'?{active:true,paused:false}:{active:true});
   setStatus(type+' slot '+slot+' started');
 }
 async function loadJson(url,fallback){

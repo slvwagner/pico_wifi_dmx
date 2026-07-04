@@ -12,6 +12,30 @@ test.describe('Fixture Controller established rules', () => {
     await injectControllerCompactSetup(page);
   });
 
+  test('Find Pico is available on the Controller page and fills the Pico base URL', async ({ page }) => {
+    await page.route('**/pico_discovery.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          devices: [{ id: 'test-pico', name: 'pico-wifi-dmx', ip: '192.0.2.55', http: 80, url: 'http://192.0.2.55/' }]
+        })
+      });
+    });
+    await page.route('http://192.0.2.55/status.json', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
+      });
+    });
+
+    await page.getByRole('button', { name: 'Find Pico' }).click();
+
+    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
+  });
+
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
     const state = await page.evaluate(() => {
       selectedFixtureIds = new Set([101, 102, 103]);

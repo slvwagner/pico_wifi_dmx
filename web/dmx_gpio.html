@@ -267,9 +267,12 @@ function gpioData(){
 function applyGPIOData(data){
   const src=Array.isArray(data)?{mappings:data}:data;
   if(!src||!Array.isArray(src.mappings))throw new Error('Invalid GPIO JSON');
-  if(src.baseUrl){
+  const storedBaseUrl=(localStorage.getItem(DmxCommon.BASE_URL_KEY)||'').trim();
+  if(storedBaseUrl){
+    baseUrl.value=storedBaseUrl;
+  }else if(src.baseUrl){
     baseUrl.value=src.baseUrl;
-    localStorage.setItem('dmxPicoBaseUrl',baseUrl.value);
+    localStorage.setItem(DmxCommon.BASE_URL_KEY,baseUrl.value);
   }
   document.getElementById('gpioEnabled').checked=src.enabled!==false;
   mappings=src.mappings.map(normalize);
@@ -422,7 +425,7 @@ async function pollChaserSlots(){
   }catch(_){}
 }
 
-DmxCommon.bindBaseUrl(baseUrl,{fallback:baseUrl.value});
+DmxCommon.bindBaseUrl(baseUrl,{fallback:baseUrl.value,onInput:()=>autosaveSetup(),debounceMs:800});
 document.getElementById('addMapping').onclick=()=>{
   const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin),RESERVED_PINS));
   const pin=Array.from({length:29},(_,i)=>i).find(p=>!used.has(p))??14;

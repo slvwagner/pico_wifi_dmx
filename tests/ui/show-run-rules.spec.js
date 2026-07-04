@@ -207,8 +207,10 @@ test.describe('Show Run page', () => {
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
 
-    await page.locator('[data-chaser-play="0"]').click();
-    await page.locator('[data-motion-play="0"]').click();
+    await page.locator('[data-chaser-toggle="0"]').click();
+    await expect(page.locator('[data-chaser-toggle="0"]')).toHaveText('Stop');
+    await page.locator('[data-motion-toggle="0"]').click();
+    await expect(page.locator('[data-motion-toggle="0"]')).toHaveText('Stop');
     await page.getByRole('button', { name: 'Stop All Playback' }).click();
 
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/chaser/load/0');
@@ -244,9 +246,36 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#chaserSlots')).toContainText('Pico slot 31');
     await expect(page.locator('#chaserSlots')).toContainText('2 steps · live Pico');
 
-    await page.locator('[data-chaser-play="1"]').click();
+    await page.locator('[data-chaser-toggle="1"]').click();
     expect(calls.pico.map(call => call.url)).not.toContain('http://pico.test/chaser/load/1');
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/chaser/play/1');
+  });
+
+  test('Find Pico fills the Pico base URL from the discovery endpoint', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.route('**/pico_discovery.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          devices: [{ id: 'test-pico', name: 'pico-wifi-dmx', ip: '192.0.2.55', http: 80, url: 'http://192.0.2.55/' }]
+        })
+      });
+    });
+    await page.route('http://192.0.2.55/status.json', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
+      });
+    });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.getByRole('button', { name: 'Find Pico' }).click();
+
+    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
   });
 
   test('offers Pico chaser and effects playback controls on Show Run', async ({ page }) => {

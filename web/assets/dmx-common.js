@@ -500,6 +500,58 @@
     }
   }
 
+  async function discoverPicoBaseUrl(input,button){
+    if(!input)return null;
+    if(button){
+      button.disabled=true;
+      button.dataset.originalText=button.dataset.originalText||button.textContent;
+      button.textContent='Finding...';
+    }
+    try{
+      const r=await fetch('pico_discovery.php?timeoutMs=3200',{cache:'no-store'});
+      const j=await r.json();
+      if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+      const devices=Array.isArray(j.devices)?j.devices:[];
+      if(!devices.length)throw new Error('No Pico beacon received');
+      const device=devices[0];
+      const url=String(device.url||('http://'+device.ip+'/'));
+      input.value=url;
+      localStorage.setItem(BASE_URL_KEY,url);
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+      setPicoUrlStatus(input,'checking','Found '+(device.name||'Pico')+' at '+url);
+      return device;
+    }catch(e){
+      setPicoUrlStatus(input,'disconnected','Pico discovery failed: '+e.message);
+      throw e;
+    }finally{
+      if(button){
+        button.disabled=false;
+        button.textContent=button.dataset.originalText||'Find Pico';
+      }
+    }
+  }
+
+  function attachPicoDiscoveryButton(input){
+    if(!input||input.dataset.picoDiscoveryAttached==='1')return null;
+    input.dataset.picoDiscoveryAttached='1';
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='pico-discovery-btn';
+    button.textContent='Find Pico';
+    button.title='Listen for Pico WiFi DMX discovery beacons';
+    button.style.minHeight='38px';
+    button.style.padding='7px 10px';
+    button.addEventListener('click',()=>discoverPicoBaseUrl(input,button).catch(()=>{}));
+    const label=input.closest('label');
+    if(label&&label.parentNode){
+      label.insertAdjacentElement('afterend',button);
+    }else{
+      input.insertAdjacentElement('afterend',button);
+    }
+    return button;
+  }
+
   function observeInputValue(input,onChange){
     const proto=Object.getPrototypeOf(input);
     const desc=proto&&Object.getOwnPropertyDescriptor(proto,'value');
@@ -519,6 +571,7 @@
     if(!input)return;
     if(options&&options.nodeType===1)options={};
     applyBaseUrl(input,options.fallback);
+    if(options.discovery!==false)attachPicoDiscoveryButton(input);
     let timer=0;
     let checkTimer=0;
     let pollTimer=0;
@@ -1971,6 +2024,7 @@
     wheelRangeSliderHtml,
     applyBaseUrl,
     bindBaseUrl,
+    discoverPicoBaseUrl,
     preferStoredBaseUrl,
     saveUiState,
     loadUiState,

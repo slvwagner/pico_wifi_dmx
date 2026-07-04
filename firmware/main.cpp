@@ -7,6 +7,7 @@
 #include "pico/stdlib.h"
 #include "pico/sync.h"
 #include "pico/multicore.h"
+#include "pico/unique_id.h"
 #include "pico/cyw43_arch.h"
 #include "lwip/apps/fs.h"
 #include "lwip/apps/httpd.h"
@@ -14,6 +15,7 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/ip6_addr.h"
 #include "lwip/pbuf.h"
+#include "lwip/udp.h"
 
 #include "dmx_engine.h"
 #include "pico_chaser.h"
@@ -51,6 +53,11 @@
 #define PERF_LOG_INTERVAL_US 2000000u
 #define CORE0_PLAYBACK_PERIOD_US 10000u
 #define CORE1_SERVICE_PERIOD_US 2000000u
+#define PICO_DISCOVERY_PORT 64540u
+
+#ifndef PICO_DMX_VERSION
+#define PICO_DMX_VERSION "0.9.6"
+#endif
 
 static critical_section_t log_lock;
 static critical_section_t dmx_ui_lock;
@@ -66,6 +73,8 @@ static char http_gpio_json[4096];
 static char http_gpio_body[3072];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
+static struct udp_pcb *discovery_udp;
+static char pico_unique_id[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 
 /* POST receive buffer */
 #define POST_BUFFER_MAX (12 * 1024)
@@ -308,6 +317,73 @@ static void log_ip_addresses()
             }
         }
     }
+}
+
+static bool get_ipv4_text(char *buffer, size_t buffer_size)
+{
+    if (!netif_default || !buffer || buffer_size == 0) {
+        return false;
+    }
+
+    ip4_addr_t addr;
+    cyw43_arch_lwip_begin();
+    addr = *netif_ip4_addr(netif_default);
+    cyw43_arch_lwip_end();
+
+    if (ip4_addr_isany_val(addr)) {
+        buffer[0] = '\0';
+        return false;
+    }
+
+    snprintf(buffer, buffer_size, "%s", ip4addr_ntoa(&addr));
+    return true;
+}
+
+static void send_discovery_beacon()
+{
+    char ipv4[16];
+    if (!get_ipv4_text(ipv4, sizeof(ipv4))) {
+        return;
+    }
+
+    if (!discovery_udp) {
+        discovery_udp = udp_new();
+        if (!discovery_udp) {
+            log_printf("Discovery beacon: udp_new failed\n");
+            return;
+        }
+        ip_set_option(discovery_udp, SOF_BROADCAST);
+    }
+
+    char payload[256];
+    int payload_len = snprintf(
+        payload,
+        sizeof(payload),
+        "{\"type\":\"pico_wifi_dmx\",\"name\":\"pico-wifi-dmx\",\"version\":\"%s\",\"ip\":\"%s\",\"http\":80,\"id\":\"%s\"}\n",
+        PICO_DMX_VERSION,
+        ipv4,
+        pico_unique_id[0] ? pico_unique_id : "unknown"
+    );
+    if (payload_len <= 0) {
+        return;
+    }
+    if (payload_len >= (int)sizeof(payload)) {
+        payload_len = (int)sizeof(payload) - 1;
+    }
+
+    cyw43_arch_lwip_begin();
+    struct pbuf *packet = pbuf_alloc(PBUF_TRANSPORT, (u16_t)payload_len, PBUF_RAM);
+    if (packet) {
+        memcpy(packet->payload, payload, (size_t)payload_len);
+        err_t err = udp_sendto(discovery_udp, packet, IP_ADDR_BROADCAST, PICO_DISCOVERY_PORT);
+        if (err != ERR_OK) {
+            log_printf("Discovery beacon send failed: %d\n", (int)err);
+        }
+        pbuf_free(packet);
+    } else {
+        log_printf("Discovery beacon: pbuf_alloc failed\n");
+    }
+    cyw43_arch_lwip_end();
 }
 
 static void stay_alive_with_message(const char *message)
@@ -1613,6 +1689,7 @@ static void core1_network_log_server()
 
     log_printf("Connected to Wi-Fi\n");
     log_printf("Approx free RAM: %u bytes\n", (unsigned)get_free_ram_bytes());
+    pico_get_unique_board_id_string(pico_unique_id, sizeof(pico_unique_id));
     start_ipv6_autoconfig();
     log_ip_addresses();
 
@@ -1637,6 +1714,9 @@ static void core1_network_log_server()
                    link_status_name(wifi_status),
                    link_status_name(tcpip_status),
                    (unsigned)get_free_ram_bytes());
+        if (tcpip_status == CYW43_LINK_UP) {
+            send_discovery_beacon();
+        }
         http_perf_log_and_reset();
 
         while ((int32_t)(next_service_us - time_us_32()) > 50000) {

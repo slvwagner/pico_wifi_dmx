@@ -76,6 +76,7 @@ target_compile_definitions(pico_wifi_dmx PRIVATE
         DMX_TRIGGER_PIN=${DMX_TRIGGER_PIN}
         DMX_CHANNELS=${DMX_CHANNELS}
         DMX_REFRESH_RATE=${DMX_REFRESH_RATE}
+        PICO_DMX_VERSION="0.9.6"
 )
 
 pico_set_program_name(pico_wifi_dmx "pico-wifi-dmx")

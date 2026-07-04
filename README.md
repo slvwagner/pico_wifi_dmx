@@ -135,6 +135,8 @@ Enter the Pico base URL shown in the Pico serial log, for example:
 http://192.168.0.24/
 ```
 
+If DHCP changed the Pico address, click **Find Pico** next to the Pico base URL field. The Pico firmware broadcasts a small UDP discovery beacon on port `64540`; the XAMPP endpoint `pico_discovery.php` listens briefly and returns the discovered URL to the browser. The discovered URL is written to the shared browser key and saved back to the current page's XAMPP setup file on Controller, Chaser, Effects, and GPIO, so the corrected Pico address survives reloads and is reused by other devices that open the same show data. This works when the browser/XAMPP machine and Pico are on the same LAN and local firewall rules allow UDP broadcasts to reach Apache/PHP.
+
 Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Setup** before large changes when you want an extra backup of the complete show setup.
 
 ### Install the firmware
@@ -842,7 +844,7 @@ Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, C
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
-The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough. Live Pico updates only happen while this URL is set; clearing it puts the UI into browser-only editing.
+The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough. When **Find Pico** updates the URL, Controller, Chaser, Effects, and GPIO also save the corrected URL to their XAMPP setup JSON. Live Pico updates only happen while this URL is set; clearing it puts the UI into browser-only editing.
 
 ### Chaser / Effects — Saved Chases, Presets and Pico Slots
 

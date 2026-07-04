@@ -114,7 +114,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.6">GPIO</a>
 <a class="nav" href="user-manual.html#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
@@ -492,7 +492,7 @@ const FULL_SETUP_FORMAT_VERSION=2;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
 const baseUrl=document.getElementById('baseUrl');
-DmxCommon.bindBaseUrl(baseUrl);
+DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
 const statusEl=document.getElementById('status');
 const profilesEl=document.getElementById('profiles');
 const patchProfile=document.getElementById('patchProfile');
