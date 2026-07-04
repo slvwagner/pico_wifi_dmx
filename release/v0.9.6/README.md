@@ -43,7 +43,7 @@ Install the runtime tools:
 Configure the local paths first. The scripts use `config/local-paths.json` as their default path configuration for your machine:
 
 ```powershell
-cd D:\Projects\pico_wifi_dmx
+cd <path-to-your-checkout>\pico_wifi_dmx
 Copy-Item config\local-paths.example.json config\local-paths.json
 ```
 
@@ -87,7 +87,7 @@ http://localhost/dmx/
 On Ubuntu, you can run the browser UI directly from the repository without XAMPP:
 
 ```bash
-cd ~/SW-Entwicklung/pico_wifi_dmx
+cd ~/pico_wifi_dmx
 php -S 127.0.0.1:8000 scripts/dev-router.php
 ```
 
@@ -178,7 +178,7 @@ Install the firmware build tools:
 Configure WiFi and build:
 
 ```powershell
-cd D:\Projects\pico_wifi_dmx
+cd <path-to-your-checkout>\pico_wifi_dmx
 cmake -S . -B build -G Ninja `
   -DWIFI_SSID="your_ssid" `
   -DWIFI_PASSWORD="your_password"
@@ -189,7 +189,7 @@ cmake --build build
 On Ubuntu, use the same CMake options with shell quoting:
 
 ```bash
-cd ~/SW-Entwicklung/pico_wifi_dmx
+cd ~/pico_wifi_dmx
 cmake -S . -B build -G Ninja \
   -DWIFI_SSID="your_ssid" \
   -DWIFI_PASSWORD="your_password"
@@ -261,7 +261,7 @@ Install the development/test tools:
 Install JavaScript test dependencies from the project root:
 
 ```powershell
-cd D:\Projects\pico_wifi_dmx
+cd <path-to-your-checkout>\pico_wifi_dmx
 npm install
 npx playwright install chromium
 ```
@@ -346,7 +346,7 @@ Regression tests live in [tests](tests/). The UI tests use Playwright against th
 First-time setup on Windows:
 
 ```powershell
-cd D:\Projects\pico_wifi_dmx
+cd <path-to-your-checkout>\pico_wifi_dmx
 npm install
 npx playwright install chromium
 ```
@@ -366,7 +366,7 @@ npm run test:ui
 On Ubuntu, point the tests at the PHP dev server instead of the default XAMPP URL:
 
 ```bash
-cd ~/SW-Entwicklung/pico_wifi_dmx
+cd ~/pico_wifi_dmx
 php -S 127.0.0.1:8002 scripts/dev-router.php
 ```
 
