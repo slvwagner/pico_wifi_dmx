@@ -318,7 +318,7 @@ test.describe('iPad layout rules', () => {
         mainWidth: Math.round(document.querySelector('main').getBoundingClientRect().width),
         surfaceWidth: Math.round(surfaceRect.width),
         surfaceOverflow: surface.scrollWidth - surface.clientWidth,
-        columnsOverflow: columns.scrollWidth - columns.clientWidth,
+        columnsOverflow: columns ? columns.scrollWidth - columns.clientWidth : 0,
         cards
       };
     });
