@@ -2,13 +2,13 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 const APP_PAGES = [
-  { path: '', manualHref: 'user-manual.html#1-fixture-controller', manualText: 'Fixture Controller' },
-  { path: 'dmx_show.html', manualHref: 'user-manual.html#4-show-run', manualText: 'Show Run' },
-  { path: 'dmx_chaser.html', manualHref: 'user-manual.html#5-chaser', manualText: 'Chaser' },
-  { path: 'dmx_motion.html', manualHref: 'user-manual.html#6-effects', manualText: 'Effects' },
-  { path: 'dmx_gpio.html', manualHref: 'user-manual.html#7-gpio-control', manualText: 'GPIO Control' },
-  { path: 'test/', manualHref: '../user-manual.html#8-pico-performance-test', manualText: 'Pico Performance Test' },
-  { path: 'dmx_monitor.html', manualHref: 'user-manual.html#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' }
+  { path: '', manualHref: 'user-manual.html?v=0.9.6#1-fixture-controller', manualText: 'Fixture Controller' },
+  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=0.9.6#4-show-run', manualText: 'Show Run' },
+  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=0.9.6#5-chaser', manualText: 'Chaser' },
+  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=0.9.6#6-effects', manualText: 'Effects' },
+  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.6#7-gpio-control', manualText: 'GPIO Control' },
+  { path: 'test/', manualHref: '../user-manual.html?v=0.9.6#8-pico-performance-test', manualText: 'Pico Performance Test' },
+  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=0.9.6#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' }
 ];
 
 test.describe('Page link rules', () => {
@@ -68,6 +68,22 @@ test.describe('Page link rules', () => {
       expect(href, `${appPage.path || 'index.html'} Manual link must include a section hash`).toContain('#');
       const hash = new URL(href, 'http://localhost/dmx/').hash;
       await expect(manualPage.locator(`[id="${hash.slice(1)}"]`), `${href} must exist in user-manual.html`).toBeVisible();
+    }
+  });
+
+  test('pressing each Manual button opens the matching manual section', async ({ page }) => {
+    for (const appPage of APP_PAGES) {
+      await openDmxPage(page, appPage.path);
+      const [manualPage] = await Promise.all([
+        page.waitForEvent('popup'),
+        page.locator('header a.nav', { hasText: 'Manual' }).click()
+      ]);
+      await manualPage.waitForLoadState('domcontentloaded');
+      const expectedHash = new URL(appPage.manualHref, 'http://localhost/dmx/').hash;
+      await expect.poll(() => manualPage.evaluate(() => location.hash), `${appPage.path || 'index.html'} should open ${expectedHash}`)
+        .toBe(expectedHash);
+      await expect(manualPage.locator(`[id="${expectedHash.slice(1)}"]`)).toBeInViewport();
+      await manualPage.close();
     }
   });
 });
