@@ -255,9 +255,15 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#chaserControlSpeed').fill('1.5');
+    await expect(page.locator('#chaserControlPause')).toHaveCount(0);
+    await expect(page.locator('#chaserControlResume')).toHaveCount(0);
+    await expect(page.locator('#chaserControlPauseResume')).toHaveText('Pause');
     await page.locator('#chaserControlPlay').click();
-    await page.locator('#chaserControlPause').click();
-    await page.locator('#chaserControlResume').click();
+    await expect(page.locator('#chaserControlPauseResume')).toHaveText('Pause');
+    await page.locator('#chaserControlPauseResume').click();
+    await expect(page.locator('#chaserControlPauseResume')).toHaveText('Resume');
+    await page.locator('#chaserControlPauseResume').click();
+    await expect(page.locator('#chaserControlPauseResume')).toHaveText('Pause');
     await page.locator('#chaserControlSetSpeed').click();
     await page.locator('#chaserControlStopSlot').click();
 
