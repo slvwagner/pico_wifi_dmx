@@ -76,11 +76,11 @@ target_compile_definitions(pico_wifi_dmx PRIVATE
         DMX_TRIGGER_PIN=${DMX_TRIGGER_PIN}
         DMX_CHANNELS=${DMX_CHANNELS}
         DMX_REFRESH_RATE=${DMX_REFRESH_RATE}
-        PICO_DMX_VERSION="0.9.6"
+        PICO_DMX_VERSION="0.9.7"
 )
 
 pico_set_program_name(pico_wifi_dmx "pico-wifi-dmx")
-pico_set_program_version(pico_wifi_dmx "0.9.6")
+pico_set_program_version(pico_wifi_dmx "0.9.7")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(pico_wifi_dmx 0)
