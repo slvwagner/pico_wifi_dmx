@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.6 - Unreleased
+## 0.9.6 - 2026-07-04
 
 Changed:
 
@@ -13,6 +13,7 @@ Changed:
 - Moved the Show Run Pico base URL and operator action buttons into the sticky title bar so the Pico target and show controls share the same layout and visual language as the other pages.
 - Added Pico discovery: firmware broadcasts a UDP beacon on port `64540`, XAMPP serves `pico_discovery.php`, and Pico base URL fields get a shared **Find Pico** button.
 - **Find Pico** now saves the discovered Pico URL back to the relevant XAMPP setup file on Controller, Chaser, Effects, and GPIO so the corrected address survives reloads and page changes.
+- Added dedicated, cache-busted Manual links for every app page and linked the manual's Main Pages overview to each matching section, including Show Run, GPIO Control, Pico Performance Test, and DMX Buffer Monitor.
 - Renamed the user-facing Motion FX page/workflow to **Effects** across navigation, Show Run playback labels, README, and the user manual while keeping existing `dmx_motion.html`, `motion_setup.php`, and `/motion/*` API names for compatibility.
 - Added a fixture-library sync script to validate and refresh the bundled catalog from the current XAMPP fixture library.
 - The fixture-library sync script now reviews fixture-level differences before updating the bundled catalog, with interactive prompts plus accept-all, keep-existing, and dry-run modes.
