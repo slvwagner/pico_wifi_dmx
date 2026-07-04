@@ -1,6 +1,16 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
+const APP_PAGES = [
+  { path: '', manualHref: 'user-manual.html#1-fixture-controller', manualText: 'Fixture Controller' },
+  { path: 'dmx_show.html', manualHref: 'user-manual.html#4-show-run', manualText: 'Show Run' },
+  { path: 'dmx_chaser.html', manualHref: 'user-manual.html#5-chaser', manualText: 'Chaser' },
+  { path: 'dmx_motion.html', manualHref: 'user-manual.html#6-effects', manualText: 'Effects' },
+  { path: 'dmx_gpio.html', manualHref: 'user-manual.html#7-gpio-control', manualText: 'GPIO Control' },
+  { path: 'test/', manualHref: '../user-manual.html#8-pico-performance-test', manualText: 'Pico Performance Test' },
+  { path: 'dmx_monitor.html', manualHref: 'user-manual.html#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' }
+];
+
 test.describe('Page link rules', () => {
   test('main pages link to Show Run', async ({ page }) => {
     for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_gpio.html', 'dmx_monitor.html']) {
@@ -28,5 +38,36 @@ test.describe('Page link rules', () => {
 
     await openDmxPage(page, 'test/');
     await expect(page.locator('header a.nav[href="../dmx_monitor.html"]')).toHaveText('Monitor');
+  });
+
+  test('page manual links jump to the matching manual section', async ({ page }) => {
+    for (const link of APP_PAGES) {
+      await openDmxPage(page, link.path);
+      await expect(page.locator(`header a.nav[href="${link.manualHref}"]`)).toHaveText('Manual');
+    }
+  });
+
+  test('manual main-page overview links to each dedicated page section', async ({ page }) => {
+    await page.goto(`user-manual.html?test=${Date.now()}`);
+    await expect(page.locator('h1')).toBeVisible();
+    for (const section of APP_PAGES) {
+      const hash = new URL(section.manualHref, 'http://localhost/dmx/').hash;
+      await expect(page.locator(`a[href="${hash}"]`, { hasText: section.manualText })).toBeVisible();
+      await expect(page.locator(`[id="${hash.slice(1)}"]`)).toBeVisible();
+    }
+  });
+
+  test('each page Manual button targets an existing manual anchor', async ({ page }) => {
+    const manualPage = await page.context().newPage();
+    await manualPage.goto(`user-manual.html?test=${Date.now()}`);
+    await expect(manualPage.locator('h1')).toBeVisible();
+
+    for (const appPage of APP_PAGES) {
+      await openDmxPage(page, appPage.path);
+      const href = await page.locator('header a.nav', { hasText: 'Manual' }).getAttribute('href');
+      expect(href, `${appPage.path || 'index.html'} Manual link must include a section hash`).toContain('#');
+      const hash = new URL(href, 'http://localhost/dmx/').hash;
+      await expect(manualPage.locator(`[id="${hash.slice(1)}"]`), `${href} must exist in user-manual.html`).toBeVisible();
+    }
   });
 });
