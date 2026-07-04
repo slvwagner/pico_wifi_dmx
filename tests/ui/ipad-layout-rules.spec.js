@@ -22,7 +22,7 @@ test.describe('iPad layout rules', () => {
   for (const [label, path] of [
     ['Controller', ''],
     ['Chaser', 'dmx_chaser.html'],
-    ['Motion', 'dmx_motion.html']
+    ['Effects', 'dmx_motion.html']
   ]) {
     test(`${label} iPad landscape keeps the header sticky during document scroll`, async ({ browser }) => {
       const context = await browser.newContext({
@@ -66,7 +66,7 @@ test.describe('iPad layout rules', () => {
   for (const [label, path] of [
     ['Controller', ''],
     ['Chaser', 'dmx_chaser.html'],
-    ['Motion', 'dmx_motion.html']
+    ['Effects', 'dmx_motion.html']
   ]) {
     test(`${label} iPad portrait keeps the header sticky during document scroll`, async ({ browser }) => {
       const context = await browser.newContext({
@@ -110,7 +110,7 @@ test.describe('iPad layout rules', () => {
   for (const [label, path] of [
     ['Controller', ''],
     ['Chaser', 'dmx_chaser.html'],
-    ['Motion', 'dmx_motion.html']
+    ['Effects', 'dmx_motion.html']
   ]) {
     test(`${label} iPad landscape shares the same draggable toolbox divider`, async ({ page }) => {
       await page.setViewportSize({ width: 1024, height: 768 });
@@ -318,7 +318,7 @@ test.describe('iPad layout rules', () => {
         mainWidth: Math.round(document.querySelector('main').getBoundingClientRect().width),
         surfaceWidth: Math.round(surfaceRect.width),
         surfaceOverflow: surface.scrollWidth - surface.clientWidth,
-        columnsOverflow: columns.scrollWidth - columns.clientWidth,
+        columnsOverflow: columns ? columns.scrollWidth - columns.clientWidth : 0,
         cards
       };
     });
@@ -394,7 +394,7 @@ test.describe('iPad layout rules', () => {
     for (const cfg of [
       { label: 'Controller', path: '' },
       { label: 'Chaser', path: 'dmx_chaser.html' },
-      { label: 'Motion', path: 'dmx_motion.html' }
+      { label: 'Effects', path: 'dmx_motion.html' }
     ]) {
       await page.setViewportSize({ width: 768, height: 1024 });
       await openDmxPage(page, cfg.path);
@@ -448,7 +448,7 @@ test.describe('iPad layout rules', () => {
     for (const cfg of [
       { label: 'Controller', path: '' },
       { label: 'Chaser', path: 'dmx_chaser.html' },
-      { label: 'Motion', path: 'dmx_motion.html' }
+      { label: 'Effects', path: 'dmx_motion.html' }
     ]) {
       await page.setViewportSize({ width: 768, height: 1024 });
       await openDmxPage(page, cfg.path);
@@ -503,7 +503,7 @@ test.describe('iPad layout rules', () => {
       for (const cfg of [
         { label: 'Controller', path: '' },
         { label: 'Chaser', path: 'dmx_chaser.html' },
-        { label: 'Motion', path: 'dmx_motion.html' }
+        { label: 'Effects', path: 'dmx_motion.html' }
       ]) {
         await openDmxPage(page, cfg.path);
         const layout = await page.evaluate(async label => {
@@ -721,7 +721,7 @@ test.describe('iPad layout rules', () => {
     }
   });
 
-  test('Motion iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
+  test('Effects iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
     const context = await browser.newContext({
       baseURL: loadPathConfig().xamppBaseUrl,
       viewport: { width: 768, height: 1024 },

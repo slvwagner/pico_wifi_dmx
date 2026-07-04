@@ -377,8 +377,11 @@ try {
   docShots.setToolboxRail({collapsed:true});
   docShots.setSceneBox({visible:false});
   docShots.setGroupsBox({visible:false});
-  const panel=document.querySelector('#profileList') || document.querySelector('#profileForm') || document.body;
-  document.querySelector('main')?.scrollTo(0,70);
+  if(typeof setSectionCollapsed==='function')setSectionCollapsed('fixtureLibraryCollapseBtn','fixtureLibraryBody','fixtureLibraryCollapsed',true);
+  const main=document.querySelector('main');
+  const panel=document.getElementById('profilesSection');
+  if(main&&panel)main.scrollTo({top:Math.max(0,panel.offsetTop-150),left:0});
+  else panel?.scrollIntoView({block:'start'});
   await docShots.wait(300);
   docShots.setToolboxRail({collapsed:true});
   await docShots.wait();
@@ -809,7 +812,7 @@ try {
     if ($socket) { $socket.Dispose() }
     $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing
     $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_motion.html*" } | Select-Object -First 1).webSocketDebuggerUrl
-    if (-not $wsUrl) { throw "Could not find Motion FX tab after navigation." }
+    if (-not $wsUrl) { throw "Could not find Effects tab after navigation." }
     $socket = [System.Net.WebSockets.ClientWebSocket]::new()
     $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult() | Out-Null
     $script:cdpId = 0

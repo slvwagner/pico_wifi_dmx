@@ -155,7 +155,7 @@ test.describe('Toolbox visual tile rules', () => {
     expect(state.storedPalette).toEqual({ type: 'visual', color: '#456789', image: '' });
   });
 
-  test('new motion effects inherit default color but not default icon image', async ({ page }) => {
+  test('new effects inherit default color but not default icon image', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('motionEffectVisualDefault', JSON.stringify({
         type: 'visual',
@@ -216,7 +216,7 @@ test.describe('Toolbox visual tile rules', () => {
     expect(state.visualPointerEvents).toBe('none');
     expect(state.labelPosition).toBe('relative');
     expect(state.labelAlignSelf).toBe('end');
-    expect(state.labelBackground).toBe('rgb(50, 90, 54)');
+    expect(state.labelBackground).toBe('rgba(0, 0, 0, 0)');
     expect(state.labelZIndex).toBe('1');
   });
 

@@ -234,3 +234,37 @@ test.describe('GPIO established rules', () => {
     ]);
   });
 });
+
+test.describe('GPIO Pico base URL rules', () => {
+  test('keeps a discovered Pico URL when GPIO server setup still has an older base URL', async ({ page }) => {
+    await page.route('**/gpio_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          baseUrl: 'http://192.168.0.24/',
+          enabled: true,
+          mappings: [],
+          adcMappings: []
+        })
+      });
+    });
+
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxPicoBaseUrl', 'http://192.168.0.14/');
+      localStorage.removeItem('dmxGPIOConfig');
+    });
+    await page.goto(`dmx_gpio.html?test=${Date.now()}`);
+    await expect(page.locator('header h1')).toBeVisible();
+
+    await expect(page.locator('#baseUrl')).toHaveValue('http://192.168.0.14/');
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('dmxPicoBaseUrl')))
+      .toBe('http://192.168.0.14/');
+  });
+});

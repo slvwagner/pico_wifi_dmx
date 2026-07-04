@@ -9,6 +9,7 @@ $routes = [
     '/' => "$root/web/dmx_fixture_controller.html",
     '/index.html' => "$root/web/dmx_fixture_controller.html",
     '/dmx_fixture_controller.html' => "$root/web/dmx_fixture_controller.html",
+    '/dmx_show.html' => "$root/web/dmx_show.html",
     '/dmx_motion.html' => "$root/web/dmx_motion.html",
     '/dmx_chaser.html' => "$root/web/dmx_chaser.html",
     '/dmx_monitor.html' => "$root/web/dmx_monitor.html",
@@ -31,6 +32,7 @@ $apiRoutes = [
     '/gpio_setup.php' => "$root/api/gpio_setup.php",
     '/fixture_library.php' => "$root/api/fixture_library.php",
     '/ui_state.php' => "$root/api/ui_state.php",
+    '/pico_discovery.php' => "$root/api/pico_discovery.php",
 ];
 
 if (isset($apiRoutes[$path])) {

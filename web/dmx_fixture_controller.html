@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.5">
-<script src="assets/dmx-common.js?v=0.9.5"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.6">
+<script src="assets/dmx-common.js?v=0.9.6"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -79,11 +79,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .profile-control-actions button{padding:5px 9px;font-size:12px;line-height:1.2;min-height:0}
 .pantilt-options{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding-top:4px}
 .pantilt-options label{display:flex;flex-direction:row;align-items:center;gap:6px}
+.profile-control-editor-box{border:1px solid var(--line);border-radius:8px;background:#0f151a;padding:12px;display:grid;gap:10px;margin-top:12px}
+.profile-control-editor-box #typeChannelsCard{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
+.control-details-actions{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .setup-files-card .toolbar{align-items:center}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
-.wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.gobo-canvas{width:120px;height:120px;border:1px solid var(--line);border-radius:8px;background:#000;touch-action:none;cursor:crosshair}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
+.wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 #addControlBody{display:grid;gap:10px}
 .control.fan-affected{border-color:rgba(244,114,182,.85);box-shadow:0 0 0 1px rgba(244,114,182,.35) inset;background:rgba(244,114,182,.07)}
 .fan-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
@@ -108,10 +111,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div class="toolbar">
 <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-<a class="nav" href="dmx_motion.html">Motion</a>
+<a class="nav" href="dmx_show.html">Show</a>
+<a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html">GPIO</a>
-<a class="nav" href="user-manual.html#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.6">GPIO</a>
+<a class="nav" href="user-manual.html?v=0.9.6#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -150,8 +154,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </section>
 
-<section class="columns">
-<div class="panel">
+<section class="panel" id="profilesSection">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Fixture Profiles</h2>
 <button id="profilesCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
@@ -165,20 +168,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="addProfile">Add profile</button>
 </div>
 </div>
-<div class="profile-list-block">
-<div class="profile-list-title"><span>Saved profiles</span><span class="small">Select a profile to edit or patch</span></div>
-<div class="list" id="profiles"></div>
-</div>
-</div>
-</div>
 
-<div class="panel">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-<h2>Add / Edit Control</h2>
-<button id="addControlCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
+<div id="addControlBody" class="profile-control-editor-box">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div>
+<div style="font-size:13px;font-weight:700;color:var(--text)">Add / Edit Control</div>
+<div class="small">Choose type, label, and channel mapping here. Detailed settings open in the control modal.</div>
 </div>
-<div id="addControlBody">
-<div id="typeChannelsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px">
+<button id="openControlDetails" class="primary" type="button">Configure control</button>
+<button id="addControlCollapseBtn" type="button" style="display:none">−</button>
+</div>
+<div id="typeChannelsCard">
 <div style="font-size:13px;font-weight:600;color:var(--text)">Type, Label &amp; Channels</div>
 <div class="toolbar">
 <label>Type
@@ -203,6 +203,26 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label id="controlDWrap"><span id="controlDLabel">Ch D</span><input id="controlD" type="number" min="1" max="512" value="0"></label>
 <label id="controlEWrap"><span id="controlELabel">Ch E</span><input id="controlE" type="number" min="1" max="512" value="0"></label>
 </div>
+<div class="small" id="controlHint"></div>
+</div>
+<div class="buttons">
+<button id="cancelEdit">Cancel edit</button>
+</div>
+</div>
+<div class="profile-list-block">
+<div class="profile-list-title"><span>Saved profiles</span><span class="small">Select a profile to edit or patch</span></div>
+<div class="list" id="profiles"></div>
+</div>
+</div>
+</section>
+
+<div id="controlDetailsModal" class="modal-overlay" style="display:none">
+<div class="modal wide-modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div><h2 id="controlDetailsTitle">Control Details</h2><div class="small" id="controlDetailsSummary">Configure default, blackout, and type-specific control settings.</div></div>
+<button id="closeControlDetailsModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div class="modal-body">
 <div id="panTiltOptions" class="pantilt-options">
 <label><input id="panReverse" type="checkbox"> Reverse Pan DMX</label>
 <label><input id="tiltReverse" type="checkbox"> Reverse Tilt DMX</label>
@@ -212,21 +232,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label>Wheel options, one per line: name=value
 <textarea id="wheelOptions">Open=0</textarea>
 </label>
+<div class="small">Ranges and OFL-style metadata are supported, for example <code>Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast</code> or <code>Rotation=250-255|kind=WheelRotation|speed=slow CW-fast CW</code>.</div>
 <div class="wheel-editor">
-<div class="toolbar">
-<label>Option name<input id="wheelName" type="text" value="Open"></label>
-<label>DMX value<input id="wheelValue" type="number" min="0" max="255" value="0"></label>
-<label>Color<input id="wheelColor" type="color" value="#ffffff"></label>
-<label>Upload image<input id="wheelImage" type="file" accept="image/*"></label>
+<div class="buttons"><button id="openWheelOptionsModal" type="button" class="primary">Guided wheel editor</button></div>
+<div class="small">Use the guided table to add wheel rows, set DMX ranges, choose function metadata, assign colors, upload icons, or draw icons. The text box remains available for advanced manual edits.</div>
 </div>
-<div class="toolbar">
-<canvas id="goboCanvas" class="gobo-canvas" width="120" height="120"></canvas>
-<div class="buttons"><button id="clearGobo" type="button">Clear drawing</button><button id="addWheelOption" type="button">Add wheel option</button></div>
-</div>
-<div class="small">Wheel option format: Name=value|#color or Name=value|image-data. Uploaded images and drawings are saved inside the setup JSON.</div>
-</div>
-</div>
-<div class="small" id="controlHint"></div>
 </div>
 <div id="defBlkCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:12px">
 <div style="font-size:13px;font-weight:600;color:var(--text)">Default &amp; Blackout</div>
@@ -261,13 +271,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 </div>
-<div id="actionsCard" style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<div id="actionsCard" class="control-details-actions">
 <button class="primary" id="addControl">Add control</button>
-<button id="cancelEdit">Cancel edit</button>
+<button id="closeControlDetailsModal2" type="button">Close</button>
 </div>
 </div>
 </div>
-</section>
+</div>
 
 <section class="panel" id="patchSection">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
@@ -308,6 +318,41 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default</button>
 <button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout</button>
 <button id="closeGroupModal2">Close</button>
+</div>
+</div>
+</div>
+
+<div id="wheelOptionsModal" class="modal-overlay" style="display:none">
+<div class="modal wide-modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div><h2>Guided Wheel Editor</h2><div class="small">Edit wheel slots, ranges, shake and rotation metadata without writing the raw line syntax.</div></div>
+<button id="closeWheelOptionsModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div id="wheelOptionsModalBody" class="modal-body"></div>
+<div class="buttons" style="padding-top:4px">
+<button id="addWheelOptionsModalRow" type="button">Add option</button>
+<button id="cancelWheelOptionsModal" type="button">Cancel</button>
+<button id="applyWheelOptionsModal" type="button" class="primary">Apply options</button>
+</div>
+</div>
+</div>
+
+<div id="wheelIconDrawModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div><h2>Draw Icon</h2><div class="small" id="wheelIconDrawTitle">Wheel option icon</div></div>
+<button id="closeWheelIconDrawModal" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div class="modal-body">
+<div class="toolbar wheel-icon-draw-tools">
+<label>Brush<input id="wheelIconBrushColor" type="color" value="#ffffff"></label>
+<button id="clearWheelIconDrawing" type="button">Clear drawing</button>
+</div>
+<canvas id="wheelIconCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="cancelWheelIconDrawing" type="button">Cancel</button>
+<button id="saveWheelIconDrawing" type="button" class="primary">Save icon</button>
 </div>
 </div>
 </div>
@@ -360,8 +405,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <label>Scope<select id="paletteScope">
 <option value="position">Position</option>
 <option value="color">Color</option>
-<option value="beam">Beam / Gobo</option>
 <option value="dimmer">Dimmer</option>
+<option value="shutter">Shutter / Strobe</option>
+<option value="gobo">Gobo</option>
+<option value="prism">Prism</option>
+<option value="optics">Optics</option>
+<option value="effects">Programs / Effects</option>
 <option value="all">All controls</option>
 </select></label>
 <div class="small">Empty slot saves the selected scope. Filled slot recalls as an overlay.</div>
@@ -371,6 +420,22 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="movePaletteBtn" class="tile-move-btn" title="Move palette tiles by dragging them to another slot">Move</button>
 </div>
 <div id="paletteMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="paletteMergeModal" class="modal-overlay" style="display:none">
+<div class="modal palette-merge-modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Merge Palette</h2>
+<button id="paletteMergeClose" style="font-size:16px;padding:6px 14px">✕</button>
+</div>
+<div class="modal-body">
+<div id="paletteMergeSummary" class="small"></div>
+<div id="paletteMergeMatrix" class="scene-slot-matrix palette-merge-matrix"></div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="paletteMergeClose2">Close</button>
+</div>
 </div>
 </div>
 
@@ -427,7 +492,7 @@ const FULL_SETUP_FORMAT_VERSION=2;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
 const baseUrl=document.getElementById('baseUrl');
-DmxCommon.bindBaseUrl(baseUrl);
+DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
 const statusEl=document.getElementById('status');
 const profilesEl=document.getElementById('profiles');
 const patchProfile=document.getElementById('patchProfile');
@@ -616,7 +681,6 @@ function parseWheelOptions(text){
   return text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
     const parts=line.split('=');
     const meta=(parts.slice(1).join('=')||'0').split('|');
-    const visual=(meta[1]||'').trim();
     const rawValue=(meta[0]||'0').trim();
     const rangeMatch=rawValue.match(/^(\d+)\s*-\s*(\d+)$/);
     const option={name:(parts[0]||'Value').trim(),value:clamp(rawValue,0,255)};
@@ -625,18 +689,62 @@ function parseWheelOptions(text){
       option.range=[Math.min(start,end),Math.max(start,end)];
       option.value=Math.round((option.range[0]+option.range[1])/2);
     }
-    if(visual.startsWith('#'))option.color=visual;
-    else if(visual.startsWith('data:image/'))option.image=visual;
+    meta.slice(1).map(item=>item.trim()).filter(Boolean).forEach(item=>applyWheelOptionMeta(option,item));
     return option;
   });
+}
+
+function applyWheelOptionMeta(option,item){
+  const pair=item.match(/^([a-zA-Z][\w-]*)\s*=\s*(.*)$/);
+  if(!pair){
+    if(item.startsWith('#'))option.color=item;
+    else if(item.startsWith('data:image/'))option.image=item;
+    return;
+  }
+  const key=pair[1].trim().toLowerCase();
+  const value=pair[2].trim();
+  if(key==='color')option.color=value;
+  else if(key==='image')option.image=value;
+  else if(key==='kind'||key==='type')option.kind=value;
+  else if(key==='slot'||key==='slotnumber')option.slotNumber=clamp(value,0,999);
+  else if(key==='slotstart'||key==='slotnumberstart')option.slotNumberStart=clamp(value,0,999);
+  else if(key==='slotend'||key==='slotnumberend')option.slotNumberEnd=clamp(value,0,999);
+  else if(key==='speed')applyWheelOptionRangeText(option,value,'speedStart','speedEnd');
+  else if(key==='shake')applyWheelOptionRangeText(option,value,'shakeSpeedStart','shakeSpeedEnd');
+  else if(key==='speedstart')option.speedStart=value;
+  else if(key==='speedend')option.speedEnd=value;
+  else if(key==='shakespeedstart')option.shakeSpeedStart=value;
+  else if(key==='shakespeedend')option.shakeSpeedEnd=value;
+}
+
+function applyWheelOptionRangeText(option,value,startKey,endKey){
+  const parts=value.split(/\s*(?:->|=>|\.\.| to |-)\s*/).map(part=>part.trim()).filter(Boolean);
+  if(parts[0])option[startKey]=parts[0];
+  if(parts.length>1)option[endKey]=parts.slice(1).join(' ');
 }
 
 function wheelOptionsText(options){
   return (options||[]).map(o=>{
     const range=wheelOptionRange(o);
     const value=range?range[0]+'-'+range[1]:clamp(o.value,0,255);
-    return o.name+'='+value+(o.image?'|'+o.image:(o.color?'|'+o.color:''));
+    const meta=[];
+    if(o.color)meta.push(o.color);
+    if(o.image)meta.push(o.image);
+    if(o.kind)meta.push('kind='+o.kind);
+    if(o.slotNumber!==undefined)meta.push('slot='+o.slotNumber);
+    if(o.slotNumberStart!==undefined)meta.push('slotStart='+o.slotNumberStart);
+    if(o.slotNumberEnd!==undefined)meta.push('slotEnd='+o.slotNumberEnd);
+    if(o.shakeSpeedStart||o.shakeSpeedEnd)meta.push('shake='+(o.shakeSpeedStart||'')+'-'+(o.shakeSpeedEnd||''));
+    if(o.speedStart||o.speedEnd)meta.push('speed='+(o.speedStart||'')+'-'+(o.speedEnd||''));
+    return o.name+'='+value+(meta.length?'|'+meta.join('|'):'');
   }).join('\n');
+}
+function wheelOptionIconHtml(o){
+  if(!o||(!o.color&&!o.image))return '';
+  const style=[];
+  if(o.color)style.push('background-color:'+escHtml(o.color));
+  if(o.image)style.push(`background-image:url('${String(o.image).replace(/'/g,'%27')}')`);
+  return `<span class="option-icon" style="${style.join(';')}"></span>`;
 }
 
 const wheelOptionValue=DmxCommon.wheelOptionValue;
@@ -750,6 +858,16 @@ function libraryModeMatchesProfile(mode,profile){
   const profileMode=String(profile.mode||'').trim().toLowerCase();
   return String(mode?.name||'').trim().toLowerCase()===profileMode||String(mode?.profile?.mode||'').trim().toLowerCase()===profileMode;
 }
+function canonicalLibraryProfileName(fixture,profileName){
+  const name=String(profileName||'').trim();
+  const manufacturer=String(fixture?.manufacturerName||'').trim();
+  const fixtureName=String(fixture?.name||'').trim();
+  if(!name||!manufacturer||!fixtureName||manufacturer.toLowerCase()==='custom')return name||fixtureName||'Fixture';
+  const displayName=(manufacturer+' '+fixtureName).trim().toLowerCase();
+  const duplicatedName=(manufacturer+' '+manufacturer+' '+fixtureName).trim().toLowerCase();
+  const normalized=name.toLowerCase();
+  return normalized===displayName||normalized===duplicatedName?fixtureName:name;
+}
 function libraryProfileFromControllerProfile(profile){
   return {
     name:profile.name||'Fixture',
@@ -766,6 +884,71 @@ function libraryProfileFromControllerProfile(profile){
     })
   };
 }
+function wheelOptionIdentity(option){
+  const range=wheelOptionRange(option);
+  return [
+    String(option?.name||'').trim().toLowerCase(),
+    range?range.join('-'):String(wheelOptionValue(option))
+  ].join('|');
+}
+function wheelOptionValueIdentity(option){
+  const range=wheelOptionRange(option);
+  return range?range.join('-'):String(wheelOptionValue(option));
+}
+function mergeLibraryWheelOptions(existingOptions,newOptions){
+  const existingByIdentity=new Map();
+  const existingByValue=new Map();
+  (existingOptions||[]).forEach(option=>{
+    existingByIdentity.set(wheelOptionIdentity(option),option);
+    const valueKey=wheelOptionValueIdentity(option);
+    if(!existingByValue.has(valueKey))existingByValue.set(valueKey,[]);
+    existingByValue.get(valueKey).push(option);
+  });
+  return (newOptions||[]).map(option=>{
+    const exact=existingByIdentity.get(wheelOptionIdentity(option));
+    const byValue=existingByValue.get(wheelOptionValueIdentity(option))||[];
+    const existing=exact||byValue.find(candidate=>String(candidate.name||'').trim().toLowerCase()===String(option.name||'').trim().toLowerCase())||null;
+    return existing?{...existing,...option}:option;
+  });
+}
+function controlLibraryIdentity(control){
+  if(!control)return'';
+  if(control.type==='panTilt16'||control.type==='panTilt8'){
+    return [control.type,control.label,control.pan,control.panFine||'',control.tilt,control.tiltFine||''].join('|');
+  }
+  if(control.type==='slider16'){
+    return [control.type,control.label,control.channel,control.fine||''].join('|');
+  }
+  return [control.type,control.label,control.channel||''].join('|');
+}
+function mergeLibraryControlMetadata(existingControls,newControls){
+  const existingByIdentity=new Map();
+  const existingByLabel=new Map();
+  (existingControls||[]).forEach(control=>{
+    existingByIdentity.set(controlLibraryIdentity(control),control);
+    const labelKey=[control.type,control.label].join('|');
+    if(!existingByLabel.has(labelKey))existingByLabel.set(labelKey,[]);
+    existingByLabel.get(labelKey).push(control);
+  });
+  return (newControls||[]).map(control=>{
+    const exact=existingByIdentity.get(controlLibraryIdentity(control));
+    const byLabel=existingByLabel.get([control.type,control.label].join('|'))||[];
+    const existing=exact||byLabel.find(candidate=>candidate.channel===control.channel)||byLabel[0]||null;
+    const merged=existing?{...existing,...control}:control;
+    if(merged.type==='wheel'){
+      merged.options=mergeLibraryWheelOptions(existing?.options,control.options);
+    }
+    return merged;
+  });
+}
+function mergeLibraryModeProfileMetadata(existingMode,cleanProfile){
+  if(!existingMode?.profile)return cleanProfile;
+  return {
+    ...existingMode.profile,
+    ...cleanProfile,
+    controls:mergeLibraryControlMetadata(existingMode.profile.controls,cleanProfile.controls)
+  };
+}
 function upsertProfileIntoFixtureLibrary(library,profile){
   const cleanProfile=libraryProfileFromControllerProfile(profile);
   const fixtureName=cleanProfile.name;
@@ -775,9 +958,12 @@ function upsertProfileIntoFixtureLibrary(library,profile){
     fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
     library.fixtures.push(fixture);
   }
-  const mode={name:cleanProfile.mode,channels:cleanProfile.channels,profile:cleanProfile,warnings:[]};
+  cleanProfile.name=canonicalLibraryProfileName(fixture,cleanProfile.name);
   const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,cleanProfile));
   if(!Array.isArray(fixture.modes))fixture.modes=[];
+  const existingMode=modeIndex>=0?fixture.modes[modeIndex]:null;
+  const profileWithMetadata=mergeLibraryModeProfileMetadata(existingMode,cleanProfile);
+  const mode={...(existingMode||{}),name:cleanProfile.mode,channels:cleanProfile.channels,profile:profileWithMetadata,warnings:existingMode?.warnings||[]};
   if(modeIndex>=0)fixture.modes[modeIndex]=mode;
   else fixture.modes.push(mode);
   fixture.modes.sort((a,b)=>(a.channels||0)-(b.channels||0)||String(a.name||'').localeCompare(String(b.name||'')));
@@ -1105,6 +1291,41 @@ function loadControlEditor(control){
   updateEditorXYDots();
 }
 
+function controlTypeHint(type){
+  return ({
+    panTilt16:'Uses four channels: pan coarse, pan fine, tilt coarse, and tilt fine.',
+    panTilt8:'Uses two channels: pan and tilt.',
+    slider8:'Uses one channel for an 8-bit value from 0 to 255.',
+    slider16:'Uses two channels: coarse and fine for one 16-bit value.',
+    rgb:'Uses three channels: red, green, and blue. The color picker controls all three.',
+    rgbw:'Uses four channels: red, green, blue, and white. The color picker controls RGB; white is manual.',
+    rgbwa:'Uses five channels: red, green, blue, white, and amber. The color picker controls RGB; white and amber are manual.',
+    cmy:'Uses three channels: cyan, magenta, and yellow. The color picker converts RGB to CMY.',
+    cmyk:'Uses four channels: cyan, magenta, yellow, and key/black. The color picker converts RGB to CMYK.',
+    matrixRgb:'Uses sequential RGB channels for a rectangular pixel grid. Start 1, Width 4, Height 2 uses channels 1-24.',
+    wheel:'Uses one channel with named indexed values. Add color swatches, uploaded images, drawings, ranges, and OFL-style metadata for each value.'
+  })[type]||'';
+}
+
+function updateControlDetailsHeader(){
+  const type=document.getElementById('controlType').value;
+  const label=document.getElementById('controlLabel').value||defaultControlLabel(type);
+  const action=editingControlId?'Edit':'Add';
+  document.getElementById('controlDetailsTitle').textContent=action+' '+label;
+  document.getElementById('controlDetailsSummary').textContent=controlTypeHint(type)||'Configure default, blackout, and type-specific control settings.';
+  document.getElementById('openControlDetails').textContent=editingControlId?'Edit control details':'Configure control';
+}
+
+function openControlDetailsModal(){
+  updateControlChannelInputs(false);
+  updateControlDetailsHeader();
+  DmxCommon.showModal('controlDetailsModal');
+}
+
+function closeControlDetailsModal(){
+  DmxCommon.hideModal('controlDetailsModal');
+}
+
 function updateControlChannelInputs(fillChannels=false){
   const type=document.getElementById('controlType').value;
   if(fillChannels)autoFillControlChannels();
@@ -1128,20 +1349,7 @@ function updateControlChannelInputs(fillChannels=false){
     wrap.style.display=labels[index]?'grid':'none';
     label.textContent=labels[index]||('Ch '+letter);
   });
-  const hints={
-    panTilt16:'Uses four channels: pan coarse, pan fine, tilt coarse, and tilt fine.',
-    panTilt8:'Uses two channels: pan and tilt.',
-    slider8:'Uses one channel for an 8-bit value from 0 to 255.',
-    slider16:'Uses two channels: coarse and fine for one 16-bit value.',
-    rgb:'Uses three channels: red, green, and blue. The color picker controls all three.',
-    rgbw:'Uses four channels: red, green, blue, and white. The color picker controls RGB; white is manual.',
-    rgbwa:'Uses five channels: red, green, blue, white, and amber. The color picker controls RGB; white and amber are manual.',
-    cmy:'Uses three channels: cyan, magenta, and yellow. The color picker converts RGB to CMY.',
-    cmyk:'Uses four channels: cyan, magenta, yellow, and key/black. The color picker converts RGB to CMYK.',
-    matrixRgb:'Uses sequential RGB channels for a rectangular pixel grid. Start 1, Width 4, Height 2 uses channels 1-24.',
-    wheel:'Uses one channel with named indexed values. Add color swatches, uploaded images, or drawings for each value.'
-  };
-  document.getElementById('controlHint').textContent=hints[type]||'';
+  document.getElementById('controlHint').textContent=controlTypeHint(type);
   document.getElementById('panTiltOptions').style.display=(type==='panTilt16'||type==='panTilt8')?'flex':'none';
   document.getElementById('wheelEditorWrap').style.display=type==='wheel'?'grid':'none';
 
@@ -1171,6 +1379,7 @@ function updateControlChannelInputs(fillChannels=false){
   }
   updateEditorXYDots();
   applyNoneCheckboxes();
+  updateControlDetailsHeader();
 }
 
 function applyNoneCheckboxes(){
@@ -1331,7 +1540,11 @@ function renderFixtureLibraryPreview(){
 function cloneLibraryProfile(profile,fixture){
   const next=JSON.parse(JSON.stringify(profile));
   next.id=uid();
-  next.name=(fixture.manufacturerName?fixture.manufacturerName+' ':'')+(profile.name||fixture.name||'Library fixture');
+  const manufacturer=String(fixture.manufacturerName||'').trim();
+  const fixtureName=String(fixture.name||'').trim();
+  const profileName=String(profile.name||fixtureName||'Library fixture').trim();
+  const fullFixtureName=(manufacturer?manufacturer+' ':'')+fixtureName;
+  next.name=manufacturer&&profileName.toLowerCase()===fullFixtureName.toLowerCase()?profileName:(manufacturer?manufacturer+' ':'')+profileName;
   next.mode=profile.mode||'Library mode';
   next.controls=(next.controls||[]).map(control=>({...control,id:uid()}));
   return next;
@@ -1392,6 +1605,7 @@ function addControl(){
     setStatus('Control added');
   }
   resetControlEditor();
+  closeControlDetailsModal();
   draw();
   scheduleSetupAutosave();
 }
@@ -1601,12 +1815,11 @@ function renderControl(f,c){
   }
   if(c.type==='wheel'){
     const v=getValue(f,c,0);
-    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
     const active=selectedWheelOption(c,v);
     return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readout-fixture="${f.id}" data-readout-control="${c.id}">CH ${absolute(f.start,c.channel)} · ${v}${active?' · '+escHtml(active.name):''}</span></div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fixture="${f.id}" data-control="${c.id}">${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fixture="${f.id}" data-control="${c.id}">${wheelOptionIconHtml(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-wheel-range-host="${f.id}:${c.id}">${wheelRangeSliderHtml(active,v,`data-fixture="${f.id}" data-control="${c.id}"`,escHtml)}</div>
-      <input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}">
+      <div class="value-row"><input type="range" min="0" max="255" value="${v}" data-fixture="${f.id}" data-control="${c.id}"><input type="number" min="0" max="255" step="1" value="${v}" data-fixture="${f.id}" data-control="${c.id}"></div>
       ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="value"`,255,1)}</div>`;
   }
   if(c.type==='matrixRgb'){
@@ -2058,7 +2271,7 @@ profilesEl.onclick=e=>{
   if(editControl){
     const p=profiles.find(profile=>profile.id===parseInt(editControlBtn.dataset.profile,10));
     const c=p?.controls.find(control=>control.id===parseInt(editControl,10));
-    if(p&&c){activeProfileId=p.id;loadProfileEditor(p);loadControlEditor(c);setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);setSectionCollapsed(null,'addControlBody',null,false);setStatus('Editing '+c.label);}
+    if(p&&c){activeProfileId=p.id;loadProfileEditor(p);loadControlEditor(c);setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);setSectionCollapsed(null,'addControlBody',null,false);openControlDetailsModal();setStatus('Editing '+c.label);}
     draw();
     return;
   }
@@ -2212,6 +2425,10 @@ document.getElementById('addProfile').onclick=e=>DmxCommon.withButtonFeedback(e.
 document.getElementById('addControl').onclick=addControl;
 document.getElementById('cancelEdit').onclick=()=>{resetControlEditor();setStatus('Edit cancelled');};
 document.getElementById('controlType').onchange=()=>updateControlChannelInputs(!editingControlId);
+document.getElementById('controlLabel').addEventListener('input',updateControlDetailsHeader);
+document.getElementById('openControlDetails').onclick=openControlDetailsModal;
+document.getElementById('closeControlDetailsModal').onclick=closeControlDetailsModal;
+document.getElementById('closeControlDetailsModal2').onclick=closeControlDetailsModal;
 document.getElementById('retryFixtureLibrary').onclick=()=>loadFixtureLibrary({force:true});
 document.getElementById('exportFixtureLibrary').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Exporting...',success:'Exported',error:'Failed'},async()=>exportCurrentFixtureLibrary()).catch(err=>showError('Fixture library export failed: '+err.message));
 document.getElementById('importFixtureLibrary').onclick=()=>document.getElementById('importFixtureLibraryFile').click();
@@ -2446,7 +2663,7 @@ function resetShowLocalState(){
   draw();
 }
 async function startNewShow(){
-  if(!confirm('Start a fresh show?\n\nThis clears fixtures, live values, groups, scenes, palettes, chases, motion effects, GPIO mappings, Pico playback slots, and saved toolbox layout. The fixture library is kept.'))return;
+  if(!confirm('Start a fresh show?\n\nThis clears fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico playback slots, and saved toolbox layout. The fixture library is kept.'))return;
   const showBaseUrl=baseUrl.value;
   resetShowLocalState();
   baseUrl.value=showBaseUrl;
@@ -2491,7 +2708,7 @@ async function importFullSetup(data){
     return;
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
-  if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, motion effects, GPIO mappings, live values, and saved UI layout.'))return;
+  if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
   if(migrated.fixture)await postSetupPayload('fixture_setup.php',migrated.fixture);
   if(migrated.liveValues&&typeof migrated.liveValues==='object')await postSetupPayload('fixture_setup.php?livevalues',migrated.liveValues);
   if(migrated.groups)await postSetupPayload('group_setup.php',{baseUrl:migrated.groups.baseUrl||migrated.fixture?.baseUrl||'',groups:Array.isArray(migrated.groups.groups)?migrated.groups.groups:[]});
@@ -2530,69 +2747,243 @@ document.getElementById('importJsonFile').onchange=e=>{
   reader.readAsText(file);
 };
 
-const goboCanvas=document.getElementById('goboCanvas');
-const goboCtx=goboCanvas.getContext('2d');
-let goboDrawing=false;
-let uploadedWheelImage='';
-let goboTouched=false;
-function clearGobo(){
-  goboCtx.fillStyle='#000000';
-  goboCtx.fillRect(0,0,goboCanvas.width,goboCanvas.height);
-  goboCtx.beginPath();
-  goboCtx.strokeStyle='#ffffff';
-  goboCtx.lineWidth=6;
-  goboCtx.lineCap='round';
-  uploadedWheelImage='';
-  goboTouched=false;
-  document.getElementById('wheelImage').value='';
+let wheelOptionsModalRows=[];
+let wheelIconDrawRowIndex=null;
+let wheelIconDrawing=false;
+let wheelIconTouched=false;
+function wheelOptionEditorRow(option={}){
+  const range=wheelOptionRange(option)||[wheelOptionValue(option),wheelOptionValue(option)];
+  return {
+    name:option.name||'Value',
+    start:range[0],
+    end:range[1],
+    kind:option.kind||'',
+    slot:option.slotNumber??'',
+    speedStart:option.shakeSpeedStart||option.speedStart||'',
+    speedEnd:option.shakeSpeedEnd||option.speedEnd||'',
+    color:option.color||'',
+    image:option.image||''
+  };
 }
-function drawGobo(e){
-  const rect=goboCanvas.getBoundingClientRect();
-  const x=(e.clientX-rect.left)*goboCanvas.width/rect.width;
-  const y=(e.clientY-rect.top)*goboCanvas.height/rect.height;
-  if(!goboDrawing){
-    goboCtx.beginPath();
-    goboCtx.moveTo(x,y);
+function wheelOptionPreviewStyle(row){
+  const style=[];
+  if(row.color)style.push('background-color:'+escHtml(row.color));
+  if(row.image)style.push(`background-image:url('${String(row.image).replace(/'/g,'%27')}')`);
+  return style.join(';');
+}
+function renderWheelOptionsModal(){
+  const body=document.getElementById('wheelOptionsModalBody');
+  const kindOptions=[
+    ['','Plain'],
+    ['WheelSlot','Wheel slot'],
+    ['WheelShake','Wheel shake'],
+    ['WheelRotation','Wheel rotation'],
+    ['WheelSlotRotation','Slot rotation'],
+    ['ShutterStrobe','Shutter / strobe']
+  ];
+  body.innerHTML=`<div class="wheel-option-grid wheel-option-grid--header">
+    <span>Name</span><span>From</span><span>To</span><span>Function</span><span>Slot</span><span>Speed start</span><span>Speed end</span><span>Visual</span><span></span>
+  </div>
+  <div id="wheelOptionsModalRows" style="display:grid;gap:8px">
+  ${wheelOptionsModalRows.map((row,index)=>`<div class="wheel-option-grid" data-wheel-option-row="${index}">
+    <label>Name<input type="text" value="${escHtml(row.name)}" data-wheel-field="name"></label>
+    <label>From<input type="number" min="0" max="255" step="1" value="${row.start}" data-wheel-field="start"></label>
+    <label>To<input type="number" min="0" max="255" step="1" value="${row.end}" data-wheel-field="end"></label>
+    <label>Function<select data-wheel-field="kind">${kindOptions.map(([value,label])=>`<option value="${value}" ${row.kind===value?'selected':''}>${label}</option>`).join('')}</select></label>
+    <label>Slot<input type="number" min="0" max="999" step="1" value="${escHtml(row.slot)}" data-wheel-field="slot"></label>
+    <label>Speed start<input type="text" value="${escHtml(row.speedStart)}" data-wheel-field="speedStart" placeholder="slow"></label>
+    <label>Speed end<input type="text" value="${escHtml(row.speedEnd)}" data-wheel-field="speedEnd" placeholder="fast"></label>
+    <div class="wheel-option-visual">
+      <span class="wheel-option-preview" data-wheel-preview="${index}" style="${wheelOptionPreviewStyle(row)}"></span>
+      <div class="wheel-option-visual-fields">
+        <label>Color<input type="color" value="${escHtml(row.color||'#ffffff')}" data-wheel-color="${index}"></label>
+        <button type="button" data-clear-wheel-color="${index}" title="Clear background color">No color</button>
+        <button type="button" data-wheel-upload="${index}" title="Upload icon">Icon</button>
+        <button type="button" data-wheel-draw="${index}" title="Draw icon">Draw</button>
+        <input type="file" accept="image/*" data-wheel-file="${index}">
+        <button type="button" data-clear-wheel-image="${index}" title="Clear icon image">No icon</button>
+      </div>
+    </div>
+    <button type="button" class="icon-btn danger" data-remove-wheel-row="${index}" title="Remove option">×</button>
+  </div>`).join('')}
+  </div>`;
+}
+function syncWheelOptionsModalRows(){
+  document.querySelectorAll('[data-wheel-option-row]').forEach(rowEl=>{
+    const index=parseInt(rowEl.dataset.wheelOptionRow,10);
+    const row=wheelOptionsModalRows[index];if(!row)return;
+    rowEl.querySelectorAll('[data-wheel-field]').forEach(input=>{row[input.dataset.wheelField]=input.value;});
+  });
+}
+function openWheelOptionsModal(){
+  wheelOptionsModalRows=parseWheelOptions(document.getElementById('wheelOptions').value).map(wheelOptionEditorRow);
+  if(!wheelOptionsModalRows.length)wheelOptionsModalRows=[wheelOptionEditorRow({name:'Open',value:0})];
+  renderWheelOptionsModal();
+  DmxCommon.showModal('wheelOptionsModal');
+}
+function closeWheelOptionsModal(){
+  DmxCommon.hideModal('wheelOptionsModal');
+}
+const wheelIconCanvas=document.getElementById('wheelIconCanvas');
+const wheelIconCtx=wheelIconCanvas.getContext('2d');
+function clearWheelIconCanvas(){
+  wheelIconCtx.clearRect(0,0,wheelIconCanvas.width,wheelIconCanvas.height);
+  wheelIconCtx.beginPath();
+  wheelIconTouched=false;
+}
+function wheelIconCanvasIsBlank(){
+  const data=wheelIconCtx.getImageData(0,0,wheelIconCanvas.width,wheelIconCanvas.height).data;
+  for(let i=3;i<data.length;i+=4){if(data[i]!==0)return false;}
+  return true;
+}
+function drawWheelIcon(e){
+  const rect=wheelIconCanvas.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*wheelIconCanvas.width/rect.width;
+  const y=(e.clientY-rect.top)*wheelIconCanvas.height/rect.height;
+  wheelIconCtx.strokeStyle=document.getElementById('wheelIconBrushColor').value||'#ffffff';
+  wheelIconCtx.lineWidth=6;
+  wheelIconCtx.lineCap='round';
+  wheelIconCtx.lineJoin='round';
+  if(!wheelIconDrawing){
+    wheelIconCtx.beginPath();
+    wheelIconCtx.moveTo(x,y);
     return;
   }
-  goboCtx.lineTo(x,y);
-  goboCtx.stroke();
-  goboCtx.beginPath();
-  goboCtx.moveTo(x,y);
-  goboTouched=true;
+  wheelIconCtx.lineTo(x,y);
+  wheelIconCtx.stroke();
+  wheelIconCtx.beginPath();
+  wheelIconCtx.moveTo(x,y);
+  wheelIconTouched=true;
 }
-goboCanvas.addEventListener('pointerdown',e=>{goboDrawing=false;goboCanvas.setPointerCapture(e.pointerId);drawGobo(e);goboDrawing=true;uploadedWheelImage='';goboTouched=true;});
-goboCanvas.addEventListener('pointermove',e=>{if(goboDrawing)drawGobo(e);});
-goboCanvas.addEventListener('pointerup',()=>{goboDrawing=false;uploadedWheelImage='';});
-goboCanvas.addEventListener('pointercancel',()=>{goboDrawing=false;});
-document.getElementById('clearGobo').onclick=clearGobo;
-document.getElementById('wheelImage').onchange=e=>{
-  const file=e.target.files?.[0];
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
+function openWheelIconDrawModal(index){
+  syncWheelOptionsModalRows();
+  wheelIconDrawRowIndex=parseInt(index,10);
+  const row=wheelOptionsModalRows[wheelIconDrawRowIndex];
+  if(!row)return;
+  document.getElementById('wheelIconDrawTitle').textContent=row.name||'Wheel option icon';
+  wheelIconCanvas.style.backgroundColor=row.color||'#0a0d10';
+  clearWheelIconCanvas();
+  if(row.image){
     const img=new Image();
     img.onload=()=>{
-      clearGobo();
-      goboCtx.drawImage(img,0,0,goboCanvas.width,goboCanvas.height);
-      uploadedWheelImage=goboCanvas.toDataURL('image/png');
-      goboTouched=true;
+      clearWheelIconCanvas();
+      wheelIconCtx.drawImage(img,0,0,wheelIconCanvas.width,wheelIconCanvas.height);
+      wheelIconTouched=true;
     };
-    img.src=reader.result;
+    img.src=row.image;
+  }
+  DmxCommon.showModal('wheelIconDrawModal');
+}
+function closeWheelIconDrawModal(){
+  DmxCommon.hideModal('wheelIconDrawModal');
+  wheelIconDrawRowIndex=null;
+}
+wheelIconCanvas.addEventListener('pointerdown',e=>{wheelIconDrawing=false;wheelIconCanvas.setPointerCapture(e.pointerId);drawWheelIcon(e);wheelIconDrawing=true;wheelIconTouched=true;});
+wheelIconCanvas.addEventListener('pointermove',e=>{if(wheelIconDrawing)drawWheelIcon(e);});
+wheelIconCanvas.addEventListener('pointerup',()=>{wheelIconDrawing=false;});
+wheelIconCanvas.addEventListener('pointercancel',()=>{wheelIconDrawing=false;});
+document.getElementById('clearWheelIconDrawing').onclick=clearWheelIconCanvas;
+document.getElementById('closeWheelIconDrawModal').onclick=closeWheelIconDrawModal;
+document.getElementById('cancelWheelIconDrawing').onclick=closeWheelIconDrawModal;
+document.getElementById('saveWheelIconDrawing').onclick=()=>{
+  const row=wheelOptionsModalRows[wheelIconDrawRowIndex];
+  if(row)row.image=wheelIconCanvasIsBlank()?'':wheelIconCanvas.toDataURL('image/png');
+  closeWheelIconDrawModal();
+  renderWheelOptionsModal();
+};
+function wheelOptionFromEditorRow(row){
+  const start=clamp(row.start,0,255);
+  const end=clamp(row.end,0,255);
+  const option={name:String(row.name||'Value').trim()||'Value',value:Math.round((Math.min(start,end)+Math.max(start,end))/2)};
+  if(start!==end)option.range=[Math.min(start,end),Math.max(start,end)];
+  if(row.color&&/^#[0-9a-f]{6}$/i.test(String(row.color).trim()))option.color=String(row.color).trim();
+  if(row.image&&String(row.image).startsWith('data:image/'))option.image=String(row.image);
+  if(row.kind)option.kind=row.kind;
+  if(row.slot!=='')option.slotNumber=clamp(row.slot,0,999);
+  if(row.kind==='WheelShake'){
+    if(row.speedStart)option.shakeSpeedStart=String(row.speedStart).trim();
+    if(row.speedEnd)option.shakeSpeedEnd=String(row.speedEnd).trim();
+  }else{
+    if(row.speedStart)option.speedStart=String(row.speedStart).trim();
+    if(row.speedEnd)option.speedEnd=String(row.speedEnd).trim();
+  }
+  return option;
+}
+function applyWheelOptionsModal(){
+  syncWheelOptionsModalRows();
+  const options=wheelOptionsModalRows.map(wheelOptionFromEditorRow);
+  document.getElementById('wheelOptions').value=wheelOptionsText(options);
+  closeWheelOptionsModal();
+  setStatus('Wheel options updated');
+}
+document.getElementById('openWheelOptionsModal').onclick=openWheelOptionsModal;
+document.getElementById('closeWheelOptionsModal').onclick=closeWheelOptionsModal;
+document.getElementById('cancelWheelOptionsModal').onclick=closeWheelOptionsModal;
+document.getElementById('addWheelOptionsModalRow').onclick=()=>{
+  syncWheelOptionsModalRows();
+  const last=wheelOptionsModalRows[wheelOptionsModalRows.length-1];
+  const nextStart=last?Math.min(255,clamp(last.end,0,255)+1):0;
+  wheelOptionsModalRows.push(wheelOptionEditorRow({name:'New option',range:[nextStart,nextStart]}));
+  renderWheelOptionsModal();
+};
+document.getElementById('applyWheelOptionsModal').onclick=applyWheelOptionsModal;
+document.getElementById('wheelOptionsModalBody').addEventListener('input',e=>{
+  const color=e.target.closest('[data-wheel-color]');
+  if(color){
+    const row=wheelOptionsModalRows[parseInt(color.dataset.wheelColor,10)];
+    if(row)row.color=color.value;
+    return;
+  }
+  syncWheelOptionsModalRows();
+});
+document.getElementById('wheelOptionsModalBody').addEventListener('click',e=>{
+  const upload=e.target.closest('[data-wheel-upload]');
+  if(upload){
+    const input=document.querySelector(`[data-wheel-file="${upload.dataset.wheelUpload}"]`);
+    input?.click();
+    return;
+  }
+  const draw=e.target.closest('[data-wheel-draw]');
+  if(draw){
+    openWheelIconDrawModal(draw.dataset.wheelDraw);
+    return;
+  }
+  const clear=e.target.closest('[data-clear-wheel-image]');
+  if(clear){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(clear.dataset.clearWheelImage,10)];
+    if(row)row.image='';
+    renderWheelOptionsModal();
+    return;
+  }
+  const clearColor=e.target.closest('[data-clear-wheel-color]');
+  if(clearColor){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(clearColor.dataset.clearWheelColor,10)];
+    if(row)row.color='';
+    renderWheelOptionsModal();
+    return;
+  }
+  const remove=e.target.closest('[data-remove-wheel-row]');
+  if(!remove)return;
+  syncWheelOptionsModalRows();
+  wheelOptionsModalRows.splice(parseInt(remove.dataset.removeWheelRow,10),1);
+  renderWheelOptionsModal();
+});
+document.getElementById('wheelOptionsModalBody').addEventListener('change',e=>{
+  const fileInput=e.target.closest('[data-wheel-file]');
+  if(!fileInput)return;
+  const file=fileInput.files?.[0];
+  const index=parseInt(fileInput.dataset.wheelFile,10);
+  const row=wheelOptionsModalRows[index];
+  if(!file||!row)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    row.image=String(reader.result||'');
+    renderWheelOptionsModal();
   };
   reader.readAsDataURL(file);
-};
-document.getElementById('addWheelOption').onclick=()=>{
-  const name=document.getElementById('wheelName').value||'Value';
-  const value=clamp(document.getElementById('wheelValue').value,0,255);
-  const image=uploadedWheelImage||goboCanvas.toDataURL('image/png');
-  const color=document.getElementById('wheelColor').value;
-  const useImage=goboTouched&&image;
-  const visual=useImage?image:color;
-  const text=document.getElementById('wheelOptions');
-  text.value=(text.value.trim()?text.value.trim()+'\n':'')+name+'='+value+'|'+visual;
-  setStatus('Wheel option added');
-};
+});
 
 // ── Group-edit ────────────────────────────────────────────────────────
 let selectedFixtureIds=new Set();
@@ -2867,12 +3258,11 @@ function renderGroupControl(c){
   }
   if(c.type==='wheel'){
     const v=getGroupValue(c);
-    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
     const active=selectedWheelOption(c,v);
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}${active?' · '+escHtml(active.name):''}</span>${scope}</div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${icon(o)}${escHtml(o.name)}</button>`).join('')}</div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${wheelOptionIconHtml(o)}${escHtml(o.name)}</button>`).join('')}</div>
       <div data-gc-wheel-range-host="${key}">${wheelRangeSliderHtml(active,v,gca,escHtml)}</div>
-      <input type="range" min="0" max="255" value="${v}" ${gca}>
+      <div class="value-row"><input type="range" min="0" max="255" value="${v}" ${gca}><input type="number" min="0" max="255" step="1" value="${v}" ${gca}></div>
       ${groupRelativeControlHtml(key,'value','default',255,1,'Relative')}</div>`;
   }
   const max=c.type==='slider16'?65535:255;
@@ -3542,7 +3932,6 @@ const groupsBox=groupsToolbox.box;
 // ── End saved-groups ──────────────────────────────────────────────────
 
 updateControlChannelInputs(true);
-clearGobo();
 loadSetup().then(ok=>{
   if(!ok){addDefaultProfile();return;}
   // Auto-collapse setup panels on first load when a saved setup exists
@@ -3804,9 +4193,14 @@ function currentPaletteSaveValues(){
 function paletteControlMatchesScope(c,scope){
   const label=String(c.label||'').toLowerCase();
   if(scope==='all')return true;
-  if(scope==='position')return c.type==='panTilt16'||c.type==='panTilt8'||/\b(pan|tilt|position|pos)\b/.test(label);
-  if(scope==='color')return ['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)||/colou?r|rgb|cmy|white|amber/.test(label);
-  if(scope==='dimmer')return /dimmer|intensity|shutter/.test(label);
+  if(scope==='position')return c.type==='panTilt16'||c.type==='panTilt8'||/\b(pan|tilt|position|pos|movement)\b/.test(label);
+  if(scope==='color')return ['rgb','rgbw','rgbwa','cmy','cmyk','matrixRgb'].includes(c.type)||/\b(colou?r|rgb|cmy|red|green|blue|cyan|magenta|yellow|white|amber|uv|lime|indigo|hue|saturation|cct|ctc|cto|ctb|tint|kelvin|warm|cold)\b|color temperature/.test(label);
+  if(scope==='dimmer')return /\b(dimmer|dimming|intensity)\b/.test(label);
+  if(scope==='shutter')return /\b(shutter|strobe|flash)\b/.test(label);
+  if(scope==='gobo')return /\bgobo\b/.test(label);
+  if(scope==='prism')return /\bprism\b/.test(label);
+  if(scope==='optics')return /\b(focus|zoom|iris|frost|beam|diffuser|lens)\b/.test(label);
+  if(scope==='effects')return /\b(programs?|macro|macros|effect|effects|auto|show|chase|pattern|patterns|scene|preset|presets)\b/.test(label);
   if(scope==='beam')return /gobo|beam|prism|zoom|focus|iris|frost|strobe|shutter/.test(label);
   return false;
 }
@@ -4182,36 +4576,62 @@ function paletteCanBuildCurrentValues(){
 function mergePaletteButtonClick(){
   if(!palettes.length){setStatus('No saved palettes to merge into',true);return;}
   if(!paletteCanBuildCurrentValues()){showError('Select fixtures or apply Fan Out before merging a palette.');return;}
-  const list=palettes
-    .slice()
-    .sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0))
-    .map(p=>(p.slot+1)+': '+p.name+' ('+paletteScopeLabel(p.scope||'all')+')')
-    .join('\n');
-  const answer=(prompt('Merge current '+paletteScopeLabel(currentPaletteScope())+' values into palette slot:\n'+list,'1')||'').trim();
-  if(!answer)return;
-  const slot=(parseInt(answer,10)||1)-1;
-  const p=palettes.find(pl=>pl.slot===slot);
-  if(!p){setStatus('Palette slot '+(slot+1)+' is empty',true);return;}
-  mergeIntoPalette(p);
+  openPaletteMergeModal();
+}
+function renderPaletteMergeMatrix(){
+  const grid=document.getElementById('paletteMergeMatrix');
+  const summary=document.getElementById('paletteMergeSummary');
+  if(!grid)return;
+  normalizePaletteGrid('cols');
+  const total=paletteCols*paletteRows;
+  grid.style.setProperty('--palette-merge-cols',paletteCols);
+  grid.style.gridTemplateColumns='repeat('+paletteCols+',minmax(64px,1fr))';
+  if(summary)summary.textContent='Choose a saved palette tile to merge the current '+paletteScopeLabel(currentPaletteScope())+' values into.';
+  let html='';
+  for(let i=0;i<total;i++){
+    const p=palettes.find(pl=>pl.slot===i);
+    if(p){
+      html+=`<button type="button" class="${DmxCommon.savedTileClass('slot filled',false)}" data-merge-palette-slot="${i}" title="Merge into ${escHtml(p.name||('Palette '+(i+1)))}" style="${slotVisualStyle(p)}"><div class="palette-slot-content">${paletteSlotVisualHtml(p)}<span class="palette-slot-name">${escHtml(p.name||('Palette '+(i+1)))}</span><span class="small">${escHtml(paletteScopeLabel(p.scope||'all'))}</span></div></button>`;
+    }else{
+      html+=`<div class="slot empty readonly" data-merge-empty-slot="${i}" title="Empty palette slot">${i+1}</div>`;
+    }
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-merge-palette-slot]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const slot=parseInt(btn.dataset.mergePaletteSlot,10);
+      const p=palettes.find(pl=>pl.slot===slot);
+      if(!p){setStatus('Palette slot '+(slot+1)+' is empty',true);return;}
+      if(mergeIntoPalette(p))closePaletteMergeModal();
+    });
+  });
+}
+function openPaletteMergeModal(){
+  renderPaletteMergeMatrix();
+  DmxCommon.showModal('paletteMergeModal');
+}
+function closePaletteMergeModal(){
+  DmxCommon.hideModal('paletteMergeModal');
 }
 function mergeIntoPalette(p){
   const currentScope=currentPaletteScope();
   const savedScope=p.scope||'all';
   if(savedScope===currentScope||savedScope==='all'){
     if(confirm('Merge current '+paletteScopeLabel(currentScope)+' values into palette "'+p.name+'"?')){
-      mergePaletteValues(p,savedScope==='all'?'all':currentScope);
+      return mergePaletteValues(p,savedScope==='all'?'all':currentScope);
     }
-    return;
+    return false;
   }
   if(confirm('Palette "'+p.name+'" is '+paletteScopeLabel(savedScope)+', but the current scope is '+paletteScopeLabel(currentScope)+'.\n\nChange this palette scope to All controls and merge?')){
-    mergePaletteValues(p,'all');
+    return mergePaletteValues(p,'all');
   }
+  return false;
 }
 function mergePaletteValues(p,nextScope){
   const paletteValues=currentPaletteSaveValues();
-  if(!paletteValues)return;
+  if(!paletteValues)return false;
   const fixtureCount=sceneFixtureIdsFromValues(paletteValues).length;
-  if(!fixtureCount){showError('Current palette scope has no matching fixture values to merge.');return;}
+  if(!fixtureCount){showError('Current palette scope has no matching fixture values to merge.');return false;}
   p.values={...(p.values||{}),...paletteValues};
   p.scope=nextScope;
   if(!p.visual){
@@ -4221,6 +4641,7 @@ function mergePaletteValues(p,nextScope){
   renderPaletteMatrix();
   savePalettesServer();
   setStatus('Merged '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+' into palette "'+p.name+'"');
+  return true;
 }
 function savePaletteToSlot(idx,name){
   const scope=currentPaletteScope();
@@ -4236,7 +4657,7 @@ function savePaletteToSlot(idx,name){
   setStatus('Palette "'+name+'" saved to slot '+(idx+1)+' ('+paletteScopeLabel(scope)+', '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');
 }
 function paletteScopeLabel(scope){
-  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',all:'All controls',fan:'Fan Out'}[scope]||'Palette';
+  return {position:'Position',color:'Color',beam:'Beam / Gobo',dimmer:'Dimmer',shutter:'Shutter / Strobe',gobo:'Gobo',prism:'Prism',optics:'Optics',effects:'Programs / Effects',all:'All controls',fan:'Fan Out'}[scope]||'Palette';
 }
 function recallPalette(p){
   const paletteValues=normalizedSceneValues(p.values);
@@ -4391,6 +4812,8 @@ function openGroupVisualModal(index){
 if(document.getElementById('exportPalettesBtn'))document.getElementById('exportPalettesBtn').onclick=exportPalettesJson;
 if(document.getElementById('importPalettesBtn'))document.getElementById('importPalettesBtn').onclick=()=>document.getElementById('importPalettesFile')?.click();
 document.getElementById('mergePaletteBtn').onclick=mergePaletteButtonClick;
+document.getElementById('paletteMergeClose').onclick=closePaletteMergeModal;
+document.getElementById('paletteMergeClose2').onclick=closePaletteMergeModal;
 document.getElementById('movePaletteBtn').onclick=togglePaletteMoveMode;
 if(document.getElementById('importPalettesFile'))document.getElementById('importPalettesFile').onchange=e=>{if(e.target.files[0])importPalettesJson(e.target.files[0]);e.target.value='';};
 const paletteToolbox=DmxCommon.initFloatingToolbox({

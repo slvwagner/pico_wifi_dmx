@@ -48,8 +48,9 @@ if (-not $SkipVerify) {
     Invoke-Step "Verify deployed pages" {
         $checks = @(
             @{ Label = "Controller"; Path = "" },
+            @{ Label = "Show Run"; Path = "dmx_show.html" },
             @{ Label = "Chaser"; Path = "dmx_chaser.html" },
-            @{ Label = "Motion FX"; Path = "dmx_motion.html" },
+            @{ Label = "Effects"; Path = "dmx_motion.html" },
             @{ Label = "GPIO"; Path = "dmx_gpio.html" },
             @{ Label = "DMX Monitor"; Path = "dmx_monitor.html" },
             @{ Label = "Performance Test"; Path = "test/" },

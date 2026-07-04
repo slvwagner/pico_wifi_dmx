@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX GPIO Control</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.5">
-<script src="assets/dmx-common.js?v=0.9.5"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.6">
+<script src="assets/dmx-common.js?v=0.9.6"></script>
 <style>
 main{max-width:1160px;width:100%;margin:0 auto;padding:20px;display:grid;gap:16px;overflow-x:hidden}
 h2{font-size:16px}
@@ -37,10 +37,11 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
     <a class="nav" href="index.html">Controller</a>
+    <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_motion.html">Motion</a>
+    <a class="nav" href="dmx_motion.html">Effects</a>
     <a class="nav" href="dmx_monitor.html">Monitor</a>
-    <a class="nav" href="user-manual.html#6-gpio-control" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.6#7-gpio-control" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -266,9 +267,12 @@ function gpioData(){
 function applyGPIOData(data){
   const src=Array.isArray(data)?{mappings:data}:data;
   if(!src||!Array.isArray(src.mappings))throw new Error('Invalid GPIO JSON');
-  if(src.baseUrl){
+  const storedBaseUrl=(localStorage.getItem(DmxCommon.BASE_URL_KEY)||'').trim();
+  if(storedBaseUrl){
+    baseUrl.value=storedBaseUrl;
+  }else if(src.baseUrl){
     baseUrl.value=src.baseUrl;
-    localStorage.setItem('dmxPicoBaseUrl',baseUrl.value);
+    localStorage.setItem(DmxCommon.BASE_URL_KEY,baseUrl.value);
   }
   document.getElementById('gpioEnabled').checked=src.enabled!==false;
   mappings=src.mappings.map(normalize);
@@ -421,7 +425,7 @@ async function pollChaserSlots(){
   }catch(_){}
 }
 
-DmxCommon.bindBaseUrl(baseUrl,{fallback:baseUrl.value});
+DmxCommon.bindBaseUrl(baseUrl,{fallback:baseUrl.value,onInput:()=>autosaveSetup(),debounceMs:800});
 document.getElementById('addMapping').onclick=()=>{
   const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin),RESERVED_PINS));
   const pin=Array.from({length:29},(_,i)=>i).find(p=>!used.has(p))??14;

@@ -17,9 +17,12 @@ test.describe('Project versioning rules', () => {
       schemaVersion: 1,
       baseUrl: 'http://example.test/'
     });
+
+    await openDmxPage(page, 'dmx_show.html');
+    await expect(page.locator('header h1 .app-version')).toHaveText('v' + appVersion);
   });
 
-  test('Groups toolbox layout is shared on Controller, Chaser, and Motion pages', async ({ page }) => {
+  test('Groups toolbox layout is shared on Controller, Chaser, and Effects pages', async ({ page }) => {
     const pages = ['', 'dmx_chaser.html', 'dmx_motion.html'];
     const measurements = [];
     for (const path of pages) {
@@ -368,7 +371,7 @@ test.describe('Project versioning rules', () => {
     });
   });
 
-  test('motion setup reset clears saved effects and Pico slots atomically', async ({ page }) => {
+  test('Effects setup reset clears saved effects and Pico slots atomically', async ({ page }) => {
     let motionState = {
       baseUrl: 'http://old-pico/',
       effects: [{ id: 'fx_old', name: 'Old effect', slot: 0, recipe: {} }],

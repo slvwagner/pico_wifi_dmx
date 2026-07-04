@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DMX Motion Effects</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.5">
-<script src="assets/dmx-common.js?v=0.9.5"></script>
+<title>DMX Effects</title>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.6">
+<script src="assets/dmx-common.js?v=0.9.6"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -50,15 +50,16 @@ main{max-width:none;width:100%;margin:0}
 
 <header>
   <div>
-    <h1>DMX Motion Effects</h1>
+    <h1>DMX Effects</h1>
     <div class="status" id="status">Loading setup…</div>
   </div>
   <div class="toolbar">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
     <a class="nav" href="index.html">Controller</a>
+    <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_gpio.html">GPIO</a>
-    <a class="nav" href="user-manual.html#5-motion-fx" target="_blank">Manual</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.6">GPIO</a>
+    <a class="nav" href="user-manual.html?v=0.9.6#6-effects" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -66,8 +67,8 @@ main{max-width:none;width:100%;margin:0}
   <div class="row" style="justify-content:space-between;align-items:center">
     <h2>Participating Controls</h2>
     <div class="buttons">
-      <button id="btnMotionSave" style="padding:6px 10px;font-size:12px" title="Save editable motion preset on the server">Save</button>
-      <button id="btnMotionLoad" style="padding:6px 10px;font-size:12px" title="Load editable motion preset from the server">Load</button>
+      <button id="btnMotionSave" style="padding:6px 10px;font-size:12px" title="Save editable effect preset on the server">Save</button>
+      <button id="btnMotionLoad" style="padding:6px 10px;font-size:12px" title="Load editable effect preset from the server">Load</button>
       <button class="collapse-btn" data-panel-toggle="fxPanel" title="Collapse Participating Controls">−</button>
     </div>
   </div>
@@ -89,15 +90,15 @@ main{max-width:none;width:100%;margin:0}
   </div>
 </section>
 
-<!-- Pico Motion FX -->
+<!-- Pico Effects -->
 <section class="panel pico-panel compact-collapse-panel" id="picoMotionPanel">
   <div class="row" style="justify-content:space-between;align-items:center">
-    <h2>Pico Motion</h2>
-    <button class="collapse-btn" data-panel-toggle="picoMotionPanel" title="Collapse Pico Motion">−</button>
+    <h2>Pico Effects</h2>
+    <button class="collapse-btn" data-panel-toggle="picoMotionPanel" title="Collapse Pico Effects">−</button>
   </div>
   <div class="panel-body">
   <div class="pico-controls">
-    <span class="mode-badge mode-badge--pico">&#x2699; Pico Motion</span>
+    <span class="mode-badge mode-badge--pico">&#x2699; Pico Effects</span>
     <label class="pico-field">
       Slot
       <select id="picoMotionSlot">
@@ -211,7 +212,7 @@ main{max-width:none;width:100%;margin:0}
   <button id="motionSceneBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
 <div class="scene-toolbox__body">
-  <div class="small" style="color:var(--muted)">Click a scene to use as motion center</div>
+  <div class="small" style="color:var(--muted)">Click a scene to use as effect center</div>
   <div id="motionSlotGrid" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -258,7 +259,7 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
-<aside id="motionToolboxRail" class="toolbox-rail" aria-label="Motion effects toolboxes"></aside>
+<aside id="motionToolboxRail" class="toolbox-rail" aria-label="Effects toolboxes"></aside>
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
@@ -291,7 +292,7 @@ populatePicoMotionSlotSelect();
 
 // ---- DMX send (fire-and-forget) ----
 const baseUrlEl=document.getElementById('baseUrl');
-DmxCommon.bindBaseUrl(baseUrlEl);
+DmxCommon.bindBaseUrl(baseUrlEl,{onInput:()=>saveMotionToServer(),debounceMs:800});
 let motionGroupsBox=null;
 let collapsedMotionPartFixtures=new Set(JSON.parse(localStorage.getItem('motionPartCollapsedFix')||'[]'));
 motionGroupsBox=DmxCommon.initGroupsToolbox({
@@ -563,7 +564,7 @@ function applyMotionGroupSelection(redraw=true){
   if(redraw){
     drawFixtureList();
     drawPathPreview();
-    setStatus('Motion fixtures set from '+selected.length+' group'+(selected.length===1?'':'s'));
+    setStatus('Effect fixtures set from '+selected.length+' group'+(selected.length===1?'':'s'));
   }
   refreshMotionGroupActions();
 }
@@ -1099,7 +1100,7 @@ let sentToPico={};  // last DMX values actually sent; only changed channels are 
 async function startMotion(){
   if(!motionFixtures.some(mf=>mf.enabled)){setStatus('Enable at least one fixture',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
-  // Stop any running Pico motion so it doesn't fight the browser
+  // Stop any running Pico effect so it doesn't fight the browser
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(root){
     fetch(root+'/motion/stop').catch(()=>{});
@@ -1270,7 +1271,7 @@ document.querySelectorAll('[data-panel-toggle]').forEach(btn=>{
 });
 window.addEventListener('resize',drawPathPreview);
 
-// ---- Pico Motion FX ----
+// ---- Pico Effects ----
 const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5};
 function serializeMotionForPico(){
   const type=document.getElementById('effectType').value;
@@ -1316,7 +1317,7 @@ function selectedMotionSlot(){
 function ensureMotionSlotSupported(){
   const slot=selectedMotionSlot();
   if(slot<_lastMotionReportedSlotCount)return true;
-  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' motion slots; rebuild/flash firmware for higher slots','var(--warn)');
+  setPicoMotionStatus('Pico firmware reports only '+_lastMotionReportedSlotCount+' effect slots; rebuild/flash firmware for higher slots','var(--warn)');
   return false;
 }
 
@@ -1381,7 +1382,7 @@ function renderMotionSlotStrip(slots, activeMask){
 }
 
 async function deleteMotionSlot(slot){
-  if(!confirm('Delete motion slot '+slot+'?'))return;
+  if(!confirm('Delete effect slot '+slot+'?'))return;
   try{
     const r=await fetch('motion_setup.php?delete_slot='+slot,{method:'POST'});
     const j=await r.json();
@@ -1466,7 +1467,7 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
   stopMotion(); // stop browser motion so it doesn't fight Pico
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
-  if(confirmOverwrite&&!confirm('Replace Pico motion slot '+slot+' with the current effect?'))return;
+  if(confirmOverwrite&&!confirm('Replace Pico effect slot '+slot+' with the current effect?'))return;
   const body=serializeMotionForPico();
   setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
   try{
@@ -1619,7 +1620,7 @@ async function saveMotionToServer(){
   try{
     const r=await fetch('motion_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(motionData())});
     const j=await r.json();
-    if(j.ok)setStatus('Motion setup saved to server');
+    if(j.ok)setStatus('Effects setup saved to server');
     else setStatus('Save failed: '+j.error,true);
   }catch(err){setStatus('Save failed: '+err.message,true);}
 }
@@ -1649,8 +1650,8 @@ async function loadMotionEffectCatalogFromServer(){
 document.getElementById('btnMotionSave').onclick=()=>saveMotionToServer();
 document.getElementById('btnMotionLoad').onclick=async()=>{
   const loaded=await loadMotionFromServer();
-  if(loaded)setStatus('Motion setup loaded from server');
-  else setStatus('No saved motion setup found on server',true);
+  if(loaded)setStatus('Effects setup loaded from server');
+  else setStatus('No saved Effects setup found on server',true);
 };
 if(document.getElementById('btnMotionExport'))document.getElementById('btnMotionExport').onclick=()=>{
   DmxCommon.downloadJson('dmx_motion.json',motionData());
@@ -1660,7 +1661,7 @@ if(document.getElementById('btnMotionImport'))document.getElementById('btnMotion
 if(document.getElementById('motionImportFile'))document.getElementById('motionImportFile').onchange=e=>{
   const file=e.target.files?.[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=()=>{try{applyMotionData(JSON.parse(reader.result));setStatus('Motion setup imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';}
+  reader.onload=()=>{try{applyMotionData(JSON.parse(reader.result));setStatus('Effects setup imported from '+file.name);}catch(err){alert('Invalid JSON: '+err.message);}e.target.value='';}
   reader.readAsText(file);
 };
 if(document.getElementById('btnExportMotionSlots'))document.getElementById('btnExportMotionSlots').onclick=async()=>{
@@ -2012,7 +2013,7 @@ function applySceneAsCenter(s){
   sendBatch(batchMap);
   publishMotionLiveValues(livePatch);
   drawFixtureList();drawPathPreview();
-  setStatus('Motion base set from scene "'+s.name+'"');
+  setStatus('Effect base set from scene "'+s.name+'"');
 }
 function loadMotionScenesServer(){
   fetch('scene_setup.php').then(r=>r.json()).then(d=>{
@@ -2085,7 +2086,7 @@ function compatibleMotionPaletteEntries(paletteValues){
 }
 function recallMotionPalette(p){
   const entries=compatibleMotionPaletteEntries(p.values||{});
-  if(!entries.length){setStatus('Palette has no compatible Motion FX controls in this setup',true);return;}
+  if(!entries.length){setStatus('Palette has no compatible Effects controls in this setup',true);return;}
   motionGroupsBox?.clearSelection?.();
   DmxCommon.saveSharedGroupSelection([]);
   const currentTargetEntries=entries.filter(e=>motionControlKey(e.mf.control)===selectedMotionTargetKey);
@@ -2115,7 +2116,7 @@ function recallMotionPalette(p){
   publishMotionLiveValues(livePatch);
   drawFixtureList();
   drawPathPreview();
-  setStatus('Motion center set from palette "'+(p.name||'Palette')+'"');
+  setStatus('Effect center set from palette "'+(p.name||'Palette')+'"');
 }
 function saveMotionPalettesServer(){
   fetch('palette_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,palettes:motionPalettes,paletteCols:motionPaletteCols,paletteRows:motionPaletteRows}))})

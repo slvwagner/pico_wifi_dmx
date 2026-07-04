@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.5';
+  const APP_VERSION='0.9.6';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -403,6 +403,7 @@
     if(kind==='WheelShake')return 'Shake speed';
     if(kind==='WheelRotation')return 'Rotation speed';
     if(kind==='WheelSlotRotation')return 'Slot rotation';
+    if(kind==='ShutterStrobe'||kind==='Strobe')return 'Strobe speed';
     return 'Range value';
   }
 
@@ -499,6 +500,58 @@
     }
   }
 
+  async function discoverPicoBaseUrl(input,button){
+    if(!input)return null;
+    if(button){
+      button.disabled=true;
+      button.dataset.originalText=button.dataset.originalText||button.textContent;
+      button.textContent='Finding...';
+    }
+    try{
+      const r=await fetch('pico_discovery.php?timeoutMs=3200',{cache:'no-store'});
+      const j=await r.json();
+      if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+      const devices=Array.isArray(j.devices)?j.devices:[];
+      if(!devices.length)throw new Error('No Pico beacon received');
+      const device=devices[0];
+      const url=String(device.url||('http://'+device.ip+'/'));
+      input.value=url;
+      localStorage.setItem(BASE_URL_KEY,url);
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+      setPicoUrlStatus(input,'checking','Found '+(device.name||'Pico')+' at '+url);
+      return device;
+    }catch(e){
+      setPicoUrlStatus(input,'disconnected','Pico discovery failed: '+e.message);
+      throw e;
+    }finally{
+      if(button){
+        button.disabled=false;
+        button.textContent=button.dataset.originalText||'Find Pico';
+      }
+    }
+  }
+
+  function attachPicoDiscoveryButton(input){
+    if(!input||input.dataset.picoDiscoveryAttached==='1')return null;
+    input.dataset.picoDiscoveryAttached='1';
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='pico-discovery-btn';
+    button.textContent='Find Pico';
+    button.title='Listen for Pico WiFi DMX discovery beacons';
+    button.style.minHeight='38px';
+    button.style.padding='7px 10px';
+    button.addEventListener('click',()=>discoverPicoBaseUrl(input,button).catch(()=>{}));
+    const label=input.closest('label');
+    if(label&&label.parentNode){
+      label.insertAdjacentElement('afterend',button);
+    }else{
+      input.insertAdjacentElement('afterend',button);
+    }
+    return button;
+  }
+
   function observeInputValue(input,onChange){
     const proto=Object.getPrototypeOf(input);
     const desc=proto&&Object.getOwnPropertyDescriptor(proto,'value');
@@ -518,6 +571,7 @@
     if(!input)return;
     if(options&&options.nodeType===1)options={};
     applyBaseUrl(input,options.fallback);
+    if(options.discovery!==false)attachPicoDiscoveryButton(input);
     let timer=0;
     let checkTimer=0;
     let pollTimer=0;
@@ -1730,6 +1784,10 @@
     }
 
     const clearMarks=()=>grid.querySelectorAll('.toolbox-dragging,.toolbox-drop-before,.toolbox-drop-after').forEach(el=>el.classList.remove('toolbox-dragging','toolbox-drop-before','toolbox-drop-after'));
+    const isBlockedDragStart=(target,source)=>{
+      const interactive=target.closest('button,input,select,textarea,a,label');
+      return !!interactive&&interactive!==source;
+    };
     const targetAtPoint=(x,y,source)=>{
       return Array.from(grid.querySelectorAll(selector))
         .filter(el=>el!==source)
@@ -1795,7 +1853,7 @@
       const idx=getIndex(el);
       el.draggable=false;
       const pointerDown=e=>{
-        if(!active||!canDrag(idx,el)||e.target.closest('button,input,select,textarea,a'))return;
+        if(!active||!canDrag(idx,el)||isBlockedDragStart(e.target,el))return;
         if(e.pointerType==='mouse')return;
         pointerDrag={source:el,sourceIndex:idx,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false,target:null};
         e.preventDefault();
@@ -1804,7 +1862,7 @@
         window.addEventListener('pointercancel',pointerEnd);
       };
       const mouseDown=e=>{
-        if(pointerDrag||!active||!canDrag(idx,el)||e.target.closest('button,input,select,textarea,a'))return;
+        if(pointerDrag||!active||!canDrag(idx,el)||isBlockedDragStart(e.target,el))return;
         pointerDrag={source:el,sourceIndex:idx,pointerId:'mouse',startX:e.clientX,startY:e.clientY,moved:false,target:null};
         e.preventDefault();
         window.addEventListener('mousemove',mouseMove);
@@ -1966,6 +2024,7 @@
     wheelRangeSliderHtml,
     applyBaseUrl,
     bindBaseUrl,
+    discoverPicoBaseUrl,
     preferStoredBaseUrl,
     saveUiState,
     loadUiState,

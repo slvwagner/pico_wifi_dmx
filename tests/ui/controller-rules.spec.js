@@ -7,8 +7,33 @@ const {
 
 test.describe('Fixture Controller established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await routeControllerCompactServerSetup(page);
     await openDmxPage(page, '');
     await injectControllerCompactSetup(page);
+  });
+
+  test('Find Pico is available on the Controller page and fills the Pico base URL', async ({ page }) => {
+    await page.route('**/pico_discovery.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          devices: [{ id: 'test-pico', name: 'pico-wifi-dmx', ip: '192.0.2.55', http: 80, url: 'http://192.0.2.55/' }]
+        })
+      });
+    });
+    await page.route('http://192.0.2.55/status.json', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
+      });
+    });
+
+    await page.getByRole('button', { name: 'Find Pico' }).click();
+
+    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
   });
 
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
@@ -75,6 +100,34 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.value).toBe(88);
     expect(state.otherFixtureValue).not.toBe(88);
     expect(state.title).toContain('1 fixture selected');
+  });
+
+  test('wheel controls expose direct DMX value inputs on Controller and Group Edit', async ({ page }) => {
+    await page.evaluate(() => {
+      values['103:31'] = 0;
+      selectedFixtureIds = new Set([103]);
+      activeSavedGroupIds.clear();
+      drawSurface();
+    });
+
+    const controllerWheel = page.locator('[data-fixture-card="103"] .control', { hasText: 'Gobo' });
+    await expect(controllerWheel.locator('input[type="number"][data-fixture="103"][data-control="31"]')).toHaveValue('0');
+    await controllerWheel.locator('input[type="number"][data-fixture="103"][data-control="31"]').fill('77');
+    await expect(controllerWheel.locator('[data-readout-fixture="103"][data-readout-control="31"]')).toContainText('77');
+
+    await page.locator('#editSelectedGroups').click();
+    await expect(page.locator('#groupModal')).toBeVisible();
+    const groupWheel = page.locator('#groupModalBody .control', { hasText: 'Gobo' });
+    await expect(groupWheel.locator('input[type="number"][data-gc]')).toHaveValue('77');
+    await groupWheel.locator('input[type="number"][data-gc]').fill('88');
+
+    const state = await page.evaluate(() => ({
+      value: values['103:31'],
+      groupReadout: document.querySelector('[data-gc-readout^="wheel:Gobo"]')?.textContent || ''
+    }));
+
+    expect(state.value).toBe(88);
+    expect(state.groupReadout).toContain('88');
   });
 
   test('Controller can refresh live values changed by another page', async ({ page }) => {
@@ -1079,9 +1132,277 @@ test.describe('Fixture Controller established rules', () => {
       kind: 'WheelRotation'
     }));
     expect(state.selectedAtRangeValue).toBe('Red');
-    expect(state.textFormat).toBe('Red=11-21|#ff0000');
+    expect(state.textFormat).toBe('Red=11-21|#ff0000|kind=WheelSlot|slot=2');
     expect(state.activeButtonText).toContain('Red');
     expect(state.activeTitle).toBe('DMX 11-21 · WheelSlot');
+  });
+
+  test('manual wheel option editor supports ranges and OFL-style metadata', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const text = [
+        'Open=0-15|kind=WheelSlot|slot=1',
+        'Gobo 2=16-31|kind=WheelSlot|slot=2',
+        'Gobo 3=32-46|kind=WheelSlot|slot=3',
+        'Gobo 4=47-62|kind=WheelSlot|slot=4',
+        'Gobo 5=63-78|kind=WheelSlot|slot=5',
+        'Gobo 6=79-93|kind=WheelSlot|slot=6',
+        'Gobo 7=94-109|kind=WheelSlot|slot=7',
+        'Gobo 8=110-124|kind=WheelSlot|slot=8',
+        'Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast',
+        'Gobo 3 shake=141-156|kind=WheelShake|slot=3|shake=slow-fast',
+        'Gobo 4 shake=157-171|kind=WheelShake|slot=4|shake=slow-fast',
+        'Gobo 5 shake=172-187|kind=WheelShake|slot=5|shake=slow-fast',
+        'Gobo 6 shake=188-203|kind=WheelShake|slot=6|shake=slow-fast',
+        'Gobo 7 shake=204-218|kind=WheelShake|slot=7|shake=slow-fast',
+        'Gobo 8 shake=219-249|kind=WheelShake|slot=8|shake=slow-fast',
+        'Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW'
+      ].join('\n');
+      const options = parseWheelOptions(text);
+      const wheel = { id: 8801, type: 'wheel', label: 'Gobo Wheel', channel: 1, options };
+      const shake = options.find(o => o.name === 'Gobo 2 shake');
+      const rotation = options.find(o => o.kind === 'WheelRotation');
+      profiles.splice(0, profiles.length, { id: 8800, name: 'Manual wheel', mode: 'test', channels: 1, controls: [wheel] });
+      fixtures.splice(0, fixtures.length, { id: 8802, name: 'Manual wheel fixture', profileId: 8800, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['8802:8801'] = 130;
+      drawSurface();
+      const host = document.querySelector('[data-wheel-range-host="8802:8801"]');
+      return {
+        count: options.length,
+        gobo2: options.find(o => o.name === 'Gobo 2'),
+        shake,
+        rotation,
+        selectedAt130: selectedWheelOption(wheel, 130)?.name,
+        sliderMin: host?.querySelector('input[type="range"]')?.getAttribute('min'),
+        sliderMax: host?.querySelector('input[type="range"]')?.getAttribute('max'),
+        sliderLabel: host?.textContent,
+        formattedShake: wheelOptionsText([shake]),
+        formattedRotation: wheelOptionsText([rotation])
+      };
+    });
+
+    expect(state.count).toBe(16);
+    expect(state.gobo2).toEqual(expect.objectContaining({ value: 24, range: [16, 31], kind: 'WheelSlot', slotNumber: 2 }));
+    expect(state.shake).toEqual(expect.objectContaining({
+      value: 133,
+      range: [125, 140],
+      kind: 'WheelShake',
+      slotNumber: 2,
+      shakeSpeedStart: 'slow',
+      shakeSpeedEnd: 'fast'
+    }));
+    expect(state.rotation).toEqual(expect.objectContaining({
+      value: 253,
+      range: [250, 255],
+      kind: 'WheelRotation',
+      speedStart: 'slow CW',
+      speedEnd: 'fast CW'
+    }));
+    expect(state.selectedAt130).toBe('Gobo 2 shake');
+    expect(state.sliderMin).toBe('125');
+    expect(state.sliderMax).toBe('140');
+    expect(state.sliderLabel).toContain('Shake speed');
+    expect(state.formattedShake).toBe('Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast');
+    expect(state.formattedRotation).toBe('Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW');
+  });
+
+  test('guided wheel editor modal writes rich wheel metadata', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
+    await page.locator('#controlType').selectOption('wheel');
+    await page.locator('#openControlDetails').click();
+    await expect(page.locator('#controlDetailsModal')).toBeVisible();
+    await page.locator('#wheelOptions').fill('Open=0-15\nGobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast\nStrobe=11-255|kind=ShutterStrobe|speed=slow-fast');
+    await page.locator('#openWheelOptionsModal').click();
+    await expect(page.locator('#wheelOptionsModal')).toBeVisible();
+
+    const rows = page.locator('[data-wheel-option-row]');
+    await expect(rows).toHaveCount(3);
+    await rows.nth(1).locator('[data-wheel-field="name"]').fill('Gobo 3 shake');
+    await rows.nth(1).locator('[data-wheel-field="start"]').fill('141');
+    await rows.nth(1).locator('[data-wheel-field="end"]').fill('156');
+    await rows.nth(1).locator('[data-wheel-field="kind"]').selectOption('WheelShake');
+    await rows.nth(1).locator('[data-wheel-field="slot"]').fill('3');
+    await rows.nth(1).locator('[data-wheel-field="speedStart"]').fill('slow');
+    await rows.nth(1).locator('[data-wheel-field="speedEnd"]').fill('fast');
+    await expect(rows.nth(1).locator('[data-wheel-field="visual"]')).toHaveCount(0);
+    await expect(rows.nth(1).locator('[data-clear-wheel-image]')).toHaveText('No icon');
+    await expect(rows.nth(1).locator('[data-wheel-draw]')).toHaveText('Draw');
+    await rows.nth(1).locator('[data-wheel-color]').evaluate(input => {
+      input.value = '#123456';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await rows.nth(1).locator('[data-wheel-draw]').click();
+    await expect(page.locator('#wheelIconDrawModal')).toBeVisible();
+    const canvas = page.locator('#wheelIconCanvas');
+    const box = await canvas.boundingBox();
+    await page.mouse.move(box.x + 20, box.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 90, box.y + 80);
+    await page.mouse.up();
+    await page.locator('#saveWheelIconDrawing').click();
+    await expect(page.locator('#wheelIconDrawModal')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => wheelOptionsModalRows[1].image.startsWith('data:image/png'))).toBe(true);
+    await rows.nth(2).locator('[data-wheel-file]').setInputFiles({
+      name: 'gobo.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGOSHzRgAAAAABJRU5ErkJggg==', 'base64')
+    });
+    await expect.poll(() => page.evaluate(() => wheelOptionsModalRows[2].image.startsWith('data:image/png'))).toBe(true);
+    const layout = await rows.nth(1).evaluate(row => {
+      const clearIcon = row.querySelector('[data-clear-wheel-image]').getBoundingClientRect();
+      const removeOption = row.querySelector('[data-remove-wheel-row]').getBoundingClientRect();
+      return {
+        clearText: row.querySelector('[data-clear-wheel-image]').textContent.trim(),
+        drawText: row.querySelector('[data-wheel-draw]').textContent.trim(),
+        noColorText: row.querySelector('[data-clear-wheel-color]').textContent.trim(),
+        removeText: row.querySelector('[data-remove-wheel-row]').textContent.trim(),
+        clearIconFits: row.querySelector('[data-clear-wheel-image]').scrollWidth <= row.querySelector('[data-clear-wheel-image]').clientWidth,
+        clearColorFits: row.querySelector('[data-clear-wheel-color]').scrollWidth <= row.querySelector('[data-clear-wheel-color]').clientWidth,
+        clearRight: clearIcon.right,
+        removeLeft: removeOption.left,
+        sameVerticalBand: !(clearIcon.bottom < removeOption.top || removeOption.bottom < clearIcon.top)
+      };
+    });
+    expect(layout.clearText).toBe('No icon');
+    expect(layout.drawText).toBe('Draw');
+    expect(layout.noColorText).toBe('No color');
+    expect(layout.clearIconFits).toBe(true);
+    expect(layout.clearColorFits).toBe(true);
+    expect(layout.removeText).toBe('×');
+    if (layout.sameVerticalBand) expect(layout.clearRight).toBeLessThanOrEqual(layout.removeLeft);
+    await expect(rows.nth(2).locator('[data-wheel-field="kind"]')).toHaveValue('ShutterStrobe');
+    await page.locator('#applyWheelOptionsModal').click();
+
+    const state = await page.evaluate(() => {
+      const options = parseWheelOptions(document.getElementById('wheelOptions').value);
+      const shake = options.find(o => o.name === 'Gobo 3 shake');
+      const strobe = options.find(o => o.name === 'Strobe');
+      const wheel = { id: 8811, type: 'wheel', label: 'Gobo Wheel', channel: 1, options };
+      profiles.splice(0, profiles.length, { id: 8810, name: 'Guided wheel', mode: 'test', channels: 1, controls: [wheel] });
+      fixtures.splice(0, fixtures.length, { id: 8812, name: 'Guided wheel fixture', profileId: 8810, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['8812:8811'] = 150;
+      drawSurface();
+      const host = document.querySelector('[data-wheel-range-host="8812:8811"]');
+      const shakeSliderMin = host?.querySelector('input[type="range"]')?.getAttribute('min');
+      const shakeSliderMax = host?.querySelector('input[type="range"]')?.getAttribute('max');
+      values['8812:8811'] = 120;
+      updateControlDisplay(fixtures[0], wheel);
+      const strobeHost = document.querySelector('[data-wheel-range-host="8812:8811"]');
+      const goboButton = document.querySelector('[data-fixture="8812"][data-control="8811"][data-wheel-option-index="1"]');
+      const goboIconStyle = goboButton?.querySelector('.option-icon')?.getAttribute('style') || '';
+      return {
+        text: document.getElementById('wheelOptions').value,
+        shake,
+        strobe,
+        selectedAt150: selectedWheelOption(wheel, 150)?.name,
+        sliderMin: shakeSliderMin,
+        sliderMax: shakeSliderMax,
+        strobeLabel: strobeHost?.textContent,
+        goboIconStyle
+      };
+    });
+
+    expect(state.text).toContain('Gobo 3 shake=141-156|#123456|data:image/png');
+    expect(state.text).toContain('kind=WheelShake|slot=3|shake=slow-fast');
+    expect(state.shake).toEqual(expect.objectContaining({
+      value: 149,
+      range: [141, 156],
+      kind: 'WheelShake',
+      slotNumber: 3,
+      shakeSpeedStart: 'slow',
+      shakeSpeedEnd: 'fast',
+      color: '#123456'
+    }));
+    expect(state.shake.image).toContain('data:image/png');
+    expect(state.selectedAt150).toBe('Gobo 3 shake');
+    expect(state.sliderMin).toBe('141');
+    expect(state.sliderMax).toBe('156');
+    expect(state.strobe).toEqual(expect.objectContaining({
+      kind: 'ShutterStrobe',
+      range: [11, 255],
+      speedStart: 'slow',
+      speedEnd: 'fast'
+    }));
+    expect(state.strobeLabel).toContain('Strobe speed');
+    expect(state.goboIconStyle).toContain('background-color:#123456');
+    expect(state.goboIconStyle).toContain('background-image:url(');
+  });
+
+  test('control details live in modal below compact profile fields', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
+    const profilePanel = page.locator('section.panel', { hasText: 'Fixture Profiles' });
+    await expect(profilePanel).toContainText('Add / Edit Control');
+    await expect(profilePanel.locator('#controlType')).toBeVisible();
+    await expect(profilePanel.locator('#controlLabel')).toBeVisible();
+    await expect(page.locator('#controlDetailsModal')).toBeHidden();
+
+    await page.locator('#controlType').selectOption('slider8');
+    await page.locator('#openControlDetails').click();
+    await expect(page.locator('#controlDetailsModal')).toBeVisible();
+    await expect(page.locator('#defBlkCard')).toBeVisible();
+    await expect(page.locator('#wheelEditorWrap')).toBeHidden();
+    await expect(page.locator('#panTiltOptions')).toBeHidden();
+    await page.locator('#closeControlDetailsModal2').click();
+    await expect(page.locator('#controlDetailsModal')).toBeHidden();
+
+    await page.locator('#controlType').selectOption('wheel');
+    await page.locator('#openControlDetails').click();
+    await expect(page.locator('#wheelEditorWrap')).toBeVisible();
+    await expect(page.locator('#controlDetailsTitle')).toContainText('Add Wheel');
+    await expect(page.locator('#wheelName')).toHaveCount(0);
+    await expect(page.locator('#addWheelOption')).toHaveCount(0);
+  });
+
+  test('Update Library preserves rich OFL wheel metadata when edited profile options are plain text', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const r = await fetch('assets/fixture-library.json', { cache: 'no-store' });
+      const library = normalizeFixtureLibrary(await r.json());
+      const fixture = library.fixtures.find(f => f.key === 'fun-generation/picospot-20-led');
+      const mode = fixture.modes.find(m => m.name === '11-channel');
+      const editedProfile = JSON.parse(JSON.stringify(mode.profile));
+      editedProfile.controls.forEach(control => {
+        control.id = uid();
+        if (control.type !== 'wheel') return;
+        control.options = control.options.map(option => {
+          const plain = { name: option.name, value: DmxCommon.wheelOptionValue(option) };
+          const range = DmxCommon.wheelOptionRange(option);
+          if (range) plain.range = range;
+          if (option.color) plain.color = option.color;
+          if (option.image) plain.image = option.image;
+          return plain;
+        });
+      });
+
+      upsertProfileIntoFixtureLibrary(library, editedProfile);
+      const savedFixture = library.fixtures.find(f => f.key === 'fun-generation/picospot-20-led');
+      const savedMode = savedFixture.modes.find(m => m.name === '11-channel');
+      const gobo = savedMode.profile.controls.find(c => c.label === 'Gobo Wheel');
+      const shake = gobo.options.find(o => o.name === 'Gobo 2 shake');
+      const rotation = gobo.options.find(o => o.name.includes('Rotation slow CW'));
+      return {
+        fixtureCount: library.fixtureCount,
+        profileName: savedMode.profile.name,
+        shake,
+        rotation,
+        goboMetadataCount: gobo.options.filter(o => o.kind || o.slotNumber || o.slotNumberStart || o.slotNumberEnd).length
+      };
+    });
+
+    expect(result.fixtureCount).toBeGreaterThan(600);
+    expect(result.profileName).toBe('PicoSpot 20 LED');
+    expect(result.shake).toEqual(expect.objectContaining({
+      kind: 'WheelShake',
+      slotNumber: 2,
+      shakeSpeedStart: 'slow',
+      shakeSpeedEnd: 'fast'
+    }));
+    expect(result.rotation).toEqual(expect.objectContaining({
+      kind: 'WheelRotation',
+      speedStart: 'slow CW',
+      speedEnd: 'fast CW'
+    }));
+    expect(result.goboMetadataCount).toBeGreaterThan(10);
   });
 
   test('OFL wheel shake ranges expose a bounded speed slider', async ({ page }) => {
@@ -1250,6 +1571,107 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.selectedGroups).toBe(0);
     expect(result.selectedFixtures).toEqual([101]);
     expect(result.scope).toEqual(['101:11']);
+  });
+
+  test('palette scopes cover common fixture-library control families', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const sample = {
+        uv: { type: 'slider8', label: 'UV' },
+        redFine: { type: 'slider8', label: 'Red fine' },
+        cct: { type: 'slider8', label: 'CCT' },
+        dimmer: { type: 'slider8', label: 'Dimmer fine' },
+        strobe: { type: 'slider8', label: 'Strobe Frequency' },
+        shutter: { type: 'slider8', label: 'Shutter / Strobe' },
+        gobo: { type: 'wheel', label: 'Gobo Wheel' },
+        prism: { type: 'slider8', label: 'Prism Rotation' },
+        optics: { type: 'slider8', label: 'Focus fine' },
+        effects: { type: 'slider8', label: 'Program Speed' },
+        position: { type: 'panTilt16', label: 'Pan/Tilt' },
+        blueMaster: { type: 'slider8', label: 'Blue Master' }
+      };
+      const matches = (key, scope) => paletteControlMatchesScope(sample[key], scope);
+      return {
+        options: [...document.querySelectorAll('#paletteScope option')].map(option => option.value),
+        color: ['uv', 'redFine', 'cct', 'blueMaster'].every(key => matches(key, 'color')),
+        blueMasterNotDimmer: !matches('blueMaster', 'dimmer'),
+        dimmer: matches('dimmer', 'dimmer'),
+        shutter: matches('strobe', 'shutter') && matches('shutter', 'shutter'),
+        gobo: matches('gobo', 'gobo'),
+        prism: matches('prism', 'prism'),
+        optics: matches('optics', 'optics'),
+        effects: matches('effects', 'effects'),
+        position: matches('position', 'position'),
+        legacyBeamStillMatches: matches('gobo', 'beam') && matches('optics', 'beam')
+      };
+    });
+
+    expect(result.options).toEqual(['position', 'color', 'dimmer', 'shutter', 'gobo', 'prism', 'optics', 'effects', 'all']);
+    expect(result.color).toBe(true);
+    expect(result.blueMasterNotDimmer).toBe(true);
+    expect(result.dimmer).toBe(true);
+    expect(result.shutter).toBe(true);
+    expect(result.gobo).toBe(true);
+    expect(result.prism).toBe(true);
+    expect(result.optics).toBe(true);
+    expect(result.effects).toBe(true);
+    expect(result.position).toBe(true);
+    expect(result.legacyBeamStillMatches).toBe(true);
+  });
+
+  test('palette merge uses a visual matrix picker instead of a slot prompt', async ({ page }) => {
+    const palettePosts = [];
+    await page.route('**/palette_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        palettePosts.push(JSON.parse(route.request().postData()));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, palettes: [], paletteCols: 4, paletteRows: 4 })
+      });
+    });
+
+    await page.evaluate(() => {
+      palettes = [
+        { id: 'pal_a', name: 'Dimmer A', slot: 0, scope: 'dimmer', values: { '101:11': 12 }, visual: { type: 'visual', color: '#225a50', image: '' } },
+        { id: 'pal_b', name: 'Dimmer B', slot: 2, scope: 'dimmer', values: { '102:21': 44 }, visual: { type: 'visual', color: '#553355', image: '' } }
+      ];
+      paletteCols = 4;
+      paletteRows = 1;
+      document.getElementById('paletteScope').value = 'dimmer';
+      selectedFixtureIds = new Set([101]);
+      values['101:11'] = 88;
+      renderPaletteMatrix();
+    });
+
+    let promptOpened = false;
+    page.on('dialog', async dialog => {
+      if (dialog.type() === 'prompt') promptOpened = true;
+      await dialog.accept();
+    });
+
+    await page.locator('#mergePaletteBtn').click();
+    await expect(page.locator('#paletteMergeModal')).toBeVisible();
+    await expect(page.locator('#paletteMergeMatrix [data-merge-palette-slot]')).toHaveCount(2);
+    await expect(page.locator('#paletteMergeMatrix [data-merge-empty-slot]')).toHaveCount(2);
+    await page.locator('#paletteMergeMatrix [data-merge-empty-slot="1"]').click();
+    await expect(page.locator('#paletteMergeModal')).toBeVisible();
+    await page.locator('#paletteMergeMatrix [data-merge-palette-slot="0"]').click();
+    await expect(page.locator('#paletteMergeModal')).toBeHidden();
+
+    const state = await page.evaluate(() => ({
+      paletteValue: palettes.find(p => p.id === 'pal_a').values['101:11'],
+      otherValue: palettes.find(p => p.id === 'pal_b').values['102:21'],
+      status: document.getElementById('status').textContent
+    }));
+
+    expect(promptOpened).toBe(false);
+    expect(state.paletteValue).toBe(88);
+    expect(state.otherValue).toBe(44);
+    expect(state.status).toContain('Merged 1 fixture into palette "Dimmer A"');
+    await expect.poll(() => palettePosts.at(-1)?.palettes?.find(p => p.id === 'pal_a')?.values?.['101:11'], { timeout: 5000 }).toBe(88);
   });
 
   test('palette move mode reorders tiles without recalling them', async ({ page }) => {
