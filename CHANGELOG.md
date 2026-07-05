@@ -13,6 +13,8 @@ Changed:
 - Clarified Pico URL versus XAMPP/server URL handling, removed a stale hardcoded Pico value from Show Run, and added a guard test so browser app files keep using relative XAMPP setup URLs.
 - Gobo palettes on the Controller page now automatically use matching fixture-library wheel visuals when saved, falling back to the source fixture visual or the normal palette default when needed.
 - Added a Show Run **Live Controls** card for operator faders, knobs, and buttons that write directly to selected fixture controls and send the resolved DMX bytes to the Pico.
+- Enhanced Show Run **Live Controls** button widgets with Apply, momentary Hold, and fog/haze Timer modes; Hold and Timer restore the previous live value when released, stopped, or removed.
+- Added a portable manual screenshot workflow with `scripts/update_user_manual.ps1 -LocalOnly`, using the repo-local PHP dev router and `docs/manual-data/` instead of a machine-specific XAMPP URL.
 - Fixed Show Run **Move Cards** so moving a card inserts it into the destination matrix spot and shifts the intervening cards instead of swapping unrelated row positions.
 
 ## 0.9.6 - 2026-07-04

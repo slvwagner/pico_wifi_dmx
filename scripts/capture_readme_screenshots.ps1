@@ -690,7 +690,8 @@ try {
   cardOrder=['group','scene','palette','chaser','motion','live'];
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
-    {id:'doc_live_red',fixtureId:990101,controlId:990012,part:'a',widget:'knob',label:'Red'}
+    {id:'doc_live_red',fixtureId:990101,controlId:990012,part:'a',widget:'knob',label:'Red'},
+    {id:'doc_live_fog',fixtureId:990101,controlId:990011,part:'value',widget:'button',buttonMode:'timer',buttonValue:255,timerOnMs:3000,timerOffMs:30000,label:'Fog Timer'}
   );
   if(typeof selectChaserSlot==='function')selectChaserSlot(1);
   if(typeof selectMotionSlot==='function')selectMotionSlot(0);
@@ -728,6 +729,17 @@ try {
     live.style.minHeight='0';
     live.style.alignSelf='start';
   }
+  const widget=document.getElementById('liveWidgetSelect');
+  const mode=document.getElementById('liveButtonMode');
+  const value=document.getElementById('liveButtonValue');
+  const on=document.getElementById('liveTimerOn');
+  const off=document.getElementById('liveTimerOff');
+  if(widget)widget.value='button';
+  if(mode)mode.value='timer';
+  if(value)value.value='255';
+  if(on)on.value='3';
+  if(off)off.value='30';
+  if(typeof updateLiveControlSelects==='function')updateLiveControlSelects();
   live?.scrollIntoView({block:'start',inline:'nearest'});
   window.scrollBy(0,-120);
   await wait(400);

@@ -7,7 +7,8 @@ param(
     [string]$ScreenshotBaseUrl = "",
     [switch]$SkipInitialSync,
     [switch]$SkipScreenshots,
-    [switch]$SkipFinalSync
+    [switch]$SkipFinalSync,
+    [switch]$LocalOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,6 +21,7 @@ if (-not $XamppHtdocs) { $XamppHtdocs = $localPaths.xamppHtdocs }
 if (-not $AppFolder) { $AppFolder = $localPaths.appFolder }
 if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
 if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
+if ($LocalOnly) { $SkipFinalSync = $true }
 
 $screenshotsDir = Join-Path $repoRoot "docs\screenshots"
 $chrome = $ChromePath
@@ -265,13 +267,22 @@ try {
         Invoke-Step "Sync rebuilt manual and screenshots to XAMPP" {
             & (Join-Path $PSScriptRoot "sync_fixture_controller_to_xampp.ps1") -XamppHtdocs $XamppHtdocs -AppFolder $AppFolder -BaseUrl $BaseUrl
         }
-    }
 
-    Invoke-Step "Verify deployed manual" {
-        $manual = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + "/user-manual.html") -UseBasicParsing -TimeoutSec 10
-        $pdf = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + "/user-manual.pdf") -UseBasicParsing -TimeoutSec 10
-        Write-Host ("Manual HTML: {0}, {1} bytes" -f $manual.StatusCode, $manual.RawContentLength)
-        Write-Host ("Manual PDF:  {0}, {1} bytes" -f $pdf.StatusCode, $pdf.RawContentLength)
+        Invoke-Step "Verify deployed manual" {
+            $manual = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + "/user-manual.html") -UseBasicParsing -TimeoutSec 10
+            $pdf = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + "/user-manual.pdf") -UseBasicParsing -TimeoutSec 10
+            Write-Host ("Manual HTML: {0}, {1} bytes" -f $manual.StatusCode, $manual.RawContentLength)
+            Write-Host ("Manual PDF:  {0}, {1} bytes" -f $pdf.StatusCode, $pdf.RawContentLength)
+        }
+    } else {
+        Invoke-Step "Verify local manual files" {
+            $manualPath = Join-Path $repoRoot "docs\user-manual.html"
+            $pdfPath = Join-Path $repoRoot "docs\user-manual.pdf"
+            Wait-FileStable $manualPath
+            Wait-FileStable $pdfPath
+            Write-Host ("Manual HTML: {0} bytes" -f (Get-Item -LiteralPath $manualPath).Length)
+            Write-Host ("Manual PDF:  {0} bytes" -f (Get-Item -LiteralPath $pdfPath).Length)
+        }
     }
 
     Write-Host ""

@@ -1,14 +1,14 @@
 # Manual Data Baseline
 
-This folder contains a deterministic snapshot of the JSON data from the local XAMPP DMX server.
+This folder contains a deterministic snapshot of the JSON data used for manual screenshots.
 
-`scripts/update_user_manual.ps1` copies these files into the XAMPP `data` folder before any screenshot is captured, then restores the live XAMPP data afterwards. That keeps the user manual reproducible even if the live XAMPP setup changes during testing.
+`scripts/update_user_manual.ps1 -LocalOnly` copies these files into the repo-local `api/data` folder, starts the repo-local PHP dev router, captures screenshots, and rebuilds the manual without using a machine-specific XAMPP URL. Running the script without `-LocalOnly` also syncs the rebuilt manual to the configured XAMPP folder after the local screenshots have been created.
 
 Source at capture time on the development machine:
 
 `E:\Software\xampp\htdocs\dmx\data`
 
-That path is only an example of the machine that created this baseline. The documentation scripts read `config/local-paths.json` when present, so another machine can use a different XAMPP folder without changing the baseline files.
+That path is only an example of the machine that created this baseline. The screenshot pipeline reads these committed JSON files directly, so another machine can regenerate the same screenshots without sharing that XAMPP path.
 
 Included files:
 
@@ -21,4 +21,4 @@ Included files:
 - `motion_setup.json` - saved Motion FX setup
 - `ui_state.json` - shared UI state such as toolbox order, width, and collapse state
 
-When the documentation needs a new stable visual example, update the live XAMPP setup first, then refresh this baseline intentionally.
+When the documentation needs a new stable visual example, update a test or local show setup first, then refresh this baseline intentionally.

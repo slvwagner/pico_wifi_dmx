@@ -779,7 +779,9 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 
 The screenshots below show the main pages as served from XAMPP during development and explain how the software is used in practice.
 
-Run `scripts/update_user_manual.ps1` after UI or documentation changes. It syncs the current web app to XAMPP, captures deterministic screenshots, rebuilds the dark-mode HTML/PDF manual, syncs the result back to XAMPP, and verifies the deployed manual.
+Run `scripts/update_user_manual.ps1 -LocalOnly` after UI or documentation changes when you only want to refresh the project files. This starts the repo-local PHP dev router, loads the deterministic data from `docs/manual-data/`, captures screenshots, and rebuilds the dark-mode HTML/PDF manual without depending on a local XAMPP installation or machine-specific URL.
+
+Run `scripts/update_user_manual.ps1` without `-LocalOnly` when you also want to sync the rebuilt web app, manual, PDF, and screenshots to the configured XAMPP `dmx` folder and verify the deployed manual URL.
 
 The controller screenshots are generated with deterministic per-shot setup states: each screenshot explicitly opens or collapses the relevant sections, collapses the shared toolbox sidebar for page-local topics, sets toolbox visibility for toolbox-specific topics, clears or selects group filters, and expands fixture cards as needed. This avoids stale browser collapse state leaking into the documentation images.
 
@@ -881,7 +883,7 @@ Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, C
 
 Show Run **Blackout Target** uses the Pico firmware blackout lock. The browser sends fixture-derived blackout channel values to `POST /dmx/blackout`; while the lock is active, normal DMX writes and Pico chaser/effect playback cannot overwrite those channels. `GET /dmx/blackout/clear` releases the lock, and `/status.json` reports the current `dmx.blackout_channels` count.
 
-Show Run also has a configurable **Live Controls** card. While **Edit Layout** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller.
+Show Run also has a configurable **Live Controls** card. While **Edit Layout** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds.
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 

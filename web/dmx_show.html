@@ -93,7 +93,8 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 .live-knob{display:grid;justify-items:center;gap:8px}
 .knob-face{width:74px;height:74px;border-radius:50%;border:1px solid var(--line);background:conic-gradient(var(--accent) var(--knob-angle,0deg),#0a0d10 0);display:grid;place-items:center;color:var(--text);font-weight:700}
 .live-knob input[type=range]{width:92px;padding:0}
-.live-button-widget button{width:100%}
+.live-button-widget button:not(.live-widget-delete){width:100%}
+.live-button-widget button:not(.live-widget-delete).active{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
 .show-tile-content{position:relative;z-index:1;display:grid;align-content:end;gap:2px;width:100%;height:100%;min-width:0}
 .show-tile-actions{display:none}
 body.layout-editing .show-tile-actions{display:flex}
@@ -253,7 +254,10 @@ body.layout-editing .show-tile-actions{display:flex}
             <label>Control<select id="liveControlSelect"></select></label>
             <label>Part<select id="livePartSelect"></select></label>
             <label>Widget<select id="liveWidgetSelect"><option value="fader">Fader</option><option value="knob">Knob</option><option value="button">Button</option></select></label>
+            <label id="liveButtonModeWrap">Button mode<select id="liveButtonMode"><option value="apply">Apply</option><option value="hold">Hold</option><option value="timer">Timer</option></select></label>
             <label id="liveButtonValueWrap">Button value<input id="liveButtonValue" type="number" min="0" max="65535" value="255"></label>
+            <label id="liveTimerOnWrap">On s<input id="liveTimerOn" type="number" min="0.1" max="600" step="0.1" value="3"></label>
+            <label id="liveTimerOffWrap">Off s<input id="liveTimerOff" type="number" min="0.1" max="3600" step="0.1" value="30"></label>
             <button id="addLiveControl" type="button">Add Control</button>
           </div>
         </div>
@@ -335,6 +339,8 @@ let layoutEditing=false;
 let hiddenTileModalDismissed=false;
 let blackoutActive=false;
 let liveControls=[];
+const liveButtonHeld=new Map();
+const liveTimerState=new Map();
 
 function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
@@ -997,7 +1003,11 @@ function updateLiveControlSelects(){
   const controlSelect=document.getElementById('liveControlSelect');
   const partSelect=document.getElementById('livePartSelect');
   const widgetSelect=document.getElementById('liveWidgetSelect');
+  const modeWrap=document.getElementById('liveButtonModeWrap');
+  const modeSelect=document.getElementById('liveButtonMode');
   const valueWrap=document.getElementById('liveButtonValueWrap');
+  const timerOnWrap=document.getElementById('liveTimerOnWrap');
+  const timerOffWrap=document.getElementById('liveTimerOffWrap');
   const buttonValue=document.getElementById('liveButtonValue');
   if(!fixtureSelect||!controlSelect||!partSelect)return;
   const currentFixture=fixtureSelect.value||String(fixtures[0]?.id||'');
@@ -1015,7 +1025,12 @@ function updateLiveControlSelects(){
   partSelect.value=parts.some(part=>part.part===currentPart)?currentPart:String(parts[0]?.part||'value');
   const selectedPart=parts.find(part=>part.part===partSelect.value);
   if(buttonValue&&selectedPart){buttonValue.max=selectedPart.max;buttonValue.value=clamp(buttonValue.value||selectedPart.max,0,selectedPart.max);}
-  if(valueWrap&&widgetSelect)valueWrap.style.display=widgetSelect.value==='button'?'grid':'none';
+  const isButton=widgetSelect?.value==='button';
+  const isTimer=isButton&&modeSelect?.value==='timer';
+  if(modeWrap)modeWrap.style.display=isButton?'grid':'none';
+  if(valueWrap)valueWrap.style.display=isButton?'grid':'none';
+  if(timerOnWrap)timerOnWrap.style.display=isTimer?'grid':'none';
+  if(timerOffWrap)timerOffWrap.style.display=isTimer?'grid':'none';
 }
 function addLiveControl(){
   const f=fixtures.find(item=>String(item.id)===String(document.getElementById('liveFixtureSelect')?.value));
@@ -1023,8 +1038,11 @@ function addLiveControl(){
   const part=scalarControlParts(c||{}).find(item=>item.part===document.getElementById('livePartSelect')?.value);
   if(!f||!c||!part){setStatus('Choose a fixture control to add',true);return;}
   const widget=document.getElementById('liveWidgetSelect')?.value||'fader';
+  const buttonMode=document.getElementById('liveButtonMode')?.value||'apply';
   const buttonValue=clamp(document.getElementById('liveButtonValue')?.value||part.max,0,part.max);
-  liveControls.push({id:'live_'+Date.now(),fixtureId:f.id,controlId:c.id,part:part.part,widget,label:'',buttonValue});
+  const timerOnMs=Math.max(100,Math.round((parseFloat(document.getElementById('liveTimerOn')?.value)||3)*1000));
+  const timerOffMs=Math.max(100,Math.round((parseFloat(document.getElementById('liveTimerOff')?.value)||30)*1000));
+  liveControls.push({id:'live_'+Date.now(),fixtureId:f.id,controlId:c.id,part:part.part,widget,label:'',buttonValue,buttonMode,timerOnMs,timerOffMs});
   saveLiveControls();
   renderLiveControls();
   setStatus('Added live '+widget+' for '+f.name+' '+c.label);
@@ -1039,6 +1057,52 @@ async function applyLiveControl(item,next){
   try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
   await sendPairs(valuePatchPairs(patch));
   setStatus(liveControlLabel(item,target)+' set to '+value);
+}
+function liveControlCurrentValue(item){
+  const target=liveControlTarget(item);
+  return target?getControlPartValue(target.fixture,target.control,target.part.part):0;
+}
+async function pressHoldLiveButton(item){
+  if(!item)return;
+  if(!liveButtonHeld.has(item.id))liveButtonHeld.set(item.id,liveControlCurrentValue(item));
+  await applyLiveControl(item,item.buttonValue);
+}
+async function releaseHoldLiveButton(item){
+  if(!item||!liveButtonHeld.has(item.id))return;
+  const previous=liveButtonHeld.get(item.id);
+  liveButtonHeld.delete(item.id);
+  await applyLiveControl(item,previous);
+}
+function stopLiveTimer(item,restore=true){
+  const state=item&&liveTimerState.get(item.id);
+  if(!state)return;
+  clearTimeout(state.timeout);
+  liveTimerState.delete(item.id);
+  if(restore)applyLiveControl(item,state.previous).catch(err=>setStatus(err.message,true));
+  renderLiveControls();
+}
+function scheduleLiveTimer(item,phase){
+  const state=liveTimerState.get(item.id);
+  if(!state||!state.active)return;
+  const isOn=phase==='on';
+  const value=isOn?item.buttonValue:state.previous;
+  applyLiveControl(item,value).catch(err=>{
+    setStatus(err.message,true);
+    stopLiveTimer(item,false);
+  });
+  state.timeout=setTimeout(()=>scheduleLiveTimer(item,isOn?'off':'on'),isOn?(item.timerOnMs||3000):(item.timerOffMs||30000));
+  setStatus(liveControlLabel(item,liveControlTarget(item))+' timer '+(isOn?'on':'off'));
+}
+function toggleLiveTimer(item){
+  if(!item)return;
+  if(liveTimerState.get(item.id)?.active){
+    stopLiveTimer(item,true);
+    setStatus('Stopped '+liveControlLabel(item,liveControlTarget(item))+' timer');
+    return;
+  }
+  liveTimerState.set(item.id,{active:true,previous:liveControlCurrentValue(item),timeout:null});
+  scheduleLiveTimer(item,'on');
+  renderLiveControls();
 }
 function updateLiveWidgetReadout(input){
   const widget=input.closest('.live-widget');
@@ -1062,7 +1126,11 @@ function liveWidgetHtml(item,index,target){
   const del=`<button class="live-widget-delete" data-live-delete="${index}" title="Remove live control">×</button>`;
   if(item.widget==='button'){
     const buttonValue=clamp(item.buttonValue??target.part.max,0,target.part.max);
-    return `<div class="live-widget live-button-widget">${del}<h3>${esc(label)}</h3><div class="small">${esc(meta)} · ${buttonValue}</div><button class="primary" data-live-button="${index}">Apply</button></div>`;
+    const mode=item.buttonMode||'apply';
+    const state=liveTimerState.get(item.id);
+    const timerText=mode==='timer'?` · ${Math.round((item.timerOnMs||3000)/100)/10}s on / ${Math.round((item.timerOffMs||30000)/100)/10}s off`:'';
+    const buttonText=mode==='hold'?'Hold':mode==='timer'?(state?.active?'Stop Timer':'Start Timer'):'Apply';
+    return `<div class="live-widget live-button-widget">${del}<h3>${esc(label)}</h3><div class="small">${esc(meta)} · ${buttonValue} · ${esc(mode)}${esc(timerText)}</div><button class="primary ${state?.active?'active':''}" data-live-button="${index}">${esc(buttonText)}</button></div>`;
   }
   if(item.widget==='knob'){
     const angle=Math.round((value/target.part.max)*360);
@@ -1086,12 +1154,34 @@ function renderLiveControls(){
     });
   });
   grid.querySelectorAll('[data-live-button]').forEach(button=>{
-    button.addEventListener('click',()=>{const item=liveControls[parseInt(button.dataset.liveButton,10)];applyLiveControl(item,item.buttonValue).catch(err=>setStatus(err.message,true));});
+    const item=liveControls[parseInt(button.dataset.liveButton,10)];
+    const mode=item?.buttonMode||'apply';
+    if(mode==='hold'){
+      button.addEventListener('pointerdown',e=>{
+        e.preventDefault();
+        button.setPointerCapture?.(e.pointerId);
+        pressHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+      });
+      const release=e=>{
+        if(e?.pointerId!==undefined)button.releasePointerCapture?.(e.pointerId);
+        releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+      };
+      button.addEventListener('pointerup',release);
+      button.addEventListener('pointercancel',release);
+      button.addEventListener('lostpointercapture',()=>releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true)));
+    }else if(mode==='timer'){
+      button.addEventListener('click',()=>toggleLiveTimer(item));
+    }else{
+      button.addEventListener('click',()=>applyLiveControl(item,item.buttonValue).catch(err=>setStatus(err.message,true)));
+    }
   });
   grid.querySelectorAll('[data-live-delete]').forEach(button=>{
     button.addEventListener('click',e=>{
       e.stopPropagation();
-      liveControls.splice(parseInt(button.dataset.liveDelete,10),1);
+      const index=parseInt(button.dataset.liveDelete,10);
+      stopLiveTimer(liveControls[index],true);
+      liveButtonHeld.delete(liveControls[index]?.id);
+      liveControls.splice(index,1);
       saveLiveControls();
       renderLiveControls();
       setStatus('Removed live control');
@@ -1572,6 +1662,7 @@ document.getElementById('liveFixtureSelect').onchange=updateLiveControlSelects;
 document.getElementById('liveControlSelect').onchange=updateLiveControlSelects;
 document.getElementById('livePartSelect').onchange=updateLiveControlSelects;
 document.getElementById('liveWidgetSelect').onchange=updateLiveControlSelects;
+document.getElementById('liveButtonMode').onchange=updateLiveControlSelects;
 document.getElementById('addLiveControl').onclick=addLiveControl;
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};

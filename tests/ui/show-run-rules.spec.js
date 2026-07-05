@@ -47,7 +47,7 @@ async function routeShowSetup(page, calls) {
           baseUrl: 'http://pico.test',
           profiles,
           fixtures,
-          values: {}
+          values: calls.setupValues || {}
         }
       })
     });
@@ -375,6 +375,57 @@ test.describe('Show Run page', () => {
       .toBe(true);
     await expect.poll(() => calls.liveValues.some(snapshot => snapshot['101:11'] === 77))
       .toBe(true);
+  });
+
+  test('restores the previous live value when a hold live button is released', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 33 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#liveFixtureSelect').selectOption('101');
+    await page.locator('#liveControlSelect').selectOption('11');
+    await page.locator('#liveWidgetSelect').selectOption('button');
+    await page.locator('#liveButtonMode').selectOption('hold');
+    await page.locator('#liveButtonValue').fill('255');
+    await page.locator('#addLiveControl').click();
+
+    const button = page.locator('#liveControlGrid [data-live-button]');
+    await button.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'mouse', button: 0 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:255')))
+      .toBe(true);
+
+    await button.dispatchEvent('pointerup', { pointerId: 1, pointerType: 'mouse', button: 0 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:33')))
+      .toBe(true);
+    await expect.poll(() => calls.liveValues.some(snapshot => snapshot['101:11'] === 33))
+      .toBe(true);
+  });
+
+  test('cycles a timer live button for fog and haze style controls', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 0 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#liveFixtureSelect').selectOption('101');
+    await page.locator('#liveControlSelect').selectOption('11');
+    await page.locator('#liveWidgetSelect').selectOption('button');
+    await page.locator('#liveButtonMode').selectOption('timer');
+    await page.locator('#liveButtonValue').fill('200');
+    await page.locator('#liveTimerOn').fill('0.1');
+    await page.locator('#liveTimerOff').fill('0.1');
+    await page.locator('#addLiveControl').click();
+
+    await page.locator('#liveControlGrid [data-live-button]').click();
+    await expect(page.locator('#liveControlGrid [data-live-button]')).toHaveText('Stop Timer');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:200')))
+      .toBe(true);
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:0')))
+      .toBe(true);
+
+    await page.locator('#liveControlGrid [data-live-button]').click();
+    await expect(page.locator('#liveControlGrid [data-live-button]')).toHaveText('Start Timer');
   });
 
   test('lets the operator adjust tile matrix layouts without saving setup data', async ({ page }) => {
