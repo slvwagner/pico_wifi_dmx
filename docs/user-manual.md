@@ -468,7 +468,7 @@ This target selection is an operator filter only. It does not edit the saved gro
 
 The sticky title bar has **Edit Layout** on the right. Layout tools are hidden during normal operation. Click **Edit Layout** when you want to show the layout controls, then click **Done Layout** to return to the cleaner operator view.
 
-In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Click **Move Cards** to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. On touch screens, tap a card and then tap the destination card position.
+In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Click **Move Cards** to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. Moving a card inserts it into the destination matrix spot and shifts the cards between the old and new positions. On touch screens, tap a card and then tap the destination card position.
 
 Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. While **Edit Layout** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run remembers these layout preferences in the browser, but it does not rewrite the saved toolbox setup on the server.
 

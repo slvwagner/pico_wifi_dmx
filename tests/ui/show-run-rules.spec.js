@@ -703,7 +703,31 @@ test.describe('Show Run page', () => {
     await page.locator('#cardScene').click({ position: { x: 16, y: 16 } });
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
-    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Effects Playback');
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('moving a show card inserts it into the target matrix spot without swapping rows', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardCols').fill('2');
+    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardMove').click();
+
+    // Row 2 / col 2 is the fourth visible card in a 2-column matrix.
+    await page.locator('#cardChaser').click({ position: { x: 16, y: 16 } });
+    await page.locator('#cardGroup').click({ position: { x: 16, y: 16 } });
+
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Scenes');
+    await expect(page.locator('#cardGrid > :nth-child(4) h2')).toHaveText('Palettes');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 4)).toEqual(['chaser', 'group', 'scene', 'palette']);
   });
 });

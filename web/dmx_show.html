@@ -496,9 +496,12 @@ function moveCard(from,to){
   from=parseInt(from,10);to=parseInt(to,10);
   if(!Number.isFinite(from)||!Number.isFinite(to)||from===to)return false;
   if(!cardOrder[from])return false;
-  const target=cardOrder[to]||null;
-  cardOrder[to]=cardOrder[from];
-  cardOrder[from]=target;
+  const total=cardOrder.length;
+  const moving=cardOrder[from];
+  cardOrder.splice(from,1);
+  cardOrder.splice(Math.max(0,Math.min(to,cardOrder.length)),0,moving);
+  cardOrder=cardOrder.slice(0,total);
+  while(cardOrder.length<total)cardOrder.push(null);
   cardMoveSelected=null;
   saveCardLayout();
   renderCardGrid();
