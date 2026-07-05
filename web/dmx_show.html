@@ -2352,22 +2352,25 @@ async function applyDimmerMaster(value,scope='all'){
   targets.forEach(row=>{
     patch[controlKey(row.fixture,row.control)]=cloneValue(getValue(row.fixture,row.control,defaultValueForControl(row.control)));
   });
-  const masked=await applyMasterDimmerMask({clearWhenEmpty:true});
-  if(!masked)await sendPairs(valuePatchPairsUnscaled(patch));
+  const scaled=await applyMasterDimmerScale({clearWhenEmpty:true});
+  if(!scaled)await sendPairs(valuePatchPairsUnscaled(patch));
   setStatus((targetMaster?targetMaster.name:'Grand')+' master set '+targets.length+' dimmer control(s) to '+faderValue+'%');
 }
 function masterFactorsNeedRestore(){
   if(Math.abs((masterFactors.grand??1)-1)>0.0001)return true;
   return targetMasters.some(master=>Math.abs((master.factor??1)-1)>0.0001);
 }
-function dimmerMasterMaskPatch(){
-  const patch={};
+function dimmerMasterScalePairs(){
+  const scales=new Map();
   dimmerTargets().forEach(row=>{
-    if(Math.abs(masterFactorFor(row.fixture,row.control)-1)>0.0001){
-      patch[controlKey(row.fixture,row.control)]=cloneValue(getValue(row.fixture,row.control,defaultValueForControl(row.control)));
-    }
+    const factor=masterFactorFor(row.fixture,row.control);
+    if(Math.abs(factor-1)<=0.0001)return;
+    const scale=clamp(Math.round(factor*255),0,255);
+    resolveDmxBytes(row.fixture,row.control).forEach(byte=>{
+      scales.set(String(byte.ch),String(scale));
+    });
   });
-  return patch;
+  return [...scales.entries()].map(([ch,scale])=>ch+':'+scale);
 }
 function dimmerRestorePatch(){
   const patch={};
@@ -2377,33 +2380,32 @@ function dimmerRestorePatch(){
   });
   return patch;
 }
-async function clearMasterDimmerMask(options={}){
+async function clearMasterDimmerScale(options={}){
   const root=endpoint();
   if(!root)return false;
-  const r=await fetch(root+'/dmx/blackout/clear',{cache:'no-store',keepalive:!!options.keepalive});
-  if(!r.ok)throw new Error('Pico master mask clear failed: HTTP '+r.status);
+  const r=await fetch(root+'/dmx/master/clear',{cache:'no-store',keepalive:!!options.keepalive});
+  if(!r.ok)throw new Error('Pico master scale clear failed: HTTP '+r.status);
   return true;
 }
-async function applyMasterDimmerMask(options={}){
-  const patch=dimmerMasterMaskPatch();
-  const pairs=valuePatchPairs(patch);
+async function applyMasterDimmerScale(options={}){
+  const pairs=dimmerMasterScalePairs();
   if(!pairs.length){
-    if(options.clearWhenEmpty)await clearMasterDimmerMask(options);
+    if(options.clearWhenEmpty)await clearMasterDimmerScale(options);
     return false;
   }
-  await sendPairs(pairs,'/dmx/blackout',options);
+  await sendPairs(pairs,'/dmx/master',options);
   return true;
 }
 async function restoreDimmerMastersForExit(options={}){
   const patch=dimmerRestorePatch();
   const pairs=valuePatchPairsUnscaled(patch);
   if(!pairs.length)return false;
-  await clearMasterDimmerMask(options);
+  await clearMasterDimmerScale(options);
   await sendPairs(pairs,'/dmx/b',options);
   return true;
 }
 async function applyDimmerMastersForEntry(){
-  return applyMasterDimmerMask();
+  return applyMasterDimmerScale();
 }
 function selectedFixtureIdsForAssignment(){
   if(!selectedGroupIds.size&&!selectedFixtureIds.size)return [];
@@ -2527,8 +2529,8 @@ async function sendPairs(pairs,path='/dmx/b',options={}){
   if(!r.ok)throw new Error('Pico DMX send failed: HTTP '+r.status);
 }
 async function sendValuePatchWithMasterMask(patch){
-  await sendPairs(valuePatchPairs(patch));
-  if(masterFactorsNeedRestore())await applyMasterDimmerMask();
+  await sendPairs(valuePatchPairsUnscaled(patch));
+  if(masterFactorsNeedRestore())await applyMasterDimmerScale();
 }
 function recallSceneKey(key){
   const scene=scenes.find((s,index)=>String(s.id||s.slot||index)===String(key));

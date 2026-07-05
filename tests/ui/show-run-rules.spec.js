@@ -454,7 +454,7 @@ test.describe('Show Run page', () => {
 
     await page.locator('[data-master-blackout="all"]').click();
     await expect(page.locator('.grand-master-fader')).toHaveValue('0');
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '1:0,11:0')).toBe(true);
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '1:0,11:0')).toBe(true);
     expect(calls.liveValues).toHaveLength(0);
 
     await page.locator('.grand-master-fader').fill('100');
@@ -466,7 +466,7 @@ test.describe('Show Run page', () => {
 
     await page.locator('[data-master-blackout="target:0"]').click();
     await expect(page.locator('[data-target-master-fader="0"]')).toHaveValue('0');
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '11:0')).toBe(true);
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '11:0')).toBe(true);
   });
 
   test('full buttons set Grand and Group Master faders to full', async ({ page }) => {
@@ -477,19 +477,19 @@ test.describe('Show Run page', () => {
     calls.pico.length = 0;
     await page.locator('[data-master-full="all"]').click();
     await expect(page.locator('.grand-master-fader')).toHaveValue('100');
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout/clear')).toBe(true);
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master/clear')).toBe(true);
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:100,11:200')).toBe(true);
 
     await page.getByRole('button', { name: /Spot 2/ }).click();
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardMaster [data-target-master-assign="0"]').first().click();
     await page.locator('[data-target-master-fader="0"]').fill('25');
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '11:50')).toBe(true);
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '11:64')).toBe(true);
     calls.pico.length = 0;
 
     await page.locator('[data-master-full="target:0"]').click();
     await expect(page.locator('[data-target-master-fader="0"]')).toHaveValue('100');
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout/clear')).toBe(true);
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master/clear')).toBe(true);
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
     expect(calls.liveValues).toHaveLength(0);
   });
@@ -501,11 +501,33 @@ test.describe('Show Run page', () => {
 
     await page.locator('.grand-master-fader').fill('50');
 
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body.includes('1:50') && call.body.includes('11:100')))
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body.includes('1:128') && call.body.includes('11:128')))
       .toBe(true);
     expect(calls.liveValues).toHaveLength(0);
     expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.grandMasterFactor === 0.5)).toBe(true);
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('recalls raw scene values while master scaling is active on the Pico', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      setupValues: { '101:11': 100, '102:11': 200 },
+      showRunState: { grandMasterFactor: 0.5 }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '1:128,11:128'))
+      .toBe(true);
+    calls.pico.length = 0;
+
+    await page.getByRole('button', { name: /Both On/ }).click();
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:100,11:200'))
+      .toBe(true);
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '1:128,11:128'))
+      .toBe(true);
   });
 
   test('restores unscaled dimmer output before leaving Show Run', async ({ page }) => {
@@ -514,13 +536,13 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('.grand-master-fader').fill('50');
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '1:50,11:100'))
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '1:128,11:128'))
       .toBe(true);
     calls.pico.length = 0;
 
     await page.getByRole('link', { name: 'Controller' }).click();
 
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout/clear'))
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master/clear'))
       .toBe(true);
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:100,11:200'))
       .toBe(true);
@@ -542,7 +564,7 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('.grand-master-fader')).toHaveValue('50');
     await expect(page.locator('[data-target-master-fader="0"]')).toHaveValue('25');
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '1:50,11:25'))
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '1:128,11:32'))
       .toBe(true);
   });
 
@@ -560,7 +582,7 @@ test.describe('Show Run page', () => {
     calls.pico.length = 0;
     await page.locator('[data-target-master-fader="0"]').fill('25');
 
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '11:50'))
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '11:64'))
       .toBe(true);
     expect(calls.liveValues).toHaveLength(0);
     expect(calls.uiStatePosts.some(post => post.page === 'showRun' && Array.isArray(post.state.targetMasters))).toBe(true);
@@ -580,7 +602,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#status')).toContainText('Assigned 1 fixture(s) to Group Master 2');
     await page.locator('[data-target-master-fader="1"]').fill('10');
 
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '1:10'))
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '1:26'))
       .toBe(true);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.targetMasters') || '[]'));
     expect(saved).toHaveLength(2);
@@ -611,7 +633,7 @@ test.describe('Show Run page', () => {
 
     await page.locator('.grand-master-fader').fill('50');
 
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout' && call.body === '1:64,2:0'))
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '1:128,2:128'))
       .toBe(true);
     expect(calls.liveValues).toHaveLength(0);
     expect(calls.setupWrites).toBe(0);

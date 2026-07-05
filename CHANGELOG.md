@@ -18,6 +18,7 @@ Changed:
 - Expanded the Show Run manual screenshots with dedicated Live Controls examples for momentary Hold buttons and fog/haze Timer buttons.
 - Changed Show Run **Move Cards** to use fixed-position moves: dropping onto an empty matrix spot leaves every other card in place, and dropping onto an occupied spot swaps only those two cards.
 - Added a visible Show Run card **Move** handle while Move Cards is active, making interactive cards such as **Live Controls** easy to move without dragging a fader, select, or button.
+- Added Pico firmware output master scaling through `/dmx/master` and `/dmx/master/clear`, so Show Run Grand/Group Masters scale transmitted dimmer output while Pico chaser/effect playback continues writing its raw values.
 
 ## 0.9.6 - 2026-07-04
 

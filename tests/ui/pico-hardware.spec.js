@@ -149,4 +149,57 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await getJson(request, '/motion/stop/' + slot);
     await getJson(request, '/dmx/blackout/clear');
   });
+
+  test('Master scale dims output without suppressing running motion output', async ({ request }) => {
+    const slot = Number(hardware.motionSlot);
+    const channel = (hardware.dmxTestChannels || [1])[0];
+    const body = [
+      'FX 1',
+      'TYPE 4',
+      'BPM 120',
+      'AMP1 1.00',
+      'AMP2 0.00',
+      'SPREAD 0',
+      `TARGET scalar8 1 ${channel} 0 0 0 0 0 0`,
+      'END'
+    ].join('\n');
+
+    await getJson(request, '/motion/stop/' + slot);
+    await getJson(request, '/dmx/master/clear');
+    await getJson(request, '/dmx/blackout/clear');
+    await getJson(request, '/dmx/clear');
+
+    await postText(request, '/dmx/b', `${channel}:200`);
+    let output = await getJson(request, '/dmx/output.json');
+    expect(output.values[channel - 1]).toBe(200);
+
+    await postText(request, '/dmx/master', `${channel}:128`);
+    output = await getJson(request, '/dmx/output.json');
+    expect(output.values[channel - 1]).toBeGreaterThanOrEqual(99);
+    expect(output.values[channel - 1]).toBeLessThanOrEqual(101);
+
+    await getJson(request, '/dmx/master/clear');
+    output = await getJson(request, '/dmx/output.json');
+    expect(output.values[channel - 1]).toBe(200);
+
+    await postText(request, '/dmx/b', `${channel}:128`);
+    await postText(request, '/motion/load/' + slot, body);
+    await postText(request, '/dmx/master', `${channel}:128`);
+    await getJson(request, '/motion/start/' + slot);
+
+    const samples = [];
+    for (let i = 0; i < 8; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      output = await getJson(request, '/dmx/output.json');
+      samples.push(output.values[channel - 1]);
+    }
+
+    expect(Math.max(...samples)).toBeGreaterThan(20);
+    expect(Math.max(...samples)).toBeLessThanOrEqual(128);
+    expect(new Set(samples).size).toBeGreaterThan(2);
+
+    await getJson(request, '/motion/stop/' + slot);
+    await getJson(request, '/dmx/master/clear');
+    await getJson(request, '/dmx/blackout/clear');
+  });
 });

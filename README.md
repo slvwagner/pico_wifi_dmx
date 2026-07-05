@@ -683,6 +683,8 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 | `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
 | `/dmx/clear` | GET | Zero all channels and clear the scene base buffer |
 | `/dmx/output_clear` | GET | Zero live DMX output channels only; preserve the scene base buffer |
+| `/dmx/master` | POST | Set output master scale factors as `ch:scale` pairs, where scale is 0–255. This scales the transmitted DMX output without blocking chaser/effect writes. |
+| `/dmx/master/clear` | GET | Clear all output master scale factors |
 | `/dmx/output.json` | GET | Read the actual live DMX output frame as `{"ok":true,"channels":N,"frame_count":N,"values":[...]}` |
 | `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
 | `/dmx/values.json` | GET | Read all channel values |
@@ -881,7 +883,7 @@ The Pico Performance Test page checks the whole browser-to-Pico path. It reads `
 
 Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
 
-Show Run blackout is handled by the Master card faders. **Full** above a master sets that master to `100%`. **Blackout** below the Grand Master sets the Grand Master to `0%` and sends scaled dimmer output for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. When any master is below `100%`, Show Run sends the scaled dimmer channels through the Pico blackout-lock endpoint so Pico chaser/effect playback cannot overwrite those dimmer channels. The stored live values are not overwritten. When entering Show Run, saved Grand Master and Group Master factors are applied to the current live dimmer output and locked on the Pico when needed. When leaving Show Run, the browser clears the Pico lock and restores dimmer output to the underlying live values without those multipliers.
+Show Run blackout is handled by the Master card faders. **Full** above a master sets that master to `100%`. **Blackout** below the Grand Master sets the Grand Master to `0%` for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. When any master is below `100%`, Show Run sends affected dimmer channels to the Pico `/dmx/master` output-scaling endpoint as `channel:scale` factors. The Pico keeps chaser and effect playback writing their normal raw values, then scales the transmitted DMX output, so a running dimmer sine effect remains visible but follows the Grand/Group Master level. The stored live values are not overwritten. When entering Show Run, saved Grand Master and Group Master factors are restored to the Pico scaling layer. When leaving Show Run, the browser clears the Pico master scale and restores dimmer output to the underlying live values without those multipliers.
 
 Show Run refreshes its XAMPP show data automatically when the page becomes active again, so changes made on the Controller, Chaser, or Effects page are picked up when the operator returns. Auto-refresh is skipped while **Edit Layout** is active; **Refresh Show Data** remains as a manual fallback.
 
