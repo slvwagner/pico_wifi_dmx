@@ -71,6 +71,86 @@
       "purpose": "group edit modal"
     },
     {
+      "file": "show-run.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run operator overview"
+    },
+    {
+      "file": "show-run-card-master.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Master card"
+    },
+    {
+      "file": "show-run-card-groups.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Groups card"
+    },
+    {
+      "file": "show-run-card-fixtures.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Fixtures card"
+    },
+    {
+      "file": "show-run-card-scenes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Scenes card"
+    },
+    {
+      "file": "show-run-card-palettes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Palettes card"
+    },
+    {
+      "file": "show-run-card-chaser.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Pico Chaser Playback card"
+    },
+    {
+      "file": "show-run-card-effects.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Pico Effects Playback card"
+    },
+    {
+      "file": "show-run-card-live-controls.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Live Controls card"
+    },
+    {
+      "file": "show-run-card-midi.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run MIDI Input card"
+    },
+    {
+      "file": "show-run-add-card.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Add Card modal with repeatable card types"
+    },
+    {
+      "file": "show-run-layout-edit.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run layout editing with repeated cards and empty positions"
+    },
+    {
+      "file": "show-run-tile-actions.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run tile edit and non-destructive remove actions"
+    },
+    {
+      "file": "show-run-live-controls.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Live Controls in layout edit mode"
+    },
+    {
+      "file": "show-run-live-hold-button.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run momentary Hold button setup"
+    },
+    {
+      "file": "show-run-live-timer-button.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run fog and haze Timer button setup"
+    },
+    {
       "file": "chaser-readme.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "README chaser overview without toolbox focus"

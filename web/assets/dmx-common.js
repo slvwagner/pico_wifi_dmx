@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.6';
+  const APP_VERSION='0.9.7';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -636,7 +636,7 @@
 
   function saveUiState(page,key,val){
     if(!isHttp())return;
-    fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
       body:JSON.stringify({page,state:{[key]:val}})}).catch(()=>{});
   }
 
@@ -1771,6 +1771,7 @@
     if(grid._dmxTileMoveCleanup)grid._dmxTileMoveCleanup();
     const active=!!options.active;
     const selector=options.itemSelector||'[data-tile-move-index]';
+    const handleSelector=options.handleSelector||null;
     const getIndex=options.getIndex||((el)=>parseInt(el?.dataset?.tileMoveIndex,10));
     const canDrag=options.canDrag||(()=>true);
     const onMove=options.onMove||(()=>false);
@@ -1796,6 +1797,14 @@
           return x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;
         })||null;
     };
+    const autoScrollDuringDrag=e=>{
+      const edge=72;
+      const step=28;
+      if(e.clientY<edge)window.scrollBy(0,-step);
+      else if(e.clientY>window.innerHeight-edge)window.scrollBy(0,step);
+      if(e.clientX<edge)window.scrollBy(-step,0);
+      else if(e.clientX>window.innerWidth-edge)window.scrollBy(step,0);
+    };
     const markTarget=(target,x)=>{
       grid.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(item=>item.classList.remove('toolbox-drop-before','toolbox-drop-after'));
       if(!target)return;
@@ -1810,6 +1819,7 @@
       if(!moved&&!pointerDrag.moved)return;
       pointerDrag.moved=true;
       pointerDrag.source.classList.add('toolbox-dragging');
+      autoScrollDuringDrag(e);
       pointerDrag.target=targetAtPoint(e.clientX,e.clientY,pointerDrag.source);
       markTarget(pointerDrag.target,e.clientX);
       e.preventDefault();
@@ -1833,6 +1843,7 @@
       if(!moved&&!pointerDrag.moved)return;
       pointerDrag.moved=true;
       pointerDrag.source.classList.add('toolbox-dragging');
+      autoScrollDuringDrag(e);
       pointerDrag.target=targetAtPoint(e.clientX,e.clientY,pointerDrag.source);
       markTarget(pointerDrag.target,e.clientX);
       e.preventDefault();
@@ -1868,9 +1879,26 @@
         window.addEventListener('mousemove',mouseMove);
         window.addEventListener('mouseup',mouseEnd);
       };
-      el.addEventListener('pointerdown',pointerDown);
-      el.addEventListener('mousedown',mouseDown);
-      el.addEventListener('dragstart',e=>{
+      const dragStartEls=handleSelector?Array.from(el.querySelectorAll(handleSelector)):[el];
+      dragStartEls.forEach(startEl=>{
+        startEl.draggable=false;
+        startEl.addEventListener('pointerdown',pointerDown);
+        startEl.addEventListener('mousedown',mouseDown);
+        startEl.addEventListener('dragstart',e=>{
+          if(e.currentTarget!==startEl)return;
+          if(!active||!canDrag(idx,el)){
+            e.preventDefault();
+            return;
+          }
+          dragIndex=idx;
+          el.classList.add('toolbox-dragging');
+          if(e.dataTransfer){
+            e.dataTransfer.effectAllowed='move';
+            e.dataTransfer.setData('text/plain',String(idx));
+          }
+        });
+      });
+      if(!handleSelector)el.addEventListener('dragstart',e=>{
         if(!active||!canDrag(idx,el)){
           e.preventDefault();
           return;

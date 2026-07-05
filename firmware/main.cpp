@@ -21,6 +21,7 @@
 #include "pico_chaser.h"
 #include "pico_motion.h"
 #include "gpio_control.h"
+#include "midi_input.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
@@ -50,6 +51,22 @@
 #define DMX_REFRESH_RATE 40
 #endif
 
+#ifndef MIDI_ENABLED
+#define MIDI_ENABLED 1
+#endif
+
+#ifndef MIDI_RX_PIN
+#define MIDI_RX_PIN 5
+#endif
+
+#ifndef MIDI_UART_ID
+#define MIDI_UART_ID 1
+#endif
+
+#ifndef MIDI_BAUD
+#define MIDI_BAUD 31250
+#endif
+
 #define PERF_LOG_INTERVAL_US 2000000u
 #define CORE0_PLAYBACK_PERIOD_US 10000u
 #define CORE1_SERVICE_PERIOD_US 2000000u
@@ -65,12 +82,14 @@ static char log_buffer[4096];
 static size_t log_length;
 static char http_page[12288];
 static char http_logs[6144];
-static char http_status_json[1024];
+static char http_status_json[2048];
 static char http_dmx_json[1024];
 static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
 static char http_playback_json[12288];
 static char http_gpio_json[4096];
 static char http_gpio_body[3072];
+static char http_midi_json[2048];
+static char http_midi_body[1024];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 static struct udp_pcb *discovery_udp;
@@ -80,7 +99,7 @@ static char pico_unique_id[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 #define POST_BUFFER_MAX (12 * 1024)
 static char    post_buffer[POST_BUFFER_MAX];
 static size_t  post_length = 0;
-static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_GPIO_CONFIG } post_type = POST_NONE;
+static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_DMX_BLACKOUT, POST_DMX_MASTER, POST_GPIO_CONFIG } post_type = POST_NONE;
 static uint8_t post_slot = 0;
 
 extern char __StackLimit;
@@ -585,7 +604,9 @@ static void build_logs_text()
 static void build_status_json()
 {
     dmx_engine_status_t dmx;
+    midi_input_status_t midi;
     dmx_engine_get_status(&dmx);
+    midi_input_get_status(&midi);
 
     snprintf(
         http_status_json,
@@ -611,7 +632,25 @@ static void build_status_json()
         "\"skipped_callbacks\":%lu,"
         "\"prime_timeouts\":%lu,"
         "\"frame_timeouts\":%lu,"
-        "\"auto_resyncs\":%lu"
+        "\"auto_resyncs\":%lu,"
+        "\"blackout_channels\":%u,"
+        "\"master_channels\":%u"
+        "},"
+        "\"midi\":{"
+        "\"enabled\":%s,"
+        "\"initialized\":%s,"
+        "\"rx_pin\":%u,"
+        "\"uart_id\":%u,"
+        "\"baud\":%lu,"
+        "\"byte_count\":%lu,"
+        "\"message_count\":%lu,"
+        "\"realtime_count\":%lu,"
+        "\"parse_error_count\":%lu,"
+        "\"last_event_ms\":%lu,"
+        "\"last_status\":%u,"
+        "\"last_channel\":%u,"
+        "\"last_data1\":%u,"
+        "\"last_data2\":%u"
         "}"
         "}\n",
         dmx.initialized ? "true" : "false",
@@ -627,7 +666,23 @@ static void build_status_json()
         (unsigned long)dmx.skipped_callbacks,
         (unsigned long)dmx.prime_timeouts,
         (unsigned long)dmx.frame_timeouts,
-        (unsigned long)dmx.auto_resyncs);
+        (unsigned long)dmx.auto_resyncs,
+        dmx.blackout_channels,
+        dmx.master_channels,
+        midi.enabled ? "true" : "false",
+        midi.initialized ? "true" : "false",
+        midi.rx_pin,
+        midi.uart_id,
+        (unsigned long)midi.baud,
+        (unsigned long)midi.byte_count,
+        (unsigned long)midi.message_count,
+        (unsigned long)midi.realtime_count,
+        (unsigned long)midi.parse_error_count,
+        (unsigned long)midi.last_event_ms,
+        midi.last_status,
+        midi.last_channel,
+        midi.last_data1,
+        midi.last_data2);
 }
 
 static bool path_matches(const char *name, const char *path)
@@ -727,6 +782,23 @@ static void build_gpio_json_response(unsigned status_code, const char *status_te
         body);
 }
 
+static void build_midi_json_response(unsigned status_code, const char *status_text, const char *body)
+{
+    snprintf(
+        http_midi_json,
+        sizeof(http_midi_json),
+        "HTTP/1.0 %u %s\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "%s",
+        status_code,
+        status_text,
+        body ? body : "{}\n");
+}
+
 // /dmx/b/<ch>:<val>,<ch>:<val>,…  — batch set, data encoded in path (no query string)
 // lwIP httpd strips query strings before fs_open, so we must use the path.
 static void build_dmx_b_response(const char *name)
@@ -778,6 +850,136 @@ static void build_dmx_b_response(const char *name)
         "\r\n"
         "{\"ok\":true,\"updated\":%u}\n",
         updated);
+}
+
+static uint16_t parse_and_apply_dmx_pairs(const char *data, bool blackout_lock, uint16_t max_channels)
+{
+    uint16_t updated = 0;
+    const char *p = data;
+    while (*p) {
+        char *end_ch = NULL;
+        unsigned long ch = strtoul(p, &end_ch, 10);
+        if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= max_channels) {
+            char *end_val = NULL;
+            unsigned long val = strtoul(end_ch + 1, &end_val, 10);
+            if (end_val != end_ch + 1 && val <= 255) {
+                if (blackout_lock) {
+                    dmx_engine_set_blackout_channel((uint16_t)ch, (uint8_t)val);
+                } else {
+                    dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                }
+                dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
+                critical_section_enter_blocking(&dmx_ui_lock);
+                dmx_ui_values[ch] = (uint8_t)val;
+                critical_section_exit(&dmx_ui_lock);
+                updated++;
+            }
+            p = end_val;
+        } else {
+            const char *next = strchr(p, ',');
+            if (!next) break;
+            p = next;
+        }
+        if (*p == ',') p++;
+        else break;
+    }
+    return updated;
+}
+
+static uint16_t parse_and_apply_master_pairs(const char *data, uint16_t max_channels)
+{
+    uint16_t updated = 0;
+    const char *p = data;
+    while (*p) {
+        char *end_ch = NULL;
+        unsigned long ch = strtoul(p, &end_ch, 10);
+        if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= max_channels) {
+            char *end_scale = NULL;
+            unsigned long scale = strtoul(end_ch + 1, &end_scale, 10);
+            if (end_scale != end_ch + 1 && scale <= 255) {
+                dmx_engine_set_master_scale((uint16_t)ch, (uint8_t)scale);
+                updated++;
+            }
+            p = end_scale;
+        } else {
+            const char *next = strchr(p, ',');
+            if (!next) break;
+            p = next;
+        }
+        if (*p == ',') p++;
+        else break;
+    }
+    return updated;
+}
+
+static void build_dmx_blackout_response(const char *name)
+{
+    if (path_matches(name, "/dmx/blackout/clear") || path_matches(name, "/dmx/blackout_clear")) {
+        dmx_engine_clear_blackout();
+        build_dmx_json_response(200, "OK", "{\"ok\":true,\"blackout\":false,\"locked\":0}\n");
+        return;
+    }
+
+    const char *data = name + strlen("/dmx/blackout");
+    if (*data == '/') {
+        data++;
+    }
+    if (!*data) {
+        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"Use /dmx/blackout/ch:val,ch:val\"}\n");
+        return;
+    }
+
+    dmx_engine_clear_blackout();
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+    uint16_t updated = parse_and_apply_dmx_pairs(data, true, status.channels);
+    snprintf(
+        http_dmx_json,
+        sizeof(http_dmx_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"blackout\":true,\"updated\":%u,\"locked\":%u}\n",
+        updated,
+        dmx_engine_blackout_channel_count());
+}
+
+static void build_dmx_master_response(const char *name)
+{
+    if (path_matches(name, "/dmx/master/clear") || path_matches(name, "/dmx/master_clear")) {
+        dmx_engine_clear_master_scale();
+        build_dmx_json_response(200, "OK", "{\"ok\":true,\"master\":false,\"scaled\":0}\n");
+        return;
+    }
+
+    const char *data = name + strlen("/dmx/master");
+    if (*data == '/') {
+        data++;
+    }
+    if (!*data) {
+        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"Use /dmx/master/ch:scale,ch:scale\"}\n");
+        return;
+    }
+
+    dmx_engine_clear_master_scale();
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+    uint16_t updated = parse_and_apply_master_pairs(data, status.channels);
+    snprintf(
+        http_dmx_json,
+        sizeof(http_dmx_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"master\":true,\"updated\":%u,\"scaled\":%u}\n",
+        updated,
+        dmx_engine_master_channel_count());
 }
 
 static void build_dmx_set_response(const char *name)
@@ -1232,6 +1434,35 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    if (path_matches(name, "/dmx/blackout")) {
+        build_dmx_blackout_response(name);
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/dmx/master")) {
+        build_dmx_master_response(name);
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    /* ----- MIDI input endpoints -------------------------------------- */
+    if (path_matches(name, "/midi/status.json") || path_matches(name, "/midi/status")) {
+        midi_input_write_status_json(http_midi_body, sizeof(http_midi_body));
+        build_midi_json_response(200, "OK", http_midi_body);
+        file->data = http_midi_json;
+        file->len = (int)strlen(http_midi_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     /* ----- Chaser endpoints ------------------------------------------- */
     /* /chaser/play        — play slot 0 (backward compat)
        /chaser/play/<N>    — play slot N */
@@ -1556,6 +1787,20 @@ extern "C" err_t httpd_post_begin(void *connection,
         return ERR_OK;
     }
 
+    /* POST /dmx/blackout — batch set and lock blackout channels */
+    if (strncmp(uri, "/dmx/blackout", 13) == 0 &&
+        (uri[13] == '\0' || uri[13] == '/' || uri[13] == '?')) {
+        post_type = POST_DMX_BLACKOUT;
+        return ERR_OK;
+    }
+
+    /* POST /dmx/master - batch set output master scales as ch:scale pairs */
+    if (strncmp(uri, "/dmx/master", 11) == 0 &&
+        (uri[11] == '\0' || uri[11] == '/' || uri[11] == '?')) {
+        post_type = POST_DMX_MASTER;
+        return ERR_OK;
+    }
+
     /* POST /dmx/b  — batch DMX set with ch:val pairs in body */
     if (strncmp(uri, "/dmx/b", 6) == 0 &&
         (uri[6] == '\0' || uri[6] == '/' || uri[6] == '?')) {
@@ -1617,31 +1862,7 @@ extern "C" void httpd_post_finished(void *connection,
     } else if (post_type == POST_DMX_BATCH) {
         dmx_engine_status_t status;
         dmx_engine_get_status(&status);
-        uint16_t updated = 0;
-        const char *p = post_buffer;
-        while (*p) {
-            char *end_ch = NULL;
-            unsigned long ch = strtoul(p, &end_ch, 10);
-            if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= status.channels) {
-                char *end_val = NULL;
-                unsigned long val = strtoul(end_ch + 1, &end_val, 10);
-                if (end_val != end_ch + 1 && val <= 255) {
-                    dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
-                    dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
-                    critical_section_enter_blocking(&dmx_ui_lock);
-                    dmx_ui_values[ch] = (uint8_t)val;
-                    critical_section_exit(&dmx_ui_lock);
-                    updated++;
-                }
-                p = end_val;
-            } else {
-                const char *next = strchr(p, ',');
-                if (!next) break;
-                p = next;
-            }
-            if (*p == ',') p++;
-            else break;
-        }
+        uint16_t updated = parse_and_apply_dmx_pairs(post_buffer, false, status.channels);
         snprintf(http_dmx_json, sizeof(http_dmx_json),
             "HTTP/1.0 200 OK\r\n"
             "Content-Type: application/json; charset=utf-8\r\n"
@@ -1651,6 +1872,38 @@ extern "C" void httpd_post_finished(void *connection,
             "\r\n"
             "{\"ok\":true,\"updated\":%u}\n",
             updated);
+        snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
+    } else if (post_type == POST_DMX_BLACKOUT) {
+        dmx_engine_clear_blackout();
+        dmx_engine_status_t status;
+        dmx_engine_get_status(&status);
+        uint16_t updated = parse_and_apply_dmx_pairs(post_buffer, true, status.channels);
+        snprintf(http_dmx_json, sizeof(http_dmx_json),
+            "HTTP/1.0 200 OK\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n"
+            "Cache-Control: no-store\r\n"
+            "\r\n"
+            "{\"ok\":true,\"blackout\":true,\"updated\":%u,\"locked\":%u}\n",
+            updated,
+            dmx_engine_blackout_channel_count());
+        snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
+    } else if (post_type == POST_DMX_MASTER) {
+        dmx_engine_clear_master_scale();
+        dmx_engine_status_t status;
+        dmx_engine_get_status(&status);
+        uint16_t updated = parse_and_apply_master_pairs(post_buffer, status.channels);
+        snprintf(http_dmx_json, sizeof(http_dmx_json),
+            "HTTP/1.0 200 OK\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n"
+            "Cache-Control: no-store\r\n"
+            "\r\n"
+            "{\"ok\":true,\"master\":true,\"updated\":%u,\"scaled\":%u}\n",
+            updated,
+            dmx_engine_master_channel_count());
         snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
     } else {
         build_playback_err_response("unknown endpoint");
@@ -1734,7 +1987,8 @@ static void core0_application_loop()
 {
     chaser_init();
     mfx_init();
-    gpio_control_init((1u << DMX_TX_PIN) | (1u << DMX_TRIGGER_PIN));
+    midi_input_init(MIDI_ENABLED != 0, MIDI_RX_PIN, MIDI_UART_ID, MIDI_BAUD);
+    gpio_control_init((1u << DMX_TX_PIN) | (1u << DMX_TRIGGER_PIN) | ((MIDI_ENABLED != 0) ? (1u << MIDI_RX_PIN) : 0u));
     gpio_control_set_dmx_clear_hook(gpio_clear_dmx_and_ui);
     gpio_control_set_dmx_output_clear_hook(gpio_clear_dmx_output_and_ui);
 
@@ -1762,6 +2016,11 @@ static void core0_application_loop()
     }
 
     log_printf("Core0 DMX engine running\n");
+    log_printf("Core0 MIDI input: enabled=%u uart=%u rx_pin=%u baud=%u\n",
+               MIDI_ENABLED != 0 ? 1u : 0u,
+               (unsigned)MIDI_UART_ID,
+               (unsigned)MIDI_RX_PIN,
+               (unsigned)MIDI_BAUD);
 
     uint32_t last_playback_tick = 0;
     uint32_t last_gpio_poll_ms = 0;
@@ -1782,7 +2041,7 @@ static void core0_application_loop()
             memset(chaser_touched, 0, sizeof(chaser_touched));
             chaser_tick(now_us, chaser_scratch, chaser_touched);
             for (uint16_t ch = 1; ch <= 512; ch++) {
-                if (chaser_touched[ch]) {
+                if (chaser_touched[ch] && !dmx_engine_channel_is_blackout_locked(ch)) {
                     dmx_engine_set_base_channel(ch, chaser_scratch[ch]);
                     dmx_engine_set_channel(ch, chaser_scratch[ch]);
                 }
@@ -1795,7 +2054,7 @@ static void core0_application_loop()
             memset(mfx_touched, 0, sizeof(mfx_touched));
             mfx_tick(now_us, mfx_scratch, mfx_touched);
             for (uint16_t ch = 1; ch <= 512; ch++)
-                if (mfx_touched[ch])
+                if (mfx_touched[ch] && !dmx_engine_channel_is_blackout_locked(ch))
                     dmx_engine_set_channel(ch, mfx_scratch[ch]);
 
             uint32_t cycle_end_us = time_us_32();
@@ -1807,6 +2066,7 @@ static void core0_application_loop()
         uint32_t now_ms = to_ms_since_boot(get_absolute_time());
         if (now_ms != last_gpio_poll_ms) {
             gpio_control_poll(now_ms);
+            midi_input_poll(now_ms);
             last_gpio_poll_ms = now_ms;
         }
 

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.6">
-<script src="assets/dmx-common.js?v=0.9.6"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.7">
+<script src="assets/dmx-common.js?v=0.9.7"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -114,8 +114,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.6">GPIO</a>
-<a class="nav" href="user-manual.html?v=0.9.6#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.7">GPIO</a>
+<a class="nav" href="user-manual.html?v=0.9.7#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -2647,6 +2647,7 @@ function resetShowLocalState(){
   groupCols=2;groupRows=4;
   collapsedFixtureIds.clear();
   ['dmxFixtureController','dmxFCLiveValues','selectedGroupIds','fixtureCardCollapsed','groupsBoxCols','groupsBoxRows','sceneSlotCols','sceneSlotRows','paletteSlotCols','paletteSlotRows'].forEach(key=>localStorage.removeItem(key));
+  Object.keys(localStorage).filter(key=>key.startsWith('dmxShowRun.')).forEach(key=>localStorage.removeItem(key));
   DmxCommon.saveSharedGroupSelection([]);
   addDefaultProfile();
   resetControlEditor();
@@ -2685,7 +2686,8 @@ async function startNewShow(){
     },
     toolboxes:{selectedGroupIds:[],groupsBoxCols:2,groupsBoxRows:4},
     chaser:{},
-    motion:{}
+    motion:{},
+    showRun:{}
   };
   await postSetupPayload('fixture_setup.php',fixturePayload);
   await postSetupPayload('fixture_setup.php?livevalues',{});
@@ -4444,6 +4446,48 @@ function currentPaletteVisualForSave(){
   const scope=currentPaletteScope();
   return DmxCommon.normalizeSlotVisualDefault(paletteVisualDefaults[scope],'#225a50');
 }
+function optionVisualData(option){
+  if(!option||typeof option!=='object')return null;
+  const image=String(option.image||'');
+  const color=String(option.color||'');
+  if(/^data:image\//.test(image))return{type:'visual',color:/^#[0-9a-f]{6}$/i.test(color)?color:'#225a50',image};
+  if(/^#[0-9a-f]{6}$/i.test(color))return{type:'visual',color,image:''};
+  return null;
+}
+function goboOptionVisual(control,option){
+  const direct=optionVisualData(option);
+  if(direct)return direct;
+  const slot=option&&option.slotNumber!=null?String(option.slotNumber):'';
+  if(!slot)return null;
+  const fallback=(control.options||[]).find(candidate=>String(candidate.slotNumber||'')===slot&&optionVisualData(candidate));
+  return optionVisualData(fallback);
+}
+function paletteVisualKey(visual){
+  if(!visual)return '';
+  return String(visual.image||'')||String(visual.color||'');
+}
+function currentPaletteAutoVisualForSave(scope,paletteValues=null){
+  if(scope!=='gobo')return null;
+  const valuesToInspect=paletteValues||currentPaletteSaveValues();
+  if(!valuesToInspect)return null;
+  const candidates=[];
+  Object.entries(valuesToInspect).forEach(([key,value])=>{
+    const parts=String(key).split(':');
+    if(parts.length!==2)return;
+    const f=fixtures.find(fx=>String(fx.id)===parts[0]);
+    const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+    if(!f||!c||c.type!=='wheel'||!/\bgobo\b/i.test(String(c.label||'')))return;
+    const option=DmxCommon.selectedWheelOption(c,value);
+    const visual=goboOptionVisual(c,option);
+    if(visual)candidates.push({fixtureId:String(f.id),visual});
+  });
+  if(!candidates.length)return null;
+  const unique=[...new Set(candidates.map(item=>paletteVisualKey(item.visual)).filter(Boolean))];
+  if(unique.length===1)return candidates[0].visual;
+  const sourceId=ensureGroupSourceFixture();
+  const source=candidates.find(item=>String(item.fixtureId)===String(sourceId));
+  return source?.visual||candidates[0].visual;
+}
 function requiredPaletteSlots(){
   return palettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
 }
@@ -4635,7 +4679,7 @@ function mergePaletteValues(p,nextScope){
   p.values={...(p.values||{}),...paletteValues};
   p.scope=nextScope;
   if(!p.visual){
-    const visual=currentPaletteVisualForSave();
+    const visual=currentPaletteAutoVisualForSave(nextScope,paletteValues)||currentPaletteVisualForSave();
     if(visual)p.visual=visual;
   }
   renderPaletteMatrix();
@@ -4651,7 +4695,7 @@ function savePaletteToSlot(idx,name){
   if(!fixtureCount){showError('Palette scope "'+paletteScopeLabel(scope)+'" has no matching fixture values to save.');return;}
   const ei=palettes.findIndex(p=>p.slot===idx);
   if(ei>=0)palettes.splice(ei,1);
-  const visual=currentPaletteVisualForSave();
+  const visual=currentPaletteAutoVisualForSave(scope,paletteValues)||currentPaletteVisualForSave();
   palettes.push({id:'palette_'+Date.now(),name,slot:idx,scope,values:paletteValues,visual});
   renderPaletteMatrix();savePalettesServer();
   setStatus('Palette "'+name+'" saved to slot '+(idx+1)+' ('+paletteScopeLabel(scope)+', '+fixtureCount+' fixture'+(fixtureCount===1?'':'s')+')');

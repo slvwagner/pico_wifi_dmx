@@ -74,6 +74,10 @@ typedef struct dmx_engine_state_t {
     uint8_t frame[DMX_ENGINE_FRAME_SLOTS];
     uint8_t tx_frame[DMX_ENGINE_FRAME_SLOTS];
     uint8_t dirty_mask[DMX_ENGINE_FRAME_SLOTS];
+    uint8_t blackout_mask[DMX_ENGINE_FRAME_SLOTS];
+    uint8_t master_scale[DMX_ENGINE_FRAME_SLOTS];
+    uint16_t blackout_channels;
+    uint16_t master_channels;
     uint16_t dirty_first;
     int16_t dirty_last;
 } dmx_engine_state_t;
@@ -111,6 +115,8 @@ static dmx_engine_state_t dmx_state = {
     .auto_resyncs = 0,
     .data_version = 0,
     .last_sent_version = 0,
+    .blackout_channels = 0,
+    .master_channels = 0,
     .dirty_first = DMX_ENGINE_FRAME_SLOTS,
     .dirty_last = -1,
 };
@@ -123,6 +129,19 @@ static uint8_t dmx_base_frame[DMX_ENGINE_FRAME_SLOTS];
 static inline uint8_t encode_value(uint8_t value)
 {
     return dmx_state.invert_data_bits ? (uint8_t)(value ^ 0xffu) : value;
+}
+
+static inline uint8_t output_encoded_value(uint16_t channel)
+{
+    uint8_t encoded = dmx_state.frame[channel];
+    uint8_t scale = dmx_state.master_scale[channel];
+    if (channel == 0 || scale >= 255u) {
+        return encoded;
+    }
+
+    uint8_t value = encode_value(encoded);
+    uint16_t scaled = (uint16_t)(((uint16_t)value * (uint16_t)scale + 127u) / 255u);
+    return encode_value((uint8_t)scaled);
 }
 
 static void mark_dirty(uint16_t idx)
@@ -144,7 +163,7 @@ static void apply_dirty_locked(void)
 
     for (uint16_t idx = dmx_state.dirty_first; idx <= (uint16_t)dmx_state.dirty_last; ++idx) {
         if (dmx_state.dirty_mask[idx]) {
-            dmx_state.tx_frame[idx] = dmx_state.frame[idx];
+            dmx_state.tx_frame[idx] = output_encoded_value(idx);
             dmx_state.dirty_mask[idx] = 0;
         }
     }
@@ -455,6 +474,10 @@ bool dmx_engine_init(const dmx_engine_config_t *config)
     memset(dmx_state.frame, 0, sizeof(dmx_state.frame));
     memset(dmx_state.tx_frame, 0, sizeof(dmx_state.tx_frame));
     memset(dmx_state.dirty_mask, 0, sizeof(dmx_state.dirty_mask));
+    memset(dmx_state.blackout_mask, 0, sizeof(dmx_state.blackout_mask));
+    memset(dmx_state.master_scale, 255, sizeof(dmx_state.master_scale));
+    dmx_state.blackout_channels = 0;
+    dmx_state.master_channels = 0;
     dmx_state.frame[0] = encode_value(dmx_state.start_code);
     dmx_state.tx_frame[0] = encode_value(dmx_state.start_code);
     for (uint16_t i = 1; i <= dmx_state.channels; ++i) {
@@ -539,6 +562,10 @@ bool dmx_engine_set_channel(uint16_t channel, uint8_t value)
 
     uint8_t encoded = encode_value(value);
     critical_section_enter_blocking(&dmx_state.lock);
+    if (dmx_state.blackout_mask[channel]) {
+        critical_section_exit(&dmx_state.lock);
+        return true;
+    }
     if (dmx_state.frame[channel] != encoded) {
         dmx_state.frame[channel] = encoded;
         mark_dirty(channel);
@@ -546,6 +573,117 @@ bool dmx_engine_set_channel(uint16_t channel, uint8_t value)
     }
     critical_section_exit(&dmx_state.lock);
     return true;
+}
+
+bool dmx_engine_set_blackout_channel(uint16_t channel, uint8_t value)
+{
+    if (!dmx_state.initialized || channel < 1 || channel > dmx_state.channels) {
+        return false;
+    }
+
+    uint8_t encoded = encode_value(value);
+    critical_section_enter_blocking(&dmx_state.lock);
+    if (!dmx_state.blackout_mask[channel]) {
+        dmx_state.blackout_mask[channel] = 1;
+        dmx_state.blackout_channels += 1;
+    }
+    if (dmx_state.frame[channel] != encoded) {
+        dmx_state.frame[channel] = encoded;
+        mark_dirty(channel);
+        dmx_state.data_version += 1;
+    }
+    critical_section_exit(&dmx_state.lock);
+    return true;
+}
+
+void dmx_engine_clear_blackout(void)
+{
+    if (!dmx_state.initialized) {
+        return;
+    }
+
+    critical_section_enter_blocking(&dmx_state.lock);
+    memset(dmx_state.blackout_mask, 0, sizeof(dmx_state.blackout_mask));
+    dmx_state.blackout_channels = 0;
+    critical_section_exit(&dmx_state.lock);
+}
+
+bool dmx_engine_channel_is_blackout_locked(uint16_t channel)
+{
+    if (!dmx_state.initialized || channel < 1 || channel > dmx_state.channels) {
+        return false;
+    }
+
+    critical_section_enter_blocking(&dmx_state.lock);
+    bool locked = dmx_state.blackout_mask[channel] != 0;
+    critical_section_exit(&dmx_state.lock);
+    return locked;
+}
+
+uint16_t dmx_engine_blackout_channel_count(void)
+{
+    if (!dmx_state.initialized) {
+        return 0;
+    }
+
+    critical_section_enter_blocking(&dmx_state.lock);
+    uint16_t count = dmx_state.blackout_channels;
+    critical_section_exit(&dmx_state.lock);
+    return count;
+}
+
+bool dmx_engine_set_master_scale(uint16_t channel, uint8_t scale)
+{
+    if (!dmx_state.initialized || channel < 1 || channel > dmx_state.channels) {
+        return false;
+    }
+
+    critical_section_enter_blocking(&dmx_state.lock);
+    uint8_t previous = dmx_state.master_scale[channel];
+    if (previous != scale) {
+        if (previous >= 255u && scale < 255u) {
+            dmx_state.master_channels += 1;
+        } else if (previous < 255u && scale >= 255u && dmx_state.master_channels > 0) {
+            dmx_state.master_channels -= 1;
+        }
+        dmx_state.master_scale[channel] = scale;
+        mark_dirty(channel);
+        dmx_state.data_version += 1;
+    }
+    critical_section_exit(&dmx_state.lock);
+    return true;
+}
+
+void dmx_engine_clear_master_scale(void)
+{
+    if (!dmx_state.initialized) {
+        return;
+    }
+
+    critical_section_enter_blocking(&dmx_state.lock);
+    if (dmx_state.master_channels > 0) {
+        for (uint16_t ch = 1; ch <= dmx_state.channels; ++ch) {
+            if (dmx_state.master_scale[ch] < 255u) {
+                dmx_state.master_scale[ch] = 255u;
+                mark_dirty(ch);
+            }
+        }
+        dmx_state.master_channels = 0;
+        dmx_state.data_version += 1;
+    }
+    critical_section_exit(&dmx_state.lock);
+}
+
+uint16_t dmx_engine_master_channel_count(void)
+{
+    if (!dmx_state.initialized) {
+        return 0;
+    }
+
+    critical_section_enter_blocking(&dmx_state.lock);
+    uint16_t count = dmx_state.master_channels;
+    critical_section_exit(&dmx_state.lock);
+    return count;
 }
 
 uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count)
@@ -561,6 +699,9 @@ uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count)
     critical_section_enter_blocking(&dmx_state.lock);
     for (uint16_t i = 0; i < count; ++i) {
         uint16_t idx = (uint16_t)(i + 1u);
+        if (dmx_state.blackout_mask[idx]) {
+            continue;
+        }
         uint8_t encoded = encode_value(values[i]);
         if (dmx_state.frame[idx] != encoded) {
             dmx_state.frame[idx] = encoded;
@@ -582,7 +723,7 @@ uint8_t dmx_engine_get_output_channel(uint16_t channel)
     }
 
     critical_section_enter_blocking(&dmx_state.lock);
-    uint8_t value = encode_value(dmx_state.frame[channel]);
+    uint8_t value = encode_value(output_encoded_value(channel));
     critical_section_exit(&dmx_state.lock);
     return value;
 }
@@ -609,6 +750,10 @@ void dmx_engine_clear_output(void)
     critical_section_enter_blocking(&dmx_state.lock);
     memset(dmx_state.frame, encode_value(0), sizeof(dmx_state.frame));
     dmx_state.frame[0] = encode_value(dmx_state.start_code);
+    memset(dmx_state.blackout_mask, 0, sizeof(dmx_state.blackout_mask));
+    memset(dmx_state.master_scale, 255, sizeof(dmx_state.master_scale));
+    dmx_state.blackout_channels = 0;
+    dmx_state.master_channels = 0;
     memset(dmx_state.dirty_mask, 1, dmx_state.channels + 1u);
     dmx_state.dirty_first = 0;
     dmx_state.dirty_last = dmx_state.channels;
@@ -644,5 +789,7 @@ void dmx_engine_get_status(dmx_engine_status_t *status)
     status->prime_timeouts = dmx_state.prime_timeouts;
     status->frame_timeouts = dmx_state.frame_timeouts;
     status->auto_resyncs = dmx_state.auto_resyncs;
+    status->blackout_channels = dmx_state.blackout_channels;
+    status->master_channels = dmx_state.master_channels;
     restore_interrupts(irq_state);
 }

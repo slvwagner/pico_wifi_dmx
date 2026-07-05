@@ -718,6 +718,84 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.renderedIcon).toBe(false);
   });
 
+  test('gobo palettes automatically use the shared selected gobo visual', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const goboImage = 'data:image/png;base64,GOBO_SHARED';
+      profiles = [{
+        id: 9100,
+        name: 'Gobo profile',
+        mode: 'test',
+        channels: 1,
+        controls: [{
+          id: 9101,
+          type: 'wheel',
+          label: 'Gobo Wheel',
+          channel: 1,
+          options: [
+            { name: 'Open', value: 0, range: [0, 15], kind: 'WheelSlot', slotNumber: 1 },
+            { name: 'Breakup', value: 24, range: [16, 31], kind: 'WheelSlot', slotNumber: 2, image: goboImage, color: '#334455' }
+          ]
+        }]
+      }];
+      fixtures = [
+        { id: 9102, name: 'Spot 1', profileId: 9100, start: 1 },
+        { id: 9103, name: 'Spot 2', profileId: 9100, start: 11 }
+      ];
+      Object.keys(values).forEach(key => delete values[key]);
+      values['9102:9101'] = 24;
+      values['9103:9101'] = 24;
+      palettes = [];
+      selectedFixtureIds = new Set([9102, 9103]);
+      sourceFixtureId = '9102';
+      document.getElementById('paletteScope').value = 'gobo';
+      savePaletteToSlot(0, 'Breakup');
+      return {
+        visual: palettes[0].visual,
+        hasRenderedIcon: !!document.querySelector('#paletteMatrix .palette-visual')
+      };
+    });
+
+    expect(result.visual).toEqual({ type: 'visual', color: '#334455', image: 'data:image/png;base64,GOBO_SHARED' });
+    expect(result.hasRenderedIcon).toBe(true);
+  });
+
+  test('gobo palettes use the source fixture visual when selected gobos differ', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      profiles = [{
+        id: 9200,
+        name: 'Gobo profile',
+        mode: 'test',
+        channels: 1,
+        controls: [{
+          id: 9201,
+          type: 'wheel',
+          label: 'Gobo Wheel',
+          channel: 1,
+          options: [
+            { name: 'Open', value: 0, range: [0, 15], kind: 'WheelSlot', slotNumber: 1 },
+            { name: 'Dots', value: 24, range: [16, 31], kind: 'WheelSlot', slotNumber: 2, image: 'data:image/png;base64,GOBO_DOTS', color: '#112233' },
+            { name: 'Cone', value: 40, range: [32, 47], kind: 'WheelSlot', slotNumber: 3, image: 'data:image/png;base64,GOBO_CONE', color: '#445566' }
+          ]
+        }]
+      }];
+      fixtures = [
+        { id: 9202, name: 'Spot 1', profileId: 9200, start: 1 },
+        { id: 9203, name: 'Spot 2', profileId: 9200, start: 11 }
+      ];
+      Object.keys(values).forEach(key => delete values[key]);
+      values['9202:9201'] = 24;
+      values['9203:9201'] = 40;
+      palettes = [];
+      selectedFixtureIds = new Set([9202, 9203]);
+      sourceFixtureId = '9203';
+      document.getElementById('paletteScope').value = 'gobo';
+      savePaletteToSlot(1, 'Source Gobo');
+      return palettes[0].visual;
+    });
+
+    expect(result).toEqual({ type: 'visual', color: '#445566', image: 'data:image/png;base64,GOBO_CONE' });
+  });
+
   test('Group Edit syncs mixed fixture controls from fixtures that actually own the control', async ({ page }) => {
     const result = await page.evaluate(() => {
       fixtures.push({ id: 104, name: 'B 2', profileId: 2, start: 61 });

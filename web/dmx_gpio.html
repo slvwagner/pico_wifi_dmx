@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX GPIO Control</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.6">
-<script src="assets/dmx-common.js?v=0.9.6"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.7">
+<script src="assets/dmx-common.js?v=0.9.7"></script>
 <style>
 main{max-width:1160px;width:100%;margin:0 auto;padding:20px;display:grid;gap:16px;overflow-x:hidden}
 h2{font-size:16px}
@@ -41,7 +41,7 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
     <a class="nav" href="dmx_monitor.html">Monitor</a>
-    <a class="nav" href="user-manual.html?v=0.9.6#7-gpio-control" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.7#7-gpio-control" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -84,7 +84,7 @@ const DEFAULT_MAPPINGS=[
   {pin:15,pull:'pullup',trigger:'falling',action:'chaser_toggle',slot:0,debounce_ms:30}
 ];
 const DEFAULT_ADC_MAPPINGS=[];
-const RESERVED_PINS=[2,3];
+const RESERVED_PINS=[2,3,5];
 const DIGITAL_ACTIONS=['dmx_clear','dmx_output_clear','stop_all','chaser_play','chaser_stop','chaser_toggle','chaser_pause','chaser_resume','chaser_pause_toggle','chaser_tap','motion_start','motion_stop','motion_toggle','motion_tap'];
 const ADC_ACTIONS=['chaser_speed','motion_bpm'];
 let mappings=[];
