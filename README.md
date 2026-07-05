@@ -214,12 +214,14 @@ Optional firmware settings:
 ```powershell
 -DDMX_TX_PIN=2 -DDMX_TRIGGER_PIN=3
 -DDMX_CHANNELS=512
+-DMIDI_ENABLED=1 -DMIDI_RX_PIN=5 -DMIDI_UART_ID=1 -DMIDI_BAUD=31250
 ```
 
 Default hardware wiring:
 
 ```text
 Pico GPIO2 -> RS-485/DMX driver DI input
+Pico GPIO5 -> MIDI input receiver UART output
 Pico GND   -> RS-485/DMX driver GND
 Pico 3V3   -> RS-485/DMX driver VCC, if the module supports 3.3 V
 Driver D+  -> DMX XLR pin 3
@@ -227,7 +229,7 @@ Driver D-  -> DMX XLR pin 2
 Shield/GND -> DMX XLR pin 1
 ```
 
-Do not connect Pico GPIO2 directly to a DMX cable. DMX uses an RS-485 differential line, so the Pico output must go through a suitable RS-485/DMX line driver. GPIO3 is only the optional frame-trigger/debug pin, not a DMX data output.
+Do not connect Pico GPIO2 directly to a DMX cable. DMX uses an RS-485 differential line, so the Pico output must go through a suitable RS-485/DMX line driver. GPIO3 is only the optional frame-trigger/debug pin, not a DMX data output. GPIO5 is reserved by default as the DIN/TRS MIDI receive input (`MIDI_RX_PIN=5`, `MIDI_UART_ID=1`). Feed GPIO5 only from a proper MIDI input receiver/opto-isolation circuit; do not wire a MIDI connector directly to the Pico GPIO.
 
 DMX signal generation and timing:
 
@@ -244,6 +246,17 @@ DMX signal generation and timing:
 | Default refresh | 43 Hz, limited by full-frame duration |
 
 The DMX byte stream is encoded for the RS-485/DMX driver path used by this project. Channel values and the start-code slot are both encoded before DMA sends the frame to PIO. This keeps the logical DMX start code at `0x00` while matching the working wire-level signal used by the tested Zeitmessung Pico 2 W DMX implementation.
+
+MIDI receive diagnostics:
+
+| Item | Value |
+| --- | --- |
+| Default input | GPIO5 / UART1 RX |
+| Serial format | 31,250 baud, 8 data bits, no parity, 1 stop bit |
+| Status endpoint | `/midi/status.json` |
+| Parsed messages | Channel voice messages with running status, plus realtime byte counting |
+
+The current MIDI firmware step is diagnostic-only. It proves that the Pico receives and parses MIDI bytes without affecting DMX output. Mapping MIDI notes, buttons, faders, and encoders to show actions will be added after the hardware input is confirmed.
 
 Flash with BOOTSEL by copying the UF2, or use picotool/OpenOCD as described in the deeper firmware sections below.
 
@@ -436,6 +449,7 @@ pico_wifi_dmx/
 │  ├─ pico_chaser.*          Pico-side chaser slot playback
 │  ├─ pico_motion.*          Pico-side motion/effect slot playback
 │  ├─ gpio_control.*         GPIO/ADC mapping and trigger handling
+│  ├─ midi_input.*           UART MIDI receive parser and diagnostics
 │  └─ lwipopts.h             lwIP configuration for the Pico web API
 ├─ web/                      Browser UI pages served by XAMPP
 │  ├─ dmx_fixture_controller.html  Fixture setup and live control page
@@ -969,10 +983,10 @@ The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It
 - The page loads and autosaves mappings on the XAMPP server through `gpio_setup.php` / `data/gpio_setup.json`, with browser `localStorage` only as a fallback. The active mapping set is pushed to the Pico with `POST /gpio/config`.
 - GPIO mappings are included in the complete **Export Setup** / **Import Setup** backup from the Fixture Controller, including Pico base URL, enabled state, digital mappings, and ADC mappings.
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
-- Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`) and disables pins already used by another mapping.
+- Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`, `MIDI_RX_PIN=5` by default) and disables pins already used by another mapping.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
 - Chaser GPIO actions use the playmode stored in the selected Pico chaser slot. The GPIO page reads `/chaser/slots` and shows the slot's Single/Loop/Loop N/Ping Pong mode, direction, loop state, and step count beside chaser mappings.
-- The DMX TX pin and frame-trigger pin are reserved automatically and cannot be mapped.
+- The DMX TX pin, frame-trigger pin, and enabled MIDI RX pin are reserved automatically and cannot be mapped.
 - Supported pulls: `pullup`, `pulldown`.
 - Supported triggers: `falling`, `rising`, `both`.
 - Supported digital actions: `dmx_clear`, `dmx_output_clear`, `stop_all`, `chaser_play`, `chaser_stop`, `chaser_toggle`, `chaser_pause`, `chaser_resume`, `chaser_pause_toggle`, `chaser_tap`, `motion_start`, `motion_stop`, `motion_toggle`, `motion_tap`.
@@ -1008,6 +1022,18 @@ Firmware endpoints:
 | `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
 
 This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or use **Export Setup** before flashing/restarting so the mapping set can be restored and pushed again. Pico-side persistence can be added later once the action model is proven.
+
+### MIDI Input Prototype
+
+The Pico firmware can receive classic DIN/TRS MIDI through a UART input. The default hardware mapping is GPIO5 on UART1 RX at the standard MIDI rate of 31,250 baud. This input is reserved from the GPIO mapper when MIDI is enabled.
+
+The first implementation is deliberately a diagnostics layer: it receives bytes, handles channel voice messages and running status, counts realtime bytes, and exposes the last parsed message. It does not trigger show actions yet.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/midi/status.json` | GET | Return MIDI enable/init state, UART/pin settings, byte/message counters, parse errors, and the last parsed message |
+
+The MIDI status object is also included inside `/status.json` beside the DMX status. Use this endpoint first after wiring the receiver circuit: moving a fader or pressing a button on the MIDI controller should increase `byte_count` and usually `message_count`, with `last_channel`, `last_data1`, and `last_data2` showing the decoded control data.
 
 ### Server-side Persistence
 
@@ -1092,11 +1118,14 @@ Optional overrides:
 # DMX output pin (default 2) and frame-trigger debug pin (default 3)
 -DDMX_TX_PIN=2 -DDMX_TRIGGER_PIN=3
 
+# DIN/TRS MIDI input over UART (enabled by default)
+-DMIDI_ENABLED=1 -DMIDI_RX_PIN=5 -DMIDI_UART_ID=1 -DMIDI_BAUD=31250
+
 # Universe size — limits channels in firmware and UI (default 512)
 -DDMX_CHANNELS=46
 ```
 
-The default DMX data output is Pico `GPIO2`. Connect that pin to the `DI` or transmit input of an RS-485/DMX driver module. Then connect the driver's differential output to the DMX connector: `D+` to XLR pin 3, `D-` to XLR pin 2, and ground/shield to XLR pin 1. The optional `DMX_TRIGGER_PIN` on GPIO3 is a debug/frame trigger signal only.
+The default DMX data output is Pico `GPIO2`. Connect that pin to the `DI` or transmit input of an RS-485/DMX driver module. Then connect the driver's differential output to the DMX connector: `D+` to XLR pin 3, `D-` to XLR pin 2, and ground/shield to XLR pin 1. The optional `DMX_TRIGGER_PIN` on GPIO3 is a debug/frame trigger signal only. The default MIDI input is Pico `GPIO5` on UART1 RX; connect it only through a MIDI input receiver circuit and verify incoming messages with `/midi/status.json`.
 
 ---
 

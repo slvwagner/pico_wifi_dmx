@@ -37,7 +37,7 @@ test.describe('GPIO established rules', () => {
       };
     });
 
-    expect(result.values).not.toEqual(expect.arrayContaining([0, 1, 2, 3, 4, 23, 24, 25]));
+    expect(result.values).not.toEqual(expect.arrayContaining([0, 1, 2, 3, 4, 5, 23, 24, 25]));
     expect(result.disabled).toContain(16);
     expect(result.disabled).not.toContain(17);
   });

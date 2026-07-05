@@ -21,6 +21,7 @@
 #include "pico_chaser.h"
 #include "pico_motion.h"
 #include "gpio_control.h"
+#include "midi_input.h"
 
 #ifndef WIFI_SSID
 #define WIFI_SSID ""
@@ -50,6 +51,22 @@
 #define DMX_REFRESH_RATE 40
 #endif
 
+#ifndef MIDI_ENABLED
+#define MIDI_ENABLED 1
+#endif
+
+#ifndef MIDI_RX_PIN
+#define MIDI_RX_PIN 5
+#endif
+
+#ifndef MIDI_UART_ID
+#define MIDI_UART_ID 1
+#endif
+
+#ifndef MIDI_BAUD
+#define MIDI_BAUD 31250
+#endif
+
 #define PERF_LOG_INTERVAL_US 2000000u
 #define CORE0_PLAYBACK_PERIOD_US 10000u
 #define CORE1_SERVICE_PERIOD_US 2000000u
@@ -65,12 +82,14 @@ static char log_buffer[4096];
 static size_t log_length;
 static char http_page[12288];
 static char http_logs[6144];
-static char http_status_json[1024];
+static char http_status_json[2048];
 static char http_dmx_json[1024];
 static char http_dmx_base_json[2560];  /* 512 ch × 4 bytes + headers */
 static char http_playback_json[12288];
 static char http_gpio_json[4096];
 static char http_gpio_body[3072];
+static char http_midi_json[2048];
+static char http_midi_body[1024];
 static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 static struct udp_pcb *discovery_udp;
@@ -585,7 +604,9 @@ static void build_logs_text()
 static void build_status_json()
 {
     dmx_engine_status_t dmx;
+    midi_input_status_t midi;
     dmx_engine_get_status(&dmx);
+    midi_input_get_status(&midi);
 
     snprintf(
         http_status_json,
@@ -612,6 +633,22 @@ static void build_status_json()
         "\"prime_timeouts\":%lu,"
         "\"frame_timeouts\":%lu,"
         "\"auto_resyncs\":%lu"
+        "},"
+        "\"midi\":{"
+        "\"enabled\":%s,"
+        "\"initialized\":%s,"
+        "\"rx_pin\":%u,"
+        "\"uart_id\":%u,"
+        "\"baud\":%lu,"
+        "\"byte_count\":%lu,"
+        "\"message_count\":%lu,"
+        "\"realtime_count\":%lu,"
+        "\"parse_error_count\":%lu,"
+        "\"last_event_ms\":%lu,"
+        "\"last_status\":%u,"
+        "\"last_channel\":%u,"
+        "\"last_data1\":%u,"
+        "\"last_data2\":%u"
         "}"
         "}\n",
         dmx.initialized ? "true" : "false",
@@ -627,7 +664,21 @@ static void build_status_json()
         (unsigned long)dmx.skipped_callbacks,
         (unsigned long)dmx.prime_timeouts,
         (unsigned long)dmx.frame_timeouts,
-        (unsigned long)dmx.auto_resyncs);
+        (unsigned long)dmx.auto_resyncs,
+        midi.enabled ? "true" : "false",
+        midi.initialized ? "true" : "false",
+        midi.rx_pin,
+        midi.uart_id,
+        (unsigned long)midi.baud,
+        (unsigned long)midi.byte_count,
+        (unsigned long)midi.message_count,
+        (unsigned long)midi.realtime_count,
+        (unsigned long)midi.parse_error_count,
+        (unsigned long)midi.last_event_ms,
+        midi.last_status,
+        midi.last_channel,
+        midi.last_data1,
+        midi.last_data2);
 }
 
 static bool path_matches(const char *name, const char *path)
@@ -725,6 +776,23 @@ static void build_gpio_json_response(unsigned status_code, const char *status_te
         status_code,
         status_text,
         body);
+}
+
+static void build_midi_json_response(unsigned status_code, const char *status_text, const char *body)
+{
+    snprintf(
+        http_midi_json,
+        sizeof(http_midi_json),
+        "HTTP/1.0 %u %s\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "%s",
+        status_code,
+        status_text,
+        body ? body : "{}\n");
 }
 
 // /dmx/b/<ch>:<val>,<ch>:<val>,…  — batch set, data encoded in path (no query string)
@@ -1232,6 +1300,17 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    /* ----- MIDI input endpoints -------------------------------------- */
+    if (path_matches(name, "/midi/status.json") || path_matches(name, "/midi/status")) {
+        midi_input_write_status_json(http_midi_body, sizeof(http_midi_body));
+        build_midi_json_response(200, "OK", http_midi_body);
+        file->data = http_midi_json;
+        file->len = (int)strlen(http_midi_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     /* ----- Chaser endpoints ------------------------------------------- */
     /* /chaser/play        — play slot 0 (backward compat)
        /chaser/play/<N>    — play slot N */
@@ -1734,7 +1813,8 @@ static void core0_application_loop()
 {
     chaser_init();
     mfx_init();
-    gpio_control_init((1u << DMX_TX_PIN) | (1u << DMX_TRIGGER_PIN));
+    midi_input_init(MIDI_ENABLED != 0, MIDI_RX_PIN, MIDI_UART_ID, MIDI_BAUD);
+    gpio_control_init((1u << DMX_TX_PIN) | (1u << DMX_TRIGGER_PIN) | ((MIDI_ENABLED != 0) ? (1u << MIDI_RX_PIN) : 0u));
     gpio_control_set_dmx_clear_hook(gpio_clear_dmx_and_ui);
     gpio_control_set_dmx_output_clear_hook(gpio_clear_dmx_output_and_ui);
 
@@ -1762,6 +1842,11 @@ static void core0_application_loop()
     }
 
     log_printf("Core0 DMX engine running\n");
+    log_printf("Core0 MIDI input: enabled=%u uart=%u rx_pin=%u baud=%u\n",
+               MIDI_ENABLED != 0 ? 1u : 0u,
+               (unsigned)MIDI_UART_ID,
+               (unsigned)MIDI_RX_PIN,
+               (unsigned)MIDI_BAUD);
 
     uint32_t last_playback_tick = 0;
     uint32_t last_gpio_poll_ms = 0;
@@ -1807,6 +1892,7 @@ static void core0_application_loop()
         uint32_t now_ms = to_ms_since_boot(get_absolute_time());
         if (now_ms != last_gpio_poll_ms) {
             gpio_control_poll(now_ms);
+            midi_input_poll(now_ms);
             last_gpio_poll_ms = now_ms;
         }
 

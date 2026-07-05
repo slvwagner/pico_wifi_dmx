@@ -5,6 +5,7 @@
 Changed:
 
 - Started the 0.9.7 development branch.
+- Added the first Pico-side MIDI hardware milestone: configurable UART MIDI input on GPIO5 by default, MIDI receive/status parsing, `/midi/status.json`, and GPIO reservation for the MIDI RX pin.
 
 ## 0.9.6 - 2026-07-04
 

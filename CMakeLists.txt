@@ -40,6 +40,10 @@ set(DMX_TX_PIN "2" CACHE STRING "DMX output GPIO")
 set(DMX_TRIGGER_PIN "3" CACHE STRING "Optional DMX frame trigger/debug GPIO")
 set(DMX_CHANNELS "512" CACHE STRING "Number of DMX channels to transmit")
 set(DMX_REFRESH_RATE "43" CACHE STRING "DMX refresh rate in Hz")
+set(MIDI_ENABLED "1" CACHE STRING "Enable DIN/TRS MIDI UART input")
+set(MIDI_RX_PIN "5" CACHE STRING "MIDI UART RX GPIO")
+set(MIDI_UART_ID "1" CACHE STRING "MIDI UART block, 0 or 1")
+set(MIDI_BAUD "31250" CACHE STRING "MIDI serial baud rate")
 
 if(DEFINED ENV{SSID})
     set(WIFI_SSID "$ENV{SSID}" CACHE STRING "Wi-Fi SSID" FORCE)
@@ -65,6 +69,7 @@ add_executable(pico_wifi_dmx
         firmware/pico_chaser.cpp
         firmware/pico_motion.cpp
         firmware/gpio_control.cpp
+        firmware/midi_input.cpp
 )
 
 pico_generate_pio_header(pico_wifi_dmx ${CMAKE_CURRENT_LIST_DIR}/firmware/dmx_native.pio)
@@ -76,6 +81,10 @@ target_compile_definitions(pico_wifi_dmx PRIVATE
         DMX_TRIGGER_PIN=${DMX_TRIGGER_PIN}
         DMX_CHANNELS=${DMX_CHANNELS}
         DMX_REFRESH_RATE=${DMX_REFRESH_RATE}
+        MIDI_ENABLED=${MIDI_ENABLED}
+        MIDI_RX_PIN=${MIDI_RX_PIN}
+        MIDI_UART_ID=${MIDI_UART_ID}
+        MIDI_BAUD=${MIDI_BAUD}
         PICO_DMX_VERSION="0.9.7"
 )
 
@@ -94,7 +103,8 @@ target_link_libraries(pico_wifi_dmx
         pico_lwip_http
         hardware_adc
         hardware_dma
-        hardware_pio)
+        hardware_pio
+        hardware_uart)
 
 # Add the standard include files to the build
 target_include_directories(pico_wifi_dmx PRIVATE
