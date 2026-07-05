@@ -69,6 +69,7 @@ Fixed:
 - Renamed the Show Run card add action contextually, including **Add Live Controls**, and report the exact matrix position after a card is added.
 - Reworked Show Run card add/remove controls to follow the established tile visual language: empty card positions now show a `+` add tile and cards use a compact top-right remove icon in **Edit Layout**.
 - Moved Show Run card layout, tile placement, matrix sizes, and Live Controls configuration into server-side `ui_state.json` so **Export Setup** / **Import Setup** restores the operator page on another computer.
+- Hardened server-side UI state caching so `ui_state.php` is returned with no-store headers and UI state saves bypass browser caches the same way loads already did.
 - Fixed Show Run card layout editing so the card matrix renders exactly the configured rows and columns, card remove icons stay visible without hover, and the Add Card modal only lists card types that can currently be added.
 - Fixed Show Run **Add Card** so singleton cards hidden outside the visible card matrix can be selected and moved back into a visible empty slot.
 - Preserved rich Open Fixture Library wheel metadata when updating an existing fixture library profile from an edited controller profile, so adjustable ranges such as `WheelShake` and `WheelRotation` are not downgraded to plain wheel values.

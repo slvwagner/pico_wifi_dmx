@@ -636,7 +636,7 @@
 
   function saveUiState(page,key,val){
     if(!isHttp())return;
-    fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    fetch('ui_state.php',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
       body:JSON.stringify({page,state:{[key]:val}})}).catch(()=>{});
   }
 

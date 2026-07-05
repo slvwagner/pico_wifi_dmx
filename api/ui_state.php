@@ -1,5 +1,8 @@
 <?php
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 $dataDir = __DIR__ . '/data';
 if (!is_dir($dataDir)) {
     mkdir($dataDir, 0775, true);
@@ -21,6 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = json_decode(file_get_contents($file), true) ?: [];
         echo json_encode(['ok'=>true,'exists'=>true,'state'=>$data]);
     } else {
-        echo json_encode(['ok'=>true,'exists'=>false,'state'=>[]]);
+        echo json_encode(['ok'=>true,'exists'=>false,'state'=>(object)[]]);
     }
 }
