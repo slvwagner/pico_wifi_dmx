@@ -872,6 +872,8 @@ The Pico Performance Test page checks the whole browser-to-Pico path. It reads `
 
 Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
 
+Show Run **Blackout Target** uses the Pico firmware blackout lock. The browser sends fixture-derived blackout channel values to `POST /dmx/blackout`; while the lock is active, normal DMX writes and Pico chaser/effect playback cannot overwrite those channels. `GET /dmx/blackout/clear` releases the lock, and `/status.json` reports the current `dmx.blackout_channels` count.
+
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
 The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough. When **Find Pico** updates the URL, Controller, Chaser, Effects, and GPIO also save the corrected URL to their XAMPP setup JSON. Live Pico updates only happen while this URL is set; clearing it puts the UI into browser-only editing.

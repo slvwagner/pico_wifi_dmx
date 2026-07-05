@@ -480,7 +480,7 @@ If a group target is active, only stored values whose fixture IDs belong to the 
 
 ### Blackout And Playback
 
-**Blackout Target** recalls each targeted fixture control's stored blackout value, writes it to the live-value snapshot, and sends the changed DMX channels to the Pico.
+**Blackout Target** recalls each targeted fixture control's stored blackout value, writes it to the live-value snapshot, and sends the changed DMX channels to the Pico as a blackout lock. The button changes to **Clear Blackout** while the lock is active. During this state, Pico chaser and effect playback cannot overwrite the locked blackout channels, even if a running effect targets a dimmer channel. Click **Clear Blackout** or recall a scene/palette to release the lock and allow playback to write those channels again.
 
 **Pico Chaser Playback** and **Pico Effects Playback** show the slots that were uploaded and mirrored from the Chaser and Effects pages. They also read live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty.
 

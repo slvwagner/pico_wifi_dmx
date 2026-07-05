@@ -298,6 +298,7 @@ let cardMoveMode=false;
 let cardMoveSelected=null;
 let layoutEditing=false;
 let hiddenTileModalDismissed=false;
+let blackoutActive=false;
 
 function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
@@ -305,6 +306,15 @@ function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function bytes16(v){const n=clamp(v,0,65535);return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrlEl.value.replace(/\/+$/,'');}
+function setBlackoutActive(active){
+  blackoutActive=!!active;
+  const btn=document.getElementById('blackoutBtn');
+  if(btn){
+    btn.classList.toggle('active',blackoutActive);
+    btn.textContent=blackoutActive?'Clear Blackout':'Blackout Target';
+    btn.setAttribute('aria-pressed',blackoutActive?'true':'false');
+  }
+}
 function fixtureProfile(f){return profiles.find(p=>String(p.id)===String(f.profileId));}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);return values[key]===undefined?def:values[key];}
@@ -1138,30 +1148,43 @@ function renderPlayback(containerId,slots,type){
   initMoveGrid(type,containerId);
 }
 async function applyValuePatch(source,label){
+  if(blackoutActive)await clearPicoBlackout(true);
   const patch=filteredValues(source);
   const keys=Object.keys(patch);
   if(!keys.length){setStatus(label+' has no values for the selected target',true);return;}
   Object.assign(values,patch);
   try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
+  await sendPairs(valuePatchPairs(patch));
+  setStatus(label+' recalled to '+fixtureIdsFromValues(patch).length+' fixture(s)');
+}
+function valuePatchPairs(source){
   const pairs=[];
-  keys.forEach(key=>{
+  Object.keys(source||{}).forEach(key=>{
     const [fixtureId,controlId]=String(key).split(':');
     const f=fixtures.find(item=>String(item.id)===fixtureId);
     const p=f&&fixtureProfile(f);
     const c=p&&p.controls.find(item=>String(item.id)===controlId);
     if(f&&c)resolveDmxBytes(f,c).forEach(row=>pairs.push(row.ch+':'+row.val));
   });
-  await sendPairs(pairs);
-  setStatus(label+' recalled to '+fixtureIdsFromValues(patch).length+' fixture(s)');
+  return pairs;
 }
-async function sendPairs(pairs){
+async function sendPairs(pairs,path='/dmx/b'){
   const root=endpoint();
   if(!root||!pairs.length)return;
   const unique=new Map();
   pairs.forEach(pair=>{const [ch,val]=pair.split(':');unique.set(String(ch),String(val));});
   const body=[...unique.entries()].map(([ch,val])=>ch+':'+val).join(',');
-  const r=await fetch(root+'/dmx/b',{method:'POST',body,cache:'no-store'});
+  const r=await fetch(root+path,{method:'POST',body,cache:'no-store'});
   if(!r.ok)throw new Error('Pico DMX send failed: HTTP '+r.status);
+}
+async function clearPicoBlackout(silent=false){
+  const root=endpoint();
+  if(root){
+    const r=await fetch(root+'/dmx/blackout/clear',{cache:'no-store'});
+    if(!r.ok)throw new Error('Pico blackout clear failed: HTTP '+r.status);
+  }
+  setBlackoutActive(false);
+  if(!silent)setStatus('Blackout cleared');
 }
 function recallSceneKey(key){
   const scene=scenes.find((s,index)=>String(s.id||s.slot||index)===String(key));
@@ -1172,6 +1195,7 @@ function recallPaletteKey(key){
   if(palette)DmxCommon.withButtonFeedback(document.querySelector(`[data-palette-key="${CSS.escape(String(key))}"]`),{busy:'Recall...',success:'Recalled',error:'Failed'},()=>applyValuePatch(palette.values||{},'Palette "'+(palette.name||key)+'"')).catch(err=>setStatus(err.message,true));
 }
 async function blackoutTarget(){
+  if(blackoutActive){await clearPicoBlackout(false);return;}
   const target=activeTargetFixtureIds();
   const patch={};
   fixtures.forEach(f=>{
@@ -1182,7 +1206,14 @@ async function blackoutTarget(){
       patch[controlKey(f,c)]=cloneValue(c.blackoutValue);
     });
   });
-  await applyValuePatch(patch,'Blackout');
+  const filtered=filteredValues(patch);
+  const keys=Object.keys(filtered);
+  if(!keys.length){setStatus('Blackout has no values for the selected target',true);return;}
+  Object.assign(values,filtered);
+  try{await DmxCommon.mergeFixtureLiveValues(filtered);}catch(_){}
+  await sendPairs(valuePatchPairs(filtered),'/dmx/blackout');
+  setBlackoutActive(true);
+  setStatus('Blackout locked '+fixtureIdsFromValues(filtered).length+' fixture(s)');
 }
 async function stopPico(type){
   const root=endpoint();
@@ -1295,6 +1326,7 @@ async function loadLivePicoMotionSlots(root){
 }
 async function loadShow(){
   setStatus('Loading show...');
+  setBlackoutActive(false);
   hiddenTileModalDismissed=false;
   const [fixtureData,groupData,sceneData,paletteData,chaserData,motionData,liveData]=await Promise.all([
     loadJson('fixture_setup.php',{exists:false,setup:null}),
@@ -1330,7 +1362,7 @@ async function loadShow(){
 }
 document.getElementById('reloadBtn').onclick=()=>DmxCommon.withButtonFeedback('reloadBtn',{busy:'Loading...',success:'Loaded',error:'Failed'},loadShow).catch(err=>setStatus(err.message,true));
 document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();renderGroups();setStatus('Show target reset to all fixtures');};
-document.getElementById('blackoutBtn').onclick=()=>DmxCommon.withButtonFeedback('blackoutBtn',{busy:'Blackout...',success:'Blackout',error:'Failed'},blackoutTarget).catch(err=>setStatus(err.message,true));
+document.getElementById('blackoutBtn').onclick=()=>DmxCommon.withButtonFeedback('blackoutBtn',{busy:'Working...',success:'Done',error:'Failed'},blackoutTarget,{restoreAfter:null}).then(()=>setBlackoutActive(blackoutActive)).catch(err=>setStatus(err.message,true));
 document.getElementById('stopChaserBtn').onclick=()=>DmxCommon.withButtonFeedback('stopChaserBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('chaser')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopMotionBtn').onclick=()=>DmxCommon.withButtonFeedback('stopMotionBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('motion')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopAllBtn').onclick=()=>DmxCommon.withButtonFeedback('stopAllBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},async()=>{await Promise.allSettled([stopPico('chaser'),stopPico('motion')]);setStatus('All Pico playback stopped');}).catch(err=>setStatus(err.message,true));

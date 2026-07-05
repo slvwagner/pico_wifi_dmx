@@ -29,6 +29,7 @@ typedef struct dmx_engine_status_t {
     uint32_t prime_timeouts;
     uint32_t frame_timeouts;
     uint32_t auto_resyncs;
+    uint16_t blackout_channels;
 } dmx_engine_status_t;
 
 void dmx_engine_default_config(dmx_engine_config_t *config);
@@ -42,6 +43,10 @@ uint8_t dmx_engine_get_output_channel(uint16_t channel);
 void dmx_engine_clear_output(void);
 void dmx_engine_clear(void);
 void dmx_engine_get_status(dmx_engine_status_t *status);
+bool dmx_engine_set_blackout_channel(uint16_t channel, uint8_t value);
+void dmx_engine_clear_blackout(void);
+bool dmx_engine_channel_is_blackout_locked(uint16_t channel);
+uint16_t dmx_engine_blackout_channel_count(void);
 
 /* Scene base buffer — position layer written by scenes/chaser/direct writes.
  * Motion FX reads from this buffer instead of a stored fixed center so that

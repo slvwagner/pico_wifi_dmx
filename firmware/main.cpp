@@ -99,7 +99,7 @@ static char pico_unique_id[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 #define POST_BUFFER_MAX (12 * 1024)
 static char    post_buffer[POST_BUFFER_MAX];
 static size_t  post_length = 0;
-static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_GPIO_CONFIG } post_type = POST_NONE;
+static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_DMX_BLACKOUT, POST_GPIO_CONFIG } post_type = POST_NONE;
 static uint8_t post_slot = 0;
 
 extern char __StackLimit;
@@ -632,7 +632,8 @@ static void build_status_json()
         "\"skipped_callbacks\":%lu,"
         "\"prime_timeouts\":%lu,"
         "\"frame_timeouts\":%lu,"
-        "\"auto_resyncs\":%lu"
+        "\"auto_resyncs\":%lu,"
+        "\"blackout_channels\":%u"
         "},"
         "\"midi\":{"
         "\"enabled\":%s,"
@@ -665,6 +666,7 @@ static void build_status_json()
         (unsigned long)dmx.prime_timeouts,
         (unsigned long)dmx.frame_timeouts,
         (unsigned long)dmx.auto_resyncs,
+        dmx.blackout_channels,
         midi.enabled ? "true" : "false",
         midi.initialized ? "true" : "false",
         midi.rx_pin,
@@ -846,6 +848,75 @@ static void build_dmx_b_response(const char *name)
         "\r\n"
         "{\"ok\":true,\"updated\":%u}\n",
         updated);
+}
+
+static uint16_t parse_and_apply_dmx_pairs(const char *data, bool blackout_lock, uint16_t max_channels)
+{
+    uint16_t updated = 0;
+    const char *p = data;
+    while (*p) {
+        char *end_ch = NULL;
+        unsigned long ch = strtoul(p, &end_ch, 10);
+        if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= max_channels) {
+            char *end_val = NULL;
+            unsigned long val = strtoul(end_ch + 1, &end_val, 10);
+            if (end_val != end_ch + 1 && val <= 255) {
+                if (blackout_lock) {
+                    dmx_engine_set_blackout_channel((uint16_t)ch, (uint8_t)val);
+                } else {
+                    dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
+                }
+                dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
+                critical_section_enter_blocking(&dmx_ui_lock);
+                dmx_ui_values[ch] = (uint8_t)val;
+                critical_section_exit(&dmx_ui_lock);
+                updated++;
+            }
+            p = end_val;
+        } else {
+            const char *next = strchr(p, ',');
+            if (!next) break;
+            p = next;
+        }
+        if (*p == ',') p++;
+        else break;
+    }
+    return updated;
+}
+
+static void build_dmx_blackout_response(const char *name)
+{
+    if (path_matches(name, "/dmx/blackout/clear") || path_matches(name, "/dmx/blackout_clear")) {
+        dmx_engine_clear_blackout();
+        build_dmx_json_response(200, "OK", "{\"ok\":true,\"blackout\":false,\"locked\":0}\n");
+        return;
+    }
+
+    const char *data = name + strlen("/dmx/blackout");
+    if (*data == '/') {
+        data++;
+    }
+    if (!*data) {
+        build_dmx_json_response(400, "Bad Request", "{\"ok\":false,\"error\":\"Use /dmx/blackout/ch:val,ch:val\"}\n");
+        return;
+    }
+
+    dmx_engine_clear_blackout();
+    dmx_engine_status_t status;
+    dmx_engine_get_status(&status);
+    uint16_t updated = parse_and_apply_dmx_pairs(data, true, status.channels);
+    snprintf(
+        http_dmx_json,
+        sizeof(http_dmx_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{\"ok\":true,\"blackout\":true,\"updated\":%u,\"locked\":%u}\n",
+        updated,
+        dmx_engine_blackout_channel_count());
 }
 
 static void build_dmx_set_response(const char *name)
@@ -1300,6 +1371,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
         return 1;
     }
 
+    if (path_matches(name, "/dmx/blackout")) {
+        build_dmx_blackout_response(name);
+        file->data = http_dmx_json;
+        file->len = (int)strlen(http_dmx_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
     /* ----- MIDI input endpoints -------------------------------------- */
     if (path_matches(name, "/midi/status.json") || path_matches(name, "/midi/status")) {
         midi_input_write_status_json(http_midi_body, sizeof(http_midi_body));
@@ -1635,6 +1715,13 @@ extern "C" err_t httpd_post_begin(void *connection,
         return ERR_OK;
     }
 
+    /* POST /dmx/blackout — batch set and lock blackout channels */
+    if (strncmp(uri, "/dmx/blackout", 13) == 0 &&
+        (uri[13] == '\0' || uri[13] == '/' || uri[13] == '?')) {
+        post_type = POST_DMX_BLACKOUT;
+        return ERR_OK;
+    }
+
     /* POST /dmx/b  — batch DMX set with ch:val pairs in body */
     if (strncmp(uri, "/dmx/b", 6) == 0 &&
         (uri[6] == '\0' || uri[6] == '/' || uri[6] == '?')) {
@@ -1696,31 +1783,7 @@ extern "C" void httpd_post_finished(void *connection,
     } else if (post_type == POST_DMX_BATCH) {
         dmx_engine_status_t status;
         dmx_engine_get_status(&status);
-        uint16_t updated = 0;
-        const char *p = post_buffer;
-        while (*p) {
-            char *end_ch = NULL;
-            unsigned long ch = strtoul(p, &end_ch, 10);
-            if (end_ch != p && *end_ch == ':' && ch >= 1 && ch <= status.channels) {
-                char *end_val = NULL;
-                unsigned long val = strtoul(end_ch + 1, &end_val, 10);
-                if (end_val != end_ch + 1 && val <= 255) {
-                    dmx_engine_set_channel((uint16_t)ch, (uint8_t)val);
-                    dmx_engine_set_base_channel((uint16_t)ch, (uint8_t)val);
-                    critical_section_enter_blocking(&dmx_ui_lock);
-                    dmx_ui_values[ch] = (uint8_t)val;
-                    critical_section_exit(&dmx_ui_lock);
-                    updated++;
-                }
-                p = end_val;
-            } else {
-                const char *next = strchr(p, ',');
-                if (!next) break;
-                p = next;
-            }
-            if (*p == ',') p++;
-            else break;
-        }
+        uint16_t updated = parse_and_apply_dmx_pairs(post_buffer, false, status.channels);
         snprintf(http_dmx_json, sizeof(http_dmx_json),
             "HTTP/1.0 200 OK\r\n"
             "Content-Type: application/json; charset=utf-8\r\n"
@@ -1730,6 +1793,22 @@ extern "C" void httpd_post_finished(void *connection,
             "\r\n"
             "{\"ok\":true,\"updated\":%u}\n",
             updated);
+        snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
+    } else if (post_type == POST_DMX_BLACKOUT) {
+        dmx_engine_clear_blackout();
+        dmx_engine_status_t status;
+        dmx_engine_get_status(&status);
+        uint16_t updated = parse_and_apply_dmx_pairs(post_buffer, true, status.channels);
+        snprintf(http_dmx_json, sizeof(http_dmx_json),
+            "HTTP/1.0 200 OK\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Connection: close\r\n"
+            "Cache-Control: no-store\r\n"
+            "\r\n"
+            "{\"ok\":true,\"blackout\":true,\"updated\":%u,\"locked\":%u}\n",
+            updated,
+            dmx_engine_blackout_channel_count());
         snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
     } else {
         build_playback_err_response("unknown endpoint");
@@ -1867,7 +1946,7 @@ static void core0_application_loop()
             memset(chaser_touched, 0, sizeof(chaser_touched));
             chaser_tick(now_us, chaser_scratch, chaser_touched);
             for (uint16_t ch = 1; ch <= 512; ch++) {
-                if (chaser_touched[ch]) {
+                if (chaser_touched[ch] && !dmx_engine_channel_is_blackout_locked(ch)) {
                     dmx_engine_set_base_channel(ch, chaser_scratch[ch]);
                     dmx_engine_set_channel(ch, chaser_scratch[ch]);
                 }
@@ -1880,7 +1959,7 @@ static void core0_application_loop()
             memset(mfx_touched, 0, sizeof(mfx_touched));
             mfx_tick(now_us, mfx_scratch, mfx_touched);
             for (uint16_t ch = 1; ch <= 512; ch++)
-                if (mfx_touched[ch])
+                if (mfx_touched[ch] && !dmx_engine_channel_is_blackout_locked(ch))
                     dmx_engine_set_channel(ch, mfx_scratch[ch]);
 
             uint32_t cycle_end_us = time_us_32();

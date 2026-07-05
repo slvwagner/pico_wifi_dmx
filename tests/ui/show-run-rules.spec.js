@@ -227,6 +227,36 @@ test.describe('Show Run page', () => {
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/motion/stop');
   });
 
+  test('locks blackout channels on the Pico and clears the lock before normal recalls', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.getByRole('button', { name: 'Blackout Target' }).click();
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout')).toBe(true);
+    const blackoutCall = calls.pico.find(call => call.url === 'http://pico.test/dmx/blackout');
+    expect(blackoutCall).toBeTruthy();
+    expect(blackoutCall.method).toBe('POST');
+    expect(blackoutCall.body.split(',').sort()).toEqual(['11:0', '12:0', '13:0', '14:0', '1:0', '2:0', '3:0', '4:0'].sort());
+    await expect(page.getByRole('button', { name: 'Clear Blackout' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Clear Blackout' }).click();
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout/clear')).toBe(true);
+    await expect(page.getByRole('button', { name: 'Blackout Target' })).toBeVisible();
+
+    calls.pico.length = 0;
+    await page.getByRole('button', { name: 'Blackout Target' }).click();
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout')).toBe(true);
+    await page.getByRole('button', { name: /Both On/ }).click();
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b')).toBe(true);
+    const urls = calls.pico.map(call => call.url);
+    expect(urls.indexOf('http://pico.test/dmx/blackout/clear')).toBeLessThan(urls.indexOf('http://pico.test/dmx/b'));
+    expect(calls.pico.find(call => call.url === 'http://pico.test/dmx/b').body).toBe('1:100,11:200');
+  });
+
   test('shows live Pico chaser slots when the XAMPP mirror is empty', async ({ page }) => {
     const calls = {
       pico: [],
