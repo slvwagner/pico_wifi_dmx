@@ -763,18 +763,14 @@ test.describe('Show Run page', () => {
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
 
-    await expect(page.locator('#cardMove')).not.toBeVisible();
     await page.locator('#editLayoutBtn').click();
-    await expect(page.locator('#cardMove')).toBeVisible();
+    await expect(page.locator('#cardMove')).toHaveCount(0);
 
     await page.locator('#cardCols').fill('2');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
-    await page.locator('#cardPalette').click({ position: { x: 16, y: 16 } });
-    await page.locator('#cardGroup').click({ position: { x: 16, y: 16 } });
-    await page.locator('#cardMotion').click({ position: { x: 16, y: 16 } });
-    await page.locator('#cardScene').click({ position: { x: 16, y: 16 } });
+    await page.locator('#cardPalette .panel-head').dragTo(page.locator('#cardGroup .panel-head'));
+    await page.locator('#cardMotion .panel-head').dragTo(page.locator('#cardScene .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
@@ -790,11 +786,9 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('2');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
     // Row 2 / col 2 is the fourth visible card in a 2-column matrix.
-    await page.locator('#cardChaser').click({ position: { x: 16, y: 16 } });
-    await page.locator('#cardGroup').click({ position: { x: 16, y: 16 } });
+    await page.locator('#cardChaser .panel-head').dragTo(page.locator('#cardGroup .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
@@ -813,13 +807,11 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
     const beforeOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(beforeOrder.slice(0, 6)).toEqual(['group', 'scene', 'palette', 'chaser', 'motion', 'live']);
 
-    await page.locator('#cardScene .card-move-handle').click();
-    await page.locator('#cardMotion .card-move-handle').click();
+    await page.locator('#cardScene .panel-head').dragTo(page.locator('#cardMotion .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Show Target');
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
@@ -841,12 +833,10 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
     // Position 5 contains Pico Effects Playback, position 6 contains Live Controls,
     // and position 7 is empty in the default 3x3 card matrix.
-    await page.locator('#cardMotion').click({ position: { x: 16, y: 16 } });
-    await page.locator('#cardGrid > :nth-child(7)').click({ position: { x: 16, y: 16 } });
+    await page.locator('#cardMotion .panel-head').dragTo(page.locator('#cardGrid > :nth-child(7)'));
 
     await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Card position 5');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
@@ -857,7 +847,7 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('lets the operator move the Live Controls card from its move handle', async ({ page }) => {
+  test('lets the operator move the Live Controls card from its header', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
@@ -865,11 +855,9 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
-    await expect(page.locator('#cardLive .card-move-handle')).toBeVisible();
-    await page.locator('#cardLive .card-move-handle').click();
-    await page.locator('#cardGrid > :nth-child(8)').click({ position: { x: 16, y: 16 } });
+    await expect(page.locator('#cardLive .card-move-handle')).toHaveCount(0);
+    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(8)'));
 
     await expect(page.locator('#cardGrid > :nth-child(6)')).toContainText('Card position 6');
     await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
@@ -887,11 +875,9 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
-    await expect(page.locator('#cardLive .card-move-handle')).toBeVisible();
-    await page.locator('#cardLive .card-move-handle').click();
-    await page.locator('#cardScene .card-move-handle').click();
+    await expect(page.locator('#cardLive .card-move-handle')).toHaveCount(0);
+    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardScene .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Live Controls');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Scenes');
@@ -913,13 +899,12 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
 
-    const source = await page.locator('#cardLive .card-move-drop-target').boundingBox();
-    const target = await page.locator('#cardScene .card-move-drop-target').boundingBox();
+    const source = await page.locator('#cardLive .panel-head').boundingBox();
+    const target = await page.locator('#cardScene .panel-head').boundingBox();
     expect(source).not.toBeNull();
     expect(target).not.toBeNull();
 
@@ -954,8 +939,7 @@ test.describe('Show Run page', () => {
     expect(savedOrder.slice(0, 9)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null]);
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardMove').click();
-    await page.locator('#cardLive .card-move-drop-target').dragTo(page.locator('#cardPalette .card-move-drop-target'));
+    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardPalette .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
@@ -975,9 +959,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardMove').click();
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
-    await page.locator('#cardLive .card-move-drop-target').dragTo(page.locator('#cardGrid > :nth-child(8)'));
+    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(8)'));
 
     await expect(page.locator('#cardGrid > :nth-child(1)')).toContainText('Card position 1');
     await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
@@ -996,13 +979,12 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
     await page.locator('#cardRows').fill('3');
-    await page.locator('#cardMove').click();
 
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
 
     await page.locator('#cardLive').scrollIntoViewIfNeeded();
-    const source = await page.locator('#cardLive .card-move-drop-target').boundingBox();
+    const source = await page.locator('#cardLive .panel-head').boundingBox();
     expect(source).not.toBeNull();
 
     await page.mouse.move(source.x + source.width / 2, source.y + Math.min(80, source.height / 2));
@@ -1011,7 +993,7 @@ test.describe('Show Run page', () => {
       await page.mouse.move(source.x + source.width / 2, 28, { steps: 2 });
       await page.waitForTimeout(16);
     }
-    const target = await page.locator('#cardScene .card-move-drop-target').boundingBox();
+    const target = await page.locator('#cardScene .panel-head').boundingBox();
     expect(target).not.toBeNull();
     await page.mouse.move(target.x + target.width / 2, target.y + Math.min(80, target.height / 2), { steps: 10 });
     await page.mouse.up();
@@ -1035,13 +1017,11 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardMove').click();
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Chaser Playback');
 
-    await page.locator('#cardChaser .card-move-handle').click();
-    await page.locator('#cardLive .card-move-drop-target').click();
+    await page.locator('#cardChaser .panel-head').dragTo(page.locator('#cardLive .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
@@ -1062,12 +1042,11 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardMove').click();
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Chaser Playback');
 
-    await page.locator('#cardChaser .card-move-drop-target').dragTo(page.locator('#cardLive .card-move-drop-target'));
+    await page.locator('#cardChaser .panel-head').dragTo(page.locator('#cardLive .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
@@ -1088,12 +1067,11 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardMove').click();
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Chaser Playback');
 
-    await page.locator('#cardChaser .card-move-drop-target').dragTo(page.locator('#cardLive .card-move-drop-target'));
+    await page.locator('#cardChaser .panel-head').dragTo(page.locator('#cardLive .panel-head'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');

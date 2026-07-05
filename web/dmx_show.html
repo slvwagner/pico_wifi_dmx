@@ -54,13 +54,9 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .header-toolbar input[type=url],.header-toolbar input:not([type]){min-width:160px;width:180px;padding:7px 8px}
 .grid{display:grid;gap:10px;width:100%;justify-items:stretch;align-items:stretch}
 .card-grid{display:grid;gap:14px;width:100%;justify-items:stretch;align-items:stretch}
-.card-grid.card-move-mode .panel{cursor:grab;position:relative}
-.card-move-handle{display:none}
-.card-grid.card-move-mode .card-move-handle{display:inline-flex;position:absolute;top:8px;right:8px;z-index:4;align-items:center;justify-content:center;min-height:30px;padding:4px 9px;border:1px solid var(--accent);border-radius:6px;background:#12352d;color:var(--text);font-size:12px;font-weight:700;cursor:grab;box-shadow:0 0 0 1px rgba(55,196,164,.18) inset}
-.card-grid.card-move-mode .card-move-handle:active{cursor:grabbing}
-.card-move-drop-target{display:none}
-.card-grid.card-move-mode .card-move-drop-target{display:block;position:absolute;inset:0;z-index:3;cursor:grab}
-.card-grid.card-move-mode .card-move-drop-target:active{cursor:grabbing}
+.card-grid.card-move-mode .panel{position:relative}
+.card-grid.card-move-mode .panel-head{cursor:grab}
+.card-grid.card-move-mode .panel-head:active{cursor:grabbing}
 .card-empty{min-height:120px;border:1px dashed var(--line);border-radius:8px;background:rgba(255,255,255,.025);display:flex;align-items:flex-end;padding:10px;color:var(--muted)}
 .slot{width:100%;height:100%;justify-self:stretch;align-self:stretch;min-width:0;min-height:82px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);position:relative;padding:10px;display:flex;align-items:flex-end;justify-content:flex-start;overflow:hidden;text-align:left;color:inherit;scroll-margin-top:150px}
 .slot.filled{cursor:pointer}
@@ -137,7 +133,6 @@ body.layout-editing .show-tile-actions{display:flex}
 <main>
   <section class="panel topbar layout-tools" aria-label="Show card matrix layout">
     <div class="matrix-tools">
-      <button id="cardMove" type="button">Move Cards</button>
       <label>Card cols<input id="cardCols" type="number" min="1" max="5" value="2"></label>
       <label>Card rows<input id="cardRows" type="number" min="1" max="5" value="3"></label>
     </div>
@@ -340,7 +335,6 @@ const moveSelected={group:null,scene:null,palette:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','chaser','motion','live'];
 let cardOrder=[];
 let cardMoveMode=false;
-let cardMoveSelected=null;
 let layoutEditing=false;
 let hiddenTileModalDismissed=false;
 let blackoutActive=false;
@@ -527,28 +521,9 @@ function moveCard(from,to){
   const target=cardOrder[to]||null;
   cardOrder[to]=moving;
   cardOrder[from]=target;
-  cardMoveSelected=null;
   saveCardLayout();
   renderCardGrid();
   setStatus('Moved card to position '+(to+1));
-  return true;
-}
-function cardClick(index){
-  if(!cardMoveMode)return false;
-  if(cardMoveSelected===null){
-    if(!cardOrder[index]){setStatus('Card move mode is active: select a card first');return true;}
-    cardMoveSelected=index;
-    renderCardGrid();
-    setStatus('Selected card '+(index+1)+'. Tap another card position to move or swap it.');
-    return true;
-  }
-  if(cardMoveSelected===index){
-    cardMoveSelected=null;
-    renderCardGrid();
-    setStatus('Card move selection cleared');
-    return true;
-  }
-  moveCard(cardMoveSelected,index);
   return true;
 }
 function renderCardGrid(){
@@ -563,61 +538,34 @@ function renderCardGrid(){
     if(key){
       node=document.getElementById('card'+key.charAt(0).toUpperCase()+key.slice(1));
       if(node){
-        node.querySelectorAll(':scope > .card-move-handle').forEach(handle=>handle.remove());
-        node.querySelectorAll(':scope > .card-move-drop-target').forEach(target=>target.remove());
-        if(cardMoveMode){
-          const dropTarget=document.createElement('div');
-          dropTarget.className='card-move-drop-target';
-          dropTarget.title='Move card target';
-          dropTarget.setAttribute('aria-hidden','true');
-          node.appendChild(dropTarget);
-          const handle=document.createElement('div');
-          handle.className='card-move-handle';
-          handle.textContent='Move';
-          handle.title='Move card';
-          handle.setAttribute('role','button');
-          handle.tabIndex=0;
-          handle.addEventListener('click',e=>{e.stopPropagation();cardClick(index);});
-          handle.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();cardClick(index);}});
-          node.appendChild(handle);
-        }
+        const head=node.querySelector(':scope > .panel-head');
+        if(head)head.title=cardMoveMode?'Drag card header to move this card':'';
         node.dataset.showCardIndex=index;
-        node.classList.toggle('active',cardMoveSelected===index);
-        node.onclick=e=>{
-          if(cardMoveSelected===null&&e.target.closest('button,input,select,textarea,a,label'))return;
-          if(cardMoveSelected!==null&&e.target.closest('button,input,select,textarea,a,label'))e.preventDefault();
-          cardClick(index);
-        };
+        node.classList.remove('active');
+        node.onclick=null;
       }
     }else{
       node=document.createElement('div');
       node.className='card-empty';
       node.dataset.showCardIndex=index;
       node.textContent='Card position '+(index+1);
-      node.addEventListener('click',()=>cardClick(index));
     }
     if(node)grid.appendChild(node);
   });
   DmxCommon.initTileMoveGrid({
     grid,
-    button:'cardMove',
     active:cardMoveMode,
     itemSelector:'[data-show-card-index]',
-    handleSelector:'.card-move-drop-target,.card-move-handle',
+    handleSelector:'.panel-head',
     getIndex:el=>parseInt(el.dataset.showCardIndex,10),
     canDrag:idx=>!!cardOrder[idx],
     onMove:(from,to)=>moveCard(from,to)
   });
   saveCardLayout();
 }
-function toggleCardMove(){
-  cardMoveMode=!cardMoveMode;
-  cardMoveSelected=null;
-  renderCardGrid();
-  setStatus(cardMoveMode?'Card move mode enabled':'Card move mode disabled');
-}
 function setLayoutEditing(enabled){
   layoutEditing=!!enabled;
+  cardMoveMode=layoutEditing;
   document.body.classList.toggle('layout-editing',layoutEditing);
   const btn=document.getElementById('editLayoutBtn');
   if(btn){
@@ -627,7 +575,6 @@ function setLayoutEditing(enabled){
   }
   if(!layoutEditing){
     cardMoveMode=false;
-    cardMoveSelected=null;
     Object.keys(moveSelected).forEach(kind=>{moveSelected[kind]=null;});
     renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }else{
@@ -1698,7 +1645,6 @@ document.getElementById('motionControlSlot').onchange=e=>{selectMotionSlot(e.tar
 document.getElementById('motionControlStart').onclick=()=>DmxCommon.withButtonFeedback('motionControlStart',{busy:'Starting...',success:'Started',error:'Failed'},()=>startPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonFeedback('motionControlSetBpm',{busy:'Setting...',success:'BPM Set',error:'Failed'},()=>setMotionSlotBpm(motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
-document.getElementById('cardMove').onclick=()=>toggleCardMove();
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
 document.getElementById('liveFixtureSelect').onchange=updateLiveControlSelects;
 document.getElementById('liveControlSelect').onchange=updateLiveControlSelects;
