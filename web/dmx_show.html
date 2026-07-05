@@ -82,6 +82,8 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .show-tile-content{position:relative;z-index:1;display:grid;align-content:end;gap:2px;width:100%;height:100%;min-width:0}
 .show-tile-actions{display:none}
 body.layout-editing .show-tile-actions{display:flex}
+.hidden-tile-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2)}
+.hidden-tile-row .small{min-width:0}
 @media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}}
 </style>
 </head>
@@ -258,6 +260,22 @@ body.layout-editing .show-tile-actions{display:flex}
 </div>
 </div>
 
+<div id="hiddenTileModal" class="modal-overlay" style="display:none">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2>Hidden Show Tiles</h2>
+<button id="hiddenTileClose" style="font-size:16px;padding:6px 14px">X</button>
+</div>
+<div class="modal-body">
+<div class="small">Some saved show tiles are outside the visible rows and columns. Expand the section, or place an item into a free visible tile.</div>
+<div id="hiddenTileList" style="display:grid;gap:8px"></div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="hiddenTileClose2">Close</button>
+</div>
+</div>
+</div>
+
 <script>
 'use strict';
 const baseUrlEl=document.getElementById('baseUrl');
@@ -279,6 +297,7 @@ let cardOrder=[];
 let cardMoveMode=false;
 let cardMoveSelected=null;
 let layoutEditing=false;
+let hiddenTileModalDismissed=false;
 
 function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
@@ -486,6 +505,10 @@ function setLayoutEditing(enabled){
     renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderCardGrid();
   }
 }
+function itemSlotIndex(item,index){
+  const slot=parseInt(item?.slot,10);
+  return Number.isFinite(slot)&&slot>=0?slot:index;
+}
 function highestSlotIndex(items){
   return (items||[]).reduce((max,item)=>Math.max(max,parseInt(item?.slot,10)||0),-1);
 }
@@ -563,7 +586,13 @@ function reconcileDisplayOrder(kind,total){
   try{saved=JSON.parse(localStorage.getItem(orderKey(kind))||'[]');}catch(_){saved=[];}
   const previous=(displayOrders[kind]&&displayOrders[kind].length?displayOrders[kind]:saved).filter(key=>key===null||keys.has(String(key))).map(key=>key===null?null:String(key));
   const used=new Set(previous.filter(Boolean));
-  keys.forEach(key=>{if(!used.has(key))previous.push(key);});
+  sourceEntries(kind).forEach(entry=>{
+    if(used.has(entry.key))return;
+    const preferred=kind==='scene'||kind==='palette'?itemSlotIndex(entry.item,entry.index):(kind==='group'?entry.index:-1);
+    if(preferred>=0&&!previous[preferred])previous[preferred]=entry.key;
+    else previous.push(entry.key);
+    used.add(entry.key);
+  });
   while(previous.length<total)previous.push(null);
   displayOrders[kind]=previous.slice(0,Math.max(total,previous.length));
   saveDisplayOrder(kind);
@@ -587,6 +616,83 @@ function moveShowTile(kind,from,to){
   renderKind(kind);
   setStatus('Moved '+kind+' tile to position '+(to+1));
   return true;
+}
+function visibleTotal(kind){
+  const matrix=currentMatrix(kind);
+  return Math.max(1,(parseInt(matrix.cols,10)||1)*(parseInt(matrix.rows,10)||1));
+}
+function hiddenTileEntries(kind){
+  if(!['group','scene','palette'].includes(kind))return [];
+  const total=visibleTotal(kind);
+  reconcileDisplayOrder(kind,total);
+  return (displayOrders[kind]||[])
+    .map((key,index)=>({key,index,entry:key?itemForTileKey(kind,key):null}))
+    .filter(row=>row.key&&row.index>=total&&row.entry);
+}
+function freeVisibleIndex(kind){
+  const total=visibleTotal(kind);
+  const order=displayOrders[kind]||[];
+  for(let i=0;i<total;i++)if(!order[i])return i;
+  return -1;
+}
+function expandMatrixForHiddenKind(kind){
+  const orderLength=(displayOrders[kind]||[]).findLastIndex?.(key=>!!key)+1 || (displayOrders[kind]||[]).length;
+  const needed=Math.max(sourceEntries(kind).length,orderLength,visibleTotal(kind)+1);
+  const matrix=currentMatrix(kind);
+  const next=normalizeMatrix(matrix.cols,matrix.rows,needed,kind==='group'?8:32,kind==='group'?12:32,'cols');
+  if(kind==='group'){groupCols=next.cols;groupRows=next.rows;saveMatrix(kind,groupCols,groupRows);}
+  else if(kind==='scene'){sceneCols=next.cols;sceneRows=next.rows;saveMatrix(kind,sceneCols,sceneRows);}
+  else if(kind==='palette'){paletteCols=next.cols;paletteRows=next.rows;saveMatrix(kind,paletteCols,paletteRows);}
+  renderKind(kind);
+  closeHiddenTileModal();
+  setStatus('Expanded '+kind+' tiles to show hidden saved items');
+  reviewHiddenTiles(false);
+}
+function placeHiddenTile(kind,key){
+  const target=freeVisibleIndex(kind);
+  if(target<0){setStatus('No free visible '+kind+' tile. Expand rows or columns first.',true);return;}
+  const from=(displayOrders[kind]||[]).findIndex(item=>String(item)===String(key));
+  if(from<0)return;
+  moveShowTile(kind,from,target);
+  closeHiddenTileModal();
+  reviewHiddenTiles(false);
+}
+function hiddenKindLabel(kind){return kind==='group'?'Show Target':kind==='scene'?'Scenes':'Palettes';}
+function allHiddenTileRows(){
+  return ['group','scene','palette'].flatMap(kind=>hiddenTileEntries(kind).map(row=>({...row,kind})));
+}
+function openHiddenTileModal(rows){
+  const list=document.getElementById('hiddenTileList');
+  if(!list)return;
+  list.innerHTML=rows.map(row=>{
+    const item=row.entry.item;
+    const free=freeVisibleIndex(row.kind)>=0;
+    return `<div class="hidden-tile-row">
+      <div class="small"><strong>${esc(hiddenKindLabel(row.kind))}</strong><br>${esc(item.name||row.kind)} is saved at hidden position ${row.index+1}.</div>
+      <button type="button" data-hidden-place="${esc(row.kind+':'+row.key)}" ${free?'':'disabled'}>Place in Free Tile</button>
+      <button type="button" data-hidden-expand="${esc(row.kind)}">Expand ${esc(hiddenKindLabel(row.kind))}</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-hidden-place]').forEach(btn=>btn.addEventListener('click',()=>{
+    const [kind,key]=String(btn.dataset.hiddenPlace).split(':');
+    placeHiddenTile(kind,key);
+  }));
+  list.querySelectorAll('[data-hidden-expand]').forEach(btn=>btn.addEventListener('click',()=>expandMatrixForHiddenKind(btn.dataset.hiddenExpand)));
+  document.getElementById('hiddenTileModal').style.display='flex';
+}
+function closeHiddenTileModal(){
+  const modal=document.getElementById('hiddenTileModal');
+  if(modal)modal.style.display='none';
+}
+function reviewHiddenTiles(autoOpen=true){
+  const rows=allHiddenTileRows();
+  if(!rows.length){closeHiddenTileModal();return;}
+  const message=rows.length+' saved show tile'+(rows.length===1?' is':'s are')+' outside the visible layout. Review hidden tiles in Edit Layout.';
+  setStatus(message,true);
+  if(autoOpen&&!hiddenTileModalDismissed){
+    setLayoutEditing(true);
+    openHiddenTileModal(rows);
+  }
 }
 function tileMoveClick(kind,index){
   if(!layoutEditing)return false;
@@ -1170,6 +1276,7 @@ async function loadLivePicoMotionSlots(root){
 }
 async function loadShow(){
   setStatus('Loading show...');
+  hiddenTileModalDismissed=false;
   const [fixtureData,groupData,sceneData,paletteData,chaserData,motionData,liveData]=await Promise.all([
     loadJson('fixture_setup.php',{exists:false,setup:null}),
     loadJson('group_setup.php',{groups:[]}),
@@ -1200,6 +1307,7 @@ async function loadShow(){
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
   setStatus('Show loaded: '+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)');
+  reviewHiddenTiles(true);
 }
 document.getElementById('reloadBtn').onclick=()=>DmxCommon.withButtonFeedback('reloadBtn',{busy:'Loading...',success:'Loaded',error:'Failed'},loadShow).catch(err=>setStatus(err.message,true));
 document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();renderGroups();setStatus('Show target reset to all fixtures');};
@@ -1218,6 +1326,8 @@ document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonF
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('cardMove').onclick=()=>toggleCardMove();
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
+document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
+document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 bindCardInputs();
 bindMatrixInputs('group',normalizeGroupGrid,renderGroups,8,12);
 bindMatrixInputs('scene',normalizeSceneGrid,renderScenes,32,32);

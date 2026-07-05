@@ -463,6 +463,91 @@ test.describe('Show Run page', () => {
     expect(calls.paletteWrites.at(-1).palettes).toEqual([]);
   });
 
+  test('warns when saved palettes are hidden outside the visible Show Run matrix', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.route('**/palette_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        calls.setupWrites += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          paletteCols: 1,
+          paletteRows: 1,
+          palettes: [
+            { id: 'palette_1', name: 'Red', scope: 'Color', values: { '101:12': { a: 255, b: 0, c: 0 } } },
+            { id: 'palette_2', name: 'Blue', scope: 'Color', values: { '101:12': { a: 0, b: 0, c: 255 } } }
+          ]
+        })
+      });
+    });
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.paletteCols', '1');
+      localStorage.setItem('dmxShowRun.paletteRows', '1');
+      localStorage.setItem('dmxShowRun.paletteOrder', JSON.stringify(['palette_1', 'palette_2']));
+    });
+
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#hiddenTileModal')).toBeVisible();
+    await expect(page.locator('#hiddenTileList')).toContainText('Blue');
+    await expect(page.locator('#paletteGrid')).not.toContainText('Blue');
+
+    await page.locator('[data-hidden-expand="palette"]').click();
+
+    await expect(page.locator('#hiddenTileModal')).not.toBeVisible();
+    await expect(page.locator('#paletteRows')).toHaveValue('2');
+    await expect(page.locator('#paletteGrid')).toContainText('Blue');
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('can place a hidden saved palette into a free visible Show Run tile', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.route('**/palette_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        calls.setupWrites += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          paletteCols: 2,
+          paletteRows: 1,
+          palettes: [
+            { id: 'palette_1', name: 'Red', scope: 'Color', values: { '101:12': { a: 255, b: 0, c: 0 } } },
+            { id: 'palette_2', name: 'Blue', scope: 'Color', values: { '101:12': { a: 0, b: 0, c: 255 } } }
+          ]
+        })
+      });
+    });
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.paletteCols', '2');
+      localStorage.setItem('dmxShowRun.paletteRows', '1');
+      localStorage.setItem('dmxShowRun.paletteOrder', JSON.stringify(['palette_1', null, 'palette_2']));
+    });
+
+    await openDmxPage(page, 'dmx_show.html');
+    await expect(page.locator('#hiddenTileModal')).toBeVisible();
+
+    await page.locator('[data-hidden-place="palette:palette_2"]').click();
+
+    await expect(page.locator('#hiddenTileModal')).not.toBeVisible();
+    await expect(page.locator('#paletteRows')).toHaveValue('1');
+    await expect(page.locator('#paletteGrid .slot').nth(1)).toContainText('Blue');
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('lets the operator arrange whole show cards in a card matrix', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
