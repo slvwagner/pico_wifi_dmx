@@ -2245,6 +2245,17 @@ function valuePatchPairs(source){
   });
   return pairs;
 }
+function valuePatchPairsUnscaled(source){
+  const pairs=[];
+  Object.keys(source||{}).forEach(key=>{
+    const [fixtureId,controlId]=String(key).split(':');
+    const f=fixtures.find(item=>String(item.id)===fixtureId);
+    const p=f&&fixtureProfile(f);
+    const c=p&&p.controls.find(item=>String(item.id)===controlId);
+    if(f&&c)resolveDmxBytes(f,c).forEach(row=>pairs.push(row.ch+':'+row.val));
+  });
+  return pairs;
+}
 function valuePatchPairsFromPatch(source){
   const original={};
   Object.keys(source||{}).forEach(key=>{
@@ -2297,6 +2308,32 @@ async function applyDimmerMaster(value,scope='all'){
   });
   await sendPairs(valuePatchPairs(patch));
   setStatus((targetMaster?targetMaster.name:'Grand')+' master set '+targets.length+' dimmer control(s) to '+faderValue+'%');
+}
+function masterFactorsNeedRestore(){
+  if(Math.abs((masterFactors.grand??1)-1)>0.0001)return true;
+  return targetMasters.some(master=>Math.abs((master.factor??1)-1)>0.0001);
+}
+function dimmerRestorePatch(){
+  const patch={};
+  if(!masterFactorsNeedRestore())return patch;
+  dimmerTargets().forEach(row=>{
+    patch[controlKey(row.fixture,row.control)]=cloneValue(getValue(row.fixture,row.control,defaultValueForControl(row.control)));
+  });
+  return patch;
+}
+async function restoreDimmerMastersForExit(options={}){
+  const patch=dimmerRestorePatch();
+  const pairs=valuePatchPairsUnscaled(patch);
+  if(!pairs.length)return false;
+  await sendPairs(pairs,'/dmx/b',options);
+  return true;
+}
+async function applyDimmerMastersForEntry(){
+  const patch=dimmerRestorePatch();
+  const pairs=valuePatchPairs(patch);
+  if(!pairs.length)return false;
+  await sendPairs(pairs);
+  return true;
 }
 function selectedFixtureIdsForAssignment(){
   if(!selectedGroupIds.size&&!selectedFixtureIds.size)return [];
@@ -2398,13 +2435,13 @@ function bindMasterCard(){
     };
   });
 }
-async function sendPairs(pairs,path='/dmx/b'){
+async function sendPairs(pairs,path='/dmx/b',options={}){
   const root=endpoint();
   if(!root||!pairs.length)return;
   const unique=new Map();
   pairs.forEach(pair=>{const [ch,val]=pair.split(':');unique.set(String(ch),String(val));});
   const body=[...unique.entries()].map(([ch,val])=>ch+':'+val).join(',');
-  const r=await fetch(root+path,{method:'POST',body,cache:'no-store'});
+  const r=await fetch(root+path,{method:'POST',body,cache:'no-store',keepalive:!!options.keepalive});
   if(!r.ok)throw new Error('Pico DMX send failed: HTTP '+r.status);
 }
 function recallSceneKey(key){
@@ -2563,7 +2600,9 @@ async function loadShow(options={}){
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
   loadMidiStatus({silent:true});
+  const appliedMasters=await applyDimmerMastersForEntry();
   setStatus((isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)');
+  if(appliedMasters)setStatus((isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)+' · master output applied');
   reviewHiddenTiles(true);
 }
 function refreshShowData(options={}){
@@ -2591,6 +2630,16 @@ document.addEventListener('visibilitychange',()=>{
     loadMidiStatus({silent:true});
   }
 });
+window.addEventListener('pagehide',()=>{restoreDimmerMastersForExit({keepalive:true}).catch(()=>{});});
+document.addEventListener('click',e=>{
+  const link=e.target.closest?.('a[href]');
+  if(!link||link.target||link.hasAttribute('download'))return;
+  const href=link.getAttribute('href')||'';
+  if(!href||href.startsWith('#')||/^(https?:|mailto:|tel:)/i.test(href))return;
+  if(!masterFactorsNeedRestore())return;
+  e.preventDefault();
+  restoreDimmerMastersForExit().catch(err=>setStatus(err.message,true)).finally(()=>{window.location.href=href;});
+},true);
 document.getElementById('reloadBtn').onclick=()=>DmxCommon.withButtonFeedback('reloadBtn',{busy:'Refreshing...',success:'Refreshed',error:'Failed'},()=>refreshShowData({reason:'manual'})).catch(err=>setStatus(err.message,true));
 bindMidiCards();
 bindMasterCard();

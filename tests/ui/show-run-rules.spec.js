@@ -483,6 +483,22 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('restores unscaled dimmer output before leaving Show Run', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('.grand-master-fader').fill('50');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:50,11:100'))
+      .toBe(true);
+    calls.pico.length = 0;
+
+    await page.getByRole('link', { name: 'Controller' }).click();
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:100,11:200'))
+      .toBe(true);
+  });
+
   test('Group Master fader scales assigned fixture dimmers without overwriting live values', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
     await routeShowSetup(page, calls);

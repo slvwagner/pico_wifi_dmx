@@ -881,7 +881,7 @@ The Pico Performance Test page checks the whole browser-to-Pico path. It reads `
 
 Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
 
-Show Run blackout is handled by the Master card faders. **Blackout** below the Grand Master sets the Grand Master to `0%` and sends scaled dimmer output for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. These actions use the same output path as moving the fader manually, so they do not overwrite stored live values or call the Pico blackout-lock endpoint.
+Show Run blackout is handled by the Master card faders. **Blackout** below the Grand Master sets the Grand Master to `0%` and sends scaled dimmer output for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. These actions use the same output path as moving the fader manually, so they do not overwrite stored live values or call the Pico blackout-lock endpoint. When leaving Show Run, the browser restores dimmer output to the underlying live values without Grand Master or Group Master multipliers.
 
 Show Run refreshes its XAMPP show data automatically when the page becomes active again, so changes made on the Controller, Chaser, or Effects page are picked up when the operator returns. Auto-refresh is skipped while **Edit Layout** is active; **Refresh Show Data** remains as a manual fallback.
 

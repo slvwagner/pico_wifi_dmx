@@ -564,7 +564,7 @@ Live Control card configuration is stored with the server-side Show Run layout p
 
 Scene, palette, Live Control, Grand Master, and Group Master output all use the same current target rules. Selected Groups and Fixtures define the target. With no selection, all fixtures are targeted.
 
-Show Run blackout is handled by the master faders. Click **Blackout** below the Grand Master to set the Grand Master to **0%** for all dimmers. Click **Blackout** below a Group Master to set only that Group Master to **0%**. These buttons use the same output path as moving the fader manually, so they do not overwrite stored live values or call the Pico blackout-lock endpoint.
+Show Run blackout is handled by the master faders. Click **Blackout** below the Grand Master to set the Grand Master to **0%** for all dimmers. Click **Blackout** below a Group Master to set only that Group Master to **0%**. These buttons use the same output path as moving the fader manually, so they do not overwrite stored live values or call the Pico blackout-lock endpoint. When you leave Show Run, the page restores dimmer output to the underlying live values without the Grand Master or Group Master multipliers, so setup pages do not inherit the temporary show-level dimming.
 
 The global **Stop All Playback** button calls both Pico stop endpoints.
 
