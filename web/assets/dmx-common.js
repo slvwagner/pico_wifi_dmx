@@ -1797,6 +1797,14 @@
           return x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;
         })||null;
     };
+    const autoScrollDuringDrag=e=>{
+      const edge=72;
+      const step=28;
+      if(e.clientY<edge)window.scrollBy(0,-step);
+      else if(e.clientY>window.innerHeight-edge)window.scrollBy(0,step);
+      if(e.clientX<edge)window.scrollBy(-step,0);
+      else if(e.clientX>window.innerWidth-edge)window.scrollBy(step,0);
+    };
     const markTarget=(target,x)=>{
       grid.querySelectorAll('.toolbox-drop-before,.toolbox-drop-after').forEach(item=>item.classList.remove('toolbox-drop-before','toolbox-drop-after'));
       if(!target)return;
@@ -1811,6 +1819,7 @@
       if(!moved&&!pointerDrag.moved)return;
       pointerDrag.moved=true;
       pointerDrag.source.classList.add('toolbox-dragging');
+      autoScrollDuringDrag(e);
       pointerDrag.target=targetAtPoint(e.clientX,e.clientY,pointerDrag.source);
       markTarget(pointerDrag.target,e.clientX);
       e.preventDefault();
@@ -1834,6 +1843,7 @@
       if(!moved&&!pointerDrag.moved)return;
       pointerDrag.moved=true;
       pointerDrag.source.classList.add('toolbox-dragging');
+      autoScrollDuringDrag(e);
       pointerDrag.target=targetAtPoint(e.clientX,e.clientY,pointerDrag.source);
       markTarget(pointerDrag.target,e.clientX);
       e.preventDefault();

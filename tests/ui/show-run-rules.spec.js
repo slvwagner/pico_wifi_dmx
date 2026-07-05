@@ -913,6 +913,43 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('auto-scrolls while dragging the Live Controls card to an offscreen card above it', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardCols').fill('3');
+    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardMove').click();
+
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
+
+    await page.locator('#cardLive').scrollIntoViewIfNeeded();
+    const source = await page.locator('#cardLive .card-move-drop-target').boundingBox();
+    expect(source).not.toBeNull();
+
+    await page.mouse.move(source.x + source.width / 2, source.y + Math.min(80, source.height / 2));
+    await page.mouse.down();
+    for (let i = 0; i < 36; i++) {
+      await page.mouse.move(source.x + source.width / 2, 28, { steps: 2 });
+      await page.waitForTimeout(16);
+    }
+    const target = await page.locator('#cardScene .card-move-drop-target').boundingBox();
+    expect(target).not.toBeNull();
+    await page.mouse.move(target.x + target.width / 2, target.y + Math.min(80, target.height / 2), { steps: 10 });
+    await page.mouse.up();
+
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Scenes');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 6)).toEqual(['group', 'live', 'palette', 'chaser', 'motion', 'scene']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('lets the operator swap Pico Chaser Playback with Live Controls when Live Controls is the target card', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
