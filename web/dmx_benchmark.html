@@ -69,10 +69,14 @@ th{color:var(--muted);font-weight:600}
     <div class="toolbar">
       <button id="btnCheckPico">Check Pico</button>
       <button class="primary" id="btnRunFull">Run Full Test</button>
+      <button id="btnRunPlaybackPaletteStress">Playback + Palette Stress</button>
     </div>
   </div>
   <div class="check-grid">
     <div class="check" id="checkStatus"><div class="check-state">Idle</div><div class="check-title">Pico status</div><div class="check-detail">No check run yet.</div></div>
+    <div class="check" id="checkMemory"><div class="check-state">Idle</div><div class="check-title">Free memory</div><div class="check-detail">No memory data yet.</div></div>
+    <div class="check" id="checkHeadroom"><div class="check-state">Idle</div><div class="check-title">100 Hz headroom</div><div class="check-detail">No 100 Hz timing data yet.</div></div>
+    <div class="check" id="checkCore1Headroom"><div class="check-state">Idle</div><div class="check-title">Core1 headroom</div><div class="check-detail">No Core1 timing data yet.</div></div>
     <div class="check" id="checkCore0"><div class="check-state">Idle</div><div class="check-title">Core0 DMX loop</div><div class="check-detail">No timing data yet.</div></div>
     <div class="check" id="checkCore1"><div class="check-state">Idle</div><div class="check-title">Core1 service loop</div><div class="check-detail">No timing data yet.</div></div>
     <div class="check" id="checkHttp"><div class="check-state">Idle</div><div class="check-title">HTTP callbacks</div><div class="check-detail">No HTTP timing data yet.</div></div>
@@ -101,7 +105,7 @@ th{color:var(--muted);font-weight:600}
     <button id="btnClearTimingHistory">Clear</button>
   </div>
   <table>
-    <thead><tr><th>Run</th><th>Time</th><th>Status</th><th>Core0 slack</th><th>Core0 late</th><th>Core1 slack</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th></tr></thead>
+    <thead><tr><th>Run</th><th>Time</th><th>Status</th><th>Memory</th><th>100 Hz left</th><th>Core1 left</th><th>Core0 late</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th></tr></thead>
     <tbody id="timingHistoryBody"></tbody>
   </table>
 </section>
@@ -239,6 +243,13 @@ function latestMatch(text,re){
   return matches.length?matches[matches.length-1]:null;
 }
 
+function formatBytes(bytes){
+  bytes=Number(bytes)||0;
+  if(bytes>=1024*1024)return (bytes/1024/1024).toFixed(1)+' MB';
+  if(bytes>=1024)return Math.round(bytes/1024)+' KB';
+  return Math.round(bytes)+' B';
+}
+
 let timingHistory=[];
 let lastBufferSnapshot={state:'idle',detail:'not run'};
 
@@ -259,9 +270,10 @@ function renderTimingHistory(){
       <td>${i+1}</td>
       <td>${r.time}</td>
       <td>${timingStateLabel(r.statusState)}</td>
-      <td>${r.core0Slack}</td>
+      <td>${r.memory}</td>
+      <td>${r.headroom}</td>
+      <td>${r.core1Headroom}</td>
       <td>${r.core0Late}</td>
-      <td>${r.core1Slack}</td>
       <td>${r.httpPeak}</td>
       <td>${r.dmx}</td>
       <td>${r.bufferLabel}</td>
@@ -282,14 +294,62 @@ function parseCoreTiming(logText){
   const http=latestMatch(logText,/Core1 http: calls=(\d+) work_us mean=(\d+) peak=(\d+)/g);
   return {
     core0:core0?{samples:+core0[1],mean:+core0[2],peak:+core0[3],slackMean:+core0[4],slackMin:+core0[5],late:+core0[6],peakLate:+core0[7]}:null,
-    core1:core1?{samples:+core1[1],mean:+core1[2],peak:+core1[3],slackMean:+core1[4],slackMin:+core1[5],late:+core1[6],peakLate:+core1[7]}:null,
+    core1:core1?{samples:+core1[1],mean:+core1[2],peak:+core1[3],slackMean:+core1[4],slackMin:+core1[5],late:+core1[6],peakLate:+core1[7],period:2000000}:null,
     dmx:dmx?{frames:+dmx[1],skipped:+dmx[2],primeTimeouts:+dmx[3],frameTimeouts:+dmx[4],resyncs:+dmx[5]}:null,
     http:http?{calls:+http[1],mean:+http[2],peak:+http[3]}:null
   };
 }
 
+function parsePerfStatus(j){
+  const core0=j?.core0;
+  const core1=j?.core1;
+  const http=j?.http;
+  const dmx=j?.dmx;
+  return {
+    memory:j?.memory||null,
+    core0:core0&&core0.valid?{
+      samples:Number(core0.samples)||0,
+      mean:Number(core0.work_us?.mean)||0,
+      peak:Number(core0.work_us?.peak)||0,
+      slackMean:Number(core0.slack_us?.mean)||0,
+      slackMin:Number(core0.slack_us?.min)||0,
+      late:Number(core0.late?.count)||0,
+      peakLate:Number(core0.late?.peak_us)||0,
+      period:Number(core0.period_us)||10000,
+      headroomPercent:Number(core0.headroom_percent)||0
+    }:null,
+    core1:core1&&core1.valid?{
+      samples:Number(core1.samples)||0,
+      mean:Number(core1.work_us?.mean)||0,
+      peak:Number(core1.work_us?.peak)||0,
+      slackMean:Number(core1.slack_us?.mean)||0,
+      slackMin:Number(core1.slack_us?.min)||0,
+      late:Number(core1.late?.count)||0,
+      peakLate:Number(core1.late?.peak_us)||0
+    }:null,
+    http:http&&http.valid?{
+      calls:Number(http.calls)||0,
+      mean:Number(http.work_us?.mean)||0,
+      peak:Number(http.work_us?.peak)||0
+    }:null,
+    dmx:dmx?{
+      frames:Number(dmx.frame_count)||0,
+      skipped:Number(dmx.skipped_callbacks)||0,
+      primeTimeouts:Number(dmx.prime_timeouts)||0,
+      frameTimeouts:Number(dmx.frame_timeouts)||0,
+      resyncs:Number(dmx.auto_resyncs)||0
+    }:null
+  };
+}
+
 function renderCoreTiming(parsed){
   const row={
+    memoryState:'warn',
+    memory:'no data',
+    headroomState:'warn',
+    headroom:'no data',
+    core1HeadroomState:'warn',
+    core1Headroom:'no data',
     core0State:'warn',
     core0Slack:'no data',
     core0Late:'no data',
@@ -301,14 +361,31 @@ function renderCoreTiming(parsed){
     dmxState:'warn',
     dmx:'no data'
   };
+  if(parsed.memory&&Number.isFinite(Number(parsed.memory.free_ram_bytes))){
+    const free=Number(parsed.memory.free_ram_bytes);
+    const state=free<16*1024?'bad':free<48*1024?'warn':'pass';
+    row.memoryState=state;
+    row.memory=formatBytes(free);
+    setCheck('checkMemory',state,'Free memory',formatBytes(free)+' free RAM reported by firmware heap/stack gap');
+  }else setCheck('checkMemory','warn','Free memory','No memory data. Flash firmware with /perf/status.json for live RAM reporting.');
+
   if(parsed.core0){
     const c=parsed.core0;
     const state=c.late>0?'bad':c.slackMin<1000?'warn':'pass';
     row.core0State=state;
     row.core0Slack=c.slackMin+'us';
     row.core0Late=String(c.late);
+    const headroomState=c.late>0?'bad':c.slackMin<1000?'warn':'pass';
+    row.headroomState=headroomState;
+    const percent=Number.isFinite(c.headroomPercent)?' · '+c.headroomPercent+'% of 10ms left':'';
+    const headroomDetail='Minimum '+c.slackMin+'us left before missing the 10ms update budget'+percent;
+    row.headroom=headroomDetail;
+    setCheck('checkHeadroom',headroomState,'100 Hz headroom',headroomDetail);
     setCheck('checkCore0',state,'Core0 DMX loop','work mean '+c.mean+'us, peak '+c.peak+'us, min slack '+c.slackMin+'us, late '+c.late);
-  }else setCheck('checkCore0','warn','Core0 DMX loop','No Core0 perf line found in /logs.txt.');
+  }else{
+    setCheck('checkHeadroom','warn','100 Hz headroom','No Core0 timing data found.');
+    setCheck('checkCore0','warn','Core0 DMX loop','No Core0 perf line found in /logs.txt.');
+  }
 
   if(parsed.core1){
     const c=parsed.core1;
@@ -316,8 +393,17 @@ function renderCoreTiming(parsed){
     row.core1State=state;
     row.core1Slack=c.slackMin+'us';
     row.core1Late=String(c.late);
+    row.core1HeadroomState=state;
+    const period=Number(c.period)||2000000;
+    const percent=period>0?Math.max(0,Math.min(100,Math.round(c.slackMin/period*100))):0;
+    const detail='Minimum '+c.slackMin+'us left before missing the Core1 service budget · '+percent+'% of '+Math.round(period/1000)+'ms left';
+    row.core1Headroom=detail;
+    setCheck('checkCore1Headroom',state,'Core1 headroom',detail);
     setCheck('checkCore1',state,'Core1 service loop','work mean '+c.mean+'us, peak '+c.peak+'us, min slack '+c.slackMin+'us, late '+c.late);
-  }else setCheck('checkCore1','warn','Core1 service loop','No Core1 perf line found in /logs.txt.');
+  }else{
+    setCheck('checkCore1Headroom','warn','Core1 headroom','No Core1 timing data found.');
+    setCheck('checkCore1','warn','Core1 service loop','No Core1 perf line found in /logs.txt.');
+  }
 
   if(parsed.http){
     const h=parsed.http;
@@ -338,30 +424,42 @@ function renderCoreTiming(parsed){
 }
 
 function overallTimingState(row){
-  return [row.statusState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('bad')?'bad'
-    : [row.statusState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('warn')?'warn'
+  return [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('bad')?'bad'
+    : [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('warn')?'warn'
     : 'pass';
 }
 
 async function checkPico(options={}){
   const record=options.record!==false;
   try{
-    setStatus('Checking Pico status and logs...');
+    setStatus('Checking Pico status and performance telemetry...');
     const status=await fetchPicoJson('/status.json');
     const statusDetail='DMX '+(status.dmx&&status.dmx.running?'running':'available')+', '+((status.dmx&&status.dmx.channels)||'?')+' channels, frame '+((status.dmx&&status.dmx.frame_count)||'?');
     setCheck('checkStatus','pass','Pico status',statusDetail);
     let historyRow=null;
     try{
-      const logs=await fetchPicoText('/logs.txt');
-      historyRow=renderCoreTiming(parseCoreTiming(logs));
+      const perf=await fetchPicoJson('/perf/status.json');
+      historyRow=renderCoreTiming(parsePerfStatus(perf));
       setStatus('Pico check complete.');
-    }catch(logError){
-      setCheck('checkCore0','warn','Core0 DMX loop','/logs.txt could not be read: '+logError.message);
-      setCheck('checkCore1','warn','Core1 service loop','/logs.txt could not be read: '+logError.message);
-      setCheck('checkHttp','warn','HTTP callbacks','/logs.txt could not be read: '+logError.message);
-      setCheck('checkDmx','warn','DMX frame counters','/logs.txt could not be read: '+logError.message);
-      historyRow={core0State:'warn',core0Slack:'logs unavailable',core0Late:'logs unavailable',core1State:'warn',core1Slack:'logs unavailable',core1Late:'logs unavailable',httpState:'warn',httpPeak:'logs unavailable',dmxState:'warn',dmx:'logs unavailable'};
-      setStatus('Pico status OK; logs unavailable, probably old firmware without /logs.txt CORS.');
+    }catch(perfError){
+      try{
+        const logs=await fetchPicoText('/logs.txt');
+        historyRow=renderCoreTiming(parseCoreTiming(logs));
+        historyRow.memoryState='warn';
+        historyRow.memory='firmware old';
+        setCheck('checkMemory','warn','Free memory','No /perf/status.json endpoint: '+perfError.message);
+        setStatus('Pico check complete from logs; memory requires current firmware.');
+      }catch(logError){
+        setCheck('checkMemory','warn','Free memory','/perf/status.json could not be read: '+perfError.message);
+        setCheck('checkHeadroom','warn','100 Hz headroom','/logs.txt could not be read: '+logError.message);
+        setCheck('checkCore1Headroom','warn','Core1 headroom','/logs.txt could not be read: '+logError.message);
+        setCheck('checkCore0','warn','Core0 DMX loop','/logs.txt could not be read: '+logError.message);
+        setCheck('checkCore1','warn','Core1 service loop','/logs.txt could not be read: '+logError.message);
+        setCheck('checkHttp','warn','HTTP callbacks','/logs.txt could not be read: '+logError.message);
+        setCheck('checkDmx','warn','DMX frame counters','/logs.txt could not be read: '+logError.message);
+        historyRow={memoryState:'warn',memory:'no perf json',headroomState:'warn',headroom:'logs unavailable',core1HeadroomState:'warn',core1Headroom:'logs unavailable',core0State:'warn',core0Slack:'logs unavailable',core0Late:'logs unavailable',core1State:'warn',core1Slack:'logs unavailable',core1Late:'logs unavailable',httpState:'warn',httpPeak:'logs unavailable',dmxState:'warn',dmx:'logs unavailable'};
+        setStatus('Pico status OK; performance telemetry unavailable.');
+      }
     }
     historyRow.time=new Date().toLocaleTimeString();
     historyRow.statusState='pass';
@@ -379,6 +477,12 @@ async function checkPico(options={}){
       time:new Date().toLocaleTimeString(),
       statusState:'bad',
       status:e.message,
+      memoryState:'idle',
+      memory:'not checked',
+      headroomState:'idle',
+      headroom:'not checked',
+      core1HeadroomState:'idle',
+      core1Headroom:'not checked',
       core0State:'idle',
       core0Slack:'not checked',
       core0Late:'not checked',
@@ -674,6 +778,216 @@ async function runFullPerformanceTest(){
   }
 }
 
+async function postPicoText(path,body){
+  const root=picoRoot();
+  if(!root)throw new Error('Set Pico base URL first');
+  const r=await fetch(root+path,{method:'POST',body,cache:'no-store'});
+  if(!r.ok)throw new Error(path+' HTTP '+r.status);
+  try{return await r.json();}catch(_){return {ok:true};}
+}
+
+async function postLocalJson(path,body){
+  const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'});
+  if(!r.ok)throw new Error(path+' HTTP '+r.status);
+  return r.json();
+}
+
+async function fetchLocalJson(path){
+  const r=await fetch(path,{cache:'no-store'});
+  if(!r.ok)throw new Error(path+' HTTP '+r.status);
+  return r.json();
+}
+
+async function getPicoSlots(kind){
+  const data=await fetchPicoJson(kind==='chaser'?'/chaser/slots':'/motion/slots');
+  return (data.slots||[]).filter(s=>Number.isFinite(Number(s.slot)));
+}
+
+async function getPicoSlotIndexes(kind,{loadedOnly=false}={}){
+  return (await getPicoSlots(kind))
+    .filter(s=>!loadedOnly||s.loaded)
+    .map(s=>Number(s.slot));
+}
+
+async function waitForPicoSlot(kind,slot,predicate){
+  const path=kind==='chaser'?'/chaser/slots':'/motion/slots';
+  let last=null;
+  for(let i=0;i<20;i++){
+    const data=await fetchPicoJson(path);
+    last=(data.slots||[]).find(s=>Number(s.slot)===Number(slot));
+    if(last&&predicate(last,data))return last;
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  throw new Error(kind+' slot '+slot+' did not reach expected state. Last: '+JSON.stringify(last));
+}
+
+function paletteStressBody(seed,channelCount=512){
+  const pairs=[];
+  for(let ch=1;ch<=channelCount;ch++)pairs.push(ch+':'+((seed*37+ch*11)&255));
+  return pairs.join(',');
+}
+
+function demoChaserBody(channelCount=128,phase=0){
+  const lines=['LOOP 1','MODE loop','LOOPS 1','DIR forward','SPEED 1.00','STEP 1000 100'];
+  for(let ch=1;ch<=channelCount;ch++)lines.push('CH '+ch+' '+(((ch+phase)%2)?255:0));
+  lines.push('STEP 1000 100');
+  for(let ch=1;ch<=channelCount;ch++)lines.push('CH '+ch+' '+(((ch+phase)%2)?0:255));
+  lines.push('END');
+  return lines.join('\n');
+}
+
+function demoMotionBody(slot=0){
+  const lines=['FX 1','TYPE 4','BPM 120','AMP1 1.00','AMP2 0.00','SPREAD 360'];
+  for(let i=0;i<8;i++)lines.push('TARGET scalar8 1 '+(i+1)+' 0 0 0 '+((i*45+slot*7)%360)+' 0 0');
+  lines.push('END');
+  return lines.join('\n');
+}
+
+function emptyPicoSlotIndexes(slots){
+  return slots.filter(s=>!s.loaded).map(s=>Number(s.slot));
+}
+
+async function saveTemporaryStressRecord(record){
+  await postLocalJson('../ui_state.php',{page:'performanceTest',state:{temporaryPlaybackStress:record}});
+}
+
+async function readTemporaryStressRecord(){
+  try{
+    const data=await fetchLocalJson('../ui_state.php');
+    return data&&data.state&&data.state.performanceTest&&data.state.performanceTest.temporaryPlaybackStress
+      ? data.state.performanceTest.temporaryPlaybackStress
+      : null;
+  }catch(_){
+    return null;
+  }
+}
+
+async function clearTemporaryStressRecord(){
+  await saveTemporaryStressRecord(null).catch(()=>{});
+}
+
+async function clearRecordedStressSlots(record){
+  if(!record)return;
+  const chaserSlots=Array.isArray(record.chaserSlots)?record.chaserSlots:[];
+  const motionSlots=Array.isArray(record.motionSlots)?record.motionSlots:[];
+  for(const slot of chaserSlots)await fetchPicoJson('/chaser/clear/'+slot).catch(()=>{});
+  for(const slot of motionSlots)await fetchPicoJson('/motion/clear/'+slot).catch(()=>{});
+  if(chaserSlots.length||motionSlots.length)await clearTemporaryStressRecord();
+}
+
+async function startPlaybackWithTemporaryDemoSlots(){
+  await clearRecordedStressSlots(await readTemporaryStressRecord());
+
+  const chaserSnapshot=await getPicoSlots('chaser');
+  const motionSnapshot=await getPicoSlots('motion');
+  const existingChaserSlots=chaserSnapshot.filter(s=>s.loaded).map(s=>Number(s.slot));
+  const existingMotionSlots=motionSnapshot.filter(s=>s.loaded).map(s=>Number(s.slot));
+  const tempChaserSlots=emptyPicoSlotIndexes(chaserSnapshot);
+  const tempMotionSlots=emptyPicoSlotIndexes(motionSnapshot);
+  if(!tempChaserSlots.length&&!tempMotionSlots.length)throw new Error('No empty Pico playback slots available for temporary stress data.');
+
+  const record={
+    createdAt:new Date().toISOString(),
+    picoBaseUrl:picoRoot(),
+    chaserSlots:tempChaserSlots,
+    motionSlots:tempMotionSlots,
+    originals:{
+      chaser:chaserSnapshot.filter(s=>tempChaserSlots.includes(Number(s.slot))),
+      motion:motionSnapshot.filter(s=>tempMotionSlots.includes(Number(s.slot)))
+    }
+  };
+  await saveTemporaryStressRecord(record);
+
+  for(const slot of tempChaserSlots)await postPicoText('/chaser/load/'+slot,demoChaserBody(128,slot));
+  for(const slot of tempMotionSlots)await postPicoText('/motion/load/'+slot,demoMotionBody(slot));
+  if(tempChaserSlots.length)await waitForPicoSlot('chaser',tempChaserSlots[tempChaserSlots.length-1],s=>s.loaded&&Number(s.step_count)===2);
+  if(tempMotionSlots.length)await waitForPicoSlot('motion',tempMotionSlots[tempMotionSlots.length-1],s=>s.loaded&&Number(s.target_count||0)===8);
+
+  const chaserSlots=[...existingChaserSlots,...tempChaserSlots];
+  const motionSlots=[...existingMotionSlots,...tempMotionSlots];
+  for(const slot of chaserSlots)await fetchPicoJson('/chaser/play/'+slot);
+  for(const slot of motionSlots)await fetchPicoJson('/motion/start/'+slot);
+  if(chaserSlots.length)await waitForPicoSlot('chaser',chaserSlots[chaserSlots.length-1],s=>s.active);
+  if(motionSlots.length)await waitForPicoSlot('motion',motionSlots[motionSlots.length-1],s=>s.active);
+  return {chaserSlots,motionSlots,tempChaserSlots,tempMotionSlots};
+}
+
+async function runPlaybackPaletteStress(){
+  const btn=document.getElementById('btnRunPlaybackPaletteStress');
+  btn.disabled=true;
+  const paletteCount=80;
+  let slotInfo={chaserSlots:[],motionSlots:[],tempChaserSlots:[],tempMotionSlots:[]};
+  try{
+    setStatus('Adding temporary demo data to empty playback slots for palette stress...');
+    await fetchPicoJson('/chaser/stop').catch(()=>{});
+    await fetchPicoJson('/motion/stop').catch(()=>{});
+    await fetchPicoJson('/dmx/master/clear').catch(()=>{});
+    await fetchPicoJson('/dmx/blackout/clear').catch(()=>{});
+    await fetchPicoJson('/dmx/clear').catch(()=>{});
+
+    slotInfo=await startPlaybackWithTemporaryDemoSlots();
+    await new Promise(resolve=>setTimeout(resolve,2300));
+
+    testChPerReq=512;
+    running=true;latencies=[];errorMarks=[];errors=0;testStart=performance.now();
+    document.getElementById('btnStart').disabled=true;
+    document.getElementById('btnStop').disabled=false;
+    document.getElementById('btnExport').disabled=true;
+    resetStats();
+    setStatus('Running palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots play, including '+slotInfo.tempChaserSlots.length+' temporary chaser and '+slotInfo.tempMotionSlots.length+' temporary effect slots...');
+    for(let i=0;running&&i<paletteCount;i++){
+      const t0=performance.now();
+      try{
+        await postPicoText('/dmx/b',paletteStressBody(i));
+        latencies.push(performance.now()-t0);
+        errorMarks.push(0);
+      }catch(_){
+        errors++;
+        errorMarks.push(1);
+      }
+      if(i%5===0)updateStats(paletteCount);
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+    running=false;
+    updateStats(paletteCount);
+    const s=summarize();
+    if(s){
+      lastRun={...s,mode:'playback+palette',chPerReq:512,latencies:[...latencies],errorMarks:[...errorMarks]};
+      history.push(lastRun);
+      if(history.length>12)history.shift();
+      renderHistory();
+      document.getElementById('btnExport').disabled=false;
+    }
+    await new Promise(resolve=>setTimeout(resolve,300));
+    const perf=await fetchPicoJson('/perf/status.json');
+    const historyRow=renderCoreTiming(parsePerfStatus(perf));
+    const status=await fetchPicoJson('/status.json');
+    const statusDetail='DMX '+(status.dmx&&status.dmx.running?'running':'available')+', '+((status.dmx&&status.dmx.channels)||'?')+' channels, frame '+((status.dmx&&status.dmx.frame_count)||'?');
+    setCheck('checkStatus','pass','Pico status',statusDetail);
+    historyRow.time=new Date().toLocaleTimeString();
+    historyRow.statusState='pass';
+    historyRow.status=statusDetail;
+    historyRow.bufferState=lastBufferSnapshot.state;
+    historyRow.buffer=lastBufferSnapshot.detail;
+    historyRow.bufferLabel=shortBufferLabel(lastBufferSnapshot);
+    historyRow.overall=overallTimingState(historyRow);
+    addTimingHistory(historyRow);
+    setCheck('checkWrite',errors?'warn':'pass','Playback + palette stress',paletteCount+' palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots played; temporary slots will be cleared'+(errors?' · '+errors+' errors':''));
+    setStatus('Playback + palette stress complete: '+paletteCount+' palette recalls. Temporary slots are being cleared.');
+  }catch(e){
+    setStatus(e.message,true);
+    setCheck('checkWrite','bad','Playback + palette stress',e.message);
+  }finally{
+    running=false;
+    document.getElementById('btnStart').disabled=false;
+    document.getElementById('btnStop').disabled=true;
+    btn.disabled=false;
+    await fetchPicoJson('/chaser/stop').catch(()=>{});
+    await fetchPicoJson('/motion/stop').catch(()=>{});
+    await clearRecordedStressSlots(await readTemporaryStressRecord());
+  }
+}
+
 document.getElementById('preset').onchange=e=>applyPreset(e.target.value);
 ['channel','value','chPerReq','reqCount','durationSec'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{document.getElementById('preset').value='custom';updateModeHint();}));
 document.getElementById('btnStart').onclick=runTest;
@@ -684,6 +998,7 @@ document.getElementById('btnClearTimingHistory').onclick=()=>{timingHistory=[];r
 document.getElementById('btnCheckPico').onclick=checkPico;
 document.getElementById('btnBufferReadback').onclick=runBufferReadback;
 document.getElementById('btnRunFull').onclick=runFullPerformanceTest;
+document.getElementById('btnRunPlaybackPaletteStress').onclick=runPlaybackPaletteStress;
 window.addEventListener('resize',()=>{if(latencies.length)drawChart();});
 </script>
 </body>

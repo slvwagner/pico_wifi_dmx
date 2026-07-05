@@ -990,7 +990,9 @@ The Pico Performance Test page checks the full browser-to-Pico control path.
 
 Pico Performance Test does not use the shared toolbox sidebar. It is a developer/test page for measuring request performance, buffer readback, and firmware timing health.
 
-Use **Check Pico** to read `/status.json` and `/logs.txt`. The page parses the latest Core0/Core1 performance lines, HTTP callback timing, and DMX frame counters. A healthy steady-state run should show no late Core0 cycles and comfortable Core0 slack.
+Use **Check Pico** to read Pico status and firmware performance telemetry. Current firmware exposes `/perf/status.json`, which reports free RAM, Core0 100 Hz playback-loop timing, Core1 service-loop timing, HTTP callback timing, and DMX frame counters. Older firmware falls back to parsing `/logs.txt`.
+
+The **Free memory** check shows the firmware heap/stack gap. The **100 Hz headroom** check shows the minimum time left before the Core0 playback loop would miss its 10 ms update budget. The **Core1 headroom** check shows the minimum time left before the network/service loop would miss its 2 second service budget. Healthy runs should show no late Core0 or Core1 cycles and comfortable remaining slack.
 
 Use **Buffer Readback** to write a known batch with `/dmx/b`, then compare the tested channels from both `/dmx/output.json` and `/dmx/base.json`.
 
@@ -1011,9 +1013,11 @@ The write-test result panel shows:
 - Jitter
 - Errors
 
-Use **Run Full Test** to run the Pico status/log check, buffer readback, write test, and a final timing-log check in one sequence.
+Use **Run Full Test** to run the Pico status/performance check, buffer readback, write test, and a final timing check in one sequence.
 
-The **Timing History** table records each Pico timing check. A manual **Check Pico** adds one row immediately. **Run Full Test** records the final post-load timing sample, so the row reflects Core0/Core1 slack after the write and readback checks have run.
+Use **Playback + Palette Stress** to stress playback without overwriting saved Pico slots. The page starts chaser/effect slots that are already loaded, adds temporary demo data only to slots that are currently empty, stores those temporary slot numbers in the server UI state, then sends repeated full 512-channel palette-style `/dmx/b` recalls while playback is running. When the run finishes, the page stops playback, clears only the temporary demo slots, and removes the temporary-slot marker from the server. If a browser session is interrupted, the next stress run first reads the marker and clears the previously recorded temporary slots.
+
+The **Timing History** table records each Pico timing check. A manual **Check Pico** adds one row immediately. **Run Full Test** and **Playback + Palette Stress** record a final timing sample, so the row reflects Core0/Core1 slack after the selected checks have run. The 100 Hz and Core1 columns use the same wording as the status cards, for example "Minimum 9419us left before missing the 10ms update budget".
 
 Use **Export CSV** to save results for later comparison.
 

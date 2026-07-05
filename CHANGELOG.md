@@ -5,6 +5,10 @@
 Changed:
 
 - Started the 0.9.8 development branch.
+- Added firmware `/perf/status.json` telemetry for free RAM, Core0 100 Hz playback-loop headroom, Core1 service-loop headroom, HTTP callback timing, and DMX frame counters.
+- Enhanced the Pico Performance Test page with Free Memory, 100 Hz Headroom, and Core1 Headroom checks, plus Timing History rows that preserve the full headroom wording.
+- Added a Pico Performance Test **Playback + Palette Stress** action that starts already-loaded Pico chaser/effect slots, fills only empty slots with temporary demo data, records those temporary slots in server UI state, sends repeated full 512-channel palette-style recalls, records the resulting telemetry, and clears only the temporary demo slots afterward.
+- Added hardware stress coverage for all-slot playback and all-slot playback plus palette recalls, using `/perf/status.json` to guard Core0/Core1 headroom and free RAM. The destructive all-slot upload tests are opt-in through `hardwareTests.destructiveSlotStress`.
 
 ## 0.9.7 - 2026-07-05
 

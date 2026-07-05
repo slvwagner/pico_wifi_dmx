@@ -303,7 +303,8 @@ Edit `tests/pathconfig.local.json` for your machine:
   "xamppBaseUrl": "http://localhost/dmx-test/",
   "picoBaseUrl": "http://192.168.0.24/",
   "hardwareTests": {
-    "enabled": false
+    "enabled": false,
+    "destructiveSlotStress": false
   }
 }
 ```
@@ -321,6 +322,8 @@ Run real Pico hardware tests only when a Pico is connected and you accept that t
 ```powershell
 npm run test:pico
 ```
+
+Keep `hardwareTests.destructiveSlotStress` set to `false` unless you explicitly want the maximum-load hardware tests to upload demo chases/effects into every Pico playback slot. That option is destructive for saved Pico slot contents.
 
 After UI/manual changes, you can regenerate the deterministic documentation screenshots and dark-mode manual directly:
 
@@ -425,8 +428,9 @@ Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
 - `hardwareTests.enabled`: set to `true` only when the Pico is connected and available
 - `hardwareTests.dmxTestChannels`: channels the test may write while checking `/dmx/output.json`
 - `hardwareTests.chaserSlot` and `hardwareTests.motionSlot`: slots the test may overwrite while checking upload/play/stop behavior
+- `hardwareTests.destructiveSlotStress`: set to `true` only when the all-slot stress tests may overwrite every Pico chaser/effect slot
 
-The hardware tests are opt-in because they write real DMX values and overwrite the configured chaser/motion test slots. Run them explicitly with:
+The hardware tests are opt-in because they write real DMX values and overwrite the configured chaser/motion test slots. The all-slot stress tests stay skipped unless `destructiveSlotStress` is enabled. Run hardware tests explicitly with:
 
 ```powershell
 npm run test:pico
@@ -775,7 +779,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Effects | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh interval and rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
-| Pico Performance Test | `web/dmx_benchmark.html` | Check Pico connectivity, parse core timing logs, verify DMX/base buffer readback, and measure HTTP latency for single-channel, batch, stress, and soak-test DMX update patterns |
+| Pico Performance Test | `web/dmx_benchmark.html` | Check Pico connectivity, read firmware `/perf/status.json` telemetry, verify DMX/base buffer readback, measure HTTP latency, and run all-slot playback plus palette-recall stress tests |
 
 ### Screenshots
 
@@ -879,9 +883,9 @@ The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selec
 
 ![Pico Performance Test page](docs/screenshots/benchmark.png)
 
-The Pico Performance Test page checks the whole browser-to-Pico path. It reads `/status.json` and `/logs.txt`, parses the Core0/Core1 timing lines, verifies that a known DMX batch can be read back from both `/dmx/output.json` and `/dmx/base`, and keeps the former frame-rate benchmark as the DMX Write Test. Timing History records Core0/Core1 slack, HTTP peak, DMX counters, and buffer state for repeated checks. The write result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
+The Pico Performance Test page checks the whole browser-to-Pico path. Current firmware exposes `/perf/status.json`, which reports free RAM, Core0 100 Hz playback-loop work/slack/late counts, Core1 service-loop headroom, HTTP callback timing, and DMX frame counters. Older firmware still falls back to `/logs.txt` parsing. The page verifies that a known DMX batch can be read back from both `/dmx/output.json` and `/dmx/base`, and keeps the former frame-rate benchmark as the DMX Write Test. Timing History records memory, 100 Hz headroom, Core1 headroom, HTTP peak, DMX counters, and buffer state for repeated checks. The write result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
 
-Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
+Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. Use **Playback + Palette Stress** to start already-loaded Pico chaser/effect slots, add temporary demo data only to empty Pico slots, store those temporary slot numbers in server UI state, send repeated full 512-channel palette-style `/dmx/b` recalls, and record the resulting Core0/Core1 headroom in Timing History. After the run, the temporary demo slots are cleared and the server marker is removed, so saved Pico chaser/effect slots are not overwritten. The CSV export makes it possible to compare write-test runs later.
 
 Show Run blackout is handled by the Master card faders. **Full** above a master sets that master to `100%`. **Blackout** below the Grand Master sets the Grand Master to `0%` for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. When any master is below `100%`, Show Run sends affected dimmer channels to the Pico `/dmx/master` output-scaling endpoint as `channel:scale` factors. The Pico keeps chaser and effect playback writing their normal raw values, then scales the transmitted DMX output, so a running dimmer sine effect remains visible but follows the Grand/Group Master level. The stored live values are not overwritten. When entering Show Run, saved Grand Master and Group Master factors are restored to the Pico scaling layer. When leaving Show Run, the browser clears the Pico master scale and restores dimmer output to the underlying live values without those multipliers.
 

@@ -94,6 +94,7 @@ Edit `tests/pathconfig.local.json`:
     "dmxTestChannels": [1, 2],
     "chaserSlot": 31,
     "motionSlot": 63,
+    "destructiveSlotStress": false,
     "requestTimeoutMs": 5000
   }
 }
@@ -104,6 +105,8 @@ Then run:
 ```powershell
 npm run test:pico
 ```
+
+Keep `destructiveSlotStress` set to `false` for normal hardware testing. Setting it to `true` enables the maximum-load stress tests that upload demo chases/effects into every Pico playback slot, which overwrites saved slot contents.
 
 The release script can also enable the hardware tests for a full release run:
 

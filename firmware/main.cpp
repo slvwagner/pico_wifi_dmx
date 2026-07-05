@@ -78,6 +78,7 @@
 
 static critical_section_t log_lock;
 static critical_section_t dmx_ui_lock;
+static critical_section_t perf_status_lock;
 static char log_buffer[4096];
 static size_t log_length;
 static char http_page[12288];
@@ -124,6 +125,29 @@ typedef struct http_perf_window_t {
 
 static http_perf_window_t core1_http_perf;
 
+typedef struct perf_snapshot_t {
+    bool valid;
+    uint32_t period_us;
+    uint32_t samples;
+    uint32_t work_mean_us;
+    uint32_t work_peak_us;
+    uint32_t slack_mean_us;
+    uint32_t slack_min_us;
+    uint32_t late_count;
+    uint32_t late_peak_us;
+} perf_snapshot_t;
+
+typedef struct http_perf_snapshot_t {
+    bool valid;
+    uint32_t calls;
+    uint32_t work_mean_us;
+    uint32_t work_peak_us;
+} http_perf_snapshot_t;
+
+static perf_snapshot_t core0_perf_snapshot;
+static perf_snapshot_t core1_perf_snapshot;
+static http_perf_snapshot_t core1_http_snapshot;
+
 static void perf_reset(perf_window_t *p)
 {
     memset(p, 0, sizeof(*p));
@@ -155,6 +179,32 @@ static void perf_add(perf_window_t *p, uint32_t work_us, int32_t slack_us)
     }
 }
 
+static void perf_store_snapshot(const char *label, const perf_window_t *p, uint32_t period_us)
+{
+    if (p->samples == 0) {
+        return;
+    }
+    perf_snapshot_t snap;
+    memset(&snap, 0, sizeof(snap));
+    snap.valid = true;
+    snap.period_us = period_us;
+    snap.samples = p->samples;
+    snap.work_mean_us = (uint32_t)(p->work_total_us / p->samples);
+    snap.work_peak_us = p->work_peak_us;
+    snap.slack_mean_us = (uint32_t)(p->slack_total_us / p->samples);
+    snap.slack_min_us = (p->slack_min_us == UINT32_MAX) ? 0 : p->slack_min_us;
+    snap.late_count = p->late_count;
+    snap.late_peak_us = p->late_peak_us;
+
+    critical_section_enter_blocking(&perf_status_lock);
+    if (strcmp(label, "Core0") == 0) {
+        core0_perf_snapshot = snap;
+    } else if (strcmp(label, "Core1") == 0) {
+        core1_perf_snapshot = snap;
+    }
+    critical_section_exit(&perf_status_lock);
+}
+
 static void perf_log_and_reset(const char *label, perf_window_t *p)
 {
     if (p->samples == 0) {
@@ -162,6 +212,9 @@ static void perf_log_and_reset(const char *label, perf_window_t *p)
         perf_reset(p);
         return;
     }
+    uint32_t period_us = strcmp(label, "Core0") == 0 ? CORE0_PLAYBACK_PERIOD_US :
+                         strcmp(label, "Core1") == 0 ? CORE1_SERVICE_PERIOD_US : 0u;
+    perf_store_snapshot(label, p, period_us);
     uint32_t work_mean = (uint32_t)(p->work_total_us / p->samples);
     uint32_t slack_mean = (uint32_t)(p->slack_total_us / p->samples);
     uint32_t slack_min = (p->slack_min_us == UINT32_MAX) ? 0 : p->slack_min_us;
@@ -195,6 +248,12 @@ static void http_perf_log_and_reset()
                (unsigned long)core1_http_perf.calls,
                (unsigned long)mean_us,
                (unsigned long)core1_http_perf.peak_us);
+    critical_section_enter_blocking(&perf_status_lock);
+    core1_http_snapshot.valid = core1_http_perf.calls > 0;
+    core1_http_snapshot.calls = core1_http_perf.calls;
+    core1_http_snapshot.work_mean_us = mean_us;
+    core1_http_snapshot.work_peak_us = core1_http_perf.peak_us;
+    critical_section_exit(&perf_status_lock);
     memset(&core1_http_perf, 0, sizeof(core1_http_perf));
 }
 
@@ -683,6 +742,76 @@ static void build_status_json()
         midi.last_channel,
         midi.last_data1,
         midi.last_data2);
+}
+
+static void build_perf_status_json()
+{
+    dmx_engine_status_t dmx;
+    dmx_engine_get_status(&dmx);
+
+    perf_snapshot_t core0, core1;
+    http_perf_snapshot_t http;
+    critical_section_enter_blocking(&perf_status_lock);
+    core0 = core0_perf_snapshot;
+    core1 = core1_perf_snapshot;
+    http = core1_http_snapshot;
+    critical_section_exit(&perf_status_lock);
+
+    uint32_t core0_headroom_percent = 0;
+    if (core0.valid && core0.period_us > 0) {
+        uint32_t slack = core0.slack_min_us > core0.period_us ? core0.period_us : core0.slack_min_us;
+        core0_headroom_percent = (uint32_t)(((uint64_t)slack * 100u) / core0.period_us);
+    }
+
+    snprintf(
+        http_status_json,
+        sizeof(http_status_json),
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json; charset=utf-8\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n"
+        "Cache-Control: no-store\r\n"
+        "\r\n"
+        "{"
+        "\"ok\":true,"
+        "\"memory\":{\"free_ram_bytes\":%lu},"
+        "\"core0\":{\"valid\":%s,\"period_us\":%lu,\"target_hz\":100,\"samples\":%lu,\"work_us\":{\"mean\":%lu,\"peak\":%lu},\"slack_us\":{\"mean\":%lu,\"min\":%lu},\"late\":{\"count\":%lu,\"peak_us\":%lu},\"headroom_percent\":%lu},"
+        "\"core1\":{\"valid\":%s,\"period_us\":%lu,\"samples\":%lu,\"work_us\":{\"mean\":%lu,\"peak\":%lu},\"slack_us\":{\"mean\":%lu,\"min\":%lu},\"late\":{\"count\":%lu,\"peak_us\":%lu}},"
+        "\"http\":{\"valid\":%s,\"calls\":%lu,\"work_us\":{\"mean\":%lu,\"peak\":%lu}},"
+        "\"dmx\":{\"running\":%s,\"channels\":%u,\"refresh_rate\":%u,\"frame_count\":%lu,\"skipped_callbacks\":%lu,\"prime_timeouts\":%lu,\"frame_timeouts\":%lu,\"auto_resyncs\":%lu}"
+        "}\n",
+        (unsigned long)get_free_ram_bytes(),
+        core0.valid ? "true" : "false",
+        (unsigned long)core0.period_us,
+        (unsigned long)core0.samples,
+        (unsigned long)core0.work_mean_us,
+        (unsigned long)core0.work_peak_us,
+        (unsigned long)core0.slack_mean_us,
+        (unsigned long)core0.slack_min_us,
+        (unsigned long)core0.late_count,
+        (unsigned long)core0.late_peak_us,
+        (unsigned long)core0_headroom_percent,
+        core1.valid ? "true" : "false",
+        (unsigned long)core1.period_us,
+        (unsigned long)core1.samples,
+        (unsigned long)core1.work_mean_us,
+        (unsigned long)core1.work_peak_us,
+        (unsigned long)core1.slack_mean_us,
+        (unsigned long)core1.slack_min_us,
+        (unsigned long)core1.late_count,
+        (unsigned long)core1.late_peak_us,
+        http.valid ? "true" : "false",
+        (unsigned long)http.calls,
+        (unsigned long)http.work_mean_us,
+        (unsigned long)http.work_peak_us,
+        dmx.running ? "true" : "false",
+        dmx.channels,
+        dmx.refresh_rate,
+        (unsigned long)dmx.frame_count,
+        (unsigned long)dmx.skipped_callbacks,
+        (unsigned long)dmx.prime_timeouts,
+        (unsigned long)dmx.frame_timeouts,
+        (unsigned long)dmx.auto_resyncs);
 }
 
 static bool path_matches(const char *name, const char *path)
@@ -1392,6 +1521,15 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 
     if (strcmp(name, "/status.json") == 0) {
         build_status_json();
+        file->data = http_status_json;
+        file->len = (int)strlen(http_status_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (strcmp(name, "/perf/status.json") == 0 || strcmp(name, "/perf/status") == 0) {
+        build_perf_status_json();
         file->data = http_status_json;
         file->len = (int)strlen(http_status_json);
         file->index = file->len;
@@ -2139,6 +2277,7 @@ int main()
 {
     critical_section_init(&log_lock);
     critical_section_init(&dmx_ui_lock);
+    critical_section_init(&perf_status_lock);
 
     log_printf("Hello, from Pico 2W!\n");
     log_printf("Starting network/log server on core1\n");
