@@ -34,7 +34,8 @@ main{padding:14px;display:grid;gap:14px;width:100%;max-width:none;margin:0}
 body.layout-editing .layout-tools{display:flex}
 .card-delete{display:none}
 body.layout-editing .card-delete{display:flex}
-.card-delete{position:absolute;top:6px;right:6px;width:24px;height:24px;min-height:24px;padding:0;font-size:13px;z-index:4}
+.card-delete{position:absolute;top:6px;right:6px;width:24px;height:24px;min-height:24px;padding:0;font-size:14px;z-index:4;background:rgba(60,27,27,.92);border:1px solid #ff7a7a;color:#ffd4d4;opacity:1;box-shadow:0 1px 6px rgba(0,0,0,.45)}
+.card-delete:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
 .small{font-size:12px;color:var(--muted);line-height:1.35}
 .status{color:var(--muted);font-size:13px;min-height:18px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .status.bad{color:#ff9d9d}
@@ -111,6 +112,8 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 .show-tile-content{position:relative;z-index:1;display:grid;align-content:end;gap:2px;width:100%;height:100%;min-width:0}
 .show-tile-actions{display:none}
 body.layout-editing .show-tile-actions{display:flex}
+body.layout-editing .card-delete.slot-del{display:flex;background:rgba(60,27,27,.94);border:1px solid #ff7a7a;color:#ffd4d4;opacity:1}
+body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
 .hidden-tile-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2)}
 .hidden-tile-row .small{min-width:0}
 @media(max-width:900px){.topbar,.show-grid{grid-template-columns:1fr}.header-main{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}.header-title{min-width:0;width:100%;overflow:hidden}.header-toolbar{justify-content:flex-start}.buttons{width:100%}}
@@ -547,11 +550,11 @@ function saveLiveControls(){
   saveShowUiStateValue('liveControls',liveControls);
 }
 function reconcileCardOrder(){
-  const total=Math.max(cardIds.length,cardCols*cardRows);
   let saved=[];
   const sourceValue=savedValue('cardOrder');
   try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
   const source=Array.isArray(cardOrder)&&cardOrder.length?cardOrder:Array.isArray(saved)?saved:[];
+  const total=Math.max(cardIds.length,cardCols*cardRows,source.length);
   const shouldInsertDefaults=!source.length;
   const next=[];
   const usedSingletons=new Set();
@@ -588,15 +591,13 @@ function reconcileCardOrder(){
   if(shouldInsertDefaults&&!cardOrder.some(Boolean))cardOrder=cardIds.concat(Array(Math.max(0,total-cardIds.length)).fill(null));
 }
 function syncCardInputs(){
-  const needed=Math.max(cardIds.length,cardOrder.filter(Boolean).length);
   const colsInput=document.getElementById('cardCols');
   const rowsInput=document.getElementById('cardRows');
-  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/cardRows));colsInput.value=cardCols;}
-  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/cardCols));rowsInput.value=cardRows;}
+  if(colsInput){colsInput.min=1;colsInput.value=cardCols;}
+  if(rowsInput){rowsInput.min=1;rowsInput.value=cardRows;}
 }
 function normalizeCardGrid(priority='cols'){
-  const needed=Math.max(cardIds.length,cardOrder.filter(Boolean).length);
-  const next=normalizeMatrix(cardCols,cardRows,needed,5,5,priority);
+  const next=normalizeMatrix(cardCols,cardRows,0,5,5,priority);
   cardCols=next.cols;cardRows=next.rows;
   syncCardInputs();
 }
@@ -699,12 +700,10 @@ function updateAddCardOptions(){
   if(!select)return;
   const preferred=select.value||'live';
   const used=new Set(cardOrder.map(cardType).filter(type=>type&&type!=='live'));
-  select.innerHTML=cardIds.map(type=>{
-    const disabled=type!=='live'&&used.has(type)?' disabled':'';
-    return `<option value="${esc(type)}"${disabled}>${esc(cardLabels[type]||type)}</option>`;
-  }).join('');
+  const addable=cardIds.filter(type=>type==='live'||!used.has(type));
+  select.innerHTML=addable.map(type=>`<option value="${esc(type)}">${esc(cardLabels[type]||type)}</option>`).join('');
   select.value=preferred;
-  if(select.selectedOptions[0]?.disabled||!select.value)select.value='live';
+  if(!select.value)select.value='live';
   const button=document.getElementById('addShowCard');
   if(button)button.textContent=addCardButtonLabel(select.value);
 }
@@ -732,7 +731,8 @@ function renderCardGrid(){
     const node=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
     if(node)hiddenCardBin.appendChild(node);
   });
-  cardOrder.forEach((key,index)=>{
+  const visibleCardCount=Math.max(1,cardCols*cardRows);
+  cardOrder.slice(0,visibleCardCount).forEach((key,index)=>{
     let node=null;
     if(key){
       node=cardNodeFor(key);
@@ -758,14 +758,6 @@ function renderCardGrid(){
     }
     if(node)grid.appendChild(node);
   });
-  if(layoutEditing&&!cardOrder.some(entry=>entry==null)){
-    const index=cardOrder.length;
-    const node=document.createElement('div');
-    node.className='card-empty';
-    node.dataset.showCardIndex=index;
-    node.innerHTML='<button type="button" class="card-add-tile" data-add-card-position="'+index+'" title="Add card at position '+(index+1)+'"><strong>+</strong><span>Add card<br>Position '+(index+1)+'</span></button>';
-    grid.appendChild(node);
-  }
   grid.querySelectorAll('[data-add-card-position]').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();
     openAddCardModal(parseInt(btn.dataset.addCardPosition,10));

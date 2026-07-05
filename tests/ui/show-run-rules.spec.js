@@ -834,6 +834,20 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('shows only the configured number of card matrix slots', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardCols').fill('3');
+    await page.locator('#cardRows').fill('2');
+
+    await expect(page.locator('#cardGrid > *')).toHaveCount(6);
+    await expect(page.locator('[data-add-card-position="6"]')).toHaveCount(0);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('moving a show card to an occupied matrix spot swaps only those two cards', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
@@ -1012,6 +1026,7 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardRows').fill('4');
     await expect(page.locator('[data-add-card-position="6"]')).toBeVisible();
     await page.locator('[data-add-card-position="6"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
@@ -1060,12 +1075,15 @@ test.describe('Show Run page', () => {
     await expect(page.locator('[data-add-card-position="1"]')).toBeVisible();
     await page.locator('[data-add-card-position="1"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
+    await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
+    const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
+    expect(addOptions.sort()).toEqual(['Live Controls', 'Scenes'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
     await expect(page.locator('#cardGrid #cardScene')).toHaveCount(1);
     await expect(page.locator('#status')).toHaveText('Added Scenes at position 2');
-    await expect.poll(() => page.locator('#addCardType option[value="scene"]').evaluate(option => option.disabled)).toBe(true);
+    await expect(page.locator('#addCardType option[value="scene"]')).toHaveCount(0);
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder.filter(entry => entry === 'scene')).toHaveLength(1);
