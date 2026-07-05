@@ -527,7 +527,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "0.9.7",
+  "appVersion": "0.9.8",
   "schemaVersion": 1
 }
 ```

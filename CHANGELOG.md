@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.8 - Unreleased
+
+Changed:
+
+- Started the 0.9.8 development branch.
+
 ## 0.9.7 - 2026-07-05
 
 Changed:
