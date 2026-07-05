@@ -185,6 +185,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <div class="master-faders">
       <div class="master-fader">
         <h3>Grand Master</h3>
+        <button type="button" data-master-full="all">Full</button>
         <input id="grandMasterFader" class="grand-master-fader" type="range" min="0" max="100" value="100" data-grand-master>
         <strong class="small" id="grandMasterValue" data-grand-master-value>100%</strong>
         <div class="small">All dimmers</div>
@@ -2359,6 +2360,7 @@ function renderMasterCard(){
     list.innerHTML=targetMasters.map((master,index)=>`
       <div class="master-fader" data-target-master="${index}">
         <h3>${esc(master.name)}</h3>
+        <button type="button" data-master-full="target:${index}">Full</button>
         <input class="target-master-fader" type="range" min="0" max="100" value="${Math.round(master.factor*100)}" data-target-master-fader="${index}">
         <strong class="small" data-target-master-value="${index}">${Math.round(master.factor*100)}%</strong>
         <div class="small" data-target-master-summary="${index}">${esc(targetMasterSummary(master))}</div>
@@ -2370,6 +2372,17 @@ function renderMasterCard(){
       </div>`).join('');
   });
   document.querySelectorAll('.add-target-master').forEach(btn=>{btn.disabled=!layoutEditing;});
+}
+function setMasterFaderDisplay(scope,value){
+  const text=String(value)+'%';
+  if(scope==='all'){
+    document.querySelectorAll('[data-grand-master]').forEach(input=>{input.value=String(value);});
+    document.querySelectorAll('[data-grand-master-value]').forEach(el=>{el.textContent=text;});
+  }else if(String(scope).startsWith('target:')){
+    const index=String(scope).split(':')[1];
+    document.querySelectorAll('[data-target-master-fader="'+index+'"]').forEach(input=>{input.value=String(value);});
+    document.querySelectorAll('[data-target-master-value="'+index+'"]').forEach(el=>{el.textContent=text;});
+  }
 }
 function bindMasterCard(){
   renderMasterCard();
@@ -2383,17 +2396,17 @@ function bindMasterCard(){
       applyDimmerMaster(target.value,'target:'+index).catch(err=>setStatus(err.message,true));
     };
   });
+  document.querySelectorAll('[data-master-full]').forEach(btn=>{
+    btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'Full...',success:'Full',error:'Failed'},async()=>{
+      const scope=btn.dataset.masterFull||'all';
+      setMasterFaderDisplay(scope,100);
+      await applyDimmerMaster(100,scope);
+    }).catch(err=>setStatus(err.message,true));
+  });
   document.querySelectorAll('[data-master-blackout]').forEach(btn=>{
     btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'Blackout...',success:'Blackout',error:'Failed'},async()=>{
       const scope=btn.dataset.masterBlackout||'all';
-      if(scope==='all'){
-        document.querySelectorAll('[data-grand-master]').forEach(input=>{input.value='0';});
-        document.querySelectorAll('[data-grand-master-value]').forEach(el=>{el.textContent='0%';});
-      }else if(scope.startsWith('target:')){
-        const index=scope.split(':')[1];
-        document.querySelectorAll('[data-target-master-fader="'+index+'"]').forEach(input=>{input.value='0';});
-        document.querySelectorAll('[data-target-master-value="'+index+'"]').forEach(el=>{el.textContent='0%';});
-      }
+      setMasterFaderDisplay(scope,0);
       await applyDimmerMaster(0,scope);
     }).catch(err=>setStatus(err.message,true));
   });
@@ -2600,9 +2613,12 @@ async function loadShow(options={}){
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
   loadMidiStatus({silent:true});
-  const appliedMasters=await applyDimmerMastersForEntry();
-  setStatus((isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)');
-  if(appliedMasters)setStatus((isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)+' · master output applied');
+  let appliedMasters=false;
+  let masterApplyError=null;
+  try{appliedMasters=await applyDimmerMastersForEntry();}
+  catch(err){masterApplyError=err;}
+  const loadMessage=(isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)';
+  setStatus(masterApplyError?loadMessage+' · master output not applied: '+masterApplyError.message:loadMessage+(appliedMasters?' · master output applied':''));
   reviewHiddenTiles(true);
 }
 function refreshShowData(options={}){

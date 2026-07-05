@@ -260,6 +260,8 @@ test.describe('Show Run page', () => {
     await expect(master.getByRole('button', { name: 'Show All Fixtures' })).toBeVisible();
     await expect(master.locator('.grand-master-fader')).toBeVisible();
     await expect(master.locator('[data-target-master-fader="0"]')).toBeVisible();
+    await expect(master.locator('[data-master-full="all"]')).toBeVisible();
+    await expect(master.locator('[data-master-full="target:0"]')).toBeVisible();
     await expect(master.locator('[data-master-blackout="all"]')).toBeVisible();
     await expect(master.locator('[data-master-blackout="target:0"]')).toBeVisible();
     await expect(master.getByRole('button', { name: 'Blackout Target' })).toHaveCount(0);
@@ -469,6 +471,29 @@ test.describe('Show Run page', () => {
     expect(calls.pico.some(call => call.url.includes('/dmx/blackout'))).toBe(false);
   });
 
+  test('full buttons set Grand and Group Master faders to full', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 0.5 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    calls.pico.length = 0;
+    await page.locator('[data-master-full="all"]').click();
+    await expect(page.locator('.grand-master-fader')).toHaveValue('100');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:100,11:200')).toBe(true);
+
+    await page.getByRole('button', { name: /Spot 2/ }).click();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMaster [data-target-master-assign="0"]').first().click();
+    await page.locator('[data-target-master-fader="0"]').fill('25');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:50')).toBe(true);
+    calls.pico.length = 0;
+
+    await page.locator('[data-master-full="target:0"]').click();
+    await expect(page.locator('[data-target-master-fader="0"]')).toHaveValue('100');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
+    expect(calls.liveValues).toHaveLength(0);
+  });
+
   test('Grand Master fader scales all fixture dimmers without overwriting live values', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 } };
     await routeShowSetup(page, calls);
@@ -496,6 +521,26 @@ test.describe('Show Run page', () => {
     await page.getByRole('link', { name: 'Controller' }).click();
 
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:100,11:200'))
+      .toBe(true);
+  });
+
+  test('applies saved master multipliers when entering Show Run', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      setupValues: { '101:11': 100, '102:11': 200 },
+      showRunState: {
+        grandMasterFactor: 0.5,
+        targetMasters: [{ id: 'target_1', name: 'Group Master 1', fixtureIds: [102], factor: 0.25 }]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('.grand-master-fader')).toHaveValue('50');
+    await expect(page.locator('[data-target-master-fader="0"]')).toHaveValue('25');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:50,11:25'))
       .toBe(true);
   });
 
