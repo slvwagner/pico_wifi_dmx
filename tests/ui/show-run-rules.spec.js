@@ -55,6 +55,8 @@ async function routeShowSetup(page, calls) {
 
   await page.route('**/group_setup.php**', async route => {
     if (route.request().method() !== 'GET') {
+      calls.groupWrites = calls.groupWrites || [];
+      calls.groupWrites.push(route.request().postDataJSON());
       calls.setupWrites += 1;
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
       return;
@@ -75,6 +77,8 @@ async function routeShowSetup(page, calls) {
 
   await page.route('**/scene_setup.php**', async route => {
     if (route.request().method() !== 'GET') {
+      calls.sceneWrites = calls.sceneWrites || [];
+      calls.sceneWrites.push(route.request().postDataJSON());
       calls.setupWrites += 1;
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
       return;
@@ -101,6 +105,8 @@ async function routeShowSetup(page, calls) {
 
   await page.route('**/palette_setup.php**', async route => {
     if (route.request().method() !== 'GET') {
+      calls.paletteWrites = calls.paletteWrites || [];
+      calls.paletteWrites.push(route.request().postDataJSON());
       calls.setupWrites += 1;
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
       return;
@@ -398,12 +404,12 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#paletteCols').fill('2');
     await page.locator('#paletteRows').fill('1');
-    await page.locator('#paletteMove').click();
+    await expect(page.locator('#paletteMove')).toHaveCount(0);
     await page.getByRole('button', { name: /Red/ }).click();
     await page.locator('#paletteGrid .slot').nth(1).click();
 
     await expect(page.locator('#paletteGrid .slot').nth(1)).toContainText('Red');
-    await page.locator('#paletteMove').click();
+    await page.locator('#editLayoutBtn').click();
     await page.getByRole('button', { name: /Red/ }).click();
 
     await expect(page.locator('#status')).toContainText('Palette "Red" recalled');
@@ -419,7 +425,7 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await page.locator('#paletteCols').fill('2');
     await page.locator('#paletteRows').fill('1');
-    await page.locator('#paletteMove').click();
+    await expect(page.locator('#groupMove, #sceneMove, #paletteMove, #chaserMove, #motionMove')).toHaveCount(0);
 
     const source = page.getByRole('button', { name: /Red/ });
     const target = page.locator('#paletteGrid .slot').nth(1);
@@ -427,6 +433,34 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#paletteGrid .slot').nth(1)).toContainText('Red');
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('shows tile edit and delete actions while editing Show Run layout', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, groupWrites: [], sceneWrites: [], paletteWrites: [] };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#paletteGrid .slot-visual-btn')).toHaveCount(0);
+    await expect(page.locator('#paletteGrid .slot-del')).toHaveCount(0);
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#paletteGrid .slot-visual-btn').click();
+    await expect(page.locator('#showTileVisualModal')).toBeVisible();
+    await page.locator('#showTileVisualName').fill('Warm Red');
+    await page.locator('#showTileVisualColor').fill('#884422');
+    await page.locator('#showTileVisualSave').click();
+
+    await expect(page.locator('#paletteGrid')).toContainText('Warm Red');
+    expect(calls.paletteWrites.at(-1).palettes[0]).toMatchObject({
+      name: 'Warm Red',
+      visual: { type: 'visual', color: '#884422' }
+    });
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#paletteGrid .slot-del').click();
+
+    await expect(page.locator('#paletteGrid')).not.toContainText('Warm Red');
+    expect(calls.paletteWrites.at(-1).palettes).toEqual([]);
   });
 
   test('lets the operator arrange whole show cards in a card matrix', async ({ page }) => {

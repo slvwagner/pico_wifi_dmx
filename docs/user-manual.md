@@ -466,7 +466,9 @@ The sticky title bar has **Edit Layout** on the right. Layout tools are hidden d
 
 In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Click **Move Cards** to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. On touch screens, tap a card and then tap the destination card position.
 
-Each tile section on Show Run has **Cols**, **Rows**, and **Move** controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. Click **Move**, then drag a filled tile to another position; on touch screens, tap the filled tile and then tap the destination tile. Show Run remembers these layout preferences in the browser, but it does not rewrite the saved toolbox setup on the server.
+Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. While **Edit Layout** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run remembers these layout preferences in the browser, but it does not rewrite the saved toolbox setup on the server.
+
+While **Edit Layout** is active, saved group, scene, and palette tiles also show the small pencil and delete actions. The pencil opens **Edit Tile**, where the tile name, background color, uploaded icon, or drawn icon can be changed with the same visual editor used on the setup pages. The delete action removes the saved group, scene, or palette from the matching XAMPP setup file. Pico chaser/effect playback tiles are not deleted from this modal; they represent Pico playback slots and are controlled with the playback buttons.
 
 ### Scenes And Palettes
 
@@ -486,7 +488,7 @@ Use the **Pico Effects Playback** controls the same way: choose a slot, set **BP
 
 The global **Stop Chaser**, **Stop Effects**, and **Stop All Playback** buttons call the matching Pico stop endpoints.
 
-Show Run is intentionally read-mostly. It does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files.
+Show Run is intentionally read-mostly during normal operation. Outside **Edit Layout** it does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files. In **Edit Layout**, tile label/visual edits and group/scene/palette deletions are saved intentionally.
 
 ## 5. Chaser
 
