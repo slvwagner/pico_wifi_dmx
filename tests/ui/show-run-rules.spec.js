@@ -899,8 +899,59 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Chaser Playback');
 
     await page.locator('#cardChaser .card-move-handle').click();
-    // Click inside an interactive Live Controls toolbar field to mirror the real-world target click.
-    await page.locator('#liveFixtureSelect').click();
+    await page.locator('#cardLive .card-move-drop-target').click();
+
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 6)).toEqual(['chaser', 'scene', 'live', 'group', 'motion', 'palette']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('lets the operator drag Pico Chaser Playback onto Live Controls to swap the cards', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.cardCols', '3');
+      localStorage.setItem('dmxShowRun.cardRows', '3');
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'chaser', 'group', 'motion', 'palette', null, null, null]));
+    });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMove').click();
+
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Chaser Playback');
+
+    await page.locator('#cardChaser .card-move-drop-target').dragTo(page.locator('#cardLive .card-move-drop-target'));
+
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 6)).toEqual(['chaser', 'scene', 'live', 'group', 'motion', 'palette']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('lets the operator drag the Pico Chaser Playback card body onto Live Controls', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.cardCols', '3');
+      localStorage.setItem('dmxShowRun.cardRows', '3');
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'chaser', 'group', 'motion', 'palette', null, null, null]));
+    });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMove').click();
+
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Chaser Playback');
+
+    await page.locator('#cardChaser .card-move-drop-target').dragTo(page.locator('#cardLive .card-move-drop-target'));
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
