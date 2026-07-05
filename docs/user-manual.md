@@ -202,7 +202,7 @@ The Fixture Controller uses four toolboxes in the shared right-side **Toolboxes*
 
 ![Controller Groups toolbox](screenshots/fixture-controller-toolbox-groups.png)
 
-**Show** is the project-level card for setup files. **New Show** starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico playback slots, and saved toolbox layout while keeping the reusable fixture library. **Export Setup** downloads the complete show backup, **Import Setup** restores one, and **Patch CSV** exports the patched channel table. The card can be collapsed when you do not need these buttons.
+**Show** is the project-level card for setup files. **New Show** starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. **Export Setup** downloads the complete show backup, **Import Setup** restores one, and **Patch CSV** exports the patched channel table. The card can be collapsed when you do not need these buttons.
 
 **Groups** stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small `x`, import/export group JSON, reorder group tiles with **Move**, and open **Group Edit** when the current scope supports it.
 
@@ -474,7 +474,7 @@ In layout edit mode, the top of Show Run has a page-level card matrix. Use **Car
 
 Drag a card by its title/header area to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. Dragging a card to an empty matrix spot places it there and leaves the other card positions unchanged. Dragging a card onto another card swaps only those two cards. The card body remains available for tile editing and other layout controls while **Edit Layout** is active.
 
-Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. While **Edit Layout** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run remembers these layout preferences in the browser, but it does not rewrite the saved toolbox setup on the server.
+Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. While **Edit Layout** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, and Live Controls configuration to the XAMPP server UI state, so the same operator page is restored on another computer and included in **Export Setup** / **Import Setup**. The layout does not rewrite the saved toolbox setup itself.
 
 If saved groups, scenes, palettes, or loaded Pico playback slots are outside the visible matrix, Show Run opens **Hidden Show Items** and switches into **Edit Layout**. Use **Expand** to increase that section's rows/columns until the hidden item is visible, or use **Place in Free Tile** when an empty visible tile is available. This prevents newly created palettes/scenes or moved playback slots from being silently hidden on a row that is not currently displayed.
 
@@ -496,7 +496,7 @@ To create a fog or haze timer, set **Widget** to **Button**, set **Button mode**
 
 Use **Apply** mode for one-shot commands that should send the configured value once and stay there.
 
-Live Control card configuration is stored with the browser's Show Run layout preferences. Use the small `x` on a live widget while **Edit Layout** is active to remove it from the operator page.
+Live Control card configuration is stored with the server-side Show Run layout preferences. Use the small `x` on a live widget while **Edit Layout** is active to remove it from the operator page.
 
 ### Scenes And Palettes
 

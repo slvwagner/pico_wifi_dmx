@@ -232,7 +232,19 @@ test.describe('Project versioning rules', () => {
           if (href.includes('motion_setup.php')) return response({ ok: true, exists: false });
           if (href.includes('gpio_setup.php')) return response({ ok: true, exists: true, baseUrl: '', enabled: true, mappings: [], adcMappings: [] });
           if (href.includes('fixture_library.php')) return response({ ok: true, exists: false, library: null });
-          if (href.includes('ui_state.php')) return response({ ok: true, exists: true, state: {} });
+          if (href.includes('ui_state.php')) return response({
+            ok: true,
+            exists: true,
+            state: {
+              showRun: {
+                cardCols: 3,
+                cardRows: 3,
+                cardOrder: ['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null],
+                liveControls: [{ id: 'live_restore', cardId: 'live', fixtureId: 101, controlId: 10, part: 'value', widget: 'fader' }],
+                paletteOrder: ['palette_1', null]
+              }
+            }
+          });
           if (href.includes('fixture_setup.php')) return response({ ok: true, exists: true, setup: saveData() });
           return response({ ok: true });
         };
@@ -241,10 +253,13 @@ test.describe('Project versioning rules', () => {
         await importFullSetup(downloaded.payload);
 
         const groupImport = posts.filter(post => post.url.includes('group_setup.php')).pop();
+        const showRunImport = posts.filter(post => post.url.includes('ui_state.php') && post.body.page === 'showRun').pop();
         return {
           filename: downloaded.filename,
           exported: downloaded.payload.groups.groups[0],
-          imported: groupImport.body.groups[0]
+          imported: groupImport.body.groups[0],
+          exportedShowRun: downloaded.payload.uiState.showRun,
+          importedShowRun: showRunImport.body.state
         };
       } finally {
         window.fetch = originalFetch;
@@ -265,6 +280,14 @@ test.describe('Project versioning rules', () => {
       name: 'Visual Group',
       visual: { type: 'visual', color: '#115577', image: 'data:image/png;base64,GROUPTILE' }
     });
+    expect(result.exportedShowRun).toMatchObject({
+      cardCols: 3,
+      cardRows: 3,
+      cardOrder: ['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null],
+      liveControls: [{ id: 'live_restore', cardId: 'live', fixtureId: 101, controlId: 10, part: 'value', widget: 'fader' }],
+      paletteOrder: ['palette_1', null]
+    });
+    expect(result.importedShowRun).toMatchObject(result.exportedShowRun);
   });
 
   test('New Show clears show data and Pico playback slots but keeps fixture library separate', async ({ page }) => {

@@ -2647,6 +2647,7 @@ function resetShowLocalState(){
   groupCols=2;groupRows=4;
   collapsedFixtureIds.clear();
   ['dmxFixtureController','dmxFCLiveValues','selectedGroupIds','fixtureCardCollapsed','groupsBoxCols','groupsBoxRows','sceneSlotCols','sceneSlotRows','paletteSlotCols','paletteSlotRows'].forEach(key=>localStorage.removeItem(key));
+  Object.keys(localStorage).filter(key=>key.startsWith('dmxShowRun.')).forEach(key=>localStorage.removeItem(key));
   DmxCommon.saveSharedGroupSelection([]);
   addDefaultProfile();
   resetControlEditor();
@@ -2685,7 +2686,8 @@ async function startNewShow(){
     },
     toolboxes:{selectedGroupIds:[],groupsBoxCols:2,groupsBoxRows:4},
     chaser:{},
-    motion:{}
+    motion:{},
+    showRun:{}
   };
   await postSetupPayload('fixture_setup.php',fixturePayload);
   await postSetupPayload('fixture_setup.php?livevalues',{});

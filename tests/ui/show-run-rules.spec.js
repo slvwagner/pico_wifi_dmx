@@ -20,6 +20,7 @@ const fixtures = [
 ];
 
 async function routeShowSetup(page, calls) {
+  calls.uiStatePosts = calls.uiStatePosts || [];
   await page.route('**/fixture_setup.php**', async route => {
     const url = route.request().url();
     const method = route.request().method();
@@ -145,6 +146,19 @@ async function routeShowSetup(page, calls) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ ok: true, pico_slots: ['{"name":"Circle"}'], pico_url: 'http://pico.test' })
+    });
+  });
+
+  await page.route('**/ui_state.php**', async route => {
+    if (route.request().method() !== 'GET') {
+      calls.uiStatePosts.push(route.request().postDataJSON());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, exists: true, state: { showRun: calls.showRunState || {} } })
     });
   });
 
@@ -373,6 +387,48 @@ test.describe('Show Run page', () => {
     expect(urls).toContain('http://pico.test/motion/load/0');
     await expect(page.locator('#chaserControlRestore')).toHaveCount(0);
     await expect(page.locator('#motionControlRestore')).toHaveCount(0);
+  });
+
+  test('loads Show Run layout and live controls from server UI state', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: {
+        cardCols: 3,
+        cardRows: 3,
+        cardOrder: ['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null],
+        paletteCols: 2,
+        paletteRows: 1,
+        paletteOrder: ['palette_1', null],
+        liveControls: [{
+          id: 'server_live_button',
+          cardId: 'live',
+          fixtureId: 101,
+          controlId: 11,
+          part: 'value',
+          widget: 'button',
+          buttonMode: 'hold',
+          buttonValue: 255,
+          timerOnMs: 3000,
+          timerOffMs: 30000
+        }]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['group', 'scene', 'palette', 'chaser', 'motion', 'live']));
+      localStorage.setItem('dmxShowRun.paletteCols', '1');
+      localStorage.setItem('dmxShowRun.paletteRows', '1');
+    });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardLive .live-widget')).toHaveCount(1);
+    await expect(page.locator('#cardLive .live-widget h3')).toContainText('Spot 1 - Dimmer');
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 6)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', 'group']);
   });
 
   test('lets the operator add a live fader and send direct fixture DMX from Show Run', async ({ page }) => {
@@ -987,6 +1043,8 @@ test.describe('Show Run page', () => {
     expect(savedControls).toHaveLength(0);
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder.filter(entry => String(entry || '').startsWith('live'))).toHaveLength(1);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.cardOrder)).toBe(true);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && Array.isArray(post.state.liveControls))).toBe(true);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -1011,6 +1069,7 @@ test.describe('Show Run page', () => {
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder.filter(entry => entry === 'scene')).toHaveLength(1);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.cardOrder)).toBe(true);
     expect(calls.setupWrites).toBe(0);
   });
 

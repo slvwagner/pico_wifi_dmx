@@ -359,6 +359,8 @@ let chaserSelectedSlot=0;
 let motionSelectedSlot=0;
 const selectedGroupIds=new Set();
 const layoutKey=name=>'dmxShowRun.'+name;
+const SHOW_UI_STATE_PAGE='showRun';
+let showUiState={};
 const displayOrders={group:[],scene:[],palette:[],chaser:[],motion:[]};
 const moveSelected={group:null,scene:null,palette:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','chaser','motion','live'];
@@ -480,8 +482,15 @@ function filteredValues(source){
 function fixtureIdsFromValues(source){
   return [...new Set(Object.keys(source||{}).map(key=>String(key).split(':')[0]).filter(Boolean))];
 }
+function savedValue(key){
+  return showUiState&&Object.prototype.hasOwnProperty.call(showUiState,key)?showUiState[key]:localStorage.getItem(layoutKey(key));
+}
+function saveShowUiStateValue(key,value){
+  showUiState={...(showUiState||{}),[key]:value};
+  DmxCommon.saveUiState(SHOW_UI_STATE_PAGE,key,value);
+}
 function savedNumber(key,fallback,min,max){
-  const n=parseInt(localStorage.getItem(layoutKey(key)),10);
+  const n=parseInt(savedValue(key),10);
   return Math.max(min,Math.min(max,Number.isFinite(n)?n:fallback));
 }
 function applySavedLayout(){
@@ -502,6 +511,9 @@ function saveCardLayout(){
   localStorage.setItem(layoutKey('cardCols'),cardCols);
   localStorage.setItem(layoutKey('cardRows'),cardRows);
   localStorage.setItem(layoutKey('cardOrder'),JSON.stringify(cardOrder));
+  saveShowUiStateValue('cardCols',cardCols);
+  saveShowUiStateValue('cardRows',cardRows);
+  saveShowUiStateValue('cardOrder',cardOrder);
 }
 function cardType(entry){
   if(entry===null||entry===undefined||entry==='')return '';
@@ -525,17 +537,20 @@ function addCardButtonLabel(type){
   return type==='live'?'Add Live Controls':'Add '+(cardLabels[type]||'Card')+' Card';
 }
 function loadLiveControls(){
-  try{liveControls=JSON.parse(localStorage.getItem(layoutKey('liveControls'))||'[]')||[];}catch(_){liveControls=[];}
+  const source=savedValue('liveControls');
+  try{liveControls=Array.isArray(source)?source:JSON.parse(source||'[]')||[];}catch(_){liveControls=[];}
   liveControls=liveControls.filter(item=>item&&item.fixtureId!=null&&item.controlId!=null&&item.part&&item.widget);
   liveControls.forEach(item=>{if(!item.cardId)item.cardId='live';});
 }
 function saveLiveControls(){
   localStorage.setItem(layoutKey('liveControls'),JSON.stringify(liveControls));
+  saveShowUiStateValue('liveControls',liveControls);
 }
 function reconcileCardOrder(){
   const total=Math.max(cardIds.length,cardCols*cardRows);
   let saved=[];
-  try{saved=JSON.parse(localStorage.getItem(layoutKey('cardOrder'))||'[]');}catch(_){saved=[];}
+  const sourceValue=savedValue('cardOrder');
+  try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
   const source=Array.isArray(cardOrder)&&cardOrder.length?cardOrder:Array.isArray(saved)?saved:[];
   const shouldInsertDefaults=!source.length;
   const next=[];
@@ -847,6 +862,8 @@ function normalizeMotionGrid(priority='cols'){
 function saveMatrix(kind,cols,rows){
   localStorage.setItem(layoutKey(kind+'Cols'),cols);
   localStorage.setItem(layoutKey(kind+'Rows'),rows);
+  saveShowUiStateValue(kind+'Cols',cols);
+  saveShowUiStateValue(kind+'Rows',rows);
 }
 function orderKey(kind){return layoutKey(kind+'Order');}
 function sourceEntries(kind){
@@ -859,11 +876,13 @@ function sourceEntries(kind){
 }
 function saveDisplayOrder(kind){
   localStorage.setItem(orderKey(kind),JSON.stringify(displayOrders[kind]||[]));
+  saveShowUiStateValue(kind+'Order',displayOrders[kind]||[]);
 }
 function reconcileDisplayOrder(kind,total){
   const keys=new Set(sourceEntries(kind).map(entry=>entry.key));
   let saved=[];
-  try{saved=JSON.parse(localStorage.getItem(orderKey(kind))||'[]');}catch(_){saved=[];}
+  const sourceValue=savedValue(kind+'Order');
+  try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
   const previous=(displayOrders[kind]&&displayOrders[kind].length?displayOrders[kind]:saved).filter(key=>key===null||keys.has(String(key))).map(key=>key===null?null:String(key));
   const used=new Set(previous.filter(Boolean));
   sourceEntries(kind).forEach(entry=>{
@@ -1812,15 +1831,17 @@ async function loadShow(){
   setStatus('Loading show...');
   setBlackoutActive(false);
   hiddenTileModalDismissed=false;
-  const [fixtureData,groupData,sceneData,paletteData,chaserData,motionData,liveData]=await Promise.all([
+  const [fixtureData,groupData,sceneData,paletteData,chaserData,motionData,liveData,serverShowUiState]=await Promise.all([
     loadJson('fixture_setup.php',{exists:false,setup:null}),
     loadJson('group_setup.php',{groups:[]}),
     loadJson('scene_setup.php',{scenes:[],slotCols:4,slotRows:4}),
     loadJson('palette_setup.php',{palettes:[],paletteCols:4,paletteRows:4}),
     loadJson('chaser_setup.php?slots',{pico_slots:[],pico_url:null}),
     loadJson('motion_setup.php?slots',{pico_slots:[],pico_url:null}),
-    loadJson('fixture_setup.php?livevalues',{exists:false,values:{}})
+    loadJson('fixture_setup.php?livevalues',{exists:false,values:{}}),
+    DmxCommon.loadUiState(SHOW_UI_STATE_PAGE)
   ]);
+  showUiState=serverShowUiState&&typeof serverShowUiState==='object'?serverShowUiState:{};
   const setup=fixtureData.setup||{};
   profiles=Array.isArray(setup.profiles)?setup.profiles:[];
   fixtures=Array.isArray(setup.fixtures)?setup.fixtures:[];
