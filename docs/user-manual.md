@@ -482,9 +482,17 @@ While **Edit Layout** is active, saved group, scene, and palette tiles also show
 
 The **Live Controls** card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click **Edit Layout**, choose a patched fixture, control, control part, and widget type, then click **Add Control**. Faders and knobs send their value while they are moved. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.
 
-Button widgets have three modes. **Apply** sends the configured value once, which is useful for one-shot commands. **Hold** sends the configured value only while the button is pressed, then restores the value that was active before the press when the button is released. **Timer** is intended for fog and haze machines: it cycles between the configured value for **On s** seconds and the previous/off value for **Off s** seconds until you stop the timer. Stopping or deleting a timer button restores the previous value.
-
 ![Show Run Live Controls](screenshots/show-run-live-controls.png)
+
+To create a momentary button, set **Widget** to **Button**, set **Button mode** to **Hold**, choose the value to send, then click **Add Control**. **Hold** sends the configured value only while the button is pressed. When the button is released, Show Run restores the value that was active before the press.
+
+![Show Run Hold Button](screenshots/show-run-live-hold-button.png)
+
+To create a fog or haze timer, set **Widget** to **Button**, set **Button mode** to **Timer**, choose the output value, then set **On s** and **Off s**. The timer sends the configured value for the On time, restores the previous/off value for the Off time, and repeats until stopped. Stopping or deleting a timer button restores the previous value.
+
+![Show Run Fog/Haze Timer Button](screenshots/show-run-live-timer-button.png)
+
+Use **Apply** mode for one-shot commands that should send the configured value once and stay there.
 
 Live Control card configuration is stored with the browser's Show Run layout preferences. Use the small `x` on a live widget while **Edit Layout** is active to remove it from the operator page.
 

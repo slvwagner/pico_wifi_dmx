@@ -734,11 +734,45 @@ try {
   const value=document.getElementById('liveButtonValue');
   const on=document.getElementById('liveTimerOn');
   const off=document.getElementById('liveTimerOff');
+  const hiddenModal=document.getElementById('hiddenTileModal');
+  if(hiddenModal)hiddenModal.style.display='none';
+  if(typeof hiddenTileModalDismissed!=='undefined')hiddenTileModalDismissed=true;
+  if(widget)widget.value='button';
+  if(mode)mode.value='hold';
+  if(value)value.value='255';
+  liveControls.splice(0,liveControls.length,
+    {id:'doc_live_hold',fixtureId:990101,controlId:990011,part:'value',widget:'button',buttonMode:'hold',buttonValue:255,label:'Fog Burst'}
+  );
+  if(typeof renderLiveControls==='function')renderLiveControls();
+  if(typeof updateLiveControlSelects==='function')updateLiveControlSelects();
+  live?.scrollIntoView({block:'start',inline:'nearest'});
+  window.scrollBy(0,-120);
+  await wait(400);
+})()
+"@
+    Save-ElementScreenshot "#cardLive" "show-run-live-hold-button.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  const live=document.getElementById('cardLive');
+  const widget=document.getElementById('liveWidgetSelect');
+  const mode=document.getElementById('liveButtonMode');
+  const value=document.getElementById('liveButtonValue');
+  const on=document.getElementById('liveTimerOn');
+  const off=document.getElementById('liveTimerOff');
+  const hiddenModal=document.getElementById('hiddenTileModal');
+  if(hiddenModal)hiddenModal.style.display='none';
+  if(typeof hiddenTileModalDismissed!=='undefined')hiddenTileModalDismissed=true;
   if(widget)widget.value='button';
   if(mode)mode.value='timer';
   if(value)value.value='255';
   if(on)on.value='3';
   if(off)off.value='30';
+  liveControls.splice(0,liveControls.length,
+    {id:'doc_live_timer',fixtureId:990101,controlId:990011,part:'value',widget:'button',buttonMode:'timer',buttonValue:255,timerOnMs:3000,timerOffMs:30000,label:'Fog Timer'}
+  );
+  if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof updateLiveControlSelects==='function')updateLiveControlSelects();
   live?.scrollIntoView({block:'start',inline:'nearest'});
   window.scrollBy(0,-120);
@@ -746,6 +780,7 @@ try {
 })()
 "@
     Save-ElementScreenshot "#cardLive" "show-run-live-controls.png"
+    Save-ElementScreenshot "#cardLive" "show-run-live-timer-button.png"
 
     $chaserUrl = $BaseUrl.TrimEnd('/') + "/dmx_chaser.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $chaserUrl } | Out-Null

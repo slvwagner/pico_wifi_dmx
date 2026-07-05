@@ -15,6 +15,7 @@ Changed:
 - Added a Show Run **Live Controls** card for operator faders, knobs, and buttons that write directly to selected fixture controls and send the resolved DMX bytes to the Pico.
 - Enhanced Show Run **Live Controls** button widgets with Apply, momentary Hold, and fog/haze Timer modes; Hold and Timer restore the previous live value when released, stopped, or removed.
 - Added a portable manual screenshot workflow with `scripts/update_user_manual.ps1 -LocalOnly`, using the repo-local PHP dev router and `docs/manual-data/` instead of a machine-specific XAMPP URL.
+- Expanded the Show Run manual screenshots with dedicated Live Controls examples for momentary Hold buttons and fog/haze Timer buttons.
 - Fixed Show Run **Move Cards** so moving a card inserts it into the destination matrix spot and shifts the intervening cards instead of swapping unrelated row positions.
 
 ## 0.9.6 - 2026-07-04

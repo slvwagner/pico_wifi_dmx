@@ -81,6 +81,16 @@
       "purpose": "Show Run Live Controls in layout edit mode"
     },
     {
+      "file": "show-run-live-hold-button.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run momentary Hold button setup"
+    },
+    {
+      "file": "show-run-live-timer-button.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run fog and haze Timer button setup"
+    },
+    {
       "file": "chaser-readme.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "README chaser overview without toolbox focus"
