@@ -1771,6 +1771,7 @@
     if(grid._dmxTileMoveCleanup)grid._dmxTileMoveCleanup();
     const active=!!options.active;
     const selector=options.itemSelector||'[data-tile-move-index]';
+    const handleSelector=options.handleSelector||null;
     const getIndex=options.getIndex||((el)=>parseInt(el?.dataset?.tileMoveIndex,10));
     const canDrag=options.canDrag||(()=>true);
     const onMove=options.onMove||(()=>false);
@@ -1868,9 +1869,26 @@
         window.addEventListener('mousemove',mouseMove);
         window.addEventListener('mouseup',mouseEnd);
       };
-      el.addEventListener('pointerdown',pointerDown);
-      el.addEventListener('mousedown',mouseDown);
-      el.addEventListener('dragstart',e=>{
+      const dragStartEls=handleSelector?Array.from(el.querySelectorAll(handleSelector)):[el];
+      dragStartEls.forEach(startEl=>{
+        startEl.draggable=false;
+        startEl.addEventListener('pointerdown',pointerDown);
+        startEl.addEventListener('mousedown',mouseDown);
+        startEl.addEventListener('dragstart',e=>{
+          if(e.currentTarget!==startEl)return;
+          if(!active||!canDrag(idx,el)){
+            e.preventDefault();
+            return;
+          }
+          dragIndex=idx;
+          el.classList.add('toolbox-dragging');
+          if(e.dataTransfer){
+            e.dataTransfer.effectAllowed='move';
+            e.dataTransfer.setData('text/plain',String(idx));
+          }
+        });
+      });
+      if(!handleSelector)el.addEventListener('dragstart',e=>{
         if(!active||!canDrag(idx,el)){
           e.preventDefault();
           return;

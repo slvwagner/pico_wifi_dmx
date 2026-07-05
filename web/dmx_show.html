@@ -588,6 +588,7 @@ function renderCardGrid(){
     button:'cardMove',
     active:cardMoveMode,
     itemSelector:'[data-show-card-index]',
+    handleSelector:'.card-move-drop-target,.card-move-handle',
     getIndex:el=>parseInt(el.dataset.showCardIndex,10),
     canDrag:idx=>!!cardOrder[idx],
     onMove:(from,to)=>moveCard(from,to)

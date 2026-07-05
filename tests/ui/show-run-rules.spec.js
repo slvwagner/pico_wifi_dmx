@@ -882,6 +882,37 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('lets the operator mouse-drag the Live Controls card onto another card', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardCols').fill('3');
+    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardMove').click();
+
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
+
+    const source = await page.locator('#cardLive .card-move-drop-target').boundingBox();
+    const target = await page.locator('#cardScene .card-move-drop-target').boundingBox();
+    expect(source).not.toBeNull();
+    expect(target).not.toBeNull();
+
+    await page.mouse.move(source.x + source.width / 2, source.y + Math.min(80, source.height / 2));
+    await page.mouse.down();
+    await page.mouse.move(target.x + target.width / 2, target.y + Math.min(80, target.height / 2), { steps: 12 });
+    await page.mouse.up();
+
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Scenes');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 6)).toEqual(['group', 'live', 'palette', 'chaser', 'motion', 'scene']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('lets the operator swap Pico Chaser Playback with Live Controls when Live Controls is the target card', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
