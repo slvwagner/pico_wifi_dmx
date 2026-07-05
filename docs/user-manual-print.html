@@ -114,11 +114,12 @@ strong { color: #ffffff; }
 <main>
 <h1 id="pico-wifi-dmx-user-manual">Pico WiFi DMX User Manual</h1>
 <p>This manual explains how to use the browser-based DMX controller with the Pico firmware. It is written for daily operation: creating fixtures, controlling lights, saving scenes, building chasers, creating effects, and using GPIO buttons or ADC inputs.</p>
-<p>The web interface is normally opened from XAMPP:</p>
+<p>The web interface is normally opened from XAMPP. On the same computer that runs XAMPP this is often:</p>
 <pre><code>http://localhost/dmx/</code></pre>
+<p>From an iPad, phone, or another computer, use the XAMPP computer&#39;s LAN address or hostname instead, for example <code>http://192.168.0.50/dmx/</code>. This XAMPP URL is only the address of the web interface and server-side show storage.</p>
 <p>The Pico itself is controlled over the network with its base URL, for example:</p>
 <pre><code>http://192.168.0.24/</code></pre>
-<p>Enter the Pico base URL once in any page. The browser stores it and shares it with the other pages. Across the UI, live Pico updates only happen while a Pico base URL is set; clearing the URL puts the page into browser-only editing.</p>
+<p>Enter the Pico base URL once in any page. The browser stores it and shares it with the other pages. Across the UI, live Pico updates only happen while a Pico base URL is set; clearing the URL puts the page into browser-only editing. The Pico base URL is separate from the XAMPP URL: XAMPP serves the controller pages, while the Pico base URL is the lighting controller hardware API.</p>
 <p>This applies to every page that can talk to the Pico:</p>
 <ul>
 <li><strong>Fixture Controller</strong> edits values locally, and only sends DMX changes when the Pico base URL is set.</li>
@@ -146,7 +147,7 @@ strong { color: #ffffff; }
 <p>The Fixture Controller is the central page. Use it first when setting up a new show or fixture set.</p>
 <h3 id="set-the-pico-base-url">Set the Pico Base URL</h3>
 <ol>
-<li>Open <code>http://localhost/dmx/</code>.</li>
+<li>Open the XAMPP controller URL, for example <code>http://localhost/dmx/</code> on the XAMPP computer or <code>http://192.168.0.50/dmx/</code> from another device on the LAN.</li>
 <li>Enter the Pico base URL, for example <code>http://192.168.0.24/</code>.</li>
 <li>If DHCP changed the Pico address, click <strong>Find Pico</strong>. The XAMPP server listens briefly for the Pico&#39;s UDP discovery beacon and fills the URL when a Pico is found on the same LAN. The discovered URL is stored in the browser and saved back to the current page&#39;s XAMPP setup file on Controller, Chaser, Effects, and GPIO, so the other pages and other devices can reuse the corrected address after reload.</li>
 <li>The Pico base URL field checks <code>/status.json</code> automatically. It turns dark green when the Pico is reachable, dark red when it cannot connect, and keeps retrying in the background so it can recover after flashing or rebooting the Pico.</li>

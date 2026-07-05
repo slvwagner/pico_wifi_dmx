@@ -127,7 +127,7 @@ After `config/local-paths.json` contains the Ubuntu paths, updating this machine
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/update_xampp_server.ps1
 ```
 
-Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device.
+Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device. The XAMPP URL is only the address of the web interface and server-side show storage; it is independent from the Pico base URL used for DMX hardware control.
 
 Enter the Pico base URL shown in the Pico serial log, for example:
 
@@ -136,6 +136,11 @@ http://192.168.0.24/
 ```
 
 If DHCP changed the Pico address, click **Find Pico** next to the Pico base URL field. The Pico firmware broadcasts a small UDP discovery beacon on port `64540`; the XAMPP endpoint `pico_discovery.php` listens briefly and returns the discovered URL to the browser. The discovered URL is written to the shared browser key and saved back to the current page's XAMPP setup file on Controller, Chaser, Effects, and GPIO, so the corrected Pico address survives reloads and is reused by other devices that open the same show data. This works when the browser/XAMPP machine and Pico are on the same LAN and local firewall rules allow UDP broadcasts to reach Apache/PHP.
+
+Changing IP numbers are handled in two places:
+
+- **XAMPP/server URL**: configure scripts and tests with `config/local-paths.json`, `tests/pathconfig.local.json`, or `DMX_TEST_BASE_URL`. The browser app itself uses relative URLs for setup files, so once a page is opened from the right XAMPP address it continues to talk to the same server.
+- **Pico base URL**: use **Find Pico** or `DMX_PICO_BASE_URL` for hardware tests. A discovered Pico URL takes priority over older setup JSON values so page navigation does not restore a stale DHCP address.
 
 Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Setup** before large changes when you want an extra backup of the complete show setup.
 
@@ -405,7 +410,7 @@ npm run test:ui
 
 If every UI test fails immediately with a Chromium launch error such as `sandbox_host_linux.cc` and `Operation not permitted`, run the tests from a normal Ubuntu terminal rather than from a restricted shell/container. The app may be fine; Chromium simply could not start.
 
-The default test URL is `http://localhost/dmx-test/`. It is defined in [tests/pathconfig.json](tests/pathconfig.json), so the same tests can run if the XAMPP installation moves.
+The default test URL is `http://localhost/dmx-test/`. It is defined in [tests/pathconfig.json](tests/pathconfig.json), so the same tests can run if the XAMPP installation moves or if another device must reach the test app through the computer's LAN address.
 
 For a local machine-specific setup, copy the example file and edit the copy:
 
@@ -415,7 +420,7 @@ Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
 
 `tests/pathconfig.local.json` is ignored by Git. Use it for:
 
-- `xamppBaseUrl`: the isolated served test UI, for example `http://localhost/dmx-test/`
+- `xamppBaseUrl`: the isolated served test UI, for example `http://localhost/dmx-test/` on the XAMPP computer or `http://192.168.0.50/dmx-test/` from another LAN device
 - `picoBaseUrl`: the real Pico API, for example `http://192.168.0.24/`
 - `hardwareTests.enabled`: set to `true` only when the Pico is connected and available
 - `hardwareTests.dmxTestChannels`: channels the test may write while checking `/dmx/output.json`

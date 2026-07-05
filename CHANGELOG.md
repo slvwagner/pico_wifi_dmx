@@ -10,6 +10,7 @@ Changed:
 - Added a Show Run **Hidden Show Items** dialog so saved groups, scenes, palettes, and loaded Pico playback slots outside the visible matrix can be expanded into view or placed into a free visible tile.
 - Added a Pico-side blackout lock used by Show Run **Blackout Target** so running chaser/effect playback cannot overwrite fixture blackout channels until the lock is cleared.
 - Changed the Show Run page background while **Edit Layout** is active so layout-edit mode is visually obvious.
+- Clarified Pico URL versus XAMPP/server URL handling, removed a stale hardcoded Pico value from Show Run, and added a guard test so browser app files keep using relative XAMPP setup URLs.
 
 ## 0.9.6 - 2026-07-04
 
