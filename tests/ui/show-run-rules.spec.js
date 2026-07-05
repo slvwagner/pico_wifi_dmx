@@ -208,6 +208,29 @@ test.describe('Show Run page', () => {
     expect(Math.abs((headerBox.x + headerBox.width - 14) - (lastButtonBox.x + lastButtonBox.width))).toBeLessThanOrEqual(2);
   });
 
+  test('uses the available browser width for the Show Run workspace', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.setViewportSize({ width: 2200, height: 1100 });
+    await openDmxPage(page, 'dmx_show.html');
+
+    const metrics = await page.evaluate(() => {
+      const main = document.querySelector('main');
+      const grid = document.querySelector('#cardGrid');
+      const mainRect = main.getBoundingClientRect();
+      const gridRect = grid.getBoundingClientRect();
+      return {
+        mainWidth: mainRect.width,
+        mainLeft: mainRect.left,
+        gridWidth: gridRect.width
+      };
+    });
+    expect(metrics.mainLeft).toBeLessThan(2);
+    expect(metrics.mainWidth).toBeGreaterThan(2160);
+    expect(metrics.gridWidth).toBeGreaterThan(2160);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('starts and stops saved Pico playback slots', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
