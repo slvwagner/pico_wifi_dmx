@@ -971,12 +971,33 @@ function ensureCardLayout(layoutId,kind){
   const cols=Math.max(1,Math.min(defaults.maxCols,parseInt(current.cols,10)||defaults.cols));
   const rows=Math.max(1,Math.min(defaults.maxRows,parseInt(current.rows,10)||defaults.rows));
   const order=Array.isArray(current.order)?current.order:[];
+  const hidden=Array.isArray(current.hidden)?current.hidden.map(String):[];
   current.kind=kind;
   current.cols=cols;
   current.rows=rows;
   current.order=order;
+  current.hidden=hidden;
   cardLayouts[layoutId]=current;
   return cardLayouts[layoutId];
+}
+function hiddenKeyStateKey(kind){return kind+'Hidden';}
+function hiddenKeysFor(kind,layoutId=kind){
+  if(layoutId===kind){
+    const source=savedValue(hiddenKeyStateKey(kind));
+    try{return new Set((Array.isArray(source)?source:JSON.parse(source||'[]')||[]).map(String));}catch(_){return new Set();}
+  }
+  return new Set(ensureCardLayout(layoutId,kind).hidden||[]);
+}
+function saveHiddenKeys(kind,layoutId,hidden){
+  const list=[...hidden].map(String);
+  if(layoutId===kind){
+    localStorage.setItem(layoutKey(hiddenKeyStateKey(kind)),JSON.stringify(list));
+    saveShowUiStateValue(hiddenKeyStateKey(kind),list);
+  }else{
+    const layout=ensureCardLayout(layoutId,kind);
+    layout.hidden=list;
+    saveCardLayouts();
+  }
 }
 function cardOrderFor(kind,layoutId=kind){
   return layoutId===kind?(displayOrders[kind]||[]):ensureCardLayout(layoutId,kind).order;
@@ -1003,6 +1024,7 @@ function saveDisplayOrder(kind){
   saveShowUiStateValue(kind+'Order',displayOrders[kind]||[]);
 }
 function reconcileDisplayOrder(kind,total,layoutId=kind){
+  const hidden=hiddenKeysFor(kind,layoutId);
   const keys=new Set(sourceEntries(kind).map(entry=>entry.key));
   let saved=[];
   if(layoutId===kind){
@@ -1010,9 +1032,10 @@ function reconcileDisplayOrder(kind,total,layoutId=kind){
     try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
   }else saved=ensureCardLayout(layoutId,kind).order||[];
   const existing=cardOrderFor(kind,layoutId);
-  const previous=(existing&&existing.length?existing:saved).filter(key=>key===null||keys.has(String(key))).map(key=>key===null?null:String(key));
+  const previous=(existing&&existing.length?existing:saved).filter(key=>key===null||(keys.has(String(key))&&!hidden.has(String(key)))).map(key=>key===null?null:String(key));
   const used=new Set(previous.filter(Boolean));
   sourceEntries(kind).forEach(entry=>{
+    if(hidden.has(entry.key))return;
     if(used.has(entry.key))return;
     const preferred=kind==='scene'||kind==='palette'?itemSlotIndex(entry.item,entry.index):(kind==='group'?entry.index:-1);
     if(preferred>=0&&!previous[preferred])previous[preferred]=entry.key;
@@ -1036,6 +1059,10 @@ function moveShowTile(kind,from,to,layoutId=kind){
   const target=order[to]||null;
   order[to]=order[from];
   order[from]=target;
+  const hidden=hiddenKeysFor(kind,layoutId);
+  hidden.delete(String(order[to]));
+  if(target)hidden.delete(String(target));
+  saveHiddenKeys(kind,layoutId,hidden);
   setCardOrderFor(kind,layoutId,order);
   moveSelected[kind]=null;
   moveSelectedLayout[kind]=null;
@@ -1082,6 +1109,10 @@ function expandMatrixForHiddenKind(kind){
 function placeHiddenTile(kind,key){
   const target=freeVisibleIndex(kind);
   if(target<0){setStatus('No free visible '+kind+' tile. Expand rows or columns first.',true);return;}
+  const hidden=hiddenKeysFor(kind,kind);
+  hidden.delete(String(key));
+  saveHiddenKeys(kind,kind,hidden);
+  reconcileDisplayOrder(kind,visibleTotal(kind),kind);
   const from=(displayOrders[kind]||[]).findIndex(item=>String(item)===String(key));
   if(from<0)return;
   moveShowTile(kind,from,target);
@@ -1241,10 +1272,10 @@ function targetSummary(){
 }
 function slotStyle(item){return DmxCommon.slotVisualStyle(item);}
 function slotVisual(item){return DmxCommon.slotVisualHtml(item);}
-function tileActionButtons(kind,key,label){
+function tileActionButtons(kind,key,label,layoutId=kind){
   if(!layoutEditing||!key)return '';
   return DmxCommon.slotVisualButtonHtml('data-show-edit-tile',kind+':'+key,'Edit '+label+' tile')+
-    `<button class="slot-del" data-show-delete-tile="${esc(kind+':'+key)}" title="Delete ${esc(label)}">×</button>`;
+    `<button class="slot-del" data-show-delete-tile="${esc(kind+':'+key)}" data-show-delete-layout="${esc(layoutId)}" title="Remove ${esc(label)} from this card">×</button>`;
 }
 function slotTitle(item,emptyLabel){
   if(!item)return `<span class="slot-name">${emptyLabel}</span>`;
@@ -1313,25 +1344,21 @@ function openShowTileEditor(kind,key){
     }
   });
 }
-function deleteShowTile(kind,key){
+function removeShowTilePlacement(kind,key,layoutId=kind){
   if(!['group','scene','palette'].includes(kind))return;
   const entry=itemForTileKey(kind,key);
   if(!entry)return;
   const name=entry.item?.name||kind;
-  if(!confirm('Delete '+kind+' tile "'+name+'"?'))return;
-  if(kind==='group'){
-    groups=groups.filter((_,index)=>index!==entry.index);
-    selectedGroupIds.delete(String(entry.key));
-  }else if(kind==='scene'){
-    scenes=scenes.filter((_,index)=>index!==entry.index);
-  }else if(kind==='palette'){
-    palettes=palettes.filter((_,index)=>index!==entry.index);
-  }
-  displayOrders[kind]=(displayOrders[kind]||[]).map(item=>String(item)===String(entry.key)?null:item);
-  saveDisplayOrder(kind);
-  saveTileKind(kind)
-    .then(()=>{renderKind(kind);setStatus('Deleted '+kind+' tile "'+name+'"');})
-    .catch(err=>setStatus(err.message,true));
+  reconcileDisplayOrder(kind,visibleTotal(kind),layoutId);
+  const order=cardOrderFor(kind,layoutId)||[];
+  const hidden=hiddenKeysFor(kind,layoutId);
+  hidden.add(String(entry.key));
+  saveHiddenKeys(kind,layoutId,hidden);
+  const next=order.map(item=>String(item)===String(entry.key)?null:item);
+  setCardOrderFor(kind,layoutId,next);
+  saveCardLayoutState(kind,layoutId);
+  renderKind(kind);
+  setStatus('Removed '+kind+' tile "'+name+'" from this card');
 }
 function liveControlTarget(item){
   const f=fixtures.find(fx=>String(fx.id)===String(item.fixtureId));
@@ -1563,7 +1590,7 @@ function renderGroupGrid(grid,layoutId='group',cols=groupCols,rows=groupRows){
   for(let i=0;i<total;i++){
     const entry=orderedEntryAt('group',i,layoutId);
     const g=entry?.item;
-    if(g)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot group-tile filled',selectedGroupIds.has(String(g.id))||(moveSelected.group===i&&moveSelectedLayout.group===layoutId))}" data-show-tile-index="${i}" data-group="${esc(g.id)}" style="${slotStyle(g)}">${tileActionButtons('group',entry.key,'group')}${slotVisual(g)}<span class="show-tile-content"><span class="slot-name">${esc(g.name||'Group')}</span><span class="slot-meta small">${(g.fixtureIds||[]).length} fixture(s)</span></span></div>`;
+    if(g)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot group-tile filled',selectedGroupIds.has(String(g.id))||(moveSelected.group===i&&moveSelectedLayout.group===layoutId))}" data-show-tile-index="${i}" data-group="${esc(g.id)}" style="${slotStyle(g)}">${tileActionButtons('group',entry.key,'group',layoutId)}${slotVisual(g)}<span class="show-tile-content"><span class="slot-name">${esc(g.name||'Group')}</span><span class="slot-meta small">${(g.fixtureIds||[]).length} fixture(s)</span></span></div>`;
     else html+=`<div class="slot group-tile empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
@@ -1589,7 +1616,7 @@ function renderSlots(gridRef,summaryRef,items,cols,rows,kind,layoutId=kind){
   for(let i=0;i<total;i++){
     const entry=orderedEntryAt(kind,i,layoutId);
     const item=entry?.item;
-    if(item)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected[kind]===i&&moveSelectedLayout[kind]===layoutId)}" data-show-tile-index="${i}" data-${kind}-key="${esc(entry.key)}" title="Recall ${kind} ${esc(item.name||String(i+1))}" style="${slotStyle(item)}">${tileActionButtons(kind,entry.key,kind)}${slotTitle(item,kind+' '+(i+1))}</div>`;
+    if(item)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected[kind]===i&&moveSelectedLayout[kind]===layoutId)}" data-show-tile-index="${i}" data-${kind}-key="${esc(entry.key)}" title="Recall ${kind} ${esc(item.name||String(i+1))}" style="${slotStyle(item)}">${tileActionButtons(kind,entry.key,kind,layoutId)}${slotTitle(item,kind+' '+(i+1))}</div>`;
     else html+=`<div class="slot empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
@@ -1606,7 +1633,7 @@ function bindShowTileActions(root){
   root.querySelectorAll('[data-show-delete-tile]').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();
     const [kind,key]=String(btn.dataset.showDeleteTile).split(':');
-    deleteShowTile(kind,key);
+    removeShowTilePlacement(kind,key,btn.dataset.showDeleteLayout||kind);
   }));
 }
 function renderScenes(){normalizeSceneGrid('cols');const grid=document.getElementById('sceneGrid');renderSlots(grid,'sceneSummary',scenes,sceneCols,sceneRows,'scene');bindSceneGridRecall(grid);renderRepeatedCards();}

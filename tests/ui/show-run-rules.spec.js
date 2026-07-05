@@ -897,11 +897,15 @@ test.describe('Show Run page', () => {
       visual: { type: 'visual', color: '#884422' }
     });
 
-    page.once('dialog', dialog => dialog.accept());
-    await page.locator('#paletteGrid .slot-del').click();
+    await page.locator('#paletteGrid [data-show-delete-tile]').click();
 
     await expect(page.locator('#paletteGrid')).not.toContainText('Warm Red');
-    expect(calls.paletteWrites.at(-1).palettes).toEqual([]);
+    expect(calls.paletteWrites).toHaveLength(1);
+    expect(calls.paletteWrites.at(-1).palettes[0]).toMatchObject({
+      name: 'Warm Red',
+      visual: { type: 'visual', color: '#884422' }
+    });
+    expect(calls.uiStatePosts.map(post => post.state?.paletteOrder).filter(Boolean).at(-1)[0]).toBeNull();
   });
 
   test('warns when saved palettes are hidden outside the visible Show Run matrix', async ({ page }) => {
@@ -1338,6 +1342,41 @@ test.describe('Show Run page', () => {
       .at(-1);
     expect(savedLayouts['palette:custom']).toMatchObject({ kind: 'palette', cols: 2, rows: 2 });
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('removes a palette tile only from the selected repeated card layout', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      paletteWrites: [],
+      showRunState: {
+        cardCols: 3,
+        cardRows: 3,
+        cardOrder: ['group', 'scene', 'palette', 'palette:custom', 'motion', 'live', null, null, null],
+        paletteCols: 1,
+        paletteRows: 1,
+        cardLayouts: {
+          'palette:custom': { kind: 'palette', cols: 1, rows: 1, order: ['palette_1'] }
+        }
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    const primaryPalette = page.locator('#cardPalette');
+    const repeatedPalette = page.locator('[data-show-card-key="palette:custom"]');
+    await expect(primaryPalette).toContainText('Red');
+    await expect(repeatedPalette).toContainText('Red');
+
+    await repeatedPalette.locator('[data-show-delete-tile]').click();
+
+    await expect(primaryPalette).toContainText('Red');
+    await expect(repeatedPalette).not.toContainText('Red');
+    expect(calls.paletteWrites).toHaveLength(0);
+    const savedLayouts = calls.uiStatePosts.map(post => post.state?.cardLayouts).filter(Boolean).at(-1);
+    expect(savedLayouts['palette:custom'].order[0]).toBeNull();
   });
 
   test('can add another card when the same card type is hidden outside the visible matrix', async ({ page }) => {
