@@ -805,4 +805,26 @@ test.describe('Show Run page', () => {
     expect(savedOrder.slice(0, 7)).toEqual(['group', 'scene', 'palette', 'chaser', null, 'live', 'motion']);
     expect(calls.setupWrites).toBe(0);
   });
+
+  test('lets the operator move the Live Controls card from its move handle', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardCols').fill('3');
+    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardMove').click();
+
+    await expect(page.locator('#cardLive .card-move-handle')).toBeVisible();
+    await page.locator('#cardLive .card-move-handle').click();
+    await page.locator('#cardGrid > :nth-child(8)').click({ position: { x: 16, y: 16 } });
+
+    await expect(page.locator('#cardGrid > :nth-child(6)')).toContainText('Card position 6');
+    await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 8)).toEqual(['group', 'scene', 'palette', 'chaser', 'motion', null, null, 'live']);
+    expect(calls.setupWrites).toBe(0);
+  });
 });
