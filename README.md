@@ -768,7 +768,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Page | File | Description |
 |------|------|-------------|
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
-| Show Run | `web/dmx_show.html` | Run a show from saved groups, scenes, palettes, and Pico chaser/effect playback slots without editing setup data |
+| Show Run | `web/dmx_show.html` | Run a show from saved groups, scenes, palettes, live fixture-control faders/knobs/buttons, and Pico chaser/effect playback slots without editing setup data |
 | Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Effects | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
@@ -880,6 +880,8 @@ The Pico Performance Test page checks the whole browser-to-Pico path. It reads `
 Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
 
 Show Run **Blackout Target** uses the Pico firmware blackout lock. The browser sends fixture-derived blackout channel values to `POST /dmx/blackout`; while the lock is active, normal DMX writes and Pico chaser/effect playback cannot overwrite those channels. `GET /dmx/blackout/clear` releases the lock, and `/status.json` reports the current `dmx.blackout_channels` count.
+
+Show Run also has a configurable **Live Controls** card. While **Edit Layout** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller.
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 

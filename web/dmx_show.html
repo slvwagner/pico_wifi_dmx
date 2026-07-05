@@ -80,6 +80,20 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .playback-card.empty{opacity:.55;align-content:end}
 .playback-card h3{margin:0;font-size:14px}
 .playback-actions{display:flex;gap:8px;flex-wrap:wrap}
+.live-control-toolbar{display:flex;gap:8px;align-items:end;justify-content:flex-end;flex-wrap:wrap}
+.live-control-toolbar select,.live-control-toolbar input{min-height:34px;padding:6px 7px;max-width:150px}
+.live-control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;align-items:stretch}
+.live-widget{position:relative;min-height:154px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:8px;align-content:space-between}
+.live-widget h3{font-size:14px;margin:0;line-height:1.2}
+.live-widget .small{min-height:16px}
+.live-widget-delete{position:absolute;top:6px;right:6px;min-height:28px;padding:2px 8px;display:none}
+body.layout-editing .live-widget-delete{display:inline-flex}
+.live-fader{display:grid;justify-items:center;gap:8px}
+.live-fader input[type=range]{writing-mode:vertical-lr;direction:rtl;width:34px;height:128px;padding:0}
+.live-knob{display:grid;justify-items:center;gap:8px}
+.knob-face{width:74px;height:74px;border-radius:50%;border:1px solid var(--line);background:conic-gradient(var(--accent) var(--knob-angle,0deg),#0a0d10 0);display:grid;place-items:center;color:var(--text);font-weight:700}
+.live-knob input[type=range]{width:92px;padding:0}
+.live-button-widget button{width:100%}
 .show-tile-content{position:relative;z-index:1;display:grid;align-content:end;gap:2px;width:100%;height:100%;min-width:0}
 .show-tile-actions{display:none}
 body.layout-editing .show-tile-actions{display:flex}
@@ -226,6 +240,26 @@ body.layout-editing .show-tile-actions{display:flex}
       <div class="small">Pico slots:</div>
       <div id="motionSlots" class="playback-grid"></div>
     </section>
+
+    <section class="panel" id="cardLive" data-show-card="live">
+      <div class="panel-head">
+        <div>
+          <h2>Live Controls</h2>
+          <div class="small">Operator faders, knobs, and buttons mapped directly to fixture controls.</div>
+        </div>
+        <div class="panel-tools">
+          <div class="live-control-toolbar layout-tools" aria-label="Live control setup">
+            <label>Fixture<select id="liveFixtureSelect"></select></label>
+            <label>Control<select id="liveControlSelect"></select></label>
+            <label>Part<select id="livePartSelect"></select></label>
+            <label>Widget<select id="liveWidgetSelect"><option value="fader">Fader</option><option value="knob">Knob</option><option value="button">Button</option></select></label>
+            <label id="liveButtonValueWrap">Button value<input id="liveButtonValue" type="number" min="0" max="65535" value="255"></label>
+            <button id="addLiveControl" type="button">Add Control</button>
+          </div>
+        </div>
+      </div>
+      <div id="liveControlGrid" class="live-control-grid"></div>
+    </section>
   </div>
 </main>
 
@@ -293,13 +327,14 @@ const selectedGroupIds=new Set();
 const layoutKey=name=>'dmxShowRun.'+name;
 const displayOrders={group:[],scene:[],palette:[],chaser:[],motion:[]};
 const moveSelected={group:null,scene:null,palette:null,chaser:null,motion:null};
-const cardIds=['group','scene','palette','chaser','motion'];
+const cardIds=['group','scene','palette','chaser','motion','live'];
 let cardOrder=[];
 let cardMoveMode=false;
 let cardMoveSelected=null;
 let layoutEditing=false;
 let hiddenTileModalDismissed=false;
 let blackoutActive=false;
+let liveControls=[];
 
 function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
@@ -330,6 +365,31 @@ function defaultValueForControl(c){
   if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
   if(c.type==='matrixRgb')return matrixDefaultValue(c);
   return 0;
+}
+function scalarControlParts(c){
+  if(c.type==='panTilt16')return[{part:'pan',label:'Pan',max:65535},{part:'tilt',label:'Tilt',max:65535}];
+  if(c.type==='panTilt8')return[{part:'pan',label:'Pan',max:255},{part:'tilt',label:'Tilt',max:255}];
+  if(c.type==='slider16')return[{part:'value',label:'Value',max:65535}];
+  if(c.type==='rgb'||c.type==='cmy')return[{part:'a',label:c.type==='cmy'?'Cyan':'Red',max:255},{part:'b',label:c.type==='cmy'?'Magenta':'Green',max:255},{part:'c',label:c.type==='cmy'?'Yellow':'Blue',max:255}];
+  if(c.type==='rgbw')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255}];
+  if(c.type==='rgbwa')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255},{part:'amber',label:'Amber',max:255}];
+  if(c.type==='cmyk')return[{part:'a',label:'Cyan',max:255},{part:'b',label:'Magenta',max:255},{part:'c',label:'Yellow',max:255},{part:'k',label:'Key',max:255}];
+  if(c.type==='matrixRgb')return[];
+  return[{part:'value',label:'Value',max:255}];
+}
+function getControlPartValue(f,c,part){
+  const value=getValue(f,c,defaultValueForControl(c));
+  if(part==='value')return clamp(Number(value)||0,0,c.type==='slider16'?65535:255);
+  return clamp(Number(value?.[part])||0,0,c.type==='panTilt16'?65535:255);
+}
+function setControlPartValue(f,c,part,next){
+  if(part==='value'){
+    setValue(f,c,clamp(next,0,c.type==='slider16'?65535:255));
+    return;
+  }
+  const value={...(getValue(f,c,defaultValueForControl(c))||{})};
+  value[part]=clamp(next,0,c.type==='panTilt16'?65535:255);
+  setValue(f,c,value);
 }
 function matrixWidth(c){return Math.max(1,Math.min(64,parseInt(c.width,10)||1));}
 function matrixHeight(c){return Math.max(1,Math.min(64,parseInt(c.height,10)||1));}
@@ -401,6 +461,13 @@ function saveCardLayout(){
   localStorage.setItem(layoutKey('cardCols'),cardCols);
   localStorage.setItem(layoutKey('cardRows'),cardRows);
   localStorage.setItem(layoutKey('cardOrder'),JSON.stringify(cardOrder));
+}
+function loadLiveControls(){
+  try{liveControls=JSON.parse(localStorage.getItem(layoutKey('liveControls'))||'[]')||[];}catch(_){liveControls=[];}
+  liveControls=liveControls.filter(item=>item&&item.fixtureId!=null&&item.controlId!=null&&item.part&&item.widget);
+}
+function saveLiveControls(){
+  localStorage.setItem(layoutKey('liveControls'),JSON.stringify(liveControls));
 }
 function reconcileCardOrder(){
   const total=Math.max(cardIds.length,cardCols*cardRows);
@@ -511,9 +578,9 @@ function setLayoutEditing(enabled){
     cardMoveMode=false;
     cardMoveSelected=null;
     Object.keys(moveSelected).forEach(kind=>{moveSelected[kind]=null;});
-    renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderCardGrid();
+    renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }else{
-    renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderCardGrid();
+    renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }
 }
 function itemSlotIndex(item,index){
@@ -749,6 +816,7 @@ function renderKind(kind){
   else if(kind==='palette')renderPalettes();
   else if(kind==='chaser')renderChaserPlayback();
   else if(kind==='motion')renderMotionPlayback();
+  else if(kind==='live')renderLiveControls();
 }
 function initMoveGrid(kind,gridId){
   const grid=document.getElementById(gridId);
@@ -908,6 +976,124 @@ function deleteShowTile(kind,key){
   saveTileKind(kind)
     .then(()=>{renderKind(kind);setStatus('Deleted '+kind+' tile "'+name+'"');})
     .catch(err=>setStatus(err.message,true));
+}
+function liveControlTarget(item){
+  const f=fixtures.find(fx=>String(fx.id)===String(item.fixtureId));
+  const p=f&&fixtureProfile(f);
+  const c=p&&p.controls.find(ctrl=>String(ctrl.id)===String(item.controlId));
+  const part=scalarControlParts(c||{}).find(row=>row.part===item.part);
+  return f&&c&&part?{fixture:f,control:c,part}:null;
+}
+function liveControlLabel(item,target){
+  if(item.label)return item.label;
+  if(!target)return 'Missing control';
+  return target.fixture.name+' - '+target.control.label+(target.part.label==='Value'?'':' '+target.part.label);
+}
+function updateLiveControlSelects(){
+  const fixtureSelect=document.getElementById('liveFixtureSelect');
+  const controlSelect=document.getElementById('liveControlSelect');
+  const partSelect=document.getElementById('livePartSelect');
+  const widgetSelect=document.getElementById('liveWidgetSelect');
+  const valueWrap=document.getElementById('liveButtonValueWrap');
+  const buttonValue=document.getElementById('liveButtonValue');
+  if(!fixtureSelect||!controlSelect||!partSelect)return;
+  const currentFixture=fixtureSelect.value||String(fixtures[0]?.id||'');
+  fixtureSelect.innerHTML=fixtures.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
+  fixtureSelect.value=fixtures.some(f=>String(f.id)===String(currentFixture))?currentFixture:String(fixtures[0]?.id||'');
+  const f=fixtures.find(item=>String(item.id)===String(fixtureSelect.value));
+  const controls=(fixtureProfile(f)?.controls||[]).filter(c=>scalarControlParts(c).length);
+  const currentControl=controlSelect.value||String(controls[0]?.id||'');
+  controlSelect.innerHTML=controls.map(c=>`<option value="${esc(c.id)}">${esc(c.label||c.type)}</option>`).join('');
+  controlSelect.value=controls.some(c=>String(c.id)===String(currentControl))?currentControl:String(controls[0]?.id||'');
+  const c=controls.find(item=>String(item.id)===String(controlSelect.value));
+  const parts=scalarControlParts(c||{});
+  const currentPart=partSelect.value||String(parts[0]?.part||'value');
+  partSelect.innerHTML=parts.map(part=>`<option value="${esc(part.part)}">${esc(part.label)}</option>`).join('');
+  partSelect.value=parts.some(part=>part.part===currentPart)?currentPart:String(parts[0]?.part||'value');
+  const selectedPart=parts.find(part=>part.part===partSelect.value);
+  if(buttonValue&&selectedPart){buttonValue.max=selectedPart.max;buttonValue.value=clamp(buttonValue.value||selectedPart.max,0,selectedPart.max);}
+  if(valueWrap&&widgetSelect)valueWrap.style.display=widgetSelect.value==='button'?'grid':'none';
+}
+function addLiveControl(){
+  const f=fixtures.find(item=>String(item.id)===String(document.getElementById('liveFixtureSelect')?.value));
+  const c=f&&fixtureProfile(f)?.controls.find(item=>String(item.id)===String(document.getElementById('liveControlSelect')?.value));
+  const part=scalarControlParts(c||{}).find(item=>item.part===document.getElementById('livePartSelect')?.value);
+  if(!f||!c||!part){setStatus('Choose a fixture control to add',true);return;}
+  const widget=document.getElementById('liveWidgetSelect')?.value||'fader';
+  const buttonValue=clamp(document.getElementById('liveButtonValue')?.value||part.max,0,part.max);
+  liveControls.push({id:'live_'+Date.now(),fixtureId:f.id,controlId:c.id,part:part.part,widget,label:'',buttonValue});
+  saveLiveControls();
+  renderLiveControls();
+  setStatus('Added live '+widget+' for '+f.name+' '+c.label);
+}
+async function applyLiveControl(item,next){
+  const target=liveControlTarget(item);
+  if(!target){setStatus('Live control target is missing',true);return;}
+  if(blackoutActive)await clearPicoBlackout(true);
+  const value=clamp(next,0,target.part.max);
+  setControlPartValue(target.fixture,target.control,target.part.part,value);
+  const patch={[controlKey(target.fixture,target.control)]:cloneValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)))};
+  try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
+  await sendPairs(valuePatchPairs(patch));
+  setStatus(liveControlLabel(item,target)+' set to '+value);
+}
+function updateLiveWidgetReadout(input){
+  const widget=input.closest('.live-widget');
+  if(!widget)return;
+  const max=Math.max(1,parseInt(input.max,10)||255);
+  const value=clamp(input.value,0,max);
+  const knob=widget.querySelector('.knob-face');
+  if(knob){
+    knob.textContent=String(value);
+    knob.style.setProperty('--knob-angle',Math.round((value/max)*360)+'deg');
+  }
+  const small=widget.querySelector('.small');
+  if(small&&small.textContent.includes(' · '))small.textContent=small.textContent.replace(/ · \d+$/, ' · '+value);
+}
+function liveWidgetHtml(item,index,target){
+  if(!target)return `<div class="live-widget"><button class="live-widget-delete" data-live-delete="${index}">×</button><h3>${esc(item.label||'Missing control')}</h3><div class="small">Fixture or control no longer exists.</div></div>`;
+  const value=getControlPartValue(target.fixture,target.control,target.part.part);
+  const label=liveControlLabel(item,target);
+  const meta=target.control.type+' · '+target.part.label;
+  const common=`min="0" max="${target.part.max}" step="1" value="${value}" data-live-index="${index}"`;
+  const del=`<button class="live-widget-delete" data-live-delete="${index}" title="Remove live control">×</button>`;
+  if(item.widget==='button'){
+    const buttonValue=clamp(item.buttonValue??target.part.max,0,target.part.max);
+    return `<div class="live-widget live-button-widget">${del}<h3>${esc(label)}</h3><div class="small">${esc(meta)} · ${buttonValue}</div><button class="primary" data-live-button="${index}">Apply</button></div>`;
+  }
+  if(item.widget==='knob'){
+    const angle=Math.round((value/target.part.max)*360);
+    return `<div class="live-widget live-knob">${del}<h3>${esc(label)}</h3><div class="knob-face" style="--knob-angle:${angle}deg">${value}</div><input type="range" ${common}></div>`;
+  }
+  return `<div class="live-widget live-fader">${del}<h3>${esc(label)}</h3><input type="range" ${common}><div class="small">${esc(meta)} · ${value}</div></div>`;
+}
+function renderLiveControls(){
+  updateLiveControlSelects();
+  const grid=document.getElementById('liveControlGrid');
+  if(!grid)return;
+  if(!liveControls.length){
+    grid.innerHTML='<div class="small">Use Edit Layout to add faders, knobs, or buttons for fixture controls.</div>';
+    return;
+  }
+  grid.innerHTML=liveControls.map((item,index)=>liveWidgetHtml(item,index,liveControlTarget(item))).join('');
+  grid.querySelectorAll('[data-live-index]').forEach(input=>{
+    input.addEventListener('input',()=>{
+      updateLiveWidgetReadout(input);
+      applyLiveControl(liveControls[parseInt(input.dataset.liveIndex,10)],input.value).catch(err=>setStatus(err.message,true));
+    });
+  });
+  grid.querySelectorAll('[data-live-button]').forEach(button=>{
+    button.addEventListener('click',()=>{const item=liveControls[parseInt(button.dataset.liveButton,10)];applyLiveControl(item,item.buttonValue).catch(err=>setStatus(err.message,true));});
+  });
+  grid.querySelectorAll('[data-live-delete]').forEach(button=>{
+    button.addEventListener('click',e=>{
+      e.stopPropagation();
+      liveControls.splice(parseInt(button.dataset.liveDelete,10),1);
+      saveLiveControls();
+      renderLiveControls();
+      setStatus('Removed live control');
+    });
+  });
 }
 function renderGroups(){
   normalizeGroupGrid('cols');
@@ -1349,13 +1535,14 @@ async function loadShow(){
   sceneCols=sceneData.slotCols||4;sceneRows=sceneData.slotRows||4;
   paletteCols=paletteData.paletteCols||4;paletteRows=paletteData.paletteRows||4;
   applySavedLayout();
+  loadLiveControls();
   const savedUrl=localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
   if(savedUrl)baseUrlEl.value=savedUrl;
   const liveChaserSlots=await loadLivePicoChaserSlots(savedUrl||baseUrlEl.value);
   const liveMotionSlots=await loadLivePicoMotionSlots(savedUrl||baseUrlEl.value);
   chaserSlots=mergePicoChaserSlots(Array.isArray(chaserData.pico_slots)?chaserData.pico_slots:[],liveChaserSlots);
   motionSlots=mergePicoMotionSlots(Array.isArray(motionData.pico_slots)?motionData.pico_slots:[],liveMotionSlots);
-  renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderCardGrid();
+  renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
   setStatus('Show loaded: '+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)');
@@ -1378,6 +1565,11 @@ document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonF
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('cardMove').onclick=()=>toggleCardMove();
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
+document.getElementById('liveFixtureSelect').onchange=updateLiveControlSelects;
+document.getElementById('liveControlSelect').onchange=updateLiveControlSelects;
+document.getElementById('livePartSelect').onchange=updateLiveControlSelects;
+document.getElementById('liveWidgetSelect').onchange=updateLiveControlSelects;
+document.getElementById('addLiveControl').onclick=addLiveControl;
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 bindCardInputs();

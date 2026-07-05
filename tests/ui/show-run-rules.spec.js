@@ -352,6 +352,31 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#motionControlRestore')).toHaveCount(0);
   });
 
+  test('lets the operator add a live fader and send direct fixture DMX from Show Run', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('#cardLive')).toBeVisible();
+    await page.locator('#liveFixtureSelect').selectOption('101');
+    await page.locator('#liveControlSelect').selectOption('11');
+    await page.locator('#liveWidgetSelect').selectOption('fader');
+    await page.locator('#addLiveControl').click();
+
+    await expect(page.locator('#liveControlGrid .live-widget')).toHaveCount(1);
+    await expect(page.locator('#liveControlGrid')).toContainText('Spot 1 - Dimmer');
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.liveControls') || '[]').length))
+      .toBe(1);
+
+    await page.locator('#liveControlGrid input[type="range"]').fill('77');
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.method === 'POST' && call.body.includes('1:77')))
+      .toBe(true);
+    await expect.poll(() => calls.liveValues.some(snapshot => snapshot['101:11'] === 77))
+      .toBe(true);
+  });
+
   test('lets the operator adjust tile matrix layouts without saving setup data', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);

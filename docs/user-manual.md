@@ -476,6 +476,12 @@ If saved groups, scenes, palettes, or loaded Pico playback slots are outside the
 
 While **Edit Layout** is active, saved group, scene, and palette tiles also show the small pencil and delete actions. The pencil opens **Edit Tile**, where the tile name, background color, uploaded icon, or drawn icon can be changed with the same visual editor used on the setup pages. The delete action removes the saved group, scene, or palette from the matching XAMPP setup file. Pico chaser/effect playback tiles are not deleted from this modal; they represent Pico playback slots and are controlled with the playback buttons.
 
+### Live Controls
+
+The **Live Controls** card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click **Edit Layout**, choose a patched fixture, control, control part, and widget type, then click **Add Control**. Faders and knobs send their value while they are moved. Button widgets send the configured button value when clicked. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.
+
+Live Control card configuration is stored with the browser's Show Run layout preferences. Use the small `x` on a live widget while **Edit Layout** is active to remove it from the operator page.
+
 ### Scenes And Palettes
 
 Click a scene tile to recall that scene. Click a palette tile to recall that palette. Show Run writes the recalled values to the live-value snapshot and sends the matching DMX channels to the Pico in one `/dmx/b` batch when a Pico base URL is set.
