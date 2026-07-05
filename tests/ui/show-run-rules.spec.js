@@ -754,12 +754,12 @@ test.describe('Show Run page', () => {
     await page.locator('#cardScene').click({ position: { x: 16, y: 16 } });
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
-    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Show Target');
-    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Pico Effects Playback');
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Show Target');
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('moving a show card inserts it into the target matrix spot without swapping rows', async ({ page }) => {
+  test('moving a show card to an occupied matrix spot swaps only those two cards', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
@@ -774,11 +774,35 @@ test.describe('Show Run page', () => {
     await page.locator('#cardGroup').click({ position: { x: 16, y: 16 } });
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
-    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Show Target');
-    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Scenes');
-    await expect(page.locator('#cardGrid > :nth-child(4) h2')).toHaveText('Palettes');
+    await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Palettes');
+    await expect(page.locator('#cardGrid > :nth-child(4) h2')).toHaveText('Show Target');
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 4)).toEqual(['chaser', 'group', 'scene', 'palette']);
+    expect(savedOrder.slice(0, 4)).toEqual(['chaser', 'scene', 'palette', 'group']);
+  });
+
+  test('moving a show card to an empty matrix spot does not shift other cards', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardCols').fill('3');
+    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardMove').click();
+
+    // Position 5 contains Pico Effects Playback, position 6 contains Live Controls,
+    // and position 7 is empty in the default 3x3 card matrix.
+    await page.locator('#cardMotion').click({ position: { x: 16, y: 16 } });
+    await page.locator('#cardGrid > :nth-child(7)').click({ position: { x: 16, y: 16 } });
+
+    await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Card position 5');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(7) h2')).toHaveText('Pico Effects Playback');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 7)).toEqual(['group', 'scene', 'palette', 'chaser', null, 'live', 'motion']);
+    expect(calls.setupWrites).toBe(0);
   });
 });
