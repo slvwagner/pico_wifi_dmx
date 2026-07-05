@@ -368,7 +368,7 @@ const displayOrders={group:[],scene:[],palette:[],chaser:[],motion:[]};
 const moveSelected={group:null,scene:null,palette:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','chaser','motion','live'];
 const cardLabels={group:'Show Target',scene:'Scenes',palette:'Palettes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls'};
-const singletonCardIds=cardIds.filter(id=>id!=='live');
+const repeatableCardIds=cardIds.slice();
 let cardOrder=[];
 let cardMoveMode=false;
 let layoutEditing=false;
@@ -523,18 +523,21 @@ function cardType(entry){
   return String(entry).split(':')[0];
 }
 function cardKey(type,id=''){
-  return type==='live'&&id&&id!=='live'?'live:'+id:type;
+  return repeatableCardIds.includes(type)&&id&&id!==type?type+':'+id:type;
 }
 function liveCardId(entry){
   const text=String(entry||'live');
   return text.startsWith('live:')?text.slice(5):'live';
 }
-function uniqueLiveCardKey(seed=''){
-  const base='live_'+(seed||Date.now());
+function uniqueCardKey(type,seed=''){
+  const base=type+'_'+(seed||Date.now());
   let id=base, n=1;
   const used=new Set(cardOrder.map(entry=>String(entry)));
-  while(used.has(cardKey('live',id)))id=base+'_'+(n++);
-  return cardKey('live',id);
+  while(used.has(cardKey(type,id)))id=base+'_'+(n++);
+  return cardKey(type,id);
+}
+function uniqueLiveCardKey(seed=''){
+  return uniqueCardKey('live',seed);
 }
 function addCardButtonLabel(type){
   return type==='live'?'Add Live Controls':'Add '+(cardLabels[type]||'Card')+' Card';
@@ -557,33 +560,28 @@ function reconcileCardOrder(){
   const total=Math.max(cardIds.length,cardCols*cardRows,source.length);
   const shouldInsertDefaults=!source.length;
   const next=[];
-  const usedSingletons=new Set();
-  const usedLiveKeys=new Set();
+  const usedRepeatKeys=new Set();
   source.slice(0,total).forEach(key=>{
     if(key===null||key===undefined||key===''){next.push(null);return;}
     const type=cardType(key);
     if(!cardIds.includes(type)){next.push(null);return;}
-    if(type==='live'){
+    if(repeatableCardIds.includes(type)){
       let normalized=String(key);
-      if(normalized==='live'&&usedLiveKeys.has('live'))normalized=uniqueLiveCardKey('legacy_'+next.length);
-      if(usedLiveKeys.has(normalized)){next.push(null);return;}
-      usedLiveKeys.add(normalized);
+      if(normalized===type&&usedRepeatKeys.has(type))normalized=uniqueCardKey(type,'legacy_'+next.length);
+      if(usedRepeatKeys.has(normalized)){next.push(null);return;}
+      usedRepeatKeys.add(normalized);
       next.push(normalized);
       return;
     }
-    if(usedSingletons.has(type)){next.push(null);return;}
-    usedSingletons.add(type);
-    next.push(type);
   });
   while(next.length<total)next.push(null);
   if(shouldInsertDefaults){
-    singletonCardIds.concat(['live']).forEach(id=>{
-      if(id==='live'&&usedLiveKeys.has('live'))return;
-      if(id!=='live'&&usedSingletons.has(id))return;
+    cardIds.forEach(id=>{
+      if(repeatableCardIds.includes(id)&&usedRepeatKeys.has(id))return;
       const emptyIndex=next.indexOf(null);
       if(emptyIndex>=0)next[emptyIndex]=id;
       else next.push(id);
-      if(id==='live')usedLiveKeys.add('live');else usedSingletons.add(id);
+      usedRepeatKeys.add(id);
     });
   }
   while(next.length<total)next.push(null);
@@ -645,9 +643,26 @@ function createLiveCard(entry){
   <div ${primary?'id="liveControlGrid"':''} class="live-control-grid"></div>`;
   return node;
 }
+function cloneRepeatCard(entry){
+  const type=cardType(entry);
+  const original=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
+  if(!original)return null;
+  const node=original.cloneNode(true);
+  node.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+  node.removeAttribute('id');
+  node.dataset.showCard=type;
+  node.dataset.repeatCard='true';
+  node.dataset.showCardKey=String(entry);
+  const summary=node.querySelector('.panel-tools > .small');
+  if(summary)summary.dataset.repeatSummary=type;
+  const grid=node.querySelector('.grid');
+  if(grid)grid.dataset.repeatGrid=type;
+  return node;
+}
 function cardNodeFor(entry){
   const type=cardType(entry);
   if(type==='live')return createLiveCard(entry);
+  if(entry!==type&&repeatableCardIds.includes(type))return cloneRepeatCard(entry);
   return document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
 }
 function ensureCardDeleteButton(node){
@@ -684,18 +699,13 @@ function addShowCard(){
   if(!cardIds.includes(type))return;
   const visibleCardCount=Math.max(1,cardCols*cardRows);
   const visibleTypes=new Set(cardOrder.slice(0,visibleCardCount).map(cardType).filter(Boolean));
-  if(type!=='live'&&visibleTypes.has(type)){setStatus((cardLabels[type]||type)+' is already visible on the page',true);return;}
-  const entry=type==='live'?uniqueLiveCardKey():type;
+  const entry=repeatableCardIds.includes(type)&&visibleTypes.has(type)?uniqueCardKey(type):type;
   let index=Number.isFinite(addCardTargetIndex)&&cardOrder[addCardTargetIndex]==null?addCardTargetIndex:cardOrder.indexOf(null);
   if(index<0){
     cardOrder.push(entry);
     index=cardOrder.length-1;
     normalizeCardGrid('rows');
   }else{
-    if(type!=='live'){
-      const existingIndex=cardOrder.findIndex(existing=>cardType(existing)===type);
-      if(existingIndex>=0)cardOrder[existingIndex]=null;
-    }
     cardOrder[index]=entry;
   }
   saveCardLayout();
@@ -707,10 +717,7 @@ function updateAddCardOptions(){
   const select=document.getElementById('addCardType');
   if(!select)return;
   const preferred=select.value||'live';
-  const visibleCardCount=Math.max(1,cardCols*cardRows);
-  const visibleTypes=new Set(cardOrder.slice(0,visibleCardCount).map(cardType).filter(type=>type&&type!=='live'));
-  const addable=cardIds.filter(type=>type==='live'||!visibleTypes.has(type));
-  select.innerHTML=addable.map(type=>`<option value="${esc(type)}">${esc(cardLabels[type]||type)}</option>`).join('');
+  select.innerHTML=cardIds.map(type=>`<option value="${esc(type)}">${esc(cardLabels[type]||type)}</option>`).join('');
   select.value=preferred;
   if(!select.value)select.value='live';
   const button=document.getElementById('addShowCard');
@@ -727,6 +734,40 @@ function closeAddCardModal(){
   DmxCommon.hideModal('addCardModal');
   addCardTargetIndex=null;
 }
+function bindSceneGridRecall(grid){
+  grid.querySelectorAll('[data-scene-key]').forEach(btn=>btn.addEventListener('click',()=>{
+    const idx=parseInt(btn.dataset.showTileIndex,10);
+    if(tileMoveClick('scene',idx))return;
+    recallSceneKey(btn.dataset.sceneKey);
+  }));
+}
+function bindPaletteGridRecall(grid){
+  grid.querySelectorAll('[data-palette-key]').forEach(btn=>btn.addEventListener('click',()=>{
+    const idx=parseInt(btn.dataset.showTileIndex,10);
+    if(tileMoveClick('palette',idx))return;
+    recallPaletteKey(btn.dataset.paletteKey);
+  }));
+}
+function renderRepeatedCards(){
+  document.querySelectorAll('[data-repeat-card="true"]').forEach(card=>{
+    const type=cardType(card.dataset.showCardKey||card.dataset.showCard);
+    const grid=card.querySelector('[data-repeat-grid]');
+    const summary=card.querySelector('[data-repeat-summary]');
+    if(type==='group'){
+      renderGroupGrid(grid);
+    }else if(type==='scene'){
+      renderSlots(grid,summary,scenes,sceneCols,sceneRows,'scene');
+      bindSceneGridRecall(grid);
+    }else if(type==='palette'){
+      renderSlots(grid,summary,palettes,paletteCols,paletteRows,'palette');
+      bindPaletteGridRecall(grid);
+    }else if(type==='chaser'){
+      renderPlayback(grid,chaserSlots,'chaser');
+    }else if(type==='motion'){
+      renderPlayback(grid,motionSlots,'motion');
+    }
+  });
+}
 function renderCardGrid(){
   normalizeCardGrid('cols');
   reconcileCardOrder();
@@ -736,7 +777,8 @@ function renderCardGrid(){
   grid.classList.toggle('card-move-mode',cardMoveMode);
   grid.querySelectorAll('.card-empty').forEach(el=>el.remove());
   grid.querySelectorAll('.live-card').forEach(el=>el.remove());
-  singletonCardIds.forEach(type=>{
+  repeatableCardIds.filter(type=>type!=='live').forEach(type=>grid.querySelectorAll(`[data-show-card="${type}"][data-repeat-card="true"]`).forEach(el=>el.remove()));
+  cardIds.filter(type=>type!=='live').forEach(type=>{
     const node=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
     if(node)hiddenCardBin.appendChild(node);
   });
@@ -781,6 +823,7 @@ function renderCardGrid(){
     onMove:(from,to)=>moveCard(from,to)
   });
   saveCardLayout();
+  renderRepeatedCards();
   renderLiveControls();
 }
 function setLayoutEditing(enabled){
@@ -1040,8 +1083,9 @@ function renderKind(kind){
   else if(kind==='motion')renderMotionPlayback();
   else if(kind==='live')renderLiveControls();
 }
-function initMoveGrid(kind,gridId){
-  const grid=document.getElementById(gridId);
+function initMoveGrid(kind,gridRef){
+  const grid=typeof gridRef==='string'?document.getElementById(gridRef):gridRef;
+  if(!grid)return;
   DmxCommon.initTileMoveGrid({
     grid,
     active:layoutEditing,
@@ -1416,6 +1460,11 @@ function renderGroups(){
   normalizeGroupGrid('cols');
   targetSummary();
   const grid=document.getElementById('groupGrid');
+  renderGroupGrid(grid);
+  renderRepeatedCards();
+}
+function renderGroupGrid(grid){
+  if(!grid)return;
   grid.style.gridTemplateColumns='repeat('+groupCols+',minmax(0,1fr))';
   if(!groups.length){grid.innerHTML='<div class="small">No saved groups yet. Create groups on the Controller page first.</div>';return;}
   const total=groupCols*groupRows;
@@ -1436,14 +1485,16 @@ function renderGroups(){
   }));
   grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick('group',parseInt(el.dataset.showTileIndex,10))));
   bindShowTileActions(grid);
-  initMoveGrid('group','groupGrid');
+  initMoveGrid('group',grid);
 }
-function renderSlots(gridId,summaryId,items,cols,rows,kind){
-  const grid=document.getElementById(gridId);
+function renderSlots(gridRef,summaryRef,items,cols,rows,kind){
+  const grid=typeof gridRef==='string'?document.getElementById(gridRef):gridRef;
+  const summary=typeof summaryRef==='string'?document.getElementById(summaryRef):summaryRef;
+  if(!grid)return;
   const total=Math.max(1,(parseInt(cols,10)||4)*(parseInt(rows,10)||4));
   reconcileDisplayOrder(kind,total);
   grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
-  document.getElementById(summaryId).textContent=items.length+' saved';
+  if(summary)summary.textContent=items.length+' saved';
   let html='';
   for(let i=0;i<total;i++){
     const entry=orderedEntryAt(kind,i);
@@ -1454,7 +1505,7 @@ function renderSlots(gridId,summaryId,items,cols,rows,kind){
   grid.innerHTML=html;
   grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick(kind,parseInt(el.dataset.showTileIndex,10))));
   bindShowTileActions(grid);
-  initMoveGrid(kind,gridId);
+  initMoveGrid(kind,grid);
 }
 function bindShowTileActions(root){
   root.querySelectorAll('[data-show-edit-tile]').forEach(btn=>btn.addEventListener('click',e=>{
@@ -1468,8 +1519,8 @@ function bindShowTileActions(root){
     deleteShowTile(kind,key);
   }));
 }
-function renderScenes(){normalizeSceneGrid('cols');renderSlots('sceneGrid','sceneSummary',scenes,sceneCols,sceneRows,'scene');document.querySelectorAll('[data-scene-key]').forEach(btn=>btn.addEventListener('click',()=>{const idx=parseInt(btn.dataset.showTileIndex,10);if(tileMoveClick('scene',idx))return;recallSceneKey(btn.dataset.sceneKey);}));}
-function renderPalettes(){normalizePaletteGrid('cols');renderSlots('paletteGrid','paletteSummary',palettes,paletteCols,paletteRows,'palette');document.querySelectorAll('[data-palette-key]').forEach(btn=>btn.addEventListener('click',()=>{const idx=parseInt(btn.dataset.showTileIndex,10);if(tileMoveClick('palette',idx))return;recallPaletteKey(btn.dataset.paletteKey);}));}
+function renderScenes(){normalizeSceneGrid('cols');const grid=document.getElementById('sceneGrid');renderSlots(grid,'sceneSummary',scenes,sceneCols,sceneRows,'scene');bindSceneGridRecall(grid);renderRepeatedCards();}
+function renderPalettes(){normalizePaletteGrid('cols');const grid=document.getElementById('paletteGrid');renderSlots(grid,'paletteSummary',palettes,paletteCols,paletteRows,'palette');bindPaletteGridRecall(grid);renderRepeatedCards();}
 function slotPayloadLabel(payload,index,prefix){
   if(!payload)return '';
   try{
@@ -1613,8 +1664,9 @@ function drawChaserPlayback(){
 function drawMotionPlayback(){
   renderPlayback('motionSlots',motionSlots,'motion');
 }
-function renderPlayback(containerId,slots,type){
-  const container=document.getElementById(containerId);
+function renderPlayback(containerRef,slots,type){
+  const container=typeof containerRef==='string'?document.getElementById(containerRef):containerRef;
+  if(!container)return;
   const cols=type==='chaser'?chaserCols:motionCols;
   const rows=type==='chaser'?chaserRows:motionRows;
   const total=Math.max(1,cols*rows);
@@ -1649,7 +1701,7 @@ function renderPlayback(containerId,slots,type){
     if(type==='motion'&&el.dataset.motionSelect!==undefined){selectMotionSlot(el.dataset.motionSelect);if(!layoutEditing){renderMotionPlayback();return;}}
     tileMoveClick(type,parseInt(el.dataset.showTileIndex,10));
   }));
-  initMoveGrid(type,containerId);
+  initMoveGrid(type,container);
 }
 async function applyValuePatch(source,label){
   if(blackoutActive)await clearPicoBlackout(true);

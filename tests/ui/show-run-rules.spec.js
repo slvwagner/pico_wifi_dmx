@@ -1063,7 +1063,7 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('can remove a singleton card and add it back once', async ({ page }) => {
+  test('can remove a card and add it back', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
@@ -1077,13 +1077,13 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#addCardModal')).toBeVisible();
     await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
-    expect(addOptions.sort()).toEqual(['Live Controls', 'Scenes'].sort());
+    expect(addOptions.sort()).toEqual(['Live Controls', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Show Target'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
     await expect(page.locator('#cardGrid #cardScene')).toHaveCount(1);
     await expect(page.locator('#status')).toHaveText('Added Scenes at position 2');
-    await expect(page.locator('#addCardType option[value="scene"]')).toHaveCount(0);
+    await expect(page.locator('#addCardType option[value="scene"]')).toHaveCount(1);
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder.filter(entry => entry === 'scene')).toHaveLength(1);
@@ -1091,7 +1091,38 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('can bring hidden singleton cards back into a visible empty card slot', async ({ page }) => {
+  test('can add a second Palettes card', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: {
+        cardCols: 3,
+        cardRows: 3,
+        cardOrder: ['group', 'scene', 'palette', 'chaser', 'motion', 'live', null, null, null]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('[data-add-card-position="6"]').click();
+    await expect(page.locator('#addCardModal')).toBeVisible();
+    await expect(page.locator('#addCardType option[value="palette"]')).toHaveCount(1);
+    await page.locator('#addCardType').selectOption('palette');
+    await expect(page.locator('#addShowCard')).toHaveText('Add Palettes Card');
+    await page.locator('#addShowCard').click();
+
+    await expect(page.locator('[data-show-card="palette"]')).toHaveCount(2);
+    await expect(page.locator('[data-show-card="palette"]').nth(1)).toContainText('Red');
+    await expect(page.locator('#status')).toHaveText('Added Palettes at position 7');
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.filter(entry => String(entry || '').startsWith('palette'))).toHaveLength(2);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.cardOrder)).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('can add another card when the same card type is hidden outside the visible matrix', async ({ page }) => {
     const calls = {
       pico: [],
       liveValues: [],
@@ -1110,7 +1141,7 @@ test.describe('Show Run page', () => {
     await page.locator('[data-add-card-position="2"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
-    expect(addOptions).toEqual(['Live Controls', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes'].sort());
+    expect(addOptions).toEqual(['Live Controls', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Show Target'].sort());
 
     await page.locator('#addCardType').selectOption('palette');
     await page.locator('#addShowCard').click();
@@ -1118,7 +1149,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Palettes');
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder[2]).toBe('palette');
-    expect(savedOrder.filter(entry => entry === 'palette')).toHaveLength(1);
+    expect(savedOrder.filter(entry => String(entry || '').startsWith('palette'))).toHaveLength(2);
     expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.cardOrder)).toBe(true);
   });
 
