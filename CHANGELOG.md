@@ -76,6 +76,7 @@ Fixed:
 - Fixed repeated Show Run cards so each card instance keeps its own tile layout, including independent Cols/Rows and tile order saved in server-side UI state.
 - Fixed Show Run playback tile moves in repeated Pico Chaser and Pico Effects cards by rendering cloned playback grids as active repeat grids and keeping tile move selection tied to the card instance.
 - Changed Show Run tile `x` actions to remove only the tile assignment from that card layout instead of deleting the saved group, scene, or palette from the show setup.
+- Added Show Run auto-refresh when the page becomes active again, renamed the manual reload action to **Refresh Show Data**, and skipped auto-refresh while **Edit Layout** is active.
 - Preserved rich Open Fixture Library wheel metadata when updating an existing fixture library profile from an edited controller profile, so adjustable ranges such as `WheelShake` and `WheelRotation` are not downgraded to plain wheel values.
 - Fixed PicoSpot-style shutter/strobe wheel ranges by adding `ShutterStrobe` metadata handling, so an imported or edited strobe range such as `11..255` renders as a bounded **Strobe speed** control instead of a generic wheel value.
 

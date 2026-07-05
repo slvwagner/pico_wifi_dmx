@@ -138,7 +138,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
   </div>
   </div>
   <div class="header-actions" aria-label="Show actions">
-    <button id="reloadBtn">Reload Show</button>
+    <button id="reloadBtn">Refresh Show Data</button>
     <button id="stopAllBtn" class="stop">Stop All Playback</button>
     <button id="blackoutBtn" class="warn">Blackout Target</button>
     <button id="clearFilterBtn">Show All Fixtures</button>
@@ -378,6 +378,9 @@ let hiddenTileModalDismissed=false;
 let blackoutActive=false;
 let liveControls=[];
 let addCardTargetIndex=null;
+let showLoadPromise=null;
+let lastShowLoadAt=0;
+let autoShowRefreshTimer=null;
 const liveButtonHeld=new Map();
 const liveTimerState=new Map();
 const hiddenCardBin=document.createElement('div');
@@ -2049,8 +2052,9 @@ async function loadLivePicoMotionSlots(root){
     return [];
   }
 }
-async function loadShow(){
-  setStatus('Loading show...');
+async function loadShow(options={}){
+  const isAuto=options.reason==='auto';
+  if(!isAuto)setStatus('Loading show...');
   setBlackoutActive(false);
   hiddenTileModalDismissed=false;
   const [fixtureData,groupData,sceneData,paletteData,chaserData,motionData,liveData,serverShowUiState]=await Promise.all([
@@ -2086,10 +2090,32 @@ async function loadShow(){
   renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
-  setStatus('Show loaded: '+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)');
+  setStatus((isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)');
   reviewHiddenTiles(true);
 }
-document.getElementById('reloadBtn').onclick=()=>DmxCommon.withButtonFeedback('reloadBtn',{busy:'Loading...',success:'Loaded',error:'Failed'},loadShow).catch(err=>setStatus(err.message,true));
+function refreshShowData(options={}){
+  if(showLoadPromise)return showLoadPromise;
+  showLoadPromise=loadShow(options).finally(()=>{
+    lastShowLoadAt=Date.now();
+    showLoadPromise=null;
+  });
+  return showLoadPromise;
+}
+function scheduleAutoShowRefresh(){
+  if(layoutEditing)return;
+  if(document.visibilityState&&document.visibilityState!=='visible')return;
+  if(Date.now()-lastShowLoadAt<600)return;
+  clearTimeout(autoShowRefreshTimer);
+  autoShowRefreshTimer=setTimeout(()=>{
+    if(layoutEditing)return;
+    refreshShowData({reason:'auto'}).catch(err=>setStatus(err.message,true));
+  },250);
+}
+window.addEventListener('focus',scheduleAutoShowRefresh);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')scheduleAutoShowRefresh();
+});
+document.getElementById('reloadBtn').onclick=()=>DmxCommon.withButtonFeedback('reloadBtn',{busy:'Refreshing...',success:'Refreshed',error:'Failed'},()=>refreshShowData({reason:'manual'})).catch(err=>setStatus(err.message,true));
 document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();renderGroups();setStatus('Show target reset to all fixtures');};
 document.getElementById('blackoutBtn').onclick=()=>DmxCommon.withButtonFeedback('blackoutBtn',{busy:'Working...',success:'Done',error:'Failed'},blackoutTarget,{restoreAfter:null}).then(()=>setBlackoutActive(blackoutActive)).catch(err=>setStatus(err.message,true));
 document.getElementById('stopChaserBtn').onclick=()=>DmxCommon.withButtonFeedback('stopChaserBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('chaser')).catch(err=>setStatus(err.message,true));
@@ -2119,7 +2145,7 @@ bindMatrixInputs('palette',normalizePaletteGrid,renderPalettes,32,32);
 bindMatrixInputs('chaser',normalizeChaserGrid,drawChaserPlayback,32,32);
 bindMatrixInputs('motion',normalizeMotionGrid,drawMotionPlayback,32,32);
 bindPlaybackTileMoveCapture();
-loadShow().catch(err=>setStatus(err.message,true));
+refreshShowData({reason:'initial'}).catch(err=>setStatus(err.message,true));
 </script>
 </body>
 </html>

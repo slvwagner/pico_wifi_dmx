@@ -462,6 +462,8 @@ Show Run loads the current XAMPP show data:
 - Mirrored Pico effect slots from `motion_setup.php?slots`
 - Current live values from `fixture_setup.php?livevalues`
 
+Show Run automatically refreshes this show data when the page becomes active again, for example after switching back from the Controller, Chaser, or Effects page. This keeps the operator page current without needing to reload the browser tab. Automatic refresh is skipped while **Edit Layout** is active so card moves, tile moves, and Live Controls edits are not overwritten. Use **Refresh Show Data** only when you want to force the same reload manually.
+
 ### Show Target
 
 The **Show Target** section contains saved groups. Select one or more groups when you want scene, palette, or blackout recalls to affect only those fixtures. With no group selected, Show Run uses all stored fixture values.

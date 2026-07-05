@@ -38,6 +38,7 @@ async function routeShowSetup(page, calls) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
       return;
     }
+    calls.fixtureGets = (calls.fixtureGets || 0) + 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -208,7 +209,7 @@ test.describe('Show Run page', () => {
 
     const actionBar = page.locator('.header-actions');
     await expect(actionBar).toBeVisible();
-    await expect(actionBar.getByRole('button', { name: 'Reload Show' })).toBeVisible();
+    await expect(actionBar.getByRole('button', { name: 'Refresh Show Data' })).toBeVisible();
     await expect(actionBar.getByRole('button', { name: 'Stop All Playback' })).toBeVisible();
     await expect(actionBar.getByRole('button', { name: 'Blackout Target' })).toBeVisible();
     await expect(actionBar.getByRole('button', { name: 'Show All Fixtures' })).toBeVisible();
@@ -242,6 +243,56 @@ test.describe('Show Run page', () => {
     expect(metrics.mainLeft).toBeLessThan(2);
     expect(metrics.mainWidth).toBeGreaterThan(2160);
     expect(metrics.gridWidth).toBeGreaterThan(2160);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('auto-refreshes show data when the Show Run page becomes active again', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.getByRole('button', { name: /Both On/ })).toBeVisible();
+    const initialGets = calls.fixtureGets;
+    calls.scenes = [
+      {
+        id: 'scene_2',
+        name: 'Fresh Look',
+        slot: 0,
+        values: { '101:11': 123 }
+      }
+    ];
+
+    await page.waitForTimeout(700);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+
+    await expect(page.getByRole('button', { name: /Fresh Look/ })).toBeVisible();
+    expect(calls.fixtureGets).toBeGreaterThan(initialGets);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('does not auto-refresh over active Show Run layout edits', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('#editLayoutBtn')).toHaveText('Done Layout');
+    const initialGets = calls.fixtureGets;
+    calls.scenes = [
+      {
+        id: 'scene_2',
+        name: 'Hidden Until Done',
+        slot: 0,
+        values: { '101:11': 123 }
+      }
+    ];
+
+    await page.waitForTimeout(700);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForTimeout(600);
+
+    await expect(page.getByRole('button', { name: /Hidden Until Done/ })).toHaveCount(0);
+    expect(calls.fixtureGets).toBe(initialGets);
     expect(calls.setupWrites).toBe(0);
   });
 
