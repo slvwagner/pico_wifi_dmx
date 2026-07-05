@@ -20,6 +20,7 @@ Core features:
 - **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control.
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, and write throughput against a real Pico.
+- **Room Plane Test** — prototype calibrated room-plane coordinate mapping for moving-light pan/tilt targeting.
 - **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico slot payloads, custom fixture library data, Show Run layout/Live Controls, and saved UI layout.
 - **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
 - **Release tooling** — scripts sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots, run tests, build firmware, and prepare release packages.
@@ -468,6 +469,7 @@ pico_wifi_dmx/
 │  ├─ dmx_gpio.html                GPIO/ADC mapping page
 │  ├─ dmx_monitor.html             DMX output/base-buffer monitor
 │  ├─ dmx_benchmark.html           Pico performance test page
+│  ├─ dmx_room_plane.html          Room-plane calibration prototype
 │  └─ assets/
 │     ├─ dmx-common.js       Shared toolbox, base URL, visual, fan helpers
 │     ├─ dmx-ui.css          Shared dark UI styling
@@ -780,6 +782,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh interval and rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
 | Pico Performance Test | `web/dmx_benchmark.html` | Check Pico connectivity, read firmware `/perf/status.json` telemetry, verify DMX/base buffer readback, measure HTTP latency, and run all-slot playback plus palette-recall stress tests |
+| Room Plane Test | `web/dmx_room_plane.html` | Experimental calibrated 2D room-plane mapper for moving-light pan/tilt targeting |
 
 ### Screenshots
 

@@ -9,6 +9,7 @@ Changed:
 - Enhanced the Pico Performance Test page with Free Memory, 100 Hz Headroom, and Core1 Headroom checks, plus Timing History rows that preserve the full headroom wording.
 - Added a Pico Performance Test **Playback + Palette Stress** action that starts already-loaded Pico chaser/effect slots, fills only empty slots with temporary demo data, records those temporary slots in server UI state, sends repeated full 512-channel palette-style recalls, records the resulting telemetry, and clears only the temporary demo slots afterward.
 - Added hardware stress coverage for all-slot playback and all-slot playback plus palette recalls, using `/perf/status.json` to guard Core0/Core1 headroom and free RAM. The destructive all-slot upload tests are opt-in through `hardwareTests.destructiveSlotStress`.
+- Added an experimental Room Plane Test page for calibrated moving-light room-plane mapping with fixture mount positions, three calibration points, barycentric target weights, and interpolated pan/tilt output.
 
 ## 0.9.7 - 2026-07-05
 

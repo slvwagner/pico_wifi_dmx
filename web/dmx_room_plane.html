@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Room Plane Test</title>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
+<script src="assets/dmx-common.js?v=0.9.8"></script>
+<style>
+main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
+.layout{display:grid;grid-template-columns:minmax(320px,420px) minmax(0,1fr);gap:16px;align-items:start}
+.stack{display:grid;gap:12px}
+.plane-wrap{display:grid;gap:10px}
+.plane-pad{position:relative;min-height:520px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
+.plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
+.plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);border:1px solid rgba(55,196,164,.4);pointer-events:none}
+.plane-point{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:9px;font-weight:800;z-index:2}
+.plane-point.fixture{background:var(--warn)}
+.plane-target{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff7a7a;border:2px solid #2b1010;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(255,122,122,.15);z-index:3}
+.plane-line{position:absolute;height:1px;background:rgba(255,255,255,.28);transform-origin:0 50%;z-index:1}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:7px;text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:700}
+td input{width:76px;padding:7px 8px}
+.cal-grid{display:grid;grid-template-columns:42px repeat(3,minmax(70px,1fr));gap:8px;align-items:end}
+.cal-grid strong{align-self:center}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.result-card{background:#0a0d10;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px}
+.result-card.warn{border-color:var(--warn);background:#19140d}
+.result-title{font-weight:800}
+.result-value{font-size:24px;color:var(--accent);font-weight:800;line-height:1}
+.pill-row{display:flex;gap:8px;flex-wrap:wrap}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px}
+canvas{display:none}
+@media(max-width:980px){.layout{grid-template-columns:1fr}.plane-pad{min-height:420px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    <h1>Room Plane Test</h1>
+    <div class="status" id="status">Prototype for calibrated room-plane pan/tilt mapping.</div>
+  </div>
+  <div class="toolbar">
+    <a class="nav" href="index.html">Controller</a>
+    <a class="nav" href="dmx_show.html">Show</a>
+    <a class="nav" href="dmx_chaser.html">Chaser</a>
+    <a class="nav" href="dmx_motion.html">Effects</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+    <a class="nav" href="dmx_monitor.html">Monitor</a>
+    <a class="nav" href="test/">Performance</a>
+    <a class="nav" href="dmx_room_plane.html">Plane</a>
+    <a class="nav" href="user-manual.html?v=0.9.8#10-room-plane-test" target="_blank">Manual</a>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="stack">
+    <section class="panel">
+      <h2>Room Plane</h2>
+      <div class="small">Three known points define the calibrated plane. Units can be meters, but the math only needs a consistent coordinate system.</div>
+      <div class="cal-grid" id="planePointInputs"></div>
+      <div class="toolbar" style="margin-top:10px">
+        <label>Target X<input id="targetX" type="number" step="0.1" value="2.5"></label>
+        <label>Target Y<input id="targetY" type="number" step="0.1" value="1.5"></label>
+        <button id="resetDemo">Demo values</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Fixtures</h2>
+      <div class="small">Mount X/Y/Z describe where the moving light is installed. The A/B/C pan and tilt values are measured by aiming that fixture at each calibration point.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fixture</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
+              <th>A pan</th><th>A tilt</th><th>B pan</th><th>B tilt</th><th>C pan</th><th>C tilt</th>
+            </tr>
+          </thead>
+          <tbody id="fixtureRows"></tbody>
+        </table>
+      </div>
+      <div class="toolbar" style="margin-top:10px">
+        <button id="addFixture">Add fixture</button>
+        <button id="removeFixture">Remove last</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="panel plane-wrap">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2>Virtual Room Plane</h2>
+        <div class="pill-row">
+          <span class="pill" id="weightReadout">Weights: -</span>
+          <span class="pill" id="insideReadout">Inside plane: -</span>
+        </div>
+      </div>
+      <div class="plane-pad" id="planePad">
+        <div class="plane-grid"></div>
+        <div class="plane-triangle" id="planeTriangle"></div>
+        <div class="plane-target" id="planeTarget" title="Target"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Calculated Fixture Output</h2>
+      <div class="result-grid" id="resultGrid"></div>
+    </section>
+  </div>
+</div>
+</main>
+
+<script>
+const points=[
+  {id:'A',x:0,y:0},
+  {id:'B',x:5,y:0},
+  {id:'C',x:0,y:3}
+];
+let fixtures=[];
+
+function demoFixtures(){
+  fixtures=[
+    {name:'Spot 1',x:1,y:-2,z:3,cal:{A:{pan:72,tilt:118},B:{pan:128,tilt:111},C:{pan:82,tilt:76}}},
+    {name:'Spot 2',x:4,y:-2,z:3,cal:{A:{pan:214,tilt:112},B:{pan:160,tilt:118},C:{pan:202,tilt:78}}}
+  ];
+}
+
+function fmt(value,digits=2){
+  return Number(value).toFixed(digits).replace(/\.?0+$/,'');
+}
+
+function numberInput(value,attrs=''){
+  return '<input type="number" step="0.1" value="'+fmt(value,3)+'" '+attrs+'>';
+}
+
+function renderPlanePointInputs(){
+  const host=document.getElementById('planePointInputs');
+  host.innerHTML='<span></span><label>X</label><label>Y</label><label>Z</label>'+points.map((p,i)=>
+    '<strong>'+p.id+'</strong>'+
+    numberInput(p.x,'data-point="'+i+'" data-axis="x"')+
+    numberInput(p.y,'data-point="'+i+'" data-axis="y"')+
+    numberInput(p.z||0,'data-point="'+i+'" data-axis="z"')
+  ).join('');
+  host.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{
+    const p=points[Number(input.dataset.point)];
+    p[input.dataset.axis]=Number(input.value)||0;
+    render();
+  }));
+}
+
+function renderFixtureRows(){
+  const body=document.getElementById('fixtureRows');
+  body.innerHTML=fixtures.map((f,i)=>{
+    const fields=[
+      '<td><input value="'+f.name+'" data-fixture="'+i+'" data-field="name"></td>',
+      '<td>'+numberInput(f.x,'data-fixture="'+i+'" data-field="x"')+'</td>',
+      '<td>'+numberInput(f.y,'data-fixture="'+i+'" data-field="y"')+'</td>',
+      '<td>'+numberInput(f.z,'data-fixture="'+i+'" data-field="z"')+'</td>'
+    ];
+    for(const p of points){
+      fields.push('<td>'+numberInput(f.cal[p.id].pan,'data-fixture="'+i+'" data-point="'+p.id+'" data-axis="pan"')+'</td>');
+      fields.push('<td>'+numberInput(f.cal[p.id].tilt,'data-fixture="'+i+'" data-point="'+p.id+'" data-axis="tilt"')+'</td>');
+    }
+    return '<tr>'+fields.join('')+'</tr>';
+  }).join('');
+  body.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{
+    const f=fixtures[Number(input.dataset.fixture)];
+    if(input.dataset.point){
+      f.cal[input.dataset.point][input.dataset.axis]=Number(input.value)||0;
+    }else if(input.dataset.field==='name'){
+      f.name=input.value;
+    }else{
+      f[input.dataset.field]=Number(input.value)||0;
+    }
+    render();
+  }));
+}
+
+function barycentric(target){
+  const [a,b,c]=points;
+  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
+  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+  const wC=1-wA-wB;
+  return {valid:true,wA,wB,wC};
+}
+
+function interpolateFixture(f,weights){
+  const pan=weights.wA*f.cal.A.pan+weights.wB*f.cal.B.pan+weights.wC*f.cal.C.pan;
+  const tilt=weights.wA*f.cal.A.tilt+weights.wB*f.cal.B.tilt+weights.wC*f.cal.C.tilt;
+  return {pan,tilt};
+}
+
+function planeBounds(){
+  const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+  const target={x:Number(document.getElementById('targetX').value)||0,y:Number(document.getElementById('targetY').value)||0};
+  xs.push(target.x,...fixtures.map(f=>f.x));
+  ys.push(target.y,...fixtures.map(f=>f.y));
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
+  return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+}
+
+function toScreen(p,bounds){
+  const x=((p.x-bounds.minX)/(bounds.maxX-bounds.minX))*100;
+  const y=(1-((p.y-bounds.minY)/(bounds.maxY-bounds.minY)))*100;
+  return {x,y};
+}
+
+function drawLine(host,a,b){
+  const line=document.createElement('div');
+  line.className='plane-line';
+  const dx=b.x-a.x,dy=b.y-a.y;
+  line.style.left=a.x+'%';
+  line.style.top=a.y+'%';
+  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
+  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+  host.appendChild(line);
+}
+
+function renderPlane(target,weights){
+  const pad=document.getElementById('planePad');
+  pad.querySelectorAll('.plane-point,.plane-line').forEach(el=>el.remove());
+  const bounds=planeBounds();
+  const screens=points.map(p=>toScreen(p,bounds));
+  const triangle=document.getElementById('planeTriangle');
+  triangle.style.setProperty('--ax',screens[0].x+'%');
+  triangle.style.setProperty('--ay',screens[0].y+'%');
+  triangle.style.setProperty('--bx',screens[1].x+'%');
+  triangle.style.setProperty('--by',screens[1].y+'%');
+  triangle.style.setProperty('--cx',screens[2].x+'%');
+  triangle.style.setProperty('--cy',screens[2].y+'%');
+  screens.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='plane-point';
+    el.textContent=points[i].id;
+    el.style.left=s.x+'%';
+    el.style.top=s.y+'%';
+    pad.appendChild(el);
+  });
+  const targetScreen=toScreen(target,bounds);
+  const targetEl=document.getElementById('planeTarget');
+  targetEl.style.left=targetScreen.x+'%';
+  targetEl.style.top=targetScreen.y+'%';
+  fixtures.forEach(f=>{
+    const s=toScreen(f,bounds);
+    const el=document.createElement('div');
+    el.className='plane-point fixture';
+    el.textContent=f.name.replace(/[^0-9]/g,'')||'F';
+    el.style.left=s.x+'%';
+    el.style.top=s.y+'%';
+    pad.appendChild(el);
+    drawLine(pad,s,targetScreen);
+  });
+  const inside=weights.valid&&weights.wA>=-0.001&&weights.wB>=-0.001&&weights.wC>=-0.001;
+  document.getElementById('insideReadout').textContent='Inside plane: '+(inside?'yes':'no');
+}
+
+function renderResults(target,weights){
+  const grid=document.getElementById('resultGrid');
+  if(!weights.valid){
+    grid.innerHTML='<div class="result-card warn"><div class="result-title">Plane is invalid</div><div class="small">Calibration points A, B, and C must not be on one line.</div></div>';
+    return;
+  }
+  grid.innerHTML=fixtures.map(f=>{
+    const out=interpolateFixture(f,weights);
+    const dx=target.x-f.x,dy=target.y-f.y,dz=(target.z||0)-(f.z||0);
+    const distance=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    return '<div class="result-card" data-result-fixture="'+f.name+'">'+
+      '<div class="result-title">'+f.name+'</div>'+
+      '<div class="result-value">Pan '+fmt(out.pan,2)+' / Tilt '+fmt(out.tilt,2)+'</div>'+
+      '<div class="small">Distance '+fmt(distance,2)+' · target vector '+fmt(dx,2)+', '+fmt(dy,2)+', '+fmt(dz,2)+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+function render(){
+  const target={x:Number(document.getElementById('targetX').value)||0,y:Number(document.getElementById('targetY').value)||0,z:0};
+  const weights=barycentric(target);
+  document.getElementById('weightReadout').textContent=weights.valid
+    ? 'Weights: A '+fmt(weights.wA,3)+' · B '+fmt(weights.wB,3)+' · C '+fmt(weights.wC,3)
+    : 'Weights: invalid';
+  renderPlane(target,weights);
+  renderResults(target,weights);
+}
+
+function syncTables(){
+  renderPlanePointInputs();
+  renderFixtureRows();
+  render();
+}
+
+document.getElementById('targetX').addEventListener('input',render);
+document.getElementById('targetY').addEventListener('input',render);
+document.getElementById('resetDemo').onclick=()=>{points[0]={id:'A',x:0,y:0};points[1]={id:'B',x:5,y:0};points[2]={id:'C',x:0,y:3};document.getElementById('targetX').value='2.5';document.getElementById('targetY').value='1.5';demoFixtures();syncTables();};
+document.getElementById('addFixture').onclick=()=>{const n=fixtures.length+1;fixtures.push({name:'Spot '+n,x:n,y:-2,z:3,cal:{A:{pan:90,tilt:110},B:{pan:130,tilt:110},C:{pan:100,tilt:80}}});syncTables();};
+document.getElementById('removeFixture').onclick=()=>{if(fixtures.length>1){fixtures.pop();syncTables();}};
+document.getElementById('planePad').addEventListener('pointerdown',event=>{
+  const rect=event.currentTarget.getBoundingClientRect();
+  const bounds=planeBounds();
+  const x=(event.clientX-rect.left)/rect.width;
+  const y=(event.clientY-rect.top)/rect.height;
+  document.getElementById('targetX').value=fmt(bounds.minX+x*(bounds.maxX-bounds.minX),3);
+  document.getElementById('targetY').value=fmt(bounds.minY+(1-y)*(bounds.maxY-bounds.minY),3);
+  render();
+});
+demoFixtures();
+syncTables();
+</script>
+</body>
+</html>

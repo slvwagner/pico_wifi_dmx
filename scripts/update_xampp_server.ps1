@@ -52,6 +52,7 @@ if (-not $SkipVerify) {
             @{ Label = "Chaser"; Path = "dmx_chaser.html" },
             @{ Label = "Effects"; Path = "dmx_motion.html" },
             @{ Label = "GPIO"; Path = "dmx_gpio.html" },
+            @{ Label = "Room Plane Test"; Path = "dmx_room_plane.html" },
             @{ Label = "DMX Monitor"; Path = "dmx_monitor.html" },
             @{ Label = "Performance Test"; Path = "test/" },
             @{ Label = "Version"; Path = "VERSION" }

@@ -27,6 +27,7 @@ $chaserSource = Join-Path $webDir "dmx_chaser.html"
 $benchSource = Join-Path $webDir "dmx_benchmark.html"
 $monitorSource = Join-Path $webDir "dmx_monitor.html"
 $gpioSource      = Join-Path $webDir "dmx_gpio.html"
+$roomPlaneSource = Join-Path $webDir "dmx_room_plane.html"
 $chaserApiSource = Join-Path $apiDir "chaser_setup.php"
 $motionApiSource = Join-Path $apiDir "motion_setup.php"
 $groupApiSource  = Join-Path $apiDir "group_setup.php"
@@ -51,6 +52,7 @@ $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $benchTargetDir "index.html"
 $monitorTarget = Join-Path $targetDir "dmx_monitor.html"
 $gpioTarget      = Join-Path $targetDir "dmx_gpio.html"
+$roomPlaneTarget = Join-Path $targetDir "dmx_room_plane.html"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
 $groupApiTarget  = Join-Path $targetDir "group_setup.php"
@@ -106,6 +108,10 @@ if (Test-Path -LiteralPath $monitorSource) {
 if (Test-Path -LiteralPath $gpioSource) {
     Copy-Item -LiteralPath $gpioSource -Destination $gpioTarget -Force
     Write-Host "Copied GPIO control to $gpioTarget"
+}
+if (Test-Path -LiteralPath $roomPlaneSource) {
+    Copy-Item -LiteralPath $roomPlaneSource -Destination $roomPlaneTarget -Force
+    Write-Host "Copied room plane test page to $roomPlaneTarget"
 }
 if (Test-Path -LiteralPath $chaserApiSource) {
     Copy-Item -LiteralPath $chaserApiSource -Destination $chaserApiTarget -Force

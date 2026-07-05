@@ -14,6 +14,7 @@ $routes = [
     '/dmx_chaser.html' => "$root/web/dmx_chaser.html",
     '/dmx_monitor.html' => "$root/web/dmx_monitor.html",
     '/dmx_gpio.html' => "$root/web/dmx_gpio.html",
+    '/dmx_room_plane.html' => "$root/web/dmx_room_plane.html",
     '/test' => "$root/web/dmx_benchmark.html",
     '/test/' => "$root/web/dmx_benchmark.html",
     '/test/index.html' => "$root/web/dmx_benchmark.html",

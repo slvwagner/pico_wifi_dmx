@@ -140,6 +140,7 @@ strong { color: #ffffff; }
 <tr><td><a href="#7-gpio-control">GPIO Control</a></td><td>Map Pico GPIO buttons and ADC inputs to lighting actions</td></tr>
 <tr><td><a href="#9-dmx-buffer-monitor">DMX Buffer Monitor</a></td><td>Read all 512 values from either the live output frame or the base/position buffer</td></tr>
 <tr><td><a href="#8-pico-performance-test">Pico Performance Test</a></td><td>Test Pico HTTP/DMX update performance, buffer readback, and core timing logs</td></tr>
+<tr><td><a href="#10-room-plane-test">Room Plane Test</a></td><td>Prototype calibrated room-plane coordinate mapping for moving lights</td></tr>
 </tbody>
 </table>
 <h2 id="1-fixture-controller">1. Fixture Controller</h2>
@@ -864,7 +865,13 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>Use <strong>Base / position</strong> to inspect the scene base buffer used as the center for Effects.</p>
 <p>Use <strong>Refresh ms</strong> to control the polling interval directly. Use <strong>Refresh Hz</strong> when you prefer rate instead. Both fields stay synchronized, so <code>500 ms</code> is shown as <code>2 Hz</code>. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. <strong>Auto refresh</strong> starts or stops polling without changing the selected buffer.</p>
 <p>Use <strong>Clear all</strong> when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.</p>
-<h2 id="10-backup-and-import">10. Backup and Import</h2>
+<h2 id="10-room-plane-test">10. Room Plane Test</h2>
+<p>The <strong>Room Plane Test</strong> page is an experimental calibration sandbox for moving-light position mapping. It is not part of the live show workflow yet.</p>
+<p>Open it from the <strong>Plane</strong> navigation link or directly:</p>
+<pre><code>dmx_room_plane.html</code></pre>
+<p>The page uses three known room points, <strong>A</strong>, <strong>B</strong>, and <strong>C</strong>, to define a virtual 2D plane. For each moving light, enter its mount position and the measured pan/tilt values that hit points A, B, and C. Moving the target point on the plane calculates barycentric weights and interpolates the pan/tilt values for every fixture.</p>
+<p>This first prototype is intentionally calibration-based. It lets us test the user workflow and coordinate math before connecting the result to real fixture controls, effects, or Pico output.</p>
+<h2 id="11-backup-and-import">11. Backup and Import</h2>
 <p>Use <strong>Fixture Controller &gt; Show &gt; Export Setup</strong> before large changes or before moving the show to another computer.</p>
 <p>The exported setup file includes:</p>
 <ul>
