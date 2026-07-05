@@ -297,6 +297,8 @@ Palette save rules:
 - **All controls** saves every control on the selected fixtures and should be used deliberately.
 - If nothing is selected, the palette is not saved; select fixtures or apply Fan Out first.
 
+When saving a **Gobo** palette, the Controller can fill the palette tile visual from the selected fixture's gobo wheel metadata. If all selected fixtures resolve to the same gobo image or color, that shared visual is used automatically. If selected fixtures use different gobos, the current source fixture supplies the tile visual. If no gobo visual metadata exists, the palette uses the normal default visual.
+
 Palette recall rules:
 
 - Recalling a palette applies only the stored values.

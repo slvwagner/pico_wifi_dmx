@@ -809,6 +809,8 @@ The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. 
 
 The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. The small pencil on a filled tile opens **Edit Tile**, where you can rename the tile and set a background color plus an optional drawn/uploaded visual. Palette visuals are independent from scope, draw on the selected background color, and automatically choose a high-contrast brush color. They can reset to the default background or clear the icon entirely. Palette names and visuals are saved inside `data/palette_setup.json` together with the palette values. **Merge** opens a palette matrix picker so the target palette is chosen visually from the saved tiles instead of by entering a slot number.
 
+Gobo palettes can use fixture-library wheel visuals automatically. When all selected fixtures resolve to the same gobo image or color, the saved palette tile uses that shared visual. If the selected fixtures are on different gobos, the Controller uses the source fixture's gobo visual. When no visual metadata is available, the palette falls back to the configured default visual.
+
 Palette scopes are based on common Open Fixture Library control names. Besides **Position**, **Color**, **Dimmer**, and **All controls**, the Controller offers focused scopes for **Shutter / Strobe**, **Gobo**, **Prism**, **Optics**, and **Programs / Effects**. Color matching includes individual library channels such as red, green, blue, cyan, magenta, yellow, UV, lime, CCT, CTO, hue, and saturation.
 
 ![Edit Tile modal](docs/screenshots/fixture-controller-edit-tile.png)
