@@ -385,16 +385,21 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     const normalBg = await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
+    const normalHeaderBg = await page.locator('header').evaluate(el => getComputedStyle(el).backgroundColor);
     await page.locator('#editLayoutBtn').click();
     await expect(page.locator('body')).toHaveClass(/layout-editing/);
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(16, 25, 21)');
+    await expect(page.locator('header')).toHaveCSS('background-color', 'rgb(119, 64, 65)');
     const editBg = await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
+    const editHeaderBg = await page.locator('header').evaluate(el => getComputedStyle(el).backgroundColor);
 
     expect(editBg).not.toBe(normalBg);
+    expect(editHeaderBg).not.toBe(normalHeaderBg);
 
     await page.locator('#editLayoutBtn').click();
     await expect(page.locator('body')).not.toHaveClass(/layout-editing/);
     await expect(page.locator('body')).toHaveCSS('background-color', normalBg);
+    await expect(page.locator('header')).toHaveCSS('background-color', normalHeaderBg);
     const restoredBg = await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
 
     expect(restoredBg).toBe(normalBg);
