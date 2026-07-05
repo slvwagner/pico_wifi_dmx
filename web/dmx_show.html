@@ -263,11 +263,11 @@ body.layout-editing .show-tile-actions{display:flex}
 <div id="hiddenTileModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Hidden Show Tiles</h2>
+<h2>Hidden Show Items</h2>
 <button id="hiddenTileClose" style="font-size:16px;padding:6px 14px">X</button>
 </div>
 <div class="modal-body">
-<div class="small">Some saved show tiles are outside the visible rows and columns. Expand the section, or place an item into a free visible tile.</div>
+<div class="small">Some show items are outside the visible rows and columns. Expand the section, or place an item into a free visible tile.</div>
 <div id="hiddenTileList" style="display:grid;gap:8px"></div>
 </div>
 <div class="buttons" style="padding-top:4px">
@@ -622,7 +622,7 @@ function visibleTotal(kind){
   return Math.max(1,(parseInt(matrix.cols,10)||1)*(parseInt(matrix.rows,10)||1));
 }
 function hiddenTileEntries(kind){
-  if(!['group','scene','palette'].includes(kind))return [];
+  if(!['group','scene','palette','chaser','motion'].includes(kind))return [];
   const total=visibleTotal(kind);
   reconcileDisplayOrder(kind,total);
   return (displayOrders[kind]||[])
@@ -636,17 +636,21 @@ function freeVisibleIndex(kind){
   return -1;
 }
 function expandMatrixForHiddenKind(kind){
-  const orderLength=(displayOrders[kind]||[]).findLastIndex?.(key=>!!key)+1 || (displayOrders[kind]||[]).length;
+  const order=displayOrders[kind]||[];
+  const lastIndex=order.reduce((last,key,index)=>key?index:last,-1);
+  const orderLength=lastIndex+1 || order.length;
   const needed=Math.max(sourceEntries(kind).length,orderLength,visibleTotal(kind)+1);
   const matrix=currentMatrix(kind);
   const next=normalizeMatrix(matrix.cols,matrix.rows,needed,kind==='group'?8:32,kind==='group'?12:32,'cols');
   if(kind==='group'){groupCols=next.cols;groupRows=next.rows;saveMatrix(kind,groupCols,groupRows);}
   else if(kind==='scene'){sceneCols=next.cols;sceneRows=next.rows;saveMatrix(kind,sceneCols,sceneRows);}
   else if(kind==='palette'){paletteCols=next.cols;paletteRows=next.rows;saveMatrix(kind,paletteCols,paletteRows);}
+  else if(kind==='chaser'){chaserCols=next.cols;chaserRows=next.rows;saveMatrix(kind,chaserCols,chaserRows);}
+  else if(kind==='motion'){motionCols=next.cols;motionRows=next.rows;saveMatrix(kind,motionCols,motionRows);}
   renderKind(kind);
   closeHiddenTileModal();
-  setStatus('Expanded '+kind+' tiles to show hidden saved items');
-  reviewHiddenTiles(false);
+  setStatus('Expanded '+kind+' tiles to show hidden show items');
+  reviewHiddenTiles(true);
 }
 function placeHiddenTile(kind,key){
   const target=freeVisibleIndex(kind);
@@ -655,20 +659,35 @@ function placeHiddenTile(kind,key){
   if(from<0)return;
   moveShowTile(kind,from,target);
   closeHiddenTileModal();
-  reviewHiddenTiles(false);
+  reviewHiddenTiles(true);
 }
-function hiddenKindLabel(kind){return kind==='group'?'Show Target':kind==='scene'?'Scenes':'Palettes';}
+function hiddenKindLabel(kind){
+  if(kind==='group')return 'Show Target';
+  if(kind==='scene')return 'Scenes';
+  if(kind==='palette')return 'Palettes';
+  if(kind==='chaser')return 'Pico Chaser Playback';
+  return 'Pico Effects Playback';
+}
+function hiddenItemLabel(row){
+  const item=row.entry.item;
+  if(row.kind==='chaser')return 'Pico chaser slot '+row.entry.index;
+  if(row.kind==='motion')return 'Pico effect slot '+row.entry.index;
+  return item.name||row.kind;
+}
+function hiddenItemText(row){
+  if(row.kind==='chaser'||row.kind==='motion')return hiddenItemLabel(row)+' is loaded but outside the visible playback matrix.';
+  return hiddenItemLabel(row)+' is saved at hidden position '+(row.index+1)+'.';
+}
 function allHiddenTileRows(){
-  return ['group','scene','palette'].flatMap(kind=>hiddenTileEntries(kind).map(row=>({...row,kind})));
+  return ['group','scene','palette','chaser','motion'].flatMap(kind=>hiddenTileEntries(kind).map(row=>({...row,kind})));
 }
 function openHiddenTileModal(rows){
   const list=document.getElementById('hiddenTileList');
   if(!list)return;
   list.innerHTML=rows.map(row=>{
-    const item=row.entry.item;
     const free=freeVisibleIndex(row.kind)>=0;
     return `<div class="hidden-tile-row">
-      <div class="small"><strong>${esc(hiddenKindLabel(row.kind))}</strong><br>${esc(item.name||row.kind)} is saved at hidden position ${row.index+1}.</div>
+      <div class="small"><strong>${esc(hiddenKindLabel(row.kind))}</strong><br>${esc(hiddenItemText(row))}</div>
       <button type="button" data-hidden-place="${esc(row.kind+':'+row.key)}" ${free?'':'disabled'}>Place in Free Tile</button>
       <button type="button" data-hidden-expand="${esc(row.kind)}">Expand ${esc(hiddenKindLabel(row.kind))}</button>
     </div>`;
@@ -687,7 +706,7 @@ function closeHiddenTileModal(){
 function reviewHiddenTiles(autoOpen=true){
   const rows=allHiddenTileRows();
   if(!rows.length){closeHiddenTileModal();return;}
-  const message=rows.length+' saved show tile'+(rows.length===1?' is':'s are')+' outside the visible layout. Review hidden tiles in Edit Layout.';
+  const message=rows.length+' show item'+(rows.length===1?' is':'s are')+' outside the visible layout. Review hidden items in Edit Layout.';
   setStatus(message,true);
   if(autoOpen&&!hiddenTileModalDismissed){
     setLayoutEditing(true);

@@ -396,6 +396,61 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('warns when loaded Pico playback slots are hidden outside the visible Show Run matrix', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredChaserSlots: Array(32).fill(null),
+      liveChaserSlots: Array.from({ length: 32 }, (_, slot) => ({
+        slot,
+        loaded: slot === 1 || slot === 31,
+        active: false,
+        paused: false,
+        step_count: slot === 1 ? 3 : slot === 31 ? 2 : 0,
+        mode: 1,
+        direction: 0,
+        speed_mult: 1
+      })),
+      liveMotionSlots: Array.from({ length: 64 }, (_, slot) => ({
+        slot,
+        loaded: slot === 0 || slot === 63,
+        active: false,
+        bpm: slot === 63 ? 45 : 30,
+        target_count: 2,
+        fixture_count: 2
+      }))
+    };
+    await routeShowSetup(page, calls);
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.chaserCols', '2');
+      localStorage.setItem('dmxShowRun.chaserRows', '1');
+      localStorage.setItem('dmxShowRun.chaserOrder', JSON.stringify(['1', null, '31']));
+      localStorage.setItem('dmxShowRun.motionCols', '2');
+      localStorage.setItem('dmxShowRun.motionRows', '1');
+      localStorage.setItem('dmxShowRun.motionOrder', JSON.stringify(['0', null, '63']));
+    });
+
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#hiddenTileModal')).toBeVisible();
+    await expect(page.locator('#hiddenTileList')).toContainText('Pico chaser slot 31');
+    await expect(page.locator('#hiddenTileList')).toContainText('Pico effect slot 63');
+
+    await page.locator('[data-hidden-place="chaser:31"]').click();
+
+    await expect(page.locator('#chaserRows')).toHaveValue('1');
+    await expect(page.locator('#chaserSlots')).toContainText('Pico slot 31');
+    await expect(page.locator('#hiddenTileModal')).toBeVisible();
+
+    await page.locator('[data-hidden-place="motion:63"]').click();
+
+    await expect(page.locator('#motionRows')).toHaveValue('1');
+    await expect(page.locator('#motionSlots')).toContainText('Pico effect 63');
+    await expect(page.locator('#hiddenTileModal')).not.toBeVisible();
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('lets the operator move palette tiles locally and still recall the moved palette', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
