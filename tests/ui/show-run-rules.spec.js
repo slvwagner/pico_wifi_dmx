@@ -955,9 +955,11 @@ test.describe('Show Run page', () => {
 
     await page.locator('#editLayoutBtn').click();
     await page.locator('#addCardType').selectOption('live');
+    await expect(page.locator('#addShowCard')).toHaveText('Add Live Controls');
     await page.locator('#addShowCard').click();
 
     await expect(page.locator('[data-show-card="live"]')).toHaveCount(2);
+    await expect(page.locator('#status')).toHaveText('Added Live Controls at position 7');
     const secondLive = page.locator('[data-show-card="live"]').nth(1);
     await secondLive.locator('.live-fixture-select').selectOption('101');
     await secondLive.locator('.live-control-select').selectOption('12');
@@ -992,8 +994,10 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid #cardScene')).toHaveCount(0);
 
     await page.locator('#addCardType').selectOption('scene');
+    await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
     await expect(page.locator('#cardGrid #cardScene')).toHaveCount(1);
+    await expect(page.locator('#status')).toHaveText('Added Scenes at position 2');
     await expect.poll(() => page.locator('#addCardType option[value="scene"]').evaluate(option => option.disabled)).toBe(true);
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));

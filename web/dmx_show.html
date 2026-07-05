@@ -139,8 +139,8 @@ body.layout-editing .show-tile-actions{display:flex}
 <main>
   <section class="panel topbar layout-tools" aria-label="Show card matrix layout">
     <div class="matrix-tools card-add-tools">
-      <label>Add card<select id="addCardType"></select></label>
-      <button id="addShowCard" type="button">Add Card</button>
+      <label>Card<select id="addCardType"></select></label>
+      <button id="addShowCard" type="button">Add Live Controls</button>
       <label>Card cols<input id="cardCols" type="number" min="1" max="5" value="2"></label>
       <label>Card rows<input id="cardRows" type="number" min="1" max="5" value="3"></label>
     </div>
@@ -499,6 +499,9 @@ function uniqueLiveCardKey(seed=''){
   while(used.has(cardKey('live',id)))id=base+'_'+(n++);
   return cardKey('live',id);
 }
+function addCardButtonLabel(type){
+  return type==='live'?'Add Live Controls':'Add '+(cardLabels[type]||'Card')+' Card';
+}
 function loadLiveControls(){
   try{liveControls=JSON.parse(localStorage.getItem(layoutKey('liveControls'))||'[]')||[];}catch(_){liveControls=[];}
   liveControls=liveControls.filter(item=>item&&item.fixtureId!=null&&item.controlId!=null&&item.part&&item.widget);
@@ -647,21 +650,26 @@ function addShowCard(){
   let index=cardOrder.indexOf(null);
   if(index<0){
     cardOrder.push(entry);
+    index=cardOrder.length-1;
     normalizeCardGrid('rows');
   }else cardOrder[index]=entry;
   saveCardLayout();
   renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
-  setStatus('Added '+(cardLabels[type]||type)+' card');
+  setStatus('Added '+(cardLabels[type]||type)+' at position '+(index+1));
 }
 function updateAddCardOptions(){
   const select=document.getElementById('addCardType');
   if(!select)return;
+  const preferred=select.value||'live';
   const used=new Set(cardOrder.map(cardType).filter(type=>type&&type!=='live'));
   select.innerHTML=cardIds.map(type=>{
     const disabled=type!=='live'&&used.has(type)?' disabled':'';
     return `<option value="${esc(type)}"${disabled}>${esc(cardLabels[type]||type)}</option>`;
   }).join('');
-  if(select.selectedOptions[0]?.disabled)select.value='live';
+  select.value=preferred;
+  if(select.selectedOptions[0]?.disabled||!select.value)select.value='live';
+  const button=document.getElementById('addShowCard');
+  if(button)button.textContent=addCardButtonLabel(select.value);
 }
 function renderCardGrid(){
   normalizeCardGrid('cols');
@@ -1804,6 +1812,7 @@ document.getElementById('motionControlStart').onclick=()=>DmxCommon.withButtonFe
 document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonFeedback('motionControlSetBpm',{busy:'Setting...',success:'BPM Set',error:'Failed'},()=>setMotionSlotBpm(motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
+document.getElementById('addCardType').onchange=updateAddCardOptions;
 document.getElementById('addShowCard').onclick=addShowCard;
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
