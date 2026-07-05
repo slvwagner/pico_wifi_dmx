@@ -42,6 +42,7 @@ typedef struct {
 /* Summary returned by mfx_get_status() */
 typedef struct {
     uint64_t active_mask;   /* bitmask: bit i = slot i is playing  */
+    uint64_t paused_mask;   /* bitmask: bit i = slot i is paused   */
     uint64_t loaded_mask;   /* bitmask: bit i = slot i is loaded   */
     float    elapsed_s;     /* elapsed of the lowest active slot   */
 } mfx_status_t;
@@ -50,14 +51,19 @@ typedef struct {
 typedef struct {
     bool     loaded;
     bool     active;
+    bool     paused;
     int      type;
     float    bpm;
+    float    elapsed_s;
     uint16_t target_count;
 } mfx_slot_info_t;
 
 void mfx_init(void);
 bool mfx_load_slot(uint8_t slot, const char *body, size_t len);
 void mfx_start(uint8_t slot);     /* start one slot; others keep running */
+void mfx_pause(uint8_t slot);
+void mfx_resume(uint8_t slot);
+void mfx_pause_toggle(uint8_t slot);
 void mfx_stop(void);              /* stop ALL slots */
 void mfx_stop_slot(uint8_t slot); /* stop one slot only */
 void mfx_clear_slot(uint8_t slot);

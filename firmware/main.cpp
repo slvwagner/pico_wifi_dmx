@@ -1253,8 +1253,9 @@ static void build_motion_status_response()
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
         "\r\n"
-        "{\"ok\":true,\"active_mask\":%" PRIu64 ",\"loaded_mask\":%" PRIu64 ",\"elapsed_s\":%.2f}\n",
+        "{\"ok\":true,\"active_mask\":%" PRIu64 ",\"paused_mask\":%" PRIu64 ",\"loaded_mask\":%" PRIu64 ",\"elapsed_s\":%.2f}\n",
         (uint64_t)s.active_mask,
+        (uint64_t)s.paused_mask,
         (uint64_t)s.loaded_mask,
         (double)s.elapsed_s);
 }
@@ -1269,17 +1270,19 @@ static void build_motion_slots_response()
         "Cache-Control: no-store\r\n"
         "\r\n"
         "{\"ok\":true,\"slots\":[");
-    for (uint8_t i = 0; i < MFX_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 160; i++) {
+    for (uint8_t i = 0; i < MFX_MAX_SLOTS && used < (int)sizeof(http_playback_json) - 192; i++) {
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"type\":%d,\"bpm\":%.2f,\"target_count\":%u,\"fixture_count\":%u}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"paused\":%s,\"type\":%d,\"bpm\":%.2f,\"elapsed_s\":%.2f,\"target_count\":%u,\"fixture_count\":%u}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded ? "true" : "false",
             info.active ? "true" : "false",
+            info.paused ? "true" : "false",
             info.type,
             (double)info.bpm,
+            (double)info.elapsed_s,
             info.target_count,
             info.target_count);
     }
@@ -1632,6 +1635,51 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
             mfx_stop();
             build_playback_ok_response("motion stopped");
         }
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/pause")) {
+        uint8_t slot = 0;
+        if (name[13] == '/') {
+            unsigned long s = strtoul(name + 14, NULL, 10);
+            if (s < MFX_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        mfx_pause(slot);
+        build_playback_ok_response("motion paused");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/resume")) {
+        uint8_t slot = 0;
+        if (name[14] == '/') {
+            unsigned long s = strtoul(name + 15, NULL, 10);
+            if (s < MFX_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        mfx_resume(slot);
+        build_playback_ok_response("motion resumed");
+        file->data = http_playback_json;
+        file->len = (int)strlen(http_playback_json);
+        file->index = file->len;
+        file->flags = FS_FILE_FLAGS_HEADER_INCLUDED | FS_FILE_FLAGS_HEADER_PERSISTENT;
+        return 1;
+    }
+
+    if (path_matches(name, "/motion/pause_toggle")) {
+        uint8_t slot = 0;
+        if (name[20] == '/') {
+            unsigned long s = strtoul(name + 21, NULL, 10);
+            if (s < MFX_MAX_SLOTS) slot = (uint8_t)s;
+        }
+        mfx_pause_toggle(slot);
+        build_playback_ok_response("motion pause toggled");
         file->data = http_playback_json;
         file->len = (int)strlen(http_playback_json);
         file->index = file->len;

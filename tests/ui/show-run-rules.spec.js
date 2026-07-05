@@ -716,6 +716,11 @@ test.describe('Show Run page', () => {
 
     await page.locator('#motionControlBpm').fill('45');
     await page.locator('#motionControlStart').click();
+    await expect(page.locator('#motionControlPauseResume')).toHaveText('Pause');
+    await page.locator('#motionControlPauseResume').click();
+    await expect(page.locator('#motionControlPauseResume')).toHaveText('Resume');
+    await page.locator('#motionControlPauseResume').click();
+    await expect(page.locator('#motionControlPauseResume')).toHaveText('Pause');
     await page.locator('#motionControlSetBpm').click();
     await page.locator('#motionControlStopSlot').click();
 
@@ -727,6 +732,8 @@ test.describe('Show Run page', () => {
     expect(urls).toContain('http://pico.test/chaser/stop/0');
     expect(urls).toContain('http://pico.test/chaser/load/0');
     expect(urls).toContain('http://pico.test/motion/start/0');
+    expect(urls).toContain('http://pico.test/motion/pause/0');
+    expect(urls).toContain('http://pico.test/motion/resume/0');
     expect(urls).toContain('http://pico.test/motion/bpm/0/450');
     expect(urls).toContain('http://pico.test/motion/stop/0');
     expect(urls).toContain('http://pico.test/motion/load/0');

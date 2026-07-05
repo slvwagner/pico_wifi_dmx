@@ -37,6 +37,16 @@ async function waitForSlot(request, kind, slot, predicate) {
   throw new Error(kind + ' slot ' + slot + ' did not reach expected state. Last: ' + JSON.stringify(last));
 }
 
+async function sleep(ms) {
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function readOutputValue(request, channel) {
+  const output = await getJson(request, '/dmx/output.json');
+  expect(output.ok).toBe(true);
+  return output.values[channel - 1];
+}
+
 describeHardware('Real Pico endpoint and slot behavior', () => {
   test('DMX output endpoint reports live buffer and reflects batch writes', async ({ request }) => {
     const channels = hardware.dmxTestChannels || [1, 2];
@@ -86,6 +96,44 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await waitForSlot(request, 'chaser', slot, s => !s.active);
   });
 
+  test('Chaser pause holds the current fade position and resume continues from it', async ({ request }) => {
+    const slot = Number(hardware.chaserSlot);
+    const channel = (hardware.dmxTestChannels || [1])[0];
+    const body = [
+      'LOOP 0',
+      'MODE single',
+      'LOOPS 1',
+      'DIR forward',
+      'SPEED 1.00',
+      'STEP 2000 100',
+      `CH ${channel} 200`,
+      'END'
+    ].join('\n');
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await getJson(request, '/dmx/clear');
+    await postText(request, '/chaser/load/' + slot, body);
+    await waitForSlot(request, 'chaser', slot, s => s.loaded && Number(s.step_count) === 1);
+
+    await getJson(request, '/chaser/play/' + slot);
+    await sleep(450);
+    const pausedAt = await readOutputValue(request, channel);
+    await getJson(request, '/chaser/pause/' + slot);
+    await waitForSlot(request, 'chaser', slot, s => s.paused);
+    await sleep(350);
+    const held = await readOutputValue(request, channel);
+    expect(Math.abs(held - pausedAt)).toBeLessThanOrEqual(4);
+
+    await getJson(request, '/chaser/resume/' + slot);
+    await waitForSlot(request, 'chaser', slot, s => s.active);
+    await sleep(350);
+    const resumed = await readOutputValue(request, channel);
+    expect(resumed).toBeGreaterThan(held + 8);
+
+    await getJson(request, '/chaser/stop/' + slot);
+  });
+
   test('Motion slot upload, start, and stop works on configured test slot', async ({ request }) => {
     const slot = Number(hardware.motionSlot);
     const body = [
@@ -108,6 +156,45 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
 
     await getJson(request, '/motion/stop/' + slot);
     await waitForSlot(request, 'motion', slot, s => !s.active);
+  });
+
+  test('Motion pause holds the current phase and resume continues from it', async ({ request }) => {
+    const slot = Number(hardware.motionSlot);
+    const channel = (hardware.dmxTestChannels || [1])[0];
+    const body = [
+      'FX 1',
+      'TYPE 4',
+      'BPM 30',
+      'AMP1 1.00',
+      'AMP2 0.00',
+      'SPREAD 0',
+      `TARGET scalar8 1 ${channel} 0 0 0 0 0 0`,
+      'END'
+    ].join('\n');
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await getJson(request, '/dmx/clear');
+    await postText(request, '/dmx/b', `${channel}:128`);
+    await postText(request, '/motion/load/' + slot, body);
+    await waitForSlot(request, 'motion', slot, s => s.loaded && Number(s.target_count || 0) >= 1);
+
+    await getJson(request, '/motion/start/' + slot);
+    await sleep(300);
+    const pausedAt = await readOutputValue(request, channel);
+    await getJson(request, '/motion/pause/' + slot);
+    await waitForSlot(request, 'motion', slot, s => s.paused);
+    await sleep(350);
+    const held = await readOutputValue(request, channel);
+    expect(Math.abs(held - pausedAt)).toBeLessThanOrEqual(4);
+
+    await getJson(request, '/motion/resume/' + slot);
+    await waitForSlot(request, 'motion', slot, s => s.active);
+    await sleep(300);
+    const resumed = await readOutputValue(request, channel);
+    expect(Math.abs(resumed - held)).toBeGreaterThan(8);
+
+    await getJson(request, '/motion/stop/' + slot);
   });
 
   test('Blackout lock suppresses running motion output on locked channels', async ({ request }) => {

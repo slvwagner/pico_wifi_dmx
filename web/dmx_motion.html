@@ -111,6 +111,7 @@ main{max-width:none;width:100%;margin:0}
       <input id="picoMotionBpm" class="pico-number" type="number" min="0.1" max="600" step="1" value="30">
     </label>
     <button id="btnPicoMotionStartSlot" title="Run the already-loaded selected Pico slot">&#x25B6; Start Slot</button>
+    <button id="btnPicoMotionPauseResume" title="Pause or resume the selected Pico slot">Pause</button>
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
     <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
@@ -1309,6 +1310,7 @@ let picoMotionTimer=null;
 const MFX_TYPE_NAMES=['Circle','Figure-8','Pan Swing','Tilt Swing','Sine','Pulse'];
 let _lastSlots=null; // cached for selection-highlight re-render
 let _lastActiveMask=0;
+let _lastPausedMask=0;
 let _lastMotionReportedSlotCount=PICO_SLOT_COUNT;
 
 function selectedMotionSlot(){
@@ -1321,22 +1323,32 @@ function ensureMotionSlotSupported(){
   return false;
 }
 
-function renderMotionSlotStrip(slots, activeMask){
+function updatePicoMotionPauseResumeButton(){
+  const btn=document.getElementById('btnPicoMotionPauseResume');
+  if(!btn)return;
+  const slot=selectedMotionSlot();
+  const info=(_lastSlots||[]).find(s=>Number(s.slot)===Number(slot));
+  const paused=!!info?.paused;
+  btn.textContent=paused?'Resume':'Pause';
+}
+
+function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
   _lastMotionReportedSlotCount=slots.length;
-  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
-  _lastSlots=slots; _lastActiveMask=activeMask;
+  slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
+  _lastSlots=slots; _lastActiveMask=activeMask; _lastPausedMask=pausedMask;
   const strip=document.getElementById('motionSlotStrip');
   const sel=selectedMotionSlot();
   strip.innerHTML='';
   slots.forEach(s=>{
     const alive=!!s.active;
+    const paused=!!s.paused;
     const loaded=s.loaded;
     const selected=s.slot===sel;
     const unsupported=!!s.unsupported;
     const d=document.createElement('div');
     d.style.cssText=[
       'background:#0a0d10',
-      'border:1.5px solid '+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
+      'border:1.5px solid '+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--line)':'rgba(255,255,255,.07)'),
       selected?'box-shadow:0 0 0 2px var(--accent)':'',
       'border-radius:7px',
       'padding:7px 5px 6px',
@@ -1354,18 +1366,18 @@ function renderMotionSlotStrip(slots, activeMask){
     d.innerHTML=
       deleteButton+
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
-      '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
+      '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':paused?'var(--warn)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
       (loaded?'<div style="font-size:11px;color:var(--muted)">'+(s.target_count??s.fixture_count??0)+' tgt</div>':'') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
-        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
-        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':loaded?'READY':'EMPTY')+'</span>'+
+        '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
+        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':paused?'PAUSED':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
     d.onclick=()=>{
       if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
       const wasSelected=selectedMotionSlot()===s.slot;
       document.getElementById('picoMotionSlot').value=s.slot;
-      renderMotionSlotStrip(_lastSlots,_lastActiveMask);
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask,_lastPausedMask);
       if(!loaded)uploadCurrentMotionToSlot(s.slot,false);
       else if(wasSelected)uploadCurrentMotionToSlot(s.slot,true);
       else setPicoMotionStatus('Selected slot '+s.slot+' · click again to replace with current effect','var(--muted)');
@@ -1379,6 +1391,7 @@ function renderMotionSlotStrip(slots, activeMask){
     }
     strip.appendChild(d);
   });
+  updatePicoMotionPauseResumeButton();
 }
 
 async function deleteMotionSlot(slot){
@@ -1395,8 +1408,8 @@ async function deleteMotionSlot(slot){
       setPicoMotionStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
     }
     if(_lastSlots){
-      _lastSlots[slot]={slot:slot,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0};
-      renderMotionSlotStrip(_lastSlots,_lastActiveMask);
+      _lastSlots[slot]={slot:slot,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0};
+      renderMotionSlotStrip(_lastSlots,_lastActiveMask,_lastPausedMask);
     }
     pollPicoMotionStatus();
   }catch(e){
@@ -1406,7 +1419,7 @@ async function deleteMotionSlot(slot){
 
 // Re-highlight selection when slot selector changes
 document.getElementById('picoMotionSlot').addEventListener('change',()=>{
-  try{ if(_lastSlots) renderMotionSlotStrip(_lastSlots,_lastActiveMask); }catch(_){}
+  try{ if(_lastSlots) renderMotionSlotStrip(_lastSlots,_lastActiveMask,_lastPausedMask); }catch(_){}
 });
 
 function setPicoMotionStatus(msg,color){
@@ -1423,11 +1436,12 @@ async function pollPicoMotionStatus(){
       /* fetch slot details sequentially to avoid overwhelming the Pico */
       const sl=await fetch(root+'/motion/slots').then(r=>r.json());
       const activeSlots=(sl?.slots||[]).filter(s=>s.active).map(s=>s.slot);
+      const pausedSlots=(sl?.slots||[]).filter(s=>s.paused).map(s=>s.slot);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
-        :'Stopped';
-      setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':'var(--muted)');
-      if(sl.ok) renderMotionSlotStrip(sl.slots,st.active_mask);
+        :pausedSlots.length>0?'Slots '+pausedSlots.join(',')+' paused \u00b7 '+st.elapsed_s.toFixed(1)+'s':'Stopped';
+      setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':pausedSlots.length>0?'var(--warn)':'var(--muted)');
+      if(sl.ok) renderMotionSlotStrip(sl.slots,st.active_mask,st.paused_mask||0);
     }
   }catch(e){setPicoMotionStatus('No response','var(--bad)');}
 }
@@ -1491,6 +1505,21 @@ document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
     const j=await r.json();
     if(j.ok){stopMotion();setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
     else{setPicoMotionStatus('Start error: '+(j.error||'?'),'var(--bad)');}
+  }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
+};
+
+document.getElementById('btnPicoMotionPauseResume').onclick=async()=>{
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!ensureMotionSlotSupported())return;
+  const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
+  const current=(_lastSlots||[]).find(s=>Number(s.slot)===Number(slot));
+  const action=current?.paused?'resume':'pause';
+  try{
+    const r=await fetch(root+'/motion/'+action+'/'+slot);
+    const j=await r.json();
+    if(j.ok){setPicoMotionStatus((action==='pause'?'Paused':'Resumed')+' slot '+slot,action==='pause'?'var(--warn)':'var(--accent)');startPicoMotionPoll();}
+    else{setPicoMotionStatus((action==='pause'?'Pause':'Resume')+' error: '+(j.error||'?'),'var(--bad)');}
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 

@@ -339,6 +339,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         <label>Slot<input id="motionControlSlot" type="number" min="0" max="63" step="1" value="0"></label>
         <label>BPM<input id="motionControlBpm" type="number" min="1" max="600" step="1" value="30"></label>
         <button id="motionControlStart" class="primary">Start Slot</button>
+        <button id="motionControlPauseResume">Pause</button>
         <button id="motionControlSetBpm">Set BPM</button>
         <button id="motionControlStopSlot">Stop Slot</button>
       </div>
@@ -2082,7 +2083,8 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots){
       bpm:live?.bpm||mirror?.bpm||30,
       target_count:live?.target_count||mirror?.target_count||0,
       fixture_count:live?.fixture_count||mirror?.fixture_count||0,
-      active:!!live?.active
+      active:!!live?.active,
+      paused:!!live?.paused
     };
   });
 }
@@ -2094,6 +2096,14 @@ function updateChaserPauseResumeButton(){
   const btn=document.getElementById('chaserControlPauseResume');
   if(!btn)return;
   const slotData=chaserSlots[chaserSelectedSlot]||null;
+  const paused=!!slotData?.paused;
+  btn.textContent=paused?'Resume':'Pause';
+  btn.dataset.action=paused?'resume':'pause';
+}
+function updateMotionPauseResumeButton(){
+  const btn=document.getElementById('motionControlPauseResume');
+  if(!btn)return;
+  const slotData=motionSlots[motionSelectedSlot]||null;
   const paused=!!slotData?.paused;
   btn.textContent=paused?'Resume':'Pause';
   btn.dataset.action=paused?'resume':'pause';
@@ -2118,6 +2128,7 @@ function selectMotionSlot(slot){
   const slotData=motionSlots[motionSelectedSlot]||null;
   const bpm=document.getElementById('motionControlBpm');
   if(bpm&&slotData?.bpm)bpm.value=Math.round(Number(slotData.bpm)||30);
+  updateMotionPauseResumeButton();
 }
 function playbackSlotsForType(type){
   return type==='chaser'?chaserSlots:motionSlots;
@@ -2132,6 +2143,7 @@ function updatePlaybackSlotState(type,slot,patch){
   if(!slots[index])return;
   Object.assign(slots[index],patch);
   if(type==='chaser'&&Number(index)===Number(chaserSelectedSlot))updateChaserPauseResumeButton();
+  if(type==='motion'&&Number(index)===Number(motionSelectedSlot))updateMotionPauseResumeButton();
   drawPlaybackForType(type);
 }
 function renderPlaybackSlots(){
@@ -2173,9 +2185,12 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
       ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}`
       :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}`:'Pico slot '+sourceSlot;
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
-    const actionLabel=item?.active?'Stop':'Start';
-    const actionClass=item?.active?'stop':'primary';
-    const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button></div>`;
+    const running=!!(item?.active||item?.paused);
+    const actionLabel=running?'Stop':'Start';
+    const actionClass=running?'stop':'primary';
+    const pauseLabel=item?.paused?'Resume':'Pause';
+    const pauseAction=running?`<button data-${type}-pause-toggle="${sourceSlot}">${pauseLabel}</button>`:'';
+    const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button>${pauseAction}</div>`;
     if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
@@ -2183,7 +2198,12 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
   container.querySelectorAll(`[data-${type}-toggle]`).forEach(btn=>btn.addEventListener('click',()=>{
     const slot=parseInt(btn.dataset[type+'Toggle'],10);
     const slotData=playbackSlotsForType(type)[slot];
-    const action=slotData?.active?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+    const action=(slotData?.active||slotData?.paused)?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+    action.catch(err=>setStatus(err.message,true));
+  }));
+  container.querySelectorAll(`[data-${type}-pause-toggle]`).forEach(btn=>btn.addEventListener('click',()=>{
+    const slot=parseInt(btn.dataset[type+'PauseToggle'],10);
+    const action=togglePlaybackPauseResume(type,slot);
     action.catch(err=>setStatus(err.message,true));
   }));
   container.querySelectorAll('[data-show-tile-index]').forEach(el=>el.addEventListener('click',e=>{
@@ -2549,6 +2569,7 @@ async function stopPico(type){
     if(slot)Object.assign(slot,{active:false,paused:false});
   });
   if(type==='chaser')updateChaserPauseResumeButton();
+  if(type==='motion')updateMotionPauseResumeButton();
   drawPlaybackForType(type);
 }
 async function stopPicoSlot(type,slot){
@@ -2577,9 +2598,34 @@ async function resumeChaserSlot(slot){
   updateChaserPauseResumeButton();
   setStatus('chaser slot '+slot+' resumed');
 }
+async function pauseMotionSlot(slot){
+  const root=endpoint();
+  if(!root)throw new Error('Set Pico base URL first');
+  const r=await fetch(root+'/motion/pause/'+slot,{cache:'no-store'});
+  if(!r.ok)throw new Error('Pico effect pause failed: HTTP '+r.status);
+  updatePlaybackSlotState('motion',slot,{active:false,paused:true});
+  setStatus('effect slot '+slot+' paused');
+}
+async function resumeMotionSlot(slot){
+  const root=endpoint();
+  if(!root)throw new Error('Set Pico base URL first');
+  const r=await fetch(root+'/motion/resume/'+slot,{cache:'no-store'});
+  if(!r.ok)throw new Error('Pico effect resume failed: HTTP '+r.status);
+  updatePlaybackSlotState('motion',slot,{active:true,paused:false});
+  setStatus('effect slot '+slot+' resumed');
+}
 async function toggleChaserPauseResume(){
   const slotData=chaserSlots[chaserSelectedSlot]||null;
   return slotData?.paused?resumeChaserSlot(chaserSelectedSlot):pauseChaserSlot(chaserSelectedSlot);
+}
+async function toggleMotionPauseResume(){
+  const slotData=motionSlots[motionSelectedSlot]||null;
+  return slotData?.paused?resumeMotionSlot(motionSelectedSlot):pauseMotionSlot(motionSelectedSlot);
+}
+async function togglePlaybackPauseResume(type,slot){
+  const slotData=playbackSlotsForType(type)[slot]||null;
+  if(type==='chaser')return slotData?.paused?resumeChaserSlot(slot):pauseChaserSlot(slot);
+  return slotData?.paused?resumeMotionSlot(slot):pauseMotionSlot(slot);
 }
 async function setChaserSlotSpeed(slot){
   const root=endpoint();
@@ -2613,7 +2659,7 @@ async function startPicoSlot(type,slot){
   const action=type==='chaser'?'play':'start';
   const run=await fetch(root+'/'+type+'/'+action+'/'+slot,{cache:'no-store'});
   if(!run.ok)throw new Error('Pico '+type+' start failed: HTTP '+run.status);
-  updatePlaybackSlotState(type,slot,type==='chaser'?{active:true,paused:false}:{active:true});
+  updatePlaybackSlotState(type,slot,{active:true,paused:false});
   setStatus(type+' slot '+slot+' started');
 }
 async function loadJson(url,fallback){
@@ -2745,6 +2791,7 @@ document.getElementById('chaserControlSetSpeed').onclick=()=>DmxCommon.withButto
 document.getElementById('chaserControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('chaserControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('chaser',chaserSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlSlot').onchange=e=>{selectMotionSlot(e.target.value);renderMotionPlayback();};
 document.getElementById('motionControlStart').onclick=()=>DmxCommon.withButtonFeedback('motionControlStart',{busy:'Starting...',success:'Started',error:'Failed'},()=>startPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
+document.getElementById('motionControlPauseResume').onclick=()=>toggleMotionPauseResume().catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonFeedback('motionControlSetBpm',{busy:'Setting...',success:'BPM Set',error:'Failed'},()=>setMotionSlotBpm(motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
