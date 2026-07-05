@@ -379,6 +379,27 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('changes the page background while Show Run layout editing is active', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const normalBg = await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('body')).toHaveClass(/layout-editing/);
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(16, 25, 21)');
+    const editBg = await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
+
+    expect(editBg).not.toBe(normalBg);
+
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('body')).not.toHaveClass(/layout-editing/);
+    await expect(page.locator('body')).toHaveCSS('background-color', normalBg);
+    const restoredBg = await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
+
+    expect(restoredBg).toBe(normalBg);
+  });
+
   test('changing Pico Chaser playback rows does not change the Palettes layout', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
