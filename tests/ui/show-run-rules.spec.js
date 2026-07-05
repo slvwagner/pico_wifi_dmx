@@ -47,8 +47,8 @@ async function routeShowSetup(page, calls) {
         exists: true,
         setup: {
           baseUrl: 'http://pico.test',
-          profiles,
-          fixtures,
+          profiles: calls.profiles || profiles,
+          fixtures: calls.fixtures || fixtures,
           values: calls.setupValues || {}
         }
       })
@@ -156,10 +156,14 @@ async function routeShowSetup(page, calls) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
       return;
     }
+    const defaultShowRunState = {
+      grandMasterFactor: 1,
+      targetMasters: [{ id: 'target_1', name: 'Group Master 1', fixtureIds: [], factor: 1 }]
+    };
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, exists: true, state: { showRun: calls.showRunState || {} } })
+      body: JSON.stringify({ ok: true, exists: true, state: { showRun: { ...defaultShowRunState, ...(calls.showRunState || {}) } } })
     });
   });
 
@@ -179,6 +183,33 @@ async function routeShowSetup(page, calls) {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ ok: true, slots: calls.liveMotionSlots || [] })
+      });
+      return;
+    }
+    if (url === 'http://pico.test/midi/status.json') {
+      calls.midiStatusGets = (calls.midiStatusGets || 0) + 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(calls.midiStatus || {
+          ok: true,
+          enabled: true,
+          initialized: true,
+          rx_pin: 5,
+          uart_id: 1,
+          baud: 31250,
+          byte_count: 0,
+          message_count: 0,
+          realtime_count: 0,
+          parse_error_count: 0,
+          last_event_ms: 0,
+          running_status: 0,
+          last_status: 0,
+          last_type: 0,
+          last_channel: 0,
+          last_data1: 0,
+          last_data2: 0
+        })
       });
       return;
     }
@@ -202,25 +233,124 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('keeps primary show actions on a second sticky header line', async ({ page }) => {
+  test('recalls scenes only to individually selected fixtures', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
 
-    const actionBar = page.locator('.header-actions');
-    await expect(actionBar).toBeVisible();
-    await expect(actionBar.getByRole('button', { name: 'Refresh Show Data' })).toBeVisible();
-    await expect(actionBar.getByRole('button', { name: 'Stop All Playback' })).toBeVisible();
-    await expect(actionBar.getByRole('button', { name: 'Blackout Target' })).toBeVisible();
-    await expect(actionBar.getByRole('button', { name: 'Show All Fixtures' })).toBeVisible();
+    await expect(page.locator('#cardFixture h2')).toHaveText('Fixtures');
+    await page.getByRole('button', { name: /Spot 2/ }).click();
+    await page.getByRole('button', { name: /Both On/ }).click();
 
-    const mainBox = await page.locator('.header-main').boundingBox();
-    const actionBox = await actionBar.boundingBox();
-    expect(actionBox.y).toBeGreaterThan(mainBox.y + mainBox.height - 1);
+    await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({ '102:11': 200 });
+    expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
 
-    const headerBox = await page.locator('header').boundingBox();
-    const lastButtonBox = await actionBar.getByRole('button', { name: 'Show All Fixtures' }).boundingBox();
-    expect(Math.abs((headerBox.x + headerBox.width - 14) - (lastButtonBox.x + lastButtonBox.width))).toBeLessThanOrEqual(2);
+  test('shows primary show actions in the Master card', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const master = page.locator('#cardMaster');
+    await expect(master.getByRole('heading', { name: 'Master', exact: true })).toBeVisible();
+    await expect(master.getByRole('button', { name: 'Refresh Show Data' })).toBeVisible();
+    await expect(master.getByRole('button', { name: 'Stop All Playback' })).toBeVisible();
+    await expect(master.getByRole('button', { name: 'Show All Fixtures' })).toBeVisible();
+    await expect(master.locator('.grand-master-fader')).toBeVisible();
+    await expect(master.locator('[data-target-master-fader="0"]')).toBeVisible();
+    await expect(master.locator('[data-master-blackout="all"]')).toBeVisible();
+    await expect(master.locator('[data-master-blackout="target:0"]')).toBeVisible();
+    await expect(master.getByRole('button', { name: 'Blackout Target' })).toHaveCount(0);
+    await expect(master.getByRole('button', { name: 'Assign Selection to Group Master 1' })).toHaveCount(0);
+    await expect(master.getByRole('button', { name: 'Add Group Master' })).toBeHidden();
+    await expect(master.locator('[data-target-master-assign="0"]')).toBeHidden();
+    await expect(master.locator('[data-target-master-clear="0"]')).toBeHidden();
+    await expect(master.locator('.grand-master-fader')).toHaveCSS('writing-mode', 'vertical-lr');
+    await expect(master.locator('[data-target-master-fader="0"]')).toHaveCSS('writing-mode', 'vertical-lr');
+
+    await page.locator('#editLayoutBtn').click();
+    await expect(master.getByRole('button', { name: 'Add Group Master' })).toBeVisible();
+    await expect(master.locator('[data-target-master-assign="0"]')).toBeVisible();
+    await expect(master.locator('[data-target-master-clear="0"]')).toBeVisible();
+  });
+
+  test('shows Pico MIDI input status and the last MIDI event on Show Run', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      midiStatus: {
+        ok: true,
+        enabled: true,
+        initialized: true,
+        rx_pin: 5,
+        uart_id: 1,
+        baud: 31250,
+        byte_count: 24,
+        message_count: 8,
+        realtime_count: 0,
+        parse_error_count: 1,
+        last_event_ms: 1234,
+        running_status: 176,
+        last_status: 176,
+        last_type: 176,
+        last_channel: 1,
+        last_data1: 7,
+        last_data2: 96
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const card = page.locator('#cardGrid #cardMidi');
+    await expect(card.getByRole('heading', { name: 'MIDI Input' })).toBeVisible();
+    await expect(page.locator('#midiStatusPill')).toHaveText('Ready');
+    await expect(page.locator('#midiHardware')).toHaveText('GPIO5 · UART1 · 31,250 baud');
+    await expect(page.locator('#midiBytes')).toHaveText('24');
+    await expect(page.locator('#midiMessages')).toHaveText('8');
+    await expect(page.locator('#midiErrors')).toHaveText('1');
+    await expect(page.locator('#midiLastEvent')).toContainText('Control Change');
+    await expect(page.locator('#midiLastEvent')).toContainText('Ch 1 · CC 7 · Value 96');
+    expect(calls.midiStatusGets).toBeGreaterThan(0);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('lets the operator add a MIDI Input card through Show Run card management', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardGrid [data-show-card="midi"] h2')).toHaveText('MIDI Input');
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardRows').fill('5');
+    await page.locator('[data-add-card-position="9"]').click();
+    await page.locator('#addCardType').selectOption('midi');
+    await expect(page.locator('#addShowCard')).toHaveText('Add MIDI Input Card');
+    await page.locator('#addShowCard').click();
+
+    await expect(page.locator('#cardGrid [data-show-card="midi"] h2')).toHaveCount(2);
+    await expect(page.locator('#status')).toContainText('Added MIDI Input at position 10');
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.filter(entry => String(entry || '').startsWith('midi'))).toHaveLength(2);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('repairs stale browser-only Show Run card order so Chaser is not lost', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, showRunState: { cardLayouts: {} } };
+    await routeShowSetup(page, calls);
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.cardCols', '2');
+      localStorage.setItem('dmxShowRun.cardRows', '4');
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['group', 'scene', 'palette', 'motion', 'live', 'midi', null, null]));
+    });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardGrid #cardChaser h2')).toHaveText('Pico Chaser Playback');
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.some(entry => entry === 'chaser')).toBe(true);
+    expect(calls.setupWrites).toBe(0);
   });
 
   test('uses the available browser width for the Show Run workspace', async ({ page }) => {
@@ -315,34 +445,113 @@ test.describe('Show Run page', () => {
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/motion/stop');
   });
 
-  test('locks blackout channels on the Pico and clears the lock before normal recalls', async ({ page }) => {
-    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+  test('blackout buttons set Grand and Group Master faders to zero', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
 
-    await page.getByRole('button', { name: 'Blackout Target' }).click();
+    await page.locator('[data-master-blackout="all"]').click();
+    await expect(page.locator('.grand-master-fader')).toHaveValue('0');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:0,11:0')).toBe(true);
+    expect(calls.liveValues).toHaveLength(0);
+    expect(calls.pico.some(call => call.url.includes('/dmx/blackout'))).toBe(false);
 
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout')).toBe(true);
-    const blackoutCall = calls.pico.find(call => call.url === 'http://pico.test/dmx/blackout');
-    expect(blackoutCall).toBeTruthy();
-    expect(blackoutCall.method).toBe('POST');
-    expect(blackoutCall.body.split(',').sort()).toEqual(['11:0', '12:0', '13:0', '14:0', '1:0', '2:0', '3:0', '4:0'].sort());
-    await expect(page.getByRole('button', { name: 'Clear Blackout' })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Clear Blackout' }).click();
-
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout/clear')).toBe(true);
-    await expect(page.getByRole('button', { name: 'Blackout Target' })).toBeVisible();
-
+    await page.locator('.grand-master-fader').fill('100');
+    await page.getByRole('button', { name: /Spot 2/ }).click();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMaster [data-target-master-assign="0"]').first().click();
+    await page.locator('#editLayoutBtn').click();
     calls.pico.length = 0;
-    await page.getByRole('button', { name: 'Blackout Target' }).click();
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/blackout')).toBe(true);
-    await page.getByRole('button', { name: /Both On/ }).click();
 
-    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b')).toBe(true);
-    const urls = calls.pico.map(call => call.url);
-    expect(urls.indexOf('http://pico.test/dmx/blackout/clear')).toBeLessThan(urls.indexOf('http://pico.test/dmx/b'));
-    expect(calls.pico.find(call => call.url === 'http://pico.test/dmx/b').body).toBe('1:100,11:200');
+    await page.locator('[data-master-blackout="target:0"]').click();
+    await expect(page.locator('[data-target-master-fader="0"]')).toHaveValue('0');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:0')).toBe(true);
+    expect(calls.pico.some(call => call.url.includes('/dmx/blackout'))).toBe(false);
+  });
+
+  test('Grand Master fader scales all fixture dimmers without overwriting live values', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('.grand-master-fader').fill('50');
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:50') && call.body.includes('11:100')))
+      .toBe(true);
+    expect(calls.liveValues).toHaveLength(0);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.grandMasterFactor === 0.5)).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('Group Master fader scales assigned fixture dimmers without overwriting live values', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.getByRole('button', { name: /Spot 2/ }).click();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMaster [data-target-master-assign="0"]').first().click();
+    await expect(page.locator('#status')).toContainText('Assigned 1 fixture(s) to Group Master 1');
+    await page.locator('#editLayoutBtn').click();
+    await page.getByRole('button', { name: 'Show All Fixtures' }).click();
+    calls.pico.length = 0;
+    await page.locator('[data-target-master-fader="0"]').fill('25');
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:50'))
+      .toBe(true);
+    expect(calls.liveValues).toHaveLength(0);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && Array.isArray(post.state.targetMasters))).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('can add another group master and assign a saved group to it', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.getByRole('button', { name: /Front Spots/ }).click();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMaster .add-target-master').click();
+    await expect(page.locator('[data-target-master-fader="1"]')).toBeVisible();
+    await page.locator('#cardMaster [data-target-master-assign="1"]').first().click();
+    await expect(page.locator('#status')).toContainText('Assigned 1 fixture(s) to Group Master 2');
+    await page.locator('[data-target-master-fader="1"]').fill('10');
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:10'))
+      .toBe(true);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.targetMasters') || '[]'));
+    expect(saved).toHaveLength(2);
+    expect(saved[1].fixtureIds.map(String)).toEqual(['101']);
+  });
+
+  test('Grand Master fader scales 16-bit dimmers with coarse and fine output', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [
+        {
+          id: 2,
+          name: '16 Bit Spot',
+          mode: '2ch',
+          channels: 2,
+          controls: [
+            { id: 21, type: 'slider16', label: 'Dimmer', channel: 1, fine: 2, blackoutValue: 0 }
+          ]
+        }
+      ],
+      fixtures: [{ id: 201, name: 'Fine Dimmer', profileId: 2, start: 1 }],
+      setupValues: { '201:21': 32768 }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('.grand-master-fader').fill('50');
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:64,2:0'))
+      .toBe(true);
+    expect(calls.liveValues).toHaveLength(0);
+    expect(calls.setupWrites).toBe(0);
   });
 
   test('shows live Pico chaser slots when the XAMPP mirror is empty', async ({ page }) => {
@@ -452,6 +661,8 @@ test.describe('Show Run page', () => {
         paletteCols: 2,
         paletteRows: 1,
         paletteOrder: ['palette_1', null],
+        grandMasterFactor: 0.4,
+        targetMasters: [{ id: 'server_target', name: 'Group Master 1', fixtureIds: ['102'], factor: 0.25 }],
         liveControls: [{
           id: 'server_live_button',
           cardId: 'live',
@@ -475,9 +686,12 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
-    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Groups');
     await expect(page.locator('#cardLive .live-widget')).toHaveCount(1);
     await expect(page.locator('#cardLive .live-widget h3')).toContainText('Spot 1 - Dimmer');
+    await expect(page.locator('.grand-master-fader')).toHaveValue('40');
+    await expect(page.locator('[data-target-master-fader="0"]')).toHaveValue('25');
+    await expect(page.locator('[data-target-master-summary="0"]')).toContainText('Spot 2');
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder.slice(0, 6)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', 'group']);
   });
@@ -505,6 +719,28 @@ test.describe('Show Run page', () => {
       .toBe(true);
     await expect.poll(() => calls.liveValues.some(snapshot => snapshot['101:11'] === 77))
       .toBe(true);
+  });
+
+  test('lets one live fader control the same control on multiple fixtures', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#liveFixtureSelect').selectOption(['101', '102']);
+    await page.locator('#liveControlSelect').selectOption('11');
+    await page.locator('#liveWidgetSelect').selectOption('fader');
+    await page.locator('#addLiveControl').click();
+
+    await expect(page.locator('#liveControlGrid .live-widget h3')).toHaveText('2 fixtures - Dimmer');
+    await page.locator('#liveControlGrid input[type="range"]').fill('77');
+
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.method === 'POST' && call.body.includes('1:77') && call.body.includes('11:77')))
+      .toBe(true);
+    expect(calls.liveValues.at(-1)).toEqual({ '101:11': 77, '102:11': 77 });
+    const savedControls = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.liveControls') || '[]'));
+    expect(savedControls[0].fixtureIds.map(String).sort()).toEqual(['101', '102']);
+    expect(calls.setupWrites).toBe(0);
   });
 
   test('restores the previous live value when a hold live button is released', async ({ page }) => {
@@ -1060,7 +1296,7 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
-    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Groups');
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -1093,7 +1329,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Pico Chaser Playback');
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Palettes');
-    await expect(page.locator('#cardGrid > :nth-child(4) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(4) h2')).toHaveText('Groups');
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder.slice(0, 4)).toEqual(['chaser', 'scene', 'palette', 'group']);
@@ -1113,7 +1349,7 @@ test.describe('Show Run page', () => {
 
     await page.locator('#cardScene .panel-head').dragTo(page.locator('#cardMotion .panel-head'));
 
-    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Groups');
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Pico Effects Playback');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Palettes');
     await expect(page.locator('#cardGrid > :nth-child(4) h2')).toHaveText('Pico Chaser Playback');
@@ -1132,19 +1368,23 @@ test.describe('Show Run page', () => {
 
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardRows').fill('4');
 
     // Position 5 contains Pico Effects Playback, position 6 contains Live Controls,
-    // and position 7 is empty in the default 3x3 card matrix.
-    await page.locator('#cardMotion .panel-head').dragTo(page.locator('#cardGrid > :nth-child(7)'));
+    // position 7 contains MIDI Input, position 8 contains Fixtures, position 9 contains Master,
+    // and position 10 is empty.
+    await page.locator('#cardMotion .panel-head').dragTo(page.locator('#cardGrid > :nth-child(10)'));
 
     await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Add card');
     await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Position 5');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
-    await expect(page.locator('#cardGrid > :nth-child(7) h2')).toHaveText('Pico Effects Playback');
+    await expect(page.locator('#cardGrid > :nth-child(7) h2')).toHaveText('MIDI Input');
+    await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Fixtures');
+    await expect(page.locator('#cardGrid > :nth-child(9) h2')).toHaveText('Master');
+    await expect(page.locator('#cardGrid > :nth-child(10) h2')).toHaveText('Pico Effects Playback');
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 7)).toEqual(['group', 'scene', 'palette', 'chaser', null, 'live', 'motion']);
+    expect(savedOrder.slice(0, 10)).toEqual(['group', 'scene', 'palette', 'chaser', null, 'live', 'midi', 'fixture', 'master', 'motion']);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -1155,17 +1395,19 @@ test.describe('Show Run page', () => {
 
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardRows').fill('4');
 
     await expect(page.locator('#cardLive .card-move-handle')).toHaveCount(0);
-    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(8)'));
+    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(10)'));
 
     await expect(page.locator('#cardGrid > :nth-child(6)')).toContainText('Add card');
     await expect(page.locator('#cardGrid > :nth-child(6)')).toContainText('Position 6');
-    await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Fixtures');
+    await expect(page.locator('#cardGrid > :nth-child(9) h2')).toHaveText('Master');
+    await expect(page.locator('#cardGrid > :nth-child(10) h2')).toHaveText('Live Controls');
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 8)).toEqual(['group', 'scene', 'palette', 'chaser', 'motion', null, null, 'live']);
+    expect(savedOrder.slice(0, 10)).toEqual(['group', 'scene', 'palette', 'chaser', 'motion', null, 'midi', 'fixture', 'master', 'live']);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -1183,7 +1425,7 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Live Controls');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Scenes');
-    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Groups');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Palettes');
     await expect(page.locator('#cardGrid > :nth-child(4) h2')).toHaveText('Pico Chaser Playback');
     await expect(page.locator('#cardGrid > :nth-child(5) h2')).toHaveText('Pico Effects Playback');
@@ -1238,7 +1480,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
 
     let savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 9)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', expect.stringMatching(/^live:/), 'group', null, null]);
+    expect(savedOrder.slice(0, 9)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', expect.stringMatching(/^live:/), 'group', 'midi', 'fixture']);
 
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardPalette .panel-head'));
@@ -1246,7 +1488,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
     savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 9)).toEqual(['palette', 'scene', 'live', 'chaser', 'motion', expect.stringMatching(/^live:/), 'group', null, null]);
+    expect(savedOrder.slice(0, 9)).toEqual(['palette', 'scene', 'live', 'chaser', 'motion', expect.stringMatching(/^live:/), 'group', 'midi', 'fixture']);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -1256,9 +1498,9 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardRows').fill('4');
-    await expect(page.locator('[data-add-card-position="6"]')).toBeVisible();
-    await page.locator('[data-add-card-position="6"]').click();
+    await page.locator('#cardRows').fill('5');
+    await expect(page.locator('[data-add-card-position="9"]')).toBeVisible();
+    await page.locator('[data-add-card-position="9"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     await page.locator('#addCardType').selectOption('live');
     await expect(page.locator('#addShowCard')).toHaveText('Add Live Controls');
@@ -1266,7 +1508,7 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#addCardModal')).toBeHidden();
     await expect(page.locator('[data-show-card="live"]')).toHaveCount(2);
-    await expect(page.locator('#status')).toHaveText('Added Live Controls at position 7');
+    await expect(page.locator('#status')).toHaveText('Added Live Controls at position 10');
     const secondLive = page.locator('[data-show-card="live"]').nth(1);
     await secondLive.locator('.live-fixture-select').selectOption('101');
     await secondLive.locator('.live-control-select').selectOption('12');
@@ -1307,7 +1549,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#addCardModal')).toBeVisible();
     await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
-    expect(addOptions.sort()).toEqual(['Live Controls', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Show Target'].sort());
+    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Groups'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
@@ -1449,7 +1691,7 @@ test.describe('Show Run page', () => {
     await page.locator('[data-add-card-position="2"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
-    expect(addOptions).toEqual(['Live Controls', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Show Target'].sort());
+    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Groups'].sort());
 
     await page.locator('#addCardType').selectOption('palette');
     await page.locator('#addShowCard').click();
@@ -1479,21 +1721,23 @@ test.describe('Show Run page', () => {
     await routeShowSetup(page, calls);
     await page.addInitScript(() => {
       localStorage.setItem('dmxShowRun.cardCols', '3');
-      localStorage.setItem('dmxShowRun.cardRows', '3');
-      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null]));
+      localStorage.setItem('dmxShowRun.cardRows', '4');
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null, null, null, null]));
     });
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
-    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(8)'));
+    await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(10)'));
 
     await expect(page.locator('#cardGrid > :nth-child(1)')).toContainText('Add card');
     await expect(page.locator('#cardGrid > :nth-child(1)')).toContainText('Position 1');
-    await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Fixtures');
+    await expect(page.locator('#cardGrid > :nth-child(9) h2')).toHaveText('Master');
+    await expect(page.locator('#cardGrid > :nth-child(10) h2')).toHaveText('Live Controls');
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 9)).toEqual([null, 'scene', 'palette', 'chaser', 'motion', 'group', null, 'live', null]);
+    expect(savedOrder.slice(0, 10)).toEqual([null, 'scene', 'palette', 'chaser', 'motion', 'group', 'midi', 'fixture', 'master', 'live']);
     expect(calls.setupWrites).toBe(0);
   });
 

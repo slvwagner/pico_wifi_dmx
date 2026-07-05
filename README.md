@@ -881,7 +881,7 @@ The Pico Performance Test page checks the whole browser-to-Pico path. It reads `
 
 Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. The CSV export makes it possible to compare write-test runs later.
 
-Show Run **Blackout Target** uses the Pico firmware blackout lock. The browser sends fixture-derived blackout channel values to `POST /dmx/blackout`; while the lock is active, normal DMX writes and Pico chaser/effect playback cannot overwrite those channels. `GET /dmx/blackout/clear` releases the lock, and `/status.json` reports the current `dmx.blackout_channels` count.
+Show Run blackout is handled by the Master card faders. **Blackout** below the Grand Master sets the Grand Master to `0%` and sends scaled dimmer output for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. These actions use the same output path as moving the fader manually, so they do not overwrite stored live values or call the Pico blackout-lock endpoint.
 
 Show Run refreshes its XAMPP show data automatically when the page becomes active again, so changes made on the Controller, Chaser, or Effects page are picked up when the operator returns. Auto-refresh is skipped while **Edit Layout** is active; **Refresh Show Data** remains as a manual fallback.
 

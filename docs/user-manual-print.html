@@ -455,9 +455,34 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Current live values from <code>fixture_setup.php?livevalues</code></li>
 </ul>
 <p>Show Run automatically refreshes this show data when the page becomes active again, for example after switching back from the Controller, Chaser, or Effects page. This keeps the operator page current without needing to reload the browser tab. Automatic refresh is skipped while <strong>Edit Layout</strong> is active so card moves, tile moves, and Live Controls edits are not overwritten. Use <strong>Refresh Show Data</strong> only when you want to force the same reload manually.</p>
-<h3 id="show-target">Show Target</h3>
-<p>The <strong>Show Target</strong> section contains saved groups. Select one or more groups when you want scene, palette, or blackout recalls to affect only those fixtures. With no group selected, Show Run uses all stored fixture values.</p>
-<p>This target selection is an operator filter only. It does not edit the saved group definitions and it does not save setup data.</p>
+<h3 id="master-card">Master Card</h3>
+<p>The <strong>Master</strong> card contains the global operator actions and dimmer masters. <strong>Refresh Show Data</strong> reloads the current XAMPP show files manually. <strong>Stop All Playback</strong> stops Pico chaser and effect playback. <strong>Show All Fixtures</strong> clears the current group and fixture target filter.</p>
+<p>The <strong>Grand Master</strong> is a vertical fader. It does not overwrite stored live values; it multiplies dimmer output by a 0..1 factor, including 16-bit dimmer controls. <strong>Blackout</strong> below the Grand Master sets the Grand Master fader to <strong>0%</strong> and sends the scaled dimmer output immediately. <strong>Group Master</strong> faders work the same way, but only for fixtures assigned to that group master. The <strong>Blackout</strong> button below each Group Master sets only that Group Master to <strong>0%</strong>.</p>
+<p>To assign a Group Master, first select one or more groups or fixtures, click <strong>Edit Layout</strong>, then click <strong>Assign</strong> on the desired group master fader. <strong>Add Group Master</strong>, <strong>Assign</strong>, and <strong>Clear</strong> are only enabled while <strong>Edit Layout</strong> is active. The Grand Master factor and Group Master assignments are saved to server UI state and restored on page load.</p>
+<p><img src="screenshots/show-run-card-master.png" alt="Show Run Master card"></p>
+<h3 id="groups-card">Groups Card</h3>
+<p>The <strong>Groups</strong> card contains the saved groups from the Controller page. Select one or more groups when you want scene, palette, or Group Master assignment to affect only those fixtures. With no group selected, Show Run uses all fixtures.</p>
+<p>Group selection is an operator filter only. It does not edit the saved group definitions and it does not save setup data.</p>
+<p><img src="screenshots/show-run-card-groups.png" alt="Show Run Groups card"></p>
+<h3 id="fixtures-card">Fixtures Card</h3>
+<p>The <strong>Fixtures</strong> card lets you target individual fixtures without creating a saved group. Click a fixture tile to select or deselect it. Fixture selection combines with group selection, so the current show target is the union of selected groups and selected individual fixtures.</p>
+<p>Use this when a scene, palette, or Group Master should apply to one fixture or a temporary hand-picked set.</p>
+<p><img src="screenshots/show-run-card-fixtures.png" alt="Show Run Fixtures card"></p>
+<h3 id="scenes-card">Scenes Card</h3>
+<p>The <strong>Scenes</strong> card recalls saved scene tiles from the Controller page. Click a scene tile to recall that scene to the current target. Show Run writes the recalled values to the live-value snapshot and sends the matching DMX channels to the Pico in one <code>/dmx/b</code> batch when a Pico base URL is set.</p>
+<p><img src="screenshots/show-run-card-scenes.png" alt="Show Run Scenes card"></p>
+<h3 id="palettes-card">Palettes Card</h3>
+<p>The <strong>Palettes</strong> card recalls saved position, color, beam, dimmer, and effect palettes. If a group or fixture target is active, only stored values for the targeted fixtures are recalled. This lets one saved palette be reused for different parts of the rig.</p>
+<p><img src="screenshots/show-run-card-palettes.png" alt="Show Run Palettes card"></p>
+<h3 id="pico-playback-cards">Pico Playback Cards</h3>
+<p>The <strong>Pico Chaser Playback</strong> card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a slot, set speed, play, pause/resume, set speed, or stop.</p>
+<p><img src="screenshots/show-run-card-chaser.png" alt="Show Run Pico Chaser Playback card"></p>
+<p>The <strong>Pico Effects Playback</strong> card shows effect slots uploaded from the Effects page. Choose a slot, set <strong>BPM</strong>, then start, set BPM, or stop the slot. Starting a mirrored slot reloads its payload before running it; starting a live-only Pico slot starts the already-loaded Pico slot without overwriting it.</p>
+<p><img src="screenshots/show-run-card-effects.png" alt="Show Run Pico Effects Playback card"></p>
+<h3 id="midi-input-card">MIDI Input Card</h3>
+<p>The <strong>MIDI Input</strong> card is a read-only diagnostics card for the Pico MIDI input. It shows whether MIDI is ready, the GPIO/UART/baud configuration, byte and message counters, parse errors, and the last decoded event. Use it to verify MIDI wiring and signal reception before mapping hardware controls to show actions.</p>
+<p><img src="screenshots/show-run-card-midi.png" alt="Show Run MIDI Input card"></p>
+<h3 id="layout-editing">Layout Editing</h3>
 <p>The sticky title bar has <strong>Edit Layout</strong> on the right. Layout tools are hidden during normal operation. Click <strong>Edit Layout</strong> when you want to show the layout controls, then click <strong>Done Layout</strong> to return to the cleaner operator view.</p>
 <p>In layout edit mode, the top of Show Run has a page-level card matrix. Use <strong>Card cols</strong> and <strong>Card rows</strong> to choose how many operator cards fit in the page grid. Empty card positions show a <code>+</code> tile; click it to open <strong>Add Card</strong>, choose the card type, then add it at that matrix position. If the matrix is full, Show Run still shows one extra <code>+</code> tile at the next position so another card can be added. After a card is added, Show Run reports the matrix position where it was placed. Every card type can be added more than once, so you can keep separate palette, scene, playback, or Live Controls cards with different tile layouts. Each card has a small top-right <code>x</code> while layout editing is active. That <code>x</code> removes the card from the Show Run page only; it does not delete the saved scenes, palettes, groups, chases, effects, or fixture data behind it.</p>
 <p><img src="screenshots/show-run-add-card.png" alt="Show Run Add Card"></p>
@@ -470,6 +495,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>Pico chaser/effect playback tiles use the same tile move behavior during layout editing. Their playback buttons are replaced by <strong>Move tile</strong> while <strong>Edit Layout</strong> is active, so a show cannot accidentally start or stop playback while you are arranging the operator page.</p>
 <h3 id="live-controls">Live Controls</h3>
 <p>The <strong>Live Controls</strong> card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click <strong>Edit Layout</strong>, choose a patched fixture, control, control part, and widget type, then click <strong>Add Control</strong>. The setup controls are hidden when <strong>Done Layout</strong> is active so the operator page keeps more space for the actual controls. Multiple Live Controls cards can be used to separate faders, buttons, and mixed show controls. Faders and knobs send their value while they are moved. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.</p>
+<p><img src="screenshots/show-run-card-live-controls.png" alt="Show Run Live Controls card"></p>
 <p><img src="screenshots/show-run-live-controls.png" alt="Show Run Live Controls"></p>
 <p>To create a momentary button, set <strong>Widget</strong> to <strong>Button</strong>, set <strong>Button mode</strong> to <strong>Hold</strong>, choose the value to send, then click <strong>Add Control</strong>. <strong>Hold</strong> sends the configured value only while the button is pressed. When the button is released, Show Run restores the value that was active before the press.</p>
 <p><img src="screenshots/show-run-live-hold-button.png" alt="Show Run Hold Button"></p>
@@ -477,15 +503,10 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p><img src="screenshots/show-run-live-timer-button.png" alt="Show Run Fog/Haze Timer Button"></p>
 <p>Use <strong>Apply</strong> mode for one-shot commands that should send the configured value once and stay there.</p>
 <p>Live Control card configuration is stored with the server-side Show Run layout preferences. Use the small <code>x</code> on a live widget while <strong>Edit Layout</strong> is active to remove it from the operator page.</p>
-<h3 id="scenes-and-palettes">Scenes And Palettes</h3>
-<p>Click a scene tile to recall that scene. Click a palette tile to recall that palette. Show Run writes the recalled values to the live-value snapshot and sends the matching DMX channels to the Pico in one <code>/dmx/b</code> batch when a Pico base URL is set.</p>
-<p>If a group target is active, only stored values whose fixture IDs belong to the selected groups are recalled. This lets you reuse a scene or palette for part of the rig without opening the editing controller page.</p>
-<h3 id="blackout-and-playback">Blackout And Playback</h3>
-<p><strong>Blackout Target</strong> recalls each targeted fixture control&#39;s stored blackout value, writes it to the live-value snapshot, and sends the changed DMX channels to the Pico as a blackout lock. The button changes to <strong>Clear Blackout</strong> while the lock is active. During this state, Pico chaser and effect playback cannot overwrite the locked blackout channels, even if a running effect targets a dimmer channel. Click <strong>Clear Blackout</strong> or recall a scene/palette to release the lock and allow playback to write those channels again.</p>
-<p><strong>Pico Chaser Playback</strong> and <strong>Pico Effects Playback</strong> show the slots that were uploaded and mirrored from the Chaser and Effects pages. They also read live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty.</p>
-<p>Use the <strong>Pico Chaser Playback</strong> controls to choose a slot, set the slot speed, then <strong>Play Slot</strong>, <strong>Pause</strong>, <strong>Resume</strong>, <strong>Set Speed</strong>, or <strong>Stop Slot</strong>.</p>
-<p>Use the <strong>Pico Effects Playback</strong> controls the same way: choose a slot, set <strong>BPM</strong>, then <strong>Start Slot</strong>, <strong>Set BPM</strong>, or <strong>Stop Slot</strong>. Starting a mirrored slot reloads its payload before running it; starting a live-only Pico slot starts the already-loaded Pico slot without overwriting it.</p>
-<p>The global <strong>Stop Chaser</strong>, <strong>Stop Effects</strong>, and <strong>Stop All Playback</strong> buttons call the matching Pico stop endpoints.</p>
+<h3 id="output-behavior">Output Behavior</h3>
+<p>Scene, palette, Live Control, Grand Master, and Group Master output all use the same current target rules. Selected Groups and Fixtures define the target. With no selection, all fixtures are targeted.</p>
+<p>Show Run blackout is handled by the master faders. Click <strong>Blackout</strong> below the Grand Master to set the Grand Master to <strong>0%</strong> for all dimmers. Click <strong>Blackout</strong> below a Group Master to set only that Group Master to <strong>0%</strong>. These buttons use the same output path as moving the fader manually, so they do not overwrite stored live values or call the Pico blackout-lock endpoint.</p>
+<p>The global <strong>Stop All Playback</strong> button calls both Pico stop endpoints.</p>
 <p>Show Run is intentionally read-mostly during normal operation. Outside <strong>Edit Layout</strong> it does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files. In <strong>Edit Layout</strong>, card placement, tile placement, Live Controls, and tile label/visual edits are saved intentionally.</p>
 <h2 id="5-chaser">5. Chaser</h2>
 <p><img src="screenshots/chaser.png" alt="Chaser"></p>

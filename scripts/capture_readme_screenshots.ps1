@@ -687,13 +687,16 @@ try {
   values['990102:990011']=160;
   values['990101:990012']={a:255,b:80,c:24};
   values['990102:990012']={a:120,b:40,c:255};
-  cardCols=2;cardRows=3;
+  targetMasters.splice(0,targetMasters.length,{id:'doc_target_front',name:'Group Master 1',fixtureIds:['990101','990102'],factor:0.75});
+  masterFactors.grand=0.85;
+  cardCols=3;cardRows=3;
   groupCols=2;groupRows=1;
+  fixtureCols=2;fixtureRows=1;
   sceneCols=2;sceneRows=1;
   paletteCols=2;paletteRows=1;
   chaserCols=2;chaserRows=1;
   motionCols=2;motionRows=1;
-  cardOrder=['group','scene','palette','chaser','motion','live'];
+  cardOrder=['master','group','fixture','scene','palette','chaser','motion','live','midi'];
   cardLayouts={};
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
@@ -704,6 +707,7 @@ try {
   if(typeof selectMotionSlot==='function')selectMotionSlot(0);
   if(typeof setLayoutEditing==='function')setLayoutEditing(false);
   if(typeof renderGroups==='function')renderGroups();
+  if(typeof renderFixtures==='function')renderFixtures();
   if(typeof renderScenes==='function')renderScenes();
   if(typeof renderPalettes==='function')renderPalettes();
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
@@ -716,6 +720,15 @@ try {
 })()
 "@
     Save-Screenshot "show-run.png"
+    Save-ElementScreenshot "#cardMaster" "show-run-card-master.png"
+    Save-ElementScreenshot "#cardGroup" "show-run-card-groups.png"
+    Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png"
+    Save-ElementScreenshot "#cardScene" "show-run-card-scenes.png"
+    Save-ElementScreenshot "#cardPalette" "show-run-card-palettes.png"
+    Save-ElementScreenshot "#cardChaser" "show-run-card-chaser.png"
+    Save-ElementScreenshot "#cardMotion" "show-run-card-effects.png"
+    Save-ElementScreenshot "#cardLive" "show-run-card-live-controls.png"
+    Save-ElementScreenshot "#cardMidi" "show-run-card-midi.png"
 
     Eval-Js @"
 (async()=>{

@@ -62,6 +62,13 @@ Global is simpler and safer. Page-specific is more flexible, but easier to misun
   Once mappings are implemented, update README, user manual, screenshots, changelog, and hardware wiring notes.
   Keep the warning that DIN/TRS MIDI must go through a receiver/opto-isolation circuit before GPIO5.
 
+## 08
+- Pico firmware master layer for Show Run Grand/Group Masters.
+  Browser-side Show Run now treats Grand and Group Masters as 0..1 dimmer factors and preserves stored live values, including 16-bit dimmers.
+  Firmware should eventually handle masters like a dedicated output layer, similar in importance to blackout but not as a lock:
+  keep base DMX values unchanged, keep a configured set of dimmer channels/16-bit channel pairs, apply grand/target factors at output time, and make Pico chaser/effect playback respect the active master factor while it is running.
+  This needs explicit endpoints and tests, for example to set/clear master channel mappings and factors without destroying the base DMX buffer.
+
 # Bugs
 
 ## 01
