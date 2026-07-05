@@ -1091,6 +1091,37 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('can bring hidden singleton cards back into a visible empty card slot', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: {
+        cardCols: 3,
+        cardRows: 2,
+        cardOrder: ['live', 'group', null, null, null, null, 'scene', 'palette', 'chaser', 'motion']
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('#cardGrid > *')).toHaveCount(6);
+    await page.locator('[data-add-card-position="2"]').click();
+    await expect(page.locator('#addCardModal')).toBeVisible();
+    const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
+    expect(addOptions).toEqual(['Live Controls', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes'].sort());
+
+    await page.locator('#addCardType').selectOption('palette');
+    await page.locator('#addShowCard').click();
+
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Palettes');
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder[2]).toBe('palette');
+    expect(savedOrder.filter(entry => entry === 'palette')).toHaveLength(1);
+    expect(calls.uiStatePosts.some(post => post.page === 'showRun' && post.state.cardOrder)).toBe(true);
+  });
+
   test('hides Live Controls setup outside Edit Layout', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);

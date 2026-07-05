@@ -682,14 +682,22 @@ function addShowCard(){
   const select=document.getElementById('addCardType');
   const type=select?.value||'live';
   if(!cardIds.includes(type))return;
-  if(type!=='live'&&cardOrder.some(entry=>cardType(entry)===type)){setStatus((cardLabels[type]||type)+' is already on the page',true);return;}
+  const visibleCardCount=Math.max(1,cardCols*cardRows);
+  const visibleTypes=new Set(cardOrder.slice(0,visibleCardCount).map(cardType).filter(Boolean));
+  if(type!=='live'&&visibleTypes.has(type)){setStatus((cardLabels[type]||type)+' is already visible on the page',true);return;}
   const entry=type==='live'?uniqueLiveCardKey():type;
   let index=Number.isFinite(addCardTargetIndex)&&cardOrder[addCardTargetIndex]==null?addCardTargetIndex:cardOrder.indexOf(null);
   if(index<0){
     cardOrder.push(entry);
     index=cardOrder.length-1;
     normalizeCardGrid('rows');
-  }else cardOrder[index]=entry;
+  }else{
+    if(type!=='live'){
+      const existingIndex=cardOrder.findIndex(existing=>cardType(existing)===type);
+      if(existingIndex>=0)cardOrder[existingIndex]=null;
+    }
+    cardOrder[index]=entry;
+  }
   saveCardLayout();
   renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   setStatus('Added '+(cardLabels[type]||type)+' at position '+(index+1));
@@ -699,8 +707,9 @@ function updateAddCardOptions(){
   const select=document.getElementById('addCardType');
   if(!select)return;
   const preferred=select.value||'live';
-  const used=new Set(cardOrder.map(cardType).filter(type=>type&&type!=='live'));
-  const addable=cardIds.filter(type=>type==='live'||!used.has(type));
+  const visibleCardCount=Math.max(1,cardCols*cardRows);
+  const visibleTypes=new Set(cardOrder.slice(0,visibleCardCount).map(cardType).filter(type=>type&&type!=='live'));
+  const addable=cardIds.filter(type=>type==='live'||!visibleTypes.has(type));
   select.innerHTML=addable.map(type=>`<option value="${esc(type)}">${esc(cardLabels[type]||type)}</option>`).join('');
   select.value=preferred;
   if(!select.value)select.value='live';
