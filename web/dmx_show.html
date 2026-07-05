@@ -559,7 +559,11 @@ function renderCardGrid(){
         }
         node.dataset.showCardIndex=index;
         node.classList.toggle('active',cardMoveSelected===index);
-        node.onclick=e=>{if(e.target.closest('button,input,select,textarea,a,label'))return;cardClick(index);};
+        node.onclick=e=>{
+          if(cardMoveSelected===null&&e.target.closest('button,input,select,textarea,a,label'))return;
+          if(cardMoveSelected!==null&&e.target.closest('button,input,select,textarea,a,label'))e.preventDefault();
+          cardClick(index);
+        };
       }
     }else{
       node=document.createElement('div');
