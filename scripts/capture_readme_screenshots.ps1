@@ -670,8 +670,14 @@ try {
     {id:'doc_front',name:'Front Spots',fixtureIds:[990101,990102],values:{}},
     {id:'doc_single',name:'Solo Spot',fixtureIds:[990101],values:{}}
   );
-  scenes.splice(0,scenes.length,{id:'doc_scene_1',name:'Warm Look',slot:0,values:{'990101:990011':180,'990102:990011':180}});
-  palettes.splice(0,palettes.length,{id:'doc_palette_1',name:'Red Beam',slot:0,scope:'Color',values:{'990101:990012':{a:255,b:0,c:0},'990102:990012':{a:160,b:0,c:0}}});
+  scenes.splice(0,scenes.length,
+    {id:'doc_scene_1',name:'Warm Look',slot:0,values:{'990101:990011':180,'990102:990011':180},visual:{type:'visual',color:'#8a4f25'}},
+    {id:'doc_scene_2',name:'Blue Solo',slot:1,values:{'990101:990012':{a:0,b:30,c:255}},visual:{type:'visual',color:'#1e4d91'}}
+  );
+  palettes.splice(0,palettes.length,
+    {id:'doc_palette_1',name:'Red Beam',slot:0,scope:'Color',values:{'990101:990012':{a:255,b:0,c:0},'990102:990012':{a:160,b:0,c:0}},visual:{type:'visual',color:'#8f2525'}},
+    {id:'doc_palette_2',name:'Open Gobo',slot:1,scope:'Gobo',values:{'990101:990010':0},visual:{type:'visual',color:'#225a50'}}
+  );
   chaserSlots.splice(0,chaserSlots.length);
   motionSlots.splice(0,motionSlots.length);
   chaserSlots[1]={slot:1,loaded:true,label:'Dimmer Chase',step_count:3,speed_mult:1,mode:1,direction:0,active:true};
@@ -688,6 +694,7 @@ try {
   chaserCols=2;chaserRows=1;
   motionCols=2;motionRows=1;
   cardOrder=['group','scene','palette','chaser','motion','live'];
+  cardLayouts={};
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
     {id:'doc_live_red',fixtureId:990101,controlId:990012,part:'a',widget:'knob',label:'Red'},
@@ -713,8 +720,71 @@ try {
     Eval-Js @"
 (async()=>{
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  hiddenTileModalDismissed=true;
+  cardCols=3;cardRows=3;
+  paletteCols=2;paletteRows=1;
+  sceneCols=2;sceneRows=1;
+  chaserCols=2;chaserRows=1;
+  motionCols=2;motionRows=1;
+  cardOrder=['palette','scene','chaser','palette:doc_second_palette','motion','live',null];
+  cardLayouts={
+    'palette:doc_second_palette':{type:'palette',cols:1,rows:2,order:['doc_palette_2','doc_palette_1'],hidden:[]}
+  };
+  if(typeof setLayoutEditing==='function')setLayoutEditing(true);
+  if(typeof renderGroups==='function')renderGroups();
+  if(typeof renderScenes==='function')renderScenes();
+  if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
+  if(typeof renderLiveControls==='function')renderLiveControls();
+  if(typeof renderCardGrid==='function')renderCardGrid();
+  window.scrollTo(0,0);
+  await wait(500);
+})()
+"@
+    Save-Screenshot "show-run-layout-edit.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof openAddCardModal==='function')openAddCardModal(6);
+  const select=document.getElementById('addCardType');
+  if(select)select.value='palette';
+  const button=document.getElementById('addShowCard');
+  if(button&&typeof addCardButtonLabel==='function')button.textContent=addCardButtonLabel('palette');
+  await wait(300);
+})()
+"@
+    Save-ElementScreenshot "#addCardModal .modal" "show-run-add-card.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof closeAddCardModal==='function')closeAddCardModal();
+  cardCols=2;cardRows=2;
+  paletteCols=2;paletteRows=1;
+  cardOrder=['palette','scene','chaser','motion'];
+  cardLayouts={};
+  if(typeof setLayoutEditing==='function')setLayoutEditing(true);
+  if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderCardGrid==='function')renderCardGrid();
+  const header=document.querySelector('header');
+  if(header)header.style.position='static';
+  document.getElementById('cardPalette')?.scrollIntoView({block:'start',inline:'nearest'});
+  window.scrollBy(0,-20);
+  await wait(500);
+})()
+"@
+    Save-ElementScreenshot "#cardPalette" "show-run-tile-actions.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
   if(typeof setLayoutEditing==='function')setLayoutEditing(true);
   await wait(300);
+  cardCols=1;cardRows=1;
+  cardOrder=['live'];
+  if(typeof renderCardGrid==='function')renderCardGrid();
+  await wait(120);
   const grid=document.getElementById('cardGrid');
   const live=document.getElementById('cardLive');
   document.querySelectorAll('[data-show-card]').forEach(card=>{

@@ -76,6 +76,21 @@
       "purpose": "Show Run operator overview"
     },
     {
+      "file": "show-run-add-card.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Add Card modal with repeatable card types"
+    },
+    {
+      "file": "show-run-layout-edit.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run layout editing with repeated cards and empty positions"
+    },
+    {
+      "file": "show-run-tile-actions.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run tile edit and non-destructive remove actions"
+    },
+    {
       "file": "show-run-live-controls.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "Show Run Live Controls in layout edit mode"

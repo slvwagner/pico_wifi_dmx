@@ -470,15 +470,23 @@ This target selection is an operator filter only. It does not edit the saved gro
 
 The sticky title bar has **Edit Layout** on the right. Layout tools are hidden during normal operation. Click **Edit Layout** when you want to show the layout controls, then click **Done Layout** to return to the cleaner operator view.
 
-In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Empty card positions show a `+` tile; click it to open **Add Card**, choose the card type, then add it at that matrix position. If the matrix is full, Show Run still shows one extra `+` tile at the next position so another card can be added. After a card is added, Show Run reports the matrix position where it was placed. Group, scene, palette, chaser, and effect cards can be added once; **Live Controls** can be added multiple times, for example one card for faders, one for buttons, and one mixed card. Each card has the same small top-right remove icon used by Show Run tiles while layout editing is active.
+In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Empty card positions show a `+` tile; click it to open **Add Card**, choose the card type, then add it at that matrix position. If the matrix is full, Show Run still shows one extra `+` tile at the next position so another card can be added. After a card is added, Show Run reports the matrix position where it was placed. Every card type can be added more than once, so you can keep separate palette, scene, playback, or Live Controls cards with different tile layouts. Each card has a small top-right `x` while layout editing is active. That `x` removes the card from the Show Run page only; it does not delete the saved scenes, palettes, groups, chases, effects, or fixture data behind it.
+
+![Show Run Add Card](screenshots/show-run-add-card.png)
 
 Drag a card by its title/header area to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. Dragging a card to an empty matrix spot places it there and leaves the other card positions unchanged. Dragging a card onto another card swaps only those two cards. The card body remains available for tile editing and other layout controls while **Edit Layout** is active.
+
+![Show Run Layout Editing](screenshots/show-run-layout-edit.png)
 
 Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. While **Edit Layout** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, and Live Controls configuration to the XAMPP server UI state, so the same operator page is restored on another computer and included in **Export Setup** / **Import Setup**. The layout does not rewrite the saved toolbox setup itself.
 
 If saved groups, scenes, palettes, or loaded Pico playback slots are outside the visible matrix, Show Run opens **Hidden Show Items** and switches into **Edit Layout**. Use **Expand** to increase that section's rows/columns until the hidden item is visible, or use **Place in Free Tile** when an empty visible tile is available. This prevents newly created palettes/scenes or moved playback slots from being silently hidden on a row that is not currently displayed.
 
-While **Edit Layout** is active, saved group, scene, and palette tiles also show the small pencil and delete actions. The pencil opens **Edit Tile**, where the tile name, background color, uploaded icon, or drawn icon can be changed with the same visual editor used on the setup pages. The delete action removes the saved group, scene, or palette from the matching XAMPP setup file. Pico chaser/effect playback tiles are not deleted from this modal; they represent Pico playback slots and are controlled with the playback buttons.
+While **Edit Layout** is active, saved group, scene, and palette tiles also show the small pencil and `x` actions. The pencil opens **Edit Tile**, where the tile name, background color, uploaded icon, or drawn icon can be changed with the same visual editor used on the setup pages. These visual edits change the shared saved tile, so the updated name/color/icon appears on the setup page and in every Show Run card that uses that item. The small tile `x` only removes that item from the current Show Run card position. It does not delete the saved group, scene, or palette from the XAMPP setup files, and it does not remove that same item from another repeated Show Run card.
+
+![Show Run Tile Actions](screenshots/show-run-tile-actions.png)
+
+Pico chaser/effect playback tiles use the same tile move behavior during layout editing. Their playback buttons are replaced by **Move tile** while **Edit Layout** is active, so a show cannot accidentally start or stop playback while you are arranging the operator page.
 
 ### Live Controls
 
@@ -516,7 +524,7 @@ Use the **Pico Effects Playback** controls the same way: choose a slot, set **BP
 
 The global **Stop Chaser**, **Stop Effects**, and **Stop All Playback** buttons call the matching Pico stop endpoints.
 
-Show Run is intentionally read-mostly during normal operation. Outside **Edit Layout** it does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files. In **Edit Layout**, tile label/visual edits and group/scene/palette deletions are saved intentionally.
+Show Run is intentionally read-mostly during normal operation. Outside **Edit Layout** it does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files. In **Edit Layout**, card placement, tile placement, Live Controls, and tile label/visual edits are saved intentionally.
 
 ## 5. Chaser
 
