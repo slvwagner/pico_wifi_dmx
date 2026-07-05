@@ -71,6 +71,16 @@
       "purpose": "group edit modal"
     },
     {
+      "file": "show-run.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run operator overview"
+    },
+    {
+      "file": "show-run-live-controls.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Live Controls in layout edit mode"
+    },
+    {
       "file": "chaser-readme.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "README chaser overview without toolbox focus"

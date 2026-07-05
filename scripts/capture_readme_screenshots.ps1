@@ -620,6 +620,121 @@ try {
 "@
     Save-Screenshot "fixture-controller-group-modal.png"
 
+    $showUrl = $BaseUrl.TrimEnd('/') + "/dmx_show.html?docshot=$cacheBust"
+    Send-Cdp "Page.navigate" @{ url = $showUrl } | Out-Null
+    Start-Sleep -Seconds 2
+
+    if ($socket) { $socket.Dispose() }
+    $tabs = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing
+    $wsUrl = ($tabs | Where-Object { $_.url -like "*dmx_show.html*" } | Select-Object -First 1).webSocketDebuggerUrl
+    if (-not $wsUrl) { throw "Could not find Show Run tab after navigation." }
+    $socket = [System.Net.WebSockets.ClientWebSocket]::new()
+    $socket.ConnectAsync([Uri]$wsUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult() | Out-Null
+    $script:cdpId = 0
+    Send-Cdp "Page.enable" | Out-Null
+    Send-Cdp "Runtime.enable" | Out-Null
+
+    for ($i = 0; $i -lt 40; $i++) {
+        $navState = Send-Cdp "Runtime.evaluate" @{
+            expression = "document.readyState === 'complete'"
+            returnByValue = $true
+        }
+        if ($navState.result.result.value) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    Start-Sleep -Milliseconds 500
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=500)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<40;i++){
+    if(document.getElementById('cardGrid')&&typeof renderCardGrid==='function')break;
+    await wait(250);
+  }
+  profiles.splice(0,profiles.length,{
+    id:990001,
+    name:'Doc Spot',
+    mode:'8ch',
+    channels:8,
+    controls:[
+      {id:990011,type:'slider8',label:'Dimmer',channel:1,blackoutValue:0},
+      {id:990012,type:'rgb',label:'Color',a:2,b:3,c:4,blackoutValue:{a:0,b:0,c:0}},
+      {id:990013,type:'panTilt16',label:'Pan/Tilt',pan:5,panFine:6,tilt:7,tiltFine:8,blackoutValue:{pan:32768,tilt:32768}}
+    ]
+  });
+  fixtures.splice(0,fixtures.length,
+    {id:990101,name:'Front Spot 1',profileId:990001,start:1},
+    {id:990102,name:'Front Spot 2',profileId:990001,start:21}
+  );
+  groups.splice(0,groups.length,
+    {id:'doc_front',name:'Front Spots',fixtureIds:[990101,990102],values:{}},
+    {id:'doc_single',name:'Solo Spot',fixtureIds:[990101],values:{}}
+  );
+  scenes.splice(0,scenes.length,{id:'doc_scene_1',name:'Warm Look',slot:0,values:{'990101:990011':180,'990102:990011':180}});
+  palettes.splice(0,palettes.length,{id:'doc_palette_1',name:'Red Beam',slot:0,scope:'Color',values:{'990101:990012':{a:255,b:0,c:0},'990102:990012':{a:160,b:0,c:0}}});
+  chaserSlots.splice(0,chaserSlots.length);
+  motionSlots.splice(0,motionSlots.length);
+  chaserSlots[1]={slot:1,loaded:true,label:'Dimmer Chase',step_count:3,speed_mult:1,mode:1,direction:0,active:true};
+  motionSlots[0]={slot:0,loaded:true,label:'Circle Pan/Tilt',bpm:30,active:false};
+  Object.keys(values).forEach(key=>delete values[key]);
+  values['990101:990011']=128;
+  values['990102:990011']=160;
+  values['990101:990012']={a:255,b:80,c:24};
+  values['990102:990012']={a:120,b:40,c:255};
+  cardCols=2;cardRows=3;
+  groupCols=2;groupRows=1;
+  sceneCols=2;sceneRows=1;
+  paletteCols=2;paletteRows=1;
+  chaserCols=2;chaserRows=1;
+  motionCols=2;motionRows=1;
+  cardOrder=['group','scene','palette','chaser','motion','live'];
+  liveControls.splice(0,liveControls.length,
+    {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
+    {id:'doc_live_red',fixtureId:990101,controlId:990012,part:'a',widget:'knob',label:'Red'}
+  );
+  if(typeof selectChaserSlot==='function')selectChaserSlot(1);
+  if(typeof selectMotionSlot==='function')selectMotionSlot(0);
+  if(typeof setLayoutEditing==='function')setLayoutEditing(false);
+  if(typeof renderGroups==='function')renderGroups();
+  if(typeof renderScenes==='function')renderScenes();
+  if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
+  if(typeof renderLiveControls==='function')renderLiveControls();
+  if(typeof renderCardGrid==='function')renderCardGrid();
+  if(typeof setStatus==='function')setStatus('Show Run demo ready');
+  document.querySelector('main')?.scrollTo(0,0);
+  window.scrollTo(0,0);
+  await wait(600);
+})()
+"@
+    Save-Screenshot "show-run.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof setLayoutEditing==='function')setLayoutEditing(true);
+  await wait(300);
+  const grid=document.getElementById('cardGrid');
+  const live=document.getElementById('cardLive');
+  document.querySelectorAll('[data-show-card]').forEach(card=>{
+    if(card!==live)card.style.display='none';
+  });
+  if(grid){
+    grid.style.display='block';
+    grid.style.gridTemplateColumns='1fr';
+  }
+  if(live){
+    live.style.height='auto';
+    live.style.minHeight='0';
+    live.style.alignSelf='start';
+  }
+  live?.scrollIntoView({block:'start',inline:'nearest'});
+  window.scrollBy(0,-120);
+  await wait(400);
+})()
+"@
+    Save-ElementScreenshot "#cardLive" "show-run-live-controls.png"
+
     $chaserUrl = $BaseUrl.TrimEnd('/') + "/dmx_chaser.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $chaserUrl } | Out-Null
     Start-Sleep -Seconds 2

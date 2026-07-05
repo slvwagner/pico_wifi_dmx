@@ -441,6 +441,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 </ul>
 <h2 id="4-show-run">4. Show Run</h2>
 <p>The <strong>Show Run</strong> page is the operator page. Use it when the show has already been prepared on the Fixture Controller, Chaser, and Effects pages and you want fewer editing controls on screen.</p>
+<p><img src="screenshots/show-run.png" alt="Show Run"></p>
 <p>Open it from the <strong>Show</strong> navigation link or directly:</p>
 <pre><code>http://localhost/dmx/dmx_show.html</code></pre>
 <p>Show Run loads the current XAMPP show data:</p>
@@ -463,6 +464,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>While <strong>Edit Layout</strong> is active, saved group, scene, and palette tiles also show the small pencil and delete actions. The pencil opens <strong>Edit Tile</strong>, where the tile name, background color, uploaded icon, or drawn icon can be changed with the same visual editor used on the setup pages. The delete action removes the saved group, scene, or palette from the matching XAMPP setup file. Pico chaser/effect playback tiles are not deleted from this modal; they represent Pico playback slots and are controlled with the playback buttons.</p>
 <h3 id="live-controls">Live Controls</h3>
 <p>The <strong>Live Controls</strong> card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click <strong>Edit Layout</strong>, choose a patched fixture, control, control part, and widget type, then click <strong>Add Control</strong>. Faders and knobs send their value while they are moved. Button widgets send the configured button value when clicked. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.</p>
+<p><img src="screenshots/show-run-live-controls.png" alt="Show Run Live Controls"></p>
 <p>Live Control card configuration is stored with the browser&#39;s Show Run layout preferences. Use the small <code>x</code> on a live widget while <strong>Edit Layout</strong> is active to remove it from the operator page.</p>
 <h3 id="scenes-and-palettes">Scenes And Palettes</h3>
 <p>Click a scene tile to recall that scene. Click a palette tile to recall that palette. Show Run writes the recalled values to the live-value snapshot and sends the matching DMX channels to the Pico in one <code>/dmx/b</code> batch when a Pico base URL is set.</p>

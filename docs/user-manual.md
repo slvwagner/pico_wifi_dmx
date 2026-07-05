@@ -444,6 +444,8 @@ Keep these rules as the contract:
 
 The **Show Run** page is the operator page. Use it when the show has already been prepared on the Fixture Controller, Chaser, and Effects pages and you want fewer editing controls on screen.
 
+![Show Run](screenshots/show-run.png)
+
 Open it from the **Show** navigation link or directly:
 
 ```text
@@ -479,6 +481,8 @@ While **Edit Layout** is active, saved group, scene, and palette tiles also show
 ### Live Controls
 
 The **Live Controls** card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click **Edit Layout**, choose a patched fixture, control, control part, and widget type, then click **Add Control**. Faders and knobs send their value while they are moved. Button widgets send the configured button value when clicked. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.
+
+![Show Run Live Controls](screenshots/show-run-live-controls.png)
 
 Live Control card configuration is stored with the browser's Show Run layout preferences. Use the small `x` on a live widget while **Edit Layout** is active to remove it from the operator page.
 
