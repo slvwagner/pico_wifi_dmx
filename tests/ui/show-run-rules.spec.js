@@ -936,6 +936,57 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('repairs duplicate Live Controls card entries before moving cards', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.cardCols', '3');
+      localStorage.setItem('dmxShowRun.cardRows', '3');
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'palette', 'chaser', 'motion', 'live', null, null, null]));
+    });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardLive')).toHaveCount(1);
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Show Target');
+
+    let savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 9)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null]);
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMove').click();
+    await page.locator('#cardLive .card-move-drop-target').dragTo(page.locator('#cardPalette .card-move-drop-target'));
+
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
+    await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
+    savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 9)).toEqual(['palette', 'scene', 'live', 'chaser', 'motion', 'group', null, null, null]);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('moves Live Controls correctly when it starts at matrix position 0', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.addInitScript(() => {
+      localStorage.setItem('dmxShowRun.cardCols', '3');
+      localStorage.setItem('dmxShowRun.cardRows', '3');
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null]));
+    });
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardMove').click();
+    await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
+    await page.locator('#cardLive .card-move-drop-target').dragTo(page.locator('#cardGrid > :nth-child(8)'));
+
+    await expect(page.locator('#cardGrid > :nth-child(1)')).toContainText('Card position 1');
+    await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.slice(0, 9)).toEqual([null, 'scene', 'palette', 'chaser', 'motion', 'group', null, 'live', null]);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('auto-scrolls while dragging the Live Controls card to an offscreen card above it', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);

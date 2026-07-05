@@ -485,11 +485,26 @@ function reconcileCardOrder(){
   const total=Math.max(cardIds.length,cardCols*cardRows);
   let saved=[];
   try{saved=JSON.parse(localStorage.getItem(layoutKey('cardOrder'))||'[]');}catch(_){saved=[];}
-  const previous=(cardOrder.length?cardOrder:saved).filter(key=>key===null||cardIds.includes(String(key))).map(key=>key===null?null:String(key));
-  const used=new Set(previous.filter(Boolean));
-  cardIds.forEach(key=>{if(!used.has(key))previous.push(key);});
-  while(previous.length<total)previous.push(null);
-  cardOrder=previous.slice(0,total);
+  const source=Array.isArray(cardOrder)&&cardOrder.length?cardOrder:Array.isArray(saved)?saved:[];
+  const next=[];
+  const used=new Set();
+  source.slice(0,total).forEach(key=>{
+    if(key===null||key===undefined||key===''){next.push(null);return;}
+    const id=String(key);
+    if(!cardIds.includes(id)||used.has(id)){next.push(null);return;}
+    used.add(id);
+    next.push(id);
+  });
+  while(next.length<total)next.push(null);
+  cardIds.forEach(id=>{
+    if(used.has(id))return;
+    const emptyIndex=next.indexOf(null);
+    if(emptyIndex>=0)next[emptyIndex]=id;
+    else next.push(id);
+    used.add(id);
+  });
+  while(next.length<total)next.push(null);
+  cardOrder=next.slice(0,total);
   if(!cardOrder.some(Boolean))cardOrder=cardIds.concat(Array(Math.max(0,total-cardIds.length)).fill(null));
 }
 function syncCardInputs(){

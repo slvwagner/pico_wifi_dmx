@@ -62,6 +62,7 @@ Fixed:
 - Bound Show Run card drag starts directly to the card move handle/layer in shared move-grid code, improving real mouse drag reliability when **Live Controls** is the source card.
 - Added auto-scroll while dragging Show Run cards, so cards lower on the page such as **Live Controls** can be dragged to offscreen card positions above them.
 - Made the Show Run workspace use the full browser width instead of staying centered inside a fixed maximum width.
+- Hardened the Show Run card matrix model so each card id can appear only once in the indexed `cardOrder` list; duplicate/stale entries are repaired before card moves, preventing **Live Controls** from appearing pinned to a position.
 - Preserved rich Open Fixture Library wheel metadata when updating an existing fixture library profile from an edited controller profile, so adjustable ranges such as `WheelShake` and `WheelRotation` are not downgraded to plain wheel values.
 - Fixed PicoSpot-style shutter/strobe wheel ranges by adding `ShutterStrobe` metadata handling, so an imported or edited strobe range such as `11..255` renders as a bounded **Strobe speed** control instead of a generic wheel value.
 
