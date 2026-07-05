@@ -1,0 +1,36 @@
+{
+  "version": "0.9.7",
+  "branch": "0.9.7",
+  "commit": "9f39202",
+  "createdAt": "2026-07-05T20:19:21Z",
+  "tests": {
+    "hardware": true
+  },
+  "docsGenerated": true,
+  "firmware": {
+    "file": "pico_wifi_dmx-v0.9.7.uf2",
+    "sizeBytes": 893440,
+    "sha256": "cc69e7720e7b55e290c90f011d019565d8c94ea2e8f257c1dfec4bcf47794208"
+  },
+  "docs": {
+    "user-manual.md": {
+      "sizeBytes": 94819,
+      "sha256": "47a347a4448548e8a2777d7698e5831534cea0b68a5b44239c38a79ee5d6b3af"
+    },
+    "user-manual.html": {
+      "sizeBytes": 110674,
+      "sha256": "e89c1e3dca2f821c6148639f561d6844cb3c506a3872c5682a67459d17cca8f6"
+    },
+    "user-manual-print.html": {
+      "sizeBytes": 110674,
+      "sha256": "e89c1e3dca2f821c6148639f561d6844cb3c506a3872c5682a67459d17cca8f6"
+    },
+    "user-manual.pdf": {
+      "sizeBytes": 2760269,
+      "sha256": "93dbce4a5069161219133b7ea417c92d371727f3c4483ecf9ef6921f4a0ed7e5"
+    },
+    "screenshots": {
+      "count": 54
+    }
+  }
+}
