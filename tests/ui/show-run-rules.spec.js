@@ -840,12 +840,18 @@ test.describe('Show Run page', () => {
     await page.locator('#liveWidgetSelect').selectOption('button');
     await page.locator('#liveButtonMode').selectOption('timer');
     await page.locator('#liveButtonValue').fill('200');
-    await page.locator('#liveTimerOn').fill('0.1');
-    await page.locator('#liveTimerOff').fill('0.1');
+    await page.locator('#liveTimerOn').fill('0.2');
+    await page.locator('#liveTimerOff').fill('0.2');
     await page.locator('#addLiveControl').click();
 
     await page.locator('#liveControlGrid [data-live-button]').click();
     await expect(page.locator('#liveControlGrid [data-live-button]')).toHaveText('Stop Timer');
+    await expect(page.locator('#liveControlGrid [data-live-timer-id]')).toBeVisible();
+    await expect(page.locator('#liveControlGrid [data-live-timer-label]')).toContainText(/On|Off/);
+    await expect.poll(async () => {
+      const width = await page.locator('#liveControlGrid [data-live-timer-fill]').evaluate(el => parseFloat(el.style.width) || 0);
+      return width > 0;
+    }).toBe(true);
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:200')))
       .toBe(true);
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:0')))

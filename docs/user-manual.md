@@ -552,7 +552,7 @@ To create a momentary button, set **Widget** to **Button**, set **Button mode** 
 
 ![Show Run Hold Button](screenshots/show-run-live-hold-button.png)
 
-To create a fog or haze timer, set **Widget** to **Button**, set **Button mode** to **Timer**, choose the output value, then set **On s** and **Off s**. The timer sends the configured value for the On time, restores the previous/off value for the Off time, and repeats until stopped. Stopping or deleting a timer button restores the previous value.
+To create a fog or haze timer, set **Widget** to **Button**, set **Button mode** to **Timer**, choose the output value, then set **On s** and **Off s**. The timer sends the configured value for the On time, restores the previous/off value for the Off time, and repeats until stopped. While it is running, the widget shows the current On/Off phase, remaining seconds, and a progress bar similar to the Chaser timing display. Stopping or deleting a timer button restores the previous value.
 
 ![Show Run Fog/Haze Timer Button](screenshots/show-run-live-timer-button.png)
 

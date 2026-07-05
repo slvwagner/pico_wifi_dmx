@@ -122,6 +122,10 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 .live-knob input[type=range]{width:92px;padding:0}
 .live-button-widget button:not(.live-widget-delete){width:100%}
 .live-button-widget button:not(.live-widget-delete).active{background:var(--accent);border-color:var(--accent);color:#06110e;font-weight:700}
+.live-timer-status{display:grid;gap:5px;width:100%;font-size:12px;color:var(--muted)}
+.live-timer-progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.live-timer-fill{height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width .08s linear}
+.live-timer-status[data-phase="off"] .live-timer-fill{background:var(--warn)}
 .master-faders{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin-top:12px;align-items:stretch}
 .master-fader{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;justify-items:center;gap:8px;min-height:228px}
 .master-fader h3{font-size:14px;margin:0;text-align:center}
@@ -473,6 +477,7 @@ let midiPollTimer=null;
 let midiLastMessageCount=null;
 const liveButtonHeld=new Map();
 const liveTimerState=new Map();
+let liveTimerVisualInterval=null;
 const hiddenCardBin=document.createElement('div');
 hiddenCardBin.hidden=true;
 document.body.appendChild(hiddenCardBin);
@@ -1746,6 +1751,7 @@ function stopLiveTimer(item,restore=true){
   if(!state)return;
   clearTimeout(state.timeout);
   liveTimerState.delete(item.id);
+  updateLiveTimerVisualTicker();
   if(restore)applyLiveControl(item,state.previous).catch(err=>setStatus(err.message,true));
   renderLiveControls();
 }
@@ -1754,12 +1760,18 @@ function scheduleLiveTimer(item,phase){
   if(!state||!state.active)return;
   const isOn=phase==='on';
   const value=isOn?item.buttonValue:state.previous;
+  const durationMs=isOn?(item.timerOnMs||3000):(item.timerOffMs||30000);
+  state.phase=phase;
+  state.phaseStartedAt=performance.now();
+  state.phaseDurationMs=durationMs;
   applyLiveControl(item,value).catch(err=>{
     setStatus(err.message,true);
     stopLiveTimer(item,false);
   });
-  state.timeout=setTimeout(()=>scheduleLiveTimer(item,isOn?'off':'on'),isOn?(item.timerOnMs||3000):(item.timerOffMs||30000));
+  state.timeout=setTimeout(()=>scheduleLiveTimer(item,isOn?'off':'on'),durationMs);
   setStatus(liveControlLabel(item,liveControlTarget(item))+' timer '+(isOn?'on':'off'));
+  renderLiveControls();
+  updateLiveTimerVisualTicker();
 }
 function toggleLiveTimer(item){
   if(!item)return;
@@ -1770,7 +1782,36 @@ function toggleLiveTimer(item){
   }
   liveTimerState.set(item.id,{active:true,previous:liveControlCurrentSnapshot(item),timeout:null});
   scheduleLiveTimer(item,'on');
-  renderLiveControls();
+}
+function liveTimerRemainingSeconds(state){
+  if(!state||!state.phaseDurationMs)return 0;
+  const elapsed=Math.max(0,performance.now()-(state.phaseStartedAt||performance.now()));
+  return Math.max(0,(state.phaseDurationMs-elapsed)/1000);
+}
+function updateLiveTimerVisuals(){
+  document.querySelectorAll('[data-live-timer-id]').forEach(el=>{
+    const state=liveTimerState.get(el.dataset.liveTimerId);
+    if(!state||!state.active)return;
+    const elapsed=Math.max(0,performance.now()-(state.phaseStartedAt||performance.now()));
+    const duration=Math.max(1,state.phaseDurationMs||1);
+    const pct=Math.max(0,Math.min(100,(elapsed/duration)*100));
+    const remaining=liveTimerRemainingSeconds(state);
+    el.dataset.phase=state.phase||'on';
+    const label=el.querySelector('[data-live-timer-label]');
+    const fill=el.querySelector('[data-live-timer-fill]');
+    if(label)label.textContent=(state.phase==='off'?'Off':'On')+' · '+remaining.toFixed(1)+'s';
+    if(fill)fill.style.width=pct+'%';
+  });
+}
+function updateLiveTimerVisualTicker(){
+  const hasActive=[...liveTimerState.values()].some(state=>state?.active);
+  if(hasActive&&!liveTimerVisualInterval){
+    liveTimerVisualInterval=setInterval(updateLiveTimerVisuals,100);
+  }else if(!hasActive&&liveTimerVisualInterval){
+    clearInterval(liveTimerVisualInterval);
+    liveTimerVisualInterval=null;
+  }
+  updateLiveTimerVisuals();
 }
 function updateLiveWidgetReadout(input){
   const widget=input.closest('.live-widget');
@@ -1798,7 +1839,10 @@ function liveWidgetHtml(item,index,target){
     const state=liveTimerState.get(item.id);
     const timerText=mode==='timer'?` · ${Math.round((item.timerOnMs||3000)/100)/10}s on / ${Math.round((item.timerOffMs||30000)/100)/10}s off`:'';
     const buttonText=mode==='hold'?'Hold':mode==='timer'?(state?.active?'Stop Timer':'Start Timer'):'Apply';
-    return `<div class="live-widget live-button-widget">${del}<h3>${esc(label)}</h3><div class="small">${esc(meta)} · ${buttonValue} · ${esc(mode)}${esc(timerText)}</div><button class="primary ${state?.active?'active':''}" data-live-button="${index}">${esc(buttonText)}</button></div>`;
+    const timerStatus=mode==='timer'&&state?.active
+      ?`<div class="live-timer-status" data-live-timer-id="${esc(item.id)}" data-phase="${esc(state.phase||'on')}"><span data-live-timer-label>${esc((state.phase==='off'?'Off':'On')+' · '+liveTimerRemainingSeconds(state).toFixed(1)+'s')}</span><div class="live-timer-progress"><div class="live-timer-fill" data-live-timer-fill style="width:0%"></div></div></div>`
+      :'';
+    return `<div class="live-widget live-button-widget">${del}<h3>${esc(label)}</h3><div class="small">${esc(meta)} · ${buttonValue} · ${esc(mode)}${esc(timerText)}</div>${timerStatus}<button class="primary ${state?.active?'active':''}" data-live-button="${index}">${esc(buttonText)}</button></div>`;
   }
   if(item.widget==='knob'){
     const angle=Math.round((value/target.part.max)*360);
@@ -1864,6 +1908,7 @@ function renderLiveControls(){
       });
     });
   });
+  updateLiveTimerVisuals();
 }
 function renderGroups(){
   normalizeGroupGrid('cols');
