@@ -365,6 +365,7 @@ const layoutKey=name=>'dmxShowRun.'+name;
 const SHOW_UI_STATE_PAGE='showRun';
 let showUiState={};
 const displayOrders={group:[],scene:[],palette:[],chaser:[],motion:[]};
+let cardLayouts={};
 const moveSelected={group:null,scene:null,palette:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','chaser','motion','live'];
 const cardLabels={group:'Show Target',scene:'Scenes',palette:'Palettes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls'};
@@ -491,6 +492,14 @@ function savedValue(key){
 function saveShowUiStateValue(key,value){
   showUiState={...(showUiState||{}),[key]:value};
   DmxCommon.saveUiState(SHOW_UI_STATE_PAGE,key,value);
+}
+function loadCardLayouts(){
+  const source=savedValue('cardLayouts');
+  try{cardLayouts=source&&typeof source==='object'&&!Array.isArray(source)?source:JSON.parse(source||'{}')||{};}catch(_){cardLayouts={};}
+}
+function saveCardLayouts(){
+  localStorage.setItem(layoutKey('cardLayouts'),JSON.stringify(cardLayouts));
+  saveShowUiStateValue('cardLayouts',cardLayouts);
 }
 function savedNumber(key,fallback,min,max){
   const n=parseInt(savedValue(key),10);
@@ -734,37 +743,73 @@ function closeAddCardModal(){
   DmxCommon.hideModal('addCardModal');
   addCardTargetIndex=null;
 }
-function bindSceneGridRecall(grid){
+function bindSceneGridRecall(grid,layoutId='scene'){
   grid.querySelectorAll('[data-scene-key]').forEach(btn=>btn.addEventListener('click',()=>{
     const idx=parseInt(btn.dataset.showTileIndex,10);
-    if(tileMoveClick('scene',idx))return;
+    if(tileMoveClick('scene',idx,layoutId))return;
     recallSceneKey(btn.dataset.sceneKey);
   }));
 }
-function bindPaletteGridRecall(grid){
+function bindPaletteGridRecall(grid,layoutId='palette'){
   grid.querySelectorAll('[data-palette-key]').forEach(btn=>btn.addEventListener('click',()=>{
     const idx=parseInt(btn.dataset.showTileIndex,10);
-    if(tileMoveClick('palette',idx))return;
+    if(tileMoveClick('palette',idx,layoutId))return;
     recallPaletteKey(btn.dataset.paletteKey);
   }));
+}
+function bindRepeatedMatrixInputs(card,kind,layoutId,renderFn,maxCols=32,maxRows=32){
+  const layout=ensureCardLayout(layoutId,kind);
+  const matrixLabels=[...card.querySelectorAll('.matrix-tools label')];
+  const colsInput=(matrixLabels.find(label=>/^Cols/i.test(label.textContent.trim()))||matrixLabels[0])?.querySelector('input')||null;
+  const rowsInput=(matrixLabels.find(label=>/^Rows/i.test(label.textContent.trim()))||matrixLabels[1])?.querySelector('input')||null;
+  const rerender=()=>{saveCardLayouts();renderFn();};
+  if(colsInput){
+    colsInput.value=layout.cols;
+    const onCols=e=>{
+      layout.cols=Math.max(1,Math.min(maxCols,parseInt(e?.target?.value ?? colsInput.value,10)||1));
+      rerender();
+    };
+    colsInput.oninput=onCols;
+    colsInput.onchange=onCols;
+  }
+  if(rowsInput){
+    rowsInput.value=layout.rows;
+    const onRows=e=>{
+      layout.rows=Math.max(1,Math.min(maxRows,parseInt(e?.target?.value ?? rowsInput.value,10)||1));
+      rerender();
+    };
+    rowsInput.oninput=onRows;
+    rowsInput.onchange=onRows;
+  }
 }
 function renderRepeatedCards(){
   document.querySelectorAll('[data-repeat-card="true"]').forEach(card=>{
     const type=cardType(card.dataset.showCardKey||card.dataset.showCard);
+    const layoutId=card.dataset.showCardKey||type;
     const grid=card.querySelector('[data-repeat-grid]');
     const summary=card.querySelector('[data-repeat-summary]');
     if(type==='group'){
-      renderGroupGrid(grid);
+      bindRepeatedMatrixInputs(card,'group',layoutId,()=>renderGroups(),8,12);
+      const layout=ensureCardLayout(layoutId,'group');
+      renderGroupGrid(grid,layoutId,layout.cols,layout.rows);
     }else if(type==='scene'){
-      renderSlots(grid,summary,scenes,sceneCols,sceneRows,'scene');
-      bindSceneGridRecall(grid);
+      bindRepeatedMatrixInputs(card,'scene',layoutId,()=>renderScenes(),32,32);
+      const layout=ensureCardLayout(layoutId,'scene');
+      renderSlots(grid,summary,scenes,layout.cols,layout.rows,'scene',layoutId);
+      bindSceneGridRecall(grid,layoutId);
     }else if(type==='palette'){
-      renderSlots(grid,summary,palettes,paletteCols,paletteRows,'palette');
-      bindPaletteGridRecall(grid);
+      bindRepeatedMatrixInputs(card,'palette',layoutId,()=>renderPalettes(),32,32);
+      const layout=ensureCardLayout(layoutId,'palette');
+      renderSlots(grid,summary,palettes,layout.cols,layout.rows,'palette',layoutId);
+      bindPaletteGridRecall(grid,layoutId);
     }else if(type==='chaser'){
-      renderPlayback(grid,chaserSlots,'chaser');
+      bindRepeatedMatrixInputs(card,'chaser',layoutId,()=>renderChaserPlayback(),32,32);
+      const layout=ensureCardLayout(layoutId,'chaser');
+      renderPlayback(grid,chaserSlots,'chaser',layoutId,layout.cols,layout.rows);
     }else if(type==='motion'){
-      renderPlayback(grid,motionSlots,'motion');
+      bindRepeatedMatrixInputs(card,'motion',layoutId,()=>renderMotionPlayback(),32,32);
+      const layout=ensureCardLayout(layoutId,'motion');
+      renderPlayback(grid,motionSlots,'motion',layoutId,layout.cols,layout.rows);
     }
   });
 }
@@ -909,6 +954,39 @@ function saveMatrix(kind,cols,rows){
   saveShowUiStateValue(kind+'Cols',cols);
   saveShowUiStateValue(kind+'Rows',rows);
 }
+function defaultMatrixForKind(kind){
+  if(kind==='group')return{cols:groupCols,rows:groupRows,maxCols:8,maxRows:12,needed:groups.length};
+  if(kind==='scene')return{cols:sceneCols,rows:sceneRows,maxCols:32,maxRows:32,needed:requiredSlots(scenes)};
+  if(kind==='palette')return{cols:paletteCols,rows:paletteRows,maxCols:32,maxRows:32,needed:requiredSlots(palettes)};
+  if(kind==='chaser')return{cols:chaserCols,rows:chaserRows,maxCols:32,maxRows:32,needed:requiredPayloadSlots(chaserSlots)};
+  if(kind==='motion')return{cols:motionCols,rows:motionRows,maxCols:32,maxRows:32,needed:requiredPayloadSlots(motionSlots)};
+  return{cols:1,rows:1,maxCols:32,maxRows:32,needed:0};
+}
+function ensureCardLayout(layoutId,kind){
+  if(layoutId===kind)return{cols:defaultMatrixForKind(kind).cols,rows:defaultMatrixForKind(kind).rows,order:displayOrders[kind]||[]};
+  const defaults=defaultMatrixForKind(kind);
+  const current=cardLayouts[layoutId]&&typeof cardLayouts[layoutId]==='object'?cardLayouts[layoutId]:{};
+  const cols=Math.max(1,Math.min(defaults.maxCols,parseInt(current.cols,10)||defaults.cols));
+  const rows=Math.max(1,Math.min(defaults.maxRows,parseInt(current.rows,10)||defaults.rows));
+  const order=Array.isArray(current.order)?current.order:[];
+  current.kind=kind;
+  current.cols=cols;
+  current.rows=rows;
+  current.order=order;
+  cardLayouts[layoutId]=current;
+  return cardLayouts[layoutId];
+}
+function cardOrderFor(kind,layoutId=kind){
+  return layoutId===kind?(displayOrders[kind]||[]):ensureCardLayout(layoutId,kind).order;
+}
+function setCardOrderFor(kind,layoutId,order){
+  if(layoutId===kind)displayOrders[kind]=order;
+  else ensureCardLayout(layoutId,kind).order=order;
+}
+function saveCardLayoutState(kind,layoutId=kind){
+  if(layoutId===kind)saveDisplayOrder(kind);
+  else saveCardLayouts();
+}
 function orderKey(kind){return layoutKey(kind+'Order');}
 function sourceEntries(kind){
   if(kind==='group')return groups.map((item,index)=>({key:String(item.id),item,index}));
@@ -922,12 +1000,15 @@ function saveDisplayOrder(kind){
   localStorage.setItem(orderKey(kind),JSON.stringify(displayOrders[kind]||[]));
   saveShowUiStateValue(kind+'Order',displayOrders[kind]||[]);
 }
-function reconcileDisplayOrder(kind,total){
+function reconcileDisplayOrder(kind,total,layoutId=kind){
   const keys=new Set(sourceEntries(kind).map(entry=>entry.key));
   let saved=[];
-  const sourceValue=savedValue(kind+'Order');
-  try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
-  const previous=(displayOrders[kind]&&displayOrders[kind].length?displayOrders[kind]:saved).filter(key=>key===null||keys.has(String(key))).map(key=>key===null?null:String(key));
+  if(layoutId===kind){
+    const sourceValue=savedValue(kind+'Order');
+    try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
+  }else saved=ensureCardLayout(layoutId,kind).order||[];
+  const existing=cardOrderFor(kind,layoutId);
+  const previous=(existing&&existing.length?existing:saved).filter(key=>key===null||keys.has(String(key))).map(key=>key===null?null:String(key));
   const used=new Set(previous.filter(Boolean));
   sourceEntries(kind).forEach(entry=>{
     if(used.has(entry.key))return;
@@ -937,25 +1018,25 @@ function reconcileDisplayOrder(kind,total){
     used.add(entry.key);
   });
   while(previous.length<total)previous.push(null);
-  displayOrders[kind]=previous.slice(0,Math.max(total,previous.length));
-  saveDisplayOrder(kind);
+  setCardOrderFor(kind,layoutId,previous.slice(0,Math.max(total,previous.length)));
+  saveCardLayoutState(kind,layoutId);
 }
-function orderedEntryAt(kind,index){
-  const key=displayOrders[kind]?.[index];
+function orderedEntryAt(kind,index,layoutId=kind){
+  const key=cardOrderFor(kind,layoutId)?.[index];
   if(!key)return null;
   return sourceEntries(kind).find(entry=>entry.key===String(key))||null;
 }
-function moveShowTile(kind,from,to){
+function moveShowTile(kind,from,to,layoutId=kind){
   from=parseInt(from,10);to=parseInt(to,10);
   if(!Number.isFinite(from)||!Number.isFinite(to)||from===to)return false;
-  const order=displayOrders[kind]||[];
+  const order=cardOrderFor(kind,layoutId)||[];
   if(!order[from])return false;
   const target=order[to]||null;
   order[to]=order[from];
   order[from]=target;
-  displayOrders[kind]=order;
+  setCardOrderFor(kind,layoutId,order);
   moveSelected[kind]=null;
-  saveDisplayOrder(kind);
+  saveCardLayoutState(kind,layoutId);
   renderKind(kind);
   setStatus('Moved '+kind+' tile to position '+(to+1));
   return true;
@@ -1056,9 +1137,9 @@ function reviewHiddenTiles(autoOpen=true){
     openHiddenTileModal(rows);
   }
 }
-function tileMoveClick(kind,index){
+function tileMoveClick(kind,index,layoutId=kind){
   if(!layoutEditing)return false;
-  const order=displayOrders[kind]||[];
+  const order=cardOrderFor(kind,layoutId)||[];
   if(moveSelected[kind]===null){
     if(!order[index]){setStatus('Move mode is active: select a filled tile first');return true;}
     moveSelected[kind]=index;
@@ -1072,7 +1153,7 @@ function tileMoveClick(kind,index){
     setStatus('Move selection cleared');
     return true;
   }
-  moveShowTile(kind,moveSelected[kind],index);
+  moveShowTile(kind,moveSelected[kind],index,layoutId);
   return true;
 }
 function renderKind(kind){
@@ -1083,7 +1164,7 @@ function renderKind(kind){
   else if(kind==='motion')renderMotionPlayback();
   else if(kind==='live')renderLiveControls();
 }
-function initMoveGrid(kind,gridRef){
+function initMoveGrid(kind,gridRef,layoutId=kind){
   const grid=typeof gridRef==='string'?document.getElementById(gridRef):gridRef;
   if(!grid)return;
   DmxCommon.initTileMoveGrid({
@@ -1091,12 +1172,16 @@ function initMoveGrid(kind,gridRef){
     active:layoutEditing,
     itemSelector:'[data-show-tile-index]',
     getIndex:el=>parseInt(el.dataset.showTileIndex,10),
-    canDrag:idx=>!!displayOrders[kind]?.[idx],
-    onMove:(from,to)=>moveShowTile(kind,from,to)
+    canDrag:idx=>!!cardOrderFor(kind,layoutId)?.[idx],
+    onMove:(from,to)=>moveShowTile(kind,from,to,layoutId)
   });
 }
-function currentMatrix(kind){
+function currentMatrix(kind,layoutId=kind){
   if(kind==='card')return{cols:cardCols,rows:cardRows};
+  if(layoutId!==kind){
+    const layout=ensureCardLayout(layoutId,kind);
+    return{cols:layout.cols,rows:layout.rows};
+  }
   if(kind==='group')return{cols:groupCols,rows:groupRows};
   if(kind==='scene')return{cols:sceneCols,rows:sceneRows};
   if(kind==='palette')return{cols:paletteCols,rows:paletteRows};
@@ -1460,52 +1545,52 @@ function renderGroups(){
   normalizeGroupGrid('cols');
   targetSummary();
   const grid=document.getElementById('groupGrid');
-  renderGroupGrid(grid);
+  renderGroupGrid(grid,'group',groupCols,groupRows);
   renderRepeatedCards();
 }
-function renderGroupGrid(grid){
+function renderGroupGrid(grid,layoutId='group',cols=groupCols,rows=groupRows){
   if(!grid)return;
-  grid.style.gridTemplateColumns='repeat('+groupCols+',minmax(0,1fr))';
+  grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
   if(!groups.length){grid.innerHTML='<div class="small">No saved groups yet. Create groups on the Controller page first.</div>';return;}
-  const total=groupCols*groupRows;
-  reconcileDisplayOrder('group',total);
+  const total=cols*rows;
+  reconcileDisplayOrder('group',total,layoutId);
   let html='';
   for(let i=0;i<total;i++){
-    const entry=orderedEntryAt('group',i);
+    const entry=orderedEntryAt('group',i,layoutId);
     const g=entry?.item;
     if(g)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot group-tile filled',selectedGroupIds.has(String(g.id))||moveSelected.group===i)}" data-show-tile-index="${i}" data-group="${esc(g.id)}" style="${slotStyle(g)}">${tileActionButtons('group',entry.key,'group')}${slotVisual(g)}<span class="show-tile-content"><span class="slot-name">${esc(g.name||'Group')}</span><span class="slot-meta small">${(g.fixtureIds||[]).length} fixture(s)</span></span></div>`;
     else html+=`<div class="slot group-tile empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
   grid.querySelectorAll('[data-group]').forEach(btn=>btn.addEventListener('click',()=>{
-    if(tileMoveClick('group',parseInt(btn.dataset.showTileIndex,10)))return;
+    if(tileMoveClick('group',parseInt(btn.dataset.showTileIndex,10),layoutId))return;
     const id=String(btn.dataset.group);
     if(selectedGroupIds.has(id))selectedGroupIds.delete(id);else selectedGroupIds.add(id);
     renderGroups();
   }));
-  grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick('group',parseInt(el.dataset.showTileIndex,10))));
+  grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick('group',parseInt(el.dataset.showTileIndex,10),layoutId)));
   bindShowTileActions(grid);
-  initMoveGrid('group',grid);
+  initMoveGrid('group',grid,layoutId);
 }
-function renderSlots(gridRef,summaryRef,items,cols,rows,kind){
+function renderSlots(gridRef,summaryRef,items,cols,rows,kind,layoutId=kind){
   const grid=typeof gridRef==='string'?document.getElementById(gridRef):gridRef;
   const summary=typeof summaryRef==='string'?document.getElementById(summaryRef):summaryRef;
   if(!grid)return;
   const total=Math.max(1,(parseInt(cols,10)||4)*(parseInt(rows,10)||4));
-  reconcileDisplayOrder(kind,total);
+  reconcileDisplayOrder(kind,total,layoutId);
   grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
   if(summary)summary.textContent=items.length+' saved';
   let html='';
   for(let i=0;i<total;i++){
-    const entry=orderedEntryAt(kind,i);
+    const entry=orderedEntryAt(kind,i,layoutId);
     const item=entry?.item;
     if(item)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected[kind]===i)}" data-show-tile-index="${i}" data-${kind}-key="${esc(entry.key)}" title="Recall ${kind} ${esc(item.name||String(i+1))}" style="${slotStyle(item)}">${tileActionButtons(kind,entry.key,kind)}${slotTitle(item,kind+' '+(i+1))}</div>`;
     else html+=`<div class="slot empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick(kind,parseInt(el.dataset.showTileIndex,10))));
+  grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick(kind,parseInt(el.dataset.showTileIndex,10),layoutId)));
   bindShowTileActions(grid);
-  initMoveGrid(kind,grid);
+  initMoveGrid(kind,grid,layoutId);
 }
 function bindShowTileActions(root){
   root.querySelectorAll('[data-show-edit-tile]').forEach(btn=>btn.addEventListener('click',e=>{
@@ -1660,21 +1745,23 @@ function renderMotionPlayback(priority='cols'){
 }
 function drawChaserPlayback(){
   renderPlayback('chaserSlots',chaserSlots,'chaser');
+  renderRepeatedCards();
 }
 function drawMotionPlayback(){
   renderPlayback('motionSlots',motionSlots,'motion');
+  renderRepeatedCards();
 }
-function renderPlayback(containerRef,slots,type){
+function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,rowsOverride=null){
   const container=typeof containerRef==='string'?document.getElementById(containerRef):containerRef;
   if(!container)return;
-  const cols=type==='chaser'?chaserCols:motionCols;
-  const rows=type==='chaser'?chaserRows:motionRows;
+  const cols=colsOverride||(type==='chaser'?chaserCols:motionCols);
+  const rows=rowsOverride||(type==='chaser'?chaserRows:motionRows);
   const total=Math.max(1,cols*rows);
-  reconcileDisplayOrder(type,total);
+  reconcileDisplayOrder(type,total,layoutId);
   container.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
   let html='';
   for(let i=0;i<total;i++){
-    const entry=orderedEntryAt(type,i);
+    const entry=orderedEntryAt(type,i,layoutId);
     const item=entry?.item||null;
     const payload=type==='chaser'?item?.loaded:item?.loaded;
     const sourceSlot=item?.slot;
@@ -1699,9 +1786,9 @@ function renderPlayback(containerRef,slots,type){
     if(e.target.closest('button'))return;
     if(type==='chaser'&&el.dataset.chaserSelect!==undefined){selectChaserSlot(el.dataset.chaserSelect);if(!layoutEditing){renderChaserPlayback();return;}}
     if(type==='motion'&&el.dataset.motionSelect!==undefined){selectMotionSlot(el.dataset.motionSelect);if(!layoutEditing){renderMotionPlayback();return;}}
-    tileMoveClick(type,parseInt(el.dataset.showTileIndex,10));
+    tileMoveClick(type,parseInt(el.dataset.showTileIndex,10),layoutId);
   }));
-  initMoveGrid(type,container);
+  initMoveGrid(type,container,layoutId);
 }
 async function applyValuePatch(source,label){
   if(blackoutActive)await clearPicoBlackout(true);
@@ -1906,6 +1993,7 @@ async function loadShow(){
   sceneCols=sceneData.slotCols||4;sceneRows=sceneData.slotRows||4;
   paletteCols=paletteData.paletteCols||4;paletteRows=paletteData.paletteRows||4;
   applySavedLayout();
+  loadCardLayouts();
   loadLiveControls();
   const savedUrl=localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
   if(savedUrl)baseUrlEl.value=savedUrl;

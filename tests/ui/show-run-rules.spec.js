@@ -1122,6 +1122,49 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('keeps repeated Palettes card layouts independent', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      showRunState: {
+        cardCols: 3,
+        cardRows: 3,
+        cardOrder: ['group', 'scene', 'palette', 'palette:custom', 'motion', 'live', null, null, null],
+        paletteCols: 1,
+        paletteRows: 1,
+        cardLayouts: {
+          'palette:custom': { kind: 'palette', cols: 2, rows: 1, order: ['palette_1', null] }
+        }
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    const paletteCards = page.locator('[data-show-card="palette"]');
+    const secondPalette = page.locator('[data-show-card-key="palette:custom"]');
+    await expect(paletteCards).toHaveCount(2);
+    await expect(paletteCards.nth(0).locator('.slot')).toHaveCount(1);
+    await expect(secondPalette.locator('.slot')).toHaveCount(2);
+    const secondRows = secondPalette.locator('.matrix-tools label', { hasText: 'Rows' }).locator('input');
+    expect(await secondRows.evaluate(input => typeof input.oninput)).toBe('function');
+
+    await secondRows.evaluate(input => {
+      input.value = '2';
+      input.oninput({ target: input });
+    });
+    await expect(paletteCards.nth(0).locator('.slot')).toHaveCount(1);
+    await expect(secondPalette.locator('.slot')).toHaveCount(4);
+
+    const savedLayouts = calls.uiStatePosts
+      .map(post => post.state?.cardLayouts)
+      .filter(Boolean)
+      .at(-1);
+    expect(savedLayouts['palette:custom']).toMatchObject({ kind: 'palette', cols: 2, rows: 2 });
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('can add another card when the same card type is hidden outside the visible matrix', async ({ page }) => {
     const calls = {
       pico: [],
