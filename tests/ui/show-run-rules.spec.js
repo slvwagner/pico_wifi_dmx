@@ -838,7 +838,8 @@ test.describe('Show Run page', () => {
     // and position 7 is empty in the default 3x3 card matrix.
     await page.locator('#cardMotion .panel-head').dragTo(page.locator('#cardGrid > :nth-child(7)'));
 
-    await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Card position 5');
+    await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Add card');
+    await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Position 5');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
     await expect(page.locator('#cardGrid > :nth-child(7) h2')).toHaveText('Pico Effects Playback');
 
@@ -859,7 +860,8 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardLive .card-move-handle')).toHaveCount(0);
     await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(8)'));
 
-    await expect(page.locator('#cardGrid > :nth-child(6)')).toContainText('Card position 6');
+    await expect(page.locator('#cardGrid > :nth-child(6)')).toContainText('Add card');
+    await expect(page.locator('#cardGrid > :nth-child(6)')).toContainText('Position 6');
     await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
@@ -954,10 +956,14 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('[data-add-card-position="6"]')).toBeVisible();
+    await page.locator('[data-add-card-position="6"]').click();
+    await expect(page.locator('#addCardModal')).toBeVisible();
     await page.locator('#addCardType').selectOption('live');
     await expect(page.locator('#addShowCard')).toHaveText('Add Live Controls');
     await page.locator('#addShowCard').click();
 
+    await expect(page.locator('#addCardModal')).toBeHidden();
     await expect(page.locator('[data-show-card="live"]')).toHaveCount(2);
     await expect(page.locator('#status')).toHaveText('Added Live Controls at position 7');
     const secondLive = page.locator('[data-show-card="live"]').nth(1);
@@ -993,6 +999,9 @@ test.describe('Show Run page', () => {
     await page.locator('#cardScene .card-delete').click();
     await expect(page.locator('#cardGrid #cardScene')).toHaveCount(0);
 
+    await expect(page.locator('[data-add-card-position="1"]')).toBeVisible();
+    await page.locator('[data-add-card-position="1"]').click();
+    await expect(page.locator('#addCardModal')).toBeVisible();
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
@@ -1032,7 +1041,8 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
     await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(8)'));
 
-    await expect(page.locator('#cardGrid > :nth-child(1)')).toContainText('Card position 1');
+    await expect(page.locator('#cardGrid > :nth-child(1)')).toContainText('Add card');
+    await expect(page.locator('#cardGrid > :nth-child(1)')).toContainText('Position 1');
     await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Live Controls');
 
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
