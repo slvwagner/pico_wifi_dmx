@@ -64,6 +64,8 @@ Fixed:
 - Made the Show Run workspace use the full browser width instead of staying centered inside a fixed maximum width.
 - Hardened the Show Run card matrix model so each card id can appear only once in the indexed `cardOrder` list; duplicate/stale entries are repaired before card moves, preventing **Live Controls** from appearing pinned to a position.
 - Simplified Show Run card arranging so **Edit Layout** directly enables card dragging from the card header; the separate **Move Cards** button and small per-card **Move** handle were removed.
+- Added Show Run card management in **Edit Layout**: cards can be removed and added back, singleton cards can only be added once, and **Live Controls** cards can be added multiple times for separate fader, button, or mixed control surfaces.
+- Hid each **Live Controls** setup toolbar outside **Edit Layout** so the operator page keeps more room for the active faders, knobs, and buttons during show operation.
 - Preserved rich Open Fixture Library wheel metadata when updating an existing fixture library profile from an edited controller profile, so adjustable ranges such as `WheelShake` and `WheelRotation` are not downgraded to plain wheel values.
 - Fixed PicoSpot-style shutter/strobe wheel ranges by adding `ShutterStrobe` metadata handling, so an imported or edited strobe range such as `11..255` renders as a bounded **Strobe speed** control instead of a generic wheel value.
 

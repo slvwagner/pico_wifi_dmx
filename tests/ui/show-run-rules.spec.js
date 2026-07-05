@@ -921,22 +921,22 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('repairs duplicate Live Controls card entries before moving cards', async ({ page }) => {
+  test('keeps multiple Live Controls card entries as separate cards', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await page.addInitScript(() => {
       localStorage.setItem('dmxShowRun.cardCols', '3');
       localStorage.setItem('dmxShowRun.cardRows', '3');
-      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'palette', 'chaser', 'motion', 'live', null, null, null]));
+      localStorage.setItem('dmxShowRun.cardOrder', JSON.stringify(['live', 'scene', 'palette', 'chaser', 'motion', 'live', 'group', null, null]));
     });
     await openDmxPage(page, 'dmx_show.html');
 
-    await expect(page.locator('#cardLive')).toHaveCount(1);
+    await expect(page.locator('[data-show-card="live"]')).toHaveCount(2);
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Live Controls');
-    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Show Target');
+    await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
 
     let savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 9)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null]);
+    expect(savedOrder.slice(0, 9)).toEqual(['live', 'scene', 'palette', 'chaser', 'motion', expect.stringMatching(/^live:/), 'group', null, null]);
 
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardPalette .panel-head'));
@@ -944,7 +944,73 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(1) h2')).toHaveText('Palettes');
     await expect(page.locator('#cardGrid > :nth-child(3) h2')).toHaveText('Live Controls');
     savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
-    expect(savedOrder.slice(0, 9)).toEqual(['palette', 'scene', 'live', 'chaser', 'motion', 'group', null, null, null]);
+    expect(savedOrder.slice(0, 9)).toEqual(['palette', 'scene', 'live', 'chaser', 'motion', expect.stringMatching(/^live:/), 'group', null, null]);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('adds and deletes a second Live Controls card with independent controls', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#addCardType').selectOption('live');
+    await page.locator('#addShowCard').click();
+
+    await expect(page.locator('[data-show-card="live"]')).toHaveCount(2);
+    const secondLive = page.locator('[data-show-card="live"]').nth(1);
+    await secondLive.locator('.live-fixture-select').selectOption('101');
+    await secondLive.locator('.live-control-select').selectOption('12');
+    await secondLive.locator('.live-widget-select').selectOption('button');
+    await secondLive.locator('.live-button-mode').selectOption('hold');
+    await secondLive.locator('.add-live-control').click();
+
+    await expect(secondLive.locator('.live-widget')).toHaveCount(1);
+    await expect(page.locator('[data-show-card="live"]').nth(0).locator('.live-widget')).toHaveCount(0);
+    let savedControls = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.liveControls') || '[]'));
+    expect(savedControls).toHaveLength(1);
+    expect(savedControls[0].cardId).toMatch(/^live_/);
+    expect(savedControls[0].widget).toBe('button');
+    expect(savedControls[0].buttonMode).toBe('hold');
+
+    await secondLive.locator('.card-delete').click();
+    await expect(page.locator('[data-show-card="live"]')).toHaveCount(1);
+    savedControls = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.liveControls') || '[]'));
+    expect(savedControls).toHaveLength(0);
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.filter(entry => String(entry || '').startsWith('live'))).toHaveLength(1);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('can remove a singleton card and add it back once', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#cardScene .card-delete').click();
+    await expect(page.locator('#cardGrid #cardScene')).toHaveCount(0);
+
+    await page.locator('#addCardType').selectOption('scene');
+    await page.locator('#addShowCard').click();
+    await expect(page.locator('#cardGrid #cardScene')).toHaveCount(1);
+    await expect.poll(() => page.locator('#addCardType option[value="scene"]').evaluate(option => option.disabled)).toBe(true);
+
+    const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
+    expect(savedOrder.filter(entry => entry === 'scene')).toHaveLength(1);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('hides Live Controls setup outside Edit Layout', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardLive .live-control-toolbar')).not.toBeVisible();
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('#cardLive .live-control-toolbar')).toBeVisible();
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('#cardLive .live-control-toolbar')).not.toBeVisible();
     expect(calls.setupWrites).toBe(0);
   });
 

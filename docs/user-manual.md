@@ -470,7 +470,9 @@ This target selection is an operator filter only. It does not edit the saved gro
 
 The sticky title bar has **Edit Layout** on the right. Layout tools are hidden during normal operation. Click **Edit Layout** when you want to show the layout controls, then click **Done Layout** to return to the cleaner operator view.
 
-In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Drag a card by its title/header area to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. Dragging a card to an empty matrix spot places it there and leaves the other card positions unchanged. Dragging a card onto another card swaps only those two cards. The card body remains available for tile editing and other layout controls while **Edit Layout** is active.
+In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Use **Add Card** to bring back a removed card or to add another **Live Controls** card. Group, scene, palette, chaser, and effect cards can be added once; **Live Controls** can be added multiple times, for example one card for faders, one for buttons, and one mixed card. Each card has a **Remove** action while layout editing is active.
+
+Drag a card by its title/header area to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. Dragging a card to an empty matrix spot places it there and leaves the other card positions unchanged. Dragging a card onto another card swaps only those two cards. The card body remains available for tile editing and other layout controls while **Edit Layout** is active.
 
 Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. While **Edit Layout** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run remembers these layout preferences in the browser, but it does not rewrite the saved toolbox setup on the server.
 
@@ -480,7 +482,7 @@ While **Edit Layout** is active, saved group, scene, and palette tiles also show
 
 ### Live Controls
 
-The **Live Controls** card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click **Edit Layout**, choose a patched fixture, control, control part, and widget type, then click **Add Control**. Faders and knobs send their value while they are moved. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.
+The **Live Controls** card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click **Edit Layout**, choose a patched fixture, control, control part, and widget type, then click **Add Control**. The setup controls are hidden when **Done Layout** is active so the operator page keeps more space for the actual controls. Multiple Live Controls cards can be used to separate faders, buttons, and mixed show controls. Faders and knobs send their value while they are moved. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.
 
 ![Show Run Live Controls](screenshots/show-run-live-controls.png)
 

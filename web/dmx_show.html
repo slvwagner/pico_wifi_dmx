@@ -32,6 +32,10 @@ main{padding:14px;display:grid;gap:14px;width:100%;max-width:none;margin:0}
 .matrix-tools input{width:54px;padding:6px 7px;min-height:32px}
 .layout-tools{display:none}
 body.layout-editing .layout-tools{display:flex}
+.card-delete{display:none}
+body.layout-editing .card-delete{display:inline-flex}
+.card-delete{min-height:32px;padding:4px 9px}
+.card-add-tools select{min-height:34px;padding:6px 7px}
 .small{font-size:12px;color:var(--muted);line-height:1.35}
 .status{color:var(--muted);font-size:13px;min-height:18px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .status.bad{color:#ff9d9d}
@@ -83,6 +87,8 @@ button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inse
 .playback-card h3{margin:0;font-size:14px}
 .playback-actions{display:flex;gap:8px;flex-wrap:wrap}
 .live-control-toolbar{display:flex;gap:8px;align-items:end;justify-content:flex-end;flex-wrap:wrap}
+.live-control-toolbar.layout-tools{display:none}
+body.layout-editing .live-control-toolbar.layout-tools{display:flex}
 .live-control-toolbar select,.live-control-toolbar input{min-height:34px;padding:6px 7px;max-width:150px}
 .live-control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;align-items:stretch}
 .live-widget{position:relative;min-height:154px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:8px;align-content:space-between}
@@ -132,7 +138,9 @@ body.layout-editing .show-tile-actions{display:flex}
 </header>
 <main>
   <section class="panel topbar layout-tools" aria-label="Show card matrix layout">
-    <div class="matrix-tools">
+    <div class="matrix-tools card-add-tools">
+      <label>Add card<select id="addCardType"></select></label>
+      <button id="addShowCard" type="button">Add Card</button>
       <label>Card cols<input id="cardCols" type="number" min="1" max="5" value="2"></label>
       <label>Card rows<input id="cardRows" type="number" min="1" max="5" value="3"></label>
     </div>
@@ -243,7 +251,7 @@ body.layout-editing .show-tile-actions{display:flex}
       <div id="motionSlots" class="playback-grid"></div>
     </section>
 
-    <section class="panel" id="cardLive" data-show-card="live">
+    <section class="panel live-card" id="cardLive" data-show-card="live">
       <div class="panel-head">
         <div>
           <h2>Live Controls</h2>
@@ -251,15 +259,15 @@ body.layout-editing .show-tile-actions{display:flex}
         </div>
         <div class="panel-tools">
           <div class="live-control-toolbar layout-tools" aria-label="Live control setup">
-            <label>Fixture<select id="liveFixtureSelect"></select></label>
-            <label>Control<select id="liveControlSelect"></select></label>
-            <label>Part<select id="livePartSelect"></select></label>
-            <label>Widget<select id="liveWidgetSelect"><option value="fader">Fader</option><option value="knob">Knob</option><option value="button">Button</option></select></label>
-            <label id="liveButtonModeWrap">Button mode<select id="liveButtonMode"><option value="apply">Apply</option><option value="hold">Hold</option><option value="timer">Timer</option></select></label>
-            <label id="liveButtonValueWrap">Button value<input id="liveButtonValue" type="number" min="0" max="65535" value="255"></label>
-            <label id="liveTimerOnWrap">On s<input id="liveTimerOn" type="number" min="0.1" max="600" step="0.1" value="3"></label>
-            <label id="liveTimerOffWrap">Off s<input id="liveTimerOff" type="number" min="0.1" max="3600" step="0.1" value="30"></label>
-            <button id="addLiveControl" type="button">Add Control</button>
+            <label>Fixture<select id="liveFixtureSelect" class="live-fixture-select"></select></label>
+            <label>Control<select id="liveControlSelect" class="live-control-select"></select></label>
+            <label>Part<select id="livePartSelect" class="live-part-select"></select></label>
+            <label>Widget<select id="liveWidgetSelect" class="live-widget-select"><option value="fader">Fader</option><option value="knob">Knob</option><option value="button">Button</option></select></label>
+            <label id="liveButtonModeWrap" class="live-button-mode-wrap">Button mode<select id="liveButtonMode" class="live-button-mode"><option value="apply">Apply</option><option value="hold">Hold</option><option value="timer">Timer</option></select></label>
+            <label id="liveButtonValueWrap" class="live-button-value-wrap">Button value<input id="liveButtonValue" class="live-button-value" type="number" min="0" max="65535" value="255"></label>
+            <label id="liveTimerOnWrap" class="live-timer-on-wrap">On s<input id="liveTimerOn" class="live-timer-on" type="number" min="0.1" max="600" step="0.1" value="3"></label>
+            <label id="liveTimerOffWrap" class="live-timer-off-wrap">Off s<input id="liveTimerOff" class="live-timer-off" type="number" min="0.1" max="3600" step="0.1" value="30"></label>
+            <button id="addLiveControl" class="add-live-control" type="button">Add Control</button>
           </div>
         </div>
       </div>
@@ -333,6 +341,8 @@ const layoutKey=name=>'dmxShowRun.'+name;
 const displayOrders={group:[],scene:[],palette:[],chaser:[],motion:[]};
 const moveSelected={group:null,scene:null,palette:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','chaser','motion','live'];
+const cardLabels={group:'Show Target',scene:'Scenes',palette:'Palettes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls'};
+const singletonCardIds=cardIds.filter(id=>id!=='live');
 let cardOrder=[];
 let cardMoveMode=false;
 let layoutEditing=false;
@@ -341,6 +351,9 @@ let blackoutActive=false;
 let liveControls=[];
 const liveButtonHeld=new Map();
 const liveTimerState=new Map();
+const hiddenCardBin=document.createElement('div');
+hiddenCardBin.hidden=true;
+document.body.appendChild(hiddenCardBin);
 
 function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
@@ -468,9 +481,28 @@ function saveCardLayout(){
   localStorage.setItem(layoutKey('cardRows'),cardRows);
   localStorage.setItem(layoutKey('cardOrder'),JSON.stringify(cardOrder));
 }
+function cardType(entry){
+  if(entry===null||entry===undefined||entry==='')return '';
+  return String(entry).split(':')[0];
+}
+function cardKey(type,id=''){
+  return type==='live'&&id&&id!=='live'?'live:'+id:type;
+}
+function liveCardId(entry){
+  const text=String(entry||'live');
+  return text.startsWith('live:')?text.slice(5):'live';
+}
+function uniqueLiveCardKey(seed=''){
+  const base='live_'+(seed||Date.now());
+  let id=base, n=1;
+  const used=new Set(cardOrder.map(entry=>String(entry)));
+  while(used.has(cardKey('live',id)))id=base+'_'+(n++);
+  return cardKey('live',id);
+}
 function loadLiveControls(){
   try{liveControls=JSON.parse(localStorage.getItem(layoutKey('liveControls'))||'[]')||[];}catch(_){liveControls=[];}
   liveControls=liveControls.filter(item=>item&&item.fixtureId!=null&&item.controlId!=null&&item.part&&item.widget);
+  liveControls.forEach(item=>{if(!item.cardId)item.cardId='live';});
 }
 function saveLiveControls(){
   localStorage.setItem(layoutKey('liveControls'),JSON.stringify(liveControls));
@@ -480,36 +512,51 @@ function reconcileCardOrder(){
   let saved=[];
   try{saved=JSON.parse(localStorage.getItem(layoutKey('cardOrder'))||'[]');}catch(_){saved=[];}
   const source=Array.isArray(cardOrder)&&cardOrder.length?cardOrder:Array.isArray(saved)?saved:[];
+  const shouldInsertDefaults=!source.length;
   const next=[];
-  const used=new Set();
+  const usedSingletons=new Set();
+  const usedLiveKeys=new Set();
   source.slice(0,total).forEach(key=>{
     if(key===null||key===undefined||key===''){next.push(null);return;}
-    const id=String(key);
-    if(!cardIds.includes(id)||used.has(id)){next.push(null);return;}
-    used.add(id);
-    next.push(id);
+    const type=cardType(key);
+    if(!cardIds.includes(type)){next.push(null);return;}
+    if(type==='live'){
+      let normalized=String(key);
+      if(normalized==='live'&&usedLiveKeys.has('live'))normalized=uniqueLiveCardKey('legacy_'+next.length);
+      if(usedLiveKeys.has(normalized)){next.push(null);return;}
+      usedLiveKeys.add(normalized);
+      next.push(normalized);
+      return;
+    }
+    if(usedSingletons.has(type)){next.push(null);return;}
+    usedSingletons.add(type);
+    next.push(type);
   });
   while(next.length<total)next.push(null);
-  cardIds.forEach(id=>{
-    if(used.has(id))return;
-    const emptyIndex=next.indexOf(null);
-    if(emptyIndex>=0)next[emptyIndex]=id;
-    else next.push(id);
-    used.add(id);
-  });
+  if(shouldInsertDefaults){
+    singletonCardIds.concat(['live']).forEach(id=>{
+      if(id==='live'&&usedLiveKeys.has('live'))return;
+      if(id!=='live'&&usedSingletons.has(id))return;
+      const emptyIndex=next.indexOf(null);
+      if(emptyIndex>=0)next[emptyIndex]=id;
+      else next.push(id);
+      if(id==='live')usedLiveKeys.add('live');else usedSingletons.add(id);
+    });
+  }
   while(next.length<total)next.push(null);
   cardOrder=next.slice(0,total);
-  if(!cardOrder.some(Boolean))cardOrder=cardIds.concat(Array(Math.max(0,total-cardIds.length)).fill(null));
+  if(shouldInsertDefaults&&!cardOrder.some(Boolean))cardOrder=cardIds.concat(Array(Math.max(0,total-cardIds.length)).fill(null));
 }
 function syncCardInputs(){
-  const needed=cardIds.length;
+  const needed=Math.max(cardIds.length,cardOrder.filter(Boolean).length);
   const colsInput=document.getElementById('cardCols');
   const rowsInput=document.getElementById('cardRows');
   if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/cardRows));colsInput.value=cardCols;}
   if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/cardCols));rowsInput.value=cardRows;}
 }
 function normalizeCardGrid(priority='cols'){
-  const next=normalizeMatrix(cardCols,cardRows,cardIds.length,5,5,priority);
+  const needed=Math.max(cardIds.length,cardOrder.filter(Boolean).length);
+  const next=normalizeMatrix(cardCols,cardRows,needed,5,5,priority);
   cardCols=next.cols;cardRows=next.rows;
   syncCardInputs();
 }
@@ -526,21 +573,120 @@ function moveCard(from,to){
   setStatus('Moved card to position '+(to+1));
   return true;
 }
+function createLiveCard(entry){
+  const cardId=liveCardId(entry);
+  const primary=cardId==='live';
+  const node=document.createElement('section');
+  node.className='panel live-card';
+  node.id=cardId==='live'?'cardLive':'cardLive_'+cardId.replace(/[^a-z0-9_-]/gi,'_');
+  node.dataset.showCard='live';
+  node.dataset.liveCardId=cardId;
+  node.innerHTML=`<div class="panel-head">
+    <div>
+      <h2>Live Controls</h2>
+      <div class="small">Operator faders, knobs, and buttons mapped directly to fixture controls.</div>
+    </div>
+    <div class="panel-tools">
+      <button type="button" class="card-delete stop" title="Remove this card">Remove</button>
+      <div class="live-control-toolbar layout-tools" aria-label="Live control setup">
+        <label>Fixture<select ${primary?'id="liveFixtureSelect"':''} class="live-fixture-select"></select></label>
+        <label>Control<select ${primary?'id="liveControlSelect"':''} class="live-control-select"></select></label>
+        <label>Part<select ${primary?'id="livePartSelect"':''} class="live-part-select"></select></label>
+        <label>Widget<select ${primary?'id="liveWidgetSelect"':''} class="live-widget-select"><option value="fader">Fader</option><option value="knob">Knob</option><option value="button">Button</option></select></label>
+        <label ${primary?'id="liveButtonModeWrap"':''} class="live-button-mode-wrap">Button mode<select ${primary?'id="liveButtonMode"':''} class="live-button-mode"><option value="apply">Apply</option><option value="hold">Hold</option><option value="timer">Timer</option></select></label>
+        <label ${primary?'id="liveButtonValueWrap"':''} class="live-button-value-wrap">Button value<input ${primary?'id="liveButtonValue"':''} class="live-button-value" type="number" min="0" max="65535" value="255"></label>
+        <label ${primary?'id="liveTimerOnWrap"':''} class="live-timer-on-wrap">On s<input ${primary?'id="liveTimerOn"':''} class="live-timer-on" type="number" min="0.1" max="600" step="0.1" value="3"></label>
+        <label ${primary?'id="liveTimerOffWrap"':''} class="live-timer-off-wrap">Off s<input ${primary?'id="liveTimerOff"':''} class="live-timer-off" type="number" min="0.1" max="3600" step="0.1" value="30"></label>
+        <button ${primary?'id="addLiveControl"':''} class="add-live-control" type="button">Add Control</button>
+      </div>
+    </div>
+  </div>
+  <div ${primary?'id="liveControlGrid"':''} class="live-control-grid"></div>`;
+  return node;
+}
+function cardNodeFor(entry){
+  const type=cardType(entry);
+  if(type==='live')return createLiveCard(entry);
+  return document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
+}
+function ensureCardDeleteButton(node){
+  if(!node)return null;
+  let btn=node.querySelector(':scope .card-delete');
+  if(btn)return btn;
+  const tools=node.querySelector(':scope > .panel-head .panel-tools');
+  if(!tools)return null;
+  btn=document.createElement('button');
+  btn.type='button';
+  btn.className='card-delete stop';
+  btn.title='Remove this card';
+  btn.textContent='Remove';
+  tools.insertBefore(btn,tools.firstChild);
+  return btn;
+}
+function deleteCardAt(index){
+  const entry=cardOrder[index];
+  const type=cardType(entry);
+  if(!entry)return;
+  if(type==='live'){
+    const cardId=liveCardId(entry);
+    liveControls.filter(item=>item.cardId===cardId).forEach(item=>{stopLiveTimer(item,true);liveButtonHeld.delete(item.id);});
+    liveControls=liveControls.filter(item=>item.cardId!==cardId);
+    saveLiveControls();
+  }
+  cardOrder[index]=null;
+  saveCardLayout();
+  renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  setStatus('Removed '+(cardLabels[type]||'card')+' card');
+}
+function addShowCard(){
+  const select=document.getElementById('addCardType');
+  const type=select?.value||'live';
+  if(!cardIds.includes(type))return;
+  if(type!=='live'&&cardOrder.some(entry=>cardType(entry)===type)){setStatus((cardLabels[type]||type)+' is already on the page',true);return;}
+  const entry=type==='live'?uniqueLiveCardKey():type;
+  let index=cardOrder.indexOf(null);
+  if(index<0){
+    cardOrder.push(entry);
+    normalizeCardGrid('rows');
+  }else cardOrder[index]=entry;
+  saveCardLayout();
+  renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  setStatus('Added '+(cardLabels[type]||type)+' card');
+}
+function updateAddCardOptions(){
+  const select=document.getElementById('addCardType');
+  if(!select)return;
+  const used=new Set(cardOrder.map(cardType).filter(type=>type&&type!=='live'));
+  select.innerHTML=cardIds.map(type=>{
+    const disabled=type!=='live'&&used.has(type)?' disabled':'';
+    return `<option value="${esc(type)}"${disabled}>${esc(cardLabels[type]||type)}</option>`;
+  }).join('');
+  if(select.selectedOptions[0]?.disabled)select.value='live';
+}
 function renderCardGrid(){
   normalizeCardGrid('cols');
   reconcileCardOrder();
+  updateAddCardOptions();
   const grid=document.getElementById('cardGrid');
   grid.style.gridTemplateColumns='repeat('+cardCols+',minmax(0,1fr))';
   grid.classList.toggle('card-move-mode',cardMoveMode);
   grid.querySelectorAll('.card-empty').forEach(el=>el.remove());
+  grid.querySelectorAll('.live-card').forEach(el=>el.remove());
+  singletonCardIds.forEach(type=>{
+    const node=document.getElementById('card'+type.charAt(0).toUpperCase()+type.slice(1));
+    if(node)hiddenCardBin.appendChild(node);
+  });
   cardOrder.forEach((key,index)=>{
     let node=null;
     if(key){
-      node=document.getElementById('card'+key.charAt(0).toUpperCase()+key.slice(1));
+      node=cardNodeFor(key);
       if(node){
         const head=node.querySelector(':scope > .panel-head');
         if(head)head.title=cardMoveMode?'Drag card header to move this card':'';
+        const del=ensureCardDeleteButton(node);
+        if(del)del.onclick=e=>{e.stopPropagation();deleteCardAt(index);};
         node.dataset.showCardIndex=index;
+        node.dataset.showCardKey=String(key);
         node.classList.remove('active');
         node.onclick=null;
       }
@@ -562,6 +708,7 @@ function renderCardGrid(){
     onMove:(from,to)=>moveCard(from,to)
   });
   saveCardLayout();
+  renderLiveControls();
 }
 function setLayoutEditing(enabled){
   layoutEditing=!!enabled;
@@ -987,17 +1134,17 @@ function liveControlLabel(item,target){
   if(!target)return 'Missing control';
   return target.fixture.name+' - '+target.control.label+(target.part.label==='Value'?'':' '+target.part.label);
 }
-function updateLiveControlSelects(){
-  const fixtureSelect=document.getElementById('liveFixtureSelect');
-  const controlSelect=document.getElementById('liveControlSelect');
-  const partSelect=document.getElementById('livePartSelect');
-  const widgetSelect=document.getElementById('liveWidgetSelect');
-  const modeWrap=document.getElementById('liveButtonModeWrap');
-  const modeSelect=document.getElementById('liveButtonMode');
-  const valueWrap=document.getElementById('liveButtonValueWrap');
-  const timerOnWrap=document.getElementById('liveTimerOnWrap');
-  const timerOffWrap=document.getElementById('liveTimerOffWrap');
-  const buttonValue=document.getElementById('liveButtonValue');
+function updateLiveControlSelects(card=document){
+  const fixtureSelect=card.querySelector?.('.live-fixture-select')||document.getElementById('liveFixtureSelect');
+  const controlSelect=card.querySelector?.('.live-control-select')||document.getElementById('liveControlSelect');
+  const partSelect=card.querySelector?.('.live-part-select')||document.getElementById('livePartSelect');
+  const widgetSelect=card.querySelector?.('.live-widget-select')||document.getElementById('liveWidgetSelect');
+  const modeWrap=card.querySelector?.('.live-button-mode-wrap')||document.getElementById('liveButtonModeWrap');
+  const modeSelect=card.querySelector?.('.live-button-mode')||document.getElementById('liveButtonMode');
+  const valueWrap=card.querySelector?.('.live-button-value-wrap')||document.getElementById('liveButtonValueWrap');
+  const timerOnWrap=card.querySelector?.('.live-timer-on-wrap')||document.getElementById('liveTimerOnWrap');
+  const timerOffWrap=card.querySelector?.('.live-timer-off-wrap')||document.getElementById('liveTimerOffWrap');
+  const buttonValue=card.querySelector?.('.live-button-value')||document.getElementById('liveButtonValue');
   if(!fixtureSelect||!controlSelect||!partSelect)return;
   const currentFixture=fixtureSelect.value||String(fixtures[0]?.id||'');
   fixtureSelect.innerHTML=fixtures.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('');
@@ -1021,17 +1168,19 @@ function updateLiveControlSelects(){
   if(timerOnWrap)timerOnWrap.style.display=isTimer?'grid':'none';
   if(timerOffWrap)timerOffWrap.style.display=isTimer?'grid':'none';
 }
-function addLiveControl(){
-  const f=fixtures.find(item=>String(item.id)===String(document.getElementById('liveFixtureSelect')?.value));
-  const c=f&&fixtureProfile(f)?.controls.find(item=>String(item.id)===String(document.getElementById('liveControlSelect')?.value));
-  const part=scalarControlParts(c||{}).find(item=>item.part===document.getElementById('livePartSelect')?.value);
+function addLiveControl(card=document){
+  const cardEl=card.closest?.('[data-live-card-id]')||document.querySelector('[data-live-card-id]');
+  const cardId=cardEl?.dataset.liveCardId||'live';
+  const f=fixtures.find(item=>String(item.id)===String(cardEl?.querySelector('.live-fixture-select')?.value));
+  const c=f&&fixtureProfile(f)?.controls.find(item=>String(item.id)===String(cardEl?.querySelector('.live-control-select')?.value));
+  const part=scalarControlParts(c||{}).find(item=>item.part===cardEl?.querySelector('.live-part-select')?.value);
   if(!f||!c||!part){setStatus('Choose a fixture control to add',true);return;}
-  const widget=document.getElementById('liveWidgetSelect')?.value||'fader';
-  const buttonMode=document.getElementById('liveButtonMode')?.value||'apply';
-  const buttonValue=clamp(document.getElementById('liveButtonValue')?.value||part.max,0,part.max);
-  const timerOnMs=Math.max(100,Math.round((parseFloat(document.getElementById('liveTimerOn')?.value)||3)*1000));
-  const timerOffMs=Math.max(100,Math.round((parseFloat(document.getElementById('liveTimerOff')?.value)||30)*1000));
-  liveControls.push({id:'live_'+Date.now(),fixtureId:f.id,controlId:c.id,part:part.part,widget,label:'',buttonValue,buttonMode,timerOnMs,timerOffMs});
+  const widget=cardEl?.querySelector('.live-widget-select')?.value||'fader';
+  const buttonMode=cardEl?.querySelector('.live-button-mode')?.value||'apply';
+  const buttonValue=clamp(cardEl?.querySelector('.live-button-value')?.value||part.max,0,part.max);
+  const timerOnMs=Math.max(100,Math.round((parseFloat(cardEl?.querySelector('.live-timer-on')?.value)||3)*1000));
+  const timerOffMs=Math.max(100,Math.round((parseFloat(cardEl?.querySelector('.live-timer-off')?.value)||30)*1000));
+  liveControls.push({id:'live_'+Date.now(),cardId,fixtureId:f.id,controlId:c.id,part:part.part,widget,label:'',buttonValue,buttonMode,timerOnMs,timerOffMs});
   saveLiveControls();
   renderLiveControls();
   setStatus('Added live '+widget+' for '+f.name+' '+c.label);
@@ -1128,52 +1277,61 @@ function liveWidgetHtml(item,index,target){
   return `<div class="live-widget live-fader">${del}<h3>${esc(label)}</h3><input type="range" ${common}><div class="small">${esc(meta)} · ${value}</div></div>`;
 }
 function renderLiveControls(){
-  updateLiveControlSelects();
-  const grid=document.getElementById('liveControlGrid');
-  if(!grid)return;
-  if(!liveControls.length){
-    grid.innerHTML='<div class="small">Use Edit Layout to add faders, knobs, or buttons for fixture controls.</div>';
-    return;
-  }
-  grid.innerHTML=liveControls.map((item,index)=>liveWidgetHtml(item,index,liveControlTarget(item))).join('');
-  grid.querySelectorAll('[data-live-index]').forEach(input=>{
-    input.addEventListener('input',()=>{
-      updateLiveWidgetReadout(input);
-      applyLiveControl(liveControls[parseInt(input.dataset.liveIndex,10)],input.value).catch(err=>setStatus(err.message,true));
+  document.querySelectorAll('[data-live-card-id]').forEach(card=>{
+    const cardId=card.dataset.liveCardId||'live';
+    updateLiveControlSelects(card);
+    card.querySelectorAll('.live-fixture-select,.live-control-select,.live-part-select,.live-widget-select,.live-button-mode').forEach(el=>{
+      el.onchange=()=>updateLiveControlSelects(card);
     });
-  });
-  grid.querySelectorAll('[data-live-button]').forEach(button=>{
-    const item=liveControls[parseInt(button.dataset.liveButton,10)];
-    const mode=item?.buttonMode||'apply';
-    if(mode==='hold'){
-      button.addEventListener('pointerdown',e=>{
-        e.preventDefault();
-        button.setPointerCapture?.(e.pointerId);
-        pressHoldLiveButton(item).catch(err=>setStatus(err.message,true));
-      });
-      const release=e=>{
-        if(e?.pointerId!==undefined)button.releasePointerCapture?.(e.pointerId);
-        releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true));
-      };
-      button.addEventListener('pointerup',release);
-      button.addEventListener('pointercancel',release);
-      button.addEventListener('lostpointercapture',()=>releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true)));
-    }else if(mode==='timer'){
-      button.addEventListener('click',()=>toggleLiveTimer(item));
-    }else{
-      button.addEventListener('click',()=>applyLiveControl(item,item.buttonValue).catch(err=>setStatus(err.message,true)));
+    const addBtn=card.querySelector('.add-live-control');
+    if(addBtn)addBtn.onclick=()=>addLiveControl(card);
+    const grid=card.querySelector('.live-control-grid');
+    if(!grid)return;
+    const indexed=liveControls.map((item,index)=>({item,index})).filter(row=>(row.item.cardId||'live')===cardId);
+    if(!indexed.length){
+      grid.innerHTML='<div class="small">Use Edit Layout to add faders, knobs, or buttons for fixture controls.</div>';
+      return;
     }
-  });
-  grid.querySelectorAll('[data-live-delete]').forEach(button=>{
-    button.addEventListener('click',e=>{
-      e.stopPropagation();
-      const index=parseInt(button.dataset.liveDelete,10);
-      stopLiveTimer(liveControls[index],true);
-      liveButtonHeld.delete(liveControls[index]?.id);
-      liveControls.splice(index,1);
-      saveLiveControls();
-      renderLiveControls();
-      setStatus('Removed live control');
+    grid.innerHTML=indexed.map(row=>liveWidgetHtml(row.item,row.index,liveControlTarget(row.item))).join('');
+    grid.querySelectorAll('[data-live-index]').forEach(input=>{
+      input.addEventListener('input',()=>{
+        updateLiveWidgetReadout(input);
+        applyLiveControl(liveControls[parseInt(input.dataset.liveIndex,10)],input.value).catch(err=>setStatus(err.message,true));
+      });
+    });
+    grid.querySelectorAll('[data-live-button]').forEach(button=>{
+      const item=liveControls[parseInt(button.dataset.liveButton,10)];
+      const mode=item?.buttonMode||'apply';
+      if(mode==='hold'){
+        button.addEventListener('pointerdown',e=>{
+          e.preventDefault();
+          button.setPointerCapture?.(e.pointerId);
+          pressHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+        });
+        const release=e=>{
+          if(e?.pointerId!==undefined)button.releasePointerCapture?.(e.pointerId);
+          releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+        };
+        button.addEventListener('pointerup',release);
+        button.addEventListener('pointercancel',release);
+        button.addEventListener('lostpointercapture',()=>releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true)));
+      }else if(mode==='timer'){
+        button.addEventListener('click',()=>toggleLiveTimer(item));
+      }else{
+        button.addEventListener('click',()=>applyLiveControl(item,item.buttonValue).catch(err=>setStatus(err.message,true)));
+      }
+    });
+    grid.querySelectorAll('[data-live-delete]').forEach(button=>{
+      button.addEventListener('click',e=>{
+        e.stopPropagation();
+        const index=parseInt(button.dataset.liveDelete,10);
+        stopLiveTimer(liveControls[index],true);
+        liveButtonHeld.delete(liveControls[index]?.id);
+        liveControls.splice(index,1);
+        saveLiveControls();
+        renderLiveControls();
+        setStatus('Removed live control');
+      });
     });
   });
 }
@@ -1646,12 +1804,7 @@ document.getElementById('motionControlStart').onclick=()=>DmxCommon.withButtonFe
 document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonFeedback('motionControlSetBpm',{busy:'Setting...',success:'BPM Set',error:'Failed'},()=>setMotionSlotBpm(motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
-document.getElementById('liveFixtureSelect').onchange=updateLiveControlSelects;
-document.getElementById('liveControlSelect').onchange=updateLiveControlSelects;
-document.getElementById('livePartSelect').onchange=updateLiveControlSelects;
-document.getElementById('liveWidgetSelect').onchange=updateLiveControlSelects;
-document.getElementById('liveButtonMode').onchange=updateLiveControlSelects;
-document.getElementById('addLiveControl').onclick=addLiveControl;
+document.getElementById('addShowCard').onclick=addShowCard;
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 bindCardInputs();
