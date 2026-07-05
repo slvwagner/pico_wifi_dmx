@@ -367,6 +367,7 @@ let showUiState={};
 const displayOrders={group:[],scene:[],palette:[],chaser:[],motion:[]};
 let cardLayouts={};
 const moveSelected={group:null,scene:null,palette:null,chaser:null,motion:null};
+const moveSelectedLayout={group:null,scene:null,palette:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','chaser','motion','live'];
 const cardLabels={group:'Show Target',scene:'Scenes',palette:'Palettes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls'};
 const repeatableCardIds=cardIds.slice();
@@ -664,7 +665,7 @@ function cloneRepeatCard(entry){
   node.dataset.showCardKey=String(entry);
   const summary=node.querySelector('.panel-tools > .small');
   if(summary)summary.dataset.repeatSummary=type;
-  const grid=node.querySelector('.grid');
+  const grid=node.querySelector('.grid,.playback-grid');
   if(grid)grid.dataset.repeatGrid=type;
   return node;
 }
@@ -884,6 +885,7 @@ function setLayoutEditing(enabled){
   if(!layoutEditing){
     cardMoveMode=false;
     Object.keys(moveSelected).forEach(kind=>{moveSelected[kind]=null;});
+    Object.keys(moveSelectedLayout).forEach(kind=>{moveSelectedLayout[kind]=null;});
     renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }else{
     renderGroups();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
@@ -1036,6 +1038,7 @@ function moveShowTile(kind,from,to,layoutId=kind){
   order[from]=target;
   setCardOrderFor(kind,layoutId,order);
   moveSelected[kind]=null;
+  moveSelectedLayout[kind]=null;
   saveCardLayoutState(kind,layoutId);
   renderKind(kind);
   setStatus('Moved '+kind+' tile to position '+(to+1));
@@ -1140,20 +1143,22 @@ function reviewHiddenTiles(autoOpen=true){
 function tileMoveClick(kind,index,layoutId=kind){
   if(!layoutEditing)return false;
   const order=cardOrderFor(kind,layoutId)||[];
-  if(moveSelected[kind]===null){
+  if(moveSelected[kind]===null||moveSelectedLayout[kind]!==layoutId){
     if(!order[index]){setStatus('Move mode is active: select a filled tile first');return true;}
     moveSelected[kind]=index;
+    moveSelectedLayout[kind]=layoutId;
     renderKind(kind);
     setStatus('Selected '+kind+' tile '+(index+1)+'. Tap a destination tile.');
     return true;
   }
   if(moveSelected[kind]===index){
     moveSelected[kind]=null;
+    moveSelectedLayout[kind]=null;
     renderKind(kind);
     setStatus('Move selection cleared');
     return true;
   }
-  moveShowTile(kind,moveSelected[kind],index,layoutId);
+  moveShowTile(kind,moveSelected[kind],index,moveSelectedLayout[kind]||layoutId);
   return true;
 }
 function renderKind(kind){
@@ -1558,7 +1563,7 @@ function renderGroupGrid(grid,layoutId='group',cols=groupCols,rows=groupRows){
   for(let i=0;i<total;i++){
     const entry=orderedEntryAt('group',i,layoutId);
     const g=entry?.item;
-    if(g)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot group-tile filled',selectedGroupIds.has(String(g.id))||moveSelected.group===i)}" data-show-tile-index="${i}" data-group="${esc(g.id)}" style="${slotStyle(g)}">${tileActionButtons('group',entry.key,'group')}${slotVisual(g)}<span class="show-tile-content"><span class="slot-name">${esc(g.name||'Group')}</span><span class="slot-meta small">${(g.fixtureIds||[]).length} fixture(s)</span></span></div>`;
+    if(g)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot group-tile filled',selectedGroupIds.has(String(g.id))||(moveSelected.group===i&&moveSelectedLayout.group===layoutId))}" data-show-tile-index="${i}" data-group="${esc(g.id)}" style="${slotStyle(g)}">${tileActionButtons('group',entry.key,'group')}${slotVisual(g)}<span class="show-tile-content"><span class="slot-name">${esc(g.name||'Group')}</span><span class="slot-meta small">${(g.fixtureIds||[]).length} fixture(s)</span></span></div>`;
     else html+=`<div class="slot group-tile empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
@@ -1584,7 +1589,7 @@ function renderSlots(gridRef,summaryRef,items,cols,rows,kind,layoutId=kind){
   for(let i=0;i<total;i++){
     const entry=orderedEntryAt(kind,i,layoutId);
     const item=entry?.item;
-    if(item)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected[kind]===i)}" data-show-tile-index="${i}" data-${kind}-key="${esc(entry.key)}" title="Recall ${kind} ${esc(item.name||String(i+1))}" style="${slotStyle(item)}">${tileActionButtons(kind,entry.key,kind)}${slotTitle(item,kind+' '+(i+1))}</div>`;
+    if(item)html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected[kind]===i&&moveSelectedLayout[kind]===layoutId)}" data-show-tile-index="${i}" data-${kind}-key="${esc(entry.key)}" title="Recall ${kind} ${esc(item.name||String(i+1))}" style="${slotStyle(item)}">${tileActionButtons(kind,entry.key,kind)}${slotTitle(item,kind+' '+(i+1))}</div>`;
     else html+=`<div class="slot empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
@@ -1772,7 +1777,8 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
     const actionLabel=item?.active?'Stop':'Start';
     const actionClass=item?.active?'stop':'primary';
-    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',moveSelected[type]===i||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div><div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button></div></div>`;
+    const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button></div>`;
+    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
   container.innerHTML=html;
@@ -1783,12 +1789,61 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     action.catch(err=>setStatus(err.message,true));
   }));
   container.querySelectorAll('[data-show-tile-index]').forEach(el=>el.addEventListener('click',e=>{
+    if(el._dmxPlaybackTapHandled){el._dmxPlaybackTapHandled=false;return;}
     if(e.target.closest('button'))return;
     if(type==='chaser'&&el.dataset.chaserSelect!==undefined){selectChaserSlot(el.dataset.chaserSelect);if(!layoutEditing){renderChaserPlayback();return;}}
     if(type==='motion'&&el.dataset.motionSelect!==undefined){selectMotionSlot(el.dataset.motionSelect);if(!layoutEditing){renderMotionPlayback();return;}}
     tileMoveClick(type,parseInt(el.dataset.showTileIndex,10),layoutId);
   }));
   initMoveGrid(type,container,layoutId);
+}
+let playbackTilePointer=null;
+let suppressNextPlaybackClick=false;
+function playbackTileFromEvent(e){
+  const tile=e.target.closest?.('.playback-card[data-show-tile-index]');
+  if(!tile||e.target.closest?.('button'))return null;
+  const card=tile.closest('[data-show-card]');
+  const type=cardType(card?.dataset?.showCardKey||card?.dataset?.showCard);
+  if(!['chaser','motion'].includes(type))return null;
+  return {tile,card,type,layoutId:card?.dataset?.showCardKey||type,index:parseInt(tile.dataset.showTileIndex,10)};
+}
+function bindPlaybackTileMoveCapture(){
+  document.addEventListener('pointerdown',e=>{
+    if(!layoutEditing)return;
+    const hit=playbackTileFromEvent(e);
+    if(!hit)return;
+    playbackTilePointer={...hit,pointerId:e.pointerId,x:e.clientX,y:e.clientY};
+  },true);
+  document.addEventListener('pointerup',e=>{
+    if(!layoutEditing||!playbackTilePointer||playbackTilePointer.pointerId!==e.pointerId)return;
+    const start=playbackTilePointer;
+    playbackTilePointer=null;
+    const hit=playbackTileFromEvent(e);
+    if(!hit||hit.type!==start.type||hit.layoutId!==start.layoutId)return;
+    const moved=Math.abs(e.clientX-start.x)>4||Math.abs(e.clientY-start.y)>4;
+    e.preventDefault();
+    e.stopPropagation();
+    if(moved){
+      moveShowTile(start.type,start.index,hit.index,start.layoutId);
+      return;
+    }
+    if(start.type==='chaser'&&start.tile.dataset.chaserSelect!==undefined)selectChaserSlot(start.tile.dataset.chaserSelect);
+    if(start.type==='motion'&&start.tile.dataset.motionSelect!==undefined)selectMotionSlot(start.tile.dataset.motionSelect);
+    tileMoveClick(start.type,start.index,start.layoutId);
+    suppressNextPlaybackClick=true;
+  },true);
+  document.addEventListener('pointercancel',()=>{playbackTilePointer=null;},true);
+  document.addEventListener('click',e=>{
+    if(!layoutEditing)return;
+    const hit=playbackTileFromEvent(e);
+    if(!hit)return;
+    if(suppressNextPlaybackClick){suppressNextPlaybackClick=false;return;}
+    e.preventDefault();
+    e.stopPropagation();
+    if(hit.type==='chaser'&&hit.tile.dataset.chaserSelect!==undefined)selectChaserSlot(hit.tile.dataset.chaserSelect);
+    if(hit.type==='motion'&&hit.tile.dataset.motionSelect!==undefined)selectMotionSlot(hit.tile.dataset.motionSelect);
+    tileMoveClick(hit.type,hit.index,hit.layoutId);
+  },true);
 }
 async function applyValuePatch(source,label){
   if(blackoutActive)await clearPicoBlackout(true);
@@ -2036,6 +2091,7 @@ bindMatrixInputs('scene',normalizeSceneGrid,renderScenes,32,32);
 bindMatrixInputs('palette',normalizePaletteGrid,renderPalettes,32,32);
 bindMatrixInputs('chaser',normalizeChaserGrid,drawChaserPlayback,32,32);
 bindMatrixInputs('motion',normalizeMotionGrid,drawMotionPlayback,32,32);
+bindPlaybackTileMoveCapture();
 loadShow().catch(err=>setStatus(err.message,true));
 </script>
 </body>

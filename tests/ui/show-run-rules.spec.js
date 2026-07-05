@@ -92,7 +92,7 @@ async function routeShowSetup(page, calls) {
         exists: true,
         slotCols: 2,
         slotRows: 1,
-        scenes: [
+        scenes: calls.scenes || [
           {
             id: 'scene_1',
             name: 'Both On',
@@ -120,7 +120,7 @@ async function routeShowSetup(page, calls) {
         exists: true,
         paletteCols: 1,
         paletteRows: 1,
-        palettes: [
+        palettes: calls.palettes || [
           {
             id: 'palette_1',
             name: 'Red',
@@ -699,6 +699,181 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#paletteGrid .slot').nth(1)).toContainText('Red');
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('lets the operator move tiles in every Show Run card type', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      scenes: [
+        { id: 'scene_1', name: 'Scene One', slot: 0, values: { '101:11': 10 } }
+      ],
+      palettes: [
+        { id: 'palette_1', name: 'Palette One', slot: 0, scope: 'Color', values: { '101:12': { a: 255, b: 0, c: 0 } } }
+      ],
+      mirroredChaserSlots: ['{"name":"Chase One"}'],
+      liveMotionSlots: [{ loaded: true, slot: 0, bpm: 30 }],
+      showRunState: {
+        groupCols: 2,
+        groupRows: 2,
+        sceneCols: 2,
+        sceneRows: 2,
+        paletteCols: 2,
+        paletteRows: 2,
+        chaserCols: 2,
+        chaserRows: 2,
+        motionCols: 2,
+        motionRows: 2
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+
+    const cases = [
+      { kind: 'group', grid: '#groupGrid', label: 'Front Spots', key: 'front', stateKey: 'groupOrder' },
+      { kind: 'scene', grid: '#sceneGrid', label: 'Scene One', key: 'scene_1', stateKey: 'sceneOrder' },
+      { kind: 'palette', grid: '#paletteGrid', label: 'Palette One', key: 'palette_1', stateKey: 'paletteOrder' },
+      { kind: 'chaser', grid: '#chaserSlots', label: 'Chase One', key: '0', stateKey: 'chaserOrder' },
+      { kind: 'motion', grid: '#motionSlots', label: 'Pico effect 0', key: '0', stateKey: 'motionOrder' }
+    ];
+
+    for (const row of cases) {
+      const grid = page.locator(row.grid);
+      await expect(grid.locator('[data-show-tile-index="0"]')).toContainText(row.label);
+      await grid.locator('[data-show-tile-index="0"]').click({ position: { x: 40, y: 44 } });
+      await grid.locator('[data-show-tile-index="3"]').click({ position: { x: 40, y: 44 } });
+      await expect(grid.locator('[data-show-tile-index="3"]')).toContainText(row.label);
+      await expect(grid.locator('[data-show-tile-index="0"]')).not.toContainText(row.label);
+      const saved = calls.uiStatePosts.map(post => post.state?.[row.stateKey]).filter(Boolean).at(-1);
+      expect(saved[3]).toBe(row.key);
+    }
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('lets the operator drag tiles in every Show Run card type', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      scenes: [
+        { id: 'scene_1', name: 'Scene One', slot: 0, values: { '101:11': 10 } }
+      ],
+      palettes: [
+        { id: 'palette_1', name: 'Palette One', slot: 0, scope: 'Color', values: { '101:12': { a: 255, b: 0, c: 0 } } }
+      ],
+      mirroredChaserSlots: ['{"name":"Chase One"}'],
+      liveMotionSlots: [{ loaded: true, slot: 0, bpm: 30 }],
+      showRunState: {
+        groupCols: 2,
+        groupRows: 2,
+        sceneCols: 2,
+        sceneRows: 2,
+        paletteCols: 2,
+        paletteRows: 2,
+        chaserCols: 2,
+        chaserRows: 2,
+        motionCols: 2,
+        motionRows: 2
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+
+    const cases = [
+      { grid: '#groupGrid', label: 'Front Spots', key: 'front', stateKey: 'groupOrder' },
+      { grid: '#sceneGrid', label: 'Scene One', key: 'scene_1', stateKey: 'sceneOrder' },
+      { grid: '#paletteGrid', label: 'Palette One', key: 'palette_1', stateKey: 'paletteOrder' },
+      { grid: '#chaserSlots', label: 'Chase One', key: '0', stateKey: 'chaserOrder' },
+      { grid: '#motionSlots', label: 'Pico effect 0', key: '0', stateKey: 'motionOrder' }
+    ];
+
+    for (const row of cases) {
+      const grid = page.locator(row.grid);
+      await expect(grid.locator('[data-show-tile-index="0"]')).toContainText(row.label);
+      await grid.locator('[data-show-tile-index="0"]').dragTo(grid.locator('[data-show-tile-index="3"]'));
+      await expect(grid.locator('[data-show-tile-index="3"]')).toContainText(row.label);
+      const saved = calls.uiStatePosts.map(post => post.state?.[row.stateKey]).filter(Boolean).at(-1);
+      expect(saved[3]).toBe(row.key);
+    }
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('lets the operator drag tiles in repeated playback cards', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredChaserSlots: ['{"name":"Chase One"}'],
+      liveMotionSlots: [{ loaded: true, slot: 0, bpm: 30 }],
+      showRunState: {
+        cardCols: 3,
+        cardRows: 3,
+        cardOrder: ['group', 'scene', 'palette', 'chaser', 'motion', 'chaser:custom', 'motion:custom', 'live', null],
+        cardLayouts: {
+          'chaser:custom': { kind: 'chaser', cols: 2, rows: 2, order: ['0', null, null, null] },
+          'motion:custom': { kind: 'motion', cols: 2, rows: 2, order: ['0', null, null, null] }
+        }
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+
+    const cases = [
+      { card: '[data-show-card-key="chaser:custom"]', label: 'Chase One', key: '0' },
+      { card: '[data-show-card-key="motion:custom"]', label: 'Pico effect 0', key: '0' }
+    ];
+
+    for (const row of cases) {
+      const card = page.locator(row.card);
+      await expect(card.locator('[data-show-tile-index="0"]')).toContainText(row.label);
+      await card.locator('[data-show-tile-index="0"]').dragTo(card.locator('[data-show-tile-index="3"]'));
+      await expect(card.locator('[data-show-tile-index="3"]')).toContainText(row.label);
+    }
+
+    const savedLayouts = calls.uiStatePosts.map(post => post.state?.cardLayouts).filter(Boolean).at(-1);
+    expect(savedLayouts['chaser:custom'].order[3]).toBe('0');
+    expect(savedLayouts['motion:custom'].order[3]).toBe('0');
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('lets the operator click-move tiles in repeated playback cards', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredChaserSlots: ['{"name":"Chase One"}'],
+      liveMotionSlots: [{ loaded: true, slot: 0, bpm: 30 }],
+      showRunState: {
+        cardCols: 3,
+        cardRows: 3,
+        cardOrder: ['group', 'scene', 'palette', 'chaser', 'motion', 'chaser:custom', 'motion:custom', 'live', null],
+        cardLayouts: {
+          'chaser:custom': { kind: 'chaser', cols: 2, rows: 2, order: ['0', null, null, null] },
+          'motion:custom': { kind: 'motion', cols: 2, rows: 2, order: ['0', null, null, null] }
+        }
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+
+    for (const row of [
+      { card: '[data-show-card-key="chaser:custom"]', label: 'Chase One' },
+      { card: '[data-show-card-key="motion:custom"]', label: 'Pico effect 0' }
+    ]) {
+      const card = page.locator(row.card);
+      await card.locator('[data-show-tile-index="0"]').click({ position: { x: 40, y: 44 } });
+      await card.locator('[data-show-tile-index="3"]').click({ position: { x: 40, y: 44 } });
+      await expect(card.locator('[data-show-tile-index="3"]')).toContainText(row.label);
+    }
   });
 
   test('shows tile edit and delete actions while editing Show Run layout', async ({ page }) => {
