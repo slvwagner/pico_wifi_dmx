@@ -189,6 +189,10 @@ test.describe('Room Plane Test prototype rules', () => {
     await page.locator('#loadPatchedFixtures').click();
     await expect(page.locator('[data-edit-fixture="0"]')).toBeVisible();
     await expect(page.locator('[data-result-fixture="Moving 1"]')).toBeVisible();
+    await expect(page.locator('thead')).toContainText('Live Pan');
+    await expect(page.locator('thead')).toContainText('Last send / channels');
+    await expect(page.locator('[data-live-pan="0"]')).toHaveText('32768');
+    await expect(page.locator('[data-live-dimmer="0"]')).toHaveText('255');
 
     await page.locator('[data-edit-fixture="0"]').click();
     const pad = page.locator('[data-ptd-xy]');
@@ -196,6 +200,8 @@ test.describe('Room Plane Test prototype rules', () => {
     expect(box).toBeTruthy();
     await page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.25);
     await expect(page.locator('[data-control-readout="Moving 1"]')).toHaveText('DMX output Pan 49151 / Tilt 49151 / Dimmer 255');
+    await expect(page.locator('[data-live-pan="0"]')).toHaveText('49151');
+    await expect(page.locator('[data-live-tilt="0"]')).toHaveText('49151');
 
     await expect.poll(() => sent.length).toBeGreaterThanOrEqual(5);
     expect(sent.some(url => url.includes('/dmx/set/10/255'))).toBeTruthy();
@@ -203,6 +209,9 @@ test.describe('Room Plane Test prototype rules', () => {
     expect(sent.some(url => url.includes('/dmx/set/12/255'))).toBeTruthy();
     expect(sent.some(url => url.includes('/dmx/set/13/191'))).toBeTruthy();
     expect(sent.some(url => url.includes('/dmx/set/14/255'))).toBeTruthy();
+    await expect(page.locator('[data-send-summary="0"]')).toContainText('ch 11=191');
+    await expect(page.locator('[data-send-summary="0"]')).toContainText('ch 14=255');
+    await expect(page.locator('#status')).toContainText('Sent Moving 1:');
   });
 
   test('loads and autosaves room plane setup on the server', async ({ page }) => {

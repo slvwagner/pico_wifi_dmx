@@ -82,7 +82,7 @@ canvas{display:none}
         <table>
           <thead>
             <tr>
-              <th>Edit</th><th>Fixture</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
+              <th>Edit</th><th>Fixture</th><th>Live Pan</th><th>Live Tilt</th><th>Dimmer</th><th>Last send / channels</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
               <th>A pan</th><th>A tilt</th><th>B pan</th><th>B tilt</th><th>C pan</th><th>C tilt</th>
             </tr>
           </thead>
@@ -352,8 +352,9 @@ function fixtureControlFromLive(f){
 
 async function sendChannel(channel,value){
   const root=endpoint();
-  if(!root)return;
-  const url=root+'/dmx/set/'+channel+'/'+Math.max(0,Math.min(255,Math.round(Number(value)||0)));
+  if(!root)throw new Error('Set Pico base URL first');
+  const dmxValue=Math.max(0,Math.min(255,Math.round(Number(value)||0)));
+  const url=root+'/dmx/set/'+channel+'/'+dmxValue;
   if(root!==location.origin){
     await new Promise(resolve=>{
       const img=new Image();
@@ -362,21 +363,27 @@ async function sendChannel(channel,value){
       img.src=url+'?t='+Date.now();
       setTimeout(resolve,220);
     });
-    return;
+    return {channel,value:dmxValue,confirmed:false};
   }
   const response=await fetch(url,{cache:'no-store'});
   if(!response.ok)throw new Error('HTTP '+response.status+' on DMX channel '+channel);
+  return {channel,value:dmxValue,confirmed:true};
 }
 
 async function sendLiveFixtureControl(f,next){
   const controls=findFixtureControls(f);
   const patch={};
+  const sent=[];
+  if(!controls.panTilt&&!controls.dimmer)throw new Error(f.name+' has no Pan/Tilt or Dimmer control in its fixture profile');
   if(controls.panTilt){
     const c=controls.panTilt;
     const max=c.type==='panTilt8'?255:65535;
     const value={pan:Math.max(0,Math.min(max,Math.round(next.pan))),tilt:Math.max(0,Math.min(max,Math.round(next.tilt)))};
     patch[controlKey(f,c)]=value;
-    for(const row of DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val);
+    for(const row of DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel))){
+      const result=await sendChannel(row.ch,row.val);
+      sent.push({...result,param:row.param});
+    }
   }
   if(controls.dimmer){
     const c=controls.dimmer;
@@ -384,16 +391,17 @@ async function sendLiveFixtureControl(f,next){
       const value=Math.max(0,Math.min(65535,Math.round((Number(next.dimmer)||0)*257)));
       patch[controlKey(f,c)]=value;
       const b=bytes16(value);
-      await sendChannel(absolute(f.start,c.channel),b.coarse);
-      await sendChannel(absolute(f.start,c.fine??c.channel+1),b.fine);
+      sent.push({...await sendChannel(absolute(f.start,c.channel),b.coarse),param:c.label+' coarse'});
+      sent.push({...await sendChannel(absolute(f.start,c.fine??c.channel+1),b.fine),param:c.label+' fine'});
     }else{
       const value=Math.max(0,Math.min(255,Math.round(Number(next.dimmer)||0)));
       patch[controlKey(f,c)]=value;
-      await sendChannel(absolute(f.start,c.channel),value);
+      sent.push({...await sendChannel(absolute(f.start,c.channel),value),param:c.label});
     }
   }
   Object.assign(liveValues,patch);
   DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
+  return sent;
 }
 
 function patchedRoomFixture(f,index){
@@ -456,9 +464,21 @@ function renderPlanePointInputs(){
 function renderFixtureRows(){
   const body=document.getElementById('fixtureRows');
   body.innerHTML=fixtures.map((f,i)=>{
+    const live=fixtureControl(f);
+    const controls=findFixtureControls(f);
+    const channelText=controls.panTilt
+      ? DmxCommon.panTiltDmxRows(controls.panTilt,live,rel=>absolute(f.start,rel)).map(row=>'ch '+row.ch).join(' / ')
+      : 'No Pan/Tilt';
+    const dimmerText=controls.dimmer
+      ? 'ch '+absolute(f.start,controls.dimmer.channel)+(controls.dimmer.type==='slider16'?' / '+absolute(f.start,controls.dimmer.fine??controls.dimmer.channel+1):'')
+      : 'No dimmer';
     const fields=[
       '<td><button type="button" data-edit-fixture="'+i+'" class="'+(editingFixtureIndex===i?'active':'')+'">'+(editingFixtureIndex===i?'Editing':'Edit')+'</button></td>',
       '<td><input value="'+f.name+'" data-fixture="'+i+'" data-field="name"></td>',
+      '<td data-live-pan="'+i+'">'+live.pan+'</td>',
+      '<td data-live-tilt="'+i+'">'+live.tilt+'</td>',
+      '<td data-live-dimmer="'+i+'">'+live.dimmer+'</td>',
+      '<td data-send-summary="'+i+'" class="small">'+(f.lastSendText||channelText+' · dimmer '+dimmerText)+'</td>',
       '<td>'+numberInput(f.x,'data-fixture="'+i+'" data-field="x"')+'</td>',
       '<td>'+numberInput(f.y,'data-fixture="'+i+'" data-field="y"')+'</td>',
       '<td>'+numberInput(f.z,'data-fixture="'+i+'" data-field="z"')+'</td>'
@@ -490,6 +510,20 @@ function renderFixtureRows(){
   }));
 }
 
+function updateFixtureLiveRow(index){
+  const f=fixtures[index];
+  if(!f)return;
+  const live=fixtureControl(f);
+  const pan=document.querySelector(`[data-live-pan="${index}"]`);
+  const tilt=document.querySelector(`[data-live-tilt="${index}"]`);
+  const dimmer=document.querySelector(`[data-live-dimmer="${index}"]`);
+  const summary=document.querySelector(`[data-send-summary="${index}"]`);
+  if(pan)pan.textContent=live.pan;
+  if(tilt)tilt.textContent=live.tilt;
+  if(dimmer)dimmer.textContent=live.dimmer;
+  if(summary)summary.textContent=f.lastSendText||'';
+}
+
 function openFixtureEditor(index){
   const f=fixtures[index];
   if(!f||!window.DmxCommon?.openPanTiltDimmerEditor)return;
@@ -503,10 +537,22 @@ function openFixtureEditor(index){
       f.control={...next};
       if(f.live){
         sendLiveFixtureControl(f,next)
-          .then(()=>setStatus('Sent '+f.name+' Pan/Tilt/Dimmer'))
-          .catch(error=>setStatus(error.message||'Could not send fixture control',true));
+          .then(sent=>{
+            const summary=sent.map(row=>'ch '+row.channel+'='+row.value).join(', ');
+            f.lastSendText=summary || 'No DMX channels sent';
+            updateFixtureLiveRow(index);
+            setStatus('Sent '+f.name+': '+f.lastSendText);
+          })
+          .catch(error=>{
+            f.lastSendText=error.message||'Could not send fixture control';
+            updateFixtureLiveRow(index);
+            setStatus(f.lastSendText,true);
+          });
+      }else{
+        f.lastSendText='Prototype value changed';
       }
       render();
+      updateFixtureLiveRow(index);
       scheduleRoomPlaneAutosave();
     },
     onClose(){
