@@ -14,8 +14,10 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
 .plane-pad{position:relative;min-height:520px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
 .plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
 .plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);border:1px solid rgba(55,196,164,.4);pointer-events:none}
-.plane-point{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:9px;font-weight:800;z-index:2}
-.plane-point.fixture{background:var(--warn)}
+.plane-point{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;text-shadow:none;z-index:2}
+.plane-point.fixture{background:var(--warn);cursor:default;opacity:.75}
+.plane-point.fixture.editing{background:var(--accent);cursor:grab;opacity:1;box-shadow:0 0 0 6px rgba(55,196,164,.18)}
+.plane-point.fixture.editing:active{cursor:grabbing}
 .plane-target{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff7a7a;border:2px solid #2b1010;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(255,122,122,.15);z-index:3}
 .plane-line{position:absolute;height:1px;background:rgba(255,255,255,.28);transform-origin:0 50%;z-index:1}
 .table-wrap{overflow:auto}
@@ -44,6 +46,8 @@ canvas{display:none}
     <div class="status" id="status">Prototype for calibrated room-plane pan/tilt mapping.</div>
   </div>
   <div class="toolbar">
+    <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <button id="loadPatchedFixtures" type="button">Load patched moving lights</button>
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
@@ -76,7 +80,7 @@ canvas{display:none}
         <table>
           <thead>
             <tr>
-              <th>Fixture</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
+              <th>Edit</th><th>Fixture</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
               <th>A pan</th><th>A tilt</th><th>B pan</th><th>B tilt</th><th>C pan</th><th>C tilt</th>
             </tr>
           </thead>
@@ -121,12 +125,185 @@ const points=[
   {id:'C',x:0,y:3}
 ];
 let fixtures=[];
+let editingFixtureIndex=null;
+let profiles=[];
+let liveValues={};
+const baseUrl=document.getElementById('baseUrl');
+DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
+
+function setStatus(message,isError=false){
+  const el=document.getElementById('status');
+  el.textContent=message;
+  el.style.color=isError?'var(--danger)':'';
+}
 
 function demoFixtures(){
   fixtures=[
-    {name:'Spot 1',x:1,y:-2,z:3,cal:{A:{pan:72,tilt:118},B:{pan:128,tilt:111},C:{pan:82,tilt:76}}},
-    {name:'Spot 2',x:4,y:-2,z:3,cal:{A:{pan:214,tilt:112},B:{pan:160,tilt:118},C:{pan:202,tilt:78}}}
+    {name:'Spot 1',x:1,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:72,tilt:118},B:{pan:128,tilt:111},C:{pan:82,tilt:76}}},
+    {name:'Spot 2',x:4,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:214,tilt:112},B:{pan:160,tilt:118},C:{pan:202,tilt:78}}}
   ];
+}
+
+function fixtureControl(f){
+  if(!f.control)f.control={pan:32768,tilt:32768,dimmer:255};
+  f.control.pan=Math.max(0,Math.min(65535,Math.round(Number(f.control.pan)||0)));
+  f.control.tilt=Math.max(0,Math.min(65535,Math.round(Number(f.control.tilt)||0)));
+  f.control.dimmer=Math.max(0,Math.min(255,Math.round(Number(f.control.dimmer)||0)));
+  return f.control;
+}
+
+function absolute(start,rel){return start+rel-1;}
+
+function bytes16(value){
+  const n=Math.max(0,Math.min(65535,Math.round(Number(value)||0)));
+  return {coarse:(n>>8)&255,fine:n&255};
+}
+
+function endpoint(){
+  return baseUrl.value.trim().replace(/\/+$/,'');
+}
+
+function profileForFixture(f){
+  return profiles.find(p=>String(p.id)===String(f.profileId));
+}
+
+function controlKey(f,c){
+  return f&&c?f.id+':'+c.id:'';
+}
+
+function isPanTiltControl(c){
+  return c&&(c.type==='panTilt16'||c.type==='panTilt8');
+}
+
+function isDimmerControl(c){
+  const label=String(c?.label||'').toLowerCase();
+  const scope=String(c?.scope||'').toLowerCase();
+  return c&&(c.type==='slider8'||c.type==='slider16'||c.type==='dimmer')&&(scope==='dimmer'||/\b(dim|dimmer|intensity)\b/.test(label));
+}
+
+function findFixtureControls(f){
+  const p=profileForFixture(f);
+  const controls=Array.isArray(p?.controls)?p.controls:[];
+  return {
+    panTilt: controls.find(isPanTiltControl)||null,
+    dimmer: controls.find(isDimmerControl)||controls.find(c=>String(c?.label||'').toLowerCase().includes('dimmer'))||null
+  };
+}
+
+function defaultCalibration(index){
+  const offset=index*18;
+  return {
+    A:{pan:72+offset,tilt:118},
+    B:{pan:128+offset,tilt:111},
+    C:{pan:82+offset,tilt:76}
+  };
+}
+
+function valueFromLive(f,c){
+  const key=controlKey(f,c);
+  const current=liveValues[key];
+  if(current!==undefined)return current;
+  if(c?.type==='panTilt16'||c?.type==='panTilt8')return c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
+  if(c?.type==='slider16')return 65535;
+  return 255;
+}
+
+function fixtureControlFromLive(f){
+  const controls=findFixtureControls(f);
+  const panTilt=controls.panTilt;
+  const dimmer=controls.dimmer;
+  const panTiltValue=panTilt?valueFromLive(f,panTilt):fixtureControl(f);
+  const dimmerValue=dimmer?valueFromLive(f,dimmer):fixtureControl(f).dimmer;
+  const max=panTilt?.type==='panTilt8'?255:65535;
+  return {
+    pan:Math.max(0,Math.min(max,Math.round(Number(panTiltValue?.pan)||Math.round(max/2)))),
+    tilt:Math.max(0,Math.min(max,Math.round(Number(panTiltValue?.tilt)||Math.round(max/2)))),
+    dimmer:Math.max(0,Math.min(255,Math.round(Number(dimmer?.type==='slider16'?Math.round((Number(dimmerValue)||0)/257):dimmerValue)||0)))
+  };
+}
+
+async function sendChannel(channel,value){
+  const root=endpoint();
+  if(!root)return;
+  const url=root+'/dmx/set/'+channel+'/'+Math.max(0,Math.min(255,Math.round(Number(value)||0)));
+  if(root!==location.origin){
+    await new Promise(resolve=>{
+      const img=new Image();
+      img.onload=resolve;
+      img.onerror=resolve;
+      img.src=url+'?t='+Date.now();
+      setTimeout(resolve,220);
+    });
+    return;
+  }
+  const response=await fetch(url,{cache:'no-store'});
+  if(!response.ok)throw new Error('HTTP '+response.status+' on DMX channel '+channel);
+}
+
+async function sendLiveFixtureControl(f,next){
+  const controls=findFixtureControls(f);
+  const patch={};
+  if(controls.panTilt){
+    const c=controls.panTilt;
+    const max=c.type==='panTilt8'?255:65535;
+    const value={pan:Math.max(0,Math.min(max,Math.round(next.pan))),tilt:Math.max(0,Math.min(max,Math.round(next.tilt)))};
+    patch[controlKey(f,c)]=value;
+    for(const row of DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val);
+  }
+  if(controls.dimmer){
+    const c=controls.dimmer;
+    if(c.type==='slider16'){
+      const value=Math.max(0,Math.min(65535,Math.round((Number(next.dimmer)||0)*257)));
+      patch[controlKey(f,c)]=value;
+      const b=bytes16(value);
+      await sendChannel(absolute(f.start,c.channel),b.coarse);
+      await sendChannel(absolute(f.start,c.fine??c.channel+1),b.fine);
+    }else{
+      const value=Math.max(0,Math.min(255,Math.round(Number(next.dimmer)||0)));
+      patch[controlKey(f,c)]=value;
+      await sendChannel(absolute(f.start,c.channel),value);
+    }
+  }
+  Object.assign(liveValues,patch);
+  DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
+}
+
+function patchedRoomFixture(f,index){
+  const controls=findFixtureControls(f);
+  const existing=fixtures.find(old=>String(old.id)===String(f.id)||old.name===f.name);
+  const control=fixtureControlFromLive(f);
+  return {
+    ...f,
+    live:true,
+    control,
+    x:existing?.x??(index+1),
+    y:existing?.y??-2,
+    z:existing?.z??3,
+    cal:existing?.cal??defaultCalibration(index)
+  };
+}
+
+async function loadPatchedMovingLights(){
+  try{
+    const response=await fetch('fixture_setup.php',{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||!data.ok||!data.exists||!data.setup)throw new Error('No saved fixture setup found');
+    profiles=Array.isArray(data.setup.profiles)?data.setup.profiles:[];
+    baseUrl.value=localStorage.getItem(DmxCommon.BASE_URL_KEY)||data.setup.baseUrl||baseUrl.value;
+    try{liveValues=await DmxCommon.fetchFixtureLiveValues()||data.setup.values||{};}catch(_){liveValues=data.setup.values||{};}
+    const patched=Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
+    const moving=patched.filter(f=>{
+      const p=profiles.find(profile=>String(profile.id)===String(f.profileId));
+      return p&&Array.isArray(p.controls)&&p.controls.some(isPanTiltControl);
+    });
+    if(!moving.length)throw new Error('No patched moving lights with Pan/Tilt controls found');
+    fixtures=moving.map(patchedRoomFixture);
+    editingFixtureIndex=null;
+    syncTables();
+    setStatus('Loaded '+fixtures.length+' patched moving light'+(fixtures.length===1?'':'s')+' from controller setup');
+  }catch(error){
+    setStatus(error.message||'Could not load patched fixtures',true);
+  }
 }
 
 function fmt(value,digits=2){
@@ -156,6 +333,7 @@ function renderFixtureRows(){
   const body=document.getElementById('fixtureRows');
   body.innerHTML=fixtures.map((f,i)=>{
     const fields=[
+      '<td><button type="button" data-edit-fixture="'+i+'" class="'+(editingFixtureIndex===i?'active':'')+'">'+(editingFixtureIndex===i?'Editing':'Edit')+'</button></td>',
       '<td><input value="'+f.name+'" data-fixture="'+i+'" data-field="name"></td>',
       '<td>'+numberInput(f.x,'data-fixture="'+i+'" data-field="x"')+'</td>',
       '<td>'+numberInput(f.y,'data-fixture="'+i+'" data-field="y"')+'</td>',
@@ -178,6 +356,41 @@ function renderFixtureRows(){
     }
     render();
   }));
+  body.querySelectorAll('[data-edit-fixture]').forEach(button=>button.addEventListener('click',()=>{
+    const index=Number(button.dataset.editFixture);
+    editingFixtureIndex=index;
+    renderFixtureRows();
+    render();
+    openFixtureEditor(index);
+  }));
+}
+
+function openFixtureEditor(index){
+  const f=fixtures[index];
+  if(!f||!window.DmxCommon?.openPanTiltDimmerEditor)return;
+  const controls=findFixtureControls(f);
+  const max=controls.panTilt?.type==='panTilt8'?255:65535;
+  window.DmxCommon.openPanTiltDimmerEditor({
+    title:'Edit '+f.name,
+    max,
+    value:f.live?fixtureControlFromLive(f):fixtureControl(f),
+    onChange(next){
+      f.control={...next};
+      if(f.live){
+        sendLiveFixtureControl(f,next)
+          .then(()=>setStatus('Sent '+f.name+' Pan/Tilt/Dimmer'))
+          .catch(error=>setStatus(error.message||'Could not send fixture control',true));
+      }
+      render();
+    },
+    onClose(){
+      if(editingFixtureIndex===index){
+        editingFixtureIndex=null;
+        renderFixtureRows();
+        render();
+      }
+    }
+  });
 }
 
 function barycentric(target){
@@ -206,10 +419,36 @@ function planeBounds(){
   return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
 }
 
-function toScreen(p,bounds){
-  const x=((p.x-bounds.minX)/(bounds.maxX-bounds.minX))*100;
-  const y=(1-((p.y-bounds.minY)/(bounds.maxY-bounds.minY)))*100;
+function toScreen(p,bounds,rect){
+  const width=Math.max(1,rect&&rect.width?rect.width:1);
+  const height=Math.max(1,rect&&rect.height?rect.height:1);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX);
+  const spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale;
+  const drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2;
+  const offsetY=(height-drawnH)/2;
+  const px=offsetX+(p.x-bounds.minX)*scale;
+  const py=offsetY+(bounds.maxY-p.y)*scale;
+  const x=(px/width)*100;
+  const y=(py/height)*100;
   return {x,y};
+}
+
+function screenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width);
+  const height=Math.max(1,rect.height);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX);
+  const spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale;
+  const drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2;
+  const offsetY=(height-drawnH)/2;
+  const px=Math.min(drawnW,Math.max(0,event.clientX-rect.left-offsetX));
+  const py=Math.min(drawnH,Math.max(0,event.clientY-rect.top-offsetY));
+  return {x:bounds.minX+px/scale,y:bounds.maxY-py/scale};
 }
 
 function drawLine(host,a,b){
@@ -227,7 +466,8 @@ function renderPlane(target,weights){
   const pad=document.getElementById('planePad');
   pad.querySelectorAll('.plane-point,.plane-line').forEach(el=>el.remove());
   const bounds=planeBounds();
-  const screens=points.map(p=>toScreen(p,bounds));
+  const rect=pad.getBoundingClientRect();
+  const screens=points.map(p=>toScreen(p,bounds,rect));
   const triangle=document.getElementById('planeTriangle');
   triangle.style.setProperty('--ax',screens[0].x+'%');
   triangle.style.setProperty('--ay',screens[0].y+'%');
@@ -243,15 +483,18 @@ function renderPlane(target,weights){
     el.style.top=s.y+'%';
     pad.appendChild(el);
   });
-  const targetScreen=toScreen(target,bounds);
+  const targetScreen=toScreen(target,bounds,rect);
   const targetEl=document.getElementById('planeTarget');
   targetEl.style.left=targetScreen.x+'%';
   targetEl.style.top=targetScreen.y+'%';
   fixtures.forEach(f=>{
-    const s=toScreen(f,bounds);
+    const s=toScreen(f,bounds,rect);
     const el=document.createElement('div');
     el.className='plane-point fixture';
+    if(fixtures.indexOf(f)===editingFixtureIndex)el.classList.add('editing');
     el.textContent=f.name.replace(/[^0-9]/g,'')||'F';
+    el.dataset.fixtureIndex=fixtures.indexOf(f);
+    el.title=fixtures.indexOf(f)===editingFixtureIndex?'Drag '+f.name+' mount position':'Click Edit in the fixture table to move '+f.name;
     el.style.left=s.x+'%';
     el.style.top=s.y+'%';
     pad.appendChild(el);
@@ -269,14 +512,21 @@ function renderResults(target,weights){
   }
   grid.innerHTML=fixtures.map(f=>{
     const out=interpolateFixture(f,weights);
+    const control=fixtureControl(f);
     const dx=target.x-f.x,dy=target.y-f.y,dz=(target.z||0)-(f.z||0);
     const distance=Math.sqrt(dx*dx+dy*dy+dz*dz);
     return '<div class="result-card" data-result-fixture="'+f.name+'">'+
       '<div class="result-title">'+f.name+'</div>'+
       '<div class="result-value">Pan '+fmt(out.pan,2)+' / Tilt '+fmt(out.tilt,2)+'</div>'+
+      '<div class="small" data-control-readout="'+f.name+'">'+(f.live?'DMX output':'Live control')+' Pan '+control.pan+' / Tilt '+control.tilt+' / Dimmer '+control.dimmer+'</div>'+
       '<div class="small">Distance '+fmt(distance,2)+' · target vector '+fmt(dx,2)+', '+fmt(dy,2)+', '+fmt(dz,2)+'</div>'+
     '</div>';
   }).join('');
+}
+
+function updateFixturePositionInputs(index){
+  document.querySelectorAll(`input[data-fixture="${index}"][data-field="x"]`).forEach(input=>{input.value=fmt(fixtures[index].x,3);});
+  document.querySelectorAll(`input[data-fixture="${index}"][data-field="y"]`).forEach(input=>{input.value=fmt(fixtures[index].y,3);});
 }
 
 function render(){
@@ -297,18 +547,53 @@ function syncTables(){
 
 document.getElementById('targetX').addEventListener('input',render);
 document.getElementById('targetY').addEventListener('input',render);
-document.getElementById('resetDemo').onclick=()=>{points[0]={id:'A',x:0,y:0};points[1]={id:'B',x:5,y:0};points[2]={id:'C',x:0,y:3};document.getElementById('targetX').value='2.5';document.getElementById('targetY').value='1.5';demoFixtures();syncTables();};
-document.getElementById('addFixture').onclick=()=>{const n=fixtures.length+1;fixtures.push({name:'Spot '+n,x:n,y:-2,z:3,cal:{A:{pan:90,tilt:110},B:{pan:130,tilt:110},C:{pan:100,tilt:80}}});syncTables();};
-document.getElementById('removeFixture').onclick=()=>{if(fixtures.length>1){fixtures.pop();syncTables();}};
+document.getElementById('resetDemo').onclick=()=>{points[0]={id:'A',x:0,y:0};points[1]={id:'B',x:5,y:0};points[2]={id:'C',x:0,y:3};document.getElementById('targetX').value='2.5';document.getElementById('targetY').value='1.5';editingFixtureIndex=null;demoFixtures();syncTables();};
+document.getElementById('addFixture').onclick=()=>{const n=fixtures.length+1;fixtures.push({name:'Spot '+n,x:n,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:90,tilt:110},B:{pan:130,tilt:110},C:{pan:100,tilt:80}}});editingFixtureIndex=fixtures.length-1;syncTables();openFixtureEditor(editingFixtureIndex);};
+document.getElementById('removeFixture').onclick=()=>{if(fixtures.length>1){fixtures.pop();if(editingFixtureIndex!==null&&editingFixtureIndex>=fixtures.length)editingFixtureIndex=null;syncTables();}};
+document.getElementById('loadPatchedFixtures').onclick=()=>loadPatchedMovingLights();
+let fixtureDrag=null;
 document.getElementById('planePad').addEventListener('pointerdown',event=>{
-  const rect=event.currentTarget.getBoundingClientRect();
+  const fixtureMarker=event.target.closest('.plane-point.fixture');
+  const pad=event.currentTarget;
+  const rect=pad.getBoundingClientRect();
   const bounds=planeBounds();
-  const x=(event.clientX-rect.left)/rect.width;
-  const y=(event.clientY-rect.top)/rect.height;
-  document.getElementById('targetX').value=fmt(bounds.minX+x*(bounds.maxX-bounds.minX),3);
-  document.getElementById('targetY').value=fmt(bounds.minY+(1-y)*(bounds.maxY-bounds.minY),3);
+  const room=screenToRoom(event,rect,bounds);
+  if(fixtureMarker){
+    event.preventDefault();
+    const index=Number(fixtureMarker.dataset.fixtureIndex);
+    if(index!==editingFixtureIndex)return;
+    if(Number.isFinite(index)&&fixtures[index]){
+      fixtureDrag={index,pointerId:event.pointerId,bounds};
+      pad.setPointerCapture?.(event.pointerId);
+      fixtures[index].x=room.x;
+      fixtures[index].y=room.y;
+      updateFixturePositionInputs(index);
+      render();
+    }
+    return;
+  }
+  document.getElementById('targetX').value=fmt(room.x,3);
+  document.getElementById('targetY').value=fmt(room.y,3);
   render();
 });
+document.getElementById('planePad').addEventListener('pointermove',event=>{
+  if(!fixtureDrag)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const room=screenToRoom(event,rect,fixtureDrag.bounds);
+  const f=fixtures[fixtureDrag.index];
+  if(!f)return;
+  f.x=room.x;
+  f.y=room.y;
+  updateFixturePositionInputs(fixtureDrag.index);
+  render();
+});
+document.getElementById('planePad').addEventListener('pointerup',event=>{
+  if(fixtureDrag&&fixtureDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    fixtureDrag=null;
+  }
+});
+document.getElementById('planePad').addEventListener('pointercancel',()=>{fixtureDrag=null;});
 demoFixtures();
 syncTables();
 </script>

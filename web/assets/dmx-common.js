@@ -2019,6 +2019,152 @@
     return value;
   }
 
+  function ensurePanTiltDimmerEditorModal(){
+    let modal=document.getElementById('commonPanTiltDimmerModal');
+    if(modal)return modal;
+    modal=document.createElement('div');
+    modal.id='commonPanTiltDimmerModal';
+    modal.className='modal-overlay';
+    modal.style.display='none';
+    modal.innerHTML=[
+      '<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="commonPanTiltDimmerTitle">',
+      '  <div class="modal-head">',
+      '    <h2 id="commonPanTiltDimmerTitle">Edit Fixture Control</h2>',
+      '    <button type="button" data-ptd-close aria-label="Close">x</button>',
+      '  </div>',
+      '  <div class="modal-body">',
+      '    <div class="xy-pad" data-ptd-xy><div class="xy-dot" data-ptd-dot></div></div>',
+      '    <div class="row"><span class="readout" data-ptd-position-readout></span><button type="button" data-ptd-center>Center Pan/Tilt</button></div>',
+      '    <div class="grid2" data-ptd-relative></div>',
+      '    <label>Dimmer<input type="range" min="0" max="255" data-ptd-dimmer-range></label>',
+      '    <label>Dimmer value<input type="number" min="0" max="255" data-ptd-dimmer></label>',
+      '    <div class="small" data-ptd-readout></div>',
+      '  </div>',
+      '  <div class="modal-actions">',
+      '    <button type="button" data-ptd-close>Close</button>',
+      '  </div>',
+      '</div>'
+    ].join('');
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-ptd-close]').forEach(btn=>btn.addEventListener('click',()=>closePanTiltDimmerEditor(modal)));
+    return modal;
+  }
+
+  function closePanTiltDimmerEditor(modal){
+    const el=modal||document.getElementById('commonPanTiltDimmerModal');
+    if(!el)return;
+    hideModal(el);
+    const onClose=el._dmxPanTiltDimmerOnClose;
+    el._dmxPanTiltDimmerOnClose=null;
+    if(typeof onClose==='function')onClose();
+  }
+
+  function openPanTiltDimmerEditor(options){
+    const modal=ensurePanTiltDimmerEditorModal();
+    const max=Math.max(1,Math.round(Number(options?.max)||255));
+    const title=modal.querySelector('#commonPanTiltDimmerTitle');
+    const pad=modal.querySelector('[data-ptd-xy]');
+    const dot=modal.querySelector('[data-ptd-dot]');
+    const positionReadout=modal.querySelector('[data-ptd-position-readout]');
+    const centerBtn=modal.querySelector('[data-ptd-center]');
+    const relativeHost=modal.querySelector('[data-ptd-relative]');
+    const dimmerRange=modal.querySelector('[data-ptd-dimmer-range]');
+    const dimmerInput=modal.querySelector('[data-ptd-dimmer]');
+    const readout=modal.querySelector('[data-ptd-readout]');
+    const onChange=typeof options?.onChange==='function'?options.onChange:()=>{};
+    modal._dmxPanTiltDimmerOnClose=typeof options?.onClose==='function'?options.onClose:null;
+    let value={
+      pan:clampInt(options?.value?.pan??Math.round(max/2),0,max),
+      tilt:clampInt(options?.value?.tilt??Math.round(max/2),0,max),
+      dimmer:clampInt(options?.value?.dimmer??255,0,255)
+    };
+    title.textContent=options?.title||'Edit Fixture Control';
+    const is16=max>255;
+    relativeHost.innerHTML=is16
+      ? [
+        relativeControlHtml('pan','Pan coarse relative',256,max),
+        relativeControlHtml('pan','Pan fine relative',1,max),
+        relativeControlHtml('tilt','Tilt coarse relative',256,max),
+        relativeControlHtml('tilt','Tilt fine relative',1,max)
+      ].join('')
+      : [
+        relativeControlHtml('pan','Pan relative',1,max),
+        relativeControlHtml('tilt','Tilt relative',1,max)
+      ].join('');
+
+    function relativeControlHtml(axis,label,step,limit){
+      return '<div class="relative-control">'+
+        '<button type="button" data-ptd-relative-dir="-1" data-ptd-axis="'+axis+'" title="Decrease relative to the current value">-</button>'+
+        '<label>'+escapeHtml(label)+'<input type="number" min="1" max="'+limit+'" step="'+step+'" value="'+step+'" data-ptd-relative-step data-ptd-axis="'+axis+'"></label>'+
+        '<button type="button" data-ptd-relative-dir="1" data-ptd-axis="'+axis+'" title="Increase relative to the current value">+</button>'+
+      '</div>';
+    }
+
+    function emit(){
+      onChange({...value});
+    }
+    function renderEditor(){
+      dimmerRange.value=String(value.dimmer);
+      dimmerInput.value=String(value.dimmer);
+      dot.style.left=(value.pan/max*100)+'%';
+      dot.style.top=(100-value.tilt/max*100)+'%';
+      positionReadout.textContent='Pan '+value.pan+' · Tilt '+value.tilt;
+      readout.textContent='Pan '+value.pan+' / Tilt '+value.tilt+' / Dimmer '+value.dimmer;
+    }
+    function setFromPad(event){
+      const rect=pad.getBoundingClientRect();
+      const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
+      const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/Math.max(1,rect.height)));
+      value.pan=clampInt(Math.round(x*max),0,max);
+      value.tilt=clampInt(Math.round((1-y)*max),0,max);
+      renderEditor();
+      emit();
+    }
+    centerBtn.onclick=()=>{
+      value.pan=Math.round(max/2);
+      value.tilt=Math.round(max/2);
+      renderEditor();
+      emit();
+    };
+    relativeHost.onclick=event=>{
+      const btn=event.target.closest('[data-ptd-relative-dir]');
+      if(!btn)return;
+      const axis=btn.dataset.ptdAxis;
+      if(axis!=='pan'&&axis!=='tilt')return;
+      const stepInput=btn.closest('.relative-control')?.querySelector('[data-ptd-relative-step]');
+      const step=Math.max(1,Math.round(Number(stepInput?.value)||1));
+      const dir=parseInt(btn.dataset.ptdRelativeDir,10)<0?-1:1;
+      value[axis]=clampInt(value[axis]+dir*step,0,max);
+      renderEditor();
+      emit();
+    };
+    dimmerRange.oninput=()=>{
+      value.dimmer=clampInt(dimmerRange.value,0,255);
+      renderEditor();
+      emit();
+    };
+    dimmerInput.oninput=()=>{
+      value.dimmer=clampInt(dimmerInput.value,0,255);
+      renderEditor();
+      emit();
+    };
+    pad.onpointerdown=event=>{
+      event.preventDefault();
+      pad.setPointerCapture?.(event.pointerId);
+      setFromPad(event);
+      pad.onpointermove=setFromPad;
+      pad.onpointerup=pad.onpointercancel=()=>{
+        pad.releasePointerCapture?.(event.pointerId);
+        pad.onpointermove=null;
+        pad.onpointerup=null;
+        pad.onpointercancel=null;
+      };
+    };
+    renderEditor();
+    showModal(modal);
+    return {close:()=>closePanTiltDimmerEditor(modal),value:()=>({...value})};
+  }
+
   window.DmxCommon={
     BASE_URL_KEY,
     APP_VERSION,
@@ -2071,6 +2217,8 @@
     panTiltDefault,
     panTiltDmxRows,
     panTiltValueFromDmx,
+    openPanTiltDimmerEditor,
+    closePanTiltDimmerEditor,
     showModal,
     hideModal,
     initSlotVisualEditor

@@ -75,6 +75,10 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .participant-list .item.collapsed .ctrl-summary{display:flex}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
+.relative-control{display:grid;grid-template-columns:auto minmax(72px,100px) auto;gap:6px;align-items:end}
+.relative-control label{display:grid;gap:4px;min-width:0}
+.relative-control input[type=number]{width:100%;min-width:0}
+.relative-control button{min-width:38px;padding:6px 10px}
 .xy-pad,.xy-mini{position:relative;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%}
 .xy-pad{aspect-ratio:1.55/1;touch-action:none;cursor:crosshair}
 .xy-mini{width:120px;height:120px;flex-shrink:0}
