@@ -24,6 +24,8 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{border-bottom:1px solid var(--line);padding:7px;text-align:left;white-space:nowrap}
 th{color:var(--muted);font-weight:700}
+th:first-child,td:first-child{position:sticky;left:0;z-index:2;background:var(--panel)}
+th:first-child{z-index:3}
 td input{width:76px;padding:7px 8px}
 .cal-grid{display:grid;grid-template-columns:42px repeat(3,minmax(70px,1fr));gap:8px;align-items:end}
 .cal-grid strong{align-self:center}
@@ -128,6 +130,8 @@ let fixtures=[];
 let editingFixtureIndex=null;
 let profiles=[];
 let liveValues={};
+let roomPlaneLoaded=false;
+let roomPlaneAutosaveTimer=null;
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
 
@@ -142,6 +146,130 @@ function demoFixtures(){
     {name:'Spot 1',x:1,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:72,tilt:118},B:{pan:128,tilt:111},C:{pan:82,tilt:76}}},
     {name:'Spot 2',x:4,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:214,tilt:112},B:{pan:160,tilt:118},C:{pan:202,tilt:78}}}
   ];
+}
+
+function defaultPoints(){
+  return [
+    {id:'A',x:0,y:0,z:0},
+    {id:'B',x:5,y:0,z:0},
+    {id:'C',x:0,y:3,z:0}
+  ];
+}
+
+function normalizePoint(point,index){
+  const fallback=defaultPoints()[index]||{id:String(index+1),x:0,y:0,z:0};
+  return {
+    id:String(point?.id||fallback.id),
+    x:Number(point?.x) || 0,
+    y:Number(point?.y) || 0,
+    z:Number(point?.z) || 0
+  };
+}
+
+function normalizeCal(cal,index){
+  const fallback=defaultCalibration(index);
+  const out={};
+  points.forEach(point=>{
+    const src=cal?.[point.id]||fallback[point.id]||{pan:0,tilt:0};
+    out[point.id]={pan:Number(src.pan)||0,tilt:Number(src.tilt)||0};
+  });
+  return out;
+}
+
+function normalizeRoomFixture(f,index){
+  return {
+    id:f?.id,
+    name:String(f?.name||('Spot '+(index+1))),
+    profileId:f?.profileId,
+    start:Number(f?.start)||1,
+    live:!!f?.live,
+    x:Number(f?.x)||0,
+    y:Number(f?.y)||0,
+    z:Number(f?.z)||0,
+    control:fixtureControl(f||{}),
+    cal:normalizeCal(f?.cal,index)
+  };
+}
+
+function roomPlanePayload(){
+  return DmxCommon.versionedPayload({
+    baseUrl:baseUrl.value,
+    points:points.map(normalizePoint),
+    target:{
+      x:Number(document.getElementById('targetX').value)||0,
+      y:Number(document.getElementById('targetY').value)||0,
+      z:0
+    },
+    fixtures:fixtures.map((f,index)=>normalizeRoomFixture(f,index))
+  });
+}
+
+async function saveRoomPlaneSetup(){
+  if(!roomPlaneLoaded||!DmxCommon.isHttp())return false;
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(roomPlanePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Room plane autosaved');
+  return true;
+}
+
+function scheduleRoomPlaneAutosave(){
+  if(!roomPlaneLoaded)return;
+  clearTimeout(roomPlaneAutosaveTimer);
+  roomPlaneAutosaveTimer=setTimeout(()=>{
+    saveRoomPlaneSetup().catch(error=>setStatus('Room plane autosave failed: '+error.message,true));
+  },350);
+}
+
+async function loadControllerSetupForRoomPlane(){
+  const response=await fetch('fixture_setup.php',{cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok||!data.ok||!data.exists||!data.setup)throw new Error('No saved fixture setup found');
+  profiles=Array.isArray(data.setup.profiles)?data.setup.profiles:[];
+  baseUrl.value=localStorage.getItem(DmxCommon.BASE_URL_KEY)||data.setup.baseUrl||baseUrl.value;
+  try{liveValues=await DmxCommon.fetchFixtureLiveValues()||data.setup.values||{};}catch(_){liveValues=data.setup.values||{};}
+  return Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
+}
+
+async function loadRoomPlaneSetup(){
+  roomPlaneLoaded=false;
+  try{
+    let saved=null;
+    if(DmxCommon.isHttp()){
+      const response=await fetch('room_plane_setup.php',{cache:'no-store'});
+      const data=await response.json();
+      if(response.ok&&data.ok&&data.exists&&data.setup)saved=data.setup;
+    }
+    if(saved){
+      const savedPoints=Array.isArray(saved.points)?saved.points:[];
+      points.splice(0,points.length,...defaultPoints().map((point,index)=>normalizePoint(savedPoints[index]||point,index)));
+      document.getElementById('targetX').value=fmt(saved.target?.x??2.5,3);
+      document.getElementById('targetY').value=fmt(saved.target?.y??1.5,3);
+      if(saved.baseUrl&&!localStorage.getItem(DmxCommon.BASE_URL_KEY))baseUrl.value=saved.baseUrl;
+      try{await loadControllerSetupForRoomPlane();}catch(_){}
+      fixtures=(Array.isArray(saved.fixtures)?saved.fixtures:[]).map(normalizeRoomFixture);
+      if(!fixtures.length)demoFixtures();
+      editingFixtureIndex=null;
+      syncTables();
+      roomPlaneLoaded=true;
+      setStatus('Room plane setup loaded from server');
+      return true;
+    }
+  }catch(error){
+    setStatus('Room plane load failed; using demo values. '+error.message,true);
+  }
+  points.splice(0,points.length,...defaultPoints());
+  document.getElementById('targetX').value='2.5';
+  document.getElementById('targetY').value='1.5';
+  demoFixtures();
+  syncTables();
+  roomPlaneLoaded=true;
+  setStatus('Room plane demo values loaded');
+  return false;
 }
 
 function fixtureControl(f){
@@ -285,13 +413,7 @@ function patchedRoomFixture(f,index){
 
 async function loadPatchedMovingLights(){
   try{
-    const response=await fetch('fixture_setup.php',{cache:'no-store'});
-    const data=await response.json();
-    if(!response.ok||!data.ok||!data.exists||!data.setup)throw new Error('No saved fixture setup found');
-    profiles=Array.isArray(data.setup.profiles)?data.setup.profiles:[];
-    baseUrl.value=localStorage.getItem(DmxCommon.BASE_URL_KEY)||data.setup.baseUrl||baseUrl.value;
-    try{liveValues=await DmxCommon.fetchFixtureLiveValues()||data.setup.values||{};}catch(_){liveValues=data.setup.values||{};}
-    const patched=Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
+    const patched=await loadControllerSetupForRoomPlane();
     const moving=patched.filter(f=>{
       const p=profiles.find(profile=>String(profile.id)===String(f.profileId));
       return p&&Array.isArray(p.controls)&&p.controls.some(isPanTiltControl);
@@ -301,6 +423,7 @@ async function loadPatchedMovingLights(){
     editingFixtureIndex=null;
     syncTables();
     setStatus('Loaded '+fixtures.length+' patched moving light'+(fixtures.length===1?'':'s')+' from controller setup');
+    scheduleRoomPlaneAutosave();
   }catch(error){
     setStatus(error.message||'Could not load patched fixtures',true);
   }
@@ -326,6 +449,7 @@ function renderPlanePointInputs(){
     const p=points[Number(input.dataset.point)];
     p[input.dataset.axis]=Number(input.value)||0;
     render();
+    scheduleRoomPlaneAutosave();
   }));
 }
 
@@ -355,6 +479,7 @@ function renderFixtureRows(){
       f[input.dataset.field]=Number(input.value)||0;
     }
     render();
+    scheduleRoomPlaneAutosave();
   }));
   body.querySelectorAll('[data-edit-fixture]').forEach(button=>button.addEventListener('click',()=>{
     const index=Number(button.dataset.editFixture);
@@ -382,6 +507,7 @@ function openFixtureEditor(index){
           .catch(error=>setStatus(error.message||'Could not send fixture control',true));
       }
       render();
+      scheduleRoomPlaneAutosave();
     },
     onClose(){
       if(editingFixtureIndex===index){
@@ -545,11 +671,11 @@ function syncTables(){
   render();
 }
 
-document.getElementById('targetX').addEventListener('input',render);
-document.getElementById('targetY').addEventListener('input',render);
-document.getElementById('resetDemo').onclick=()=>{points[0]={id:'A',x:0,y:0};points[1]={id:'B',x:5,y:0};points[2]={id:'C',x:0,y:3};document.getElementById('targetX').value='2.5';document.getElementById('targetY').value='1.5';editingFixtureIndex=null;demoFixtures();syncTables();};
-document.getElementById('addFixture').onclick=()=>{const n=fixtures.length+1;fixtures.push({name:'Spot '+n,x:n,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:90,tilt:110},B:{pan:130,tilt:110},C:{pan:100,tilt:80}}});editingFixtureIndex=fixtures.length-1;syncTables();openFixtureEditor(editingFixtureIndex);};
-document.getElementById('removeFixture').onclick=()=>{if(fixtures.length>1){fixtures.pop();if(editingFixtureIndex!==null&&editingFixtureIndex>=fixtures.length)editingFixtureIndex=null;syncTables();}};
+document.getElementById('targetX').addEventListener('input',()=>{render();scheduleRoomPlaneAutosave();});
+document.getElementById('targetY').addEventListener('input',()=>{render();scheduleRoomPlaneAutosave();});
+document.getElementById('resetDemo').onclick=()=>{points[0]={id:'A',x:0,y:0,z:0};points[1]={id:'B',x:5,y:0,z:0};points[2]={id:'C',x:0,y:3,z:0};document.getElementById('targetX').value='2.5';document.getElementById('targetY').value='1.5';editingFixtureIndex=null;demoFixtures();syncTables();scheduleRoomPlaneAutosave();};
+document.getElementById('addFixture').onclick=()=>{const n=fixtures.length+1;fixtures.push({name:'Spot '+n,x:n,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:90,tilt:110},B:{pan:130,tilt:110},C:{pan:100,tilt:80}}});editingFixtureIndex=fixtures.length-1;syncTables();scheduleRoomPlaneAutosave();openFixtureEditor(editingFixtureIndex);};
+document.getElementById('removeFixture').onclick=()=>{if(fixtures.length>1){fixtures.pop();if(editingFixtureIndex!==null&&editingFixtureIndex>=fixtures.length)editingFixtureIndex=null;syncTables();scheduleRoomPlaneAutosave();}};
 document.getElementById('loadPatchedFixtures').onclick=()=>loadPatchedMovingLights();
 let fixtureDrag=null;
 document.getElementById('planePad').addEventListener('pointerdown',event=>{
@@ -569,12 +695,14 @@ document.getElementById('planePad').addEventListener('pointerdown',event=>{
       fixtures[index].y=room.y;
       updateFixturePositionInputs(index);
       render();
+      scheduleRoomPlaneAutosave();
     }
     return;
   }
   document.getElementById('targetX').value=fmt(room.x,3);
   document.getElementById('targetY').value=fmt(room.y,3);
   render();
+  scheduleRoomPlaneAutosave();
 });
 document.getElementById('planePad').addEventListener('pointermove',event=>{
   if(!fixtureDrag)return;
@@ -586,6 +714,7 @@ document.getElementById('planePad').addEventListener('pointermove',event=>{
   f.y=room.y;
   updateFixturePositionInputs(fixtureDrag.index);
   render();
+  scheduleRoomPlaneAutosave();
 });
 document.getElementById('planePad').addEventListener('pointerup',event=>{
   if(fixtureDrag&&fixtureDrag.pointerId===event.pointerId){
@@ -594,8 +723,7 @@ document.getElementById('planePad').addEventListener('pointerup',event=>{
   }
 });
 document.getElementById('planePad').addEventListener('pointercancel',()=>{fixtureDrag=null;});
-demoFixtures();
-syncTables();
+loadRoomPlaneSetup();
 </script>
 </body>
 </html>

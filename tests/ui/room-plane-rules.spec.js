@@ -2,6 +2,16 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Room Plane Test prototype rules', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/room_plane_setup.php', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: false, setup: null })
+      });
+    });
+  });
+
   test('interpolates fixture pan and tilt from the calibrated plane points', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -193,5 +203,65 @@ test.describe('Room Plane Test prototype rules', () => {
     expect(sent.some(url => url.includes('/dmx/set/12/255'))).toBeTruthy();
     expect(sent.some(url => url.includes('/dmx/set/13/191'))).toBeTruthy();
     expect(sent.some(url => url.includes('/dmx/set/14/255'))).toBeTruthy();
+  });
+
+  test('loads and autosaves room plane setup on the server', async ({ page }) => {
+    const posts = [];
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') {
+        posts.push(JSON.parse(route.request().postData() || '{}'));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            schemaVersion: 1,
+            baseUrl: 'http://localhost/dmx-test',
+            points: [
+              { id: 'A', x: 1, y: 0, z: 0 },
+              { id: 'B', x: 6, y: 0, z: 0 },
+              { id: 'C', x: 1, y: 4, z: 0 }
+            ],
+            target: { x: 3, y: 2, z: 0 },
+            fixtures: [{
+              name: 'Saved Spot',
+              x: 2,
+              y: -3,
+              z: 4,
+              control: { pan: 32768, tilt: 32768, dimmer: 255 },
+              cal: {
+                A: { pan: 10, tilt: 20 },
+                B: { pan: 30, tilt: 40 },
+                C: { pan: 50, tilt: 60 }
+              }
+            }]
+          }
+        })
+      });
+    });
+    await page.route('**/fixture_setup.php**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: false, setup: null }) });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await expect(page.locator('[data-result-fixture="Saved Spot"]')).toBeVisible();
+    await expect(page.locator('#targetX')).toHaveValue('3');
+    await expect(page.locator('input[data-point="1"][data-axis="x"]')).toHaveValue('6');
+
+    await page.locator('input[data-fixture="0"][data-field="x"]').fill('2.75');
+
+    await expect.poll(() => posts.length).toBeGreaterThan(0);
+    const latest = posts[posts.length - 1];
+    expect(latest.points[1].x).toBe(6);
+    expect(latest.target.x).toBe(3);
+    expect(latest.fixtures[0].name).toBe('Saved Spot');
+    expect(latest.fixtures[0].x).toBe(2.75);
+    expect(latest.fixtures[0].cal.A.pan).toBe(10);
   });
 });
