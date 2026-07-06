@@ -97,6 +97,15 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .pico-slot-strip{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;width:min(760px,calc(100vw - 32px));max-width:760px;max-height:90vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 18px 70px rgba(0,0,0,.55)}
+.modal-card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;width:min(760px,calc(100vw - 32px));max-width:760px;max-height:90vh;display:flex;flex-direction:column;gap:12px;overflow:hidden;box-shadow:0 18px 70px rgba(0,0,0,.55)}
+.modal-head{display:flex;align-items:center;gap:10px}
+.modal-head h2{flex:1;min-width:0;margin:0}
+.modal-head button{flex:0 0 auto}
+.modal-card .modal-head{padding-left:44px;min-height:36px}
+.modal-card .modal-head>[data-ptd-close][aria-label="Close"]{position:absolute;top:12px;left:12px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0}
+.modal-card .modal-body{flex:0 0 auto;max-height:none;overflow:visible}
+.modal-card .xy-pad{height:clamp(150px,24dvh,230px);aspect-ratio:auto}
+.modal-actions [data-ptd-extra-actions]{display:inline-grid;grid-template-columns:repeat(3,max-content);gap:8px;align-items:center}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0;overscroll-behavior:contain}
 .wide-modal{width:min(1100px,calc(100vw - 32px));max-width:1100px}
 .wheel-option-grid{display:grid;grid-template-columns:minmax(150px,1.4fr) 72px 72px minmax(130px,1fr) 70px minmax(105px,1fr) minmax(105px,1fr) minmax(230px,1.2fr) 52px;gap:8px;align-items:end}

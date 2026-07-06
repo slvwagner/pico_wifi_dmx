@@ -2029,8 +2029,8 @@
     modal.innerHTML=[
       '<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="commonPanTiltDimmerTitle">',
       '  <div class="modal-head">',
-      '    <h2 id="commonPanTiltDimmerTitle">Edit Fixture Control</h2>',
       '    <button type="button" data-ptd-close aria-label="Close">x</button>',
+      '    <h2 id="commonPanTiltDimmerTitle">Edit Fixture Control</h2>',
       '  </div>',
       '  <div class="modal-body">',
       '    <div class="xy-pad" data-ptd-xy><div class="xy-dot" data-ptd-dot></div></div>',
@@ -2041,6 +2041,7 @@
       '    <div class="small" data-ptd-readout></div>',
       '  </div>',
       '  <div class="modal-actions">',
+      '    <span data-ptd-extra-actions></span>',
       '    <button type="button" data-ptd-close>Close</button>',
       '  </div>',
       '</div>'
@@ -2071,7 +2072,9 @@
     const dimmerRange=modal.querySelector('[data-ptd-dimmer-range]');
     const dimmerInput=modal.querySelector('[data-ptd-dimmer]');
     const readout=modal.querySelector('[data-ptd-readout]');
+    const extraActions=modal.querySelector('[data-ptd-extra-actions]');
     const onChange=typeof options?.onChange==='function'?options.onChange:()=>{};
+    const onAction=typeof options?.onAction==='function'?options.onAction:()=>{};
     modal._dmxPanTiltDimmerOnClose=typeof options?.onClose==='function'?options.onClose:null;
     let value={
       pan:clampInt(options?.value?.pan??Math.round(max/2),0,max),
@@ -2079,6 +2082,28 @@
       dimmer:clampInt(options?.value?.dimmer??255,0,255)
     };
     title.textContent=options?.title||'Edit Fixture Control';
+    const actions=Array.isArray(options?.actions)?options.actions:[];
+    extraActions.innerHTML=actions.map(action=>{
+      const classes=[action.primary?'primary':'',action.className||''].filter(Boolean).join(' ');
+      return '<button type="button" data-ptd-action="'+escapeHtml(action.id||action.label||'')+'" '+(classes?'class="'+escapeHtml(classes)+'"':'')+'>'+escapeHtml(action.label||action.id||'Action')+'</button>';
+    }).join('');
+    extraActions.onclick=event=>{
+      const btn=event.target.closest('[data-ptd-action]');
+      if(!btn)return;
+      onAction(btn.dataset.ptdAction,{...value},{
+        button:btn,
+        getValue:()=>({...value}),
+        setValue(next,{emitChange=true}={}){
+          value={
+            pan:clampInt(next?.pan??value.pan,0,max),
+            tilt:clampInt(next?.tilt??value.tilt,0,max),
+            dimmer:clampInt(next?.dimmer??value.dimmer,0,255)
+          };
+          renderEditor();
+          if(emitChange)emit();
+        }
+      });
+    };
     const is16=max>255;
     relativeHost.innerHTML=is16
       ? [
