@@ -57,6 +57,121 @@ test.describe('Room Plane Test prototype rules', () => {
     await expect.poll(async () => Number(await page.locator('#targetY').inputValue())).not.toBe(beforeY);
   });
 
+  test('nudges target with coarse and fine controls below the plane', async ({ page }) => {
+    const sent = [];
+    await page.route('**/fixture_setup.php**', async route => {
+      const url = route.request().url();
+      if (url.includes('livevalues')) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: true, values: {} }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://localhost/dmx-test',
+            profiles: [{
+              id: 1,
+              name: 'Moving Profile',
+              mode: '16-bit',
+              channels: 8,
+              controls: [
+                { id: 11, type: 'slider8', label: 'Dimmer', channel: 1, scope: 'dimmer' },
+                { id: 12, type: 'panTilt16', label: 'Position', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 }
+              ]
+            }],
+            fixtures: [{ id: 101, name: 'Moving 1', profileId: 1, start: 10 }],
+            values: {}
+          }
+        })
+      });
+    });
+    await page.route('**/dmx/b**', async route => {
+      sent.push(route.request().postData() || '');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"updated":5}' });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#loadPatchedFixtures').click();
+    await page.locator('#targetStepXCoarse').fill('0.5');
+    await page.locator('[data-target-nudge-axis="x"][data-target-nudge-step="coarse"][data-target-nudge-dir="1"]').click();
+    await expect(page.locator('#targetX')).toHaveValue('3');
+
+    await page.locator('#targetStepYFine').fill('0.05');
+    await page.locator('[data-target-nudge-axis="y"][data-target-nudge-step="fine"][data-target-nudge-dir="-1"]').click();
+    await expect(page.locator('#targetY')).toHaveValue('1.45');
+    await expect.poll(() => sent.length).toBeGreaterThan(0);
+  });
+
+  test('removes manual apply and auto-apply remains active', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await expect(page.locator('#applyTargetSelected')).toHaveCount(0);
+    await expect(page.locator('#selectAllFixtures')).toBeVisible();
+  });
+
+  test('zooms and pans the virtual room plane view', async ({ page }) => {
+    await page.setViewportSize({ width: 1300, height: 900 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const before = await page.locator('.plane-point').filter({ hasText: 'A' }).first().boundingBox();
+    await page.locator('#zoomInPlane').click();
+    const zoomed = await page.locator('.plane-point').filter({ hasText: 'A' }).first().boundingBox();
+    expect(Math.abs(zoomed.x - before.x)).toBeGreaterThan(1);
+
+    await page.locator('#panPlaneView').click();
+    const pad = await page.locator('#planePad').boundingBox();
+    await page.mouse.move(pad.x + pad.width / 2, pad.y + pad.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(pad.x + pad.width / 2 + 100, pad.y + pad.height / 2 + 40, { steps: 5 });
+    await page.mouse.up();
+    const panned = await page.locator('.plane-point').filter({ hasText: 'A' }).first().boundingBox();
+    expect(Math.abs(panned.x - zoomed.x)).toBeGreaterThan(1);
+  });
+
+  test('reset calibration marks fixtures incomplete', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#resetCalibration').click();
+
+    await expect(page.locator('[data-result-fixture="Spot 1"] .result-value')).toHaveText('Calibration missing');
+    await expect(page.locator('tbody tr').first()).toContainText('Missing A, B, C');
+  });
+
+  test('saves and recalls multiple plane definitions from the library', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await expect(page.locator('#activePlaneSummary')).toContainText('Active plane: Default plane');
+    await expect(page.locator('#activePlaneSummary')).toContainText('mount positions');
+    await expect(page.locator('#activePlaneSummary')).toContainText('fixture calibration');
+
+    await page.locator('#planeName').fill('Front truss');
+    await page.locator('#targetX').fill('1');
+    await page.locator('#targetY').fill('1');
+    await page.locator('#savePlaneDefinition').click();
+
+    await page.locator('#newPlaneDefinition').click();
+    await page.locator('#planeName').fill('Back truss');
+    await page.locator('#targetX').fill('4');
+    await page.locator('#targetY').fill('2');
+    await page.locator('#savePlaneDefinition').click();
+
+    await expect(page.locator('#planeLibrary')).toContainText('Front truss');
+    await expect(page.locator('#planeLibrary')).toContainText('Back truss');
+    await expect(page.locator('#targetX')).toHaveValue('4');
+
+    await page.locator('.plane-library-row').filter({ hasText: 'Front truss' }).locator('[data-recall-plane]').click();
+
+    await expect(page.locator('#planeName')).toHaveValue('Front truss');
+    await expect(page.locator('#activePlaneSummary')).toContainText('Active plane: Front truss');
+    await expect(page.locator('#targetX')).toHaveValue('1');
+    await expect(page.locator('#targetY')).toHaveValue('1');
+    await expect(page.locator('#status')).toContainText('Recalled plane Front truss');
+  });
+
   test('flags targets outside the calibrated triangle', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -163,6 +278,7 @@ test.describe('Room Plane Test prototype rules', () => {
     await page.locator('[data-ptd-action="store-B"]').click();
     await expect(page.locator('input[data-fixture="0"][data-point="B"][data-axis="pan"]')).toHaveValue('49152');
     await expect(page.locator('input[data-fixture="0"][data-point="B"][data-axis="tilt"]')).toHaveValue('49151');
+    await expect(page.locator('[data-ptd-action="store-B"]')).toHaveText('Stored B');
     await expect(page.locator('#status')).toContainText('Stored Spot 1 calibration point B');
 
     await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.25);
@@ -217,9 +333,9 @@ test.describe('Room Plane Test prototype rules', () => {
         })
       });
     });
-    await page.route('**/dmx/set/**', async route => {
-      sent.push(route.request().url());
-      await route.fulfill({ status: 200, contentType: 'text/plain', body: 'ok' });
+    await page.route('**/dmx/b**', async route => {
+      sent.push({ url: route.request().url(), method: route.request().method(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"updated":5}' });
     });
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -240,12 +356,14 @@ test.describe('Room Plane Test prototype rules', () => {
     await expect(page.locator('[data-live-pan="0"]')).toHaveText('49151');
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText('49151');
 
-    await expect.poll(() => sent.length).toBeGreaterThanOrEqual(5);
-    expect(sent.some(url => url.includes('/dmx/set/10/255'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/11/191'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/12/255'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/13/191'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/14/255'))).toBeTruthy();
+    await expect.poll(() => sent.length).toBeGreaterThanOrEqual(1);
+    expect(sent[0].url).toContain('/dmx/b');
+    expect(sent[0].method).toBe('POST');
+    expect(sent[0].body).toContain('10:255');
+    expect(sent[0].body).toContain('11:191');
+    expect(sent[0].body).toContain('12:255');
+    expect(sent[0].body).toContain('13:191');
+    expect(sent[0].body).toContain('14:255');
     await expect(page.locator('[data-send-summary="0"]')).toContainText('ch 11=191');
     await expect(page.locator('[data-send-summary="0"]')).toContainText('ch 14=255');
     await expect(page.locator('#status')).toContainText('Sent Moving 1:');
@@ -286,9 +404,9 @@ test.describe('Room Plane Test prototype rules', () => {
         })
       });
     });
-    await page.route('**/dmx/set/**', async route => {
-      sent.push(route.request().url());
-      await route.fulfill({ status: 200, contentType: 'text/plain', body: 'ok' });
+    await page.route('**/dmx/b**', async route => {
+      sent.push({ url: route.request().url(), method: route.request().method(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"updated":10}' });
     });
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -300,15 +418,16 @@ test.describe('Room Plane Test prototype rules', () => {
     await expect(page.locator('#status')).toContainText('Live plane target X 1 / Y 1 -> 2 fixtures');
     await expect(page.locator('[data-control-readout="Moving 1"]')).toHaveText('DMX output Pan 87 / Tilt 103 / Dimmer 255');
     await expect(page.locator('[data-control-readout="Moving 2"]')).toHaveText('DMX output Pan 105 / Tilt 103 / Dimmer 255');
-    await expect.poll(() => sent.length).toBeGreaterThanOrEqual(10);
-    expect(sent.some(url => url.includes('/dmx/set/11/0'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/12/87'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/13/0'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/14/103'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/21/0'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/22/105'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/23/0'))).toBeTruthy();
-    expect(sent.some(url => url.includes('/dmx/set/24/103'))).toBeTruthy();
+    await expect.poll(() => sent.length).toBeGreaterThanOrEqual(1);
+    const latestBody = sent[sent.length - 1].body;
+    expect(latestBody).toContain('11:0');
+    expect(latestBody).toContain('12:87');
+    expect(latestBody).toContain('13:0');
+    expect(latestBody).toContain('14:103');
+    expect(latestBody).toContain('21:0');
+    expect(latestBody).toContain('22:105');
+    expect(latestBody).toContain('23:0');
+    expect(latestBody).toContain('24:103');
   });
 
   test('loads and autosaves room plane setup on the server', async ({ page }) => {
@@ -369,5 +488,13 @@ test.describe('Room Plane Test prototype rules', () => {
     expect(latest.fixtures[0].name).toBe('Saved Spot');
     expect(latest.fixtures[0].x).toBe(2.75);
     expect(latest.fixtures[0].cal.A.pan).toBe(10);
+    expect(Array.isArray(latest.planes)).toBeTruthy();
+    expect(latest.planes[0].name).toBe('Default plane');
+
+    await page.locator('#newPlaneDefinition').click();
+    await page.locator('#planeName').fill('Second plane');
+    await page.locator('#savePlaneDefinition').click();
+
+    await expect.poll(() => posts.some(post => Array.isArray(post.planes) && post.planes.some(plane => plane.name === 'Second plane'))).toBeTruthy();
   });
 });
