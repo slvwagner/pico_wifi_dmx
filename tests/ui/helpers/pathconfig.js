@@ -41,7 +41,6 @@ function loadPathConfig() {
     dmxTestChannels: [1, 2],
     chaserSlot: 31,
     motionSlot: 63,
-    destructiveSlotStress: false,
     requestTimeoutMs: 5000,
     ...(merged.hardwareTests || {})
   };

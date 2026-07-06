@@ -7,11 +7,36 @@
 <link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
 <script src="assets/dmx-common.js?v=0.9.8"></script>
 <style>
-main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
-.layout{display:grid;grid-template-columns:minmax(320px,420px) minmax(0,1fr);gap:16px;align-items:start}
-.stack{display:grid;gap:12px}
-.plane-wrap{display:grid;gap:10px}
-.plane-pad{position:relative;min-height:520px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
+body{min-height:100vh}
+.room-titlebar{padding:10px 14px;background:var(--bg);display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+body.toolbox-rail-layout .room-titlebar{width:calc(100% - var(--toolbox-rail-width,max(380px,33vw)))}
+body.toolbox-rail-collapsed .room-titlebar{width:calc(100% - 48px)}
+.room-titlebar__main{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
+body.toolbox-rail-layout .room-titlebar .room-titlebar__main{overflow:visible;min-width:0;width:100%}
+.room-titlebar__title{min-width:0;max-width:100%;overflow:hidden}
+.room-titlebar__tools{width:100%;min-width:0;justify-content:flex-start;align-items:center}
+body.toolbox-rail-layout .room-titlebar .room-titlebar__tools{width:100%;min-width:0;justify-content:flex-start;flex-wrap:wrap;margin-left:0}
+.room-titlebar__tools label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.room-titlebar__tools input[type=url]{min-width:160px;width:180px;padding:7px 8px}
+main{max-width:none;width:100%;margin:0;padding:14px;display:grid;gap:14px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.stack{display:grid;gap:14px;min-width:0}
+.panel{min-width:0}
+.panel-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.panel-head h2{margin:0;font-size:17px}
+.panel-head__title{display:grid;gap:4px;min-width:0}
+.panel-head__tools{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.room-card-body{display:grid;gap:12px}
+.room-tool-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.room-tool-row label{min-width:110px}
+.room-plane-meta{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px}
+.room-main{align-content:start}
+#roomPlaneBox .scene-toolbox__header,#roomPlaneLibraryBox .scene-toolbox__header,#roomFixturesBox .scene-toolbox__header{background:#17425a}
+.room-toolbox-actions{display:flex;gap:6px;align-items:center}
+#roomFixturesBox .scene-toolbox__body{max-height:calc(100vh - 180px);overflow:auto}
+#roomFixturesBox .table-wrap{max-height:38vh}
+.plane-wrap{display:grid;gap:12px}
+.plane-pad{position:relative;min-height:clamp(480px,62vh,760px);border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
 .plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
 .plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);border:1px solid rgba(55,196,164,.4);pointer-events:none}
 .plane-point{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;text-shadow:none;z-index:2}
@@ -24,7 +49,7 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
 .plane-pad.pan-mode:active{cursor:grabbing}
 .cal-state{font-size:12px;color:var(--muted)}
 .cal-state--missing{color:var(--bad);font-weight:700}
-.table-wrap{overflow:auto}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0a0d10}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{border-bottom:1px solid var(--line);padding:7px;text-align:left;white-space:nowrap}
 th{color:var(--muted);font-weight:700}
@@ -34,37 +59,29 @@ td input{width:76px;padding:7px 8px}
 td input[type="checkbox"]{width:auto}
 .cal-grid{display:grid;grid-template-columns:42px repeat(3,minmax(70px,1fr));gap:8px;align-items:end}
 .cal-grid strong{align-self:center}
-.plane-library{display:grid;gap:6px;margin-top:10px}
+.plane-library{display:grid;gap:6px}
 .plane-library-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:#0a0d10}
 .plane-library-row.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .plane-library-title{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plane-library-meta{font-size:12px;color:var(--muted)}
-.plane-save-summary{display:grid;gap:6px;border:1px solid rgba(55,196,164,.45);background:#10241f;border-radius:8px;padding:10px;margin-top:10px}
-.plane-save-summary-title{font-weight:800;color:var(--accent)}
-.plane-save-summary-body{font-size:13px;color:var(--muted);line-height:1.35}
 .plane-section-note{font-size:13px;color:var(--accent);font-weight:700}
-.target-nudge-grid{display:grid;grid-template-columns:minmax(220px,360px);gap:8px;justify-content:start}
-.result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-.result-card{background:#0a0d10;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px}
-.result-card.warn{border-color:var(--warn);background:#19140d}
-.result-title{font-weight:800}
-.result-value{font-size:24px;color:var(--accent);font-weight:800;line-height:1}
+.target-nudge-panel{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px;align-content:start}
+.target-nudge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,360px));gap:8px;justify-content:start}
 .pill-row{display:flex;gap:8px;flex-wrap:wrap}
-.pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px;background:#10161b}
 canvas{display:none}
-@media(max-width:980px){.layout{grid-template-columns:1fr}.plane-pad{min-height:420px}}
+@media(max-width:980px){body.toolbox-rail-layout .room-titlebar,body.toolbox-rail-collapsed .room-titlebar{width:100%}.layout{grid-template-columns:1fr}.plane-pad{min-height:420px}.room-titlebar__tools{justify-content:flex-start}.room-titlebar__tools label{width:100%;align-items:start;display:grid}.room-titlebar__tools input[type=url]{width:100%}}
 </style>
 </head>
 <body>
-<main>
-<header>
-  <div>
+<header class="room-titlebar">
+  <div class="room-titlebar__main">
+  <div class="room-titlebar__title">
     <h1>Room Plane Test</h1>
     <div class="status" id="status">Prototype for calibrated room-plane pan/tilt mapping.</div>
   </div>
-  <div class="toolbar">
+  <div class="toolbar room-titlebar__tools">
     <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
-    <button id="loadPatchedFixtures" type="button">Load patched moving lights</button>
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
@@ -75,65 +92,24 @@ canvas{display:none}
     <a class="nav" href="dmx_room_plane.html">Plane</a>
     <a class="nav" href="user-manual.html?v=0.9.8#10-room-plane-test" target="_blank">Manual</a>
   </div>
+  </div>
 </header>
 
+<main>
 <div class="layout">
-  <div class="stack">
-    <section class="panel">
-      <h2>Room Plane</h2>
-      <div class="small">Three known points define the calibrated plane. Units can be meters, but the math only needs a consistent coordinate system.</div>
-      <div class="plane-section-note">Saved plane = A/B/C room points + target/view + fixture mount positions + fixture A/B/C calibration.</div>
-      <div class="cal-grid" id="planePointInputs"></div>
-      <div class="toolbar" style="margin-top:10px">
-        <label>Name<input id="planeName" type="text" value="Default plane"></label>
-        <label>Plane<select id="planeSelect"></select></label>
-        <button id="savePlaneDefinition" type="button" class="primary">Save current plane</button>
-        <button id="newPlaneDefinition" type="button">Create new plane</button>
-        <button id="deletePlaneDefinition" type="button" class="danger">Delete plane</button>
-      </div>
-      <div class="plane-library" id="planeLibrary"></div>
-      <div class="plane-save-summary" id="activePlaneSummary"></div>
-      <div class="toolbar" style="margin-top:10px">
-        <label>Target X<input id="targetX" type="number" step="0.1" value="2.5"></label>
-        <label>Target Y<input id="targetY" type="number" step="0.1" value="1.5"></label>
-        <button id="selectAllFixtures" type="button">Select all fixtures</button>
-        <button id="clearFixtureSelection" type="button">Clear selection</button>
-        <button id="resetCalibration" type="button" class="warn">Reset calibration</button>
-        <button id="resetDemo">Demo values</button>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>Fixtures</h2>
-      <div class="small">Mount X/Y/Z and A/B/C pan/tilt calibration are stored inside the active saved plane. Recalling another plane recalls its own fixture calibration.</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Edit</th><th>Select</th><th>Fixture</th><th>Calibration</th><th>Live Pan</th><th>Live Tilt</th><th>Dimmer</th><th>Last send / channels</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
-              <th>A pan</th><th>A tilt</th><th>B pan</th><th>B tilt</th><th>C pan</th><th>C tilt</th>
-            </tr>
-          </thead>
-          <tbody id="fixtureRows"></tbody>
-        </table>
-      </div>
-      <div class="toolbar" style="margin-top:10px">
-        <button id="addFixture">Add fixture</button>
-        <button id="removeFixture">Remove last</button>
-      </div>
-    </section>
-  </div>
-
-  <div class="stack">
+  <div class="stack room-main">
     <section class="panel plane-wrap">
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <h2>Virtual Room Plane</h2>
-        <div class="pill-row">
+      <div class="panel-head">
+        <div class="panel-head__title">
+          <h2>Virtual Room Plane</h2>
+          <div class="small">Drag the red target, use the nudge tools, or pan and zoom the view while calibrated fixtures follow the target.</div>
+        </div>
+        <div class="pill-row panel-head__tools">
           <span class="pill" id="weightReadout">Weights: -</span>
           <span class="pill" id="insideReadout">Inside plane: -</span>
         </div>
       </div>
-      <div class="toolbar">
+      <div class="toolbar panel-head__tools">
         <button id="zoomInPlane" type="button">Zoom in</button>
         <button id="zoomOutPlane" type="button">Zoom out</button>
         <button id="resetPlaneView" type="button">Reset view</button>
@@ -144,6 +120,8 @@ canvas{display:none}
         <div class="plane-triangle" id="planeTriangle"></div>
         <div class="plane-target" id="planeTarget" title="Target"></div>
       </div>
+      <div class="target-nudge-panel">
+      <div class="small">Target nudge</div>
       <div class="target-nudge-grid" id="targetNudgeControls">
         <div class="relative-control">
           <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="-1" data-target-nudge-step="coarse" title="Move target X left by the coarse step">-</button>
@@ -166,15 +144,93 @@ canvas{display:none}
           <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="1" data-target-nudge-step="fine" title="Move target Y up by the fine step">+</button>
         </div>
       </div>
+      </div>
     </section>
 
-    <section class="panel">
-      <h2>Calculated Fixture Output</h2>
-      <div class="result-grid" id="resultGrid"></div>
-    </section>
   </div>
 </div>
 </main>
+
+<section id="roomPlaneBox" class="scene-toolbox">
+  <div id="roomPlaneBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Room Plane</span>
+    <div class="room-toolbox-actions">
+      <button class="toolbox-collapse-group" data-collapse-group="room-plane" title="Collapse all room plane toolboxes">-- all</button>
+      <button id="roomPlaneBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomPlaneBoxBody" class="scene-toolbox__body">
+    <div class="small">Three known points define the calibrated plane. Units can be meters, but the math only needs a consistent coordinate system.</div>
+    <div class="room-card-body">
+      <div class="room-plane-meta">
+        <div class="plane-section-note">A/B/C define the active coordinate plane. Use Saved Planes to store and recall complete plane definitions.</div>
+        <div class="cal-grid" id="planePointInputs"></div>
+      </div>
+      <div class="room-tool-row">
+        <label>Target X<input id="targetX" type="number" step="0.1" value="2.5"></label>
+        <label>Target Y<input id="targetY" type="number" step="0.1" value="1.5"></label>
+        <button id="selectAllFixtures" type="button">Select all fixtures</button>
+        <button id="clearFixtureSelection" type="button">Clear selection</button>
+        <button id="resetCalibration" type="button" class="warn">Reset calibration</button>
+        <button id="resetDemo">Demo values</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="roomPlaneLibraryBox" class="scene-toolbox">
+  <div id="roomPlaneLibraryBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Saved Planes</span>
+    <div class="room-toolbox-actions">
+      <button class="toolbox-collapse-group" data-collapse-group="room-plane" title="Collapse all room plane toolboxes">-- all</button>
+      <button id="roomPlaneLibraryBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomPlaneLibraryBoxBody" class="scene-toolbox__body">
+    <div class="small">A saved plane includes A/B/C room points, target/view, fixture mount positions, and fixture A/B/C calibration.</div>
+    <div class="room-card-body">
+      <div class="room-tool-row">
+        <label>Name<input id="planeName" type="text" value="Default plane"></label>
+        <label>Plane<select id="planeSelect"></select></label>
+        <button id="savePlaneDefinition" type="button" class="primary">Save current plane</button>
+        <button id="newPlaneDefinition" type="button">Create new plane</button>
+        <button id="deletePlaneDefinition" type="button" class="danger">Delete plane</button>
+      </div>
+      <div class="plane-library" id="planeLibrary"></div>
+    </div>
+  </div>
+</section>
+
+<section id="roomFixturesBox" class="scene-toolbox">
+  <div id="roomFixturesBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Fixtures</span>
+    <div class="room-toolbox-actions">
+      <button class="toolbox-collapse-group" data-collapse-group="room-plane" title="Collapse all room plane toolboxes">-- all</button>
+      <button id="roomFixturesBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomFixturesBoxBody" class="scene-toolbox__body">
+    <div class="small">Mount X/Y/Z and A/B/C pan/tilt calibration are stored inside the active saved plane. Recalling another plane recalls its own fixture calibration.</div>
+    <div class="buttons">
+      <button id="loadPatchedFixtures" type="button">Load patched moving lights</button>
+      <button id="addFixture">Add fixture</button>
+      <button id="removeFixture">Remove last</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Edit</th><th>Select</th><th>Fixture</th><th>Calibration</th><th>Live Pan</th><th>Live Tilt</th><th>Dimmer</th><th>Last send / channels</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
+            <th>A pan</th><th>A tilt</th><th>B pan</th><th>B tilt</th><th>C pan</th><th>C tilt</th>
+          </tr>
+        </thead>
+        <tbody id="fixtureRows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<aside id="roomPlaneToolboxRail" class="toolbox-rail" data-min-main-width="520" aria-label="Room Plane toolboxes"></aside>
 
 <script>
 const points=[
@@ -196,8 +252,72 @@ let planeDefinitions=[];
 let activePlaneId='default';
 let planeView={auto:true,centerX:0,centerY:0,zoom:1};
 let planePanMode=false;
+let suppressGroupSelectionApply=false;
+let lastRoomGroupSelectionCount=0;
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
+document.body.classList.add('toolbox-rail-layout','room-plane-rail-layout');
+const roomPlaneToolboxRail=document.getElementById('roomPlaneToolboxRail');
+let roomGroupsBox=DmxCommon.initGroupsToolbox({
+  page:'roomPlane',
+  idPrefix:'roomPlaneGroups',
+  title:'Groups',
+  host:roomPlaneToolboxRail,
+  toolboxType:'groups',
+  selectionOnly:true,
+  baseUrlInput:baseUrl,
+  onStatus:setStatus,
+  onSelectionChange:groups=>applyGroupSelectionToFixtures(groups)
+});
+DmxCommon.initToolboxRail(roomPlaneToolboxRail,[
+  {box:'roomPlaneBox',type:'roomPlane'},
+  {box:'roomPlaneLibraryBox',type:'roomPlaneLibrary'},
+  {box:'roomFixturesBox',type:'roomFixtures'}
+]);
+const roomPlaneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomPlaneBox',
+  headerId:'roomPlaneBoxHdr',
+  toggleId:'roomPlaneBoxToggle',
+  collapsedStorageKey:'roomPlaneBoxCollapsed',
+  posStorageKey:'roomPlaneBoxPos',
+  sizeStorageKey:'roomPlaneBoxSize',
+  uiStateCollapsedKey:'roomPlaneBoxCollapsed',
+  uiStatePosKey:'roomPlaneBoxPos',
+  uiStateSizeKey:'roomPlaneBoxSize'
+});
+const roomPlaneLibraryToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomPlaneLibraryBox',
+  headerId:'roomPlaneLibraryBoxHdr',
+  toggleId:'roomPlaneLibraryBoxToggle',
+  collapsedStorageKey:'roomPlaneLibraryBoxCollapsed',
+  posStorageKey:'roomPlaneLibraryBoxPos',
+  sizeStorageKey:'roomPlaneLibraryBoxSize',
+  uiStateCollapsedKey:'roomPlaneLibraryBoxCollapsed',
+  uiStatePosKey:'roomPlaneLibraryBoxPos',
+  uiStateSizeKey:'roomPlaneLibraryBoxSize'
+});
+const roomFixturesToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomFixturesBox',
+  headerId:'roomFixturesBoxHdr',
+  toggleId:'roomFixturesBoxToggle',
+  collapsedStorageKey:'roomFixturesBoxCollapsed',
+  posStorageKey:'roomFixturesBoxPos',
+  sizeStorageKey:'roomFixturesBoxSize',
+  uiStateCollapsedKey:'roomFixturesBoxCollapsed',
+  uiStatePosKey:'roomFixturesBoxPos',
+  uiStateSizeKey:'roomFixturesBoxSize'
+});
+DmxCommon.initToolboxCollapseGroup({
+  group:'room-plane',
+  items:[
+    {id:'roomPlaneBox',toolbox:roomPlaneToolbox},
+    {id:'roomPlaneLibraryBox',toolbox:roomPlaneLibraryToolbox},
+    {id:'roomFixturesBox',toolbox:roomFixturesToolbox}
+  ],
+  toggleIds:['roomPlaneBoxToggle','roomPlaneLibraryBoxToggle','roomFixturesBoxToggle'],
+  collapseTitle:'Collapse all room plane toolboxes',
+  expandTitle:'Uncollapse all room plane toolboxes'
+});
 
 function setStatus(message,isError=false){
   const el=document.getElementById('status');
@@ -264,6 +384,45 @@ function ensureFixtureSelection(){
   }
 }
 
+function selectedRoomGroupFixtureIds(groups){
+  const ids=new Set();
+  (groups||[]).forEach(group=>(group.fixtureIds||[]).forEach(id=>ids.add(String(id))));
+  return ids;
+}
+
+function applyGroupSelectionToFixtures(groups){
+  if(suppressGroupSelectionApply)return;
+  const selectedGroups=Array.isArray(groups)?groups:[];
+  if(!selectedGroups.length&&lastRoomGroupSelectionCount===0)return;
+  lastRoomGroupSelectionCount=selectedGroups.length;
+  const wanted=selectedRoomGroupFixtureIds(selectedGroups);
+  selectedFixtureIds.clear();
+  fixtures.forEach((fixture,index)=>{
+    if(fixture.id!==undefined&&wanted.has(String(fixture.id))){
+      selectedFixtureIds.add(fixtureSelectionKey(fixture,index));
+    }
+  });
+  renderFixtureRows();
+  render();
+  if(selectedGroups.length){
+    setStatus('Selected '+selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' from '+selectedGroups.length+' group'+(selectedGroups.length===1?'':'s'));
+  }else{
+    setStatus('Cleared group fixture selection');
+  }
+}
+
+function applyCurrentRoomGroupSelection(){
+  applyGroupSelectionToFixtures(roomGroupsBox?.selectedGroups?.()||[]);
+}
+
+function clearRoomGroupSelectionForManualSelection(){
+  if(!roomGroupsBox?.clearSelection)return;
+  suppressGroupSelectionApply=true;
+  roomGroupsBox.clearSelection();
+  suppressGroupSelectionApply=false;
+  lastRoomGroupSelectionCount=0;
+}
+
 function currentPlaneName(){
   return document.getElementById('planeName')?.value?.trim()||'Default plane';
 }
@@ -316,7 +475,6 @@ function renderPlaneSelect(){
   select.innerHTML=defs.map(plane=>'<option value="'+plane.id+'">'+plane.name+'</option>').join('');
   select.value=activePlaneId;
   renderPlaneLibrary(defs);
-  renderActivePlaneSummary(defs.find(plane=>String(plane.id)===String(activePlaneId))||defs[0]);
 }
 
 function planeCalibrationSummary(plane){
@@ -343,20 +501,6 @@ function renderPlaneLibrary(defs=planeDefinitions){
   host.querySelectorAll('[data-recall-plane]').forEach(button=>button.addEventListener('click',()=>{
     recallPlaneDefinition(button.dataset.recallPlane);
   }));
-}
-
-function renderActivePlaneSummary(plane){
-  const host=document.getElementById('activePlaneSummary');
-  if(!host||!plane)return;
-  const fixturesInPlane=Array.isArray(plane.fixtures)?plane.fixtures:[];
-  const total=fixturesInPlane.length*points.length;
-  let calibrated=0;
-  fixturesInPlane.forEach(f=>points.forEach(point=>{if(f.cal?.[point.id]?.calibrated)calibrated++;}));
-  host.innerHTML=
-    '<div class="plane-save-summary-title">Active plane: '+plane.name+'</div>'+
-    '<div class="plane-save-summary-body">Saving this plane stores '+points.map(p=>p.id).join('/')+
-    ' room coordinates, target/view state, '+fixturesInPlane.length+' fixture'+(fixturesInPlane.length===1?'':'s')+
-    ', mount positions, and '+calibrated+' / '+total+' fixture calibration point'+(total===1?'':'s')+'.</div>';
 }
 
 function recallPlaneDefinition(id){
@@ -619,6 +763,7 @@ async function loadPatchedMovingLights(){
     fixtures=moving.map(patchedRoomFixture);
     editingFixtureIndex=null;
     syncTables();
+    applyCurrentRoomGroupSelection();
     setStatus('Loaded '+fixtures.length+' patched moving light'+(fixtures.length===1?'':'s')+' from controller setup');
     scheduleRoomPlaneAutosave();
   }catch(error){
@@ -685,12 +830,12 @@ function renderFixtureRows(){
   }).join('');
   body.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{
     if(input.dataset.selectFixture!==undefined){
+      clearRoomGroupSelectionForManualSelection();
       const index=Number(input.dataset.selectFixture);
       const key=fixtureSelectionKey(fixtures[index],index);
       if(input.checked)selectedFixtureIds.add(key);
       else selectedFixtureIds.delete(key);
       setStatus(selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' selected for plane target movement');
-      renderResults(currentTarget(),barycentric(currentTarget()));
       return;
     }
     const f=fixtures[Number(input.dataset.fixture)];
@@ -963,30 +1108,6 @@ function renderPlane(target,weights){
   document.getElementById('insideReadout').textContent='Inside plane: '+(inside?'yes':'no');
 }
 
-function renderResults(target,weights){
-  const grid=document.getElementById('resultGrid');
-  if(!weights.valid){
-    grid.innerHTML='<div class="result-card warn"><div class="result-title">Plane is invalid</div><div class="small">Calibration points A, B, and C must not be on one line.</div></div>';
-    return;
-  }
-  grid.innerHTML=fixtures.map(f=>{
-    const index=fixtures.indexOf(f);
-    const out=interpolateFixture(f,weights);
-    const control=fixtureControl(f);
-    const missing=points.filter(point=>!f.cal?.[point.id]?.calibrated).map(point=>point.id);
-    const dx=target.x-f.x,dy=target.y-f.y,dz=(target.z||0)-(f.z||0);
-    const distance=Math.sqrt(dx*dx+dy*dy+dz*dz);
-    return '<div class="result-card" data-result-fixture="'+f.name+'">'+
-      '<div class="result-title">'+f.name+'</div>'+
-      '<div class="result-value">'+(out?'Pan '+fmt(out.pan,2)+' / Tilt '+fmt(out.tilt,2):'Calibration missing')+'</div>'+
-      (missing.length?'<div class="small cal-state--missing">Store calibration '+missing.join(', ')+'</div>':'')+
-      '<div class="small">'+(selectedFixtureIds.has(fixtureSelectionKey(f,index))?'Selected for target apply':'Not selected for target apply')+'</div>'+
-      '<div class="small" data-control-readout="'+f.name+'">'+(f.live?'DMX output':'Live control')+' Pan '+control.pan+' / Tilt '+control.tilt+' / Dimmer '+control.dimmer+'</div>'+
-      '<div class="small">Distance '+fmt(distance,2)+' · target vector '+fmt(dx,2)+', '+fmt(dy,2)+', '+fmt(dz,2)+'</div>'+
-    '</div>';
-  }).join('');
-}
-
 function updateFixturePositionInputs(index){
   document.querySelectorAll(`input[data-fixture="${index}"][data-field="x"]`).forEach(input=>{input.value=fmt(fixtures[index].x,3);});
   document.querySelectorAll(`input[data-fixture="${index}"][data-field="y"]`).forEach(input=>{input.value=fmt(fixtures[index].y,3);});
@@ -999,7 +1120,6 @@ function render(){
     ? 'Weights: A '+fmt(weights.wA,3)+' · B '+fmt(weights.wB,3)+' · C '+fmt(weights.wC,3)
     : 'Weights: invalid';
   renderPlane(target,weights);
-  renderResults(target,weights);
 }
 
 async function applyTargetToSelectedFixtures({silent=false}={}){
@@ -1050,7 +1170,6 @@ async function applyTargetToSelectedFixtures({silent=false}={}){
       errors.push(error.message||'Could not send DMX batch');
     }
   }
-  renderResults(target,weights);
   scheduleRoomPlaneAutosave();
   if(errors.length){
     setStatus('Applied target with errors: '+errors.join(' · '),true);
@@ -1136,8 +1255,8 @@ document.getElementById('deletePlaneDefinition').onclick=()=>{
   scheduleRoomPlaneAutosave();
   setStatus('Deleted plane');
 };
-document.getElementById('selectAllFixtures').onclick=()=>{fixtures.forEach((f,index)=>selectedFixtureIds.add(fixtureSelectionKey(f,index)));renderFixtureRows();render();setStatus('Selected all fixtures for plane target movement');};
-document.getElementById('clearFixtureSelection').onclick=()=>{selectedFixtureIds.clear();renderFixtureRows();render();setStatus('Cleared fixture target selection');};
+document.getElementById('selectAllFixtures').onclick=()=>{clearRoomGroupSelectionForManualSelection();fixtures.forEach((f,index)=>selectedFixtureIds.add(fixtureSelectionKey(f,index)));renderFixtureRows();render();setStatus('Selected all fixtures for plane target movement');};
+document.getElementById('clearFixtureSelection').onclick=()=>{clearRoomGroupSelectionForManualSelection();selectedFixtureIds.clear();renderFixtureRows();render();setStatus('Cleared fixture target selection');};
 document.getElementById('resetCalibration').onclick=()=>resetAllCalibration();
 document.getElementById('targetNudgeControls').addEventListener('click',event=>{
   const button=event.target.closest('[data-target-nudge-axis]');

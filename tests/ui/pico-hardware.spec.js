@@ -84,35 +84,59 @@ function heavyMotionDemoBody(slot = 0) {
   return lines.join('\n');
 }
 
-async function loadedSlotIndexes(request, kind) {
+async function getSlots(request, kind) {
   const json = await getJson(request, kind === 'chaser' ? '/chaser/slots' : '/motion/slots');
-  return (json.slots || []).map(s => Number(s.slot)).filter(Number.isFinite);
+  return json.slots || [];
 }
 
-async function startAllDemoPlaybackSlots(request) {
-  const chaserSlots = await loadedSlotIndexes(request, 'chaser');
-  const motionSlots = await loadedSlotIndexes(request, 'motion');
-  expect(chaserSlots.length, 'Expected firmware to report chaser slots').toBeGreaterThan(0);
-  expect(motionSlots.length, 'Expected firmware to report effect slots').toBeGreaterThan(0);
+function emptySlotIndexes(slots) {
+  return slots.filter(s => !s.loaded).map(s => Number(s.slot)).filter(Number.isFinite);
+}
 
-  for (const slot of chaserSlots) {
+async function clearTemporaryStressSlots(request, chaserSlots, motionSlots) {
+  for (const slot of chaserSlots || []) await getJson(request, '/chaser/clear/' + slot).catch(() => {});
+  for (const slot of motionSlots || []) await getJson(request, '/motion/clear/' + slot).catch(() => {});
+}
+
+async function startPlaybackWithTemporaryDemoSlots(request) {
+  const chaserSnapshot = await getSlots(request, 'chaser');
+  const motionSnapshot = await getSlots(request, 'motion');
+  const existingChaserSlots = chaserSnapshot.filter(s => s.loaded).map(s => Number(s.slot)).filter(Number.isFinite);
+  const existingMotionSlots = motionSnapshot.filter(s => s.loaded).map(s => Number(s.slot)).filter(Number.isFinite);
+  const tempChaserSlots = emptySlotIndexes(chaserSnapshot);
+  const tempMotionSlots = emptySlotIndexes(motionSnapshot);
+
+  expect(chaserSnapshot.length, 'Expected firmware to report chaser slots').toBeGreaterThan(0);
+  expect(motionSnapshot.length, 'Expected firmware to report effect slots').toBeGreaterThan(0);
+  expect(
+    existingChaserSlots.length + existingMotionSlots.length + tempChaserSlots.length + tempMotionSlots.length,
+    'Expected at least one loaded or empty Pico playback slot'
+  ).toBeGreaterThan(0);
+
+  for (const slot of tempChaserSlots) {
     await postText(request, '/chaser/load/' + slot, heavyChaserDemoBody(128, slot));
   }
-  for (const slot of motionSlots) {
+  for (const slot of tempMotionSlots) {
     await postText(request, '/motion/load/' + slot, heavyMotionDemoBody(slot));
   }
-  await waitForSlot(request, 'chaser', chaserSlots[chaserSlots.length - 1], s => s.loaded && Number(s.step_count) === 2);
-  await waitForSlot(request, 'motion', motionSlots[motionSlots.length - 1], s => s.loaded && Number(s.target_count || 0) === 8);
+  if (tempChaserSlots.length) {
+    await waitForSlot(request, 'chaser', tempChaserSlots[tempChaserSlots.length - 1], s => s.loaded && Number(s.step_count) === 2);
+  }
+  if (tempMotionSlots.length) {
+    await waitForSlot(request, 'motion', tempMotionSlots[tempMotionSlots.length - 1], s => s.loaded && Number(s.target_count || 0) === 8);
+  }
 
+  const chaserSlots = [...existingChaserSlots, ...tempChaserSlots];
+  const motionSlots = [...existingMotionSlots, ...tempMotionSlots];
   for (const slot of chaserSlots) {
     await getJson(request, '/chaser/play/' + slot);
   }
   for (const slot of motionSlots) {
     await getJson(request, '/motion/start/' + slot);
   }
-  await waitForSlot(request, 'chaser', chaserSlots[chaserSlots.length - 1], s => s.active);
-  await waitForSlot(request, 'motion', motionSlots[motionSlots.length - 1], s => s.active);
-  return { chaserSlots, motionSlots };
+  if (chaserSlots.length) await waitForSlot(request, 'chaser', chaserSlots[chaserSlots.length - 1], s => s.active);
+  if (motionSlots.length) await waitForSlot(request, 'motion', motionSlots[motionSlots.length - 1], s => s.active);
+  return { chaserSlots, motionSlots, tempChaserSlots, tempMotionSlots };
 }
 
 function paletteRecallBody(seed, channelCount = 512) {
@@ -367,8 +391,7 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await getJson(request, '/dmx/blackout/clear');
   });
 
-  test('All demo chaser and effect slots report maximum 100 Hz headroom impact', async ({ request }) => {
-    test.skip(!hardware.destructiveSlotStress, 'Set hardwareTests.destructiveSlotStress=true to overwrite every Pico chaser/effect slot for maximum-load testing.');
+  test('Temporary demo chaser and effect slots report maximum 100 Hz headroom impact', async ({ request }) => {
     await getJson(request, '/chaser/stop');
     await getJson(request, '/motion/stop');
     await getJson(request, '/dmx/master/clear');
@@ -379,9 +402,11 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     const idle = await readPerfStatus(request);
     let chaserSlots = [];
     let motionSlots = [];
+    let tempChaserSlots = [];
+    let tempMotionSlots = [];
 
     try {
-      ({ chaserSlots, motionSlots } = await startAllDemoPlaybackSlots(request));
+      ({ chaserSlots, motionSlots, tempChaserSlots, tempMotionSlots } = await startPlaybackWithTemporaryDemoSlots(request));
 
       await sleep(2300);
       const running = await readPerfStatus(request);
@@ -391,11 +416,13 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
       const detail = [
         `chaser slots ${chaserSlots.length}`,
         `effect slots ${motionSlots.length}`,
+        `temporary chaser slots ${tempChaserSlots.length}`,
+        `temporary effect slots ${tempMotionSlots.length}`,
         `idle mean ${idleCore0.work_us.mean}us peak ${idleCore0.work_us.peak}us min slack ${idleCore0.slack_us.min}us`,
         `running mean ${runningCore0.work_us.mean}us peak ${runningCore0.work_us.peak}us min slack ${runningCore0.slack_us.min}us`,
         `free RAM ${running.memory?.free_ram_bytes || 0} bytes`
       ].join(' | ');
-      console.log('100 Hz all-slot demo load: ' + detail);
+      console.log('100 Hz temporary-slot demo load: ' + detail);
 
       expect(runningCore0.late.count, detail).toBe(0);
       expect(runningCore0.slack_us.min, detail).toBeGreaterThan(1000);
@@ -403,11 +430,11 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     } finally {
       await getJson(request, '/chaser/stop').catch(() => {});
       await getJson(request, '/motion/stop').catch(() => {});
+      await clearTemporaryStressSlots(request, tempChaserSlots, tempMotionSlots);
     }
   });
 
-  test('Palette-style recalls during all playback slots keep Core0 and Core1 headroom', async ({ request }) => {
-    test.skip(!hardware.destructiveSlotStress, 'Set hardwareTests.destructiveSlotStress=true to overwrite every Pico chaser/effect slot for maximum-load testing.');
+  test('Palette-style recalls during temporary playback stress keep Core0 and Core1 headroom', async ({ request }) => {
     await getJson(request, '/chaser/stop');
     await getJson(request, '/motion/stop');
     await getJson(request, '/dmx/master/clear');
@@ -416,8 +443,10 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
 
     let chaserSlots = [];
     let motionSlots = [];
+    let tempChaserSlots = [];
+    let tempMotionSlots = [];
     try {
-      ({ chaserSlots, motionSlots } = await startAllDemoPlaybackSlots(request));
+      ({ chaserSlots, motionSlots, tempChaserSlots, tempMotionSlots } = await startPlaybackWithTemporaryDemoSlots(request));
       await sleep(2300);
       const playbackOnly = await readPerfStatus(request);
 
@@ -434,13 +463,15 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
       const detail = [
         `chaser slots ${chaserSlots.length}`,
         `effect slots ${motionSlots.length}`,
+        `temporary chaser slots ${tempChaserSlots.length}`,
+        `temporary effect slots ${tempMotionSlots.length}`,
         `palette recalls ${paletteCount}`,
         `playback mean ${playbackCore0.work_us.mean}us peak ${playbackCore0.work_us.peak}us min slack ${playbackCore0.slack_us.min}us`,
         `stressed mean ${stressedCore0.work_us.mean}us peak ${stressedCore0.work_us.peak}us min slack ${stressedCore0.slack_us.min}us`,
         `core1 min slack ${stressed.core1?.slack_us?.min ?? 'n/a'}us`,
         `http peak ${stressed.http?.work_us?.peak ?? 'n/a'}us`
       ].join(' | ');
-      console.log('100 Hz all-slot palette recall load: ' + detail);
+      console.log('100 Hz temporary-slot palette recall load: ' + detail);
 
       expect(stressedCore0.late.count, detail).toBe(0);
       expect(stressedCore0.slack_us.min, detail).toBeGreaterThan(1000);
@@ -450,6 +481,7 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     } finally {
       await getJson(request, '/chaser/stop').catch(() => {});
       await getJson(request, '/motion/stop').catch(() => {});
+      await clearTemporaryStressSlots(request, tempChaserSlots, tempMotionSlots);
     }
   });
 });

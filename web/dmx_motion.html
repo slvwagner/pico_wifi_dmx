@@ -2217,30 +2217,16 @@ const motionSavedEffectToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'motionSavedEffectBoxPos',
   uiStateCollapsedKey:'motionSavedEffectBoxCollapsed'
 });
-const motionEffectsCollapseGroup=[
-  {id:'motionEffectBox',toolbox:motionEffectToolbox},
-  {id:'motionSavedEffectBox',toolbox:motionSavedEffectToolbox}
-];
-function updateMotionEffectsCollapseButtons(){
-  const boxes=motionEffectsCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
-  const allCollapsed=boxes.length&&boxes.every(box=>box.classList.contains('collapsed'));
-  document.querySelectorAll('[data-collapse-group="motion-effects"]').forEach(btn=>{
-    btn.textContent=allCollapsed?'+ all':'-- all';
-    btn.title=allCollapsed?'Uncollapse all effect toolboxes':'Collapse all effect toolboxes';
-  });
-}
-function toggleMotionEffectsCollapseGroup(){
-  const boxes=motionEffectsCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
-  const collapse=boxes.some(box=>!box.classList.contains('collapsed'));
-  motionEffectsCollapseGroup.forEach(cfg=>cfg.toolbox?.setCollapsed?.(collapse,true));
-  updateMotionEffectsCollapseButtons();
-}
-document.querySelectorAll('[data-collapse-group="motion-effects"]').forEach(btn=>btn.addEventListener('click',toggleMotionEffectsCollapseGroup));
-['motionEffectBoxToggle','motionSavedEffectBoxToggle'].forEach(id=>{
-  document.getElementById(id)?.addEventListener('click',()=>setTimeout(updateMotionEffectsCollapseButtons,0));
+DmxCommon.initToolboxCollapseGroup({
+  group:'motion-effects',
+  items:[
+    {id:'motionEffectBox',toolbox:motionEffectToolbox},
+    {id:'motionSavedEffectBox',toolbox:motionSavedEffectToolbox}
+  ],
+  toggleIds:['motionEffectBoxToggle','motionSavedEffectBoxToggle'],
+  collapseTitle:'Collapse all effect toolboxes',
+  expandTitle:'Uncollapse all effect toolboxes'
 });
-updateMotionEffectsCollapseButtons();
-setTimeout(updateMotionEffectsCollapseButtons,500);
 const motionPaletteToolbox=DmxCommon.initFloatingToolbox({
   boxId:'motionPaletteBox',
   headerId:'motionPaletteHdr',

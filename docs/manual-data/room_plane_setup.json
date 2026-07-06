@@ -1,0 +1,335 @@
+{
+    "schemaVersion": 1,
+    "appVersion": "0.9.8",
+    "baseUrl": "http://192.168.0.24/",
+    "activePlaneId": "doc_main_stage",
+    "name": "Main stage plane",
+    "points": [
+        {
+            "id": "A",
+            "x": 0,
+            "y": 0,
+            "z": 0
+        },
+        {
+            "id": "B",
+            "x": 6,
+            "y": 0,
+            "z": 0
+        },
+        {
+            "id": "C",
+            "x": 0,
+            "y": 4,
+            "z": 0
+        }
+    ],
+    "target": {
+        "x": 2.4,
+        "y": 1.6,
+        "z": 0
+    },
+    "fixtures": [
+        {
+            "id": 1779345960283,
+            "name": "MAC XENON 1",
+            "profileId": 1778925611894,
+            "start": 79,
+            "live": true,
+            "x": -1.2,
+            "y": -1.8,
+            "z": 3.4,
+            "control": {
+                "pan": 28400,
+                "tilt": 38200,
+                "dimmer": 180
+            },
+            "cal": {
+                "A": {
+                    "pan": 20600,
+                    "tilt": 43000,
+                    "calibrated": true
+                },
+                "B": {
+                    "pan": 43800,
+                    "tilt": 42100,
+                    "calibrated": true
+                },
+                "C": {
+                    "pan": 24600,
+                    "tilt": 28500,
+                    "calibrated": true
+                }
+            }
+        },
+        {
+            "id": 1779345959308,
+            "name": "MAC XENON 2",
+            "profileId": 1778925611894,
+            "start": 92,
+            "live": true,
+            "x": 1.4,
+            "y": -1.8,
+            "z": 3.4,
+            "control": {
+                "pan": 32600,
+                "tilt": 37400,
+                "dimmer": 180
+            },
+            "cal": {
+                "A": {
+                    "pan": 23800,
+                    "tilt": 41900,
+                    "calibrated": true
+                },
+                "B": {
+                    "pan": 47200,
+                    "tilt": 43100,
+                    "calibrated": true
+                },
+                "C": {
+                    "pan": 28200,
+                    "tilt": 28100,
+                    "calibrated": true
+                }
+            }
+        },
+        {
+            "id": 1779345960046,
+            "name": "MAC XENON 3",
+            "profileId": 1778925611894,
+            "start": 105,
+            "live": true,
+            "x": 4.6,
+            "y": -1.8,
+            "z": 3.4,
+            "control": {
+                "pan": 37100,
+                "tilt": 36900,
+                "dimmer": 180
+            },
+            "cal": {
+                "A": {
+                    "pan": 26600,
+                    "tilt": 42100,
+                    "calibrated": true
+                },
+                "B": {
+                    "pan": 50800,
+                    "tilt": 43600,
+                    "calibrated": true
+                },
+                "C": {
+                    "pan": 32200,
+                    "tilt": 28600,
+                    "calibrated": true
+                }
+            }
+        },
+        {
+            "id": 1779345959395,
+            "name": "MAC XENON 4",
+            "profileId": 1778925611894,
+            "start": 118,
+            "live": true,
+            "x": 7.2,
+            "y": -1.8,
+            "z": 3.4,
+            "control": {
+                "pan": 41400,
+                "tilt": 36500,
+                "dimmer": 180
+            },
+            "cal": {
+                "A": {
+                    "pan": 29400,
+                    "tilt": 43100,
+                    "calibrated": true
+                },
+                "B": {
+                    "pan": 54000,
+                    "tilt": 44200,
+                    "calibrated": true
+                },
+                "C": {
+                    "pan": 35400,
+                    "tilt": 29200,
+                    "calibrated": true
+                }
+            }
+        }
+    ],
+    "view": {
+        "auto": true,
+        "centerX": 3,
+        "centerY": 1.1,
+        "zoom": 1
+    },
+    "planes": [
+        {
+            "id": "doc_main_stage",
+            "name": "Main stage plane",
+            "points": [
+                {
+                    "id": "A",
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                },
+                {
+                    "id": "B",
+                    "x": 6,
+                    "y": 0,
+                    "z": 0
+                },
+                {
+                    "id": "C",
+                    "x": 0,
+                    "y": 4,
+                    "z": 0
+                }
+            ],
+            "target": {
+                "x": 2.4,
+                "y": 1.6,
+                "z": 0
+            },
+            "fixtures": [
+                {
+                    "id": 1779345960283,
+                    "name": "MAC XENON 1",
+                    "profileId": 1778925611894,
+                    "start": 79,
+                    "live": true,
+                    "x": -1.2,
+                    "y": -1.8,
+                    "z": 3.4,
+                    "control": {
+                        "pan": 28400,
+                        "tilt": 38200,
+                        "dimmer": 180
+                    },
+                    "cal": {
+                        "A": {
+                            "pan": 20600,
+                            "tilt": 43000,
+                            "calibrated": true
+                        },
+                        "B": {
+                            "pan": 43800,
+                            "tilt": 42100,
+                            "calibrated": true
+                        },
+                        "C": {
+                            "pan": 24600,
+                            "tilt": 28500,
+                            "calibrated": true
+                        }
+                    }
+                },
+                {
+                    "id": 1779345959308,
+                    "name": "MAC XENON 2",
+                    "profileId": 1778925611894,
+                    "start": 92,
+                    "live": true,
+                    "x": 1.4,
+                    "y": -1.8,
+                    "z": 3.4,
+                    "control": {
+                        "pan": 32600,
+                        "tilt": 37400,
+                        "dimmer": 180
+                    },
+                    "cal": {
+                        "A": {
+                            "pan": 23800,
+                            "tilt": 41900,
+                            "calibrated": true
+                        },
+                        "B": {
+                            "pan": 47200,
+                            "tilt": 43100,
+                            "calibrated": true
+                        },
+                        "C": {
+                            "pan": 28200,
+                            "tilt": 28100,
+                            "calibrated": true
+                        }
+                    }
+                },
+                {
+                    "id": 1779345960046,
+                    "name": "MAC XENON 3",
+                    "profileId": 1778925611894,
+                    "start": 105,
+                    "live": true,
+                    "x": 4.6,
+                    "y": -1.8,
+                    "z": 3.4,
+                    "control": {
+                        "pan": 37100,
+                        "tilt": 36900,
+                        "dimmer": 180
+                    },
+                    "cal": {
+                        "A": {
+                            "pan": 26600,
+                            "tilt": 42100,
+                            "calibrated": true
+                        },
+                        "B": {
+                            "pan": 50800,
+                            "tilt": 43600,
+                            "calibrated": true
+                        },
+                        "C": {
+                            "pan": 32200,
+                            "tilt": 28600,
+                            "calibrated": true
+                        }
+                    }
+                },
+                {
+                    "id": 1779345959395,
+                    "name": "MAC XENON 4",
+                    "profileId": 1778925611894,
+                    "start": 118,
+                    "live": true,
+                    "x": 7.2,
+                    "y": -1.8,
+                    "z": 3.4,
+                    "control": {
+                        "pan": 41400,
+                        "tilt": 36500,
+                        "dimmer": 180
+                    },
+                    "cal": {
+                        "A": {
+                            "pan": 29400,
+                            "tilt": 43100,
+                            "calibrated": true
+                        },
+                        "B": {
+                            "pan": 54000,
+                            "tilt": 44200,
+                            "calibrated": true
+                        },
+                        "C": {
+                            "pan": 35400,
+                            "tilt": 29200,
+                            "calibrated": true
+                        }
+                    }
+                }
+            ],
+            "view": {
+                "auto": true,
+                "centerX": 3,
+                "centerY": 1.1,
+                "zoom": 1
+            }
+        }
+    ]
+}

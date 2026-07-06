@@ -10,7 +10,7 @@ Core features:
 
 - **Fixture Controller** — define fixture profiles, patch one or many fixtures, edit live values, recall Default/Blackout values, create fixture groups, save scenes, and build reusable palettes.
 - **Fixture Library** — load fixture profiles from the converted Open Fixture Library catalog, and export/import the fixture catalog itself when moving or replacing the library.
-- **Shared Toolboxes sidebar** — scenes, groups, palettes, fan out, chases, chase steps, playback, and effects live in a shared resizable sidebar. Layout, width, order, collapse state, and group selection are stored server-side and shared across pages.
+- **Shared Toolboxes sidebar** — scenes, groups, palettes, fan out, chases, chase steps, playback, effects, and room-plane tools live in a shared resizable sidebar. Layout, width, order, collapse state, group selection, and grouped collapse-all controls are stored or handled consistently across pages.
 - **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
 - **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
@@ -20,7 +20,7 @@ Core features:
 - **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control.
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, and write throughput against a real Pico.
-- **Room Plane Test** — prototype calibrated room-plane coordinate mapping for moving-light pan/tilt targeting.
+- **Room Plane Test** — prototype calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, and barycentric target interpolation.
 - **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico slot payloads, custom fixture library data, Show Run layout/Live Controls, and saved UI layout.
 - **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
 - **Release tooling** — scripts sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots, run tests, build firmware, and prepare release packages.
@@ -304,8 +304,7 @@ Edit `tests/pathconfig.local.json` for your machine:
   "xamppBaseUrl": "http://localhost/dmx-test/",
   "picoBaseUrl": "http://192.168.0.24/",
   "hardwareTests": {
-    "enabled": false,
-    "destructiveSlotStress": false
+    "enabled": false
   }
 }
 ```
@@ -324,7 +323,7 @@ Run real Pico hardware tests only when a Pico is connected and you accept that t
 npm run test:pico
 ```
 
-Keep `hardwareTests.destructiveSlotStress` set to `false` unless you explicitly want the maximum-load hardware tests to upload demo chases/effects into every Pico playback slot. That option is destructive for saved Pico slot contents.
+The playback stress checks fill only empty Pico playback slots with temporary demo data and clear those temporary slots afterward.
 
 After UI/manual changes, you can regenerate the deterministic documentation screenshots and dark-mode manual directly:
 
@@ -429,9 +428,8 @@ Copy-Item tests\pathconfig.example.json tests\pathconfig.local.json
 - `hardwareTests.enabled`: set to `true` only when the Pico is connected and available
 - `hardwareTests.dmxTestChannels`: channels the test may write while checking `/dmx/output.json`
 - `hardwareTests.chaserSlot` and `hardwareTests.motionSlot`: slots the test may overwrite while checking upload/play/stop behavior
-- `hardwareTests.destructiveSlotStress`: set to `true` only when the all-slot stress tests may overwrite every Pico chaser/effect slot
 
-The hardware tests are opt-in because they write real DMX values and overwrite the configured chaser/motion test slots. The all-slot stress tests stay skipped unless `destructiveSlotStress` is enabled. Run hardware tests explicitly with:
+The hardware tests are opt-in because they write real DMX values and overwrite the configured chaser/motion test slots. The playback stress checks use only empty slots for temporary demo data and clear those slots afterward. Run hardware tests explicitly with:
 
 ```powershell
 npm run test:pico
@@ -782,7 +780,7 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh interval and rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
 | Pico Performance Test | `web/dmx_benchmark.html` | Check Pico connectivity, read firmware `/perf/status.json` telemetry, verify DMX/base buffer readback, measure HTTP latency, and run all-slot playback plus palette-recall stress tests |
-| Room Plane Test | `web/dmx_room_plane.html` | Experimental calibrated 2D room-plane mapper for moving-light pan/tilt targeting |
+| Room Plane Test | `web/dmx_room_plane.html` | Experimental calibrated 2D room-plane mapper for moving-light pan/tilt targeting, saved planes, fixture calibration, and barycentric interpolation |
 
 ### Screenshots
 

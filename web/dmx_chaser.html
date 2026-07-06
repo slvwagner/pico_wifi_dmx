@@ -2492,33 +2492,21 @@ const fanToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'fanToolboxPos',
   uiStateCollapsedKey:'fanToolboxCollapsed'
 });
-const chaserPlaybackCollapseGroup=[
-  {id:'chaseBox',toolbox:chaseToolbox},
-  {id:'stepsBox',toolbox:stepsToolbox},
-  {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox}
-];
-function updateChaserPlaybackCollapseButtons(){
-  const boxes=chaserPlaybackCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
-  const allCollapsed=boxes.length&&boxes.every(box=>box.classList.contains('collapsed'));
-  document.querySelectorAll('[data-collapse-group="chaser-playback"]').forEach(btn=>{
-    btn.textContent=allCollapsed?'+ all':'-- all';
-    btn.title=allCollapsed?'Uncollapse all chaser playback toolboxes':'Collapse all chaser playback toolboxes';
-  });
-}
-function toggleChaserPlaybackCollapseGroup(){
-  localStorage.removeItem('chaserCompactState');
-  DmxCommon.saveUiState('chaser','chaserCompactState',null);
-  const boxes=chaserPlaybackCollapseGroup.map(cfg=>document.getElementById(cfg.id)).filter(Boolean);
-  const collapse=boxes.some(box=>!box.classList.contains('collapsed'));
-  chaserPlaybackCollapseGroup.forEach(cfg=>cfg.toolbox?.setCollapsed?.(collapse,true));
-  updateChaserPlaybackCollapseButtons();
-}
-document.querySelectorAll('[data-collapse-group="chaser-playback"]').forEach(btn=>btn.addEventListener('click',toggleChaserPlaybackCollapseGroup));
-['chaseBoxToggle','stepsBoxToggle','browserPlaybackBoxToggle'].forEach(id=>{
-  document.getElementById(id)?.addEventListener('click',()=>setTimeout(updateChaserPlaybackCollapseButtons,0));
+DmxCommon.initToolboxCollapseGroup({
+  group:'chaser-playback',
+  items:[
+    {id:'chaseBox',toolbox:chaseToolbox},
+    {id:'stepsBox',toolbox:stepsToolbox},
+    {id:'browserPlaybackBox',toolbox:browserPlaybackToolbox}
+  ],
+  toggleIds:['chaseBoxToggle','stepsBoxToggle','browserPlaybackBoxToggle'],
+  collapseTitle:'Collapse all chaser playback toolboxes',
+  expandTitle:'Uncollapse all chaser playback toolboxes',
+  beforeToggle(){
+    localStorage.removeItem('chaserCompactState');
+    DmxCommon.saveUiState('chaser','chaserCompactState',null);
+  }
 });
-updateChaserPlaybackCollapseButtons();
-setTimeout(updateChaserPlaybackCollapseButtons,500);
 ['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>localStorage.removeItem(key));
 ['chaseBoxPos','stepsBoxPos','browserPlaybackBoxPos','chaserCompactState'].forEach(key=>DmxCommon.saveUiState('chaser',key,null));
 loadChasesServer();

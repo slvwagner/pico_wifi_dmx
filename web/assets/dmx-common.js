@@ -1173,11 +1173,65 @@
     return {box,header,toggle,clamp:clampBox,applyPosition,applySize,setCollapsed};
   }
 
+  function initToolboxCollapseGroup(options){
+    const group=options?.group||'';
+    const items=(options?.items||[]).map(item=>({
+      id:item.id,
+      toolbox:item.toolbox,
+      box:item.box||document.getElementById(item.id)
+    }));
+    const selector=options?.selector||('[data-collapse-group="'+group+'"]');
+    const toggleIds=options?.toggleIds||items.map(item=>item.toolbox?.toggle?.id).filter(Boolean);
+    const expandedText=options?.expandedText||'-- all';
+    const collapsedText=options?.collapsedText||'+ all';
+    const collapseTitle=options?.collapseTitle||'Collapse all toolboxes';
+    const expandTitle=options?.expandTitle||'Uncollapse all toolboxes';
+    const beforeToggle=typeof options?.beforeToggle==='function'?options.beforeToggle:null;
+
+    function boxes(){
+      return items.map(item=>item.box||document.getElementById(item.id)).filter(Boolean);
+    }
+    function update(){
+      const currentBoxes=boxes();
+      const allCollapsed=currentBoxes.length&&currentBoxes.every(box=>box.classList.contains('collapsed'));
+      document.querySelectorAll(selector).forEach(btn=>{
+        btn.textContent=allCollapsed?collapsedText:expandedText;
+        btn.title=allCollapsed?expandTitle:collapseTitle;
+      });
+      return allCollapsed;
+    }
+    function setGroupCollapsed(collapse,save=true){
+      items.forEach(item=>item.toolbox?.setCollapsed?.(collapse,save));
+      update();
+    }
+    function toggle(){
+      const collapse=boxes().some(box=>!box.classList.contains('collapsed'));
+      if(beforeToggle)beforeToggle({collapse,items});
+      setGroupCollapsed(collapse,true);
+    }
+
+    document.querySelectorAll(selector).forEach(btn=>{
+      if(btn.dataset.toolboxCollapseGroupInit===group)return;
+      btn.dataset.toolboxCollapseGroupInit=group;
+      btn.addEventListener('click',toggle);
+    });
+    toggleIds.forEach(id=>{
+      const btn=document.getElementById(id);
+      if(!btn||btn.dataset.toolboxCollapseUpdateInit===group)return;
+      btn.dataset.toolboxCollapseUpdateInit=group;
+      btn.addEventListener('click',()=>setTimeout(update,0));
+    });
+    update();
+    setTimeout(update,500);
+    return {update,toggle,setCollapsed:setGroupCollapsed};
+  }
+
   function initGroupsToolbox(options){
     const page=options.page||'groups';
     const idPrefix=options.idPrefix||page+'Groups';
     const title=options.title||'Groups';
     const showEdit=!!options.showEdit;
+    const selectionOnly=!!options.selectionOnly;
     const host=options.host||document.body;
     const boxId=idPrefix+'Box';
     const headerId=idPrefix+'Hdr';
@@ -1204,9 +1258,9 @@
       </div>
       <div class="scene-toolbox__body">
         <div class="groups-toolbar">
-          <button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
+          ${selectionOnly?'':`<button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
           <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>
-          ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
+          ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}`}
           <div class="groups-layout-controls">
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="${rowsId}" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
@@ -1386,14 +1440,16 @@
     if(document.getElementById(idPrefix+'Export'))document.getElementById(idPrefix+'Export').onclick=exportGroups;
     if(document.getElementById(idPrefix+'Import'))document.getElementById(idPrefix+'Import').onclick=()=>document.getElementById(idPrefix+'ImportFile')?.click();
     if(document.getElementById(idPrefix+'ImportFile'))document.getElementById(idPrefix+'ImportFile').onchange=e=>{if(e.target.files[0])importGroups(e.target.files[0]);e.target.value='';};
-    document.getElementById(idPrefix+'Rename').onclick=()=>{
+    const renameButton=document.getElementById(idPrefix+'Rename');
+    if(renameButton)renameButton.onclick=()=>{
       const selected=selectedGroups();if(selected.length!==1)return;
       const g=selected[0];
       const name=(prompt('Group name:',g.name||'Group')||'').trim();
       if(!name||name===g.name)return;
       g.name=name;render('cols');saveGroups();
     };
-    document.getElementById(idPrefix+'Delete').onclick=()=>{
+    const deleteButton=document.getElementById(idPrefix+'Delete');
+    if(deleteButton)deleteButton.onclick=()=>{
       const selected=selectedGroups();if(!selected.length)return;
       const ids=new Set(selected.map(g=>g.id));
       if(!confirm('Delete '+selected.length+' selected group'+(selected.length===1?'':'s')+'?\n\n'+selected.map(g=>g.name).join(', ')))return;
@@ -2230,6 +2286,7 @@
     saveSharedGroupSelection,
     loadSharedGroupSelection,
     initToolboxRail,
+    initToolboxCollapseGroup,
     initFloatingToolbox,
     initGroupsToolbox,
     normalizeSlotVisual,

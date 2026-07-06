@@ -865,6 +865,76 @@ try {
     Save-ElementScreenshot "#cardLive" "show-run-live-controls.png"
     Save-ElementScreenshot "#cardLive" "show-run-live-timer-button.png"
 
+    $roomPlaneUrl = $BaseUrl.TrimEnd('/') + "/dmx_room_plane.html?docshot=$cacheBust"
+    Send-Cdp "Page.navigate" @{ url = $roomPlaneUrl } | Out-Null
+    Start-Sleep -Seconds 2
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<30;i++){
+    if(document.querySelector('#fixtureRows tr')&&document.querySelector('#roomPlaneBox'))break;
+    await wait(250);
+  }
+  if(typeof points!=='undefined'&&typeof fixtures!=='undefined'){
+    activePlaneId='doc_main_stage';
+    document.getElementById('planeName').value='Main stage plane';
+    document.getElementById('targetX').value='2.4';
+    document.getElementById('targetY').value='1.6';
+    points.splice(0,points.length,
+      {id:'A',x:0,y:0,z:0},
+      {id:'B',x:6,y:0,z:0},
+      {id:'C',x:0,y:4,z:0}
+    );
+    fixtures=[
+      {id:1779345960283,name:'MAC XENON 1',profileId:1778925611894,start:79,live:true,x:-1.2,y:-1.8,z:3.4,control:{pan:28400,tilt:38200,dimmer:180},cal:{A:{pan:20600,tilt:43000,calibrated:true},B:{pan:43800,tilt:42100,calibrated:true},C:{pan:24600,tilt:28500,calibrated:true}}},
+      {id:1779345959308,name:'MAC XENON 2',profileId:1778925611894,start:92,live:true,x:1.4,y:-1.8,z:3.4,control:{pan:32600,tilt:37400,dimmer:180},cal:{A:{pan:23800,tilt:41900,calibrated:true},B:{pan:47200,tilt:43100,calibrated:true},C:{pan:28200,tilt:28100,calibrated:true}}},
+      {id:1779345960046,name:'MAC XENON 3',profileId:1778925611894,start:105,live:true,x:4.6,y:-1.8,z:3.4,control:{pan:37100,tilt:36900,dimmer:180},cal:{A:{pan:26600,tilt:42100,calibrated:true},B:{pan:50800,tilt:43600,calibrated:true},C:{pan:32200,tilt:28600,calibrated:true}}},
+      {id:1779345959395,name:'MAC XENON 4',profileId:1778925611894,start:118,live:true,x:7.2,y:-1.8,z:3.4,control:{pan:41400,tilt:36500,dimmer:180},cal:{A:{pan:29400,tilt:43100,calibrated:true},B:{pan:54000,tilt:44200,calibrated:true},C:{pan:35400,tilt:29200,calibrated:true}}}
+    ];
+    planeView={auto:true,centerX:3,centerY:1.1,zoom:1};
+    selectedFixtureIds.clear();
+    selectedFixtureIds.add(String(fixtures[0].id));
+    selectedFixtureIds.add(String(fixtures[1].id));
+    planeDefinitions=[capturePlaneDefinition()];
+    if(typeof syncTables==='function')syncTables();
+    if(typeof renderPlaneSelect==='function')renderPlaneSelect();
+    if(typeof setStatus==='function')setStatus('Manual screenshot room plane ready');
+  }
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail&&rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  document.querySelectorAll('.scene-toolbox').forEach(box=>{
+    const toggle=box.querySelector('.scene-toolbox__toggle');
+    if(box.classList.contains('collapsed')&&toggle)toggle.click();
+  });
+  window.scrollTo(0,0);
+  document.querySelector('main')?.scrollTo?.(0,0);
+  await wait(300);
+})()
+"@
+    Save-Screenshot "room-plane.png"
+    Save-ElementScreenshot "#roomPlaneBox" "room-plane-toolbox-plane.png"
+    Save-ElementScreenshot "#roomPlaneLibraryBox" "room-plane-toolbox-saved-planes.png"
+    Save-ElementScreenshot "#roomFixturesBox" "room-plane-toolbox-fixtures.png"
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.querySelector('[data-edit-fixture="0"]')?.click();
+  await wait(500);
+  const card=document.querySelector('#commonPanTiltDimmerModal .modal-card');
+  const body=document.querySelector('#commonPanTiltDimmerModal .modal-body');
+  const pad=document.querySelector('#commonPanTiltDimmerModal [data-ptd-xy]');
+  if(card){
+    card.style.maxHeight='none';
+    card.style.width='760px';
+  }
+  if(body)body.style.gap='8px';
+  if(pad)pad.style.height='170px';
+})()
+"@
+    Save-ElementScreenshot "#commonPanTiltDimmerModal .modal-card" "room-plane-fixture-editor.png"
+
     $chaserUrl = $BaseUrl.TrimEnd('/') + "/dmx_chaser.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $chaserUrl } | Out-Null
     Start-Sleep -Seconds 2
