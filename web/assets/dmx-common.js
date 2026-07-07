@@ -367,6 +367,62 @@
     return null;
   }
 
+  function hexByte(value){
+    return clampInt(value,0,255).toString(16).padStart(2,'0');
+  }
+
+  function rgbHex(value){
+    const v=value||{};
+    return '#'+hexByte(v.a)+hexByte(v.b)+hexByte(v.c);
+  }
+
+  function cmyHex(value){
+    const v=value||{};
+    return '#'+hexByte(255-(Number(v.a)||0))+hexByte(255-(Number(v.b)||0))+hexByte(255-(Number(v.c)||0));
+  }
+
+  function cmykHex(value){
+    const v=value||{};
+    const k=Number(v.k)||0;
+    return '#'+hexByte(Math.round(255*(1-(Number(v.a)||0)/255)*(1-k/255)))+
+      hexByte(Math.round(255*(1-(Number(v.b)||0)/255)*(1-k/255)))+
+      hexByte(Math.round(255*(1-(Number(v.c)||0)/255)*(1-k/255)));
+  }
+
+  function hexToRgb(hex){
+    const match=String(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);
+    const n=parseInt(match?match[1]:'000000',16);
+    return {a:(n>>16)&255,b:(n>>8)&255,c:n&255};
+  }
+
+  function rgbToCmy(hex){
+    const rgb=hexToRgb(hex);
+    return {a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};
+  }
+
+  function rgbToCmyk(hex){
+    const rgb=hexToRgb(hex);
+    const r=rgb.a/255,g=rgb.b/255,b=rgb.c/255;
+    const k=1-Math.max(r,g,b);
+    if(k>=1)return {a:0,b:0,c:0,k:255};
+    return {
+      a:Math.round((1-r-k)/(1-k)*255),
+      b:Math.round((1-g-k)/(1-k)*255),
+      c:Math.round((1-b-k)/(1-k)*255),
+      k:Math.round(k*255)
+    };
+  }
+
+  function wheelOptionIconHtml(option,escape=escapeHtml){
+    if(!option)return '';
+    const image=option.image||option.icon||option.resource;
+    const color=option.color||(Array.isArray(option.colors)?option.colors[0]:null);
+    const style=[];
+    if(color)style.push('background-color:'+escape(color));
+    if(image)style.push("background-image:url('"+escape(String(image).replace(/'/g,'%27'))+"')");
+    return style.length?'<span class="option-icon" style="'+style.join(';')+'"></span>':'';
+  }
+
   function wheelOptionValue(option){
     const range=wheelOptionRange(option);
     if(range)return Math.round((range[0]+range[1])/2);
@@ -2672,6 +2728,14 @@
     mountFanOutToolbox,
     createFanOutController,
     wheelOptionRange,
+    hexByte,
+    rgbHex,
+    cmyHex,
+    cmykHex,
+    hexToRgb,
+    rgbToCmy,
+    rgbToCmyk,
+    wheelOptionIconHtml,
     wheelOptionValue,
     wheelOptionMatches,
     selectedWheelOption,

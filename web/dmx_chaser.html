@@ -26,7 +26,6 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 .xy-dot{width:14px;height:14px}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
-.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 .columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
 .chaser-card-rows{display:grid;gap:16px}
 .panel.collapsed-panel .panel-body{display:none}
@@ -409,13 +408,12 @@ function populatePicoSlotSelect(){
 populatePicoSlotSelect();
 document.getElementById('stepMax').textContent=CHASER_MAX_STEPS;
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
-function hex2(n){return clamp(n,0,255).toString(16).padStart(2,'0');}
-function rgbHex(v){return '#'+hex2(v.a)+hex2(v.b)+hex2(v.c);}
-function cmyHex(v){return '#'+hex2(255-v.a)+hex2(255-v.b)+hex2(255-v.c);}
-function cmykHex(v){return '#'+hex2(Math.round(255*(1-v.a/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.b/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.c/255)*(1-v.k/255)));}
-function hexToRgb(hex){const m=(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);const n=parseInt(m?m[1]:'000000',16);return{a:(n>>16)&255,b:(n>>8)&255,c:n&255};}
-function rgbToCmy(hex){const r=hexToRgb(hex);return{a:255-r.a,b:255-r.b,c:255-r.c};}
-function rgbToCmyk(hex){const r=hexToRgb(hex);const rv=r.a/255,g=r.b/255,b=r.c/255;const k=1-Math.max(rv,g,b);if(k>=1)return{a:0,b:0,c:0,k:255};return{a:Math.round((1-rv-k)/(1-k)*255),b:Math.round((1-g-k)/(1-k)*255),c:Math.round((1-b-k)/(1-k)*255),k:Math.round(k*255)};}
+const rgbHex=DmxCommon.rgbHex;
+const cmyHex=DmxCommon.cmyHex;
+const cmykHex=DmxCommon.cmykHex;
+const hexToRgb=DmxCommon.hexToRgb;
+const rgbToCmy=DmxCommon.rgbToCmy;
+const rgbToCmyk=DmxCommon.rgbToCmyk;
 function lerp(a,b,t){return a+(b-a)*t;}
 function interpolateValue(from,to,t){
   if(t<=0)return from;if(t>=1)return to;
@@ -765,10 +763,9 @@ function renderChaserGroupControl(c){
   }
   if(c.type==='wheel'){
     const wv=v??0;
-    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
     const active=selectedWheelOption(c,wv);
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}${active?' · '+escAttr(active.name):''}</span></div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab${wheelOptionMatches(o,wv)?' active':''}" title="${escAttr(wheelOptionTitle(o))}" data-cg-wheel="${wheelOptionValue(o)}" data-cg-wheel-option-index="${i}" ${gca}>${icon(o)}${escAttr(o.name)}</button>`).join('')}</div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab${wheelOptionMatches(o,wv)?' active':''}" title="${escAttr(wheelOptionTitle(o))}" data-cg-wheel="${wheelOptionValue(o)}" data-cg-wheel-option-index="${i}" ${gca}>${DmxCommon.wheelOptionIconHtml(o,escAttr)}${escAttr(o.name)}</button>`).join('')}</div>
       <div data-cg-wheel-range-host="${key}">${wheelRangeSliderHtml(active,wv,gca,escAttr)}</div>
       <input type="range" min="0" max="255" value="${wv}" ${gca}></div>`;
   }
@@ -1926,10 +1923,9 @@ function renderStepControl(f,c){
   }
   if(c.type==='wheel'){
     const wv=v??0;
-    const icon=o=>o.image?`<span class="option-icon" style="background-image:url('${o.image}')"></span>`:(o.color?`<span class="option-icon" style="background:${o.color}"></span>`:'');
     const active=selectedWheelOption(c,wv);
     return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-readoutf="${fi}" data-readoutc="${ci}">CH ${absolute(f.start,c.channel)} · ${wv}${active?' · '+escAttr(active.name):''}</span></div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab${wheelOptionMatches(o,wv)?' active':''}" title="${escAttr(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fi="${fi}" data-ci="${ci}">${icon(o)}${escAttr(o.name)}</button>`).join('')}</div>
+      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab${wheelOptionMatches(o,wv)?' active':''}" title="${escAttr(wheelOptionTitle(o))}" data-wheel="${wheelOptionValue(o)}" data-wheel-option-index="${i}" data-fi="${fi}" data-ci="${ci}">${DmxCommon.wheelOptionIconHtml(o,escAttr)}${escAttr(o.name)}</button>`).join('')}</div>
       <div data-wheel-range-host="${fi}:${ci}">${wheelRangeSliderHtml(active,wv,`data-fi="${fi}" data-ci="${ci}"`,escAttr)}</div>
       <div class="value-row"><input type="range" min="0" max="255" value="${wv}" data-fi="${fi}" data-ci="${ci}"><input type="number" min="0" max="255" step="1" value="${wv}" data-fi="${fi}" data-ci="${ci}"></div></div>`;
   }

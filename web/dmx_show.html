@@ -608,28 +608,12 @@ function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
 function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function bytes16(v){const n=clamp(v,0,65535);return{coarse:(n>>8)&255,fine:n&255};}
-function hex2(n){return clamp(n,0,255).toString(16).padStart(2,'0');}
-function rgbHex(v){return '#'+hex2(v.a)+hex2(v.b)+hex2(v.c);}
-function cmyHex(v){return '#'+hex2(255-v.a)+hex2(255-v.b)+hex2(255-v.c);}
-function cmykHex(v){
-  return '#'+hex2(Math.round(255*(1-v.a/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.b/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.c/255)*(1-v.k/255)));
-}
-function hexToRgb(hex){
-  const m=(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);
-  const n=parseInt(m?m[1]:'000000',16);
-  return {a:(n>>16)&255,b:(n>>8)&255,c:n&255};
-}
-function rgbToCmy(hex){
-  const rgb=hexToRgb(hex);
-  return {a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};
-}
-function rgbToCmyk(hex){
-  const rgb=hexToRgb(hex);
-  const r=rgb.a/255,g=rgb.b/255,b=rgb.c/255;
-  const k=1-Math.max(r,g,b);
-  if(k>=1)return {a:0,b:0,c:0,k:255};
-  return {a:Math.round((1-r-k)/(1-k)*255),b:Math.round((1-g-k)/(1-k)*255),c:Math.round((1-b-k)/(1-k)*255),k:Math.round(k*255)};
-}
+const rgbHex=DmxCommon.rgbHex;
+const cmyHex=DmxCommon.cmyHex;
+const cmykHex=DmxCommon.cmykHex;
+const hexToRgb=DmxCommon.hexToRgb;
+const rgbToCmy=DmxCommon.rgbToCmy;
+const rgbToCmyk=DmxCommon.rgbToCmyk;
 const wheelOptionValue=DmxCommon.wheelOptionValue;
 const wheelOptionMatches=DmxCommon.wheelOptionMatches;
 const selectedWheelOption=DmxCommon.selectedWheelOption;
@@ -637,13 +621,7 @@ const wheelOptionTitle=DmxCommon.wheelOptionTitle;
 const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
 const wheelOptionRange=DmxCommon.wheelOptionRange;
 const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
-function wheelOptionIconHtml(option){
-  if(!option)return '';
-  const image=option.image?`background-image:url('${esc(option.image)}')`:null;
-  const color=option.color?`background:${esc(option.color)}`:null;
-  const style=[image||color].filter(Boolean).join(';');
-  return style?`<span class="option-icon" style="${style}"></span>`:'';
-}
+const wheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
 function updateWheelRangeHost(host,option,value,attrs){
   if(!host)return;
   const range=wheelOptionRange(option);

@@ -1559,13 +1559,7 @@ function roomWheelOptionValue(option){
   if(Array.isArray(option?.dmxRange))return Math.round(((Number(option.dmxRange[0])||0)+(Number(option.dmxRange[1])||0))/2);
   return Math.max(0,Math.min(255,Number(option?.value)||0));
 }
-function roomWheelOptionIconHtml(option){
-  const image=option?.image||option?.icon||option?.resource;
-  const color=option?.color||option?.colors?.[0];
-  if(image)return '<span class="wheel-option-icon" style="background-image:url('+DmxCommon.escapeHtml(String(image))+')"></span>';
-  if(color)return '<span class="wheel-option-icon" style="background:'+DmxCommon.escapeHtml(String(color))+'"></span>';
-  return '';
-}
+const roomWheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
 function roomGroupRelativeHtml(key,part,kind,max,step,label){
   return `<div class="relative-control"><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="-1" data-relative-step-default="${step}">-</button><label>${DmxCommon.escapeHtml(label)}<input type="number" min="1" max="${max}" step="1" value="${step}" data-relative-step></label><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="1" data-relative-step-default="${step}">+</button></div>`;
 }
