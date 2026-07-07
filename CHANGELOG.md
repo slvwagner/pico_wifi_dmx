@@ -17,6 +17,7 @@ Changed:
 - Added common **Move** tile controls to Chaser and Effects toolbox matrices, including Groups, Chases, Palettes, Effects, and Planes, with regression coverage for click-to-move and slot swaps.
 - Chaser can now recall a saved room plane into the selected chase step, and Effects can recall a saved room plane as the current pan/tilt effect center.
 - Updated the shared Groups toolbox so all pages use tile-level pencil and `x` actions for renaming/visual editing and deleting groups, removing the older Rename/Delete action buttons.
+- Added **Group Edit** to the Show Run Groups card so the current show target can be edited with a Controller-style modal while still sending live values through Show Run's master-aware output path.
 
 ## 0.9.7 - 2026-07-05
 

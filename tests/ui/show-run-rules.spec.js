@@ -69,7 +69,7 @@ async function routeShowSetup(page, calls) {
       body: JSON.stringify({
         ok: true,
         exists: true,
-        groups: [
+        groups: calls.groups || [
           { id: 'front', name: 'Front Spots', fixtureIds: [101], values: {} },
           { id: 'back', name: 'Back Spots', fixtureIds: [102], values: {} }
         ]
@@ -266,6 +266,33 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
     expect(calls.liveValues.at(-1)).toEqual({ '102:11': 200 });
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('opens Group Edit from the Groups card and applies controls to the selected group target', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      groups: [
+        { id: 'both', name: 'Both Spots', fixtureIds: [101, 102], values: {} }
+      ]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="both"]').click();
+    await page.locator('#showGroupEditBtn').click();
+
+    await expect(page.locator('#showGroupModal')).toBeVisible();
+    await expect(page.locator('#showGroupModalTitle')).toContainText('2 fixtures');
+    const dimmer = page.locator('[data-show-group-number][data-part="value"]').first();
+    await expect(dimmer).toBeVisible();
+    await dimmer.fill('77');
+
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:11': 77, '102:11': 77 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:77') && call.body.includes('11:77'))).toBe(true);
+    await expect(page.locator('#status')).toContainText('Group Edit Dimmer -> 2 fixtures');
     expect(calls.setupWrites).toBe(0);
   });
 

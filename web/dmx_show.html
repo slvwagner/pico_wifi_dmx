@@ -136,6 +136,14 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 body.layout-editing .master-target-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 body.layout-editing .master-edit-actions{display:flex}
 .show-plane-modal .modal{width:min(920px,calc(100vw - 32px));max-width:920px}
+.show-group-modal .modal{width:min(920px,calc(100vw - 32px));max-width:920px}
+.show-group-controls{display:grid;gap:10px}
+.show-group-control{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:10px}
+.show-group-control h3{margin:0;font-size:15px}
+.show-group-control-row{display:grid;grid-template-columns:minmax(88px,130px) minmax(0,1fr) minmax(78px,100px);gap:8px;align-items:end}
+.show-group-control-row input[type=range]{width:100%;padding:0}
+.show-group-control-row input[type=number]{width:100%;min-width:0}
+.show-group-relative{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .show-plane-layout{display:grid;gap:12px}
 .show-plane-view{display:flex;gap:8px;flex-wrap:wrap}
 .show-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
@@ -253,6 +261,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         <div class="small">Select one or more groups to limit scene, palette, and blackout recalls. With no group selected, recalls use all stored fixture values.</div>
       </div>
       <div class="panel-tools">
+        <button id="showGroupEditBtn" type="button" class="primary">Group Edit</button>
         <div id="targetSummary" class="small"></div>
         <div class="matrix-tools layout-tools" aria-label="Show target matrix layout">
           <label>Cols<input id="groupCols" type="number" min="1" max="8" value="2"></label>
@@ -464,6 +473,22 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 </div>
 </div>
 
+<div id="showGroupModal" class="modal-overlay show-group-modal" style="display:none">
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="showGroupModalTitle">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<h2 id="showGroupModalTitle">Group Edit</h2>
+<button id="showGroupModalClose" style="font-size:16px;padding:6px 14px" aria-label="Close">x</button>
+</div>
+<div class="modal-body">
+<div class="small" id="showGroupModalHint"></div>
+<div id="showGroupModalBody" class="show-group-controls"></div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="showGroupModalClose2">Close</button>
+</div>
+</div>
+</div>
+
 <div id="showTileVisualModal" class="modal-overlay" style="display:none">
 <div class="modal">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
@@ -671,6 +696,111 @@ function filteredValues(source){
 function fixtureIdsFromValues(source){
   return [...new Set(Object.keys(source||{}).map(key=>String(key).split(':')[0]).filter(Boolean))];
 }
+function showGroupEditFixtureRows(){
+  const ids=activeTargetFixtureIds();
+  return fixtures.filter(f=>ids.has(String(f.id))).map(f=>({fixture:f,profile:fixtureProfile(f)})).filter(row=>row.profile);
+}
+function showGroupControlIdentity(c){
+  const label=String(c.scope||c.label||c.name||c.type||'Control').trim().toLowerCase();
+  if(c.type==='panTilt16'||c.type==='panTilt8')return 'panTilt';
+  if(c.type==='matrixRgb')return '';
+  const parts=scalarControlParts(c).map(part=>part.part+':'+part.max).join('|');
+  return (c.type||'slider8')+':'+label+':'+parts;
+}
+function showGroupControlLabel(c){
+  if(c.type==='panTilt16'||c.type==='panTilt8')return 'Pan / Tilt';
+  return c.label||c.scope||c.name||c.type||'Control';
+}
+function showGroupEditControls(){
+  const rows=showGroupEditFixtureRows();
+  const map=new Map();
+  rows.forEach(row=>{
+    (row.profile.controls||[]).forEach(control=>{
+      if(control.type==='matrixRgb')return;
+      const parts=scalarControlParts(control);
+      if(!parts.length)return;
+      const key=showGroupControlIdentity(control);
+      if(!key)return;
+      if(!map.has(key))map.set(key,{key,control,targets:[]});
+      map.get(key).targets.push({fixture:row.fixture,control});
+    });
+  });
+  return [...map.values()].sort((a,b)=>showGroupControlLabel(a.control).localeCompare(showGroupControlLabel(b.control)));
+}
+function showGroupSourceTarget(row){
+  return row?.targets?.[0]||null;
+}
+function showGroupPatchForTargets(targets){
+  const patch={};
+  (targets||[]).forEach(target=>{patch[controlKey(target.fixture,target.control)]=cloneValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)));});
+  return patch;
+}
+async function sendShowGroupPatch(targets){
+  const patch=showGroupPatchForTargets(targets);
+  if(!Object.keys(patch).length)return;
+  try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
+  await sendValuePatchWithMasterMask(patch);
+}
+function showGroupRelativeControlHtml(key,part,step,label){
+  return `<div class="relative-control">
+<button type="button" data-show-group-relative="${esc(key)}" data-part="${esc(part.part)}" data-dir="-1">-</button>
+<label>${esc(label)}<input type="number" min="1" max="${part.max}" step="1" value="${step}" data-show-group-step="${esc(key)}:${esc(part.part)}:${step}"></label>
+<button type="button" data-show-group-relative="${esc(key)}" data-part="${esc(part.part)}" data-dir="1">+</button>
+</div>`;
+}
+function showGroupControlHtml(row){
+  const target=showGroupSourceTarget(row);
+  const c=row.control;
+  const sourceName=target?.fixture?.name||'Source';
+  const parts=scalarControlParts(c);
+  const partRows=parts.map(part=>{
+    const value=target?getControlPartValue(target.fixture,target.control,part.part):0;
+    return `<div class="show-group-control-row" data-show-group-part-row="${esc(row.key)}:${esc(part.part)}">
+<label>${esc(part.label)}<input type="number" min="0" max="${part.max}" step="1" value="${value}" data-show-group-number="${esc(row.key)}" data-part="${esc(part.part)}"></label>
+<input type="range" min="0" max="${part.max}" step="1" value="${value}" data-show-group-slider="${esc(row.key)}" data-part="${esc(part.part)}">
+<div class="small" data-show-group-readout="${esc(row.key)}:${esc(part.part)}">${value}</div>
+</div>`;
+  }).join('');
+  const relative=parts.map(part=>{
+    const step=part.max>255?256:1;
+    const fine=part.max>255?showGroupRelativeControlHtml(row.key,part,1,part.label+' fine'):'';
+    return showGroupRelativeControlHtml(row.key,part,step,part.label+(part.max>255?' coarse':' relative'))+fine;
+  }).join('');
+  return `<section class="show-group-control" data-show-group-control="${esc(row.key)}">
+<div>
+<h3>${esc(showGroupControlLabel(c))}</h3>
+<div class="small">${row.targets.length} fixture(s) · source ${esc(sourceName)} · ${esc(c.type||'control')}</div>
+</div>
+${partRows}
+<div class="show-group-relative">${relative}</div>
+</section>`;
+}
+function refreshShowGroupControlRow(rowKey,part){
+  const row=showGroupEditControls().find(item=>item.key===rowKey);
+  const target=showGroupSourceTarget(row);
+  if(!row||!target)return;
+  const value=getControlPartValue(target.fixture,target.control,part);
+  document.querySelectorAll(`[data-show-group-slider="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"],[data-show-group-number="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"]`).forEach(input=>{input.value=value;});
+  document.querySelectorAll(`[data-show-group-readout="${CSS.escape(rowKey+':'+part)}"]`).forEach(el=>{el.textContent=value;});
+}
+function updateShowGroupEditButton(){
+  const btn=document.getElementById('showGroupEditBtn');
+  if(!btn)return;
+  const targets=showGroupEditFixtureRows();
+  const controls=targets.length?showGroupEditControls():[];
+  btn.disabled=!targets.length||!controls.length;
+  btn.title=btn.disabled?'No editable fixture controls in the current show target':'Edit controls for the current show target';
+}
+function openShowGroupEditModal(){
+  const targets=showGroupEditFixtureRows();
+  const controls=showGroupEditControls();
+  if(!targets.length||!controls.length){setStatus('Select a group or fixture with editable controls first',true);updateShowGroupEditButton();return;}
+  document.getElementById('showGroupModalTitle').textContent='Group Edit - '+targets.length+' fixture'+(targets.length===1?'':'s');
+  document.getElementById('showGroupModalHint').textContent='Edits apply to the current Show target. The first fixture in the target is used as the source value.';
+  document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
+  DmxCommon.showModal('showGroupModal');
+}
+function closeShowGroupEditModal(){DmxCommon.hideModal('showGroupModal');}
 function savedValue(key){
   return showUiState&&Object.prototype.hasOwnProperty.call(showUiState,key)?showUiState[key]:localStorage.getItem(layoutKey(key));
 }
@@ -2031,6 +2161,7 @@ function renderLiveControls(){
 function renderGroups(){
   normalizeGroupGrid('cols');
   targetSummary();
+  updateShowGroupEditButton();
   const grid=document.getElementById('groupGrid');
   renderGroupGrid(grid,'group',groupCols,groupRows);
   renderRepeatedCards();
@@ -2038,6 +2169,7 @@ function renderGroups(){
 function renderFixtures(){
   normalizeFixtureGrid('cols');
   targetSummary();
+  updateShowGroupEditButton();
   const grid=document.getElementById('fixtureGrid');
   renderFixtureGrid(grid,'fixture',fixtureCols,fixtureRows);
   renderRepeatedCards();
@@ -3362,7 +3494,41 @@ document.addEventListener('click',e=>{
 document.getElementById('reloadBtn').onclick=()=>DmxCommon.withButtonFeedback('reloadBtn',{busy:'Refreshing...',success:'Refreshed',error:'Failed'},()=>refreshShowData({reason:'manual'})).catch(err=>setStatus(err.message,true));
 bindMidiCards();
 bindMasterCard();
-document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();selectedFixtureIds.clear();renderGroups();renderFixtures();setStatus('Show target reset to all fixtures');};
+document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();selectedFixtureIds.clear();renderGroups();renderFixtures();updateShowGroupEditButton();setStatus('Show target reset to all fixtures');};
+document.getElementById('showGroupEditBtn').onclick=openShowGroupEditModal;
+document.getElementById('showGroupModalClose').onclick=closeShowGroupEditModal;
+document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
+document.getElementById('showGroupModalBody').addEventListener('input',e=>{
+  const input=e.target.closest?.('[data-show-group-slider],[data-show-group-number]');
+  if(!input)return;
+  const key=input.dataset.showGroupSlider||input.dataset.showGroupNumber;
+  const part=input.dataset.part;
+  const row=showGroupEditControls().find(item=>item.key===key);
+  const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
+  if(!row||!partInfo)return;
+  const value=clamp(input.value,0,partInfo.max);
+  row.targets.forEach(target=>setControlPartValue(target.fixture,target.control,part,value));
+  refreshShowGroupControlRow(key,part);
+  sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+});
+document.getElementById('showGroupModalBody').addEventListener('click',e=>{
+  const btn=e.target.closest?.('[data-show-group-relative]');
+  if(!btn)return;
+  const key=btn.dataset.showGroupRelative;
+  const part=btn.dataset.part;
+  const row=showGroupEditControls().find(item=>item.key===key);
+  const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
+  if(!row||!partInfo)return;
+  const stepInput=btn.closest('.relative-control')?.querySelector('input[type=number]');
+  const step=Math.max(1,Math.min(partInfo.max,parseInt(stepInput?.value,10)||1));
+  const dir=parseInt(btn.dataset.dir,10)||1;
+  row.targets.forEach(target=>{
+    const next=getControlPartValue(target.fixture,target.control,part)+dir*step;
+    setControlPartValue(target.fixture,target.control,part,next);
+  });
+  refreshShowGroupControlRow(key,part);
+  sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' nudged')).catch(err=>setStatus(err.message,true));
+});
 document.getElementById('stopChaserBtn').onclick=()=>DmxCommon.withButtonFeedback('stopChaserBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('chaser')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopMotionBtn').onclick=()=>DmxCommon.withButtonFeedback('stopMotionBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('motion')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopAllBtn').onclick=()=>DmxCommon.withButtonFeedback('stopAllBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},async()=>{await Promise.allSettled([stopPico('chaser'),stopPico('motion')]);setStatus('All Pico playback stopped');}).catch(err=>setStatus(err.message,true));
