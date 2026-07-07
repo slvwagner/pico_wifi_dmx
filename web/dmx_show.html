@@ -524,34 +524,34 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 </div>
 </div>
 
-<div id="hiddenTileModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Hidden Show Items</h2>
-<button id="hiddenTileClose" style="font-size:16px;padding:6px 14px">x</button>
+<div id="hiddenTileModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hiddenTileTitle">
+<div class="modal-head">
+<button id="hiddenTileClose" type="button" aria-label="Close">x</button>
+<h2 id="hiddenTileTitle">Hidden Show Items</h2>
 </div>
 <div class="modal-body">
 <div class="small">Some show items are outside the visible rows and columns. Expand the section, or place an item into a free visible tile.</div>
 <div id="hiddenTileList" style="display:grid;gap:8px"></div>
 </div>
-<div class="buttons" style="padding-top:4px">
-<button id="hiddenTileClose2">Close</button>
+<div class="modal-actions">
+<button id="hiddenTileClose2" type="button">Close</button>
 </div>
 </div>
 </div>
 
-<div id="addCardModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Add Card</h2>
-<button id="addCardClose" style="font-size:16px;padding:6px 14px">x</button>
+<div id="addCardModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addCardTitle">
+<div class="modal-head">
+<button id="addCardClose" type="button" aria-label="Close">x</button>
+<h2 id="addCardTitle">Add Card</h2>
 </div>
 <div class="modal-body">
 <div id="addCardPositionHint" class="small"></div>
 <label>Card type<select id="addCardType"></select></label>
 <div class="small">Every card type can be added more than once. Use repeated cards when you want separate tile layouts for different show areas.</div>
 </div>
-<div class="buttons" style="padding-top:4px">
+<div class="modal-actions">
 <button id="addShowCard" type="button" class="primary">Add Live Controls</button>
 <button id="addCardClose2" type="button">Close</button>
 </div>

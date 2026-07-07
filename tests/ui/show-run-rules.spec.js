@@ -1323,6 +1323,10 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await expect(page.locator('#hiddenTileModal')).toBeVisible();
+    await expect(page.locator('#hiddenTileModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#hiddenTileModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#hiddenTileModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#hiddenTileModal .modal-actions')).toBeVisible();
     await expect(page.locator('#hiddenTileList')).toContainText('Pico chaser slot 31');
     await expect(page.locator('#hiddenTileList')).toContainText('Pico effect slot 63');
 
@@ -1893,6 +1897,10 @@ test.describe('Show Run page', () => {
     await expect(page.locator('[data-add-card-position="9"]')).toBeVisible();
     await page.locator('[data-add-card-position="9"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
+    await expect(page.locator('#addCardModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#addCardModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#addCardModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#addCardModal .modal-actions')).toBeVisible();
     await page.locator('#addCardType').selectOption('live');
     await expect(page.locator('#addShowCard')).toHaveText('Add Live Controls');
     await page.locator('#addShowCard').click();
