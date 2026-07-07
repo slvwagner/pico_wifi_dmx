@@ -786,6 +786,33 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('reapplies Group Master scale after starting Pico effects playback', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      setupValues: { '101:11': 100, '102:11': 200 },
+      showRunState: {
+        grandMasterFactor: 1,
+        targetMasters: [{ id: 'target_1', name: 'Group Master 1', fixtureIds: [102], factor: 0 }]
+      },
+      liveMotionSlots: [{ slot: 0, loaded: true, active: false, bpm: 30, label: 'Dimmer sine' }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '11:0'))
+      .toBe(true);
+    calls.pico.length = 0;
+
+    await page.locator('[data-motion-toggle="0"]').first().click();
+
+    await expect.poll(() => {
+      const startIndex = calls.pico.findIndex(call => call.url === 'http://pico.test/motion/start/0');
+      return startIndex >= 0 && calls.pico.slice(startIndex + 1).some(call => call.url === 'http://pico.test/dmx/master' && call.body === '11:0');
+    })
+      .toBe(true);
+  });
+
   test('can add another group master and assign a saved group to it', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
     await routeShowSetup(page, calls);

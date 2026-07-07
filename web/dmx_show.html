@@ -3404,6 +3404,7 @@ async function startPicoSlot(type,slot){
   const action=type==='chaser'?'play':'start';
   const run=await fetch(root+'/'+type+'/'+action+'/'+slot,{cache:'no-store'});
   if(!run.ok)throw new Error('Pico '+type+' start failed: HTTP '+run.status);
+  if(masterFactorsNeedRestore())await applyMasterDimmerScale();
   updatePlaybackSlotState(type,slot,{active:true,paused:false});
   setStatus(type+' slot '+slot+' started');
 }
