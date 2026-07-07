@@ -1626,6 +1626,10 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#controlType').selectOption('slider8');
     await page.locator('#openControlDetails').click();
     await expect(page.locator('#controlDetailsModal')).toBeVisible();
+    await expect(page.locator('#controlDetailsModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#controlDetailsModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#controlDetailsModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#controlDetailsModal .modal-actions')).toContainText('Add control');
     await expect(page.locator('#defBlkCard')).toBeVisible();
     await expect(page.locator('#wheelEditorWrap')).toBeHidden();
     await expect(page.locator('#panTiltOptions')).toBeHidden();
@@ -1940,6 +1944,10 @@ test.describe('Fixture Controller established rules', () => {
 
     await page.locator('#mergePaletteBtn').click();
     await expect(page.locator('#paletteMergeModal')).toBeVisible();
+    await expect(page.locator('#paletteMergeModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#paletteMergeModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#paletteMergeModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#paletteMergeModal .modal-actions')).toBeVisible();
     await expect(page.locator('#paletteMergeMatrix [data-merge-palette-slot]')).toHaveCount(2);
     await expect(page.locator('#paletteMergeMatrix [data-merge-empty-slot]')).toHaveCount(2);
     await page.locator('#paletteMergeMatrix [data-merge-empty-slot="1"]').click();
