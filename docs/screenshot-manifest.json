@@ -166,6 +166,11 @@
       "purpose": "README chaser overview without toolbox focus"
     },
     {
+      "file": "chaser-toolbox-planes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "chaser saved room planes toolbox"
+    },
+    {
       "file": "motion-participating-controls-collapsed.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "motion collapsed participating controls"
@@ -194,6 +199,11 @@
       "file": "motion-toolbox-palettes.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "motion palettes toolbox"
+    },
+    {
+      "file": "motion-toolbox-planes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion saved room planes toolbox"
     },
     {
       "file": "motion-edit-tile.png",

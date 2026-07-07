@@ -1062,7 +1062,7 @@ try {
   if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
   expandPanel('participationPanel');
   expandPanel('stepEditorSection');
-  ['stepsBox','browserPlaybackBox','chaseBox','chaserPaletteBox'].forEach(openToolbox);
+  ['stepsBox','browserPlaybackBox','chaseBox','chaserPaletteBox','chaserPlanesBox'].forEach(openToolbox);
   const chaseBox=document.getElementById('chaseBox');
   const paletteBox=document.getElementById('chaserPaletteBox');
   if(chaseBox&&paletteBox)chaseBox.after(paletteBox);
@@ -1078,6 +1078,7 @@ try {
       {box:'chaseBox',type:'chases'},
       {box:'stepsBox',type:'steps'},
       {box:'chaserPaletteBox',type:'palettes'},
+      {box:'chaserPlanesBox',type:'planes'},
       {box:'fanToolbox',type:'fan'},
       {box:'browserPlaybackBox',type:'browserPlayback'}
     ]);
@@ -1150,6 +1151,7 @@ try {
       {box:'chaseBox',type:'chases'},
       {box:'stepsBox',type:'steps'},
       {box:'chaserPaletteBox',type:'palettes'},
+      {box:'chaserPlanesBox',type:'planes'},
       {box:'fanToolbox',type:'fan'},
       {box:'browserPlaybackBox',type:'browserPlayback'}
     ]);
@@ -1178,6 +1180,7 @@ try {
         Write-Host "Chaser docshot state: steps=$($state.steps), stepCount=$($state.stepCount), editEnabled=$($state.editEnabled), status=$($state.status)"
     }
     Save-Screenshot "chaser-readme.png"
+    Save-ElementScreenshot "#chaserPlanesBox" "chaser-toolbox-planes.png"
 
     $motionUrl = $BaseUrl.TrimEnd('/') + "/dmx_motion.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $motionUrl } | Out-Null
@@ -1224,7 +1227,7 @@ try {
     box.style.display='';
     if(box.classList.contains('collapsed')&&toggle)toggle.click();
   }
-  ['motionGroupsBox','motionEffectBox','motionSavedEffectBox','motionSceneBox','motionPaletteBox'].forEach(openToolbox);
+  ['motionGroupsBox','motionEffectBox','motionSavedEffectBox','motionSceneBox','motionPaletteBox','motionPlanesBox'].forEach(openToolbox);
   if(typeof renderMotionEffectSlots==='function')renderMotionEffectSlots();
   if(typeof renderMotionSceneSlots==='function')renderMotionSceneSlots();
   if(typeof renderMotionPaletteSlots==='function')renderMotionPaletteSlots();
@@ -1258,6 +1261,7 @@ try {
     Save-ElementScreenshot "#motionSavedEffectBox" "motion-toolbox-effects.png"
     Save-ElementScreenshot "#motionSceneBox" "motion-toolbox-scenes.png"
     Save-ElementScreenshot "#motionPaletteBox" "motion-toolbox-palettes.png"
+    Save-ElementScreenshot "#motionPlanesBox" "motion-toolbox-planes.png"
 
     Eval-Js @"
 (async()=>{

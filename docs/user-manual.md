@@ -636,6 +636,10 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
+- **Planes** recalls saved room planes into the selected chase step. Select a group first if only part of the rig should be affected. Chaser uses the plane target and calibrated fixtures to write pan/tilt values into the step, rebuilds the participating controls for those pan/tilt channels, and sends the changed step values to the Pico when a Pico base URL is set. The Planes tile matrix uses the same **Cols**, **Rows**, and **Move** behavior as the other saved tile toolboxes.
+
+![Chaser Planes toolbox](screenshots/chaser-toolbox-planes.png)
+
 - **Chase Steps** contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. In the Toolboxes sidebar, drag the lower edge of the Chase Steps box to set its height. The top buttons remain visible while the step list scrolls inside the box.
 - **Chases**, **Chase Steps**, and **Chase Playback** share one toolbox color and collapse together. Use **-- all** on any of those boxes to collapse the whole color group, and **+ all** to reopen it.
 
@@ -911,6 +915,10 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 ![Effects Palettes toolbox](screenshots/motion-toolbox-palettes.png)
 
 **Palettes** recalls compatible palette values into Effects. A position palette can set pan/tilt centers, while color, dimmer, or beam palettes can set scalar centers when the selected effect target matches.
+
+![Effects Planes toolbox](screenshots/motion-toolbox-planes.png)
+
+**Planes** recalls saved room planes as the current pan/tilt effect center. Select **Pan/Tilt** as the effect target, optionally select one or more groups, then click a filled plane tile. Effects interpolates the calibrated pan/tilt values for matching fixtures, enables those fixtures for the current target, sends the new center values to the Pico, and keeps the effect recipe itself separate from the recalled center. The Planes toolbox uses the same **Cols**, **Rows**, and **Move** tile behavior as Groups, Palettes, and Effects.
 
 ### Recommended Workflow
 

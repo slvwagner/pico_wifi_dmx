@@ -69,6 +69,55 @@ test.describe('Chaser established rules', () => {
     expect(chaserLayout.buttons).toEqual(expect.arrayContaining(['fanSpreadDown', 'fanSpreadUp']));
   });
 
+  test('Chaser toolbox tile matrices expose common Move controls', async ({ page }) => {
+    await page.evaluate(() => {
+      chaserGroupsBox.setGroups([
+        { id: 'grp_a', name: 'Group A', slot: 0, fixtureIds: [101], values: {} },
+        { id: 'grp_b', name: 'Group B', slot: 1, fixtureIds: [102], values: {} }
+      ]);
+      savedChases = [
+        { id: 'chase_a', name: 'Chase A', slot: 0, data: currentChaseSlotData() },
+        { id: 'chase_b', name: 'Chase B', slot: 1, data: currentChaseSlotData() }
+      ];
+      chaserPalettes = [
+        { id: 'pal_a', name: 'Palette A', slot: 0, values: { '101:11': 80 } },
+        { id: 'pal_b', name: 'Palette B', slot: 1, values: { '102:21': 40 } }
+      ];
+      chaserPlanes = [
+        DmxCommon.normalizeRoomPlane({ id: 'plane_a', name: 'Plane A', slot: 0, fixtures: [] }, 0),
+        DmxCommon.normalizeRoomPlane({ id: 'plane_b', name: 'Plane B', slot: 1, fixtures: [] }, 1)
+      ];
+      renderChaseSlotMatrix();
+      renderChaserPaletteMatrix();
+      chaserPlanesMatrix.render();
+    });
+
+    await expect(page.locator('#chaserGroupsMove')).toBeVisible();
+    await expect(page.locator('#moveChaseSlotsBtn')).toBeVisible();
+    await expect(page.locator('#moveChaserPalettesBtn')).toBeVisible();
+    await expect(page.locator('#moveChaserPlanesBtn')).toBeVisible();
+
+    await page.locator('#moveChaseSlotsBtn').click();
+    await page.locator('[data-chase-slot="0"]').click();
+    await page.locator('[data-chase-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => savedChases.find(chase => chase.id === 'chase_a').slot)).toBe(3);
+
+    await page.locator('#moveChaserPalettesBtn').click();
+    await page.locator('[data-chaser-palette-slot="0"]').click();
+    await page.locator('[data-chaser-palette-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => chaserPalettes.find(palette => palette.id === 'pal_a').slot)).toBe(3);
+
+    await page.locator('#moveChaserPlanesBtn').click();
+    await page.locator('#chaserPlaneMatrix [data-plane-slot="0"]').click();
+    await page.locator('#chaserPlaneMatrix [data-plane-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => chaserPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
+
+    await page.locator('#chaserGroupsMove').click();
+    await page.locator('#chaserGroupsList [data-group-slot="0"]').click();
+    await page.locator('#chaserGroupsList [data-group-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
+  });
+
   test('Fan Out spread slider fills the shared toolbox width on Chaser', async ({ page }) => {
     const layout = await page.evaluate(() => {
       const slider = document.getElementById('fanSpread');

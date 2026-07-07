@@ -5011,6 +5011,7 @@ let controllerPlaneCols=3,controllerPlaneRows=3;
 let controllerPlaneMoveMode=false;
 let controllerPlaneMoveSelectedSlot=null;
 const CONTROLLER_PLANE_GRID_MAX=16;
+let controllerPlanesTileToolbox=null;
 let controllerRoomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
 let activeControllerPlane=null;
 let activeControllerPlaneId=null;
@@ -5104,6 +5105,7 @@ function normalizeControllerPlaneGrid(priority='cols'){
   }
 }
 async function saveControllerPlanesServer(statusText='Plane layout saved'){
+  if(controllerPlanesTileToolbox)return controllerPlanesTileToolbox.save(statusText);
   if(!DmxCommon.isHttp())return false;
   const response=await fetch('room_plane_setup.php',{
     method:'POST',
@@ -5156,6 +5158,7 @@ function toggleControllerPlaneMoveMode(){
   setStatus(controllerPlaneMoveMode?'Plane move mode enabled':'Plane move mode disabled');
 }
 function renderControllerPlanes(){
+  if(controllerPlanesTileToolbox){controllerPlanesTileToolbox.render();return;}
   const host=document.getElementById('controllerPlaneMatrix');
   if(!host)return;
   normalizeControllerPlaneGrid('cols');
@@ -5539,21 +5542,31 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
   }
   return {applied,errors};
 }
+controllerPlanesTileToolbox=DmxCommon.initSavedPlaneToolbox({
+  matrixId:'controllerPlaneMatrix',
+  colsId:'controllerPlaneCols',
+  rowsId:'controllerPlaneRows',
+  moveButtonId:'moveControllerPlanesBtn',
+  slotAttribute:'data-controller-plane-slot',
+  idAttribute:'data-controller-plane',
+  fetchUrl:'room_plane_setup.php',
+  defaultCols:3,
+  defaultRows:3,
+  getPlanes:()=>controllerPlanes,
+  setPlanes:planes=>{controllerPlanes=planes;},
+  getCols:()=>controllerPlaneCols,
+  setCols:value=>{controllerPlaneCols=value;},
+  getRows:()=>controllerPlaneRows,
+  setRows:value=>{controllerPlaneRows=value;},
+  savePayload:controllerRoomPlaneAutosavePayload,
+  normalizePlane:normalizeControllerPlane,
+  onSetupLoaded:data=>{controllerRoomPlaneSetup=normalizeControllerRoomPlaneSetup(data);},
+  onStatus:setStatus,
+  fixtureSummary:planeFixtureSummary,
+  onOpen:plane=>openControllerPlaneModal(plane.id)
+});
 document.getElementById('controllerPlaneClose').onclick=closeControllerPlaneModal;
 document.getElementById('controllerPlaneClose2').onclick=closeControllerPlaneModal;
-document.getElementById('controllerPlaneCols').addEventListener('input',event=>{
-  controllerPlaneCols=event.target.value;
-  normalizeControllerPlaneGrid('cols');
-  renderControllerPlanes();
-  scheduleControllerPlanesSave('Plane layout saved');
-});
-document.getElementById('controllerPlaneRows').addEventListener('input',event=>{
-  controllerPlaneRows=event.target.value;
-  normalizeControllerPlaneGrid('rows');
-  renderControllerPlanes();
-  scheduleControllerPlanesSave('Plane layout saved');
-});
-document.getElementById('moveControllerPlanesBtn').onclick=toggleControllerPlaneMoveMode;
 document.getElementById('controllerPlaneNudgeControls').addEventListener('click',event=>{
   const button=event.target.closest('[data-controller-plane-nudge-axis]');
   if(!button)return;

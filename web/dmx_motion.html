@@ -43,6 +43,7 @@ main{max-width:none;width:100%;margin:0}
 #motionGroupModal .relative-control input[type=number]{width:100%;min-width:0}
 #motionGroupModal .relative-control button{min-width:38px;padding:6px 10px}
 .motion-fixture-tile.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
+#motionPlanesBox .scene-toolbox__header{background:#14345b}
 </style>
 </head>
 <body>
@@ -203,6 +204,7 @@ main{max-width:none;width:100%;margin:0}
   <div class="slot-actions">
     <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionEffectCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
     <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionEffectRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+    <button id="moveMotionEffectsBtn" class="tile-move-btn" title="Move effect tiles by dragging them to another slot">Move</button>
   </div>
   <div id="motionEffectMatrix" class="scene-slot-matrix"></div>
 </div>
@@ -229,8 +231,25 @@ main{max-width:none;width:100%;margin:0}
   <div class="slot-actions">
     <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
     <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+    <button id="moveMotionPalettesBtn" class="tile-move-btn" title="Move palette tiles by dragging them to another slot">Move</button>
   </div>
-  <div id="motionPaletteMatrix" class="scene-slot-matrix"></div>
+<div id="motionPaletteMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="motionPlanesBox" class="scene-toolbox scene-toolbox--planes">
+<div id="motionPlanesHdr" class="scene-toolbox__header">
+  <span style="font-weight:700;font-size:13px">Planes</span>
+  <button id="motionPlanesBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="motionPlanesBoxBody" class="scene-toolbox__body">
+  <div class="small" style="color:var(--muted)">Recall a saved room plane as the effect center for calibrated pan/tilt fixtures.</div>
+  <div class="slot-actions">
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+    <button id="moveMotionPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
+  </div>
+  <div id="motionPlaneMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
 
@@ -266,7 +285,7 @@ main{max-width:none;width:100%;margin:0}
 <script>
 document.body.classList.add('toolbox-rail-layout');
 const motionToolboxRail=document.getElementById('motionToolboxRail');
-DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motionEffect'},{box:'motionSavedEffectBox',type:'effects'},{box:'motionSceneBox',type:'scenes'},{box:'motionPaletteBox',type:'palettes'}]);
+DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motionEffect'},{box:'motionSavedEffectBox',type:'effects'},{box:'motionSceneBox',type:'scenes'},{box:'motionPaletteBox',type:'palettes'},{box:'motionPlanesBox',type:'planes'}]);
 // ---- helpers ----
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
@@ -283,6 +302,10 @@ function panTiltPicoChannels(f,c){
     tilt:find('tilt','coarse'),
     tiltFine:c.type==='panTilt16'?find('tilt','fine'):0
   };
+}
+function motionPanTiltControlForFixture(fixture){
+  const profile=fixtureProfile(fixture);
+  return (profile?.controls||[]).find(c=>c.type==='panTilt16'||c.type==='panTilt8')||null;
 }
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
 const PICO_SLOT_COUNT=64;
@@ -1745,6 +1768,8 @@ if(document.getElementById('importMotionSlotsFile'))document.getElementById('imp
 // ---- saved effects toolbox (effect recipe, no center/base values) ----
 let motionEffects=[];
 let motionEffectCols=4,motionEffectRows=4;
+let motionEffectMoveMode=false;
+let motionEffectMoveSelectedSlot=null;
 const MOTION_EFFECT_GRID_MAX=32;
 let motionEffectVisualDefault=(()=> {
   try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('motionEffectVisualDefault')||'null'),'#225a50');}
@@ -1799,11 +1824,17 @@ function renderMotionEffectMatrix(){
   if(!grid)return;
   normalizeMotionEffectGrid();
   const total=motionEffectCols*motionEffectRows;
+  const moveBtn=document.getElementById('moveMotionEffectsBtn');
+  if(moveBtn){
+    moveBtn.classList.toggle('active',motionEffectMoveMode);
+    moveBtn.setAttribute('aria-pressed',motionEffectMoveMode?'true':'false');
+  }
+  grid.classList.toggle('tile-move-mode',motionEffectMoveMode);
   grid.style.gridTemplateColumns='repeat('+motionEffectCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const e=motionEffects.find(fx=>parseInt(fx.slot,10)===i);
-    if(e)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}" data-motion-effect-slot="${i}" title="Click: recall effect" style="${DmxCommon.slotVisualStyle(e)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-effect-slot',i,'Edit effect tile')}<button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
+    if(e)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}${motionEffectMoveSelectedSlot===i?' active':''}" data-motion-effect-slot="${i}" title="${motionEffectMoveMode?'Move effect':'Click: recall effect'}" style="${DmxCommon.slotVisualStyle(e)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-effect-slot',i,'Edit effect tile')}<button class="slot-del" data-del-motion-effect="${i}" title="Delete effect">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(e)}<span class="palette-slot-name">${escMotionHtml(e.name||('Effect '+(i+1)))}</span></div></div>`;
     else html+=`<div class="slot" data-motion-effect-slot="${i}" title="Click to save current effect">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -1827,8 +1858,29 @@ function renderMotionEffectMatrix(){
       openMotionEffectVisualModal(parseInt(btn.dataset.visualMotionEffectSlot,10));
     });
   });
+  DmxCommon.initTileMoveGrid({
+    grid,
+    button:'moveMotionEffectsBtn',
+    active:motionEffectMoveMode,
+    itemSelector:'[data-motion-effect-slot]',
+    getIndex:el=>parseInt(el.dataset.motionEffectSlot,10),
+    canDrag:(idx)=>!!motionEffects.find(fx=>parseInt(fx.slot,10)===idx),
+    onMove:moveMotionEffectSlot
+  });
 }
 function motionEffectSlotClick(slot){
+  if(motionEffectMoveMode){
+    const effect=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
+    if(motionEffectMoveSelectedSlot===null){
+      if(!effect)return;
+      motionEffectMoveSelectedSlot=slot;
+      renderMotionEffectMatrix();
+      setStatus('Select a destination slot for '+(effect.name||'Effect'));
+      return;
+    }
+    moveMotionEffectSlot(motionEffectMoveSelectedSlot,slot);
+    return;
+  }
   const saved=motionEffects.find(fx=>parseInt(fx.slot,10)===slot);
   if(saved){recallMotionEffect(saved);return;}
   const recipe=currentMotionEffectRecipe();
@@ -1840,6 +1892,18 @@ function motionEffectSlotClick(slot){
   renderMotionEffectMatrix();
   saveMotionEffectsServer();
   setStatus('Saved effect "'+name+'"');
+}
+function moveMotionEffectSlot(fromSlot,toSlot){
+  const from=motionEffects.find(fx=>parseInt(fx.slot,10)===fromSlot);
+  if(!from||fromSlot===toSlot)return false;
+  const target=motionEffects.find(fx=>parseInt(fx.slot,10)===toSlot);
+  from.slot=toSlot;
+  if(target)target.slot=fromSlot;
+  motionEffectMoveSelectedSlot=null;
+  renderMotionEffectMatrix();
+  saveMotionEffectsServer();
+  setStatus('Moved effect to slot '+(toSlot+1));
+  return true;
 }
 function recallMotionEffect(effect){
   const recipe=effect.recipe||effect;
@@ -1957,6 +2021,7 @@ function openMotionPaletteVisualModal(slot){
 }
 document.getElementById('motionEffectCols').addEventListener('input',e=>{motionEffectCols=e.target.value;normalizeMotionEffectGrid('cols');renderMotionEffectMatrix();saveMotionEffectsServer();});
 document.getElementById('motionEffectRows').addEventListener('input',e=>{motionEffectRows=e.target.value;normalizeMotionEffectGrid('rows');renderMotionEffectMatrix();saveMotionEffectsServer();});
+document.getElementById('moveMotionEffectsBtn').onclick=()=>{motionEffectMoveMode=!motionEffectMoveMode;motionEffectMoveSelectedSlot=null;renderMotionEffectMatrix();setStatus(motionEffectMoveMode?'Effect move mode enabled':'Effect move mode disabled');};
 if(document.getElementById('exportMotionEffectsBtn'))document.getElementById('exportMotionEffectsBtn').onclick=exportMotionEffectsJson;
 if(document.getElementById('importMotionEffectsBtn'))document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile')?.click();
 if(document.getElementById('importMotionEffectsFile'))document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
@@ -2056,6 +2121,8 @@ function loadMotionScenesServer(){
 // ---- palette toolbox (recall compatible values as motion centers) ----
 let motionPalettes=[];
 let motionPaletteCols=4,motionPaletteRows=4;
+let motionPaletteMoveMode=false;
+let motionPaletteMoveSelectedSlot=null;
 const MOTION_PALETTE_GRID_MAX=32;
 function requiredMotionPaletteSlots(){
   return motionPalettes.reduce((max,p)=>Math.max(max,(parseInt(p.slot,10)||0)+1),0);
@@ -2083,17 +2150,23 @@ function renderMotionPaletteMatrix(){
   if(!grid)return;
   normalizeMotionPaletteGrid();
   const total=motionPaletteCols*motionPaletteRows;
+  const moveBtn=document.getElementById('moveMotionPalettesBtn');
+  if(moveBtn){
+    moveBtn.classList.toggle('active',motionPaletteMoveMode);
+    moveBtn.setAttribute('aria-pressed',motionPaletteMoveMode?'true':'false');
+  }
+  grid.classList.toggle('tile-move-mode',motionPaletteMoveMode);
   grid.style.gridTemplateColumns='repeat('+motionPaletteCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const p=motionPalettes.find(pl=>parseInt(pl.slot,10)===i);
-    if(p)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}" data-motion-palette-slot="${i}" title="Click: recall palette" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-palette-slot',i,'Edit palette tile')}<div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${escMotionHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
+    if(p)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}${motionPaletteMoveSelectedSlot===i?' active':''}" data-motion-palette-slot="${i}" title="${motionPaletteMoveMode?'Move palette':'Click: recall palette'}" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-motion-palette-slot',i,'Edit palette tile')}<div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${escMotionHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
     else html+=`<div class="slot readonly" data-motion-palette-slot="${i}">${i+1}</div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('.slot.filled').forEach(el=>{
+  grid.querySelectorAll('[data-motion-palette-slot]').forEach(el=>{
     const idx=parseInt(el.dataset.motionPaletteSlot,10);
-    el.addEventListener('click',()=>{const p=motionPalettes.find(pl=>parseInt(pl.slot,10)===idx);if(p)recallMotionPalette(p);});
+    el.addEventListener('click',()=>motionPaletteSlotClick(idx));
   });
   grid.querySelectorAll('[data-visual-motion-palette-slot]').forEach(btn=>{
     btn.addEventListener('click',e=>{
@@ -2101,6 +2174,43 @@ function renderMotionPaletteMatrix(){
       openMotionPaletteVisualModal(parseInt(btn.dataset.visualMotionPaletteSlot,10));
     });
   });
+  DmxCommon.initTileMoveGrid({
+    grid,
+    button:'moveMotionPalettesBtn',
+    active:motionPaletteMoveMode,
+    itemSelector:'[data-motion-palette-slot]',
+    getIndex:el=>parseInt(el.dataset.motionPaletteSlot,10),
+    canDrag:(idx)=>!!motionPalettes.find(pl=>parseInt(pl.slot,10)===idx),
+    onMove:moveMotionPaletteSlot
+  });
+}
+function motionPaletteSlotClick(slot){
+  if(motionPaletteMoveMode){
+    const palette=motionPalettes.find(pl=>parseInt(pl.slot,10)===slot);
+    if(motionPaletteMoveSelectedSlot===null){
+      if(!palette)return;
+      motionPaletteMoveSelectedSlot=slot;
+      renderMotionPaletteMatrix();
+      setStatus('Select a destination slot for '+(palette.name||'Palette'));
+      return;
+    }
+    moveMotionPaletteSlot(motionPaletteMoveSelectedSlot,slot);
+    return;
+  }
+  const p=motionPalettes.find(pl=>parseInt(pl.slot,10)===slot);
+  if(p)recallMotionPalette(p);
+}
+function moveMotionPaletteSlot(fromSlot,toSlot){
+  const from=motionPalettes.find(pl=>parseInt(pl.slot,10)===fromSlot);
+  if(!from||fromSlot===toSlot)return false;
+  const target=motionPalettes.find(pl=>parseInt(pl.slot,10)===toSlot);
+  from.slot=toSlot;
+  if(target)target.slot=fromSlot;
+  motionPaletteMoveSelectedSlot=null;
+  renderMotionPaletteMatrix();
+  saveMotionPalettesServer();
+  setStatus('Moved palette to slot '+(toSlot+1));
+  return true;
 }
 function compatibleMotionPaletteEntries(paletteValues){
   const entries=[];
@@ -2185,9 +2295,88 @@ function importMotionPalettesJson(file){
 }
 document.getElementById('motionPaletteCols').addEventListener('input',e=>{motionPaletteCols=e.target.value;normalizeMotionPaletteGrid('cols');renderMotionPaletteMatrix();saveMotionPalettesServer();});
 document.getElementById('motionPaletteRows').addEventListener('input',e=>{motionPaletteRows=e.target.value;normalizeMotionPaletteGrid('rows');renderMotionPaletteMatrix();saveMotionPalettesServer();});
+document.getElementById('moveMotionPalettesBtn').onclick=()=>{motionPaletteMoveMode=!motionPaletteMoveMode;motionPaletteMoveSelectedSlot=null;renderMotionPaletteMatrix();setStatus(motionPaletteMoveMode?'Palette move mode enabled':'Palette move mode disabled');};
 if(document.getElementById('motionExportPalettesBtn'))document.getElementById('motionExportPalettesBtn').onclick=exportMotionPalettesJson;
 if(document.getElementById('motionImportPalettesBtn'))document.getElementById('motionImportPalettesBtn').onclick=()=>document.getElementById('motionImportPalettesFile')?.click();
 if(document.getElementById('motionImportPalettesFile'))document.getElementById('motionImportPalettesFile').onchange=e=>{if(e.target.files[0])importMotionPalettesJson(e.target.files[0]);e.target.value='';};
+
+// ---- saved room planes toolbox (recall calibrated pan/tilt as effect center) ----
+let motionPlanes=[];
+let motionPlaneCols=3,motionPlaneRows=3;
+let motionRoomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3};
+function normalizeMotionRoomPlaneSetup(data){
+  const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});
+  return {
+    ...motionRoomPlaneSetup,
+    ...source,
+    planes:Array.isArray(source.planes)?source.planes:(Array.isArray(data?.planes)?data.planes:[]),
+    planeCols:Math.max(1,Math.min(16,parseInt(source.planeCols??data?.planeCols??3,10)||3)),
+    planeRows:Math.max(1,Math.min(16,parseInt(source.planeRows??data?.planeRows??3,10)||3))
+  };
+}
+function motionPlaneSelectedIds(){
+  const selected=motionGroupsBox?.selectedGroups?.()||[];
+  if(selected.length)return new Set(selected.flatMap(g=>g.fixtureIds||[]).map(String));
+  const enabled=motionFixtures.filter(mf=>mf.enabled&&mf.kind==='panTilt').map(mf=>String(mf.fixture.id));
+  return new Set(enabled);
+}
+function motionPlaneSummary(plane){
+  const selected=motionPlaneSelectedIds();
+  const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
+  return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+(selected.size?' · '+matching+' match'+(matching===1?'':'es'):'');
+}
+function motionRoomPlanePayload(){
+  return DmxCommon.versionedPayload({
+    ...(motionRoomPlaneSetup&&typeof motionRoomPlaneSetup==='object'?motionRoomPlaneSetup:{}),
+    planeCols:motionPlaneCols,
+    planeRows:motionPlaneRows,
+    planes:motionPlanes.map(plane=>JSON.parse(JSON.stringify(plane)))
+  });
+}
+function recallMotionPlane(plane){
+  const selected=motionPlaneSelectedIds();
+  const weights=DmxCommon.roomPlaneWeights(plane);
+  if(!weights.valid){setStatus('Plane "'+plane.name+'" has invalid calibration points',true);return;}
+  let changed=0;
+  (plane.fixtures||[]).forEach(planeFixture=>{
+    if(selected.size&&!selected.has(String(planeFixture.id)))return;
+    const mf=motionFixtures.find(item=>String(item.fixture.id)===String(planeFixture.id)&&item.kind==='panTilt'&&motionControlKey(item.control)===selectedMotionTargetKey);
+    const out=mf&&DmxCommon.roomPlaneInterpolateFixture(plane,planeFixture,weights);
+    if(!mf||!out)return;
+    const max=mf.control.type==='panTilt8'?255:65535;
+    mf.basePan=Math.max(0,Math.min(max,Math.round(mf.control.type==='panTilt8'?out.pan/257:out.pan)));
+    mf.baseTilt=Math.max(0,Math.min(max,Math.round(mf.control.type==='panTilt8'?out.tilt/257:out.tilt)));
+    mf.enabled=true;
+    changed++;
+  });
+  if(!changed){setStatus('Plane "'+plane.name+'" has no calibrated pan/tilt values for the current Effects selection',true);return;}
+  drawFixtureList();
+  drawPathPreview();
+  const panTilt=motionFixtures.find(mf=>mf.enabled&&mf.kind==='panTilt'&&motionControlKey(mf.control)===selectedMotionTargetKey);
+  if(panTilt)sendMotionGroupControl(panTilt.control);
+  setStatus('Recalled plane "'+plane.name+'" as effect center for '+changed+' fixture'+(changed===1?'':'s'));
+}
+const motionPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
+  matrixId:'motionPlaneMatrix',
+  colsId:'motionPlaneCols',
+  rowsId:'motionPlaneRows',
+  moveButtonId:'moveMotionPlanesBtn',
+  fetchUrl:'room_plane_setup.php',
+  defaultCols:3,
+  defaultRows:3,
+  getPlanes:()=>motionPlanes,
+  setPlanes:planes=>{motionPlanes=planes;},
+  getCols:()=>motionPlaneCols,
+  setCols:value=>{motionPlaneCols=value;},
+  getRows:()=>motionPlaneRows,
+  setRows:value=>{motionPlaneRows=value;},
+  savePayload:motionRoomPlanePayload,
+  onSetupLoaded:data=>{motionRoomPlaneSetup=normalizeMotionRoomPlaneSetup(data);},
+  onStatus:setStatus,
+  fixtureSummary:motionPlaneSummary,
+  onOpen:plane=>recallMotionPlane(plane)
+});
+window.motionPlanesMatrix=motionPlanesMatrix;
 
 const motionSceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'motionSceneBox',
@@ -2237,8 +2426,19 @@ const motionPaletteToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'motionPaletteBoxPos',
   uiStateCollapsedKey:'motionPaletteBoxCollapsed'
 });
+const motionPlanesToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'motionPlanesBox',
+  headerId:'motionPlanesHdr',
+  toggleId:'motionPlanesBoxToggle',
+  posStorageKey:'motionPlanesBoxPos',
+  collapsedStorageKey:'motionPlanesBoxCollapsed',
+  uiStatePage:'motion',
+  uiStatePosKey:'motionPlanesBoxPos',
+  uiStateCollapsedKey:'motionPlanesBoxCollapsed'
+});
 loadMotionScenesServer();
 loadMotionPalettesServer();
+motionPlanesMatrix.load();
 // ── UI State persistence ─────────────────────────────────────────────────────────
 function saveUiStateServer(key,val){
   DmxCommon.saveUiState('motion',key,val);

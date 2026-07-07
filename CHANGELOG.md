@@ -13,6 +13,9 @@ Changed:
 - Split Room Plane save/recall into a dedicated **Planes** toolbox and added grouped **-- all / + all** collapse controls for Room Plane, Planes, and Fixtures.
 - Reworked the Room Plane **Planes** toolbox to use the shared tile workflow: filled tiles recall, empty tiles save the current plane, the pencil edits plane tile visuals, and `x` deletes a saved plane.
 - Moved toolbox grouped collapse-all behavior into shared `dmx-common.js` code and adapted Chaser, Effects, and Room Plane to use the common helper.
+- Moved saved-plane normalization, barycentric interpolation, and saved-plane tile layout into shared `dmx-common.js` code, then added **Planes** toolboxes to Chaser and Effects.
+- Added common **Move** tile controls to Chaser and Effects toolbox matrices, including Groups, Chases, Palettes, Effects, and Planes, with regression coverage for click-to-move and slot swaps.
+- Chaser can now recall a saved room plane into the selected chase step, and Effects can recall a saved room plane as the current pan/tilt effect center.
 
 ## 0.9.7 - 2026-07-05
 

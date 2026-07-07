@@ -560,6 +560,10 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p><img src="screenshots/chaser-edit-tile.png" alt="Chaser Edit Tile modal"></p>
 <p><img src="screenshots/chaser-toolbox-palettes.png" alt="Chaser Palettes toolbox"></p>
 <ul>
+<li><strong>Planes</strong> recalls saved room planes into the selected chase step. Select a group first if only part of the rig should be affected. Chaser uses the plane target and calibrated fixtures to write pan/tilt values into the step, rebuilds the participating controls for those pan/tilt channels, and sends the changed step values to the Pico when a Pico base URL is set. The Planes tile matrix uses the same <strong>Cols</strong>, <strong>Rows</strong>, and <strong>Move</strong> behavior as the other saved tile toolboxes.</li>
+</ul>
+<p><img src="screenshots/chaser-toolbox-planes.png" alt="Chaser Planes toolbox"></p>
+<ul>
 <li><strong>Chase Steps</strong> contains the step list and step actions. Use it to add, capture, edit, duplicate, delete, and reorder steps. In the Toolboxes sidebar, drag the lower edge of the Chase Steps box to set its height. The top buttons remain visible while the step list scrolls inside the box.</li>
 <li><strong>Chases</strong>, <strong>Chase Steps</strong>, and <strong>Chase Playback</strong> share one toolbox color and collapse together. Use <strong>-- all</strong> on any of those boxes to collapse the whole color group, and <strong>+ all</strong> to reopen it.</li>
 </ul>
@@ -767,6 +771,8 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p><strong>Scenes</strong> is read-only on Effects. Recalling a scene updates the effect center/base values used by effects. When a Pico base URL is set, the stored values are also sent to the Pico.</p>
 <p><img src="screenshots/motion-toolbox-palettes.png" alt="Effects Palettes toolbox"></p>
 <p><strong>Palettes</strong> recalls compatible palette values into Effects. A position palette can set pan/tilt centers, while color, dimmer, or beam palettes can set scalar centers when the selected effect target matches.</p>
+<p><img src="screenshots/motion-toolbox-planes.png" alt="Effects Planes toolbox"></p>
+<p><strong>Planes</strong> recalls saved room planes as the current pan/tilt effect center. Select <strong>Pan/Tilt</strong> as the effect target, optionally select one or more groups, then click a filled plane tile. Effects interpolates the calibrated pan/tilt values for matching fixtures, enables those fixtures for the current target, sends the new center values to the Pico, and keeps the effect recipe itself separate from the recalled center. The Planes toolbox uses the same <strong>Cols</strong>, <strong>Rows</strong>, and <strong>Move</strong> tile behavior as Groups, Palettes, and Effects.</p>
 <h3 id="recommended-workflow">Recommended Workflow</h3>
 <ol>
 <li>Use the Fixture Controller to position the fixtures.</li>

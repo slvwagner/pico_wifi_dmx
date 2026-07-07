@@ -1239,6 +1239,7 @@
     const listId=idPrefix+'List';
     const colsId=idPrefix+'Cols';
     const rowsId=idPrefix+'Rows';
+    const moveId=idPrefix+'Move';
     const statePrefix=idPrefix;
     const layoutPrefix=options.layoutStoragePrefix||'groupsBox';
     let groups=[];
@@ -1246,6 +1247,8 @@
     let selectedIds=new Set();
     let cols=parseInt(localStorage.getItem(layoutPrefix+'Cols')||localStorage.getItem(statePrefix+'Cols'))||2;
     let rows=parseInt(localStorage.getItem(layoutPrefix+'Rows')||localStorage.getItem(statePrefix+'Rows'))||4;
+    let moveMode=false;
+    let moveSelectedSlot=null;
 
     const box=document.createElement('div');
     box.id=boxId;
@@ -1264,6 +1267,7 @@
           <div class="groups-layout-controls">
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="${rowsId}" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+            <button id="${moveId}" class="tile-move-btn" title="Move group tiles by dragging them to another slot">Move</button>
           </div>
         </div>
         <div id="${listId}" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
@@ -1283,6 +1287,13 @@
     });
 
     function key(g,i){return g.id||('idx_'+i);}
+    function groupSlot(g,i){
+      const slot=parseInt(g?.slot,10);
+      return Number.isFinite(slot)&&slot>=0?slot:i;
+    }
+    function groupIndexAtSlot(slot){
+      return groups.findIndex((g,i)=>groupSlot(g,i)===slot);
+    }
     function normalizeGroups(nextGroups){
       return (Array.isArray(nextGroups)?nextGroups:[]).map((g,i)=>({
         ...g,
@@ -1299,7 +1310,8 @@
       groups.forEach((g,i)=>{if(wanted.has(String(g.id)))selectedIds.add(key(g,i));});
     }
     function clampLayout(priority='cols'){
-      const count=groups.length;
+      const maxSlot=groups.reduce((max,g,i)=>Math.max(max,groupSlot(g,i)),-1);
+      const count=Math.max(groups.length,maxSlot+1);
       cols=Math.max(1,Math.min(8,parseInt(cols)||2));
       rows=Math.max(1,Math.min(12,parseInt(rows)||4));
       if(count&&cols*rows<count){
@@ -1324,11 +1336,15 @@
       const colsInput=document.getElementById(colsId);
       const rowsInput=document.getElementById(rowsId);
       if(colsInput){
-        colsInput.min=Math.max(1,Math.ceil(groups.length/rows));
+        const maxSlot=groups.reduce((max,g,i)=>Math.max(max,groupSlot(g,i)),-1);
+        const needed=Math.max(groups.length,maxSlot+1);
+        colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/rows));
         colsInput.value=cols;
       }
       if(rowsInput){
-        rowsInput.min=Math.max(1,Math.ceil(groups.length/cols));
+        const maxSlot=groups.reduce((max,g,i)=>Math.max(max,groupSlot(g,i)),-1);
+        const needed=Math.max(groups.length,maxSlot+1);
+        rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/cols));
         rowsInput.value=rows;
       }
     }
@@ -1355,10 +1371,42 @@
       options.onSelectionChange?.(selectedGroups(),groups);
       updateActions();
     }
+    function moveGroupSlot(fromSlot,toSlot){
+      const fromIndex=groupIndexAtSlot(fromSlot);
+      if(fromIndex<0||fromSlot===toSlot)return false;
+      const toIndex=groupIndexAtSlot(toSlot);
+      groups[fromIndex].slot=toSlot;
+      if(toIndex>=0)groups[toIndex].slot=fromSlot;
+      moveSelectedSlot=null;
+      render('cols');
+      saveGroups();
+      options.onStatus?.('Moved group to slot '+(toSlot+1));
+      return true;
+    }
+    function handleGroupMoveClick(slot){
+      const index=groupIndexAtSlot(slot);
+      const group=index>=0?groups[index]:null;
+      if(moveSelectedSlot===null){
+        if(!group)return;
+        moveSelectedSlot=slot;
+        render('cols');
+        options.onStatus?.('Select a destination slot for '+(group.name||'Group'));
+        return;
+      }
+      if(moveGroupSlot(moveSelectedSlot,slot))return;
+      moveSelectedSlot=null;
+      render('cols');
+    }
     function render(priority='cols'){
       const list=document.getElementById(listId);
       if(!list)return;
       applyLayout(priority);
+      const moveButton=document.getElementById(moveId);
+      if(moveButton){
+        moveButton.classList.toggle('active',moveMode);
+        moveButton.setAttribute('aria-pressed',moveMode?'true':'false');
+      }
+      list.classList.toggle('tile-move-mode',moveMode);
       if(!groups.length){
         list.innerHTML='<div class="small">No saved groups yet.</div>';
         updateActions();
@@ -1367,14 +1415,24 @@
       const total=cols*rows;
       let html='';
       for(let i=0;i<total;i++){
-        const g=groups[i];
-        if(!g){html+='<div class="group-empty" title="Empty group slot"></div>';continue;}
-        const active=selectedIds.has(key(g,i));
-        html+=`<div class="${savedTileClass('item',active)}" data-group-index="${i}" title="Select or deselect group">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escapeHtml(g.name||('Group '+(i+1)))}</strong><span class="small">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
+        const groupIndex=groupIndexAtSlot(i);
+        const g=groupIndex>=0?groups[groupIndex]:null;
+        if(!g){html+='<div class="group-empty" data-group-slot="'+i+'" title="'+(moveMode?'Drop a group here':'Empty group slot')+'">'+(i+1)+'</div>';continue;}
+        const active=selectedIds.has(key(g,groupIndex))||moveSelectedSlot===i;
+        html+=`<div class="${savedTileClass('item',active)}" data-group-slot="${i}" data-group-index="${groupIndex}" title="${moveMode?'Move group':'Select or deselect group'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escapeHtml(g.name||('Group '+(groupIndex+1)))}</strong><span class="small">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
         </div>`;
       }
       list.innerHTML=html;
+      initTileMoveGrid({
+        grid:list,
+        button:moveButton,
+        active:moveMode,
+        itemSelector:'[data-group-slot]',
+        getIndex:el=>parseInt(el.dataset.groupSlot,10),
+        canDrag:(idx,el)=>el.hasAttribute('data-group-index'),
+        onMove:moveGroupSlot
+      });
       updateActions();
     }
     async function saveGroups(){
@@ -1428,8 +1486,10 @@
     }
 
     document.getElementById(listId).addEventListener('click',e=>{
-      const item=e.target.closest('[data-group-index]');
+      const item=e.target.closest('[data-group-slot]');
       if(!item)return;
+      const slot=parseInt(item.dataset.groupSlot,10);
+      if(moveMode){handleGroupMoveClick(slot);return;}
       const i=parseInt(item.dataset.groupIndex,10);
       const g=groups[i];if(!g)return;
       const k=key(g,i);
@@ -1463,6 +1523,12 @@
     };
     document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout('cols');render('cols');saveLayout('cols');});
     document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout('rows');render('rows');saveLayout('rows');});
+    document.getElementById(moveId).addEventListener('click',()=>{
+      moveMode=!moveMode;
+      moveSelectedSlot=null;
+      render('cols');
+      options.onStatus?.(moveMode?'Group move mode enabled':'Group move mode disabled');
+    });
     Promise.all([loadUiState(page),loadUiState('toolboxes')]).then(([st,shared])=>{
       if(st[statePrefix+'Collapsed']!==undefined)toolbox.setCollapsed(!!st[statePrefix+'Collapsed'],false);
       if(st[statePrefix+'Pos'])toolbox.applyPosition(st[statePrefix+'Pos']);
@@ -1999,6 +2065,250 @@
     };
   }
 
+  function normalizeRoomPlanePoint(point,fallback){
+    return {
+      id:String(point?.id||fallback?.id||'A'),
+      x:Number(point?.x??fallback?.x??0)||0,
+      y:Number(point?.y??fallback?.y??0)||0,
+      z:Number(point?.z??fallback?.z??0)||0
+    };
+  }
+
+  function normalizeRoomPlaneFixture(fixture,index){
+    return {
+      id:fixture?.id,
+      name:String(fixture?.name||('Fixture '+(index+1))),
+      x:Number(fixture?.x)||0,
+      y:Number(fixture?.y)||0,
+      z:Number(fixture?.z)||0,
+      cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
+    };
+  }
+
+  function normalizeRoomPlane(plane,index){
+    const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
+    const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
+    return {
+      ...plane,
+      id:plane?.id||('plane_'+index),
+      name:String(plane?.name||('Plane '+(index+1))),
+      points:fallbackPoints.map((fallback,i)=>normalizeRoomPlanePoint(sourcePoints[i],fallback)),
+      target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
+      fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeRoomPlaneFixture),
+      view:{
+        auto:plane?.view?.auto!==false,
+        centerX:Number(plane?.view?.centerX)||0,
+        centerY:Number(plane?.view?.centerY)||0,
+        zoom:Math.max(0.25,Math.min(8,Number(plane?.view?.zoom)||1))
+      },
+      visual:plane?.visual
+    };
+  }
+
+  function roomPlaneWeights(plane,target=plane?.target){
+    const [a,b,c]=plane?.points||[];
+    if(!a||!b||!c||!target)return {valid:false,wA:0,wB:0,wC:0};
+    const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+    if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
+    const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+    const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+    return {valid:true,wA,wB,wC:1-wA-wB};
+  }
+
+  function roomPlaneInterpolateFixture(plane,fixture,weights){
+    if(!weights?.valid)return null;
+    const ids=(plane?.points||[]).map(point=>point.id);
+    if(ids.length<3||ids.some(id=>!fixture?.cal?.[id]?.calibrated))return null;
+    return {
+      pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
+      tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
+    };
+  }
+
+  function roomPlaneAutoBounds(plane){
+    const points=Array.isArray(plane?.points)?plane.points:[];
+    const fixtures=Array.isArray(plane?.fixtures)?plane.fixtures:[];
+    const target=plane?.target||{x:0,y:0};
+    const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+    xs.push(target.x,...fixtures.map(f=>f.x));
+    ys.push(target.y,...fixtures.map(f=>f.y));
+    const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+    const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
+    return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+  }
+
+  function initSavedPlaneToolbox(options){
+    const maxGrid=options.maxGrid||16;
+    let moveMode=false;
+    let moveSelectedSlot=null;
+    const getPlanes=()=>Array.isArray(options.getPlanes?.())?options.getPlanes():[];
+    const setPlanes=planes=>options.setPlanes?.(Array.isArray(planes)?planes:[]);
+    const getCols=()=>Math.max(1,Math.min(maxGrid,parseInt(options.getCols?.(),10)||options.defaultCols||3));
+    const getRows=()=>Math.max(1,Math.min(maxGrid,parseInt(options.getRows?.(),10)||options.defaultRows||3));
+    const setCols=value=>options.setCols?.(value);
+    const setRows=value=>options.setRows?.(value);
+    const status=(text,bad=false)=>options.onStatus?.(text,bad);
+    const normalizePlane=options.normalizePlane||normalizeRoomPlane;
+    const slotOf=(plane,index)=>{
+      const slot=parseInt(plane?.slot,10);
+      return Number.isFinite(slot)&&slot>=0?slot:index;
+    };
+    const indexAtSlot=slot=>getPlanes().findIndex((plane,index)=>slotOf(plane,index)===slot);
+    const normalizeGrid=(priority='cols')=>{
+      const planes=getPlanes();
+      let cols=getCols(),rows=getRows();
+      const maxSlot=planes.reduce((max,plane,index)=>Math.max(max,slotOf(plane,index)),-1);
+      const needed=Math.max(planes.length,maxSlot+1);
+      if(needed&&cols*rows<needed){
+        if(priority==='rows'){
+          cols=Math.max(cols,Math.ceil(needed/rows));
+          if(cols>maxGrid){cols=maxGrid;rows=Math.ceil(needed/cols);}
+        }else{
+          rows=Math.max(rows,Math.ceil(needed/cols));
+          if(rows>maxGrid){rows=maxGrid;cols=Math.ceil(needed/rows);}
+        }
+      }
+      cols=Math.max(1,Math.min(maxGrid,cols));
+      rows=Math.max(1,Math.min(maxGrid,rows));
+      setCols(cols);setRows(rows);
+      const colsInput=document.getElementById(options.colsId);
+      const rowsInput=document.getElementById(options.rowsId);
+      if(colsInput){colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/rows));colsInput.value=cols;}
+      if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/cols));rowsInput.value=rows;}
+      return {cols,rows,needed};
+    };
+    const payload=()=>options.savePayload?.()||versionedPayload({planes:getPlanes(),planeCols:getCols(),planeRows:getRows()});
+    const save=async(statusText='Plane layout saved')=>{
+      if(!isHttp())return false;
+      const response=await fetch(options.fetchUrl||'room_plane_setup.php',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload())
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+      status(statusText);
+      return true;
+    };
+    const scheduleSave=(statusText='Plane layout saved')=>save(statusText).catch(error=>status('Planes save failed: '+error.message,true));
+    const move=(fromSlot,toSlot)=>{
+      const planes=getPlanes();
+      const fromIndex=indexAtSlot(fromSlot);
+      if(fromIndex<0||fromSlot===toSlot)return false;
+      const toIndex=indexAtSlot(toSlot);
+      planes[fromIndex].slot=toSlot;
+      if(toIndex>=0)planes[toIndex].slot=fromSlot;
+      moveSelectedSlot=null;
+      normalizeGrid('cols');
+      render();
+      scheduleSave('Moved plane to slot '+(toSlot+1));
+      return true;
+    };
+    const handleClick=slot=>{
+      const planes=getPlanes();
+      const index=indexAtSlot(slot);
+      const plane=index>=0?planes[index]:null;
+      if(moveMode){
+        if(moveSelectedSlot===null){
+          if(!plane)return;
+          moveSelectedSlot=slot;
+          render();
+          status('Select a destination slot for '+plane.name);
+          return;
+        }
+        if(move(moveSelectedSlot,slot))return;
+        moveSelectedSlot=null;
+        render();
+        return;
+      }
+      if(plane)options.onOpen?.(plane,slot);
+      else status('Plane slot '+(slot+1)+' is empty');
+    };
+    const toggleMove=()=>{
+      moveMode=!moveMode;
+      moveSelectedSlot=null;
+      render();
+      status(moveMode?'Plane move mode enabled':'Plane move mode disabled');
+    };
+    function render(){
+      const host=document.getElementById(options.matrixId);
+      if(!host)return;
+      const {cols,rows}=normalizeGrid('cols');
+      const moveBtn=document.getElementById(options.moveButtonId);
+      if(moveBtn){
+        moveBtn.classList.toggle('active',moveMode);
+        moveBtn.setAttribute('aria-pressed',moveMode?'true':'false');
+      }
+      host.classList.toggle('tile-move-mode',moveMode);
+      host.style.gridTemplateColumns='repeat('+cols+',minmax(64px,1fr))';
+      const planes=getPlanes();
+      const slotAttr=options.slotAttribute||'';
+      const idAttr=options.idAttribute||'';
+      const slotData=slot=>slotAttr?' '+slotAttr+'="'+slot+'"':'';
+      const idData=plane=>idAttr?' '+idAttr+'="'+escapeHtml(String(plane.id))+'"':'';
+      let html='';
+      for(let i=0,total=cols*rows;i<total;i++){
+        const planeIndex=indexAtSlot(i);
+        const plane=planeIndex>=0?planes[planeIndex]:null;
+        if(!plane){
+          html+='<div class="slot readonly" data-plane-slot="'+i+'"'+slotData(i)+' title="'+(moveMode?'Drop a plane here':'Empty plane slot')+'">'+(i+1)+'</div>';
+          continue;
+        }
+        const visualPlane={...plane,visual:normalizeSlotVisual(plane.visual)||{type:'visual',color:options.defaultColor||'#225a50',image:''}};
+        const activeClass=moveSelectedSlot===i?' active':'';
+        const summary=options.fixtureSummary?.(plane)||'';
+        html+='<div class="'+savedTileClass('slot filled')+activeClass+'" data-plane-slot="'+i+'"'+slotData(i)+' data-plane-id="'+escapeHtml(String(plane.id))+'"'+idData(plane)+' title="'+(moveMode?'Move '+escapeHtml(plane.name):'Open '+escapeHtml(plane.name))+'" style="'+slotVisualStyle(visualPlane)+'">'+
+          '<div class="palette-slot-content">'+slotVisualHtml(visualPlane)+'<span class="palette-slot-name">'+escapeHtml(plane.name)+'</span>'+(summary?'<span class="controller-plane-slot-meta">'+escapeHtml(summary)+'</span>':'')+'</div>'+
+        '</div>';
+      }
+      host.innerHTML=html;
+      host.querySelectorAll('[data-plane-slot]').forEach(tile=>tile.addEventListener('click',()=>handleClick(parseInt(tile.dataset.planeSlot,10)||0)));
+      initTileMoveGrid({
+        grid:host,
+        button:options.moveButtonId,
+        active:moveMode,
+        itemSelector:'[data-plane-slot]',
+        getIndex:el=>parseInt(el.dataset.planeSlot,10),
+        canDrag:(idx,el)=>el.hasAttribute('data-plane-id'),
+        onMove:move
+      });
+    }
+    async function load(){
+      try{
+        const response=await fetch(options.fetchUrl||'room_plane_setup.php',{cache:'no-store'});
+        const data=await response.json();
+        if(!response.ok||data.ok===false)throw new Error(data.error||('HTTP '+response.status));
+        options.onSetupLoaded?.(data);
+        const planes=Array.isArray(data.planes)?data.planes:(Array.isArray(data.setup?.planes)?data.setup.planes:[]);
+        setPlanes(planes.map(normalizePlane));
+        setCols(Math.max(1,Math.min(maxGrid,parseInt(data.planeCols??data.setup?.planeCols??options.defaultCols??3,10)||options.defaultCols||3)));
+        setRows(Math.max(1,Math.min(maxGrid,parseInt(data.planeRows??data.setup?.planeRows??options.defaultRows??3,10)||options.defaultRows||3)));
+        render();
+        return true;
+      }catch(error){
+        setPlanes([]);
+        render();
+        status('Saved planes unavailable: '+error.message,true);
+        return false;
+      }
+    }
+    document.getElementById(options.colsId)?.addEventListener('input',event=>{
+      setCols(event.target.value);
+      normalizeGrid('cols');
+      render();
+      scheduleSave('Plane layout saved');
+    });
+    document.getElementById(options.rowsId)?.addEventListener('input',event=>{
+      setRows(event.target.value);
+      normalizeGrid('rows');
+      render();
+      scheduleSave('Plane layout saved');
+    });
+    const moveButton=document.getElementById(options.moveButtonId);
+    if(moveButton)moveButton.onclick=toggleMove;
+    return {load,render,save,move,normalizeGrid,indexAtSlot,slotOf,get moveMode(){return moveMode;}};
+  }
+
   function panTiltMax(control){
     return control?.type==='panTilt16'?65535:255;
   }
@@ -2295,6 +2605,11 @@
     slotVisualHtml,
     slotVisualButtonHtml,
     initTileMoveGrid,
+    normalizeRoomPlane,
+    roomPlaneWeights,
+    roomPlaneInterpolateFixture,
+    roomPlaneAutoBounds,
+    initSavedPlaneToolbox,
     panTiltMax,
     panTiltDefault,
     panTiltDmxRows,

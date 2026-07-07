@@ -34,6 +34,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 #chaserGroupModal .control{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 #chaserGroupModal .control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 #chaseBox .scene-toolbox__header,#stepsBox .scene-toolbox__header,#browserPlaybackBox .scene-toolbox__header{background:#8d3a7e}
+#chaserPlanesBox .scene-toolbox__header{background:#14345b}
 #stepsBox .scene-toolbox__body{height:calc(100% - 43px);max-height:none;overflow:auto;align-content:start}
 #stepsBoxBody>.buttons:first-child{position:sticky;top:0;z-index:2;background:var(--panel);border-bottom:1px solid var(--line);padding-bottom:10px;margin:-12px -12px 0;padding:12px}
 #browserPlaybackBox .scene-toolbox__body{max-height:calc(100vh - 150px);overflow:auto}
@@ -298,6 +299,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaseSlotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+<button id="moveChaseSlotsBtn" class="tile-move-btn" title="Move chase tiles by dragging them to another slot">Move</button>
 </div>
 <div id="chaseSlotMatrix" class="scene-slot-matrix"></div>
 </div>
@@ -348,8 +350,25 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
 <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
+<button id="moveChaserPalettesBtn" class="tile-move-btn" title="Move palette tiles by dragging them to another slot">Move</button>
 </div>
 <div id="chaserPaletteMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="chaserPlanesBox" class="scene-toolbox scene-toolbox--planes">
+<div id="chaserPlanesHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Planes</span>
+<button id="chaserPlanesBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="chaserPlanesBoxBody" class="scene-toolbox__body">
+<div class="small" style="color:var(--muted)">Recall a saved room plane into the selected chase step.</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+<button id="moveChaserPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
+</div>
+<div id="chaserPlaneMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
 
@@ -366,6 +385,7 @@ const chaserToolboxRailEntries=[
   {box:'chaseBox',type:'chases'},
   {box:'stepsBox',type:'steps'},
   {box:'chaserPaletteBox',type:'palettes'},
+  {box:'chaserPlanesBox',type:'planes'},
   {box:'fanToolbox',type:'fan'},
   {box:'browserPlaybackBox',type:'browserPlayback'}
 ];
@@ -2218,6 +2238,8 @@ function applyChaserData(data,redraw=true){
 let savedChases=[];
 let activeRecalledChaseSlot=null;
 let chaseSlotCols=4,chaseSlotRows=4;
+let chaseMoveMode=false;
+let chaseMoveSelectedSlot=null;
 const CHASE_SLOT_GRID_MAX=32;
 let chaseVisualDefault=(()=>{
   try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('chaseVisualDefault')||'null'),'#225a50');}
@@ -2300,11 +2322,17 @@ function renderChaseSlotMatrix(){
   const grid=document.getElementById('chaseSlotMatrix');
   normalizeChaseGrid('cols');
   const total=chaseSlotCols*chaseSlotRows;
+  const moveBtn=document.getElementById('moveChaseSlotsBtn');
+  if(moveBtn){
+    moveBtn.classList.toggle('active',chaseMoveMode);
+    moveBtn.setAttribute('aria-pressed',chaseMoveMode?'true':'false');
+  }
+  grid.classList.toggle('tile-move-mode',chaseMoveMode);
   grid.style.gridTemplateColumns='repeat('+chaseSlotCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const chase=savedChases.find(c=>c.slot===i);
-    if(chase)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}" data-chase-slot="${i}" title="Click: load chase" style="${DmxCommon.slotVisualStyle(chase)}">${DmxCommon.slotVisualButtonHtml('data-visual-chase-slot',i,'Edit chase tile')}<button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
+    if(chase)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}${chaseMoveSelectedSlot===i?' active':''}" data-chase-slot="${i}" title="${chaseMoveMode?'Move chase':'Click: load chase'}" style="${DmxCommon.slotVisualStyle(chase)}">${DmxCommon.slotVisualButtonHtml('data-visual-chase-slot',i,'Edit chase tile')}<button class="slot-del" data-del-chase-slot="${i}" title="Delete chase">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(chase)}<span class="palette-slot-name">${DmxCommon.escapeHtml(chase.name)}</span></div></div>`;
     else html+=`<div class="slot" data-chase-slot="${i}" title="Click to save chase here">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2322,13 +2350,48 @@ function renderChaseSlotMatrix(){
     e.stopPropagation();
     openChaseVisualModal(parseInt(btn.dataset.visualChaseSlot,10));
   }));
+  DmxCommon.initTileMoveGrid({
+    grid,
+    button:'moveChaseSlotsBtn',
+    active:chaseMoveMode,
+    itemSelector:'[data-chase-slot]',
+    getIndex:el=>parseInt(el.dataset.chaseSlot,10),
+    canDrag:(idx)=>!!savedChases.find(c=>parseInt(c.slot,10)===idx),
+    onMove:moveChaseSlot
+  });
 }
 function chaseSlotClick(idx){
+  if(chaseMoveMode){
+    const chase=savedChases.find(c=>parseInt(c.slot,10)===idx);
+    if(chaseMoveSelectedSlot===null){
+      if(!chase)return;
+      chaseMoveSelectedSlot=idx;
+      renderChaseSlotMatrix();
+      setStatus('Select a destination slot for '+chase.name);
+      return;
+    }
+    moveChaseSlot(chaseMoveSelectedSlot,idx);
+    return;
+  }
   const chase=savedChases.find(c=>c.slot===idx);
   if(chase){loadChaseSlot(chase);return;}
   const name=(prompt('Chase name:','Chase '+(idx+1))||'').trim();
   if(!name)return;
   saveChaseToSlot(idx,name);
+}
+function moveChaseSlot(fromSlot,toSlot){
+  const from=savedChases.find(c=>parseInt(c.slot,10)===fromSlot);
+  if(!from||fromSlot===toSlot)return false;
+  const target=savedChases.find(c=>parseInt(c.slot,10)===toSlot);
+  from.slot=toSlot;
+  if(target)target.slot=fromSlot;
+  if(activeRecalledChaseSlot===fromSlot)setActiveRecalledChaseSlot(toSlot);
+  else if(activeRecalledChaseSlot===toSlot)setActiveRecalledChaseSlot(fromSlot);
+  chaseMoveSelectedSlot=null;
+  renderChaseSlotMatrix();
+  saveChasesServer();
+  setStatus('Moved chase to slot '+(toSlot+1));
+  return true;
 }
 function saveChaseToSlot(idx,name){
   const existing=savedChases.findIndex(c=>c.slot===idx);
@@ -2444,6 +2507,7 @@ function openChaseVisualModal(slot){
 }
 document.getElementById('chaseSlotCols').addEventListener('input',e=>{chaseSlotCols=e.target.value;normalizeChaseGrid('cols');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
 document.getElementById('chaseSlotRows').addEventListener('input',e=>{chaseSlotRows=e.target.value;normalizeChaseGrid('rows');localStorage.setItem('chaseSlotCols',chaseSlotCols);localStorage.setItem('chaseSlotRows',chaseSlotRows);renderChaseSlotMatrix();saveChasesServer();});
+document.getElementById('moveChaseSlotsBtn').onclick=()=>{chaseMoveMode=!chaseMoveMode;chaseMoveSelectedSlot=null;renderChaseSlotMatrix();setStatus(chaseMoveMode?'Chase move mode enabled':'Chase move mode disabled');};
 if(document.getElementById('exportChasesBtn'))document.getElementById('exportChasesBtn').onclick=exportChasesJson;
 if(document.getElementById('importChasesBtn'))document.getElementById('importChasesBtn').onclick=()=>document.getElementById('importChasesFile')?.click();
 if(document.getElementById('importChasesFile'))document.getElementById('importChasesFile').onchange=e=>{if(e.target.files[0])importChasesJson(e.target.files[0]);e.target.value='';};
@@ -2532,6 +2596,8 @@ function applyParticipatingData(data,redraw=true){
 // ---- palette toolbox (save/recall selected step values) ----
 let chaserPalettes=[];
 let chaserPaletteCols=4,chaserPaletteRows=4;
+let chaserPaletteMoveMode=false;
+let chaserPaletteMoveSelectedSlot=null;
 const CHASER_PALETTE_GRID_MAX=32;
 let chaserPaletteVisualDefault=(()=>{
   try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('chaserPaletteVisualDefault')||'null'),'#225a50');}
@@ -2622,11 +2688,17 @@ function renderChaserPaletteMatrix(){
   if(!grid)return;
   normalizeChaserPaletteGrid('cols');
   const total=chaserPaletteCols*chaserPaletteRows;
+  const moveBtn=document.getElementById('moveChaserPalettesBtn');
+  if(moveBtn){
+    moveBtn.classList.toggle('active',chaserPaletteMoveMode);
+    moveBtn.setAttribute('aria-pressed',chaserPaletteMoveMode?'true':'false');
+  }
+  grid.classList.toggle('tile-move-mode',chaserPaletteMoveMode);
   grid.style.gridTemplateColumns='repeat('+chaserPaletteCols+',minmax(54px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
     const p=chaserPalettes.find(pl=>parseInt(pl.slot,10)===i);
-    if(p)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}" data-chaser-palette-slot="${i}" title="Click: recall palette into selected step" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-chaser-palette-slot',i,'Edit palette tile')}<button class="slot-del" data-del-chaser-palette="${i}" title="Delete palette">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${DmxCommon.escapeHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
+    if(p)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}${chaserPaletteMoveSelectedSlot===i?' active':''}" data-chaser-palette-slot="${i}" title="${chaserPaletteMoveMode?'Move palette':'Click: recall palette into selected step'}" style="${DmxCommon.slotVisualStyle(p)}">${DmxCommon.slotVisualButtonHtml('data-visual-chaser-palette-slot',i,'Edit palette tile')}<button class="slot-del" data-del-chaser-palette="${i}" title="Delete palette">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(p)}<span class="palette-slot-name">${DmxCommon.escapeHtml(p.name||('Palette '+(i+1)))}</span></div></div>`;
     else html+=`<div class="slot" data-chaser-palette-slot="${i}" title="Click to save selected step values as palette">${i+1}</div>`;
   }
   grid.innerHTML=html;
@@ -2651,8 +2723,29 @@ function renderChaserPaletteMatrix(){
       openChaserPaletteVisualModal(parseInt(btn.dataset.visualChaserPaletteSlot,10));
     });
   });
+  DmxCommon.initTileMoveGrid({
+    grid,
+    button:'moveChaserPalettesBtn',
+    active:chaserPaletteMoveMode,
+    itemSelector:'[data-chaser-palette-slot]',
+    getIndex:el=>parseInt(el.dataset.chaserPaletteSlot,10),
+    canDrag:(idx)=>!!chaserPalettes.find(pl=>parseInt(pl.slot,10)===idx),
+    onMove:moveChaserPaletteSlot
+  });
 }
 function chaserPaletteSlotClick(idx){
+  if(chaserPaletteMoveMode){
+    const palette=chaserPalettes.find(pl=>parseInt(pl.slot,10)===idx);
+    if(chaserPaletteMoveSelectedSlot===null){
+      if(!palette)return;
+      chaserPaletteMoveSelectedSlot=idx;
+      renderChaserPaletteMatrix();
+      setStatus('Select a destination slot for '+(palette.name||'Palette'));
+      return;
+    }
+    moveChaserPaletteSlot(chaserPaletteMoveSelectedSlot,idx);
+    return;
+  }
   const existing=chaserPalettes.find(pl=>parseInt(pl.slot,10)===idx);
   if(existing){recallChaserPalette(existing);return;}
   const values=selectedStepPaletteValues();
@@ -2666,6 +2759,18 @@ function chaserPaletteSlotClick(idx){
   renderChaserPaletteMatrix();
   saveChaserPalettesServer();
   setStatus('Saved step '+(selectedStepIdx+1)+' as palette "'+name+'" ('+chaserPaletteScopeLabel(scope)+')');
+}
+function moveChaserPaletteSlot(fromSlot,toSlot){
+  const from=chaserPalettes.find(pl=>parseInt(pl.slot,10)===fromSlot);
+  if(!from||fromSlot===toSlot)return false;
+  const target=chaserPalettes.find(pl=>parseInt(pl.slot,10)===toSlot);
+  from.slot=toSlot;
+  if(target)target.slot=fromSlot;
+  chaserPaletteMoveSelectedSlot=null;
+  renderChaserPaletteMatrix();
+  saveChaserPalettesServer();
+  setStatus('Moved palette to slot '+(toSlot+1));
+  return true;
 }
 function mergeChaserPaletteButtonClick(){
   const values=selectedStepPaletteValues();
@@ -2797,6 +2902,7 @@ function openChaserPaletteVisualModal(slot){
 }
 document.getElementById('chaserPaletteCols').addEventListener('input',e=>{chaserPaletteCols=e.target.value;normalizeChaserPaletteGrid('cols');renderChaserPaletteMatrix();saveChaserPalettesServer();});
 document.getElementById('chaserPaletteRows').addEventListener('input',e=>{chaserPaletteRows=e.target.value;normalizeChaserPaletteGrid('rows');renderChaserPaletteMatrix();saveChaserPalettesServer();});
+document.getElementById('moveChaserPalettesBtn').onclick=()=>{chaserPaletteMoveMode=!chaserPaletteMoveMode;chaserPaletteMoveSelectedSlot=null;renderChaserPaletteMatrix();setStatus(chaserPaletteMoveMode?'Palette move mode enabled':'Palette move mode disabled');};
 if(document.getElementById('exportChaserPalettesBtn'))document.getElementById('exportChaserPalettesBtn').onclick=exportChaserPalettesJson;
 if(document.getElementById('importChaserPalettesBtn'))document.getElementById('importChaserPalettesBtn').onclick=()=>document.getElementById('importChaserPalettesFile')?.click();
 document.getElementById('mergeChaserPaletteBtn').onclick=mergeChaserPaletteButtonClick;
@@ -2812,6 +2918,116 @@ const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
   uiStateCollapsedKey:'chaserPaletteBoxCollapsed'
 });
 loadChaserPalettesServer();
+
+// ---- saved room planes toolbox (recall calibrated pan/tilt into selected step) ----
+let chaserPlanes=[];
+let chaserPlaneCols=3,chaserPlaneRows=3;
+let chaserRoomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3};
+function normalizeChaserRoomPlaneSetup(data){
+  const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});
+  return {
+    ...chaserRoomPlaneSetup,
+    ...source,
+    planes:Array.isArray(source.planes)?source.planes:(Array.isArray(data?.planes)?data.planes:[]),
+    planeCols:Math.max(1,Math.min(16,parseInt(source.planeCols??data?.planeCols??3,10)||3)),
+    planeRows:Math.max(1,Math.min(16,parseInt(source.planeRows??data?.planeRows??3,10)||3))
+  };
+}
+function chaserPlaneSelectedIds(){
+  const groupIds=selectedChaserGroupFixtureIds();
+  if(groupIds)return groupIds;
+  const ids=new Set();
+  getParticipatingList().forEach(({f})=>ids.add(String(f.id)));
+  return ids;
+}
+function chaserPlaneSummary(plane){
+  const selected=chaserPlaneSelectedIds();
+  const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
+  return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+(selected.size?' · '+matching+' match'+(matching===1?'':'es'):'');
+}
+function chaserRoomPlanePayload(){
+  return DmxCommon.versionedPayload({
+    ...(chaserRoomPlaneSetup&&typeof chaserRoomPlaneSetup==='object'?chaserRoomPlaneSetup:{}),
+    planeCols:chaserPlaneCols,
+    planeRows:chaserPlaneRows,
+    planes:chaserPlanes.map(plane=>JSON.parse(JSON.stringify(plane)))
+  });
+}
+function panTiltControlForFixture(fixture){
+  return (fixtureProfile(fixture)?.controls||[]).find(c=>c.type==='panTilt16'||c.type==='panTilt8')||null;
+}
+function recallChaserPlane(plane){
+  const selected=chaserPlaneSelectedIds();
+  const weights=DmxCommon.roomPlaneWeights(plane);
+  if(!weights.valid){setStatus('Plane "'+plane.name+'" has invalid calibration points',true);return;}
+  const values={};
+  const batchMap={};
+  (plane.fixtures||[]).forEach(planeFixture=>{
+    if(selected.size&&!selected.has(String(planeFixture.id)))return;
+    const fixture=(setup.fixtures||[]).find(f=>String(f.id)===String(planeFixture.id));
+    const control=fixture&&panTiltControlForFixture(fixture);
+    const out=fixture&&control&&DmxCommon.roomPlaneInterpolateFixture(plane,planeFixture,weights);
+    if(!fixture||!control||!out)return;
+    const max=control.type==='panTilt8'?255:65535;
+    const value={
+      pan:Math.max(0,Math.min(max,Math.round(control.type==='panTilt8'?out.pan/257:out.pan))),
+      tilt:Math.max(0,Math.min(max,Math.round(control.type==='panTilt8'?out.tilt/257:out.tilt)))
+    };
+    values[controlKey(fixture,control)]=value;
+    collectChannels(fixture,control,value,batchMap);
+  });
+  const keys=Object.keys(values);
+  if(!keys.length){setStatus('Plane "'+plane.name+'" has no calibrated pan/tilt values for the current Chaser selection',true);return;}
+  let step=steps[selectedStepIdx];
+  if(!step){
+    if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
+    step=makeStep(plane.name+' target',values);
+    steps.push(step);
+    selectedStepIdx=steps.length-1;
+  }else{
+    Object.assign(step.values,values);
+  }
+  applyChaserPaletteParticipatingKeys(keys);
+  sourceFixtureId=firstFixtureIdFromKeys(keys)||firstStepFixtureId(step);
+  sendBatch(batchMap);
+  drawParticipation();
+  drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
+  setStatus('Recalled plane "'+plane.name+'" into step '+(selectedStepIdx+1)+' for '+keys.length+' pan/tilt control'+(keys.length===1?'':'s'));
+}
+const chaserPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
+  matrixId:'chaserPlaneMatrix',
+  colsId:'chaserPlaneCols',
+  rowsId:'chaserPlaneRows',
+  moveButtonId:'moveChaserPlanesBtn',
+  fetchUrl:'room_plane_setup.php',
+  defaultCols:3,
+  defaultRows:3,
+  getPlanes:()=>chaserPlanes,
+  setPlanes:planes=>{chaserPlanes=planes;},
+  getCols:()=>chaserPlaneCols,
+  setCols:value=>{chaserPlaneCols=value;},
+  getRows:()=>chaserPlaneRows,
+  setRows:value=>{chaserPlaneRows=value;},
+  savePayload:chaserRoomPlanePayload,
+  onSetupLoaded:data=>{chaserRoomPlaneSetup=normalizeChaserRoomPlaneSetup(data);},
+  onStatus:setStatus,
+  fixtureSummary:chaserPlaneSummary,
+  onOpen:plane=>recallChaserPlane(plane)
+});
+const chaserPlanesToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'chaserPlanesBox',
+  headerId:'chaserPlanesHdr',
+  toggleId:'chaserPlanesBoxToggle',
+  posStorageKey:'chaserPlanesBoxPos',
+  collapsedStorageKey:'chaserPlanesBoxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'chaserPlanesBoxPos',
+  uiStateCollapsedKey:'chaserPlanesBoxCollapsed'
+});
+chaserPlanesMatrix.load();
 DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
 
 if(document.getElementById('btnExportSlots'))document.getElementById('btnExportSlots').onclick=async()=>{
