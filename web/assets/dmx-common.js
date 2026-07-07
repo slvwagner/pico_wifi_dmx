@@ -2298,6 +2298,7 @@
         return;
       }
       if(plane)options.onOpen?.(plane,slot);
+      else if(options.onEmptySlot)options.onEmptySlot(slot);
       else status('Plane slot '+(slot+1)+' is empty');
     };
     const toggleMove=()=>{
@@ -2332,13 +2333,29 @@
         }
         const visualPlane={...plane,visual:normalizeSlotVisual(plane.visual)||{type:'visual',color:options.defaultColor||'#225a50',image:''}};
         const activeClass=moveSelectedSlot===i?' active':'';
+        const isActive=String(options.activeId?.()||'')===String(plane.id);
         const summary=options.fixtureSummary?.(plane)||'';
-        html+='<div class="'+savedTileClass('slot filled')+activeClass+'" data-plane-slot="'+i+'"'+slotData(i)+' data-plane-id="'+escapeHtml(String(plane.id))+'"'+idData(plane)+' title="'+(moveMode?'Move '+escapeHtml(plane.name):'Open '+escapeHtml(plane.name))+'" style="'+slotVisualStyle(visualPlane)+'">'+
+        const editAttr=options.editAttribute||'data-plane-edit';
+        const deleteAttr=options.deleteAttribute||'data-plane-delete';
+        const edit=options.onEdit?slotVisualButtonHtml(editAttr,String(plane.id),'Edit plane tile'):'';
+        const del=options.onDelete?'<button class="slot-del" '+deleteAttr+'="'+escapeHtml(String(plane.id))+'" title="Delete plane">×</button>':'';
+        html+='<div class="'+savedTileClass('slot filled',isActive)+activeClass+'" data-plane-slot="'+i+'"'+slotData(i)+' data-plane-id="'+escapeHtml(String(plane.id))+'"'+idData(plane)+' title="'+(moveMode?'Move '+escapeHtml(plane.name):'Open '+escapeHtml(plane.name))+'" style="'+slotVisualStyle(visualPlane)+'">'+
+          edit+del+
           '<div class="palette-slot-content">'+slotVisualHtml(visualPlane)+'<span class="palette-slot-name">'+escapeHtml(plane.name)+'</span>'+(summary?'<span class="controller-plane-slot-meta">'+escapeHtml(summary)+'</span>':'')+'</div>'+
         '</div>';
       }
       host.innerHTML=html;
       host.querySelectorAll('[data-plane-slot]').forEach(tile=>tile.addEventListener('click',()=>handleClick(parseInt(tile.dataset.planeSlot,10)||0)));
+      const editSelector=options.editAttribute?'['+options.editAttribute+']':'[data-plane-edit]';
+      const deleteSelector=options.deleteAttribute?'['+options.deleteAttribute+']':'[data-plane-delete]';
+      host.querySelectorAll(editSelector).forEach(button=>button.addEventListener('click',event=>{
+        event.stopPropagation();
+        options.onEdit?.(button.getAttribute(options.editAttribute||'data-plane-edit'));
+      }));
+      host.querySelectorAll(deleteSelector).forEach(button=>button.addEventListener('click',event=>{
+        event.stopPropagation();
+        options.onDelete?.(button.getAttribute(options.deleteAttribute||'data-plane-delete'));
+      }));
       initTileMoveGrid({
         grid:host,
         button:options.moveButtonId,

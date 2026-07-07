@@ -205,6 +205,7 @@ canvas{display:none}
       <div class="slot-actions">
         <label>Cols<input id="planeCols" type="number" min="1" max="16" value="3"></label>
         <label>Rows<input id="planeRows" type="number" min="1" max="16" value="3"></label>
+        <button id="moveRoomPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
       </div>
       <div class="scene-slot-matrix" id="planeLibrary"></div>
     </div>
@@ -310,6 +311,7 @@ let planeView={auto:true,centerX:0,centerY:0,zoom:1};
 let planePanMode=false;
 let suppressGroupSelectionApply=false;
 let lastRoomGroupSelectionCount=0;
+let roomPlanesMatrix=null;
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
 document.body.classList.add('toolbox-rail-layout','room-plane-rail-layout');
@@ -495,7 +497,8 @@ function capturePlaneDefinition(){
     target:currentTarget(),
     fixtures:fixtures.map((f,index)=>normalizeRoomFixture(f,index)),
     view:{...planeView},
-    visual:existing?.visual
+    visual:existing?.visual,
+    slot:Number.isFinite(parseInt(existing?.slot,10))?parseInt(existing.slot,10):undefined
   };
 }
 
@@ -510,7 +513,8 @@ function normalizedPlaneDefinitions(){
     target:{x:Number(plane.target?.x)||2.5,y:Number(plane.target?.y)||1.5,z:0},
     fixtures:(Array.isArray(plane.fixtures)?plane.fixtures:[]).map(normalizeRoomFixture),
     view:{auto:plane.view?.auto!==false,centerX:Number(plane.view?.centerX)||0,centerY:Number(plane.view?.centerY)||0,zoom:Math.max(0.25,Math.min(8,Number(plane.view?.zoom)||1))},
-    visual:DmxCommon.normalizeSlotVisual(plane.visual)||null
+    visual:DmxCommon.normalizeSlotVisual(plane.visual)||null,
+    slot:Number.isFinite(parseInt(plane.slot,10))?parseInt(plane.slot,10):index
   }));
 }
 
@@ -551,52 +555,8 @@ function planeCalibrationSummary(plane){
 }
 
 function renderPlaneLibrary(defs=planeDefinitions){
-  const host=document.getElementById('planeLibrary');
-  if(!host)return;
-  const list=defs&&defs.length?defs:normalizedPlaneDefinitions();
-  planeCols=Math.max(1,Math.min(16,parseInt(planeCols,10)||3));
-  planeRows=Math.max(1,Math.min(16,parseInt(planeRows,10)||3));
-  if(list.length&&planeCols*planeRows<list.length)planeRows=Math.ceil(list.length/planeCols);
-  const colsInput=document.getElementById('planeCols');
-  const rowsInput=document.getElementById('planeRows');
-  if(colsInput)colsInput.value=planeCols;
-  if(rowsInput)rowsInput.value=planeRows;
-  const total=planeCols*planeRows;
-  host.style.gridTemplateColumns='repeat('+planeCols+',minmax(64px,1fr))';
-  let html='';
-  for(let i=0;i<total;i++){
-    const plane=list[i];
-    if(!plane){
-      html+='<div role="button" tabindex="0" class="slot empty" data-save-plane-slot="'+i+'" title="Save current plane to tile '+(i+1)+'"><span class="palette-slot-name">+</span><span class="plane-slot-meta">Save current plane</span></div>';
-      continue;
-    }
-    const active=String(plane.id)===String(activePlaneId);
-    const visual={visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
-    html+='<div class="'+DmxCommon.savedTileClass('slot filled')+(active?' active':'')+'" data-recall-plane="'+DmxCommon.escapeHtml(String(plane.id))+'" title="Recall '+DmxCommon.escapeHtml(plane.name)+'" style="'+DmxCommon.slotVisualStyle(visual)+'">'+
-      DmxCommon.slotVisualButtonHtml('data-visual-plane',String(plane.id),'Edit plane tile')+
-      '<button class="slot-del" data-del-plane="'+DmxCommon.escapeHtml(String(plane.id))+'" title="Delete plane">×</button>'+
-      '<div class="palette-slot-content">'+
-        DmxCommon.slotVisualHtml(visual)+
-        '<span class="palette-slot-name">'+DmxCommon.escapeHtml(plane.name)+'</span>'+
-        '<span class="plane-slot-meta">'+DmxCommon.escapeHtml(planeCalibrationSummary(plane))+'</span>'+
-      '</div>'+
-    '</div>';
-  }
-  host.innerHTML=html;
-  host.querySelectorAll('[data-recall-plane]').forEach(tile=>tile.addEventListener('click',()=>{
-    recallPlaneDefinition(tile.dataset.recallPlane);
-  }));
-  host.querySelectorAll('[data-visual-plane]').forEach(button=>button.addEventListener('click',event=>{
-    event.stopPropagation();
-    openPlaneVisualModal(button.dataset.visualPlane);
-  }));
-  host.querySelectorAll('[data-del-plane]').forEach(button=>button.addEventListener('click',event=>{
-    event.stopPropagation();
-    deletePlaneDefinition(button.dataset.delPlane);
-  }));
-  host.querySelectorAll('[data-save-plane-slot]').forEach(tile=>tile.addEventListener('click',()=>{
-    saveCurrentPlaneToTile(parseInt(tile.dataset.savePlaneSlot,10));
-  }));
+  if(defs&&defs.length)planeDefinitions=defs;
+  roomPlanesMatrix?.render();
 }
 
 function saveCurrentPlaneToTile(index){
@@ -605,12 +565,13 @@ function saveCurrentPlaneToTile(index){
   next.id='plane_'+Date.now()+'_'+Math.floor(Math.random()*1000);
   next.name='Plane '+((parseInt(index,10)||planeDefinitions.length)+1);
   next.visual=null;
+  next.slot=Math.max(0,parseInt(index,10)||0);
   activePlaneId=next.id;
   document.getElementById('planeName').value=next.name;
   planeDefinitions.push(next);
   renderPlaneSelect();
   scheduleRoomPlaneAutosave();
-  setStatus('Saved current plane to tile '+(planeDefinitions.length));
+  setStatus('Saved current plane to tile '+(next.slot+1));
   openPlaneVisualModal(next.id);
 }
 
@@ -677,6 +638,35 @@ function openPlaneVisualModal(id){
     }
   });
 }
+
+roomPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
+  matrixId:'planeLibrary',
+  colsId:'planeCols',
+  rowsId:'planeRows',
+  moveButtonId:'moveRoomPlanesBtn',
+  defaultCols:3,
+  defaultRows:3,
+  maxGrid:16,
+  defaultColor:'#225a50',
+  slotAttribute:'data-save-plane-slot',
+  idAttribute:'data-recall-plane',
+  editAttribute:'data-visual-plane',
+  deleteAttribute:'data-del-plane',
+  getPlanes:()=>planeDefinitions,
+  setPlanes:planes=>{planeDefinitions=planes;},
+  getCols:()=>planeCols,
+  getRows:()=>planeRows,
+  setCols:value=>{planeCols=value;},
+  setRows:value=>{planeRows=value;},
+  activeId:()=>activePlaneId,
+  fixtureSummary:plane=>planeCalibrationSummary(plane),
+  onOpen:plane=>recallPlaneDefinition(plane.id),
+  onEmptySlot:slot=>saveCurrentPlaneToTile(slot),
+  onEdit:id=>openPlaneVisualModal(id),
+  onDelete:id=>deletePlaneDefinition(id),
+  savePayload:()=>roomPlanePayload(),
+  onStatus:setStatus
+});
 
 function roomPlanePayload(){
   return DmxCommon.versionedPayload({
