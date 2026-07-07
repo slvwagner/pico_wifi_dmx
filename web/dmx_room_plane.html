@@ -295,9 +295,12 @@ let roomGroupsBox=DmxCommon.initGroupsToolbox({
   host:roomPlaneToolboxRail,
   toolboxType:'groups',
   selectionOnly:true,
+  showEdit:true,
   baseUrlInput:baseUrl,
   onStatus:setStatus,
-  onSelectionChange:groups=>applyGroupSelectionToFixtures(groups)
+  canEdit:groups=>Array.isArray(groups)&&groups.length>0,
+  onSelectionChange:groups=>applyGroupSelectionToFixtures(groups),
+  onEdit:groups=>openRoomPlaneGroupEdit(groups)
 });
 DmxCommon.initToolboxRail(roomPlaneToolboxRail,[
   {box:'roomPlaneBox',type:'roomPlane'},
@@ -1377,6 +1380,24 @@ function syncTables(){
   renderPlanePointInputs();
   renderFixtureRows();
   render();
+}
+function openRoomPlaneGroupEdit(groups){
+  const selectedGroups=Array.isArray(groups)?groups:[];
+  if(!selectedGroups.length){
+    setStatus('Select a group before using Group Edit',true);
+    return;
+  }
+  applyGroupSelectionToFixtures(selectedGroups);
+  const selectedKeys=new Set([...selectedFixtureIds].map(String));
+  const index=fixtures.findIndex((fixture,i)=>selectedKeys.has(fixtureSelectionKey(fixture,i)));
+  if(index<0){
+    setStatus('Selected group has no fixtures in this plane',true);
+    return;
+  }
+  editingFixtureIndex=index;
+  syncTables();
+  openFixtureEditor(index);
+  setStatus('Group Edit: '+fixtures[index].name+' is the source fixture for '+selectedFixtureIds.size+' selected fixture'+(selectedFixtureIds.size===1?'':'s'));
 }
 
 document.getElementById('targetX').addEventListener('input',()=>{queueRoomPlaneRender();scheduleRoomPlaneAutosave();scheduleTargetAutoApply();});

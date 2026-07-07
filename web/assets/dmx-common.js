@@ -1259,8 +1259,8 @@
       <div class="scene-toolbox__body">
         <div class="groups-toolbar">
           ${selectionOnly?'':`<button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
-          <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>
-          ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}`}
+          <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>`}
+          ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
           <div class="groups-layout-controls">
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="${rowsId}" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>

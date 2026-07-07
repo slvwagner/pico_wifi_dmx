@@ -135,6 +135,13 @@ async function routeShowSetup(page, calls) {
   });
 
   await page.route('**/room_plane_setup.php**', async route => {
+    if (route.request().method() !== 'GET') {
+      calls.roomPlaneWrites = calls.roomPlaneWrites || [];
+      calls.roomPlaneWrites.push(route.request().postDataJSON());
+      calls.setupWrites += 1;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -286,6 +293,8 @@ test.describe('Show Run page', () => {
         {
           id: 'front_plane',
           name: 'Front Plane',
+          visual: { type: 'visual', color: '#123456', image: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22%3E%3Crect width=%22100%22 height=%2250%22 fill=%22red%22/%3E%3C/svg%3E' },
+          view: { auto: false, centerX: 5, centerY: 5, zoom: 2 },
           points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 10, y: 0, z: 0 }, { id: 'C', x: 0, y: 10, z: 0 }],
           target: { x: 5, y: 0, z: 0 },
           fixtures: [
@@ -322,6 +331,7 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#cardPlane')).toBeVisible();
     await expect(page.locator('#planeGrid [data-plane-key="front_plane"]')).toContainText('Front Plane');
+    await expect(page.locator('#planeGrid [data-plane-key="front_plane"] .palette-visual')).toHaveCSS('background-size', 'contain');
 
     await page.locator('#groupGrid [data-group="front"]').click();
     await page.locator('#planeGrid [data-plane-key="front_plane"]').click();
@@ -341,6 +351,12 @@ test.describe('Show Run page', () => {
     )).toBe(true);
     await expect(page.locator('#status')).toContainText('Plane live Front Plane -> 1 fixture');
     expect(calls.liveValues.at(-1)).toEqual({ '101:21': { pan: 2200, tilt: 3200 } });
+
+    await page.locator('#showPlaneZoomIn').click();
+    await expect.poll(() => calls.roomPlaneWrites?.length || 0).toBeGreaterThan(0);
+    const savedPlane = calls.roomPlaneWrites.at(-1).planes.find(plane => plane.id === 'front_plane');
+    expect(savedPlane.view).toMatchObject({ auto: false, centerX: 5, centerY: 5 });
+    expect(savedPlane.view.zoom).toBeGreaterThan(2);
   });
 
   test('shows primary show actions in the Master card', async ({ page }) => {

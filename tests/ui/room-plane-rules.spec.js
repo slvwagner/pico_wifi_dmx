@@ -753,15 +753,22 @@ test.describe('Room Plane rules', () => {
 
     await expect(page.locator('#roomPlaneGroupsRename')).toHaveCount(0);
     await expect(page.locator('#roomPlaneGroupsDelete')).toHaveCount(0);
+    await expect(page.locator('#roomPlaneGroupsEdit')).toBeDisabled();
     await expect(page.locator('#roomPlaneGroupsList')).toContainText('Front movers');
 
     await page.locator('#loadPatchedFixtures').click();
     await page.locator('#roomPlaneGroupsList [data-group-index="0"]').click();
 
+    await expect(page.locator('#roomPlaneGroupsEdit')).toBeEnabled();
     await expect(page.locator('[data-select-fixture="0"]')).toBeChecked();
     await expect(page.locator('[data-select-fixture="1"]')).not.toBeChecked();
     await expect(page.locator('[data-select-fixture="2"]')).toBeChecked();
     await expect(page.locator('#status')).toContainText('Selected 2 fixtures from 1 group');
+    await page.locator('#roomPlaneGroupsEdit').click();
+    await expect(page.locator('#commonPanTiltDimmerModal')).toBeVisible();
+    await expect(page.locator('#commonPanTiltDimmerTitle')).toContainText('Moving 1');
+    await expect(page.locator('#status')).toContainText('Group Edit: Moving 1 is the source fixture');
+    await page.locator('#commonPanTiltDimmerModal [data-ptd-close]').last().click();
 
     await page.locator('[data-select-fixture="1"]').check();
     await expect(page.locator('#roomPlaneGroupsList [data-group-index="0"]')).not.toHaveClass(/selected|active/);

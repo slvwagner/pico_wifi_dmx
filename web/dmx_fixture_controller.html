@@ -504,6 +504,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="controllerPlanesBoxBody" class="scene-toolbox__body">
 <div class="small">Recall a saved room plane and apply its calibrated target to the selected fixtures or selected group.</div>
+<div class="tile-layout-controls">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="controllerPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="controllerPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+<button id="moveControllerPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
+</div>
 <div id="controllerPlaneMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -5003,10 +5008,16 @@ loadPalettesServer();
 // ── Saved room planes ─────────────────────────────────────────────────
 let controllerPlanes=[];
 let controllerPlaneCols=3,controllerPlaneRows=3;
+let controllerPlaneMoveMode=false;
+let controllerPlaneMoveSelectedSlot=null;
+const CONTROLLER_PLANE_GRID_MAX=16;
+let controllerRoomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
 let activeControllerPlane=null;
+let activeControllerPlaneId=null;
 let controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
 let controllerPlanePanMode=false;
 let controllerPlaneRenderQueued=false;
+let controllerPlaneViewAutosaveTimer=null;
 let controllerPlaneLiveSendTimer=null;
 let controllerPlaneLiveSendBusy=false;
 let controllerPlaneLiveSendPending=false;
@@ -5040,6 +5051,12 @@ function normalizeControllerPlane(plane,index){
     points:fallbackPoints.map((fallback,i)=>normalizeControllerPlanePoint(sourcePoints[i],fallback)),
     target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
     fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeControllerPlaneFixture),
+    view:{
+      auto:plane?.view?.auto!==false,
+      centerX:Number(plane?.view?.centerX)||0,
+      centerY:Number(plane?.view?.centerY)||0,
+      zoom:Math.max(0.25,Math.min(8,Number(plane?.view?.zoom)||1))
+    },
     visual:plane?.visual
   };
 }
@@ -5054,41 +5071,155 @@ function planeFixtureSummary(plane){
   const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
   return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+(selected.size?' · '+matching+' selected match'+(matching===1?'':'es'):'');
 }
+function controllerPlaneSlot(plane,index){
+  const slot=parseInt(plane?.slot,10);
+  return Number.isFinite(slot)&&slot>=0?slot:index;
+}
+function controllerPlaneIndexAtSlot(slot){
+  return controllerPlanes.findIndex((plane,index)=>controllerPlaneSlot(plane,index)===slot);
+}
+function normalizeControllerPlaneGrid(priority='cols'){
+  controllerPlaneCols=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(controllerPlaneCols,10)||3));
+  controllerPlaneRows=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(controllerPlaneRows,10)||3));
+  const maxSlot=controllerPlanes.reduce((max,plane,index)=>Math.max(max,controllerPlaneSlot(plane,index)),-1);
+  const needed=Math.max(controllerPlanes.length,maxSlot+1);
+  if(needed&&controllerPlaneCols*controllerPlaneRows<needed){
+    if(priority==='rows'){
+      controllerPlaneCols=Math.max(controllerPlaneCols,Math.ceil(needed/controllerPlaneRows));
+      if(controllerPlaneCols>CONTROLLER_PLANE_GRID_MAX){controllerPlaneCols=CONTROLLER_PLANE_GRID_MAX;controllerPlaneRows=Math.ceil(needed/controllerPlaneCols);}
+    }else{
+      controllerPlaneRows=Math.max(controllerPlaneRows,Math.ceil(needed/controllerPlaneCols));
+      if(controllerPlaneRows>CONTROLLER_PLANE_GRID_MAX){controllerPlaneRows=CONTROLLER_PLANE_GRID_MAX;controllerPlaneCols=Math.ceil(needed/controllerPlaneRows);}
+    }
+  }
+  const colsInput=document.getElementById('controllerPlaneCols');
+  const rowsInput=document.getElementById('controllerPlaneRows');
+  if(colsInput){
+    colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/controllerPlaneRows));
+    colsInput.value=controllerPlaneCols;
+  }
+  if(rowsInput){
+    rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/controllerPlaneCols));
+    rowsInput.value=controllerPlaneRows;
+  }
+}
+async function saveControllerPlanesServer(statusText='Plane layout saved'){
+  if(!DmxCommon.isHttp())return false;
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(controllerRoomPlaneAutosavePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus(statusText);
+  return true;
+}
+function scheduleControllerPlanesSave(statusText='Plane layout saved'){
+  saveControllerPlanesServer(statusText).catch(error=>setStatus('Planes save failed: '+error.message,true));
+}
+function moveControllerPlaneSlot(fromSlot,toSlot){
+  const fromIndex=controllerPlaneIndexAtSlot(fromSlot);
+  if(fromIndex<0||fromSlot===toSlot)return false;
+  const toIndex=controllerPlaneIndexAtSlot(toSlot);
+  controllerPlanes[fromIndex].slot=toSlot;
+  if(toIndex>=0)controllerPlanes[toIndex].slot=fromSlot;
+  controllerPlaneMoveSelectedSlot=null;
+  normalizeControllerPlaneGrid('cols');
+  renderControllerPlanes();
+  scheduleControllerPlanesSave('Moved plane to slot '+(toSlot+1));
+  return true;
+}
+function handleControllerPlaneSlotClick(slot){
+  const index=controllerPlaneIndexAtSlot(slot);
+  const plane=index>=0?controllerPlanes[index]:null;
+  if(controllerPlaneMoveMode){
+    if(controllerPlaneMoveSelectedSlot===null){
+      if(!plane)return;
+      controllerPlaneMoveSelectedSlot=slot;
+      renderControllerPlanes();
+      setStatus('Select a destination slot for '+plane.name);
+      return;
+    }
+    if(moveControllerPlaneSlot(controllerPlaneMoveSelectedSlot,slot))return;
+    controllerPlaneMoveSelectedSlot=null;
+    renderControllerPlanes();
+    return;
+  }
+  if(plane)openControllerPlaneModal(plane.id);
+  else setStatus('Plane slot '+(slot+1)+' is empty');
+}
+function toggleControllerPlaneMoveMode(){
+  controllerPlaneMoveMode=!controllerPlaneMoveMode;
+  controllerPlaneMoveSelectedSlot=null;
+  renderControllerPlanes();
+  setStatus(controllerPlaneMoveMode?'Plane move mode enabled':'Plane move mode disabled');
+}
 function renderControllerPlanes(){
   const host=document.getElementById('controllerPlaneMatrix');
   if(!host)return;
-  controllerPlaneCols=Math.max(1,Math.min(16,parseInt(controllerPlaneCols,10)||3));
-  controllerPlaneRows=Math.max(1,Math.min(16,parseInt(controllerPlaneRows,10)||3));
-  if(controllerPlanes.length&&controllerPlaneCols*controllerPlaneRows<controllerPlanes.length)controllerPlaneRows=Math.ceil(controllerPlanes.length/controllerPlaneCols);
+  normalizeControllerPlaneGrid('cols');
   const total=controllerPlaneCols*controllerPlaneRows;
+  const moveBtn=document.getElementById('moveControllerPlanesBtn');
+  if(moveBtn){
+    moveBtn.classList.toggle('active',controllerPlaneMoveMode);
+    moveBtn.setAttribute('aria-pressed',controllerPlaneMoveMode?'true':'false');
+  }
+  host.classList.toggle('tile-move-mode',controllerPlaneMoveMode);
   host.style.gridTemplateColumns='repeat('+controllerPlaneCols+',minmax(64px,1fr))';
   let html='';
   for(let i=0;i<total;i++){
-    const plane=controllerPlanes[i];
-    if(!plane){html+='<div class="slot readonly">'+(i+1)+'</div>';continue;}
-    const visual={visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
-    html+='<div class="'+DmxCommon.savedTileClass('slot filled')+'" data-controller-plane="'+escHtml(String(plane.id))+'" title="Open '+escHtml(plane.name)+'" style="'+slotVisualStyle(visual)+'">'+
-      '<div class="palette-slot-content">'+paletteSlotVisualHtml(visual)+'<span class="palette-slot-name">'+escHtml(plane.name)+'</span><span class="controller-plane-slot-meta">'+escHtml(planeFixtureSummary(plane))+'</span></div>'+
+    const planeIndex=controllerPlaneIndexAtSlot(i);
+    const plane=planeIndex>=0?controllerPlanes[planeIndex]:null;
+    if(!plane){html+='<div class="slot readonly" data-controller-plane-slot="'+i+'" title="'+(controllerPlaneMoveMode?'Drop a plane here':'Empty plane slot')+'">'+(i+1)+'</div>';continue;}
+    const visualPlane={...plane,visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
+    const activeClass=controllerPlaneMoveSelectedSlot===i?' active':'';
+    html+='<div class="'+DmxCommon.savedTileClass('slot filled')+activeClass+'" data-controller-plane-slot="'+i+'" data-controller-plane="'+escHtml(String(plane.id))+'" title="'+(controllerPlaneMoveMode?'Move '+escHtml(plane.name):'Open '+escHtml(plane.name))+'" style="'+slotVisualStyle(visualPlane)+'">'+
+      '<div class="palette-slot-content">'+paletteSlotVisualHtml(visualPlane)+'<span class="palette-slot-name">'+escHtml(plane.name)+'</span><span class="controller-plane-slot-meta">'+escHtml(planeFixtureSummary(plane))+'</span></div>'+
     '</div>';
   }
   host.innerHTML=html;
-  host.querySelectorAll('[data-controller-plane]').forEach(tile=>tile.addEventListener('click',()=>openControllerPlaneModal(tile.dataset.controllerPlane)));
+  host.querySelectorAll('[data-controller-plane-slot]').forEach(tile=>tile.addEventListener('click',()=>handleControllerPlaneSlotClick(parseInt(tile.dataset.controllerPlaneSlot,10)||0)));
+  DmxCommon.initTileMoveGrid({
+    grid:host,
+    button:'moveControllerPlanesBtn',
+    active:controllerPlaneMoveMode,
+    itemSelector:'[data-controller-plane-slot]',
+    getIndex:el=>parseInt(el.dataset.controllerPlaneSlot,10),
+    canDrag:el=>el.hasAttribute('data-controller-plane'),
+    onMove:moveControllerPlaneSlot
+  });
 }
 async function loadControllerPlanesServer(){
   try{
     const response=await fetch('room_plane_setup.php',{cache:'no-store'});
     const data=await response.json();
     if(!response.ok||data.ok===false)throw new Error(data.error||('HTTP '+response.status));
+    controllerRoomPlaneSetup=normalizeControllerRoomPlaneSetup(data);
     const planes=Array.isArray(data.planes)?data.planes:(Array.isArray(data.setup?.planes)?data.setup.planes:[]);
     controllerPlanes=planes.map(normalizeControllerPlane);
-    controllerPlaneCols=Math.max(1,Math.min(16,parseInt(data.planeCols??data.setup?.planeCols??3,10)||3));
-    controllerPlaneRows=Math.max(1,Math.min(16,parseInt(data.planeRows??data.setup?.planeRows??3,10)||3));
+    controllerPlaneCols=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(data.planeCols??data.setup?.planeCols??3,10)||3));
+    controllerPlaneRows=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(data.planeRows??data.setup?.planeRows??3,10)||3));
     renderControllerPlanes();
   }catch(error){
     controllerPlanes=[];
     renderControllerPlanes();
     setStatus('Saved planes unavailable: '+error.message,true);
   }
+}
+function normalizeControllerRoomPlaneSetup(data){
+  const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});
+  const fallback={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
+  return {
+    ...fallback,
+    ...source,
+    points:Array.isArray(source.points)?source.points:fallback.points,
+    target:source.target&&typeof source.target==='object'?source.target:fallback.target,
+    fixtures:Array.isArray(source.fixtures)?source.fixtures:fallback.fixtures,
+    planes:Array.isArray(source.planes)?source.planes:(Array.isArray(data?.planes)?data.planes:fallback.planes),
+    planeCols:Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(source.planeCols??data?.planeCols??fallback.planeCols,10)||fallback.planeCols)),
+    planeRows:Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(source.planeRows??data?.planeRows??fallback.planeRows,10)||fallback.planeRows))
+  };
 }
 function controllerPlaneWeights(plane,target=plane.target){
   const [a,b,c]=plane.points;
@@ -5137,10 +5268,14 @@ function zoomControllerPlaneView(factor){
     centerY:(base.minY+base.maxY)/2,
     zoom:Math.max(0.25,Math.min(8,(Number(controllerPlaneView.zoom)||1)*factor))
   };
+  syncActiveControllerPlaneView();
+  scheduleControllerPlaneViewAutosave();
   queueControllerPlaneRender();
 }
 function resetControllerPlaneView(){
   controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  syncActiveControllerPlaneView();
+  scheduleControllerPlaneViewAutosave();
   queueControllerPlaneRender();
 }
 function controllerPlaneToScreen(point,bounds,rect){
@@ -5170,6 +5305,55 @@ function setControllerPlaneTarget(room){
   };
   queueControllerPlaneRender();
   scheduleControllerPlaneLiveSend();
+}
+function controllerPlaneSavedView(plane){
+  const view=plane?.view&&typeof plane.view==='object'?plane.view:{};
+  return {
+    auto:view.auto!==false,
+    centerX:Number(view.centerX)||0,
+    centerY:Number(view.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(view.zoom)||1))
+  };
+}
+function syncActiveControllerPlaneView(){
+  if(!activeControllerPlane||!activeControllerPlaneId)return;
+  const normalized={
+    auto:controllerPlaneView.auto!==false,
+    centerX:Number(controllerPlaneView.centerX)||0,
+    centerY:Number(controllerPlaneView.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(controllerPlaneView.zoom)||1))
+  };
+  activeControllerPlane.view={...normalized};
+  const stored=controllerPlanes.find(plane=>String(plane.id)===String(activeControllerPlaneId));
+  if(stored)stored.view={...normalized};
+}
+function controllerRoomPlaneAutosavePayload(){
+  return DmxCommon.versionedPayload({
+    ...(controllerRoomPlaneSetup&&typeof controllerRoomPlaneSetup==='object'?controllerRoomPlaneSetup:{}),
+    planeCols:controllerPlaneCols,
+    planeRows:controllerPlaneRows,
+    planes:controllerPlanes.map(plane=>cloneControllerPlane(plane))
+  });
+}
+async function saveControllerPlaneView(){
+  if(!activeControllerPlane||!activeControllerPlaneId||!DmxCommon.isHttp())return false;
+  syncActiveControllerPlaneView();
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(controllerRoomPlaneAutosavePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Plane view saved');
+  return true;
+}
+function scheduleControllerPlaneViewAutosave(){
+  clearTimeout(controllerPlaneViewAutosaveTimer);
+  controllerPlaneViewAutosaveTimer=setTimeout(()=>{
+    controllerPlaneViewAutosaveTimer=null;
+    saveControllerPlaneView().catch(error=>setStatus('Plane view autosave failed: '+error.message,true));
+  },800);
 }
 function queueControllerPlaneRender(){
   if(controllerPlaneRenderQueued)return;
@@ -5260,8 +5444,9 @@ function renderControllerPlaneModal(){
 function openControllerPlaneModal(id){
   const plane=controllerPlanes.find(item=>String(item.id)===String(id));
   if(!plane)return;
+  activeControllerPlaneId=String(id);
   activeControllerPlane=cloneControllerPlane(plane);
-  controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  controllerPlaneView=controllerPlaneSavedView(activeControllerPlane);
   controllerPlanePanMode=false;
   document.getElementById('controllerPlanePanView').classList.remove('active');
   document.getElementById('controllerPlanePad').classList.remove('pan-mode');
@@ -5275,10 +5460,13 @@ function closeControllerPlaneModal(){
   DmxCommon.hideModal('controllerPlaneModal');
   controllerPlaneLiveSendPending=false;
   clearTimeout(controllerPlaneLiveSendTimer);
+  clearTimeout(controllerPlaneViewAutosaveTimer);
   controllerPlaneLiveSendTimer=null;
+  controllerPlaneViewAutosaveTimer=null;
   controllerPlaneTargetDrag=null;
   controllerPlaneViewDrag=null;
   controllerPlanePanMode=false;
+  activeControllerPlaneId=null;
   document.getElementById('controllerPlanePanView').classList.remove('active');
   document.getElementById('controllerPlanePad').classList.remove('pan-mode');
 }
@@ -5353,6 +5541,19 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
 }
 document.getElementById('controllerPlaneClose').onclick=closeControllerPlaneModal;
 document.getElementById('controllerPlaneClose2').onclick=closeControllerPlaneModal;
+document.getElementById('controllerPlaneCols').addEventListener('input',event=>{
+  controllerPlaneCols=event.target.value;
+  normalizeControllerPlaneGrid('cols');
+  renderControllerPlanes();
+  scheduleControllerPlanesSave('Plane layout saved');
+});
+document.getElementById('controllerPlaneRows').addEventListener('input',event=>{
+  controllerPlaneRows=event.target.value;
+  normalizeControllerPlaneGrid('rows');
+  renderControllerPlanes();
+  scheduleControllerPlanesSave('Plane layout saved');
+});
+document.getElementById('moveControllerPlanesBtn').onclick=toggleControllerPlaneMoveMode;
 document.getElementById('controllerPlaneNudgeControls').addEventListener('click',event=>{
   const button=event.target.closest('[data-controller-plane-nudge-axis]');
   if(!button)return;
@@ -5397,6 +5598,9 @@ document.getElementById('controllerPlanePad').addEventListener('pointermove',eve
     const dy=(event.clientY-controllerPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;
     controllerPlaneView.centerX=((controllerPlaneViewDrag.bounds.minX+controllerPlaneViewDrag.bounds.maxX)/2)-dx;
     controllerPlaneView.centerY=((controllerPlaneViewDrag.bounds.minY+controllerPlaneViewDrag.bounds.maxY)/2)+dy;
+    controllerPlaneView.auto=false;
+    syncActiveControllerPlaneView();
+    scheduleControllerPlaneViewAutosave();
     queueControllerPlaneRender();
     return;
   }

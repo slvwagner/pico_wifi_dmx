@@ -77,7 +77,7 @@ body.layout-editing .card-empty:hover{border-color:var(--accent);color:var(--acc
 .slot.empty{opacity:.55}
 .slot-name{position:relative;z-index:1;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.55)}
 .slot-meta{position:relative;z-index:1;display:block;margin-top:2px}
-.palette-visual{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.9}
+.palette-visual{position:absolute;inset:0;background-size:contain;background-position:top center;background-repeat:no-repeat;opacity:.9}
 .group-tile{min-height:74px;align-items:flex-start}
 .group-tile.active{background:#123f2a;border-color:#2cbf76}
 .summary-strip{display:flex;gap:8px;flex-wrap:wrap}
@@ -537,6 +537,7 @@ DmxCommon.bindBaseUrl(baseUrlEl);
 const statusEl=document.getElementById('status');
 const values={};
 let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],planes=[];
+let roomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
 let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
 let cardCols=2,cardRows=5;
 let chaserSlots=[],motionSlots=[];
@@ -2159,6 +2160,20 @@ function normalizeShowPlane(plane,index){
     visual:plane?.visual
   };
 }
+function normalizeRoomPlaneSetupForShow(data){
+  const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});
+  const fallback={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
+  return {
+    ...fallback,
+    ...source,
+    points:Array.isArray(source.points)?source.points:fallback.points,
+    target:source.target&&typeof source.target==='object'?source.target:fallback.target,
+    fixtures:Array.isArray(source.fixtures)?source.fixtures:fallback.fixtures,
+    planes:Array.isArray(source.planes)?source.planes:(Array.isArray(data?.planes)?data.planes:fallback.planes),
+    planeCols:Math.max(1,Math.min(32,parseInt(source.planeCols??data?.planeCols??fallback.planeCols,10)||fallback.planeCols)),
+    planeRows:Math.max(1,Math.min(32,parseInt(source.planeRows??data?.planeRows??fallback.planeRows,10)||fallback.planeRows))
+  };
+}
 function showPlaneTargetIds(){
   return activeTargetFixtureIds();
 }
@@ -2180,8 +2195,8 @@ function renderPlaneGrid(gridRef,layoutId='plane',cols=planeCols,rows=planeRows)
     const entry=orderedEntryAt('plane',i,layoutId);
     const plane=entry?.item;
     if(plane){
-      const visual={visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
-      html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected.plane===i&&moveSelectedLayout.plane===layoutId)}" data-show-tile-index="${i}" data-plane-key="${esc(entry.key)}" title="Open plane ${esc(plane.name||String(i+1))}" style="${slotStyle(visual)}">${slotVisual(visual)}<span class="show-tile-content"><span class="slot-name">${esc(plane.name||('Plane '+(i+1)))}</span><span class="show-plane-slot-meta">${esc(showPlaneFixtureSummary(plane))}</span></span></div>`;
+      const visualPlane={...plane,visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
+      html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected.plane===i&&moveSelectedLayout.plane===layoutId)}" data-show-tile-index="${i}" data-plane-key="${esc(entry.key)}" title="Open plane ${esc(plane.name||String(i+1))}" style="${slotStyle(visualPlane)}">${slotVisual(visualPlane)}<span class="show-tile-content"><span class="slot-name">${esc(plane.name||('Plane '+(i+1)))}</span><span class="show-plane-slot-meta slot-meta small">${esc(showPlaneFixtureSummary(plane))}</span></span></div>`;
     }else html+=`<div class="slot empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
@@ -2196,9 +2211,11 @@ function renderPlaneGrid(gridRef,layoutId='plane',cols=planeCols,rows=planeRows)
 function renderPlanes(){normalizePlaneGrid('cols');renderPlaneGrid(document.getElementById('planeGrid'),'plane',planeCols,planeRows);renderRepeatedCards();}
 
 let activeShowPlane=null;
+let activeShowPlaneId=null;
 let showPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
 let showPlanePanMode=false;
 let showPlaneRenderQueued=false;
+let showPlaneViewAutosaveTimer=null;
 let showPlaneLiveSendTimer=null;
 let showPlaneLiveSendBusy=false;
 let showPlaneLiveSendPending=false;
@@ -2266,10 +2283,14 @@ function zoomShowPlaneView(factor){
   if(!activeShowPlane)return;
   const base=showPlaneBounds(activeShowPlane);
   showPlaneView={auto:false,centerX:(base.minX+base.maxX)/2,centerY:(base.minY+base.maxY)/2,zoom:Math.max(0.25,Math.min(8,(Number(showPlaneView.zoom)||1)*factor))};
+  syncActiveShowPlaneView();
+  scheduleShowPlaneViewAutosave();
   queueShowPlaneRender();
 }
 function resetShowPlaneView(){
   showPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  syncActiveShowPlaneView();
+  scheduleShowPlaneViewAutosave();
   queueShowPlaneRender();
 }
 function setShowPlanePanMode(enabled){
@@ -2288,6 +2309,55 @@ function setShowPlaneTarget(room){
   activeShowPlane.target={x:Number(room.x)||0,y:Number(room.y)||0,z:Number(room.z)||0};
   queueShowPlaneRender();
   scheduleShowPlaneLiveSend();
+}
+function showPlaneSavedView(plane){
+  const view=plane?.view&&typeof plane.view==='object'?plane.view:{};
+  return {
+    auto:view.auto!==false,
+    centerX:Number(view.centerX)||0,
+    centerY:Number(view.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(view.zoom)||1))
+  };
+}
+function syncActiveShowPlaneView(){
+  if(!activeShowPlane||!activeShowPlaneId)return;
+  const normalized={
+    auto:showPlaneView.auto!==false,
+    centerX:Number(showPlaneView.centerX)||0,
+    centerY:Number(showPlaneView.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(showPlaneView.zoom)||1))
+  };
+  activeShowPlane.view={...normalized};
+  const stored=planes.find(plane=>String(plane.id)===String(activeShowPlaneId));
+  if(stored)stored.view={...normalized};
+}
+function roomPlaneAutosavePayload(){
+  return DmxCommon.versionedPayload({
+    ...(roomPlaneSetup&&typeof roomPlaneSetup==='object'?roomPlaneSetup:{}),
+    planeCols,
+    planeRows,
+    planes:planes.map(plane=>cloneShowPlane(plane))
+  });
+}
+async function saveShowPlaneView(){
+  if(!activeShowPlane||!activeShowPlaneId||!DmxCommon.isHttp())return false;
+  syncActiveShowPlaneView();
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(roomPlaneAutosavePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Plane view saved');
+  return true;
+}
+function scheduleShowPlaneViewAutosave(){
+  clearTimeout(showPlaneViewAutosaveTimer);
+  showPlaneViewAutosaveTimer=setTimeout(()=>{
+    showPlaneViewAutosaveTimer=null;
+    saveShowPlaneView().catch(error=>setStatus('Plane view autosave failed: '+error.message,true));
+  },800);
 }
 function queueShowPlaneRender(){
   if(showPlaneRenderQueued)return;
@@ -2374,8 +2444,9 @@ function renderShowPlaneModal(){
 function openShowPlaneModal(id){
   const plane=planes.find(item=>String(item.id)===String(id));
   if(!plane)return;
+  activeShowPlaneId=String(id);
   activeShowPlane=cloneShowPlane(plane);
-  showPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  showPlaneView=showPlaneSavedView(activeShowPlane);
   showPlaneLiveSendPending=false;
   showPlaneLastLiveStatus='';
   setShowPlanePanMode(false);
@@ -2387,9 +2458,12 @@ function closeShowPlaneModal(){
   DmxCommon.hideModal('showPlaneModal');
   showPlaneLiveSendPending=false;
   clearTimeout(showPlaneLiveSendTimer);
+  clearTimeout(showPlaneViewAutosaveTimer);
   showPlaneLiveSendTimer=null;
+  showPlaneViewAutosaveTimer=null;
   showPlaneTargetDrag=null;
   showPlaneViewDrag=null;
+  activeShowPlaneId=null;
   setShowPlanePanMode(false);
 }
 function showPlanePanTiltControl(fixture){
@@ -2489,6 +2563,9 @@ document.getElementById('showPlanePad')?.addEventListener('pointermove',event=>{
     const dy=(event.clientY-showPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;
     showPlaneView.centerX=((showPlaneViewDrag.bounds.minX+showPlaneViewDrag.bounds.maxX)/2)-dx;
     showPlaneView.centerY=((showPlaneViewDrag.bounds.minY+showPlaneViewDrag.bounds.maxY)/2)+dy;
+    showPlaneView.auto=false;
+    syncActiveShowPlaneView();
+    scheduleShowPlaneViewAutosave();
     queueShowPlaneRender();
     return;
   }
@@ -3218,6 +3295,7 @@ async function loadShow(options={}){
   groups=Array.isArray(groupData.groups)?groupData.groups:[];
   scenes=Array.isArray(sceneData.scenes)?sceneData.scenes:[];
   palettes=Array.isArray(paletteData.palettes)?paletteData.palettes:[];
+  roomPlaneSetup=normalizeRoomPlaneSetupForShow(planeData);
   const planeSource=Array.isArray(planeData.planes)?planeData.planes:(Array.isArray(planeData.setup?.planes)?planeData.setup.planes:[]);
   planes=planeSource.map(normalizeShowPlane);
   sceneCols=sceneData.slotCols||4;sceneRows=sceneData.slotRows||4;
