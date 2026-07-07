@@ -472,7 +472,7 @@ The **Master** card contains the global operator actions and dimmer masters. **R
 
 The **Grand Master** is a vertical fader. It does not overwrite stored live values; it multiplies dimmer output by a 0..1 factor, including 16-bit dimmer controls. **Blackout** below the Grand Master sets the Grand Master fader to **0%** and sends the scaled dimmer output immediately. **Group Master** faders work the same way, but only for fixtures assigned to that group master. The **Blackout** button below each Group Master sets only that Group Master to **0%**. When a master is below **100%**, Show Run also locks the affected dimmer channels on the Pico so running Pico chaser/effect playback cannot overwrite the master-limited dimmer output.
 
-To assign a Group Master, first select one or more groups or fixtures, click **Edit Layout**, then click **Assign** on the desired group master fader. **Add Group Master**, **Assign**, and **Clear** are only enabled while **Edit Layout** is active. The Grand Master factor and Group Master assignments are saved to server UI state and restored on page load.
+To assign a Group Master, first select one or more groups or fixtures, click **Edit Layout**, then click **Assign** on the desired group master fader. **Add Group Master**, **Assign**, **Clear**, and the small tile `x` for deleting a Group Master are only available while **Edit Layout** is active. Deleting a Group Master removes that fader and saves the updated master layout to server UI state. The **Grand Master** is protected and never has a delete `x`. The Grand Master factor and Group Master assignments are saved to server UI state and restored on page load.
 
 ![Show Run Master card](screenshots/show-run-card-master.png)
 
@@ -481,6 +481,8 @@ To assign a Group Master, first select one or more groups or fixtures, click **E
 The **Groups** card contains the saved groups from the Controller page. Select one or more groups when you want scene, palette, or Group Master assignment to affect only those fixtures. With no group selected, Show Run uses all fixtures.
 
 Group selection is an operator filter only. It does not edit the saved group definitions and it does not save setup data.
+
+The **Group Edit** button opens a Controller-style Group Edit modal for the current Show target. The modal shows matching controls from the selected group or fixture target and sends live-value changes through the same Show Run output path as the other operator controls. Use it for quick grouped dimmer, color, wheel, or pan/tilt adjustments from the run page without opening the full Controller.
 
 ![Show Run Groups card](screenshots/show-run-card-groups.png)
 
@@ -1115,6 +1117,7 @@ The **Planes** toolbox stores complete plane definitions as tiles, using the sam
 | Pencil | Opens **Edit Plane Tile** for the selected plane tile name, background color, uploaded icon, or drawn icon. |
 | `x` | Deletes the saved plane after confirmation. |
 | Cols / Rows | Shapes the Planes tile matrix. |
+| Move | Uses the same shared tile move behavior as the Controller, Chaser, Effects, and Show Run plane/toolbox matrices. Drag a filled plane tile to another slot, or tap a source tile and then a destination on touch screens. |
 
 ![Edit Plane Tile](screenshots/room-plane-edit-plane-tile.png)
 
@@ -1139,6 +1142,8 @@ The **Fixtures** toolbox stores the relationship between each moving light and t
 In the fixture editor, **Recall A/B/C** loads an already stored calibration point into the editor. **Store A/B/C** writes the current pan/tilt editor value into that calibration point. Store buttons are separated from recall buttons and use the warning color because they overwrite calibration data.
 
 The editor sends live DMX for patched fixtures. If the fixture profile has a 16-bit pan/tilt control, the full 0...65535 value is used. If the fixture profile only has an 8-bit pan/tilt control, the value range is 0...255.
+
+The **Groups** toolbox on the Room Plane page is for selecting calibrated fixtures by saved group. Its **Group Edit** button opens the same Controller-style group edit workflow for the selected patched fixtures. This is separate from the fixture calibration editor: Group Edit changes live fixture controls such as dimmer, color, wheels, or pan/tilt for the selected group, while the fixture table **Edit** button is still used to recall/store A/B/C calibration points for one fixture at a time.
 
 ### 10.5 Coordinate Math
 

@@ -872,6 +872,8 @@ This means the normal workflow is: recall or set the base value first, then star
 
 Show Run is the operator page. It recalls saved groups, fixture targets, scenes, palettes, room planes, Pico chaser slots, Pico effect slots, and Live Controls without exposing the full setup UI. Every card can be arranged in a matrix while **Edit Layout** is active. Card positions, repeated card instances, tile rows/columns, tile order, and Live Controls are saved server-side in `data/ui_state.json`, so the same operator layout can be restored on another computer.
 
+The **Master** card contains the Grand Master plus optional Group Master faders. Group Masters can be added, assigned, cleared, and removed only while **Edit Layout** is active. Each Group Master tile shows a small `x` in Edit Layout for deletion; the Grand Master is protected and cannot be deleted. Show Run **Groups** also has a **Group Edit** button that opens a Controller-style group edit modal for the current show target.
+
 ![Show Run Planes card](docs/screenshots/show-run-card-planes.png)
 
 The **Planes** card opens saved room planes from the Plane page. Its recall modal contains the virtual room plot, zoom/pan/reset controls, a red target point, X/Y coarse and fine nudge buttons, and the fixtures that match the current Show target. Dragging or nudging the target sends calibrated pan/tilt values live to the Pico and updates the shared live-value snapshot.
@@ -912,7 +914,7 @@ Show Run layout is saved server-side in `data/ui_state.json` under the `showRun`
 
 ![Room Plane page](docs/screenshots/room-plane.png)
 
-The Plane page calibrates moving lights against measured room points A/B/C. Each saved plane stores the room points, target, view, fixture list, fixture mount X/Y/Z values, and per-fixture A/B/C pan/tilt calibration. The **Planes** toolbox uses the shared tile language: click a filled plane tile to recall it, click an empty tile to save the current plane, use the pencil to edit tile name/color/icon, and use `x` to delete a saved plane.
+The Plane page calibrates moving lights against measured room points A/B/C. Each saved plane stores the room points, target, view, fixture list, fixture mount X/Y/Z values, and per-fixture A/B/C pan/tilt calibration. The **Planes** toolbox uses the shared saved-plane tile renderer also used by Controller, Chaser, and Effects: click a filled plane tile to recall it, click an empty tile to save the current plane, use **Move** to reorder tiles, use the pencil to edit tile name/color/icon, and use `x` to delete a saved plane. The Room Plane **Groups > Group Edit** button opens the Controller-style group edit modal for selected patched fixtures; the fixture table **Edit** button remains the calibration editor for storing A/B/C points.
 
 ![Room Plane Planes toolbox](docs/screenshots/room-plane-toolbox-saved-planes.png)
 
