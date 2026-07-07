@@ -18,9 +18,12 @@ Changed:
 - Chaser can now recall a saved room plane into the selected chase step, and Effects can recall a saved room plane as the current pan/tilt effect center.
 - Updated the shared Groups toolbox so all pages use tile-level pencil and `x` actions for renaming/visual editing and deleting groups, removing the older Rename/Delete action buttons.
 - Added **Group Edit** to the Show Run Groups card so the current show target can be edited with a Controller-style modal while still sending live values through Show Run's master-aware output path.
+- Unified fixture-control **Group Edit** modals across Controller, Show Run, Chaser, Effects, and Room Plane so shared controls use the same rich editing surface, including XY pan/tilt pads, color pickers, wheel option buttons/ranges, direct wheel DMX values, and relative nudges where supported.
 - Changed Room Plane **Groups > Group Edit** to open a Controller-style group edit modal for the selected patched fixtures instead of reusing the single-fixture calibration editor.
 - Moved the Room Plane **Planes** tile matrix onto the shared saved-plane toolbox renderer so its layout, Move behavior, active tile state, and tile actions stay aligned with Controller, Chaser, and Effects.
 - Added an Edit Layout-only tile `x` action for Show Run Group Masters so group master faders can be removed while the Grand Master remains protected.
+- Unified modal shells for tile visual editors, Controller control details, palette merge, guided wheel editing, wheel icon drawing, Show Run utility dialogs, and plane recall dialogs so headers, body scrolling, and action footers use the same shared modal structure.
+- Moved shared rich-control color conversion and wheel option icon rendering helpers into `dmx-common.js` and `dmx-ui.css`, keeping Controller, Show Run, Chaser, and Room Plane wheel swatches/icons consistent.
 
 ## 0.9.7 - 2026-07-05
 
