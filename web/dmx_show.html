@@ -139,7 +139,7 @@ body.layout-editing .master-delete{display:flex;align-items:center;justify-conte
 body.layout-editing .master-target-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 body.layout-editing .master-edit-actions{display:flex}
 .show-plane-modal .modal{width:min(920px,calc(100vw - 32px));max-width:920px}
-.show-group-modal .modal{width:min(920px,calc(100vw - 32px));max-width:920px}
+.show-group-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px}
 .show-group-controls{display:grid;gap:10px}
 .show-group-control{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:10px}
 .show-group-control h3{margin:0;font-size:15px}
@@ -476,18 +476,18 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 </div>
 </div>
 
-<div id="showGroupModal" class="modal-overlay show-group-modal" style="display:none">
-<div class="modal" role="dialog" aria-modal="true" aria-labelledby="showGroupModalTitle">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div id="showGroupModal" class="modal-overlay show-group-modal fixture-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="showGroupModalTitle">
+<div class="modal-head">
+<button id="showGroupModalClose" type="button" aria-label="Close">x</button>
 <h2 id="showGroupModalTitle">Group Edit</h2>
-<button id="showGroupModalClose" style="font-size:16px;padding:6px 14px" aria-label="Close">x</button>
 </div>
 <div class="modal-body">
 <div class="small" id="showGroupModalHint"></div>
 <div id="showGroupModalBody" class="show-group-controls"></div>
 </div>
-<div class="buttons" style="padding-top:4px">
-<button id="showGroupModalClose2">Close</button>
+<div class="modal-actions">
+<button id="showGroupModalClose2" type="button">Close</button>
 </div>
 </div>
 </div>
@@ -608,6 +608,53 @@ function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
 function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function bytes16(v){const n=clamp(v,0,65535);return{coarse:(n>>8)&255,fine:n&255};}
+function hex2(n){return clamp(n,0,255).toString(16).padStart(2,'0');}
+function rgbHex(v){return '#'+hex2(v.a)+hex2(v.b)+hex2(v.c);}
+function cmyHex(v){return '#'+hex2(255-v.a)+hex2(255-v.b)+hex2(255-v.c);}
+function cmykHex(v){
+  return '#'+hex2(Math.round(255*(1-v.a/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.b/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.c/255)*(1-v.k/255)));
+}
+function hexToRgb(hex){
+  const m=(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);
+  const n=parseInt(m?m[1]:'000000',16);
+  return {a:(n>>16)&255,b:(n>>8)&255,c:n&255};
+}
+function rgbToCmy(hex){
+  const rgb=hexToRgb(hex);
+  return {a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};
+}
+function rgbToCmyk(hex){
+  const rgb=hexToRgb(hex);
+  const r=rgb.a/255,g=rgb.b/255,b=rgb.c/255;
+  const k=1-Math.max(r,g,b);
+  if(k>=1)return {a:0,b:0,c:0,k:255};
+  return {a:Math.round((1-r-k)/(1-k)*255),b:Math.round((1-g-k)/(1-k)*255),c:Math.round((1-b-k)/(1-k)*255),k:Math.round(k*255)};
+}
+const wheelOptionValue=DmxCommon.wheelOptionValue;
+const wheelOptionMatches=DmxCommon.wheelOptionMatches;
+const selectedWheelOption=DmxCommon.selectedWheelOption;
+const wheelOptionTitle=DmxCommon.wheelOptionTitle;
+const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
+const wheelOptionRange=DmxCommon.wheelOptionRange;
+const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
+function wheelOptionIconHtml(option){
+  if(!option)return '';
+  const image=option.image?`background-image:url('${esc(option.image)}')`:null;
+  const color=option.color?`background:${esc(option.color)}`:null;
+  const style=[image||color].filter(Boolean).join(';');
+  return style?`<span class="option-icon" style="${style}"></span>`:'';
+}
+function updateWheelRangeHost(host,option,value,attrs){
+  if(!host)return;
+  const range=wheelOptionRange(option);
+  if(wheelOptionIsAdjustable(option)&&range){
+    host.style.display='';
+    host.innerHTML=wheelRangeSliderHtml(option,value,attrs,esc);
+  }else{
+    host.innerHTML='';
+    host.style.display='none';
+  }
+}
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrlEl.value.replace(/\/+$/,'');}
 function fixtureProfile(f){return profiles.find(p=>String(p.id)===String(f.profileId));}
@@ -769,11 +816,30 @@ function showGroupControlHtml(row){
     const fine=part.max>255?showGroupRelativeControlHtml(row.key,part,1,part.label+' fine'):'';
     return showGroupRelativeControlHtml(row.key,part,step,part.label+(part.max>255?' coarse':' relative'))+fine;
   }).join('');
+  let rich='';
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const pan=target?getControlPartValue(target.fixture,target.control,'pan'):(c.type==='panTilt8'?128:32768);
+    const tilt=target?getControlPartValue(target.fixture,target.control,'tilt'):(c.type==='panTilt8'?128:32768);
+    const max=c.type==='panTilt8'?255:65535;
+    rich=`<div class="xy-pad" data-show-group-xy="${esc(row.key)}"><div class="xy-dot" style="left:${pan/max*100}%;top:${100-tilt/max*100}%"></div></div>
+<div class="row"><span class="readout" data-show-group-xy-readout="${esc(row.key)}">Pan ${pan} · Tilt ${tilt}</span><button type="button" data-show-group-center="${esc(row.key)}">Center</button></div>`;
+  }else if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const v=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    rich=`<label>Color picker<input type="color" value="${color}" data-show-group-color-picker="${esc(row.key)}"></label>
+<div class="swatches"><button type="button" class="swatch" style="background:#fff" data-show-group-color="${esc(row.key)}" data-color="#ffffff"></button><button type="button" class="swatch" style="background:#f00" data-show-group-color="${esc(row.key)}" data-color="#ff0000"></button><button type="button" class="swatch" style="background:#0f0" data-show-group-color="${esc(row.key)}" data-color="#00ff00"></button><button type="button" class="swatch" style="background:#00f" data-show-group-color="${esc(row.key)}" data-color="#0000ff"></button></div>`;
+  }else if(c.type==='wheel'){
+    const v=target?getControlPartValue(target.fixture,target.control,'value'):0;
+    const active=selectedWheelOption(c,v);
+    rich=`<div class="tabs">${(c.options||[]).map((option,index)=>`<button type="button" class="tab ${wheelOptionMatches(option,v)?'active':''}" title="${esc(wheelOptionTitle(option))}" data-show-group-wheel="${esc(row.key)}" data-wheel-value="${wheelOptionValue(option)}" data-wheel-option-index="${index}">${wheelOptionIconHtml(option)}${esc(option.name)}</button>`).join('')}</div>
+<div data-show-group-wheel-range-host="${esc(row.key)}">${wheelRangeSliderHtml(active,v,`data-show-group-slider="${esc(row.key)}" data-part="value"`,esc)}</div>`;
+  }
   return `<section class="show-group-control" data-show-group-control="${esc(row.key)}">
 <div>
 <h3>${esc(showGroupControlLabel(c))}</h3>
 <div class="small">${row.targets.length} fixture(s) · source ${esc(sourceName)} · ${esc(c.type||'control')}</div>
 </div>
+${rich}
 ${partRows}
 <div class="show-group-relative">${relative}</div>
 </section>`;
@@ -785,6 +851,25 @@ function refreshShowGroupControlRow(rowKey,part){
   const value=getControlPartValue(target.fixture,target.control,part);
   document.querySelectorAll(`[data-show-group-slider="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"],[data-show-group-number="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"]`).forEach(input=>{input.value=value;});
   document.querySelectorAll(`[data-show-group-readout="${CSS.escape(rowKey+':'+part)}"]`).forEach(el=>{el.textContent=value;});
+  if(part==='pan'||part==='tilt'){
+    const pan=getControlPartValue(target.fixture,target.control,'pan');
+    const tilt=getControlPartValue(target.fixture,target.control,'tilt');
+    const max=target.control.type==='panTilt8'?255:65535;
+    document.querySelectorAll(`[data-show-group-xy="${CSS.escape(rowKey)}"] .xy-dot`).forEach(dot=>{dot.style.left=(pan/max*100)+'%';dot.style.top=(100-tilt/max*100)+'%';});
+    document.querySelectorAll(`[data-show-group-xy-readout="${CSS.escape(rowKey)}"]`).forEach(el=>{el.textContent='Pan '+pan+' · Tilt '+tilt;});
+  }
+  if(['a','b','c','w','amber','k'].includes(part)){
+    const valueObject=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    const color=(target.control.type==='rgb'||target.control.type==='rgbw'||target.control.type==='rgbwa')?rgbHex(valueObject):(target.control.type==='cmy'?cmyHex(valueObject):cmykHex(valueObject));
+    document.querySelectorAll(`[data-show-group-color-picker="${CSS.escape(rowKey)}"]`).forEach(input=>{if(input.value!==color)input.value=color;});
+  }
+  if(part==='value'&&target.control.type==='wheel'){
+    document.querySelectorAll(`[data-show-group-wheel-range-host="${CSS.escape(rowKey)}"]`).forEach(host=>updateWheelRangeHost(host,selectedWheelOption(target.control,value),value,`data-show-group-slider="${esc(rowKey)}" data-part="value"`));
+    document.querySelectorAll(`[data-show-group-wheel="${CSS.escape(rowKey)}"]`).forEach(button=>{
+      const option=(target.control.options||[])[parseInt(button.dataset.wheelOptionIndex,10)];
+      button.classList.toggle('active',option?wheelOptionMatches(option,value):parseInt(button.dataset.wheelValue,10)===value);
+    });
+  }
 }
 function updateShowGroupEditButton(){
   const btn=document.getElementById('showGroupEditBtn');
@@ -3545,6 +3630,28 @@ document.getElementById('showGroupEditBtn').onclick=openShowGroupEditModal;
 document.getElementById('showGroupModalClose').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupModalBody').addEventListener('input',e=>{
+  const colorInput=e.target.closest?.('[data-show-group-color-picker]');
+  if(colorInput){
+    const key=colorInput.dataset.showGroupColorPicker;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    let next=null;
+    const type=row.control.type;
+    if(type==='rgb'||type==='rgbw'||type==='rgbwa'){
+      const rgb=hexToRgb(colorInput.value);
+      next={a:rgb.a,b:rgb.b,c:rgb.c};
+    }else if(type==='cmy')next=rgbToCmy(colorInput.value);
+    else if(type==='cmyk')next=rgbToCmyk(colorInput.value);
+    if(!next)return;
+    row.targets.forEach(target=>{
+      const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+      const merged={...(typeof current==='object'?current:{}),...next};
+      setValue(target.fixture,target.control,merged);
+    });
+    scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+    return;
+  }
   const input=e.target.closest?.('[data-show-group-slider],[data-show-group-number]');
   if(!input)return;
   const key=input.dataset.showGroupSlider||input.dataset.showGroupNumber;
@@ -3558,6 +3665,50 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
 });
 document.getElementById('showGroupModalBody').addEventListener('click',e=>{
+  const center=e.target.closest?.('[data-show-group-center]');
+  if(center){
+    const key=center.dataset.showGroupCenter;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    const value=row.control.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
+    row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+    refreshShowGroupControlRow(key,'pan');
+    refreshShowGroupControlRow(key,'tilt');
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' centered')).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const swatch=e.target.closest?.('[data-show-group-color]');
+  if(swatch){
+    const key=swatch.dataset.showGroupColor;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    let next=null;
+    const type=row.control.type;
+    if(type==='rgb'||type==='rgbw'||type==='rgbwa'){
+      const rgb=hexToRgb(swatch.dataset.color);
+      next={a:rgb.a,b:rgb.b,c:rgb.c};
+    }else if(type==='cmy')next=rgbToCmy(swatch.dataset.color);
+    else if(type==='cmyk')next=rgbToCmyk(swatch.dataset.color);
+    if(!next)return;
+    row.targets.forEach(target=>{
+      const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+      setValue(target.fixture,target.control,{...(typeof current==='object'?current:{}),...next});
+    });
+    scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color')).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const wheel=e.target.closest?.('[data-show-group-wheel]');
+  if(wheel){
+    const key=wheel.dataset.showGroupWheel;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    const value=clamp(wheel.dataset.wheelValue,0,255);
+    row.targets.forEach(target=>setControlPartValue(target.fixture,target.control,'value',value));
+    refreshShowGroupControlRow(key,'value');
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+    return;
+  }
   const btn=e.target.closest?.('[data-show-group-relative]');
   if(!btn)return;
   const key=btn.dataset.showGroupRelative;
@@ -3574,6 +3725,32 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
   });
   refreshShowGroupControlRow(key,part);
   sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' nudged')).catch(err=>setStatus(err.message,true));
+});
+function setShowGroupXY(event,pad){
+  const key=pad.dataset.showGroupXy;
+  const row=showGroupEditControls().find(item=>item.key===key);
+  if(!row)return;
+  const rect=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
+  const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/Math.max(1,rect.height)));
+  const max=row.control.type==='panTilt8'?255:65535;
+  const value={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
+  row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+  refreshShowGroupControlRow(key,'pan');
+  refreshShowGroupControlRow(key,'tilt');
+  sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+}
+document.getElementById('showGroupModalBody').addEventListener('pointerdown',e=>{
+  const pad=e.target.closest?.('[data-show-group-xy]');
+  if(!pad)return;
+  e.preventDefault();
+  pad.setPointerCapture?.(e.pointerId);
+  setShowGroupXY(e,pad);
+});
+document.getElementById('showGroupModalBody').addEventListener('pointermove',e=>{
+  const pad=e.target.closest?.('[data-show-group-xy]');
+  if(!pad||!pad.hasPointerCapture?.(e.pointerId))return;
+  setShowGroupXY(e,pad);
 });
 document.getElementById('stopChaserBtn').onclick=()=>DmxCommon.withButtonFeedback('stopChaserBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('chaser')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopMotionBtn').onclick=()=>DmxCommon.withButtonFeedback('stopMotionBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('motion')).catch(err=>setStatus(err.message,true));

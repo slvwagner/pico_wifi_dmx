@@ -323,6 +323,54 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('Group Edit exposes the same rich fixture control types as the controller modal', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [
+        {
+          id: 10,
+          name: 'Full Control Spot',
+          mode: '16ch',
+          channels: 16,
+          controls: [
+            { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 },
+            { id: 12, type: 'rgb', label: 'Color', a: 2, b: 3, c: 4 },
+            { id: 13, type: 'panTilt16', label: 'Pan/Tilt', pan: 5, panFine: 6, tilt: 7, tiltFine: 8 },
+            { id: 14, type: 'wheel', label: 'Gobo', channel: 9, options: [{ name: 'Open', value: 0 }, { name: 'Dots', value: 32 }] }
+          ]
+        }
+      ],
+      fixtures: [
+        { id: 201, name: 'Full Spot 1', profileId: 10, start: 1 },
+        { id: 202, name: 'Full Spot 2', profileId: 10, start: 21 }
+      ],
+      groups: [
+        { id: 'full', name: 'Full Spots', fixtureIds: [201, 202], values: {} }
+      ]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="full"]').click();
+    await page.locator('#showGroupEditBtn').click();
+
+    await expect(page.locator('#showGroupModal')).toBeVisible();
+    await expect(page.locator('#showGroupModalBody .show-group-control h3')).toHaveText(['Color', 'Dimmer', 'Gobo', 'Pan / Tilt']);
+    await expect(page.locator('#showGroupModalBody .xy-pad')).toBeVisible();
+    await expect(page.locator('#showGroupModalBody input[type="color"]')).toBeVisible();
+    await expect(page.locator('#showGroupModalBody .swatch')).toHaveCount(4);
+    await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Open' })).toBeVisible();
+    await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Dots' })).toBeVisible();
+
+    await page.locator('#showGroupModalBody .tab', { hasText: 'Dots' }).click();
+
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '201:14': 32, '202:14': 32 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('9:32') && call.body.includes('29:32'))).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('opens saved room planes on Show Run and sends calibrated pan tilt to selected targets', async ({ page }) => {
     const calls = {
       pico: [],

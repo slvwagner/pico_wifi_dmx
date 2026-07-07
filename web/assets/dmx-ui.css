@@ -122,16 +122,16 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .wheel-icon-draw-tools{align-items:end}
 #wheelIconCanvas{background-color:#0a0d10;background-image:linear-gradient(45deg,rgba(255,255,255,.08) 25%,transparent 25%),linear-gradient(-45deg,rgba(255,255,255,.08) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,rgba(255,255,255,.08) 75%),linear-gradient(-45deg,transparent 75%,rgba(255,255,255,.08) 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0}
 @media(max-width:900px){.wheel-option-grid{grid-template-columns:1fr 1fr}.wheel-option-grid--header{display:none}.wheel-option-grid .icon-btn{width:100%}}
-#groupModal .modal,#chaserGroupModal .modal,#motionGroupModal .modal{width:min(760px,calc(100vw - 32px));max-width:760px;overflow:hidden}
-#groupModal .modal>div:first-child,#chaserGroupModal .modal>div:first-child,#motionGroupModal .modal>div:first-child,#groupModal .modal>.buttons,#chaserGroupModal .modal>.buttons,#motionGroupModal .modal>.buttons{flex:0 0 auto}
-#groupModal .modal-body,#chaserGroupModal .modal-body,#motionGroupModal .modal-body{display:flex;flex-direction:column;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:0 1 auto;max-height:min(620px,calc(100dvh - 170px));padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
-#groupModal .control,#chaserGroupModal .control,#motionGroupModal .control{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:visible;flex:0 0 auto}
-#groupModal .control-head,#chaserGroupModal .control-head,#motionGroupModal .control-head{min-width:0}
-#groupModal .control label,#chaserGroupModal .control label,#motionGroupModal .control label{min-width:0;max-width:100%}
-#groupModal input,#groupModal select,#groupModal textarea,#chaserGroupModal input,#chaserGroupModal select,#chaserGroupModal textarea,#motionGroupModal input,#motionGroupModal select,#motionGroupModal textarea{min-width:0;max-width:100%}
-#groupModal .byte-sliders,#chaserGroupModal .byte-sliders,#motionGroupModal .byte-sliders{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
-#groupModal .tabs,#chaserGroupModal .tabs,#motionGroupModal .tabs{min-width:0;max-width:100%;overflow:hidden}
-#groupModal .tab,#chaserGroupModal .tab,#motionGroupModal .tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.fixture-control-modal .modal-card{width:min(760px,calc(100vw - 32px));max-width:760px;overflow:hidden}
+.fixture-control-modal .modal-body{display:flex;flex-direction:column;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:0 1 auto;max-height:min(620px,calc(100dvh - 170px));padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.fixture-control-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
+.fixture-control-modal .control{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:visible;flex:0 0 auto}
+.fixture-control-modal .control-head{min-width:0}
+.fixture-control-modal .control label{min-width:0;max-width:100%}
+.fixture-control-modal input,.fixture-control-modal select,.fixture-control-modal textarea{min-width:0;max-width:100%}
+.fixture-control-modal .byte-sliders{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.fixture-control-modal .tabs{min-width:0;max-width:100%;overflow:hidden}
+.fixture-control-modal .tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
 .wheel-range-control{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:8px 10px;display:grid;gap:5px}
 .wheel-range-control label{display:grid;gap:5px;min-width:0}
 .scene-toolbox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
