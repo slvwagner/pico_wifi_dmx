@@ -1500,6 +1500,9 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#wheelOptions').fill('Open=0-15\nGobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast\nStrobe=11-255|kind=ShutterStrobe|speed=slow-fast');
     await page.locator('#openWheelOptionsModal').click();
     await expect(page.locator('#wheelOptionsModal')).toBeVisible();
+    await expect(page.locator('#wheelOptionsModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#wheelOptionsModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#wheelOptionsModal > .modal')).toHaveCount(0);
 
     const rows = page.locator('[data-wheel-option-row]');
     await expect(rows).toHaveCount(3);
@@ -1519,6 +1522,9 @@ test.describe('Fixture Controller established rules', () => {
     });
     await rows.nth(1).locator('[data-wheel-draw]').click();
     await expect(page.locator('#wheelIconDrawModal')).toBeVisible();
+    await expect(page.locator('#wheelIconDrawModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#wheelIconDrawModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#wheelIconDrawModal > .modal')).toHaveCount(0);
     const canvas = page.locator('#wheelIconCanvas');
     const box = await canvas.boundingBox();
     await page.mouse.move(box.x + 20, box.y + 20);
