@@ -135,6 +135,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .section-control-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px;overflow:hidden}
 .section-control-modal .modal-body{display:grid;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:1 1 auto;max-height:calc(90dvh - 150px);padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .section-control-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
+.visual-editor-modal .modal-body{display:grid;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:1 1 auto;padding-right:4px;-webkit-overflow-scrolling:touch}
+.visual-editor-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
 .wheel-range-control{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:8px 10px;display:grid;gap:5px}
 .wheel-range-control label{display:grid;gap:5px;min-width:0}
 .scene-toolbox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}

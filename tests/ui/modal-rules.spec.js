@@ -8,7 +8,7 @@ test.describe('Modal visual rules', () => {
     const state = await page.evaluate(() => {
       DmxCommon.showModal('paletteVisualModal');
       const overlay = document.getElementById('paletteVisualModal');
-      const modal = overlay.querySelector('.modal');
+      const modal = overlay.querySelector('.modal-card');
       const body = overlay.querySelector('.modal-body');
       const overlayStyle = getComputedStyle(overlay);
       const modalStyle = getComputedStyle(modal);
@@ -23,6 +23,10 @@ test.describe('Modal visual rules', () => {
       return {
         openDisplay,
         closedDisplay: getComputedStyle(overlay).display,
+        overlayClass: overlay.className,
+        legacyModalCount: overlay.querySelectorAll(':scope > .modal').length,
+        headCount: overlay.querySelectorAll('.modal-head').length,
+        actionsCount: overlay.querySelectorAll('.modal-actions').length,
         overlayZ,
         modalWidth,
         modalMaxWidth,
@@ -33,6 +37,10 @@ test.describe('Modal visual rules', () => {
 
     expect(state.openDisplay).toBe('flex');
     expect(state.closedDisplay).toBe('none');
+    expect(state.overlayClass).toContain('visual-editor-modal');
+    expect(state.legacyModalCount).toBe(0);
+    expect(state.headCount).toBe(1);
+    expect(state.actionsCount).toBe(1);
     expect(state.overlayZ).toBe('500');
     expect(state.modalMaxWidth).toBe('760px');
     expect(state.modalShadow).not.toBe('none');

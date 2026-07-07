@@ -1232,13 +1232,13 @@
     if(!document.getElementById('sharedGroupVisualModal')){
       const wrap=document.createElement('div');
       wrap.id='sharedGroupVisualModal';
-      wrap.className='modal-overlay';
+      wrap.className='modal-overlay visual-editor-modal';
       wrap.style.display='none';
       wrap.innerHTML=`
-        <div class="modal">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-            <h2>Edit Group Tile</h2>
-            <button id="sharedGroupVisualClose" style="font-size:16px;padding:6px 14px">x</button>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="sharedGroupVisualTitle">
+          <div class="modal-head">
+            <button id="sharedGroupVisualClose" type="button" aria-label="Close">x</button>
+            <h2 id="sharedGroupVisualTitle">Edit Group Tile</h2>
           </div>
           <div class="modal-body">
             <label>Target<select id="sharedGroupVisualTarget"></select></label>
@@ -1254,9 +1254,9 @@
             </div>
             <div id="sharedGroupVisualHint" class="small"></div>
           </div>
-          <div class="buttons">
-            <button id="sharedGroupVisualSave" class="primary">Save tile</button>
-            <button id="sharedGroupVisualClose2">Close</button>
+          <div class="modal-actions">
+            <button id="sharedGroupVisualSave" type="button" class="primary">Save tile</button>
+            <button id="sharedGroupVisualClose2" type="button">Close</button>
           </div>
         </div>`;
       document.body.appendChild(wrap);
