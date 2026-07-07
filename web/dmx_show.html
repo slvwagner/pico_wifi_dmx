@@ -2207,10 +2207,14 @@ function renderGroupGrid(grid,layoutId='group',cols=groupCols,rows=groupRows){
     else html+=`<div class="slot group-tile empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('[data-group]').forEach(btn=>btn.addEventListener('click',()=>{
-    if(tileMoveClick('group',parseInt(btn.dataset.showTileIndex,10),layoutId))return;
+  grid.querySelectorAll('[data-group]').forEach(btn=>btn.addEventListener('click',e=>{
+    if(e.defaultPrevented)return;
     const id=String(btn.dataset.group);
     if(selectedGroupIds.has(id))selectedGroupIds.delete(id);else selectedGroupIds.add(id);
+    if(layoutEditing){
+      moveSelected.group=parseInt(btn.dataset.showTileIndex,10);
+      moveSelectedLayout.group=layoutId;
+    }
     syncFixtureSelectionFromGroups();
     renderGroups();
     renderFixtures();
@@ -2237,11 +2241,15 @@ function renderFixtureGrid(grid,layoutId='fixture',cols=fixtureCols,rows=fixture
     }else html+=`<div class="slot group-tile empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('[data-fixture]').forEach(btn=>btn.addEventListener('click',()=>{
-    if(tileMoveClick('fixture',parseInt(btn.dataset.showTileIndex,10),layoutId))return;
+  grid.querySelectorAll('[data-fixture]').forEach(btn=>btn.addEventListener('click',e=>{
+    if(e.defaultPrevented)return;
     const id=String(btn.dataset.fixture);
     selectedGroupIds.clear();
     if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
+    if(layoutEditing){
+      moveSelected.fixture=parseInt(btn.dataset.showTileIndex,10);
+      moveSelectedLayout.fixture=layoutId;
+    }
     renderFixtures();
     renderGroups();
     renderPlanes();

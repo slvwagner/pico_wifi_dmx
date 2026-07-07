@@ -786,6 +786,21 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('assigns a Group Master from a fixture selected while Edit Layout is active', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#fixtureGrid [data-fixture="101"]').click();
+    await expect(page.locator('#fixtureGrid [data-fixture="101"]')).toHaveClass(/active/);
+    await page.locator('#cardMaster [data-target-master-assign="0"]').first().click();
+
+    await expect(page.locator('[data-target-master-summary="0"]')).toContainText('Spot 1');
+    await expect.poll(() => calls.uiStatePosts.at(-1)?.state?.targetMasters?.[0]?.fixtureIds).toEqual(['101']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('reapplies Group Master scale after starting Pico effects playback', async ({ page }) => {
     const calls = {
       pico: [],
