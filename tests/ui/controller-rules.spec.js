@@ -513,6 +513,128 @@ test.describe('Fixture Controller established rules', () => {
     expect(after.b).toBe(89);
   });
 
+  test('saved plane recall opens a room preview and applies to the selected group fixtures', async ({ page }) => {
+    const dmxBatches = [];
+    await page.route('**/dmx/b', async route => {
+      dmxBatches.push(route.request().postData() || '');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      baseUrl.value = location.origin;
+      savedGroups = [{ id: 'grp_plane', name: 'Plane Movers', fixtureIds: [101], values: {} }];
+      activeSavedGroupIds.clear();
+      renderSavedGroupsList();
+      controllerPlanes = [normalizeControllerPlane({
+        id: 'plane_front',
+        name: 'Front Plane',
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 10, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 10, z: 0 }
+        ],
+        target: { x: 5, y: 0, z: 0 },
+        fixtures: [
+          {
+            id: 101,
+            name: 'A 1',
+            x: 1,
+            y: 1,
+            z: 3,
+            cal: {
+              A: { pan: 1000, tilt: 2000, calibrated: true },
+              B: { pan: 3000, tilt: 4000, calibrated: true },
+              C: { pan: 5000, tilt: 6000, calibrated: true }
+            }
+          },
+          {
+            id: 102,
+            name: 'B 1',
+            x: 2,
+            y: 1,
+            z: 3,
+            cal: {
+              A: { pan: 10, tilt: 20, calibrated: true },
+              B: { pan: 30, tilt: 40, calibrated: true },
+              C: { pan: 50, tilt: 60, calibrated: true }
+            }
+          }
+        ],
+        visual: { type: 'visual', color: '#225a50', image: '' }
+      }, 0)];
+      renderControllerPlanes();
+      drawSurface();
+    });
+
+    await page.locator('[data-group-index="0"]').click();
+    await page.locator('[data-controller-plane="plane_front"]').click();
+
+    await expect(page.locator('#controllerPlaneModal')).toBeVisible();
+    await expect(page.locator('#controllerPlaneTitle')).toContainText('Front Plane');
+    await expect(page.locator('#controllerPlaneSummary')).toContainText('selected 1 fixture');
+    await expect(page.locator('.controller-plane-fixture-row.selected')).toContainText('A 1');
+    const planePadBox = await page.locator('#controllerPlanePad').boundingBox();
+    const nudgeBox = await page.locator('.controller-plane-nudge').boundingBox();
+    expect(planePadBox).toBeTruthy();
+    expect(nudgeBox).toBeTruthy();
+    expect(nudgeBox.y).toBeGreaterThan(planePadBox.y + planePadBox.height - 2);
+    await expect.poll(() => page.locator('.controller-plane-fixture-row').first().evaluate(el => getComputedStyle(el).display)).toBe('grid');
+    const nudgeItems = await page.locator('#controllerPlaneNudgeControls .relative-control').evaluateAll(items => items.map(item => {
+      const rect = item.getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    }));
+    expect(nudgeItems).toHaveLength(4);
+    expect(Math.abs(nudgeItems[0].y - nudgeItems[1].y)).toBeLessThan(4);
+    expect(nudgeItems[2].y).toBeGreaterThan(nudgeItems[0].y + 10);
+    expect(Math.abs(nudgeItems[2].y - nudgeItems[3].y)).toBeLessThan(4);
+    const nudgeColumns = await page.locator('#controllerPlaneNudgeControls .relative-control').first().evaluate(el => getComputedStyle(el).gridTemplateColumns);
+    expect(nudgeColumns).toMatch(/100px/);
+    await expect(page.locator('#controllerPlaneApply')).toHaveCount(0);
+    await expect(page.locator('#controllerPlaneZoomIn')).toBeVisible();
+    await expect(page.locator('#controllerPlaneZoomOut')).toBeVisible();
+    await expect(page.locator('#controllerPlaneResetView')).toBeVisible();
+    await expect(page.locator('#controllerPlanePanView')).toBeVisible();
+
+    await page.locator('#controllerPlaneZoomIn').click();
+    await expect.poll(() => page.evaluate(() => controllerPlaneView.zoom)).toBeGreaterThan(1);
+    await page.locator('#controllerPlaneResetView').click();
+    await expect.poll(() => page.evaluate(() => controllerPlaneView.auto && controllerPlaneView.zoom)).toBe(1);
+    await page.locator('#controllerPlanePanView').click();
+    await expect(page.locator('#controllerPlanePad')).toHaveClass(/pan-mode/);
+    await page.locator('#controllerPlanePanView').click();
+    await expect(page.locator('#controllerPlanePad')).not.toHaveClass(/pan-mode/);
+
+    const target = page.locator('#controllerPlaneTarget');
+    const box = await target.boundingBox();
+    expect(box).toBeTruthy();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 90, box.y + box.height / 2 - 20, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.locator('#controllerPlaneSummary')).not.toContainText('Target X 5 / Y 0');
+    await page.evaluate(() => {
+      activeControllerPlane.target = { x: 5, y: 0, z: 0 };
+      renderControllerPlaneModal();
+    });
+
+    await page.locator('#controllerPlaneStepXCoarse').fill('1');
+    await page.locator('[data-controller-plane-nudge-axis="x"][data-controller-plane-nudge-dir="1"][data-controller-plane-nudge-step="coarse"]').click();
+    await expect(page.locator('#controllerPlaneSummary')).toContainText('Target X 6');
+    await expect.poll(() => dmxBatches.length).toBeGreaterThan(0);
+
+    const result = await page.evaluate(() => ({
+      value: values['101:12'],
+      selected: [...selectedFixtureIds]
+    }));
+    expect(result.value).toEqual({ pan: 2200, tilt: 3200 });
+    expect(result.selected).toEqual([101]);
+    expect(dmxBatches.at(-1)).toContain('2:8');
+    expect(dmxBatches.at(-1)).toContain('3:152');
+    expect(dmxBatches.at(-1)).toContain('4:12');
+    expect(dmxBatches.at(-1)).toContain('5:128');
+    await expect(page.locator('#status')).toContainText('Plane live Front Plane -> 1 fixture');
+  });
+
   test('saved group tiles use corner edit tile and delete actions without toggling selection', async ({ page }) => {
     await page.evaluate(() => {
       savedGroups = [{ id: 'grp_test', name: 'Front Wash', fixtureIds: [101, 102], values: {} }];

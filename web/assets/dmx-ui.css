@@ -101,8 +101,8 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .modal-head{display:flex;align-items:center;gap:10px}
 .modal-head h2{flex:1;min-width:0;margin:0}
 .modal-head button{flex:0 0 auto}
-.modal-card .modal-head{padding-left:44px;min-height:36px}
-.modal-card .modal-head>[data-ptd-close][aria-label="Close"]{position:absolute;top:12px;left:12px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0}
+.modal-card .modal-head{padding-right:44px;min-height:36px}
+.modal-card .modal-head>[data-ptd-close][aria-label="Close"],.modal-card .modal-head>button[aria-label="Close"]{position:absolute;top:12px;right:12px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0!important}
 .modal-card .modal-body{flex:0 0 auto;max-height:none;overflow:visible}
 .modal-card .xy-pad{height:clamp(150px,24dvh,230px);aspect-ratio:auto}
 .modal-actions [data-ptd-extra-actions]{display:inline-grid;grid-template-columns:repeat(3,max-content);gap:8px;align-items:center}
@@ -141,6 +141,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox--palettes .scene-toolbox__header{background:rgb(50,90,54)}
 .scene-toolbox--fan .scene-toolbox__header{background:#5a171a}
 .scene-toolbox--effects .scene-toolbox__header{background:#17425a}
+.scene-toolbox--planes .scene-toolbox__header{background:#0b2f4f}
 .scene-toolbox--fan input[type=range]{width:100%;min-width:0}
 .scene-toolbox--fan label{min-width:0}
 .fan-nudge-control{display:grid;grid-template-columns:auto minmax(72px,100px) auto;gap:6px;align-items:end}

@@ -678,6 +678,29 @@ try {
     {id:'doc_palette_1',name:'Red Beam',slot:0,scope:'Color',values:{'990101:990012':{a:255,b:0,c:0},'990102:990012':{a:160,b:0,c:0}},visual:{type:'visual',color:'#8f2525'}},
     {id:'doc_palette_2',name:'Open Gobo',slot:1,scope:'Gobo',values:{'990101:990010':0},visual:{type:'visual',color:'#225a50'}}
   );
+  planes.splice(0,planes.length,
+    {
+      id:'doc_plane_front',
+      name:'Front stage plane',
+      visual:{type:'visual',color:'#163f66'},
+      points:[{id:'A',x:0,y:0,z:0},{id:'B',x:6,y:0,z:0},{id:'C',x:0,y:4,z:0}],
+      target:{x:2.8,y:1.5,z:0},
+      fixtures:[
+        {id:990101,name:'Front Spot 1',x:-1.2,y:-1.6,z:3.2,cal:{A:{pan:20500,tilt:43000,calibrated:true},B:{pan:44200,tilt:42100,calibrated:true},C:{pan:24800,tilt:28600,calibrated:true}}},
+        {id:990102,name:'Front Spot 2',x:7.2,y:-1.6,z:3.2,cal:{A:{pan:29200,tilt:43100,calibrated:true},B:{pan:53600,tilt:44200,calibrated:true},C:{pan:35500,tilt:29200,calibrated:true}}}
+      ]
+    },
+    {
+      id:'doc_plane_back',
+      name:'Back wall plane',
+      visual:{type:'visual',color:'#225a50'},
+      points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],
+      target:{x:1.6,y:1.2,z:0},
+      fixtures:[
+        {id:990101,name:'Front Spot 1',x:-1.2,y:-1.6,z:3.2,cal:{A:{pan:22000,tilt:40500,calibrated:true},B:{pan:39500,tilt:40200,calibrated:true},C:{pan:26200,tilt:27800,calibrated:true}}}
+      ]
+    }
+  );
   chaserSlots.splice(0,chaserSlots.length);
   motionSlots.splice(0,motionSlots.length);
   chaserSlots[1]={slot:1,loaded:true,label:'Dimmer Chase',step_count:3,speed_mult:1,mode:1,direction:0,active:true};
@@ -689,14 +712,15 @@ try {
   values['990102:990012']={a:120,b:40,c:255};
   targetMasters.splice(0,targetMasters.length,{id:'doc_target_front',name:'Group Master 1',fixtureIds:['990101','990102'],factor:0.75});
   masterFactors.grand=0.85;
-  cardCols=3;cardRows=3;
+  cardCols=3;cardRows=4;
   groupCols=2;groupRows=1;
   fixtureCols=2;fixtureRows=1;
   sceneCols=2;sceneRows=1;
   paletteCols=2;paletteRows=1;
+  planeCols=2;planeRows=1;
   chaserCols=2;chaserRows=1;
   motionCols=2;motionRows=1;
-  cardOrder=['master','group','fixture','scene','palette','chaser','motion','live','midi'];
+  cardOrder=['master','group','fixture','scene','palette','plane','chaser','motion','live','midi'];
   cardLayouts={};
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
@@ -710,6 +734,7 @@ try {
   if(typeof renderFixtures==='function')renderFixtures();
   if(typeof renderScenes==='function')renderScenes();
   if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPlanes==='function')renderPlanes();
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
   if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof renderCardGrid==='function')renderCardGrid();
@@ -725,6 +750,7 @@ try {
     Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png"
     Save-ElementScreenshot "#cardScene" "show-run-card-scenes.png"
     Save-ElementScreenshot "#cardPalette" "show-run-card-palettes.png"
+    Save-ElementScreenshot "#cardPlane" "show-run-card-planes.png"
     Save-ElementScreenshot "#cardChaser" "show-run-card-chaser.png"
     Save-ElementScreenshot "#cardMotion" "show-run-card-effects.png"
     Save-ElementScreenshot "#cardLive" "show-run-card-live-controls.png"
@@ -747,6 +773,7 @@ try {
   if(typeof renderGroups==='function')renderGroups();
   if(typeof renderScenes==='function')renderScenes();
   if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPlanes==='function')renderPlanes();
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
   if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof renderCardGrid==='function')renderCardGrid();
@@ -761,9 +788,9 @@ try {
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
   if(typeof openAddCardModal==='function')openAddCardModal(6);
   const select=document.getElementById('addCardType');
-  if(select)select.value='palette';
+  if(select)select.value='plane';
   const button=document.getElementById('addShowCard');
-  if(button&&typeof addCardButtonLabel==='function')button.textContent=addCardButtonLabel('palette');
+  if(button&&typeof addCardButtonLabel==='function')button.textContent=addCardButtonLabel('plane');
   await wait(300);
 })()
 "@
@@ -772,6 +799,29 @@ try {
     Eval-Js @"
 (async()=>{
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof closeAddCardModal==='function')closeAddCardModal();
+  if(typeof setLayoutEditing==='function')setLayoutEditing(false);
+  selectedGroupIds.clear();
+  selectedFixtureIds.clear();
+  selectedFixtureIds.add('990101');
+  selectedFixtureIds.add('990102');
+  cardCols=2;cardRows=2;
+  planeCols=2;planeRows=1;
+  cardOrder=['plane','fixture','master','palette'];
+  cardLayouts={};
+  if(typeof renderFixtures==='function')renderFixtures();
+  if(typeof renderPlanes==='function')renderPlanes();
+  if(typeof renderCardGrid==='function')renderCardGrid();
+  if(typeof openShowPlaneModal==='function')openShowPlaneModal('doc_plane_front');
+  await wait(600);
+})()
+"@
+    Save-ElementScreenshot "#showPlaneModal .modal" "show-run-plane-modal.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.getElementById('showPlaneClose2')?.click();
   if(typeof closeAddCardModal==='function')closeAddCardModal();
   cardCols=2;cardRows=2;
   paletteCols=2;paletteRows=1;
@@ -917,6 +967,15 @@ try {
     Save-ElementScreenshot "#roomPlaneBox" "room-plane-toolbox-plane.png"
     Save-ElementScreenshot "#roomPlaneLibraryBox" "room-plane-toolbox-saved-planes.png"
     Save-ElementScreenshot "#roomFixturesBox" "room-plane-toolbox-fixtures.png"
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.querySelector('[data-visual-plane]')?.click();
+  await wait(300);
+})()
+"@
+    Save-ElementScreenshot "#planeVisualModal .modal-card" "room-plane-edit-plane-tile.png"
+    Eval-Js "document.getElementById('planeVisualClose2')?.click();"
     Eval-Js @"
 (async()=>{
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));

@@ -9,8 +9,9 @@ Changed:
 - Enhanced the Pico Performance Test page with Free Memory, 100 Hz Headroom, and Core1 Headroom checks, plus Timing History rows that preserve the full headroom wording.
 - Added a Pico Performance Test **Playback + Palette Stress** action that starts already-loaded Pico chaser/effect slots, fills only empty slots with temporary demo data, records those temporary slots in server UI state, sends repeated full 512-channel palette-style recalls, records the resulting telemetry, and clears only the temporary demo slots afterward.
 - Added hardware stress coverage for playback plus palette recalls, using `/perf/status.json` to guard Core0/Core1 headroom and free RAM. The stress tests now load demo data only into empty Pico slots and clear those temporary slots afterward.
-- Added an experimental Room Plane Test page for calibrated moving-light room-plane mapping with fixture mount positions, three calibration points, barycentric target weights, and interpolated pan/tilt output.
-- Split Room Plane save/recall into a dedicated **Saved Planes** toolbox and added grouped **-- all / + all** collapse controls for Room Plane, Saved Planes, and Fixtures.
+- Added the Room Plane page for calibrated moving-light room-plane mapping with fixture mount positions, three calibration points, barycentric target weights, and interpolated pan/tilt output.
+- Split Room Plane save/recall into a dedicated **Planes** toolbox and added grouped **-- all / + all** collapse controls for Room Plane, Planes, and Fixtures.
+- Reworked the Room Plane **Planes** toolbox to use the shared tile workflow: filled tiles recall, empty tiles save the current plane, the pencil edits plane tile visuals, and `x` deletes a saved plane.
 - Moved toolbox grouped collapse-all behavior into shared `dmx-common.js` code and adapted Chaser, Effects, and Room Plane to use the common helper.
 
 ## 0.9.7 - 2026-07-05
@@ -91,6 +92,9 @@ Fixed:
 - Fixed Show Run playback tile moves in repeated Pico Chaser and Pico Effects cards by rendering cloned playback grids as active repeat grids and keeping tile move selection tied to the card instance.
 - Changed Show Run tile `x` actions to remove only the tile assignment from that card layout instead of deleting the saved group, scene, or palette from the show setup.
 - Added Show Run auto-refresh when the page becomes active again, renamed the manual reload action to **Refresh Show Data**, and skipped auto-refresh while **Edit Layout** is active.
+- Added a Show Run **Planes** card and recall modal so saved room planes can be opened from the operator page, with live calibrated pan/tilt output using the current group/fixture target.
+- Extended complete setup export/import to format v3 so saved room planes and fixture calibration are included in `pico_dmx_setup.json`, and **New Show** resets room-plane setup.
+- Updated the user manual, README, and dedicated screenshots for the Room Plane tile workflow and Show Run Planes card/recall modal.
 - Preserved rich Open Fixture Library wheel metadata when updating an existing fixture library profile from an edited controller profile, so adjustable ranges such as `WheelShake` and `WheelRotation` are not downgraded to plain wheel values.
 - Fixed PicoSpot-style shutter/strobe wheel ranges by adding `ShutterStrobe` metadata handling, so an imported or edited strobe range such as `11..255` renders as a bounded **Strobe speed** control instead of a generic wheel value.
 

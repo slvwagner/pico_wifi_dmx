@@ -134,6 +134,20 @@ async function routeShowSetup(page, calls) {
     });
   });
 
+  await page.route('**/room_plane_setup.php**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        planeCols: calls.planeCols || 2,
+        planeRows: calls.planeRows || 1,
+        planes: calls.planes || []
+      })
+    });
+  });
+
   await page.route('**/chaser_setup.php**', async route => {
     await route.fulfill({
       status: 200,
@@ -246,6 +260,87 @@ test.describe('Show Run page', () => {
     expect(calls.liveValues.at(-1)).toEqual({ '102:11': 200 });
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('opens saved room planes on Show Run and sends calibrated pan tilt to selected targets', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [
+        {
+          id: 1,
+          name: 'Moving Spot',
+          mode: '16ch',
+          channels: 16,
+          controls: [
+            { id: 21, type: 'panTilt16', label: 'Pan Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }
+          ]
+        }
+      ],
+      fixtures: [
+        { id: 101, name: 'Move 1', profileId: 1, start: 1 },
+        { id: 102, name: 'Move 2', profileId: 1, start: 21 }
+      ],
+      planes: [
+        {
+          id: 'front_plane',
+          name: 'Front Plane',
+          points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 10, y: 0, z: 0 }, { id: 'C', x: 0, y: 10, z: 0 }],
+          target: { x: 5, y: 0, z: 0 },
+          fixtures: [
+            {
+              id: 101,
+              name: 'Move 1',
+              x: 1,
+              y: 1,
+              z: 3,
+              cal: {
+                A: { calibrated: true, pan: 1000, tilt: 2000 },
+                B: { calibrated: true, pan: 3000, tilt: 4000 },
+                C: { calibrated: true, pan: 5000, tilt: 6000 }
+              }
+            },
+            {
+              id: 102,
+              name: 'Move 2',
+              x: 2,
+              y: 1,
+              z: 3,
+              cal: {
+                A: { calibrated: true, pan: 10000, tilt: 20000 },
+                B: { calibrated: true, pan: 30000, tilt: 40000 },
+                C: { calibrated: true, pan: 50000, tilt: 60000 }
+              }
+            }
+          ]
+        }
+      ]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardPlane')).toBeVisible();
+    await expect(page.locator('#planeGrid [data-plane-key="front_plane"]')).toContainText('Front Plane');
+
+    await page.locator('#groupGrid [data-group="front"]').click();
+    await page.locator('#planeGrid [data-plane-key="front_plane"]').click();
+    await expect(page.locator('#showPlaneModal')).toBeVisible();
+    await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
+
+    await page.locator('#showPlaneStepXCoarse').fill('1');
+    await page.locator('[data-show-plane-nudge-axis="x"][data-show-plane-nudge-dir="1"][data-show-plane-nudge-step="coarse"]').click();
+
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b' &&
+      call.method === 'POST' &&
+      call.body.includes('1:8') &&
+      call.body.includes('2:152') &&
+      call.body.includes('3:12') &&
+      call.body.includes('4:128')
+    )).toBe(true);
+    await expect(page.locator('#status')).toContainText('Plane live Front Plane -> 1 fixture');
+    expect(calls.liveValues.at(-1)).toEqual({ '101:21': { pan: 2200, tilt: 3200 } });
   });
 
   test('shows primary show actions in the Master card', async ({ page }) => {
@@ -1647,7 +1742,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#addCardModal')).toBeVisible();
     await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
-    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Groups'].sort());
+    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
@@ -1789,7 +1884,7 @@ test.describe('Show Run page', () => {
     await page.locator('[data-add-card-position="2"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
-    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Groups'].sort());
+    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
 
     await page.locator('#addCardType').selectOption('palette');
     await page.locator('#addShowCard').click();

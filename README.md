@@ -20,8 +20,8 @@ Core features:
 - **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control.
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, and write throughput against a real Pico.
-- **Room Plane Test** — prototype calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, and barycentric target interpolation.
-- **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico slot payloads, custom fixture library data, Show Run layout/Live Controls, and saved UI layout.
+- **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, and barycentric target interpolation.
+- **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico slot payloads, custom fixture library data, Show Run layout/Live Controls, and saved UI layout.
 - **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
 - **Release tooling** — scripts sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots, run tests, build firmware, and prepare release packages.
 
@@ -467,7 +467,7 @@ pico_wifi_dmx/
 │  ├─ dmx_gpio.html                GPIO/ADC mapping page
 │  ├─ dmx_monitor.html             DMX output/base-buffer monitor
 │  ├─ dmx_benchmark.html           Pico performance test page
-│  ├─ dmx_room_plane.html          Room-plane calibration prototype
+│  ├─ dmx_room_plane.html          Room-plane calibration
 │  └─ assets/
 │     ├─ dmx-common.js       Shared toolbox, base URL, visual, fan helpers
 │     ├─ dmx-ui.css          Shared dark UI styling
@@ -774,13 +774,13 @@ The UI is served from a separate web server (XAMPP in development). All pages ta
 | Page | File | Description |
 |------|------|-------------|
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
-| Show Run | `web/dmx_show.html` | Run a show from saved groups, scenes, palettes, live fixture-control faders/knobs/buttons, and Pico chaser/effect playback slots without editing setup data |
+| Show Run | `web/dmx_show.html` | Run a show from saved groups, fixtures, scenes, palettes, saved room planes, live fixture-control faders/knobs/buttons, and Pico chaser/effect playback slots without editing setup data |
 | Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Effects | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
 | DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh interval and rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
 | Pico Performance Test | `web/dmx_benchmark.html` | Check Pico connectivity, read firmware `/perf/status.json` telemetry, verify DMX/base buffer readback, measure HTTP latency, and run all-slot playback plus palette-recall stress tests |
-| Room Plane Test | `web/dmx_room_plane.html` | Experimental calibrated 2D room-plane mapper for moving-light pan/tilt targeting, saved planes, fixture calibration, and barycentric interpolation |
+| Room Plane | `web/dmx_room_plane.html` | Calibrated 2D room-plane mapper for moving-light pan/tilt targeting, saved planes, fixture calibration, and barycentric interpolation |
 
 ### Screenshots
 
@@ -800,7 +800,7 @@ The Fixture Controller is the main setup and live-control page. It defines fixtu
 
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
-The **Show** card is the user-facing project point. **New Show** starts a fresh show after confirmation, clearing fixture setup, live values, groups, scenes, palettes, saved chases, effects, GPIO mappings, mirrored Pico slot payloads, Show Run layout, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, effects, GPIO mappings, mirrored Pico slot payloads, custom fixture library data, Show Run card/tile layout, Show Run Live Controls, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table. The card can be collapsed when those buttons are not needed.
+The **Show** card is the user-facing project point. **New Show** starts a fresh show after confirmation, clearing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, Show Run layout, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, custom fixture library data, Show Run card/tile layout, Show Run Live Controls, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table. The card can be collapsed when those buttons are not needed.
 
 The Fixture Library panel loads the built-in converted Open Fixture Library catalog by default. **Export Library** downloads the currently loaded catalog as `pico_dmx_fixture_library.json`; **Import Library** saves a converted fixture catalog to the XAMPP server so it becomes the preferred library for all browsers. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`. During development, refresh that bundled fallback from the current XAMPP catalog with:
 
@@ -866,6 +866,18 @@ The Effects page creates continuous effects for one selected target type at a ti
 
 This means the normal workflow is: recall or set the base value first, then start the effect. The firmware reads the center from the scene base buffer and the effect oscillator moves around that value. Effects can also be uploaded into one of 64 Pico slots so multiple effects can run directly on the Pico without browser timing jitter. The Effects page can recall compatible shared palettes as effect centers, so position, dimmer, beam, or other scalar palettes can seed the current target before upload. The Effects toolbox stores reusable effect recipes (target, participants, effect type, BPM, amplitudes, spread, and phase offsets) without storing center/base values.
 
+**Show Run**
+
+![Show Run page](docs/screenshots/show-run.png)
+
+Show Run is the operator page. It recalls saved groups, fixture targets, scenes, palettes, room planes, Pico chaser slots, Pico effect slots, and Live Controls without exposing the full setup UI. Every card can be arranged in a matrix while **Edit Layout** is active. Card positions, repeated card instances, tile rows/columns, tile order, and Live Controls are saved server-side in `data/ui_state.json`, so the same operator layout can be restored on another computer.
+
+![Show Run Planes card](docs/screenshots/show-run-card-planes.png)
+
+The **Planes** card opens saved room planes from the Plane page. Its recall modal contains the virtual room plot, zoom/pan/reset controls, a red target point, X/Y coarse and fine nudge buttons, and the fixtures that match the current Show target. Dragging or nudging the target sends calibrated pan/tilt values live to the Pico and updates the shared live-value snapshot.
+
+![Show Run Plane recall modal](docs/screenshots/show-run-plane-modal.png)
+
 **GPIO Control**
 
 ![GPIO Control page](docs/screenshots/gpio-control.png)
@@ -894,7 +906,15 @@ Show Run refreshes its XAMPP show data automatically when the page becomes activ
 
 Show Run also has a configurable **Live Controls** card. While **Edit Layout** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds, current phase, remaining time, and a progress bar.
 
-Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/scenes/palettes/chaser/effects, plus Live Controls cards and widgets. Because it is server-side UI state, **Export Setup** and **Import Setup** can move the operator page to another computer instead of relying on one browser's local storage.
+Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, plus Live Controls cards and widgets. Because it is server-side UI state, **Export Setup** and **Import Setup** can move the operator page to another computer instead of relying on one browser's local storage.
+
+**Room Plane**
+
+![Room Plane page](docs/screenshots/room-plane.png)
+
+The Plane page calibrates moving lights against measured room points A/B/C. Each saved plane stores the room points, target, view, fixture list, fixture mount X/Y/Z values, and per-fixture A/B/C pan/tilt calibration. The **Planes** toolbox uses the shared tile language: click a filled plane tile to recall it, click an empty tile to save the current plane, use the pencil to edit tile name/color/icon, and use `x` to delete a saved plane.
+
+![Room Plane Planes toolbox](docs/screenshots/room-plane-toolbox-saved-planes.png)
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
@@ -1073,6 +1093,7 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `chaser_setup.php` | `data/chaser_setup.json` | Saved chases, Chaser toolbox grid config, mirrored Pico slot payloads |
 | `motion_setup.php` | `data/motion_setup.json` | Effects browser setup, saved effect recipes, and saved Pico slot payloads |
 | `gpio_setup.php` | `data/gpio_setup.json` | GPIO/ADC editor mappings, enabled state, Pico base URL |
+| `room_plane_setup.php` | `data/room_plane_setup.json` | Room Plane A/B/C points, target/view state, saved planes, fixture mount positions, and fixture calibration |
 | `fixture_library.php` | `data/fixture_library.json` | Optional custom converted fixture library catalog |
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, toolbox collapse state, and Show Run card/tile/live-control layout |
 
@@ -1114,6 +1135,7 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 | `api/group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
 | `api/chaser_setup.php` | REST handler — save/load saved Chases toolbox entries and mirrored Pico slot payloads (`data/chaser_setup.json`) |
 | `api/motion_setup.php` | REST handler — save/load Effects setup, saved effect recipes, and mirrored Pico slot payloads (`data/motion_setup.json`) |
+| `api/room_plane_setup.php` | REST handler — save/load Room Plane calibration setup (`data/room_plane_setup.json`) |
 | `api/ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
 | `scripts/sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
 | `scripts/update_xampp_server.ps1` | PowerShell script — runs the XAMPP sync and verifies the deployed pages respond |

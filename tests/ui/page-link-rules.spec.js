@@ -9,7 +9,7 @@ const APP_PAGES = [
   { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.8#7-gpio-control', manualText: 'GPIO Control' },
   { path: 'test/', manualHref: '../user-manual.html?v=0.9.8#8-pico-performance-test', manualText: 'Pico Performance Test' },
   { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=0.9.8#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
-  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=0.9.8#10-room-plane-test', manualText: 'Room Plane Test' }
+  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=0.9.8#10-room-plane', manualText: 'Room Plane' }
 ];
 
 test.describe('Page link rules', () => {
@@ -41,7 +41,7 @@ test.describe('Page link rules', () => {
     await expect(page.locator('header a.nav[href="../dmx_monitor.html"]')).toHaveText('Monitor');
   });
 
-  test('main pages link to the Room Plane test page', async ({ page }) => {
+  test('main pages link to the Room Plane page', async ({ page }) => {
     for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_gpio.html', 'dmx_monitor.html', 'dmx_room_plane.html']) {
       await openDmxPage(page, path);
       await expect(page.locator('header a.nav[href="dmx_room_plane.html"]')).toHaveText('Plane');

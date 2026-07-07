@@ -140,7 +140,7 @@ strong { color: #ffffff; }
 <tr><td><a href="#7-gpio-control">GPIO Control</a></td><td>Map Pico GPIO buttons and ADC inputs to lighting actions</td></tr>
 <tr><td><a href="#9-dmx-buffer-monitor">DMX Buffer Monitor</a></td><td>Read all 512 values from either the live output frame or the base/position buffer</td></tr>
 <tr><td><a href="#8-pico-performance-test">Pico Performance Test</a></td><td>Test Pico HTTP/DMX update performance, buffer readback, and core timing logs</td></tr>
-<tr><td><a href="#10-room-plane-test">Room Plane Test</a></td><td>Prototype calibrated room-plane coordinate mapping for moving lights</td></tr>
+<tr><td><a href="#10-room-plane">Room Plane</a></td><td>Calibrated room-plane coordinate mapping for moving lights</td></tr>
 </tbody>
 </table>
 <h2 id="1-fixture-controller">1. Fixture Controller</h2>
@@ -264,7 +264,7 @@ strong { color: #ffffff; }
 <h3 id="fixture-controller-toolboxes">Fixture Controller Toolboxes</h3>
 <p>The Fixture Controller uses four toolboxes in the shared right-side <strong>Toolboxes</strong> sidebar.</p>
 <p><img src="screenshots/fixture-controller-toolbox-groups.png" alt="Controller Groups toolbox"></p>
-<p><strong>Show</strong> is the project-level card for setup files. <strong>New Show</strong> starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. <strong>Export Setup</strong> downloads the complete show backup, <strong>Import Setup</strong> restores one, and <strong>Patch CSV</strong> exports the patched channel table. The card can be collapsed when you do not need these buttons.</p>
+<p><strong>Show</strong> is the project-level card for setup files. <strong>New Show</strong> starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. <strong>Export Setup</strong> downloads the complete show backup, <strong>Import Setup</strong> restores one, and <strong>Patch CSV</strong> exports the patched channel table. The card can be collapsed when you do not need these buttons.</p>
 <p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small <code>x</code>, import/export group JSON, reorder group tiles with <strong>Move</strong>, and open <strong>Group Edit</strong> when the current scope supports it.</p>
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Controller Scenes toolbox"></p>
 <p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, <strong>Move</strong> reorders tiles, and the small top-left pencil icon opens <strong>Edit Tile</strong> for that slot&#39;s name, background, and optional drawing/upload.</p>
@@ -451,6 +451,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Saved groups from <code>group_setup.php</code></li>
 <li>Saved scenes from <code>scene_setup.php</code></li>
 <li>Saved palettes from <code>palette_setup.php</code></li>
+<li>Saved room planes from <code>room_plane_setup.php</code></li>
 <li>Mirrored Pico chaser slots from <code>chaser_setup.php?slots</code></li>
 <li>Mirrored Pico effect slots from <code>motion_setup.php?slots</code></li>
 <li>Current live values from <code>fixture_setup.php?livevalues</code></li>
@@ -475,6 +476,11 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <h3 id="palettes-card">Palettes Card</h3>
 <p>The <strong>Palettes</strong> card recalls saved position, color, beam, dimmer, and effect palettes. If a group or fixture target is active, only stored values for the targeted fixtures are recalled. This lets one saved palette be reused for different parts of the rig.</p>
 <p><img src="screenshots/show-run-card-palettes.png" alt="Show Run Palettes card"></p>
+<h3 id="planes-card">Planes Card</h3>
+<p>The <strong>Planes</strong> card recalls saved room planes from the Plane page. Click a plane tile to open a virtual room modal without leaving Show Run.</p>
+<p>The modal uses the current Show target. Select Groups or Fixtures first when only part of the rig should move; with no target selected, Show Run targets all fixtures that match the recalled plane. Drag or click the red target point, use the X/Y coarse and fine nudge buttons, or use zoom and pan view controls to frame the room. The modal sends calibrated pan/tilt values live to the Pico and updates the shared live-value snapshot so the Controller, Chaser, and Effects pages can see the new position. Recalling a plane from Show Run does not edit the saved plane definition.</p>
+<p><img src="screenshots/show-run-card-planes.png" alt="Show Run Planes card"></p>
+<p><img src="screenshots/show-run-plane-modal.png" alt="Show Run Plane recall modal"></p>
 <h3 id="pico-playback-cards">Pico Playback Cards</h3>
 <p>The <strong>Pico Chaser Playback</strong> card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a slot, set speed, play, pause/resume, set speed, or stop.</p>
 <p><img src="screenshots/show-run-card-chaser.png" alt="Show Run Pico Chaser Playback card"></p>
@@ -489,8 +495,8 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p><img src="screenshots/show-run-add-card.png" alt="Show Run Add Card"></p>
 <p>Drag a card by its title/header area to arrange whole cards, for example moving <strong>Palettes</strong> to the top-left and <strong>Pico Effects Playback</strong> to the top-right. Dragging a card to an empty matrix spot places it there and leaves the other card positions unchanged. Dragging a card onto another card swaps only those two cards. The card body remains available for tile editing and other layout controls while <strong>Edit Layout</strong> is active.</p>
 <p><img src="screenshots/show-run-layout-edit.png" alt="Show Run Layout Editing"></p>
-<p>Each tile section on Show Run has <strong>Cols</strong> and <strong>Rows</strong> controls like the toolboxes. These controls shape the operator page layout for groups, scenes, palettes, Pico chaser slots, and Pico effect slots. While <strong>Edit Layout</strong> is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, and Live Controls configuration to the XAMPP server UI state, so the same operator page is restored on another computer and included in <strong>Export Setup</strong> / <strong>Import Setup</strong>. The layout does not rewrite the saved toolbox setup itself.</p>
-<p>If saved groups, scenes, palettes, or loaded Pico playback slots are outside the visible matrix, Show Run opens <strong>Hidden Show Items</strong> and switches into <strong>Edit Layout</strong>. Use <strong>Expand</strong> to increase that section&#39;s rows/columns until the hidden item is visible, or use <strong>Place in Free Tile</strong> when an empty visible tile is available. This prevents newly created palettes/scenes or moved playback slots from being silently hidden on a row that is not currently displayed.</p>
+<p>Each tile section on Show Run has <strong>Cols</strong> and <strong>Rows</strong> controls like the toolboxes. These controls shape the operator page layout for groups, fixtures, scenes, palettes, planes, Pico chaser slots, and Pico effect slots. While <strong>Edit Layout</strong> is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, and Live Controls configuration to the XAMPP server UI state, so the same operator page is restored on another computer and included in <strong>Export Setup</strong> / <strong>Import Setup</strong>. The layout does not rewrite the saved toolbox setup itself.</p>
+<p>If saved groups, scenes, palettes, planes, or loaded Pico playback slots are outside the visible matrix, Show Run opens <strong>Hidden Show Items</strong> and switches into <strong>Edit Layout</strong>. Use <strong>Expand</strong> to increase that section&#39;s rows/columns until the hidden item is visible, or use <strong>Place in Free Tile</strong> when an empty visible tile is available. This prevents newly created palettes/scenes/planes or moved playback slots from being silently hidden on a row that is not currently displayed.</p>
 <p>While <strong>Edit Layout</strong> is active, saved group, scene, and palette tiles also show the small pencil and <code>x</code> actions. The pencil opens <strong>Edit Tile</strong>, where the tile name, background color, uploaded icon, or drawn icon can be changed with the same visual editor used on the setup pages. These visual edits change the shared saved tile, so the updated name/color/icon appears on the setup page and in every Show Run card that uses that item. The small tile <code>x</code> only removes that item from the current Show Run card position. It does not delete the saved group, scene, or palette from the XAMPP setup files, and it does not remove that same item from another repeated Show Run card.</p>
 <p><img src="screenshots/show-run-tile-actions.png" alt="Show Run Tile Actions"></p>
 <p>Pico chaser/effect playback tiles use the same tile move behavior during layout editing. Their playback buttons are replaced by <strong>Move tile</strong> while <strong>Edit Layout</strong> is active, so a show cannot accidentally start or stop playback while you are arranging the operator page.</p>
@@ -865,11 +871,11 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>Use <strong>Base / position</strong> to inspect the scene base buffer used as the center for Effects.</p>
 <p>Use <strong>Refresh ms</strong> to control the polling interval directly. Use <strong>Refresh Hz</strong> when you prefer rate instead. Both fields stay synchronized, so <code>500 ms</code> is shown as <code>2 Hz</code>. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. <strong>Auto refresh</strong> starts or stops polling without changing the selected buffer.</p>
 <p>Use <strong>Clear all</strong> when you want to clear both Pico buffers from the monitor page. It calls the Pico clear endpoint immediately, clears the DMX output buffer and the base/position buffer, and then refreshes the displayed tiles.</p>
-<h2 id="10-room-plane-test">10. Room Plane Test</h2>
-<p>The <strong>Room Plane Test</strong> page is an experimental calibration page for moving-light position mapping. It is not part of the live show workflow yet, but it already stores saved room planes, fixture mount positions, and A/B/C calibration values on the server.</p>
+<h2 id="10-room-plane">10. Room Plane</h2>
+<p>The <strong>Room Plane</strong> page is a calibration page for moving-light position mapping. It stores saved room planes, fixture mount positions, and A/B/C calibration values on the server.</p>
 <p>Open it from the <strong>Plane</strong> navigation link or directly:</p>
 <pre><code>dmx_room_plane.html</code></pre>
-<p><img src="screenshots/room-plane.png" alt="Room Plane Test"></p>
+<p><img src="screenshots/room-plane.png" alt="Room Plane"></p>
 <p>The idea is to describe a real stage or room as a 2D coordinate plane. Points <strong>A</strong>, <strong>B</strong>, and <strong>C</strong> are measured points in that room. Each moving light is then calibrated by storing the pan/tilt values that hit A, B, and C. When the red target is moved in the virtual plane, the page calculates a weighted pan/tilt value for every selected fixture and sends the resulting DMX values.</p>
 <h3 id="10-1-room-plane-workflow">10.1 Room Plane Workflow</h3>
 <ol>
@@ -881,7 +887,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Select fixtures directly in the fixture table, or use the <strong>Groups</strong> toolbox to select a whole fixture group.</li>
 <li>Edit one fixture at a time. Move the real moving light to point A, store A, then repeat for B and C.</li>
 <li>Move the red target in the virtual room plane. The selected fixtures update automatically.</li>
-<li>Use <strong>Save current plane</strong> to store the active plane definition and its fixture calibration.</li>
+<li>In the <strong>Planes</strong> toolbox, click an empty tile to save the current plane definition and fixture calibration.</li>
 </ol>
 <p>The target can be moved by dragging the red dot, by clicking in the plane, or by using the coarse/fine target nudge buttons below the plot. The view itself can be zoomed with the zoom buttons or mouse wheel. Use <strong>Pan view</strong> when you want to drag the coordinate view instead of the target.</p>
 <h3 id="10-2-room-plane-toolbox">10.2 Room Plane Toolbox</h3>
@@ -891,27 +897,25 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <thead><tr><th>Field</th><th>Meaning</th></tr></thead><tbody>
 <tr><td>A, B, C X/Y/Z</td><td>Known physical points in the room. Use one consistent unit, for example meters.</td></tr>
 <tr><td>Target X/Y</td><td>Numeric target position in the plane.</td></tr>
-<tr><td>Select all fixtures</td><td>Selects every fixture in the active plane for target output.</td></tr>
-<tr><td>Clear selection</td><td>Clears the fixture target selection.</td></tr>
 <tr><td>Reset calibration</td><td>Marks all fixture A/B/C calibration points as missing.</td></tr>
 <tr><td>Demo values</td><td>Loads the small built-in demo plane and demo fixtures.</td></tr>
 </tbody>
 </table>
 <p>The Z value is stored with the plane and fixture mount positions. The current target interpolation uses X/Y coordinates on the plane. Z is kept so the same saved data can later support full 3D fixture-position calculations.</p>
-<p>Use <strong>-- all</strong> in any of the Room Plane, Saved Planes, or Fixtures toolbox headers to collapse those three toolboxes together. When they are all collapsed, the button changes to <strong>+ all</strong>.</p>
-<h3 id="10-3-saved-planes">10.3 Saved Planes</h3>
-<p><img src="screenshots/room-plane-toolbox-saved-planes.png" alt="Saved Planes Toolbox"></p>
-<p>The <strong>Saved Planes</strong> toolbox contains the save and recall workflow for complete plane definitions.</p>
+<p>Use <strong>-- all</strong> in any of the Room Plane, Planes, or Fixtures toolbox headers to collapse those three toolboxes together. When they are all collapsed, the button changes to <strong>+ all</strong>.</p>
+<h3 id="10-3-planes">10.3 Planes</h3>
+<p><img src="screenshots/room-plane-toolbox-saved-planes.png" alt="Planes Toolbox"></p>
+<p>The <strong>Planes</strong> toolbox stores complete plane definitions as tiles, using the same visual language as scene, palette, group, and chase tiles.</p>
 <table>
 <thead><tr><th>Field</th><th>Meaning</th></tr></thead><tbody>
-<tr><td>Name</td><td>Name of the active plane definition.</td></tr>
-<tr><td>Plane</td><td>Saved plane selector.</td></tr>
-<tr><td>Save current plane</td><td>Saves A/B/C, target, view, fixtures, mount positions, and fixture calibration.</td></tr>
-<tr><td>Create new plane</td><td>Creates an uncalibrated plane.</td></tr>
-<tr><td>Delete plane</td><td>Removes the active saved plane.</td></tr>
-<tr><td>Recall</td><td>Loads the selected saved plane, including its own fixture calibration.</td></tr>
+<tr><td>Filled plane tile</td><td>Recalls that saved plane, including A/B/C points, target, view, fixtures, mount positions, and fixture calibration.</td></tr>
+<tr><td>Empty <code>+ Save current plane</code> tile</td><td>Saves the current plane into that tile and opens <strong>Edit Plane Tile</strong> so it can be named and styled.</td></tr>
+<tr><td>Pencil</td><td>Opens <strong>Edit Plane Tile</strong> for the selected plane tile name, background color, uploaded icon, or drawn icon.</td></tr>
+<tr><td><code>x</code></td><td>Deletes the saved plane after confirmation.</td></tr>
+<tr><td>Cols / Rows</td><td>Shapes the Planes tile matrix.</td></tr>
 </tbody>
 </table>
+<p><img src="screenshots/room-plane-edit-plane-tile.png" alt="Edit Plane Tile"></p>
 <h3 id="10-4-fixture-calibration">10.4 Fixture Calibration</h3>
 <p><img src="screenshots/room-plane-toolbox-fixtures.png" alt="Room Plane Fixtures"></p>
 <p>The <strong>Fixtures</strong> toolbox stores the relationship between each moving light and the room plane.</p>
@@ -1000,6 +1004,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Palettes</li>
 <li>Saved chases and saved Pico chaser slot payloads</li>
 <li>Effects settings, saved effects, and saved Pico effect slot payloads</li>
+<li>Saved room planes and fixture calibration</li>
 <li>GPIO mappings</li>
 <li>Custom imported fixture library catalog, if one is saved on the XAMPP server</li>
 <li>Toolbox layout, collapse state, grid sizes, and other saved UI state</li>

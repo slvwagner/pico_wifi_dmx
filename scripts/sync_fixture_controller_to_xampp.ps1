@@ -113,7 +113,7 @@ if (Test-Path -LiteralPath $gpioSource) {
 }
 if (Test-Path -LiteralPath $roomPlaneSource) {
     Copy-Item -LiteralPath $roomPlaneSource -Destination $roomPlaneTarget -Force
-    Write-Host "Copied room plane test page to $roomPlaneTarget"
+    Write-Host "Copied room plane page to $roomPlaneTarget"
 }
 if (Test-Path -LiteralPath $chaserApiSource) {
     Copy-Item -LiteralPath $chaserApiSource -Destination $chaserApiTarget -Force

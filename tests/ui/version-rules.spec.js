@@ -165,8 +165,15 @@ test.describe('Project versioning rules', () => {
       type: 'pico_wifi_dmx_full_setup',
       appVersion: '0.9.4',
       schemaVersion: 1,
-      setupFormatVersion: 2,
+      setupFormatVersion: 3,
       minimumAppVersion: '0.9.4',
+      roomPlane: {
+        points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 5, y: 0, z: 0 }, { id: 'C', x: 0, y: 3, z: 0 }],
+        fixtures: [],
+        planes: [],
+        planeCols: 3,
+        planeRows: 3
+      },
       project: {
         id: 'pico_wifi_dmx',
         name: 'Pico WiFi DMX',
@@ -231,6 +238,20 @@ test.describe('Project versioning rules', () => {
           if (href.includes('chaser_setup.php')) return response({ ok: true, exists: false });
           if (href.includes('motion_setup.php')) return response({ ok: true, exists: false });
           if (href.includes('gpio_setup.php')) return response({ ok: true, exists: true, baseUrl: '', enabled: true, mappings: [], adcMappings: [] });
+          if (href.includes('room_plane_setup.php')) return response({
+            ok: true,
+            exists: true,
+            setup: {
+              baseUrl: '',
+              points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 4, y: 0, z: 0 }, { id: 'C', x: 0, y: 3, z: 0 }],
+              target: { x: 1.5, y: 1, z: 0 },
+              fixtures: [{ id: 101, name: 'Visual Fixture', cal: {} }],
+              planes: [{ id: 'plane_visual', name: 'Visual Plane', visual: { type: 'visual', color: '#163f66', image: 'data:image/png;base64,PLANE' } }],
+              planeCols: 3,
+              planeRows: 2,
+              activePlaneId: 'plane_visual'
+            }
+          });
           if (href.includes('fixture_library.php')) return response({ ok: true, exists: false, library: null });
           if (href.includes('ui_state.php')) return response({
             ok: true,
@@ -253,11 +274,15 @@ test.describe('Project versioning rules', () => {
         await importFullSetup(downloaded.payload);
 
         const groupImport = posts.filter(post => post.url.includes('group_setup.php')).pop();
+        const roomPlaneImport = posts.filter(post => post.url.includes('room_plane_setup.php')).pop();
         const showRunImport = posts.filter(post => post.url.includes('ui_state.php') && post.body.page === 'showRun').pop();
         return {
           filename: downloaded.filename,
+          setupFormatVersion: downloaded.payload.setupFormatVersion,
           exported: downloaded.payload.groups.groups[0],
           imported: groupImport.body.groups[0],
+          exportedRoomPlane: downloaded.payload.roomPlane,
+          importedRoomPlane: roomPlaneImport.body,
           exportedShowRun: downloaded.payload.uiState.showRun,
           importedShowRun: showRunImport.body.state
         };
@@ -270,6 +295,7 @@ test.describe('Project versioning rules', () => {
     });
 
     expect(result.filename).toBe('pico_dmx_setup.json');
+    expect(result.setupFormatVersion).toBe(3);
     expect(result.exported).toMatchObject({
       id: 'grp_visual',
       name: 'Visual Group',
@@ -280,6 +306,13 @@ test.describe('Project versioning rules', () => {
       name: 'Visual Group',
       visual: { type: 'visual', color: '#115577', image: 'data:image/png;base64,GROUPTILE' }
     });
+    expect(result.exportedRoomPlane).toMatchObject({
+      planes: [{ id: 'plane_visual', name: 'Visual Plane', visual: { type: 'visual', color: '#163f66', image: 'data:image/png;base64,PLANE' } }],
+      planeCols: 3,
+      planeRows: 2,
+      activePlaneId: 'plane_visual'
+    });
+    expect(result.importedRoomPlane).toMatchObject(result.exportedRoomPlane);
     expect(result.exportedShowRun).toMatchObject({
       cardCols: 3,
       cardRows: 3,
@@ -341,6 +374,7 @@ test.describe('Project versioning rules', () => {
           chaser: findPost('chaser_setup.php')?.body,
           motion: findPost('motion_setup.php?reset_show')?.body,
           gpio: findPost('gpio_setup.php')?.body,
+          roomPlane: findPost('room_plane_setup.php')?.body,
           uiStatePosts: countPosts('ui_state.php'),
           chaserSlotDeletes: countPosts('chaser_setup.php?delete_slot='),
           motionShowResets: countPosts('motion_setup.php?reset_show'),
@@ -376,6 +410,13 @@ test.describe('Project versioning rules', () => {
     expect(result.motion.pico_slots).toHaveLength(64);
     expect(result.motion.pico_slots.every(slot => slot === null)).toBe(true);
     expect(result.gpio).toMatchObject({ enabled: true, mappings: [], adcMappings: [] });
+    expect(result.roomPlane).toMatchObject({
+      points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 5, y: 0, z: 0 }, { id: 'C', x: 0, y: 3, z: 0 }],
+      fixtures: [],
+      planes: [],
+      planeCols: 3,
+      planeRows: 3
+    });
     expect(result.uiStatePosts).toBeGreaterThanOrEqual(3);
     expect(result.chaserSlotDeletes).toBe(32);
     expect(result.motionShowResets).toBe(1);

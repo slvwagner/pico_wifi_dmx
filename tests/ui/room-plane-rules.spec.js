@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
-test.describe('Room Plane Test prototype rules', () => {
+test.describe('Room Plane rules', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/room_plane_setup.php', async route => {
       await route.fulfill({
@@ -22,8 +22,10 @@ test.describe('Room Plane Test prototype rules', () => {
   test('interpolates fixture pan and tilt from the calibrated plane points', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
-    await expect(page.locator('h1')).toContainText('Room Plane Test');
+    await expect(page.locator('h1')).toContainText('Room Plane');
     await expect(page.locator('thead th').first()).toHaveText('Edit');
+    await expect(page.locator('#selectAllFixtures')).toHaveCount(0);
+    await expect(page.locator('#clearFixtureSelection')).toHaveCount(0);
     await expect(page.locator('#weightReadout')).toContainText('A 0');
     await expect(page.locator('#weightReadout')).toContainText('B 0.5');
     await expect(page.locator('#weightReadout')).toContainText('C 0.5');
@@ -52,6 +54,29 @@ test.describe('Room Plane Test prototype rules', () => {
     })).toEqual([{ pan: 86.53, tilt: 102.6 }, { pan: 199.2, tilt: 101.87 }]);
   });
 
+  test('autosaves target point changes after the room plane debounce', async ({ page }) => {
+    const posts = [];
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: false, setup: null })
+      });
+    });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#targetX').fill('1.25');
+    await page.locator('#targetY').fill('2.75');
+
+    await expect.poll(() => posts.at(-1)?.target).toEqual({ x: 1.25, y: 2.75, z: 0 });
+    await expect.poll(() => {
+      const active = posts.at(-1)?.planes?.find(plane => plane.id === posts.at(-1)?.activePlaneId);
+      return active?.target;
+    }).toEqual({ x: 1.25, y: 2.75, z: 0 });
+  });
+
   test('drags the red target point responsively across the plane', async ({ page }) => {
     await page.setViewportSize({ width: 1300, height: 900 });
     await openDmxPage(page, 'dmx_room_plane.html');
@@ -69,6 +94,27 @@ test.describe('Room Plane Test prototype rules', () => {
 
     await expect.poll(async () => Number(await page.locator('#targetX').inputValue())).not.toBe(beforeX);
     await expect.poll(async () => Number(await page.locator('#targetY').inputValue())).not.toBe(beforeY);
+  });
+
+  test('drags the red target beyond the current zoomed view edge on wide screens', async ({ page }) => {
+    await page.setViewportSize({ width: 1900, height: 900 });
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await page.locator('#zoomInPlane').click();
+    await page.locator('#zoomInPlane').click();
+    const maxVisibleX = await page.evaluate(() => planeBounds().maxX);
+    const target = page.locator('#planeTarget');
+    const targetBox = await target.boundingBox();
+    const padBox = await page.locator('#planePad').boundingBox();
+    expect(targetBox).toBeTruthy();
+    expect(padBox).toBeTruthy();
+
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(padBox.x + padBox.width - 6, targetBox.y + targetBox.height / 2, { steps: 12 });
+    await page.mouse.up();
+
+    await expect.poll(async () => Number(await page.locator('#targetX').inputValue())).toBeGreaterThan(maxVisibleX);
   });
 
   test('nudges target with coarse and fine controls below the plane', async ({ page }) => {
@@ -124,7 +170,8 @@ test.describe('Room Plane Test prototype rules', () => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
     await expect(page.locator('#applyTargetSelected')).toHaveCount(0);
-    await expect(page.locator('#selectAllFixtures')).toBeVisible();
+    await expect(page.locator('#selectAllFixtures')).toHaveCount(0);
+    await expect(page.locator('#clearFixtureSelection')).toHaveCount(0);
   });
 
   test('zooms and pans the virtual room plane view', async ({ page }) => {
@@ -144,6 +191,14 @@ test.describe('Room Plane Test prototype rules', () => {
     await page.mouse.up();
     const panned = await page.locator('.plane-point').filter({ hasText: 'A' }).first().boundingBox();
     expect(Math.abs(panned.x - zoomed.x)).toBeGreaterThan(1);
+    await expect(page.locator('#panPlaneView')).toHaveText('Stop pan view');
+    await page.locator('#panPlaneView').click();
+    await expect(page.locator('#panPlaneView')).toHaveText('Pan view');
+    await expect(page.locator('#planePad')).not.toHaveClass(/pan-mode/);
+    await page.locator('#panPlaneView').click();
+    await page.locator('#resetPlaneView').click();
+    await expect(page.locator('#panPlaneView')).toHaveText('Pan view');
+    await expect(page.locator('#planePad')).not.toHaveClass(/pan-mode/);
   });
 
   test('reset calibration marks fixtures incomplete', async ({ page }) => {
@@ -159,30 +214,98 @@ test.describe('Room Plane Test prototype rules', () => {
 
     await expect(page.locator('#activePlaneSummary')).toHaveCount(0);
     await expect(page.locator('#roomPlaneBox #savePlaneDefinition')).toHaveCount(0);
-    await expect(page.locator('#roomPlaneLibraryBox #savePlaneDefinition')).toBeVisible();
-    await expect(page.locator('#roomPlaneLibraryBox')).toContainText('Saved Planes');
+    await expect(page.locator('#roomPlaneLibraryBox #savePlaneDefinition')).toHaveCount(0);
+    await expect(page.locator('#roomPlaneLibraryBox #newPlaneDefinition')).toHaveCount(0);
+    await expect(page.locator('#roomPlaneLibraryBox #deletePlaneDefinition')).toHaveCount(0);
+    await expect(page.locator('#roomPlaneLibraryBox')).toContainText('Planes');
 
-    await page.locator('#planeName').fill('Front truss');
     await page.locator('#targetX').fill('1');
     await page.locator('#targetY').fill('1');
-    await page.locator('#savePlaneDefinition').click();
+    await page.locator('[data-visual-plane]').first().click();
+    await page.locator('#planeVisualName').fill('Front truss');
+    await page.locator('#planeVisualSave').click();
 
-    await page.locator('#newPlaneDefinition').click();
-    await page.locator('#planeName').fill('Back truss');
+    await page.locator('[data-save-plane-slot="1"]').click();
+    await expect(page.locator('#planeVisualModal')).toBeVisible();
+    await page.locator('#planeVisualName').fill('Back truss');
+    await page.locator('#planeVisualSave').click();
     await page.locator('#targetX').fill('4');
     await page.locator('#targetY').fill('2');
-    await page.locator('#savePlaneDefinition').click();
 
     await expect(page.locator('#planeLibrary')).toContainText('Front truss');
     await expect(page.locator('#planeLibrary')).toContainText('Back truss');
+    await expect(page.locator('#planeLibrary .slot')).toHaveCount(9);
+    await expect(page.locator('#planeLibrary .slot.filled')).toHaveCount(2);
     await expect(page.locator('#targetX')).toHaveValue('4');
 
-    await page.locator('.plane-library-row').filter({ hasText: 'Front truss' }).locator('[data-recall-plane]').click();
+    await page.locator('[data-recall-plane]').filter({ hasText: 'Front truss' }).click();
 
     await expect(page.locator('#planeName')).toHaveValue('Front truss');
     await expect(page.locator('#targetX')).toHaveValue('1');
     await expect(page.locator('#targetY')).toHaveValue('1');
     await expect(page.locator('#status')).toContainText('Recalled plane Front truss');
+  });
+
+  test('saved planes use a configurable tile matrix layout', async ({ page }) => {
+    const posts = [];
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            activePlaneId: 'front',
+            planeCols: 2,
+            planeRows: 2,
+            planes: [
+              { id: 'front', name: 'Front', points: [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 5, y: 0 }, { id: 'C', x: 0, y: 3 }], target: { x: 1, y: 1 }, fixtures: [], view: {} },
+              { id: 'back', name: 'Back', points: [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 5, y: 0 }, { id: 'C', x: 0, y: 3 }], target: { x: 4, y: 2 }, fixtures: [], view: {} }
+            ]
+          }
+        })
+      });
+    });
+
+    await openDmxPage(page, 'dmx_room_plane.html');
+    await expect(page.locator('#planeCols')).toHaveValue('2');
+    await expect(page.locator('#planeRows')).toHaveValue('2');
+    const colBox = await page.locator('#planeCols').boundingBox();
+    const rowBox = await page.locator('#planeRows').boundingBox();
+    expect(colBox).toBeTruthy();
+    expect(rowBox).toBeTruthy();
+    expect(Math.abs(colBox.y - rowBox.y)).toBeLessThan(4);
+    await expect(page.locator('#planeLibrary .slot')).toHaveCount(4);
+    await expect(page.locator('#planeLibrary [data-recall-plane="front"]')).toHaveClass(/active/);
+
+    await page.locator('#planeCols').fill('3');
+    await expect(page.locator('#planeLibrary .slot')).toHaveCount(6);
+    await expect.poll(() => posts.at(-1)?.planeCols).toBe(3);
+
+    await page.locator('[data-visual-plane="front"]').click();
+    await expect(page.locator('#planeVisualModal')).toBeVisible();
+    await page.locator('#planeVisualName').fill('Front tile');
+    await page.locator('#planeVisualColor').fill('#884422');
+    await page.locator('#planeVisualSave').click();
+    await expect(page.locator('[data-recall-plane="front"]')).toContainText('Front tile');
+    await expect.poll(() => {
+      const planes = posts.at(-1)?.planes || [];
+      return planes.find(plane => plane.id === 'front')?.visual?.color;
+    }).toBe('#884422');
+
+    await page.locator('[data-recall-plane="back"]').click();
+    await expect(page.locator('#planeName')).toHaveValue('Back');
+    await expect(page.locator('#targetX')).toHaveValue('4');
+    await expect(page.locator('#planeLibrary [data-recall-plane="back"]')).toHaveClass(/active/);
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('[data-del-plane="back"]').click();
+    await expect(page.locator('[data-recall-plane="back"]')).toHaveCount(0);
+    await expect(page.locator('#planeName')).toHaveValue('Front tile');
+    await expect.poll(() => (posts.at(-1)?.planes || []).map(plane => plane.id)).not.toContain('back');
   });
 
   test('collapses and expands room plane toolboxes as a group', async ({ page }) => {
@@ -203,6 +326,16 @@ test.describe('Room Plane Test prototype rules', () => {
     await expect(page.locator('#roomPlaneLibraryBox')).not.toHaveClass(/collapsed/);
     await expect(page.locator('#roomFixturesBox')).not.toHaveClass(/collapsed/);
     await expect(collapseAll.first()).toHaveText('-- all');
+  });
+
+  test('uses the navy plane toolbox header color for all room plane toolboxes', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    const colors = await page.locator('#roomPlaneBoxHdr,#roomPlaneLibraryBoxHdr,#roomFixturesBoxHdr').evaluateAll(headers =>
+      headers.map(header => getComputedStyle(header).backgroundColor)
+    );
+
+    expect(colors).toEqual(['rgb(11, 47, 79)', 'rgb(11, 47, 79)', 'rgb(11, 47, 79)']);
   });
 
   test('flags targets outside the calibrated triangle', async ({ page }) => {
@@ -282,6 +415,12 @@ test.describe('Room Plane Test prototype rules', () => {
 
     await expect(page.locator('#commonPanTiltDimmerModal')).toBeVisible();
     await expect(page.locator('#commonPanTiltDimmerTitle')).toHaveText('Edit Spot 1');
+    const modalBox = await page.locator('#commonPanTiltDimmerModal .modal-card').boundingBox();
+    const closeBox = await page.locator('#commonPanTiltDimmerModal [data-ptd-close][aria-label="Close"]').boundingBox();
+    expect(modalBox).toBeTruthy();
+    expect(closeBox).toBeTruthy();
+    expect(closeBox.x).toBeGreaterThan(modalBox.x + modalBox.width - 70);
+    expect(closeBox.y).toBeLessThan(modalBox.y + 30);
     await expect(page.locator('[data-live-pan="0"]')).toHaveText('32768');
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText('32768');
     await expect(page.locator('[data-live-dimmer="0"]')).toHaveText('255');
@@ -380,7 +519,8 @@ test.describe('Room Plane Test prototype rules', () => {
 
     await page.locator('#loadPatchedFixtures').click();
     await expect(page.locator('[data-edit-fixture="0"]')).toBeVisible();
-    await expect(page.locator('input[data-fixture="0"][data-field="name"]')).toHaveValue('Moving 1');
+    await expect(page.locator('input[data-field="name"]')).toHaveCount(0);
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Moving 1');
     await expect(page.locator('thead')).toContainText('Live Pan');
     await expect(page.locator('thead')).toContainText('Last send / channels');
     await expect(page.locator('[data-live-pan="0"]')).toHaveText('32768');
@@ -405,6 +545,159 @@ test.describe('Room Plane Test prototype rules', () => {
     await expect(page.locator('[data-send-summary="0"]')).toContainText('ch 11=191');
     await expect(page.locator('[data-send-summary="0"]')).toContainText('ch 14=255');
     await expect(page.locator('#status')).toContainText('Sent Moving 1:');
+  });
+
+  test('patched controller fixture names replace stale room plane names by fixture id', async ({ page }) => {
+    const posts = [];
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') posts.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            activePlaneId: 'front',
+            planes: [{
+              id: 'front',
+              name: 'Front',
+              points: [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 5, y: 0 }, { id: 'C', x: 0, y: 3 }],
+              target: { x: 2, y: 1, z: 0 },
+              fixtures: [{
+                id: 101,
+                name: 'Old Plane Name',
+                profileId: 1,
+                start: 10,
+                x: 7,
+                y: 8,
+                z: 9,
+                cal: {
+                  A: { pan: 10, tilt: 20, calibrated: true },
+                  B: { pan: 30, tilt: 40, calibrated: true },
+                  C: { pan: 50, tilt: 60, calibrated: true }
+                }
+              }]
+            }]
+          }
+        })
+      });
+    });
+    await page.route('**/fixture_setup.php**', async route => {
+      const url = route.request().url();
+      if (url.includes('livevalues')) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: true, values: {} }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://localhost/dmx-test',
+            profiles: [{
+              id: 1,
+              name: 'Moving Profile',
+              mode: '16-bit',
+              channels: 8,
+              controls: [{ id: 12, type: 'panTilt16', label: 'Position', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 }]
+            }],
+            fixtures: [{ id: 101, name: 'Controller Name', profileId: 1, start: 10 }],
+            values: {}
+          }
+        })
+      });
+    });
+
+    await openDmxPage(page, 'dmx_room_plane.html');
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Old Plane Name');
+    await page.locator('#loadPatchedFixtures').click();
+
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Controller Name');
+    await expect(page.locator('#fixtureRows tr').first()).not.toContainText('Old Plane Name');
+    await expect(page.locator('input[data-field="name"]')).toHaveCount(0);
+    await expect(page.locator('input[data-fixture="0"][data-field="x"]')).toHaveValue('7');
+    await expect.poll(() => posts.at(-1)?.fixtures?.[0]?.name).toBe('Controller Name');
+    await expect.poll(() => posts.at(-1)?.fixtures?.[0]?.cal?.A?.pan).toBe(10);
+  });
+
+  test('fixture editor modal moves live pan tilt without full room plane autosave churn', async ({ page }) => {
+    const sent = [];
+    let roomPlanePosts = 0;
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() === 'POST') roomPlanePosts++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: false, setup: null })
+      });
+    });
+    await page.route('**/fixture_setup.php**', async route => {
+      const url = route.request().url();
+      const method = route.request().method();
+      if (url.includes('livevalues')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: method === 'GET'
+            ? JSON.stringify({ ok: true, exists: true, values: {} })
+            : JSON.stringify({ ok: true })
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://localhost/dmx-test',
+            profiles: [{
+              id: 1,
+              name: 'Moving Profile',
+              mode: '16-bit',
+              channels: 8,
+              controls: [
+                { id: 11, type: 'slider8', label: 'Dimmer', channel: 1, scope: 'dimmer' },
+                { id: 12, type: 'panTilt16', label: 'Position', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 }
+              ]
+            }],
+            fixtures: [{ id: 101, name: 'Moving 1', profileId: 1, start: 10 }],
+            values: {}
+          }
+        })
+      });
+    });
+    await page.route('**/dmx/b**', async route => {
+      sent.push(route.request().postData() || '');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await openDmxPage(page, 'dmx_room_plane.html');
+    await page.locator('#loadPatchedFixtures').click();
+    await expect(page.locator('[data-edit-fixture="0"]')).toBeVisible();
+    await page.waitForTimeout(900);
+    roomPlanePosts = 0;
+    await page.locator('[data-edit-fixture="0"]').click();
+    const pad = page.locator('[data-ptd-xy]');
+    const box = await pad.boundingBox();
+    expect(box).toBeTruthy();
+
+    await page.mouse.move(box.x + box.width * 0.15, box.y + box.height * 0.85);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.85, box.y + box.height * 0.15, { steps: 12 });
+    await page.mouse.up();
+
+    await expect.poll(() => sent.length).toBeGreaterThanOrEqual(5);
+    await expect(page.locator('[data-live-pan="0"]')).toHaveText(/\d+/);
+    await expect(page.locator('[data-live-tilt="0"]')).toHaveText(/\d+/);
+    await page.waitForTimeout(900);
+    expect(roomPlanePosts).toBe(0);
   });
 
   test('selects room plane fixtures from the shared Groups toolbox', async ({ page }) => {
@@ -517,7 +810,8 @@ test.describe('Room Plane Test prototype rules', () => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
     await page.locator('#loadPatchedFixtures').click();
-    await page.locator('#selectAllFixtures').click();
+    await page.locator('[data-select-fixture="0"]').check();
+    await page.locator('[data-select-fixture="1"]').check();
     await page.locator('#targetX').fill('1');
     await page.locator('#targetY').fill('1');
 
@@ -583,7 +877,8 @@ test.describe('Room Plane Test prototype rules', () => {
     });
     await openDmxPage(page, 'dmx_room_plane.html');
 
-    await expect(page.locator('input[data-fixture="0"][data-field="name"]')).toHaveValue('Saved Spot');
+    await expect(page.locator('input[data-field="name"]')).toHaveCount(0);
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Saved Spot');
     await expect(page.locator('#targetX')).toHaveValue('3');
     await expect(page.locator('input[data-point="1"][data-axis="x"]')).toHaveValue('6');
 
@@ -599,9 +894,9 @@ test.describe('Room Plane Test prototype rules', () => {
     expect(Array.isArray(latest.planes)).toBeTruthy();
     expect(latest.planes[0].name).toBe('Default plane');
 
-    await page.locator('#newPlaneDefinition').click();
-    await page.locator('#planeName').fill('Second plane');
-    await page.locator('#savePlaneDefinition').click();
+    await page.locator('[data-save-plane-slot="1"]').click();
+    await page.locator('#planeVisualName').fill('Second plane');
+    await page.locator('#planeVisualSave').click();
 
     await expect.poll(() => posts.some(post => Array.isArray(post.planes) && post.planes.some(plane => plane.name === 'Second plane'))).toBeTruthy();
   });

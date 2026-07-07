@@ -32,6 +32,31 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
 .fixture-card.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.controller-plane-modal .modal-card{max-width:920px;width:min(920px,calc(100vw - 32px))}
+.controller-plane-layout{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
+.controller-plane-view{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.controller-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden}
+.controller-plane-pad.pan-mode{cursor:grab}
+.controller-plane-pad.pan-mode:active{cursor:grabbing}
+.controller-plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
+.controller-plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);pointer-events:none}
+.controller-plane-point{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;z-index:2}
+.controller-plane-fixture{background:var(--warn);opacity:.65}
+.controller-plane-fixture.selected{background:var(--accent);opacity:1;box-shadow:0 0 0 6px rgba(55,196,164,.18)}
+.controller-plane-target{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff7a7a;border:2px solid #2b1010;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(255,122,122,.15);z-index:3}
+.controller-plane-line{position:absolute;height:1px;background:rgba(255,255,255,.28);transform-origin:0 50%;z-index:1}
+.controller-plane-info{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:10px}
+.controller-plane-fixture-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-height:280px;overflow:auto}
+.controller-plane-fixture-row{min-height:72px;display:grid;align-content:end;gap:4px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;padding:10px}
+.controller-plane-fixture-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.controller-plane-fixture-row .small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.controller-plane-fixture-row:hover{border-color:var(--accent)}
+.controller-plane-fixture-row.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}
+.controller-plane-slot-meta{font-size:10px;color:inherit;opacity:.82;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.controller-plane-nudge{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px}
+.controller-plane-nudge-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:8px}
+@media(max-width:700px){.controller-plane-nudge-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.controller-plane-pad{min-height:320px}}
 #savedGroupsList{display:grid;gap:8px;align-content:start}
 #savedGroupsList .item{align-content:start}
 #savedGroupsList .group-empty{min-height:94px;border:1px dashed var(--line);border-radius:8px;background:#0a0d10;opacity:.45}
@@ -472,6 +497,75 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="controllerPlanesBox" class="scene-toolbox scene-toolbox--planes">
+<div id="controllerPlanesBoxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Planes</span>
+<button id="controllerPlanesBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="controllerPlanesBoxBody" class="scene-toolbox__body">
+<div class="small">Recall a saved room plane and apply its calibrated target to the selected fixtures or selected group.</div>
+<div id="controllerPlaneMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="controllerPlaneModal" class="modal-overlay controller-plane-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="controllerPlaneTitle">
+<div class="modal-head">
+<button id="controllerPlaneClose" style="font-size:16px;padding:6px 14px" aria-label="Close">x</button>
+<h2 id="controllerPlaneTitle">Recall Plane</h2>
+</div>
+<div class="modal-body">
+<div class="controller-plane-layout">
+<div>
+<div class="controller-plane-view">
+<button id="controllerPlaneZoomIn" type="button">Zoom in</button>
+<button id="controllerPlaneZoomOut" type="button">Zoom out</button>
+<button id="controllerPlaneResetView" type="button">Reset view</button>
+<button id="controllerPlanePanView" type="button">Pan view</button>
+</div>
+<div class="controller-plane-pad" id="controllerPlanePad">
+<div class="controller-plane-grid"></div>
+<div class="controller-plane-triangle" id="controllerPlaneTriangle"></div>
+<div class="controller-plane-target" id="controllerPlaneTarget"></div>
+</div>
+</div>
+<div class="controller-plane-nudge">
+<div class="small">Target nudge</div>
+<div class="controller-plane-nudge-grid" id="controllerPlaneNudgeControls">
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="coarse" title="Move target X left by the coarse step">−</button>
+<label>X coarse<input id="controllerPlaneStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="coarse" title="Move target X right by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="fine" title="Move target X left by the fine step">−</button>
+<label>X fine<input id="controllerPlaneStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="fine" title="Move target X right by the fine step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="coarse" title="Move target Y down by the coarse step">−</button>
+<label>Y coarse<input id="controllerPlaneStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="coarse" title="Move target Y up by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="fine" title="Move target Y down by the fine step">−</button>
+<label>Y fine<input id="controllerPlaneStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="fine" title="Move target Y up by the fine step">+</button>
+</div>
+</div>
+</div>
+<div class="controller-plane-info">
+<div class="small" id="controllerPlaneSummary">No plane selected.</div>
+<div class="controller-plane-fixture-list" id="controllerPlaneFixtures"></div>
+</div>
+</div>
+</div>
+<div class="buttons" style="padding-top:4px">
+<button id="controllerPlaneClose2">Close</button>
+</div>
+</div>
+</div>
+
 <div id="fanToolboxMount"></div>
 
 <aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
@@ -481,7 +575,7 @@ document.body.classList.add('toolbox-rail-layout');
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group to fan fixtures.'});
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
 fixtureToolboxRail.dataset.minMainWidth='360';
-DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'fanToolbox',type:'fan'}]);
+DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'controllerPlanesBox',type:'planes'},{box:'fanToolbox',type:'fan'}]);
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
@@ -489,7 +583,7 @@ let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
 const FULL_SETUP_TYPE='pico_wifi_dmx_full_setup';
-const FULL_SETUP_FORMAT_VERSION=2;
+const FULL_SETUP_FORMAT_VERSION=3;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
 const baseUrl=document.getElementById('baseUrl');
@@ -2546,6 +2640,19 @@ function fullSetupMetadata(){
     minimumAppVersion:DmxCommon.appVersion()
   };
 }
+function defaultRoomPlaneSetup(baseUrlValue=''){
+  return {
+    baseUrl:baseUrlValue||'',
+    points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],
+    target:{x:2.5,y:1.5,z:0},
+    fixtures:[],
+    planes:[],
+    planeCols:3,
+    planeRows:3,
+    activePlaneId:null,
+    view:{auto:true,centerX:0,centerY:0,zoom:1}
+  };
+}
 function migrateFullSetupToV2(setup){
   const migrated={...setup};
   migrated.type=FULL_SETUP_TYPE;
@@ -2553,6 +2660,19 @@ function migrateFullSetupToV2(setup){
     ? {id:migrated.project.id||PROJECT_ID,name:migrated.project.name||'Pico WiFi DMX',version:migrated.project.version||migrated.appVersion||DmxCommon.appVersion()}
     : {id:PROJECT_ID,name:'Pico WiFi DMX',version:migrated.appVersion||DmxCommon.appVersion()};
   migrated.setupFormatVersion=2;
+  migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
+  return migrated;
+}
+function migrateFullSetupToV3(setup){
+  const migrated={...setup};
+  migrated.type=FULL_SETUP_TYPE;
+  migrated.project=migrated.project&&typeof migrated.project==='object'
+    ? {id:migrated.project.id||PROJECT_ID,name:migrated.project.name||'Pico WiFi DMX',version:migrated.project.version||migrated.appVersion||DmxCommon.appVersion()}
+    : {id:PROJECT_ID,name:'Pico WiFi DMX',version:migrated.appVersion||DmxCommon.appVersion()};
+  migrated.roomPlane=migrated.roomPlane&&typeof migrated.roomPlane==='object'
+    ? migrated.roomPlane
+    : defaultRoomPlaneSetup(migrated.fixture?.baseUrl||migrated.groups?.baseUrl||'');
+  migrated.setupFormatVersion=3;
   migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
   return migrated;
 }
@@ -2566,6 +2686,9 @@ function migrateFullSetupPayload(setup){
     if(version===1){
       migrated=migrateFullSetupToV2(migrated);
       version=2;
+    }else if(version===2){
+      migrated=migrateFullSetupToV3(migrated);
+      version=3;
     }else{
       throw new Error('No migration path from setup file format '+version+' to '+FULL_SETUP_FORMAT_VERSION+'.');
     }
@@ -2579,7 +2702,7 @@ function validateFullSetupPayload(setup){
   if(setup.type!==FULL_SETUP_TYPE)throw new Error('Setup file type is not '+FULL_SETUP_TYPE+'.');
   if(fullSetupFormatVersion(setup)!==FULL_SETUP_FORMAT_VERSION)throw new Error('Setup file was not migrated to the current format.');
   if(!setup.fixture||typeof setup.fixture!=='object')throw new Error('Setup file is missing fixture setup data.');
-  ['groups','scenes','palettes','chaser','motion','gpio','uiState'].forEach(key=>{
+  ['groups','scenes','palettes','chaser','motion','gpio','roomPlane','uiState'].forEach(key=>{
     if(setup[key]===undefined)throw new Error('Setup file is missing '+key+' data.');
   });
   if(setup.liveValues!==undefined&&(!setup.liveValues||typeof setup.liveValues!=='object'))throw new Error('Setup file live values must be an object.');
@@ -2602,6 +2725,7 @@ async function exportFullSetup(){
     chaser:await fetchSetupPayload('chaser_setup.php','chaser',{}),
     motion:await fetchSetupPayload('motion_setup.php','motion',{}),
     gpio:await fetchSetupPayload('gpio_setup.php',null,{ok:true,exists:false,enabled:true,mappings:[],adcMappings:[]}),
+    roomPlane:await fetchSetupPayload('room_plane_setup.php','setup',defaultRoomPlaneSetup(baseUrl.value)),
     fixtureLibrary:await fetchSetupPayload('fixture_library.php','library',null),
     uiState:(await fetchSetupPayload('ui_state.php',null,{ok:true,exists:false,state:{}})).state||{}
   },2);
@@ -2699,6 +2823,7 @@ async function startNewShow(){
   await clearPicoSlots('chaser_setup.php',32);
   await postSetupPayload('motion_setup.php?reset_show',{baseUrl:showBaseUrl,effects:[],effectCols:4,effectRows:4,pico_slots:Array(64).fill(null)});
   await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
+  await postSetupPayload('room_plane_setup.php',defaultRoomPlaneSetup(showBaseUrl));
   for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
   setStatus('New show started');
 }
@@ -2720,6 +2845,7 @@ async function importFullSetup(data){
   if(migrated.chaser&&typeof migrated.chaser==='object')await postSetupPayload('chaser_setup.php',migrated.chaser);
   if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
   if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
+  if(migrated.roomPlane&&typeof migrated.roomPlane==='object')await postSetupPayload('room_plane_setup.php',migrated.roomPlane);
   if(migrated.fixtureLibrary)await saveFixtureLibraryToServer(normalizeFixtureLibrary(migrated.fixtureLibrary));
   if(migrated.uiState&&typeof migrated.uiState==='object'){
     for(const [page,state] of Object.entries(migrated.uiState)){
@@ -4873,6 +4999,440 @@ const paletteToolbox=DmxCommon.initFloatingToolbox({
 });
 loadPalettesServer();
 // ── End palette toolbox ───────────────────────────────────────────────
+
+// ── Saved room planes ─────────────────────────────────────────────────
+let controllerPlanes=[];
+let controllerPlaneCols=3,controllerPlaneRows=3;
+let activeControllerPlane=null;
+let controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+let controllerPlanePanMode=false;
+let controllerPlaneRenderQueued=false;
+let controllerPlaneLiveSendTimer=null;
+let controllerPlaneLiveSendBusy=false;
+let controllerPlaneLiveSendPending=false;
+let controllerPlaneLastLiveStatus='';
+
+function normalizeControllerPlanePoint(point,fallback){
+  return {
+    id:String(point?.id||fallback?.id||'A'),
+    x:Number(point?.x??fallback?.x??0)||0,
+    y:Number(point?.y??fallback?.y??0)||0,
+    z:Number(point?.z??fallback?.z??0)||0
+  };
+}
+function normalizeControllerPlaneFixture(fixture,index){
+  return {
+    id:fixture?.id,
+    name:String(fixture?.name||('Fixture '+(index+1))),
+    x:Number(fixture?.x)||0,
+    y:Number(fixture?.y)||0,
+    z:Number(fixture?.z)||0,
+    cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
+  };
+}
+function normalizeControllerPlane(plane,index){
+  const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
+  const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
+  return {
+    ...plane,
+    id:plane?.id||('plane_'+index),
+    name:String(plane?.name||('Plane '+(index+1))),
+    points:fallbackPoints.map((fallback,i)=>normalizeControllerPlanePoint(sourcePoints[i],fallback)),
+    target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
+    fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeControllerPlaneFixture),
+    visual:plane?.visual
+  };
+}
+function cloneControllerPlane(plane){
+  return JSON.parse(JSON.stringify(plane));
+}
+function controllerPlaneSelectedIds(){
+  return new Set([...selectedFixtureIds].map(id=>String(id)));
+}
+function planeFixtureSummary(plane){
+  const selected=controllerPlaneSelectedIds();
+  const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
+  return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+(selected.size?' · '+matching+' selected match'+(matching===1?'':'es'):'');
+}
+function renderControllerPlanes(){
+  const host=document.getElementById('controllerPlaneMatrix');
+  if(!host)return;
+  controllerPlaneCols=Math.max(1,Math.min(16,parseInt(controllerPlaneCols,10)||3));
+  controllerPlaneRows=Math.max(1,Math.min(16,parseInt(controllerPlaneRows,10)||3));
+  if(controllerPlanes.length&&controllerPlaneCols*controllerPlaneRows<controllerPlanes.length)controllerPlaneRows=Math.ceil(controllerPlanes.length/controllerPlaneCols);
+  const total=controllerPlaneCols*controllerPlaneRows;
+  host.style.gridTemplateColumns='repeat('+controllerPlaneCols+',minmax(64px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const plane=controllerPlanes[i];
+    if(!plane){html+='<div class="slot readonly">'+(i+1)+'</div>';continue;}
+    const visual={visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
+    html+='<div class="'+DmxCommon.savedTileClass('slot filled')+'" data-controller-plane="'+escHtml(String(plane.id))+'" title="Open '+escHtml(plane.name)+'" style="'+slotVisualStyle(visual)+'">'+
+      '<div class="palette-slot-content">'+paletteSlotVisualHtml(visual)+'<span class="palette-slot-name">'+escHtml(plane.name)+'</span><span class="controller-plane-slot-meta">'+escHtml(planeFixtureSummary(plane))+'</span></div>'+
+    '</div>';
+  }
+  host.innerHTML=html;
+  host.querySelectorAll('[data-controller-plane]').forEach(tile=>tile.addEventListener('click',()=>openControllerPlaneModal(tile.dataset.controllerPlane)));
+}
+async function loadControllerPlanesServer(){
+  try{
+    const response=await fetch('room_plane_setup.php',{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||data.ok===false)throw new Error(data.error||('HTTP '+response.status));
+    const planes=Array.isArray(data.planes)?data.planes:(Array.isArray(data.setup?.planes)?data.setup.planes:[]);
+    controllerPlanes=planes.map(normalizeControllerPlane);
+    controllerPlaneCols=Math.max(1,Math.min(16,parseInt(data.planeCols??data.setup?.planeCols??3,10)||3));
+    controllerPlaneRows=Math.max(1,Math.min(16,parseInt(data.planeRows??data.setup?.planeRows??3,10)||3));
+    renderControllerPlanes();
+  }catch(error){
+    controllerPlanes=[];
+    renderControllerPlanes();
+    setStatus('Saved planes unavailable: '+error.message,true);
+  }
+}
+function controllerPlaneWeights(plane,target=plane.target){
+  const [a,b,c]=plane.points;
+  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
+  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+  return {valid:true,wA,wB,wC:1-wA-wB};
+}
+function controllerPlaneInterpolateFixture(plane,fixture,weights){
+  if(!weights.valid)return null;
+  const ids=plane.points.map(point=>point.id);
+  if(ids.some(id=>!fixture.cal?.[id]?.calibrated))return null;
+  return {
+    pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
+    tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
+  };
+}
+function controllerPlaneAutoBounds(plane){
+  const xs=plane.points.map(p=>p.x),ys=plane.points.map(p=>p.y);
+  xs.push(plane.target.x,...plane.fixtures.map(f=>f.x));
+  ys.push(plane.target.y,...plane.fixtures.map(f=>f.y));
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
+  return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+}
+function controllerPlaneBounds(plane){
+  const base=controllerPlaneAutoBounds(plane);
+  if(controllerPlaneView.auto){
+    controllerPlaneView.centerX=(base.minX+base.maxX)/2;
+    controllerPlaneView.centerY=(base.minY+base.maxY)/2;
+  }
+  const zoom=Math.max(0.25,Math.min(8,Number(controllerPlaneView.zoom)||1));
+  const spanX=(base.maxX-base.minX)/zoom;
+  const spanY=(base.maxY-base.minY)/zoom;
+  const cx=Number(controllerPlaneView.centerX)||((base.minX+base.maxX)/2);
+  const cy=Number(controllerPlaneView.centerY)||((base.minY+base.maxY)/2);
+  return {minX:cx-spanX/2,maxX:cx+spanX/2,minY:cy-spanY/2,maxY:cy+spanY/2};
+}
+function zoomControllerPlaneView(factor){
+  if(!activeControllerPlane)return;
+  const base=controllerPlaneBounds(activeControllerPlane);
+  controllerPlaneView={
+    auto:false,
+    centerX:(base.minX+base.maxX)/2,
+    centerY:(base.minY+base.maxY)/2,
+    zoom:Math.max(0.25,Math.min(8,(Number(controllerPlaneView.zoom)||1)*factor))
+  };
+  queueControllerPlaneRender();
+}
+function resetControllerPlaneView(){
+  controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  queueControllerPlaneRender();
+}
+function controllerPlaneToScreen(point,bounds,rect){
+  const width=Math.max(1,rect?.width||1),height=Math.max(1,rect?.height||1);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX),spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale,drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2,offsetY=(height-drawnH)/2;
+  return {x:((offsetX+(point.x-bounds.minX)*scale)/width)*100,y:((offsetY+(bounds.maxY-point.y)*scale)/height)*100};
+}
+function controllerPlaneScreenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width),height=Math.max(1,rect.height);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX),spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale,drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2,offsetY=(height-drawnH)/2;
+  const px=event.clientX-rect.left-offsetX;
+  const py=event.clientY-rect.top-offsetY;
+  return {x:bounds.minX+px/scale,y:bounds.maxY-py/scale,z:0};
+}
+function setControllerPlaneTarget(room){
+  if(!activeControllerPlane)return;
+  activeControllerPlane.target={
+    x:Number(room.x)||0,
+    y:Number(room.y)||0,
+    z:Number(room.z)||0
+  };
+  queueControllerPlaneRender();
+  scheduleControllerPlaneLiveSend();
+}
+function queueControllerPlaneRender(){
+  if(controllerPlaneRenderQueued)return;
+  controllerPlaneRenderQueued=true;
+  requestAnimationFrame(()=>{
+    controllerPlaneRenderQueued=false;
+    renderControllerPlaneModal();
+  });
+}
+function controllerPlaneTargetNudgeStep(axis,kind){
+  const id='controllerPlaneStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse');
+  return Math.max(0.001,Number(document.getElementById(id)?.value)||0);
+}
+function nudgeControllerPlaneTarget(axis,dir,kind){
+  if(!activeControllerPlane)return;
+  const step=controllerPlaneTargetNudgeStep(axis,kind);
+  const target={...activeControllerPlane.target};
+  target[axis]=(Number(target[axis])||0)+(Number(dir)||0)*step;
+  setControllerPlaneTarget(target);
+  setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
+}
+function controllerPlaneDrawLine(host,a,b){
+  const line=document.createElement('div');
+  line.className='controller-plane-line';
+  const dx=b.x-a.x,dy=b.y-a.y;
+  line.style.left=a.x+'%';
+  line.style.top=a.y+'%';
+  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
+  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+  host.appendChild(line);
+}
+function renderControllerPlanePreview(){
+  const plane=activeControllerPlane;
+  const pad=document.getElementById('controllerPlanePad');
+  if(!plane||!pad)return;
+  pad.querySelectorAll('.controller-plane-point,.controller-plane-line').forEach(el=>el.remove());
+  const selected=controllerPlaneSelectedIds();
+  const rect=pad.getBoundingClientRect();
+  const bounds=controllerPlaneBounds(plane);
+  const screens=plane.points.map(point=>controllerPlaneToScreen(point,bounds,rect));
+  const triangle=document.getElementById('controllerPlaneTriangle');
+  triangle.style.setProperty('--ax',screens[0].x+'%');
+  triangle.style.setProperty('--ay',screens[0].y+'%');
+  triangle.style.setProperty('--bx',screens[1].x+'%');
+  triangle.style.setProperty('--by',screens[1].y+'%');
+  triangle.style.setProperty('--cx',screens[2].x+'%');
+  triangle.style.setProperty('--cy',screens[2].y+'%');
+  screens.forEach((screen,index)=>{
+    const el=document.createElement('div');
+    el.className='controller-plane-point';
+    el.textContent=plane.points[index].id;
+    el.style.left=screen.x+'%';
+    el.style.top=screen.y+'%';
+    pad.appendChild(el);
+  });
+  const targetScreen=controllerPlaneToScreen(plane.target,bounds,rect);
+  const target=document.getElementById('controllerPlaneTarget');
+  target.style.left=targetScreen.x+'%';
+  target.style.top=targetScreen.y+'%';
+  plane.fixtures.forEach((fixture,index)=>{
+    const screen=controllerPlaneToScreen(fixture,bounds,rect);
+    const el=document.createElement('div');
+    el.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');
+    el.textContent=fixture.name.replace(/[^0-9]/g,'')||String(index+1);
+    el.title=fixture.name;
+    el.style.left=screen.x+'%';
+    el.style.top=screen.y+'%';
+    pad.appendChild(el);
+    controllerPlaneDrawLine(pad,screen,targetScreen);
+  });
+}
+function renderControllerPlaneModal(){
+  const plane=activeControllerPlane;
+  if(!plane)return;
+  const selected=controllerPlaneSelectedIds();
+  const weights=controllerPlaneWeights(plane);
+  document.getElementById('controllerPlaneTitle').textContent='Recall Plane: '+plane.name;
+  document.getElementById('controllerPlaneSummary').textContent='Target X '+plane.target.x+' / Y '+plane.target.y+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  const list=document.getElementById('controllerPlaneFixtures');
+  list.innerHTML=plane.fixtures.map(fixture=>{
+    const selectedClass=selected.has(String(fixture.id))?' selected':'';
+    const hasCurrent=fixtures.some(f=>String(f.id)===String(fixture.id));
+    const status=selected.has(String(fixture.id))?(hasCurrent?'selected':'not patched'):(hasCurrent?'available':'not patched');
+    return '<div class="controller-plane-fixture-row'+selectedClass+'"><strong>'+escHtml(fixture.name)+'</strong><span class="small">'+escHtml(status)+'</span></div>';
+  }).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
+  renderControllerPlanePreview();
+}
+function openControllerPlaneModal(id){
+  const plane=controllerPlanes.find(item=>String(item.id)===String(id));
+  if(!plane)return;
+  activeControllerPlane=cloneControllerPlane(plane);
+  controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  controllerPlanePanMode=false;
+  document.getElementById('controllerPlanePanView').classList.remove('active');
+  document.getElementById('controllerPlanePad').classList.remove('pan-mode');
+  controllerPlaneLastLiveStatus='';
+  controllerPlaneLiveSendPending=false;
+  renderControllerPlaneModal();
+  DmxCommon.showModal('controllerPlaneModal');
+  requestAnimationFrame(renderControllerPlanePreview);
+}
+function closeControllerPlaneModal(){
+  DmxCommon.hideModal('controllerPlaneModal');
+  controllerPlaneLiveSendPending=false;
+  clearTimeout(controllerPlaneLiveSendTimer);
+  controllerPlaneLiveSendTimer=null;
+  controllerPlaneTargetDrag=null;
+  controllerPlaneViewDrag=null;
+  controllerPlanePanMode=false;
+  document.getElementById('controllerPlanePanView').classList.remove('active');
+  document.getElementById('controllerPlanePad').classList.remove('pan-mode');
+}
+function controllerPanTiltControl(fixture){
+  const profile=fixtureProfile(fixture);
+  return profile?.controls?.find(control=>control.type==='panTilt16'||control.type==='panTilt8')||null;
+}
+function scheduleControllerPlaneLiveSend(){
+  controllerPlaneLiveSendPending=true;
+  if(controllerPlaneLiveSendTimer||controllerPlaneLiveSendBusy)return;
+  controllerPlaneLiveSendTimer=setTimeout(runControllerPlaneLiveSend,50);
+}
+async function runControllerPlaneLiveSend(){
+  controllerPlaneLiveSendTimer=null;
+  if(!controllerPlaneLiveSendPending)return;
+  controllerPlaneLiveSendPending=false;
+  controllerPlaneLiveSendBusy=true;
+  try{
+    await sendControllerPlaneLiveTarget({manual:false});
+  }finally{
+    controllerPlaneLiveSendBusy=false;
+    if(controllerPlaneLiveSendPending&&!controllerPlaneLiveSendTimer){
+      controllerPlaneLiveSendTimer=setTimeout(runControllerPlaneLiveSend,50);
+    }
+  }
+}
+async function sendControllerPlaneLiveTarget({manual=false}={}){
+  const plane=activeControllerPlane;
+  if(!plane)return {applied:0,errors:['No plane selected']};
+  const weights=controllerPlaneWeights(plane);
+  if(!weights.valid){
+    const message='Cannot send plane because A/B/C are invalid';
+    if(manual)setStatus(message,true);
+    return {applied:0,errors:[message]};
+  }
+  const selected=controllerPlaneSelectedIds();
+  if(!selected.size){
+    const message='Select fixtures or a group before using plane live output';
+    if(manual)setStatus(message,true);
+    return {applied:0,errors:[message]};
+  }
+  const errors=[];
+  let applied=0;
+  const pairs=[];
+  for(const currentFixture of fixtures.filter(f=>selected.has(String(f.id)))){
+    const planeFixture=plane.fixtures.find(f=>String(f.id)===String(currentFixture.id));
+    const control=controllerPanTiltControl(currentFixture);
+    if(!planeFixture){errors.push(currentFixture.name+': not saved in plane');continue;}
+    if(!control){errors.push(currentFixture.name+': no Pan/Tilt control');continue;}
+    const out=controllerPlaneInterpolateFixture(plane,planeFixture,weights);
+    if(!out){errors.push(currentFixture.name+': calibration incomplete');continue;}
+    const max=control.type==='panTilt8'?255:65535;
+    setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
+    updateControlDisplay(currentFixture,control);
+    resolveDmxBytes(currentFixture,control).forEach(row=>pairs.push(row.ch+':'+clamp(row.val,0,255)));
+    applied++;
+  }
+  if(applied&&autoSendEnabled()&&pairs.length){
+    try{
+      await fetch(endpoint()+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'});
+    }catch(error){
+      errors.push(error.message||'Could not send plane live output');
+    }
+  }
+  writeLiveValues(false);
+  const statusText=(applied?'Plane live '+plane.name+' -> '+applied+' fixture'+(applied===1?'':'s')+' @ X '+Number(plane.target.x).toFixed(2)+' / Y '+Number(plane.target.y).toFixed(2):'No fixtures updated')+(errors.length?' · '+errors.join(' · '):'');
+  if(manual||statusText!==controllerPlaneLastLiveStatus){
+    controllerPlaneLastLiveStatus=statusText;
+    setStatus(statusText,!!errors.length&&!applied);
+  }
+  return {applied,errors};
+}
+document.getElementById('controllerPlaneClose').onclick=closeControllerPlaneModal;
+document.getElementById('controllerPlaneClose2').onclick=closeControllerPlaneModal;
+document.getElementById('controllerPlaneNudgeControls').addEventListener('click',event=>{
+  const button=event.target.closest('[data-controller-plane-nudge-axis]');
+  if(!button)return;
+  const axis=button.dataset.controllerPlaneNudgeAxis;
+  const dir=Number(button.dataset.controllerPlaneNudgeDir)||0;
+  const kind=button.dataset.controllerPlaneNudgeStep||'coarse';
+  if((axis==='x'||axis==='y')&&dir)nudgeControllerPlaneTarget(axis,dir,kind);
+});
+document.getElementById('controllerPlaneZoomIn').onclick=()=>zoomControllerPlaneView(1.25);
+document.getElementById('controllerPlaneZoomOut').onclick=()=>zoomControllerPlaneView(1/1.25);
+document.getElementById('controllerPlaneResetView').onclick=()=>resetControllerPlaneView();
+document.getElementById('controllerPlanePanView').onclick=()=>{
+  controllerPlanePanMode=!controllerPlanePanMode;
+  document.getElementById('controllerPlanePanView').classList.toggle('active',controllerPlanePanMode);
+  document.getElementById('controllerPlanePad').classList.toggle('pan-mode',controllerPlanePanMode);
+};
+let controllerPlaneTargetDrag=null;
+let controllerPlaneViewDrag=null;
+document.getElementById('controllerPlanePad').addEventListener('pointerdown',event=>{
+  if(!activeControllerPlane)return;
+  event.preventDefault();
+  const pad=event.currentTarget;
+  const rect=pad.getBoundingClientRect();
+  const bounds=controllerPlaneBounds(activeControllerPlane);
+  if(controllerPlanePanMode||event.button===1||event.button===2||event.shiftKey){
+    controllerPlaneView.auto=false;
+    controllerPlaneViewDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};
+    pad.setPointerCapture?.(event.pointerId);
+    return;
+  }
+  const room=controllerPlaneScreenToRoom(event,rect,bounds);
+  controllerPlaneTargetDrag={pointerId:event.pointerId,bounds};
+  pad.setPointerCapture?.(event.pointerId);
+  setControllerPlaneTarget(room);
+});
+document.getElementById('controllerPlanePad').addEventListener('pointermove',event=>{
+  if(activeControllerPlane&&controllerPlaneViewDrag&&controllerPlaneViewDrag.pointerId===event.pointerId){
+    const rect=event.currentTarget.getBoundingClientRect();
+    const spanX=controllerPlaneViewDrag.bounds.maxX-controllerPlaneViewDrag.bounds.minX;
+    const spanY=controllerPlaneViewDrag.bounds.maxY-controllerPlaneViewDrag.bounds.minY;
+    const dx=(event.clientX-controllerPlaneViewDrag.x)/Math.max(1,rect.width)*spanX;
+    const dy=(event.clientY-controllerPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;
+    controllerPlaneView.centerX=((controllerPlaneViewDrag.bounds.minX+controllerPlaneViewDrag.bounds.maxX)/2)-dx;
+    controllerPlaneView.centerY=((controllerPlaneViewDrag.bounds.minY+controllerPlaneViewDrag.bounds.maxY)/2)+dy;
+    queueControllerPlaneRender();
+    return;
+  }
+  if(!activeControllerPlane||!controllerPlaneTargetDrag||controllerPlaneTargetDrag.pointerId!==event.pointerId)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const room=controllerPlaneScreenToRoom(event,rect,controllerPlaneTargetDrag.bounds);
+  setControllerPlaneTarget(room);
+});
+document.getElementById('controllerPlanePad').addEventListener('pointerup',event=>{
+  if(controllerPlaneViewDrag&&controllerPlaneViewDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    controllerPlaneViewDrag=null;
+  }
+  if(controllerPlaneTargetDrag&&controllerPlaneTargetDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    controllerPlaneTargetDrag=null;
+  }
+});
+document.getElementById('controllerPlanePad').addEventListener('pointercancel',()=>{controllerPlaneTargetDrag=null;controllerPlaneViewDrag=null;});
+document.getElementById('controllerPlanePad').addEventListener('contextmenu',event=>event.preventDefault());
+document.getElementById('controllerPlanePad').addEventListener('wheel',event=>{
+  event.preventDefault();
+  zoomControllerPlaneView(event.deltaY<0?1.12:1/1.12);
+},{passive:false});
+const controllerPlanesToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'controllerPlanesBox',
+  headerId:'controllerPlanesBoxHdr',
+  toggleId:'controllerPlanesBoxToggle',
+  posStorageKey:'controllerPlanesBoxPos',
+  collapsedStorageKey:'controllerPlanesBoxCollapsed',
+  uiStatePage:'fixture',
+  uiStatePosKey:'controllerPlanesBoxPos',
+  uiStateCollapsedKey:'controllerPlanesBoxCollapsed'
+});
+loadControllerPlanesServer();
+// ── End saved room planes ─────────────────────────────────────────────
 
 const fanToolbox=DmxCommon.initFloatingToolbox({
   boxId:'fanToolbox',

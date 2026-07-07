@@ -101,6 +101,16 @@
       "purpose": "Show Run Palettes card"
     },
     {
+      "file": "show-run-card-planes.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Planes card"
+    },
+    {
+      "file": "show-run-plane-modal.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run saved room plane recall modal"
+    },
+    {
       "file": "show-run-card-chaser.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "Show Run Pico Chaser Playback card"
@@ -284,6 +294,11 @@
       "file": "room-plane-toolbox-saved-planes.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "Room Plane saved plane management"
+    },
+    {
+      "file": "room-plane-edit-plane-tile.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Room Plane saved plane tile visual editor"
     },
     {
       "file": "room-plane-toolbox-fixtures.png",

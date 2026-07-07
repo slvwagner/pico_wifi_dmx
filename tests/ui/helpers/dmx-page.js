@@ -116,6 +116,19 @@ async function routeControllerCompactServerSetup(page) {
     });
   });
 
+  await page.route('**/room_plane_setup.php**', async route => {
+    const method = route.request().method();
+    if (method !== 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, exists: true, planes: [], planeCols: 3, planeRows: 3 })
+    });
+  });
+
   await page.route('**/ui_state.php**', async route => {
     if (route.request().method() !== 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
