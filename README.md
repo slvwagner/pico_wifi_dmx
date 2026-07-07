@@ -872,7 +872,7 @@ This means the normal workflow is: recall or set the base value first, then star
 
 Show Run is the operator page. It recalls saved groups, fixture targets, scenes, palettes, room planes, Pico chaser slots, Pico effect slots, and Live Controls without exposing the full setup UI. Every card can be arranged in a matrix while **Edit Layout** is active. Card positions, repeated card instances, tile rows/columns, tile order, and Live Controls are saved server-side in `data/ui_state.json`, so the same operator layout can be restored on another computer.
 
-The **Master** card contains the Grand Master plus optional Group Master faders. Group Masters can be added, assigned, cleared, and removed only while **Edit Layout** is active. Each Group Master tile shows a small `x` in Edit Layout for deletion; the Grand Master is protected and cannot be deleted. Show Run **Groups** also has a **Group Edit** button that opens a Controller-style group edit modal for the current show target.
+The **Master** card contains the Grand Master plus optional Group Master faders. Group Masters can be added, assigned, cleared, and removed only while **Edit Layout** is active. Each Group Master tile shows a small `x` in Edit Layout for deletion; the Grand Master is protected and cannot be deleted. Group Masters can be assigned from selected groups or from an explicit fixture selection. Selecting a Show Run group mirrors its fixture ids into the Fixtures card so the operator can see what the group contains; manually changing the fixture selection clears the group selection. Show Run **Groups** also has a **Group Edit** button that opens a Controller-style group edit modal for the current show target.
 
 ![Show Run Planes card](docs/screenshots/show-run-card-planes.png)
 

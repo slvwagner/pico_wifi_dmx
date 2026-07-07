@@ -478,7 +478,7 @@ To assign a Group Master, first select one or more groups or fixtures, click **E
 
 ### Groups Card
 
-The **Groups** card contains the saved groups from the Controller page. Select one or more groups when you want scene, palette, or Group Master assignment to affect only those fixtures. With no group selected, Show Run uses all fixtures.
+The **Groups** card contains the saved groups from the Controller page. Select one or more groups when you want scene, palette, or Group Master assignment to affect only those fixtures. Selecting a group also highlights the fixtures stored inside that group in the **Fixtures** card, so you can immediately see what the group contains. With no group or fixture selected, Show Run uses all fixtures.
 
 Group selection is an operator filter only. It does not edit the saved group definitions and it does not save setup data.
 
@@ -488,9 +488,9 @@ The **Group Edit** button opens a Controller-style Group Edit modal for the curr
 
 ### Fixtures Card
 
-The **Fixtures** card lets you target individual fixtures without creating a saved group. Click a fixture tile to select or deselect it. Fixture selection combines with group selection, so the current show target is the union of selected groups and selected individual fixtures.
+The **Fixtures** card lets you target individual fixtures without creating a saved group. Click a fixture tile to select or deselect it. When a group is selected, its member fixtures are mirrored here; when you change the fixture selection manually, the group selection is cleared and the current show target becomes the explicitly selected fixtures.
 
-Use this when a scene, palette, or Group Master should apply to one fixture or a temporary hand-picked set.
+Use this when a scene, palette, or Group Master should apply to one fixture or a temporary hand-picked set. If you manually select or deselect a fixture here, the active group selection is cleared because the target is now an explicit fixture selection.
 
 ![Show Run Fixtures card](screenshots/show-run-card-fixtures.png)
 

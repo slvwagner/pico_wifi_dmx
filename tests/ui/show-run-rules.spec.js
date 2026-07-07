@@ -269,6 +269,33 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('mirrors selected groups into fixture tiles and clears groups on manual fixture selection', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const frontGroup = page.locator('#groupGrid [data-group="front"]');
+    const spot1 = page.locator('#fixtureGrid [data-fixture="101"]');
+    const spot2 = page.locator('#fixtureGrid [data-fixture="102"]');
+
+    await frontGroup.click();
+    await expect(frontGroup).toHaveClass(/active/);
+    await expect(spot1).toHaveClass(/active/);
+    await expect(spot2).not.toHaveClass(/active/);
+    await expect(page.locator('#fixtureSummary')).toContainText('Spot 1');
+
+    await spot2.click();
+    await expect(frontGroup).not.toHaveClass(/active/);
+    await expect(spot1).toHaveClass(/active/);
+    await expect(spot2).toHaveClass(/active/);
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('[data-target-master-assign="0"]').click();
+    await expect(page.locator('[data-target-master-summary="0"]')).toContainText('2 fixtures');
+    await expect.poll(() => calls.uiStatePosts.at(-1)?.state?.targetMasters?.[0]?.fixtureIds).toEqual(['101', '102']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('opens Group Edit from the Groups card and applies controls to the selected group target', async ({ page }) => {
     const calls = {
       pico: [],

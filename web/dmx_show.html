@@ -1665,12 +1665,27 @@ function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
 function targetSummary(){
   const ids=activeTargetFixtureIds();
   const selected=groups.filter(g=>selectedGroupIds.has(String(g.id))).map(g=>g.name).join(', ');
-  document.getElementById('targetSummary').textContent=selectedGroupIds.size?selected+' - '+ids.size+' fixture(s)':'All fixtures - '+ids.size+' fixture(s)';
+  let label='All fixtures';
+  if(selectedGroupIds.size)label=selected;
+  else if(selectedFixtureIds.size)label='Selected fixtures';
+  document.getElementById('targetSummary').textContent=label+' - '+ids.size+' fixture(s)';
   const fixtureSummary=document.getElementById('fixtureSummary');
   if(fixtureSummary){
     const names=fixtures.filter(f=>selectedFixtureIds.has(String(f.id))).map(f=>f.name||('Fixture '+f.id));
     fixtureSummary.textContent=selectedFixtureIds.size?names.join(', ')+' - '+selectedFixtureIds.size+' selected':'No individual fixtures selected';
   }
+}
+function selectedGroupFixtureIds(){
+  const ids=new Set();
+  groups.forEach(g=>{
+    if(!selectedGroupIds.has(String(g.id)))return;
+    (g.fixtureIds||[]).forEach(id=>ids.add(String(id)));
+  });
+  return ids;
+}
+function syncFixtureSelectionFromGroups(){
+  selectedFixtureIds.clear();
+  selectedGroupFixtureIds().forEach(id=>selectedFixtureIds.add(String(id)));
 }
 function slotStyle(item){return DmxCommon.slotVisualStyle(item);}
 function slotVisual(item){return DmxCommon.slotVisualHtml(item);}
@@ -2196,7 +2211,9 @@ function renderGroupGrid(grid,layoutId='group',cols=groupCols,rows=groupRows){
     if(tileMoveClick('group',parseInt(btn.dataset.showTileIndex,10),layoutId))return;
     const id=String(btn.dataset.group);
     if(selectedGroupIds.has(id))selectedGroupIds.delete(id);else selectedGroupIds.add(id);
+    syncFixtureSelectionFromGroups();
     renderGroups();
+    renderFixtures();
     renderPlanes();
   }));
   grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick('group',parseInt(el.dataset.showTileIndex,10),layoutId)));
@@ -2223,6 +2240,7 @@ function renderFixtureGrid(grid,layoutId='fixture',cols=fixtureCols,rows=fixture
   grid.querySelectorAll('[data-fixture]').forEach(btn=>btn.addEventListener('click',()=>{
     if(tileMoveClick('fixture',parseInt(btn.dataset.showTileIndex,10),layoutId))return;
     const id=String(btn.dataset.fixture);
+    selectedGroupIds.clear();
     if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
     renderFixtures();
     renderGroups();
