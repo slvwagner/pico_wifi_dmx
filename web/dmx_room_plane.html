@@ -69,6 +69,19 @@ td input[type="checkbox"]{width:auto}
 .target-nudge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,360px));gap:8px;justify-content:start}
 .pill-row{display:flex;gap:8px;flex-wrap:wrap}
 .pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px;background:#10161b}
+.control{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.control:first-child{border-top:0;padding-top:0}
+.control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.control-head h3{margin:0;font-size:15px}
+.readout{font-size:22px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}
+.bytes{color:var(--muted);font-size:13px}
+.row,.value-row,.byte-sliders,.swatches,.tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.value-row input[type=range]{flex:1 1 180px}
+.value-row input[type=number]{width:92px}
+.byte-sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));align-items:end}
+.byte-sliders input[type=range],.control>input[type=range],.control label input[type=range]{width:100%;padding:0}
+.swatch{width:34px;height:34px;min-height:34px;padding:0;border-radius:6px}
+.tab{display:inline-flex;gap:6px;align-items:center}
 canvas{display:none}
 @media(max-width:980px){body.toolbox-rail-layout .room-titlebar,body.toolbox-rail-collapsed .room-titlebar{width:100%}.layout{grid-template-columns:1fr}.plane-pad{min-height:420px}.room-titlebar__tools{justify-content:flex-start}.room-titlebar__tools label{width:100%;align-items:start;display:grid}.room-titlebar__tools input[type=url]{width:100%}}
 </style>
@@ -223,6 +236,19 @@ canvas{display:none}
     <div class="modal-actions">
       <button id="planeVisualSave" type="button" class="primary">Save tile</button>
       <button id="planeVisualClose2" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="groupModal" class="modal-overlay" style="display:none">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="groupModalTitle">
+    <div class="modal-head">
+      <button id="closeGroupModal" type="button" aria-label="Close">x</button>
+      <h2 id="groupModalTitle">Group Edit</h2>
+    </div>
+    <div id="groupModalBody" class="modal-body"></div>
+    <div class="modal-actions">
+      <button id="closeGroupModal2" type="button">Close</button>
     </div>
   </div>
 </div>
@@ -770,6 +796,33 @@ function profileForFixture(f){
 
 function controlKey(f,c){
   return f&&c?f.id+':'+c.id:'';
+}
+
+function cloneValue(value){
+  return value&&typeof value==='object'?JSON.parse(JSON.stringify(value)):value;
+}
+
+function defaultValueForControl(c){
+  if(c?.type==='panTilt16')return {pan:32768,tilt:32768};
+  if(c?.type==='panTilt8')return {pan:128,tilt:128};
+  if(c?.type==='rgb'||c?.type==='cmy')return {a:0,b:0,c:0};
+  if(c?.type==='rgbw')return {a:0,b:0,c:0,w:0};
+  if(c?.type==='rgbwa')return {a:0,b:0,c:0,w:0,amber:0};
+  if(c?.type==='cmyk')return {a:0,b:0,c:0,k:0};
+  if(c?.type==='slider16')return 0;
+  return 0;
+}
+
+function getValue(f,c,def=0){
+  const key=controlKey(f,c);
+  if(!key)return cloneValue(def);
+  if(liveValues[key]===undefined)liveValues[key]=cloneValue(def);
+  return liveValues[key];
+}
+
+function setValue(f,c,value){
+  const key=controlKey(f,c);
+  if(key)liveValues[key]=cloneValue(value);
 }
 
 function fixtureSelectionKey(f,index){
@@ -1381,6 +1434,247 @@ function syncTables(){
   renderFixtureRows();
   render();
 }
+
+const wheelOptionMatches=DmxCommon.wheelOptionMatches;
+const selectedWheelOption=DmxCommon.selectedWheelOption;
+const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
+let roomGroupValues={};
+let roomGroupSourceFixtureKey=null;
+
+function hex2(n){return Math.max(0,Math.min(255,Math.round(Number(n)||0))).toString(16).padStart(2,'0');}
+function rgbHex(v){return '#'+hex2(v?.a)+hex2(v?.b)+hex2(v?.c);}
+function cmyHex(v){return '#'+hex2(255-(Number(v?.a)||0))+hex2(255-(Number(v?.b)||0))+hex2(255-(Number(v?.c)||0));}
+function cmykHex(v){
+  const k=Math.max(0,Math.min(255,Number(v?.k)||0));
+  return '#'+hex2(255-Math.min(255,(Number(v?.a)||0)+k))+hex2(255-Math.min(255,(Number(v?.b)||0)+k))+hex2(255-Math.min(255,(Number(v?.c)||0)+k));
+}
+function hexToRgb(hex){const m=String(hex||'').match(/^#?([0-9a-f]{6})$/i);const n=m?parseInt(m[1],16):0;return{a:(n>>16)&255,b:(n>>8)&255,c:n&255};}
+function rgbToCmy(hex){const rgb=hexToRgb(hex);return{a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};}
+function rgbToCmyk(hex){const cmy=rgbToCmy(hex);return{...cmy,k:0};}
+function roomGroupCompatibilitySignature(c){
+  if(c?.type==='wheel')return '|options:'+(c.options||[]).map(o=>encodeURIComponent(o.name||'')+'='+Math.max(0,Math.min(255,Number(o.value ?? o.dmxRange?.[0] ?? 0)))).join(';');
+  return '';
+}
+function roomGroupKey(c){return (c?.type||'control')+':'+(c?.label||c?.scope||c?.name||'Control')+roomGroupCompatibilitySignature(c);}
+function selectedRoomFixtures(){
+  ensureFixtureSelection();
+  return fixtures.filter((fixture,index)=>selectedFixtureIds.has(fixtureSelectionKey(fixture,index)));
+}
+function findRoomGroupControl(f,key){
+  return (profileForFixture(f)?.controls||[]).find(control=>roomGroupKey(control)===key)||null;
+}
+function roomGroupEditableControls(){
+  const selected=selectedRoomFixtures();
+  if(selected.length===1)return (profileForFixture(selected[0])?.controls||[]).filter(control=>control.type!=='matrixRgb');
+  if(selected.length<1)return [];
+  const map=new Map();
+  selected.forEach(f=>{
+    (profileForFixture(f)?.controls||[]).forEach(control=>{
+      if(control.type==='matrixRgb')return;
+      const key=roomGroupKey(control);
+      if(!map.has(key))map.set(key,{control,count:0});
+      map.get(key).count++;
+    });
+  });
+  return [...map.values()].filter(row=>row.count>=2).map(row=>row.control);
+}
+function ensureRoomGroupSourceFixture(){
+  const selected=selectedRoomFixtures();
+  if(roomGroupSourceFixtureKey&&selected.some((fixture,index)=>fixtureSelectionKey(fixture,index)===roomGroupSourceFixtureKey))return roomGroupSourceFixtureKey;
+  const first=selected[0];
+  roomGroupSourceFixtureKey=first?fixtureSelectionKey(first,fixtures.indexOf(first)):null;
+  return roomGroupSourceFixtureKey;
+}
+function firstRoomGroupTarget(c){
+  const key=roomGroupKey(c);
+  const sourceKey=ensureRoomGroupSourceFixture();
+  const selected=selectedRoomFixtures();
+  const source=selected.find((fixture,index)=>fixtureSelectionKey(fixture,index)===sourceKey);
+  const sourceControl=source&&findRoomGroupControl(source,key);
+  if(source&&sourceControl)return {fixture:source,control:sourceControl};
+  for(const fixture of selected){
+    const control=findRoomGroupControl(fixture,key);
+    if(control)return {fixture,control};
+  }
+  return null;
+}
+function roomGroupTargets(c){
+  const key=roomGroupKey(c);
+  return selectedRoomFixtures().map(fixture=>({fixture,control:findRoomGroupControl(fixture,key)})).filter(row=>row.control);
+}
+function roomGroupValue(c){
+  const key=roomGroupKey(c);
+  if(roomGroupValues[key]===undefined)roomGroupValues[key]=cloneValue(defaultValueForControl(c));
+  return roomGroupValues[key];
+}
+function syncRoomGroupValues(common=roomGroupEditableControls()){
+  common.forEach(control=>{
+    const target=firstRoomGroupTarget(control);
+    if(target)roomGroupValues[roomGroupKey(control)]=cloneValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)));
+  });
+}
+function setRoomGroupValue(c,value){
+  const key=roomGroupKey(c);
+  roomGroupValues[key]=cloneValue(value);
+  roomGroupTargets(c).forEach(target=>setValue(target.fixture,target.control,value));
+}
+function applyRelativeToRoomGroup(c,part,delta){
+  let changed=0;
+  roomGroupTargets(c).forEach(target=>{
+    const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    let next;
+    if(part==='value')next=Math.max(0,Math.min(target.control.type==='slider16'?65535:255,(Number(current)||0)+delta));
+    else{
+      const max=target.control.type==='panTilt16'?65535:255;
+      next={...(current||defaultValueForControl(target.control)),[part]:Math.max(0,Math.min(max,(Number(current?.[part])||0)+delta))};
+    }
+    setValue(target.fixture,target.control,next);
+    changed++;
+  });
+  const source=firstRoomGroupTarget(c);
+  if(source)roomGroupValues[roomGroupKey(c)]=cloneValue(getValue(source.fixture,source.control,defaultValueForControl(source.control)));
+  return changed;
+}
+function roomGroupDmxRows(f,c){
+  const rows=[];
+  const value=getValue(f,c,defaultValueForControl(c));
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)).forEach(row=>rows.push({channel:row.ch,value:row.val,param:row.param}));
+  }else if(c.type==='slider16'){
+    const b=bytes16(value);
+    rows.push({channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
+    rows.push({channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
+  }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(part=>rows.push({channel:absolute(f.start,c[part]),value:Math.max(0,Math.min(255,Number(value?.[part])||0)),param:c.label+' '+part}));
+  }else{
+    rows.push({channel:absolute(f.start,c.channel),value:Math.max(0,Math.min(255,Number(value)||0)),param:c.label});
+  }
+  return rows.filter(row=>row.channel>=1&&row.channel<=512);
+}
+async function sendRoomGroupControl(c){
+  const rows=[];
+  const patch={};
+  roomGroupTargets(c).forEach(target=>{
+    patch[controlKey(target.fixture,target.control)]=cloneValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)));
+    roomGroupDmxRows(target.fixture,target.control).forEach(row=>rows.push(row));
+  });
+  if(!rows.length)return;
+  await sendDmxBatch(rows);
+  Object.assign(liveValues,patch);
+  DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
+  setStatus('Group Edit: sent '+rows.length+' channel update'+(rows.length===1?'':'s')+' to '+roomGroupTargets(c).length+' fixture'+(roomGroupTargets(c).length===1?'':'s'));
+}
+function roomWheelOptionValue(option){
+  if(Array.isArray(option?.dmxRange))return Math.round(((Number(option.dmxRange[0])||0)+(Number(option.dmxRange[1])||0))/2);
+  return Math.max(0,Math.min(255,Number(option?.value)||0));
+}
+function roomWheelOptionIconHtml(option){
+  const image=option?.image||option?.icon||option?.resource;
+  const color=option?.color||option?.colors?.[0];
+  if(image)return '<span class="wheel-option-icon" style="background-image:url('+DmxCommon.escapeHtml(String(image))+')"></span>';
+  if(color)return '<span class="wheel-option-icon" style="background:'+DmxCommon.escapeHtml(String(color))+'"></span>';
+  return '';
+}
+function roomGroupRelativeHtml(key,part,kind,max,step,label){
+  return `<div class="relative-control"><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="-1" data-relative-step-default="${step}">-</button><label>${DmxCommon.escapeHtml(label)}<input type="number" min="1" max="${max}" step="1" value="${step}" data-relative-step></label><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="1" data-relative-step-default="${step}">+</button></div>`;
+}
+function roomGroupScopeText(c){
+  return roomGroupTargets(c).length+' matching fixture'+(roomGroupTargets(c).length===1?'':'s');
+}
+function renderRoomGroupControl(c){
+  const key=roomGroupKey(c);
+  const attrs=`data-room-gc="${DmxCommon.escapeHtml(key)}"`;
+  const scope=`<span class="bytes">${DmxCommon.escapeHtml(roomGroupScopeText(c))}</span>`;
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const max=c.type==='panTilt8'?255:65535;
+    const v=roomGroupValue(c);
+    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Pan / Tilt')}</h3><span class="bytes">${c.type==='panTilt8'?'Pan/Tilt 8-bit':'Pan/Tilt 16-bit'}</span>${scope}</div>
+      <div class="xy-pad" data-room-gxy="${DmxCommon.escapeHtml(key)}"><div class="xy-dot" style="left:${(Number(v.pan)||0)/max*100}%;top:${100-(Number(v.tilt)||0)/max*100}%"></div></div>
+      <div class="row"><span class="readout" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">Pan ${Number(v.pan)||0} · Tilt ${Number(v.tilt)||0}</span><button ${attrs} data-room-center="1">Center</button></div>
+      ${roomGroupRelativeHtml(key,'pan','coarse',max,max>255?256:1,'Pan '+(max>255?'coarse':'relative'))}
+      ${max>255?roomGroupRelativeHtml(key,'pan','fine',max,1,'Pan fine'):''}
+      ${roomGroupRelativeHtml(key,'tilt','coarse',max,max>255?256:1,'Tilt '+(max>255?'coarse':'relative'))}
+      ${max>255?roomGroupRelativeHtml(key,'tilt','fine',max,1,'Tilt fine'):''}</div>`;
+  }
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const v=roomGroupValue(c);
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    const names=c.type.startsWith('rgb')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
+    const color=c.type.startsWith('rgb')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Color')}</h3><span class="bytes">${c.type.toUpperCase()}</span>${scope}</div>
+      <label>Color picker<input type="color" value="${color}" ${attrs} data-color-picker="1"></label>
+      ${parts.map((part,index)=>`<label>${names[index]} <span data-room-gc-part="${DmxCommon.escapeHtml(key)}" data-part="${part}">${Number(v?.[part])||0}</span><input type="range" min="0" max="255" value="${Number(v?.[part])||0}" ${attrs} data-part="${part}"></label>${roomGroupRelativeHtml(key,part,'default',255,1,names[index]+' relative')}`).join('')}
+      <div class="swatches"><button class="swatch" style="background:#fff" data-room-gc-color="#ffffff" ${attrs}></button><button class="swatch" style="background:#f00" data-room-gc-color="#ff0000" ${attrs}></button><button class="swatch" style="background:#0f0" data-room-gc-color="#00ff00" ${attrs}></button><button class="swatch" style="background:#00f" data-room-gc-color="#0000ff" ${attrs}></button></div></div>`;
+  }
+  if(c.type==='wheel'){
+    const v=roomGroupValue(c);
+    const active=selectedWheelOption(c,v);
+    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Wheel')}</h3><span class="bytes" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">Wheel · ${v}${active?' · '+DmxCommon.escapeHtml(active.name):''}</span>${scope}</div>
+      <div class="tabs">${(c.options||[]).map((option,index)=>`<button class="tab ${wheelOptionMatches(option,v)?'active':''}" data-room-gc-wheel="${roomWheelOptionValue(option)}" data-room-gc-wheel-option-index="${index}" ${attrs}>${roomWheelOptionIconHtml(option)}${DmxCommon.escapeHtml(option.name||('Option '+(index+1)))}</button>`).join('')}</div>
+      <div data-room-gc-wheel-range-host="${DmxCommon.escapeHtml(key)}">${wheelRangeSliderHtml(active,v,attrs,DmxCommon.escapeHtml)}</div>
+      <div class="value-row"><input type="range" min="0" max="255" value="${v}" ${attrs}><input type="number" min="0" max="255" step="1" value="${v}" ${attrs}></div>
+      ${roomGroupRelativeHtml(key,'value','default',255,1,'Relative')}</div>`;
+  }
+  const max=c.type==='slider16'?65535:255;
+  const v=Number(roomGroupValue(c))||0;
+  const b=bytes16(v);
+  const extra=c.type==='slider16'?`<div class="byte-sliders"><label>Coarse <span data-room-gc-byte="${DmxCommon.escapeHtml(key)}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${attrs} data-byte-part="coarse"></label><label>Fine <span data-room-gc-byte="${DmxCommon.escapeHtml(key)}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${attrs} data-byte-part="fine"></label></div>`:'';
+  return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Control')}</h3><span class="readout" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">${v}</span><span class="bytes">${DmxCommon.escapeHtml(c.type||'control')}</span>${scope}</div>
+    <div class="value-row"><input type="range" min="0" max="${max}" step="1" value="${v}" ${attrs}><input type="number" min="0" max="${max}" step="1" value="${v}" ${attrs}></div>
+    ${c.type==='slider16'?roomGroupRelativeHtml(key,'value','coarse',max,256,'Coarse relative')+roomGroupRelativeHtml(key,'value','fine',max,1,'Fine relative'):roomGroupRelativeHtml(key,'value','default',max,1,'Relative')}${extra}</div>`;
+}
+function updateRoomGroupControlDisplay(c){
+  const key=roomGroupKey(c);
+  const v=roomGroupValue(c);
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const max=c.type==='panTilt8'?255:65535;
+    const dot=document.querySelector(`[data-room-gxy="${CSS.escape(key)}"] .xy-dot`);
+    if(dot){dot.style.left=((Number(v.pan)||0)/max*100)+'%';dot.style.top=(100-(Number(v.tilt)||0)/max*100)+'%';}
+    document.querySelectorAll(`[data-room-gc-readout="${CSS.escape(key)}"]`).forEach(el=>el.textContent='Pan '+(Number(v.pan)||0)+' · Tilt '+(Number(v.tilt)||0));
+    return;
+  }
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(part=>{
+      document.querySelectorAll(`[data-room-gc-part="${CSS.escape(key)}"][data-part="${CSS.escape(part)}"]`).forEach(el=>el.textContent=Number(v?.[part])||0);
+      document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-part="${CSS.escape(part)}"]`).forEach(el=>{if(el.value!=Number(v?.[part])||0)el.value=Number(v?.[part])||0;});
+    });
+    const color=c.type.startsWith('rgb')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
+    return;
+  }
+  document.querySelectorAll(`[data-room-gc-readout="${CSS.escape(key)}"]`).forEach(el=>{
+    const active=c.type==='wheel'?selectedWheelOption(c,v):null;
+    el.textContent=c.type==='wheel'?'Wheel · '+v+(active?' · '+active.name:''):v;
+  });
+  document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='slider16'){
+    const b=bytes16(v);
+    document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+    document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+    document.querySelectorAll(`[data-room-gc-byte="${CSS.escape(key)}"][data-byte-part="coarse"]`).forEach(el=>el.textContent=b.coarse);
+    document.querySelectorAll(`[data-room-gc-byte="${CSS.escape(key)}"][data-byte-part="fine"]`).forEach(el=>el.textContent=b.fine);
+  }
+  if(c.type==='wheel'){
+    document.querySelectorAll(`[data-room-gc-wheel-range-host="${CSS.escape(key)}"]`).forEach(el=>{el.innerHTML=wheelRangeSliderHtml(selectedWheelOption(c,v),v,`data-room-gc="${DmxCommon.escapeHtml(key)}"`,DmxCommon.escapeHtml);});
+    document.querySelectorAll(`button[data-room-gc="${CSS.escape(key)}"][data-room-gc-wheel]`).forEach(el=>el.classList.toggle('active',Number(el.dataset.roomGcWheel)===Number(v)));
+  }
+}
+function openRoomControllerGroupModal(){
+  const common=roomGroupEditableControls();
+  if(!common.length){
+    setStatus('Selected room-plane fixtures do not have matching editable fixture controls',true);
+    return;
+  }
+  ensureRoomGroupSourceFixture();
+  syncRoomGroupValues(common);
+  const count=selectedRoomFixtures().length;
+  document.getElementById('groupModalTitle').textContent='Group Edit - '+count+' fixture'+(count===1?'':'s')+' selected · '+common.length+' editable control'+(common.length===1?'':'s');
+  document.getElementById('groupModalBody').innerHTML=common.map(renderRoomGroupControl).join('');
+  DmxCommon.showModal('groupModal');
+}
+function closeRoomGroupModal(){DmxCommon.hideModal('groupModal');renderFixtureRows();render();}
 function openRoomPlaneGroupEdit(groups){
   const selectedGroups=Array.isArray(groups)?groups:[];
   if(!selectedGroups.length){
@@ -1388,16 +1682,8 @@ function openRoomPlaneGroupEdit(groups){
     return;
   }
   applyGroupSelectionToFixtures(selectedGroups);
-  const selectedKeys=new Set([...selectedFixtureIds].map(String));
-  const index=fixtures.findIndex((fixture,i)=>selectedKeys.has(fixtureSelectionKey(fixture,i)));
-  if(index<0){
-    setStatus('Selected group has no fixtures in this plane',true);
-    return;
-  }
-  editingFixtureIndex=index;
   syncTables();
-  openFixtureEditor(index);
-  setStatus('Group Edit: '+fixtures[index].name+' is the source fixture for '+selectedFixtureIds.size+' selected fixture'+(selectedFixtureIds.size===1?'':'s'));
+  openRoomControllerGroupModal();
 }
 
 document.getElementById('targetX').addEventListener('input',()=>{queueRoomPlaneRender();scheduleRoomPlaneAutosave();scheduleTargetAutoApply();});
@@ -1407,6 +1693,97 @@ document.getElementById('planeSelect')?.addEventListener('change',event=>recallP
 document.getElementById('planeCols').addEventListener('input',event=>{planeCols=event.target.value;renderPlaneSelect();scheduleRoomPlaneAutosave();});
 document.getElementById('planeRows').addEventListener('input',event=>{planeRows=event.target.value;renderPlaneSelect();scheduleRoomPlaneAutosave();});
 document.getElementById('resetCalibration').onclick=()=>resetAllCalibration();
+document.getElementById('closeGroupModal').onclick=closeRoomGroupModal;
+document.getElementById('closeGroupModal2').onclick=closeRoomGroupModal;
+document.getElementById('groupModalBody').addEventListener('input',event=>{
+  const target=event.target.closest('[data-room-gc]')||event.target;
+  const key=target.dataset.roomGc;
+  if(!key)return;
+  const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+  if(!c)return;
+  let value=roomGroupValue(c);
+  if(target.dataset.colorPicker){
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(target.value);value={...(value||{}),a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')value=rgbToCmy(target.value);
+    else if(c.type==='cmyk')value=rgbToCmyk(target.value);
+  }else if(target.dataset.bytePart){
+    const b=bytes16(value);
+    b[target.dataset.bytePart]=Math.max(0,Math.min(255,Number(target.value)||0));
+    value=(b.coarse<<8)|b.fine;
+  }else if(target.dataset.part){
+    value={...(value||{}),[target.dataset.part]:Math.max(0,Math.min(255,Number(target.value)||0))};
+  }else{
+    value=Math.max(0,Math.min(c.type==='slider16'?65535:255,Number(target.value)||0));
+  }
+  setRoomGroupValue(c,value);
+  sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+  updateRoomGroupControlDisplay(c);
+});
+document.getElementById('groupModalBody').addEventListener('click',event=>{
+  const relative=event.target.closest('[data-room-relative-gc]');
+  if(relative){
+    const key=relative.dataset.roomRelativeGc;
+    const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+    if(!c)return;
+    const input=relative.closest('.relative-control')?.querySelector('input[type=number]');
+    const step=Math.max(1,Number(input?.value)||Number(relative.dataset.relativeStepDefault)||1);
+    const dir=Number(relative.dataset.relativeDir)<0?-1:1;
+    const changed=applyRelativeToRoomGroup(c,relative.dataset.relativePart||'value',dir*step);
+    if(changed){
+      sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+      updateRoomGroupControlDisplay(c);
+      setStatus('Group Edit: '+(c.label||'Control')+' '+(dir>0?'+':'-')+step+' on '+changed+' fixture'+(changed===1?'':'s'));
+    }
+    return;
+  }
+  const target=event.target.closest('[data-room-gc]');
+  const key=target?.dataset.roomGc;
+  if(!key)return;
+  const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+  if(!c)return;
+  if(target.dataset.roomCenter){
+    setRoomGroupValue(c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});
+    sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+    updateRoomGroupControlDisplay(c);
+    return;
+  }
+  if(target.dataset.roomGcColor!==undefined){
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(target.dataset.roomGcColor);setRoomGroupValue(c,{...(roomGroupValue(c)||{}),a:rgb.a,b:rgb.b,c:rgb.c});}
+    else if(c.type==='cmy')setRoomGroupValue(c,rgbToCmy(target.dataset.roomGcColor));
+    else if(c.type==='cmyk')setRoomGroupValue(c,rgbToCmyk(target.dataset.roomGcColor));
+    sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+    updateRoomGroupControlDisplay(c);
+    return;
+  }
+  if(target.dataset.roomGcWheel!==undefined){
+    setRoomGroupValue(c,Math.max(0,Math.min(255,Number(target.dataset.roomGcWheel)||0)));
+    sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+    updateRoomGroupControlDisplay(c);
+  }
+});
+document.getElementById('groupModalBody').addEventListener('pointerdown',event=>{
+  const pad=event.target.closest('[data-room-gxy]');
+  if(!pad)return;
+  pad.setPointerCapture?.(event.pointerId);
+  setRoomGroupXY(event,pad);
+});
+document.getElementById('groupModalBody').addEventListener('pointermove',event=>{
+  const pad=event.target.closest('[data-room-gxy]');
+  if(!pad||!pad.hasPointerCapture?.(event.pointerId))return;
+  setRoomGroupXY(event,pad);
+});
+function setRoomGroupXY(event,pad){
+  const key=pad.dataset.roomGxy;
+  const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+  if(!c)return;
+  const rect=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));
+  const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
+  const max=c.type==='panTilt8'?255:65535;
+  setRoomGroupValue(c,{pan:Math.round(x*max),tilt:Math.round((1-y)*max)});
+  sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+  updateRoomGroupControlDisplay(c);
+}
 document.getElementById('targetNudgeControls').addEventListener('click',event=>{
   const button=event.target.closest('[data-target-nudge-axis]');
   if(!button)return;

@@ -701,6 +701,7 @@ test.describe('Room Plane rules', () => {
   });
 
   test('selects room plane fixtures from the shared Groups toolbox', async ({ page }) => {
+    const sent = [];
     await page.unroute('**/group_setup.php');
     await page.route('**/group_setup.php', async route => {
       await route.fulfill({
@@ -748,6 +749,10 @@ test.describe('Room Plane rules', () => {
         })
       });
     });
+    await page.route('**/dmx/b**', async route => {
+      sent.push(route.request().postData() || '');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
 
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -767,10 +772,14 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-select-fixture="2"]')).toBeChecked();
     await expect(page.locator('#status')).toContainText('Selected 2 fixtures from 1 group');
     await page.locator('#roomPlaneGroupsEdit').click();
-    await expect(page.locator('#commonPanTiltDimmerModal')).toBeVisible();
-    await expect(page.locator('#commonPanTiltDimmerTitle')).toContainText('Moving 1');
-    await expect(page.locator('#status')).toContainText('Group Edit: Moving 1 is the source fixture');
-    await page.locator('#commonPanTiltDimmerModal [data-ptd-close]').last().click();
+    await expect(page.locator('#commonPanTiltDimmerModal')).toHaveCount(0);
+    await expect(page.locator('#groupModal')).toBeVisible();
+    await expect(page.locator('#groupModalTitle')).toContainText('2 fixtures selected');
+    await expect(page.locator('#groupModal')).toContainText('Dimmer');
+    await expect(page.locator('#groupModal')).toContainText('Position');
+    await page.locator('#groupModal [data-room-gc^="slider8:Dimmer"]').first().fill('77');
+    await expect.poll(() => sent.some(body => body.includes('10:77') && body.includes('30:77'))).toBe(true);
+    await page.locator('#closeGroupModal2').click();
 
     await page.locator('[data-select-fixture="1"]').check();
     await expect(page.locator('#roomPlaneGroupsList [data-group-index="0"]')).not.toHaveClass(/selected|active/);
