@@ -407,6 +407,8 @@ test.describe('Show Run page', () => {
     await expect(master.getByRole('button', { name: 'Add Group Master' })).toBeHidden();
     await expect(master.locator('[data-target-master-assign="0"]')).toBeHidden();
     await expect(master.locator('[data-target-master-clear="0"]')).toBeHidden();
+    await expect(master.locator('[data-target-master-delete="0"]')).toBeHidden();
+    await expect(master.locator('[data-master-delete="all"]')).toHaveCount(0);
     await expect(master.locator('.grand-master-fader')).toHaveCSS('writing-mode', 'vertical-lr');
     await expect(master.locator('[data-target-master-fader="0"]')).toHaveCSS('writing-mode', 'vertical-lr');
 
@@ -414,6 +416,36 @@ test.describe('Show Run page', () => {
     await expect(master.getByRole('button', { name: 'Add Group Master' })).toBeVisible();
     await expect(master.locator('[data-target-master-assign="0"]')).toBeVisible();
     await expect(master.locator('[data-target-master-clear="0"]')).toBeVisible();
+    await expect(master.locator('[data-target-master-delete="0"]')).toBeVisible();
+  });
+
+  test('deletes Group Master tiles only while editing the Show Run layout', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      setupValues: { '101:11': 100, '102:11': 200 },
+      showRunState: {
+        grandMasterFactor: 1,
+        targetMasters: [{ id: 'target_1', name: 'Group Master 1', fixtureIds: [102], factor: 0.25 }]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const master = page.locator('#cardMaster');
+    await expect(master.locator('[data-target-master-fader="0"]')).toBeVisible();
+    await expect(master.locator('[data-target-master-delete="0"]')).toBeHidden();
+    await expect(master.locator('[data-master-delete="all"]')).toHaveCount(0);
+
+    await page.locator('#editLayoutBtn').click();
+    await master.locator('[data-target-master-delete="0"]').click();
+
+    await expect(master.locator('[data-target-master-fader="0"]')).toHaveCount(0);
+    await expect(page.locator('#status')).toContainText('Deleted Group Master 1');
+    await expect.poll(() => calls.uiStatePosts.at(-1)?.state?.targetMasters).toEqual([]);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.targetMasters') || 'null'));
+    expect(saved).toEqual([]);
   });
 
   test('shows Pico MIDI input status and the last MIDI event on Show Run', async ({ page }) => {

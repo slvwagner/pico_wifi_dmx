@@ -127,11 +127,14 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 .live-timer-fill{height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width .08s linear}
 .live-timer-status[data-phase="off"] .live-timer-fill{background:var(--warn)}
 .master-faders{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin-top:12px;align-items:stretch}
-.master-fader{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;justify-items:center;gap:8px;min-height:228px}
+.master-fader{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;justify-items:center;gap:8px;min-height:228px;position:relative}
 .master-fader h3{font-size:14px;margin:0;text-align:center}
 .master-fader input[type=range]{writing-mode:vertical-lr;direction:rtl;width:34px;height:142px;padding:0}
 .master-fader .buttons{justify-content:center}
 .master-targets{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px}
+.master-delete{display:none;position:absolute;top:6px;right:6px;width:24px;height:24px;min-height:24px;padding:0;font-size:14px;z-index:4;background:rgba(60,27,27,.92);border:1px solid #ff7a7a;color:#ffd4d4;box-shadow:0 1px 6px rgba(0,0,0,.45)}
+body.layout-editing .master-delete{display:flex;align-items:center;justify-content:center}
+.master-delete:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
 .master-target-actions,.master-edit-actions{display:none}
 body.layout-editing .master-target-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 body.layout-editing .master-edit-actions{display:flex}
@@ -891,7 +894,7 @@ function saveLiveControls(){
   saveShowUiStateValue('liveControls',liveControls);
 }
 function normalizeTargetMasters(){
-  if(!Array.isArray(targetMasters)||!targetMasters.length)targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
+  if(!Array.isArray(targetMasters))targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
   targetMasters=targetMasters.map((item,index)=>({
     id:String(item?.id||('target_'+(index+1))),
     name:String(item?.name||('Group Master '+(index+1))).replace(/^Target\s+(\d+)$/i,'Group Master $1'),
@@ -903,7 +906,8 @@ function loadTargetMasters(){
   const grand=Number(savedValue('grandMasterFactor'));
   masterFactors.grand=Number.isFinite(grand)?Math.max(0,Math.min(1,grand)):1;
   const source=savedValue('targetMasters');
-  try{targetMasters=Array.isArray(source)?source:JSON.parse(source||'[]')||[];}catch(_){targetMasters=[];}
+  if(source===null||source===undefined||source==='')targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
+  else try{targetMasters=Array.isArray(source)?source:JSON.parse(source)||[];}catch(_){targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];}
   normalizeTargetMasters();
 }
 function saveGrandMasterFactor(){
@@ -3158,6 +3162,7 @@ function renderMasterCard(){
   document.querySelectorAll('[data-target-master-list]').forEach(list=>{
     list.innerHTML=targetMasters.map((master,index)=>`
       <div class="master-fader" data-target-master="${index}">
+        <button type="button" class="master-delete" data-target-master-delete="${index}" title="Delete ${esc(master.name)}" aria-label="Delete ${esc(master.name)}">×</button>
         <h3>${esc(master.name)}</h3>
         <button type="button" data-master-full="target:${index}">Full</button>
         <input class="target-master-fader" type="range" min="0" max="100" value="${Math.round(master.factor*100)}" data-target-master-fader="${index}">
@@ -3234,6 +3239,20 @@ function bindMasterCard(){
       bindMasterCard();
       setStatus('Cleared '+targetMasters[index].name);
     };
+  });
+  document.querySelectorAll('[data-target-master-delete]').forEach(btn=>{
+    btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'...',success:'Deleted',error:'Failed'},async()=>{
+      if(!layoutEditing)return;
+      const index=parseInt(btn.dataset.targetMasterDelete,10);
+      normalizeTargetMasters();
+      const removed=targetMasters[index];
+      if(!removed)return;
+      targetMasters.splice(index,1);
+      saveTargetMasters();
+      bindMasterCard();
+      await applyMasterDimmerScale();
+      setStatus('Deleted '+removed.name);
+    }).catch(err=>setStatus(err.message,true));
   });
   document.querySelectorAll('.add-target-master').forEach(btn=>{
     btn.onclick=()=>{
