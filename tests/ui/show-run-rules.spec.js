@@ -438,6 +438,12 @@ test.describe('Show Run page', () => {
     await page.locator('#groupGrid [data-group="front"]').click();
     await page.locator('#planeGrid [data-plane-key="front_plane"]').click();
     await expect(page.locator('#showPlaneModal')).toBeVisible();
+    await expect(page.locator('#showPlaneModal')).toHaveClass(/section-control-modal/);
+    await expect(page.locator('#showPlaneModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#showPlaneModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#showPlaneModal .modal-head')).toContainText('Recall Plane: Front Plane');
+    await expect(page.locator('#showPlaneModal .modal-actions')).toBeVisible();
+    await expect.poll(() => page.locator('#showPlaneModal .modal-body').evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
     await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
 
     await page.locator('#showPlaneStepXCoarse').fill('1');

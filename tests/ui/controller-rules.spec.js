@@ -585,6 +585,8 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('[data-controller-plane="plane_front"]').click();
 
     await expect(page.locator('#controllerPlaneModal')).toBeVisible();
+    await expect(page.locator('#controllerPlaneModal')).toHaveClass(/section-control-modal/);
+    await expect(page.locator('#controllerPlaneModal .modal-body').first()).toHaveCSS('overflow-y', 'auto');
     await expect(page.locator('#controllerPlaneTitle')).toContainText('Front Plane');
     await expect(page.locator('#controllerPlaneSummary')).toContainText('selected 1 fixture');
     await expect(page.locator('.controller-plane-fixture-row.selected')).toContainText('A 1');
@@ -1164,14 +1166,14 @@ test.describe('Fixture Controller established rules', () => {
         fanAffectedKeys.clear();
         openGroupModal();
 
-        const modal = document.querySelector('#groupModal .modal');
+        const modal = document.querySelector('#groupModal .modal-card');
         const body = document.getElementById('groupModalBody');
         const controls = body.querySelectorAll('.control');
         body.scrollTop = body.scrollHeight;
         const last = controls[controls.length - 1];
         const lastRect = last.getBoundingClientRect();
         const bodyRect = body.getBoundingClientRect();
-        const footerRect = document.querySelector('#groupModal .buttons').getBoundingClientRect();
+        const footerRect = document.querySelector('#groupModal .modal-actions').getBoundingClientRect();
         return {
           viewportHeight: window.innerHeight,
           modalHeight: modal.getBoundingClientRect().height,
