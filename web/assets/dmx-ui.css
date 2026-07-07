@@ -164,6 +164,10 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .groups-edit-btn{grid-column:1/-1;grid-row:auto;align-self:start;width:100%;padding:8px 12px;line-height:1.1;min-height:44px}
 .groups-matrix{display:grid;gap:8px;align-content:start}
 .groups-matrix .item{align-content:start}
+.group-tile{position:relative;min-height:94px;overflow:hidden}
+.group-tile-content{position:relative;z-index:1;display:grid;gap:4px;align-content:end;min-width:0;height:100%}
+.group-tile-name{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.75)}
+.group-tile-meta{font-size:12px;color:var(--muted)}
 .groups-matrix .item>div{min-width:0}
 .groups-matrix .item strong{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .groups-matrix .item .small{flex-shrink:0}
@@ -229,6 +233,7 @@ body.toolbox-rail-collapsed .toolbox-rail-resizer,body.toolbox-rail-collapsed .t
 .toolbox-rail .groups-layout-controls{grid-column:1/-1}
 .toolbox-rail .groups-edit-btn{grid-column:1/-1;grid-row:auto;min-height:44px;align-self:start}
 .toolbox-rail .scene-slot-matrix,.toolbox-rail .groups-matrix{overflow-x:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.toolbox-rail .groups-matrix{padding-left:10px;box-sizing:border-box}
 .toolbox-rail .slot{width:auto;min-width:54px}
 .toolbox-rail #stepsBox{height:min(520px,45vh);max-height:none;resize:none;overflow:hidden}
 .toolbox-rail #stepsBox.collapsed{height:auto!important;resize:none}

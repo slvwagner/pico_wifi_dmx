@@ -93,9 +93,22 @@ test.describe('Chaser established rules', () => {
     });
 
     await expect(page.locator('#chaserGroupsMove')).toBeVisible();
+    await expect(page.locator('#chaserGroupsRename')).toHaveCount(0);
+    await expect(page.locator('#chaserGroupsDelete')).toHaveCount(0);
+    await expect(page.locator('#chaserGroupsList [data-edit-group-tile="0"]')).toBeVisible();
+    await expect(page.locator('#chaserGroupsList [data-delete-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#moveChaseSlotsBtn')).toBeVisible();
     await expect(page.locator('#moveChaserPalettesBtn')).toBeVisible();
     await expect(page.locator('#moveChaserPlanesBtn')).toBeVisible();
+
+    await page.locator('#chaserGroupsList [data-edit-group-tile="0"]').click();
+    await expect(page.locator('#sharedGroupVisualModal')).toBeVisible();
+    await page.locator('#sharedGroupVisualName').fill('Renamed Group A');
+    await page.locator('#sharedGroupVisualColor').fill('#115577');
+    await page.locator('#sharedGroupVisualSave').click();
+    await expect(page.locator('#sharedGroupVisualModal')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').name)).toBe('Renamed Group A');
+    await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').visual?.color)).toBe('#115577');
 
     await page.locator('#moveChaseSlotsBtn').click();
     await page.locator('[data-chase-slot="0"]').click();

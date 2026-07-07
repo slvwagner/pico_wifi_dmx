@@ -1226,12 +1226,65 @@
     return {update,toggle,setCollapsed:setGroupCollapsed};
   }
 
+  let sharedGroupVisualEditor=null;
+  function ensureSharedGroupVisualEditor(){
+    if(sharedGroupVisualEditor)return sharedGroupVisualEditor;
+    if(!document.getElementById('sharedGroupVisualModal')){
+      const wrap=document.createElement('div');
+      wrap.id='sharedGroupVisualModal';
+      wrap.className='modal-overlay';
+      wrap.style.display='none';
+      wrap.innerHTML=`
+        <div class="modal">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <h2>Edit Group Tile</h2>
+            <button id="sharedGroupVisualClose" style="font-size:16px;padding:6px 14px">x</button>
+          </div>
+          <div class="modal-body">
+            <label>Target<select id="sharedGroupVisualTarget"></select></label>
+            <label>Name<input id="sharedGroupVisualName" type="text"></label>
+            <div id="sharedGroupColorVisualWrap">
+              <label>Background color<input id="sharedGroupVisualColor" type="color" value="#225a50"></label>
+              <button id="sharedGroupVisualResetColor" type="button">Default background</button>
+            </div>
+            <div id="sharedGroupImageVisualWrap" class="wheel-editor">
+              <label>Upload visual<input id="sharedGroupVisualImage" type="file" accept="image/*"></label>
+              <canvas id="sharedGroupVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+              <div class="buttons"><button id="sharedGroupVisualClear" type="button">No icon</button></div>
+            </div>
+            <div id="sharedGroupVisualHint" class="small"></div>
+          </div>
+          <div class="buttons">
+            <button id="sharedGroupVisualSave" class="primary">Save tile</button>
+            <button id="sharedGroupVisualClose2">Close</button>
+          </div>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+    sharedGroupVisualEditor=initSlotVisualEditor({
+      modalId:'sharedGroupVisualModal',
+      targetId:'sharedGroupVisualTarget',
+      nameInputId:'sharedGroupVisualName',
+      colorWrapId:'sharedGroupColorVisualWrap',
+      imageWrapId:'sharedGroupImageVisualWrap',
+      colorInputId:'sharedGroupVisualColor',
+      resetColorBtnId:'sharedGroupVisualResetColor',
+      canvasId:'sharedGroupVisualCanvas',
+      imageInputId:'sharedGroupVisualImage',
+      clearBtnId:'sharedGroupVisualClear',
+      hintId:'sharedGroupVisualHint',
+      saveBtnId:'sharedGroupVisualSave',
+      closeIds:['sharedGroupVisualClose','sharedGroupVisualClose2'],
+      defaultColor:'#1b5e5a'
+    });
+    return sharedGroupVisualEditor;
+  }
+
   function initGroupsToolbox(options){
     const page=options.page||'groups';
     const idPrefix=options.idPrefix||page+'Groups';
     const title=options.title||'Groups';
     const showEdit=!!options.showEdit;
-    const selectionOnly=!!options.selectionOnly;
     const host=options.host||document.body;
     const boxId=idPrefix+'Box';
     const headerId=idPrefix+'Hdr';
@@ -1261,8 +1314,6 @@
       </div>
       <div class="scene-toolbox__body">
         <div class="groups-toolbar">
-          ${selectionOnly?'':`<button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
-          <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>`}
           ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
           <div class="groups-layout-controls">
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
@@ -1299,7 +1350,8 @@
         ...g,
         id:g.id||('grp_'+Date.now()+'_'+i),
         fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],
-        values:g.values||{}
+        values:g.values||{},
+        visual:normalizeSlotVisual(g.visual)||g.visual
       }));
     }
     function selectedGroups(){return groups.filter((g,i)=>selectedIds.has(key(g,i)));}
@@ -1357,11 +1409,7 @@
     }
     function updateActions(){
       const selected=selectedGroups();
-      const rename=document.getElementById(idPrefix+'Rename');
-      const del=document.getElementById(idPrefix+'Delete');
       const edit=document.getElementById(idPrefix+'Edit');
-      if(rename)rename.disabled=selected.length!==1;
-      if(del)del.disabled=selected.length===0;
       if(edit){
         const requiresSelection=options.editRequiresSelection!==false;
         edit.disabled=(requiresSelection&&selected.length===0)||!options.canEdit?.(selected);
@@ -1419,8 +1467,10 @@
         const g=groupIndex>=0?groups[groupIndex]:null;
         if(!g){html+='<div class="group-empty" data-group-slot="'+i+'" title="'+(moveMode?'Drop a group here':'Empty group slot')+'">'+(i+1)+'</div>';continue;}
         const active=selectedIds.has(key(g,groupIndex))||moveSelectedSlot===i;
-        html+=`<div class="${savedTileClass('item',active)}" data-group-slot="${i}" data-group-index="${groupIndex}" title="${moveMode?'Move group':'Select or deselect group'}">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escapeHtml(g.name||('Group '+(groupIndex+1)))}</strong><span class="small">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
+        html+=`<div class="${savedTileClass('item group-tile',active)}" data-group-slot="${i}" data-group-index="${groupIndex}" title="${moveMode?'Move group':'Select or deselect group'}" style="${slotVisualStyle(g)}">
+          ${slotVisualButtonHtml('data-edit-group-tile',groupIndex,'Edit group tile')}
+          <button class="slot-del" data-delete-group-tile="${groupIndex}" title="Delete group">×</button>
+          <div class="group-tile-content">${slotVisualHtml(g)}<span class="group-tile-name">${escapeHtml(g.name||('Group '+(groupIndex+1)))}</span><span class="group-tile-meta">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
         </div>`;
       }
       list.innerHTML=html;
@@ -1486,6 +1536,18 @@
     }
 
     document.getElementById(listId).addEventListener('click',e=>{
+      const editTile=e.target.closest('[data-edit-group-tile]');
+      if(editTile){
+        e.stopPropagation();
+        openGroupTileEditor(parseInt(editTile.dataset.editGroupTile,10));
+        return;
+      }
+      const deleteTile=e.target.closest('[data-delete-group-tile]');
+      if(deleteTile){
+        e.stopPropagation();
+        deleteGroupAtIndex(parseInt(deleteTile.dataset.deleteGroupTile,10));
+        return;
+      }
       const item=e.target.closest('[data-group-slot]');
       if(!item)return;
       const slot=parseInt(item.dataset.groupSlot,10);
@@ -1500,22 +1562,36 @@
     if(document.getElementById(idPrefix+'Export'))document.getElementById(idPrefix+'Export').onclick=exportGroups;
     if(document.getElementById(idPrefix+'Import'))document.getElementById(idPrefix+'Import').onclick=()=>document.getElementById(idPrefix+'ImportFile')?.click();
     if(document.getElementById(idPrefix+'ImportFile'))document.getElementById(idPrefix+'ImportFile').onchange=e=>{if(e.target.files[0])importGroups(e.target.files[0]);e.target.value='';};
-    const renameButton=document.getElementById(idPrefix+'Rename');
-    if(renameButton)renameButton.onclick=()=>{
-      const selected=selectedGroups();if(selected.length!==1)return;
-      const g=selected[0];
-      const name=(prompt('Group name:',g.name||'Group')||'').trim();
-      if(!name||name===g.name)return;
-      g.name=name;render('cols');saveGroups();
-    };
-    const deleteButton=document.getElementById(idPrefix+'Delete');
-    if(deleteButton)deleteButton.onclick=()=>{
-      const selected=selectedGroups();if(!selected.length)return;
-      const ids=new Set(selected.map(g=>g.id));
-      if(!confirm('Delete '+selected.length+' selected group'+(selected.length===1?'':'s')+'?\n\n'+selected.map(g=>g.name).join(', ')))return;
-      groups=groups.filter(g=>!ids.has(g.id));
-      selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
-    };
+    function openGroupTileEditor(index){
+      const group=groups[index];if(!group)return;
+      const editor=ensureSharedGroupVisualEditor();
+      if(!editor)return;
+      editor.open({
+        targetLabel:'group tile',
+        defaultColor:'#1b5e5a',
+        selectedKey:String(index),
+        targets:[{key:String(index),label:group.name||('Group '+(index+1)),item:group}],
+        hint:'Rename the group tile, choose a background color, and optionally draw or upload an icon.',
+        onSaveTarget:(target,visual)=>{
+          target.visual=normalizeSlotVisual(visual)||{type:'visual',color:'#1b5e5a',image:''};
+          render('cols');
+          saveGroups();
+          options.onStatus?.('Updated group tile: '+(target.name||'Group'));
+        }
+      });
+    }
+    function deleteGroupAtIndex(index){
+      const group=groups[index];if(!group)return;
+      if(!confirm('Delete group "'+(group.name||('Group '+(index+1)))+'"?'))return;
+      const remainingSelection=selectedGroupIds().filter(id=>String(id)!==String(group.id));
+      groups.splice(index,1);
+      applySharedSelection(remainingSelection);
+      saveSharedGroupSelection(remainingSelection);
+      render('cols');
+      notify();
+      saveGroups();
+      options.onStatus?.('Deleted group: '+(group.name||('Group '+(index+1))));
+    }
     const edit=document.getElementById(idPrefix+'Edit');
     if(edit)edit.onclick=()=>{
       const selected=selectedGroups();

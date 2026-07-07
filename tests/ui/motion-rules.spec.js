@@ -95,6 +95,10 @@ test.describe('Effects established rules', () => {
     });
 
     await expect(page.locator('#motionGroupsMove')).toBeVisible();
+    await expect(page.locator('#motionGroupsRename')).toHaveCount(0);
+    await expect(page.locator('#motionGroupsDelete')).toHaveCount(0);
+    await expect(page.locator('#motionGroupsList [data-edit-group-tile="0"]')).toBeVisible();
+    await expect(page.locator('#motionGroupsList [data-delete-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#moveMotionEffectsBtn')).toBeVisible();
     await expect(page.locator('#moveMotionPalettesBtn')).toBeVisible();
     await expect(page.locator('#moveMotionPlanesBtn')).toBeVisible();

@@ -753,6 +753,8 @@ test.describe('Room Plane rules', () => {
 
     await expect(page.locator('#roomPlaneGroupsRename')).toHaveCount(0);
     await expect(page.locator('#roomPlaneGroupsDelete')).toHaveCount(0);
+    await expect(page.locator('#roomPlaneGroupsList [data-edit-group-tile="0"]')).toBeVisible();
+    await expect(page.locator('#roomPlaneGroupsList [data-delete-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#roomPlaneGroupsEdit')).toBeDisabled();
     await expect(page.locator('#roomPlaneGroupsList')).toContainText('Front movers');
 
