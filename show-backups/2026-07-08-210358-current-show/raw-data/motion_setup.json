@@ -1,0 +1,859 @@
+{
+    "appVersion": "0.9.6",
+    "schemaVersion": 1,
+    "baseUrl": "http://192.168.0.24/",
+    "targetKey": "slider8:Dimmer:value",
+    "effects": [
+        {
+            "id": "motion_effect_1781963430575",
+            "name": "Circle",
+            "slot": 0,
+            "recipe": {
+                "targetKey": "panTilt16:Pan/Tilt:panTilt",
+                "params": {
+                    "effectType": "circle",
+                    "bpm": 30,
+                    "panAmp": 10,
+                    "tiltAmp": 8,
+                    "phaseSpread": 88,
+                    "updateRate": 25
+                },
+                "fixtures": [
+                    {
+                        "fixtureId": 1781945443414,
+                        "controlId": 1781945439180,
+                        "phaseOffset": 0
+                    },
+                    {
+                        "fixtureId": 1781945443948,
+                        "controlId": 1781945439180,
+                        "phaseOffset": 0
+                    }
+                ]
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#225a50",
+                "image": ""
+            }
+        },
+        {
+            "id": "motion_effect_1781964005449",
+            "name": "circle slow",
+            "slot": 1,
+            "recipe": {
+                "targetKey": "panTilt16:Pan/Tilt:panTilt",
+                "params": {
+                    "effectType": "circle",
+                    "bpm": 10,
+                    "panAmp": 10,
+                    "tiltAmp": 8,
+                    "phaseSpread": 88,
+                    "updateRate": 25
+                },
+                "fixtures": [
+                    {
+                        "fixtureId": 1781945443414,
+                        "controlId": 1781945439180,
+                        "phaseOffset": 0
+                    },
+                    {
+                        "fixtureId": 1781945443948,
+                        "controlId": 1781945439180,
+                        "phaseOffset": 0
+                    }
+                ]
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#225a50",
+                "image": ""
+            }
+        },
+        {
+            "id": "motion_effect_1781964089079",
+            "name": "Dimmer sine",
+            "slot": 12,
+            "recipe": {
+                "targetKey": "slider8:Dimmer:value",
+                "params": {
+                    "effectType": "sine",
+                    "bpm": 10,
+                    "panAmp": 100,
+                    "tiltAmp": 0,
+                    "phaseSpread": 88,
+                    "updateRate": 25
+                },
+                "fixtures": [
+                    {
+                        "fixtureId": 1781945443414,
+                        "controlId": 1781945438805,
+                        "phaseOffset": 0
+                    },
+                    {
+                        "fixtureId": 1781945443948,
+                        "controlId": 1781945438805,
+                        "phaseOffset": 0
+                    }
+                ]
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#225a50",
+                "image": ""
+            }
+        },
+        {
+            "id": "motion_effect_1782079644403",
+            "name": "Dimmer Puls",
+            "slot": 13,
+            "recipe": {
+                "targetKey": "slider8:Dimmer:value",
+                "params": {
+                    "effectType": "pulse",
+                    "bpm": 30,
+                    "panAmp": 72,
+                    "tiltAmp": 0,
+                    "phaseSpread": 146,
+                    "updateRate": 25
+                },
+                "fixtures": [
+                    {
+                        "fixtureId": 1782072972883,
+                        "controlId": 1782072964636,
+                        "phaseOffset": 0
+                    },
+                    {
+                        "fixtureId": 1782072972476,
+                        "controlId": 1782072964636,
+                        "phaseOffset": 0
+                    }
+                ]
+            },
+            "visual": {
+                "type": "visual",
+                "color": "#225a50",
+                "image": ""
+            }
+        }
+    ],
+    "effectCols": 4,
+    "effectRows": 4,
+    "params": {
+        "effectType": "pulse",
+        "bpm": 30,
+        "panAmp": 72,
+        "tiltAmp": 0,
+        "phaseSpread": 146,
+        "updateRate": 25
+    },
+    "fixtures": [
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 18424,
+            "baseTilt": 26733,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": true,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 124
+        },
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972883,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 24382,
+            "baseTilt": 26733,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": true,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 124
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782072972476,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 31689,
+            "baseTilt": 33425,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 216
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 252
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 155
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521527,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 31689,
+            "baseTilt": 33425,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 216
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 196
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 70
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 133
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521664,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 31689,
+            "baseTilt": 33425,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 216
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 252
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 109
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 177
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521901,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 31689,
+            "baseTilt": 33425,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 216
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 252
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 109
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 177
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521941,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 31689,
+            "baseTilt": 33425,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 216
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 252
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 109
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 177
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521569,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072965336,
+            "kind": "panTilt",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 31689,
+            "baseTilt": 33425,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072964633,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072965359,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 216
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072964861,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 252
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072964636,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 109
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072965008,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 177
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072964796,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        },
+        {
+            "fixtureId": 1782077521619,
+            "controlId": 1782072965035,
+            "kind": "scalar8",
+            "enabled": false,
+            "phaseOffset": 0,
+            "basePan": 128,
+            "baseTilt": 128,
+            "baseValue": 0
+        }
+    ],
+    "pico_slots": [
+        "FX 1\nTYPE 0\nBPM 10.0000\nAMP1 0.200000\nAMP2 0.150000\nSPREAD 187.0000\nTARGET pantilt16 1 1 3 2 4 0.00 1 1\nTARGET pantilt16 1 12 14 13 15 0.00 1 1\nEND",
+        "FX 1\nTYPE 0\nBPM 1.2000\nAMP1 0.200000\nAMP2 0.150000\nSPREAD 187.0000\nTARGET pantilt16 1 1 3 2 4 0.00 1 1\nTARGET pantilt16 1 12 14 13 15 0.00 1 1\nEND",
+        "FX 1\nTYPE 4\nBPM 10.0000\nAMP1 0.580000\nAMP2 0.000000\nSPREAD 187.0000\nTARGET scalar8 1 8 0 0 0 0.00\nTARGET scalar8 1 19 0 0 0 0.00\nEND",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    ],
+    "pico_url": "http://192.168.0.14"
+}

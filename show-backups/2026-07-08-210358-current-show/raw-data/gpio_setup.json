@@ -1,0 +1,27 @@
+{
+    "appVersion": "0.9.4",
+    "schemaVersion": 1,
+    "baseUrl": "http://192.168.0.24/",
+    "enabled": true,
+    "mappings": [
+        {
+            "pin": 0,
+            "pull": "pullup",
+            "trigger": "falling",
+            "action": "chaser_play",
+            "slot": 0,
+            "beat_div": 1,
+            "debounce_ms": 30
+        },
+        {
+            "pin": 1,
+            "pull": "pullup",
+            "trigger": "falling",
+            "action": "dmx_clear",
+            "slot": 0,
+            "beat_div": 1,
+            "debounce_ms": 30
+        }
+    ],
+    "adcMappings": []
+}
