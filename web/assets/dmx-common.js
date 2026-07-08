@@ -1004,6 +1004,16 @@
     return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
   }
 
+  function restoreRailElementAnchor(element){
+    const rail=element?.closest?.('.toolbox-rail');
+    if(!rail)return;
+    const before=element.getBoundingClientRect().top;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      if(!element.isConnected)return;
+      rail.scrollTop+=element.getBoundingClientRect().top-before;
+    }));
+  }
+
   function initFloatingToolbox(options){
     const box=document.getElementById(options.boxId);
     const header=document.getElementById(options.headerId);
@@ -1224,7 +1234,11 @@
       ro.observe(box);
     }
 
-    if(toggle)toggle.addEventListener('click',()=>setCollapsed(!box.classList.contains('collapsed'),true));
+    if(toggle)toggle.addEventListener('click',event=>{
+      const expanding=box?.classList.contains('collapsed');
+      setCollapsed(!box.classList.contains('collapsed'),true);
+      if(expanding)restoreRailElementAnchor(event.currentTarget);
+    });
 
     return {box,header,toggle,clamp:clampBox,applyPosition,applySize,setCollapsed};
   }
@@ -1260,21 +1274,12 @@
       items.forEach(item=>item.toolbox?.setCollapsed?.(collapse,save));
       update();
     }
-    function restoreClickedButtonAnchor(button){
-      const rail=button?.closest?.('.toolbox-rail');
-      if(!rail)return;
-      const before=button.getBoundingClientRect().top;
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{
-        if(!button.isConnected)return;
-        rail.scrollTop+=button.getBoundingClientRect().top-before;
-      }));
-    }
     function toggle(event){
       const button=event?.currentTarget||null;
       const collapse=boxes().some(box=>!box.classList.contains('collapsed'));
       if(beforeToggle)beforeToggle({collapse,items});
       setGroupCollapsed(collapse,true);
-      restoreClickedButtonAnchor(button);
+      restoreRailElementAnchor(button);
     }
 
     document.querySelectorAll(selector).forEach(btn=>{

@@ -162,6 +162,43 @@ test.describe('Effects established rules', () => {
     expect(result.afterTop).toBeCloseTo(result.beforeTop, 0);
   });
 
+  test('individual toolbox + keeps the clicked button anchored after expanding', async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 620 });
+
+    const result = await page.evaluate(async () => {
+      const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const rail = document.getElementById('motionToolboxRail');
+      const box = document.getElementById('motionSavedEffectBox');
+      const button = document.getElementById('motionSavedEffectBoxToggle');
+      if (!rail || !box || !button) throw new Error('Effects toolbox missing');
+
+      if (!box.classList.contains('collapsed')) {
+        button.click();
+        await waitFrames();
+      }
+
+      rail.scrollTop = Math.max(0, box.offsetTop - 220);
+      await waitFrames();
+      const beforeTop = button.getBoundingClientRect().top;
+      button.click();
+      await waitFrames();
+      const afterTop = button.getBoundingClientRect().top;
+
+      return {
+        beforeTop,
+        afterTop,
+        text: button.textContent,
+        collapsed: box.classList.contains('collapsed'),
+        scrollable: rail.scrollHeight > rail.clientHeight
+      };
+    });
+
+    expect(result.scrollable).toBe(true);
+    expect(result.collapsed).toBe(false);
+    expect(result.text).toBe('—');
+    expect(result.afterTop).toBeCloseTo(result.beforeTop, 0);
+  });
+
   test('collapsing Participating Controls keeps the sticky header height stable', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 900 });
     await routeMotionCompactServerSetup(page);
