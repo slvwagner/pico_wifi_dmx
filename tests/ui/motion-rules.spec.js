@@ -124,6 +124,44 @@ test.describe('Effects established rules', () => {
     await expect.poll(() => page.evaluate(() => motionGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
   });
 
+  test('Effect Parameters + all keeps the clicked button anchored after expanding toolboxes', async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 900 });
+
+    const result = await page.evaluate(async () => {
+      const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const rail = document.getElementById('motionToolboxRail');
+      const button = document.querySelector('#motionEffectBox [data-collapse-group="motion-effects"]');
+      const effectBox = document.getElementById('motionEffectBox');
+      const savedBox = document.getElementById('motionSavedEffectBox');
+      if (!rail || !button || !effectBox || !savedBox) throw new Error('Effects toolboxes missing');
+
+      if (!effectBox.classList.contains('collapsed') || !savedBox.classList.contains('collapsed')) {
+        button.click();
+        await waitFrames();
+      }
+
+      rail.scrollTop = Math.max(0, effectBox.offsetTop - 18);
+      await waitFrames();
+      const beforeTop = button.getBoundingClientRect().top;
+      button.click();
+      await waitFrames();
+      const afterTop = button.getBoundingClientRect().top;
+
+      return {
+        beforeTop,
+        afterTop,
+        text: button.textContent,
+        effectCollapsed: effectBox.classList.contains('collapsed'),
+        savedCollapsed: savedBox.classList.contains('collapsed')
+      };
+    });
+
+    expect(result.effectCollapsed).toBe(false);
+    expect(result.savedCollapsed).toBe(false);
+    expect(result.text).toBe('-- all');
+    expect(result.afterTop).toBeCloseTo(result.beforeTop, 0);
+  });
+
   test('collapsing Participating Controls keeps the sticky header height stable', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 900 });
     await routeMotionCompactServerSetup(page);

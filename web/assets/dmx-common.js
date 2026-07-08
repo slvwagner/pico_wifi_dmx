@@ -1260,10 +1260,21 @@
       items.forEach(item=>item.toolbox?.setCollapsed?.(collapse,save));
       update();
     }
-    function toggle(){
+    function restoreClickedButtonAnchor(button){
+      const rail=button?.closest?.('.toolbox-rail');
+      if(!rail)return;
+      const before=button.getBoundingClientRect().top;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        if(!button.isConnected)return;
+        rail.scrollTop+=button.getBoundingClientRect().top-before;
+      }));
+    }
+    function toggle(event){
+      const button=event?.currentTarget||null;
       const collapse=boxes().some(box=>!box.classList.contains('collapsed'));
       if(beforeToggle)beforeToggle({collapse,items});
       setGroupCollapsed(collapse,true);
+      restoreClickedButtonAnchor(button);
     }
 
     document.querySelectorAll(selector).forEach(btn=>{
