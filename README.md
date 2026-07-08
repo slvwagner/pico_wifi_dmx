@@ -150,21 +150,21 @@ Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller >
 The latest committed firmware release is stored in:
 
 ```text
-release/v0.9.6/pico_wifi_dmx-v0.9.6.uf2
+release/v0.9.7/pico_wifi_dmx-v0.9.7.uf2
 ```
 
 Use that prebuilt UF2 when you only want to install the software and do not need to build from source. To install it:
 
 1. Hold the Pico 2 W **BOOTSEL** button while plugging it into USB.
 2. Wait for the `RPI-RP2` drive to appear.
-3. Copy `release/v0.9.6/pico_wifi_dmx-v0.9.6.uf2` to that drive.
+3. Copy `release/v0.9.7/pico_wifi_dmx-v0.9.7.uf2` to that drive.
 4. The Pico reboots automatically.
 5. Open the serial log and note the printed Pico URL.
 
 The matching checksum is stored beside it in:
 
 ```text
-release/v0.9.6/pico_wifi_dmx-v0.9.6.uf2.sha256
+release/v0.9.7/pico_wifi_dmx-v0.9.7.uf2.sha256
 ```
 
 Future releases use the same pattern: `release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2`. If no prebuilt UF2 is available, build it from source with the developer steps below.
@@ -339,6 +339,8 @@ Prepare a release package after versions, tests, and changelog are ready:
 .\scripts\prepare_release.ps1 -Build
 ```
 
+Before running Playwright, the release script syncs the current source into the isolated XAMPP test app at `http://localhost/dmx-test/` so the regression suite does not accidentally exercise stale files. Use `-TestAppFolder`, `-TestBaseUrl`, or `-SkipTestAppSync` only when your test target is intentionally different.
+
 To include the real Pico hardware tests in the release run, use:
 
 ```powershell
@@ -507,7 +509,7 @@ pico_wifi_dmx/
 │  ├─ pathconfig.json        Tracked default test environment config
 │  └─ pathconfig.example.json Example local/XAMPP/Pico config
 ├─ release/                  Committed release packages, UF2 files, docs, checksums
-│  └─ v0.9.6/
+│  └─ v0.9.7/
 ├─ package.json              Node/Playwright test scripts
 ├─ package-lock.json         Locked JavaScript test dependencies
 ├─ playwright.config.js      Playwright browser test configuration
