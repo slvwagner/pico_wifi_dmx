@@ -2,6 +2,60 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Toolbox visual tile rules', () => {
+  test('Controller, Chaser, Effects, and Room Plane share Cols Rows Move controls', async ({ page }) => {
+    const pages = [
+      { path: '', host: '#controllerSceneLayoutControls' },
+      { path: 'dmx_chaser.html', host: '#chaserChaseLayoutControls' },
+      { path: 'dmx_motion.html', host: '#motionEffectLayoutControls' },
+      { path: 'dmx_motion.html', host: '#motionSceneLayoutControls' },
+      { path: 'dmx_motion.html', host: '#motionPaletteLayoutControls' },
+      { path: 'dmx_motion.html', host: '#motionPlaneLayoutControls' },
+      { path: 'dmx_room_plane.html', host: '#roomPlaneLayoutControls' }
+    ];
+    const samples = [];
+
+    for (const entry of pages) {
+      await openDmxPage(page, entry.path);
+      const sample = await page.locator(entry.host).evaluate(host => {
+        const label = host.querySelector('.tile-layout-field');
+        const input = label.querySelector('input');
+        const move = host.querySelector('.tile-move-btn');
+        const hostStyle = getComputedStyle(host);
+        const labelStyle = getComputedStyle(label);
+        const inputStyle = getComputedStyle(input);
+        const moveStyle = getComputedStyle(move);
+        return {
+          hostClass: host.className,
+          hostDisplay: hostStyle.display,
+          hostGap: hostStyle.gap,
+          hostAlign: hostStyle.alignItems,
+          labelDisplay: labelStyle.display,
+          labelGap: labelStyle.gap,
+          inputWidth: inputStyle.width,
+          inputPaddingTop: inputStyle.paddingTop,
+          moveHeight: moveStyle.height,
+          labels: [...host.querySelectorAll('.tile-layout-field')].map(item => item.textContent.trim()),
+          inputCount: host.querySelectorAll('input[type="number"]').length
+        };
+      });
+      samples.push(sample);
+    }
+
+    for (const sample of samples) {
+      expect(sample.hostClass).toContain('tile-layout-controls');
+      expect(sample.hostDisplay).toBe('flex');
+      expect(sample.hostGap).toBe('10px');
+      expect(sample.hostAlign).toBe('center');
+      expect(sample.labelDisplay).toBe('flex');
+      expect(sample.labelGap).toBe('6px');
+      expect(sample.inputWidth).toBe('52px');
+      expect(sample.inputPaddingTop).toBe('6px');
+      expect(sample.moveHeight).toBe('30px');
+      expect(sample.labels).toEqual(['Cols', 'Rows']);
+      expect(sample.inputCount).toBe(2);
+    }
+  });
+
   test('shared visual default normalization strips icons but keeps colors', async ({ page }) => {
     await openDmxPage(page, '');
 

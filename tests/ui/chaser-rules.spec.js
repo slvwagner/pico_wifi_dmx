@@ -5,6 +5,17 @@ const path = require('path');
 
 test.describe('Chaser established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/scene_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, scenes: [], slotCols: 4, slotRows: 4 })
+      });
+    });
     await openDmxPage(page, 'dmx_chaser.html');
     await injectChaserCompactSetup(page);
   });
@@ -79,6 +90,10 @@ test.describe('Chaser established rules', () => {
         { id: 'chase_a', name: 'Chase A', slot: 0, data: currentChaseSlotData() },
         { id: 'chase_b', name: 'Chase B', slot: 1, data: currentChaseSlotData() }
       ];
+      chaserScenes = [
+        { id: 'scene_a', name: 'Scene A', slot: 0, values: { '101:11': 80 } },
+        { id: 'scene_b', name: 'Scene B', slot: 1, values: { '102:21': 40 } }
+      ];
       chaserPalettes = [
         { id: 'pal_a', name: 'Palette A', slot: 0, values: { '101:11': 80 } },
         { id: 'pal_b', name: 'Palette B', slot: 1, values: { '102:21': 40 } }
@@ -88,6 +103,7 @@ test.describe('Chaser established rules', () => {
         DmxCommon.normalizeRoomPlane({ id: 'plane_b', name: 'Plane B', slot: 1, fixtures: [] }, 1)
       ];
       renderChaseSlotMatrix();
+      renderChaserSceneMatrix();
       renderChaserPaletteMatrix();
       chaserPlanesMatrix.render();
     });
@@ -98,6 +114,7 @@ test.describe('Chaser established rules', () => {
     await expect(page.locator('#chaserGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#chaserGroupsList [data-delete-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#moveChaseSlotsBtn')).toBeVisible();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
     await expect(page.locator('#moveChaserPalettesBtn')).toBeVisible();
     await expect(page.locator('#moveChaserPlanesBtn')).toBeVisible();
 
@@ -115,6 +132,11 @@ test.describe('Chaser established rules', () => {
     await page.locator('[data-chase-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => savedChases.find(chase => chase.id === 'chase_a').slot)).toBe(3);
 
+    await page.locator('#moveChaserScenesBtn').click();
+    await page.locator('[data-chaser-scene-slot="0"]').click();
+    await page.locator('[data-chaser-scene-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => chaserScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
+
     await page.locator('#moveChaserPalettesBtn').click();
     await page.locator('[data-chaser-palette-slot="0"]').click();
     await page.locator('[data-chaser-palette-slot="3"]').click();
@@ -129,6 +151,79 @@ test.describe('Chaser established rules', () => {
     await page.locator('#chaserGroupsList [data-group-slot="0"]').click();
     await page.locator('#chaserGroupsList [data-group-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
+  });
+
+  test('Scenes toolbox matches Controller tiles and recalls a complete scene into the selected step', async ({ page }) => {
+    await expect(page.locator('#chaserSceneBox')).toBeVisible();
+    await expect(page.locator('#chaserSceneLayoutControls')).toBeVisible();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
+
+    await page.evaluate(() => {
+      chaserGroupsBox.setGroups([{ id: 'grp_scene', name: 'Old target', slot: 0, fixtureIds: [101], values: {} }]);
+      chaserScenes = [{
+        id: 'scene_full',
+        name: 'Full Look',
+        slot: 0,
+        values: { '101:11': 75, '102:21': 35 },
+        visual: { type: 'visual', color: '#225a50', image: '' }
+      }];
+      steps = [makeStep('Existing step', { '101:12': { pan: 1234, tilt: 5678 } })];
+      selectedStepIdx = 0;
+      applyStepParticipating(steps[0]);
+      renderChaserSceneMatrix();
+      drawStepList();
+      drawStepEditor();
+    });
+
+    await page.locator('#chaserGroupsList [data-group-index="0"]').click();
+    await expect(page.locator('#chaserSceneMatrix [data-chaser-scene-slot="0"]')).toBeVisible();
+    await expect(page.locator('#chaserSceneMatrix [data-visual-chaser-scene-slot="0"]')).toBeVisible();
+    await expect(page.locator('#chaserSceneMatrix [data-del-chaser-scene="0"]')).toBeVisible();
+    await page.locator('#chaserSceneMatrix [data-chaser-scene-slot="0"]').click();
+
+    const recalled = await page.evaluate(() => ({
+      values: steps[0].values,
+      participating: [...activeStepValueKeys].sort(),
+      selectedGroups: chaserGroupsBox.selectedGroups().map(group => group.id)
+    }));
+    expect(recalled.values).toEqual({ '101:11': 75, '102:21': 35 });
+    expect(recalled.participating).toEqual(['101:11', '102:21']);
+    expect(recalled.selectedGroups).toEqual([]);
+    await expect(page.locator('#status')).toContainText('Recalled scene "Full Look" into step 1');
+  });
+
+  test('clicking a saved Plane opens its target modal and applies the current target to the step', async ({ page }) => {
+    await page.evaluate(() => {
+      chaserPlanes = [DmxCommon.normalizeRoomPlane({
+        id: 'chaser_plane_modal',
+        name: 'Chaser Modal Plane',
+        slot: 0,
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 10, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 10, z: 0 }
+        ],
+        target: { x: 5, y: 0, z: 0 },
+        fixtures: [{
+          id: 101,
+          name: 'A 1',
+          x: 1,
+          y: 1,
+          z: 0,
+          cal: {
+            A: { calibrated: true, pan: 1000, tilt: 2000 },
+            B: { calibrated: true, pan: 3000, tilt: 4000 },
+            C: { calibrated: true, pan: 5000, tilt: 6000 }
+          }
+        }]
+      }, 0)];
+      chaserPlanesMatrix.render();
+    });
+
+    await page.locator('#chaserPlaneMatrix [data-plane-slot="0"]').click();
+
+    await expect(page.locator('#chaserPlaneModal')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => steps[selectedStepIdx]?.values?.['101:12'])).toEqual({ pan: 2000, tilt: 3000 });
   });
 
   test('Fan Out spread slider fills the shared toolbox width on Chaser', async ({ page }) => {
@@ -559,6 +654,91 @@ test.describe('Chaser established rules', () => {
     expect(state.afterClose.stepReadout).toBe('77');
   });
 
+  test('Chaser Group Edit follows the Controller modal visual language and step semantics', async ({ page }) => {
+    await page.evaluate(() => {
+      const controlsA = [
+        { id: 11, type: 'slider8', label: 'Dimmer', channel: 1, defaultValue: 80, blackoutValue: 0 },
+        { id: 12, type: 'panTilt16', label: 'Pan/Tilt', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 },
+        { id: 13, type: 'rgb', label: 'Color', a: 6, b: 7, c: 8 },
+        { id: 14, type: 'wheel', label: 'Gobo', channel: 9, options: [{ name: 'Open', value: 0 }, { name: 'Dots', value: 32 }] },
+        { id: 15, type: 'slider16', label: 'Focus', channel: 10, fine: 11 }
+      ];
+      const controlsB = controlsA.map((control, index) => ({
+        ...JSON.parse(JSON.stringify(control)),
+        id: 21 + index,
+        defaultValue: control.label === 'Dimmer' ? 90 : control.defaultValue,
+        channel: control.channel === undefined ? control.channel : control.channel + 20,
+        fine: control.fine === undefined ? control.fine : control.fine + 20,
+        pan: control.pan === undefined ? control.pan : control.pan + 20,
+        panFine: control.panFine === undefined ? control.panFine : control.panFine + 20,
+        tilt: control.tilt === undefined ? control.tilt : control.tilt + 20,
+        tiltFine: control.tiltFine === undefined ? control.tiltFine : control.tiltFine + 20,
+        a: control.a === undefined ? control.a : control.a + 20,
+        b: control.b === undefined ? control.b : control.b + 20,
+        c: control.c === undefined ? control.c : control.c + 20
+      }));
+      setup = {
+        baseUrl: '',
+        profiles: [
+          { id: 10, name: 'Profile A', mode: 'test', channels: 16, controls: controlsA },
+          { id: 20, name: 'Profile B', mode: 'test', channels: 16, controls: controlsB }
+        ],
+        fixtures: [
+          { id: 201, name: 'Spot A', profileId: 10, start: 1 },
+          { id: 202, name: 'Spot B', profileId: 20, start: 21 }
+        ]
+      };
+      participating = {};
+      setup.fixtures.forEach(fixture => fixtureProfile(fixture).controls.forEach(control => {
+        participating[controlKey(fixture, control)] = true;
+      }));
+      const values = {
+        '201:11': 10, '201:12': { pan: 30000, tilt: 31000 }, '201:13': { a: 10, b: 20, c: 30 }, '201:14': 0, '201:15': 32000,
+        '202:21': 20, '202:22': { pan: 32000, tilt: 33000 }, '202:23': { a: 20, b: 30, c: 40 }, '202:24': 0, '202:25': 33000
+      };
+      steps = [makeStep('Visual language', values)];
+      selectedStepIdx = 0;
+      activeStepValueKeys = new Set(Object.keys(values));
+      sourceFixtureId = '201';
+      drawParticipation();
+      drawStepList();
+      drawStepEditor();
+      openChaserGroupModal();
+    });
+
+    await expect(page.locator('#chaserGroupModal')).toBeVisible();
+    await expect(page.locator('#chaserGroupModalBody .control h3')).toHaveText(['Dimmer', 'Pan/Tilt', 'Color', 'Gobo', 'Focus']);
+    await expect(page.locator('#chaserGroupModalBody .relative-control')).toHaveCount(11);
+    await expect(page.locator('#chaserGroupModalBody .control', { hasText: 'Gobo' }).locator('.value-row input[type="number"]')).toBeVisible();
+    await expect(page.locator('#chaserGroupModalBody .control', { hasText: 'Dimmer' })).toContainText('2 matching fixtures · Profile A, Profile B');
+    await expect(page.locator('#defaultChaserGroupBtn')).toHaveText('Default');
+    await expect(page.locator('#blackoutChaserGroupBtn')).toHaveText('Blackout');
+    const layout = await page.evaluate(() => {
+      const body = document.getElementById('chaserGroupModalBody');
+      const readout = body.querySelector('.readout');
+      return {
+        modalWidth: document.querySelector('#chaserGroupModal .modal-card').getBoundingClientRect().width,
+        overflowX: getComputedStyle(body).overflowX,
+        overflowY: getComputedStyle(body).overflowY,
+        readoutSize: getComputedStyle(readout).fontSize
+      };
+    });
+    expect(layout.modalWidth).toBeLessThanOrEqual(762);
+    expect(layout.overflowX).toBe('hidden');
+    expect(layout.overflowY).toBe('auto');
+    expect(layout.readoutSize).toBe('26px');
+
+    const dimmer = page.locator('#chaserGroupModalBody .control', { hasText: 'Dimmer' });
+    await dimmer.locator('[data-cg-relative-step]').fill('5');
+    await dimmer.locator('[data-cg-relative][data-dir="1"]').click();
+    expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([15, 25]);
+
+    await page.locator('#defaultChaserGroupBtn').click();
+    expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([80, 90]);
+    await page.locator('#blackoutChaserGroupBtn').click();
+    expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([0, 0]);
+  });
+
   test('Only selects one control type without reducing the fixture scope when no group filter is active', async ({ page }) => {
     const result = await page.evaluate(() => {
       document.getElementById('groupControlSelect').value = 'Dimmer|slider8';
@@ -579,7 +759,7 @@ test.describe('Chaser established rules', () => {
     await page.evaluate(() => {
       chaserGroupsBox.setGroups([{ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} }]);
     });
-    await page.locator('#chaserGroupsBox [data-group-index="0"]').click();
+    await page.locator('#chaserGroupsBox [data-group-index="0"]').evaluate(element => element.click());
 
     const result = await page.evaluate(() => {
       document.getElementById('groupControlSelect').value = 'Dimmer|slider8';

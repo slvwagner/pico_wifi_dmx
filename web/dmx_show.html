@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
-<script src="assets/dmx-common.js?v=0.9.8"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.9">
+<script src="assets/dmx-common.js?v=0.9.9"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -84,6 +84,20 @@ body.layout-editing .card-empty:hover{border-color:var(--accent);color:var(--acc
 .summary-strip span{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px}
 .midi-card{display:grid;gap:12px}
 .midi-headline{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.midi-usb-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:10px}
+.midi-usb-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.midi-usb-controls label{min-width:180px;flex:1 1 220px}
+.midi-usb-controls select{width:100%;min-height:40px}
+.midi-computer-event{font-size:12px;color:var(--muted);min-height:18px}
+.midi-mapping-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:9px;margin-top:12px}
+.midi-mapping-panel.mapped{border-color:#2f9e7d}
+.midi-mapping-summary{display:grid;gap:3px}
+.midi-mapping-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.midi-map-edit{display:none}
+body.layout-editing .midi-map-edit{display:inline-flex}
+.midi-map-edit.mapped,.midi-mapping-panel.mapped .midi-learn-btn{border-color:var(--accent);box-shadow:0 0 0 1px rgba(55,196,164,.35) inset}
+.slot-visual-btn.mapped{color:var(--accent);opacity:1;background:rgba(55,196,164,.16)}
+.midi-map-badge{display:inline-flex;border:1px solid #2f9e7d;border-radius:999px;padding:2px 6px;color:#bff7df;font-size:10px;line-height:1.2}
 .midi-status-pill{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted);font-size:13px;background:var(--panel2)}
 .midi-status-pill.ready{background:#08281e;border-color:#238966;color:#bff7df}
 .midi-status-pill.offline{background:#2b1010;border-color:#8c3535;color:#ffd1d1}
@@ -100,10 +114,11 @@ body.layout-editing .card-empty:hover{border-color:var(--accent);color:var(--acc
 .pico-control-strip label{min-width:76px}
 .pico-control-strip input,.pico-control-strip select{min-height:38px;padding:7px 8px}
 .pico-control-strip .wide{grid-column:span 2}
-.playback-card{width:100%;height:100%;justify-self:stretch;align-self:stretch;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel2);display:grid;gap:8px;min-height:96px}
+.playback-card{position:relative;width:100%;height:100%;justify-self:stretch;align-self:stretch;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel2);display:grid;gap:8px;min-height:96px}
 .playback-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .playback-card.empty{opacity:.55;align-content:end}
 .playback-card h3{margin:0;font-size:14px}
+body.layout-editing .playback-card h3{padding-left:18px}
 .playback-actions{display:flex;gap:8px;flex-wrap:wrap}
 .live-control-toolbar{display:flex;gap:8px;align-items:end;justify-content:flex-end;flex-wrap:wrap}
 .live-control-toolbar.layout-tools{display:none}
@@ -135,18 +150,11 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 .master-delete{display:none;position:absolute;top:6px;right:6px;width:24px;height:24px;min-height:24px;padding:0;font-size:14px;z-index:4;background:rgba(60,27,27,.92);border:1px solid #ff7a7a;color:#ffd4d4;box-shadow:0 1px 6px rgba(0,0,0,.45)}
 body.layout-editing .master-delete{display:flex;align-items:center;justify-content:center}
 .master-delete:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
+.master-fader>.midi-map-edit{position:absolute;top:6px;left:6px}
 .master-target-actions,.master-edit-actions{display:none}
 body.layout-editing .master-target-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 body.layout-editing .master-edit-actions{display:flex}
 .show-plane-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px}
-.show-group-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px}
-.show-group-controls{display:grid;gap:10px}
-.show-group-control{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:10px}
-.show-group-control h3{margin:0;font-size:15px}
-.show-group-control-row{display:grid;grid-template-columns:minmax(88px,130px) minmax(0,1fr) minmax(78px,100px);gap:8px;align-items:end}
-.show-group-control-row input[type=range]{width:100%;padding:0}
-.show-group-control-row input[type=number]{width:100%;min-width:0}
-.show-group-relative{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .show-plane-layout{display:grid;gap:12px}
 .show-plane-view{display:flex;gap:8px;flex-wrap:wrap}
 .show-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
@@ -190,10 +198,10 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.9">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.8#4-show-run" target="_blank">Manual</a>
-    <button id="editLayoutBtn" type="button">Edit Layout</button>
+    <a class="nav" href="user-manual.html?v=0.9.9#4-show-run" target="_blank">Manual</a>
+    <button id="editLayoutBtn" type="button">Edit</button>
   </div>
   </div>
   <div class="header-actions" aria-label="Show actions"></div>
@@ -221,6 +229,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     </div>
     <div class="master-faders">
       <div class="master-fader">
+        <button type="button" class="slot-visual-btn midi-map-edit" data-midi-edit-target="master:all" title="Edit Grand Master MIDI mapping" aria-label="Edit Grand Master MIDI mapping"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11.5V13h1.5l7-7L10 4.5l-7 7Z"/><path d="M11 3.5l1.5-1.5L14 3.5 12.5 5 11 3.5Z"/></svg></button>
         <h3>Grand Master</h3>
         <button type="button" data-master-full="all">Full</button>
         <input id="grandMasterFader" class="grand-master-fader" type="range" min="0" max="100" value="100" data-grand-master>
@@ -238,14 +247,27 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
   <section class="panel midi-card" id="cardMidi" data-show-card="midi" aria-label="MIDI input monitor">
     <div class="midi-headline">
       <div>
-        <h2>MIDI Input</h2>
-        <div class="small">Read-only signal monitor from the Pico MIDI input.</div>
+        <h2>MIDI Controller</h2>
+        <div class="small">Connect a USB MIDI controller to this computer and monitor the Pico UART MIDI input.</div>
       </div>
       <div class="buttons">
         <span id="midiStatusPill" class="midi-status-pill" data-midi-status-pill>Waiting</span>
         <button id="midiRefreshBtn" class="midi-refresh-btn" type="button">Check MIDI</button>
       </div>
     </div>
+    <div class="midi-usb-panel">
+      <div><strong>Computer USB MIDI</strong><div class="small">Use Chrome or Edge on this XAMPP computer. MIDI access starts only after you click Connect.</div></div>
+      <div class="midi-usb-controls">
+        <label>Input<select class="midi-computer-input" data-midi-computer-input><option value="">No input selected</option></select></label>
+        <label>Output<select class="midi-computer-output" data-midi-computer-output><option value="">No output selected</option></select></label>
+        <button class="midi-connect-btn primary" type="button" data-midi-connect>Connect MIDI</button>
+        <button class="midi-disconnect-btn" type="button" data-midi-disconnect disabled>Disconnect</button>
+        <a class="nav" href="dmx_midi_emulator.html" target="_blank">Open MIDI Emulator</a>
+      </div>
+      <div class="midi-computer-event" data-midi-computer-status>Not connected.</div>
+      <div class="midi-computer-event" data-midi-emulator-status>Emulator not detected.</div>
+    </div>
+    <div class="small"><strong>Pico UART diagnostics</strong></div>
     <div class="midi-stat-grid">
       <div class="midi-stat"><div class="small">Hardware</div><strong id="midiHardware" data-midi-hardware>-</strong></div>
       <div class="midi-stat"><div class="small">Bytes</div><strong id="midiBytes" data-midi-bytes>0</strong></div>
@@ -483,11 +505,10 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 <button id="showGroupModalClose" type="button" aria-label="Close">x</button>
 <h2 id="showGroupModalTitle">Group Edit</h2>
 </div>
-<div class="modal-body">
-<div class="small" id="showGroupModalHint"></div>
-<div id="showGroupModalBody" class="show-group-controls"></div>
-</div>
+<div id="showGroupModalBody" class="modal-body"></div>
 <div class="modal-actions">
+<button id="showGroupDefaultBtn" type="button" title="Recall configured default values for the current Show target">Default</button>
+<button id="showGroupBlackoutBtn" type="button" title="Recall configured blackout values for the current Show target">Blackout</button>
 <button id="showGroupModalClose2" type="button">Close</button>
 </div>
 </div>
@@ -517,10 +538,26 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 <div class="small">Choose a background color, then draw or upload an optional visual on top.</div>
 </div>
 <div id="showTileVisualHint" class="small"></div>
+<div id="showTileMidiMapping"></div>
 </div>
 <div class="modal-actions">
 <button id="showTileVisualSave" type="button" class="primary">Save tile</button>
 <button id="showTileVisualClose2" type="button">Close</button>
+</div>
+</div>
+</div>
+
+<div id="midiMappingModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="midiMappingTitle">
+<div class="modal-head">
+<button id="midiMappingClose" type="button" aria-label="Close">x</button>
+<h2 id="midiMappingTitle">MIDI Mapping</h2>
+</div>
+<div class="modal-body">
+<div id="midiMappingModalBody"></div>
+</div>
+<div class="modal-actions">
+<button id="midiMappingClose2" type="button">Close</button>
 </div>
 </div>
 </div>
@@ -579,12 +616,18 @@ let targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}]
 const layoutKey=name=>'dmxShowRun.'+name;
 const SHOW_UI_STATE_PAGE='showRun';
 let showUiState={};
+const SHOW_GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
+const showGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({
+  page:SHOW_UI_STATE_PAGE,
+  stateKey:SHOW_GROUP_RELATIVE_STEPS_KEY,
+  localStorageKey:layoutKey(SHOW_GROUP_RELATIVE_STEPS_KEY)
+});
 const displayOrders={group:[],fixture:[],scene:[],palette:[],plane:[],chaser:[],motion:[]};
 let cardLayouts={};
 const moveSelected={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
 const moveSelectedLayout={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','plane','chaser','motion','live','midi','fixture','master'];
-const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Input'};
+const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Controller'};
 const repeatableCardIds=cardIds.slice();
 let cardOrder=[];
 let cardMoveMode=false;
@@ -598,6 +641,19 @@ let autoShowRefreshTimer=null;
 let midiStatus=null;
 let midiPollTimer=null;
 let midiLastMessageCount=null;
+let midiAccess=null;
+let midiInput=null;
+let midiOutput=null;
+let midiMappings=[];
+const midiPlaybackActionDrafts=new Map();
+let midiLearningTarget=null;
+let midiEditorTarget=null;
+let showTileMidiKind='';
+let midiEmulatorChannel=null;
+let midiEmulatorLastSeen=0;
+const midiButtonState=new Map();
+const midiPickupState=new Map();
+const midiContinuousQueue=new Map();
 const liveButtonHeld=new Map();
 const liveTimerState=new Map();
 let liveTimerVisualInterval=null;
@@ -624,15 +680,7 @@ const wheelOptionRange=DmxCommon.wheelOptionRange;
 const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
 const wheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
 function updateWheelRangeHost(host,option,value,attrs){
-  if(!host)return;
-  const range=wheelOptionRange(option);
-  if(wheelOptionIsAdjustable(option)&&range){
-    host.style.display='';
-    host.innerHTML=wheelRangeSliderHtml(option,value,attrs,esc);
-  }else{
-    host.innerHTML='';
-    host.style.display='none';
-  }
+  DmxCommon.updateFixtureGroupEditWheelRangeHost(host,option,value,attrs,esc);
 }
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrlEl.value.replace(/\/+$/,'');}
@@ -754,7 +802,7 @@ function showGroupEditControls(){
       map.get(key).targets.push({fixture:row.fixture,control});
     });
   });
-  return [...map.values()].sort((a,b)=>showGroupControlLabel(a.control).localeCompare(showGroupControlLabel(b.control)));
+  return [...map.values()];
 }
 function showGroupSourceTarget(row){
   return row?.targets?.[0]||null;
@@ -770,58 +818,33 @@ async function sendShowGroupPatch(targets){
   try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
   await sendValuePatchWithMasterMask(patch);
 }
-function showGroupRelativeControlHtml(key,part,step,label){
-  return `<div class="relative-control">
-<button type="button" data-show-group-relative="${esc(key)}" data-part="${esc(part.part)}" data-dir="-1">-</button>
-<label>${esc(label)}<input type="number" min="1" max="${part.max}" step="1" value="${step}" data-show-group-step="${esc(key)}:${esc(part.part)}:${step}"></label>
-<button type="button" data-show-group-relative="${esc(key)}" data-part="${esc(part.part)}" data-dir="1">+</button>
-</div>`;
-}
 function showGroupControlHtml(row){
   const target=showGroupSourceTarget(row);
   const c=row.control;
   const sourceName=target?.fixture?.name||'Source';
-  const parts=scalarControlParts(c);
-  const partRows=parts.map(part=>{
-    const value=target?getControlPartValue(target.fixture,target.control,part.part):0;
-    return `<div class="show-group-control-row" data-show-group-part-row="${esc(row.key)}:${esc(part.part)}">
-<label>${esc(part.label)}<input type="number" min="0" max="${part.max}" step="1" value="${value}" data-show-group-number="${esc(row.key)}" data-part="${esc(part.part)}"></label>
-<input type="range" min="0" max="${part.max}" step="1" value="${value}" data-show-group-slider="${esc(row.key)}" data-part="${esc(part.part)}">
-<div class="small" data-show-group-readout="${esc(row.key)}:${esc(part.part)}">${value}</div>
-</div>`;
-  }).join('');
-  const relative=parts.map(part=>{
-    const step=part.max>255?256:1;
-    const fine=part.max>255?showGroupRelativeControlHtml(row.key,part,1,part.label+' fine'):'';
-    return showGroupRelativeControlHtml(row.key,part,step,part.label+(part.max>255?' coarse':' relative'))+fine;
-  }).join('');
-  let rich='';
-  if(c.type==='panTilt16'||c.type==='panTilt8'){
-    const pan=target?getControlPartValue(target.fixture,target.control,'pan'):(c.type==='panTilt8'?128:32768);
-    const tilt=target?getControlPartValue(target.fixture,target.control,'tilt'):(c.type==='panTilt8'?128:32768);
-    const max=c.type==='panTilt8'?255:65535;
-    rich=`<div class="xy-pad" data-show-group-xy="${esc(row.key)}"><div class="xy-dot" style="left:${pan/max*100}%;top:${100-tilt/max*100}%"></div></div>
-<div class="row"><span class="readout" data-show-group-xy-readout="${esc(row.key)}">Pan ${pan} · Tilt ${tilt}</span><button type="button" data-show-group-center="${esc(row.key)}">Center</button></div>`;
-  }else if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
-    const v=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
-    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    rich=`<label>Color picker<input type="color" value="${color}" data-show-group-color-picker="${esc(row.key)}"></label>
-<div class="swatches"><button type="button" class="swatch" style="background:#fff" data-show-group-color="${esc(row.key)}" data-color="#ffffff"></button><button type="button" class="swatch" style="background:#f00" data-show-group-color="${esc(row.key)}" data-color="#ff0000"></button><button type="button" class="swatch" style="background:#0f0" data-show-group-color="${esc(row.key)}" data-color="#00ff00"></button><button type="button" class="swatch" style="background:#00f" data-show-group-color="${esc(row.key)}" data-color="#0000ff"></button></div>`;
-  }else if(c.type==='wheel'){
-    const v=target?getControlPartValue(target.fixture,target.control,'value'):0;
-    const active=selectedWheelOption(c,v);
-    rich=`<div class="tabs">${(c.options||[]).map((option,index)=>`<button type="button" class="tab ${wheelOptionMatches(option,v)?'active':''}" title="${esc(wheelOptionTitle(option))}" data-show-group-wheel="${esc(row.key)}" data-wheel-value="${wheelOptionValue(option)}" data-wheel-option-index="${index}">${wheelOptionIconHtml(option)}${esc(option.name)}</button>`).join('')}</div>
-<div data-show-group-wheel-range-host="${esc(row.key)}">${wheelRangeSliderHtml(active,v,`data-show-group-slider="${esc(row.key)}" data-part="value"`,esc)}</div>`;
-  }
-  return `<section class="show-group-control" data-show-group-control="${esc(row.key)}">
-<div>
-<h3>${esc(showGroupControlLabel(c))}</h3>
-<div class="small">${row.targets.length} fixture(s) · source ${esc(sourceName)} · ${esc(c.type||'control')}</div>
-</div>
-${rich}
-${partRows}
-<div class="show-group-relative">${relative}</div>
-</section>`;
+  const key=esc(row.key);
+  const value=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
+  return DmxCommon.fixtureGroupEditControlHtml({
+    control:c,key:row.key,value,label:showGroupControlLabel(c),scopeText:row.targets.length+' matching fixture'+(row.targets.length===1?'':'s')+' · source '+sourceName,escape:esc,
+    relativeStepValue:(part,kind,step,max)=>showGroupRelativeStepStore.value(row.key,part,kind,step,max),
+    attributes:(role,detail={})=>{
+      if(role==='control')return `data-show-group-control="${key}"`;
+      if(role==='xy')return `data-show-group-xy="${key}"`;
+      if(role==='readout')return c.type==='panTilt16'||c.type==='panTilt8'?`data-show-group-xy-readout="${key}"`:(c.type==='wheel'?`data-show-group-wheel-readout="${key}"`:`data-show-group-readout="${key}:value"`);
+      if(role==='partReadout')return `data-show-group-readout="${key}:${detail.part}"`;
+      if(role==='byteReadout')return `data-show-group-byte-readout="${key}" data-byte-part="${detail.part}"`;
+      if(role==='center')return `data-show-group-center="${key}"`;
+      if(role==='colorPicker')return `data-show-group-color-picker="${key}"`;
+      if(role==='color')return `data-show-group-color="${key}" data-color="${detail.color}"`;
+      if(role==='wheel')return `data-show-group-wheel="${key}" data-wheel-value="${detail.value}" data-wheel-option-index="${detail.index}"`;
+      if(role==='wheelHost')return `data-show-group-wheel-range-host="${key}"`;
+      if(role==='input')return `${detail.kind==='number'?'data-show-group-number':'data-show-group-slider'}="${key}" data-part="${detail.part||'value'}"`;
+      if(role==='byteInput')return `data-show-group-byte="${key}" data-byte-part="${detail.part}"`;
+      if(role==='relative')return `data-show-group-relative="${key}" data-part="${detail.part}" data-dir="${detail.dir}"`;
+      if(role==='relativeStep')return `data-show-group-step="1" data-show-group-key="${key}" data-part="${detail.part}" data-relative-kind="${detail.kind}"`;
+      return'';
+    }
+  });
 }
 function refreshShowGroupControlRow(rowKey,part){
   const row=showGroupEditControls().find(item=>item.key===rowKey);
@@ -843,11 +866,20 @@ function refreshShowGroupControlRow(rowKey,part){
     document.querySelectorAll(`[data-show-group-color-picker="${CSS.escape(rowKey)}"]`).forEach(input=>{if(input.value!==color)input.value=color;});
   }
   if(part==='value'&&target.control.type==='wheel'){
+    const active=selectedWheelOption(target.control,value);
+    document.querySelectorAll(`[data-show-group-wheel-readout="${CSS.escape(rowKey)}"]`).forEach(el=>{el.textContent='Wheel · '+value+(active?' · '+active.name:'');});
     document.querySelectorAll(`[data-show-group-wheel-range-host="${CSS.escape(rowKey)}"]`).forEach(host=>updateWheelRangeHost(host,selectedWheelOption(target.control,value),value,`data-show-group-slider="${esc(rowKey)}" data-part="value"`));
     document.querySelectorAll(`[data-show-group-wheel="${CSS.escape(rowKey)}"]`).forEach(button=>{
       const option=(target.control.options||[])[parseInt(button.dataset.wheelOptionIndex,10)];
       button.classList.toggle('active',option?wheelOptionMatches(option,value):parseInt(button.dataset.wheelValue,10)===value);
     });
+  }
+  if(part==='value'&&target.control.type==='slider16'){
+    const b=bytes16(value);
+    document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="coarse"]`).forEach(input=>{input.value=b.coarse;});
+    document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="fine"]`).forEach(input=>{input.value=b.fine;});
+    document.querySelectorAll(`[data-show-group-byte-readout="${CSS.escape(rowKey)}"][data-byte-part="coarse"]`).forEach(el=>{el.textContent=b.coarse;});
+    document.querySelectorAll(`[data-show-group-byte-readout="${CSS.escape(rowKey)}"][data-byte-part="fine"]`).forEach(el=>{el.textContent=b.fine;});
   }
 }
 function updateShowGroupEditButton(){
@@ -862,12 +894,26 @@ function openShowGroupEditModal(){
   const targets=showGroupEditFixtureRows();
   const controls=showGroupEditControls();
   if(!targets.length||!controls.length){setStatus('Select a group or fixture with editable controls first',true);updateShowGroupEditButton();return;}
-  document.getElementById('showGroupModalTitle').textContent='Group Edit - '+targets.length+' fixture'+(targets.length===1?'':'s');
-  document.getElementById('showGroupModalHint').textContent='Edits apply to the current Show target. The first fixture in the target is used as the source value.';
+  document.getElementById('showGroupModalTitle').textContent='Group Edit — '+targets.length+' fixture'+(targets.length===1?'':'s')+' selected · '+controls.length+' editable control'+(controls.length===1?'':'s');
   document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
   DmxCommon.showModal('showGroupModal');
 }
 function closeShowGroupEditModal(){DmxCommon.hideModal('showGroupModal');}
+async function recallShowGroupFixtureValues(which){
+  const rows=showGroupEditControls();
+  const changed=[];
+  rows.forEach(row=>row.targets.forEach(target=>{
+    const value=target.control?.[which];
+    if(value===null||value===undefined)return;
+    setValue(target.fixture,target.control,cloneValue(value));
+    changed.push(target);
+  }));
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!changed.length){setStatus('No '+label+' values configured for the current Show target',true);return;}
+  await sendShowGroupPatch(changed);
+  rows.forEach(row=>scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(row.key,part.part)));
+  setStatus('Group '+label+' recalled for '+showGroupEditFixtureRows().length+' fixture'+(showGroupEditFixtureRows().length===1?'':'s'));
+}
 function savedValue(key){
   return showUiState&&Object.prototype.hasOwnProperty.call(showUiState,key)?showUiState[key]:localStorage.getItem(layoutKey(key));
 }
@@ -956,6 +1002,66 @@ function loadLiveControls(){
 function saveLiveControls(){
   localStorage.setItem(layoutKey('liveControls'),JSON.stringify(liveControls));
   saveShowUiStateValue('liveControls',liveControls);
+}
+function midiTargetKey(type,id){return String(type||'')+':'+String(id??'');}
+const MIDI_PLAYBACK_ACTIONS=[
+  {value:'toggle-run',label:'Start / Stop toggle'},
+  {value:'start',label:'Start'},
+  {value:'stop',label:'Stop'},
+  {value:'toggle-pause',label:'Pause / Resume toggle'},
+  {value:'pause',label:'Pause'},
+  {value:'resume',label:'Resume'}
+];
+function isMidiPlaybackTarget(type){return type==='chaser'||type==='motion';}
+function normalizeMidiPlaybackAction(value){return MIDI_PLAYBACK_ACTIONS.some(item=>item.value===value)?value:'toggle-run';}
+function midiPlaybackActionLabel(value){return MIDI_PLAYBACK_ACTIONS.find(item=>item.value===normalizeMidiPlaybackAction(value))?.label||'Start / Stop toggle';}
+function midiPlaybackActionFor(type,id){
+  if(!isMidiPlaybackTarget(type))return '';
+  const key=midiTargetKey(type,id);
+  return normalizeMidiPlaybackAction(midiMappingFor(type,id)?.action||midiPlaybackActionDrafts.get(key));
+}
+function normalizeMidiMapping(item){
+  if(!item||!item.targetType||item.targetId===undefined||!['cc','note'].includes(item.messageType))return null;
+  const channel=Math.max(1,Math.min(16,parseInt(item.channel,10)||1));
+  const number=Math.max(0,Math.min(127,parseInt(item.number,10)||0));
+  const normalized={
+    targetType:String(item.targetType),targetId:String(item.targetId),
+    messageType:item.messageType,channel,number,
+    deviceId:String(item.deviceId||''),deviceName:String(item.deviceName||''),
+    mode:item.mode==='continuous'?'continuous':'trigger',pickup:item.mode==='continuous'&&item.pickup!==false
+  };
+  if(isMidiPlaybackTarget(normalized.targetType))normalized.action=normalizeMidiPlaybackAction(item.action);
+  return normalized;
+}
+function loadMidiMappings(){
+  const source=savedValue('midiMappings');
+  let rows=[];
+  try{rows=Array.isArray(source)?source:JSON.parse(source||'[]')||[];}catch(_){rows=[];}
+  midiMappings=rows.map(normalizeMidiMapping).filter(Boolean);
+}
+function saveMidiMappings(){
+  localStorage.setItem(layoutKey('midiMappings'),JSON.stringify(midiMappings));
+  saveShowUiStateValue('midiMappings',midiMappings);
+}
+function midiMappingFor(type,id){
+  const key=midiTargetKey(type,id);
+  return midiMappings.find(item=>midiTargetKey(item.targetType,item.targetId)===key)||null;
+}
+function setMidiMapping(mapping){
+  const normalized=normalizeMidiMapping(mapping);
+  if(!normalized)return;
+  const key=midiTargetKey(normalized.targetType,normalized.targetId);
+  midiMappings=midiMappings.filter(item=>midiTargetKey(item.targetType,item.targetId)!==key);
+  midiMappings.push(normalized);
+  midiPickupState.delete(key);
+  saveMidiMappings();
+}
+function clearMidiMapping(type,id){
+  const key=midiTargetKey(type,id);
+  midiMappings=midiMappings.filter(item=>midiTargetKey(item.targetType,item.targetId)!==key);
+  midiPlaybackActionDrafts.delete(key);
+  midiPickupState.delete(key);
+  saveMidiMappings();
 }
 function normalizeTargetMasters(){
   if(!Array.isArray(targetMasters))targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
@@ -1315,7 +1421,7 @@ function setLayoutEditing(enabled){
   if(btn){
     btn.classList.toggle('active',layoutEditing);
     btn.setAttribute('aria-pressed',layoutEditing?'true':'false');
-    btn.textContent=layoutEditing?'Done Layout':'Edit Layout';
+    btn.textContent=layoutEditing?'Done':'Edit';
   }
   if(!layoutEditing){
     cardMoveMode=false;
@@ -1608,7 +1714,7 @@ function openHiddenTileModal(rows){
     placeHiddenTile(kind,key);
   }));
   list.querySelectorAll('[data-hidden-expand]').forEach(btn=>btn.addEventListener('click',()=>expandMatrixForHiddenKind(btn.dataset.hiddenExpand)));
-  document.getElementById('hiddenTileModal').style.display='flex';
+  DmxCommon.showModal('hiddenTileModal');
 }
 function closeHiddenTileModal(){
   const modal=document.getElementById('hiddenTileModal');
@@ -1617,7 +1723,7 @@ function closeHiddenTileModal(){
 function reviewHiddenTiles(autoOpen=true){
   const rows=allHiddenTileRows();
   if(!rows.length){closeHiddenTileModal();return;}
-  const message=rows.length+' show item'+(rows.length===1?' is':'s are')+' outside the visible layout. Review hidden items in Edit Layout.';
+  const message=rows.length+' show item'+(rows.length===1?' is':'s are')+' outside the visible layout. Review hidden items in Edit mode.';
   setStatus(message,true);
   if(autoOpen&&!hiddenTileModalDismissed){
     setLayoutEditing(true);
@@ -1770,6 +1876,408 @@ async function postJson(url,data){
   return j;
 }
 function currentShowBaseUrl(){return baseUrlEl.value||localStorage.getItem(DmxCommon.BASE_URL_KEY)||'';}
+function midiTargetInfo(type,id){
+  const targetId=String(id??'');
+  if(type==='group'){
+    const item=groups.find(row=>String(row.id)===targetId);
+    return item?{type,targetId,label:'Group: '+(item.name||targetId),mode:'trigger'}:null;
+  }
+  if(type==='scene'){
+    const entry=itemForTileKey('scene',targetId);
+    return entry?{type,targetId,label:'Scene: '+(entry.item.name||targetId),mode:'trigger'}:null;
+  }
+  if(type==='palette'){
+    const entry=itemForTileKey('palette',targetId);
+    return entry?{type,targetId,label:'Palette: '+(entry.item.name||targetId),mode:'trigger'}:null;
+  }
+  if(type==='chaser'){
+    const item=chaserSlots[parseInt(targetId,10)];
+    return item?.loaded?{type,targetId,label:'Pico Chaser: '+(item.label||('slot '+targetId)),mode:'trigger'}:null;
+  }
+  if(type==='motion'){
+    const item=motionSlots[parseInt(targetId,10)];
+    return item?.loaded?{type,targetId,label:'Pico Effect: '+(item.label||('slot '+targetId)),mode:'trigger'}:null;
+  }
+  if(type==='master'){
+    if(targetId==='all')return {type,targetId,label:'Grand Master',mode:'continuous'};
+    const master=targetMasters.find(row=>String(row.id)===targetId);
+    return master?{type,targetId,label:master.name,mode:'continuous'}:null;
+  }
+  if(type==='live'){
+    const item=liveControls.find(row=>String(row.id)===targetId);
+    const target=item&&liveControlTarget(item);
+    if(!item)return null;
+    return {type,targetId,label:'Live Control: '+liveControlLabel(item,target),mode:item.widget==='button'?'trigger':'continuous'};
+  }
+  return null;
+}
+function midiMappingDescription(mapping){
+  if(!mapping)return 'No MIDI control mapped.';
+  const source=mapping.messageType==='cc'?'CC '+mapping.number:'Note '+mapping.number;
+  const action=isMidiPlaybackTarget(mapping.targetType)?' · '+midiPlaybackActionLabel(mapping.action):'';
+  return source+' · Channel '+mapping.channel+(mapping.deviceName?' · '+mapping.deviceName:'')+action;
+}
+function midiTargetFromKey(key){
+  const split=String(key||'').indexOf(':');
+  return split<0?null:{type:String(key).slice(0,split),targetId:String(key).slice(split+1)};
+}
+function midiMappingPanelHtml(target){
+  const mapping=target&&midiMappingFor(target.type,target.targetId);
+  const mapped=!!mapping;
+  const pickup=mapping?.mode==='continuous'&&mapping.pickup!==false;
+  const playback=isMidiPlaybackTarget(target?.type);
+  const playbackAction=playback?midiPlaybackActionFor(target.type,target.targetId):'';
+  return `<div class="midi-mapping-panel ${mapped?'mapped':''}" data-midi-mapping-panel="${esc(midiTargetKey(target?.type,target?.targetId))}">
+    <div class="midi-mapping-summary"><strong>MIDI Mapping ${mapped?'<span class="midi-map-badge">Mapped</span>':''}</strong><span class="small">${esc(target?.label||'Unknown target')}</span><span class="small">${esc(midiMappingDescription(mapping))}</span></div>
+    ${playback?`<label>Playback action<select data-midi-playback-action>${MIDI_PLAYBACK_ACTIONS.map(item=>`<option value="${item.value}" ${item.value===playbackAction?'selected':''}>${esc(item.label)}</option>`).join('')}</select></label>`:''}
+    ${mapping?.mode==='continuous'?`<label><span><input type="checkbox" data-midi-pickup ${pickup?'checked':''}> Soft takeover</span></label>`:''}
+    <div class="midi-mapping-actions"><button type="button" class="midi-learn-btn ${midiLearningTarget===midiTargetKey(target?.type,target?.targetId)?'active':''}" data-midi-learn>${midiLearningTarget===midiTargetKey(target?.type,target?.targetId)?'Move a control...':'Learn'}</button><button type="button" data-midi-clear ${mapped?'':'disabled'}>Clear mapping</button></div>
+    <div class="small">${target?.mode==='continuous'?'Move a knob or fader. Values are scaled from MIDI 0–127.':playback?'Press the hardware button that should run the selected playback action.':'Press the hardware button that should trigger this action.'}</div>
+  </div>`;
+}
+function bindMidiMappingPanel(host,target){
+  if(!host||!target)return;
+  const learn=host.querySelector('[data-midi-learn]');
+  if(learn)learn.onclick=()=>{
+    midiLearningTarget=midiTargetKey(target.type,target.targetId);
+    renderMidiMappingPanel(host,target);
+    setStatus('MIDI Learn: move a hardware or emulator control for '+target.label);
+  };
+  const clear=host.querySelector('[data-midi-clear]');
+  if(clear)clear.onclick=()=>{
+    clearMidiMapping(target.type,target.targetId);
+    if(midiLearningTarget===midiTargetKey(target.type,target.targetId))midiLearningTarget=null;
+    renderMidiMappingPanel(host,target);
+    updateMidiMappingIndicators();
+    setStatus('Cleared MIDI mapping for '+target.label);
+  };
+  const playbackAction=host.querySelector('[data-midi-playback-action]');
+  if(playbackAction)playbackAction.onchange=()=>{
+    const action=normalizeMidiPlaybackAction(playbackAction.value);
+    const key=midiTargetKey(target.type,target.targetId);
+    const mapping=midiMappingFor(target.type,target.targetId);
+    if(mapping){mapping.action=action;saveMidiMappings();}
+    else midiPlaybackActionDrafts.set(key,action);
+    renderMidiMappingPanel(host,target);
+    updateMidiMappingIndicators();
+    setStatus(target.label+' MIDI action set to '+midiPlaybackActionLabel(action));
+  };
+  const pickup=host.querySelector('[data-midi-pickup]');
+  if(pickup)pickup.onchange=()=>{
+    const mapping=midiMappingFor(target.type,target.targetId);
+    if(!mapping)return;
+    mapping.pickup=pickup.checked;
+    midiPickupState.delete(midiTargetKey(target.type,target.targetId));
+    saveMidiMappings();
+  };
+}
+function renderMidiMappingPanel(host,target){
+  if(!host||!target)return;
+  host.innerHTML=midiMappingPanelHtml(target);
+  bindMidiMappingPanel(host,target);
+}
+function openMidiMappingEditor(type,id){
+  const target=midiTargetInfo(type,id);
+  if(!target){setStatus('This MIDI mapping target is no longer available',true);return;}
+  midiEditorTarget=target;
+  document.getElementById('midiMappingTitle').textContent='Edit MIDI - '+target.label;
+  renderMidiMappingPanel(document.getElementById('midiMappingModalBody'),target);
+  DmxCommon.showModal('midiMappingModal');
+}
+function closeMidiMappingEditor(){
+  if(midiLearningTarget===midiTargetKey(midiEditorTarget?.type,midiEditorTarget?.targetId))midiLearningTarget=null;
+  midiEditorTarget=null;
+  DmxCommon.hideModal('midiMappingModal');
+}
+function renderShowTileMidiMapping(){
+  const host=document.getElementById('showTileMidiMapping');
+  const select=document.getElementById('showTileVisualTarget');
+  if(!host||!select||!showTileMidiKind||select.value==='__default'){if(host)host.innerHTML='';return;}
+  const target=midiTargetInfo(showTileMidiKind,select.value);
+  if(target)renderMidiMappingPanel(host,target);else host.innerHTML='';
+}
+function cancelShowTileMidiLearning(){
+  const select=document.getElementById('showTileVisualTarget');
+  const key=select&&select.value!=='__default'?midiTargetKey(showTileMidiKind,select.value):'';
+  if(key&&midiLearningTarget===key)midiLearningTarget=null;
+}
+function midiEditButtonHtml(type,id,label){
+  const mapped=!!midiMappingFor(type,id);
+  return `<button type="button" class="slot-visual-btn midi-map-edit ${mapped?'mapped':''}" data-midi-edit-target="${esc(midiTargetKey(type,id))}" title="Edit ${esc(label)} MIDI mapping" aria-label="Edit ${esc(label)} MIDI mapping"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11.5V13h1.5l7-7L10 4.5l-7 7Z"/><path d="M11 3.5l1.5-1.5L14 3.5 12.5 5 11 3.5Z"/></svg></button>`;
+}
+function bindMidiEditButtons(root=document){
+  root.querySelectorAll?.('[data-midi-edit-target]').forEach(btn=>{
+    btn.onclick=e=>{
+      e.stopPropagation();
+      const target=midiTargetFromKey(btn.dataset.midiEditTarget);
+      if(target)openMidiMappingEditor(target.type,target.targetId);
+    };
+  });
+}
+function updateMidiMappingIndicators(){
+  document.querySelectorAll('[data-midi-edit-target]').forEach(btn=>{
+    const target=midiTargetFromKey(btn.dataset.midiEditTarget);
+    btn.classList.toggle('mapped',!!(target&&midiMappingFor(target.type,target.targetId)));
+  });
+  document.querySelectorAll('[data-show-edit-tile]').forEach(btn=>{
+    const target=midiTargetFromKey(btn.dataset.showEditTile);
+    btn.classList.toggle('mapped',!!(target&&midiMappingFor(target.type,target.targetId)));
+  });
+}
+function midiEmulatorAvailable(){return Date.now()-midiEmulatorLastSeen<3500;}
+function renderMidiEmulatorStatus(){
+  const supported=typeof BroadcastChannel!=='undefined';
+  const connected=supported&&midiEmulatorAvailable();
+  document.querySelectorAll('[data-midi-emulator-status]').forEach(el=>{
+    el.textContent=!supported?'MIDI emulator is not supported in this browser.':connected?'MIDI emulator connected in another tab.':'Emulator not detected. Open it in another tab to test MIDI Learn.';
+    el.classList.toggle('ready',connected);
+  });
+}
+function initMidiEmulatorChannel(){
+  if(typeof BroadcastChannel==='undefined'){renderMidiEmulatorStatus();return;}
+  midiEmulatorChannel=new BroadcastChannel('dmxShowMidiEmulator');
+  midiEmulatorChannel.onmessage=message=>{
+    const payload=message.data||{};
+    if(payload.type==='emulator-hello'){
+      midiEmulatorLastSeen=Date.now();
+      midiEmulatorChannel.postMessage({type:'show-ready'});
+      renderMidiEmulatorStatus();
+      return;
+    }
+    if(payload.type==='midi'&&Array.isArray(payload.data)){
+      midiEmulatorLastSeen=Date.now();
+      midiEmulatorChannel.postMessage({type:'show-ready'});
+      renderMidiEmulatorStatus();
+      handleComputerMidiMessage({data:payload.data,deviceId:payload.deviceId||'launch-control-xl-emulator',deviceName:payload.deviceName||'Launch Control XL Emulator'});
+    }
+  };
+  midiEmulatorChannel.postMessage({type:'show-ready'});
+  renderMidiEmulatorStatus();
+  setInterval(renderMidiEmulatorStatus,1000);
+}
+function midiPortRows(map){return map?Array.from(map.values()).filter(port=>port.state!=='disconnected'):[];}
+function renderComputerMidiControls(){
+  const inputs=midiPortRows(midiAccess?.inputs);
+  const outputs=midiPortRows(midiAccess?.outputs);
+  document.querySelectorAll('[data-midi-computer-input]').forEach(select=>{
+    const selected=midiInput?.id||localStorage.getItem(layoutKey('midiInputId'))||'';
+    select.innerHTML='<option value="">No input selected</option>'+inputs.map(port=>`<option value="${esc(port.id)}">${esc(port.name||port.manufacturer||'MIDI input')}</option>`).join('');
+    select.value=inputs.some(port=>port.id===selected)?selected:'';
+    select.onchange=()=>selectComputerMidiInput(select.value);
+  });
+  document.querySelectorAll('[data-midi-computer-output]').forEach(select=>{
+    const selected=midiOutput?.id||localStorage.getItem(layoutKey('midiOutputId'))||'';
+    select.innerHTML='<option value="">No output selected</option>'+outputs.map(port=>`<option value="${esc(port.id)}">${esc(port.name||port.manufacturer||'MIDI output')}</option>`).join('');
+    select.value=outputs.some(port=>port.id===selected)?selected:'';
+    select.onchange=()=>selectComputerMidiOutput(select.value);
+  });
+  document.querySelectorAll('[data-midi-connect]').forEach(btn=>{btn.textContent=midiInput?'MIDI Connected':'Connect MIDI';btn.disabled=!!midiInput;});
+  document.querySelectorAll('[data-midi-disconnect]').forEach(btn=>{btn.disabled=!midiInput;});
+  const label=midiInput?'Connected to '+(midiInput.name||'MIDI input'):(midiAccess?'Choose a MIDI input.':'Not connected.');
+  document.querySelectorAll('[data-midi-computer-status]').forEach(el=>{if(!el.dataset.midiEventActive)el.textContent=label;});
+}
+function selectComputerMidiInput(id){
+  if(midiInput)midiInput.onmidimessage=null;
+  midiInput=midiAccess?.inputs?.get(id)||null;
+  if(midiInput){
+    midiInput.onmidimessage=handleComputerMidiMessage;
+    midiInput.open?.().catch(()=>{});
+    localStorage.setItem(layoutKey('midiInputId'),midiInput.id);
+  }else localStorage.removeItem(layoutKey('midiInputId'));
+  midiButtonState.clear();midiPickupState.clear();
+  renderComputerMidiControls();
+}
+function selectComputerMidiOutput(id){
+  midiOutput=midiAccess?.outputs?.get(id)||null;
+  if(midiOutput){localStorage.setItem(layoutKey('midiOutputId'),midiOutput.id);midiOutput.open?.().catch(()=>{});}
+  else localStorage.removeItem(layoutKey('midiOutputId'));
+  renderComputerMidiControls();
+}
+async function connectComputerMidi(){
+  if(!navigator.requestMIDIAccess)throw new Error('Web MIDI is not available in this browser. Use Chrome or Edge on localhost.');
+  if(!midiAccess){
+    midiAccess=await navigator.requestMIDIAccess();
+    midiAccess.onstatechange=()=>{
+      if(midiInput&&(!midiAccess.inputs.has(midiInput.id)||midiInput.state==='disconnected'))midiInput=null;
+      renderComputerMidiControls();
+    };
+  }
+  const inputs=midiPortRows(midiAccess.inputs);
+  const outputs=midiPortRows(midiAccess.outputs);
+  const savedInput=localStorage.getItem(layoutKey('midiInputId'));
+  const preferredInput=inputs.find(port=>port.id===savedInput)||inputs.find(port=>/launch control xl/i.test(port.name||''))||inputs[0]||null;
+  const savedOutput=localStorage.getItem(layoutKey('midiOutputId'));
+  const preferredOutput=outputs.find(port=>port.id===savedOutput)||outputs.find(port=>/launch control xl/i.test(port.name||''))||outputs[0]||null;
+  selectComputerMidiInput(preferredInput?.id||'');
+  selectComputerMidiOutput(preferredOutput?.id||'');
+  if(!midiInput)setStatus('MIDI permission granted, but no input device was found',true);
+  else setStatus('Connected computer MIDI input: '+(midiInput.name||'MIDI input'));
+  return midiInput;
+}
+function disconnectComputerMidi(){
+  if(midiInput)midiInput.onmidimessage=null;
+  midiInput=null;midiOutput=null;midiLearningTarget=null;
+  midiButtonState.clear();midiPickupState.clear();
+  renderComputerMidiControls();
+  setStatus('Computer MIDI disconnected');
+}
+function computerMidiEvent(data){
+  const status=Number(data?.[0]||0);
+  const type=status&0xF0;
+  const channel=(status&0x0F)+1;
+  if(type===0xB0)return {messageType:'cc',channel,number:Number(data[1]||0),value:Number(data[2]||0)};
+  if(type===0x90||type===0x80)return {messageType:'note',channel,number:Number(data[1]||0),value:type===0x80?0:Number(data[2]||0)};
+  return null;
+}
+function midiMappingMatches(mapping,event,source){
+  if(mapping.messageType!==event.messageType||mapping.channel!==event.channel||mapping.number!==event.number)return false;
+  if(!mapping.deviceName)return true;
+  if(String(mapping.deviceId)===String(source?.id||''))return true;
+  const family=name=>String(name||'').toLowerCase().replace(/\bemulator\b/g,'').replace(/\s+/g,' ').trim();
+  const mappedName=family(mapping.deviceName),sourceName=family(source?.name);
+  return !!mappedName&&!!sourceName&&(mappedName===sourceName||mappedName.includes(sourceName)||sourceName.includes(mappedName));
+}
+function scaleMidi7Bit(value,min,max){
+  const midi=clamp(value,0,127);
+  const low=Number.isFinite(Number(min))?Number(min):0;
+  const high=Number.isFinite(Number(max))?Number(max):low;
+  return Math.round(low+(midi/127)*(high-low));
+}
+function targetValueToMidi7Bit(value,min,max){
+  const low=Number.isFinite(Number(min))?Number(min):0;
+  const high=Number.isFinite(Number(max))?Number(max):low;
+  if(high===low)return 0;
+  return clamp(Math.round(((Number(value)-low)/(high-low))*127),0,127);
+}
+function midiContinuousTarget(mapping){
+  if(mapping.targetType==='master'){
+    if(mapping.targetId==='all')return {current:masterFactors.grand*100,min:0,max:100};
+    const master=targetMasters.find(row=>String(row.id)===String(mapping.targetId));
+    return master?{current:master.factor*100,min:0,max:100}:null;
+  }
+  if(mapping.targetType==='live'){
+    const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
+    const target=item&&liveControlTarget(item);
+    return target?{current:liveControlCurrentValue(item),min:0,max:target.part.max}:null;
+  }
+  return null;
+}
+function midiPickupAllows(mapping,value){
+  if(mapping.pickup===false)return true;
+  const target=midiContinuousTarget(mapping);
+  if(!target)return false;
+  const key=midiTargetKey(mapping.targetType,mapping.targetId);
+  const state=midiPickupState.get(key)||{active:false,last:null};
+  if(state.active)return true;
+  const targetMidi=targetValueToMidi7Bit(target.current,target.min,target.max);
+  const crossed=state.last!==null&&((state.last<=targetMidi&&value>=targetMidi)||(state.last>=targetMidi&&value<=targetMidi));
+  state.active=Math.abs(value-targetMidi)<=2||crossed;
+  state.last=value;
+  midiPickupState.set(key,state);
+  return state.active;
+}
+function refreshMidiLiveControl(item){
+  const index=liveControls.indexOf(item);
+  const target=liveControlTarget(item);
+  if(index<0||!target)return;
+  const value=liveControlCurrentValue(item);
+  document.querySelectorAll(`[data-live-index="${index}"]`).forEach(input=>{input.value=String(value);updateLiveWidgetReadout(input);});
+}
+async function applyMidiContinuous(mapping,value){
+  if(mapping.targetType==='master'){
+    if(mapping.targetId==='all'){
+      const next=scaleMidi7Bit(value,0,100);setMasterFaderDisplay('all',next);await applyDimmerMaster(next,'all');return;
+    }
+    const index=targetMasters.findIndex(row=>String(row.id)===String(mapping.targetId));
+    if(index>=0){const next=scaleMidi7Bit(value,0,100);setMasterFaderDisplay('target:'+index,next);await applyDimmerMaster(next,'target:'+index);}
+    return;
+  }
+  if(mapping.targetType==='live'){
+    const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
+    const target=item&&liveControlTarget(item);
+    if(item&&target){await applyLiveControl(item,scaleMidi7Bit(value,0,target.part.max));refreshMidiLiveControl(item);}
+  }
+}
+function queueMidiContinuous(mapping,value){
+  const key=midiTargetKey(mapping.targetType,mapping.targetId);
+  const queued=midiContinuousQueue.get(key)||{timer:null,mapping,value};
+  queued.mapping=mapping;queued.value=value;
+  if(!queued.timer)queued.timer=setTimeout(()=>{
+    midiContinuousQueue.delete(key);
+    applyMidiContinuous(queued.mapping,queued.value).catch(err=>setStatus(err.message,true));
+  },30);
+  midiContinuousQueue.set(key,queued);
+}
+function runMidiPlaybackAction(mapping){
+  const type=mapping.targetType;
+  const slot=parseInt(mapping.targetId,10);
+  const action=normalizeMidiPlaybackAction(mapping.action);
+  if(action==='start')return startPicoSlot(type,slot);
+  if(action==='stop')return stopPicoSlot(type,slot);
+  if(action==='toggle-pause')return togglePlaybackPauseResume(type,slot);
+  if(action==='pause')return type==='chaser'?pauseChaserSlot(slot):pauseMotionSlot(slot);
+  if(action==='resume')return type==='chaser'?resumeChaserSlot(slot):resumeMotionSlot(slot);
+  const item=playbackSlotsForType(type)[slot];
+  return (item?.active||item?.paused)?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+}
+function triggerMidiTarget(mapping,pressed,released){
+  if(mapping.targetType==='group'&&pressed){
+    const id=String(mapping.targetId);selectedGroupIds.has(id)?selectedGroupIds.delete(id):selectedGroupIds.add(id);syncFixtureSelectionFromGroups();renderGroups();renderFixtures();renderPlanes();return;
+  }
+  if(mapping.targetType==='scene'&&pressed){recallSceneKey(mapping.targetId);return;}
+  if(mapping.targetType==='palette'&&pressed){recallPaletteKey(mapping.targetId);return;}
+  if(isMidiPlaybackTarget(mapping.targetType)&&pressed){
+    runMidiPlaybackAction(mapping).catch(err=>setStatus(err.message,true));return;
+  }
+  if(mapping.targetType==='live'){
+    const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
+    if(!item)return;
+    const mode=item.buttonMode||'apply';
+    if(mode==='hold'){
+      if(pressed)pressHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+      if(released)releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+    }else if(mode==='timer'&&pressed)toggleLiveTimer(item);
+    else if(pressed)applyLiveControl(item,item.buttonValue).catch(err=>setStatus(err.message,true));
+  }
+}
+function handleComputerMidiMessage(message){
+  const event=computerMidiEvent(message.data);
+  if(!event)return;
+  const source={
+    id:String(message.deviceId||message.target?.id||midiInput?.id||''),
+    name:String(message.deviceName||message.target?.name||midiInput?.name||'MIDI input')
+  };
+  const label=(event.messageType==='cc'?'CC ':'Note ')+event.number+' · Ch '+event.channel+' · '+event.value;
+  document.querySelectorAll('[data-midi-computer-status]').forEach(el=>{el.dataset.midiEventActive='1';el.textContent='Last event: '+label+' · '+source.name;});
+  if(midiLearningTarget&&(event.messageType==='cc'||event.value>0)){
+    const target=midiTargetFromKey(midiLearningTarget);
+    const info=target&&midiTargetInfo(target.type,target.targetId);
+    if(info){
+      setMidiMapping({targetType:info.type,targetId:info.targetId,messageType:event.messageType,channel:event.channel,number:event.number,deviceId:source.id,deviceName:source.name,mode:info.mode,pickup:info.mode==='continuous',action:isMidiPlaybackTarget(info.type)?midiPlaybackActionFor(info.type,info.targetId):undefined});
+      midiPlaybackActionDrafts.delete(midiTargetKey(info.type,info.targetId));
+      const learned=midiMappingFor(info.type,info.targetId);
+      if(learned?.mode==='continuous')midiPickupAllows(learned,event.value);
+      midiLearningTarget=null;
+      const tileHost=document.getElementById('showTileMidiMapping');
+      if(tileHost&&tileHost.offsetParent)renderShowTileMidiMapping();
+      if(midiEditorTarget)renderMidiMappingPanel(document.getElementById('midiMappingModalBody'),midiEditorTarget);
+      updateMidiMappingIndicators();
+      setStatus('Mapped '+label+' to '+info.label);
+    }
+    return;
+  }
+  midiMappings.filter(mapping=>midiMappingMatches(mapping,event,source)).forEach(mapping=>{
+    if(mapping.mode==='continuous'){
+      if(midiPickupAllows(mapping,event.value))queueMidiContinuous(mapping,event.value);
+      return;
+    }
+    const stateKey=midiTargetKey(mapping.targetType,mapping.targetId);
+    const wasPressed=!!midiButtonState.get(stateKey);
+    const pressed=event.messageType==='note'?event.value>0:event.value>=64;
+    midiButtonState.set(stateKey,pressed);
+    triggerMidiTarget(mapping,pressed&&!wasPressed,!pressed&&wasPressed);
+  });
+}
 function midiTypeLabel(type){
   const t=Number(type)||0;
   return ({
@@ -1884,6 +2392,11 @@ function bindMidiCards(){
   document.querySelectorAll('.midi-refresh-btn').forEach(btn=>{
     btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'Checking...',success:'Checked',error:'Failed'},()=>loadMidiStatus()).catch(err=>setStatus('MIDI status failed: '+err.message,true));
   });
+  document.querySelectorAll('[data-midi-connect]').forEach(btn=>{
+    btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'Connecting...',success:'Connected',error:'Failed'},()=>connectComputerMidi()).catch(err=>setStatus('MIDI connection failed: '+err.message,true));
+  });
+  document.querySelectorAll('[data-midi-disconnect]').forEach(btn=>{btn.onclick=disconnectComputerMidi;});
+  renderComputerMidiControls();
 }
 async function saveGroupsServer(){await postJson('group_setup.php',{baseUrl:currentShowBaseUrl(),groups});}
 async function saveScenesServer(){await postJson('scene_setup.php',{baseUrl:currentShowBaseUrl(),scenes,slotCols:sceneCols,slotRows:sceneRows});}
@@ -1923,6 +2436,7 @@ const showTileVisualEditor=DmxCommon.initSlotVisualEditor({
 function tileKindLabel(kind){return kind==='group'?'group':kind==='scene'?'scene':'palette';}
 function openShowTileEditor(kind,key){
   if(!showTileVisualEditor||!['group','scene','palette'].includes(kind))return;
+  showTileMidiKind=kind;
   const defaults={group:'#075b66',scene:'#225a50',palette:'#225a50'};
   showTileVisualEditor.open({
     targetLabel:tileKindLabel(kind)+' tiles',
@@ -1939,7 +2453,10 @@ function openShowTileEditor(kind,key){
         .catch(err=>setStatus(err.message,true));
     }
   });
+  renderShowTileMidiMapping();
 }
+document.getElementById('showTileVisualTarget').addEventListener('change',()=>setTimeout(renderShowTileMidiMapping,0));
+['showTileVisualClose','showTileVisualClose2','showTileVisualSave'].forEach(id=>document.getElementById(id)?.addEventListener('click',cancelShowTileMidiLearning));
 function removeShowTilePlacement(kind,key,layoutId=kind){
   if(!['group','scene','palette'].includes(kind))return;
   const entry=itemForTileKey(kind,key);
@@ -2158,12 +2675,12 @@ function updateLiveWidgetReadout(input){
   if(small&&small.textContent.includes(' · '))small.textContent=small.textContent.replace(/ · \d+$/, ' · '+value);
 }
 function liveWidgetHtml(item,index,target){
-  if(!target)return `<div class="live-widget"><button class="live-widget-delete" data-live-delete="${index}">×</button><h3>${esc(item.label||'Missing control')}</h3><div class="small">Fixture or control no longer exists.</div></div>`;
+  if(!target)return `<div class="live-widget">${midiEditButtonHtml('live',item.id,item.label||'Live Control')}<button class="live-widget-delete" data-live-delete="${index}">×</button><h3>${esc(item.label||'Missing control')}</h3><div class="small">Fixture or control no longer exists.</div></div>`;
   const value=getControlPartValue(target.fixture,target.control,target.part.part);
   const label=liveControlLabel(item,target);
   const meta=target.control.type+' · '+target.part.label;
   const common=`min="0" max="${target.part.max}" step="1" value="${value}" data-live-index="${index}"`;
-  const del=`<button class="live-widget-delete" data-live-delete="${index}" title="Remove live control">×</button>`;
+  const del=midiEditButtonHtml('live',item.id,label)+`<button class="live-widget-delete" data-live-delete="${index}" title="Remove live control">×</button>`;
   if(item.widget==='button'){
     const buttonValue=clamp(item.buttonValue??target.part.max,0,target.part.max);
     const mode=item.buttonMode||'apply';
@@ -2194,10 +2711,11 @@ function renderLiveControls(){
     if(!grid)return;
     const indexed=liveControls.map((item,index)=>({item,index})).filter(row=>(row.item.cardId||'live')===cardId);
     if(!indexed.length){
-      grid.innerHTML='<div class="small">Use Edit Layout to add faders, knobs, or buttons for fixture controls.</div>';
+      grid.innerHTML='<div class="small">Use Edit to add faders, knobs, or buttons for fixture controls.</div>';
       return;
     }
     grid.innerHTML=indexed.map(row=>liveWidgetHtml(row.item,row.index,liveControlTarget(row.item))).join('');
+    bindMidiEditButtons(grid);
     grid.querySelectorAll('[data-live-index]').forEach(input=>{
       input.addEventListener('input',()=>{
         updateLiveWidgetReadout(input);
@@ -2232,6 +2750,7 @@ function renderLiveControls(){
         const index=parseInt(button.dataset.liveDelete,10);
         stopLiveTimer(liveControls[index],true);
         liveButtonHeld.delete(liveControls[index]?.id);
+        if(liveControls[index])clearMidiMapping('live',liveControls[index].id);
         liveControls.splice(index,1);
         saveLiveControls();
         renderLiveControls();
@@ -2352,6 +2871,7 @@ function bindShowTileActions(root){
     const [kind,key]=String(btn.dataset.showDeleteTile).split(':');
     removeShowTilePlacement(kind,key,btn.dataset.showDeleteLayout||kind);
   }));
+  updateMidiMappingIndicators();
 }
 function renderScenes(){normalizeSceneGrid('cols');const grid=document.getElementById('sceneGrid');renderSlots(grid,'sceneSummary',scenes,sceneCols,sceneRows,'scene');bindSceneGridRecall(grid);renderRepeatedCards();}
 function renderPalettes(){normalizePaletteGrid('cols');const grid=document.getElementById('paletteGrid');renderSlots(grid,'paletteSummary',palettes,paletteCols,paletteRows,'palette');bindPaletteGridRecall(grid);renderRepeatedCards();}
@@ -2680,6 +3200,7 @@ function openShowPlaneModal(id){
   renderShowPlaneModal();
   DmxCommon.showModal('showPlaneModal');
   requestAnimationFrame(renderShowPlanePreview);
+  sendShowPlaneLiveTarget();
 }
 function closeShowPlaneModal(){
   DmxCommon.hideModal('showPlaneModal');
@@ -2994,10 +3515,11 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     const pauseLabel=item?.paused?'Resume':'Pause';
     const pauseAction=running?`<button data-${type}-pause-toggle="${sourceSlot}">${pauseLabel}</button>`:'';
     const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button>${pauseAction}</div>`;
-    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
+    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}>${midiEditButtonHtml(type,sourceSlot,label)}<h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
   container.innerHTML=html;
+  bindMidiEditButtons(container);
   container.querySelectorAll(`[data-${type}-toggle]`).forEach(btn=>btn.addEventListener('click',()=>{
     const slot=parseInt(btn.dataset[type+'Toggle'],10);
     const slotData=playbackSlotsForType(type)[slot];
@@ -3253,6 +3775,7 @@ function renderMasterCard(){
   document.querySelectorAll('[data-target-master-list]').forEach(list=>{
     list.innerHTML=targetMasters.map((master,index)=>`
       <div class="master-fader" data-target-master="${index}">
+        ${midiEditButtonHtml('master',master.id,master.name)}
         <button type="button" class="master-delete" data-target-master-delete="${index}" title="Delete ${esc(master.name)}" aria-label="Delete ${esc(master.name)}">×</button>
         <h3>${esc(master.name)}</h3>
         <button type="button" data-master-full="target:${index}">Full</button>
@@ -3281,6 +3804,8 @@ function setMasterFaderDisplay(scope,value){
 }
 function bindMasterCard(){
   renderMasterCard();
+  bindMidiEditButtons(document.getElementById('cardGrid'));
+  updateMidiMappingIndicators();
   document.querySelectorAll('[data-grand-master]').forEach(grand=>{
     grand.oninput=()=>{document.querySelectorAll('[data-grand-master-value]').forEach(el=>{el.textContent=grand.value+'%';});applyDimmerMaster(grand.value,'all').catch(err=>setStatus(err.message,true));};
   });
@@ -3338,6 +3863,7 @@ function bindMasterCard(){
       normalizeTargetMasters();
       const removed=targetMasters[index];
       if(!removed)return;
+      clearMidiMapping('master',removed.id);
       targetMasters.splice(index,1);
       saveTargetMasters();
       bindMasterCard();
@@ -3530,6 +4056,7 @@ async function loadShow(options={}){
     DmxCommon.loadUiState(SHOW_UI_STATE_PAGE)
   ]);
   showUiState=serverShowUiState&&typeof serverShowUiState==='object'?serverShowUiState:{};
+  showGroupRelativeStepStore.load(showUiState[SHOW_GROUP_RELATIVE_STEPS_KEY]);
   const setup=fixtureData.setup||{};
   profiles=Array.isArray(setup.profiles)?setup.profiles:[];
   fixtures=Array.isArray(setup.fixtures)?setup.fixtures:[];
@@ -3549,6 +4076,7 @@ async function loadShow(options={}){
   loadCardLayouts();
   loadLiveControls();
   loadTargetMasters();
+  loadMidiMappings();
   const savedUrl=localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
   if(savedUrl)baseUrlEl.value=savedUrl;
   const liveChaserSlots=await loadLivePicoChaserSlots(savedUrl||baseUrlEl.value);
@@ -3609,7 +4137,11 @@ document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();
 document.getElementById('showGroupEditBtn').onclick=openShowGroupEditModal;
 document.getElementById('showGroupModalClose').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
+document.getElementById('showGroupDefaultBtn').onclick=()=>recallShowGroupFixtureValues('defaultValue').catch(err=>setStatus(err.message,true));
+document.getElementById('showGroupBlackoutBtn').onclick=()=>recallShowGroupFixtureValues('blackoutValue').catch(err=>setStatus(err.message,true));
 document.getElementById('showGroupModalBody').addEventListener('input',e=>{
+  const relativeStep=e.target.closest?.('[data-show-group-step]');
+  if(relativeStep){showGroupRelativeStepStore.rememberInput(relativeStep);return;}
   const colorInput=e.target.closest?.('[data-show-group-color-picker]');
   if(colorInput){
     const key=colorInput.dataset.showGroupColorPicker;
@@ -3630,6 +4162,20 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
     });
     scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const byteInput=e.target.closest?.('[data-show-group-byte]');
+  if(byteInput){
+    const key=byteInput.dataset.showGroupByte;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    const target=showGroupSourceTarget(row);
+    if(!row||!target||row.control.type!=='slider16')return;
+    const b=bytes16(getControlPartValue(target.fixture,target.control,'value'));
+    b[byteInput.dataset.bytePart]=clamp(byteInput.value,0,255);
+    const value=(b.coarse<<8)|b.fine;
+    row.targets.forEach(item=>setControlPartValue(item.fixture,item.control,'value',value));
+    refreshShowGroupControlRow(key,'value');
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
     return;
   }
   const input=e.target.closest?.('[data-show-group-slider],[data-show-group-number]');
@@ -3697,6 +4243,7 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
   const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
   if(!row||!partInfo)return;
   const stepInput=btn.closest('.relative-control')?.querySelector('input[type=number]');
+  if(stepInput)showGroupRelativeStepStore.rememberInput(stepInput);
   const step=Math.max(1,Math.min(partInfo.max,parseInt(stepInput?.value,10)||1));
   const dir=parseInt(btn.dataset.dir,10)||1;
   row.targets.forEach(target=>{
@@ -3750,7 +4297,8 @@ document.getElementById('addCardType').onchange=updateAddCardOptions;
 document.getElementById('addShowCard').onclick=addShowCard;
 document.getElementById('addCardClose').onclick=closeAddCardModal;
 document.getElementById('addCardClose2').onclick=closeAddCardModal;
-document.getElementById('addCardModal').addEventListener('click',e=>{if(e.target.id==='addCardModal')closeAddCardModal();});
+document.getElementById('midiMappingClose').onclick=closeMidiMappingEditor;
+document.getElementById('midiMappingClose2').onclick=closeMidiMappingEditor;
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 bindCardInputs();
@@ -3762,6 +4310,7 @@ bindMatrixInputs('plane',normalizePlaneGrid,renderPlanes,32,32);
 bindMatrixInputs('chaser',normalizeChaserGrid,drawChaserPlayback,32,32);
 bindMatrixInputs('motion',normalizeMotionGrid,drawMotionPlayback,32,32);
 bindPlaybackTileMoveCapture();
+initMidiEmulatorChannel();
 startMidiPolling();
 refreshShowData({reason:'initial'}).catch(err=>setStatus(err.message,true));
 </script>

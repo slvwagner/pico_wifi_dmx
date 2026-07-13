@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
-<script src="assets/dmx-common.js?v=0.9.8"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.9">
+<script src="assets/dmx-common.js?v=0.9.9"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -140,9 +140,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.9">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=0.9.8#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=0.9.9#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -392,11 +392,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="groupsBoxBody" class="scene-toolbox__body">
 <div class="groups-toolbar">
 <button id="editSelectedGroups" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>
-<div class="groups-layout-controls">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="groupCols" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="groupRows" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
-<button id="moveGroupsBtn" class="tile-move-btn" title="Move group tiles by dragging them to another position">Move</button>
-</div>
+<div id="controllerGroupLayoutControls" class="groups-layout-controls"></div>
 </div>
 <div id="savedGroupsList" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
 </div>
@@ -411,11 +407,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="buttons">
 <button id="clearAllChannelsBtn" class="icon-btn danger" title="Clear all DMX channels"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5"/></svg></button>
 </div>
-<div class="tile-layout-controls">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="slotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="slotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<button id="moveScenesBtn" class="tile-move-btn" title="Move scene tiles by dragging them to another slot">Move</button>
-</div>
+<div id="controllerSceneLayoutControls" class="tile-layout-controls"></div>
 <div id="slotMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -441,11 +433,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <option value="all">All controls</option>
 </select></label>
 <div class="small">Empty slot saves the selected scope. Filled slot recalls as an overlay.</div>
-<div class="tile-layout-controls">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="paletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="paletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<button id="movePaletteBtn" class="tile-move-btn" title="Move palette tiles by dragging them to another slot">Move</button>
-</div>
+<div id="controllerPaletteLayoutControls" class="tile-layout-controls"></div>
 <div id="paletteMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -504,12 +492,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="controllerPlanesBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
 <div id="controllerPlanesBoxBody" class="scene-toolbox__body">
-<div class="small">Recall a saved room plane and apply its calibrated target to the selected fixtures or selected group.</div>
-<div class="tile-layout-controls">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="controllerPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="controllerPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-<button id="moveControllerPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
-</div>
+<div class="small">Recall a saved room plane, restore its patched fixtures as the active selection, and apply the calibrated target.</div>
+<div id="controllerPlaneLayoutControls" class="tile-layout-controls"></div>
 <div id="controllerPlaneMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -578,6 +562,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
+[
+  ['controllerGroupLayoutControls',{colsId:'groupCols',rowsId:'groupRows',moveId:'moveGroupsBtn',cols:2,rows:4,maxCols:8,maxRows:12,moveTitle:'Move group tiles by dragging them to another position'}],
+  ['controllerSceneLayoutControls',{colsId:'slotCols',rowsId:'slotRows',moveId:'moveScenesBtn',cols:4,rows:4,moveTitle:'Move scene tiles by dragging them to another slot'}],
+  ['controllerPaletteLayoutControls',{colsId:'paletteCols',rowsId:'paletteRows',moveId:'movePaletteBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
+  ['controllerPlaneLayoutControls',{colsId:'controllerPlaneCols',rowsId:'controllerPlaneRows',moveId:'moveControllerPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
+].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group to fan fixtures.'});
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
 fixtureToolboxRail.dataset.minMainWidth='360';
@@ -835,18 +825,7 @@ const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
 const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
 
 function updateWheelRangeHost(host,option,value,attrs){
-  const range=wheelOptionRange(option);
-  if(wheelOptionIsAdjustable(option)&&range){
-    const input=host.querySelector('input[type="range"]');
-    const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
-    if(sameRange){
-      const v=clamp(value,range[0],range[1]);
-      if(document.activeElement!==input&&Number(input.value)!==v)input.value=v;
-      host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>el.textContent=v);
-      return;
-    }
-  }
-  host.innerHTML=wheelRangeSliderHtml(option,value,attrs,escHtml);
+  DmxCommon.updateFixtureGroupEditWheelRangeHost(host,option,value,attrs,escHtml);
 }
 
 function duplicateWheelOptionValueError(options){
@@ -3104,9 +3083,7 @@ let sourceFixtureId=null;
 let collapsedFixtureIds=new Set(JSON.parse(localStorage.getItem('fixtureCardCollapsed')||'[]'));
 let groupValues={};
 const GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
-let groupRelativeSteps={};
-try{groupRelativeSteps=JSON.parse(localStorage.getItem(GROUP_RELATIVE_STEPS_KEY)||'{}')||{};}catch(_){groupRelativeSteps={};}
-let groupRelativeStepsTimer=null;
+const groupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'fixture',stateKey:GROUP_RELATIVE_STEPS_KEY,localStorageKey:GROUP_RELATIVE_STEPS_KEY});
 function groupCompatibilitySignature(c){
   if(c.type==='wheel'){
     return '|options:'+(c.options||[]).map(o=>encodeURIComponent(o.name||'')+'='+clamp(o.value,0,255)).join(';');
@@ -3114,30 +3091,6 @@ function groupCompatibilitySignature(c){
   return '';
 }
 function groupKey(c){return c.type+':'+c.label+groupCompatibilitySignature(c);}
-function groupRelativeStepKey(controlKey,part,kind){
-  return String(controlKey||'')+'|'+String(part||'value')+'|'+String(kind||'default');
-}
-function groupRelativeStepValue(controlKey,part,kind,defaultStep,max){
-  const key=groupRelativeStepKey(controlKey,part,kind);
-  return clamp(groupRelativeSteps[key]??defaultStep,1,max);
-}
-function saveGroupRelativeStepsSoon(){
-  localStorage.setItem(GROUP_RELATIVE_STEPS_KEY,JSON.stringify(groupRelativeSteps));
-  clearTimeout(groupRelativeStepsTimer);
-  groupRelativeStepsTimer=setTimeout(()=>saveUiStateServer(GROUP_RELATIVE_STEPS_KEY,groupRelativeSteps),350);
-}
-function rememberGroupRelativeStep(input){
-  if(!input||!input.dataset.relativeGc)return;
-  const max=clamp(input.max||65535,1,65535);
-  const key=groupRelativeStepKey(input.dataset.relativeGc,input.dataset.relativePart||'value',input.dataset.relativeKind||'default');
-  groupRelativeSteps[key]=clamp(input.value,1,max);
-  input.value=groupRelativeSteps[key];
-  saveGroupRelativeStepsSoon();
-}
-function groupRelativeControlHtml(controlKey,part,kind,max,defaultStep,label){
-  const attrs=`data-relative-gc="${controlKey}" data-relative-part="${part}" data-relative-kind="${kind}"`;
-  return relativeControlHtml(attrs,max,defaultStep,label,groupRelativeStepValue(controlKey,part,kind,defaultStep,max));
-}
 const fanOut=DmxCommon.createFanOutController({
   state:fanState,
   controlsFor:f=>fixtureProfile(f)?.controls||[],
@@ -3339,57 +3292,29 @@ function clearGroupSelection(){
 }
 function renderGroupControl(c){
   const key=groupKey(c);
-  const gca=`data-gc="${key}"`;
-  const scope=`<span class="bytes">${escHtml(groupControlScopeText(c))}</span>`;
-  if(c.type==='panTilt16'){
-    const v=getGroupValue(c);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 16-bit</span>${scope}</div>
-      <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/65535*100}%;top:${100-v.tilt/65535*100}%"></div></div>
-      <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
-      ${groupRelativeControlHtml(key,'pan','coarse',65535,256,'Pan coarse relative')}
-      ${groupRelativeControlHtml(key,'pan','fine',65535,1,'Pan fine relative')}
-      ${groupRelativeControlHtml(key,'tilt','coarse',65535,256,'Tilt coarse relative')}
-      ${groupRelativeControlHtml(key,'tilt','fine',65535,1,'Tilt fine relative')}</div>`;
-  }
-  if(c.type==='panTilt8'){
-    const v=getGroupValue(c);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">Pan/Tilt 8-bit</span>${scope}</div>
-      <div class="xy-pad" data-gxy="${key}"><div class="xy-dot" style="left:${v.pan/255*100}%;top:${100-v.tilt/255*100}%"></div></div>
-      <div class="row"><span class="readout" data-gc-readout="${key}">Pan ${v.pan} · Tilt ${v.tilt}</span><button ${gca} data-gc-center="1">Center</button></div>
-      ${groupRelativeControlHtml(key,'pan','default',255,1,'Pan relative')}
-      ${groupRelativeControlHtml(key,'tilt','default',255,1,'Tilt relative')}</div>`;
-  }
-  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
-    const v=getGroupValue(c);
-    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()}</span>${scope}</div>
-      <label>Color picker<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
-      ${parts.map((part,i)=>`<label>${names[i]} <span data-gc-part="${key}" data-part="${part}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" ${gca} data-part="${part}"></label>${groupRelativeControlHtml(key,part,'default',255,1,names[i]+' relative')}`).join('')}
-      <div class="swatches"><button class="swatch" style="background:#fff" data-gc-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-gc-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-gc-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-gc-color="#0000ff" ${gca}></button></div></div>`;
-  }
-  if(c.type==='wheel'){
-    const v=getGroupValue(c);
-    const active=selectedWheelOption(c,v);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-gc-readout="${key}">Wheel · ${v}${active?' · '+escHtml(active.name):''}</span>${scope}</div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab ${wheelOptionMatches(o,v)?'active':''}" title="${escHtml(wheelOptionTitle(o))}" data-gc-wheel="${wheelOptionValue(o)}" data-gc-wheel-option-index="${i}" ${gca}>${wheelOptionIconHtml(o)}${escHtml(o.name)}</button>`).join('')}</div>
-      <div data-gc-wheel-range-host="${key}">${wheelRangeSliderHtml(active,v,gca,escHtml)}</div>
-      <div class="value-row"><input type="range" min="0" max="255" value="${v}" ${gca}><input type="number" min="0" max="255" step="1" value="${v}" ${gca}></div>
-      ${groupRelativeControlHtml(key,'value','default',255,1,'Relative')}</div>`;
-  }
-  const max=c.type==='slider16'?65535:255;
-  const v=getGroupValue(c);const b=bytes16(v);
-  const extra=c.type==='slider16'?`<div class="byte-sliders">
-      <label>Coarse <span data-gc-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
-      <label>Fine <span data-gc-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
-    </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-gc-readout="${key}">${v}</span><span class="bytes">${c.type}</span>${scope}</div>
-    <input type="range" min="0" max="${max}" step="1" value="${v}" ${gca}>
-    ${c.type==='slider16'
-      ? groupRelativeControlHtml(key,'value','coarse',max,256,'Coarse relative')+
-        groupRelativeControlHtml(key,'value','fine',max,1,'Fine relative')
-      : groupRelativeControlHtml(key,'value','default',max,1,'Relative')}${extra}</div>`;
+  const safeKey=escHtml(key);
+  const base=`data-gc="${safeKey}"`;
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
+  return DmxCommon.fixtureGroupEditControlHtml({
+    control:c,key,value:getGroupValue(c),scopeText:groupControlScopeText(c),escape:escHtml,
+    relativeStepValue:(part,kind,step,max)=>groupRelativeStepStore.value(key,part,kind,step,max),
+    attributes:(role,detail={})=>{
+      if(role==='xy')return `data-gxy="${safeKey}"`;
+      if(role==='readout')return `data-gc-readout="${safeKey}"`;
+      if(role==='partReadout')return `data-gc-part="${safeKey}" data-part="${detail.part}"`;
+      if(role==='byteReadout')return `data-gc-byte="${safeKey}" data-byte-part="${detail.part}"`;
+      if(role==='center')return `${base} data-gc-center="1"`;
+      if(role==='colorPicker')return `${base} data-color-picker="1"`;
+      if(role==='color')return `${base} data-gc-color="${detail.color}"`;
+      if(role==='wheel')return `${base} data-gc-wheel="${detail.value}" data-gc-wheel-option-index="${detail.index}"`;
+      if(role==='wheelHost')return `data-gc-wheel-range-host="${safeKey}"`;
+      if(role==='input')return base+(isColor&&detail.part?` data-part="${detail.part}"`:'');
+      if(role==='byteInput')return `${base} data-byte-part="${detail.part}"`;
+      if(role==='relative')return `data-relative-dir="${detail.dir}" data-relative-gc="${safeKey}" data-relative-part="${detail.part}" data-relative-kind="${detail.kind}"`;
+      if(role==='relativeStep')return `data-relative-step="1" data-relative-gc="${safeKey}" data-relative-part="${detail.part}" data-relative-kind="${detail.kind}"`;
+      return'';
+    }
+  });
 }
 function updateGroupControlDisplay(c){
   const key=groupKey(c);const v=getGroupValue(c);
@@ -3494,7 +3419,7 @@ document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
   if(e.target.dataset.relativeStep&&e.target.dataset.relativeGc){
-    rememberGroupRelativeStep(e.target);
+    groupRelativeStepStore.rememberInput(e.target);
     return;
   }
   const target=e.target.closest('[data-gc]')||e.target;
@@ -3527,7 +3452,7 @@ groupModalBody.addEventListener('click',e=>{
   const relativeTarget=e.target.closest('[data-relative-dir]');
   if(relativeTarget&&relativeTarget.dataset.relativeGc){
     const stepInput=relativeTarget.closest('.relative-control')?.querySelector('[data-relative-step]');
-    if(stepInput)rememberGroupRelativeStep(stepInput);
+    if(stepInput)groupRelativeStepStore.rememberInput(stepInput);
     const key=relativeTarget.dataset.relativeGc;
     const common=getGroupEditableControls();
     const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
@@ -5043,11 +4968,14 @@ function normalizeControllerPlane(plane,index){
 function cloneControllerPlane(plane){
   return JSON.parse(JSON.stringify(plane));
 }
-function controllerPlaneSelectedIds(){
-  return new Set([...selectedFixtureIds].map(id=>String(id)));
+function controllerPlaneSelectedIds(plane=activeControllerPlane){
+  const selected=new Set([...selectedFixtureIds].map(id=>String(id)));
+  if(selected.size||!plane)return selected;
+  const planeFixtureIds=new Set((plane.fixtures||[]).map(fixture=>String(fixture.id)));
+  return new Set(fixtures.filter(fixture=>planeFixtureIds.has(String(fixture.id))).map(fixture=>String(fixture.id)));
 }
 function planeFixtureSummary(plane){
-  const selected=controllerPlaneSelectedIds();
+  const selected=controllerPlaneSelectedIds(plane);
   const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
   return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+(selected.size?' · '+matching+' selected match'+(matching===1?'':'es'):'');
 }
@@ -5433,11 +5361,26 @@ function renderControllerPlaneModal(){
   }).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
   renderControllerPlanePreview();
 }
+function recallControllerPlaneFixtureSelection(plane){
+  const savedFixtureIds=new Set((plane.fixtures||[]).map(fixture=>String(fixture.id)));
+  selectedFixtureIds=new Set(fixtures.filter(fixture=>savedFixtureIds.has(String(fixture.id))).map(fixture=>fixture.id));
+  sourceFixtureId=selectedFixtureIds.size?String([...selectedFixtureIds][0]):null;
+  activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  drawSurface();
+}
 function openControllerPlaneModal(id){
   const plane=controllerPlanes.find(item=>String(item.id)===String(id));
   if(!plane)return;
   activeControllerPlaneId=String(id);
   activeControllerPlane=cloneControllerPlane(plane);
+  recallControllerPlaneFixtureSelection(activeControllerPlane);
   controllerPlaneView=controllerPlaneSavedView(activeControllerPlane);
   setControllerPlanePanMode(false);
   controllerPlaneLastLiveStatus='';
@@ -5445,6 +5388,7 @@ function openControllerPlaneModal(id){
   renderControllerPlaneModal();
   DmxCommon.showModal('controllerPlaneModal');
   requestAnimationFrame(renderControllerPlanePreview);
+  sendControllerPlaneLiveTarget({manual:false});
 }
 function closeControllerPlaneModal(){
   DmxCommon.hideModal('controllerPlaneModal');
@@ -5492,8 +5436,8 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
   }
   const selected=controllerPlaneSelectedIds();
   if(!selected.size){
-    const message='Select fixtures or a group before using plane live output';
-    if(manual)setStatus(message,true);
+    const message='No patched fixtures saved in this plane are available for live output';
+    setStatus(message,true);
     return {applied:0,errors:[message]};
   }
   const errors=[];
@@ -5778,8 +5722,7 @@ function saveUiStateServer(key,val){
       drawSurface();
     }
     if(st[GROUP_RELATIVE_STEPS_KEY]&&typeof st[GROUP_RELATIVE_STEPS_KEY]==='object'&&!Array.isArray(st[GROUP_RELATIVE_STEPS_KEY])){
-      groupRelativeSteps=st[GROUP_RELATIVE_STEPS_KEY];
-      localStorage.setItem(GROUP_RELATIVE_STEPS_KEY,JSON.stringify(groupRelativeSteps));
+      groupRelativeStepStore.load(st[GROUP_RELATIVE_STEPS_KEY]);
     }
   }catch(_){}
 })();

@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.8';
+  const APP_VERSION='0.9.9';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -487,6 +487,161 @@
     </div>`;
   }
 
+  function fixtureGroupEditParts(control){
+    const type=control&&control.type;
+    if(type==='panTilt16')return[{part:'pan',label:'Pan',max:65535},{part:'tilt',label:'Tilt',max:65535}];
+    if(type==='panTilt8')return[{part:'pan',label:'Pan',max:255},{part:'tilt',label:'Tilt',max:255}];
+    if(type==='slider16')return[{part:'value',label:'Value',max:65535}];
+    if(type==='rgb'||type==='cmy')return[{part:'a',label:type==='cmy'?'Cyan':'Red',max:255},{part:'b',label:type==='cmy'?'Magenta':'Green',max:255},{part:'c',label:type==='cmy'?'Yellow':'Blue',max:255}];
+    if(type==='rgbw')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255}];
+    if(type==='rgbwa')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255},{part:'amber',label:'Amber',max:255}];
+    if(type==='cmyk')return[{part:'a',label:'Cyan',max:255},{part:'b',label:'Magenta',max:255},{part:'c',label:'Yellow',max:255},{part:'k',label:'Key',max:255}];
+    return[{part:'value',label:'Value',max:255}];
+  }
+
+  function fixtureGroupEditBytes16(value){
+    const n=clampInt(value,0,65535);
+    return{coarse:(n>>8)&255,fine:n&255};
+  }
+
+  function createGroupEditRelativeStepStore(options={}){
+    const page=String(options.page||'').trim();
+    const stateKey=String(options.stateKey||'groupEditRelativeSteps');
+    const localStorageKey=String(options.localStorageKey||((page?page+'.':'')+stateKey));
+    const debounceMs=clampInt(options.debounceMs??350,0,5000);
+    let values={};
+    let saveTimer=null;
+    const stepKey=(controlKey,part,kind)=>String(controlKey||'')+'|'+String(part||'value')+'|'+String(kind||'default');
+    const writeLocal=()=>{
+      try{localStorage.setItem(localStorageKey,JSON.stringify(values));}catch(_){}
+    };
+    const load=source=>{
+      let next=source;
+      if(next===undefined){
+        try{next=localStorage.getItem(localStorageKey);}catch(_){next=null;}
+      }
+      try{
+        const parsed=next&&typeof next==='object'&&!Array.isArray(next)?next:JSON.parse(next||'{}')||{};
+        values=parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?{...parsed}:{};
+      }catch(_){values={};}
+      writeLocal();
+      return api;
+    };
+    const value=(controlKey,part,kind,defaultStep,max)=>clampInt(values[stepKey(controlKey,part,kind)]??defaultStep,1,max);
+    const saveSoon=()=>{
+      writeLocal();
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(()=>{
+        if(page)saveUiState(page,stateKey,{...values});
+      },debounceMs);
+    };
+    const remember=(controlKey,part,kind,next,max=65535)=>{
+      const key=stepKey(controlKey,part,kind);
+      values[key]=clampInt(next,1,clampInt(max,1,65535));
+      saveSoon();
+      return values[key];
+    };
+    const rememberInput=input=>{
+      if(!input)return null;
+      const controlKey=input.dataset.groupEditStepKey;
+      if(!controlKey)return null;
+      const next=remember(controlKey,input.dataset.groupEditStepPart||'value',input.dataset.groupEditStepKind||'default',input.value,input.max||65535);
+      input.value=next;
+      return next;
+    };
+    const api={load,value,remember,rememberInput,snapshot:()=>({...values}),stepKey,stateKey,localStorageKey};
+    load();
+    return api;
+  }
+
+  function fixtureGroupEditControlHtml(options={}){
+    const control=options.control||{};
+    const type=control.type||'slider8';
+    const value=options.value;
+    const escape=options.escape||escapeHtml;
+    const attributes=typeof options.attributes==='function'?options.attributes:()=>'';
+    const attrs=(role,detail={})=>{
+      const result=String(attributes(role,detail)||'').trim();
+      return result?' '+result:'';
+    };
+    const scope=options.scopeText?'<span class="bytes">'+escape(options.scopeText)+'</span>':'';
+    const label=escape(options.label||control.label||control.scope||control.name||type||'Control');
+    const relative=(part,kind,max,step,text)=>{
+      const configured=typeof options.relativeStepValue==='function'?options.relativeStepValue(part,kind,step,max):step;
+      const current=clampInt(configured,1,max);
+      const sharedStepAttrs=' data-group-edit-step-key="'+escape(options.key||'')+'" data-group-edit-step-part="'+escape(part)+'" data-group-edit-step-kind="'+escape(kind)+'"';
+      return '<div class="relative-control">'+
+      '<button type="button"'+attrs('relative',{part,kind,dir:-1,max,step})+' title="Decrease relative to each fixture current value">−</button>'+
+      '<label>'+escape(text)+'<input type="number" min="1" max="'+max+'" step="'+step+'" value="'+current+'"'+sharedStepAttrs+attrs('relativeStep',{part,kind,max,step})+'></label>'+
+      '<button type="button"'+attrs('relative',{part,kind,dir:1,max,step})+' title="Increase relative to each fixture current value">+</button>'+
+      '</div>';
+    };
+
+    if(type==='panTilt16'||type==='panTilt8'){
+      const max=type==='panTilt8'?255:65535;
+      const center=Math.round(max/2);
+      const pan=clampInt(value&&value.pan!=null?value.pan:center,0,max);
+      const tilt=clampInt(value&&value.tilt!=null?value.tilt:center,0,max);
+      const rows=type==='panTilt16'
+        ? relative('pan','coarse',max,256,'Pan coarse relative')+relative('pan','fine',max,1,'Pan fine relative')+relative('tilt','coarse',max,256,'Tilt coarse relative')+relative('tilt','fine',max,1,'Tilt fine relative')
+        : relative('pan','default',max,1,'Pan relative')+relative('tilt','default',max,1,'Tilt relative');
+      return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="bytes">Pan/Tilt '+(max===255?'8':'16')+'-bit</span>'+scope+'</div>'+
+        '<div class="xy-pad"'+attrs('xy')+'><div class="xy-dot" style="left:'+(pan/max*100)+'%;top:'+(100-tilt/max*100)+'%"></div></div>'+
+        '<div class="row"><span class="readout"'+attrs('readout',{part:'panTilt'})+'>Pan '+pan+' · Tilt '+tilt+'</span><button type="button"'+attrs('center')+'>Center</button></div>'+rows+'</div>';
+    }
+
+    if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type)){
+      const parts=fixtureGroupEditParts(control);
+      const current=value&&typeof value==='object'?value:{};
+      const color=type.startsWith('rgb')?rgbHex(current):(type==='cmy'?cmyHex(current):cmykHex(current));
+      return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="bytes">'+escape(type.toUpperCase())+'</span>'+scope+'</div>'+
+        '<label>Color picker<input type="color" value="'+color+'"'+attrs('colorPicker')+'></label>'+
+        parts.map(part=>'<label>'+escape(part.label)+' <span'+attrs('partReadout',{part:part.part})+'>'+clampInt(current[part.part],0,255)+'</span><input type="range" min="0" max="255" step="1" value="'+clampInt(current[part.part],0,255)+'"'+attrs('input',{part:part.part,kind:'range'})+'></label>'+relative(part.part,'default',255,1,part.label+' relative')).join('')+
+        '<div class="swatches"><button type="button" class="swatch" style="background:#fff"'+attrs('color',{color:'#ffffff'})+'></button><button type="button" class="swatch" style="background:#f00"'+attrs('color',{color:'#ff0000'})+'></button><button type="button" class="swatch" style="background:#0f0"'+attrs('color',{color:'#00ff00'})+'></button><button type="button" class="swatch" style="background:#00f"'+attrs('color',{color:'#0000ff'})+'></button></div></div>';
+    }
+
+    if(type==='wheel'){
+      const current=clampInt(value,0,255);
+      const active=selectedWheelOption(control,current);
+      const activeName=active?' · '+escape(active.name||''):'';
+      return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="bytes"'+attrs('readout',{part:'value'})+'>Wheel · '+current+activeName+'</span>'+scope+'</div>'+
+        '<div class="tabs">'+(control.options||[]).map((option,index)=>'<button type="button" class="tab '+(wheelOptionMatches(option,current)?'active':'')+'" title="'+escape(wheelOptionTitle(option))+'"'+attrs('wheel',{option,index,value:wheelOptionValue(option)})+'>'+wheelOptionIconHtml(option,escape)+escape(option.name||('Option '+(index+1)))+'</button>').join('')+'</div>'+
+        '<div'+attrs('wheelHost')+'>'+wheelRangeSliderHtml(active,current,attributes('input',{part:'value',kind:'range',range:true})||'',escape)+'</div>'+
+        '<div class="value-row"><input type="range" min="0" max="255" step="1" value="'+current+'"'+attrs('input',{part:'value',kind:'range'})+'><input type="number" min="0" max="255" step="1" value="'+current+'"'+attrs('input',{part:'value',kind:'number'})+'></div>'+relative('value','default',255,1,'Relative')+'</div>';
+    }
+
+    const max=type==='slider16'?65535:255;
+    const current=clampInt(value,0,max);
+    const bytes=fixtureGroupEditBytes16(current);
+    const rows=type==='slider16'
+      ? relative('value','coarse',max,256,'Coarse relative')+relative('value','fine',max,1,'Fine relative')
+      : relative('value','default',max,1,'Relative');
+    const byteSliders=type==='slider16'?'<div class="byte-sliders"><label>Coarse <span'+attrs('byteReadout',{part:'coarse'})+'>'+bytes.coarse+'</span><input type="range" min="0" max="255" step="1" value="'+bytes.coarse+'"'+attrs('byteInput',{part:'coarse'})+'></label><label>Fine <span'+attrs('byteReadout',{part:'fine'})+'>'+bytes.fine+'</span><input type="range" min="0" max="255" step="1" value="'+bytes.fine+'"'+attrs('byteInput',{part:'fine'})+'></label></div>':'';
+    const scalarAction=options.scalarActionLabel?'<button type="button"'+attrs('scalarAction')+'>'+escape(options.scalarActionLabel)+'</button>':'';
+    return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="readout"'+attrs('readout',{part:'value'})+'>'+current+'</span><span class="bytes">'+escape(type)+'</span>'+scope+'</div>'+
+      (scalarAction?'<div class="row">'+scalarAction+'</div>':'')+'<input type="range" min="0" max="'+max+'" step="1" value="'+current+'"'+attrs('input',{part:'value',kind:'range'})+'>'+rows+byteSliders+'</div>';
+  }
+
+  function updateFixtureGroupEditWheelRangeHost(host,option,value,attrs='',escape=escapeHtml){
+    if(!host)return;
+    const range=wheelOptionRange(option);
+    if(wheelOptionIsAdjustable(option)&&range){
+      host.style.display='';
+      const input=host.querySelector('input[type="range"]');
+      const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
+      if(sameRange){
+        const next=clampInt(value,range[0],range[1]);
+        if(document.activeElement!==input&&Number(input.value)!==next)input.value=next;
+        host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>{el.textContent=next;});
+        return;
+      }
+      host.innerHTML=wheelRangeSliderHtml(option,value,attrs,escape);
+      return;
+    }
+    host.innerHTML='';
+    host.style.display='none';
+  }
+
   function applyBaseUrl(input,fallback=''){
     if(!input)return '';
     input.value=localStorage.getItem(BASE_URL_KEY)||fallback||'';
@@ -809,6 +964,7 @@
   function setToolboxRailCollapsed(rail,collapsed,{save=false}={}){
     if(!rail)return;
     const next=!!collapsed;
+    if(next)setToolboxRailEditing(rail,false);
     rail.classList.toggle('collapsed',next);
     document.body.classList.toggle('toolbox-rail-collapsed',next);
     const toggle=rail.querySelector('.toolbox-rail-toggle');
@@ -833,15 +989,40 @@
     setToolboxRailCollapsed(rail,collapsed);
   }
 
+  function toolboxRailEditing(rail){
+    return !!rail?.classList.contains('toolbox-reorder-editing');
+  }
+
+  function setToolboxRailEditing(rail,editing){
+    if(!rail)return;
+    const active=!!editing;
+    rail.classList.toggle('toolbox-reorder-editing',active);
+    rail.dataset.toolboxReorderEditing=active?'1':'0';
+    const button=rail.querySelector('.toolbox-rail-edit');
+    if(button){
+      button.textContent=active?'Done':'Edit';
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',active?'true':'false');
+      button.title=active?'Finish reordering toolboxes':'Enable toolbox reordering';
+    }
+    rail.querySelectorAll('.scene-toolbox__header[data-toolbox-drag-handle="1"]').forEach(header=>{
+      header.title=active?'Drag to reorder toolbox':'Enable Toolboxes Edit to reorder';
+    });
+  }
+
   function initToolboxRailHeader(rail){
     if(!rail||rail.querySelector('.toolbox-rail-header'))return;
     const header=document.createElement('div');
     header.className='toolbox-rail-header';
-    header.innerHTML='<span class="toolbox-rail-title">Toolboxes</span><button class="toolbox-rail-toggle" type="button" title="Hide toolboxes" aria-expanded="true">›</button>';
+    header.innerHTML='<span class="toolbox-rail-title">Toolboxes</span><div class="toolbox-rail-actions"><button class="toolbox-rail-edit" type="button" title="Enable toolbox reordering" aria-pressed="false">Edit</button><button class="toolbox-rail-toggle" type="button" title="Hide toolboxes" aria-expanded="true">›</button></div>';
     rail.prepend(header);
+    header.querySelector('.toolbox-rail-edit').addEventListener('click',()=>{
+      setToolboxRailEditing(rail,!toolboxRailEditing(rail));
+    });
     header.querySelector('.toolbox-rail-toggle').addEventListener('click',()=>{
       setToolboxRailCollapsed(rail,!rail.classList.contains('collapsed'),{save:true});
     });
+    setToolboxRailEditing(rail,false);
   }
 
   function initToolboxRailResize(rail){
@@ -889,7 +1070,8 @@
     if(!header)return;
     header.draggable=false;
     header.dataset.toolboxDragHandle='1';
-    header.title=header.title||'Drag to reorder toolbox';
+    const rail=box.closest('.toolbox-rail');
+    header.title=toolboxRailEditing(rail)?'Drag to reorder toolbox':'Enable Toolboxes Edit to reorder';
   }
 
   function findVerticalScroller(target,limit){
@@ -950,7 +1132,12 @@
     });
     rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(configureToolboxRailDragHandle);
     applySharedToolboxOrder(rail).catch(()=>{});
-    if(rail.dataset.toolboxRailInit==='1')return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
+    if(rail.dataset.toolboxRailInit==='1')return {
+      applyOrder:()=>applySharedToolboxOrder(rail),
+      saveOrder:()=>saveSharedToolboxOrder(rail),
+      isEditing:()=>toolboxRailEditing(rail),
+      setEditing:editing=>setToolboxRailEditing(rail,editing)
+    };
     rail.dataset.toolboxRailInit='1';
 
     let reorderDrag=null;
@@ -983,6 +1170,7 @@
       else rail.insertBefore(dragging,target.nextSibling);
     };
     rail.addEventListener('pointerdown',e=>{
+      if(!toolboxRailEditing(rail))return;
       const handle=e.target.closest('.scene-toolbox__header[data-toolbox-drag-handle="1"]');
       const box=handle?.closest('.scene-toolbox[data-toolbox-type]');
       if(!box||e.target.closest('button,input,select,textarea,a'))return;
@@ -1001,7 +1189,12 @@
     rail.addEventListener('dragstart',e=>{
       e.preventDefault();
     });
-    return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
+    return {
+      applyOrder:()=>applySharedToolboxOrder(rail),
+      saveOrder:()=>saveSharedToolboxOrder(rail),
+      isEditing:()=>toolboxRailEditing(rail),
+      setEditing:editing=>setToolboxRailEditing(rail,editing)
+    };
   }
 
   function restoreRailElementAnchor(element){
@@ -1355,6 +1548,26 @@
     return sharedGroupVisualEditor;
   }
 
+  function mountTileLayoutControls(host,options={}){
+    const el=typeof host==='string'?document.getElementById(host):host;
+    if(!el)return null;
+    const colsId=String(options.colsId||'').trim();
+    const rowsId=String(options.rowsId||'').trim();
+    if(!colsId||!rowsId)return null;
+    const minCols=clampInt(options.minCols??1,1,999);
+    const minRows=clampInt(options.minRows??1,1,999);
+    const maxCols=Math.max(minCols,clampInt(options.maxCols??32,minCols,999));
+    const maxRows=Math.max(minRows,clampInt(options.maxRows??32,minRows,999));
+    const cols=clampInt(options.cols??4,minCols,maxCols);
+    const rows=clampInt(options.rows??4,minRows,maxRows);
+    const moveId=String(options.moveId||'').trim();
+    el.classList.add('tile-layout-controls');
+    el.innerHTML=`<label class="tile-layout-field">Cols<input id="${escapeHtml(colsId)}" type="number" min="${minCols}" max="${maxCols}" value="${cols}" aria-label="Tile columns"></label>`+
+      `<label class="tile-layout-field">Rows<input id="${escapeHtml(rowsId)}" type="number" min="${minRows}" max="${maxRows}" value="${rows}" aria-label="Tile rows"></label>`+
+      (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}">Move</button>`:'');
+    return{host:el,cols:document.getElementById(colsId),rows:document.getElementById(rowsId),move:moveId?document.getElementById(moveId):null};
+  }
+
   function initGroupsToolbox(options){
     const page=options.page||'groups';
     const idPrefix=options.idPrefix||page+'Groups';
@@ -1390,15 +1603,12 @@
       <div class="scene-toolbox__body">
         <div class="groups-toolbar">
           ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
-          <div class="groups-layout-controls">
-            <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
-            <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="${rowsId}" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
-            <button id="${moveId}" class="tile-move-btn" title="Move group tiles by dragging them to another slot">Move</button>
-          </div>
+          <div id="${idPrefix}LayoutControls" class="groups-layout-controls"></div>
         </div>
         <div id="${listId}" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
       </div>`;
     host.appendChild(box);
+    mountTileLayoutControls(idPrefix+'LayoutControls',{colsId,rowsId,moveId,cols:2,rows:4,maxCols:8,maxRows:12,moveTitle:'Move group tiles by dragging them to another slot'});
     if(host.classList?.contains('toolbox-rail')){
       initToolboxRail(host,[]);
     }
@@ -1793,6 +2003,14 @@
   function showModal(modal){
     const el=typeof modal==='string'?document.getElementById(modal):modal;
     if(el){
+      if(el.dataset.explicitCloseOnly!=='1'){
+        el.dataset.explicitCloseOnly='1';
+        el.addEventListener('click',event=>{
+          if(event.target!==el)return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        },true);
+      }
       enableModalTouchScroll(el);
       el.style.display='flex';
     }
@@ -2033,7 +2251,6 @@
       const el=document.getElementById(id);
       if(el)el.onclick=close;
     });
-    modal.addEventListener('click',e=>{if(e.target===modal)close();});
     return {open,close,normalize:normalizeSlotVisual,html:slotVisualHtml,style:slotVisualStyle};
   }
 
@@ -2763,6 +2980,10 @@
     wheelOptionRangeLabel,
     wheelOptionRangeText,
     wheelRangeSliderHtml,
+    fixtureGroupEditParts,
+    createGroupEditRelativeStepStore,
+    fixtureGroupEditControlHtml,
+    updateFixtureGroupEditWheelRangeHost,
     applyBaseUrl,
     bindBaseUrl,
     discoverPicoBaseUrl,
@@ -2774,6 +2995,7 @@
     initToolboxRail,
     initToolboxCollapseGroup,
     initFloatingToolbox,
+    mountTileLayoutControls,
     initGroupsToolbox,
     normalizeSlotVisual,
     normalizeSlotVisualDefault,

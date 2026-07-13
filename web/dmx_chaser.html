@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
-<script src="assets/dmx-common.js?v=0.9.8"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.9">
+<script src="assets/dmx-common.js?v=0.9.9"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -81,9 +81,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.9">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.8#5-chaser" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.9#5-chaser" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -281,6 +281,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 <div id="chaserGroupModalBody" class="modal-body"></div>
 <div class="modal-actions">
+<button id="defaultChaserGroupBtn" type="button" title="Recall default values into the selected chase step">Default</button>
+<button id="blackoutChaserGroupBtn" type="button" title="Recall blackout values into the selected chase step">Blackout</button>
 <button id="closeChaserGroupModal2" type="button">Close</button>
 </div>
 </div>
@@ -295,11 +297,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 <div id="chaseBoxBody" class="scene-toolbox__body">
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaseSlotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<button id="moveChaseSlotsBtn" class="tile-move-btn" title="Move chase tiles by dragging them to another slot">Move</button>
-</div>
+<div id="chaserChaseLayoutControls" class="tile-layout-controls"></div>
 <div id="chaseSlotMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -336,6 +334,18 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 
+<div id="chaserSceneBox" class="scene-toolbox">
+<div id="chaserSceneHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Scenes</span>
+<button id="chaserSceneBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="chaserSceneBoxBody" class="scene-toolbox__body">
+<div class="small" style="color:var(--muted)">Empty slot saves the selected step as a Scene. Filled slot recalls the complete Scene into the selected step.</div>
+<div id="chaserSceneLayoutControls" class="tile-layout-controls"></div>
+<div id="chaserSceneMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
 <div id="chaserPaletteBox" class="scene-toolbox scene-toolbox--palettes">
 <div id="chaserPaletteHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Palettes</span>
@@ -346,11 +356,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <button id="mergeChaserPaletteBtn" class="palette-merge-btn" title="Merge selected step values into an existing palette">Merge</button>
 </div>
 <div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step. Merge adds selected step values to an existing palette.</div>
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<button id="moveChaserPalettesBtn" class="tile-move-btn" title="Move palette tiles by dragging them to another slot">Move</button>
-</div>
+<div id="chaserPaletteLayoutControls" class="tile-layout-controls"></div>
 <div id="chaserPaletteMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -362,12 +368,48 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 <div id="chaserPlanesBoxBody" class="scene-toolbox__body">
 <div class="small" style="color:var(--muted)">Recall a saved room plane into the selected chase step.</div>
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-<button id="moveChaserPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
-</div>
+<div id="chaserPlaneLayoutControls" class="tile-layout-controls"></div>
 <div id="chaserPlaneMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="chaserPlaneModal" class="modal-overlay controller-plane-modal section-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="chaserPlaneTitle">
+<div class="modal-head">
+<button id="chaserPlaneClose" type="button" aria-label="Close">x</button>
+<h2 id="chaserPlaneTitle">Recall Plane</h2>
+</div>
+<div class="modal-body">
+<div class="controller-plane-layout">
+<div>
+<div class="controller-plane-view">
+<button id="chaserPlaneZoomIn" type="button">Zoom in</button>
+<button id="chaserPlaneZoomOut" type="button">Zoom out</button>
+<button id="chaserPlaneResetView" type="button">Reset view</button>
+<button id="chaserPlanePanView" type="button">Pan view</button>
+</div>
+<div class="controller-plane-pad" id="chaserPlanePad">
+<div class="controller-plane-grid"></div>
+<div class="controller-plane-triangle" id="chaserPlaneTriangle"></div>
+<div class="controller-plane-target" id="chaserPlaneTarget"></div>
+</div>
+</div>
+<div class="controller-plane-nudge">
+<div class="small">Target nudge</div>
+<div class="controller-plane-nudge-grid" id="chaserPlaneNudgeControls">
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="coarse">−</button><label>X coarse<input id="chaserPlaneStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="coarse">+</button></div>
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="fine">−</button><label>X fine<input id="chaserPlaneStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="fine">+</button></div>
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="coarse">−</button><label>Y coarse<input id="chaserPlaneStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="coarse">+</button></div>
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="fine">−</button><label>Y fine<input id="chaserPlaneStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="fine">+</button></div>
+</div>
+</div>
+<div class="controller-plane-info">
+<div class="small" id="chaserPlaneSummary">No plane selected.</div>
+<div class="controller-plane-fixture-list" id="chaserPlaneFixtures"></div>
+</div>
+</div>
+</div>
+<div class="modal-actions"><button id="chaserPlaneClose2" type="button">Close</button></div>
 </div>
 </div>
 
@@ -377,12 +419,19 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 
 <script>
 document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
+[
+  ['chaserChaseLayoutControls',{colsId:'chaseSlotCols',rowsId:'chaseSlotRows',moveId:'moveChaseSlotsBtn',cols:4,rows:4,moveTitle:'Move chase tiles by dragging them to another slot'}],
+  ['chaserSceneLayoutControls',{colsId:'chaserSceneCols',rowsId:'chaserSceneRows',moveId:'moveChaserScenesBtn',cols:4,rows:4,moveTitle:'Move scene tiles by dragging them to another slot'}],
+  ['chaserPaletteLayoutControls',{colsId:'chaserPaletteCols',rowsId:'chaserPaletteRows',moveId:'moveChaserPalettesBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
+  ['chaserPlaneLayoutControls',{colsId:'chaserPlaneCols',rowsId:'chaserPlaneRows',moveId:'moveChaserPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
+].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group or participating fixtures.'});
 const chaserToolboxRail=document.getElementById('chaserToolboxRail');
 const chaserToolboxRailEntries=[
   {box:'chaserGroupsBox',type:'groups'},
   {box:'chaseBox',type:'chases'},
   {box:'stepsBox',type:'steps'},
+  {box:'chaserSceneBox',type:'scenes'},
   {box:'chaserPaletteBox',type:'palettes'},
   {box:'chaserPlanesBox',type:'planes'},
   {box:'fanToolbox',type:'fan'},
@@ -620,18 +669,7 @@ const wheelOptionRange=DmxCommon.wheelOptionRange;
 const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
 const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
 function updateWheelRangeHost(host,option,value,attrs){
-  const range=wheelOptionRange(option);
-  if(wheelOptionIsAdjustable(option)&&range){
-    const input=host.querySelector('input[type="range"]');
-    const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
-    if(sameRange){
-      const v=clamp(value,range[0],range[1]);
-      if(document.activeElement!==input&&Number(input.value)!==v)input.value=v;
-      host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>el.textContent=v);
-      return;
-    }
-  }
-  host.innerHTML=wheelRangeSliderHtml(option,value,attrs,escAttr);
+  DmxCommon.updateFixtureGroupEditWheelRangeHost(host,option,value,attrs,escAttr);
 }
 function findChaserGroupControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>isChaserControlSupported(c)&&chaserGroupKey(c)===key)||null;
@@ -673,6 +711,39 @@ function chaserGroupControlByDataKey(dataKey){
   const key=decodeURIComponent(dataKey||'');
   return getChaserGroupEditableControls().find(c=>chaserGroupKey(c)===key)||null;
 }
+function chaserGroupControlTargets(c){
+  const key=chaserGroupKey(c);
+  return chaserGroupEditFixtures().map(f=>({fixture:f,control:findChaserGroupControl(f,key)})).filter(target=>target.control&&isChaserGroupControlParticipating(target.fixture,target.control));
+}
+function chaserGroupControlScopeText(c){
+  const targets=chaserGroupControlTargets(c);
+  const names=[...new Set(targets.map(target=>fixtureProfile(target.fixture)?.name||'Unknown profile'))];
+  return targets.length+' matching fixture'+(targets.length===1?'':'s')+(names.length?' · '+names.join(', '):'');
+}
+function applyRelativeToChaserGroup(c,part,delta){
+  if(!delta)return 0;
+  stopPlaybackForManualEdit();
+  let changed=0;
+  chaserGroupControlTargets(c).forEach(target=>{
+    const current=getStepVal(target.fixture,target.control)??defaultValue(target.control);
+    if(part==='pan'||part==='tilt'){
+      const max=target.control.type==='panTilt8'?255:65535;
+      const center=target.control.type==='panTilt8'?128:32768;
+      const next={...(current&&typeof current==='object'?current:{pan:center,tilt:center})};
+      next[part]=clamp((Number(next[part])||0)+delta,0,max);
+      setStepVal(target.fixture,target.control,next);
+    }else if(['a','b','c','w','amber','k'].includes(part)){
+      const next={...(current&&typeof current==='object'?current:defaultValue(target.control))};
+      next[part]=clamp((Number(next[part])||0)+delta,0,255);
+      setStepVal(target.fixture,target.control,next);
+    }else{
+      const max=target.control.type==='slider16'?65535:255;
+      setStepVal(target.fixture,target.control,clamp((Number(current)||0)+delta,0,max));
+    }
+    changed++;
+  });
+  return changed;
+}
 function getChaserGroupValue(c){
   const key=chaserGroupKey(c);
   const fx=chaserGroupEditFixtures();
@@ -708,6 +779,14 @@ function getChaserGroupSourceValue(c){
   return defaultValue(c);
 }
 function setChaserGroupValue(c,val){
+  ensureChaserGroupStep();
+  const key=chaserGroupKey(c);
+  chaserGroupEditFixtures().forEach(f=>{
+    const mc=findChaserGroupControl(f,key);
+    if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
+  });
+}
+function ensureChaserGroupStep(){
   stopPlaybackForManualEdit();
   if(selectedStepIdx<0&&steps.length<CHASER_MAX_STEPS){
     const initial={};
@@ -719,11 +798,6 @@ function setChaserGroupValue(c,val){
     sourceFixtureId=firstStepFixtureId(s);
     drawStepList();
   }
-  const key=chaserGroupKey(c);
-  chaserGroupEditFixtures().forEach(f=>{
-    const mc=findChaserGroupControl(f,key);
-    if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
-  });
 }
 function applyChaserGroupSourceValue(c,options={}){
   setChaserGroupValue(c,getChaserGroupSourceValue(c));
@@ -734,49 +808,28 @@ function applyChaserGroupSourceValue(c,options={}){
   }
 }
 function renderChaserGroupControl(c){
-  const key=chaserGroupDataKey(c),gca=`data-cg="${key}"`;
-  const v=getChaserGroupValue(c);
-  if(c.type==='panTilt16'||c.type==='panTilt8'){
-    const max=c.type==='panTilt8'?255:65535;
-    const pan=bytes16(v.pan??Math.round(max/2)),tilt=bytes16(v.tilt??Math.round(max/2));
-    const bytes=c.type==='panTilt16'?`<div class="byte-sliders">
-      <label>Pan coarse <span data-cg-byte="${key}" data-part="panCoarse">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" ${gca} data-byte-axis="pan" data-byte-part="coarse"></label>
-      <label>Pan fine <span data-cg-byte="${key}" data-part="panFine">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" ${gca} data-byte-axis="pan" data-byte-part="fine"></label>
-      <label>Tilt coarse <span data-cg-byte="${key}" data-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
-      <label>Tilt fine <span data-cg-byte="${key}" data-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
-    </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span></div>
-      <div class="xy-pad" data-cgxy="${key}"><div class="xy-dot" style="left:${(v.pan??Math.round(max/2))/max*100}%;top:${100-(v.tilt??Math.round(max/2))/max*100}%"></div></div>
-      <div class="row"><span class="readout" data-cg-readout="${key}">Pan ${Math.round(v.pan??Math.round(max/2))} · Tilt ${Math.round(v.tilt??Math.round(max/2))}</span><button ${gca} data-cg-center="1">Center</button></div>
-      <label>Pan<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.pan??Math.round(max/2))}" ${gca} data-axis="pan"></label>
-      <label>Tilt<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.tilt??Math.round(max/2))}" ${gca} data-axis="tilt"></label>
-      ${bytes}</div>`;
-  }
-  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span></div>
-      <label>Color<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
-      ${parts.map((part,i)=>`<label>${names[i]} <span data-cg-part="${key}" data-part="${part}">${Math.round(v[part]??0)}</span><input type="range" min="0" max="255" value="${Math.round(v[part]??0)}" ${gca} data-part="${part}"></label>`).join('')}
-      <div class="swatches"><button class="swatch" style="background:#fff" data-cg-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-cg-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-cg-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-cg-color="#0000ff" ${gca}></button></div></div>`;
-  }
-  if(c.type==='wheel'){
-    const wv=v??0;
-    const active=selectedWheelOption(c,wv);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}${active?' · '+escAttr(active.name):''}</span></div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab${wheelOptionMatches(o,wv)?' active':''}" title="${escAttr(wheelOptionTitle(o))}" data-cg-wheel="${wheelOptionValue(o)}" data-cg-wheel-option-index="${i}" ${gca}>${DmxCommon.wheelOptionIconHtml(o,escAttr)}${escAttr(o.name)}</button>`).join('')}</div>
-      <div data-cg-wheel-range-host="${key}">${wheelRangeSliderHtml(active,wv,gca,escAttr)}</div>
-      <input type="range" min="0" max="255" value="${wv}" ${gca}></div>`;
-  }
-  const max=c.type==='slider16'?65535:255;
-  const sv=v??0,b=bytes16(sv);
-  const extra=c.type==='slider16'?`<div class="byte-sliders">
-      <label>Coarse <span data-cg-byte="${key}" data-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
-      <label>Fine <span data-cg-byte="${key}" data-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
-    </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span></div>
-    <input type="range" min="0" max="${max}" step="1" value="${Math.round(sv)}" ${gca}>${extra}</div>`;
+  const key=chaserGroupDataKey(c),safeKey=escAttr(key),base=`data-cg="${safeKey}"`;
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
+  return DmxCommon.fixtureGroupEditControlHtml({
+    control:c,key,value:getChaserGroupValue(c),scopeText:chaserGroupControlScopeText(c),escape:escAttr,
+    relativeStepValue:(part,kind,step,max)=>chaserGroupRelativeStepStore.value(key,part,kind,step,max),
+    attributes:(role,detail={})=>{
+      if(role==='xy')return `data-cgxy="${safeKey}"`;
+      if(role==='readout')return `data-cg-readout="${safeKey}"`;
+      if(role==='partReadout')return `data-cg-part="${safeKey}" data-part="${detail.part}"`;
+      if(role==='byteReadout')return `data-cg-byte="${safeKey}" data-part="${detail.part}"`;
+      if(role==='center')return `${base} data-cg-center="1"`;
+      if(role==='colorPicker')return `${base} data-color-picker="1"`;
+      if(role==='color')return `${base} data-cg-color="${detail.color}"`;
+      if(role==='wheel')return `${base} data-cg-wheel="${detail.value}" data-cg-wheel-option-index="${detail.index}"`;
+      if(role==='wheelHost')return `data-cg-wheel-range-host="${safeKey}"`;
+      if(role==='input')return base+(isColor&&detail.part?` data-part="${detail.part}"`:'');
+      if(role==='byteInput')return `${base} data-byte-part="${detail.part}"`;
+      if(role==='relative')return `data-cg-relative="${safeKey}" data-part="${detail.part}" data-dir="${detail.dir}"`;
+      if(role==='relativeStep')return `data-cg-relative-step="1"`;
+      return'';
+    }
+  });
 }
 function updateChaserGroupControlDisplay(c){
   const key=chaserGroupDataKey(c),v=getChaserGroupValue(c);
@@ -835,11 +888,27 @@ function openChaserGroupModal(){
   if(state.fixtures.length<2||!state.controls.length){setStatus('Select at least one matching participating control on two or more fixtures first',true);return;}
   const n=state.fixtures.length;
   const titleStep=selectedStepIdx>=0?'step '+(selectedStepIdx+1):'new step';
-  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - '+titleStep+' - '+n+' fixture'+(n===1?'':'s')+' · '+state.controls.length+' matching control'+(state.controls.length===1?'':'s');
+  document.getElementById('chaserGroupModalTitle').textContent='Group Edit — '+titleStep+' · '+n+' fixture'+(n===1?'':'s')+' selected · '+state.controls.length+' editable control'+(state.controls.length===1?'':'s');
   document.getElementById('chaserGroupModalBody').innerHTML=state.controls.map(c=>renderChaserGroupControl(c)).join('');
   DmxCommon.showModal('chaserGroupModal');
 }
 function closeChaserGroupModal(){DmxCommon.hideModal('chaserGroupModal');drawParticipation();drawStepList();drawStepEditor();refreshFanBasesFromStep();}
+function recallChaserGroupFixtureValues(which){
+  const controls=getChaserGroupEditableControls();
+  let changed=0;
+  ensureChaserGroupStep();
+  controls.forEach(c=>chaserGroupControlTargets(c).forEach(target=>{
+    const value=target.control?.[which];
+    if(value===undefined||value===null)return;
+    setStepVal(target.fixture,target.control,JSON.parse(JSON.stringify(value)));
+    changed++;
+  }));
+  controls.forEach(updateChaserGroupControlDisplay);
+  fanState.bases={};
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!changed){setStatus('No '+label+' values configured for the selected chase controls',true);return;}
+  setStatus('Group '+label+' recalled into '+(selectedStepIdx>=0?'step '+(selectedStepIdx+1):'the new step'));
+}
 
 function groupControlKey(c){return c.label+'|'+c.type;}
 function groupControlFixtureIds(){
@@ -925,6 +994,7 @@ function getParticipatingList(){
 
 const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,inverted:false,bases:{}};
 let fanPresets=[];
+const chaserGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'chaser',localStorageKey:'dmxChaser.groupEditRelativeSteps'});
 let fanSpreadStep=1;
 let fanOutStateTimer=null;
 function fanFixtureOrder(){
@@ -1116,6 +1186,7 @@ async function loadChaserFanPresets(){
     const st=await DmxCommon.loadUiState('chaser');
     fanPresets=Array.isArray(st.fanOutPresets)?st.fanOutPresets:[];
     applyFanOutStatePayload(st.fanOutState);
+    chaserGroupRelativeStepStore.load(st.groupEditRelativeSteps);
   }catch(_){fanPresets=[];}
   renderFanToolbox();
 }
@@ -1752,6 +1823,7 @@ function handleStepClick(e){
 }
 
 function handleChaserGroupInput(e){
+  if(e.target.matches?.('[data-group-edit-step-key]')){chaserGroupRelativeStepStore.rememberInput(e.target);return;}
   const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
   let v=getChaserGroupValue(c);
   if(e.target.dataset.colorPicker){
@@ -1779,6 +1851,24 @@ function handleChaserGroupInput(e){
 }
 
 function handleChaserGroupClick(e){
+  const relative=e.target.closest('[data-cg-relative]');
+  if(relative){
+    const c=chaserGroupControlByDataKey(relative.dataset.cgRelative);if(!c)return;
+    const part=relative.dataset.part||'value';
+    const input=relative.closest('.relative-control')?.querySelector('[data-cg-relative-step]');
+    const max=c.type==='slider16'||c.type==='panTilt16'?65535:255;
+    if(input)chaserGroupRelativeStepStore.rememberInput(input);
+    const step=clamp(input?.value||1,1,max);
+    if(input)input.value=step;
+    const dir=parseInt(relative.dataset.dir,10)<0?-1:1;
+    const changed=applyRelativeToChaserGroup(c,part,dir*step);
+    if(changed){
+      updateChaserGroupControlDisplay(c);
+      fanState.bases={};
+      setStatus('Group '+c.label+' '+(dir>0?'+':'-')+step+' in chase step');
+    }
+    return;
+  }
   const target=e.target.closest('[data-cg]')||e.target;
   const c=chaserGroupControlByDataKey(target.dataset.cg);if(!c)return;
   if(target.dataset.cgCenter){
@@ -1810,6 +1900,8 @@ function setChaserGroupXY(e,pad){
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
 document.getElementById('closeChaserGroupModal2').onclick=closeChaserGroupModal;
+document.getElementById('defaultChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('defaultValue');
+document.getElementById('blackoutChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('blackoutValue');
 const chaserGroupModalBody=document.getElementById('chaserGroupModalBody');
 chaserGroupModalBody.oninput=handleChaserGroupInput;
 chaserGroupModalBody.onclick=handleChaserGroupClick;
@@ -2589,6 +2681,165 @@ function applyParticipatingData(data,redraw=true){
   if(redraw){drawParticipation();drawStepEditor();}
 }
 
+// ---- scenes toolbox (complete Controller looks into the selected step) ----
+let chaserScenes=[];
+let chaserSceneCols=4,chaserSceneRows=4;
+let chaserSceneMoveMode=false;
+let chaserSceneMoveSelectedSlot=null;
+let chaserSceneSaveQueue=Promise.resolve();
+const CHASER_SCENE_GRID_MAX=32;
+let chaserSceneVisualDefault=(()=>{
+  try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('sceneVisualDefault')||'null'),'#225a50');}
+  catch(_){return {type:'visual',color:'#225a50',image:''};}
+})();
+function saveChaserSceneVisualDefault(){localStorage.setItem('sceneVisualDefault',JSON.stringify(chaserSceneVisualDefault));}
+saveChaserSceneVisualDefault();
+function currentChaserSceneVisualForSave(){return DmxCommon.normalizeSlotVisualDefault(chaserSceneVisualDefault,'#225a50');}
+function requiredChaserSceneSlots(){return chaserScenes.reduce((max,scene)=>Math.max(max,(parseInt(scene.slot,10)||0)+1),0);}
+function normalizeChaserSceneGrid(priority='cols'){
+  const needed=requiredChaserSceneSlots();
+  chaserSceneCols=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(chaserSceneCols)||4));
+  chaserSceneRows=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(chaserSceneRows)||4));
+  if(needed&&chaserSceneCols*chaserSceneRows<needed){
+    if(priority==='rows'){
+      chaserSceneCols=Math.max(chaserSceneCols,Math.ceil(needed/chaserSceneRows));
+      if(chaserSceneCols>CHASER_SCENE_GRID_MAX){chaserSceneCols=CHASER_SCENE_GRID_MAX;chaserSceneRows=Math.ceil(needed/chaserSceneCols);}
+    }else{
+      chaserSceneRows=Math.max(chaserSceneRows,Math.ceil(needed/chaserSceneCols));
+      if(chaserSceneRows>CHASER_SCENE_GRID_MAX){chaserSceneRows=CHASER_SCENE_GRID_MAX;chaserSceneCols=Math.ceil(needed/chaserSceneRows);}
+    }
+  }
+  const colsInput=document.getElementById('chaserSceneCols'),rowsInput=document.getElementById('chaserSceneRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/chaserSceneRows));colsInput.value=chaserSceneCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/chaserSceneCols));rowsInput.value=chaserSceneRows;}
+}
+function normalizedChaserSceneValues(sourceValues){
+  const wrapped=remapChaserKeysForCurrentSetup({steps:[{values:JSON.parse(JSON.stringify(sourceValues||{}))}]});
+  const valid=validControlKeySet(),out={};
+  Object.entries(wrapped.steps[0].values||{}).forEach(([key,value])=>{if(valid.has(key))out[key]=value;});
+  return out;
+}
+function applyChaserSceneParticipatingKeys(keys){
+  const valid=validControlKeySet(),next={};
+  valid.forEach(key=>{next[key]=false;});
+  keys.forEach(key=>{if(valid.has(key))next[key]=true;});
+  participating=next;
+  activeStepValueKeys=new Set(keys.filter(key=>valid.has(key)));
+}
+function renderChaserSceneMatrix(){
+  const grid=document.getElementById('chaserSceneMatrix');if(!grid)return;
+  normalizeChaserSceneGrid('cols');
+  const total=chaserSceneCols*chaserSceneRows,moveBtn=document.getElementById('moveChaserScenesBtn');
+  if(moveBtn){moveBtn.classList.toggle('active',chaserSceneMoveMode);moveBtn.setAttribute('aria-pressed',chaserSceneMoveMode?'true':'false');}
+  grid.classList.toggle('tile-move-mode',chaserSceneMoveMode);
+  grid.style.gridTemplateColumns='repeat('+chaserSceneCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const scene=chaserScenes.find(item=>parseInt(item.slot,10)===i);
+    if(scene)html+=`<div class="${DmxCommon.savedTileClass('slot filled',chaserSceneMoveSelectedSlot===i)}" data-chaser-scene-slot="${i}" title="${chaserSceneMoveMode?'Move scene':'Click: recall complete scene into selected step'}" style="${DmxCommon.slotVisualStyle(scene)}">${DmxCommon.slotVisualButtonHtml('data-visual-chaser-scene-slot',i,'Edit scene tile')}<button class="slot-del" data-del-chaser-scene="${i}" title="Delete scene">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(scene)}<span class="palette-slot-name">${DmxCommon.escapeHtml(scene.name||('Scene '+(i+1)))}</span></div></div>`;
+    else html+=`<div class="slot" data-chaser-scene-slot="${i}" title="Click to save the selected step as a Scene">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-chaser-scene-slot]').forEach(el=>el.addEventListener('click',()=>chaserSceneSlotClick(parseInt(el.dataset.chaserSceneSlot,10))));
+  grid.querySelectorAll('[data-del-chaser-scene]').forEach(button=>button.addEventListener('click',event=>{
+    event.stopPropagation();
+    const slot=parseInt(button.dataset.delChaserScene,10),scene=chaserScenes.find(item=>parseInt(item.slot,10)===slot);if(!scene)return;
+    if(!confirm('Delete scene "'+(scene.name||('Scene '+(slot+1)))+'"?'))return;
+    chaserScenes=chaserScenes.filter(item=>parseInt(item.slot,10)!==slot);
+    renderChaserSceneMatrix();saveChaserScenesServer();
+  }));
+  grid.querySelectorAll('[data-visual-chaser-scene-slot]').forEach(button=>button.addEventListener('click',event=>{
+    event.stopPropagation();openChaserSceneVisualModal(parseInt(button.dataset.visualChaserSceneSlot,10));
+  }));
+  DmxCommon.initTileMoveGrid({
+    grid,button:'moveChaserScenesBtn',active:chaserSceneMoveMode,itemSelector:'[data-chaser-scene-slot]',
+    getIndex:el=>parseInt(el.dataset.chaserSceneSlot,10),
+    canDrag:slot=>!!chaserScenes.find(scene=>parseInt(scene.slot,10)===slot),
+    onMove:moveChaserSceneSlot
+  });
+}
+function chaserSceneSlotClick(slot){
+  if(chaserSceneMoveMode){
+    const scene=chaserScenes.find(item=>parseInt(item.slot,10)===slot);
+    if(chaserSceneMoveSelectedSlot===null){if(!scene)return;chaserSceneMoveSelectedSlot=slot;renderChaserSceneMatrix();setStatus('Select a destination slot for '+(scene.name||'Scene'));return;}
+    if(chaserSceneMoveSelectedSlot===slot){chaserSceneMoveSelectedSlot=null;renderChaserSceneMatrix();return;}
+    moveChaserSceneSlot(chaserSceneMoveSelectedSlot,slot);return;
+  }
+  const scene=chaserScenes.find(item=>parseInt(item.slot,10)===slot);
+  if(scene){recallChaserScene(scene);return;}
+  const step=steps[selectedStepIdx];
+  if(!step||!Object.keys(step.values||{}).length){setStatus('Select a step with values before saving a Scene',true);return;}
+  const values=normalizedChaserSceneValues(step.values);
+  if(!Object.keys(values).length){setStatus('The selected step has no compatible values to save',true);return;}
+  const name=(prompt('Scene name:',step.label||('Scene '+(slot+1)))||'').trim();if(!name)return;
+  chaserScenes=chaserScenes.filter(item=>parseInt(item.slot,10)!==slot);
+  chaserScenes.push({id:'scene_'+Date.now(),name,slot,values,visual:currentChaserSceneVisualForSave()});
+  renderChaserSceneMatrix();saveChaserScenesServer();setStatus('Saved step '+(selectedStepIdx+1)+' as scene "'+name+'"');
+}
+function moveChaserSceneSlot(fromSlot,toSlot){
+  const moving=chaserScenes.find(scene=>parseInt(scene.slot,10)===fromSlot);if(!moving||fromSlot===toSlot)return false;
+  const target=chaserScenes.find(scene=>parseInt(scene.slot,10)===toSlot);
+  moving.slot=toSlot;if(target)target.slot=fromSlot;chaserSceneMoveSelectedSlot=null;
+  renderChaserSceneMatrix();saveChaserScenesServer();setStatus(target?'Swapped scenes '+(fromSlot+1)+' and '+(toSlot+1):'Moved scene to slot '+(toSlot+1));return true;
+}
+function recallChaserScene(scene){
+  const values=normalizedChaserSceneValues(scene.values),keys=Object.keys(values);
+  if(!keys.length){setStatus('Scene has no compatible controls in this setup',true);return;}
+  let step=steps[selectedStepIdx];
+  if(!step){
+    if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
+    step=makeStep(scene.name||'Scene',values);steps.push(step);selectedStepIdx=steps.length-1;
+  }else step.values=values;
+  applyChaserSceneParticipatingKeys(keys);
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();else DmxCommon.saveSharedGroupSelection([]);
+  sourceFixtureId=firstFixtureIdFromKeys(keys)||firstStepFixtureId(step);
+  const batchMap={};
+  keys.forEach(key=>{
+    const parts=String(key).split(':'),fixture=setup.fixtures?.find(item=>String(item.id)===parts[0]);
+    const control=fixture&&fixtureProfile(fixture)?.controls.find(item=>String(item.id)===parts[1]);
+    if(fixture&&control)collectChannels(fixture,control,values[key],batchMap);
+  });
+  sendBatch(batchMap);drawParticipation();drawStepList();drawStepEditor();refreshChaserGroupActions();refreshFanBasesFromStep();
+  setStatus('Recalled scene "'+(scene.name||'Scene')+'" into step '+(selectedStepIdx+1)+' with '+keys.length+' participating control'+(keys.length===1?'':'s'));
+}
+function saveChaserScenesServer(){
+  const payload=DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,scenes:JSON.parse(JSON.stringify(chaserScenes)),slotCols:chaserSceneCols,slotRows:chaserSceneRows});
+  chaserSceneSaveQueue=chaserSceneSaveQueue.catch(()=>{}).then(()=>fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}))
+    .then(response=>response.json()).then(data=>{if(!data.ok)throw new Error(data.error||'Scenes save failed');return data;})
+    .catch(error=>{setStatus('Scenes save error: '+error.message,true);throw error;});
+  return chaserSceneSaveQueue;
+}
+function loadChaserScenesServer(){
+  fetch('scene_setup.php',{cache:'no-store'}).then(response=>response.json()).then(data=>{
+    if(data.ok&&data.exists){
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+      chaserScenes=Array.isArray(data.scenes)?data.scenes:[];
+      if(data.slotCols)chaserSceneCols=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(data.slotCols)||4));
+      if(data.slotRows)chaserSceneRows=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(data.slotRows)||4));
+    }else chaserScenes=[];
+    renderChaserSceneMatrix();
+  }).catch(()=>{chaserScenes=[];renderChaserSceneMatrix();});
+}
+function openChaserSceneVisualModal(slot){
+  chaseVisualEditor.open({
+    targetLabel:'Scenes',hint:'Choose a name, background color, and optional visual. Scene recall still uses the stored fixture values.',
+    defaultColor:'#225a50',defaultVisual:chaserSceneVisualDefault,
+    targets:chaserScenes.slice().sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0)).map(scene=>({key:String(parseInt(scene.slot,10)||0),item:scene,label:'Slot '+((parseInt(scene.slot,10)||0)+1)+': '+(scene.name||'Scene')})),
+    selectedKey:slot,
+    onSaveDefault:visual=>{chaserSceneVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');saveChaserSceneVisualDefault();setStatus('Default scene visual updated');},
+    onSaveTarget:(target,visual)=>{target.visual=visual;renderChaserSceneMatrix();saveChaserScenesServer();setStatus('Updated scene tile for "'+(target.name||'Scene')+'"');}
+  });
+}
+document.getElementById('chaserSceneCols').addEventListener('input',event=>{chaserSceneCols=event.target.value;normalizeChaserSceneGrid('cols');renderChaserSceneMatrix();saveChaserScenesServer();});
+document.getElementById('chaserSceneRows').addEventListener('input',event=>{chaserSceneRows=event.target.value;normalizeChaserSceneGrid('rows');renderChaserSceneMatrix();saveChaserScenesServer();});
+document.getElementById('moveChaserScenesBtn').onclick=()=>{chaserSceneMoveMode=!chaserSceneMoveMode;chaserSceneMoveSelectedSlot=null;renderChaserSceneMatrix();setStatus(chaserSceneMoveMode?'Scene move mode enabled':'Scene move mode disabled');};
+const chaserSceneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'chaserSceneBox',headerId:'chaserSceneHdr',toggleId:'chaserSceneBoxToggle',
+  posStorageKey:'chaserSceneBoxPos',collapsedStorageKey:'chaserSceneBoxCollapsed',
+  uiStatePage:'chaser',uiStatePosKey:'chaserSceneBoxPos',uiStateCollapsedKey:'chaserSceneBoxCollapsed'
+});
+loadChaserScenesServer();
+
 // ---- palette toolbox (save/recall selected step values) ----
 let chaserPalettes=[];
 let chaserPaletteCols=4,chaserPaletteRows=4;
@@ -2993,6 +3244,108 @@ function recallChaserPlane(plane){
   refreshFanBasesFromStep();
   setStatus('Recalled plane "'+plane.name+'" into step '+(selectedStepIdx+1)+' for '+keys.length+' pan/tilt control'+(keys.length===1?'':'s'));
 }
+let activeChaserPlane=null;
+let activeChaserPlaneId=null;
+let chaserPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+let chaserPlanePanMode=false;
+let chaserPlaneRenderQueued=false;
+let chaserPlaneTargetDrag=null;
+let chaserPlaneViewDrag=null;
+let chaserPlaneLiveTimer=null;
+let chaserPlaneViewSaveTimer=null;
+function cloneChaserPlane(plane){return JSON.parse(JSON.stringify(plane));}
+function chaserPlaneSavedView(plane){
+  const view=plane?.view&&typeof plane.view==='object'?plane.view:{};
+  return {auto:view.auto!==false,centerX:Number(view.centerX)||0,centerY:Number(view.centerY)||0,zoom:Math.max(.25,Math.min(8,Number(view.zoom)||1))};
+}
+function chaserPlaneBounds(plane){
+  const base=DmxCommon.roomPlaneAutoBounds(plane);
+  if(chaserPlaneView.auto){chaserPlaneView.centerX=(base.minX+base.maxX)/2;chaserPlaneView.centerY=(base.minY+base.maxY)/2;}
+  const zoom=Math.max(.25,Math.min(8,Number(chaserPlaneView.zoom)||1));
+  const spanX=(base.maxX-base.minX)/zoom,spanY=(base.maxY-base.minY)/zoom;
+  const centerX=Number(chaserPlaneView.centerX)||((base.minX+base.maxX)/2),centerY=Number(chaserPlaneView.centerY)||((base.minY+base.maxY)/2);
+  return {minX:centerX-spanX/2,maxX:centerX+spanX/2,minY:centerY-spanY/2,maxY:centerY+spanY/2};
+}
+function chaserPlaneToScreen(point,bounds,rect){
+  const width=Math.max(1,rect?.width||1),height=Math.max(1,rect?.height||1);
+  const spanX=Math.max(.0001,bounds.maxX-bounds.minX),spanY=Math.max(.0001,bounds.maxY-bounds.minY),scale=Math.min(width/spanX,height/spanY);
+  const offsetX=(width-spanX*scale)/2,offsetY=(height-spanY*scale)/2;
+  return {x:((offsetX+(point.x-bounds.minX)*scale)/width)*100,y:((offsetY+(bounds.maxY-point.y)*scale)/height)*100};
+}
+function chaserPlaneScreenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width),height=Math.max(1,rect.height);
+  const spanX=Math.max(.0001,bounds.maxX-bounds.minX),spanY=Math.max(.0001,bounds.maxY-bounds.minY),scale=Math.min(width/spanX,height/spanY);
+  const offsetX=(width-spanX*scale)/2,offsetY=(height-spanY*scale)/2;
+  return {x:bounds.minX+(event.clientX-rect.left-offsetX)/scale,y:bounds.maxY-(event.clientY-rect.top-offsetY)/scale,z:0};
+}
+function setChaserPlanePanMode(active){
+  chaserPlanePanMode=!!active;chaserPlaneViewDrag=null;
+  const button=document.getElementById('chaserPlanePanView'),pad=document.getElementById('chaserPlanePad');
+  button.classList.toggle('active',chaserPlanePanMode);button.textContent=chaserPlanePanMode?'Stop pan view':'Pan view';button.setAttribute('aria-pressed',chaserPlanePanMode?'true':'false');pad.classList.toggle('pan-mode',chaserPlanePanMode);
+}
+function syncActiveChaserPlaneView(){
+  if(!activeChaserPlane||!activeChaserPlaneId)return;
+  const view={auto:chaserPlaneView.auto!==false,centerX:Number(chaserPlaneView.centerX)||0,centerY:Number(chaserPlaneView.centerY)||0,zoom:Math.max(.25,Math.min(8,Number(chaserPlaneView.zoom)||1))};
+  activeChaserPlane.view={...view};
+  const stored=chaserPlanes.find(plane=>String(plane.id)===String(activeChaserPlaneId));
+  if(stored)stored.view={...view};
+}
+async function saveChaserPlaneView(){
+  if(!activeChaserPlane||!activeChaserPlaneId||!DmxCommon.isHttp())return false;
+  syncActiveChaserPlaneView();
+  const response=await fetch('room_plane_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserRoomPlanePayload())});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Plane view saved');return true;
+}
+function scheduleChaserPlaneViewSave(){
+  clearTimeout(chaserPlaneViewSaveTimer);
+  chaserPlaneViewSaveTimer=setTimeout(()=>{chaserPlaneViewSaveTimer=null;saveChaserPlaneView().catch(error=>setStatus('Plane view autosave failed: '+error.message,true));},800);
+}
+function zoomChaserPlaneView(factor){
+  if(!activeChaserPlane)return;
+  const bounds=chaserPlaneBounds(activeChaserPlane);
+  chaserPlaneView={auto:false,centerX:(bounds.minX+bounds.maxX)/2,centerY:(bounds.minY+bounds.maxY)/2,zoom:Math.max(.25,Math.min(8,(Number(chaserPlaneView.zoom)||1)*factor))};
+  syncActiveChaserPlaneView();scheduleChaserPlaneViewSave();queueChaserPlaneRender();
+}
+function resetChaserPlaneView(){chaserPlaneView={auto:true,centerX:0,centerY:0,zoom:1};syncActiveChaserPlaneView();scheduleChaserPlaneViewSave();queueChaserPlaneRender();}
+function scheduleChaserPlaneLive(){clearTimeout(chaserPlaneLiveTimer);chaserPlaneLiveTimer=setTimeout(()=>{chaserPlaneLiveTimer=null;if(activeChaserPlane)recallChaserPlane(activeChaserPlane);},40);}
+function setChaserPlaneTarget(room){
+  if(!activeChaserPlane)return;
+  activeChaserPlane.target={x:Number(room.x)||0,y:Number(room.y)||0,z:Number(room.z)||0};queueChaserPlaneRender();scheduleChaserPlaneLive();
+}
+function chaserPlaneNudgeStep(axis,kind){return Math.max(.001,Number(document.getElementById('chaserPlaneStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse'))?.value)||0);}
+function nudgeChaserPlaneTarget(axis,dir,kind){
+  if(!activeChaserPlane)return;
+  const target={...activeChaserPlane.target};target[axis]=(Number(target[axis])||0)+(Number(dir)||0)*chaserPlaneNudgeStep(axis,kind);setChaserPlaneTarget(target);setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
+}
+function chaserPlaneDrawLine(host,a,b){
+  const line=document.createElement('div'),dx=b.x-a.x,dy=b.y-a.y;line.className='controller-plane-line';line.style.left=a.x+'%';line.style.top=a.y+'%';line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';host.appendChild(line);
+}
+function renderChaserPlanePreview(){
+  const plane=activeChaserPlane,pad=document.getElementById('chaserPlanePad');if(!plane||!pad)return;
+  pad.querySelectorAll('.controller-plane-point,.controller-plane-line').forEach(el=>el.remove());
+  const selected=chaserPlaneSelectedIds(),rect=pad.getBoundingClientRect(),bounds=chaserPlaneBounds(plane),screens=plane.points.map(point=>chaserPlaneToScreen(point,bounds,rect));
+  const triangle=document.getElementById('chaserPlaneTriangle');
+  [['--ax',screens[0].x],['--ay',screens[0].y],['--bx',screens[1].x],['--by',screens[1].y],['--cx',screens[2].x],['--cy',screens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
+  screens.forEach((screen,index)=>{const point=document.createElement('div');point.className='controller-plane-point';point.textContent=plane.points[index].id;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);});
+  const targetScreen=chaserPlaneToScreen(plane.target,bounds,rect),target=document.getElementById('chaserPlaneTarget');target.style.left=targetScreen.x+'%';target.style.top=targetScreen.y+'%';
+  plane.fixtures.forEach((fixture,index)=>{const screen=chaserPlaneToScreen(fixture,bounds,rect),point=document.createElement('div');point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);chaserPlaneDrawLine(pad,screen,targetScreen);});
+}
+function renderChaserPlaneModal(){
+  const plane=activeChaserPlane;if(!plane)return;
+  const selected=chaserPlaneSelectedIds(),weights=DmxCommon.roomPlaneWeights(plane);
+  document.getElementById('chaserPlaneTitle').textContent='Recall Plane: '+plane.name;
+  document.getElementById('chaserPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('chaserPlaneFixtures').innerHTML=plane.fixtures.map(fixture=>{const isSelected=selected.has(String(fixture.id)),isPatched=(setup.fixtures||[]).some(item=>String(item.id)===String(fixture.id));const status=isSelected?(isPatched?'selected':'not patched'):(isPatched?'available':'not patched');return '<div class="controller-plane-fixture-row'+(isSelected?' selected':'')+'"><strong>'+DmxCommon.escapeHtml(fixture.name)+'</strong><span class="small">'+status+'</span></div>';}).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
+  renderChaserPlanePreview();
+}
+function queueChaserPlaneRender(){if(chaserPlaneRenderQueued)return;chaserPlaneRenderQueued=true;requestAnimationFrame(()=>{chaserPlaneRenderQueued=false;renderChaserPlaneModal();});}
+function openChaserPlaneModal(id){
+  const plane=chaserPlanes.find(item=>String(item.id)===String(id));if(!plane)return;
+  activeChaserPlaneId=String(id);activeChaserPlane=cloneChaserPlane(plane);chaserPlaneView=chaserPlaneSavedView(activeChaserPlane);setChaserPlanePanMode(false);renderChaserPlaneModal();DmxCommon.showModal('chaserPlaneModal');requestAnimationFrame(renderChaserPlanePreview);recallChaserPlane(activeChaserPlane);
+}
+function closeChaserPlaneModal(){DmxCommon.hideModal('chaserPlaneModal');clearTimeout(chaserPlaneLiveTimer);clearTimeout(chaserPlaneViewSaveTimer);chaserPlaneLiveTimer=null;chaserPlaneViewSaveTimer=null;chaserPlaneTargetDrag=null;chaserPlaneViewDrag=null;setChaserPlanePanMode(false);activeChaserPlane=null;activeChaserPlaneId=null;}
 const chaserPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
   matrixId:'chaserPlaneMatrix',
   colsId:'chaserPlaneCols',
@@ -3011,8 +3364,30 @@ const chaserPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
   onSetupLoaded:data=>{chaserRoomPlaneSetup=normalizeChaserRoomPlaneSetup(data);},
   onStatus:setStatus,
   fixtureSummary:chaserPlaneSummary,
-  onOpen:plane=>recallChaserPlane(plane)
+  onOpen:plane=>openChaserPlaneModal(plane.id)
 });
+document.getElementById('chaserPlaneClose').onclick=closeChaserPlaneModal;
+document.getElementById('chaserPlaneClose2').onclick=closeChaserPlaneModal;
+document.getElementById('chaserPlaneNudgeControls').addEventListener('click',event=>{const button=event.target.closest('[data-chaser-plane-nudge-axis]');if(button)nudgeChaserPlaneTarget(button.dataset.chaserPlaneNudgeAxis,Number(button.dataset.chaserPlaneNudgeDir)||0,button.dataset.chaserPlaneNudgeStep||'coarse');});
+document.getElementById('chaserPlaneZoomIn').onclick=()=>zoomChaserPlaneView(1.25);
+document.getElementById('chaserPlaneZoomOut').onclick=()=>zoomChaserPlaneView(1/1.25);
+document.getElementById('chaserPlaneResetView').onclick=resetChaserPlaneView;
+document.getElementById('chaserPlanePanView').onclick=()=>setChaserPlanePanMode(!chaserPlanePanMode);
+document.getElementById('chaserPlanePad').addEventListener('pointerdown',event=>{
+  if(!activeChaserPlane)return;event.preventDefault();const pad=event.currentTarget,rect=pad.getBoundingClientRect(),bounds=chaserPlaneBounds(activeChaserPlane);
+  if(chaserPlanePanMode||event.button===1||event.button===2||event.shiftKey){chaserPlaneView.auto=false;chaserPlaneViewDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};}
+  else{chaserPlaneTargetDrag={pointerId:event.pointerId,bounds};setChaserPlaneTarget(chaserPlaneScreenToRoom(event,rect,bounds));}
+  pad.setPointerCapture?.(event.pointerId);
+});
+document.getElementById('chaserPlanePad').addEventListener('pointermove',event=>{
+  const pad=event.currentTarget;
+  if(activeChaserPlane&&chaserPlaneViewDrag?.pointerId===event.pointerId){const rect=pad.getBoundingClientRect(),spanX=chaserPlaneViewDrag.bounds.maxX-chaserPlaneViewDrag.bounds.minX,spanY=chaserPlaneViewDrag.bounds.maxY-chaserPlaneViewDrag.bounds.minY;chaserPlaneView.centerX=((chaserPlaneViewDrag.bounds.minX+chaserPlaneViewDrag.bounds.maxX)/2)-(event.clientX-chaserPlaneViewDrag.x)/Math.max(1,rect.width)*spanX;chaserPlaneView.centerY=((chaserPlaneViewDrag.bounds.minY+chaserPlaneViewDrag.bounds.maxY)/2)+(event.clientY-chaserPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;syncActiveChaserPlaneView();scheduleChaserPlaneViewSave();queueChaserPlaneRender();return;}
+  if(activeChaserPlane&&chaserPlaneTargetDrag?.pointerId===event.pointerId)setChaserPlaneTarget(chaserPlaneScreenToRoom(event,pad.getBoundingClientRect(),chaserPlaneTargetDrag.bounds));
+});
+document.getElementById('chaserPlanePad').addEventListener('pointerup',event=>{if(chaserPlaneViewDrag?.pointerId===event.pointerId)chaserPlaneViewDrag=null;if(chaserPlaneTargetDrag?.pointerId===event.pointerId)chaserPlaneTargetDrag=null;event.currentTarget.releasePointerCapture?.(event.pointerId);});
+document.getElementById('chaserPlanePad').addEventListener('pointercancel',()=>{chaserPlaneTargetDrag=null;chaserPlaneViewDrag=null;});
+document.getElementById('chaserPlanePad').addEventListener('contextmenu',event=>event.preventDefault());
+document.getElementById('chaserPlanePad').addEventListener('wheel',event=>{event.preventDefault();zoomChaserPlaneView(event.deltaY<0?1.12:1/1.12);},{passive:false});
 const chaserPlanesToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaserPlanesBox',
   headerId:'chaserPlanesHdr',

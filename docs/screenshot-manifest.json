@@ -51,6 +51,16 @@
       "purpose": "controller fan out toolbox"
     },
     {
+      "file": "toolbox-reorder-locked.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "shared Toolboxes header with reordering locked"
+    },
+    {
+      "file": "toolbox-reorder-editing.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "shared Toolboxes header with Edit mode active"
+    },
+    {
       "file": "fixture-controller-edit-tile.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "shared visual edit modal"
@@ -129,6 +139,26 @@
       "file": "show-run-card-midi.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "Show Run MIDI Input card"
+    },
+    {
+      "file": "show-run-midi-scene-mapping.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run scene tile MIDI mapping editor"
+    },
+    {
+      "file": "show-run-midi-playback-mapping.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Pico playback MIDI action mapping"
+    },
+    {
+      "file": "show-run-midi-fader-mapping.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run continuous MIDI mapping with soft takeover"
+    },
+    {
+      "file": "midi-emulator.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Launch Control XL MIDI emulator control surface"
     },
     {
       "file": "show-run-add-card.png",

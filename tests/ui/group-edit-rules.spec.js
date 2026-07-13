@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 const {
   openDmxPage,
   routeControllerCompactServerSetup,
@@ -7,6 +9,27 @@ const {
 } = require('./helpers/dmx-page');
 
 test.describe('Cross-page Group Edit contract', () => {
+  test('Controller, Chaser, Show, Room Plane, and Effects use the shared Group Edit renderer', async () => {
+    const root = path.resolve(__dirname, '..', '..');
+    const common = fs.readFileSync(path.join(root, 'web', 'assets', 'dmx-common.js'), 'utf8');
+    expect(common).toContain('function fixtureGroupEditControlHtml(options={})');
+    expect(common).toContain('fixtureGroupEditControlHtml,');
+    expect(common).toContain('function createGroupEditRelativeStepStore(options={})');
+    expect(common).toContain('createGroupEditRelativeStepStore,');
+
+    for (const file of [
+      'dmx_fixture_controller.html',
+      'dmx_chaser.html',
+      'dmx_show.html',
+      'dmx_room_plane.html',
+      'dmx_motion.html'
+    ]) {
+      const html = fs.readFileSync(path.join(root, 'web', file), 'utf8');
+      expect(html, file).toContain('DmxCommon.fixtureGroupEditControlHtml({');
+      expect(html, file).toContain('DmxCommon.createGroupEditRelativeStepStore({');
+    }
+  });
+
   test('Controller: hard reload plus Select All enables Group Edit for mixed fixture types', async ({ page }) => {
     await routeControllerCompactServerSetup(page);
     await openDmxPage(page, '');
@@ -65,6 +88,8 @@ test.describe('Cross-page Group Edit contract', () => {
     await page.locator('#motionGroupsEdit').click();
     await expect(page.locator('#motionGroupModal')).toBeVisible();
     await expect(page.locator('#motionGroupModalBody .control h3')).toHaveText(['Dimmer']);
+    await expect(page.locator('#defaultMotionGroupBtn')).toHaveText('Default');
+    await expect(page.locator('#blackoutMotionGroupBtn')).toHaveText('Blackout');
     await page.locator('#motionGroupModal').click({ position: { x: 8, y: 8 } });
     await expect(page.locator('#motionGroupModal')).toBeVisible();
     await page.locator('#closeMotionGroupModal2').click();

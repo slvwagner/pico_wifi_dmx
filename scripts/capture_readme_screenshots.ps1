@@ -154,6 +154,46 @@ try {
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
     }
 
+    function Save-ToolboxEditScreenshot {
+        param([string]$Name)
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const rail=document.querySelector('.toolbox-rail');
+  const header=rail?.querySelector('.toolbox-rail-header');
+  if(!rail||!header)throw new Error('Missing toolbox rail/header for Edit-mode screenshot');
+  rail.scrollTop=0;
+  rail.scrollLeft=0;
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const railRect=rail.getBoundingClientRect();
+  const editRect=header.querySelector('.toolbox-rail-edit')?.getBoundingClientRect();
+  if(!editRect)throw new Error('Missing toolbox rail Edit button for Edit-mode screenshot');
+  const pad=8;
+  return JSON.stringify({
+    x:Math.max(0,Math.floor(editRect.left-pad)),
+    y:Math.max(0,Math.floor(editRect.top-pad)),
+    width:Math.ceil(editRect.width+pad*2),
+    height:Math.max(48,Math.ceil(editRect.height+pad*2))
+  });
+})()
+"@
+        if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
+        $result = Send-Cdp "Page.captureScreenshot" @{
+            format = "png"
+            fromSurface = $true
+            captureBeyondViewport = $true
+            clip = @{
+                x = [double]$rect.x
+                y = [double]$rect.y
+                width = [double]$rect.width
+                height = [double]$rect.height
+                scale = 1
+            }
+        }
+        if (-not $result.result.data) { throw "Chrome returned an empty toolbox Edit-mode screenshot" }
+        $file = Join-Path $outPath $Name
+        Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+    }
+
     function Save-ElementScreenshot {
         param(
             [string]$Selector,
@@ -479,6 +519,33 @@ try {
     Eval-Js @"
 (async()=>{
   docShots.setToolboxRail({collapsed:false});
+  const rail=document.querySelector('.toolbox-rail');
+  const edit=rail?.querySelector('.toolbox-rail-edit');
+  if(rail?.classList.contains('toolbox-reorder-editing')&&edit)edit.click();
+  rail.scrollTop=0;
+  await docShots.wait(300);
+})()
+"@
+    Save-ToolboxEditScreenshot "toolbox-reorder-locked.png"
+    Eval-Js @"
+(async()=>{
+  const edit=document.querySelector('.toolbox-rail-edit');
+  if(edit&&edit.getAttribute('aria-pressed')!=='true')edit.click();
+  await docShots.wait(300);
+})()
+"@
+    Save-ToolboxEditScreenshot "toolbox-reorder-editing.png"
+    Eval-Js @"
+(async()=>{
+  const edit=document.querySelector('.toolbox-rail-edit');
+  if(edit&&edit.getAttribute('aria-pressed')==='true')edit.click();
+  await docShots.wait(100);
+})()
+"@
+
+    Eval-Js @"
+(async()=>{
+  docShots.setToolboxRail({collapsed:false});
   docShots.setSceneBox({visible:false});
   function makeDocTileImage(){
     const c=document.createElement('canvas');
@@ -759,6 +826,43 @@ try {
     Eval-Js @"
 (async()=>{
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  midiMappings.splice(0,midiMappings.length,
+    {targetType:'scene',targetId:'doc_scene_1',messageType:'note',channel:1,number:41,deviceId:'launch-control-xl-emulator',deviceName:'Launch Control XL Emulator',mode:'trigger'},
+    {targetType:'chaser',targetId:'1',messageType:'note',channel:1,number:73,deviceId:'launch-control-xl-emulator',deviceName:'Launch Control XL Emulator',mode:'trigger',action:'toggle-pause'},
+    {targetType:'live',targetId:'doc_live_dimmer',messageType:'cc',channel:1,number:77,deviceId:'launch-control-xl-emulator',deviceName:'Launch Control XL Emulator',mode:'continuous',pickup:true}
+  );
+  if(typeof setLayoutEditing==='function')setLayoutEditing(true);
+  if(typeof openShowTileEditor==='function')openShowTileEditor('scene','doc_scene_1');
+  await wait(400);
+})()
+"@
+    Save-ElementScreenshot "#showTileVisualModal .modal-card" "show-run-midi-scene-mapping.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.getElementById('showTileVisualClose2')?.click();
+  if(typeof openMidiMappingEditor==='function')openMidiMappingEditor('chaser','1');
+  await wait(300);
+})()
+"@
+    Save-ElementScreenshot "#midiMappingModal .modal-card" "show-run-midi-playback-mapping.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof closeMidiMappingEditor==='function')closeMidiMappingEditor();
+  if(typeof openMidiMappingEditor==='function')openMidiMappingEditor('live','doc_live_dimmer');
+  await wait(300);
+})()
+"@
+    Save-ElementScreenshot "#midiMappingModal .modal-card" "show-run-midi-fader-mapping.png"
+
+    Eval-Js "if(typeof closeMidiMappingEditor==='function')closeMidiMappingEditor();"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
   hiddenTileModalDismissed=true;
   cardCols=3;cardRows=3;
   paletteCols=2;paletteRows=1;
@@ -914,6 +1018,29 @@ try {
 "@
     Save-ElementScreenshot "#cardLive" "show-run-live-controls.png"
     Save-ElementScreenshot "#cardLive" "show-run-live-timer-button.png"
+
+    $midiEmulatorUrl = $BaseUrl.TrimEnd('/') + "/dmx_midi_emulator.html?docshot=$cacheBust"
+    Send-Cdp "Page.navigate" @{ url = $midiEmulatorUrl } | Out-Null
+    Start-Sleep -Seconds 2
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<20;i++){
+    if(document.querySelector('.emulator [data-midi-cc]')&&document.querySelector('.emulator [data-midi-note]'))break;
+    await wait(200);
+  }
+  const fader=document.querySelector('[data-midi-cc="77"]');
+  if(fader){fader.value='84';fader.dispatchEvent(new Event('input',{bubbles:true}));}
+  showLastSeen=Date.now();
+  if(typeof renderConnection==='function')renderConnection();
+  const header=document.querySelector('header');
+  if(header)header.style.display='none';
+  const instructions=document.querySelector('.instructions');
+  if(instructions)instructions.style.display='none';
+  await wait(250);
+})()
+"@
+    Save-ElementScreenshot ".emulator" "midi-emulator.png"
 
     $roomPlaneUrl = $BaseUrl.TrimEnd('/') + "/dmx_room_plane.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $roomPlaneUrl } | Out-Null

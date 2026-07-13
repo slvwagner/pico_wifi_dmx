@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Launch Control XL MIDI Emulator</title>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.9">
+<script src="assets/dmx-common.js?v=0.9.9"></script>
+<style>
+main{width:min(1240px,100%);margin:0 auto;padding:18px;display:grid;gap:16px}
+header{position:sticky;top:0;z-index:90;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:22px;margin:0}.status{min-height:18px}
+.connection-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:7px 11px;color:var(--muted);background:var(--panel2)}
+.connection-pill::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.connection-pill.ready{color:#bff7df;border-color:#238966;background:#08281e}.connection-pill.ready::before{background:var(--accent)}
+.instructions{display:grid;gap:7px}.instructions ol{margin:0;padding-left:22px;color:var(--muted);line-height:1.45}
+.emulator{border:1px solid #45515c;border-radius:14px;background:linear-gradient(145deg,#20262c,#11161a);padding:18px;box-shadow:0 16px 45px rgba(0,0,0,.45);display:grid;gap:18px;user-select:none}
+.emulator-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #39434b;padding-bottom:12px}
+.emulator-brand{font-size:20px;font-weight:800;letter-spacing:.05em}.emulator-brand span{color:var(--accent)}
+.emulator-settings{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.emulator-settings select{min-width:90px}
+.control-section{display:grid;gap:12px;border-top:1px solid #39434b;padding-top:16px}
+.emulator-head+.control-section{border-top:0;padding-top:0}
+.control-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.control-heading h2{margin:0;font-size:15px}.control-heading .small{max-width:720px}
+.knob-row,.fader-row,.button-row{display:grid;grid-template-columns:repeat(8,minmax(82px,1fr));gap:12px}
+.em-control{display:grid;justify-items:center;gap:7px;min-width:0}.em-control label{font-size:11px;text-align:center;color:var(--muted);white-space:nowrap}
+.knob-face{width:62px;height:62px;border-radius:50%;border:3px solid #4a5660;background:conic-gradient(var(--knob-color,var(--accent)) var(--angle,0deg),#090d10 0);display:grid;place-items:center;box-shadow:inset 0 0 0 8px #171d22,0 3px 8px rgba(0,0,0,.45);font-weight:800;font-size:12px}
+.knob-row:nth-child(2) .knob-face{--knob-color:#ffbc6b}.knob-row:nth-child(3) .knob-face{--knob-color:#ff7a7a}
+.knob-range{width:76px;padding:0;height:18px}
+.fader-control{display:grid;justify-items:center;gap:9px;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 6px;background:rgba(0,0,0,.16)}
+.fader-control label{font-size:11px;text-align:center;color:var(--muted)}
+.fader{writing-mode:vertical-lr;direction:rtl;width:34px;height:155px;padding:0}
+.em-button{width:100%;min-height:34px;padding:5px 7px;border-color:#596773;background:#1c242b;font-size:11px}
+.em-button.pressed{background:var(--accent);border-color:var(--accent);color:#06110e;box-shadow:0 0 16px rgba(55,196,164,.42)}
+.button-row+.button-row{margin-top:-2px}.utility-row{display:grid;grid-template-columns:repeat(8,minmax(92px,1fr));gap:10px}
+.event-panel{display:grid;gap:8px}.event-log{display:grid;gap:5px;max-height:180px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:var(--muted)}
+.event-row{border:1px solid var(--line);border-radius:6px;background:var(--panel2);padding:6px 8px}.event-row:first-child{color:var(--text);border-color:#2f9e7d}
+@media(max-width:900px){.knob-row,.fader-row,.button-row,.utility-row{grid-template-columns:repeat(4,minmax(78px,1fr))}}
+@media(max-width:520px){main{padding:10px}.emulator{padding:12px}.knob-row,.fader-row,.button-row,.utility-row{grid-template-columns:repeat(2,minmax(76px,1fr))}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    <h1>Launch Control XL MIDI Emulator</h1>
+    <div id="status" class="status">Starting emulator...</div>
+  </div>
+  <div class="toolbar">
+    <span id="connectionPill" class="connection-pill">Waiting for Show Run</span>
+    <a class="nav" href="dmx_show.html">Show</a>
+    <a class="nav" href="user-manual.html?v=0.9.9#midi-controller-card" target="_blank">Manual</a>
+  </div>
+</header>
+
+<section class="panel instructions">
+  <strong>Test MIDI Learn without hardware</strong>
+  <ol>
+    <li>Keep this page and Show Run open in tabs on the same XAMPP address.</li>
+    <li>In Show Run, click <strong>Edit</strong>, open a supported pencil, and click <strong>Learn</strong>.</li>
+    <li>Return here and move a knob/fader or press a button. The same control will operate the saved mapping afterward.</li>
+  </ol>
+</section>
+
+<section class="emulator" aria-label="Launch Control XL emulator surface">
+  <div class="emulator-head">
+    <div class="emulator-brand">novation <span>LAUNCH CONTROL XL</span></div>
+    <div class="emulator-settings">
+      <label>MIDI channel<select id="midiChannel"></select></label>
+      <button id="resetControls" type="button">Reset controls</button>
+    </div>
+  </div>
+  <div class="control-section" data-emulator-section="knobs">
+    <div class="control-heading"><h2>Knobs</h2><div class="small">24 independent Control Change controls</div></div>
+    <div id="knobRows"></div>
+  </div>
+  <div class="control-section" data-emulator-section="faders">
+    <div class="control-heading"><h2>Faders</h2><div class="small">8 independent Control Change controls</div></div>
+    <div id="faderControls" class="fader-row"></div>
+  </div>
+  <div id="channelButtons" class="control-section" data-emulator-section="channel-buttons">
+    <div class="control-heading"><h2>Channel Buttons</h2><div class="small">Independent Note controls; columns only match their physical positions on the controller</div></div>
+    <div id="topButtons" class="button-row" aria-label="Top channel button row"></div>
+    <div id="bottomButtons" class="button-row" aria-label="Bottom channel button row"></div>
+  </div>
+  <div class="control-section" data-emulator-section="utility-buttons">
+    <div class="control-heading"><h2>Utility Buttons</h2><div class="small">Independent Note controls</div></div>
+    <div id="utilityButtons" class="utility-row"></div>
+  </div>
+</section>
+
+<section class="panel event-panel">
+  <div><strong>Emulated MIDI output</strong><div class="small">Messages are sent only to another Show Run tab on this browser origin.</div></div>
+  <div id="eventLog" class="event-log"><div class="event-row">No MIDI message sent yet.</div></div>
+</section>
+</main>
+
+<script>
+'use strict';
+const DEVICE_ID='launch-control-xl-emulator';
+const DEVICE_NAME='Launch Control XL Emulator';
+const CHANNEL_NAME='dmxShowMidiEmulator';
+const knobRows=document.getElementById('knobRows');
+const faderControls=document.getElementById('faderControls');
+const topButtons=document.getElementById('topButtons');
+const bottomButtons=document.getElementById('bottomButtons');
+const utilityButtons=document.getElementById('utilityButtons');
+const channelSelect=document.getElementById('midiChannel');
+const statusEl=document.getElementById('status');
+const connectionPill=document.getElementById('connectionPill');
+const eventLog=document.getElementById('eventLog');
+const events=[];
+let showLastSeen=0;
+let channel=null;
+
+const knobCcs=[
+  [13,14,15,16,17,18,19,20],
+  [29,30,31,32,33,34,35,36],
+  [49,50,51,52,53,54,55,56]
+];
+const faderCcs=[77,78,79,80,81,82,83,84];
+const topNotes=[41,42,43,44,57,58,59,60];
+const bottomNotes=[73,74,75,76,89,90,91,92];
+const utilityNotes=[
+  {label:'Device',note:105},{label:'Mute',note:106},{label:'Solo',note:107},{label:'Record Arm',note:108},
+  {label:'Up',note:109},{label:'Down',note:110},{label:'Left',note:111},{label:'Right',note:112}
+];
+
+for(let i=1;i<=16;i++)channelSelect.insertAdjacentHTML('beforeend',`<option value="${i}">${i}</option>`);
+channelSelect.value=localStorage.getItem('dmxMidiEmulator.channel')||'1';
+channelSelect.onchange=()=>{localStorage.setItem('dmxMidiEmulator.channel',channelSelect.value);setStatus('MIDI channel '+channelSelect.value+' selected');};
+
+function esc(value){return DmxCommon.escapeHtml(value);}
+function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
+function midiChannel(){return Math.max(1,Math.min(16,parseInt(channelSelect.value,10)||1));}
+function showConnected(){return Date.now()-showLastSeen<3500;}
+function renderConnection(){
+  const connected=showConnected();
+  connectionPill.textContent=connected?'Connected to Show Run':'Waiting for Show Run';
+  connectionPill.classList.toggle('ready',connected);
+}
+function logEvent(label,data){
+  events.unshift({label,data:[...data],time:new Date().toLocaleTimeString()});
+  events.splice(8);
+  eventLog.innerHTML=events.map(row=>`<div class="event-row">${esc(row.time)} · ${esc(row.label)} · [${row.data.join(', ')}]</div>`).join('');
+}
+function sendMidi(data,label){
+  if(channel)channel.postMessage({type:'midi',deviceId:DEVICE_ID,deviceName:DEVICE_NAME,data:[...data]});
+  logEvent(label,data);
+  setStatus((showConnected()?'Sent ':'Broadcast ')+label);
+}
+function sendCc(number,value){
+  const data=[0xB0+(midiChannel()-1),number,Math.max(0,Math.min(127,parseInt(value,10)||0))];
+  sendMidi(data,'CC '+number+' = '+data[2]+' on channel '+midiChannel());
+}
+function sendNote(number,value){
+  const data=[0x90+(midiChannel()-1),number,value?127:0];
+  sendMidi(data,'Note '+number+' '+(value?'On':'Off')+' on channel '+midiChannel());
+}
+function knobHtml(cc,row,index){
+  return `<div class="em-control"><label>Knob ${row+1}.${index+1} · CC ${cc}</label><div class="knob-face" data-knob-face="${cc}" style="--angle:0deg">0</div><input class="knob-range" type="range" min="0" max="127" value="0" data-midi-cc="${cc}" aria-label="Knob ${row+1}.${index+1} CC ${cc}"></div>`;
+}
+knobRows.innerHTML=knobCcs.map((row,rowIndex)=>`<div class="knob-row">${row.map((cc,index)=>knobHtml(cc,rowIndex,index)).join('')}</div>`).join('');
+faderControls.innerHTML=faderCcs.map((cc,index)=>`<div class="fader-control"><label>Fader ${index+1}<br>CC ${cc}</label><input class="fader" type="range" min="0" max="127" value="0" data-midi-cc="${cc}" aria-label="Fader ${index+1} CC ${cc}"></div>`).join('');
+topButtons.innerHTML=topNotes.map((note,index)=>`<button type="button" class="em-button" data-midi-note="${note}">Ch ${index+1} Top · Note ${note}</button>`).join('');
+bottomButtons.innerHTML=bottomNotes.map((note,index)=>`<button type="button" class="em-button" data-midi-note="${note}">Ch ${index+1} Bottom · Note ${note}</button>`).join('');
+utilityButtons.innerHTML=utilityNotes.map(item=>`<button type="button" class="em-button" data-midi-note="${item.note}">${esc(item.label)} · Note ${item.note}</button>`).join('');
+
+document.querySelectorAll('[data-midi-cc]').forEach(input=>{
+  input.addEventListener('input',()=>{
+    const cc=parseInt(input.dataset.midiCc,10),value=parseInt(input.value,10)||0;
+    const face=document.querySelector(`[data-knob-face="${cc}"]`);
+    if(face){face.textContent=String(value);face.style.setProperty('--angle',Math.round((value/127)*360)+'deg');}
+    sendCc(cc,value);
+  });
+});
+function setButtonPressed(button,pressed){
+  if((button.dataset.pressed==='1')===pressed)return;
+  button.dataset.pressed=pressed?'1':'0';
+  button.classList.toggle('pressed',pressed);
+  sendNote(parseInt(button.dataset.midiNote,10),pressed);
+}
+document.querySelectorAll('[data-midi-note]').forEach(button=>{
+  button.addEventListener('pointerdown',event=>{event.preventDefault();button.setPointerCapture?.(event.pointerId);setButtonPressed(button,true);});
+  const release=event=>{if(event?.pointerId!==undefined)button.releasePointerCapture?.(event.pointerId);setButtonPressed(button,false);};
+  button.addEventListener('pointerup',release);
+  button.addEventListener('pointercancel',release);
+  button.addEventListener('lostpointercapture',()=>setButtonPressed(button,false));
+  button.addEventListener('keydown',event=>{if((event.key===' '||event.key==='Enter')&&!event.repeat){event.preventDefault();setButtonPressed(button,true);}});
+  button.addEventListener('keyup',event=>{if(event.key===' '||event.key==='Enter'){event.preventDefault();setButtonPressed(button,false);}});
+});
+document.getElementById('resetControls').onclick=()=>{
+  document.querySelectorAll('[data-midi-cc]').forEach(input=>{input.value='0';input.dispatchEvent(new Event('input',{bubbles:true}));});
+  setStatus('All knobs and faders reset to 0');
+};
+
+if(typeof BroadcastChannel==='undefined'){
+  setStatus('This browser does not support the MIDI emulator channel',true);
+  connectionPill.textContent='Unsupported browser';
+}else{
+  channel=new BroadcastChannel(CHANNEL_NAME);
+  channel.onmessage=message=>{
+    if(message.data?.type==='show-ready'){
+      showLastSeen=Date.now();
+      renderConnection();
+    }
+  };
+  const hello=()=>channel.postMessage({type:'emulator-hello',deviceId:DEVICE_ID,deviceName:DEVICE_NAME});
+  hello();
+  setInterval(()=>{hello();renderConnection();},1000);
+  setStatus('Emulator ready. Open Show Run in another tab.');
+}
+</script>
+</body>
+</html>

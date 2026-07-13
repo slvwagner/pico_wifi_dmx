@@ -155,6 +155,13 @@ if ($Build) {
     }
 }
 
+if (-not $RunHardwareTests) {
+    # A developer may keep hardware tests enabled in pathconfig.local.json or in
+    # their shell. Release preparation must remain opt-in so a normal release
+    # cannot write DMX channels or playback slots on a connected Pico.
+    $env:DMX_RUN_HARDWARE_TESTS = "false"
+}
+
 if ($RunHardwareTests -and -not $SkipTests) {
     Invoke-Step "Enable real Pico hardware tests" {
         $localConfig = Join-Path $repoRoot "tests\pathconfig.local.json"

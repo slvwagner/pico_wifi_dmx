@@ -71,6 +71,101 @@ test.describe('Effects established rules', () => {
     await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
   });
 
+  test('recalling an Effect tile restores its preview parameters after changing target family', async ({ page }) => {
+    const beforePreview = await page.evaluate(() => {
+      const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');
+      selectedMotionTargetKey = motionControlKey(scalar.control);
+      populateMotionControlFilter();
+      populateEffectTypeFilter('sine');
+      motionFixtures.forEach(mf => mf.enabled = mf === scalar);
+      document.getElementById('panAmp').value = '91';
+      document.getElementById('panAmpVal').textContent = '91';
+      drawPathPreview();
+
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      motionEffects = [{
+        id: 'preview_recall',
+        name: 'Saved Circle',
+        slot: 0,
+        recipe: {
+          targetKey: motionControlKey(panTilt.control),
+          params: { effectType: 'circle', bpm: 123, panAmp: 37, tiltAmp: 63, phaseSpread: 90, updateRate: 30 },
+          fixtures: [{ fixtureId: panTilt.fixture.id, controlId: panTilt.control.id, phaseOffset: 15 }]
+        }
+      }];
+      renderMotionEffectMatrix();
+      return document.getElementById('pathCanvas').toDataURL();
+    });
+
+    await page.locator('[data-motion-effect-slot="0"]').click();
+
+    await expect(page.locator('#effectType')).toHaveValue('circle');
+    await expect(page.locator('#bpm')).toHaveValue('123');
+    await expect(page.locator('#panAmp')).toHaveValue('37');
+    await expect(page.locator('#tiltAmp')).toHaveValue('63');
+    await expect(page.locator('#phaseSpread')).toHaveValue('90');
+    await expect(page.locator('#updateRate')).toHaveValue('30');
+    await expect(page.locator('#status')).toContainText('Recalled effect "Saved Circle"');
+
+    const recalled = await page.evaluate(() => ({
+      enabled: motionFixtures.filter(mf => mf.enabled).map(mf => mf.kind),
+      phaseOffset: motionFixtures.find(mf => mf.enabled)?.phaseOffset,
+      preview: document.getElementById('pathCanvas').toDataURL(),
+      running
+    }));
+    expect(recalled.enabled).toEqual(['panTilt']);
+    expect(recalled.phaseOffset).toBe(15);
+    expect(recalled.preview).not.toBe(beforePreview);
+    expect(recalled.running).toBe(false);
+  });
+
+  test('recalling an Effect tile restarts an active browser preview with the recalled update rate', async ({ page }) => {
+    const initial = await page.evaluate(() => {
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      motionEffects = [{
+        id: 'running_preview_recall',
+        name: 'Fast Circle',
+        slot: 0,
+        recipe: {
+          targetKey: motionControlKey(panTilt.control),
+          params: { effectType: 'circle', bpm: 140, panAmp: 42, tiltAmp: 31, phaseSpread: 0, updateRate: 25 },
+          fixtures: [{ fixtureId: panTilt.fixture.id, controlId: panTilt.control.id, phaseOffset: 0 }]
+        }
+      }];
+      renderMotionEffectMatrix();
+      running = true;
+      startTime = performance.now() - 5000;
+      sentToPico = { 1: 99 };
+      intervalId = setInterval(() => {}, 1000);
+      document.getElementById('startStop').textContent = '■ Stop';
+      document.getElementById('startStop').className = 'stop';
+      return { startTime, intervalId };
+    });
+
+    await page.locator('[data-motion-effect-slot="0"]').click();
+
+    await expect(page.locator('#startStop')).toHaveText('■ Stop');
+    await expect(page.locator('#startStop')).toHaveClass('stop');
+    await expect(page.locator('#status')).toContainText('Running recalled effect "Fast Circle"');
+    const recalled = await page.evaluate(() => {
+      const state = {
+        running,
+        startTime,
+        intervalId,
+        sentToPico: { ...sentToPico },
+        updateRate: document.getElementById('updateRate').value
+      };
+      clearInterval(intervalId);
+      running = false;
+      return state;
+    });
+    expect(recalled.running).toBe(true);
+    expect(recalled.startTime).toBeGreaterThan(initial.startTime);
+    expect(recalled.intervalId).not.toBe(initial.intervalId);
+    expect(recalled.sentToPico).toEqual({});
+    expect(recalled.updateRate).toBe('25');
+  });
+
   test('Effects toolbox tile matrices expose common Move controls', async ({ page }) => {
     await page.evaluate(() => {
       motionGroupsBox.setGroups([
@@ -81,6 +176,10 @@ test.describe('Effects established rules', () => {
         { id: 'fx_a', name: 'Effect A', slot: 0, recipe: { targetKey: '', params: {}, fixtures: [] } },
         { id: 'fx_b', name: 'Effect B', slot: 1, recipe: { targetKey: '', params: {}, fixtures: [] } }
       ];
+      motionScenes = [
+        { id: 'scene_a', name: 'Scene A', slot: 0, values: { '101:11': 80 } },
+        { id: 'scene_b', name: 'Scene B', slot: 1, values: { '102:21': 40 } }
+      ];
       motionPalettes = [
         { id: 'pal_a', name: 'Palette A', slot: 0, values: { '101:11': 80 } },
         { id: 'pal_b', name: 'Palette B', slot: 1, values: { '102:21': 40 } }
@@ -90,6 +189,7 @@ test.describe('Effects established rules', () => {
         DmxCommon.normalizeRoomPlane({ id: 'plane_b', name: 'Plane B', slot: 1, fixtures: [] }, 1)
       ];
       renderMotionEffectMatrix();
+      renderMotionSlotGrid();
       renderMotionPaletteMatrix();
       motionPlanesMatrix.render();
     });
@@ -100,6 +200,7 @@ test.describe('Effects established rules', () => {
     await expect(page.locator('#motionGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#motionGroupsList [data-delete-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#moveMotionEffectsBtn')).toBeVisible();
+    await expect(page.locator('#moveMotionScenesBtn')).toBeVisible();
     await expect(page.locator('#moveMotionPalettesBtn')).toBeVisible();
     await expect(page.locator('#moveMotionPlanesBtn')).toBeVisible();
 
@@ -107,6 +208,11 @@ test.describe('Effects established rules', () => {
     await page.locator('[data-motion-effect-slot="0"]').click();
     await page.locator('[data-motion-effect-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionEffects.find(effect => effect.id === 'fx_a').slot)).toBe(3);
+
+    await page.locator('#moveMotionScenesBtn').click();
+    await page.locator('[data-mslot="0"]').click();
+    await page.locator('[data-mslot="3"]').click();
+    await expect.poll(() => page.evaluate(() => motionScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
 
     await page.locator('#moveMotionPalettesBtn').click();
     await page.locator('[data-motion-palette-slot="0"]').click();
@@ -122,6 +228,47 @@ test.describe('Effects established rules', () => {
     await page.locator('#motionGroupsList [data-group-slot="0"]').click();
     await page.locator('#motionGroupsList [data-group-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
+  });
+
+  test('clicking a saved Plane opens its target modal and applies the current target', async ({ page }) => {
+    const expected = await page.evaluate(() => {
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      setMotionTarget(motionControlKey(panTilt.control));
+      motionFixtures.forEach(mf => { mf.enabled = mf === panTilt; });
+      panTilt.basePan = 1111;
+      panTilt.baseTilt = 2222;
+      motionPlanes = [DmxCommon.normalizeRoomPlane({
+        id: 'plane_modal',
+        name: 'Modal Plane',
+        slot: 0,
+        target: { x: 1, y: 1, z: 0 },
+        fixtures: [{
+          id: panTilt.fixture.id,
+          name: panTilt.fixture.name,
+          x: 2,
+          y: 2,
+          z: 0,
+          cal: {
+            A: { calibrated: true, pan: 10000, tilt: 20000 },
+            B: { calibrated: true, pan: 20000, tilt: 30000 },
+            C: { calibrated: true, pan: 30000, tilt: 40000 }
+          }
+        }]
+      }, 0)];
+      motionPlanesMatrix.render();
+      const weights = DmxCommon.roomPlaneWeights(motionPlanes[0]);
+      const output = DmxCommon.roomPlaneInterpolateFixture(motionPlanes[0], motionPlanes[0].fixtures[0], weights);
+      return { basePan: Math.round(output.pan), baseTilt: Math.round(output.tilt) };
+    });
+
+    await page.locator('#motionPlaneMatrix [data-plane-slot="0"]').click();
+
+    await expect(page.locator('#motionPlaneModal')).toBeVisible();
+    const afterOpen = await page.evaluate(() => {
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      return { basePan: panTilt.basePan, baseTilt: panTilt.baseTilt };
+    });
+    expect(afterOpen).toEqual(expected);
   });
 
   test('Effect Parameters + all keeps the clicked button anchored after expanding toolboxes', async ({ page }) => {

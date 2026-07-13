@@ -238,6 +238,39 @@ async function routeShowSetup(page, calls) {
   });
 }
 
+async function installFakeComputerMidi(page) {
+  await page.addInitScript(() => {
+    const input = {
+      id: 'launch-control-xl-in',
+      name: 'Launch Control XL',
+      manufacturer: 'Novation',
+      state: 'connected',
+      connection: 'closed',
+      onmidimessage: null,
+      open() { this.connection = 'open'; return Promise.resolve(this); }
+    };
+    const output = {
+      id: 'launch-control-xl-out',
+      name: 'Launch Control XL',
+      manufacturer: 'Novation',
+      state: 'connected',
+      connection: 'closed',
+      open() { this.connection = 'open'; return Promise.resolve(this); },
+      send() {}
+    };
+    const access = {
+      inputs: new Map([[input.id, input]]),
+      outputs: new Map([[output.id, output]]),
+      onstatechange: null
+    };
+    Object.defineProperty(navigator, 'requestMIDIAccess', {
+      configurable: true,
+      value: () => Promise.resolve(access)
+    });
+    window.__emitComputerMidi = data => input.onmidimessage?.({ data: Uint8Array.from(data), target: input });
+  });
+}
+
 test.describe('Show Run page', () => {
   test('recalls scenes only to the selected group and does not save setup data', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
@@ -313,13 +346,22 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#showGroupModal')).toBeVisible();
     await expect(page.locator('#showGroupModalTitle')).toContainText('2 fixtures');
-    const dimmer = page.locator('[data-show-group-number][data-part="value"]').first();
+    await expect(page.locator('#showGroupModalBody .control')).toHaveCount(2);
+    await expect(page.locator('#showGroupModalBody .control-head')).toHaveCount(2);
+    await expect(page.locator('#showGroupModalBody .readout')).toBeVisible();
+    await expect(page.locator('#showGroupDefaultBtn')).toBeVisible();
+    await expect(page.locator('#showGroupBlackoutBtn')).toBeVisible();
+    expect((await page.locator('#showGroupModal .modal-card').boundingBox()).width).toBeLessThanOrEqual(762);
+    const dimmer = page.locator('[data-show-group-slider][data-part="value"]').first();
     await expect(dimmer).toBeVisible();
     await dimmer.fill('77');
 
     await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:11': 77, '102:11': 77 });
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:77') && call.body.includes('11:77'))).toBe(true);
     await expect(page.locator('#status')).toContainText('Group Edit Dimmer -> 2 fixtures');
+    await page.locator('#showGroupBlackoutBtn').click();
+    await expect.poll(() => calls.liveValues.at(-1)).toMatchObject({ '101:11': 0, '102:11': 0 });
+    await expect(page.locator('#status')).toContainText('Group blackout recalled for 2 fixtures');
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -338,7 +380,8 @@ test.describe('Show Run page', () => {
             { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 },
             { id: 12, type: 'rgb', label: 'Color', a: 2, b: 3, c: 4 },
             { id: 13, type: 'panTilt16', label: 'Pan/Tilt', pan: 5, panFine: 6, tilt: 7, tiltFine: 8 },
-            { id: 14, type: 'wheel', label: 'Gobo', channel: 9, options: [{ name: 'Open', value: 0 }, { name: 'Dots', value: 32 }] }
+            { id: 14, type: 'wheel', label: 'Gobo', channel: 9, options: [{ name: 'Open', value: 0 }, { name: 'Dots', value: 32 }] },
+            { id: 15, type: 'slider16', label: 'Focus', channel: 10, fine: 11 }
           ]
         }
       ],
@@ -357,10 +400,11 @@ test.describe('Show Run page', () => {
     await page.locator('#showGroupEditBtn').click();
 
     await expect(page.locator('#showGroupModal')).toBeVisible();
-    await expect(page.locator('#showGroupModalBody .show-group-control h3')).toHaveText(['Color', 'Dimmer', 'Gobo', 'Pan / Tilt']);
+    await expect(page.locator('#showGroupModalBody .control h3')).toHaveText(['Dimmer', 'Color', 'Pan / Tilt', 'Gobo', 'Focus']);
     await expect(page.locator('#showGroupModalBody .xy-pad')).toBeVisible();
     await expect(page.locator('#showGroupModalBody input[type="color"]')).toBeVisible();
     await expect(page.locator('#showGroupModalBody .swatch')).toHaveCount(4);
+    await expect(page.locator('#showGroupModalBody .byte-sliders input')).toHaveCount(2);
     await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Open' })).toBeVisible();
     await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Dots' })).toBeVisible();
 
@@ -368,6 +412,128 @@ test.describe('Show Run page', () => {
 
     await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '201:14': 32, '202:14': 32 });
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('9:32') && call.body.includes('29:32'))).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('Group Edit autosaves and restores Pan and Tilt fine relative steps from server UI state', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [{
+        id: 10,
+        name: 'Moving Spot',
+        mode: '16ch',
+        channels: 8,
+        controls: [{ id: 13, type: 'panTilt16', label: 'Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }]
+      }],
+      fixtures: [
+        { id: 201, name: 'Mover 1', profileId: 10, start: 1 },
+        { id: 202, name: 'Mover 2', profileId: 10, start: 11 }
+      ],
+      groups: [{ id: 'movers', name: 'Movers', fixtureIds: [201, 202], values: {} }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="movers"]').click();
+    await page.locator('#showGroupEditBtn').click();
+    const panFine = page.locator('#showGroupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-show-group-step]');
+    const tiltFine = page.locator('#showGroupModalBody .relative-control', { hasText: 'Tilt fine relative' }).locator('[data-show-group-step]');
+    await panFine.fill('7');
+    await tiltFine.fill('9');
+
+    await expect.poll(() => calls.uiStatePosts.some(post => {
+      const steps = post.state?.groupEditRelativeSteps;
+      return steps?.['panTilt|pan|fine'] === 7 && steps?.['panTilt|tilt|fine'] === 9;
+    })).toBe(true);
+
+    await page.locator('#showGroupModalClose').click();
+    await page.locator('#showGroupEditBtn').click();
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-show-group-step]')).toHaveValue('7');
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Tilt fine relative' }).locator('[data-show-group-step]')).toHaveValue('9');
+
+    const savedPost = calls.uiStatePosts.findLast(post => post.state?.groupEditRelativeSteps);
+    calls.showRunState = { groupEditRelativeSteps: savedPost.state.groupEditRelativeSteps };
+    await page.evaluate(() => localStorage.removeItem('dmxShowRun.groupEditRelativeSteps'));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.locator('#groupGrid [data-group="movers"]').click();
+    await page.locator('#showGroupEditBtn').click();
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-show-group-step]')).toHaveValue('7');
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Tilt fine relative' }).locator('[data-show-group-step]')).toHaveValue('9');
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('Group Edit preserves profile control order and continuously updates adjustable wheel ranges', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [{
+        id: 20,
+        name: 'Ordered Moving Spot',
+        mode: '3ch',
+        channels: 3,
+        controls: [
+          { id: 23, type: 'slider8', label: 'Dimmer', channel: 3 },
+          {
+            id: 21,
+            type: 'wheel',
+            label: 'Gobo Wheel',
+            channel: 1,
+            options: [
+              { name: 'Open', value: 0, range: [0, 15], kind: 'WheelSlot' },
+              { name: 'Rotation slow CW to fast CW', value: 253, range: [250, 255], kind: 'WheelRotation', speedStart: 'slow CW', speedEnd: 'fast CW' }
+            ]
+          },
+          { id: 22, type: 'slider8', label: 'Focus', channel: 2 }
+        ]
+      }],
+      fixtures: [
+        { id: 301, name: 'Ordered Spot 1', profileId: 20, start: 1 },
+        { id: 302, name: 'Ordered Spot 2', profileId: 20, start: 11 }
+      ],
+      setupValues: { '301:21': 250, '302:21': 250 },
+      groups: [{ id: 'ordered', name: 'Ordered Spots', fixtureIds: [301, 302], values: {} }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="ordered"]').click();
+    await page.locator('#showGroupEditBtn').click();
+
+    await expect(page.locator('#showGroupModalBody .control h3')).toHaveText(['Dimmer', 'Gobo Wheel', 'Focus']);
+    const state = await page.evaluate(() => {
+      const host = document.querySelector('[data-show-group-wheel-range-host]');
+      const slider = host?.querySelector('input[type="range"]');
+      slider?.focus();
+      if (slider) {
+        slider.value = '252';
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const preservedAfterFirstInput = slider === host?.querySelector('input[type="range"]');
+      if (slider) {
+        slider.value = '255';
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      return {
+        preservedAfterFirstInput,
+        preservedAfterSecondInput: slider === host?.querySelector('input[type="range"]'),
+        sliderValue: host?.querySelector('input[type="range"]')?.value,
+        readout: host?.querySelector('[data-wheel-range-readout]')?.textContent,
+        values: [values['301:21'], values['302:21']]
+      };
+    });
+
+    expect(state).toEqual({
+      preservedAfterFirstInput: true,
+      preservedAfterSecondInput: true,
+      sliderValue: '255',
+      readout: '255',
+      values: [255, 255]
+    });
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '301:21': 255, '302:21': 255 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:255') && call.body.includes('11:255'))).toBe(true);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -445,6 +611,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#showPlaneModal .modal-actions')).toBeVisible();
     await expect.poll(() => page.locator('#showPlaneModal .modal-body').evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
     await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:21': { pan: 2000, tilt: 3000 } });
     await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
     await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
     await page.locator('#showPlanePanView').click();
@@ -573,7 +740,7 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     const card = page.locator('#cardGrid #cardMidi');
-    await expect(card.getByRole('heading', { name: 'MIDI Input' })).toBeVisible();
+    await expect(card.getByRole('heading', { name: 'MIDI Controller' })).toBeVisible();
     await expect(page.locator('#midiStatusPill')).toHaveText('Ready');
     await expect(page.locator('#midiHardware')).toHaveText('GPIO5 · UART1 · 31,250 baud');
     await expect(page.locator('#midiBytes')).toHaveText('24');
@@ -585,21 +752,251 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
-  test('lets the operator add a MIDI Input card through Show Run card management', async ({ page }) => {
+  test('learns a computer MIDI button from the scene edit modal and recalls the scene', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await installFakeComputerMidi(page);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('[data-midi-connect]').click();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('[data-show-edit-tile="scene:scene_1"]').click();
+    await expect(page.locator('#showTileMidiMapping')).toContainText('No MIDI control mapped');
+    await page.locator('#showTileMidiMapping [data-midi-learn]').click();
+    await page.evaluate(() => window.__emitComputerMidi([0x90, 41, 127]));
+
+    await expect(page.locator('#showTileMidiMapping')).toContainText('Note 41 · Channel 1');
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.midiMappings') || '[]')[0])).toMatchObject({
+      targetType: 'scene',
+      targetId: 'scene_1',
+      messageType: 'note',
+      channel: 1,
+      number: 41,
+      mode: 'trigger'
+    });
+    await page.locator('#showTileVisualClose2').click();
+    await page.locator('#editLayoutBtn').click();
+    await page.evaluate(() => window.__emitComputerMidi([0x90, 41, 127]));
+
+    await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({ '101:11': 100, '102:11': 200 });
+    await expect.poll(() => calls.uiStatePosts.find(post => Array.isArray(post.state?.midiMappings))?.state?.midiMappings?.[0]).toMatchObject({
+      targetType: 'scene',
+      targetId: 'scene_1',
+      messageType: 'note',
+      channel: 1,
+      number: 41,
+      deviceId: 'launch-control-xl-in',
+      deviceName: 'Launch Control XL',
+      mode: 'trigger',
+      pickup: false
+    });
+  });
+
+  test('loads a restored MIDI mapping from XAMPP UI state and recalls its scene without relearning', async ({ page }) => {
+    const calls = {
+      pico: [], liveValues: [], setupWrites: 0,
+      showRunState: {
+        midiMappings: [{
+          targetType: 'scene', targetId: 'scene_1', messageType: 'note', channel: 1, number: 41,
+          deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false
+        }]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await installFakeComputerMidi(page);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('[data-midi-connect]').click();
+    await page.evaluate(() => window.__emitComputerMidi([0x90, 41, 127]));
+
+    await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({ '101:11': 100, '102:11': 200 });
+    expect(calls.uiStatePosts.filter(post => Array.isArray(post.state?.midiMappings))).toHaveLength(0);
+  });
+
+  test('maps a computer MIDI fader to a Live Control with soft takeover', async ({ page }) => {
+    const calls = {
+      pico: [], liveValues: [], setupWrites: 0,
+      setupValues: { '101:11': 0 },
+      showRunState: {
+        liveControls: [{
+          id: 'live_dimmer', cardId: 'live', fixtureId: 101, fixtureIds: ['101'],
+          controlId: 11, controlLabel: 'Dimmer', controlType: 'slider8', part: 'value', widget: 'fader'
+        }]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await installFakeComputerMidi(page);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('[data-midi-connect]').click();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('[data-midi-edit-target="live:live_dimmer"]').click();
+    await page.locator('#midiMappingModalBody [data-midi-learn]').click();
+    await page.evaluate(() => window.__emitComputerMidi([0xB0, 77, 0]));
+    await expect(page.locator('#midiMappingModalBody')).toContainText('CC 77 · Channel 1');
+    await page.evaluate(() => window.__emitComputerMidi([0xB0, 77, 127]));
+
+    await expect.poll(() => calls.liveValues.at(-1)?.['101:11']).toBe(255);
+    expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:255')).toBe(true);
+    await page.evaluate(() => window.__emitComputerMidi([0xB0, 77, 64]));
+    await expect.poll(() => calls.liveValues.at(-1)?.['101:11']).toBe(129);
+    expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:129')).toBe(true);
+    expect(await page.evaluate(() => [
+      scaleMidi7Bit(0, 0, 255),
+      scaleMidi7Bit(64, 0, 255),
+      scaleMidi7Bit(127, 0, 255),
+      scaleMidi7Bit(127, 0, 100),
+      scaleMidi7Bit(127, 0, 65535)
+    ])).toEqual([0, 129, 255, 100, 65535]);
+  });
+
+  test('learns and runs a scene mapping from the separate MIDI emulator page', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    const emulator = await page.context().newPage();
+    await emulator.goto(new URL('dmx_midi_emulator.html?test=' + Date.now(), page.url()).href);
+
+    await expect(emulator.locator('header h1 .app-version')).toHaveText(/v0\.9\.9/);
+    await expect(emulator.locator('#connectionPill')).toContainText('Connected to Show Run');
+    await expect(emulator.locator('[data-midi-cc]')).toHaveCount(32);
+    await expect(emulator.locator('[data-midi-note]')).toHaveCount(24);
+    await expect(emulator.locator('[data-emulator-section]')).toHaveCount(4);
+    await expect(emulator.locator('[data-emulator-section="faders"] [data-midi-note]')).toHaveCount(0);
+    await expect(emulator.locator('[data-emulator-section="channel-buttons"] [data-midi-note]')).toHaveCount(16);
+    await expect(emulator.locator('[data-emulator-section="utility-buttons"] [data-midi-note]')).toHaveCount(8);
+    await expect(page.locator('[data-midi-emulator-status]').first()).toContainText('connected');
+
+    await page.bringToFront();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('[data-show-edit-tile="scene:scene_1"]').click();
+    await page.locator('#showTileMidiMapping [data-midi-learn]').click();
+    await emulator.bringToFront();
+    await emulator.locator('[data-midi-note="41"]').click();
+
+    await page.bringToFront();
+    await expect(page.locator('#showTileMidiMapping')).toContainText('Launch Control XL Emulator');
+    await page.locator('#showTileVisualClose2').click();
+    await page.locator('#editLayoutBtn').click();
+    await emulator.bringToFront();
+    await emulator.locator('[data-midi-note="41"]').click();
+
+    await page.bringToFront();
+    await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({ '101:11': 100, '102:11': 200 });
+    await emulator.close();
+  });
+
+  test('shows MIDI edit actions for masters and Pico playback tiles only in Edit mode', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
     await openDmxPage(page, 'dmx_show.html');
 
-    await expect(page.locator('#cardGrid [data-show-card="midi"] h2')).toHaveText('MIDI Input');
+    await expect(page.locator('[data-midi-edit-target="master:all"]')).toBeHidden();
+    await page.locator('#editLayoutBtn').click();
+    await expect(page.locator('[data-midi-edit-target="master:all"]')).toBeVisible();
+    await expect(page.locator('#chaserSlots [data-midi-edit-target="chaser:0"]')).toBeVisible();
+    await expect(page.locator('#motionSlots [data-midi-edit-target="motion:0"]')).toBeVisible();
+    for (const [container, type] of [['#chaserSlots', 'chaser'], ['#motionSlots', 'motion']]) {
+      const tile = page.locator(`${container} .playback-card`).filter({ has: page.locator(`[data-midi-edit-target="${type}:0"]`) });
+      const editButton = tile.locator(`[data-midi-edit-target="${type}:0"]`);
+      expect(await editButton.evaluate(button => button.offsetParent === button.closest('.playback-card'))).toBe(true);
+      const tileBox = await tile.boundingBox();
+      const buttonBox = await editButton.boundingBox();
+      expect(tileBox).not.toBeNull();
+      expect(buttonBox).not.toBeNull();
+      expect(buttonBox.x).toBeGreaterThanOrEqual(tileBox.x);
+      expect(buttonBox.y).toBeGreaterThanOrEqual(tileBox.y);
+      expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(tileBox.x + tileBox.width);
+      expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(tileBox.y + tileBox.height);
+      expect(await tile.evaluate(element => {
+        const button = element.querySelector('[data-midi-edit-target]');
+        const title = element.querySelector('h3');
+        if (!button || !title) return false;
+        const buttonRect = button.getBoundingClientRect();
+        const titleRange = document.createRange();
+        titleRange.selectNodeContents(title);
+        const titleRect = titleRange.getBoundingClientRect();
+        return buttonRect.right <= titleRect.left
+          || buttonRect.left >= titleRect.right
+          || buttonRect.bottom <= titleRect.top
+          || buttonRect.top >= titleRect.bottom;
+      })).toBe(true);
+    }
+    await page.locator('#chaserSlots [data-midi-edit-target="chaser:0"]').click();
+    await expect(page.locator('#midiMappingTitle')).toContainText('Pico Chaser');
+  });
+
+  test('learns selectable pause and resume MIDI actions for Pico chaser and effects tiles', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await installFakeComputerMidi(page);
+    await openDmxPage(page, 'dmx_show.html');
+
+    expect(await page.evaluate(() => normalizeMidiMapping({
+      targetType: 'chaser', targetId: '0', messageType: 'note', channel: 1, number: 40, mode: 'trigger'
+    }).action)).toBe('toggle-run');
+
+    await page.locator('[data-midi-connect]').click();
+    await page.locator('#editLayoutBtn').click();
+    for (const target of [
+      { type: 'chaser', container: '#chaserSlots', note: 41 },
+      { type: 'motion', container: '#motionSlots', note: 42 }
+    ]) {
+      await page.locator(`${target.container} [data-midi-edit-target="${target.type}:0"]`).click();
+      const actionSelect = page.locator('#midiMappingModalBody [data-midi-playback-action]');
+      await expect(actionSelect.locator('option')).toHaveCount(6);
+      await expect(actionSelect).toHaveValue('toggle-run');
+      await actionSelect.selectOption('toggle-pause');
+      await page.locator('#midiMappingModalBody [data-midi-learn]').click();
+      await page.evaluate(note => window.__emitComputerMidi([0x90, note, 127]), target.note);
+      await expect(page.locator('#midiMappingModalBody')).toContainText('Pause / Resume toggle');
+      await page.locator('#midiMappingClose2').click();
+    }
+    await page.locator('#editLayoutBtn').click();
+
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.midiMappings') || '[]'))).toEqual(expect.arrayContaining([
+      expect.objectContaining({ targetType: 'chaser', targetId: '0', number: 41, action: 'toggle-pause' }),
+      expect.objectContaining({ targetType: 'motion', targetId: '0', number: 42, action: 'toggle-pause' })
+    ]));
+    await expect.poll(() => {
+      const post = [...calls.uiStatePosts].reverse().find(item => Array.isArray(item.state?.midiMappings));
+      return post?.state?.midiMappings;
+    }).toEqual(expect.arrayContaining([
+      expect.objectContaining({ targetType: 'chaser', targetId: '0', action: 'toggle-pause' }),
+      expect.objectContaining({ targetType: 'motion', targetId: '0', action: 'toggle-pause' })
+    ]));
+
+    for (const target of [
+      { type: 'chaser', note: 41 },
+      { type: 'motion', note: 42 }
+    ]) {
+      await page.evaluate(note => window.__emitComputerMidi([0x80, note, 0]), target.note);
+      await page.evaluate(note => window.__emitComputerMidi([0x90, note, 127]), target.note);
+      await expect.poll(() => calls.pico.some(call => call.url === `http://pico.test/${target.type}/pause/0`)).toBe(true);
+      await page.evaluate(note => window.__emitComputerMidi([0x80, note, 0]), target.note);
+      await page.evaluate(note => window.__emitComputerMidi([0x90, note, 127]), target.note);
+      await expect.poll(() => calls.pico.some(call => call.url === `http://pico.test/${target.type}/resume/0`)).toBe(true);
+    }
+  });
+
+  test('lets the operator add a MIDI Controller card through Show Run card management', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardGrid [data-show-card="midi"] h2')).toHaveText('MIDI Controller');
     await page.locator('#editLayoutBtn').click();
     await page.locator('#cardRows').fill('5');
     await page.locator('[data-add-card-position="9"]').click();
     await page.locator('#addCardType').selectOption('midi');
-    await expect(page.locator('#addShowCard')).toHaveText('Add MIDI Input Card');
+    await expect(page.locator('#addShowCard')).toHaveText('Add MIDI Controller Card');
     await page.locator('#addShowCard').click();
 
     await expect(page.locator('#cardGrid [data-show-card="midi"] h2')).toHaveCount(2);
-    await expect(page.locator('#status')).toContainText('Added MIDI Input at position 10');
+    await expect(page.locator('#status')).toContainText('Added MIDI Controller at position 10');
     const savedOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(savedOrder.filter(entry => String(entry || '').startsWith('midi'))).toHaveLength(2);
     expect(calls.setupWrites).toBe(0);
@@ -674,7 +1071,7 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await expect(page.locator('#editLayoutBtn')).toHaveText('Done Layout');
+    await expect(page.locator('#editLayoutBtn')).toHaveText('Done');
     const initialGets = calls.fixtureGets;
     calls.scenes = [
       {
@@ -1788,7 +2185,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Add card');
     await expect(page.locator('#cardGrid > :nth-child(5)')).toContainText('Position 5');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
-    await expect(page.locator('#cardGrid > :nth-child(7) h2')).toHaveText('MIDI Input');
+    await expect(page.locator('#cardGrid > :nth-child(7) h2')).toHaveText('MIDI Controller');
     await expect(page.locator('#cardGrid > :nth-child(8) h2')).toHaveText('Fixtures');
     await expect(page.locator('#cardGrid > :nth-child(9) h2')).toHaveText('Master');
     await expect(page.locator('#cardGrid > :nth-child(10) h2')).toHaveText('Pico Effects Playback');
@@ -1963,7 +2360,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#addCardModal')).toBeVisible();
     await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
-    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
+    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
@@ -2105,7 +2502,7 @@ test.describe('Show Run page', () => {
     await page.locator('[data-add-card-position="2"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
-    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
+    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
 
     await page.locator('#addCardType').selectOption('palette');
     await page.locator('#addShowCard').click();

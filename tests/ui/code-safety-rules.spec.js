@@ -55,4 +55,12 @@ test.describe('Code safety regression rules', () => {
     expect(clickHandler[0]).toContain('nearRailBottom');
     expect(clickHandler[0]).toContain('if(expanding&&!nearRailBottom)restoreRailElementAnchor');
   });
+
+  test('release preparation keeps Pico hardware tests explicitly opt-in', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+    expect(releaseScript).toContain('if (-not $RunHardwareTests)');
+    expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "false"');
+    expect(releaseScript).toContain('if ($RunHardwareTests -and -not $SkipTests)');
+    expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
+  });
 });

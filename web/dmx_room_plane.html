@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Room Plane</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
-<script src="assets/dmx-common.js?v=0.9.8"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.9">
+<script src="assets/dmx-common.js?v=0.9.9"></script>
 <style>
 body{min-height:100vh}
 .room-titlebar{padding:10px 14px;background:var(--bg);display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
@@ -29,9 +29,6 @@ main{max-width:none;width:100%;margin:0;padding:14px;display:grid;gap:14px}
 .room-card-body{display:grid;gap:12px}
 .room-tool-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .room-tool-row label{min-width:110px}
-#roomPlaneLibraryBox .slot-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:-2px}
-#roomPlaneLibraryBox .slot-actions label{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);min-width:0}
-#roomPlaneLibraryBox .slot-actions input{width:52px;padding:6px}
 .room-plane-meta{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px}
 .room-main{align-content:start}
 #roomPlaneBox .scene-toolbox__header,#roomPlaneLibraryBox.scene-toolbox--planes .scene-toolbox__header,#roomFixturesBox .scene-toolbox__header{background:#0b2f4f}
@@ -99,11 +96,11 @@ canvas{display:none}
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.9">GPIO</a>
     <a class="nav" href="dmx_monitor.html">Monitor</a>
     <a class="nav" href="test/">Performance</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.8#10-room-plane" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.9#10-room-plane" target="_blank">Manual</a>
   </div>
   </div>
 </header>
@@ -202,11 +199,7 @@ canvas{display:none}
     <div class="room-card-body">
       <input id="planeName" type="hidden" value="Default plane">
       <select id="planeSelect" hidden></select>
-      <div class="slot-actions">
-        <label>Cols<input id="planeCols" type="number" min="1" max="16" value="3"></label>
-        <label>Rows<input id="planeRows" type="number" min="1" max="16" value="3"></label>
-        <button id="moveRoomPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
-      </div>
+      <div id="roomPlaneLayoutControls" class="tile-layout-controls"></div>
       <div class="scene-slot-matrix" id="planeLibrary"></div>
     </div>
   </div>
@@ -249,6 +242,8 @@ canvas{display:none}
     </div>
     <div id="groupModalBody" class="modal-body"></div>
     <div class="modal-actions">
+      <button id="defaultRoomGroupBtn" type="button" title="Recall default values for every selected fixture">Default</button>
+      <button id="blackoutRoomGroupBtn" type="button" title="Recall blackout values for every selected fixture">Blackout</button>
       <button id="closeGroupModal2" type="button">Close</button>
     </div>
   </div>
@@ -286,6 +281,7 @@ canvas{display:none}
 <aside id="roomPlaneToolboxRail" class="toolbox-rail" data-min-main-width="520" aria-label="Room Plane toolboxes"></aside>
 
 <script>
+DmxCommon.mountTileLayoutControls('roomPlaneLayoutControls',{colsId:'planeCols',rowsId:'planeRows',moveId:'moveRoomPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'});
 const points=[
   {id:'A',x:0,y:0},
   {id:'B',x:5,y:0},
@@ -1583,58 +1579,34 @@ async function sendRoomGroupControl(c){
   DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
   setStatus('Group Edit: sent '+rows.length+' channel update'+(rows.length===1?'':'s')+' to '+roomGroupTargets(c).length+' fixture'+(roomGroupTargets(c).length===1?'':'s'));
 }
-function roomWheelOptionValue(option){
-  if(Array.isArray(option?.dmxRange))return Math.round(((Number(option.dmxRange[0])||0)+(Number(option.dmxRange[1])||0))/2);
-  return Math.max(0,Math.min(255,Number(option?.value)||0));
-}
 const roomWheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
-function roomGroupRelativeHtml(key,part,kind,max,step,label){
-  return `<div class="relative-control"><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="-1" data-relative-step-default="${step}">-</button><label>${DmxCommon.escapeHtml(label)}<input type="number" min="1" max="${max}" step="1" value="${step}" data-relative-step></label><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="1" data-relative-step-default="${step}">+</button></div>`;
-}
 function roomGroupScopeText(c){
   return roomGroupTargets(c).length+' matching fixture'+(roomGroupTargets(c).length===1?'':'s');
 }
+const roomGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'roomPlane',localStorageKey:'dmxRoomPlane.groupEditRelativeSteps'});
 function renderRoomGroupControl(c){
-  const key=roomGroupKey(c);
-  const attrs=`data-room-gc="${DmxCommon.escapeHtml(key)}"`;
-  const scope=`<span class="bytes">${DmxCommon.escapeHtml(roomGroupScopeText(c))}</span>`;
-  if(c.type==='panTilt16'||c.type==='panTilt8'){
-    const max=c.type==='panTilt8'?255:65535;
-    const v=roomGroupValue(c);
-    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Pan / Tilt')}</h3><span class="bytes">${c.type==='panTilt8'?'Pan/Tilt 8-bit':'Pan/Tilt 16-bit'}</span>${scope}</div>
-      <div class="xy-pad" data-room-gxy="${DmxCommon.escapeHtml(key)}"><div class="xy-dot" style="left:${(Number(v.pan)||0)/max*100}%;top:${100-(Number(v.tilt)||0)/max*100}%"></div></div>
-      <div class="row"><span class="readout" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">Pan ${Number(v.pan)||0} · Tilt ${Number(v.tilt)||0}</span><button ${attrs} data-room-center="1">Center</button></div>
-      ${roomGroupRelativeHtml(key,'pan','coarse',max,max>255?256:1,'Pan '+(max>255?'coarse':'relative'))}
-      ${max>255?roomGroupRelativeHtml(key,'pan','fine',max,1,'Pan fine'):''}
-      ${roomGroupRelativeHtml(key,'tilt','coarse',max,max>255?256:1,'Tilt '+(max>255?'coarse':'relative'))}
-      ${max>255?roomGroupRelativeHtml(key,'tilt','fine',max,1,'Tilt fine'):''}</div>`;
-  }
-  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const v=roomGroupValue(c);
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    const names=c.type.startsWith('rgb')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
-    const color=c.type.startsWith('rgb')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Color')}</h3><span class="bytes">${c.type.toUpperCase()}</span>${scope}</div>
-      <label>Color picker<input type="color" value="${color}" ${attrs} data-color-picker="1"></label>
-      ${parts.map((part,index)=>`<label>${names[index]} <span data-room-gc-part="${DmxCommon.escapeHtml(key)}" data-part="${part}">${Number(v?.[part])||0}</span><input type="range" min="0" max="255" value="${Number(v?.[part])||0}" ${attrs} data-part="${part}"></label>${roomGroupRelativeHtml(key,part,'default',255,1,names[index]+' relative')}`).join('')}
-      <div class="swatches"><button class="swatch" style="background:#fff" data-room-gc-color="#ffffff" ${attrs}></button><button class="swatch" style="background:#f00" data-room-gc-color="#ff0000" ${attrs}></button><button class="swatch" style="background:#0f0" data-room-gc-color="#00ff00" ${attrs}></button><button class="swatch" style="background:#00f" data-room-gc-color="#0000ff" ${attrs}></button></div></div>`;
-  }
-  if(c.type==='wheel'){
-    const v=roomGroupValue(c);
-    const active=selectedWheelOption(c,v);
-    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Wheel')}</h3><span class="bytes" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">Wheel · ${v}${active?' · '+DmxCommon.escapeHtml(active.name):''}</span>${scope}</div>
-      <div class="tabs">${(c.options||[]).map((option,index)=>`<button class="tab ${wheelOptionMatches(option,v)?'active':''}" data-room-gc-wheel="${roomWheelOptionValue(option)}" data-room-gc-wheel-option-index="${index}" ${attrs}>${roomWheelOptionIconHtml(option)}${DmxCommon.escapeHtml(option.name||('Option '+(index+1)))}</button>`).join('')}</div>
-      <div data-room-gc-wheel-range-host="${DmxCommon.escapeHtml(key)}">${wheelRangeSliderHtml(active,v,attrs,DmxCommon.escapeHtml)}</div>
-      <div class="value-row"><input type="range" min="0" max="255" value="${v}" ${attrs}><input type="number" min="0" max="255" step="1" value="${v}" ${attrs}></div>
-      ${roomGroupRelativeHtml(key,'value','default',255,1,'Relative')}</div>`;
-  }
-  const max=c.type==='slider16'?65535:255;
-  const v=Number(roomGroupValue(c))||0;
-  const b=bytes16(v);
-  const extra=c.type==='slider16'?`<div class="byte-sliders"><label>Coarse <span data-room-gc-byte="${DmxCommon.escapeHtml(key)}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${attrs} data-byte-part="coarse"></label><label>Fine <span data-room-gc-byte="${DmxCommon.escapeHtml(key)}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${attrs} data-byte-part="fine"></label></div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Control')}</h3><span class="readout" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">${v}</span><span class="bytes">${DmxCommon.escapeHtml(c.type||'control')}</span>${scope}</div>
-    <div class="value-row"><input type="range" min="0" max="${max}" step="1" value="${v}" ${attrs}><input type="number" min="0" max="${max}" step="1" value="${v}" ${attrs}></div>
-    ${c.type==='slider16'?roomGroupRelativeHtml(key,'value','coarse',max,256,'Coarse relative')+roomGroupRelativeHtml(key,'value','fine',max,1,'Fine relative'):roomGroupRelativeHtml(key,'value','default',max,1,'Relative')}${extra}</div>`;
+  const key=roomGroupKey(c),safeKey=DmxCommon.escapeHtml(key),base=`data-room-gc="${safeKey}"`;
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
+  return DmxCommon.fixtureGroupEditControlHtml({
+    control:c,key,value:roomGroupValue(c),scopeText:roomGroupScopeText(c),escape:DmxCommon.escapeHtml,
+    relativeStepValue:(part,kind,step,max)=>roomGroupRelativeStepStore.value(key,part,kind,step,max),
+    attributes:(role,detail={})=>{
+      if(role==='xy')return `data-room-gxy="${safeKey}"`;
+      if(role==='readout')return `data-room-gc-readout="${safeKey}"`;
+      if(role==='partReadout')return `data-room-gc-part="${safeKey}" data-part="${detail.part}"`;
+      if(role==='byteReadout')return `data-room-gc-byte="${safeKey}" data-byte-part="${detail.part}"`;
+      if(role==='center')return `${base} data-room-center="1"`;
+      if(role==='colorPicker')return `${base} data-color-picker="1"`;
+      if(role==='color')return `${base} data-room-gc-color="${detail.color}"`;
+      if(role==='wheel')return `${base} data-room-gc-wheel="${detail.value}" data-room-gc-wheel-option-index="${detail.index}"`;
+      if(role==='wheelHost')return `data-room-gc-wheel-range-host="${safeKey}"`;
+      if(role==='input')return base+(isColor&&detail.part?` data-part="${detail.part}"`:'');
+      if(role==='byteInput')return `${base} data-byte-part="${detail.part}"`;
+      if(role==='relative')return `data-room-relative-gc="${safeKey}" data-relative-part="${detail.part}" data-relative-dir="${detail.dir}" data-relative-step-default="${detail.step}"`;
+      if(role==='relativeStep')return `data-relative-step="1"`;
+      return'';
+    }
+  });
 }
 function updateRoomGroupControlDisplay(c){
   const key=roomGroupKey(c);
@@ -1669,7 +1641,7 @@ function updateRoomGroupControlDisplay(c){
     document.querySelectorAll(`[data-room-gc-byte="${CSS.escape(key)}"][data-byte-part="fine"]`).forEach(el=>el.textContent=b.fine);
   }
   if(c.type==='wheel'){
-    document.querySelectorAll(`[data-room-gc-wheel-range-host="${CSS.escape(key)}"]`).forEach(el=>{el.innerHTML=wheelRangeSliderHtml(selectedWheelOption(c,v),v,`data-room-gc="${DmxCommon.escapeHtml(key)}"`,DmxCommon.escapeHtml);});
+    document.querySelectorAll(`[data-room-gc-wheel-range-host="${CSS.escape(key)}"]`).forEach(el=>DmxCommon.updateFixtureGroupEditWheelRangeHost(el,selectedWheelOption(c,v),v,`data-room-gc="${DmxCommon.escapeHtml(key)}"`,DmxCommon.escapeHtml));
     document.querySelectorAll(`button[data-room-gc="${CSS.escape(key)}"][data-room-gc-wheel]`).forEach(el=>el.classList.toggle('active',Number(el.dataset.roomGcWheel)===Number(v)));
   }
 }
@@ -1682,11 +1654,33 @@ function openRoomControllerGroupModal(){
   ensureRoomGroupSourceFixture();
   syncRoomGroupValues(common);
   const count=selectedRoomFixtures().length;
-  document.getElementById('groupModalTitle').textContent='Group Edit - '+count+' fixture'+(count===1?'':'s')+' selected · '+common.length+' editable control'+(common.length===1?'':'s');
+  document.getElementById('groupModalTitle').textContent='Group Edit — '+count+' fixture'+(count===1?'':'s')+' selected · '+common.length+' editable control'+(common.length===1?'':'s');
   document.getElementById('groupModalBody').innerHTML=common.map(renderRoomGroupControl).join('');
   DmxCommon.showModal('groupModal');
 }
 function closeRoomGroupModal(){DmxCommon.hideModal('groupModal');renderFixtureRows();render();}
+async function recallRoomGroupFixtureValues(which){
+  const controls=roomGroupEditableControls();
+  let changed=0;
+  for(const control of controls){
+    let controlChanged=false;
+    roomGroupTargets(control).forEach(target=>{
+      const value=target.control?.[which];
+      if(value===undefined||value===null)return;
+      setValue(target.fixture,target.control,cloneValue(value));
+      changed++;
+      controlChanged=true;
+    });
+    if(!controlChanged)continue;
+    const source=firstRoomGroupTarget(control);
+    if(source)roomGroupValues[roomGroupKey(control)]=cloneValue(getValue(source.fixture,source.control,defaultValueForControl(source.control)));
+    updateRoomGroupControlDisplay(control);
+    await sendRoomGroupControl(control);
+  }
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!changed){setStatus('No '+label+' values configured for the selected fixtures',true);return;}
+  setStatus('Group '+label+' recalled for '+selectedRoomFixtures().length+' fixture'+(selectedRoomFixtures().length===1?'':'s'));
+}
 function openRoomPlaneGroupEdit(groups){
   const selectedGroups=Array.isArray(groups)?groups:[];
   if(!selectedGroups.length){
@@ -1707,7 +1701,11 @@ document.getElementById('planeRows').addEventListener('input',event=>{planeRows=
 document.getElementById('resetCalibration').onclick=()=>resetAllCalibration();
 document.getElementById('closeGroupModal').onclick=closeRoomGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeRoomGroupModal;
+document.getElementById('defaultRoomGroupBtn').onclick=()=>recallRoomGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
+document.getElementById('blackoutRoomGroupBtn').onclick=()=>recallRoomGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 document.getElementById('groupModalBody').addEventListener('input',event=>{
+  const relativeStep=event.target.closest?.('[data-group-edit-step-key]');
+  if(relativeStep){roomGroupRelativeStepStore.rememberInput(relativeStep);return;}
   const target=event.target.closest('[data-room-gc]')||event.target;
   const key=target.dataset.roomGc;
   if(!key)return;
@@ -1738,6 +1736,7 @@ document.getElementById('groupModalBody').addEventListener('click',event=>{
     const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
     if(!c)return;
     const input=relative.closest('.relative-control')?.querySelector('input[type=number]');
+    if(input)roomGroupRelativeStepStore.rememberInput(input);
     const step=Math.max(1,Number(input?.value)||Number(relative.dataset.relativeStepDefault)||1);
     const dir=Number(relative.dataset.relativeDir)<0?-1:1;
     const changed=applyRelativeToRoomGroup(c,relative.dataset.relativePart||'value',dir*step);
@@ -1908,6 +1907,7 @@ document.getElementById('planePad').addEventListener('wheel',event=>{
   event.preventDefault();
   zoomPlaneView(event.deltaY<0?1.12:1/1.12);
 },{passive:false});
+DmxCommon.loadUiState('roomPlane').then(state=>roomGroupRelativeStepStore.load(state.groupEditRelativeSteps)).catch(()=>{});
 loadRoomPlaneSetup();
 </script>
 </body>
