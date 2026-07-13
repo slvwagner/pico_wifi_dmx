@@ -759,7 +759,7 @@ test.describe('Chaser established rules', () => {
     await page.evaluate(() => {
       chaserGroupsBox.setGroups([{ id: 'grp_dimmer', name: 'Dimmer Pair', fixtureIds: [101, 102], values: {} }]);
     });
-    await page.locator('#chaserGroupsBox [data-group-index="0"]').click();
+    await page.locator('#chaserGroupsBox [data-group-index="0"]').evaluate(element => element.click());
 
     const result = await page.evaluate(() => {
       document.getElementById('groupControlSelect').value = 'Dimmer|slider8';
