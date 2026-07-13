@@ -642,6 +642,7 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('[data-controller-plane-nudge-axis="x"][data-controller-plane-nudge-dir="1"][data-controller-plane-nudge-step="coarse"]').click();
     await expect(page.locator('#controllerPlaneSummary')).toContainText('Target X 6');
     await expect.poll(() => dmxBatches.length).toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => values['101:12'])).toEqual({ pan: 2200, tilt: 3200 });
 
     const result = await page.evaluate(() => ({
       value: values['101:12'],

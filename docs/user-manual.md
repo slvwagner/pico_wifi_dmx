@@ -1262,6 +1262,8 @@ Room Plane data is saved to the server in `room_plane_setup.json`. A saved plane
 
 This means you can create multiple room planes for different physical setups or stage areas. Recalling a plane recalls its own fixture calibration.
 
+When a saved plane is loaded, its fixtures are matched to the current Fixture Controller patch by fixture ID. The saved mount position and A/B/C calibration remain plane-specific, while the current fixture name, profile, DMX start address, and live connection are used. Therefore **Fixtures > Edit > Recall A/B/C** moves the physical fixture even if its patch address changed after the plane was saved.
+
 ### 10.9 Current Limits
 
 The current implementation is calibration-based. It does not yet calculate pan/tilt from fixture mount position, fixture orientation, beam length, and full 3D geometry. Mount X/Y/Z is saved and drawn, but the output is currently calculated from the measured A/B/C pan/tilt values.

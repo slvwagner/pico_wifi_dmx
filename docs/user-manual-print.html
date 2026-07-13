@@ -999,6 +999,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Active saved plane ID</li>
 </ul>
 <p>This means you can create multiple room planes for different physical setups or stage areas. Recalling a plane recalls its own fixture calibration.</p>
+<p>When a saved plane is loaded, its fixtures are matched to the current Fixture Controller patch by fixture ID. The saved mount position and A/B/C calibration remain plane-specific, while the current fixture name, profile, DMX start address, and live connection are used. Therefore <strong>Fixtures &gt; Edit &gt; Recall A/B/C</strong> moves the physical fixture even if its patch address changed after the plane was saved.</p>
 <h3 id="10-9-current-limits">10.9 Current Limits</h3>
 <p>The current implementation is calibration-based. It does not yet calculate pan/tilt from fixture mount position, fixture orientation, beam length, and full 3D geometry. Mount X/Y/Z is saved and drawn, but the output is currently calculated from the measured A/B/C pan/tilt values.</p>
 <p>Use three non-collinear points. If A, B, and C are on one line, the determinant becomes zero and the page cannot calculate a valid plane.</p>

@@ -558,7 +558,7 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#status')).toContainText('Sent Moving 1:');
   });
 
-  test('patched controller fixture names replace stale room plane names by fixture id', async ({ page }) => {
+  test('saved plane fixtures automatically bind to current Controller fixtures by id', async ({ page }) => {
     const posts = [];
     await page.unroute('**/room_plane_setup.php');
     await page.route('**/room_plane_setup.php', async route => {
@@ -624,7 +624,11 @@ test.describe('Room Plane rules', () => {
     });
 
     await openDmxPage(page, 'dmx_room_plane.html');
-    await expect(page.locator('#fixtureRows tr').first()).toContainText('Old Plane Name');
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Controller Name');
+    await expect(page.locator('#fixtureRows tr').first()).not.toContainText('Old Plane Name');
+    await expect(page.locator('[data-send-summary="0"]')).toContainText('ch 11');
+    await expect(page.locator('input[data-fixture="0"][data-field="x"]')).toHaveValue('7');
+    await expect(page.locator('input[data-fixture="0"][data-point="A"][data-axis="pan"]')).toHaveValue('10');
     await page.locator('#loadPatchedFixtures').click();
 
     await expect(page.locator('#fixtureRows tr').first()).toContainText('Controller Name');
@@ -709,6 +713,96 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('[data-live-tilt="0"]')).toHaveText(/\d+/);
     await page.waitForTimeout(900);
     expect(roomPlanePosts).toBe(0);
+  });
+
+  test('recalling a saved calibration point uses the current Controller patch binding', async ({ page }) => {
+    const sent = [];
+    const savedFixture = {
+      id: 101,
+      name: 'Old saved name',
+      start: 1,
+      live: false,
+      x: 1,
+      y: 2,
+      z: 3,
+      control: { pan: 32768, tilt: 32768, dimmer: 255 },
+      cal: {
+        A: { pan: 0x1234, tilt: 0x5678, calibrated: true },
+        B: { pan: 20000, tilt: 30000, calibrated: true },
+        C: { pan: 40000, tilt: 50000, calibrated: true }
+      }
+    };
+
+    await page.unroute('**/room_plane_setup.php');
+    await page.route('**/room_plane_setup.php', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://localhost/dmx-test',
+            activePlaneId: 'front',
+            points: [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 5, y: 0 }, { id: 'C', x: 0, y: 3 }],
+            target: { x: 1, y: 1 },
+            fixtures: [savedFixture],
+            planes: [{
+              id: 'front',
+              name: 'Front',
+              points: [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 5, y: 0 }, { id: 'C', x: 0, y: 3 }],
+              target: { x: 1, y: 1 },
+              fixtures: [savedFixture]
+            }]
+          }
+        })
+      });
+    });
+    await page.route('**/fixture_setup.php**', async route => {
+      if (route.request().url().includes('livevalues')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, exists: true, values: {} })
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://localhost/dmx-test',
+            profiles: [{
+              id: 7,
+              name: 'Current moving profile',
+              channels: 8,
+              controls: [{ id: 12, type: 'panTilt16', label: 'Position', pan: 2, panFine: 3, tilt: 4, tiltFine: 5 }]
+            }],
+            fixtures: [{ id: 101, name: 'Current Controller name', profileId: 7, start: 10 }]
+          }
+        })
+      });
+    });
+    await page.route('**/dmx/b', async route => {
+      sent.push(route.request().postData() || '');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await openDmxPage(page, 'dmx_room_plane.html');
+    await expect(page.locator('#fixtureRows tr').first()).toContainText('Current Controller name');
+    await page.locator('[data-edit-fixture="0"]').click();
+    await page.locator('[data-ptd-action="recall-A"]').click();
+
+    await expect.poll(() => sent.at(-1)).toBe('11:18,12:52,13:86,14:120');
+    await expect(page.locator('[data-live-pan="0"]')).toHaveText(String(0x1234));
+    await expect(page.locator('[data-live-tilt="0"]')).toHaveText(String(0x5678));
   });
 
   test('selects room plane fixtures from the shared Groups toolbox', async ({ page }) => {

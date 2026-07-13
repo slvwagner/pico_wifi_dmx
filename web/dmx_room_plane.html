@@ -292,6 +292,7 @@ const points=[
   {id:'C',x:0,y:3}
 ];
 let fixtures=[];
+let controllerMovingFixtures=[];
 let editingFixtureIndex=null;
 let selectedFixtureIds=new Set();
 let profiles=[];
@@ -502,6 +503,26 @@ function capturePlaneDefinition(){
   };
 }
 
+function bindPlaneFixturesToPatchedFixtures(savedFixtures,patchedFixtures=controllerMovingFixtures){
+  const liveById=new Map((patchedFixtures||[])
+    .filter(fixture=>fixture?.live&&fixture.id!==undefined&&fixture.id!==null)
+    .map(fixture=>[String(fixture.id),fixture]));
+  return (savedFixtures||[]).map((saved,index)=>{
+    const normalized=normalizeRoomFixture(saved,index);
+    const patched=normalized.id===undefined||normalized.id===null?null:liveById.get(String(normalized.id));
+    if(!patched)return normalized;
+    return {
+      ...normalized,
+      id:patched.id,
+      name:patched.name,
+      profileId:patched.profileId,
+      start:patched.start,
+      live:true,
+      control:fixtureControlFromLive(patched)
+    };
+  });
+}
+
 function normalizedPlaneDefinitions(){
   const active=capturePlaneDefinition();
   const map=new Map((planeDefinitions||[]).map(plane=>[String(plane.id),plane]));
@@ -525,7 +546,7 @@ function applyPlaneDefinition(plane){
   points.splice(0,points.length,...(Array.isArray(plane.points)?plane.points:defaultPoints()).map(normalizePoint));
   document.getElementById('targetX').value=fmt(plane.target?.x??2.5,3);
   document.getElementById('targetY').value=fmt(plane.target?.y??1.5,3);
-  fixtures=(Array.isArray(plane.fixtures)?plane.fixtures:[]).map(normalizeRoomFixture);
+  fixtures=bindPlaneFixturesToPatchedFixtures(Array.isArray(plane.fixtures)?plane.fixtures:[]);
   if(!fixtures.length)demoFixtures();
   planeView={auto:plane.view?.auto!==false,centerX:Number(plane.view?.centerX)||0,centerY:Number(plane.view?.centerY)||0,zoom:Math.max(0.25,Math.min(8,Number(plane.view?.zoom)||1))};
   editingFixtureIndex=null;
@@ -713,7 +734,13 @@ async function loadControllerSetupForRoomPlane(){
   profiles=Array.isArray(data.setup.profiles)?data.setup.profiles:[];
   baseUrl.value=localStorage.getItem(DmxCommon.BASE_URL_KEY)||data.setup.baseUrl||baseUrl.value;
   try{liveValues=await DmxCommon.fetchFixtureLiveValues()||data.setup.values||{};}catch(_){liveValues=data.setup.values||{};}
-  return Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
+  const patched=Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
+  const moving=patched.filter(f=>{
+    const profile=profiles.find(item=>String(item.id)===String(f.profileId));
+    return profile&&Array.isArray(profile.controls)&&profile.controls.some(isPanTiltControl);
+  });
+  controllerMovingFixtures=moving.map(patchedRoomFixture);
+  return patched;
 }
 
 async function loadRoomPlaneSetup(){
@@ -947,7 +974,8 @@ async function loadPatchedMovingLights(){
       return p&&Array.isArray(p.controls)&&p.controls.some(isPanTiltControl);
     });
     if(!moving.length)throw new Error('No patched moving lights with Pan/Tilt controls found');
-    fixtures=moving.map(patchedRoomFixture);
+    controllerMovingFixtures=moving.map(patchedRoomFixture);
+    fixtures=controllerMovingFixtures;
     editingFixtureIndex=null;
     syncTables();
     applyCurrentRoomGroupSelection();

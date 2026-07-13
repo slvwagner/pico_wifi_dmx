@@ -32,6 +32,7 @@ Fixed:
 - Fixed the iPad portrait toolbox rail so expanding the last toolbox scrolls it fully into view instead of restoring its collapsed position.
 - Removed the duplicate `fixture_count` value from `/motion/slots`; `target_count` is now the single documented target-count field.
 - Added regression coverage for firmware HTTP ownership, locked JSON transactions, the Effects slot schema, and toolbox expansion scrolling.
+- Fixed **Planes > Edit > Recall A/B/C** not moving a fixture after loading a saved room plane. Saved calibration snapshots now bind by fixture ID to the current Controller profile and patch address before sending live DMX output.
 
 ## 0.9.7 - 2026-07-05
 
