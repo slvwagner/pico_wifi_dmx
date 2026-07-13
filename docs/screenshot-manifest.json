@@ -131,6 +131,26 @@
       "purpose": "Show Run MIDI Input card"
     },
     {
+      "file": "show-run-midi-scene-mapping.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run scene tile MIDI mapping editor"
+    },
+    {
+      "file": "show-run-midi-playback-mapping.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Pico playback MIDI action mapping"
+    },
+    {
+      "file": "show-run-midi-fader-mapping.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run continuous MIDI mapping with soft takeover"
+    },
+    {
+      "file": "midi-emulator.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Launch Control XL MIDI emulator control surface"
+    },
+    {
       "file": "show-run-add-card.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "Show Run Add Card modal with repeatable card types"

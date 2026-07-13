@@ -759,6 +759,43 @@ try {
     Eval-Js @"
 (async()=>{
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  midiMappings.splice(0,midiMappings.length,
+    {targetType:'scene',targetId:'doc_scene_1',messageType:'note',channel:1,number:41,deviceId:'launch-control-xl-emulator',deviceName:'Launch Control XL Emulator',mode:'trigger'},
+    {targetType:'chaser',targetId:'1',messageType:'note',channel:1,number:73,deviceId:'launch-control-xl-emulator',deviceName:'Launch Control XL Emulator',mode:'trigger',action:'toggle-pause'},
+    {targetType:'live',targetId:'doc_live_dimmer',messageType:'cc',channel:1,number:77,deviceId:'launch-control-xl-emulator',deviceName:'Launch Control XL Emulator',mode:'continuous',pickup:true}
+  );
+  if(typeof setLayoutEditing==='function')setLayoutEditing(true);
+  if(typeof openShowTileEditor==='function')openShowTileEditor('scene','doc_scene_1');
+  await wait(400);
+})()
+"@
+    Save-ElementScreenshot "#showTileVisualModal .modal-card" "show-run-midi-scene-mapping.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.getElementById('showTileVisualClose2')?.click();
+  if(typeof openMidiMappingEditor==='function')openMidiMappingEditor('chaser','1');
+  await wait(300);
+})()
+"@
+    Save-ElementScreenshot "#midiMappingModal .modal-card" "show-run-midi-playback-mapping.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof closeMidiMappingEditor==='function')closeMidiMappingEditor();
+  if(typeof openMidiMappingEditor==='function')openMidiMappingEditor('live','doc_live_dimmer');
+  await wait(300);
+})()
+"@
+    Save-ElementScreenshot "#midiMappingModal .modal-card" "show-run-midi-fader-mapping.png"
+
+    Eval-Js "if(typeof closeMidiMappingEditor==='function')closeMidiMappingEditor();"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
   hiddenTileModalDismissed=true;
   cardCols=3;cardRows=3;
   paletteCols=2;paletteRows=1;
@@ -914,6 +951,29 @@ try {
 "@
     Save-ElementScreenshot "#cardLive" "show-run-live-controls.png"
     Save-ElementScreenshot "#cardLive" "show-run-live-timer-button.png"
+
+    $midiEmulatorUrl = $BaseUrl.TrimEnd('/') + "/dmx_midi_emulator.html?docshot=$cacheBust"
+    Send-Cdp "Page.navigate" @{ url = $midiEmulatorUrl } | Out-Null
+    Start-Sleep -Seconds 2
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<20;i++){
+    if(document.querySelector('.emulator [data-midi-cc]')&&document.querySelector('.emulator [data-midi-note]'))break;
+    await wait(200);
+  }
+  const fader=document.querySelector('[data-midi-cc="77"]');
+  if(fader){fader.value='84';fader.dispatchEvent(new Event('input',{bubbles:true}));}
+  showLastSeen=Date.now();
+  if(typeof renderConnection==='function')renderConnection();
+  const header=document.querySelector('header');
+  if(header)header.style.display='none';
+  const instructions=document.querySelector('.instructions');
+  if(instructions)instructions.style.display='none';
+  await wait(250);
+})()
+"@
+    Save-ElementScreenshot ".emulator" "midi-emulator.png"
 
     $roomPlaneUrl = $BaseUrl.TrimEnd('/') + "/dmx_room_plane.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $roomPlaneUrl } | Out-Null

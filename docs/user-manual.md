@@ -528,6 +528,8 @@ The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser pa
 
 In **Edit** mode, each loaded chaser tile has a pencil that opens its MIDI mapping editor. Choose the button's **Playback action** before learning it: start/stop toggle, start, stop, pause/resume toggle, pause, or resume.
 
+![Pico playback MIDI action mapping](screenshots/show-run-midi-playback-mapping.png)
+
 ![Show Run Pico Chaser Playback card](screenshots/show-run-card-chaser.png)
 
 The **Pico Effects Playback** card shows effect slots uploaded from the Effects page. Choose a slot, set **BPM**, then start, set BPM, or stop the slot. Starting a mirrored slot reloads its payload before running it; starting a live-only Pico slot starts the already-loaded Pico slot without overwriting it.
@@ -545,13 +547,21 @@ The **MIDI Controller** card has two independent inputs:
 
 Click **Open MIDI Emulator** to test without the physical controller. It opens `dmx_midi_emulator.html` in a separate tab with 24 knobs, 8 faders, 16 channel buttons, and 8 utility buttons. The controls show the CC or note number they send. Keep Show Run and the emulator on the same XAMPP address; the connection indicators turn green when both tabs can see each other.
 
+![Launch Control XL MIDI emulator](screenshots/midi-emulator.png)
+
 To learn with the emulator, enter **Edit** on Show Run, open a supported pencil, click **Learn**, switch to the emulator tab, and operate the desired control. Switch back to Show Run and click **Done**, then operate the emulator control again to test the mapped action. The emulator uses a same-origin browser channel and does not install or emulate a Windows MIDI device. Mappings learned from it are treated as Launch Control XL-family mappings so they can also match the physical controller later.
 
 Open Show Run through `http://localhost/dmx/` on the XAMPP computer. Web MIDI requires a supported browser and a secure context; localhost qualifies for this local workflow. The browser asks for hardware MIDI access only after **Connect MIDI** is clicked. The emulator does not need Web MIDI permission.
 
 MIDI mappings are edited only while **Edit** is active. Use the pencil on a supported tile or control, choose a playback action when editing a Pico Chaser or Effects tile, click **Learn**, then move a knob/fader or press a button. The first version supports Groups, Scenes, Palettes, Pico Chaser Playback, Pico Effects Playback, Grand Master, Group Masters, and Live Controls. Other Show cards remain unmapped until their desired behaviour is defined.
 
+For Group, Scene, and Palette tiles, the MIDI Mapping section is part of the normal **Edit Tile** modal. The mapping summary shows the learned message type, number, channel, and device. **Clear mapping** removes only the MIDI assignment; it does not delete or change the tile.
+
+![Scene tile MIDI mapping](screenshots/show-run-midi-scene-mapping.png)
+
 Button mappings trigger on the press edge, so the release message does not repeat the action. Faders and knobs scale MIDI `0..127` to the complete target range. **Soft takeover** is enabled by default: if the physical control and Show value differ, output waits until the physical control reaches or crosses the current value. Continuous messages are coalesced before they use the normal Show/Pico output path.
+
+![Continuous fader MIDI mapping with soft takeover](screenshots/show-run-midi-fader-mapping.png)
 
 Mappings are stored with the server-side Show Run UI state and are included in setup export/import. The USB connection and selected computer ports are local to the browser; reconnect after opening a new browser session.
 
