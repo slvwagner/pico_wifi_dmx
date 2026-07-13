@@ -400,7 +400,7 @@ test.describe('Show Run page', () => {
     await page.locator('#showGroupEditBtn').click();
 
     await expect(page.locator('#showGroupModal')).toBeVisible();
-    await expect(page.locator('#showGroupModalBody .control h3')).toHaveText(['Color', 'Dimmer', 'Focus', 'Gobo', 'Pan / Tilt']);
+    await expect(page.locator('#showGroupModalBody .control h3')).toHaveText(['Dimmer', 'Color', 'Pan / Tilt', 'Gobo', 'Focus']);
     await expect(page.locator('#showGroupModalBody .xy-pad')).toBeVisible();
     await expect(page.locator('#showGroupModalBody input[type="color"]')).toBeVisible();
     await expect(page.locator('#showGroupModalBody .swatch')).toHaveCount(4);
@@ -412,6 +412,79 @@ test.describe('Show Run page', () => {
 
     await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '201:14': 32, '202:14': 32 });
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('9:32') && call.body.includes('29:32'))).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('Group Edit preserves profile control order and continuously updates adjustable wheel ranges', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [{
+        id: 20,
+        name: 'Ordered Moving Spot',
+        mode: '3ch',
+        channels: 3,
+        controls: [
+          { id: 23, type: 'slider8', label: 'Dimmer', channel: 3 },
+          {
+            id: 21,
+            type: 'wheel',
+            label: 'Gobo Wheel',
+            channel: 1,
+            options: [
+              { name: 'Open', value: 0, range: [0, 15], kind: 'WheelSlot' },
+              { name: 'Rotation slow CW to fast CW', value: 253, range: [250, 255], kind: 'WheelRotation', speedStart: 'slow CW', speedEnd: 'fast CW' }
+            ]
+          },
+          { id: 22, type: 'slider8', label: 'Focus', channel: 2 }
+        ]
+      }],
+      fixtures: [
+        { id: 301, name: 'Ordered Spot 1', profileId: 20, start: 1 },
+        { id: 302, name: 'Ordered Spot 2', profileId: 20, start: 11 }
+      ],
+      setupValues: { '301:21': 250, '302:21': 250 },
+      groups: [{ id: 'ordered', name: 'Ordered Spots', fixtureIds: [301, 302], values: {} }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="ordered"]').click();
+    await page.locator('#showGroupEditBtn').click();
+
+    await expect(page.locator('#showGroupModalBody .control h3')).toHaveText(['Dimmer', 'Gobo Wheel', 'Focus']);
+    const state = await page.evaluate(() => {
+      const host = document.querySelector('[data-show-group-wheel-range-host]');
+      const slider = host?.querySelector('input[type="range"]');
+      slider?.focus();
+      if (slider) {
+        slider.value = '252';
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const preservedAfterFirstInput = slider === host?.querySelector('input[type="range"]');
+      if (slider) {
+        slider.value = '255';
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      return {
+        preservedAfterFirstInput,
+        preservedAfterSecondInput: slider === host?.querySelector('input[type="range"]'),
+        sliderValue: host?.querySelector('input[type="range"]')?.value,
+        readout: host?.querySelector('[data-wheel-range-readout]')?.textContent,
+        values: [values['301:21'], values['302:21']]
+      };
+    });
+
+    expect(state).toEqual({
+      preservedAfterFirstInput: true,
+      preservedAfterSecondInput: true,
+      sliderValue: '255',
+      readout: '255',
+      values: [255, 255]
+    });
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '301:21': 255, '302:21': 255 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:255') && call.body.includes('11:255'))).toBe(true);
     expect(calls.setupWrites).toBe(0);
   });
 

@@ -678,6 +678,14 @@ function updateWheelRangeHost(host,option,value,attrs){
   const range=wheelOptionRange(option);
   if(wheelOptionIsAdjustable(option)&&range){
     host.style.display='';
+    const input=host.querySelector('input[type="range"]');
+    const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
+    if(sameRange){
+      const next=clamp(value,range[0],range[1]);
+      if(document.activeElement!==input&&Number(input.value)!==next)input.value=next;
+      host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>{el.textContent=next;});
+      return;
+    }
     host.innerHTML=wheelRangeSliderHtml(option,value,attrs,esc);
   }else{
     host.innerHTML='';
@@ -804,7 +812,7 @@ function showGroupEditControls(){
       map.get(key).targets.push({fixture:row.fixture,control});
     });
   });
-  return [...map.values()].sort((a,b)=>showGroupControlLabel(a.control).localeCompare(showGroupControlLabel(b.control)));
+  return [...map.values()];
 }
 function showGroupSourceTarget(row){
   return row?.targets?.[0]||null;
