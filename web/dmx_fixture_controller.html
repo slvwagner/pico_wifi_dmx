@@ -75,6 +75,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #patched .patched-row-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600}
 #patched .patched-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
 #patched .item{align-content:start}
+.show-setup-body{display:grid;gap:16px;margin-top:12px}
+.show-setup-body>.panel{margin:0;background:#10161b}
+.show-file-actions{padding-bottom:4px}
 .patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .patch-actions-grid button{width:100%;min-width:0}
 .patch-actions-grid .minor{padding:3px 8px;font-size:12px;line-height:1.1;min-height:0}
@@ -155,14 +158,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <h2>Show</h2>
 <button id="showCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
-<div id="showBody" class="toolbar">
+<div id="showBody" class="show-setup-body">
+<div class="toolbar show-file-actions">
 <button id="newShow" class="danger" title="Start a fresh show setup">New Show</button>
 <button id="exportCsv" class="icon-btn export-btn" title="Export patched fixtures and DMX channels as CSV"><span>Patch CSV</span></button>
 <button id="exportJson" class="icon-btn export-btn" title="Export the complete show setup file"><span>Export Setup</span></button>
 <button id="importJson" class="icon-btn import-btn" title="Import a complete show setup file"><span>Import Setup</span></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
 </div>
-</section>
 
 <section class="panel" id="fixtureLibraryPanel">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
@@ -325,6 +328,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button class="primary" id="patchFixture">Patch fixture</button>
 </div>
 <div class="list" id="patched"></div>
+</div>
+</section>
+
 </div>
 </section>
 
@@ -2822,9 +2828,11 @@ async function startNewShow(){
   const fixturePayload=saveData();
   const emptyUiState={
     fixture:{
+      showCollapsed:false,
       patchCollapsed:false,
       profilesCollapsed:false,
       fixtureLibraryCollapsed:false,
+      controlSurfaceCols:'auto',
       fixtureCardCollapsed:[],
       fanOutPresets:[],
       groupsBoxCols:2,

@@ -840,19 +840,43 @@ test.describe('Fixture Controller established rules', () => {
     expect(layout.saveLeft).toBe(layout.summaryLeft);
   });
 
-  test('Show card can collapse its project file buttons', async ({ page }) => {
-    await expect(page.locator('.setup-files-card h2')).toHaveText('Show');
+  test('Show card contains all fixture setup cards and preserves their individual collapse state', async ({ page }) => {
+    const showCard = page.locator('main > section.setup-files-card');
+    await expect(showCard.locator(':scope > div').first().locator('h2')).toHaveText('Show');
+    await expect(page.locator('main > section.panel').first()).toHaveClass(/setup-files-card/);
+    await expect(showCard.locator('#fixtureLibraryPanel')).toHaveCount(1);
+    await expect(showCard.locator('#profilesSection')).toHaveCount(1);
+    await expect(showCard.locator('#patchSection')).toHaveCount(1);
+    await expect(page.locator('main > #fixtureLibraryPanel, main > #profilesSection, main > #patchSection')).toHaveCount(0);
+
+    await page.evaluate(() => {
+      setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false);
+      setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false);
+      setSectionCollapsed('patchCollapseBtn', 'patchBody', 'patchCollapsed', false);
+    });
     await expect(page.locator('#newShow')).toBeVisible();
     await expect(page.locator('#exportJson')).toBeVisible();
+    await expect(page.locator('#fixtureLibraryBody')).toBeVisible();
+    await expect(page.locator('#profilesBody')).toBeVisible();
+    await expect(page.locator('#patchBody')).toBeVisible();
+
+    await page.locator('#profilesCollapseBtn').click();
+    await expect(page.locator('#profilesBody')).toBeHidden();
 
     await page.locator('#showCollapseBtn').click();
     await expect(page.locator('#showBody')).toBeHidden();
     await expect(page.locator('#showCollapseBtn')).toHaveText('+');
     await expect(page.locator('#newShow')).toBeHidden();
+    await expect(page.locator('#fixtureLibraryPanel')).toBeHidden();
+    await expect(page.locator('#profilesSection')).toBeHidden();
+    await expect(page.locator('#patchSection')).toBeHidden();
 
     await page.locator('#showCollapseBtn').click();
     await expect(page.locator('#showBody')).toBeVisible();
     await expect(page.locator('#showCollapseBtn')).toHaveText('−');
+    await expect(page.locator('#fixtureLibraryBody')).toBeVisible();
+    await expect(page.locator('#profilesBody')).toBeHidden();
+    await expect(page.locator('#patchBody')).toBeVisible();
   });
 
   test('scene saves are serialized so deleting a scene removes its visual from the server payload', async ({ page }) => {
@@ -1639,7 +1663,7 @@ test.describe('Fixture Controller established rules', () => {
 
   test('control details live in modal below compact profile fields', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
-    const profilePanel = page.locator('section.panel', { hasText: 'Fixture Profiles' });
+    const profilePanel = page.locator('#profilesSection');
     await expect(profilePanel).toContainText('Add / Edit Control');
     await expect(profilePanel.locator('#controlType')).toBeVisible();
     await expect(profilePanel.locator('#controlLabel')).toBeVisible();

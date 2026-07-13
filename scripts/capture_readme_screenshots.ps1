@@ -318,6 +318,7 @@ try {
       if(btn) btn.textContent=collapsed?'+':'−';
     },
     setSetupSections({profiles=false,patch=false}={}){
+      this.setSection('showCollapseBtn','showBody',false);
       this.setSection('profilesCollapseBtn','profilesBody',profiles);
       this.setSection(null,'addControlBody',profiles);
       this.setSection('patchCollapseBtn','patchBody',patch);

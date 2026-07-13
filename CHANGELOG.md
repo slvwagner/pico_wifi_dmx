@@ -4,6 +4,7 @@
 
 Changed:
 
+- Moved Fixture Library, Fixture Profiles, and Patch Fixtures inside the Controller's first **Show** card. Collapsing Show now hides all show-setup tools together, while each nested card keeps its own independent collapse state.
 - Added an Auto/1–4 **Cols** selector to the Fixture Controller Control Surface. The preference is saved in server UI state, supports up to four fixture columns on wide desktops, and automatically reduces the effective count when the available width or an iPad layout would make fixture controls too narrow.
 - Started the 0.9.10 development branch.
 
