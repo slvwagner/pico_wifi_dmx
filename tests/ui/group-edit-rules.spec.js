@@ -14,6 +14,8 @@ test.describe('Cross-page Group Edit contract', () => {
     const common = fs.readFileSync(path.join(root, 'web', 'assets', 'dmx-common.js'), 'utf8');
     expect(common).toContain('function fixtureGroupEditControlHtml(options={})');
     expect(common).toContain('fixtureGroupEditControlHtml,');
+    expect(common).toContain('function createGroupEditRelativeStepStore(options={})');
+    expect(common).toContain('createGroupEditRelativeStepStore,');
 
     for (const file of [
       'dmx_fixture_controller.html',
@@ -24,6 +26,7 @@ test.describe('Cross-page Group Edit contract', () => {
     ]) {
       const html = fs.readFileSync(path.join(root, 'web', file), 'utf8');
       expect(html, file).toContain('DmxCommon.fixtureGroupEditControlHtml({');
+      expect(html, file).toContain('DmxCommon.createGroupEditRelativeStepStore({');
     }
   });
 

@@ -1589,11 +1589,13 @@ const roomWheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
 function roomGroupScopeText(c){
   return roomGroupTargets(c).length+' matching fixture'+(roomGroupTargets(c).length===1?'':'s');
 }
+const roomGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'roomPlane',localStorageKey:'dmxRoomPlane.groupEditRelativeSteps'});
 function renderRoomGroupControl(c){
   const key=roomGroupKey(c),safeKey=DmxCommon.escapeHtml(key),base=`data-room-gc="${safeKey}"`;
   const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
   return DmxCommon.fixtureGroupEditControlHtml({
     control:c,key,value:roomGroupValue(c),scopeText:roomGroupScopeText(c),escape:DmxCommon.escapeHtml,
+    relativeStepValue:(part,kind,step,max)=>roomGroupRelativeStepStore.value(key,part,kind,step,max),
     attributes:(role,detail={})=>{
       if(role==='xy')return `data-room-gxy="${safeKey}"`;
       if(role==='readout')return `data-room-gc-readout="${safeKey}"`;
@@ -1708,6 +1710,8 @@ document.getElementById('closeGroupModal2').onclick=closeRoomGroupModal;
 document.getElementById('defaultRoomGroupBtn').onclick=()=>recallRoomGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
 document.getElementById('blackoutRoomGroupBtn').onclick=()=>recallRoomGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 document.getElementById('groupModalBody').addEventListener('input',event=>{
+  const relativeStep=event.target.closest?.('[data-group-edit-step-key]');
+  if(relativeStep){roomGroupRelativeStepStore.rememberInput(relativeStep);return;}
   const target=event.target.closest('[data-room-gc]')||event.target;
   const key=target.dataset.roomGc;
   if(!key)return;
@@ -1738,6 +1742,7 @@ document.getElementById('groupModalBody').addEventListener('click',event=>{
     const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
     if(!c)return;
     const input=relative.closest('.relative-control')?.querySelector('input[type=number]');
+    if(input)roomGroupRelativeStepStore.rememberInput(input);
     const step=Math.max(1,Number(input?.value)||Number(relative.dataset.relativeStepDefault)||1);
     const dir=Number(relative.dataset.relativeDir)<0?-1:1;
     const changed=applyRelativeToRoomGroup(c,relative.dataset.relativePart||'value',dir*step);
@@ -1908,6 +1913,7 @@ document.getElementById('planePad').addEventListener('wheel',event=>{
   event.preventDefault();
   zoomPlaneView(event.deltaY<0?1.12:1/1.12);
 },{passive:false});
+DmxCommon.loadUiState('roomPlane').then(state=>roomGroupRelativeStepStore.load(state.groupEditRelativeSteps)).catch(()=>{});
 loadRoomPlaneSetup();
 </script>
 </body>

@@ -3093,9 +3093,7 @@ let sourceFixtureId=null;
 let collapsedFixtureIds=new Set(JSON.parse(localStorage.getItem('fixtureCardCollapsed')||'[]'));
 let groupValues={};
 const GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
-let groupRelativeSteps={};
-try{groupRelativeSteps=JSON.parse(localStorage.getItem(GROUP_RELATIVE_STEPS_KEY)||'{}')||{};}catch(_){groupRelativeSteps={};}
-let groupRelativeStepsTimer=null;
+const groupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'fixture',stateKey:GROUP_RELATIVE_STEPS_KEY,localStorageKey:GROUP_RELATIVE_STEPS_KEY});
 function groupCompatibilitySignature(c){
   if(c.type==='wheel'){
     return '|options:'+(c.options||[]).map(o=>encodeURIComponent(o.name||'')+'='+clamp(o.value,0,255)).join(';');
@@ -3103,26 +3101,6 @@ function groupCompatibilitySignature(c){
   return '';
 }
 function groupKey(c){return c.type+':'+c.label+groupCompatibilitySignature(c);}
-function groupRelativeStepKey(controlKey,part,kind){
-  return String(controlKey||'')+'|'+String(part||'value')+'|'+String(kind||'default');
-}
-function groupRelativeStepValue(controlKey,part,kind,defaultStep,max){
-  const key=groupRelativeStepKey(controlKey,part,kind);
-  return clamp(groupRelativeSteps[key]??defaultStep,1,max);
-}
-function saveGroupRelativeStepsSoon(){
-  localStorage.setItem(GROUP_RELATIVE_STEPS_KEY,JSON.stringify(groupRelativeSteps));
-  clearTimeout(groupRelativeStepsTimer);
-  groupRelativeStepsTimer=setTimeout(()=>saveUiStateServer(GROUP_RELATIVE_STEPS_KEY,groupRelativeSteps),350);
-}
-function rememberGroupRelativeStep(input){
-  if(!input||!input.dataset.relativeGc)return;
-  const max=clamp(input.max||65535,1,65535);
-  const key=groupRelativeStepKey(input.dataset.relativeGc,input.dataset.relativePart||'value',input.dataset.relativeKind||'default');
-  groupRelativeSteps[key]=clamp(input.value,1,max);
-  input.value=groupRelativeSteps[key];
-  saveGroupRelativeStepsSoon();
-}
 const fanOut=DmxCommon.createFanOutController({
   state:fanState,
   controlsFor:f=>fixtureProfile(f)?.controls||[],
@@ -3329,7 +3307,7 @@ function renderGroupControl(c){
   const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
   return DmxCommon.fixtureGroupEditControlHtml({
     control:c,key,value:getGroupValue(c),scopeText:groupControlScopeText(c),escape:escHtml,
-    relativeStepValue:(part,kind,step,max)=>groupRelativeStepValue(key,part,kind,step,max),
+    relativeStepValue:(part,kind,step,max)=>groupRelativeStepStore.value(key,part,kind,step,max),
     attributes:(role,detail={})=>{
       if(role==='xy')return `data-gxy="${safeKey}"`;
       if(role==='readout')return `data-gc-readout="${safeKey}"`;
@@ -3451,7 +3429,7 @@ document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
   if(e.target.dataset.relativeStep&&e.target.dataset.relativeGc){
-    rememberGroupRelativeStep(e.target);
+    groupRelativeStepStore.rememberInput(e.target);
     return;
   }
   const target=e.target.closest('[data-gc]')||e.target;
@@ -3484,7 +3462,7 @@ groupModalBody.addEventListener('click',e=>{
   const relativeTarget=e.target.closest('[data-relative-dir]');
   if(relativeTarget&&relativeTarget.dataset.relativeGc){
     const stepInput=relativeTarget.closest('.relative-control')?.querySelector('[data-relative-step]');
-    if(stepInput)rememberGroupRelativeStep(stepInput);
+    if(stepInput)groupRelativeStepStore.rememberInput(stepInput);
     const key=relativeTarget.dataset.relativeGc;
     const common=getGroupEditableControls();
     const c=common.find(cc=>groupKey(cc)===key);if(!c)return;
@@ -5735,8 +5713,7 @@ function saveUiStateServer(key,val){
       drawSurface();
     }
     if(st[GROUP_RELATIVE_STEPS_KEY]&&typeof st[GROUP_RELATIVE_STEPS_KEY]==='object'&&!Array.isArray(st[GROUP_RELATIVE_STEPS_KEY])){
-      groupRelativeSteps=st[GROUP_RELATIVE_STEPS_KEY];
-      localStorage.setItem(GROUP_RELATIVE_STEPS_KEY,JSON.stringify(groupRelativeSteps));
+      groupRelativeStepStore.load(st[GROUP_RELATIVE_STEPS_KEY]);
     }
   }catch(_){}
 })();

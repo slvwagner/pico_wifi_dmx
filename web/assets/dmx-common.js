@@ -504,6 +504,56 @@
     return{coarse:(n>>8)&255,fine:n&255};
   }
 
+  function createGroupEditRelativeStepStore(options={}){
+    const page=String(options.page||'').trim();
+    const stateKey=String(options.stateKey||'groupEditRelativeSteps');
+    const localStorageKey=String(options.localStorageKey||((page?page+'.':'')+stateKey));
+    const debounceMs=clampInt(options.debounceMs??350,0,5000);
+    let values={};
+    let saveTimer=null;
+    const stepKey=(controlKey,part,kind)=>String(controlKey||'')+'|'+String(part||'value')+'|'+String(kind||'default');
+    const writeLocal=()=>{
+      try{localStorage.setItem(localStorageKey,JSON.stringify(values));}catch(_){}
+    };
+    const load=source=>{
+      let next=source;
+      if(next===undefined){
+        try{next=localStorage.getItem(localStorageKey);}catch(_){next=null;}
+      }
+      try{
+        const parsed=next&&typeof next==='object'&&!Array.isArray(next)?next:JSON.parse(next||'{}')||{};
+        values=parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?{...parsed}:{};
+      }catch(_){values={};}
+      writeLocal();
+      return api;
+    };
+    const value=(controlKey,part,kind,defaultStep,max)=>clampInt(values[stepKey(controlKey,part,kind)]??defaultStep,1,max);
+    const saveSoon=()=>{
+      writeLocal();
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(()=>{
+        if(page)saveUiState(page,stateKey,{...values});
+      },debounceMs);
+    };
+    const remember=(controlKey,part,kind,next,max=65535)=>{
+      const key=stepKey(controlKey,part,kind);
+      values[key]=clampInt(next,1,clampInt(max,1,65535));
+      saveSoon();
+      return values[key];
+    };
+    const rememberInput=input=>{
+      if(!input)return null;
+      const controlKey=input.dataset.groupEditStepKey;
+      if(!controlKey)return null;
+      const next=remember(controlKey,input.dataset.groupEditStepPart||'value',input.dataset.groupEditStepKind||'default',input.value,input.max||65535);
+      input.value=next;
+      return next;
+    };
+    const api={load,value,remember,rememberInput,snapshot:()=>({...values}),stepKey,stateKey,localStorageKey};
+    load();
+    return api;
+  }
+
   function fixtureGroupEditControlHtml(options={}){
     const control=options.control||{};
     const type=control.type||'slider8';
@@ -519,9 +569,10 @@
     const relative=(part,kind,max,step,text)=>{
       const configured=typeof options.relativeStepValue==='function'?options.relativeStepValue(part,kind,step,max):step;
       const current=clampInt(configured,1,max);
+      const sharedStepAttrs=' data-group-edit-step-key="'+escape(options.key||'')+'" data-group-edit-step-part="'+escape(part)+'" data-group-edit-step-kind="'+escape(kind)+'"';
       return '<div class="relative-control">'+
       '<button type="button"'+attrs('relative',{part,kind,dir:-1,max,step})+' title="Decrease relative to each fixture current value">−</button>'+
-      '<label>'+escape(text)+'<input type="number" min="1" max="'+max+'" step="'+step+'" value="'+current+'"'+attrs('relativeStep',{part,kind,max,step})+'></label>'+
+      '<label>'+escape(text)+'<input type="number" min="1" max="'+max+'" step="'+step+'" value="'+current+'"'+sharedStepAttrs+attrs('relativeStep',{part,kind,max,step})+'></label>'+
       '<button type="button"'+attrs('relative',{part,kind,dir:1,max,step})+' title="Increase relative to each fixture current value">+</button>'+
       '</div>';
     };
@@ -2868,6 +2919,7 @@
     wheelOptionRangeText,
     wheelRangeSliderHtml,
     fixtureGroupEditParts,
+    createGroupEditRelativeStepStore,
     fixtureGroupEditControlHtml,
     updateFixtureGroupEditWheelRangeHost,
     applyBaseUrl,

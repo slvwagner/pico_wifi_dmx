@@ -4,6 +4,7 @@
 
 Changed:
 
+- Controller, Show Run, Chaser, Effects, and Room Plane **Group Edit** now use one shared autosave implementation for relative adjustment step sizes. Each page stores its own values, including separate Pan/Tilt coarse and fine steps, in server UI state and restores them whenever the modal or page is reopened.
 - Aligned the Show Run **Group Edit** modal with the Fixture Controller visual language: the same compact fixture-control width, divider-based control sections, prominent readouts, rich control layouts, and Default/Blackout/Close footer actions are now used while preserving Show Run's master-aware output path.
 - Added a per-tile MIDI playback-action selector for Pico Chaser and Effects slots. A learned button can now toggle start/stop, start, stop, toggle pause/resume, pause, or resume; older mappings retain their start/stop toggle behavior.
 - Fixed Show Run **Group Edit** to preserve the fixture profile's control-definition order and keep adjustable wheel range sliders responsive throughout continuous drags, matching the Controller modal.

@@ -418,7 +418,7 @@ The source selection is automatic. Loading a saved group makes the first fixture
 
 The values are applied when you actually edit a control in the modal. Moving a slider, typing a direct numeric DMX value, dragging an XY pad, choosing a wheel slot, changing a color, pressing Center, using relative nudges, or using Default/Blackout writes the change to every selected fixture that has the matching control. Absolute edits write the shown Source value to the matching fixtures. Relative nudges keep each selected fixture relative to its own current value, so a group pan/tilt nudge moves the selected fixtures together without forcing them all to the same absolute position. When a Pico base URL is set, each Group Edit change is sent to the Pico immediately. To use Group Edit browser-only, clear the Pico base URL first.
 
-Group Edit remembers the relative step-size fields you set, for example **Pan fine relative** or **Tilt fine relative**. Those settings are autosaved to the XAMPP server UI-state file and restored the next time Group Edit opens, so your preferred nudge sizes survive reloads.
+Group Edit remembers the relative step-size fields you set, for example **Pan fine relative** or **Tilt fine relative**. Controller, Show Run, Chaser, Effects, and Room Plane use the same autosave behavior. Each page stores its own step sizes in the XAMPP server UI-state file and restores them the next time Group Edit or the page opens, so your preferred nudge sizes survive reloads without forcing every workflow to use the same values.
 
 If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, **Group Edit** uses that scope. In that case it shows only controls that are part of the active scope and exist in the selected fixture scope. Editing a scoped control writes only to matching fixtures.
 
@@ -485,6 +485,8 @@ Group selection is an operator filter only. It does not edit the saved group def
 While **Edit** is active, the pencil on a saved group tile also includes its MIDI mapping. A mapped hardware button selects or deselects that group through the same path as clicking the tile.
 
 The **Group Edit** button opens a Controller-style Group Edit modal for the current Show target. The modal shows matching controls from the selected group or fixture target and sends live-value changes through the same Show Run output path as the other operator controls. Use it for quick grouped dimmer, color, wheel, or pan/tilt adjustments from the run page without opening the full Controller.
+
+Relative nudge step sizes in this modal are autosaved to the Show Run UI state on the XAMPP server. Separate Pan/Tilt coarse and fine values are restored when the modal or page is reopened and remain independent from the step sizes used on the setup and playback-editing pages.
 
 ![Show Run Groups card](screenshots/show-run-card-groups.png)
 

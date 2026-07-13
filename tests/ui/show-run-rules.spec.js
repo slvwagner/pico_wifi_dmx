@@ -415,6 +415,55 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('Group Edit autosaves and restores Pan and Tilt fine relative steps from server UI state', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [{
+        id: 10,
+        name: 'Moving Spot',
+        mode: '16ch',
+        channels: 8,
+        controls: [{ id: 13, type: 'panTilt16', label: 'Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }]
+      }],
+      fixtures: [
+        { id: 201, name: 'Mover 1', profileId: 10, start: 1 },
+        { id: 202, name: 'Mover 2', profileId: 10, start: 11 }
+      ],
+      groups: [{ id: 'movers', name: 'Movers', fixtureIds: [201, 202], values: {} }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="movers"]').click();
+    await page.locator('#showGroupEditBtn').click();
+    const panFine = page.locator('#showGroupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-show-group-step]');
+    const tiltFine = page.locator('#showGroupModalBody .relative-control', { hasText: 'Tilt fine relative' }).locator('[data-show-group-step]');
+    await panFine.fill('7');
+    await tiltFine.fill('9');
+
+    await expect.poll(() => calls.uiStatePosts.some(post => {
+      const steps = post.state?.groupEditRelativeSteps;
+      return steps?.['panTilt|pan|fine'] === 7 && steps?.['panTilt|tilt|fine'] === 9;
+    })).toBe(true);
+
+    await page.locator('#showGroupModalClose').click();
+    await page.locator('#showGroupEditBtn').click();
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-show-group-step]')).toHaveValue('7');
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Tilt fine relative' }).locator('[data-show-group-step]')).toHaveValue('9');
+
+    const savedPost = calls.uiStatePosts.findLast(post => post.state?.groupEditRelativeSteps);
+    calls.showRunState = { groupEditRelativeSteps: savedPost.state.groupEditRelativeSteps };
+    await page.evaluate(() => localStorage.removeItem('dmxShowRun.groupEditRelativeSteps'));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.locator('#groupGrid [data-group="movers"]').click();
+    await page.locator('#showGroupEditBtn').click();
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Pan fine relative' }).locator('[data-show-group-step]')).toHaveValue('7');
+    await expect(page.locator('#showGroupModalBody .relative-control', { hasText: 'Tilt fine relative' }).locator('[data-show-group-step]')).toHaveValue('9');
+    expect(calls.setupWrites).toBe(0);
+  });
+
   test('Group Edit preserves profile control order and continuously updates adjustable wheel ranges', async ({ page }) => {
     const calls = {
       pico: [],

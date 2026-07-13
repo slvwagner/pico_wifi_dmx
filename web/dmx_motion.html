@@ -675,10 +675,12 @@ function applyRelativeToMotionGroup(c,part,delta){
     }
   });
 }
+const motionGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'motion',localStorageKey:'dmxMotion.groupEditRelativeSteps'});
 function renderMotionGroupControl(c){
   const key=motionGroupKey(c),safeKey=DmxCommon.escapeHtml(key),base=`data-mg="${safeKey}"`;
   return DmxCommon.fixtureGroupEditControlHtml({
     control:c,key,value:motionGroupValue(c),scopeText:motionGroupScopeText(c),escape:DmxCommon.escapeHtml,
+    relativeStepValue:(part,kind,step,max)=>motionGroupRelativeStepStore.value(key,part,kind,step,max),
     attributes:(role,detail={})=>{
       if(role==='xy')return `data-mgxy="${safeKey}"`;
       if(role==='readout')return `data-mg-readout="${safeKey}"`;
@@ -794,6 +796,7 @@ function recallMotionGroupFixtureValues(which){
   setStatus('Group '+label+' recalled as effect centers for '+motionGroupFixtureIds().length+' fixture'+(motionGroupFixtureIds().length===1?'':'s'));
 }
 function handleMotionGroupInput(target){
+  if(target.matches?.('[data-group-edit-step-key]')){motionGroupRelativeStepStore.rememberInput(target);return;}
   if(target.dataset.relativeStep)return;
   const key=target.dataset.mg;if(!key)return;
   const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
@@ -826,6 +829,8 @@ motionGroupModalBody.addEventListener('click',e=>{
   if(relativeTarget&&relativeTarget.dataset.mg){
     const key=relativeTarget.dataset.mg;
     const c=getMotionGroupCommonControls().find(cc=>motionGroupKey(cc)===key);if(!c)return;
+    const stepInput=relativeTarget.closest('.relative-control')?.querySelector('[data-relative-step]');
+    if(stepInput)motionGroupRelativeStepStore.rememberInput(stepInput);
     const step=relativeStepFromButton(relativeTarget);
     const dir=parseInt(relativeTarget.dataset.relativeDir,10)<0?-1:1;
     applyRelativeToMotionGroup(c,relativeTarget.dataset.relativePart||'value',dir*step);
@@ -2450,6 +2455,7 @@ function saveUiStateServer(key,val){
 (async()=>{
   try{
     const st=await DmxCommon.loadUiState('motion');
+    motionGroupRelativeStepStore.load(st.groupEditRelativeSteps);
     if(st.sceneBoxCollapsed!==undefined){
       const c=!!st.sceneBoxCollapsed;
       localStorage.setItem('motionSceneBoxCollapsed',c?'1':'');

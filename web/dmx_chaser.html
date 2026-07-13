@@ -765,6 +765,7 @@ function renderChaserGroupControl(c){
   const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
   return DmxCommon.fixtureGroupEditControlHtml({
     control:c,key,value:getChaserGroupValue(c),scopeText:chaserGroupControlScopeText(c),escape:escAttr,
+    relativeStepValue:(part,kind,step,max)=>chaserGroupRelativeStepStore.value(key,part,kind,step,max),
     attributes:(role,detail={})=>{
       if(role==='xy')return `data-cgxy="${safeKey}"`;
       if(role==='readout')return `data-cg-readout="${safeKey}"`;
@@ -946,6 +947,7 @@ function getParticipatingList(){
 
 const fanState={controlKey:'',mode:'symmetric',spread:0,fromOffset:0,toOffset:0,inverted:false,bases:{}};
 let fanPresets=[];
+const chaserGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({page:'chaser',localStorageKey:'dmxChaser.groupEditRelativeSteps'});
 let fanSpreadStep=1;
 let fanOutStateTimer=null;
 function fanFixtureOrder(){
@@ -1137,6 +1139,7 @@ async function loadChaserFanPresets(){
     const st=await DmxCommon.loadUiState('chaser');
     fanPresets=Array.isArray(st.fanOutPresets)?st.fanOutPresets:[];
     applyFanOutStatePayload(st.fanOutState);
+    chaserGroupRelativeStepStore.load(st.groupEditRelativeSteps);
   }catch(_){fanPresets=[];}
   renderFanToolbox();
 }
@@ -1773,6 +1776,7 @@ function handleStepClick(e){
 }
 
 function handleChaserGroupInput(e){
+  if(e.target.matches?.('[data-group-edit-step-key]')){chaserGroupRelativeStepStore.rememberInput(e.target);return;}
   const c=chaserGroupControlByDataKey(e.target.dataset.cg);if(!c)return;
   let v=getChaserGroupValue(c);
   if(e.target.dataset.colorPicker){
@@ -1806,6 +1810,7 @@ function handleChaserGroupClick(e){
     const part=relative.dataset.part||'value';
     const input=relative.closest('.relative-control')?.querySelector('[data-cg-relative-step]');
     const max=c.type==='slider16'||c.type==='panTilt16'?65535:255;
+    if(input)chaserGroupRelativeStepStore.rememberInput(input);
     const step=clamp(input?.value||1,1,max);
     if(input)input.value=step;
     const dir=parseInt(relative.dataset.dir,10)<0?-1:1;

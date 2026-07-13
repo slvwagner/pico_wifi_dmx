@@ -616,6 +616,12 @@ let targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}]
 const layoutKey=name=>'dmxShowRun.'+name;
 const SHOW_UI_STATE_PAGE='showRun';
 let showUiState={};
+const SHOW_GROUP_RELATIVE_STEPS_KEY='groupEditRelativeSteps';
+const showGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({
+  page:SHOW_UI_STATE_PAGE,
+  stateKey:SHOW_GROUP_RELATIVE_STEPS_KEY,
+  localStorageKey:layoutKey(SHOW_GROUP_RELATIVE_STEPS_KEY)
+});
 const displayOrders={group:[],fixture:[],scene:[],palette:[],plane:[],chaser:[],motion:[]};
 let cardLayouts={};
 const moveSelected={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
@@ -820,6 +826,7 @@ function showGroupControlHtml(row){
   const value=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
   return DmxCommon.fixtureGroupEditControlHtml({
     control:c,key:row.key,value,label:showGroupControlLabel(c),scopeText:row.targets.length+' matching fixture'+(row.targets.length===1?'':'s')+' · source '+sourceName,escape:esc,
+    relativeStepValue:(part,kind,step,max)=>showGroupRelativeStepStore.value(row.key,part,kind,step,max),
     attributes:(role,detail={})=>{
       if(role==='control')return `data-show-group-control="${key}"`;
       if(role==='xy')return `data-show-group-xy="${key}"`;
@@ -834,7 +841,7 @@ function showGroupControlHtml(row){
       if(role==='input')return `${detail.kind==='number'?'data-show-group-number':'data-show-group-slider'}="${key}" data-part="${detail.part||'value'}"`;
       if(role==='byteInput')return `data-show-group-byte="${key}" data-byte-part="${detail.part}"`;
       if(role==='relative')return `data-show-group-relative="${key}" data-part="${detail.part}" data-dir="${detail.dir}"`;
-      if(role==='relativeStep')return `data-show-group-step="${key}:${detail.part}:${detail.step}"`;
+      if(role==='relativeStep')return `data-show-group-step="1" data-show-group-key="${key}" data-part="${detail.part}" data-relative-kind="${detail.kind}"`;
       return'';
     }
   });
@@ -4049,6 +4056,7 @@ async function loadShow(options={}){
     DmxCommon.loadUiState(SHOW_UI_STATE_PAGE)
   ]);
   showUiState=serverShowUiState&&typeof serverShowUiState==='object'?serverShowUiState:{};
+  showGroupRelativeStepStore.load(showUiState[SHOW_GROUP_RELATIVE_STEPS_KEY]);
   const setup=fixtureData.setup||{};
   profiles=Array.isArray(setup.profiles)?setup.profiles:[];
   fixtures=Array.isArray(setup.fixtures)?setup.fixtures:[];
@@ -4132,6 +4140,8 @@ document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupDefaultBtn').onclick=()=>recallShowGroupFixtureValues('defaultValue').catch(err=>setStatus(err.message,true));
 document.getElementById('showGroupBlackoutBtn').onclick=()=>recallShowGroupFixtureValues('blackoutValue').catch(err=>setStatus(err.message,true));
 document.getElementById('showGroupModalBody').addEventListener('input',e=>{
+  const relativeStep=e.target.closest?.('[data-show-group-step]');
+  if(relativeStep){showGroupRelativeStepStore.rememberInput(relativeStep);return;}
   const colorInput=e.target.closest?.('[data-show-group-color-picker]');
   if(colorInput){
     const key=colorInput.dataset.showGroupColorPicker;
@@ -4233,6 +4243,7 @@ document.getElementById('showGroupModalBody').addEventListener('click',e=>{
   const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
   if(!row||!partInfo)return;
   const stepInput=btn.closest('.relative-control')?.querySelector('input[type=number]');
+  if(stepInput)showGroupRelativeStepStore.rememberInput(stepInput);
   const step=Math.max(1,Math.min(partInfo.max,parseInt(stepInput?.value,10)||1));
   const dir=parseInt(btn.dataset.dir,10)||1;
   row.targets.forEach(target=>{
