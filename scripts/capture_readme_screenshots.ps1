@@ -533,7 +533,7 @@ try {
   if(name)name.value='Warm beam';
 })()
 "@
-    Save-ElementScreenshot "#paletteVisualModal .modal" "fixture-controller-edit-tile.png"
+    Save-ElementScreenshot "#paletteVisualModal .modal-card" "fixture-controller-edit-tile.png"
     Eval-Js "document.getElementById('paletteVisualClose2')?.click();"
 
     Eval-Js @"
@@ -678,6 +678,29 @@ try {
     {id:'doc_palette_1',name:'Red Beam',slot:0,scope:'Color',values:{'990101:990012':{a:255,b:0,c:0},'990102:990012':{a:160,b:0,c:0}},visual:{type:'visual',color:'#8f2525'}},
     {id:'doc_palette_2',name:'Open Gobo',slot:1,scope:'Gobo',values:{'990101:990010':0},visual:{type:'visual',color:'#225a50'}}
   );
+  planes.splice(0,planes.length,
+    {
+      id:'doc_plane_front',
+      name:'Front stage plane',
+      visual:{type:'visual',color:'#163f66'},
+      points:[{id:'A',x:0,y:0,z:0},{id:'B',x:6,y:0,z:0},{id:'C',x:0,y:4,z:0}],
+      target:{x:2.8,y:1.5,z:0},
+      fixtures:[
+        {id:990101,name:'Front Spot 1',x:-1.2,y:-1.6,z:3.2,cal:{A:{pan:20500,tilt:43000,calibrated:true},B:{pan:44200,tilt:42100,calibrated:true},C:{pan:24800,tilt:28600,calibrated:true}}},
+        {id:990102,name:'Front Spot 2',x:7.2,y:-1.6,z:3.2,cal:{A:{pan:29200,tilt:43100,calibrated:true},B:{pan:53600,tilt:44200,calibrated:true},C:{pan:35500,tilt:29200,calibrated:true}}}
+      ]
+    },
+    {
+      id:'doc_plane_back',
+      name:'Back wall plane',
+      visual:{type:'visual',color:'#225a50'},
+      points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],
+      target:{x:1.6,y:1.2,z:0},
+      fixtures:[
+        {id:990101,name:'Front Spot 1',x:-1.2,y:-1.6,z:3.2,cal:{A:{pan:22000,tilt:40500,calibrated:true},B:{pan:39500,tilt:40200,calibrated:true},C:{pan:26200,tilt:27800,calibrated:true}}}
+      ]
+    }
+  );
   chaserSlots.splice(0,chaserSlots.length);
   motionSlots.splice(0,motionSlots.length);
   chaserSlots[1]={slot:1,loaded:true,label:'Dimmer Chase',step_count:3,speed_mult:1,mode:1,direction:0,active:true};
@@ -689,14 +712,15 @@ try {
   values['990102:990012']={a:120,b:40,c:255};
   targetMasters.splice(0,targetMasters.length,{id:'doc_target_front',name:'Group Master 1',fixtureIds:['990101','990102'],factor:0.75});
   masterFactors.grand=0.85;
-  cardCols=3;cardRows=3;
+  cardCols=3;cardRows=4;
   groupCols=2;groupRows=1;
   fixtureCols=2;fixtureRows=1;
   sceneCols=2;sceneRows=1;
   paletteCols=2;paletteRows=1;
+  planeCols=2;planeRows=1;
   chaserCols=2;chaserRows=1;
   motionCols=2;motionRows=1;
-  cardOrder=['master','group','fixture','scene','palette','chaser','motion','live','midi'];
+  cardOrder=['master','group','fixture','scene','palette','plane','chaser','motion','live','midi'];
   cardLayouts={};
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
@@ -710,6 +734,7 @@ try {
   if(typeof renderFixtures==='function')renderFixtures();
   if(typeof renderScenes==='function')renderScenes();
   if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPlanes==='function')renderPlanes();
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
   if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof renderCardGrid==='function')renderCardGrid();
@@ -725,6 +750,7 @@ try {
     Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png"
     Save-ElementScreenshot "#cardScene" "show-run-card-scenes.png"
     Save-ElementScreenshot "#cardPalette" "show-run-card-palettes.png"
+    Save-ElementScreenshot "#cardPlane" "show-run-card-planes.png"
     Save-ElementScreenshot "#cardChaser" "show-run-card-chaser.png"
     Save-ElementScreenshot "#cardMotion" "show-run-card-effects.png"
     Save-ElementScreenshot "#cardLive" "show-run-card-live-controls.png"
@@ -747,6 +773,7 @@ try {
   if(typeof renderGroups==='function')renderGroups();
   if(typeof renderScenes==='function')renderScenes();
   if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPlanes==='function')renderPlanes();
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
   if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof renderCardGrid==='function')renderCardGrid();
@@ -761,17 +788,40 @@ try {
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
   if(typeof openAddCardModal==='function')openAddCardModal(6);
   const select=document.getElementById('addCardType');
-  if(select)select.value='palette';
+  if(select)select.value='plane';
   const button=document.getElementById('addShowCard');
-  if(button&&typeof addCardButtonLabel==='function')button.textContent=addCardButtonLabel('palette');
+  if(button&&typeof addCardButtonLabel==='function')button.textContent=addCardButtonLabel('plane');
   await wait(300);
 })()
 "@
-    Save-ElementScreenshot "#addCardModal .modal" "show-run-add-card.png"
+    Save-ElementScreenshot "#addCardModal .modal-card" "show-run-add-card.png"
 
     Eval-Js @"
 (async()=>{
   const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  if(typeof closeAddCardModal==='function')closeAddCardModal();
+  if(typeof setLayoutEditing==='function')setLayoutEditing(false);
+  selectedGroupIds.clear();
+  selectedFixtureIds.clear();
+  selectedFixtureIds.add('990101');
+  selectedFixtureIds.add('990102');
+  cardCols=2;cardRows=2;
+  planeCols=2;planeRows=1;
+  cardOrder=['plane','fixture','master','palette'];
+  cardLayouts={};
+  if(typeof renderFixtures==='function')renderFixtures();
+  if(typeof renderPlanes==='function')renderPlanes();
+  if(typeof renderCardGrid==='function')renderCardGrid();
+  if(typeof openShowPlaneModal==='function')openShowPlaneModal('doc_plane_front');
+  await wait(600);
+})()
+"@
+    Save-ElementScreenshot "#showPlaneModal .modal-card" "show-run-plane-modal.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.getElementById('showPlaneClose2')?.click();
   if(typeof closeAddCardModal==='function')closeAddCardModal();
   cardCols=2;cardRows=2;
   paletteCols=2;paletteRows=1;
@@ -865,6 +915,85 @@ try {
     Save-ElementScreenshot "#cardLive" "show-run-live-controls.png"
     Save-ElementScreenshot "#cardLive" "show-run-live-timer-button.png"
 
+    $roomPlaneUrl = $BaseUrl.TrimEnd('/') + "/dmx_room_plane.html?docshot=$cacheBust"
+    Send-Cdp "Page.navigate" @{ url = $roomPlaneUrl } | Out-Null
+    Start-Sleep -Seconds 2
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  for(let i=0;i<30;i++){
+    if(document.querySelector('#fixtureRows tr')&&document.querySelector('#roomPlaneBox'))break;
+    await wait(250);
+  }
+  if(typeof points!=='undefined'&&typeof fixtures!=='undefined'){
+    activePlaneId='doc_main_stage';
+    document.getElementById('planeName').value='Main stage plane';
+    document.getElementById('targetX').value='2.4';
+    document.getElementById('targetY').value='1.6';
+    points.splice(0,points.length,
+      {id:'A',x:0,y:0,z:0},
+      {id:'B',x:6,y:0,z:0},
+      {id:'C',x:0,y:4,z:0}
+    );
+    fixtures=[
+      {id:1779345960283,name:'MAC XENON 1',profileId:1778925611894,start:79,live:true,x:-1.2,y:-1.8,z:3.4,control:{pan:28400,tilt:38200,dimmer:180},cal:{A:{pan:20600,tilt:43000,calibrated:true},B:{pan:43800,tilt:42100,calibrated:true},C:{pan:24600,tilt:28500,calibrated:true}}},
+      {id:1779345959308,name:'MAC XENON 2',profileId:1778925611894,start:92,live:true,x:1.4,y:-1.8,z:3.4,control:{pan:32600,tilt:37400,dimmer:180},cal:{A:{pan:23800,tilt:41900,calibrated:true},B:{pan:47200,tilt:43100,calibrated:true},C:{pan:28200,tilt:28100,calibrated:true}}},
+      {id:1779345960046,name:'MAC XENON 3',profileId:1778925611894,start:105,live:true,x:4.6,y:-1.8,z:3.4,control:{pan:37100,tilt:36900,dimmer:180},cal:{A:{pan:26600,tilt:42100,calibrated:true},B:{pan:50800,tilt:43600,calibrated:true},C:{pan:32200,tilt:28600,calibrated:true}}},
+      {id:1779345959395,name:'MAC XENON 4',profileId:1778925611894,start:118,live:true,x:7.2,y:-1.8,z:3.4,control:{pan:41400,tilt:36500,dimmer:180},cal:{A:{pan:29400,tilt:43100,calibrated:true},B:{pan:54000,tilt:44200,calibrated:true},C:{pan:35400,tilt:29200,calibrated:true}}}
+    ];
+    planeView={auto:true,centerX:3,centerY:1.1,zoom:1};
+    selectedFixtureIds.clear();
+    selectedFixtureIds.add(String(fixtures[0].id));
+    selectedFixtureIds.add(String(fixtures[1].id));
+    planeDefinitions=[capturePlaneDefinition()];
+    if(typeof syncTables==='function')syncTables();
+    if(typeof renderPlaneSelect==='function')renderPlaneSelect();
+    if(typeof setStatus==='function')setStatus('Manual screenshot room plane ready');
+  }
+  const rail=document.querySelector('.toolbox-rail');
+  const railToggle=rail?.querySelector('.toolbox-rail-toggle');
+  if(rail&&rail.classList.contains('collapsed')&&railToggle)railToggle.click();
+  document.querySelectorAll('.scene-toolbox').forEach(box=>{
+    const toggle=box.querySelector('.scene-toolbox__toggle');
+    if(box.classList.contains('collapsed')&&toggle)toggle.click();
+  });
+  window.scrollTo(0,0);
+  document.querySelector('main')?.scrollTo?.(0,0);
+  await wait(300);
+})()
+"@
+    Save-Screenshot "room-plane.png"
+    Save-ElementScreenshot "#roomPlaneBox" "room-plane-toolbox-plane.png"
+    Save-ElementScreenshot "#roomPlaneLibraryBox" "room-plane-toolbox-saved-planes.png"
+    Save-ElementScreenshot "#roomFixturesBox" "room-plane-toolbox-fixtures.png"
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.querySelector('[data-visual-plane]')?.click();
+  await wait(300);
+})()
+"@
+    Save-ElementScreenshot "#planeVisualModal .modal-card" "room-plane-edit-plane-tile.png"
+    Eval-Js "document.getElementById('planeVisualClose2')?.click();"
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  document.querySelector('[data-edit-fixture="0"]')?.click();
+  await wait(500);
+  const card=document.querySelector('#commonPanTiltDimmerModal .modal-card');
+  const body=document.querySelector('#commonPanTiltDimmerModal .modal-body');
+  const pad=document.querySelector('#commonPanTiltDimmerModal [data-ptd-xy]');
+  if(card){
+    card.style.maxHeight='none';
+    card.style.width='760px';
+  }
+  if(body)body.style.gap='8px';
+  if(pad)pad.style.height='170px';
+})()
+"@
+    Save-ElementScreenshot "#commonPanTiltDimmerModal .modal-card" "room-plane-fixture-editor.png"
+
     $chaserUrl = $BaseUrl.TrimEnd('/') + "/dmx_chaser.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $chaserUrl } | Out-Null
     Start-Sleep -Seconds 2
@@ -933,7 +1062,7 @@ try {
   if(typeof chaserGroupsBox!=='undefined'&&chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
   expandPanel('participationPanel');
   expandPanel('stepEditorSection');
-  ['stepsBox','browserPlaybackBox','chaseBox','chaserPaletteBox'].forEach(openToolbox);
+  ['stepsBox','browserPlaybackBox','chaseBox','chaserPaletteBox','chaserPlanesBox'].forEach(openToolbox);
   const chaseBox=document.getElementById('chaseBox');
   const paletteBox=document.getElementById('chaserPaletteBox');
   if(chaseBox&&paletteBox)chaseBox.after(paletteBox);
@@ -949,6 +1078,7 @@ try {
       {box:'chaseBox',type:'chases'},
       {box:'stepsBox',type:'steps'},
       {box:'chaserPaletteBox',type:'palettes'},
+      {box:'chaserPlanesBox',type:'planes'},
       {box:'fanToolbox',type:'fan'},
       {box:'browserPlaybackBox',type:'browserPlayback'}
     ]);
@@ -1021,6 +1151,7 @@ try {
       {box:'chaseBox',type:'chases'},
       {box:'stepsBox',type:'steps'},
       {box:'chaserPaletteBox',type:'palettes'},
+      {box:'chaserPlanesBox',type:'planes'},
       {box:'fanToolbox',type:'fan'},
       {box:'browserPlaybackBox',type:'browserPlayback'}
     ]);
@@ -1049,6 +1180,7 @@ try {
         Write-Host "Chaser docshot state: steps=$($state.steps), stepCount=$($state.stepCount), editEnabled=$($state.editEnabled), status=$($state.status)"
     }
     Save-Screenshot "chaser-readme.png"
+    Save-ElementScreenshot "#chaserPlanesBox" "chaser-toolbox-planes.png"
 
     $motionUrl = $BaseUrl.TrimEnd('/') + "/dmx_motion.html?docshot=$cacheBust"
     Send-Cdp "Page.navigate" @{ url = $motionUrl } | Out-Null
@@ -1095,7 +1227,7 @@ try {
     box.style.display='';
     if(box.classList.contains('collapsed')&&toggle)toggle.click();
   }
-  ['motionGroupsBox','motionEffectBox','motionSavedEffectBox','motionSceneBox','motionPaletteBox'].forEach(openToolbox);
+  ['motionGroupsBox','motionEffectBox','motionSavedEffectBox','motionSceneBox','motionPaletteBox','motionPlanesBox'].forEach(openToolbox);
   if(typeof renderMotionEffectSlots==='function')renderMotionEffectSlots();
   if(typeof renderMotionSceneSlots==='function')renderMotionSceneSlots();
   if(typeof renderMotionPaletteSlots==='function')renderMotionPaletteSlots();
@@ -1129,6 +1261,7 @@ try {
     Save-ElementScreenshot "#motionSavedEffectBox" "motion-toolbox-effects.png"
     Save-ElementScreenshot "#motionSceneBox" "motion-toolbox-scenes.png"
     Save-ElementScreenshot "#motionPaletteBox" "motion-toolbox-palettes.png"
+    Save-ElementScreenshot "#motionPlanesBox" "motion-toolbox-planes.png"
 
     Eval-Js @"
 (async()=>{
@@ -1149,7 +1282,7 @@ try {
   if(name)name.value='Slow circle';
 })()
 "@
-    Save-ElementScreenshot "#motionEffectVisualModal .modal" "motion-edit-tile.png"
+    Save-ElementScreenshot "#motionEffectVisualModal .modal-card" "motion-edit-tile.png"
 }
 finally {
     if ($socket) { $socket.Dispose() }

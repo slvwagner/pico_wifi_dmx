@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.7';
+  const APP_VERSION='0.9.8';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -365,6 +365,62 @@
       return [Math.min(start,end),Math.max(start,end)];
     }
     return null;
+  }
+
+  function hexByte(value){
+    return clampInt(value,0,255).toString(16).padStart(2,'0');
+  }
+
+  function rgbHex(value){
+    const v=value||{};
+    return '#'+hexByte(v.a)+hexByte(v.b)+hexByte(v.c);
+  }
+
+  function cmyHex(value){
+    const v=value||{};
+    return '#'+hexByte(255-(Number(v.a)||0))+hexByte(255-(Number(v.b)||0))+hexByte(255-(Number(v.c)||0));
+  }
+
+  function cmykHex(value){
+    const v=value||{};
+    const k=Number(v.k)||0;
+    return '#'+hexByte(Math.round(255*(1-(Number(v.a)||0)/255)*(1-k/255)))+
+      hexByte(Math.round(255*(1-(Number(v.b)||0)/255)*(1-k/255)))+
+      hexByte(Math.round(255*(1-(Number(v.c)||0)/255)*(1-k/255)));
+  }
+
+  function hexToRgb(hex){
+    const match=String(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);
+    const n=parseInt(match?match[1]:'000000',16);
+    return {a:(n>>16)&255,b:(n>>8)&255,c:n&255};
+  }
+
+  function rgbToCmy(hex){
+    const rgb=hexToRgb(hex);
+    return {a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};
+  }
+
+  function rgbToCmyk(hex){
+    const rgb=hexToRgb(hex);
+    const r=rgb.a/255,g=rgb.b/255,b=rgb.c/255;
+    const k=1-Math.max(r,g,b);
+    if(k>=1)return {a:0,b:0,c:0,k:255};
+    return {
+      a:Math.round((1-r-k)/(1-k)*255),
+      b:Math.round((1-g-k)/(1-k)*255),
+      c:Math.round((1-b-k)/(1-k)*255),
+      k:Math.round(k*255)
+    };
+  }
+
+  function wheelOptionIconHtml(option,escape=escapeHtml){
+    if(!option)return '';
+    const image=option.image||option.icon||option.resource;
+    const color=option.color||(Array.isArray(option.colors)?option.colors[0]:null);
+    const style=[];
+    if(color)style.push('background-color:'+escape(color));
+    if(image)style.push("background-image:url('"+escape(String(image).replace(/'/g,'%27'))+"')");
+    return style.length?'<span class="option-icon" style="'+style.join(';')+'"></span>':'';
   }
 
   function wheelOptionValue(option){
@@ -948,6 +1004,16 @@
     return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
   }
 
+  function restoreRailElementAnchor(element){
+    const rail=element?.closest?.('.toolbox-rail');
+    if(!rail)return;
+    const before=element.getBoundingClientRect().top;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      if(!element.isConnected)return;
+      rail.scrollTop+=element.getBoundingClientRect().top-before;
+    }));
+  }
+
   function initFloatingToolbox(options){
     const box=document.getElementById(options.boxId);
     const header=document.getElementById(options.headerId);
@@ -1168,9 +1234,125 @@
       ro.observe(box);
     }
 
-    if(toggle)toggle.addEventListener('click',()=>setCollapsed(!box.classList.contains('collapsed'),true));
+    if(toggle)toggle.addEventListener('click',event=>{
+      const expanding=box?.classList.contains('collapsed');
+      const rail=box?.closest('.toolbox-rail');
+      const buttonTop=event.currentTarget.getBoundingClientRect().top;
+      const nearRailBottom=rail&&buttonTop>rail.getBoundingClientRect().bottom-120;
+      setCollapsed(!box.classList.contains('collapsed'),true);
+      if(expanding&&!nearRailBottom)restoreRailElementAnchor(event.currentTarget);
+    });
 
     return {box,header,toggle,clamp:clampBox,applyPosition,applySize,setCollapsed};
+  }
+
+  function initToolboxCollapseGroup(options){
+    const group=options?.group||'';
+    const items=(options?.items||[]).map(item=>({
+      id:item.id,
+      toolbox:item.toolbox,
+      box:item.box||document.getElementById(item.id)
+    }));
+    const selector=options?.selector||('[data-collapse-group="'+group+'"]');
+    const toggleIds=options?.toggleIds||items.map(item=>item.toolbox?.toggle?.id).filter(Boolean);
+    const expandedText=options?.expandedText||'-- all';
+    const collapsedText=options?.collapsedText||'+ all';
+    const collapseTitle=options?.collapseTitle||'Collapse all toolboxes';
+    const expandTitle=options?.expandTitle||'Uncollapse all toolboxes';
+    const beforeToggle=typeof options?.beforeToggle==='function'?options.beforeToggle:null;
+
+    function boxes(){
+      return items.map(item=>item.box||document.getElementById(item.id)).filter(Boolean);
+    }
+    function update(){
+      const currentBoxes=boxes();
+      const allCollapsed=currentBoxes.length&&currentBoxes.every(box=>box.classList.contains('collapsed'));
+      document.querySelectorAll(selector).forEach(btn=>{
+        btn.textContent=allCollapsed?collapsedText:expandedText;
+        btn.title=allCollapsed?expandTitle:collapseTitle;
+      });
+      return allCollapsed;
+    }
+    function setGroupCollapsed(collapse,save=true){
+      items.forEach(item=>item.toolbox?.setCollapsed?.(collapse,save));
+      update();
+    }
+    function toggle(event){
+      const button=event?.currentTarget||null;
+      const collapse=boxes().some(box=>!box.classList.contains('collapsed'));
+      if(beforeToggle)beforeToggle({collapse,items});
+      setGroupCollapsed(collapse,true);
+      restoreRailElementAnchor(button);
+    }
+
+    document.querySelectorAll(selector).forEach(btn=>{
+      if(btn.dataset.toolboxCollapseGroupInit===group)return;
+      btn.dataset.toolboxCollapseGroupInit=group;
+      btn.addEventListener('click',toggle);
+    });
+    toggleIds.forEach(id=>{
+      const btn=document.getElementById(id);
+      if(!btn||btn.dataset.toolboxCollapseUpdateInit===group)return;
+      btn.dataset.toolboxCollapseUpdateInit=group;
+      btn.addEventListener('click',()=>setTimeout(update,0));
+    });
+    update();
+    setTimeout(update,500);
+    return {update,toggle,setCollapsed:setGroupCollapsed};
+  }
+
+  let sharedGroupVisualEditor=null;
+  function ensureSharedGroupVisualEditor(){
+    if(sharedGroupVisualEditor)return sharedGroupVisualEditor;
+    if(!document.getElementById('sharedGroupVisualModal')){
+      const wrap=document.createElement('div');
+      wrap.id='sharedGroupVisualModal';
+      wrap.className='modal-overlay visual-editor-modal';
+      wrap.style.display='none';
+      wrap.innerHTML=`
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="sharedGroupVisualTitle">
+          <div class="modal-head">
+            <button id="sharedGroupVisualClose" type="button" aria-label="Close">x</button>
+            <h2 id="sharedGroupVisualTitle">Edit Group Tile</h2>
+          </div>
+          <div class="modal-body">
+            <label>Target<select id="sharedGroupVisualTarget"></select></label>
+            <label>Name<input id="sharedGroupVisualName" type="text"></label>
+            <div id="sharedGroupColorVisualWrap">
+              <label>Background color<input id="sharedGroupVisualColor" type="color" value="#225a50"></label>
+              <button id="sharedGroupVisualResetColor" type="button">Default background</button>
+            </div>
+            <div id="sharedGroupImageVisualWrap" class="wheel-editor">
+              <label>Upload visual<input id="sharedGroupVisualImage" type="file" accept="image/*"></label>
+              <canvas id="sharedGroupVisualCanvas" class="gobo-canvas" width="120" height="120"></canvas>
+              <div class="buttons"><button id="sharedGroupVisualClear" type="button">No icon</button></div>
+            </div>
+            <div id="sharedGroupVisualHint" class="small"></div>
+          </div>
+          <div class="modal-actions">
+            <button id="sharedGroupVisualSave" type="button" class="primary">Save tile</button>
+            <button id="sharedGroupVisualClose2" type="button">Close</button>
+          </div>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+    sharedGroupVisualEditor=initSlotVisualEditor({
+      modalId:'sharedGroupVisualModal',
+      targetId:'sharedGroupVisualTarget',
+      nameInputId:'sharedGroupVisualName',
+      colorWrapId:'sharedGroupColorVisualWrap',
+      imageWrapId:'sharedGroupImageVisualWrap',
+      colorInputId:'sharedGroupVisualColor',
+      resetColorBtnId:'sharedGroupVisualResetColor',
+      canvasId:'sharedGroupVisualCanvas',
+      imageInputId:'sharedGroupVisualImage',
+      clearBtnId:'sharedGroupVisualClear',
+      hintId:'sharedGroupVisualHint',
+      saveBtnId:'sharedGroupVisualSave',
+      closeIds:['sharedGroupVisualClose','sharedGroupVisualClose2'],
+      defaultColor:'#1b5e5a'
+    });
+    return sharedGroupVisualEditor;
   }
 
   function initGroupsToolbox(options){
@@ -1185,6 +1367,7 @@
     const listId=idPrefix+'List';
     const colsId=idPrefix+'Cols';
     const rowsId=idPrefix+'Rows';
+    const moveId=idPrefix+'Move';
     const statePrefix=idPrefix;
     const layoutPrefix=options.layoutStoragePrefix||'groupsBox';
     let groups=[];
@@ -1192,6 +1375,8 @@
     let selectedIds=new Set();
     let cols=parseInt(localStorage.getItem(layoutPrefix+'Cols')||localStorage.getItem(statePrefix+'Cols'))||2;
     let rows=parseInt(localStorage.getItem(layoutPrefix+'Rows')||localStorage.getItem(statePrefix+'Rows'))||4;
+    let moveMode=false;
+    let moveSelectedSlot=null;
 
     const box=document.createElement('div');
     box.id=boxId;
@@ -1204,12 +1389,11 @@
       </div>
       <div class="scene-toolbox__body">
         <div class="groups-toolbar">
-          <button id="${idPrefix}Rename" title="Rename selected group">Rename</button>
-          <button id="${idPrefix}Delete" class="danger" title="Delete selected groups">Delete</button>
           ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
           <div class="groups-layout-controls">
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
             <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="${rowsId}" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
+            <button id="${moveId}" class="tile-move-btn" title="Move group tiles by dragging them to another slot">Move</button>
           </div>
         </div>
         <div id="${listId}" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
@@ -1229,12 +1413,20 @@
     });
 
     function key(g,i){return g.id||('idx_'+i);}
+    function groupSlot(g,i){
+      const slot=parseInt(g?.slot,10);
+      return Number.isFinite(slot)&&slot>=0?slot:i;
+    }
+    function groupIndexAtSlot(slot){
+      return groups.findIndex((g,i)=>groupSlot(g,i)===slot);
+    }
     function normalizeGroups(nextGroups){
       return (Array.isArray(nextGroups)?nextGroups:[]).map((g,i)=>({
         ...g,
         id:g.id||('grp_'+Date.now()+'_'+i),
         fixtureIds:Array.isArray(g.fixtureIds)?g.fixtureIds:[],
-        values:g.values||{}
+        values:g.values||{},
+        visual:normalizeSlotVisual(g.visual)||g.visual
       }));
     }
     function selectedGroups(){return groups.filter((g,i)=>selectedIds.has(key(g,i)));}
@@ -1245,7 +1437,8 @@
       groups.forEach((g,i)=>{if(wanted.has(String(g.id)))selectedIds.add(key(g,i));});
     }
     function clampLayout(priority='cols'){
-      const count=groups.length;
+      const maxSlot=groups.reduce((max,g,i)=>Math.max(max,groupSlot(g,i)),-1);
+      const count=Math.max(groups.length,maxSlot+1);
       cols=Math.max(1,Math.min(8,parseInt(cols)||2));
       rows=Math.max(1,Math.min(12,parseInt(rows)||4));
       if(count&&cols*rows<count){
@@ -1270,11 +1463,15 @@
       const colsInput=document.getElementById(colsId);
       const rowsInput=document.getElementById(rowsId);
       if(colsInput){
-        colsInput.min=Math.max(1,Math.ceil(groups.length/rows));
+        const maxSlot=groups.reduce((max,g,i)=>Math.max(max,groupSlot(g,i)),-1);
+        const needed=Math.max(groups.length,maxSlot+1);
+        colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/rows));
         colsInput.value=cols;
       }
       if(rowsInput){
-        rowsInput.min=Math.max(1,Math.ceil(groups.length/cols));
+        const maxSlot=groups.reduce((max,g,i)=>Math.max(max,groupSlot(g,i)),-1);
+        const needed=Math.max(groups.length,maxSlot+1);
+        rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/cols));
         rowsInput.value=rows;
       }
     }
@@ -1287,11 +1484,7 @@
     }
     function updateActions(){
       const selected=selectedGroups();
-      const rename=document.getElementById(idPrefix+'Rename');
-      const del=document.getElementById(idPrefix+'Delete');
       const edit=document.getElementById(idPrefix+'Edit');
-      if(rename)rename.disabled=selected.length!==1;
-      if(del)del.disabled=selected.length===0;
       if(edit){
         const requiresSelection=options.editRequiresSelection!==false;
         edit.disabled=(requiresSelection&&selected.length===0)||!options.canEdit?.(selected);
@@ -1301,10 +1494,42 @@
       options.onSelectionChange?.(selectedGroups(),groups);
       updateActions();
     }
+    function moveGroupSlot(fromSlot,toSlot){
+      const fromIndex=groupIndexAtSlot(fromSlot);
+      if(fromIndex<0||fromSlot===toSlot)return false;
+      const toIndex=groupIndexAtSlot(toSlot);
+      groups[fromIndex].slot=toSlot;
+      if(toIndex>=0)groups[toIndex].slot=fromSlot;
+      moveSelectedSlot=null;
+      render('cols');
+      saveGroups();
+      options.onStatus?.('Moved group to slot '+(toSlot+1));
+      return true;
+    }
+    function handleGroupMoveClick(slot){
+      const index=groupIndexAtSlot(slot);
+      const group=index>=0?groups[index]:null;
+      if(moveSelectedSlot===null){
+        if(!group)return;
+        moveSelectedSlot=slot;
+        render('cols');
+        options.onStatus?.('Select a destination slot for '+(group.name||'Group'));
+        return;
+      }
+      if(moveGroupSlot(moveSelectedSlot,slot))return;
+      moveSelectedSlot=null;
+      render('cols');
+    }
     function render(priority='cols'){
       const list=document.getElementById(listId);
       if(!list)return;
       applyLayout(priority);
+      const moveButton=document.getElementById(moveId);
+      if(moveButton){
+        moveButton.classList.toggle('active',moveMode);
+        moveButton.setAttribute('aria-pressed',moveMode?'true':'false');
+      }
+      list.classList.toggle('tile-move-mode',moveMode);
       if(!groups.length){
         list.innerHTML='<div class="small">No saved groups yet.</div>';
         updateActions();
@@ -1313,14 +1538,26 @@
       const total=cols*rows;
       let html='';
       for(let i=0;i<total;i++){
-        const g=groups[i];
-        if(!g){html+='<div class="group-empty" title="Empty group slot"></div>';continue;}
-        const active=selectedIds.has(key(g,i));
-        html+=`<div class="${savedTileClass('item',active)}" data-group-index="${i}" title="Select or deselect group">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escapeHtml(g.name||('Group '+(i+1)))}</strong><span class="small">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
+        const groupIndex=groupIndexAtSlot(i);
+        const g=groupIndex>=0?groups[groupIndex]:null;
+        if(!g){html+='<div class="group-empty" data-group-slot="'+i+'" title="'+(moveMode?'Drop a group here':'Empty group slot')+'">'+(i+1)+'</div>';continue;}
+        const active=selectedIds.has(key(g,groupIndex))||moveSelectedSlot===i;
+        html+=`<div class="${savedTileClass('item group-tile',active)}" data-group-slot="${i}" data-group-index="${groupIndex}" title="${moveMode?'Move group':'Select or deselect group'}" style="${slotVisualStyle(g)}">
+          ${slotVisualButtonHtml('data-edit-group-tile',groupIndex,'Edit group tile')}
+          <button class="slot-del" data-delete-group-tile="${groupIndex}" title="Delete group">×</button>
+          <div class="group-tile-content">${slotVisualHtml(g)}<span class="group-tile-name">${escapeHtml(g.name||('Group '+(groupIndex+1)))}</span><span class="group-tile-meta">${(g.fixtureIds||[]).length} fixture${(g.fixtureIds||[]).length!==1?'s':''}</span></div>
         </div>`;
       }
       list.innerHTML=html;
+      initTileMoveGrid({
+        grid:list,
+        button:moveButton,
+        active:moveMode,
+        itemSelector:'[data-group-slot]',
+        getIndex:el=>parseInt(el.dataset.groupSlot,10),
+        canDrag:(idx,el)=>el.hasAttribute('data-group-index'),
+        onMove:moveGroupSlot
+      });
       updateActions();
     }
     async function saveGroups(){
@@ -1374,8 +1611,22 @@
     }
 
     document.getElementById(listId).addEventListener('click',e=>{
-      const item=e.target.closest('[data-group-index]');
+      const editTile=e.target.closest('[data-edit-group-tile]');
+      if(editTile){
+        e.stopPropagation();
+        openGroupTileEditor(parseInt(editTile.dataset.editGroupTile,10));
+        return;
+      }
+      const deleteTile=e.target.closest('[data-delete-group-tile]');
+      if(deleteTile){
+        e.stopPropagation();
+        deleteGroupAtIndex(parseInt(deleteTile.dataset.deleteGroupTile,10));
+        return;
+      }
+      const item=e.target.closest('[data-group-slot]');
       if(!item)return;
+      const slot=parseInt(item.dataset.groupSlot,10);
+      if(moveMode){handleGroupMoveClick(slot);return;}
       const i=parseInt(item.dataset.groupIndex,10);
       const g=groups[i];if(!g)return;
       const k=key(g,i);
@@ -1386,20 +1637,36 @@
     if(document.getElementById(idPrefix+'Export'))document.getElementById(idPrefix+'Export').onclick=exportGroups;
     if(document.getElementById(idPrefix+'Import'))document.getElementById(idPrefix+'Import').onclick=()=>document.getElementById(idPrefix+'ImportFile')?.click();
     if(document.getElementById(idPrefix+'ImportFile'))document.getElementById(idPrefix+'ImportFile').onchange=e=>{if(e.target.files[0])importGroups(e.target.files[0]);e.target.value='';};
-    document.getElementById(idPrefix+'Rename').onclick=()=>{
-      const selected=selectedGroups();if(selected.length!==1)return;
-      const g=selected[0];
-      const name=(prompt('Group name:',g.name||'Group')||'').trim();
-      if(!name||name===g.name)return;
-      g.name=name;render('cols');saveGroups();
-    };
-    document.getElementById(idPrefix+'Delete').onclick=()=>{
-      const selected=selectedGroups();if(!selected.length)return;
-      const ids=new Set(selected.map(g=>g.id));
-      if(!confirm('Delete '+selected.length+' selected group'+(selected.length===1?'':'s')+'?\n\n'+selected.map(g=>g.name).join(', ')))return;
-      groups=groups.filter(g=>!ids.has(g.id));
-      selectedIds.clear();saveSharedGroupSelection([]);render('cols');notify();saveGroups();
-    };
+    function openGroupTileEditor(index){
+      const group=groups[index];if(!group)return;
+      const editor=ensureSharedGroupVisualEditor();
+      if(!editor)return;
+      editor.open({
+        targetLabel:'group tile',
+        defaultColor:'#1b5e5a',
+        selectedKey:String(index),
+        targets:[{key:String(index),label:group.name||('Group '+(index+1)),item:group}],
+        hint:'Rename the group tile, choose a background color, and optionally draw or upload an icon.',
+        onSaveTarget:(target,visual)=>{
+          target.visual=normalizeSlotVisual(visual)||{type:'visual',color:'#1b5e5a',image:''};
+          render('cols');
+          saveGroups();
+          options.onStatus?.('Updated group tile: '+(target.name||'Group'));
+        }
+      });
+    }
+    function deleteGroupAtIndex(index){
+      const group=groups[index];if(!group)return;
+      if(!confirm('Delete group "'+(group.name||('Group '+(index+1)))+'"?'))return;
+      const remainingSelection=selectedGroupIds().filter(id=>String(id)!==String(group.id));
+      groups.splice(index,1);
+      applySharedSelection(remainingSelection);
+      saveSharedGroupSelection(remainingSelection);
+      render('cols');
+      notify();
+      saveGroups();
+      options.onStatus?.('Deleted group: '+(group.name||('Group '+(index+1))));
+    }
     const edit=document.getElementById(idPrefix+'Edit');
     if(edit)edit.onclick=()=>{
       const selected=selectedGroups();
@@ -1407,6 +1674,12 @@
     };
     document.getElementById(colsId).addEventListener('input',e=>{cols=e.target.value;applyLayout('cols');render('cols');saveLayout('cols');});
     document.getElementById(rowsId).addEventListener('input',e=>{rows=e.target.value;applyLayout('rows');render('rows');saveLayout('rows');});
+    document.getElementById(moveId).addEventListener('click',()=>{
+      moveMode=!moveMode;
+      moveSelectedSlot=null;
+      render('cols');
+      options.onStatus?.(moveMode?'Group move mode enabled':'Group move mode disabled');
+    });
     Promise.all([loadUiState(page),loadUiState('toolboxes')]).then(([st,shared])=>{
       if(st[statePrefix+'Collapsed']!==undefined)toolbox.setCollapsed(!!st[statePrefix+'Collapsed'],false);
       if(st[statePrefix+'Pos'])toolbox.applyPosition(st[statePrefix+'Pos']);
@@ -1943,6 +2216,267 @@
     };
   }
 
+  function normalizeRoomPlanePoint(point,fallback){
+    return {
+      id:String(point?.id||fallback?.id||'A'),
+      x:Number(point?.x??fallback?.x??0)||0,
+      y:Number(point?.y??fallback?.y??0)||0,
+      z:Number(point?.z??fallback?.z??0)||0
+    };
+  }
+
+  function normalizeRoomPlaneFixture(fixture,index){
+    return {
+      id:fixture?.id,
+      name:String(fixture?.name||('Fixture '+(index+1))),
+      x:Number(fixture?.x)||0,
+      y:Number(fixture?.y)||0,
+      z:Number(fixture?.z)||0,
+      cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
+    };
+  }
+
+  function normalizeRoomPlane(plane,index){
+    const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
+    const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
+    return {
+      ...plane,
+      id:plane?.id||('plane_'+index),
+      name:String(plane?.name||('Plane '+(index+1))),
+      points:fallbackPoints.map((fallback,i)=>normalizeRoomPlanePoint(sourcePoints[i],fallback)),
+      target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
+      fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeRoomPlaneFixture),
+      view:{
+        auto:plane?.view?.auto!==false,
+        centerX:Number(plane?.view?.centerX)||0,
+        centerY:Number(plane?.view?.centerY)||0,
+        zoom:Math.max(0.25,Math.min(8,Number(plane?.view?.zoom)||1))
+      },
+      visual:plane?.visual
+    };
+  }
+
+  function roomPlaneWeights(plane,target=plane?.target){
+    const [a,b,c]=plane?.points||[];
+    if(!a||!b||!c||!target)return {valid:false,wA:0,wB:0,wC:0};
+    const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+    if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
+    const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+    const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+    return {valid:true,wA,wB,wC:1-wA-wB};
+  }
+
+  function roomPlaneInterpolateFixture(plane,fixture,weights){
+    if(!weights?.valid)return null;
+    const ids=(plane?.points||[]).map(point=>point.id);
+    if(ids.length<3||ids.some(id=>!fixture?.cal?.[id]?.calibrated))return null;
+    return {
+      pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
+      tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
+    };
+  }
+
+  function roomPlaneAutoBounds(plane){
+    const points=Array.isArray(plane?.points)?plane.points:[];
+    const fixtures=Array.isArray(plane?.fixtures)?plane.fixtures:[];
+    const target=plane?.target||{x:0,y:0};
+    const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+    xs.push(target.x,...fixtures.map(f=>f.x));
+    ys.push(target.y,...fixtures.map(f=>f.y));
+    const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+    const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
+    return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+  }
+
+  function initSavedPlaneToolbox(options){
+    const maxGrid=options.maxGrid||16;
+    let moveMode=false;
+    let moveSelectedSlot=null;
+    const getPlanes=()=>Array.isArray(options.getPlanes?.())?options.getPlanes():[];
+    const setPlanes=planes=>options.setPlanes?.(Array.isArray(planes)?planes:[]);
+    const getCols=()=>Math.max(1,Math.min(maxGrid,parseInt(options.getCols?.(),10)||options.defaultCols||3));
+    const getRows=()=>Math.max(1,Math.min(maxGrid,parseInt(options.getRows?.(),10)||options.defaultRows||3));
+    const setCols=value=>options.setCols?.(value);
+    const setRows=value=>options.setRows?.(value);
+    const status=(text,bad=false)=>options.onStatus?.(text,bad);
+    const normalizePlane=options.normalizePlane||normalizeRoomPlane;
+    const slotOf=(plane,index)=>{
+      const slot=parseInt(plane?.slot,10);
+      return Number.isFinite(slot)&&slot>=0?slot:index;
+    };
+    const indexAtSlot=slot=>getPlanes().findIndex((plane,index)=>slotOf(plane,index)===slot);
+    const normalizeGrid=(priority='cols')=>{
+      const planes=getPlanes();
+      let cols=getCols(),rows=getRows();
+      const maxSlot=planes.reduce((max,plane,index)=>Math.max(max,slotOf(plane,index)),-1);
+      const needed=Math.max(planes.length,maxSlot+1);
+      if(needed&&cols*rows<needed){
+        if(priority==='rows'){
+          cols=Math.max(cols,Math.ceil(needed/rows));
+          if(cols>maxGrid){cols=maxGrid;rows=Math.ceil(needed/cols);}
+        }else{
+          rows=Math.max(rows,Math.ceil(needed/cols));
+          if(rows>maxGrid){rows=maxGrid;cols=Math.ceil(needed/rows);}
+        }
+      }
+      cols=Math.max(1,Math.min(maxGrid,cols));
+      rows=Math.max(1,Math.min(maxGrid,rows));
+      setCols(cols);setRows(rows);
+      const colsInput=document.getElementById(options.colsId);
+      const rowsInput=document.getElementById(options.rowsId);
+      if(colsInput){colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/rows));colsInput.value=cols;}
+      if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/cols));rowsInput.value=rows;}
+      return {cols,rows,needed};
+    };
+    const payload=()=>options.savePayload?.()||versionedPayload({planes:getPlanes(),planeCols:getCols(),planeRows:getRows()});
+    const save=async(statusText='Plane layout saved')=>{
+      if(!isHttp())return false;
+      const response=await fetch(options.fetchUrl||'room_plane_setup.php',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload())
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+      status(statusText);
+      return true;
+    };
+    const scheduleSave=(statusText='Plane layout saved')=>save(statusText).catch(error=>status('Planes save failed: '+error.message,true));
+    const move=(fromSlot,toSlot)=>{
+      const planes=getPlanes();
+      const fromIndex=indexAtSlot(fromSlot);
+      if(fromIndex<0||fromSlot===toSlot)return false;
+      const toIndex=indexAtSlot(toSlot);
+      planes[fromIndex].slot=toSlot;
+      if(toIndex>=0)planes[toIndex].slot=fromSlot;
+      moveSelectedSlot=null;
+      normalizeGrid('cols');
+      render();
+      scheduleSave('Moved plane to slot '+(toSlot+1));
+      return true;
+    };
+    const handleClick=slot=>{
+      const planes=getPlanes();
+      const index=indexAtSlot(slot);
+      const plane=index>=0?planes[index]:null;
+      if(moveMode){
+        if(moveSelectedSlot===null){
+          if(!plane)return;
+          moveSelectedSlot=slot;
+          render();
+          status('Select a destination slot for '+plane.name);
+          return;
+        }
+        if(move(moveSelectedSlot,slot))return;
+        moveSelectedSlot=null;
+        render();
+        return;
+      }
+      if(plane)options.onOpen?.(plane,slot);
+      else if(options.onEmptySlot)options.onEmptySlot(slot);
+      else status('Plane slot '+(slot+1)+' is empty');
+    };
+    const toggleMove=()=>{
+      moveMode=!moveMode;
+      moveSelectedSlot=null;
+      render();
+      status(moveMode?'Plane move mode enabled':'Plane move mode disabled');
+    };
+    function render(){
+      const host=document.getElementById(options.matrixId);
+      if(!host)return;
+      const {cols,rows}=normalizeGrid('cols');
+      const moveBtn=document.getElementById(options.moveButtonId);
+      if(moveBtn){
+        moveBtn.classList.toggle('active',moveMode);
+        moveBtn.setAttribute('aria-pressed',moveMode?'true':'false');
+      }
+      host.classList.toggle('tile-move-mode',moveMode);
+      host.style.gridTemplateColumns='repeat('+cols+',minmax(64px,1fr))';
+      const planes=getPlanes();
+      const slotAttr=options.slotAttribute||'';
+      const idAttr=options.idAttribute||'';
+      const slotData=slot=>slotAttr?' '+slotAttr+'="'+slot+'"':'';
+      const idData=plane=>idAttr?' '+idAttr+'="'+escapeHtml(String(plane.id))+'"':'';
+      let html='';
+      for(let i=0,total=cols*rows;i<total;i++){
+        const planeIndex=indexAtSlot(i);
+        const plane=planeIndex>=0?planes[planeIndex]:null;
+        if(!plane){
+          html+='<div class="slot readonly" data-plane-slot="'+i+'"'+slotData(i)+' title="'+(moveMode?'Drop a plane here':'Empty plane slot')+'">'+(i+1)+'</div>';
+          continue;
+        }
+        const visualPlane={...plane,visual:normalizeSlotVisual(plane.visual)||{type:'visual',color:options.defaultColor||'#225a50',image:''}};
+        const activeClass=moveSelectedSlot===i?' active':'';
+        const isActive=String(options.activeId?.()||'')===String(plane.id);
+        const summary=options.fixtureSummary?.(plane)||'';
+        const editAttr=options.editAttribute||'data-plane-edit';
+        const deleteAttr=options.deleteAttribute||'data-plane-delete';
+        const edit=options.onEdit?slotVisualButtonHtml(editAttr,String(plane.id),'Edit plane tile'):'';
+        const del=options.onDelete?'<button class="slot-del" '+deleteAttr+'="'+escapeHtml(String(plane.id))+'" title="Delete plane">×</button>':'';
+        html+='<div class="'+savedTileClass('slot filled',isActive)+activeClass+'" data-plane-slot="'+i+'"'+slotData(i)+' data-plane-id="'+escapeHtml(String(plane.id))+'"'+idData(plane)+' title="'+(moveMode?'Move '+escapeHtml(plane.name):'Open '+escapeHtml(plane.name))+'" style="'+slotVisualStyle(visualPlane)+'">'+
+          edit+del+
+          '<div class="palette-slot-content">'+slotVisualHtml(visualPlane)+'<span class="palette-slot-name">'+escapeHtml(plane.name)+'</span>'+(summary?'<span class="controller-plane-slot-meta">'+escapeHtml(summary)+'</span>':'')+'</div>'+
+        '</div>';
+      }
+      host.innerHTML=html;
+      host.querySelectorAll('[data-plane-slot]').forEach(tile=>tile.addEventListener('click',()=>handleClick(parseInt(tile.dataset.planeSlot,10)||0)));
+      const editSelector=options.editAttribute?'['+options.editAttribute+']':'[data-plane-edit]';
+      const deleteSelector=options.deleteAttribute?'['+options.deleteAttribute+']':'[data-plane-delete]';
+      host.querySelectorAll(editSelector).forEach(button=>button.addEventListener('click',event=>{
+        event.stopPropagation();
+        options.onEdit?.(button.getAttribute(options.editAttribute||'data-plane-edit'));
+      }));
+      host.querySelectorAll(deleteSelector).forEach(button=>button.addEventListener('click',event=>{
+        event.stopPropagation();
+        options.onDelete?.(button.getAttribute(options.deleteAttribute||'data-plane-delete'));
+      }));
+      initTileMoveGrid({
+        grid:host,
+        button:options.moveButtonId,
+        active:moveMode,
+        itemSelector:'[data-plane-slot]',
+        getIndex:el=>parseInt(el.dataset.planeSlot,10),
+        canDrag:(idx,el)=>el.hasAttribute('data-plane-id'),
+        onMove:move
+      });
+    }
+    async function load(){
+      try{
+        const response=await fetch(options.fetchUrl||'room_plane_setup.php',{cache:'no-store'});
+        const data=await response.json();
+        if(!response.ok||data.ok===false)throw new Error(data.error||('HTTP '+response.status));
+        options.onSetupLoaded?.(data);
+        const planes=Array.isArray(data.planes)?data.planes:(Array.isArray(data.setup?.planes)?data.setup.planes:[]);
+        setPlanes(planes.map(normalizePlane));
+        setCols(Math.max(1,Math.min(maxGrid,parseInt(data.planeCols??data.setup?.planeCols??options.defaultCols??3,10)||options.defaultCols||3)));
+        setRows(Math.max(1,Math.min(maxGrid,parseInt(data.planeRows??data.setup?.planeRows??options.defaultRows??3,10)||options.defaultRows||3)));
+        render();
+        return true;
+      }catch(error){
+        setPlanes([]);
+        render();
+        status('Saved planes unavailable: '+error.message,true);
+        return false;
+      }
+    }
+    document.getElementById(options.colsId)?.addEventListener('input',event=>{
+      setCols(event.target.value);
+      normalizeGrid('cols');
+      render();
+      scheduleSave('Plane layout saved');
+    });
+    document.getElementById(options.rowsId)?.addEventListener('input',event=>{
+      setRows(event.target.value);
+      normalizeGrid('rows');
+      render();
+      scheduleSave('Plane layout saved');
+    });
+    const moveButton=document.getElementById(options.moveButtonId);
+    if(moveButton)moveButton.onclick=toggleMove;
+    return {load,render,save,move,normalizeGrid,indexAtSlot,slotOf,get moveMode(){return moveMode;}};
+  }
+
   function panTiltMax(control){
     return control?.type==='panTilt16'?65535:255;
   }
@@ -2019,6 +2553,177 @@
     return value;
   }
 
+  function ensurePanTiltDimmerEditorModal(){
+    let modal=document.getElementById('commonPanTiltDimmerModal');
+    if(modal)return modal;
+    modal=document.createElement('div');
+    modal.id='commonPanTiltDimmerModal';
+    modal.className='modal-overlay';
+    modal.style.display='none';
+    modal.innerHTML=[
+      '<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="commonPanTiltDimmerTitle">',
+      '  <div class="modal-head">',
+      '    <button type="button" data-ptd-close aria-label="Close">x</button>',
+      '    <h2 id="commonPanTiltDimmerTitle">Edit Fixture Control</h2>',
+      '  </div>',
+      '  <div class="modal-body">',
+      '    <div class="xy-pad" data-ptd-xy><div class="xy-dot" data-ptd-dot></div></div>',
+      '    <div class="row"><span class="readout" data-ptd-position-readout></span><button type="button" data-ptd-center>Center Pan/Tilt</button></div>',
+      '    <div class="grid2" data-ptd-relative></div>',
+      '    <label>Dimmer<input type="range" min="0" max="255" data-ptd-dimmer-range></label>',
+      '    <label>Dimmer value<input type="number" min="0" max="255" data-ptd-dimmer></label>',
+      '    <div class="small" data-ptd-readout></div>',
+      '  </div>',
+      '  <div class="modal-actions">',
+      '    <span data-ptd-extra-actions></span>',
+      '    <button type="button" data-ptd-close>Close</button>',
+      '  </div>',
+      '</div>'
+    ].join('');
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-ptd-close]').forEach(btn=>btn.addEventListener('click',()=>closePanTiltDimmerEditor(modal)));
+    return modal;
+  }
+
+  function closePanTiltDimmerEditor(modal){
+    const el=modal||document.getElementById('commonPanTiltDimmerModal');
+    if(!el)return;
+    hideModal(el);
+    const onClose=el._dmxPanTiltDimmerOnClose;
+    el._dmxPanTiltDimmerOnClose=null;
+    if(typeof onClose==='function')onClose();
+  }
+
+  function openPanTiltDimmerEditor(options){
+    const modal=ensurePanTiltDimmerEditorModal();
+    const max=Math.max(1,Math.round(Number(options?.max)||255));
+    const title=modal.querySelector('#commonPanTiltDimmerTitle');
+    const pad=modal.querySelector('[data-ptd-xy]');
+    const dot=modal.querySelector('[data-ptd-dot]');
+    const positionReadout=modal.querySelector('[data-ptd-position-readout]');
+    const centerBtn=modal.querySelector('[data-ptd-center]');
+    const relativeHost=modal.querySelector('[data-ptd-relative]');
+    const dimmerRange=modal.querySelector('[data-ptd-dimmer-range]');
+    const dimmerInput=modal.querySelector('[data-ptd-dimmer]');
+    const readout=modal.querySelector('[data-ptd-readout]');
+    const extraActions=modal.querySelector('[data-ptd-extra-actions]');
+    const onChange=typeof options?.onChange==='function'?options.onChange:()=>{};
+    const onAction=typeof options?.onAction==='function'?options.onAction:()=>{};
+    modal._dmxPanTiltDimmerOnClose=typeof options?.onClose==='function'?options.onClose:null;
+    let value={
+      pan:clampInt(options?.value?.pan??Math.round(max/2),0,max),
+      tilt:clampInt(options?.value?.tilt??Math.round(max/2),0,max),
+      dimmer:clampInt(options?.value?.dimmer??255,0,255)
+    };
+    title.textContent=options?.title||'Edit Fixture Control';
+    const actions=Array.isArray(options?.actions)?options.actions:[];
+    extraActions.innerHTML=actions.map(action=>{
+      const classes=[action.primary?'primary':'',action.className||''].filter(Boolean).join(' ');
+      return '<button type="button" data-ptd-action="'+escapeHtml(action.id||action.label||'')+'" '+(classes?'class="'+escapeHtml(classes)+'"':'')+'>'+escapeHtml(action.label||action.id||'Action')+'</button>';
+    }).join('');
+    extraActions.onclick=event=>{
+      const btn=event.target.closest('[data-ptd-action]');
+      if(!btn)return;
+      onAction(btn.dataset.ptdAction,{...value},{
+        button:btn,
+        getValue:()=>({...value}),
+        setValue(next,{emitChange=true}={}){
+          value={
+            pan:clampInt(next?.pan??value.pan,0,max),
+            tilt:clampInt(next?.tilt??value.tilt,0,max),
+            dimmer:clampInt(next?.dimmer??value.dimmer,0,255)
+          };
+          renderEditor();
+          if(emitChange)emit();
+        }
+      });
+    };
+    const is16=max>255;
+    relativeHost.innerHTML=is16
+      ? [
+        relativeControlHtml('pan','Pan coarse relative',256,max),
+        relativeControlHtml('pan','Pan fine relative',1,max),
+        relativeControlHtml('tilt','Tilt coarse relative',256,max),
+        relativeControlHtml('tilt','Tilt fine relative',1,max)
+      ].join('')
+      : [
+        relativeControlHtml('pan','Pan relative',1,max),
+        relativeControlHtml('tilt','Tilt relative',1,max)
+      ].join('');
+
+    function relativeControlHtml(axis,label,step,limit){
+      return '<div class="relative-control">'+
+        '<button type="button" data-ptd-relative-dir="-1" data-ptd-axis="'+axis+'" title="Decrease relative to the current value">-</button>'+
+        '<label>'+escapeHtml(label)+'<input type="number" min="1" max="'+limit+'" step="'+step+'" value="'+step+'" data-ptd-relative-step data-ptd-axis="'+axis+'"></label>'+
+        '<button type="button" data-ptd-relative-dir="1" data-ptd-axis="'+axis+'" title="Increase relative to the current value">+</button>'+
+      '</div>';
+    }
+
+    function emit(){
+      onChange({...value});
+    }
+    function renderEditor(){
+      dimmerRange.value=String(value.dimmer);
+      dimmerInput.value=String(value.dimmer);
+      dot.style.left=(value.pan/max*100)+'%';
+      dot.style.top=(100-value.tilt/max*100)+'%';
+      positionReadout.textContent='Pan '+value.pan+' · Tilt '+value.tilt;
+      readout.textContent='Pan '+value.pan+' / Tilt '+value.tilt+' / Dimmer '+value.dimmer;
+    }
+    function setFromPad(event){
+      const rect=pad.getBoundingClientRect();
+      const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
+      const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/Math.max(1,rect.height)));
+      value.pan=clampInt(Math.round(x*max),0,max);
+      value.tilt=clampInt(Math.round((1-y)*max),0,max);
+      renderEditor();
+      emit();
+    }
+    centerBtn.onclick=()=>{
+      value.pan=Math.round(max/2);
+      value.tilt=Math.round(max/2);
+      renderEditor();
+      emit();
+    };
+    relativeHost.onclick=event=>{
+      const btn=event.target.closest('[data-ptd-relative-dir]');
+      if(!btn)return;
+      const axis=btn.dataset.ptdAxis;
+      if(axis!=='pan'&&axis!=='tilt')return;
+      const stepInput=btn.closest('.relative-control')?.querySelector('[data-ptd-relative-step]');
+      const step=Math.max(1,Math.round(Number(stepInput?.value)||1));
+      const dir=parseInt(btn.dataset.ptdRelativeDir,10)<0?-1:1;
+      value[axis]=clampInt(value[axis]+dir*step,0,max);
+      renderEditor();
+      emit();
+    };
+    dimmerRange.oninput=()=>{
+      value.dimmer=clampInt(dimmerRange.value,0,255);
+      renderEditor();
+      emit();
+    };
+    dimmerInput.oninput=()=>{
+      value.dimmer=clampInt(dimmerInput.value,0,255);
+      renderEditor();
+      emit();
+    };
+    pad.onpointerdown=event=>{
+      event.preventDefault();
+      pad.setPointerCapture?.(event.pointerId);
+      setFromPad(event);
+      pad.onpointermove=setFromPad;
+      pad.onpointerup=pad.onpointercancel=()=>{
+        pad.releasePointerCapture?.(event.pointerId);
+        pad.onpointermove=null;
+        pad.onpointerup=null;
+        pad.onpointercancel=null;
+      };
+    };
+    renderEditor();
+    showModal(modal);
+    return {close:()=>closePanTiltDimmerEditor(modal),value:()=>({...value})};
+  }
+
   window.DmxCommon={
     BASE_URL_KEY,
     APP_VERSION,
@@ -2042,6 +2747,14 @@
     mountFanOutToolbox,
     createFanOutController,
     wheelOptionRange,
+    hexByte,
+    rgbHex,
+    cmyHex,
+    cmykHex,
+    hexToRgb,
+    rgbToCmy,
+    rgbToCmyk,
+    wheelOptionIconHtml,
     wheelOptionValue,
     wheelOptionMatches,
     selectedWheelOption,
@@ -2059,6 +2772,7 @@
     saveSharedGroupSelection,
     loadSharedGroupSelection,
     initToolboxRail,
+    initToolboxCollapseGroup,
     initFloatingToolbox,
     initGroupsToolbox,
     normalizeSlotVisual,
@@ -2067,10 +2781,17 @@
     slotVisualHtml,
     slotVisualButtonHtml,
     initTileMoveGrid,
+    normalizeRoomPlane,
+    roomPlaneWeights,
+    roomPlaneInterpolateFixture,
+    roomPlaneAutoBounds,
+    initSavedPlaneToolbox,
     panTiltMax,
     panTiltDefault,
     panTiltDmxRows,
     panTiltValueFromDmx,
+    openPanTiltDimmerEditor,
+    closePanTiltDimmerEditor,
     showModal,
     hideModal,
     initSlotVisualEditor

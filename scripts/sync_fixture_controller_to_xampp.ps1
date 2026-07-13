@@ -27,14 +27,17 @@ $chaserSource = Join-Path $webDir "dmx_chaser.html"
 $benchSource = Join-Path $webDir "dmx_benchmark.html"
 $monitorSource = Join-Path $webDir "dmx_monitor.html"
 $gpioSource      = Join-Path $webDir "dmx_gpio.html"
+$roomPlaneSource = Join-Path $webDir "dmx_room_plane.html"
 $chaserApiSource = Join-Path $apiDir "chaser_setup.php"
 $motionApiSource = Join-Path $apiDir "motion_setup.php"
 $groupApiSource  = Join-Path $apiDir "group_setup.php"
 $sceneApiSource  = Join-Path $apiDir "scene_setup.php"
 $paletteApiSource = Join-Path $apiDir "palette_setup.php"
 $gpioApiSource    = Join-Path $apiDir "gpio_setup.php"
+$roomPlaneApiSource = Join-Path $apiDir "room_plane_setup.php"
 $fixtureLibraryApiSource = Join-Path $apiDir "fixture_library.php"
 $uiStateSource   = Join-Path $apiDir "ui_state.php"
+$jsonStoreSource = Join-Path $apiDir "json_store.php"
 $picoDiscoveryApiSource = Join-Path $apiDir "pico_discovery.php"
 $manualSource    = Join-Path $docsDir "user-manual.html"
 $manualPdfSource = Join-Path $docsDir "user-manual.pdf"
@@ -51,14 +54,17 @@ $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $benchTargetDir "index.html"
 $monitorTarget = Join-Path $targetDir "dmx_monitor.html"
 $gpioTarget      = Join-Path $targetDir "dmx_gpio.html"
+$roomPlaneTarget = Join-Path $targetDir "dmx_room_plane.html"
 $chaserApiTarget = Join-Path $targetDir "chaser_setup.php"
 $motionApiTarget = Join-Path $targetDir "motion_setup.php"
 $groupApiTarget  = Join-Path $targetDir "group_setup.php"
 $sceneApiTarget  = Join-Path $targetDir "scene_setup.php"
 $paletteApiTarget = Join-Path $targetDir "palette_setup.php"
 $gpioApiTarget    = Join-Path $targetDir "gpio_setup.php"
+$roomPlaneApiTarget = Join-Path $targetDir "room_plane_setup.php"
 $fixtureLibraryApiTarget = Join-Path $targetDir "fixture_library.php"
 $uiStateTarget   = Join-Path $targetDir "ui_state.php"
+$jsonStoreTarget = Join-Path $targetDir "json_store.php"
 $picoDiscoveryApiTarget = Join-Path $targetDir "pico_discovery.php"
 $manualTarget    = Join-Path $targetDir "user-manual.html"
 $manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
@@ -107,6 +113,10 @@ if (Test-Path -LiteralPath $gpioSource) {
     Copy-Item -LiteralPath $gpioSource -Destination $gpioTarget -Force
     Write-Host "Copied GPIO control to $gpioTarget"
 }
+if (Test-Path -LiteralPath $roomPlaneSource) {
+    Copy-Item -LiteralPath $roomPlaneSource -Destination $roomPlaneTarget -Force
+    Write-Host "Copied room plane page to $roomPlaneTarget"
+}
 if (Test-Path -LiteralPath $chaserApiSource) {
     Copy-Item -LiteralPath $chaserApiSource -Destination $chaserApiTarget -Force
     Write-Host "Copied chaser API to $chaserApiTarget"
@@ -131,6 +141,10 @@ if (Test-Path -LiteralPath $gpioApiSource) {
     Copy-Item -LiteralPath $gpioApiSource -Destination $gpioApiTarget -Force
     Write-Host "Copied GPIO API to $gpioApiTarget"
 }
+if (Test-Path -LiteralPath $roomPlaneApiSource) {
+    Copy-Item -LiteralPath $roomPlaneApiSource -Destination $roomPlaneApiTarget -Force
+    Write-Host "Copied room plane API to $roomPlaneApiTarget"
+}
 if (Test-Path -LiteralPath $fixtureLibraryApiSource) {
     Copy-Item -LiteralPath $fixtureLibraryApiSource -Destination $fixtureLibraryApiTarget -Force
     Write-Host "Copied fixture library API to $fixtureLibraryApiTarget"
@@ -138,6 +152,10 @@ if (Test-Path -LiteralPath $fixtureLibraryApiSource) {
 if (Test-Path -LiteralPath $uiStateSource) {
     Copy-Item -LiteralPath $uiStateSource -Destination $uiStateTarget -Force
     Write-Host "Copied UI state API to $uiStateTarget"
+}
+if (Test-Path -LiteralPath $jsonStoreSource) {
+    Copy-Item -LiteralPath $jsonStoreSource -Destination $jsonStoreTarget -Force
+    Write-Host "Copied atomic JSON store helper to $jsonStoreTarget"
 }
 if (Test-Path -LiteralPath $picoDiscoveryApiSource) {
     Copy-Item -LiteralPath $picoDiscoveryApiSource -Destination $picoDiscoveryApiTarget -Force
@@ -170,6 +188,7 @@ $dataFiles = @(
     "group_setup.json",
     "chaser_setup.json",
     "motion_setup.json",
+    "room_plane_setup.json",
     "ui_state.json"
 )
 foreach ($dataFile in $dataFiles) {

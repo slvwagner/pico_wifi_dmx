@@ -1,5 +1,6 @@
 #include "pico_chaser.h"
 #include "pico/sync.h"
+#include "pico/time.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -185,9 +186,13 @@ void chaser_play(uint8_t slot)
 void chaser_pause(uint8_t slot)
 {
     if (slot >= CHASER_MAX_SLOTS) return;
+    uint32_t now_us = time_us_32();
     critical_section_enter_blocking(&chaser_lock);
     if (play_state[slot].playing) {
-        play_state[slot].paused_elapsed_us = play_state[slot].last_elapsed_ms * 1000u;
+        if (play_state[slot].step_entered_us != 0)
+            play_state[slot].paused_elapsed_us = now_us - play_state[slot].step_entered_us;
+        else
+            play_state[slot].paused_elapsed_us = play_state[slot].last_elapsed_ms * 1000u;
         play_state[slot].playing = false;
         play_state[slot].paused = true;
     }
@@ -308,15 +313,16 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 
     for (uint8_t sl = 0; sl < CHASER_MAX_SLOTS; sl++) {
         chaser_play_state_t *ps = &play_state[sl];
-        if (!ps->playing) continue;
+        if (!ps->playing && !ps->paused) continue;
 
         chaser_slot_data_t *sd = &slot_data[sl];
         if (!sd->loaded || sd->step_count == 0) {
             ps->playing = false;
+            ps->paused = false;
             continue;
         }
 
-        if (ps->step_entered_us == 0) {
+        if (ps->playing && ps->step_entered_us == 0) {
             ps->step_entered_us = now_us - ps->paused_elapsed_us;
             ps->paused_elapsed_us = 0;
         }
@@ -325,7 +331,7 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
         if (speed < 0.1f) speed = 0.1f;
 
         chaser_step_t step    = sd->steps[ps->current_step];
-        uint32_t      elapsed = now_us - ps->step_entered_us;
+        uint32_t      elapsed = ps->paused ? ps->paused_elapsed_us : now_us - ps->step_entered_us;
         uint32_t      dur_us  = (uint32_t)((float)(step.duration_ms * 1000) / speed);
         uint32_t      fade_us = (uint32_t)((step.fade_percent / 100.0f) * (float)dur_us);
 
@@ -342,7 +348,7 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             }
         }
 
-        if (elapsed >= dur_us) {
+        if (ps->playing && elapsed >= dur_us) {
             for (uint16_t i = 0; i < step.ch_count; i++)
                 ps->from_values[sd->channels[step.ch_start + i].channel] =
                     sd->channels[step.ch_start + i].value;

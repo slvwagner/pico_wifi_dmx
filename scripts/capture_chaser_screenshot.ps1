@@ -362,7 +362,7 @@ try {
 })()
 '@
     Invoke-PageScript $expression | Out-Null
-    Save-ElementScreenshot "#chaseVisualModal .modal" "chaser-edit-tile.png"
+    Save-ElementScreenshot "#chaseVisualModal .modal-card" "chaser-edit-tile.png"
     Invoke-PageScript "document.getElementById('chaseVisualClose2')?.click(); true" | Out-Null
 
     Send-Cdp "Page.navigate" @{ url = ($url + "&mainshots=1") } | Out-Null

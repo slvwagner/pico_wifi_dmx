@@ -1,0 +1,67 @@
+{
+  "createdAt": "2026-07-08T19:03:58Z",
+  "sourceDataPath": "E:\\Software\\xampp\\htdocs\\dmx\\data",
+  "appVersion": "0.9.8",
+  "files": [
+    {
+      "name": "chaser_setup.json",
+      "sizeBytes": 7550,
+      "sha256": "37739a4daba849e82e4527545a5a434c0c154d7fd5f99d9df283bb65e3097e9d"
+    },
+    {
+      "name": "fixture_library.json",
+      "sizeBytes": 14771243,
+      "sha256": "a77b89f155c28531fb4c84c9213b1e128bd640a3c69d2b148cf9e0634e12d070"
+    },
+    {
+      "name": "fixture_live_values.json",
+      "sizeBytes": 720,
+      "sha256": "5d8e94ebfe32b91c0333a902db877a501494cf4536f352d03e458f23cf5014f4"
+    },
+    {
+      "name": "fixture_setup.json",
+      "sizeBytes": 56268,
+      "sha256": "3c69f064a06de6ca56f72ea189baaf79a66a9a2d699ac0d97e0f6fcc56932a7d"
+    },
+    {
+      "name": "gpio_setup.json",
+      "sizeBytes": 608,
+      "sha256": "b0c2e64abdd4156d3cc720bc505827789d4147ebd7bf4edec631f357b05f4ce5"
+    },
+    {
+      "name": "group_setup.json",
+      "sizeBytes": 370,
+      "sha256": "425dc443dcac0bcc07828882a2e97cefc0fb5e205599085f2c87f664529fdc12"
+    },
+    {
+      "name": "motion_setup.json",
+      "sizeBytes": 23745,
+      "sha256": "258f048ac7363e6d5cac22199006f2076ea76a355f278cc2043f5bda34263bd1"
+    },
+    {
+      "name": "palette_setup.json",
+      "sizeBytes": 74551,
+      "sha256": "a48621a128516d25bcda1c02e0668ab67e26934dc69575218d5a55eb1cd2f1b5"
+    },
+    {
+      "name": "room_plane_setup.json",
+      "sizeBytes": 21394,
+      "sha256": "a26885c0de6d18c9598ceb12691bded9876a8aa8debc55318a9b58ff2076cdd0"
+    },
+    {
+      "name": "scene_setup.json",
+      "sizeBytes": 7210,
+      "sha256": "43981394195f784687204bd402348688d6f1d0909d43dbd9d8a5a00826e732a0"
+    },
+    {
+      "name": "ui_state.json",
+      "sizeBytes": 506,
+      "sha256": "253e8919e70052b691259444d630958f8814a0dd233ef551840bfa008b4c72de"
+    }
+  ],
+  "portableBackup": {
+    "name": "pico_dmx_setup.json",
+    "sizeBytes": 10511554,
+    "sha256": "d97a29ef957b6cb98146d0d82f024a03a43298e93a1aa7fd2b6f31dc76d72f1d"
+  }
+}

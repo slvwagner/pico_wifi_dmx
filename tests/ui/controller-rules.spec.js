@@ -513,6 +513,226 @@ test.describe('Fixture Controller established rules', () => {
     expect(after.b).toBe(89);
   });
 
+  test('saved plane recall opens a room preview and applies to the selected group fixtures', async ({ page }) => {
+    const dmxBatches = [];
+    const roomPlaneWrites = [];
+    await page.route('**/dmx/b', async route => {
+      dmxBatches.push(route.request().postData() || '');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.unroute('**/room_plane_setup.php**');
+    await page.route('**/room_plane_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        roomPlaneWrites.push(route.request().postDataJSON());
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, planes: [], planeCols: 3, planeRows: 3 })
+      });
+    });
+
+    await page.evaluate(() => {
+      baseUrl.value = location.origin;
+      savedGroups = [{ id: 'grp_plane', name: 'Plane Movers', fixtureIds: [101], values: {} }];
+      activeSavedGroupIds.clear();
+      renderSavedGroupsList();
+      controllerPlanes = [normalizeControllerPlane({
+        id: 'plane_front',
+        name: 'Front Plane',
+        view: { auto: false, centerX: 5, centerY: 5, zoom: 2 },
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 10, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 10, z: 0 }
+        ],
+        target: { x: 5, y: 0, z: 0 },
+        fixtures: [
+          {
+            id: 101,
+            name: 'A 1',
+            x: 1,
+            y: 1,
+            z: 3,
+            cal: {
+              A: { pan: 1000, tilt: 2000, calibrated: true },
+              B: { pan: 3000, tilt: 4000, calibrated: true },
+              C: { pan: 5000, tilt: 6000, calibrated: true }
+            }
+          },
+          {
+            id: 102,
+            name: 'B 1',
+            x: 2,
+            y: 1,
+            z: 3,
+            cal: {
+              A: { pan: 10, tilt: 20, calibrated: true },
+              B: { pan: 30, tilt: 40, calibrated: true },
+              C: { pan: 50, tilt: 60, calibrated: true }
+            }
+          }
+        ],
+        visual: { type: 'visual', color: '#225a50', image: '' }
+      }, 0)];
+      renderControllerPlanes();
+      drawSurface();
+    });
+
+    await page.locator('[data-group-index="0"]').click();
+    await page.locator('[data-controller-plane="plane_front"]').click();
+
+    await expect(page.locator('#controllerPlaneModal')).toBeVisible();
+    await expect(page.locator('#controllerPlaneModal')).toHaveClass(/section-control-modal/);
+    await expect(page.locator('#controllerPlaneModal .modal-body').first()).toHaveCSS('overflow-y', 'auto');
+    await expect(page.locator('#controllerPlaneTitle')).toContainText('Front Plane');
+    await expect(page.locator('#controllerPlaneSummary')).toContainText('selected 1 fixture');
+    await expect(page.locator('.controller-plane-fixture-row.selected')).toContainText('A 1');
+    const planePadBox = await page.locator('#controllerPlanePad').boundingBox();
+    const nudgeBox = await page.locator('.controller-plane-nudge').boundingBox();
+    expect(planePadBox).toBeTruthy();
+    expect(nudgeBox).toBeTruthy();
+    expect(nudgeBox.y).toBeGreaterThan(planePadBox.y + planePadBox.height - 2);
+    await expect.poll(() => page.locator('.controller-plane-fixture-row').first().evaluate(el => getComputedStyle(el).display)).toBe('grid');
+    const nudgeItems = await page.locator('#controllerPlaneNudgeControls .relative-control').evaluateAll(items => items.map(item => {
+      const rect = item.getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    }));
+    expect(nudgeItems).toHaveLength(4);
+    expect(Math.abs(nudgeItems[0].y - nudgeItems[1].y)).toBeLessThan(4);
+    expect(nudgeItems[2].y).toBeGreaterThan(nudgeItems[0].y + 10);
+    expect(Math.abs(nudgeItems[2].y - nudgeItems[3].y)).toBeLessThan(4);
+    const nudgeColumns = await page.locator('#controllerPlaneNudgeControls .relative-control').first().evaluate(el => getComputedStyle(el).gridTemplateColumns);
+    expect(nudgeColumns).toMatch(/100px/);
+    await expect(page.locator('#controllerPlaneApply')).toHaveCount(0);
+    await expect(page.locator('#controllerPlaneZoomIn')).toBeVisible();
+    await expect(page.locator('#controllerPlaneZoomOut')).toBeVisible();
+    await expect(page.locator('#controllerPlaneResetView')).toBeVisible();
+    await expect(page.locator('#controllerPlanePanView')).toBeVisible();
+    await expect(page.locator('#controllerPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#controllerPlanePanView')).toHaveAttribute('aria-pressed', 'false');
+
+    await page.locator('#controllerPlaneZoomIn').click();
+    await expect.poll(() => page.evaluate(() => controllerPlaneView.zoom)).toBeGreaterThan(2);
+    await expect.poll(() => roomPlaneWrites.length).toBeGreaterThan(0);
+    const savedPlane = roomPlaneWrites.at(-1).planes.find(plane => plane.id === 'plane_front');
+    expect(savedPlane.view).toMatchObject({ auto: false, centerX: 5, centerY: 5 });
+    expect(savedPlane.view.zoom).toBeGreaterThan(2);
+    await page.locator('#controllerPlaneResetView').click();
+    await expect.poll(() => page.evaluate(() => controllerPlaneView.auto && controllerPlaneView.zoom)).toBe(1);
+    await page.locator('#controllerPlanePanView').click();
+    await expect(page.locator('#controllerPlanePanView')).toHaveText('Stop pan view');
+    await expect(page.locator('#controllerPlanePanView')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#controllerPlanePanView')).toHaveClass(/active/);
+    await expect(page.locator('#controllerPlanePanView')).toHaveCSS('background-color', 'rgb(16, 59, 48)');
+    await expect(page.locator('#controllerPlanePanView')).toHaveCSS('border-color', 'rgb(47, 158, 125)');
+    await expect(page.locator('#controllerPlanePanView')).toHaveCSS('font-weight', '700');
+    await expect(page.locator('#controllerPlanePad')).toHaveClass(/pan-mode/);
+    await page.locator('#controllerPlanePanView').click();
+    await expect(page.locator('#controllerPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#controllerPlanePanView')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#controllerPlanePanView')).not.toHaveClass(/active/);
+    await expect(page.locator('#controllerPlanePad')).not.toHaveClass(/pan-mode/);
+
+    const target = page.locator('#controllerPlaneTarget');
+    const box = await target.boundingBox();
+    expect(box).toBeTruthy();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 90, box.y + box.height / 2 - 20, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.locator('#controllerPlaneSummary')).not.toContainText('Target X 5 / Y 0');
+    await page.evaluate(() => {
+      activeControllerPlane.target = { x: 5, y: 0, z: 0 };
+      renderControllerPlaneModal();
+    });
+
+    await page.locator('#controllerPlaneStepXCoarse').fill('1');
+    await page.locator('[data-controller-plane-nudge-axis="x"][data-controller-plane-nudge-dir="1"][data-controller-plane-nudge-step="coarse"]').click();
+    await expect(page.locator('#controllerPlaneSummary')).toContainText('Target X 6');
+    await expect.poll(() => dmxBatches.length).toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => values['101:12'])).toEqual({ pan: 2200, tilt: 3200 });
+
+    const result = await page.evaluate(() => ({
+      value: values['101:12'],
+      selected: [...selectedFixtureIds]
+    }));
+    expect(result.value).toEqual({ pan: 2200, tilt: 3200 });
+    expect(result.selected).toEqual([101]);
+    expect(dmxBatches.at(-1)).toContain('2:8');
+    expect(dmxBatches.at(-1)).toContain('3:152');
+    expect(dmxBatches.at(-1)).toContain('4:12');
+    expect(dmxBatches.at(-1)).toContain('5:128');
+    await expect(page.locator('#status')).toContainText('Plane live Front Plane -> 1 fixture');
+  });
+
+  test('Controller Planes toolbox exposes layout controls and moves tiles by slot', async ({ page }) => {
+    const roomPlaneWrites = [];
+    await page.unroute('**/room_plane_setup.php**');
+    await page.route('**/room_plane_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        roomPlaneWrites.push(route.request().postDataJSON());
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, planes: [], planeCols: 2, planeRows: 2 })
+      });
+    });
+
+    await page.evaluate(() => {
+      controllerPlanes = [
+        normalizeControllerPlane({
+          id: 'plane_a',
+          name: 'Plane A',
+          slot: 0,
+          visual: { type: 'visual', color: '#225a50', image: '' },
+          fixtures: []
+        }, 0),
+        normalizeControllerPlane({
+          id: 'plane_b',
+          name: 'Plane B',
+          slot: 1,
+          visual: { type: 'visual', color: '#225a50', image: '' },
+          fixtures: []
+        }, 1)
+      ];
+      controllerPlaneCols = 2;
+      controllerPlaneRows = 2;
+      renderControllerPlanes();
+    });
+
+    await expect(page.locator('#controllerPlaneCols')).toBeVisible();
+    await expect(page.locator('#controllerPlaneRows')).toBeVisible();
+    await expect(page.locator('#moveControllerPlanesBtn')).toBeVisible();
+    await expect(page.locator('[data-controller-plane-slot="0"]')).toContainText('Plane A');
+    await expect(page.locator('[data-controller-plane-slot="1"]')).toContainText('Plane B');
+    await expect(page.locator('[data-controller-plane-slot="2"]')).toContainText('3');
+
+    await page.locator('#controllerPlaneRows').fill('3');
+    await expect.poll(() => roomPlaneWrites.at(-1)?.planeRows).toBe(3);
+
+    await page.locator('#moveControllerPlanesBtn').click();
+    await expect(page.locator('#moveControllerPlanesBtn')).toHaveClass(/active/);
+    await page.locator('[data-controller-plane-slot="0"]').click();
+    await page.locator('[data-controller-plane-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => controllerPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
+    await expect(page.locator('[data-controller-plane-slot="0"]')).toContainText('1');
+    await expect(page.locator('[data-controller-plane-slot="3"]')).toContainText('Plane A');
+    await expect.poll(() => roomPlaneWrites.at(-1)?.planes.find(plane => plane.id === 'plane_a')?.slot).toBe(3);
+
+    await page.locator('[data-controller-plane-slot="3"]').click();
+    await page.locator('[data-controller-plane-slot="1"]').click();
+    const slots = await page.evaluate(() => Object.fromEntries(controllerPlanes.map(plane => [plane.id, plane.slot])));
+    expect(slots).toEqual({ plane_a: 1, plane_b: 3 });
+    await expect(page.locator('[data-controller-plane-slot="1"]')).toContainText('Plane A');
+    await expect(page.locator('[data-controller-plane-slot="3"]')).toContainText('Plane B');
+  });
+
   test('saved group tiles use corner edit tile and delete actions without toggling selection', async ({ page }) => {
     await page.evaluate(() => {
       savedGroups = [{ id: 'grp_test', name: 'Front Wash', fixtureIds: [101, 102], values: {} }];
@@ -958,14 +1178,14 @@ test.describe('Fixture Controller established rules', () => {
         fanAffectedKeys.clear();
         openGroupModal();
 
-        const modal = document.querySelector('#groupModal .modal');
+        const modal = document.querySelector('#groupModal .modal-card');
         const body = document.getElementById('groupModalBody');
         const controls = body.querySelectorAll('.control');
         body.scrollTop = body.scrollHeight;
         const last = controls[controls.length - 1];
         const lastRect = last.getBoundingClientRect();
         const bodyRect = body.getBoundingClientRect();
-        const footerRect = document.querySelector('#groupModal .buttons').getBoundingClientRect();
+        const footerRect = document.querySelector('#groupModal .modal-actions').getBoundingClientRect();
         return {
           viewportHeight: window.innerHeight,
           modalHeight: modal.getBoundingClientRect().height,
@@ -1292,6 +1512,9 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#wheelOptions').fill('Open=0-15\nGobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast\nStrobe=11-255|kind=ShutterStrobe|speed=slow-fast');
     await page.locator('#openWheelOptionsModal').click();
     await expect(page.locator('#wheelOptionsModal')).toBeVisible();
+    await expect(page.locator('#wheelOptionsModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#wheelOptionsModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#wheelOptionsModal > .modal')).toHaveCount(0);
 
     const rows = page.locator('[data-wheel-option-row]');
     await expect(rows).toHaveCount(3);
@@ -1311,6 +1534,9 @@ test.describe('Fixture Controller established rules', () => {
     });
     await rows.nth(1).locator('[data-wheel-draw]').click();
     await expect(page.locator('#wheelIconDrawModal')).toBeVisible();
+    await expect(page.locator('#wheelIconDrawModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#wheelIconDrawModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#wheelIconDrawModal > .modal')).toHaveCount(0);
     const canvas = page.locator('#wheelIconCanvas');
     const box = await canvas.boundingBox();
     await page.mouse.move(box.x + 20, box.y + 20);
@@ -1418,6 +1644,10 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#controlType').selectOption('slider8');
     await page.locator('#openControlDetails').click();
     await expect(page.locator('#controlDetailsModal')).toBeVisible();
+    await expect(page.locator('#controlDetailsModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#controlDetailsModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#controlDetailsModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#controlDetailsModal .modal-actions')).toContainText('Add control');
     await expect(page.locator('#defBlkCard')).toBeVisible();
     await expect(page.locator('#wheelEditorWrap')).toBeHidden();
     await expect(page.locator('#panTiltOptions')).toBeHidden();
@@ -1732,6 +1962,10 @@ test.describe('Fixture Controller established rules', () => {
 
     await page.locator('#mergePaletteBtn').click();
     await expect(page.locator('#paletteMergeModal')).toBeVisible();
+    await expect(page.locator('#paletteMergeModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#paletteMergeModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#paletteMergeModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#paletteMergeModal .modal-actions')).toBeVisible();
     await expect(page.locator('#paletteMergeMatrix [data-merge-palette-slot]')).toHaveCount(2);
     await expect(page.locator('#paletteMergeMatrix [data-merge-empty-slot]')).toHaveCount(2);
     await page.locator('#paletteMergeMatrix [data-merge-empty-slot="1"]').click();

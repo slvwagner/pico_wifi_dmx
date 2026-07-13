@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'json_store.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -15,13 +16,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $page  = $body['page']  ?? null;
     $state = $body['state'] ?? null;
     if (!$page || !is_array($state)) { echo json_encode(['ok'=>false,'error'=>'missing page/state']); exit; }
-    $data = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: []) : [];
-    $data[$page] = array_merge($data[$page] ?? [], $state);
-    file_put_contents($file, json_encode($data));
+    $saved = updateJsonFileAtomically($file, function (array $data) use ($page, $state): array {
+        $data[$page] = array_merge($data[$page] ?? [], $state);
+        return $data;
+    });
+    if (!$saved) {
+        http_response_code(500);
+        echo json_encode(['ok'=>false,'error'=>'could not write UI state']);
+        exit;
+    }
     echo json_encode(['ok'=>true]);
 } else {
     if (file_exists($file)) {
-        $data = json_decode(file_get_contents($file), true) ?: [];
+        $data = readJsonFileLocked($file);
         echo json_encode(['ok'=>true,'exists'=>true,'state'=>$data]);
     } else {
         echo json_encode(['ok'=>true,'exists'=>false,'state'=>(object)[]]);

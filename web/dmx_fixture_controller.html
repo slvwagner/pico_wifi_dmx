@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.7">
-<script src="assets/dmx-common.js?v=0.9.7"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
+<script src="assets/dmx-common.js?v=0.9.8"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -32,6 +32,32 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
 .fixture-card.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.controller-plane-modal .modal-card{max-width:920px;width:min(920px,calc(100vw - 32px))}
+.controller-plane-layout{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
+.controller-plane-view{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.controller-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden}
+.controller-plane-pad.pan-mode{cursor:grab}
+.controller-plane-pad.pan-mode:active{cursor:grabbing}
+#controllerPlanePanView.active{background:#103b30;border-color:#2f9e7d;color:var(--accent);font-weight:700}
+.controller-plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
+.controller-plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);pointer-events:none}
+.controller-plane-point{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;z-index:2}
+.controller-plane-fixture{background:var(--warn);opacity:.65}
+.controller-plane-fixture.selected{background:var(--accent);opacity:1;box-shadow:0 0 0 6px rgba(55,196,164,.18)}
+.controller-plane-target{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff7a7a;border:2px solid #2b1010;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(255,122,122,.15);z-index:3}
+.controller-plane-line{position:absolute;height:1px;background:rgba(255,255,255,.28);transform-origin:0 50%;z-index:1}
+.controller-plane-info{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:10px}
+.controller-plane-fixture-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-height:280px;overflow:auto}
+.controller-plane-fixture-row{min-height:72px;display:grid;align-content:end;gap:4px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;padding:10px}
+.controller-plane-fixture-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.controller-plane-fixture-row .small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.controller-plane-fixture-row:hover{border-color:var(--accent)}
+.controller-plane-fixture-row.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}
+.controller-plane-slot-meta{font-size:10px;color:inherit;opacity:.82;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.controller-plane-nudge{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px}
+.controller-plane-nudge-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:8px}
+@media(max-width:700px){.controller-plane-nudge-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.controller-plane-pad{min-height:320px}}
 #savedGroupsList{display:grid;gap:8px;align-content:start}
 #savedGroupsList .item{align-content:start}
 #savedGroupsList .group-empty{min-height:94px;border:1px dashed var(--line);border-radius:8px;background:#0a0d10;opacity:.45}
@@ -86,7 +112,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
-.wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
+.wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
 #addControlBody{display:grid;gap:10px}
 .control.fan-affected{border-color:rgba(244,114,182,.85);box-shadow:0 0 0 1px rgba(244,114,182,.35) inset;background:rgba(244,114,182,.07)}
 .fan-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
@@ -114,8 +140,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.7">GPIO</a>
-<a class="nav" href="user-manual.html?v=0.9.7#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+<a class="nav" href="dmx_room_plane.html">Plane</a>
+<a class="nav" href="user-manual.html?v=0.9.8#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -216,11 +243,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </section>
 
-<div id="controlDetailsModal" class="modal-overlay" style="display:none">
-<div class="modal wide-modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<div><h2 id="controlDetailsTitle">Control Details</h2><div class="small" id="controlDetailsSummary">Configure default, blackout, and type-specific control settings.</div></div>
-<button id="closeControlDetailsModal" style="font-size:16px;padding:6px 14px">✕</button>
+<div id="controlDetailsModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card wide-modal" role="dialog" aria-modal="true" aria-labelledby="controlDetailsTitle">
+<div class="modal-head">
+<button id="closeControlDetailsModal" type="button" aria-label="Close">x</button>
+<div class="modal-title-stack"><h2 id="controlDetailsTitle">Control Details</h2><div class="small" id="controlDetailsSummary">Configure default, blackout, and type-specific control settings.</div></div>
 </div>
 <div class="modal-body">
 <div id="panTiltOptions" class="pantilt-options">
@@ -271,10 +298,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 </div>
-<div id="actionsCard" class="control-details-actions">
-<button class="primary" id="addControl">Add control</button>
-<button id="closeControlDetailsModal2" type="button">Close</button>
 </div>
+<div id="actionsCard" class="modal-actions control-details-actions">
+<button class="primary" id="addControl" type="button">Add control</button>
+<button id="closeControlDetailsModal2" type="button">Close</button>
 </div>
 </div>
 </div>
@@ -307,41 +334,41 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </section>
 </main>
 
-<div id="groupModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+<div id="groupModal" class="modal-overlay fixture-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="groupModalTitle">
+<div class="modal-head">
+<button id="closeGroupModal" type="button" aria-label="Close">x</button>
 <h2 id="groupModalTitle">Group Edit</h2>
-<button id="closeGroupModal" style="font-size:16px;padding:6px 14px">✕</button>
 </div>
 <div id="groupModalBody" class="modal-body"></div>
-<div class="buttons" style="padding-top:4px">
-<button id="defaultGroupBtn" title="Recall default values for every selected fixture">Default</button>
-<button id="blackoutGroupBtn" title="Recall blackout values for every selected fixture">Blackout</button>
-<button id="closeGroupModal2">Close</button>
+<div class="modal-actions">
+<button id="defaultGroupBtn" type="button" title="Recall default values for every selected fixture">Default</button>
+<button id="blackoutGroupBtn" type="button" title="Recall blackout values for every selected fixture">Blackout</button>
+<button id="closeGroupModal2" type="button">Close</button>
 </div>
 </div>
 </div>
 
-<div id="wheelOptionsModal" class="modal-overlay" style="display:none">
-<div class="modal wide-modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<div><h2>Guided Wheel Editor</h2><div class="small">Edit wheel slots, ranges, shake and rotation metadata without writing the raw line syntax.</div></div>
-<button id="closeWheelOptionsModal" style="font-size:16px;padding:6px 14px">✕</button>
+<div id="wheelOptionsModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card wide-modal" role="dialog" aria-modal="true" aria-labelledby="wheelOptionsModalTitle">
+<div class="modal-head">
+<button id="closeWheelOptionsModal" type="button" aria-label="Close">x</button>
+<div class="modal-title-stack"><h2 id="wheelOptionsModalTitle">Guided Wheel Editor</h2><div class="small">Edit wheel slots, ranges, shake and rotation metadata without writing the raw line syntax.</div></div>
 </div>
 <div id="wheelOptionsModalBody" class="modal-body"></div>
-<div class="buttons" style="padding-top:4px">
+<div class="modal-actions">
 <button id="addWheelOptionsModalRow" type="button">Add option</button>
-<button id="cancelWheelOptionsModal" type="button">Cancel</button>
+<button id="cancelWheelOptionsModal" type="button">Close</button>
 <button id="applyWheelOptionsModal" type="button" class="primary">Apply options</button>
 </div>
 </div>
 </div>
 
-<div id="wheelIconDrawModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<div><h2>Draw Icon</h2><div class="small" id="wheelIconDrawTitle">Wheel option icon</div></div>
-<button id="closeWheelIconDrawModal" style="font-size:16px;padding:6px 14px">✕</button>
+<div id="wheelIconDrawModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="wheelIconDrawModalTitle">
+<div class="modal-head">
+<button id="closeWheelIconDrawModal" type="button" aria-label="Close">x</button>
+<div class="modal-title-stack"><h2 id="wheelIconDrawModalTitle">Draw Icon</h2><div class="small" id="wheelIconDrawTitle">Wheel option icon</div></div>
 </div>
 <div class="modal-body">
 <div class="toolbar wheel-icon-draw-tools">
@@ -350,8 +377,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <canvas id="wheelIconCanvas" class="gobo-canvas" width="120" height="120"></canvas>
 </div>
-<div class="buttons" style="padding-top:4px">
-<button id="cancelWheelIconDrawing" type="button">Cancel</button>
+<div class="modal-actions">
+<button id="cancelWheelIconDrawing" type="button">Close</button>
 <button id="saveWheelIconDrawing" type="button" class="primary">Save icon</button>
 </div>
 </div>
@@ -423,27 +450,27 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
-<div id="paletteMergeModal" class="modal-overlay" style="display:none">
-<div class="modal palette-merge-modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Merge Palette</h2>
-<button id="paletteMergeClose" style="font-size:16px;padding:6px 14px">✕</button>
+<div id="paletteMergeModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card palette-merge-modal" role="dialog" aria-modal="true" aria-labelledby="paletteMergeTitle">
+<div class="modal-head">
+<button id="paletteMergeClose" type="button" aria-label="Close">x</button>
+<h2 id="paletteMergeTitle">Merge Palette</h2>
 </div>
 <div class="modal-body">
 <div id="paletteMergeSummary" class="small"></div>
 <div id="paletteMergeMatrix" class="scene-slot-matrix palette-merge-matrix"></div>
 </div>
-<div class="buttons" style="padding-top:4px">
-<button id="paletteMergeClose2">Close</button>
+<div class="modal-actions">
+<button id="paletteMergeClose2" type="button">Close</button>
 </div>
 </div>
 </div>
 
-<div id="paletteVisualModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Edit Tile</h2>
-<button id="paletteVisualClose" style="font-size:16px;padding:6px 14px">✕</button>
+<div id="paletteVisualModal" class="modal-overlay visual-editor-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="paletteVisualTitle">
+<div class="modal-head">
+<button id="paletteVisualClose" type="button" aria-label="Close">x</button>
+<h2 id="paletteVisualTitle">Edit Tile</h2>
 </div>
 <div class="modal-body">
 <label>Target<select id="paletteVisualTarget"></select></label>
@@ -464,9 +491,83 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 <div id="paletteVisualHint" class="small"></div>
 </div>
+<div class="modal-actions">
+<button id="paletteVisualSave" type="button" class="primary">Save tile</button>
+<button id="paletteVisualClose2" type="button">Close</button>
+</div>
+</div>
+</div>
+
+<div id="controllerPlanesBox" class="scene-toolbox scene-toolbox--planes">
+<div id="controllerPlanesBoxHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Planes</span>
+<button id="controllerPlanesBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="controllerPlanesBoxBody" class="scene-toolbox__body">
+<div class="small">Recall a saved room plane and apply its calibrated target to the selected fixtures or selected group.</div>
+<div class="tile-layout-controls">
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="controllerPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="controllerPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
+<button id="moveControllerPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
+</div>
+<div id="controllerPlaneMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
+<div id="controllerPlaneModal" class="modal-overlay controller-plane-modal section-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="controllerPlaneTitle">
+<div class="modal-head">
+<button id="controllerPlaneClose" type="button" aria-label="Close">x</button>
+<h2 id="controllerPlaneTitle">Recall Plane</h2>
+</div>
+<div class="modal-body">
+<div class="controller-plane-layout">
+<div>
+<div class="controller-plane-view">
+<button id="controllerPlaneZoomIn" type="button">Zoom in</button>
+<button id="controllerPlaneZoomOut" type="button">Zoom out</button>
+<button id="controllerPlaneResetView" type="button">Reset view</button>
+<button id="controllerPlanePanView" type="button">Pan view</button>
+</div>
+<div class="controller-plane-pad" id="controllerPlanePad">
+<div class="controller-plane-grid"></div>
+<div class="controller-plane-triangle" id="controllerPlaneTriangle"></div>
+<div class="controller-plane-target" id="controllerPlaneTarget"></div>
+</div>
+</div>
+<div class="controller-plane-nudge">
+<div class="small">Target nudge</div>
+<div class="controller-plane-nudge-grid" id="controllerPlaneNudgeControls">
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="coarse" title="Move target X left by the coarse step">−</button>
+<label>X coarse<input id="controllerPlaneStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="coarse" title="Move target X right by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="fine" title="Move target X left by the fine step">−</button>
+<label>X fine<input id="controllerPlaneStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-controller-plane-nudge-axis="x" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="fine" title="Move target X right by the fine step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="coarse" title="Move target Y down by the coarse step">−</button>
+<label>Y coarse<input id="controllerPlaneStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="coarse" title="Move target Y up by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="-1" data-controller-plane-nudge-step="fine" title="Move target Y down by the fine step">−</button>
+<label>Y fine<input id="controllerPlaneStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-controller-plane-nudge-axis="y" data-controller-plane-nudge-dir="1" data-controller-plane-nudge-step="fine" title="Move target Y up by the fine step">+</button>
+</div>
+</div>
+</div>
+<div class="controller-plane-info">
+<div class="small" id="controllerPlaneSummary">No plane selected.</div>
+<div class="controller-plane-fixture-list" id="controllerPlaneFixtures"></div>
+</div>
+</div>
+</div>
 <div class="buttons" style="padding-top:4px">
-<button id="paletteVisualSave" class="primary">Save tile</button>
-<button id="paletteVisualClose2">Close</button>
+<button id="controllerPlaneClose2">Close</button>
 </div>
 </div>
 </div>
@@ -480,7 +581,7 @@ document.body.classList.add('toolbox-rail-layout');
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group to fan fixtures.'});
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
 fixtureToolboxRail.dataset.minMainWidth='360';
-DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'fanToolbox',type:'fan'}]);
+DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'controllerPlanesBox',type:'planes'},{box:'fanToolbox',type:'fan'}]);
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
@@ -488,7 +589,7 @@ let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
 const FULL_SETUP_TYPE='pico_wifi_dmx_full_setup';
-const FULL_SETUP_FORMAT_VERSION=2;
+const FULL_SETUP_FORMAT_VERSION=3;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
 const baseUrl=document.getElementById('baseUrl');
@@ -507,17 +608,10 @@ function uid(){return Date.now()+Math.floor(Math.random()*1000);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
 function showError(text){setStatus(text,true);alert(text);}
 function bytes16(v){v=clamp(v,0,65535);return {coarse:(v>>8)&255,fine:v&255};}
-function hex2(n){return clamp(n,0,255).toString(16).padStart(2,'0');}
-function rgbHex(v){return '#'+hex2(v.a)+hex2(v.b)+hex2(v.c);}
-function cmyHex(v){return '#'+hex2(255-v.a)+hex2(255-v.b)+hex2(255-v.c);}
-function cmykHex(v){
-  return '#'+hex2(Math.round(255*(1-v.a/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.b/255)*(1-v.k/255)))+hex2(Math.round(255*(1-v.c/255)*(1-v.k/255)));
-}
-function hexToRgb(hex){
-  const m=(hex||'#000000').match(/^#?([0-9a-f]{6})$/i);
-  const n=parseInt(m?m[1]:'000000',16);
-  return {a:(n>>16)&255,b:(n>>8)&255,c:n&255};
-}
+const rgbHex=DmxCommon.rgbHex;
+const cmyHex=DmxCommon.cmyHex;
+const cmykHex=DmxCommon.cmykHex;
+const hexToRgb=DmxCommon.hexToRgb;
 function matrixWidth(c){return Math.max(1,Math.min(64,parseInt(c.width,10)||1));}
 function matrixHeight(c){return Math.max(1,Math.min(64,parseInt(c.height,10)||1));}
 function matrixPixelCount(c){return matrixWidth(c)*matrixHeight(c);}
@@ -538,17 +632,8 @@ function normalizeMatrixValue(c,value){
   });
   return fallback;
 }
-function rgbToCmy(hex){
-  const rgb=hexToRgb(hex);
-  return {a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};
-}
-function rgbToCmyk(hex){
-  const rgb=hexToRgb(hex);
-  const r=rgb.a/255,g=rgb.b/255,b=rgb.c/255;
-  const k=1-Math.max(r,g,b);
-  if(k>=1)return {a:0,b:0,c:0,k:255};
-  return {a:Math.round((1-r-k)/(1-k)*255),b:Math.round((1-g-k)/(1-k)*255),c:Math.round((1-b-k)/(1-k)*255),k:Math.round(k*255)};
-}
+const rgbToCmy=DmxCommon.rgbToCmy;
+const rgbToCmyk=DmxCommon.rgbToCmyk;
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
 function autoSendEnabled(){return !!endpoint();}
@@ -739,13 +824,7 @@ function wheelOptionsText(options){
     return o.name+'='+value+(meta.length?'|'+meta.join('|'):'');
   }).join('\n');
 }
-function wheelOptionIconHtml(o){
-  if(!o||(!o.color&&!o.image))return '';
-  const style=[];
-  if(o.color)style.push('background-color:'+escHtml(o.color));
-  if(o.image)style.push(`background-image:url('${String(o.image).replace(/'/g,'%27')}')`);
-  return `<span class="option-icon" style="${style.join(';')}"></span>`;
-}
+const wheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
 
 const wheelOptionValue=DmxCommon.wheelOptionValue;
 const wheelOptionMatches=DmxCommon.wheelOptionMatches;
@@ -2545,6 +2624,19 @@ function fullSetupMetadata(){
     minimumAppVersion:DmxCommon.appVersion()
   };
 }
+function defaultRoomPlaneSetup(baseUrlValue=''){
+  return {
+    baseUrl:baseUrlValue||'',
+    points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],
+    target:{x:2.5,y:1.5,z:0},
+    fixtures:[],
+    planes:[],
+    planeCols:3,
+    planeRows:3,
+    activePlaneId:null,
+    view:{auto:true,centerX:0,centerY:0,zoom:1}
+  };
+}
 function migrateFullSetupToV2(setup){
   const migrated={...setup};
   migrated.type=FULL_SETUP_TYPE;
@@ -2552,6 +2644,19 @@ function migrateFullSetupToV2(setup){
     ? {id:migrated.project.id||PROJECT_ID,name:migrated.project.name||'Pico WiFi DMX',version:migrated.project.version||migrated.appVersion||DmxCommon.appVersion()}
     : {id:PROJECT_ID,name:'Pico WiFi DMX',version:migrated.appVersion||DmxCommon.appVersion()};
   migrated.setupFormatVersion=2;
+  migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
+  return migrated;
+}
+function migrateFullSetupToV3(setup){
+  const migrated={...setup};
+  migrated.type=FULL_SETUP_TYPE;
+  migrated.project=migrated.project&&typeof migrated.project==='object'
+    ? {id:migrated.project.id||PROJECT_ID,name:migrated.project.name||'Pico WiFi DMX',version:migrated.project.version||migrated.appVersion||DmxCommon.appVersion()}
+    : {id:PROJECT_ID,name:'Pico WiFi DMX',version:migrated.appVersion||DmxCommon.appVersion()};
+  migrated.roomPlane=migrated.roomPlane&&typeof migrated.roomPlane==='object'
+    ? migrated.roomPlane
+    : defaultRoomPlaneSetup(migrated.fixture?.baseUrl||migrated.groups?.baseUrl||'');
+  migrated.setupFormatVersion=3;
   migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
   return migrated;
 }
@@ -2565,6 +2670,9 @@ function migrateFullSetupPayload(setup){
     if(version===1){
       migrated=migrateFullSetupToV2(migrated);
       version=2;
+    }else if(version===2){
+      migrated=migrateFullSetupToV3(migrated);
+      version=3;
     }else{
       throw new Error('No migration path from setup file format '+version+' to '+FULL_SETUP_FORMAT_VERSION+'.');
     }
@@ -2578,7 +2686,7 @@ function validateFullSetupPayload(setup){
   if(setup.type!==FULL_SETUP_TYPE)throw new Error('Setup file type is not '+FULL_SETUP_TYPE+'.');
   if(fullSetupFormatVersion(setup)!==FULL_SETUP_FORMAT_VERSION)throw new Error('Setup file was not migrated to the current format.');
   if(!setup.fixture||typeof setup.fixture!=='object')throw new Error('Setup file is missing fixture setup data.');
-  ['groups','scenes','palettes','chaser','motion','gpio','uiState'].forEach(key=>{
+  ['groups','scenes','palettes','chaser','motion','gpio','roomPlane','uiState'].forEach(key=>{
     if(setup[key]===undefined)throw new Error('Setup file is missing '+key+' data.');
   });
   if(setup.liveValues!==undefined&&(!setup.liveValues||typeof setup.liveValues!=='object'))throw new Error('Setup file live values must be an object.');
@@ -2601,6 +2709,7 @@ async function exportFullSetup(){
     chaser:await fetchSetupPayload('chaser_setup.php','chaser',{}),
     motion:await fetchSetupPayload('motion_setup.php','motion',{}),
     gpio:await fetchSetupPayload('gpio_setup.php',null,{ok:true,exists:false,enabled:true,mappings:[],adcMappings:[]}),
+    roomPlane:await fetchSetupPayload('room_plane_setup.php','setup',defaultRoomPlaneSetup(baseUrl.value)),
     fixtureLibrary:await fetchSetupPayload('fixture_library.php','library',null),
     uiState:(await fetchSetupPayload('ui_state.php',null,{ok:true,exists:false,state:{}})).state||{}
   },2);
@@ -2698,6 +2807,7 @@ async function startNewShow(){
   await clearPicoSlots('chaser_setup.php',32);
   await postSetupPayload('motion_setup.php?reset_show',{baseUrl:showBaseUrl,effects:[],effectCols:4,effectRows:4,pico_slots:Array(64).fill(null)});
   await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
+  await postSetupPayload('room_plane_setup.php',defaultRoomPlaneSetup(showBaseUrl));
   for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
   setStatus('New show started');
 }
@@ -2719,6 +2829,7 @@ async function importFullSetup(data){
   if(migrated.chaser&&typeof migrated.chaser==='object')await postSetupPayload('chaser_setup.php',migrated.chaser);
   if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
   if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
+  if(migrated.roomPlane&&typeof migrated.roomPlane==='object')await postSetupPayload('room_plane_setup.php',migrated.roomPlane);
   if(migrated.fixtureLibrary)await saveFixtureLibraryToServer(normalizeFixtureLibrary(migrated.fixtureLibrary));
   if(migrated.uiState&&typeof migrated.uiState==='object'){
     for(const [page,state] of Object.entries(migrated.uiState)){
@@ -4872,6 +4983,654 @@ const paletteToolbox=DmxCommon.initFloatingToolbox({
 });
 loadPalettesServer();
 // ── End palette toolbox ───────────────────────────────────────────────
+
+// ── Saved room planes ─────────────────────────────────────────────────
+let controllerPlanes=[];
+let controllerPlaneCols=3,controllerPlaneRows=3;
+let controllerPlaneMoveMode=false;
+let controllerPlaneMoveSelectedSlot=null;
+const CONTROLLER_PLANE_GRID_MAX=16;
+let controllerPlanesTileToolbox=null;
+let controllerRoomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
+let activeControllerPlane=null;
+let activeControllerPlaneId=null;
+let controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+let controllerPlanePanMode=false;
+let controllerPlaneRenderQueued=false;
+let controllerPlaneViewAutosaveTimer=null;
+let controllerPlaneLiveSendTimer=null;
+let controllerPlaneLiveSendBusy=false;
+let controllerPlaneLiveSendPending=false;
+let controllerPlaneLastLiveStatus='';
+
+function normalizeControllerPlanePoint(point,fallback){
+  return {
+    id:String(point?.id||fallback?.id||'A'),
+    x:Number(point?.x??fallback?.x??0)||0,
+    y:Number(point?.y??fallback?.y??0)||0,
+    z:Number(point?.z??fallback?.z??0)||0
+  };
+}
+function normalizeControllerPlaneFixture(fixture,index){
+  return {
+    id:fixture?.id,
+    name:String(fixture?.name||('Fixture '+(index+1))),
+    x:Number(fixture?.x)||0,
+    y:Number(fixture?.y)||0,
+    z:Number(fixture?.z)||0,
+    cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
+  };
+}
+function normalizeControllerPlane(plane,index){
+  const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
+  const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
+  return {
+    ...plane,
+    id:plane?.id||('plane_'+index),
+    name:String(plane?.name||('Plane '+(index+1))),
+    points:fallbackPoints.map((fallback,i)=>normalizeControllerPlanePoint(sourcePoints[i],fallback)),
+    target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
+    fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeControllerPlaneFixture),
+    view:{
+      auto:plane?.view?.auto!==false,
+      centerX:Number(plane?.view?.centerX)||0,
+      centerY:Number(plane?.view?.centerY)||0,
+      zoom:Math.max(0.25,Math.min(8,Number(plane?.view?.zoom)||1))
+    },
+    visual:plane?.visual
+  };
+}
+function cloneControllerPlane(plane){
+  return JSON.parse(JSON.stringify(plane));
+}
+function controllerPlaneSelectedIds(){
+  return new Set([...selectedFixtureIds].map(id=>String(id)));
+}
+function planeFixtureSummary(plane){
+  const selected=controllerPlaneSelectedIds();
+  const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
+  return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+(selected.size?' · '+matching+' selected match'+(matching===1?'':'es'):'');
+}
+function controllerPlaneSlot(plane,index){
+  const slot=parseInt(plane?.slot,10);
+  return Number.isFinite(slot)&&slot>=0?slot:index;
+}
+function controllerPlaneIndexAtSlot(slot){
+  return controllerPlanes.findIndex((plane,index)=>controllerPlaneSlot(plane,index)===slot);
+}
+function normalizeControllerPlaneGrid(priority='cols'){
+  controllerPlaneCols=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(controllerPlaneCols,10)||3));
+  controllerPlaneRows=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(controllerPlaneRows,10)||3));
+  const maxSlot=controllerPlanes.reduce((max,plane,index)=>Math.max(max,controllerPlaneSlot(plane,index)),-1);
+  const needed=Math.max(controllerPlanes.length,maxSlot+1);
+  if(needed&&controllerPlaneCols*controllerPlaneRows<needed){
+    if(priority==='rows'){
+      controllerPlaneCols=Math.max(controllerPlaneCols,Math.ceil(needed/controllerPlaneRows));
+      if(controllerPlaneCols>CONTROLLER_PLANE_GRID_MAX){controllerPlaneCols=CONTROLLER_PLANE_GRID_MAX;controllerPlaneRows=Math.ceil(needed/controllerPlaneCols);}
+    }else{
+      controllerPlaneRows=Math.max(controllerPlaneRows,Math.ceil(needed/controllerPlaneCols));
+      if(controllerPlaneRows>CONTROLLER_PLANE_GRID_MAX){controllerPlaneRows=CONTROLLER_PLANE_GRID_MAX;controllerPlaneCols=Math.ceil(needed/controllerPlaneRows);}
+    }
+  }
+  const colsInput=document.getElementById('controllerPlaneCols');
+  const rowsInput=document.getElementById('controllerPlaneRows');
+  if(colsInput){
+    colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/controllerPlaneRows));
+    colsInput.value=controllerPlaneCols;
+  }
+  if(rowsInput){
+    rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/controllerPlaneCols));
+    rowsInput.value=controllerPlaneRows;
+  }
+}
+async function saveControllerPlanesServer(statusText='Plane layout saved'){
+  if(controllerPlanesTileToolbox)return controllerPlanesTileToolbox.save(statusText);
+  if(!DmxCommon.isHttp())return false;
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(controllerRoomPlaneAutosavePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus(statusText);
+  return true;
+}
+function scheduleControllerPlanesSave(statusText='Plane layout saved'){
+  saveControllerPlanesServer(statusText).catch(error=>setStatus('Planes save failed: '+error.message,true));
+}
+function moveControllerPlaneSlot(fromSlot,toSlot){
+  const fromIndex=controllerPlaneIndexAtSlot(fromSlot);
+  if(fromIndex<0||fromSlot===toSlot)return false;
+  const toIndex=controllerPlaneIndexAtSlot(toSlot);
+  controllerPlanes[fromIndex].slot=toSlot;
+  if(toIndex>=0)controllerPlanes[toIndex].slot=fromSlot;
+  controllerPlaneMoveSelectedSlot=null;
+  normalizeControllerPlaneGrid('cols');
+  renderControllerPlanes();
+  scheduleControllerPlanesSave('Moved plane to slot '+(toSlot+1));
+  return true;
+}
+function handleControllerPlaneSlotClick(slot){
+  const index=controllerPlaneIndexAtSlot(slot);
+  const plane=index>=0?controllerPlanes[index]:null;
+  if(controllerPlaneMoveMode){
+    if(controllerPlaneMoveSelectedSlot===null){
+      if(!plane)return;
+      controllerPlaneMoveSelectedSlot=slot;
+      renderControllerPlanes();
+      setStatus('Select a destination slot for '+plane.name);
+      return;
+    }
+    if(moveControllerPlaneSlot(controllerPlaneMoveSelectedSlot,slot))return;
+    controllerPlaneMoveSelectedSlot=null;
+    renderControllerPlanes();
+    return;
+  }
+  if(plane)openControllerPlaneModal(plane.id);
+  else setStatus('Plane slot '+(slot+1)+' is empty');
+}
+function toggleControllerPlaneMoveMode(){
+  controllerPlaneMoveMode=!controllerPlaneMoveMode;
+  controllerPlaneMoveSelectedSlot=null;
+  renderControllerPlanes();
+  setStatus(controllerPlaneMoveMode?'Plane move mode enabled':'Plane move mode disabled');
+}
+function renderControllerPlanes(){
+  if(controllerPlanesTileToolbox){controllerPlanesTileToolbox.render();return;}
+  const host=document.getElementById('controllerPlaneMatrix');
+  if(!host)return;
+  normalizeControllerPlaneGrid('cols');
+  const total=controllerPlaneCols*controllerPlaneRows;
+  const moveBtn=document.getElementById('moveControllerPlanesBtn');
+  if(moveBtn){
+    moveBtn.classList.toggle('active',controllerPlaneMoveMode);
+    moveBtn.setAttribute('aria-pressed',controllerPlaneMoveMode?'true':'false');
+  }
+  host.classList.toggle('tile-move-mode',controllerPlaneMoveMode);
+  host.style.gridTemplateColumns='repeat('+controllerPlaneCols+',minmax(64px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const planeIndex=controllerPlaneIndexAtSlot(i);
+    const plane=planeIndex>=0?controllerPlanes[planeIndex]:null;
+    if(!plane){html+='<div class="slot readonly" data-controller-plane-slot="'+i+'" title="'+(controllerPlaneMoveMode?'Drop a plane here':'Empty plane slot')+'">'+(i+1)+'</div>';continue;}
+    const visualPlane={...plane,visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
+    const activeClass=controllerPlaneMoveSelectedSlot===i?' active':'';
+    html+='<div class="'+DmxCommon.savedTileClass('slot filled')+activeClass+'" data-controller-plane-slot="'+i+'" data-controller-plane="'+escHtml(String(plane.id))+'" title="'+(controllerPlaneMoveMode?'Move '+escHtml(plane.name):'Open '+escHtml(plane.name))+'" style="'+slotVisualStyle(visualPlane)+'">'+
+      '<div class="palette-slot-content">'+paletteSlotVisualHtml(visualPlane)+'<span class="palette-slot-name">'+escHtml(plane.name)+'</span><span class="controller-plane-slot-meta">'+escHtml(planeFixtureSummary(plane))+'</span></div>'+
+    '</div>';
+  }
+  host.innerHTML=html;
+  host.querySelectorAll('[data-controller-plane-slot]').forEach(tile=>tile.addEventListener('click',()=>handleControllerPlaneSlotClick(parseInt(tile.dataset.controllerPlaneSlot,10)||0)));
+  DmxCommon.initTileMoveGrid({
+    grid:host,
+    button:'moveControllerPlanesBtn',
+    active:controllerPlaneMoveMode,
+    itemSelector:'[data-controller-plane-slot]',
+    getIndex:el=>parseInt(el.dataset.controllerPlaneSlot,10),
+    canDrag:el=>el.hasAttribute('data-controller-plane'),
+    onMove:moveControllerPlaneSlot
+  });
+}
+async function loadControllerPlanesServer(){
+  try{
+    const response=await fetch('room_plane_setup.php',{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||data.ok===false)throw new Error(data.error||('HTTP '+response.status));
+    controllerRoomPlaneSetup=normalizeControllerRoomPlaneSetup(data);
+    const planes=Array.isArray(data.planes)?data.planes:(Array.isArray(data.setup?.planes)?data.setup.planes:[]);
+    controllerPlanes=planes.map(normalizeControllerPlane);
+    controllerPlaneCols=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(data.planeCols??data.setup?.planeCols??3,10)||3));
+    controllerPlaneRows=Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(data.planeRows??data.setup?.planeRows??3,10)||3));
+    renderControllerPlanes();
+  }catch(error){
+    controllerPlanes=[];
+    renderControllerPlanes();
+    setStatus('Saved planes unavailable: '+error.message,true);
+  }
+}
+function normalizeControllerRoomPlaneSetup(data){
+  const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});
+  const fallback={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
+  return {
+    ...fallback,
+    ...source,
+    points:Array.isArray(source.points)?source.points:fallback.points,
+    target:source.target&&typeof source.target==='object'?source.target:fallback.target,
+    fixtures:Array.isArray(source.fixtures)?source.fixtures:fallback.fixtures,
+    planes:Array.isArray(source.planes)?source.planes:(Array.isArray(data?.planes)?data.planes:fallback.planes),
+    planeCols:Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(source.planeCols??data?.planeCols??fallback.planeCols,10)||fallback.planeCols)),
+    planeRows:Math.max(1,Math.min(CONTROLLER_PLANE_GRID_MAX,parseInt(source.planeRows??data?.planeRows??fallback.planeRows,10)||fallback.planeRows))
+  };
+}
+function controllerPlaneWeights(plane,target=plane.target){
+  const [a,b,c]=plane.points;
+  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
+  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+  return {valid:true,wA,wB,wC:1-wA-wB};
+}
+function controllerPlaneInterpolateFixture(plane,fixture,weights){
+  if(!weights.valid)return null;
+  const ids=plane.points.map(point=>point.id);
+  if(ids.some(id=>!fixture.cal?.[id]?.calibrated))return null;
+  return {
+    pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
+    tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
+  };
+}
+function controllerPlaneAutoBounds(plane){
+  const xs=plane.points.map(p=>p.x),ys=plane.points.map(p=>p.y);
+  xs.push(plane.target.x,...plane.fixtures.map(f=>f.x));
+  ys.push(plane.target.y,...plane.fixtures.map(f=>f.y));
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
+  return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+}
+function controllerPlaneBounds(plane){
+  const base=controllerPlaneAutoBounds(plane);
+  if(controllerPlaneView.auto){
+    controllerPlaneView.centerX=(base.minX+base.maxX)/2;
+    controllerPlaneView.centerY=(base.minY+base.maxY)/2;
+  }
+  const zoom=Math.max(0.25,Math.min(8,Number(controllerPlaneView.zoom)||1));
+  const spanX=(base.maxX-base.minX)/zoom;
+  const spanY=(base.maxY-base.minY)/zoom;
+  const cx=Number(controllerPlaneView.centerX)||((base.minX+base.maxX)/2);
+  const cy=Number(controllerPlaneView.centerY)||((base.minY+base.maxY)/2);
+  return {minX:cx-spanX/2,maxX:cx+spanX/2,minY:cy-spanY/2,maxY:cy+spanY/2};
+}
+function zoomControllerPlaneView(factor){
+  if(!activeControllerPlane)return;
+  const base=controllerPlaneBounds(activeControllerPlane);
+  controllerPlaneView={
+    auto:false,
+    centerX:(base.minX+base.maxX)/2,
+    centerY:(base.minY+base.maxY)/2,
+    zoom:Math.max(0.25,Math.min(8,(Number(controllerPlaneView.zoom)||1)*factor))
+  };
+  syncActiveControllerPlaneView();
+  scheduleControllerPlaneViewAutosave();
+  queueControllerPlaneRender();
+}
+function resetControllerPlaneView(){
+  controllerPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  syncActiveControllerPlaneView();
+  scheduleControllerPlaneViewAutosave();
+  queueControllerPlaneRender();
+}
+function setControllerPlanePanMode(active){
+  controllerPlanePanMode=!!active;
+  controllerPlaneViewDrag=null;
+  const button=document.getElementById('controllerPlanePanView');
+  const pad=document.getElementById('controllerPlanePad');
+  button.classList.toggle('active',controllerPlanePanMode);
+  button.textContent=controllerPlanePanMode?'Stop pan view':'Pan view';
+  button.setAttribute('aria-pressed',controllerPlanePanMode?'true':'false');
+  pad.classList.toggle('pan-mode',controllerPlanePanMode);
+}
+function controllerPlaneToScreen(point,bounds,rect){
+  const width=Math.max(1,rect?.width||1),height=Math.max(1,rect?.height||1);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX),spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale,drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2,offsetY=(height-drawnH)/2;
+  return {x:((offsetX+(point.x-bounds.minX)*scale)/width)*100,y:((offsetY+(bounds.maxY-point.y)*scale)/height)*100};
+}
+function controllerPlaneScreenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width),height=Math.max(1,rect.height);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX),spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale,drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2,offsetY=(height-drawnH)/2;
+  const px=event.clientX-rect.left-offsetX;
+  const py=event.clientY-rect.top-offsetY;
+  return {x:bounds.minX+px/scale,y:bounds.maxY-py/scale,z:0};
+}
+function setControllerPlaneTarget(room){
+  if(!activeControllerPlane)return;
+  activeControllerPlane.target={
+    x:Number(room.x)||0,
+    y:Number(room.y)||0,
+    z:Number(room.z)||0
+  };
+  queueControllerPlaneRender();
+  scheduleControllerPlaneLiveSend();
+}
+function controllerPlaneSavedView(plane){
+  const view=plane?.view&&typeof plane.view==='object'?plane.view:{};
+  return {
+    auto:view.auto!==false,
+    centerX:Number(view.centerX)||0,
+    centerY:Number(view.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(view.zoom)||1))
+  };
+}
+function syncActiveControllerPlaneView(){
+  if(!activeControllerPlane||!activeControllerPlaneId)return;
+  const normalized={
+    auto:controllerPlaneView.auto!==false,
+    centerX:Number(controllerPlaneView.centerX)||0,
+    centerY:Number(controllerPlaneView.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(controllerPlaneView.zoom)||1))
+  };
+  activeControllerPlane.view={...normalized};
+  const stored=controllerPlanes.find(plane=>String(plane.id)===String(activeControllerPlaneId));
+  if(stored)stored.view={...normalized};
+}
+function controllerRoomPlaneAutosavePayload(){
+  return DmxCommon.versionedPayload({
+    ...(controllerRoomPlaneSetup&&typeof controllerRoomPlaneSetup==='object'?controllerRoomPlaneSetup:{}),
+    planeCols:controllerPlaneCols,
+    planeRows:controllerPlaneRows,
+    planes:controllerPlanes.map(plane=>cloneControllerPlane(plane))
+  });
+}
+async function saveControllerPlaneView(){
+  if(!activeControllerPlane||!activeControllerPlaneId||!DmxCommon.isHttp())return false;
+  syncActiveControllerPlaneView();
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(controllerRoomPlaneAutosavePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Plane view saved');
+  return true;
+}
+function scheduleControllerPlaneViewAutosave(){
+  clearTimeout(controllerPlaneViewAutosaveTimer);
+  controllerPlaneViewAutosaveTimer=setTimeout(()=>{
+    controllerPlaneViewAutosaveTimer=null;
+    saveControllerPlaneView().catch(error=>setStatus('Plane view autosave failed: '+error.message,true));
+  },800);
+}
+function queueControllerPlaneRender(){
+  if(controllerPlaneRenderQueued)return;
+  controllerPlaneRenderQueued=true;
+  requestAnimationFrame(()=>{
+    controllerPlaneRenderQueued=false;
+    renderControllerPlaneModal();
+  });
+}
+function controllerPlaneTargetNudgeStep(axis,kind){
+  const id='controllerPlaneStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse');
+  return Math.max(0.001,Number(document.getElementById(id)?.value)||0);
+}
+function nudgeControllerPlaneTarget(axis,dir,kind){
+  if(!activeControllerPlane)return;
+  const step=controllerPlaneTargetNudgeStep(axis,kind);
+  const target={...activeControllerPlane.target};
+  target[axis]=(Number(target[axis])||0)+(Number(dir)||0)*step;
+  setControllerPlaneTarget(target);
+  setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
+}
+function controllerPlaneDrawLine(host,a,b){
+  const line=document.createElement('div');
+  line.className='controller-plane-line';
+  const dx=b.x-a.x,dy=b.y-a.y;
+  line.style.left=a.x+'%';
+  line.style.top=a.y+'%';
+  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
+  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+  host.appendChild(line);
+}
+function renderControllerPlanePreview(){
+  const plane=activeControllerPlane;
+  const pad=document.getElementById('controllerPlanePad');
+  if(!plane||!pad)return;
+  pad.querySelectorAll('.controller-plane-point,.controller-plane-line').forEach(el=>el.remove());
+  const selected=controllerPlaneSelectedIds();
+  const rect=pad.getBoundingClientRect();
+  const bounds=controllerPlaneBounds(plane);
+  const screens=plane.points.map(point=>controllerPlaneToScreen(point,bounds,rect));
+  const triangle=document.getElementById('controllerPlaneTriangle');
+  triangle.style.setProperty('--ax',screens[0].x+'%');
+  triangle.style.setProperty('--ay',screens[0].y+'%');
+  triangle.style.setProperty('--bx',screens[1].x+'%');
+  triangle.style.setProperty('--by',screens[1].y+'%');
+  triangle.style.setProperty('--cx',screens[2].x+'%');
+  triangle.style.setProperty('--cy',screens[2].y+'%');
+  screens.forEach((screen,index)=>{
+    const el=document.createElement('div');
+    el.className='controller-plane-point';
+    el.textContent=plane.points[index].id;
+    el.style.left=screen.x+'%';
+    el.style.top=screen.y+'%';
+    pad.appendChild(el);
+  });
+  const targetScreen=controllerPlaneToScreen(plane.target,bounds,rect);
+  const target=document.getElementById('controllerPlaneTarget');
+  target.style.left=targetScreen.x+'%';
+  target.style.top=targetScreen.y+'%';
+  plane.fixtures.forEach((fixture,index)=>{
+    const screen=controllerPlaneToScreen(fixture,bounds,rect);
+    const el=document.createElement('div');
+    el.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');
+    el.textContent=fixture.name.replace(/[^0-9]/g,'')||String(index+1);
+    el.title=fixture.name;
+    el.style.left=screen.x+'%';
+    el.style.top=screen.y+'%';
+    pad.appendChild(el);
+    controllerPlaneDrawLine(pad,screen,targetScreen);
+  });
+}
+function renderControllerPlaneModal(){
+  const plane=activeControllerPlane;
+  if(!plane)return;
+  const selected=controllerPlaneSelectedIds();
+  const weights=controllerPlaneWeights(plane);
+  document.getElementById('controllerPlaneTitle').textContent='Recall Plane: '+plane.name;
+  document.getElementById('controllerPlaneSummary').textContent='Target X '+plane.target.x+' / Y '+plane.target.y+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  const list=document.getElementById('controllerPlaneFixtures');
+  list.innerHTML=plane.fixtures.map(fixture=>{
+    const selectedClass=selected.has(String(fixture.id))?' selected':'';
+    const hasCurrent=fixtures.some(f=>String(f.id)===String(fixture.id));
+    const status=selected.has(String(fixture.id))?(hasCurrent?'selected':'not patched'):(hasCurrent?'available':'not patched');
+    return '<div class="controller-plane-fixture-row'+selectedClass+'"><strong>'+escHtml(fixture.name)+'</strong><span class="small">'+escHtml(status)+'</span></div>';
+  }).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
+  renderControllerPlanePreview();
+}
+function openControllerPlaneModal(id){
+  const plane=controllerPlanes.find(item=>String(item.id)===String(id));
+  if(!plane)return;
+  activeControllerPlaneId=String(id);
+  activeControllerPlane=cloneControllerPlane(plane);
+  controllerPlaneView=controllerPlaneSavedView(activeControllerPlane);
+  setControllerPlanePanMode(false);
+  controllerPlaneLastLiveStatus='';
+  controllerPlaneLiveSendPending=false;
+  renderControllerPlaneModal();
+  DmxCommon.showModal('controllerPlaneModal');
+  requestAnimationFrame(renderControllerPlanePreview);
+}
+function closeControllerPlaneModal(){
+  DmxCommon.hideModal('controllerPlaneModal');
+  controllerPlaneLiveSendPending=false;
+  clearTimeout(controllerPlaneLiveSendTimer);
+  clearTimeout(controllerPlaneViewAutosaveTimer);
+  controllerPlaneLiveSendTimer=null;
+  controllerPlaneViewAutosaveTimer=null;
+  controllerPlaneTargetDrag=null;
+  controllerPlaneViewDrag=null;
+  setControllerPlanePanMode(false);
+  activeControllerPlaneId=null;
+}
+function controllerPanTiltControl(fixture){
+  const profile=fixtureProfile(fixture);
+  return profile?.controls?.find(control=>control.type==='panTilt16'||control.type==='panTilt8')||null;
+}
+function scheduleControllerPlaneLiveSend(){
+  controllerPlaneLiveSendPending=true;
+  if(controllerPlaneLiveSendTimer||controllerPlaneLiveSendBusy)return;
+  controllerPlaneLiveSendTimer=setTimeout(runControllerPlaneLiveSend,50);
+}
+async function runControllerPlaneLiveSend(){
+  controllerPlaneLiveSendTimer=null;
+  if(!controllerPlaneLiveSendPending)return;
+  controllerPlaneLiveSendPending=false;
+  controllerPlaneLiveSendBusy=true;
+  try{
+    await sendControllerPlaneLiveTarget({manual:false});
+  }finally{
+    controllerPlaneLiveSendBusy=false;
+    if(controllerPlaneLiveSendPending&&!controllerPlaneLiveSendTimer){
+      controllerPlaneLiveSendTimer=setTimeout(runControllerPlaneLiveSend,50);
+    }
+  }
+}
+async function sendControllerPlaneLiveTarget({manual=false}={}){
+  const plane=activeControllerPlane;
+  if(!plane)return {applied:0,errors:['No plane selected']};
+  const weights=controllerPlaneWeights(plane);
+  if(!weights.valid){
+    const message='Cannot send plane because A/B/C are invalid';
+    if(manual)setStatus(message,true);
+    return {applied:0,errors:[message]};
+  }
+  const selected=controllerPlaneSelectedIds();
+  if(!selected.size){
+    const message='Select fixtures or a group before using plane live output';
+    if(manual)setStatus(message,true);
+    return {applied:0,errors:[message]};
+  }
+  const errors=[];
+  let applied=0;
+  const pairs=[];
+  for(const currentFixture of fixtures.filter(f=>selected.has(String(f.id)))){
+    const planeFixture=plane.fixtures.find(f=>String(f.id)===String(currentFixture.id));
+    const control=controllerPanTiltControl(currentFixture);
+    if(!planeFixture){errors.push(currentFixture.name+': not saved in plane');continue;}
+    if(!control){errors.push(currentFixture.name+': no Pan/Tilt control');continue;}
+    const out=controllerPlaneInterpolateFixture(plane,planeFixture,weights);
+    if(!out){errors.push(currentFixture.name+': calibration incomplete');continue;}
+    const max=control.type==='panTilt8'?255:65535;
+    setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
+    updateControlDisplay(currentFixture,control);
+    resolveDmxBytes(currentFixture,control).forEach(row=>pairs.push(row.ch+':'+clamp(row.val,0,255)));
+    applied++;
+  }
+  if(applied&&autoSendEnabled()&&pairs.length){
+    try{
+      await fetch(endpoint()+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'});
+    }catch(error){
+      errors.push(error.message||'Could not send plane live output');
+    }
+  }
+  writeLiveValues(false);
+  const statusText=(applied?'Plane live '+plane.name+' -> '+applied+' fixture'+(applied===1?'':'s')+' @ X '+Number(plane.target.x).toFixed(2)+' / Y '+Number(plane.target.y).toFixed(2):'No fixtures updated')+(errors.length?' · '+errors.join(' · '):'');
+  if(manual||statusText!==controllerPlaneLastLiveStatus){
+    controllerPlaneLastLiveStatus=statusText;
+    setStatus(statusText,!!errors.length&&!applied);
+  }
+  return {applied,errors};
+}
+controllerPlanesTileToolbox=DmxCommon.initSavedPlaneToolbox({
+  matrixId:'controllerPlaneMatrix',
+  colsId:'controllerPlaneCols',
+  rowsId:'controllerPlaneRows',
+  moveButtonId:'moveControllerPlanesBtn',
+  slotAttribute:'data-controller-plane-slot',
+  idAttribute:'data-controller-plane',
+  fetchUrl:'room_plane_setup.php',
+  defaultCols:3,
+  defaultRows:3,
+  getPlanes:()=>controllerPlanes,
+  setPlanes:planes=>{controllerPlanes=planes;},
+  getCols:()=>controllerPlaneCols,
+  setCols:value=>{controllerPlaneCols=value;},
+  getRows:()=>controllerPlaneRows,
+  setRows:value=>{controllerPlaneRows=value;},
+  savePayload:controllerRoomPlaneAutosavePayload,
+  normalizePlane:normalizeControllerPlane,
+  onSetupLoaded:data=>{controllerRoomPlaneSetup=normalizeControllerRoomPlaneSetup(data);},
+  onStatus:setStatus,
+  fixtureSummary:planeFixtureSummary,
+  onOpen:plane=>openControllerPlaneModal(plane.id)
+});
+document.getElementById('controllerPlaneClose').onclick=closeControllerPlaneModal;
+document.getElementById('controllerPlaneClose2').onclick=closeControllerPlaneModal;
+document.getElementById('controllerPlaneNudgeControls').addEventListener('click',event=>{
+  const button=event.target.closest('[data-controller-plane-nudge-axis]');
+  if(!button)return;
+  const axis=button.dataset.controllerPlaneNudgeAxis;
+  const dir=Number(button.dataset.controllerPlaneNudgeDir)||0;
+  const kind=button.dataset.controllerPlaneNudgeStep||'coarse';
+  if((axis==='x'||axis==='y')&&dir)nudgeControllerPlaneTarget(axis,dir,kind);
+});
+document.getElementById('controllerPlaneZoomIn').onclick=()=>zoomControllerPlaneView(1.25);
+document.getElementById('controllerPlaneZoomOut').onclick=()=>zoomControllerPlaneView(1/1.25);
+document.getElementById('controllerPlaneResetView').onclick=()=>resetControllerPlaneView();
+document.getElementById('controllerPlanePanView').onclick=()=>setControllerPlanePanMode(!controllerPlanePanMode);
+let controllerPlaneTargetDrag=null;
+let controllerPlaneViewDrag=null;
+document.getElementById('controllerPlanePad').addEventListener('pointerdown',event=>{
+  if(!activeControllerPlane)return;
+  event.preventDefault();
+  const pad=event.currentTarget;
+  const rect=pad.getBoundingClientRect();
+  const bounds=controllerPlaneBounds(activeControllerPlane);
+  if(controllerPlanePanMode||event.button===1||event.button===2||event.shiftKey){
+    controllerPlaneView.auto=false;
+    controllerPlaneViewDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};
+    pad.setPointerCapture?.(event.pointerId);
+    return;
+  }
+  const room=controllerPlaneScreenToRoom(event,rect,bounds);
+  controllerPlaneTargetDrag={pointerId:event.pointerId,bounds};
+  pad.setPointerCapture?.(event.pointerId);
+  setControllerPlaneTarget(room);
+});
+document.getElementById('controllerPlanePad').addEventListener('pointermove',event=>{
+  if(activeControllerPlane&&controllerPlaneViewDrag&&controllerPlaneViewDrag.pointerId===event.pointerId){
+    const rect=event.currentTarget.getBoundingClientRect();
+    const spanX=controllerPlaneViewDrag.bounds.maxX-controllerPlaneViewDrag.bounds.minX;
+    const spanY=controllerPlaneViewDrag.bounds.maxY-controllerPlaneViewDrag.bounds.minY;
+    const dx=(event.clientX-controllerPlaneViewDrag.x)/Math.max(1,rect.width)*spanX;
+    const dy=(event.clientY-controllerPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;
+    controllerPlaneView.centerX=((controllerPlaneViewDrag.bounds.minX+controllerPlaneViewDrag.bounds.maxX)/2)-dx;
+    controllerPlaneView.centerY=((controllerPlaneViewDrag.bounds.minY+controllerPlaneViewDrag.bounds.maxY)/2)+dy;
+    controllerPlaneView.auto=false;
+    syncActiveControllerPlaneView();
+    scheduleControllerPlaneViewAutosave();
+    queueControllerPlaneRender();
+    return;
+  }
+  if(!activeControllerPlane||!controllerPlaneTargetDrag||controllerPlaneTargetDrag.pointerId!==event.pointerId)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const room=controllerPlaneScreenToRoom(event,rect,controllerPlaneTargetDrag.bounds);
+  setControllerPlaneTarget(room);
+});
+document.getElementById('controllerPlanePad').addEventListener('pointerup',event=>{
+  if(controllerPlaneViewDrag&&controllerPlaneViewDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    controllerPlaneViewDrag=null;
+  }
+  if(controllerPlaneTargetDrag&&controllerPlaneTargetDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    controllerPlaneTargetDrag=null;
+  }
+});
+document.getElementById('controllerPlanePad').addEventListener('pointercancel',()=>{controllerPlaneTargetDrag=null;controllerPlaneViewDrag=null;});
+document.getElementById('controllerPlanePad').addEventListener('contextmenu',event=>event.preventDefault());
+document.getElementById('controllerPlanePad').addEventListener('wheel',event=>{
+  event.preventDefault();
+  zoomControllerPlaneView(event.deltaY<0?1.12:1/1.12);
+},{passive:false});
+const controllerPlanesToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'controllerPlanesBox',
+  headerId:'controllerPlanesBoxHdr',
+  toggleId:'controllerPlanesBoxToggle',
+  posStorageKey:'controllerPlanesBoxPos',
+  collapsedStorageKey:'controllerPlanesBoxCollapsed',
+  uiStatePage:'fixture',
+  uiStatePosKey:'controllerPlanesBoxPos',
+  uiStateCollapsedKey:'controllerPlanesBoxCollapsed'
+});
+loadControllerPlanesServer();
+// ── End saved room planes ─────────────────────────────────────────────
 
 const fanToolbox=DmxCommon.initFloatingToolbox({
   boxId:'fanToolbox',

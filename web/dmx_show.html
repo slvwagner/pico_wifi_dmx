@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.7">
-<script src="assets/dmx-common.js?v=0.9.7"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
+<script src="assets/dmx-common.js?v=0.9.8"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -77,7 +77,7 @@ body.layout-editing .card-empty:hover{border-color:var(--accent);color:var(--acc
 .slot.empty{opacity:.55}
 .slot-name{position:relative;z-index:1;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.55)}
 .slot-meta{position:relative;z-index:1;display:block;margin-top:2px}
-.palette-visual{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.9}
+.palette-visual{position:absolute;inset:0;background-size:contain;background-position:top center;background-repeat:no-repeat;opacity:.9}
 .group-tile{min-height:74px;align-items:flex-start}
 .group-tile.active{background:#123f2a;border-color:#2cbf76}
 .summary-strip{display:flex;gap:8px;flex-wrap:wrap}
@@ -127,14 +127,46 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 .live-timer-fill{height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width .08s linear}
 .live-timer-status[data-phase="off"] .live-timer-fill{background:var(--warn)}
 .master-faders{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin-top:12px;align-items:stretch}
-.master-fader{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;justify-items:center;gap:8px;min-height:228px}
+.master-fader{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;justify-items:center;gap:8px;min-height:228px;position:relative}
 .master-fader h3{font-size:14px;margin:0;text-align:center}
 .master-fader input[type=range]{writing-mode:vertical-lr;direction:rtl;width:34px;height:142px;padding:0}
 .master-fader .buttons{justify-content:center}
 .master-targets{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px}
+.master-delete{display:none;position:absolute;top:6px;right:6px;width:24px;height:24px;min-height:24px;padding:0;font-size:14px;z-index:4;background:rgba(60,27,27,.92);border:1px solid #ff7a7a;color:#ffd4d4;box-shadow:0 1px 6px rgba(0,0,0,.45)}
+body.layout-editing .master-delete{display:flex;align-items:center;justify-content:center}
+.master-delete:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
 .master-target-actions,.master-edit-actions{display:none}
 body.layout-editing .master-target-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 body.layout-editing .master-edit-actions{display:flex}
+.show-plane-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px}
+.show-group-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px}
+.show-group-controls{display:grid;gap:10px}
+.show-group-control{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:10px}
+.show-group-control h3{margin:0;font-size:15px}
+.show-group-control-row{display:grid;grid-template-columns:minmax(88px,130px) minmax(0,1fr) minmax(78px,100px);gap:8px;align-items:end}
+.show-group-control-row input[type=range]{width:100%;padding:0}
+.show-group-control-row input[type=number]{width:100%;min-width:0}
+.show-group-relative{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.show-plane-layout{display:grid;gap:12px}
+.show-plane-view{display:flex;gap:8px;flex-wrap:wrap}
+.show-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
+.show-plane-pad.pan-mode{cursor:grab}
+.show-plane-pad.pan-mode:active{cursor:grabbing}
+#showPlanePanView.active{background:#103b30;border-color:#2f9e7d;color:var(--accent);font-weight:700}
+.show-plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
+.show-plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);pointer-events:none}
+.show-plane-point{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;z-index:2}
+.show-plane-fixture{background:var(--warn);opacity:.65}
+.show-plane-fixture.selected{background:var(--accent);opacity:1;box-shadow:0 0 0 6px rgba(55,196,164,.18)}
+.show-plane-target{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff7a7a;border:2px solid #2b1010;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(255,122,122,.15);z-index:3}
+.show-plane-line{position:absolute;height:1px;background:rgba(255,255,255,.28);transform-origin:0 50%;z-index:1}
+.show-plane-nudge{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:8px}
+.show-plane-nudge-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:8px}
+.show-plane-fixture-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-height:220px;overflow:auto}
+.show-plane-fixture-row{min-height:72px;display:grid;align-content:end;gap:4px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px}
+.show-plane-fixture-row.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}
+.show-plane-slot-meta{position:relative;z-index:1;display:block;margin-top:2px;font-size:11px;color:var(--muted)}
+@media(max-width:700px){.show-plane-nudge-grid{grid-template-columns:1fr}.show-plane-pad{min-height:320px}}
 .show-tile-content{position:relative;z-index:1;display:grid;align-content:end;gap:2px;width:100%;height:100%;min-width:0}
 .show-tile-actions{display:none}
 body.layout-editing .show-tile-actions{display:flex}
@@ -158,8 +190,9 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.7">GPIO</a>
-    <a class="nav" href="user-manual.html?v=0.9.7#4-show-run" target="_blank">Manual</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+    <a class="nav" href="dmx_room_plane.html">Plane</a>
+    <a class="nav" href="user-manual.html?v=0.9.8#4-show-run" target="_blank">Manual</a>
     <button id="editLayoutBtn" type="button">Edit Layout</button>
   </div>
   </div>
@@ -232,6 +265,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         <div class="small">Select one or more groups to limit scene, palette, and blackout recalls. With no group selected, recalls use all stored fixture values.</div>
       </div>
       <div class="panel-tools">
+        <button id="showGroupEditBtn" type="button" class="primary">Group Edit</button>
         <div id="targetSummary" class="small"></div>
         <div class="matrix-tools layout-tools" aria-label="Show target matrix layout">
           <label>Cols<input id="groupCols" type="number" min="1" max="8" value="2"></label>
@@ -293,6 +327,23 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
       <div id="paletteGrid" class="grid"></div>
     </section>
 
+    <section class="panel" id="cardPlane" data-show-card="plane">
+      <div class="panel-head">
+        <div>
+          <h2>Planes</h2>
+          <div class="small">Recall calibrated room planes and move selected fixtures live in the virtual room.</div>
+        </div>
+        <div class="panel-tools">
+          <div id="planeSummary" class="small"></div>
+          <div class="matrix-tools layout-tools" aria-label="Plane matrix layout">
+            <label>Cols<input id="planeCols" type="number" min="1" max="32" value="3"></label>
+            <label>Rows<input id="planeRows" type="number" min="1" max="32" value="3"></label>
+          </div>
+        </div>
+      </div>
+      <div id="planeGrid" class="grid"></div>
+    </section>
+
     <section class="panel" id="cardChaser" data-show-card="chaser">
       <div class="panel-head">
         <div>
@@ -339,6 +390,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         <label>Slot<input id="motionControlSlot" type="number" min="0" max="63" step="1" value="0"></label>
         <label>BPM<input id="motionControlBpm" type="number" min="1" max="600" step="1" value="30"></label>
         <button id="motionControlStart" class="primary">Start Slot</button>
+        <button id="motionControlPauseResume">Pause</button>
         <button id="motionControlSetBpm">Set BPM</button>
         <button id="motionControlStopSlot">Stop Slot</button>
       </div>
@@ -371,11 +423,81 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
   </div>
 </main>
 
-<div id="showTileVisualModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Edit Tile</h2>
-<button id="showTileVisualClose" style="font-size:16px;padding:6px 14px">X</button>
+<div id="showPlaneModal" class="modal-overlay show-plane-modal section-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="showPlaneTitle">
+<div class="modal-head">
+<button id="showPlaneClose" type="button" aria-label="Close">x</button>
+<h2 id="showPlaneTitle">Recall Plane</h2>
+</div>
+<div class="modal-body">
+<div class="show-plane-layout">
+<div class="show-plane-view">
+<button id="showPlaneZoomIn" type="button">Zoom in</button>
+<button id="showPlaneZoomOut" type="button">Zoom out</button>
+<button id="showPlaneResetView" type="button">Reset view</button>
+<button id="showPlanePanView" type="button">Pan view</button>
+</div>
+<div class="show-plane-pad" id="showPlanePad">
+<div class="show-plane-grid"></div>
+<div class="show-plane-triangle" id="showPlaneTriangle"></div>
+<div class="show-plane-target" id="showPlaneTarget"></div>
+</div>
+<div class="show-plane-nudge">
+<div class="small">Target nudge</div>
+<div class="show-plane-nudge-grid" id="showPlaneNudgeControls">
+<div class="relative-control">
+<button type="button" data-show-plane-nudge-axis="x" data-show-plane-nudge-dir="-1" data-show-plane-nudge-step="coarse" title="Move target X left by the coarse step">−</button>
+<label>X coarse<input id="showPlaneStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-show-plane-nudge-axis="x" data-show-plane-nudge-dir="1" data-show-plane-nudge-step="coarse" title="Move target X right by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-show-plane-nudge-axis="x" data-show-plane-nudge-dir="-1" data-show-plane-nudge-step="fine" title="Move target X left by the fine step">−</button>
+<label>X fine<input id="showPlaneStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-show-plane-nudge-axis="x" data-show-plane-nudge-dir="1" data-show-plane-nudge-step="fine" title="Move target X right by the fine step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-show-plane-nudge-axis="y" data-show-plane-nudge-dir="-1" data-show-plane-nudge-step="coarse" title="Move target Y down by the coarse step">−</button>
+<label>Y coarse<input id="showPlaneStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-show-plane-nudge-axis="y" data-show-plane-nudge-dir="1" data-show-plane-nudge-step="coarse" title="Move target Y up by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-show-plane-nudge-axis="y" data-show-plane-nudge-dir="-1" data-show-plane-nudge-step="fine" title="Move target Y down by the fine step">−</button>
+<label>Y fine<input id="showPlaneStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-show-plane-nudge-axis="y" data-show-plane-nudge-dir="1" data-show-plane-nudge-step="fine" title="Move target Y up by the fine step">+</button>
+</div>
+</div>
+</div>
+<div class="small" id="showPlaneSummary">No plane selected.</div>
+<div class="show-plane-fixture-list" id="showPlaneFixtures"></div>
+</div>
+</div>
+<div class="modal-actions">
+<button id="showPlaneClose2" type="button">Close</button>
+</div>
+</div>
+</div>
+
+<div id="showGroupModal" class="modal-overlay show-group-modal fixture-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="showGroupModalTitle">
+<div class="modal-head">
+<button id="showGroupModalClose" type="button" aria-label="Close">x</button>
+<h2 id="showGroupModalTitle">Group Edit</h2>
+</div>
+<div class="modal-body">
+<div class="small" id="showGroupModalHint"></div>
+<div id="showGroupModalBody" class="show-group-controls"></div>
+</div>
+<div class="modal-actions">
+<button id="showGroupModalClose2" type="button">Close</button>
+</div>
+</div>
+</div>
+
+<div id="showTileVisualModal" class="modal-overlay visual-editor-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="showTileVisualTitle">
+<div class="modal-head">
+<button id="showTileVisualClose" type="button" aria-label="Close">x</button>
+<h2 id="showTileVisualTitle">Edit Tile</h2>
 </div>
 <div class="modal-body">
 <label>Target<select id="showTileVisualTarget"></select></label>
@@ -396,41 +518,41 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 </div>
 <div id="showTileVisualHint" class="small"></div>
 </div>
-<div class="buttons" style="padding-top:4px">
-<button id="showTileVisualSave" class="primary">Save tile</button>
-<button id="showTileVisualClose2">Close</button>
+<div class="modal-actions">
+<button id="showTileVisualSave" type="button" class="primary">Save tile</button>
+<button id="showTileVisualClose2" type="button">Close</button>
 </div>
 </div>
 </div>
 
-<div id="hiddenTileModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Hidden Show Items</h2>
-<button id="hiddenTileClose" style="font-size:16px;padding:6px 14px">X</button>
+<div id="hiddenTileModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hiddenTileTitle">
+<div class="modal-head">
+<button id="hiddenTileClose" type="button" aria-label="Close">x</button>
+<h2 id="hiddenTileTitle">Hidden Show Items</h2>
 </div>
 <div class="modal-body">
 <div class="small">Some show items are outside the visible rows and columns. Expand the section, or place an item into a free visible tile.</div>
 <div id="hiddenTileList" style="display:grid;gap:8px"></div>
 </div>
-<div class="buttons" style="padding-top:4px">
-<button id="hiddenTileClose2">Close</button>
+<div class="modal-actions">
+<button id="hiddenTileClose2" type="button">Close</button>
 </div>
 </div>
 </div>
 
-<div id="addCardModal" class="modal-overlay" style="display:none">
-<div class="modal">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-<h2>Add Card</h2>
-<button id="addCardClose" style="font-size:16px;padding:6px 14px">X</button>
+<div id="addCardModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="addCardTitle">
+<div class="modal-head">
+<button id="addCardClose" type="button" aria-label="Close">x</button>
+<h2 id="addCardTitle">Add Card</h2>
 </div>
 <div class="modal-body">
 <div id="addCardPositionHint" class="small"></div>
 <label>Card type<select id="addCardType"></select></label>
 <div class="small">Every card type can be added more than once. Use repeated cards when you want separate tile layouts for different show areas.</div>
 </div>
-<div class="buttons" style="padding-top:4px">
+<div class="modal-actions">
 <button id="addShowCard" type="button" class="primary">Add Live Controls</button>
 <button id="addCardClose2" type="button">Close</button>
 </div>
@@ -443,8 +565,9 @@ const baseUrlEl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl);
 const statusEl=document.getElementById('status');
 const values={};
-let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[];
-let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
+let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],planes=[];
+let roomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
+let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
 let cardCols=2,cardRows=5;
 let chaserSlots=[],motionSlots=[];
 let chaserSelectedSlot=0;
@@ -456,12 +579,12 @@ let targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}]
 const layoutKey=name=>'dmxShowRun.'+name;
 const SHOW_UI_STATE_PAGE='showRun';
 let showUiState={};
-const displayOrders={group:[],fixture:[],scene:[],palette:[],chaser:[],motion:[]};
+const displayOrders={group:[],fixture:[],scene:[],palette:[],plane:[],chaser:[],motion:[]};
 let cardLayouts={};
-const moveSelected={group:null,fixture:null,scene:null,palette:null,chaser:null,motion:null};
-const moveSelectedLayout={group:null,fixture:null,scene:null,palette:null,chaser:null,motion:null};
-const cardIds=['group','scene','palette','chaser','motion','live','midi','fixture','master'];
-const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Input'};
+const moveSelected={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
+const moveSelectedLayout={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
+const cardIds=['group','scene','palette','plane','chaser','motion','live','midi','fixture','master'];
+const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Input'};
 const repeatableCardIds=cardIds.slice();
 let cardOrder=[];
 let cardMoveMode=false;
@@ -486,6 +609,31 @@ function esc(s){return DmxCommon.escapeHtml(s);}
 function setStatus(text,bad=false){statusEl.textContent=text;statusEl.className=bad?'status bad':'status';}
 function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function bytes16(v){const n=clamp(v,0,65535);return{coarse:(n>>8)&255,fine:n&255};}
+const rgbHex=DmxCommon.rgbHex;
+const cmyHex=DmxCommon.cmyHex;
+const cmykHex=DmxCommon.cmykHex;
+const hexToRgb=DmxCommon.hexToRgb;
+const rgbToCmy=DmxCommon.rgbToCmy;
+const rgbToCmyk=DmxCommon.rgbToCmyk;
+const wheelOptionValue=DmxCommon.wheelOptionValue;
+const wheelOptionMatches=DmxCommon.wheelOptionMatches;
+const selectedWheelOption=DmxCommon.selectedWheelOption;
+const wheelOptionTitle=DmxCommon.wheelOptionTitle;
+const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
+const wheelOptionRange=DmxCommon.wheelOptionRange;
+const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
+const wheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
+function updateWheelRangeHost(host,option,value,attrs){
+  if(!host)return;
+  const range=wheelOptionRange(option);
+  if(wheelOptionIsAdjustable(option)&&range){
+    host.style.display='';
+    host.innerHTML=wheelRangeSliderHtml(option,value,attrs,esc);
+  }else{
+    host.innerHTML='';
+    host.style.display='none';
+  }
+}
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrlEl.value.replace(/\/+$/,'');}
 function fixtureProfile(f){return profiles.find(p=>String(p.id)===String(f.profileId));}
@@ -577,6 +725,149 @@ function filteredValues(source){
 function fixtureIdsFromValues(source){
   return [...new Set(Object.keys(source||{}).map(key=>String(key).split(':')[0]).filter(Boolean))];
 }
+function showGroupEditFixtureRows(){
+  const ids=activeTargetFixtureIds();
+  return fixtures.filter(f=>ids.has(String(f.id))).map(f=>({fixture:f,profile:fixtureProfile(f)})).filter(row=>row.profile);
+}
+function showGroupControlIdentity(c){
+  const label=String(c.scope||c.label||c.name||c.type||'Control').trim().toLowerCase();
+  if(c.type==='panTilt16'||c.type==='panTilt8')return 'panTilt';
+  if(c.type==='matrixRgb')return '';
+  const parts=scalarControlParts(c).map(part=>part.part+':'+part.max).join('|');
+  return (c.type||'slider8')+':'+label+':'+parts;
+}
+function showGroupControlLabel(c){
+  if(c.type==='panTilt16'||c.type==='panTilt8')return 'Pan / Tilt';
+  return c.label||c.scope||c.name||c.type||'Control';
+}
+function showGroupEditControls(){
+  const rows=showGroupEditFixtureRows();
+  const map=new Map();
+  rows.forEach(row=>{
+    (row.profile.controls||[]).forEach(control=>{
+      if(control.type==='matrixRgb')return;
+      const parts=scalarControlParts(control);
+      if(!parts.length)return;
+      const key=showGroupControlIdentity(control);
+      if(!key)return;
+      if(!map.has(key))map.set(key,{key,control,targets:[]});
+      map.get(key).targets.push({fixture:row.fixture,control});
+    });
+  });
+  return [...map.values()].sort((a,b)=>showGroupControlLabel(a.control).localeCompare(showGroupControlLabel(b.control)));
+}
+function showGroupSourceTarget(row){
+  return row?.targets?.[0]||null;
+}
+function showGroupPatchForTargets(targets){
+  const patch={};
+  (targets||[]).forEach(target=>{patch[controlKey(target.fixture,target.control)]=cloneValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)));});
+  return patch;
+}
+async function sendShowGroupPatch(targets){
+  const patch=showGroupPatchForTargets(targets);
+  if(!Object.keys(patch).length)return;
+  try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
+  await sendValuePatchWithMasterMask(patch);
+}
+function showGroupRelativeControlHtml(key,part,step,label){
+  return `<div class="relative-control">
+<button type="button" data-show-group-relative="${esc(key)}" data-part="${esc(part.part)}" data-dir="-1">-</button>
+<label>${esc(label)}<input type="number" min="1" max="${part.max}" step="1" value="${step}" data-show-group-step="${esc(key)}:${esc(part.part)}:${step}"></label>
+<button type="button" data-show-group-relative="${esc(key)}" data-part="${esc(part.part)}" data-dir="1">+</button>
+</div>`;
+}
+function showGroupControlHtml(row){
+  const target=showGroupSourceTarget(row);
+  const c=row.control;
+  const sourceName=target?.fixture?.name||'Source';
+  const parts=scalarControlParts(c);
+  const partRows=parts.map(part=>{
+    const value=target?getControlPartValue(target.fixture,target.control,part.part):0;
+    return `<div class="show-group-control-row" data-show-group-part-row="${esc(row.key)}:${esc(part.part)}">
+<label>${esc(part.label)}<input type="number" min="0" max="${part.max}" step="1" value="${value}" data-show-group-number="${esc(row.key)}" data-part="${esc(part.part)}"></label>
+<input type="range" min="0" max="${part.max}" step="1" value="${value}" data-show-group-slider="${esc(row.key)}" data-part="${esc(part.part)}">
+<div class="small" data-show-group-readout="${esc(row.key)}:${esc(part.part)}">${value}</div>
+</div>`;
+  }).join('');
+  const relative=parts.map(part=>{
+    const step=part.max>255?256:1;
+    const fine=part.max>255?showGroupRelativeControlHtml(row.key,part,1,part.label+' fine'):'';
+    return showGroupRelativeControlHtml(row.key,part,step,part.label+(part.max>255?' coarse':' relative'))+fine;
+  }).join('');
+  let rich='';
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const pan=target?getControlPartValue(target.fixture,target.control,'pan'):(c.type==='panTilt8'?128:32768);
+    const tilt=target?getControlPartValue(target.fixture,target.control,'tilt'):(c.type==='panTilt8'?128:32768);
+    const max=c.type==='panTilt8'?255:65535;
+    rich=`<div class="xy-pad" data-show-group-xy="${esc(row.key)}"><div class="xy-dot" style="left:${pan/max*100}%;top:${100-tilt/max*100}%"></div></div>
+<div class="row"><span class="readout" data-show-group-xy-readout="${esc(row.key)}">Pan ${pan} · Tilt ${tilt}</span><button type="button" data-show-group-center="${esc(row.key)}">Center</button></div>`;
+  }else if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const v=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
+    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    rich=`<label>Color picker<input type="color" value="${color}" data-show-group-color-picker="${esc(row.key)}"></label>
+<div class="swatches"><button type="button" class="swatch" style="background:#fff" data-show-group-color="${esc(row.key)}" data-color="#ffffff"></button><button type="button" class="swatch" style="background:#f00" data-show-group-color="${esc(row.key)}" data-color="#ff0000"></button><button type="button" class="swatch" style="background:#0f0" data-show-group-color="${esc(row.key)}" data-color="#00ff00"></button><button type="button" class="swatch" style="background:#00f" data-show-group-color="${esc(row.key)}" data-color="#0000ff"></button></div>`;
+  }else if(c.type==='wheel'){
+    const v=target?getControlPartValue(target.fixture,target.control,'value'):0;
+    const active=selectedWheelOption(c,v);
+    rich=`<div class="tabs">${(c.options||[]).map((option,index)=>`<button type="button" class="tab ${wheelOptionMatches(option,v)?'active':''}" title="${esc(wheelOptionTitle(option))}" data-show-group-wheel="${esc(row.key)}" data-wheel-value="${wheelOptionValue(option)}" data-wheel-option-index="${index}">${wheelOptionIconHtml(option)}${esc(option.name)}</button>`).join('')}</div>
+<div data-show-group-wheel-range-host="${esc(row.key)}">${wheelRangeSliderHtml(active,v,`data-show-group-slider="${esc(row.key)}" data-part="value"`,esc)}</div>`;
+  }
+  return `<section class="show-group-control" data-show-group-control="${esc(row.key)}">
+<div>
+<h3>${esc(showGroupControlLabel(c))}</h3>
+<div class="small">${row.targets.length} fixture(s) · source ${esc(sourceName)} · ${esc(c.type||'control')}</div>
+</div>
+${rich}
+${partRows}
+<div class="show-group-relative">${relative}</div>
+</section>`;
+}
+function refreshShowGroupControlRow(rowKey,part){
+  const row=showGroupEditControls().find(item=>item.key===rowKey);
+  const target=showGroupSourceTarget(row);
+  if(!row||!target)return;
+  const value=getControlPartValue(target.fixture,target.control,part);
+  document.querySelectorAll(`[data-show-group-slider="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"],[data-show-group-number="${CSS.escape(rowKey)}"][data-part="${CSS.escape(part)}"]`).forEach(input=>{input.value=value;});
+  document.querySelectorAll(`[data-show-group-readout="${CSS.escape(rowKey+':'+part)}"]`).forEach(el=>{el.textContent=value;});
+  if(part==='pan'||part==='tilt'){
+    const pan=getControlPartValue(target.fixture,target.control,'pan');
+    const tilt=getControlPartValue(target.fixture,target.control,'tilt');
+    const max=target.control.type==='panTilt8'?255:65535;
+    document.querySelectorAll(`[data-show-group-xy="${CSS.escape(rowKey)}"] .xy-dot`).forEach(dot=>{dot.style.left=(pan/max*100)+'%';dot.style.top=(100-tilt/max*100)+'%';});
+    document.querySelectorAll(`[data-show-group-xy-readout="${CSS.escape(rowKey)}"]`).forEach(el=>{el.textContent='Pan '+pan+' · Tilt '+tilt;});
+  }
+  if(['a','b','c','w','amber','k'].includes(part)){
+    const valueObject=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    const color=(target.control.type==='rgb'||target.control.type==='rgbw'||target.control.type==='rgbwa')?rgbHex(valueObject):(target.control.type==='cmy'?cmyHex(valueObject):cmykHex(valueObject));
+    document.querySelectorAll(`[data-show-group-color-picker="${CSS.escape(rowKey)}"]`).forEach(input=>{if(input.value!==color)input.value=color;});
+  }
+  if(part==='value'&&target.control.type==='wheel'){
+    document.querySelectorAll(`[data-show-group-wheel-range-host="${CSS.escape(rowKey)}"]`).forEach(host=>updateWheelRangeHost(host,selectedWheelOption(target.control,value),value,`data-show-group-slider="${esc(rowKey)}" data-part="value"`));
+    document.querySelectorAll(`[data-show-group-wheel="${CSS.escape(rowKey)}"]`).forEach(button=>{
+      const option=(target.control.options||[])[parseInt(button.dataset.wheelOptionIndex,10)];
+      button.classList.toggle('active',option?wheelOptionMatches(option,value):parseInt(button.dataset.wheelValue,10)===value);
+    });
+  }
+}
+function updateShowGroupEditButton(){
+  const btn=document.getElementById('showGroupEditBtn');
+  if(!btn)return;
+  const targets=showGroupEditFixtureRows();
+  const controls=targets.length?showGroupEditControls():[];
+  btn.disabled=!targets.length||!controls.length;
+  btn.title=btn.disabled?'No editable fixture controls in the current show target':'Edit controls for the current show target';
+}
+function openShowGroupEditModal(){
+  const targets=showGroupEditFixtureRows();
+  const controls=showGroupEditControls();
+  if(!targets.length||!controls.length){setStatus('Select a group or fixture with editable controls first',true);updateShowGroupEditButton();return;}
+  document.getElementById('showGroupModalTitle').textContent='Group Edit - '+targets.length+' fixture'+(targets.length===1?'':'s');
+  document.getElementById('showGroupModalHint').textContent='Edits apply to the current Show target. The first fixture in the target is used as the source value.';
+  document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
+  DmxCommon.showModal('showGroupModal');
+}
+function closeShowGroupEditModal(){DmxCommon.hideModal('showGroupModal');}
 function savedValue(key){
   return showUiState&&Object.prototype.hasOwnProperty.call(showUiState,key)?showUiState[key]:localStorage.getItem(layoutKey(key));
 }
@@ -610,6 +901,8 @@ function applySavedLayout(){
   sceneRows=savedNumber('sceneRows',sceneRows,1,32);
   paletteCols=savedNumber('paletteCols',paletteCols,1,32);
   paletteRows=savedNumber('paletteRows',paletteRows,1,32);
+  planeCols=savedNumber('planeCols',planeCols,1,32);
+  planeRows=savedNumber('planeRows',planeRows,1,32);
   chaserCols=savedNumber('chaserCols',chaserCols,1,32);
   chaserRows=savedNumber('chaserRows',chaserRows,1,32);
   motionCols=savedNumber('motionCols',motionCols,1,32);
@@ -647,6 +940,9 @@ function uniqueLiveCardKey(seed=''){
 function addCardButtonLabel(type){
   return type==='live'?'Add Live Controls':'Add '+(cardLabels[type]||'Card')+' Card';
 }
+function defaultCardIds(){
+  return planes.length?cardIds:cardIds.filter(id=>id!=='plane');
+}
 function loadLiveControls(){
   const source=savedValue('liveControls');
   try{liveControls=Array.isArray(source)?source:JSON.parse(source||'[]')||[];}catch(_){liveControls=[];}
@@ -662,7 +958,7 @@ function saveLiveControls(){
   saveShowUiStateValue('liveControls',liveControls);
 }
 function normalizeTargetMasters(){
-  if(!Array.isArray(targetMasters)||!targetMasters.length)targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
+  if(!Array.isArray(targetMasters))targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
   targetMasters=targetMasters.map((item,index)=>({
     id:String(item?.id||('target_'+(index+1))),
     name:String(item?.name||('Group Master '+(index+1))).replace(/^Target\s+(\d+)$/i,'Group Master $1'),
@@ -674,7 +970,8 @@ function loadTargetMasters(){
   const grand=Number(savedValue('grandMasterFactor'));
   masterFactors.grand=Number.isFinite(grand)?Math.max(0,Math.min(1,grand)):1;
   const source=savedValue('targetMasters');
-  try{targetMasters=Array.isArray(source)?source:JSON.parse(source||'[]')||[];}catch(_){targetMasters=[];}
+  if(source===null||source===undefined||source==='')targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
+  else try{targetMasters=Array.isArray(source)?source:JSON.parse(source)||[];}catch(_){targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];}
   normalizeTargetMasters();
 }
 function saveGrandMasterFactor(){
@@ -692,7 +989,8 @@ function reconcileCardOrder(){
   const hasServerCardOrder=hasServerUiStateValue('cardOrder');
   try{saved=Array.isArray(sourceValue)?sourceValue:JSON.parse(sourceValue||'[]');}catch(_){saved=[];}
   const source=Array.isArray(cardOrder)&&cardOrder.length?cardOrder:Array.isArray(saved)?saved:[];
-  const total=Math.max(cardIds.length,cardCols*cardRows,source.length);
+  const defaults=defaultCardIds();
+  const total=Math.max(defaults.length,cardCols*cardRows,source.length);
   const shouldInsertDefaults=!source.length;
   const next=[];
   const usedRepeatKeys=new Set();
@@ -711,7 +1009,7 @@ function reconcileCardOrder(){
   });
   while(next.length<total)next.push(null);
   if(shouldInsertDefaults||!hasServerCardOrder){
-    cardIds.forEach(id=>{
+    defaults.forEach(id=>{
       if(next.some(entry=>cardType(entry)===id))return;
       if(repeatableCardIds.includes(id)&&usedRepeatKeys.has(id))return;
       const emptyIndex=next.indexOf(null);
@@ -722,7 +1020,7 @@ function reconcileCardOrder(){
   }
   while(next.length<total)next.push(null);
   cardOrder=next.slice(0,total);
-  if(shouldInsertDefaults&&!cardOrder.some(Boolean))cardOrder=cardIds.concat(Array(Math.max(0,total-cardIds.length)).fill(null));
+  if(shouldInsertDefaults&&!cardOrder.some(Boolean))cardOrder=defaults.concat(Array(Math.max(0,total-defaults.length)).fill(null));
 }
 function syncCardInputs(){
   const colsInput=document.getElementById('cardCols');
@@ -826,7 +1124,7 @@ function deleteCardAt(index){
   }
   cardOrder[index]=null;
   saveCardLayout();
-  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   setStatus('Removed '+(cardLabels[type]||'card')+' card');
 }
 function addShowCard(){
@@ -845,7 +1143,7 @@ function addShowCard(){
     cardOrder[index]=entry;
   }
   saveCardLayout();
-  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   setStatus('Added '+(cardLabels[type]||type)+' at position '+(index+1));
   closeAddCardModal();
 }
@@ -933,6 +1231,10 @@ function renderRepeatedCards(){
       const layout=ensureCardLayout(layoutId,'palette');
       renderSlots(grid,summary,palettes,layout.cols,layout.rows,'palette',layoutId);
       bindPaletteGridRecall(grid,layoutId);
+    }else if(type==='plane'){
+      bindRepeatedMatrixInputs(card,'plane',layoutId,()=>renderPlanes(),32,32);
+      const layout=ensureCardLayout(layoutId,'plane');
+      renderPlaneGrid(grid,layoutId,layout.cols,layout.rows);
     }else if(type==='chaser'){
       bindRepeatedMatrixInputs(card,'chaser',layoutId,()=>renderChaserPlayback(),32,32);
       const layout=ensureCardLayout(layoutId,'chaser');
@@ -1019,9 +1321,9 @@ function setLayoutEditing(enabled){
     cardMoveMode=false;
     Object.keys(moveSelected).forEach(kind=>{moveSelected[kind]=null;});
     Object.keys(moveSelectedLayout).forEach(kind=>{moveSelectedLayout[kind]=null;});
-    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }else{
-    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }
 }
 function itemSlotIndex(item,index){
@@ -1078,6 +1380,11 @@ function normalizePaletteGrid(priority='cols'){
   paletteCols=next.cols;paletteRows=next.rows;
   syncMatrixInputs('palette',paletteCols,paletteRows,requiredSlots(palettes),32,32);
 }
+function normalizePlaneGrid(priority='cols'){
+  const next=normalizeMatrix(planeCols,planeRows,planes.length,32,32,priority);
+  planeCols=next.cols;planeRows=next.rows;
+  syncMatrixInputs('plane',planeCols,planeRows,planes.length,32,32);
+}
 function normalizeChaserGrid(priority='cols'){
   const next=normalizeMatrix(chaserCols,chaserRows,requiredPayloadSlots(chaserSlots),32,32,priority);
   chaserCols=next.cols;chaserRows=next.rows;
@@ -1099,6 +1406,7 @@ function defaultMatrixForKind(kind){
   if(kind==='fixture')return{cols:fixtureCols,rows:fixtureRows,maxCols:32,maxRows:32,needed:fixtures.length};
   if(kind==='scene')return{cols:sceneCols,rows:sceneRows,maxCols:32,maxRows:32,needed:requiredSlots(scenes)};
   if(kind==='palette')return{cols:paletteCols,rows:paletteRows,maxCols:32,maxRows:32,needed:requiredSlots(palettes)};
+  if(kind==='plane')return{cols:planeCols,rows:planeRows,maxCols:32,maxRows:32,needed:planes.length};
   if(kind==='chaser')return{cols:chaserCols,rows:chaserRows,maxCols:32,maxRows:32,needed:requiredPayloadSlots(chaserSlots)};
   if(kind==='motion')return{cols:motionCols,rows:motionRows,maxCols:32,maxRows:32,needed:requiredPayloadSlots(motionSlots)};
   return{cols:1,rows:1,maxCols:32,maxRows:32,needed:0};
@@ -1155,6 +1463,7 @@ function sourceEntries(kind){
   if(kind==='fixture')return fixtures.map((item,index)=>({key:String(item.id),item,index}));
   if(kind==='scene')return scenes.map((item,index)=>({key:String(item.id||item.slot||index),item,index}));
   if(kind==='palette')return palettes.map((item,index)=>({key:String(item.id||item.slot||index),item,index}));
+  if(kind==='plane')return planes.map((item,index)=>({key:String(item.id||index),item,index}));
   if(kind==='chaser')return (chaserSlots||[]).map((slot,index)=>slot&&slot.loaded?{key:String(index),item:slot,index}:null).filter(Boolean);
   if(kind==='motion')return (motionSlots||[]).map((slot,index)=>slot&&slot.loaded?{key:String(index),item:slot,index}:null).filter(Boolean);
   return [];
@@ -1177,7 +1486,7 @@ function reconcileDisplayOrder(kind,total,layoutId=kind){
   sourceEntries(kind).forEach(entry=>{
     if(hidden.has(entry.key))return;
     if(used.has(entry.key))return;
-    const preferred=kind==='scene'||kind==='palette'?itemSlotIndex(entry.item,entry.index):(['group','fixture'].includes(kind)?entry.index:-1);
+    const preferred=kind==='scene'||kind==='palette'?itemSlotIndex(entry.item,entry.index):(['group','fixture','plane'].includes(kind)?entry.index:-1);
     if(preferred>=0&&!previous[preferred])previous[preferred]=entry.key;
     else previous.push(entry.key);
     used.add(entry.key);
@@ -1216,7 +1525,7 @@ function visibleTotal(kind){
   return Math.max(1,(parseInt(matrix.cols,10)||1)*(parseInt(matrix.rows,10)||1));
 }
 function hiddenTileEntries(kind){
-  if(!['group','scene','palette','chaser','motion'].includes(kind))return [];
+  if(!['group','scene','palette','plane','chaser','motion'].includes(kind))return [];
   const total=visibleTotal(kind);
   reconcileDisplayOrder(kind,total);
   return (displayOrders[kind]||[])
@@ -1239,6 +1548,7 @@ function expandMatrixForHiddenKind(kind){
   if(kind==='group'){groupCols=next.cols;groupRows=next.rows;saveMatrix(kind,groupCols,groupRows);}
   else if(kind==='scene'){sceneCols=next.cols;sceneRows=next.rows;saveMatrix(kind,sceneCols,sceneRows);}
   else if(kind==='palette'){paletteCols=next.cols;paletteRows=next.rows;saveMatrix(kind,paletteCols,paletteRows);}
+  else if(kind==='plane'){planeCols=next.cols;planeRows=next.rows;saveMatrix(kind,planeCols,planeRows);}
   else if(kind==='chaser'){chaserCols=next.cols;chaserRows=next.rows;saveMatrix(kind,chaserCols,chaserRows);}
   else if(kind==='motion'){motionCols=next.cols;motionRows=next.rows;saveMatrix(kind,motionCols,motionRows);}
   renderKind(kind);
@@ -1264,6 +1574,7 @@ function hiddenKindLabel(kind){
   if(kind==='fixture')return 'Fixtures';
   if(kind==='scene')return 'Scenes';
   if(kind==='palette')return 'Palettes';
+  if(kind==='plane')return 'Planes';
   if(kind==='chaser')return 'Pico Chaser Playback';
   return 'Pico Effects Playback';
 }
@@ -1275,10 +1586,11 @@ function hiddenItemLabel(row){
 }
 function hiddenItemText(row){
   if(row.kind==='chaser'||row.kind==='motion')return hiddenItemLabel(row)+' is loaded but outside the visible playback matrix.';
+  if(row.kind==='plane')return hiddenItemLabel(row)+' is saved outside the visible plane matrix.';
   return hiddenItemLabel(row)+' is saved at hidden position '+(row.index+1)+'.';
 }
 function allHiddenTileRows(){
-  return ['group','scene','palette','chaser','motion'].flatMap(kind=>hiddenTileEntries(kind).map(row=>({...row,kind})));
+  return ['group','scene','palette','plane','chaser','motion'].flatMap(kind=>hiddenTileEntries(kind).map(row=>({...row,kind})));
 }
 function openHiddenTileModal(rows){
   const list=document.getElementById('hiddenTileList');
@@ -1338,6 +1650,7 @@ function renderKind(kind){
   if(kind==='fixture')renderFixtures();
   else if(kind==='scene')renderScenes();
   else if(kind==='palette')renderPalettes();
+  else if(kind==='plane')renderPlanes();
   else if(kind==='chaser')renderChaserPlayback();
   else if(kind==='motion')renderMotionPlayback();
   else if(kind==='live')renderLiveControls();
@@ -1364,6 +1677,7 @@ function currentMatrix(kind,layoutId=kind){
   if(kind==='fixture')return{cols:fixtureCols,rows:fixtureRows};
   if(kind==='scene')return{cols:sceneCols,rows:sceneRows};
   if(kind==='palette')return{cols:paletteCols,rows:paletteRows};
+  if(kind==='plane')return{cols:planeCols,rows:planeRows};
   if(kind==='chaser')return{cols:chaserCols,rows:chaserRows};
   if(kind==='motion')return{cols:motionCols,rows:motionRows};
   return{cols:1,rows:1};
@@ -1391,6 +1705,7 @@ function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
     else if(kind==='fixture')fixtureCols=value;
     else if(kind==='scene')sceneCols=value;
     else if(kind==='palette')paletteCols=value;
+    else if(kind==='plane')planeCols=value;
     else if(kind==='chaser')chaserCols=value;
     else if(kind==='motion')motionCols=value;
     normalize('cols');render();
@@ -1403,6 +1718,7 @@ function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
     else if(kind==='fixture')fixtureRows=value;
     else if(kind==='scene')sceneRows=value;
     else if(kind==='palette')paletteRows=value;
+    else if(kind==='plane')planeRows=value;
     else if(kind==='chaser')chaserRows=value;
     else if(kind==='motion')motionRows=value;
     normalize('rows');render();
@@ -1413,12 +1729,27 @@ function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
 function targetSummary(){
   const ids=activeTargetFixtureIds();
   const selected=groups.filter(g=>selectedGroupIds.has(String(g.id))).map(g=>g.name).join(', ');
-  document.getElementById('targetSummary').textContent=selectedGroupIds.size?selected+' - '+ids.size+' fixture(s)':'All fixtures - '+ids.size+' fixture(s)';
+  let label='All fixtures';
+  if(selectedGroupIds.size)label=selected;
+  else if(selectedFixtureIds.size)label='Selected fixtures';
+  document.getElementById('targetSummary').textContent=label+' - '+ids.size+' fixture(s)';
   const fixtureSummary=document.getElementById('fixtureSummary');
   if(fixtureSummary){
     const names=fixtures.filter(f=>selectedFixtureIds.has(String(f.id))).map(f=>f.name||('Fixture '+f.id));
     fixtureSummary.textContent=selectedFixtureIds.size?names.join(', ')+' - '+selectedFixtureIds.size+' selected':'No individual fixtures selected';
   }
+}
+function selectedGroupFixtureIds(){
+  const ids=new Set();
+  groups.forEach(g=>{
+    if(!selectedGroupIds.has(String(g.id)))return;
+    (g.fixtureIds||[]).forEach(id=>ids.add(String(id)));
+  });
+  return ids;
+}
+function syncFixtureSelectionFromGroups(){
+  selectedFixtureIds.clear();
+  selectedGroupFixtureIds().forEach(id=>selectedFixtureIds.add(String(id)));
 }
 function slotStyle(item){return DmxCommon.slotVisualStyle(item);}
 function slotVisual(item){return DmxCommon.slotVisualHtml(item);}
@@ -1913,6 +2244,7 @@ function renderLiveControls(){
 function renderGroups(){
   normalizeGroupGrid('cols');
   targetSummary();
+  updateShowGroupEditButton();
   const grid=document.getElementById('groupGrid');
   renderGroupGrid(grid,'group',groupCols,groupRows);
   renderRepeatedCards();
@@ -1920,6 +2252,7 @@ function renderGroups(){
 function renderFixtures(){
   normalizeFixtureGrid('cols');
   targetSummary();
+  updateShowGroupEditButton();
   const grid=document.getElementById('fixtureGrid');
   renderFixtureGrid(grid,'fixture',fixtureCols,fixtureRows);
   renderRepeatedCards();
@@ -1938,11 +2271,18 @@ function renderGroupGrid(grid,layoutId='group',cols=groupCols,rows=groupRows){
     else html+=`<div class="slot group-tile empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('[data-group]').forEach(btn=>btn.addEventListener('click',()=>{
-    if(tileMoveClick('group',parseInt(btn.dataset.showTileIndex,10),layoutId))return;
+  grid.querySelectorAll('[data-group]').forEach(btn=>btn.addEventListener('click',e=>{
+    if(e.defaultPrevented)return;
     const id=String(btn.dataset.group);
     if(selectedGroupIds.has(id))selectedGroupIds.delete(id);else selectedGroupIds.add(id);
+    if(layoutEditing){
+      moveSelected.group=parseInt(btn.dataset.showTileIndex,10);
+      moveSelectedLayout.group=layoutId;
+    }
+    syncFixtureSelectionFromGroups();
     renderGroups();
+    renderFixtures();
+    renderPlanes();
   }));
   grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick('group',parseInt(el.dataset.showTileIndex,10),layoutId)));
   bindShowTileActions(grid);
@@ -1965,12 +2305,18 @@ function renderFixtureGrid(grid,layoutId='fixture',cols=fixtureCols,rows=fixture
     }else html+=`<div class="slot group-tile empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('[data-fixture]').forEach(btn=>btn.addEventListener('click',()=>{
-    if(tileMoveClick('fixture',parseInt(btn.dataset.showTileIndex,10),layoutId))return;
+  grid.querySelectorAll('[data-fixture]').forEach(btn=>btn.addEventListener('click',e=>{
+    if(e.defaultPrevented)return;
     const id=String(btn.dataset.fixture);
+    selectedGroupIds.clear();
     if(selectedFixtureIds.has(id))selectedFixtureIds.delete(id);else selectedFixtureIds.add(id);
+    if(layoutEditing){
+      moveSelected.fixture=parseInt(btn.dataset.showTileIndex,10);
+      moveSelectedLayout.fixture=layoutId;
+    }
     renderFixtures();
     renderGroups();
+    renderPlanes();
   }));
   grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick('fixture',parseInt(el.dataset.showTileIndex,10),layoutId)));
   initMoveGrid('fixture',grid,layoutId);
@@ -2009,6 +2355,464 @@ function bindShowTileActions(root){
 }
 function renderScenes(){normalizeSceneGrid('cols');const grid=document.getElementById('sceneGrid');renderSlots(grid,'sceneSummary',scenes,sceneCols,sceneRows,'scene');bindSceneGridRecall(grid);renderRepeatedCards();}
 function renderPalettes(){normalizePaletteGrid('cols');const grid=document.getElementById('paletteGrid');renderSlots(grid,'paletteSummary',palettes,paletteCols,paletteRows,'palette');bindPaletteGridRecall(grid);renderRepeatedCards();}
+function normalizeShowPlanePoint(point,fallback){
+  return {
+    id:String(point?.id||fallback?.id||'A'),
+    x:Number(point?.x??fallback?.x??0)||0,
+    y:Number(point?.y??fallback?.y??0)||0,
+    z:Number(point?.z??fallback?.z??0)||0
+  };
+}
+function normalizeShowPlaneFixture(fixture,index){
+  return {
+    id:fixture?.id,
+    name:String(fixture?.name||('Fixture '+(index+1))),
+    x:Number(fixture?.x)||0,
+    y:Number(fixture?.y)||0,
+    z:Number(fixture?.z)||0,
+    cal:fixture?.cal&&typeof fixture.cal==='object'?fixture.cal:{}
+  };
+}
+function normalizeShowPlane(plane,index){
+  const fallbackPoints=[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}];
+  const sourcePoints=Array.isArray(plane?.points)?plane.points:[];
+  return {
+    ...plane,
+    id:plane?.id||('plane_'+index),
+    name:String(plane?.name||('Plane '+(index+1))),
+    points:fallbackPoints.map((fallback,i)=>normalizeShowPlanePoint(sourcePoints[i],fallback)),
+    target:{x:Number(plane?.target?.x??2.5)||0,y:Number(plane?.target?.y??1.5)||0,z:Number(plane?.target?.z??0)||0},
+    fixtures:(Array.isArray(plane?.fixtures)?plane.fixtures:[]).map(normalizeShowPlaneFixture),
+    visual:plane?.visual
+  };
+}
+function normalizeRoomPlaneSetupForShow(data){
+  const source=data?.setup&&typeof data.setup==='object'?data.setup:(data&&typeof data==='object'?data:{});
+  const fallback={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
+  return {
+    ...fallback,
+    ...source,
+    points:Array.isArray(source.points)?source.points:fallback.points,
+    target:source.target&&typeof source.target==='object'?source.target:fallback.target,
+    fixtures:Array.isArray(source.fixtures)?source.fixtures:fallback.fixtures,
+    planes:Array.isArray(source.planes)?source.planes:(Array.isArray(data?.planes)?data.planes:fallback.planes),
+    planeCols:Math.max(1,Math.min(32,parseInt(source.planeCols??data?.planeCols??fallback.planeCols,10)||fallback.planeCols)),
+    planeRows:Math.max(1,Math.min(32,parseInt(source.planeRows??data?.planeRows??fallback.planeRows,10)||fallback.planeRows))
+  };
+}
+function showPlaneTargetIds(){
+  return activeTargetFixtureIds();
+}
+function showPlaneFixtureSummary(plane){
+  const selected=showPlaneTargetIds();
+  const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
+  return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+' - '+matching+' target match'+(matching===1?'':'es');
+}
+function renderPlaneGrid(gridRef,layoutId='plane',cols=planeCols,rows=planeRows){
+  const grid=typeof gridRef==='string'?document.getElementById(gridRef):gridRef;
+  if(!grid)return;
+  const summary=layoutId==='plane'?document.getElementById('planeSummary'):grid.closest('[data-show-card]')?.querySelector('[data-repeat-summary]');
+  const total=Math.max(1,(parseInt(cols,10)||3)*(parseInt(rows,10)||3));
+  reconcileDisplayOrder('plane',total,layoutId);
+  grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';
+  if(summary)summary.textContent=planes.length+' saved';
+  let html='';
+  for(let i=0;i<total;i++){
+    const entry=orderedEntryAt('plane',i,layoutId);
+    const plane=entry?.item;
+    if(plane){
+      const visualPlane={...plane,visual:DmxCommon.normalizeSlotVisual(plane.visual)||{type:'visual',color:'#225a50',image:''}};
+      html+=`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected.plane===i&&moveSelectedLayout.plane===layoutId)}" data-show-tile-index="${i}" data-plane-key="${esc(entry.key)}" title="Open plane ${esc(plane.name||String(i+1))}" style="${slotStyle(visualPlane)}">${slotVisual(visualPlane)}<span class="show-tile-content"><span class="slot-name">${esc(plane.name||('Plane '+(i+1)))}</span><span class="show-plane-slot-meta slot-meta small">${esc(showPlaneFixtureSummary(plane))}</span></span></div>`;
+    }else html+=`<div class="slot empty" data-show-tile-index="${i}"><span class="slot-name">${i+1}</span></div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-plane-key]').forEach(btn=>btn.addEventListener('click',()=>{
+    const idx=parseInt(btn.dataset.showTileIndex,10);
+    if(tileMoveClick('plane',idx,layoutId))return;
+    openShowPlaneModal(btn.dataset.planeKey);
+  }));
+  grid.querySelectorAll('.slot.empty').forEach(el=>el.addEventListener('click',()=>tileMoveClick('plane',parseInt(el.dataset.showTileIndex,10),layoutId)));
+  initMoveGrid('plane',grid,layoutId);
+}
+function renderPlanes(){normalizePlaneGrid('cols');renderPlaneGrid(document.getElementById('planeGrid'),'plane',planeCols,planeRows);renderRepeatedCards();}
+
+let activeShowPlane=null;
+let activeShowPlaneId=null;
+let showPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+let showPlanePanMode=false;
+let showPlaneRenderQueued=false;
+let showPlaneViewAutosaveTimer=null;
+let showPlaneLiveSendTimer=null;
+let showPlaneLiveSendBusy=false;
+let showPlaneLiveSendPending=false;
+let showPlaneLastLiveStatus='';
+let showPlaneTargetDrag=null;
+let showPlaneViewDrag=null;
+function cloneShowPlane(plane){return JSON.parse(JSON.stringify(plane));}
+function showPlaneWeights(plane,target=plane.target){
+  const [a,b,c]=plane.points;
+  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
+  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+  return {valid:true,wA,wB,wC:1-wA-wB};
+}
+function showPlaneInterpolateFixture(plane,fixture,weights){
+  if(!weights.valid)return null;
+  const ids=plane.points.map(point=>point.id);
+  if(ids.some(id=>!fixture.cal?.[id]?.calibrated))return null;
+  return {
+    pan:weights.wA*fixture.cal[ids[0]].pan+weights.wB*fixture.cal[ids[1]].pan+weights.wC*fixture.cal[ids[2]].pan,
+    tilt:weights.wA*fixture.cal[ids[0]].tilt+weights.wB*fixture.cal[ids[1]].tilt+weights.wC*fixture.cal[ids[2]].tilt
+  };
+}
+function showPlaneAutoBounds(plane){
+  const xs=plane.points.map(p=>p.x),ys=plane.points.map(p=>p.y);
+  xs.push(plane.target.x,...plane.fixtures.map(f=>f.x));
+  ys.push(plane.target.y,...plane.fixtures.map(f=>f.y));
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
+  return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+}
+function showPlaneBounds(plane){
+  const base=showPlaneAutoBounds(plane);
+  if(showPlaneView.auto){
+    showPlaneView.centerX=(base.minX+base.maxX)/2;
+    showPlaneView.centerY=(base.minY+base.maxY)/2;
+  }
+  const zoom=Math.max(0.25,Math.min(8,Number(showPlaneView.zoom)||1));
+  const spanX=(base.maxX-base.minX)/zoom;
+  const spanY=(base.maxY-base.minY)/zoom;
+  const cx=Number(showPlaneView.centerX)||((base.minX+base.maxX)/2);
+  const cy=Number(showPlaneView.centerY)||((base.minY+base.maxY)/2);
+  return {minX:cx-spanX/2,maxX:cx+spanX/2,minY:cy-spanY/2,maxY:cy+spanY/2};
+}
+function showPlaneToScreen(point,bounds,rect){
+  const width=Math.max(1,rect?.width||1),height=Math.max(1,rect?.height||1);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX),spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale,drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2,offsetY=(height-drawnH)/2;
+  return {x:((offsetX+(point.x-bounds.minX)*scale)/width)*100,y:((offsetY+(bounds.maxY-point.y)*scale)/height)*100};
+}
+function showPlaneScreenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width),height=Math.max(1,rect.height);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX),spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale,drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2,offsetY=(height-drawnH)/2;
+  const px=event.clientX-rect.left-offsetX;
+  const py=event.clientY-rect.top-offsetY;
+  return {x:bounds.minX+px/scale,y:bounds.maxY-py/scale,z:0};
+}
+function zoomShowPlaneView(factor){
+  if(!activeShowPlane)return;
+  const base=showPlaneBounds(activeShowPlane);
+  showPlaneView={auto:false,centerX:(base.minX+base.maxX)/2,centerY:(base.minY+base.maxY)/2,zoom:Math.max(0.25,Math.min(8,(Number(showPlaneView.zoom)||1)*factor))};
+  syncActiveShowPlaneView();
+  scheduleShowPlaneViewAutosave();
+  queueShowPlaneRender();
+}
+function resetShowPlaneView(){
+  showPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  syncActiveShowPlaneView();
+  scheduleShowPlaneViewAutosave();
+  queueShowPlaneRender();
+}
+function setShowPlanePanMode(enabled){
+  showPlanePanMode=!!enabled;
+  showPlaneViewDrag=null;
+  const button=document.getElementById('showPlanePanView');
+  const pad=document.getElementById('showPlanePad');
+  if(button){
+    button.classList.toggle('active',showPlanePanMode);
+    button.textContent=showPlanePanMode?'Stop pan view':'Pan view';
+    button.setAttribute('aria-pressed',showPlanePanMode?'true':'false');
+  }
+  if(pad)pad.classList.toggle('pan-mode',showPlanePanMode);
+}
+function setShowPlaneTarget(room){
+  if(!activeShowPlane)return;
+  activeShowPlane.target={x:Number(room.x)||0,y:Number(room.y)||0,z:Number(room.z)||0};
+  queueShowPlaneRender();
+  scheduleShowPlaneLiveSend();
+}
+function showPlaneSavedView(plane){
+  const view=plane?.view&&typeof plane.view==='object'?plane.view:{};
+  return {
+    auto:view.auto!==false,
+    centerX:Number(view.centerX)||0,
+    centerY:Number(view.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(view.zoom)||1))
+  };
+}
+function syncActiveShowPlaneView(){
+  if(!activeShowPlane||!activeShowPlaneId)return;
+  const normalized={
+    auto:showPlaneView.auto!==false,
+    centerX:Number(showPlaneView.centerX)||0,
+    centerY:Number(showPlaneView.centerY)||0,
+    zoom:Math.max(0.25,Math.min(8,Number(showPlaneView.zoom)||1))
+  };
+  activeShowPlane.view={...normalized};
+  const stored=planes.find(plane=>String(plane.id)===String(activeShowPlaneId));
+  if(stored)stored.view={...normalized};
+}
+function roomPlaneAutosavePayload(){
+  return DmxCommon.versionedPayload({
+    ...(roomPlaneSetup&&typeof roomPlaneSetup==='object'?roomPlaneSetup:{}),
+    planeCols,
+    planeRows,
+    planes:planes.map(plane=>cloneShowPlane(plane))
+  });
+}
+async function saveShowPlaneView(){
+  if(!activeShowPlane||!activeShowPlaneId||!DmxCommon.isHttp())return false;
+  syncActiveShowPlaneView();
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(roomPlaneAutosavePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Plane view saved');
+  return true;
+}
+function scheduleShowPlaneViewAutosave(){
+  clearTimeout(showPlaneViewAutosaveTimer);
+  showPlaneViewAutosaveTimer=setTimeout(()=>{
+    showPlaneViewAutosaveTimer=null;
+    saveShowPlaneView().catch(error=>setStatus('Plane view autosave failed: '+error.message,true));
+  },800);
+}
+function queueShowPlaneRender(){
+  if(showPlaneRenderQueued)return;
+  showPlaneRenderQueued=true;
+  requestAnimationFrame(()=>{showPlaneRenderQueued=false;renderShowPlaneModal();});
+}
+function showPlaneTargetNudgeStep(axis,kind){
+  const id='showPlaneStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse');
+  return Math.max(0.001,Number(document.getElementById(id)?.value)||0);
+}
+function nudgeShowPlaneTarget(axis,dir,kind){
+  if(!activeShowPlane)return;
+  const target={...activeShowPlane.target};
+  target[axis]=(Number(target[axis])||0)+(Number(dir)||0)*showPlaneTargetNudgeStep(axis,kind);
+  setShowPlaneTarget(target);
+  setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' - live output updating');
+}
+function showPlaneDrawLine(host,a,b){
+  const line=document.createElement('div');
+  line.className='show-plane-line';
+  const dx=b.x-a.x,dy=b.y-a.y;
+  line.style.left=a.x+'%';
+  line.style.top=a.y+'%';
+  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
+  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+  host.appendChild(line);
+}
+function renderShowPlanePreview(){
+  const plane=activeShowPlane;
+  const pad=document.getElementById('showPlanePad');
+  if(!plane||!pad)return;
+  pad.querySelectorAll('.show-plane-point,.show-plane-line').forEach(el=>el.remove());
+  const selected=showPlaneTargetIds();
+  const rect=pad.getBoundingClientRect();
+  const bounds=showPlaneBounds(plane);
+  const screens=plane.points.map(point=>showPlaneToScreen(point,bounds,rect));
+  const triangle=document.getElementById('showPlaneTriangle');
+  triangle.style.setProperty('--ax',screens[0].x+'%');
+  triangle.style.setProperty('--ay',screens[0].y+'%');
+  triangle.style.setProperty('--bx',screens[1].x+'%');
+  triangle.style.setProperty('--by',screens[1].y+'%');
+  triangle.style.setProperty('--cx',screens[2].x+'%');
+  triangle.style.setProperty('--cy',screens[2].y+'%');
+  screens.forEach((screen,index)=>{
+    const el=document.createElement('div');
+    el.className='show-plane-point';
+    el.textContent=plane.points[index].id;
+    el.style.left=screen.x+'%';
+    el.style.top=screen.y+'%';
+    pad.appendChild(el);
+  });
+  const targetScreen=showPlaneToScreen(plane.target,bounds,rect);
+  const target=document.getElementById('showPlaneTarget');
+  target.style.left=targetScreen.x+'%';
+  target.style.top=targetScreen.y+'%';
+  plane.fixtures.forEach((fixture,index)=>{
+    const screen=showPlaneToScreen(fixture,bounds,rect);
+    const el=document.createElement('div');
+    el.className='show-plane-point show-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');
+    el.textContent=fixture.name.replace(/[^0-9]/g,'')||String(index+1);
+    el.title=fixture.name;
+    el.style.left=screen.x+'%';
+    el.style.top=screen.y+'%';
+    pad.appendChild(el);
+    showPlaneDrawLine(pad,screen,targetScreen);
+  });
+}
+function renderShowPlaneModal(){
+  const plane=activeShowPlane;
+  if(!plane)return;
+  const selected=showPlaneTargetIds();
+  const weights=showPlaneWeights(plane);
+  document.getElementById('showPlaneTitle').textContent='Recall Plane: '+plane.name;
+  document.getElementById('showPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' - selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' - weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  const list=document.getElementById('showPlaneFixtures');
+  list.innerHTML=plane.fixtures.map(fixture=>{
+    const selectedClass=selected.has(String(fixture.id))?' selected':'';
+    const hasCurrent=fixtures.some(f=>String(f.id)===String(fixture.id));
+    const status=selected.has(String(fixture.id))?(hasCurrent?'target selected':'not patched'):(hasCurrent?'available':'not patched');
+    return '<div class="show-plane-fixture-row'+selectedClass+'"><strong>'+esc(fixture.name)+'</strong><span class="small">'+esc(status)+'</span></div>';
+  }).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
+  renderShowPlanePreview();
+}
+function openShowPlaneModal(id){
+  const plane=planes.find(item=>String(item.id)===String(id));
+  if(!plane)return;
+  activeShowPlaneId=String(id);
+  activeShowPlane=cloneShowPlane(plane);
+  showPlaneView=showPlaneSavedView(activeShowPlane);
+  showPlaneLiveSendPending=false;
+  showPlaneLastLiveStatus='';
+  setShowPlanePanMode(false);
+  renderShowPlaneModal();
+  DmxCommon.showModal('showPlaneModal');
+  requestAnimationFrame(renderShowPlanePreview);
+}
+function closeShowPlaneModal(){
+  DmxCommon.hideModal('showPlaneModal');
+  showPlaneLiveSendPending=false;
+  clearTimeout(showPlaneLiveSendTimer);
+  clearTimeout(showPlaneViewAutosaveTimer);
+  showPlaneLiveSendTimer=null;
+  showPlaneViewAutosaveTimer=null;
+  showPlaneTargetDrag=null;
+  showPlaneViewDrag=null;
+  activeShowPlaneId=null;
+  setShowPlanePanMode(false);
+}
+function showPlanePanTiltControl(fixture){
+  const profile=fixtureProfile(fixture);
+  return profile?.controls?.find(control=>control.type==='panTilt16'||control.type==='panTilt8')||null;
+}
+function scheduleShowPlaneLiveSend(){
+  showPlaneLiveSendPending=true;
+  if(showPlaneLiveSendTimer||showPlaneLiveSendBusy)return;
+  showPlaneLiveSendTimer=setTimeout(runShowPlaneLiveSend,50);
+}
+async function runShowPlaneLiveSend(){
+  showPlaneLiveSendTimer=null;
+  if(!showPlaneLiveSendPending)return;
+  showPlaneLiveSendPending=false;
+  showPlaneLiveSendBusy=true;
+  try{await sendShowPlaneLiveTarget();}
+  finally{
+    showPlaneLiveSendBusy=false;
+    if(showPlaneLiveSendPending&&!showPlaneLiveSendTimer)showPlaneLiveSendTimer=setTimeout(runShowPlaneLiveSend,50);
+  }
+}
+async function sendShowPlaneLiveTarget(){
+  const plane=activeShowPlane;
+  if(!plane)return {applied:0,errors:['No plane selected']};
+  const weights=showPlaneWeights(plane);
+  if(!weights.valid){
+    setStatus('Cannot send plane because A/B/C are invalid',true);
+    return {applied:0,errors:['Invalid plane']};
+  }
+  const selected=showPlaneTargetIds();
+  const errors=[];
+  const pairs=[];
+  const patch={};
+  let applied=0;
+  for(const currentFixture of fixtures.filter(f=>selected.has(String(f.id)))){
+    const planeFixture=plane.fixtures.find(f=>String(f.id)===String(currentFixture.id));
+    const control=showPlanePanTiltControl(currentFixture);
+    if(!planeFixture){errors.push((currentFixture.name||currentFixture.id)+': not saved in plane');continue;}
+    if(!control){errors.push((currentFixture.name||currentFixture.id)+': no Pan/Tilt control');continue;}
+    const out=showPlaneInterpolateFixture(plane,planeFixture,weights);
+    if(!out){errors.push((currentFixture.name||currentFixture.id)+': calibration incomplete');continue;}
+    const max=control.type==='panTilt8'?255:65535;
+    setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
+    patch[controlKey(currentFixture,control)]=cloneValue(getValue(currentFixture,control,defaultValueForControl(control)));
+    resolveDmxBytes(currentFixture,control).forEach(row=>pairs.push(row.ch+':'+clamp(row.val,0,255)));
+    applied++;
+  }
+  if(applied){
+    try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
+    try{await sendPairs(pairs);}
+    catch(error){errors.push(error.message||'Could not send plane live output');}
+  }
+  const statusText=(applied?'Plane live '+plane.name+' -> '+applied+' fixture'+(applied===1?'':'s')+' @ X '+Number(plane.target.x).toFixed(2)+' / Y '+Number(plane.target.y).toFixed(2):'No fixtures updated')+(errors.length?' - '+errors.join(' - '):'');
+  if(statusText!==showPlaneLastLiveStatus){
+    showPlaneLastLiveStatus=statusText;
+    setStatus(statusText,!!errors.length&&!applied);
+  }
+  return {applied,errors};
+}
+document.getElementById('showPlaneClose')?.addEventListener('click',closeShowPlaneModal);
+document.getElementById('showPlaneClose2')?.addEventListener('click',closeShowPlaneModal);
+document.getElementById('showPlaneNudgeControls')?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-show-plane-nudge-axis]');
+  if(!button)return;
+  const axis=button.dataset.showPlaneNudgeAxis;
+  const dir=Number(button.dataset.showPlaneNudgeDir)||0;
+  const kind=button.dataset.showPlaneNudgeStep||'coarse';
+  if((axis==='x'||axis==='y')&&dir)nudgeShowPlaneTarget(axis,dir,kind);
+});
+document.getElementById('showPlaneZoomIn')?.addEventListener('click',()=>zoomShowPlaneView(1.25));
+document.getElementById('showPlaneZoomOut')?.addEventListener('click',()=>zoomShowPlaneView(1/1.25));
+document.getElementById('showPlaneResetView')?.addEventListener('click',()=>resetShowPlaneView());
+document.getElementById('showPlanePanView')?.addEventListener('click',()=>setShowPlanePanMode(!showPlanePanMode));
+document.getElementById('showPlanePad')?.addEventListener('pointerdown',event=>{
+  if(!activeShowPlane)return;
+  event.preventDefault();
+  const pad=event.currentTarget;
+  const rect=pad.getBoundingClientRect();
+  const bounds=showPlaneBounds(activeShowPlane);
+  if(showPlanePanMode||event.button===1||event.button===2||event.shiftKey){
+    showPlaneView.auto=false;
+    showPlaneViewDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};
+    pad.setPointerCapture?.(event.pointerId);
+    return;
+  }
+  showPlaneTargetDrag={pointerId:event.pointerId,bounds};
+  pad.setPointerCapture?.(event.pointerId);
+  setShowPlaneTarget(showPlaneScreenToRoom(event,rect,bounds));
+});
+document.getElementById('showPlanePad')?.addEventListener('pointermove',event=>{
+  if(activeShowPlane&&showPlaneViewDrag&&showPlaneViewDrag.pointerId===event.pointerId){
+    const rect=event.currentTarget.getBoundingClientRect();
+    const spanX=showPlaneViewDrag.bounds.maxX-showPlaneViewDrag.bounds.minX;
+    const spanY=showPlaneViewDrag.bounds.maxY-showPlaneViewDrag.bounds.minY;
+    const dx=(event.clientX-showPlaneViewDrag.x)/Math.max(1,rect.width)*spanX;
+    const dy=(event.clientY-showPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;
+    showPlaneView.centerX=((showPlaneViewDrag.bounds.minX+showPlaneViewDrag.bounds.maxX)/2)-dx;
+    showPlaneView.centerY=((showPlaneViewDrag.bounds.minY+showPlaneViewDrag.bounds.maxY)/2)+dy;
+    showPlaneView.auto=false;
+    syncActiveShowPlaneView();
+    scheduleShowPlaneViewAutosave();
+    queueShowPlaneRender();
+    return;
+  }
+  if(!activeShowPlane||!showPlaneTargetDrag||showPlaneTargetDrag.pointerId!==event.pointerId)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  setShowPlaneTarget(showPlaneScreenToRoom(event,rect,showPlaneTargetDrag.bounds));
+});
+document.getElementById('showPlanePad')?.addEventListener('pointerup',event=>{
+  if(showPlaneViewDrag&&showPlaneViewDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    showPlaneViewDrag=null;
+  }
+  if(showPlaneTargetDrag&&showPlaneTargetDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    showPlaneTargetDrag=null;
+  }
+});
+document.getElementById('showPlanePad')?.addEventListener('pointercancel',()=>{showPlaneTargetDrag=null;showPlaneViewDrag=null;});
+document.getElementById('showPlanePad')?.addEventListener('contextmenu',event=>event.preventDefault());
+document.getElementById('showPlanePad')?.addEventListener('wheel',event=>{event.preventDefault();zoomShowPlaneView(event.deltaY<0?1.12:1/1.12);},{passive:false});
 function slotPayloadLabel(payload,index,prefix){
   if(!payload)return '';
   try{
@@ -2082,7 +2886,8 @@ function mergePicoMotionSlots(mirroredSlots,liveSlots){
       bpm:live?.bpm||mirror?.bpm||30,
       target_count:live?.target_count||mirror?.target_count||0,
       fixture_count:live?.fixture_count||mirror?.fixture_count||0,
-      active:!!live?.active
+      active:!!live?.active,
+      paused:!!live?.paused
     };
   });
 }
@@ -2094,6 +2899,14 @@ function updateChaserPauseResumeButton(){
   const btn=document.getElementById('chaserControlPauseResume');
   if(!btn)return;
   const slotData=chaserSlots[chaserSelectedSlot]||null;
+  const paused=!!slotData?.paused;
+  btn.textContent=paused?'Resume':'Pause';
+  btn.dataset.action=paused?'resume':'pause';
+}
+function updateMotionPauseResumeButton(){
+  const btn=document.getElementById('motionControlPauseResume');
+  if(!btn)return;
+  const slotData=motionSlots[motionSelectedSlot]||null;
   const paused=!!slotData?.paused;
   btn.textContent=paused?'Resume':'Pause';
   btn.dataset.action=paused?'resume':'pause';
@@ -2118,6 +2931,7 @@ function selectMotionSlot(slot){
   const slotData=motionSlots[motionSelectedSlot]||null;
   const bpm=document.getElementById('motionControlBpm');
   if(bpm&&slotData?.bpm)bpm.value=Math.round(Number(slotData.bpm)||30);
+  updateMotionPauseResumeButton();
 }
 function playbackSlotsForType(type){
   return type==='chaser'?chaserSlots:motionSlots;
@@ -2132,6 +2946,7 @@ function updatePlaybackSlotState(type,slot,patch){
   if(!slots[index])return;
   Object.assign(slots[index],patch);
   if(type==='chaser'&&Number(index)===Number(chaserSelectedSlot))updateChaserPauseResumeButton();
+  if(type==='motion'&&Number(index)===Number(motionSelectedSlot))updateMotionPauseResumeButton();
   drawPlaybackForType(type);
 }
 function renderPlaybackSlots(){
@@ -2173,9 +2988,12 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
       ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}`
       :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}`:'Pico slot '+sourceSlot;
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
-    const actionLabel=item?.active?'Stop':'Start';
-    const actionClass=item?.active?'stop':'primary';
-    const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button></div>`;
+    const running=!!(item?.active||item?.paused);
+    const actionLabel=running?'Stop':'Start';
+    const actionClass=running?'stop':'primary';
+    const pauseLabel=item?.paused?'Resume':'Pause';
+    const pauseAction=running?`<button data-${type}-pause-toggle="${sourceSlot}">${pauseLabel}</button>`:'';
+    const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button>${pauseAction}</div>`;
     if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
@@ -2183,7 +3001,12 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
   container.querySelectorAll(`[data-${type}-toggle]`).forEach(btn=>btn.addEventListener('click',()=>{
     const slot=parseInt(btn.dataset[type+'Toggle'],10);
     const slotData=playbackSlotsForType(type)[slot];
-    const action=slotData?.active?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+    const action=(slotData?.active||slotData?.paused)?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+    action.catch(err=>setStatus(err.message,true));
+  }));
+  container.querySelectorAll(`[data-${type}-pause-toggle]`).forEach(btn=>btn.addEventListener('click',()=>{
+    const slot=parseInt(btn.dataset[type+'PauseToggle'],10);
+    const action=togglePlaybackPauseResume(type,slot);
     action.catch(err=>setStatus(err.message,true));
   }));
   container.querySelectorAll('[data-show-tile-index]').forEach(el=>el.addEventListener('click',e=>{
@@ -2430,6 +3253,7 @@ function renderMasterCard(){
   document.querySelectorAll('[data-target-master-list]').forEach(list=>{
     list.innerHTML=targetMasters.map((master,index)=>`
       <div class="master-fader" data-target-master="${index}">
+        <button type="button" class="master-delete" data-target-master-delete="${index}" title="Delete ${esc(master.name)}" aria-label="Delete ${esc(master.name)}">×</button>
         <h3>${esc(master.name)}</h3>
         <button type="button" data-master-full="target:${index}">Full</button>
         <input class="target-master-fader" type="range" min="0" max="100" value="${Math.round(master.factor*100)}" data-target-master-fader="${index}">
@@ -2507,6 +3331,20 @@ function bindMasterCard(){
       setStatus('Cleared '+targetMasters[index].name);
     };
   });
+  document.querySelectorAll('[data-target-master-delete]').forEach(btn=>{
+    btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'...',success:'Deleted',error:'Failed'},async()=>{
+      if(!layoutEditing)return;
+      const index=parseInt(btn.dataset.targetMasterDelete,10);
+      normalizeTargetMasters();
+      const removed=targetMasters[index];
+      if(!removed)return;
+      targetMasters.splice(index,1);
+      saveTargetMasters();
+      bindMasterCard();
+      await applyMasterDimmerScale();
+      setStatus('Deleted '+removed.name);
+    }).catch(err=>setStatus(err.message,true));
+  });
   document.querySelectorAll('.add-target-master').forEach(btn=>{
     btn.onclick=()=>{
       if(btn.disabled)return;
@@ -2549,6 +3387,7 @@ async function stopPico(type){
     if(slot)Object.assign(slot,{active:false,paused:false});
   });
   if(type==='chaser')updateChaserPauseResumeButton();
+  if(type==='motion')updateMotionPauseResumeButton();
   drawPlaybackForType(type);
 }
 async function stopPicoSlot(type,slot){
@@ -2577,9 +3416,34 @@ async function resumeChaserSlot(slot){
   updateChaserPauseResumeButton();
   setStatus('chaser slot '+slot+' resumed');
 }
+async function pauseMotionSlot(slot){
+  const root=endpoint();
+  if(!root)throw new Error('Set Pico base URL first');
+  const r=await fetch(root+'/motion/pause/'+slot,{cache:'no-store'});
+  if(!r.ok)throw new Error('Pico effect pause failed: HTTP '+r.status);
+  updatePlaybackSlotState('motion',slot,{active:false,paused:true});
+  setStatus('effect slot '+slot+' paused');
+}
+async function resumeMotionSlot(slot){
+  const root=endpoint();
+  if(!root)throw new Error('Set Pico base URL first');
+  const r=await fetch(root+'/motion/resume/'+slot,{cache:'no-store'});
+  if(!r.ok)throw new Error('Pico effect resume failed: HTTP '+r.status);
+  updatePlaybackSlotState('motion',slot,{active:true,paused:false});
+  setStatus('effect slot '+slot+' resumed');
+}
 async function toggleChaserPauseResume(){
   const slotData=chaserSlots[chaserSelectedSlot]||null;
   return slotData?.paused?resumeChaserSlot(chaserSelectedSlot):pauseChaserSlot(chaserSelectedSlot);
+}
+async function toggleMotionPauseResume(){
+  const slotData=motionSlots[motionSelectedSlot]||null;
+  return slotData?.paused?resumeMotionSlot(motionSelectedSlot):pauseMotionSlot(motionSelectedSlot);
+}
+async function togglePlaybackPauseResume(type,slot){
+  const slotData=playbackSlotsForType(type)[slot]||null;
+  if(type==='chaser')return slotData?.paused?resumeChaserSlot(slot):pauseChaserSlot(slot);
+  return slotData?.paused?resumeMotionSlot(slot):pauseMotionSlot(slot);
 }
 async function setChaserSlotSpeed(slot){
   const root=endpoint();
@@ -2613,7 +3477,8 @@ async function startPicoSlot(type,slot){
   const action=type==='chaser'?'play':'start';
   const run=await fetch(root+'/'+type+'/'+action+'/'+slot,{cache:'no-store'});
   if(!run.ok)throw new Error('Pico '+type+' start failed: HTTP '+run.status);
-  updatePlaybackSlotState(type,slot,type==='chaser'?{active:true,paused:false}:{active:true});
+  if(masterFactorsNeedRestore())await applyMasterDimmerScale();
+  updatePlaybackSlotState(type,slot,{active:true,paused:false});
   setStatus(type+' slot '+slot+' started');
 }
 async function loadJson(url,fallback){
@@ -2653,11 +3518,12 @@ async function loadShow(options={}){
   const isAuto=options.reason==='auto';
   if(!isAuto)setStatus('Loading show...');
   hiddenTileModalDismissed=false;
-  const [fixtureData,groupData,sceneData,paletteData,chaserData,motionData,liveData,serverShowUiState]=await Promise.all([
+  const [fixtureData,groupData,sceneData,paletteData,planeData,chaserData,motionData,liveData,serverShowUiState]=await Promise.all([
     loadJson('fixture_setup.php',{exists:false,setup:null}),
     loadJson('group_setup.php',{groups:[]}),
     loadJson('scene_setup.php',{scenes:[],slotCols:4,slotRows:4}),
     loadJson('palette_setup.php',{palettes:[],paletteCols:4,paletteRows:4}),
+    loadJson('room_plane_setup.php',{planes:[],planeCols:3,planeRows:3}),
     loadJson('chaser_setup.php?slots',{pico_slots:[],pico_url:null}),
     loadJson('motion_setup.php?slots',{pico_slots:[],pico_url:null}),
     loadJson('fixture_setup.php?livevalues',{exists:false,values:{}}),
@@ -2672,8 +3538,13 @@ async function loadShow(options={}){
   groups=Array.isArray(groupData.groups)?groupData.groups:[];
   scenes=Array.isArray(sceneData.scenes)?sceneData.scenes:[];
   palettes=Array.isArray(paletteData.palettes)?paletteData.palettes:[];
+  roomPlaneSetup=normalizeRoomPlaneSetupForShow(planeData);
+  const planeSource=Array.isArray(planeData.planes)?planeData.planes:(Array.isArray(planeData.setup?.planes)?planeData.setup.planes:[]);
+  planes=planeSource.map(normalizeShowPlane);
   sceneCols=sceneData.slotCols||4;sceneRows=sceneData.slotRows||4;
   paletteCols=paletteData.paletteCols||4;paletteRows=paletteData.paletteRows||4;
+  planeCols=Math.max(1,Math.min(32,parseInt(planeData.planeCols??planeData.setup?.planeCols??planeCols,10)||3));
+  planeRows=Math.max(1,Math.min(32,parseInt(planeData.planeRows??planeData.setup?.planeRows??planeRows,10)||3));
   applySavedLayout();
   loadCardLayouts();
   loadLiveControls();
@@ -2684,7 +3555,7 @@ async function loadShow(options={}){
   const liveMotionSlots=await loadLivePicoMotionSlots(savedUrl||baseUrlEl.value);
   chaserSlots=mergePicoChaserSlots(Array.isArray(chaserData.pico_slots)?chaserData.pico_slots:[],liveChaserSlots);
   motionSlots=mergePicoMotionSlots(Array.isArray(motionData.pico_slots)?motionData.pico_slots:[],liveMotionSlots);
-  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
   loadMidiStatus({silent:true});
@@ -2692,7 +3563,7 @@ async function loadShow(options={}){
   let masterApplyError=null;
   try{appliedMasters=await applyDimmerMastersForEntry();}
   catch(err){masterApplyError=err;}
-  const loadMessage=(isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s)';
+  const loadMessage=(isAuto?'Show data refreshed: ':'Show loaded: ')+fixtures.length+' fixture(s), '+groups.length+' group(s), '+scenes.length+' scene(s), '+palettes.length+' palette(s), '+planes.length+' plane(s)';
   setStatus(masterApplyError?loadMessage+' · master output not applied: '+masterApplyError.message:loadMessage+(appliedMasters?' · master output applied':''));
   reviewHiddenTiles(true);
 }
@@ -2734,7 +3605,133 @@ document.addEventListener('click',e=>{
 document.getElementById('reloadBtn').onclick=()=>DmxCommon.withButtonFeedback('reloadBtn',{busy:'Refreshing...',success:'Refreshed',error:'Failed'},()=>refreshShowData({reason:'manual'})).catch(err=>setStatus(err.message,true));
 bindMidiCards();
 bindMasterCard();
-document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();selectedFixtureIds.clear();renderGroups();renderFixtures();setStatus('Show target reset to all fixtures');};
+document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();selectedFixtureIds.clear();renderGroups();renderFixtures();updateShowGroupEditButton();setStatus('Show target reset to all fixtures');};
+document.getElementById('showGroupEditBtn').onclick=openShowGroupEditModal;
+document.getElementById('showGroupModalClose').onclick=closeShowGroupEditModal;
+document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
+document.getElementById('showGroupModalBody').addEventListener('input',e=>{
+  const colorInput=e.target.closest?.('[data-show-group-color-picker]');
+  if(colorInput){
+    const key=colorInput.dataset.showGroupColorPicker;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    let next=null;
+    const type=row.control.type;
+    if(type==='rgb'||type==='rgbw'||type==='rgbwa'){
+      const rgb=hexToRgb(colorInput.value);
+      next={a:rgb.a,b:rgb.b,c:rgb.c};
+    }else if(type==='cmy')next=rgbToCmy(colorInput.value);
+    else if(type==='cmyk')next=rgbToCmyk(colorInput.value);
+    if(!next)return;
+    row.targets.forEach(target=>{
+      const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+      const merged={...(typeof current==='object'?current:{}),...next};
+      setValue(target.fixture,target.control,merged);
+    });
+    scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const input=e.target.closest?.('[data-show-group-slider],[data-show-group-number]');
+  if(!input)return;
+  const key=input.dataset.showGroupSlider||input.dataset.showGroupNumber;
+  const part=input.dataset.part;
+  const row=showGroupEditControls().find(item=>item.key===key);
+  const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
+  if(!row||!partInfo)return;
+  const value=clamp(input.value,0,partInfo.max);
+  row.targets.forEach(target=>setControlPartValue(target.fixture,target.control,part,value));
+  refreshShowGroupControlRow(key,part);
+  sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+});
+document.getElementById('showGroupModalBody').addEventListener('click',e=>{
+  const center=e.target.closest?.('[data-show-group-center]');
+  if(center){
+    const key=center.dataset.showGroupCenter;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    const value=row.control.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
+    row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+    refreshShowGroupControlRow(key,'pan');
+    refreshShowGroupControlRow(key,'tilt');
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' centered')).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const swatch=e.target.closest?.('[data-show-group-color]');
+  if(swatch){
+    const key=swatch.dataset.showGroupColor;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    let next=null;
+    const type=row.control.type;
+    if(type==='rgb'||type==='rgbw'||type==='rgbwa'){
+      const rgb=hexToRgb(swatch.dataset.color);
+      next={a:rgb.a,b:rgb.b,c:rgb.c};
+    }else if(type==='cmy')next=rgbToCmy(swatch.dataset.color);
+    else if(type==='cmyk')next=rgbToCmyk(swatch.dataset.color);
+    if(!next)return;
+    row.targets.forEach(target=>{
+      const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+      setValue(target.fixture,target.control,{...(typeof current==='object'?current:{}),...next});
+    });
+    scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color')).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const wheel=e.target.closest?.('[data-show-group-wheel]');
+  if(wheel){
+    const key=wheel.dataset.showGroupWheel;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    if(!row)return;
+    const value=clamp(wheel.dataset.wheelValue,0,255);
+    row.targets.forEach(target=>setControlPartValue(target.fixture,target.control,'value',value));
+    refreshShowGroupControlRow(key,'value');
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const btn=e.target.closest?.('[data-show-group-relative]');
+  if(!btn)return;
+  const key=btn.dataset.showGroupRelative;
+  const part=btn.dataset.part;
+  const row=showGroupEditControls().find(item=>item.key===key);
+  const partInfo=scalarControlParts(row?.control||{}).find(item=>item.part===part);
+  if(!row||!partInfo)return;
+  const stepInput=btn.closest('.relative-control')?.querySelector('input[type=number]');
+  const step=Math.max(1,Math.min(partInfo.max,parseInt(stepInput?.value,10)||1));
+  const dir=parseInt(btn.dataset.dir,10)||1;
+  row.targets.forEach(target=>{
+    const next=getControlPartValue(target.fixture,target.control,part)+dir*step;
+    setControlPartValue(target.fixture,target.control,part,next);
+  });
+  refreshShowGroupControlRow(key,part);
+  sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' nudged')).catch(err=>setStatus(err.message,true));
+});
+function setShowGroupXY(event,pad){
+  const key=pad.dataset.showGroupXy;
+  const row=showGroupEditControls().find(item=>item.key===key);
+  if(!row)return;
+  const rect=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
+  const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/Math.max(1,rect.height)));
+  const max=row.control.type==='panTilt8'?255:65535;
+  const value={pan:Math.round(x*max),tilt:Math.round((1-y)*max)};
+  row.targets.forEach(target=>setValue(target.fixture,target.control,cloneValue(value)));
+  refreshShowGroupControlRow(key,'pan');
+  refreshShowGroupControlRow(key,'tilt');
+  sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+}
+document.getElementById('showGroupModalBody').addEventListener('pointerdown',e=>{
+  const pad=e.target.closest?.('[data-show-group-xy]');
+  if(!pad)return;
+  e.preventDefault();
+  pad.setPointerCapture?.(e.pointerId);
+  setShowGroupXY(e,pad);
+});
+document.getElementById('showGroupModalBody').addEventListener('pointermove',e=>{
+  const pad=e.target.closest?.('[data-show-group-xy]');
+  if(!pad||!pad.hasPointerCapture?.(e.pointerId))return;
+  setShowGroupXY(e,pad);
+});
 document.getElementById('stopChaserBtn').onclick=()=>DmxCommon.withButtonFeedback('stopChaserBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('chaser')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopMotionBtn').onclick=()=>DmxCommon.withButtonFeedback('stopMotionBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPico('motion')).catch(err=>setStatus(err.message,true));
 document.getElementById('stopAllBtn').onclick=()=>DmxCommon.withButtonFeedback('stopAllBtn',{busy:'Stopping...',success:'Stopped',error:'Failed'},async()=>{await Promise.allSettled([stopPico('chaser'),stopPico('motion')]);setStatus('All Pico playback stopped');}).catch(err=>setStatus(err.message,true));
@@ -2745,6 +3742,7 @@ document.getElementById('chaserControlSetSpeed').onclick=()=>DmxCommon.withButto
 document.getElementById('chaserControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('chaserControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('chaser',chaserSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlSlot').onchange=e=>{selectMotionSlot(e.target.value);renderMotionPlayback();};
 document.getElementById('motionControlStart').onclick=()=>DmxCommon.withButtonFeedback('motionControlStart',{busy:'Starting...',success:'Started',error:'Failed'},()=>startPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
+document.getElementById('motionControlPauseResume').onclick=()=>toggleMotionPauseResume().catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonFeedback('motionControlSetBpm',{busy:'Setting...',success:'BPM Set',error:'Failed'},()=>setMotionSlotBpm(motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
@@ -2760,6 +3758,7 @@ bindMatrixInputs('group',normalizeGroupGrid,renderGroups,8,12);
 bindMatrixInputs('fixture',normalizeFixtureGrid,renderFixtures,32,32);
 bindMatrixInputs('scene',normalizeSceneGrid,renderScenes,32,32);
 bindMatrixInputs('palette',normalizePaletteGrid,renderPalettes,32,32);
+bindMatrixInputs('plane',normalizePlaneGrid,renderPlanes,32,32);
 bindMatrixInputs('chaser',normalizeChaserGrid,drawChaserPlayback,32,32);
 bindMatrixInputs('motion',normalizeMotionGrid,drawMotionPlayback,32,32);
 bindPlaybackTileMoveCapture();

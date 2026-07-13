@@ -75,6 +75,10 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .participant-list .item.collapsed .ctrl-summary{display:flex}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#22303a;border:1px solid var(--line);padding:4px 10px;border-radius:20px;white-space:nowrap}
 .mode-badge--pico{color:var(--accent);border-color:var(--accent);background:rgba(55,196,164,.08)}
+.relative-control{display:grid;grid-template-columns:auto minmax(72px,100px) auto;gap:6px;align-items:end}
+.relative-control label{display:grid;gap:4px;min-width:0}
+.relative-control input[type=number]{width:100%;min-width:0}
+.relative-control button{min-width:38px;padding:6px 10px}
 .xy-pad,.xy-mini{position:relative;border:1px solid var(--line);border-radius:8px;background:linear-gradient(#22303a 1px,transparent 1px),linear-gradient(90deg,#22303a 1px,transparent 1px),#0a0d10;background-size:25% 25%}
 .xy-pad{aspect-ratio:1.55/1;touch-action:none;cursor:crosshair}
 .xy-mini{width:120px;height:120px;flex-shrink:0}
@@ -93,6 +97,16 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .pico-slot-strip{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;width:min(760px,calc(100vw - 32px));max-width:760px;max-height:90vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 18px 70px rgba(0,0,0,.55)}
+.modal-card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;width:min(760px,calc(100vw - 32px));max-width:760px;max-height:90vh;display:flex;flex-direction:column;gap:12px;overflow:hidden;box-shadow:0 18px 70px rgba(0,0,0,.55)}
+.modal-head{display:flex;align-items:center;gap:10px}
+.modal-head h2{flex:1;min-width:0;margin:0}
+.modal-head button{flex:0 0 auto}
+.modal-title-stack{flex:1;min-width:0;display:grid;gap:3px}
+.modal-card .modal-head{padding-right:44px;min-height:36px}
+.modal-card .modal-head>[data-ptd-close][aria-label="Close"],.modal-card .modal-head>button[aria-label="Close"]{position:absolute;top:12px;right:12px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0!important}
+.modal-card .modal-body{flex:0 0 auto;max-height:none;overflow:visible}
+.modal-card .xy-pad{height:clamp(150px,24dvh,230px);aspect-ratio:auto}
+.modal-actions [data-ptd-extra-actions]{display:inline-grid;grid-template-columns:repeat(3,max-content);gap:8px;align-items:center}
 .modal-body{overflow-y:auto;display:grid;gap:12px;flex:1;min-height:0;overscroll-behavior:contain}
 .wide-modal{width:min(1100px,calc(100vw - 32px));max-width:1100px}
 .wheel-option-grid{display:grid;grid-template-columns:minmax(150px,1.4fr) 72px 72px minmax(130px,1fr) 70px minmax(105px,1fr) minmax(105px,1fr) minmax(230px,1.2fr) 52px;gap:8px;align-items:end}
@@ -101,6 +115,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .wheel-option-grid .icon-btn{align-self:end}
 .wheel-option-visual{display:grid;grid-template-columns:34px minmax(0,1fr);gap:6px;align-items:end}
 .wheel-option-preview{width:34px;height:34px;border:1px solid var(--line);border-radius:6px;background-color:#0a0d10;background-size:cover;background-position:center}
+.option-icon{display:inline-block;width:22px;height:22px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;background-size:cover;background-position:center;margin-right:6px}
 .wheel-option-visual-fields{display:flex;gap:6px;align-items:end;justify-content:start;flex-wrap:wrap;min-width:0}
 .wheel-option-visual-fields label{flex:1 0 100%}
 .wheel-option-visual-fields input[type=color]{height:34px;padding:2px}
@@ -109,16 +124,23 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .wheel-icon-draw-tools{align-items:end}
 #wheelIconCanvas{background-color:#0a0d10;background-image:linear-gradient(45deg,rgba(255,255,255,.08) 25%,transparent 25%),linear-gradient(-45deg,rgba(255,255,255,.08) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,rgba(255,255,255,.08) 75%),linear-gradient(-45deg,transparent 75%,rgba(255,255,255,.08) 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0}
 @media(max-width:900px){.wheel-option-grid{grid-template-columns:1fr 1fr}.wheel-option-grid--header{display:none}.wheel-option-grid .icon-btn{width:100%}}
-#groupModal .modal,#chaserGroupModal .modal,#motionGroupModal .modal{width:min(760px,calc(100vw - 32px));max-width:760px;overflow:hidden}
-#groupModal .modal>div:first-child,#chaserGroupModal .modal>div:first-child,#motionGroupModal .modal>div:first-child,#groupModal .modal>.buttons,#chaserGroupModal .modal>.buttons,#motionGroupModal .modal>.buttons{flex:0 0 auto}
-#groupModal .modal-body,#chaserGroupModal .modal-body,#motionGroupModal .modal-body{display:flex;flex-direction:column;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:0 1 auto;max-height:min(620px,calc(100dvh - 170px));padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
-#groupModal .control,#chaserGroupModal .control,#motionGroupModal .control{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:visible;flex:0 0 auto}
-#groupModal .control-head,#chaserGroupModal .control-head,#motionGroupModal .control-head{min-width:0}
-#groupModal .control label,#chaserGroupModal .control label,#motionGroupModal .control label{min-width:0;max-width:100%}
-#groupModal input,#groupModal select,#groupModal textarea,#chaserGroupModal input,#chaserGroupModal select,#chaserGroupModal textarea,#motionGroupModal input,#motionGroupModal select,#motionGroupModal textarea{min-width:0;max-width:100%}
-#groupModal .byte-sliders,#chaserGroupModal .byte-sliders,#motionGroupModal .byte-sliders{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
-#groupModal .tabs,#chaserGroupModal .tabs,#motionGroupModal .tabs{min-width:0;max-width:100%;overflow:hidden}
-#groupModal .tab,#chaserGroupModal .tab,#motionGroupModal .tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.fixture-control-modal .modal-card{width:min(760px,calc(100vw - 32px));max-width:760px;overflow:hidden}
+.fixture-control-modal .modal-body{display:flex;flex-direction:column;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:0 1 auto;max-height:min(620px,calc(100dvh - 170px));padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.fixture-control-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
+.fixture-control-modal .control{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:visible;flex:0 0 auto}
+.fixture-control-modal .control-head{min-width:0}
+.fixture-control-modal .control label{min-width:0;max-width:100%}
+.fixture-control-modal input,.fixture-control-modal select,.fixture-control-modal textarea{min-width:0;max-width:100%}
+.fixture-control-modal .byte-sliders{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.fixture-control-modal .tabs{min-width:0;max-width:100%;overflow:hidden}
+.fixture-control-modal .tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.section-control-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px;overflow:hidden}
+.section-control-modal .modal-body{display:grid;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:1 1 auto;max-height:calc(90dvh - 150px);padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.section-control-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
+.visual-editor-modal .modal-body{display:grid;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:1 1 auto;padding-right:4px;-webkit-overflow-scrolling:touch}
+.visual-editor-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
+.form-modal .modal-body{display:grid;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:1 1 auto;max-height:calc(90dvh - 150px);padding-right:4px;-webkit-overflow-scrolling:touch}
+.form-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
 .wheel-range-control{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:8px 10px;display:grid;gap:5px}
 .wheel-range-control label{display:grid;gap:5px;min-width:0}
 .scene-toolbox{position:fixed;top:20px;right:20px;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:200px;max-width:520px;box-shadow:0 6px 32px rgba(0,0,0,.65);user-select:none}
@@ -128,6 +150,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox--palettes .scene-toolbox__header{background:rgb(50,90,54)}
 .scene-toolbox--fan .scene-toolbox__header{background:#5a171a}
 .scene-toolbox--effects .scene-toolbox__header{background:#17425a}
+.scene-toolbox--planes .scene-toolbox__header{background:#0b2f4f}
 .scene-toolbox--fan input[type=range]{width:100%;min-width:0}
 .scene-toolbox--fan label{min-width:0}
 .fan-nudge-control{display:grid;grid-template-columns:auto minmax(72px,100px) auto;gap:6px;align-items:end}
@@ -150,6 +173,10 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .groups-edit-btn{grid-column:1/-1;grid-row:auto;align-self:start;width:100%;padding:8px 12px;line-height:1.1;min-height:44px}
 .groups-matrix{display:grid;gap:8px;align-content:start}
 .groups-matrix .item{align-content:start}
+.group-tile{position:relative;min-height:94px;overflow:hidden}
+.group-tile-content{position:relative;z-index:1;display:grid;gap:4px;align-content:end;min-width:0;height:100%}
+.group-tile-name{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.75)}
+.group-tile-meta{font-size:12px;color:var(--muted)}
 .groups-matrix .item>div{min-width:0}
 .groups-matrix .item strong{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .groups-matrix .item .small{flex-shrink:0}
@@ -215,6 +242,7 @@ body.toolbox-rail-collapsed .toolbox-rail-resizer,body.toolbox-rail-collapsed .t
 .toolbox-rail .groups-layout-controls{grid-column:1/-1}
 .toolbox-rail .groups-edit-btn{grid-column:1/-1;grid-row:auto;min-height:44px;align-self:start}
 .toolbox-rail .scene-slot-matrix,.toolbox-rail .groups-matrix{overflow-x:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.toolbox-rail .groups-matrix{padding-left:10px;box-sizing:border-box}
 .toolbox-rail .slot{width:auto;min-width:54px}
 .toolbox-rail #stepsBox{height:min(520px,45vh);max-height:none;resize:none;overflow:hidden}
 .toolbox-rail #stepsBox.collapsed{height:auto!important;resize:none}

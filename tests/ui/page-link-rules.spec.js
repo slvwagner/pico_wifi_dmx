@@ -2,18 +2,19 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 const APP_PAGES = [
-  { path: '', manualHref: 'user-manual.html?v=0.9.7#1-fixture-controller', manualText: 'Fixture Controller' },
-  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=0.9.7#4-show-run', manualText: 'Show Run' },
-  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=0.9.7#5-chaser', manualText: 'Chaser' },
-  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=0.9.7#6-effects', manualText: 'Effects' },
-  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.7#7-gpio-control', manualText: 'GPIO Control' },
-  { path: 'test/', manualHref: '../user-manual.html?v=0.9.7#8-pico-performance-test', manualText: 'Pico Performance Test' },
-  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=0.9.7#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' }
+  { path: '', manualHref: 'user-manual.html?v=0.9.8#1-fixture-controller', manualText: 'Fixture Controller' },
+  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=0.9.8#4-show-run', manualText: 'Show Run' },
+  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=0.9.8#5-chaser', manualText: 'Chaser' },
+  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=0.9.8#6-effects', manualText: 'Effects' },
+  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.8#7-gpio-control', manualText: 'GPIO Control' },
+  { path: 'test/', manualHref: '../user-manual.html?v=0.9.8#8-pico-performance-test', manualText: 'Pico Performance Test' },
+  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=0.9.8#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
+  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=0.9.8#10-room-plane', manualText: 'Room Plane' }
 ];
 
 test.describe('Page link rules', () => {
   test('main pages link to Show Run', async ({ page }) => {
-    for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_gpio.html', 'dmx_monitor.html']) {
+    for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_gpio.html', 'dmx_monitor.html', 'dmx_room_plane.html']) {
       await openDmxPage(page, path);
       await expect(page.locator('header a.nav[href="dmx_show.html"]')).toHaveText('Show');
     }
@@ -23,7 +24,7 @@ test.describe('Page link rules', () => {
   });
 
   test('main pages label the effects page consistently', async ({ page }) => {
-    for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_gpio.html', 'dmx_monitor.html']) {
+    for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_gpio.html', 'dmx_monitor.html', 'dmx_room_plane.html']) {
       await openDmxPage(page, path);
       await expect(page.locator('header a.nav[href="dmx_motion.html"]')).toHaveText('Effects');
     }
@@ -38,6 +39,16 @@ test.describe('Page link rules', () => {
 
     await openDmxPage(page, 'test/');
     await expect(page.locator('header a.nav[href="../dmx_monitor.html"]')).toHaveText('Monitor');
+  });
+
+  test('main pages link to the Room Plane page', async ({ page }) => {
+    for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_gpio.html', 'dmx_monitor.html', 'dmx_room_plane.html']) {
+      await openDmxPage(page, path);
+      await expect(page.locator('header a.nav[href="dmx_room_plane.html"]')).toHaveText('Plane');
+    }
+
+    await openDmxPage(page, 'test/');
+    await expect(page.locator('header a.nav[href="../dmx_room_plane.html"]')).toHaveText('Plane');
   });
 
   test('page manual links jump to the matching manual section', async ({ page }) => {

@@ -22,6 +22,17 @@ test.describe('Effects established rules', () => {
         body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
       });
     });
+    await page.route('**/room_plane_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, points: [], fixtures: [], planes: [], planeCols: 3, planeRows: 3 })
+      });
+    });
     await page.addInitScript(() => sessionStorage.removeItem('dmxMotionWorkingState'));
     await openDmxPage(page, 'dmx_motion.html');
     await injectMotionCompactSetup(page);
@@ -58,6 +69,134 @@ test.describe('Effects established rules', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('#picoMotionPanel .panel-body')).toBeHidden();
     await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
+  });
+
+  test('Effects toolbox tile matrices expose common Move controls', async ({ page }) => {
+    await page.evaluate(() => {
+      motionGroupsBox.setGroups([
+        { id: 'grp_a', name: 'Group A', slot: 0, fixtureIds: [101], values: {} },
+        { id: 'grp_b', name: 'Group B', slot: 1, fixtureIds: [102], values: {} }
+      ]);
+      motionEffects = [
+        { id: 'fx_a', name: 'Effect A', slot: 0, recipe: { targetKey: '', params: {}, fixtures: [] } },
+        { id: 'fx_b', name: 'Effect B', slot: 1, recipe: { targetKey: '', params: {}, fixtures: [] } }
+      ];
+      motionPalettes = [
+        { id: 'pal_a', name: 'Palette A', slot: 0, values: { '101:11': 80 } },
+        { id: 'pal_b', name: 'Palette B', slot: 1, values: { '102:21': 40 } }
+      ];
+      motionPlanes = [
+        DmxCommon.normalizeRoomPlane({ id: 'plane_a', name: 'Plane A', slot: 0, fixtures: [] }, 0),
+        DmxCommon.normalizeRoomPlane({ id: 'plane_b', name: 'Plane B', slot: 1, fixtures: [] }, 1)
+      ];
+      renderMotionEffectMatrix();
+      renderMotionPaletteMatrix();
+      motionPlanesMatrix.render();
+    });
+
+    await expect(page.locator('#motionGroupsMove')).toBeVisible();
+    await expect(page.locator('#motionGroupsRename')).toHaveCount(0);
+    await expect(page.locator('#motionGroupsDelete')).toHaveCount(0);
+    await expect(page.locator('#motionGroupsList [data-edit-group-tile="0"]')).toBeVisible();
+    await expect(page.locator('#motionGroupsList [data-delete-group-tile="0"]')).toBeVisible();
+    await expect(page.locator('#moveMotionEffectsBtn')).toBeVisible();
+    await expect(page.locator('#moveMotionPalettesBtn')).toBeVisible();
+    await expect(page.locator('#moveMotionPlanesBtn')).toBeVisible();
+
+    await page.locator('#moveMotionEffectsBtn').click();
+    await page.locator('[data-motion-effect-slot="0"]').click();
+    await page.locator('[data-motion-effect-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => motionEffects.find(effect => effect.id === 'fx_a').slot)).toBe(3);
+
+    await page.locator('#moveMotionPalettesBtn').click();
+    await page.locator('[data-motion-palette-slot="0"]').click();
+    await page.locator('[data-motion-palette-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => motionPalettes.find(palette => palette.id === 'pal_a').slot)).toBe(3);
+
+    await page.locator('#moveMotionPlanesBtn').click();
+    await page.locator('#motionPlaneMatrix [data-plane-slot="0"]').click();
+    await page.locator('#motionPlaneMatrix [data-plane-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => motionPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
+
+    await page.locator('#motionGroupsMove').click();
+    await page.locator('#motionGroupsList [data-group-slot="0"]').click();
+    await page.locator('#motionGroupsList [data-group-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => motionGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
+  });
+
+  test('Effect Parameters + all keeps the clicked button anchored after expanding toolboxes', async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 900 });
+
+    const result = await page.evaluate(async () => {
+      const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const rail = document.getElementById('motionToolboxRail');
+      const button = document.querySelector('#motionEffectBox [data-collapse-group="motion-effects"]');
+      const effectBox = document.getElementById('motionEffectBox');
+      const savedBox = document.getElementById('motionSavedEffectBox');
+      if (!rail || !button || !effectBox || !savedBox) throw new Error('Effects toolboxes missing');
+
+      if (!effectBox.classList.contains('collapsed') || !savedBox.classList.contains('collapsed')) {
+        button.click();
+        await waitFrames();
+      }
+
+      rail.scrollTop = Math.max(0, effectBox.offsetTop - 18);
+      await waitFrames();
+      const beforeTop = button.getBoundingClientRect().top;
+      button.click();
+      await waitFrames();
+      const afterTop = button.getBoundingClientRect().top;
+
+      return {
+        beforeTop,
+        afterTop,
+        text: button.textContent,
+        effectCollapsed: effectBox.classList.contains('collapsed'),
+        savedCollapsed: savedBox.classList.contains('collapsed')
+      };
+    });
+
+    expect(result.effectCollapsed).toBe(false);
+    expect(result.savedCollapsed).toBe(false);
+    expect(result.text).toBe('-- all');
+    expect(result.afterTop).toBeCloseTo(result.beforeTop, 0);
+  });
+
+  test('individual toolbox + keeps the clicked button anchored after expanding', async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 620 });
+
+    const result = await page.evaluate(async () => {
+      const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const rail = document.getElementById('motionToolboxRail');
+      const box = document.getElementById('motionSavedEffectBox');
+      const button = document.getElementById('motionSavedEffectBoxToggle');
+      if (!rail || !box || !button) throw new Error('Effects toolbox missing');
+
+      if (!box.classList.contains('collapsed')) {
+        button.click();
+        await waitFrames();
+      }
+
+      rail.scrollTop = Math.max(0, box.offsetTop - 220);
+      await waitFrames();
+      const beforeTop = button.getBoundingClientRect().top;
+      button.click();
+      await waitFrames();
+      const afterTop = button.getBoundingClientRect().top;
+
+      return {
+        beforeTop,
+        afterTop,
+        text: button.textContent,
+        collapsed: box.classList.contains('collapsed'),
+        scrollable: rail.scrollHeight > rail.clientHeight
+      };
+    });
+
+    expect(result.scrollable).toBe(true);
+    expect(result.collapsed).toBe(false);
+    expect(result.text).toBe('—');
+    expect(result.afterTop).toBeCloseTo(result.beforeTop, 0);
   });
 
   test('collapsing Participating Controls keeps the sticky header height stable', async ({ page }) => {

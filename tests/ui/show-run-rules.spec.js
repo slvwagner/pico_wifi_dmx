@@ -69,7 +69,7 @@ async function routeShowSetup(page, calls) {
       body: JSON.stringify({
         ok: true,
         exists: true,
-        groups: [
+        groups: calls.groups || [
           { id: 'front', name: 'Front Spots', fixtureIds: [101], values: {} },
           { id: 'back', name: 'Back Spots', fixtureIds: [102], values: {} }
         ]
@@ -130,6 +130,27 @@ async function routeShowSetup(page, calls) {
             values: { '101:12': { a: 255, b: 0, c: 0 }, '102:12': { a: 64, b: 0, c: 0 } }
           }
         ]
+      })
+    });
+  });
+
+  await page.route('**/room_plane_setup.php**', async route => {
+    if (route.request().method() !== 'GET') {
+      calls.roomPlaneWrites = calls.roomPlaneWrites || [];
+      calls.roomPlaneWrites.push(route.request().postDataJSON());
+      calls.setupWrites += 1;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        planeCols: calls.planeCols || 2,
+        planeRows: calls.planeRows || 1,
+        planes: calls.planes || []
       })
     });
   });
@@ -248,6 +269,219 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('mirrors selected groups into fixture tiles and clears groups on manual fixture selection', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const frontGroup = page.locator('#groupGrid [data-group="front"]');
+    const spot1 = page.locator('#fixtureGrid [data-fixture="101"]');
+    const spot2 = page.locator('#fixtureGrid [data-fixture="102"]');
+
+    await frontGroup.click();
+    await expect(frontGroup).toHaveClass(/active/);
+    await expect(spot1).toHaveClass(/active/);
+    await expect(spot2).not.toHaveClass(/active/);
+    await expect(page.locator('#fixtureSummary')).toContainText('Spot 1');
+
+    await spot2.click();
+    await expect(frontGroup).not.toHaveClass(/active/);
+    await expect(spot1).toHaveClass(/active/);
+    await expect(spot2).toHaveClass(/active/);
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('[data-target-master-assign="0"]').click();
+    await expect(page.locator('[data-target-master-summary="0"]')).toContainText('2 fixtures');
+    await expect.poll(() => calls.uiStatePosts.at(-1)?.state?.targetMasters?.[0]?.fixtureIds).toEqual(['101', '102']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('opens Group Edit from the Groups card and applies controls to the selected group target', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      groups: [
+        { id: 'both', name: 'Both Spots', fixtureIds: [101, 102], values: {} }
+      ]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="both"]').click();
+    await page.locator('#showGroupEditBtn').click();
+
+    await expect(page.locator('#showGroupModal')).toBeVisible();
+    await expect(page.locator('#showGroupModalTitle')).toContainText('2 fixtures');
+    const dimmer = page.locator('[data-show-group-number][data-part="value"]').first();
+    await expect(dimmer).toBeVisible();
+    await dimmer.fill('77');
+
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:11': 77, '102:11': 77 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:77') && call.body.includes('11:77'))).toBe(true);
+    await expect(page.locator('#status')).toContainText('Group Edit Dimmer -> 2 fixtures');
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('Group Edit exposes the same rich fixture control types as the controller modal', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [
+        {
+          id: 10,
+          name: 'Full Control Spot',
+          mode: '16ch',
+          channels: 16,
+          controls: [
+            { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 },
+            { id: 12, type: 'rgb', label: 'Color', a: 2, b: 3, c: 4 },
+            { id: 13, type: 'panTilt16', label: 'Pan/Tilt', pan: 5, panFine: 6, tilt: 7, tiltFine: 8 },
+            { id: 14, type: 'wheel', label: 'Gobo', channel: 9, options: [{ name: 'Open', value: 0 }, { name: 'Dots', value: 32 }] }
+          ]
+        }
+      ],
+      fixtures: [
+        { id: 201, name: 'Full Spot 1', profileId: 10, start: 1 },
+        { id: 202, name: 'Full Spot 2', profileId: 10, start: 21 }
+      ],
+      groups: [
+        { id: 'full', name: 'Full Spots', fixtureIds: [201, 202], values: {} }
+      ]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#groupGrid [data-group="full"]').click();
+    await page.locator('#showGroupEditBtn').click();
+
+    await expect(page.locator('#showGroupModal')).toBeVisible();
+    await expect(page.locator('#showGroupModalBody .show-group-control h3')).toHaveText(['Color', 'Dimmer', 'Gobo', 'Pan / Tilt']);
+    await expect(page.locator('#showGroupModalBody .xy-pad')).toBeVisible();
+    await expect(page.locator('#showGroupModalBody input[type="color"]')).toBeVisible();
+    await expect(page.locator('#showGroupModalBody .swatch')).toHaveCount(4);
+    await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Open' })).toBeVisible();
+    await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Dots' })).toBeVisible();
+
+    await page.locator('#showGroupModalBody .tab', { hasText: 'Dots' }).click();
+
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '201:14': 32, '202:14': 32 });
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('9:32') && call.body.includes('29:32'))).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('opens saved room planes on Show Run and sends calibrated pan tilt to selected targets', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [
+        {
+          id: 1,
+          name: 'Moving Spot',
+          mode: '16ch',
+          channels: 16,
+          controls: [
+            { id: 21, type: 'panTilt16', label: 'Pan Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }
+          ]
+        }
+      ],
+      fixtures: [
+        { id: 101, name: 'Move 1', profileId: 1, start: 1 },
+        { id: 102, name: 'Move 2', profileId: 1, start: 21 }
+      ],
+      planes: [
+        {
+          id: 'front_plane',
+          name: 'Front Plane',
+          visual: { type: 'visual', color: '#123456', image: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22%3E%3Crect width=%22100%22 height=%2250%22 fill=%22red%22/%3E%3C/svg%3E' },
+          view: { auto: false, centerX: 5, centerY: 5, zoom: 2 },
+          points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 10, y: 0, z: 0 }, { id: 'C', x: 0, y: 10, z: 0 }],
+          target: { x: 5, y: 0, z: 0 },
+          fixtures: [
+            {
+              id: 101,
+              name: 'Move 1',
+              x: 1,
+              y: 1,
+              z: 3,
+              cal: {
+                A: { calibrated: true, pan: 1000, tilt: 2000 },
+                B: { calibrated: true, pan: 3000, tilt: 4000 },
+                C: { calibrated: true, pan: 5000, tilt: 6000 }
+              }
+            },
+            {
+              id: 102,
+              name: 'Move 2',
+              x: 2,
+              y: 1,
+              z: 3,
+              cal: {
+                A: { calibrated: true, pan: 10000, tilt: 20000 },
+                B: { calibrated: true, pan: 30000, tilt: 40000 },
+                C: { calibrated: true, pan: 50000, tilt: 60000 }
+              }
+            }
+          ]
+        }
+      ]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardPlane')).toBeVisible();
+    await expect(page.locator('#planeGrid [data-plane-key="front_plane"]')).toContainText('Front Plane');
+    await expect(page.locator('#planeGrid [data-plane-key="front_plane"] .palette-visual')).toHaveCSS('background-size', 'contain');
+
+    await page.locator('#groupGrid [data-group="front"]').click();
+    await page.locator('#planeGrid [data-plane-key="front_plane"]').click();
+    await expect(page.locator('#showPlaneModal')).toBeVisible();
+    await expect(page.locator('#showPlaneModal')).toHaveClass(/section-control-modal/);
+    await expect(page.locator('#showPlaneModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#showPlaneModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#showPlaneModal .modal-head')).toContainText('Recall Plane: Front Plane');
+    await expect(page.locator('#showPlaneModal .modal-actions')).toBeVisible();
+    await expect.poll(() => page.locator('#showPlaneModal .modal-body').evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
+    await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
+    await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
+    await page.locator('#showPlanePanView').click();
+    await expect(page.locator('#showPlanePanView')).toHaveText('Stop pan view');
+    await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#showPlanePanView')).toHaveClass(/active/);
+    await expect(page.locator('#showPlanePanView')).toHaveCSS('background-color', 'rgb(16, 59, 48)');
+    await expect(page.locator('#showPlanePanView')).toHaveCSS('border-color', 'rgb(47, 158, 125)');
+    await expect(page.locator('#showPlanePanView')).toHaveCSS('font-weight', '700');
+    await expect(page.locator('#showPlanePad')).toHaveClass(/pan-mode/);
+    await page.locator('#showPlanePanView').click();
+    await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#showPlanePanView')).not.toHaveClass(/active/);
+    await expect(page.locator('#showPlanePad')).not.toHaveClass(/pan-mode/);
+
+    await page.locator('#showPlaneStepXCoarse').fill('1');
+    await page.locator('[data-show-plane-nudge-axis="x"][data-show-plane-nudge-dir="1"][data-show-plane-nudge-step="coarse"]').click();
+
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b' &&
+      call.method === 'POST' &&
+      call.body.includes('1:8') &&
+      call.body.includes('2:152') &&
+      call.body.includes('3:12') &&
+      call.body.includes('4:128')
+    )).toBe(true);
+    await expect(page.locator('#status')).toContainText('Plane live Front Plane -> 1 fixture');
+    expect(calls.liveValues.at(-1)).toEqual({ '101:21': { pan: 2200, tilt: 3200 } });
+
+    await page.locator('#showPlaneZoomIn').click();
+    await expect.poll(() => calls.roomPlaneWrites?.length || 0).toBeGreaterThan(0);
+    const savedPlane = calls.roomPlaneWrites.at(-1).planes.find(plane => plane.id === 'front_plane');
+    expect(savedPlane.view).toMatchObject({ auto: false, centerX: 5, centerY: 5 });
+    expect(savedPlane.view.zoom).toBeGreaterThan(2);
+  });
+
   test('shows primary show actions in the Master card', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
@@ -269,6 +503,8 @@ test.describe('Show Run page', () => {
     await expect(master.getByRole('button', { name: 'Add Group Master' })).toBeHidden();
     await expect(master.locator('[data-target-master-assign="0"]')).toBeHidden();
     await expect(master.locator('[data-target-master-clear="0"]')).toBeHidden();
+    await expect(master.locator('[data-target-master-delete="0"]')).toBeHidden();
+    await expect(master.locator('[data-master-delete="all"]')).toHaveCount(0);
     await expect(master.locator('.grand-master-fader')).toHaveCSS('writing-mode', 'vertical-lr');
     await expect(master.locator('[data-target-master-fader="0"]')).toHaveCSS('writing-mode', 'vertical-lr');
 
@@ -276,6 +512,36 @@ test.describe('Show Run page', () => {
     await expect(master.getByRole('button', { name: 'Add Group Master' })).toBeVisible();
     await expect(master.locator('[data-target-master-assign="0"]')).toBeVisible();
     await expect(master.locator('[data-target-master-clear="0"]')).toBeVisible();
+    await expect(master.locator('[data-target-master-delete="0"]')).toBeVisible();
+  });
+
+  test('deletes Group Master tiles only while editing the Show Run layout', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      setupValues: { '101:11': 100, '102:11': 200 },
+      showRunState: {
+        grandMasterFactor: 1,
+        targetMasters: [{ id: 'target_1', name: 'Group Master 1', fixtureIds: [102], factor: 0.25 }]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const master = page.locator('#cardMaster');
+    await expect(master.locator('[data-target-master-fader="0"]')).toBeVisible();
+    await expect(master.locator('[data-target-master-delete="0"]')).toBeHidden();
+    await expect(master.locator('[data-master-delete="all"]')).toHaveCount(0);
+
+    await page.locator('#editLayoutBtn').click();
+    await master.locator('[data-target-master-delete="0"]').click();
+
+    await expect(master.locator('[data-target-master-fader="0"]')).toHaveCount(0);
+    await expect(page.locator('#status')).toContainText('Deleted Group Master 1');
+    await expect.poll(() => calls.uiStatePosts.at(-1)?.state?.targetMasters).toEqual([]);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.targetMasters') || 'null'));
+    expect(saved).toEqual([]);
   });
 
   test('shows Pico MIDI input status and the last MIDI event on Show Run', async ({ page }) => {
@@ -589,6 +855,48 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('assigns a Group Master from a fixture selected while Edit Layout is active', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('#fixtureGrid [data-fixture="101"]').click();
+    await expect(page.locator('#fixtureGrid [data-fixture="101"]')).toHaveClass(/active/);
+    await page.locator('#cardMaster [data-target-master-assign="0"]').first().click();
+
+    await expect(page.locator('[data-target-master-summary="0"]')).toContainText('Spot 1');
+    await expect.poll(() => calls.uiStatePosts.at(-1)?.state?.targetMasters?.[0]?.fixtureIds).toEqual(['101']);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('reapplies Group Master scale after starting Pico effects playback', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      setupValues: { '101:11': 100, '102:11': 200 },
+      showRunState: {
+        grandMasterFactor: 1,
+        targetMasters: [{ id: 'target_1', name: 'Group Master 1', fixtureIds: [102], factor: 0 }]
+      },
+      liveMotionSlots: [{ slot: 0, loaded: true, active: false, bpm: 30, label: 'Dimmer sine' }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/master' && call.body === '11:0'))
+      .toBe(true);
+    calls.pico.length = 0;
+
+    await page.locator('[data-motion-toggle="0"]').first().click();
+
+    await expect.poll(() => {
+      const startIndex = calls.pico.findIndex(call => call.url === 'http://pico.test/motion/start/0');
+      return startIndex >= 0 && calls.pico.slice(startIndex + 1).some(call => call.url === 'http://pico.test/dmx/master' && call.body === '11:0');
+    })
+      .toBe(true);
+  });
+
   test('can add another group master and assign a saved group to it', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0, setupValues: { '101:11': 100, '102:11': 200 }, showRunState: { grandMasterFactor: 1 } };
     await routeShowSetup(page, calls);
@@ -716,6 +1024,11 @@ test.describe('Show Run page', () => {
 
     await page.locator('#motionControlBpm').fill('45');
     await page.locator('#motionControlStart').click();
+    await expect(page.locator('#motionControlPauseResume')).toHaveText('Pause');
+    await page.locator('#motionControlPauseResume').click();
+    await expect(page.locator('#motionControlPauseResume')).toHaveText('Resume');
+    await page.locator('#motionControlPauseResume').click();
+    await expect(page.locator('#motionControlPauseResume')).toHaveText('Pause');
     await page.locator('#motionControlSetBpm').click();
     await page.locator('#motionControlStopSlot').click();
 
@@ -727,6 +1040,8 @@ test.describe('Show Run page', () => {
     expect(urls).toContain('http://pico.test/chaser/stop/0');
     expect(urls).toContain('http://pico.test/chaser/load/0');
     expect(urls).toContain('http://pico.test/motion/start/0');
+    expect(urls).toContain('http://pico.test/motion/pause/0');
+    expect(urls).toContain('http://pico.test/motion/resume/0');
     expect(urls).toContain('http://pico.test/motion/bpm/0/450');
     expect(urls).toContain('http://pico.test/motion/stop/0');
     expect(urls).toContain('http://pico.test/motion/load/0');
@@ -1023,6 +1338,10 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await expect(page.locator('#hiddenTileModal')).toBeVisible();
+    await expect(page.locator('#hiddenTileModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#hiddenTileModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#hiddenTileModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#hiddenTileModal .modal-actions')).toBeVisible();
     await expect(page.locator('#hiddenTileList')).toContainText('Pico chaser slot 31');
     await expect(page.locator('#hiddenTileList')).toContainText('Pico effect slot 63');
 
@@ -1593,6 +1912,10 @@ test.describe('Show Run page', () => {
     await expect(page.locator('[data-add-card-position="9"]')).toBeVisible();
     await page.locator('[data-add-card-position="9"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
+    await expect(page.locator('#addCardModal')).toHaveClass(/form-modal/);
+    await expect(page.locator('#addCardModal > .modal-card')).toBeVisible();
+    await expect(page.locator('#addCardModal > .modal')).toHaveCount(0);
+    await expect(page.locator('#addCardModal .modal-actions')).toBeVisible();
     await page.locator('#addCardType').selectOption('live');
     await expect(page.locator('#addShowCard')).toHaveText('Add Live Controls');
     await page.locator('#addShowCard').click();
@@ -1640,7 +1963,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#addCardModal')).toBeVisible();
     await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
-    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Groups'].sort());
+    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
@@ -1782,7 +2105,7 @@ test.describe('Show Run page', () => {
     await page.locator('[data-add-card-position="2"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
-    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Scenes', 'Groups'].sort());
+    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Input', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
 
     await page.locator('#addCardType').selectOption('palette');
     await page.locator('#addShowCard').click();

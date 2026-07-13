@@ -1,0 +1,1914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Room Plane</title>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.8">
+<script src="assets/dmx-common.js?v=0.9.8"></script>
+<style>
+body{min-height:100vh}
+.room-titlebar{padding:10px 14px;background:var(--bg);display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+body.toolbox-rail-layout .room-titlebar{width:calc(100% - var(--toolbox-rail-width,max(380px,33vw)))}
+body.toolbox-rail-collapsed .room-titlebar{width:calc(100% - 48px)}
+.room-titlebar__main{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
+body.toolbox-rail-layout .room-titlebar .room-titlebar__main{overflow:visible;min-width:0;width:100%}
+.room-titlebar__title{min-width:0;max-width:100%;overflow:hidden}
+.room-titlebar__tools{width:100%;min-width:0;justify-content:flex-start;align-items:center}
+body.toolbox-rail-layout .room-titlebar .room-titlebar__tools{width:100%;min-width:0;justify-content:flex-start;flex-wrap:wrap;margin-left:0}
+.room-titlebar__tools label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.room-titlebar__tools input[type=url]{min-width:160px;width:180px;padding:7px 8px}
+main{max-width:none;width:100%;margin:0;padding:14px;display:grid;gap:14px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.stack{display:grid;gap:14px;min-width:0}
+.panel{min-width:0}
+.panel-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.panel-head h2{margin:0;font-size:17px}
+.panel-head__title{display:grid;gap:4px;min-width:0}
+.panel-head__tools{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.room-card-body{display:grid;gap:12px}
+.room-tool-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.room-tool-row label{min-width:110px}
+#roomPlaneLibraryBox .slot-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:-2px}
+#roomPlaneLibraryBox .slot-actions label{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);min-width:0}
+#roomPlaneLibraryBox .slot-actions input{width:52px;padding:6px}
+.room-plane-meta{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px}
+.room-main{align-content:start}
+#roomPlaneBox .scene-toolbox__header,#roomPlaneLibraryBox.scene-toolbox--planes .scene-toolbox__header,#roomFixturesBox .scene-toolbox__header{background:#0b2f4f}
+.room-toolbox-actions{display:flex;gap:6px;align-items:center}
+#roomFixturesBox .scene-toolbox__body{max-height:calc(100vh - 180px);overflow:auto}
+#roomFixturesBox .table-wrap{max-height:38vh}
+.plane-wrap{display:grid;gap:12px}
+.plane-pad{position:relative;min-height:clamp(480px,62vh,760px);border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
+.plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
+.plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);border:1px solid rgba(55,196,164,.4);pointer-events:none}
+.plane-point{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;text-shadow:none;z-index:2}
+.plane-point.fixture{background:var(--warn);cursor:default;opacity:.75}
+.plane-point.fixture.editing{background:var(--accent);cursor:grab;opacity:1;box-shadow:0 0 0 6px rgba(55,196,164,.18)}
+.plane-point.fixture.editing:active{cursor:grabbing}
+.plane-target{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff7a7a;border:2px solid #2b1010;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(255,122,122,.15);z-index:3}
+.plane-line{position:absolute;height:1px;background:rgba(255,255,255,.28);transform-origin:0 50%;z-index:1}
+.plane-pad.pan-mode{cursor:grab}
+.plane-pad.pan-mode:active{cursor:grabbing}
+#panPlaneView.active{background:#103b30;border-color:#2f9e7d;color:var(--accent);font-weight:700}
+.cal-state{font-size:12px;color:var(--muted)}
+.cal-state--missing{color:var(--bad);font-weight:700}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#0a0d10}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:7px;text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:700}
+th:first-child,td:first-child{position:sticky;left:0;z-index:2;background:var(--panel)}
+th:first-child{z-index:3}
+td input{width:76px;padding:7px 8px}
+td input[type="checkbox"]{width:auto}
+.cal-grid{display:grid;grid-template-columns:42px repeat(3,minmax(70px,1fr));gap:8px;align-items:end}
+.cal-grid strong{align-self:center}
+.plane-slot-meta{font-size:10px;color:inherit;opacity:.82;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.plane-section-note{font-size:13px;color:var(--accent);font-weight:700}
+.target-nudge-panel{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px;align-content:start}
+.target-nudge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,360px));gap:8px;justify-content:start}
+.pill-row{display:flex;gap:8px;flex-wrap:wrap}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px;background:#10161b}
+.control{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.control:first-child{border-top:0;padding-top:0}
+.control-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.control-head h3{margin:0;font-size:15px}
+.readout{font-size:22px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}
+.bytes{color:var(--muted);font-size:13px}
+.row,.value-row,.byte-sliders,.swatches,.tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.value-row input[type=range]{flex:1 1 180px}
+.value-row input[type=number]{width:92px}
+.byte-sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));align-items:end}
+.byte-sliders input[type=range],.control>input[type=range],.control label input[type=range]{width:100%;padding:0}
+.swatch{width:34px;height:34px;min-height:34px;padding:0;border-radius:6px}
+.tab{display:inline-flex;gap:6px;align-items:center}
+canvas{display:none}
+@media(max-width:980px){body.toolbox-rail-layout .room-titlebar,body.toolbox-rail-collapsed .room-titlebar{width:100%}.layout{grid-template-columns:1fr}.plane-pad{min-height:420px}.room-titlebar__tools{justify-content:flex-start}.room-titlebar__tools label{width:100%;align-items:start;display:grid}.room-titlebar__tools input[type=url]{width:100%}}
+</style>
+</head>
+<body>
+<header class="room-titlebar">
+  <div class="room-titlebar__main">
+  <div class="room-titlebar__title">
+    <h1>Room Plane</h1>
+    <div class="status" id="status">Calibrated room-plane pan/tilt mapping.</div>
+  </div>
+  <div class="toolbar room-titlebar__tools">
+    <label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+    <a class="nav" href="index.html">Controller</a>
+    <a class="nav" href="dmx_show.html">Show</a>
+    <a class="nav" href="dmx_chaser.html">Chaser</a>
+    <a class="nav" href="dmx_motion.html">Effects</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.8">GPIO</a>
+    <a class="nav" href="dmx_monitor.html">Monitor</a>
+    <a class="nav" href="test/">Performance</a>
+    <a class="nav" href="dmx_room_plane.html">Plane</a>
+    <a class="nav" href="user-manual.html?v=0.9.8#10-room-plane" target="_blank">Manual</a>
+  </div>
+  </div>
+</header>
+
+<main>
+<div class="layout">
+  <div class="stack room-main">
+    <section class="panel plane-wrap">
+      <div class="panel-head">
+        <div class="panel-head__title">
+          <h2>Virtual Room Plane</h2>
+          <div class="small">Drag the red target, use the nudge tools, or pan and zoom the view while calibrated fixtures follow the target.</div>
+        </div>
+        <div class="pill-row panel-head__tools">
+          <span class="pill" id="weightReadout">Weights: -</span>
+          <span class="pill" id="insideReadout">Inside plane: -</span>
+        </div>
+      </div>
+      <div class="toolbar panel-head__tools">
+        <button id="zoomInPlane" type="button">Zoom in</button>
+        <button id="zoomOutPlane" type="button">Zoom out</button>
+        <button id="resetPlaneView" type="button">Reset view</button>
+        <button id="panPlaneView" type="button">Pan view</button>
+      </div>
+      <div class="plane-pad" id="planePad">
+        <div class="plane-grid"></div>
+        <div class="plane-triangle" id="planeTriangle"></div>
+        <div class="plane-target" id="planeTarget" title="Target"></div>
+      </div>
+      <div class="target-nudge-panel">
+      <div class="small">Target nudge</div>
+      <div class="target-nudge-grid" id="targetNudgeControls">
+        <div class="relative-control">
+          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="-1" data-target-nudge-step="coarse" title="Move target X left by the coarse step">-</button>
+          <label>X coarse<input id="targetStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="1" data-target-nudge-step="coarse" title="Move target X right by the coarse step">+</button>
+        </div>
+        <div class="relative-control">
+          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="-1" data-target-nudge-step="fine" title="Move target X left by the fine step">-</button>
+          <label>X fine<input id="targetStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+          <button type="button" data-target-nudge-axis="x" data-target-nudge-dir="1" data-target-nudge-step="fine" title="Move target X right by the fine step">+</button>
+        </div>
+        <div class="relative-control">
+          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="-1" data-target-nudge-step="coarse" title="Move target Y down by the coarse step">-</button>
+          <label>Y coarse<input id="targetStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="1" data-target-nudge-step="coarse" title="Move target Y up by the coarse step">+</button>
+        </div>
+        <div class="relative-control">
+          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="-1" data-target-nudge-step="fine" title="Move target Y down by the fine step">-</button>
+          <label>Y fine<input id="targetStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+          <button type="button" data-target-nudge-axis="y" data-target-nudge-dir="1" data-target-nudge-step="fine" title="Move target Y up by the fine step">+</button>
+        </div>
+      </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+</main>
+
+<section id="roomPlaneBox" class="scene-toolbox">
+  <div id="roomPlaneBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Room Plane</span>
+    <div class="room-toolbox-actions">
+      <button class="toolbox-collapse-group" data-collapse-group="room-plane" title="Collapse all room plane toolboxes">-- all</button>
+      <button id="roomPlaneBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomPlaneBoxBody" class="scene-toolbox__body">
+    <div class="small">Three known points define the calibrated plane. Units can be meters, but the math only needs a consistent coordinate system.</div>
+    <div class="room-card-body">
+      <div class="room-plane-meta">
+        <div class="plane-section-note">A/B/C define the active coordinate plane. Use Planes to store and recall complete plane definitions.</div>
+        <div class="cal-grid" id="planePointInputs"></div>
+      </div>
+      <div class="room-tool-row">
+        <label>Target X<input id="targetX" type="number" step="0.1" value="2.5"></label>
+        <label>Target Y<input id="targetY" type="number" step="0.1" value="1.5"></label>
+        <button id="resetCalibration" type="button" class="warn">Reset calibration</button>
+        <button id="resetDemo">Demo values</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="roomPlaneLibraryBox" class="scene-toolbox scene-toolbox--planes">
+  <div id="roomPlaneLibraryBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Planes</span>
+    <div class="room-toolbox-actions">
+      <button class="toolbox-collapse-group" data-collapse-group="room-plane" title="Collapse all room plane toolboxes">-- all</button>
+      <button id="roomPlaneLibraryBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomPlaneLibraryBoxBody" class="scene-toolbox__body">
+    <div class="small">A saved plane includes A/B/C room points, target/view, fixture mount positions, and fixture A/B/C calibration. Click an empty tile to save the current plane.</div>
+    <div class="room-card-body">
+      <input id="planeName" type="hidden" value="Default plane">
+      <select id="planeSelect" hidden></select>
+      <div class="slot-actions">
+        <label>Cols<input id="planeCols" type="number" min="1" max="16" value="3"></label>
+        <label>Rows<input id="planeRows" type="number" min="1" max="16" value="3"></label>
+        <button id="moveRoomPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
+      </div>
+      <div class="scene-slot-matrix" id="planeLibrary"></div>
+    </div>
+  </div>
+</section>
+
+<div id="planeVisualModal" class="modal-overlay visual-editor-modal" style="display:none">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="planeVisualTitle">
+    <div class="modal-head">
+      <button id="planeVisualClose" type="button" aria-label="Close">x</button>
+      <h2 id="planeVisualTitle">Edit Plane Tile</h2>
+    </div>
+    <div class="modal-body">
+      <div class="slot-visual-editor">
+        <label>Plane<select id="planeVisualTarget"></select></label>
+        <label>Name<input id="planeVisualName" type="text"></label>
+        <div id="planeVisualColorWrap">
+          <label>Background color<input id="planeVisualColor" type="color" value="#225a50"></label>
+          <button id="planeVisualResetColor" type="button">Default</button>
+        </div>
+        <div id="planeVisualImageWrap">
+          <canvas id="planeVisualCanvas" width="96" height="96" style="display:block;width:96px;height:96px;border:1px solid var(--line);border-radius:8px;touch-action:none"></canvas>
+          <input id="planeVisualImage" type="file" accept="image/*">
+          <button id="planeVisualClear" type="button">Clear icon</button>
+        </div>
+        <div class="small" id="planeVisualHint"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="planeVisualSave" type="button" class="primary">Save tile</button>
+      <button id="planeVisualClose2" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="groupModal" class="modal-overlay fixture-control-modal" style="display:none">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="groupModalTitle">
+    <div class="modal-head">
+      <button id="closeGroupModal" type="button" aria-label="Close">x</button>
+      <h2 id="groupModalTitle">Group Edit</h2>
+    </div>
+    <div id="groupModalBody" class="modal-body"></div>
+    <div class="modal-actions">
+      <button id="closeGroupModal2" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<section id="roomFixturesBox" class="scene-toolbox">
+  <div id="roomFixturesBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Fixtures</span>
+    <div class="room-toolbox-actions">
+      <button class="toolbox-collapse-group" data-collapse-group="room-plane" title="Collapse all room plane toolboxes">-- all</button>
+      <button id="roomFixturesBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomFixturesBoxBody" class="scene-toolbox__body">
+    <div class="small">Mount X/Y/Z and A/B/C pan/tilt calibration are stored inside the active saved plane. Recalling another plane recalls its own fixture calibration.</div>
+    <div class="buttons">
+      <button id="loadPatchedFixtures" type="button">Load patched moving lights</button>
+      <button id="addFixture">Add fixture</button>
+      <button id="removeFixture">Remove last</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Edit</th><th>Select</th><th>Fixture</th><th>Calibration</th><th>Live Pan</th><th>Live Tilt</th><th>Dimmer</th><th>Last send / channels</th><th>Mount X</th><th>Mount Y</th><th>Mount Z</th>
+            <th>A pan</th><th>A tilt</th><th>B pan</th><th>B tilt</th><th>C pan</th><th>C tilt</th>
+          </tr>
+        </thead>
+        <tbody id="fixtureRows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<aside id="roomPlaneToolboxRail" class="toolbox-rail" data-min-main-width="520" aria-label="Room Plane toolboxes"></aside>
+
+<script>
+const points=[
+  {id:'A',x:0,y:0},
+  {id:'B',x:5,y:0},
+  {id:'C',x:0,y:3}
+];
+let fixtures=[];
+let controllerMovingFixtures=[];
+let editingFixtureIndex=null;
+let selectedFixtureIds=new Set();
+let profiles=[];
+let liveValues={};
+let roomPlaneLoaded=false;
+let roomPlaneAutosaveTimer=null;
+let planeCols=3;
+let planeRows=3;
+let targetApplyTimer=null;
+let targetApplyBusy=false;
+let targetApplyPending=false;
+let targetApplyDue=false;
+let roomPlaneRenderQueued=false;
+let planeDefinitions=[];
+let activePlaneId='default';
+let planeView={auto:true,centerX:0,centerY:0,zoom:1};
+let planePanMode=false;
+let suppressGroupSelectionApply=false;
+let lastRoomGroupSelectionCount=0;
+let roomPlanesMatrix=null;
+const baseUrl=document.getElementById('baseUrl');
+DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
+document.body.classList.add('toolbox-rail-layout','room-plane-rail-layout');
+const roomPlaneToolboxRail=document.getElementById('roomPlaneToolboxRail');
+let roomGroupsBox=DmxCommon.initGroupsToolbox({
+  page:'roomPlane',
+  idPrefix:'roomPlaneGroups',
+  title:'Groups',
+  host:roomPlaneToolboxRail,
+  toolboxType:'groups',
+  selectionOnly:true,
+  showEdit:true,
+  baseUrlInput:baseUrl,
+  onStatus:setStatus,
+  canEdit:groups=>Array.isArray(groups)&&groups.length>0,
+  onSelectionChange:groups=>applyGroupSelectionToFixtures(groups),
+  onEdit:groups=>openRoomPlaneGroupEdit(groups)
+});
+DmxCommon.initToolboxRail(roomPlaneToolboxRail,[
+  {box:'roomPlaneBox',type:'roomPlane'},
+  {box:'roomPlaneLibraryBox',type:'roomPlaneLibrary'},
+  {box:'roomFixturesBox',type:'roomFixtures'}
+]);
+const roomPlaneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomPlaneBox',
+  headerId:'roomPlaneBoxHdr',
+  toggleId:'roomPlaneBoxToggle',
+  collapsedStorageKey:'roomPlaneBoxCollapsed',
+  posStorageKey:'roomPlaneBoxPos',
+  sizeStorageKey:'roomPlaneBoxSize',
+  uiStateCollapsedKey:'roomPlaneBoxCollapsed',
+  uiStatePosKey:'roomPlaneBoxPos',
+  uiStateSizeKey:'roomPlaneBoxSize'
+});
+const roomPlaneLibraryToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomPlaneLibraryBox',
+  headerId:'roomPlaneLibraryBoxHdr',
+  toggleId:'roomPlaneLibraryBoxToggle',
+  collapsedStorageKey:'roomPlaneLibraryBoxCollapsed',
+  posStorageKey:'roomPlaneLibraryBoxPos',
+  sizeStorageKey:'roomPlaneLibraryBoxSize',
+  uiStateCollapsedKey:'roomPlaneLibraryBoxCollapsed',
+  uiStatePosKey:'roomPlaneLibraryBoxPos',
+  uiStateSizeKey:'roomPlaneLibraryBoxSize'
+});
+const roomFixturesToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomFixturesBox',
+  headerId:'roomFixturesBoxHdr',
+  toggleId:'roomFixturesBoxToggle',
+  collapsedStorageKey:'roomFixturesBoxCollapsed',
+  posStorageKey:'roomFixturesBoxPos',
+  sizeStorageKey:'roomFixturesBoxSize',
+  uiStateCollapsedKey:'roomFixturesBoxCollapsed',
+  uiStatePosKey:'roomFixturesBoxPos',
+  uiStateSizeKey:'roomFixturesBoxSize'
+});
+DmxCommon.initToolboxCollapseGroup({
+  group:'room-plane',
+  items:[
+    {id:'roomPlaneBox',toolbox:roomPlaneToolbox},
+    {id:'roomPlaneLibraryBox',toolbox:roomPlaneLibraryToolbox},
+    {id:'roomFixturesBox',toolbox:roomFixturesToolbox}
+  ],
+  toggleIds:['roomPlaneBoxToggle','roomPlaneLibraryBoxToggle','roomFixturesBoxToggle'],
+  collapseTitle:'Collapse all room plane toolboxes',
+  expandTitle:'Uncollapse all room plane toolboxes'
+});
+
+function setStatus(message,isError=false){
+  const el=document.getElementById('status');
+  el.textContent=message;
+  el.style.color=isError?'var(--danger)':'';
+}
+
+function demoFixtures(){
+  fixtures=[
+    {name:'Spot 1',x:1,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:72,tilt:118,calibrated:true},B:{pan:128,tilt:111,calibrated:true},C:{pan:82,tilt:76,calibrated:true}}},
+    {name:'Spot 2',x:4,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:214,tilt:112,calibrated:true},B:{pan:160,tilt:118,calibrated:true},C:{pan:202,tilt:78,calibrated:true}}}
+  ];
+}
+
+function defaultPoints(){
+  return [
+    {id:'A',x:0,y:0,z:0},
+    {id:'B',x:5,y:0,z:0},
+    {id:'C',x:0,y:3,z:0}
+  ];
+}
+
+function normalizePoint(point,index){
+  const fallback=defaultPoints()[index]||{id:String(index+1),x:0,y:0,z:0};
+  return {
+    id:String(point?.id||fallback.id),
+    x:Number(point?.x) || 0,
+    y:Number(point?.y) || 0,
+    z:Number(point?.z) || 0
+  };
+}
+
+function normalizeCal(cal,index){
+  const fallback=defaultCalibration(index);
+  const out={};
+  points.forEach(point=>{
+    const src=cal?.[point.id]||fallback[point.id]||{pan:0,tilt:0};
+    const calibrated=src.calibrated!==false&&src.pan!==null&&src.tilt!==null;
+    out[point.id]={pan:Number(src.pan)||0,tilt:Number(src.tilt)||0,calibrated};
+  });
+  return out;
+}
+
+function normalizeRoomFixture(f,index){
+  return {
+    id:f?.id,
+    name:String(f?.name||('Spot '+(index+1))),
+    profileId:f?.profileId,
+    start:Number(f?.start)||1,
+    live:!!f?.live,
+    x:Number(f?.x)||0,
+    y:Number(f?.y)||0,
+    z:Number(f?.z)||0,
+    control:fixtureControl(f||{}),
+    cal:normalizeCal(f?.cal,index)
+  };
+}
+
+function ensureFixtureSelection(){
+  const available=new Set(fixtures.map((f,index)=>fixtureSelectionKey(f,index)));
+  selectedFixtureIds=new Set([...selectedFixtureIds].filter(id=>available.has(id)));
+  if(!selectedFixtureIds.size&&fixtures.length){
+    selectedFixtureIds.add(fixtureSelectionKey(fixtures[0],0));
+  }
+}
+
+function selectedRoomGroupFixtureIds(groups){
+  const ids=new Set();
+  (groups||[]).forEach(group=>(group.fixtureIds||[]).forEach(id=>ids.add(String(id))));
+  return ids;
+}
+
+function applyGroupSelectionToFixtures(groups){
+  if(suppressGroupSelectionApply)return;
+  const selectedGroups=Array.isArray(groups)?groups:[];
+  if(!selectedGroups.length&&lastRoomGroupSelectionCount===0)return;
+  lastRoomGroupSelectionCount=selectedGroups.length;
+  const wanted=selectedRoomGroupFixtureIds(selectedGroups);
+  selectedFixtureIds.clear();
+  fixtures.forEach((fixture,index)=>{
+    if(fixture.id!==undefined&&wanted.has(String(fixture.id))){
+      selectedFixtureIds.add(fixtureSelectionKey(fixture,index));
+    }
+  });
+  renderFixtureRows();
+  render();
+  if(selectedGroups.length){
+    setStatus('Selected '+selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' from '+selectedGroups.length+' group'+(selectedGroups.length===1?'':'s'));
+  }else{
+    setStatus('Cleared group fixture selection');
+  }
+}
+
+function applyCurrentRoomGroupSelection(){
+  applyGroupSelectionToFixtures(roomGroupsBox?.selectedGroups?.()||[]);
+}
+
+function clearRoomGroupSelectionForManualSelection(){
+  if(!roomGroupsBox?.clearSelection)return;
+  suppressGroupSelectionApply=true;
+  roomGroupsBox.clearSelection();
+  suppressGroupSelectionApply=false;
+  lastRoomGroupSelectionCount=0;
+}
+
+function currentPlaneName(){
+  return document.getElementById('planeName')?.value?.trim()||'Default plane';
+}
+
+function capturePlaneDefinition(){
+  const existing=(planeDefinitions||[]).find(plane=>String(plane.id)===String(activePlaneId));
+  return {
+    id:activePlaneId||('plane_'+Date.now()),
+    name:currentPlaneName(),
+    points:points.map(normalizePoint),
+    target:currentTarget(),
+    fixtures:fixtures.map((f,index)=>normalizeRoomFixture(f,index)),
+    view:{...planeView},
+    visual:existing?.visual,
+    slot:Number.isFinite(parseInt(existing?.slot,10))?parseInt(existing.slot,10):undefined
+  };
+}
+
+function bindPlaneFixturesToPatchedFixtures(savedFixtures,patchedFixtures=controllerMovingFixtures){
+  const liveById=new Map((patchedFixtures||[])
+    .filter(fixture=>fixture?.live&&fixture.id!==undefined&&fixture.id!==null)
+    .map(fixture=>[String(fixture.id),fixture]));
+  return (savedFixtures||[]).map((saved,index)=>{
+    const normalized=normalizeRoomFixture(saved,index);
+    const patched=normalized.id===undefined||normalized.id===null?null:liveById.get(String(normalized.id));
+    if(!patched)return normalized;
+    return {
+      ...normalized,
+      id:patched.id,
+      name:patched.name,
+      profileId:patched.profileId,
+      start:patched.start,
+      live:true,
+      control:fixtureControlFromLive(patched)
+    };
+  });
+}
+
+function normalizedPlaneDefinitions(){
+  const active=capturePlaneDefinition();
+  const map=new Map((planeDefinitions||[]).map(plane=>[String(plane.id),plane]));
+  map.set(active.id,active);
+  return [...map.values()].map((plane,index)=>({
+    id:String(plane.id||('plane_'+index)),
+    name:String(plane.name||('Plane '+(index+1))),
+    points:(Array.isArray(plane.points)?plane.points:defaultPoints()).map(normalizePoint),
+    target:{x:Number(plane.target?.x)||2.5,y:Number(plane.target?.y)||1.5,z:0},
+    fixtures:(Array.isArray(plane.fixtures)?plane.fixtures:[]).map(normalizeRoomFixture),
+    view:{auto:plane.view?.auto!==false,centerX:Number(plane.view?.centerX)||0,centerY:Number(plane.view?.centerY)||0,zoom:Math.max(0.25,Math.min(8,Number(plane.view?.zoom)||1))},
+    visual:DmxCommon.normalizeSlotVisual(plane.visual)||null,
+    slot:Number.isFinite(parseInt(plane.slot,10))?parseInt(plane.slot,10):index
+  }));
+}
+
+function applyPlaneDefinition(plane){
+  if(!plane)return;
+  activePlaneId=String(plane.id||'default');
+  document.getElementById('planeName').value=String(plane.name||'Default plane');
+  points.splice(0,points.length,...(Array.isArray(plane.points)?plane.points:defaultPoints()).map(normalizePoint));
+  document.getElementById('targetX').value=fmt(plane.target?.x??2.5,3);
+  document.getElementById('targetY').value=fmt(plane.target?.y??1.5,3);
+  fixtures=bindPlaneFixturesToPatchedFixtures(Array.isArray(plane.fixtures)?plane.fixtures:[]);
+  if(!fixtures.length)demoFixtures();
+  planeView={auto:plane.view?.auto!==false,centerX:Number(plane.view?.centerX)||0,centerY:Number(plane.view?.centerY)||0,zoom:Math.max(0.25,Math.min(8,Number(plane.view?.zoom)||1))};
+  editingFixtureIndex=null;
+  syncTables();
+  renderPlaneSelect();
+}
+
+function renderPlaneSelect(){
+  const select=document.getElementById('planeSelect');
+  if(!select)return;
+  const defs=normalizedPlaneDefinitions();
+  planeDefinitions=defs;
+  select.innerHTML=defs.map(plane=>'<option value="'+plane.id+'">'+plane.name+'</option>').join('');
+  select.value=activePlaneId;
+  renderPlaneLibrary(defs);
+}
+
+function planeCalibrationSummary(plane){
+  const fixturesInPlane=Array.isArray(plane.fixtures)?plane.fixtures:[];
+  let missing=0;
+  fixturesInPlane.forEach(f=>{
+    points.forEach(point=>{
+      if(!f.cal?.[point.id]?.calibrated)missing++;
+    });
+  });
+  return fixturesInPlane.length+' fixture'+(fixturesInPlane.length===1?'':'s')+' · '+(missing?missing+' missing calibration point'+(missing===1?'':'s'):'calibrated');
+}
+
+function renderPlaneLibrary(defs=planeDefinitions){
+  if(defs&&defs.length)planeDefinitions=defs;
+  roomPlanesMatrix?.render();
+}
+
+function saveCurrentPlaneToTile(index){
+  planeDefinitions=normalizedPlaneDefinitions();
+  const next=capturePlaneDefinition();
+  next.id='plane_'+Date.now()+'_'+Math.floor(Math.random()*1000);
+  next.name='Plane '+((parseInt(index,10)||planeDefinitions.length)+1);
+  next.visual=null;
+  next.slot=Math.max(0,parseInt(index,10)||0);
+  activePlaneId=next.id;
+  document.getElementById('planeName').value=next.name;
+  planeDefinitions.push(next);
+  renderPlaneSelect();
+  scheduleRoomPlaneAutosave();
+  setStatus('Saved current plane to tile '+(next.slot+1));
+  openPlaneVisualModal(next.id);
+}
+
+function recallPlaneDefinition(id){
+  planeDefinitions=normalizedPlaneDefinitions();
+  const plane=planeDefinitions.find(item=>String(item.id)===String(id));
+  if(!plane)return;
+  applyPlaneDefinition(plane);
+  const recalledName=currentPlaneName();
+  scheduleRoomPlaneAutosave();
+  setStatus('Recalled plane '+recalledName);
+  setTimeout(()=>{if(String(activePlaneId)===String(id))setStatus('Recalled plane '+recalledName);},900);
+}
+
+function deletePlaneDefinition(id){
+  planeDefinitions=normalizedPlaneDefinitions();
+  const plane=planeDefinitions.find(item=>String(item.id)===String(id));
+  if(!plane)return;
+  if(!confirm('Delete plane "'+plane.name+'"?'))return;
+  planeDefinitions=planeDefinitions.filter(item=>String(item.id)!==String(id));
+  if(!planeDefinitions.length){
+    activePlaneId='default';
+    document.getElementById('planeName').value='Default plane';
+    points.splice(0,points.length,...defaultPoints());
+    demoFixtures();
+    planeDefinitions=[capturePlaneDefinition()];
+  }
+  if(String(id)===String(activePlaneId))applyPlaneDefinition(planeDefinitions[0]);
+  else renderPlaneSelect();
+  scheduleRoomPlaneAutosave();
+  setStatus('Deleted plane '+plane.name);
+}
+
+const planeVisualEditor=DmxCommon.initSlotVisualEditor({
+  modalId:'planeVisualModal',
+  targetId:'planeVisualTarget',
+  colorWrapId:'planeVisualColorWrap',
+  imageWrapId:'planeVisualImageWrap',
+  colorInputId:'planeVisualColor',
+  nameInputId:'planeVisualName',
+  resetColorBtnId:'planeVisualResetColor',
+  canvasId:'planeVisualCanvas',
+  imageInputId:'planeVisualImage',
+  clearBtnId:'planeVisualClear',
+  hintId:'planeVisualHint',
+  saveBtnId:'planeVisualSave',
+  closeIds:['planeVisualClose','planeVisualClose2']
+});
+
+function openPlaneVisualModal(id){
+  planeDefinitions=normalizedPlaneDefinitions();
+  planeVisualEditor?.open({
+    targetLabel:'Planes',
+    hint:'Choose a background color and optionally draw/upload a visual. This is only a label for the saved plane tile; recall still loads the stored plane calibration.',
+    defaultColor:'#225a50',
+    targets:planeDefinitions.map((plane,index)=>({key:String(plane.id),item:plane,label:'Slot '+(index+1)+': '+plane.name})),
+    selectedKey:id,
+    onSaveTarget:(target,visual)=>{
+      target.visual=visual;
+      if(String(target.id)===String(activePlaneId))document.getElementById('planeName').value=target.name;
+      renderPlaneSelect();
+      scheduleRoomPlaneAutosave();
+      setStatus('Updated plane tile for "'+target.name+'"');
+    }
+  });
+}
+
+roomPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
+  matrixId:'planeLibrary',
+  colsId:'planeCols',
+  rowsId:'planeRows',
+  moveButtonId:'moveRoomPlanesBtn',
+  defaultCols:3,
+  defaultRows:3,
+  maxGrid:16,
+  defaultColor:'#225a50',
+  slotAttribute:'data-save-plane-slot',
+  idAttribute:'data-recall-plane',
+  editAttribute:'data-visual-plane',
+  deleteAttribute:'data-del-plane',
+  getPlanes:()=>planeDefinitions,
+  setPlanes:planes=>{planeDefinitions=planes;},
+  getCols:()=>planeCols,
+  getRows:()=>planeRows,
+  setCols:value=>{planeCols=value;},
+  setRows:value=>{planeRows=value;},
+  activeId:()=>activePlaneId,
+  fixtureSummary:plane=>planeCalibrationSummary(plane),
+  onOpen:plane=>recallPlaneDefinition(plane.id),
+  onEmptySlot:slot=>saveCurrentPlaneToTile(slot),
+  onEdit:id=>openPlaneVisualModal(id),
+  onDelete:id=>deletePlaneDefinition(id),
+  savePayload:()=>roomPlanePayload(),
+  onStatus:setStatus
+});
+
+function roomPlanePayload(){
+  return DmxCommon.versionedPayload({
+    baseUrl:baseUrl.value,
+    points:points.map(normalizePoint),
+    target:{
+      x:Number(document.getElementById('targetX').value)||0,
+      y:Number(document.getElementById('targetY').value)||0,
+      z:0
+    },
+    fixtures:fixtures.map((f,index)=>normalizeRoomFixture(f,index)),
+    activePlaneId,
+    planeCols,
+    planeRows,
+    planes:normalizedPlaneDefinitions()
+  });
+}
+
+async function saveRoomPlaneSetup(){
+  if(!roomPlaneLoaded||!DmxCommon.isHttp())return false;
+  const response=await fetch('room_plane_setup.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(roomPlanePayload())
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Room plane autosaved');
+  return true;
+}
+
+function scheduleRoomPlaneAutosave(){
+  if(!roomPlaneLoaded)return;
+  clearTimeout(roomPlaneAutosaveTimer);
+  roomPlaneAutosaveTimer=setTimeout(()=>{
+    saveRoomPlaneSetup().catch(error=>setStatus('Room plane autosave failed: '+error.message,true));
+  },800);
+}
+
+async function loadControllerSetupForRoomPlane(){
+  const response=await fetch('fixture_setup.php',{cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok||!data.ok||!data.exists||!data.setup)throw new Error('No saved fixture setup found');
+  profiles=Array.isArray(data.setup.profiles)?data.setup.profiles:[];
+  baseUrl.value=localStorage.getItem(DmxCommon.BASE_URL_KEY)||data.setup.baseUrl||baseUrl.value;
+  try{liveValues=await DmxCommon.fetchFixtureLiveValues()||data.setup.values||{};}catch(_){liveValues=data.setup.values||{};}
+  const patched=Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
+  const moving=patched.filter(f=>{
+    const profile=profiles.find(item=>String(item.id)===String(f.profileId));
+    return profile&&Array.isArray(profile.controls)&&profile.controls.some(isPanTiltControl);
+  });
+  controllerMovingFixtures=moving.map(patchedRoomFixture);
+  return patched;
+}
+
+async function loadRoomPlaneSetup(){
+  roomPlaneLoaded=false;
+  try{
+    let saved=null;
+    if(DmxCommon.isHttp()){
+      const response=await fetch('room_plane_setup.php',{cache:'no-store'});
+      const data=await response.json();
+      if(response.ok&&data.ok&&data.exists&&data.setup)saved=data.setup;
+    }
+    if(saved){
+      if(saved.baseUrl&&!localStorage.getItem(DmxCommon.BASE_URL_KEY))baseUrl.value=saved.baseUrl;
+      planeCols=Math.max(1,Math.min(16,parseInt(saved.planeCols,10)||3));
+      planeRows=Math.max(1,Math.min(16,parseInt(saved.planeRows,10)||3));
+      try{await loadControllerSetupForRoomPlane();}catch(_){}
+      const savedPlanes=Array.isArray(saved.planes)&&saved.planes.length?saved.planes:[{
+        id:saved.activePlaneId||'default',
+        name:saved.name||'Default plane',
+        points:saved.points,
+        target:saved.target,
+        fixtures:saved.fixtures,
+        view:saved.view
+      }];
+      planeDefinitions=savedPlanes;
+      activePlaneId=String(saved.activePlaneId||savedPlanes[0]?.id||'default');
+      applyPlaneDefinition(savedPlanes.find(plane=>String(plane.id)===activePlaneId)||savedPlanes[0]);
+      roomPlaneLoaded=true;
+      setStatus('Room plane setup loaded from server');
+      return true;
+    }
+  }catch(error){
+    setStatus('Room plane load failed; using demo values. '+error.message,true);
+  }
+  points.splice(0,points.length,...defaultPoints());
+  document.getElementById('targetX').value='2.5';
+  document.getElementById('targetY').value='1.5';
+  document.getElementById('planeName').value='Default plane';
+  demoFixtures();
+  planeDefinitions=[capturePlaneDefinition()];
+  syncTables();
+  renderPlaneSelect();
+  roomPlaneLoaded=true;
+  setStatus('Room plane demo values loaded');
+  return false;
+}
+
+function fixtureControl(f){
+  if(!f.control)f.control={pan:32768,tilt:32768,dimmer:255};
+  f.control.pan=Math.max(0,Math.min(65535,Math.round(Number(f.control.pan)||0)));
+  f.control.tilt=Math.max(0,Math.min(65535,Math.round(Number(f.control.tilt)||0)));
+  f.control.dimmer=Math.max(0,Math.min(255,Math.round(Number(f.control.dimmer)||0)));
+  return f.control;
+}
+
+function absolute(start,rel){return start+rel-1;}
+
+function bytes16(value){
+  const n=Math.max(0,Math.min(65535,Math.round(Number(value)||0)));
+  return {coarse:(n>>8)&255,fine:n&255};
+}
+
+function endpoint(){
+  return baseUrl.value.trim().replace(/\/+$/,'');
+}
+
+function profileForFixture(f){
+  return profiles.find(p=>String(p.id)===String(f.profileId));
+}
+
+function controlKey(f,c){
+  return f&&c?f.id+':'+c.id:'';
+}
+
+function cloneValue(value){
+  return value&&typeof value==='object'?JSON.parse(JSON.stringify(value)):value;
+}
+
+function defaultValueForControl(c){
+  if(c?.type==='panTilt16')return {pan:32768,tilt:32768};
+  if(c?.type==='panTilt8')return {pan:128,tilt:128};
+  if(c?.type==='rgb'||c?.type==='cmy')return {a:0,b:0,c:0};
+  if(c?.type==='rgbw')return {a:0,b:0,c:0,w:0};
+  if(c?.type==='rgbwa')return {a:0,b:0,c:0,w:0,amber:0};
+  if(c?.type==='cmyk')return {a:0,b:0,c:0,k:0};
+  if(c?.type==='slider16')return 0;
+  return 0;
+}
+
+function getValue(f,c,def=0){
+  const key=controlKey(f,c);
+  if(!key)return cloneValue(def);
+  if(liveValues[key]===undefined)liveValues[key]=cloneValue(def);
+  return liveValues[key];
+}
+
+function setValue(f,c,value){
+  const key=controlKey(f,c);
+  if(key)liveValues[key]=cloneValue(value);
+}
+
+function fixtureSelectionKey(f,index){
+  return String(f?.id??f?.name??index);
+}
+
+function isPanTiltControl(c){
+  return c&&(c.type==='panTilt16'||c.type==='panTilt8');
+}
+
+function isDimmerControl(c){
+  const label=String(c?.label||'').toLowerCase();
+  const scope=String(c?.scope||'').toLowerCase();
+  return c&&(c.type==='slider8'||c.type==='slider16'||c.type==='dimmer')&&(scope==='dimmer'||/\b(dim|dimmer|intensity)\b/.test(label));
+}
+
+function findFixtureControls(f){
+  const p=profileForFixture(f);
+  const controls=Array.isArray(p?.controls)?p.controls:[];
+  return {
+    panTilt: controls.find(isPanTiltControl)||null,
+    dimmer: controls.find(isDimmerControl)||controls.find(c=>String(c?.label||'').toLowerCase().includes('dimmer'))||null
+  };
+}
+
+function defaultCalibration(index){
+  const offset=index*18;
+  return {
+    A:{pan:72+offset,tilt:118,calibrated:true},
+    B:{pan:128+offset,tilt:111,calibrated:true},
+    C:{pan:82+offset,tilt:76,calibrated:true}
+  };
+}
+
+function valueFromLive(f,c){
+  const key=controlKey(f,c);
+  const current=liveValues[key];
+  if(current!==undefined)return current;
+  if(c?.type==='panTilt16'||c?.type==='panTilt8')return c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768};
+  if(c?.type==='slider16')return 65535;
+  return 255;
+}
+
+function fixtureControlFromLive(f){
+  const controls=findFixtureControls(f);
+  const panTilt=controls.panTilt;
+  const dimmer=controls.dimmer;
+  const panTiltValue=panTilt?valueFromLive(f,panTilt):fixtureControl(f);
+  const dimmerValue=dimmer?valueFromLive(f,dimmer):fixtureControl(f).dimmer;
+  const max=panTilt?.type==='panTilt8'?255:65535;
+  return {
+    pan:Math.max(0,Math.min(max,Math.round(Number(panTiltValue?.pan)||Math.round(max/2)))),
+    tilt:Math.max(0,Math.min(max,Math.round(Number(panTiltValue?.tilt)||Math.round(max/2)))),
+    dimmer:Math.max(0,Math.min(255,Math.round(Number(dimmer?.type==='slider16'?Math.round((Number(dimmerValue)||0)/257):dimmerValue)||0)))
+  };
+}
+
+async function sendDmxBatch(rows){
+  const root=endpoint();
+  if(!root)throw new Error('Set Pico base URL first');
+  const normalized=(rows||[]).map(row=>({
+    channel:Math.max(1,Math.round(Number(row.channel)||1)),
+    value:Math.max(0,Math.min(255,Math.round(Number(row.value)||0))),
+    param:row.param||''
+  }));
+  if(!normalized.length)return [];
+  const body=normalized.map(row=>row.channel+':'+row.value).join(',');
+  const response=await fetch(root+'/dmx/b',{method:'POST',body,cache:'no-store'});
+  if(!response.ok)throw new Error('HTTP '+response.status+' on DMX batch update');
+  return normalized.map(row=>({...row,confirmed:true}));
+}
+
+function liveFixtureDmxPatch(f,next){
+  const controls=findFixtureControls(f);
+  const patch={};
+  const rows=[];
+  if(!controls.panTilt&&!controls.dimmer)throw new Error(f.name+' has no Pan/Tilt or Dimmer control in its fixture profile');
+  if(controls.panTilt){
+    const c=controls.panTilt;
+    const max=c.type==='panTilt8'?255:65535;
+    const value={pan:Math.max(0,Math.min(max,Math.round(next.pan))),tilt:Math.max(0,Math.min(max,Math.round(next.tilt)))};
+    patch[controlKey(f,c)]=value;
+    for(const row of DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel))){
+      rows.push({channel:row.ch,value:row.val,param:row.param});
+    }
+  }
+  if(controls.dimmer){
+    const c=controls.dimmer;
+    if(c.type==='slider16'){
+      const value=Math.max(0,Math.min(65535,Math.round((Number(next.dimmer)||0)*257)));
+      patch[controlKey(f,c)]=value;
+      const b=bytes16(value);
+      rows.push({channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
+      rows.push({channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
+    }else{
+      const value=Math.max(0,Math.min(255,Math.round(Number(next.dimmer)||0)));
+      patch[controlKey(f,c)]=value;
+      rows.push({channel:absolute(f.start,c.channel),value,param:c.label});
+    }
+  }
+  return {patch,rows};
+}
+
+async function sendLiveFixtureControl(f,next){
+  const {patch,rows}=liveFixtureDmxPatch(f,next);
+  const sent=await sendDmxBatch(rows);
+  Object.assign(liveValues,patch);
+  DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
+  return sent;
+}
+
+function patchedRoomFixture(f,index){
+  const controls=findFixtureControls(f);
+  const existing=fixtures.find(old=>String(old.id)===String(f.id));
+  const control=fixtureControlFromLive(f);
+  return {
+    ...f,
+    live:true,
+    control,
+    x:existing?.x??(index+1),
+    y:existing?.y??-2,
+    z:existing?.z??3,
+    cal:existing?.cal??defaultCalibration(index)
+  };
+}
+
+async function loadPatchedMovingLights(){
+  try{
+    const patched=await loadControllerSetupForRoomPlane();
+    const moving=patched.filter(f=>{
+      const p=profiles.find(profile=>String(profile.id)===String(f.profileId));
+      return p&&Array.isArray(p.controls)&&p.controls.some(isPanTiltControl);
+    });
+    if(!moving.length)throw new Error('No patched moving lights with Pan/Tilt controls found');
+    controllerMovingFixtures=moving.map(patchedRoomFixture);
+    fixtures=controllerMovingFixtures;
+    editingFixtureIndex=null;
+    syncTables();
+    applyCurrentRoomGroupSelection();
+    setStatus('Loaded '+fixtures.length+' patched moving light'+(fixtures.length===1?'':'s')+' from controller setup');
+    scheduleRoomPlaneAutosave();
+  }catch(error){
+    setStatus(error.message||'Could not load patched fixtures',true);
+  }
+}
+
+function fmt(value,digits=2){
+  return Number(value).toFixed(digits).replace(/\.?0+$/,'');
+}
+
+function numberInput(value,attrs=''){
+  return '<input type="number" step="0.1" value="'+fmt(value,3)+'" '+attrs+'>';
+}
+
+function renderPlanePointInputs(){
+  const host=document.getElementById('planePointInputs');
+  host.innerHTML='<span></span><label>X</label><label>Y</label><label>Z</label>'+points.map((p,i)=>
+    '<strong>'+p.id+'</strong>'+
+    numberInput(p.x,'data-point="'+i+'" data-axis="x"')+
+    numberInput(p.y,'data-point="'+i+'" data-axis="y"')+
+    numberInput(p.z||0,'data-point="'+i+'" data-axis="z"')
+  ).join('');
+  host.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{
+    const p=points[Number(input.dataset.point)];
+    p[input.dataset.axis]=Number(input.value)||0;
+    render();
+    scheduleRoomPlaneAutosave();
+  }));
+}
+
+function renderFixtureRows(){
+  ensureFixtureSelection();
+  const body=document.getElementById('fixtureRows');
+  body.innerHTML=fixtures.map((f,i)=>{
+    const live=fixtureControl(f);
+    const missing=points.filter(point=>!f.cal?.[point.id]?.calibrated).map(point=>point.id);
+    const calText=missing.length?'Missing '+missing.join(', '):'Calibrated';
+    const controls=findFixtureControls(f);
+    const channelText=controls.panTilt
+      ? DmxCommon.panTiltDmxRows(controls.panTilt,live,rel=>absolute(f.start,rel)).map(row=>'ch '+row.ch).join(' / ')
+      : 'No Pan/Tilt';
+    const dimmerText=controls.dimmer
+      ? 'ch '+absolute(f.start,controls.dimmer.channel)+(controls.dimmer.type==='slider16'?' / '+absolute(f.start,controls.dimmer.fine??controls.dimmer.channel+1):'')
+      : 'No dimmer';
+    const fields=[
+      '<td><button type="button" data-edit-fixture="'+i+'" class="'+(editingFixtureIndex===i?'active':'')+'">'+(editingFixtureIndex===i?'Editing':'Edit')+'</button></td>',
+      '<td><input type="checkbox" data-select-fixture="'+i+'" '+(selectedFixtureIds.has(fixtureSelectionKey(f,i))?'checked':'')+' aria-label="Select '+f.name+'"></td>',
+      '<td><strong>'+DmxCommon.escapeHtml(f.name)+'</strong></td>',
+      '<td><span class="cal-state '+(missing.length?'cal-state--missing':'')+'">'+calText+'</span></td>',
+      '<td data-live-pan="'+i+'">'+live.pan+'</td>',
+      '<td data-live-tilt="'+i+'">'+live.tilt+'</td>',
+      '<td data-live-dimmer="'+i+'">'+live.dimmer+'</td>',
+      '<td data-send-summary="'+i+'" class="small">'+(f.lastSendText||channelText+' · dimmer '+dimmerText)+'</td>',
+      '<td>'+numberInput(f.x,'data-fixture="'+i+'" data-field="x"')+'</td>',
+      '<td>'+numberInput(f.y,'data-fixture="'+i+'" data-field="y"')+'</td>',
+      '<td>'+numberInput(f.z,'data-fixture="'+i+'" data-field="z"')+'</td>'
+    ];
+    for(const p of points){
+      fields.push('<td>'+numberInput(f.cal[p.id].pan,'data-fixture="'+i+'" data-point="'+p.id+'" data-axis="pan"')+'</td>');
+      fields.push('<td>'+numberInput(f.cal[p.id].tilt,'data-fixture="'+i+'" data-point="'+p.id+'" data-axis="tilt"')+'</td>');
+    }
+    return '<tr>'+fields.join('')+'</tr>';
+  }).join('');
+  body.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>{
+    if(input.dataset.selectFixture!==undefined){
+      clearRoomGroupSelectionForManualSelection();
+      const index=Number(input.dataset.selectFixture);
+      const key=fixtureSelectionKey(fixtures[index],index);
+      if(input.checked)selectedFixtureIds.add(key);
+      else selectedFixtureIds.delete(key);
+      setStatus(selectedFixtureIds.size+' fixture'+(selectedFixtureIds.size===1?'':'s')+' selected for plane target movement');
+      return;
+    }
+    const f=fixtures[Number(input.dataset.fixture)];
+    if(input.dataset.point){
+      f.cal[input.dataset.point][input.dataset.axis]=Number(input.value)||0;
+      f.cal[input.dataset.point].calibrated=true;
+    }else{
+      f[input.dataset.field]=Number(input.value)||0;
+    }
+    render();
+    scheduleRoomPlaneAutosave();
+  }));
+  body.querySelectorAll('[data-edit-fixture]').forEach(button=>button.addEventListener('click',()=>{
+    const index=Number(button.dataset.editFixture);
+    editingFixtureIndex=index;
+    renderFixtureRows();
+    render();
+    openFixtureEditor(index);
+  }));
+}
+
+function currentTarget(){
+  return {x:Number(document.getElementById('targetX').value)||0,y:Number(document.getElementById('targetY').value)||0,z:0};
+}
+
+function setTarget(room,{autoApply=true,save=true}={}){
+  document.getElementById('targetX').value=fmt(room.x,3);
+  document.getElementById('targetY').value=fmt(room.y,3);
+  queueRoomPlaneRender();
+  if(save)scheduleRoomPlaneAutosave();
+  if(autoApply)scheduleTargetAutoApply();
+}
+
+function queueRoomPlaneRender(){
+  if(roomPlaneRenderQueued)return;
+  roomPlaneRenderQueued=true;
+  requestAnimationFrame(()=>{
+    roomPlaneRenderQueued=false;
+    render();
+  });
+}
+
+function targetNudgeStep(axis,kind){
+  const id='targetStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse');
+  return Math.max(0.001,Number(document.getElementById(id)?.value)||0);
+}
+
+function nudgeTarget(axis,dir,kind){
+  const target=currentTarget();
+  const step=targetNudgeStep(axis,kind);
+  target[axis]+=dir*step;
+  setTarget(target);
+  setStatus('Target '+axis.toUpperCase()+' '+fmt(target[axis],3)+' · live output updating');
+}
+
+function selectedFixtureIndexes(){
+  ensureFixtureSelection();
+  return fixtures
+    .map((f,index)=>({index,key:fixtureSelectionKey(f,index)}))
+    .filter(item=>selectedFixtureIds.has(item.key))
+    .map(item=>item.index);
+}
+
+function updateFixtureLiveRow(index){
+  const f=fixtures[index];
+  if(!f)return;
+  const live=fixtureControl(f);
+  const pan=document.querySelector(`[data-live-pan="${index}"]`);
+  const tilt=document.querySelector(`[data-live-tilt="${index}"]`);
+  const dimmer=document.querySelector(`[data-live-dimmer="${index}"]`);
+  const summary=document.querySelector(`[data-send-summary="${index}"]`);
+  if(pan)pan.textContent=live.pan;
+  if(tilt)tilt.textContent=live.tilt;
+  if(dimmer)dimmer.textContent=live.dimmer;
+  if(summary)summary.textContent=f.lastSendText||'';
+}
+
+function openFixtureEditor(index){
+  const f=fixtures[index];
+  if(!f||!window.DmxCommon?.openPanTiltDimmerEditor)return;
+  const controls=findFixtureControls(f);
+  const max=controls.panTilt?.type==='panTilt8'?255:65535;
+  window.DmxCommon.openPanTiltDimmerEditor({
+    title:'Edit '+f.name,
+    max,
+    value:f.live?fixtureControlFromLive(f):fixtureControl(f),
+    actions:[
+      ...points.map(point=>({id:'recall-'+point.id,label:'Recall '+point.id,className:'success'})),
+      ...points.map(point=>({id:'store-'+point.id,label:'Store '+point.id,className:'warn'}))
+    ],
+    onChange(next){
+      f.control={...next};
+      const liveText={
+        pan:document.querySelector(`[data-live-pan="${index}"]`),
+        tilt:document.querySelector(`[data-live-tilt="${index}"]`),
+        dimmer:document.querySelector(`[data-live-dimmer="${index}"]`)
+      };
+      if(liveText.pan)liveText.pan.textContent=Math.round(next.pan);
+      if(liveText.tilt)liveText.tilt.textContent=Math.round(next.tilt);
+      if(liveText.dimmer)liveText.dimmer.textContent=Math.round(next.dimmer);
+      if(f.live){
+        sendLiveFixtureControl(f,next)
+          .then(sent=>{
+            const summary=sent.map(row=>'ch '+row.channel+'='+row.value).join(', ');
+            f.lastSendText=summary || 'No DMX channels sent';
+            updateFixtureLiveRow(index);
+            setStatus('Sent '+f.name+': '+f.lastSendText);
+          })
+          .catch(error=>{
+            f.lastSendText=error.message||'Could not send fixture control';
+            updateFixtureLiveRow(index);
+            setStatus(f.lastSendText,true);
+          });
+      }else{
+        f.lastSendText='Prototype value changed';
+        updateFixtureLiveRow(index);
+      }
+    },
+    onAction(actionId,value,api){
+      if(String(actionId||'').startsWith('recall-')){
+        const pointId=String(actionId||'').replace(/^recall-/,'');
+        const point=points.find(p=>p.id===pointId);
+        if(!point||!f.cal?.[point.id])return;
+        if(!f.cal[point.id].calibrated){
+          setStatus(f.name+' calibration point '+point.id+' has not been stored yet',true);
+          return;
+        }
+        const recalled={...value,pan:Math.round(Number(f.cal[point.id].pan)||0),tilt:Math.round(Number(f.cal[point.id].tilt)||0)};
+        api?.setValue?.(recalled,{emitChange:true});
+        setStatus('Recalled '+f.name+' calibration point '+point.id+' at Pan '+recalled.pan+' / Tilt '+recalled.tilt);
+        return;
+      }
+      const pointId=String(actionId||'').replace(/^store-/,'');
+      const point=points.find(p=>p.id===pointId);
+      if(!point)return;
+      f.cal[point.id]={pan:Math.round(value.pan),tilt:Math.round(value.tilt),calibrated:true};
+      renderFixtureRows();
+      render();
+      scheduleRoomPlaneAutosave();
+      DmxCommon.feedbackButton(api?.button,'success','Stored '+point.id,{restoreAfter:1300});
+      setStatus('Stored '+f.name+' calibration point '+point.id+' at Pan '+f.cal[point.id].pan+' / Tilt '+f.cal[point.id].tilt);
+    },
+    onClose(){
+      if(editingFixtureIndex===index){
+        editingFixtureIndex=null;
+        renderFixtureRows();
+        render();
+      }
+    }
+  });
+}
+
+function barycentric(target){
+  const [a,b,c]=points;
+  const det=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+  if(Math.abs(det)<1e-9)return {valid:false,wA:0,wB:0,wC:0};
+  const wA=((b.y-c.y)*(target.x-c.x)+(c.x-b.x)*(target.y-c.y))/det;
+  const wB=((c.y-a.y)*(target.x-c.x)+(a.x-c.x)*(target.y-c.y))/det;
+  const wC=1-wA-wB;
+  return {valid:true,wA,wB,wC};
+}
+
+function interpolateFixture(f,weights){
+  if(points.some(point=>!f.cal?.[point.id]?.calibrated))return null;
+  const pan=weights.wA*f.cal.A.pan+weights.wB*f.cal.B.pan+weights.wC*f.cal.C.pan;
+  const tilt=weights.wA*f.cal.A.tilt+weights.wB*f.cal.B.tilt+weights.wC*f.cal.C.tilt;
+  return {pan,tilt};
+}
+
+function autoPlaneBounds(){
+  const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+  const target={x:Number(document.getElementById('targetX').value)||0,y:Number(document.getElementById('targetY').value)||0};
+  xs.push(target.x,...fixtures.map(f=>f.x));
+  ys.push(target.y,...fixtures.map(f=>f.y));
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const padX=Math.max(1,(maxX-minX)*0.15),padY=Math.max(1,(maxY-minY)*0.15);
+  return {minX:minX-padX,maxX:maxX+padX,minY:minY-padY,maxY:maxY+padY};
+}
+
+function planeBounds(){
+  const base=autoPlaneBounds();
+  if(planeView.auto){
+    planeView.centerX=(base.minX+base.maxX)/2;
+    planeView.centerY=(base.minY+base.maxY)/2;
+  }
+  const zoom=Math.max(0.25,Math.min(8,Number(planeView.zoom)||1));
+  const spanX=(base.maxX-base.minX)/zoom;
+  const spanY=(base.maxY-base.minY)/zoom;
+  const cx=Number(planeView.centerX)||((base.minX+base.maxX)/2);
+  const cy=Number(planeView.centerY)||((base.minY+base.maxY)/2);
+  return {minX:cx-spanX/2,maxX:cx+spanX/2,minY:cy-spanY/2,maxY:cy+spanY/2};
+}
+
+function zoomPlaneView(factor){
+  const base=planeBounds();
+  planeView={auto:false,centerX:(base.minX+base.maxX)/2,centerY:(base.minY+base.maxY)/2,zoom:Math.max(0.25,Math.min(8,(Number(planeView.zoom)||1)*factor))};
+  render();
+  scheduleRoomPlaneAutosave();
+}
+
+function toScreen(p,bounds,rect){
+  const width=Math.max(1,rect&&rect.width?rect.width:1);
+  const height=Math.max(1,rect&&rect.height?rect.height:1);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX);
+  const spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale;
+  const drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2;
+  const offsetY=(height-drawnH)/2;
+  const px=offsetX+(p.x-bounds.minX)*scale;
+  const py=offsetY+(bounds.maxY-p.y)*scale;
+  const x=(px/width)*100;
+  const y=(py/height)*100;
+  return {x,y};
+}
+
+function screenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width);
+  const height=Math.max(1,rect.height);
+  const spanX=Math.max(0.0001,bounds.maxX-bounds.minX);
+  const spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const drawnW=spanX*scale;
+  const drawnH=spanY*scale;
+  const offsetX=(width-drawnW)/2;
+  const offsetY=(height-drawnH)/2;
+  const px=event.clientX-rect.left-offsetX;
+  const py=event.clientY-rect.top-offsetY;
+  return {x:bounds.minX+px/scale,y:bounds.maxY-py/scale};
+}
+
+function drawLine(host,a,b){
+  const line=document.createElement('div');
+  line.className='plane-line';
+  const dx=b.x-a.x,dy=b.y-a.y;
+  line.style.left=a.x+'%';
+  line.style.top=a.y+'%';
+  line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';
+  line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+  host.appendChild(line);
+}
+
+function renderPlane(target,weights){
+  const pad=document.getElementById('planePad');
+  pad.querySelectorAll('.plane-point,.plane-line').forEach(el=>el.remove());
+  const bounds=planeBounds();
+  const rect=pad.getBoundingClientRect();
+  const screens=points.map(p=>toScreen(p,bounds,rect));
+  const triangle=document.getElementById('planeTriangle');
+  triangle.style.setProperty('--ax',screens[0].x+'%');
+  triangle.style.setProperty('--ay',screens[0].y+'%');
+  triangle.style.setProperty('--bx',screens[1].x+'%');
+  triangle.style.setProperty('--by',screens[1].y+'%');
+  triangle.style.setProperty('--cx',screens[2].x+'%');
+  triangle.style.setProperty('--cy',screens[2].y+'%');
+  screens.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='plane-point';
+    el.textContent=points[i].id;
+    el.style.left=s.x+'%';
+    el.style.top=s.y+'%';
+    pad.appendChild(el);
+  });
+  const targetScreen=toScreen(target,bounds,rect);
+  const targetEl=document.getElementById('planeTarget');
+  targetEl.style.left=targetScreen.x+'%';
+  targetEl.style.top=targetScreen.y+'%';
+  fixtures.forEach(f=>{
+    const s=toScreen(f,bounds,rect);
+    const el=document.createElement('div');
+    el.className='plane-point fixture';
+    if(fixtures.indexOf(f)===editingFixtureIndex)el.classList.add('editing');
+    el.textContent=f.name.replace(/[^0-9]/g,'')||'F';
+    el.dataset.fixtureIndex=fixtures.indexOf(f);
+    el.title=fixtures.indexOf(f)===editingFixtureIndex?'Drag '+f.name+' mount position':'Click Edit in the fixture table to move '+f.name;
+    el.style.left=s.x+'%';
+    el.style.top=s.y+'%';
+    pad.appendChild(el);
+    drawLine(pad,s,targetScreen);
+  });
+  const inside=weights.valid&&weights.wA>=-0.001&&weights.wB>=-0.001&&weights.wC>=-0.001;
+  document.getElementById('insideReadout').textContent='Inside plane: '+(inside?'yes':'no');
+}
+
+function updateFixturePositionInputs(index){
+  document.querySelectorAll(`input[data-fixture="${index}"][data-field="x"]`).forEach(input=>{input.value=fmt(fixtures[index].x,3);});
+  document.querySelectorAll(`input[data-fixture="${index}"][data-field="y"]`).forEach(input=>{input.value=fmt(fixtures[index].y,3);});
+}
+
+function render(){
+  const target=currentTarget();
+  const weights=barycentric(target);
+  document.getElementById('weightReadout').textContent=weights.valid
+    ? 'Weights: A '+fmt(weights.wA,3)+' · B '+fmt(weights.wB,3)+' · C '+fmt(weights.wC,3)
+    : 'Weights: invalid';
+  renderPlane(target,weights);
+}
+
+async function applyTargetToSelectedFixtures({silent=false}={}){
+  const target=currentTarget();
+  const weights=barycentric(target);
+  if(!weights.valid){
+    if(!silent)setStatus('Cannot apply target because the room plane is invalid',true);
+    return;
+  }
+  const indexes=selectedFixtureIndexes();
+  if(!indexes.length){
+    if(!silent)setStatus('Select at least one fixture before applying the target',true);
+    return;
+  }
+  const errors=[];
+  const batchRows=[];
+  const batchPatch={};
+  for(const index of indexes){
+    const f=fixtures[index];
+    const out=interpolateFixture(f,weights);
+    if(!out){
+      errors.push(f.name+': calibration incomplete');
+      continue;
+    }
+    const next={...fixtureControl(f),pan:Math.round(out.pan),tilt:Math.round(out.tilt)};
+    f.control=next;
+    try{
+      if(f.live){
+        const prepared=liveFixtureDmxPatch(f,next);
+        Object.assign(batchPatch,prepared.patch);
+        prepared.rows.forEach(row=>batchRows.push({...row,fixtureIndex:index}));
+        f.lastSendText=prepared.rows.map(row=>'ch '+row.channel+'='+row.value).join(', ');
+      }else{
+        f.lastSendText='Prototype value changed';
+      }
+    }catch(error){
+      f.lastSendText=error.message||'Could not send fixture control';
+      errors.push(f.name+': '+f.lastSendText);
+    }
+    updateFixtureLiveRow(index);
+  }
+  if(batchRows.length){
+    try{
+      await sendDmxBatch(batchRows);
+      Object.assign(liveValues,batchPatch);
+      DmxCommon.mergeFixtureLiveValues(batchPatch).catch(()=>{});
+    }catch(error){
+      errors.push(error.message||'Could not send DMX batch');
+    }
+  }
+  if(errors.length){
+    setStatus('Applied target with errors: '+errors.join(' · '),true);
+  }else if(!silent){
+    setStatus('Applied plane target X '+fmt(target.x,2)+' / Y '+fmt(target.y,2)+' to '+indexes.length+' fixture'+(indexes.length===1?'':'s'));
+  }else{
+    setStatus('Live plane target X '+fmt(target.x,2)+' / Y '+fmt(target.y,2)+' -> '+indexes.length+' fixture'+(indexes.length===1?'':'s'));
+  }
+}
+
+function scheduleTargetAutoApply(){
+  targetApplyDue=true;
+  if(targetApplyTimer||targetApplyBusy)return;
+  targetApplyTimer=setTimeout(runTargetAutoApply,50);
+}
+
+async function runTargetAutoApply(){
+  targetApplyTimer=null;
+  if(!targetApplyDue)return;
+  targetApplyDue=false;
+  if(targetApplyBusy){
+    targetApplyPending=true;
+    return;
+  }
+  targetApplyBusy=true;
+  try{
+    await applyTargetToSelectedFixtures({silent:true});
+  }finally{
+    targetApplyBusy=false;
+    if(targetApplyPending||targetApplyDue){
+      targetApplyPending=false;
+      if(!targetApplyTimer)targetApplyTimer=setTimeout(runTargetAutoApply,50);
+    }
+  }
+}
+
+function resetAllCalibration(){
+  fixtures.forEach(f=>{
+    points.forEach(point=>{
+      if(!f.cal)f.cal={};
+      const existing=f.cal[point.id]||{pan:0,tilt:0};
+      f.cal[point.id]={pan:Number(existing.pan)||0,tilt:Number(existing.tilt)||0,calibrated:false};
+    });
+  });
+  renderFixtureRows();
+  render();
+  scheduleRoomPlaneAutosave();
+  setStatus('Calibration reset. Store A, B, and C for each fixture before using plane output.');
+}
+
+function syncTables(){
+  renderPlanePointInputs();
+  renderFixtureRows();
+  render();
+}
+
+const wheelOptionMatches=DmxCommon.wheelOptionMatches;
+const selectedWheelOption=DmxCommon.selectedWheelOption;
+const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
+let roomGroupValues={};
+let roomGroupSourceFixtureKey=null;
+
+function hex2(n){return Math.max(0,Math.min(255,Math.round(Number(n)||0))).toString(16).padStart(2,'0');}
+function rgbHex(v){return '#'+hex2(v?.a)+hex2(v?.b)+hex2(v?.c);}
+function cmyHex(v){return '#'+hex2(255-(Number(v?.a)||0))+hex2(255-(Number(v?.b)||0))+hex2(255-(Number(v?.c)||0));}
+function cmykHex(v){
+  const k=Math.max(0,Math.min(255,Number(v?.k)||0));
+  return '#'+hex2(255-Math.min(255,(Number(v?.a)||0)+k))+hex2(255-Math.min(255,(Number(v?.b)||0)+k))+hex2(255-Math.min(255,(Number(v?.c)||0)+k));
+}
+function hexToRgb(hex){const m=String(hex||'').match(/^#?([0-9a-f]{6})$/i);const n=m?parseInt(m[1],16):0;return{a:(n>>16)&255,b:(n>>8)&255,c:n&255};}
+function rgbToCmy(hex){const rgb=hexToRgb(hex);return{a:255-rgb.a,b:255-rgb.b,c:255-rgb.c};}
+function rgbToCmyk(hex){const cmy=rgbToCmy(hex);return{...cmy,k:0};}
+function roomGroupCompatibilitySignature(c){
+  if(c?.type==='wheel')return '|options:'+(c.options||[]).map(o=>encodeURIComponent(o.name||'')+'='+Math.max(0,Math.min(255,Number(o.value ?? o.dmxRange?.[0] ?? 0)))).join(';');
+  return '';
+}
+function roomGroupKey(c){return (c?.type||'control')+':'+(c?.label||c?.scope||c?.name||'Control')+roomGroupCompatibilitySignature(c);}
+function selectedRoomFixtures(){
+  ensureFixtureSelection();
+  return fixtures.filter((fixture,index)=>selectedFixtureIds.has(fixtureSelectionKey(fixture,index)));
+}
+function findRoomGroupControl(f,key){
+  return (profileForFixture(f)?.controls||[]).find(control=>roomGroupKey(control)===key)||null;
+}
+function roomGroupEditableControls(){
+  const selected=selectedRoomFixtures();
+  if(selected.length===1)return (profileForFixture(selected[0])?.controls||[]).filter(control=>control.type!=='matrixRgb');
+  if(selected.length<1)return [];
+  const map=new Map();
+  selected.forEach(f=>{
+    (profileForFixture(f)?.controls||[]).forEach(control=>{
+      if(control.type==='matrixRgb')return;
+      const key=roomGroupKey(control);
+      if(!map.has(key))map.set(key,{control,count:0});
+      map.get(key).count++;
+    });
+  });
+  return [...map.values()].filter(row=>row.count>=2).map(row=>row.control);
+}
+function ensureRoomGroupSourceFixture(){
+  const selected=selectedRoomFixtures();
+  if(roomGroupSourceFixtureKey&&selected.some((fixture,index)=>fixtureSelectionKey(fixture,index)===roomGroupSourceFixtureKey))return roomGroupSourceFixtureKey;
+  const first=selected[0];
+  roomGroupSourceFixtureKey=first?fixtureSelectionKey(first,fixtures.indexOf(first)):null;
+  return roomGroupSourceFixtureKey;
+}
+function firstRoomGroupTarget(c){
+  const key=roomGroupKey(c);
+  const sourceKey=ensureRoomGroupSourceFixture();
+  const selected=selectedRoomFixtures();
+  const source=selected.find((fixture,index)=>fixtureSelectionKey(fixture,index)===sourceKey);
+  const sourceControl=source&&findRoomGroupControl(source,key);
+  if(source&&sourceControl)return {fixture:source,control:sourceControl};
+  for(const fixture of selected){
+    const control=findRoomGroupControl(fixture,key);
+    if(control)return {fixture,control};
+  }
+  return null;
+}
+function roomGroupTargets(c){
+  const key=roomGroupKey(c);
+  return selectedRoomFixtures().map(fixture=>({fixture,control:findRoomGroupControl(fixture,key)})).filter(row=>row.control);
+}
+function roomGroupValue(c){
+  const key=roomGroupKey(c);
+  if(roomGroupValues[key]===undefined)roomGroupValues[key]=cloneValue(defaultValueForControl(c));
+  return roomGroupValues[key];
+}
+function syncRoomGroupValues(common=roomGroupEditableControls()){
+  common.forEach(control=>{
+    const target=firstRoomGroupTarget(control);
+    if(target)roomGroupValues[roomGroupKey(control)]=cloneValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)));
+  });
+}
+function setRoomGroupValue(c,value){
+  const key=roomGroupKey(c);
+  roomGroupValues[key]=cloneValue(value);
+  roomGroupTargets(c).forEach(target=>setValue(target.fixture,target.control,value));
+}
+function applyRelativeToRoomGroup(c,part,delta){
+  let changed=0;
+  roomGroupTargets(c).forEach(target=>{
+    const current=getValue(target.fixture,target.control,defaultValueForControl(target.control));
+    let next;
+    if(part==='value')next=Math.max(0,Math.min(target.control.type==='slider16'?65535:255,(Number(current)||0)+delta));
+    else{
+      const max=target.control.type==='panTilt16'?65535:255;
+      next={...(current||defaultValueForControl(target.control)),[part]:Math.max(0,Math.min(max,(Number(current?.[part])||0)+delta))};
+    }
+    setValue(target.fixture,target.control,next);
+    changed++;
+  });
+  const source=firstRoomGroupTarget(c);
+  if(source)roomGroupValues[roomGroupKey(c)]=cloneValue(getValue(source.fixture,source.control,defaultValueForControl(source.control)));
+  return changed;
+}
+function roomGroupDmxRows(f,c){
+  const rows=[];
+  const value=getValue(f,c,defaultValueForControl(c));
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)).forEach(row=>rows.push({channel:row.ch,value:row.val,param:row.param}));
+  }else if(c.type==='slider16'){
+    const b=bytes16(value);
+    rows.push({channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
+    rows.push({channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
+  }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(part=>rows.push({channel:absolute(f.start,c[part]),value:Math.max(0,Math.min(255,Number(value?.[part])||0)),param:c.label+' '+part}));
+  }else{
+    rows.push({channel:absolute(f.start,c.channel),value:Math.max(0,Math.min(255,Number(value)||0)),param:c.label});
+  }
+  return rows.filter(row=>row.channel>=1&&row.channel<=512);
+}
+async function sendRoomGroupControl(c){
+  const rows=[];
+  const patch={};
+  roomGroupTargets(c).forEach(target=>{
+    patch[controlKey(target.fixture,target.control)]=cloneValue(getValue(target.fixture,target.control,defaultValueForControl(target.control)));
+    roomGroupDmxRows(target.fixture,target.control).forEach(row=>rows.push(row));
+  });
+  if(!rows.length)return;
+  await sendDmxBatch(rows);
+  Object.assign(liveValues,patch);
+  DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
+  setStatus('Group Edit: sent '+rows.length+' channel update'+(rows.length===1?'':'s')+' to '+roomGroupTargets(c).length+' fixture'+(roomGroupTargets(c).length===1?'':'s'));
+}
+function roomWheelOptionValue(option){
+  if(Array.isArray(option?.dmxRange))return Math.round(((Number(option.dmxRange[0])||0)+(Number(option.dmxRange[1])||0))/2);
+  return Math.max(0,Math.min(255,Number(option?.value)||0));
+}
+const roomWheelOptionIconHtml=DmxCommon.wheelOptionIconHtml;
+function roomGroupRelativeHtml(key,part,kind,max,step,label){
+  return `<div class="relative-control"><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="-1" data-relative-step-default="${step}">-</button><label>${DmxCommon.escapeHtml(label)}<input type="number" min="1" max="${max}" step="1" value="${step}" data-relative-step></label><button type="button" data-room-relative-gc="${DmxCommon.escapeHtml(key)}" data-relative-part="${DmxCommon.escapeHtml(part)}" data-relative-dir="1" data-relative-step-default="${step}">+</button></div>`;
+}
+function roomGroupScopeText(c){
+  return roomGroupTargets(c).length+' matching fixture'+(roomGroupTargets(c).length===1?'':'s');
+}
+function renderRoomGroupControl(c){
+  const key=roomGroupKey(c);
+  const attrs=`data-room-gc="${DmxCommon.escapeHtml(key)}"`;
+  const scope=`<span class="bytes">${DmxCommon.escapeHtml(roomGroupScopeText(c))}</span>`;
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const max=c.type==='panTilt8'?255:65535;
+    const v=roomGroupValue(c);
+    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Pan / Tilt')}</h3><span class="bytes">${c.type==='panTilt8'?'Pan/Tilt 8-bit':'Pan/Tilt 16-bit'}</span>${scope}</div>
+      <div class="xy-pad" data-room-gxy="${DmxCommon.escapeHtml(key)}"><div class="xy-dot" style="left:${(Number(v.pan)||0)/max*100}%;top:${100-(Number(v.tilt)||0)/max*100}%"></div></div>
+      <div class="row"><span class="readout" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">Pan ${Number(v.pan)||0} · Tilt ${Number(v.tilt)||0}</span><button ${attrs} data-room-center="1">Center</button></div>
+      ${roomGroupRelativeHtml(key,'pan','coarse',max,max>255?256:1,'Pan '+(max>255?'coarse':'relative'))}
+      ${max>255?roomGroupRelativeHtml(key,'pan','fine',max,1,'Pan fine'):''}
+      ${roomGroupRelativeHtml(key,'tilt','coarse',max,max>255?256:1,'Tilt '+(max>255?'coarse':'relative'))}
+      ${max>255?roomGroupRelativeHtml(key,'tilt','fine',max,1,'Tilt fine'):''}</div>`;
+  }
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const v=roomGroupValue(c);
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    const names=c.type.startsWith('rgb')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
+    const color=c.type.startsWith('rgb')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Color')}</h3><span class="bytes">${c.type.toUpperCase()}</span>${scope}</div>
+      <label>Color picker<input type="color" value="${color}" ${attrs} data-color-picker="1"></label>
+      ${parts.map((part,index)=>`<label>${names[index]} <span data-room-gc-part="${DmxCommon.escapeHtml(key)}" data-part="${part}">${Number(v?.[part])||0}</span><input type="range" min="0" max="255" value="${Number(v?.[part])||0}" ${attrs} data-part="${part}"></label>${roomGroupRelativeHtml(key,part,'default',255,1,names[index]+' relative')}`).join('')}
+      <div class="swatches"><button class="swatch" style="background:#fff" data-room-gc-color="#ffffff" ${attrs}></button><button class="swatch" style="background:#f00" data-room-gc-color="#ff0000" ${attrs}></button><button class="swatch" style="background:#0f0" data-room-gc-color="#00ff00" ${attrs}></button><button class="swatch" style="background:#00f" data-room-gc-color="#0000ff" ${attrs}></button></div></div>`;
+  }
+  if(c.type==='wheel'){
+    const v=roomGroupValue(c);
+    const active=selectedWheelOption(c,v);
+    return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Wheel')}</h3><span class="bytes" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">Wheel · ${v}${active?' · '+DmxCommon.escapeHtml(active.name):''}</span>${scope}</div>
+      <div class="tabs">${(c.options||[]).map((option,index)=>`<button class="tab ${wheelOptionMatches(option,v)?'active':''}" data-room-gc-wheel="${roomWheelOptionValue(option)}" data-room-gc-wheel-option-index="${index}" ${attrs}>${roomWheelOptionIconHtml(option)}${DmxCommon.escapeHtml(option.name||('Option '+(index+1)))}</button>`).join('')}</div>
+      <div data-room-gc-wheel-range-host="${DmxCommon.escapeHtml(key)}">${wheelRangeSliderHtml(active,v,attrs,DmxCommon.escapeHtml)}</div>
+      <div class="value-row"><input type="range" min="0" max="255" value="${v}" ${attrs}><input type="number" min="0" max="255" step="1" value="${v}" ${attrs}></div>
+      ${roomGroupRelativeHtml(key,'value','default',255,1,'Relative')}</div>`;
+  }
+  const max=c.type==='slider16'?65535:255;
+  const v=Number(roomGroupValue(c))||0;
+  const b=bytes16(v);
+  const extra=c.type==='slider16'?`<div class="byte-sliders"><label>Coarse <span data-room-gc-byte="${DmxCommon.escapeHtml(key)}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${attrs} data-byte-part="coarse"></label><label>Fine <span data-room-gc-byte="${DmxCommon.escapeHtml(key)}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${attrs} data-byte-part="fine"></label></div>`:'';
+  return `<div class="control"><div class="control-head"><h3>${DmxCommon.escapeHtml(c.label||'Control')}</h3><span class="readout" data-room-gc-readout="${DmxCommon.escapeHtml(key)}">${v}</span><span class="bytes">${DmxCommon.escapeHtml(c.type||'control')}</span>${scope}</div>
+    <div class="value-row"><input type="range" min="0" max="${max}" step="1" value="${v}" ${attrs}><input type="number" min="0" max="${max}" step="1" value="${v}" ${attrs}></div>
+    ${c.type==='slider16'?roomGroupRelativeHtml(key,'value','coarse',max,256,'Coarse relative')+roomGroupRelativeHtml(key,'value','fine',max,1,'Fine relative'):roomGroupRelativeHtml(key,'value','default',max,1,'Relative')}${extra}</div>`;
+}
+function updateRoomGroupControlDisplay(c){
+  const key=roomGroupKey(c);
+  const v=roomGroupValue(c);
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    const max=c.type==='panTilt8'?255:65535;
+    const dot=document.querySelector(`[data-room-gxy="${CSS.escape(key)}"] .xy-dot`);
+    if(dot){dot.style.left=((Number(v.pan)||0)/max*100)+'%';dot.style.top=(100-(Number(v.tilt)||0)/max*100)+'%';}
+    document.querySelectorAll(`[data-room-gc-readout="${CSS.escape(key)}"]`).forEach(el=>el.textContent='Pan '+(Number(v.pan)||0)+' · Tilt '+(Number(v.tilt)||0));
+    return;
+  }
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    parts.forEach(part=>{
+      document.querySelectorAll(`[data-room-gc-part="${CSS.escape(key)}"][data-part="${CSS.escape(part)}"]`).forEach(el=>el.textContent=Number(v?.[part])||0);
+      document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-part="${CSS.escape(part)}"]`).forEach(el=>{if(el.value!=Number(v?.[part])||0)el.value=Number(v?.[part])||0;});
+    });
+    const color=c.type.startsWith('rgb')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
+    document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
+    return;
+  }
+  document.querySelectorAll(`[data-room-gc-readout="${CSS.escape(key)}"]`).forEach(el=>{
+    const active=c.type==='wheel'?selectedWheelOption(c,v):null;
+    el.textContent=c.type==='wheel'?'Wheel · '+v+(active?' · '+active.name:''):v;
+  });
+  document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=v)el.value=v;});
+  if(c.type==='slider16'){
+    const b=bytes16(v);
+    document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-byte-part="coarse"]`).forEach(el=>{if(el.value!=b.coarse)el.value=b.coarse;});
+    document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-byte-part="fine"]`).forEach(el=>{if(el.value!=b.fine)el.value=b.fine;});
+    document.querySelectorAll(`[data-room-gc-byte="${CSS.escape(key)}"][data-byte-part="coarse"]`).forEach(el=>el.textContent=b.coarse);
+    document.querySelectorAll(`[data-room-gc-byte="${CSS.escape(key)}"][data-byte-part="fine"]`).forEach(el=>el.textContent=b.fine);
+  }
+  if(c.type==='wheel'){
+    document.querySelectorAll(`[data-room-gc-wheel-range-host="${CSS.escape(key)}"]`).forEach(el=>{el.innerHTML=wheelRangeSliderHtml(selectedWheelOption(c,v),v,`data-room-gc="${DmxCommon.escapeHtml(key)}"`,DmxCommon.escapeHtml);});
+    document.querySelectorAll(`button[data-room-gc="${CSS.escape(key)}"][data-room-gc-wheel]`).forEach(el=>el.classList.toggle('active',Number(el.dataset.roomGcWheel)===Number(v)));
+  }
+}
+function openRoomControllerGroupModal(){
+  const common=roomGroupEditableControls();
+  if(!common.length){
+    setStatus('Selected room-plane fixtures do not have matching editable fixture controls',true);
+    return;
+  }
+  ensureRoomGroupSourceFixture();
+  syncRoomGroupValues(common);
+  const count=selectedRoomFixtures().length;
+  document.getElementById('groupModalTitle').textContent='Group Edit - '+count+' fixture'+(count===1?'':'s')+' selected · '+common.length+' editable control'+(common.length===1?'':'s');
+  document.getElementById('groupModalBody').innerHTML=common.map(renderRoomGroupControl).join('');
+  DmxCommon.showModal('groupModal');
+}
+function closeRoomGroupModal(){DmxCommon.hideModal('groupModal');renderFixtureRows();render();}
+function openRoomPlaneGroupEdit(groups){
+  const selectedGroups=Array.isArray(groups)?groups:[];
+  if(!selectedGroups.length){
+    setStatus('Select a group before using Group Edit',true);
+    return;
+  }
+  applyGroupSelectionToFixtures(selectedGroups);
+  syncTables();
+  openRoomControllerGroupModal();
+}
+
+document.getElementById('targetX').addEventListener('input',()=>{queueRoomPlaneRender();scheduleRoomPlaneAutosave();scheduleTargetAutoApply();});
+document.getElementById('targetY').addEventListener('input',()=>{queueRoomPlaneRender();scheduleRoomPlaneAutosave();scheduleTargetAutoApply();});
+document.getElementById('planeName')?.addEventListener('input',()=>{renderPlaneSelect();scheduleRoomPlaneAutosave();});
+document.getElementById('planeSelect')?.addEventListener('change',event=>recallPlaneDefinition(event.target.value));
+document.getElementById('planeCols').addEventListener('input',event=>{planeCols=event.target.value;renderPlaneSelect();scheduleRoomPlaneAutosave();});
+document.getElementById('planeRows').addEventListener('input',event=>{planeRows=event.target.value;renderPlaneSelect();scheduleRoomPlaneAutosave();});
+document.getElementById('resetCalibration').onclick=()=>resetAllCalibration();
+document.getElementById('closeGroupModal').onclick=closeRoomGroupModal;
+document.getElementById('closeGroupModal2').onclick=closeRoomGroupModal;
+document.getElementById('groupModalBody').addEventListener('input',event=>{
+  const target=event.target.closest('[data-room-gc]')||event.target;
+  const key=target.dataset.roomGc;
+  if(!key)return;
+  const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+  if(!c)return;
+  let value=roomGroupValue(c);
+  if(target.dataset.colorPicker){
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(target.value);value={...(value||{}),a:rgb.a,b:rgb.b,c:rgb.c};}
+    else if(c.type==='cmy')value=rgbToCmy(target.value);
+    else if(c.type==='cmyk')value=rgbToCmyk(target.value);
+  }else if(target.dataset.bytePart){
+    const b=bytes16(value);
+    b[target.dataset.bytePart]=Math.max(0,Math.min(255,Number(target.value)||0));
+    value=(b.coarse<<8)|b.fine;
+  }else if(target.dataset.part){
+    value={...(value||{}),[target.dataset.part]:Math.max(0,Math.min(255,Number(target.value)||0))};
+  }else{
+    value=Math.max(0,Math.min(c.type==='slider16'?65535:255,Number(target.value)||0));
+  }
+  setRoomGroupValue(c,value);
+  sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+  updateRoomGroupControlDisplay(c);
+});
+document.getElementById('groupModalBody').addEventListener('click',event=>{
+  const relative=event.target.closest('[data-room-relative-gc]');
+  if(relative){
+    const key=relative.dataset.roomRelativeGc;
+    const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+    if(!c)return;
+    const input=relative.closest('.relative-control')?.querySelector('input[type=number]');
+    const step=Math.max(1,Number(input?.value)||Number(relative.dataset.relativeStepDefault)||1);
+    const dir=Number(relative.dataset.relativeDir)<0?-1:1;
+    const changed=applyRelativeToRoomGroup(c,relative.dataset.relativePart||'value',dir*step);
+    if(changed){
+      sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+      updateRoomGroupControlDisplay(c);
+      setStatus('Group Edit: '+(c.label||'Control')+' '+(dir>0?'+':'-')+step+' on '+changed+' fixture'+(changed===1?'':'s'));
+    }
+    return;
+  }
+  const target=event.target.closest('[data-room-gc]');
+  const key=target?.dataset.roomGc;
+  if(!key)return;
+  const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+  if(!c)return;
+  if(target.dataset.roomCenter){
+    setRoomGroupValue(c,c.type==='panTilt8'?{pan:128,tilt:128}:{pan:32768,tilt:32768});
+    sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+    updateRoomGroupControlDisplay(c);
+    return;
+  }
+  if(target.dataset.roomGcColor!==undefined){
+    if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'){const rgb=hexToRgb(target.dataset.roomGcColor);setRoomGroupValue(c,{...(roomGroupValue(c)||{}),a:rgb.a,b:rgb.b,c:rgb.c});}
+    else if(c.type==='cmy')setRoomGroupValue(c,rgbToCmy(target.dataset.roomGcColor));
+    else if(c.type==='cmyk')setRoomGroupValue(c,rgbToCmyk(target.dataset.roomGcColor));
+    sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+    updateRoomGroupControlDisplay(c);
+    return;
+  }
+  if(target.dataset.roomGcWheel!==undefined){
+    setRoomGroupValue(c,Math.max(0,Math.min(255,Number(target.dataset.roomGcWheel)||0)));
+    sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+    updateRoomGroupControlDisplay(c);
+  }
+});
+document.getElementById('groupModalBody').addEventListener('pointerdown',event=>{
+  const pad=event.target.closest('[data-room-gxy]');
+  if(!pad)return;
+  pad.setPointerCapture?.(event.pointerId);
+  setRoomGroupXY(event,pad);
+});
+document.getElementById('groupModalBody').addEventListener('pointermove',event=>{
+  const pad=event.target.closest('[data-room-gxy]');
+  if(!pad||!pad.hasPointerCapture?.(event.pointerId))return;
+  setRoomGroupXY(event,pad);
+});
+function setRoomGroupXY(event,pad){
+  const key=pad.dataset.roomGxy;
+  const c=roomGroupEditableControls().find(control=>roomGroupKey(control)===key);
+  if(!c)return;
+  const rect=pad.getBoundingClientRect();
+  const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));
+  const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
+  const max=c.type==='panTilt8'?255:65535;
+  setRoomGroupValue(c,{pan:Math.round(x*max),tilt:Math.round((1-y)*max)});
+  sendRoomGroupControl(c).catch(error=>setStatus(error.message,true));
+  updateRoomGroupControlDisplay(c);
+}
+document.getElementById('targetNudgeControls').addEventListener('click',event=>{
+  const button=event.target.closest('[data-target-nudge-axis]');
+  if(!button)return;
+  const axis=button.dataset.targetNudgeAxis;
+  const dir=Number(button.dataset.targetNudgeDir)||0;
+  const kind=button.dataset.targetNudgeStep||'coarse';
+  if((axis==='x'||axis==='y')&&dir)nudgeTarget(axis,dir,kind);
+});
+document.getElementById('zoomInPlane').onclick=()=>zoomPlaneView(1.25);
+document.getElementById('zoomOutPlane').onclick=()=>zoomPlaneView(1/1.25);
+document.getElementById('resetPlaneView').onclick=()=>{planeView={auto:true,centerX:0,centerY:0,zoom:1};setPlanePanMode(false);render();scheduleRoomPlaneAutosave();setStatus('Plane view reset');};
+function setPlanePanMode(enabled){
+  planePanMode=!!enabled;
+  viewPanDrag=null;
+  const button=document.getElementById('panPlaneView');
+  const pad=document.getElementById('planePad');
+  button.classList.toggle('active',planePanMode);
+  button.textContent=planePanMode?'Stop pan view':'Pan view';
+  button.setAttribute('aria-pressed',planePanMode?'true':'false');
+  pad.classList.toggle('pan-mode',planePanMode);
+}
+document.getElementById('panPlaneView').onclick=()=>setPlanePanMode(!planePanMode);
+document.getElementById('resetDemo').onclick=()=>{points[0]={id:'A',x:0,y:0,z:0};points[1]={id:'B',x:5,y:0,z:0};points[2]={id:'C',x:0,y:3,z:0};document.getElementById('targetX').value='2.5';document.getElementById('targetY').value='1.5';editingFixtureIndex=null;demoFixtures();syncTables();scheduleRoomPlaneAutosave();};
+document.getElementById('addFixture').onclick=()=>{const n=fixtures.length+1;fixtures.push({name:'Spot '+n,x:n,y:-2,z:3,control:{pan:32768,tilt:32768,dimmer:255},cal:{A:{pan:90,tilt:110},B:{pan:130,tilt:110},C:{pan:100,tilt:80}}});editingFixtureIndex=fixtures.length-1;selectedFixtureIds.add(fixtureSelectionKey(fixtures[fixtures.length-1],fixtures.length-1));syncTables();scheduleRoomPlaneAutosave();openFixtureEditor(editingFixtureIndex);};
+document.getElementById('removeFixture').onclick=()=>{if(fixtures.length>1){fixtures.pop();if(editingFixtureIndex!==null&&editingFixtureIndex>=fixtures.length)editingFixtureIndex=null;syncTables();scheduleRoomPlaneAutosave();}};
+document.getElementById('loadPatchedFixtures').onclick=()=>loadPatchedMovingLights();
+let fixtureDrag=null;
+let targetDrag=null;
+let viewPanDrag=null;
+document.getElementById('planePad').addEventListener('pointerdown',event=>{
+  const fixtureMarker=event.target.closest('.plane-point.fixture');
+  const pad=event.currentTarget;
+  const rect=pad.getBoundingClientRect();
+  const bounds=planeBounds();
+  const room=screenToRoom(event,rect,bounds);
+  if(planePanMode||event.button===1||event.button===2||event.shiftKey){
+    event.preventDefault();
+    planeView.auto=false;
+    viewPanDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};
+    pad.setPointerCapture?.(event.pointerId);
+    return;
+  }
+  if(fixtureMarker){
+    event.preventDefault();
+    const index=Number(fixtureMarker.dataset.fixtureIndex);
+    if(index!==editingFixtureIndex)return;
+    if(Number.isFinite(index)&&fixtures[index]){
+      fixtureDrag={index,pointerId:event.pointerId,bounds};
+      pad.setPointerCapture?.(event.pointerId);
+      fixtures[index].x=room.x;
+      fixtures[index].y=room.y;
+      updateFixturePositionInputs(index);
+      render();
+      scheduleRoomPlaneAutosave();
+    }
+    return;
+  }
+  event.preventDefault();
+  targetDrag={pointerId:event.pointerId,bounds};
+  pad.setPointerCapture?.(event.pointerId);
+  setTarget(room);
+});
+document.getElementById('planePad').addEventListener('pointermove',event=>{
+  if(viewPanDrag&&viewPanDrag.pointerId===event.pointerId){
+    const rect=event.currentTarget.getBoundingClientRect();
+    const spanX=viewPanDrag.bounds.maxX-viewPanDrag.bounds.minX;
+    const spanY=viewPanDrag.bounds.maxY-viewPanDrag.bounds.minY;
+    const dx=(event.clientX-viewPanDrag.x)/Math.max(1,rect.width)*spanX;
+    const dy=(event.clientY-viewPanDrag.y)/Math.max(1,rect.height)*spanY;
+    planeView.centerX=((viewPanDrag.bounds.minX+viewPanDrag.bounds.maxX)/2)-dx;
+    planeView.centerY=((viewPanDrag.bounds.minY+viewPanDrag.bounds.maxY)/2)+dy;
+    render();
+    scheduleRoomPlaneAutosave();
+    return;
+  }
+  if(targetDrag&&targetDrag.pointerId===event.pointerId){
+    const rect=event.currentTarget.getBoundingClientRect();
+    const room=screenToRoom(event,rect,targetDrag.bounds);
+    setTarget(room);
+    return;
+  }
+  if(!fixtureDrag)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const room=screenToRoom(event,rect,fixtureDrag.bounds);
+  const f=fixtures[fixtureDrag.index];
+  if(!f)return;
+  f.x=room.x;
+  f.y=room.y;
+  updateFixturePositionInputs(fixtureDrag.index);
+  render();
+  scheduleRoomPlaneAutosave();
+});
+document.getElementById('planePad').addEventListener('pointerup',event=>{
+  if(viewPanDrag&&viewPanDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    viewPanDrag=null;
+  }
+  if(targetDrag&&targetDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    targetDrag=null;
+  }
+  if(fixtureDrag&&fixtureDrag.pointerId===event.pointerId){
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    fixtureDrag=null;
+  }
+});
+document.getElementById('planePad').addEventListener('pointercancel',()=>{fixtureDrag=null;targetDrag=null;viewPanDrag=null;});
+document.getElementById('planePad').addEventListener('contextmenu',event=>event.preventDefault());
+document.getElementById('planePad').addEventListener('wheel',event=>{
+  event.preventDefault();
+  zoomPlaneView(event.deltaY<0?1.12:1/1.12);
+},{passive:false});
+loadRoomPlaneSetup();
+</script>
+</body>
+</html>

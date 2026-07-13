@@ -12,7 +12,10 @@ param(
     [string]$AppFolder = "",
     [string]$BaseUrl = "",
     [string]$ChromePath = "",
-    [string]$ScreenshotBaseUrl = ""
+    [string]$ScreenshotBaseUrl = "",
+    [string]$TestAppFolder = "dmx-test",
+    [string]$TestBaseUrl = "http://localhost/dmx-test/",
+    [switch]$SkipTestAppSync
 )
 
 $ErrorActionPreference = "Stop"
@@ -182,6 +185,16 @@ if ($RunHardwareTests -and -not $SkipTests) {
 }
 
 if (-not $SkipTests) {
+    if (-not $SkipTestAppSync) {
+        Invoke-Step "Sync isolated test app to XAMPP" {
+            $testSyncArgs = @{}
+            if ($XamppHtdocs) { $testSyncArgs.XamppHtdocs = $XamppHtdocs }
+            if ($TestAppFolder) { $testSyncArgs.AppFolder = $TestAppFolder }
+            if ($TestBaseUrl) { $testSyncArgs.BaseUrl = $TestBaseUrl }
+            & (Join-Path $PSScriptRoot "sync_test_app_to_xampp.ps1") @testSyncArgs
+        }
+    }
+
     Invoke-Step "Run UI regression tests" {
         Invoke-Native "UI regression tests" { npm run test:ui }
     }

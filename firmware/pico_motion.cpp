@@ -1,6 +1,7 @@
 #include "pico_motion.h"
 #include "dmx_engine.h"
 #include "pico/sync.h"
+#include "pico/time.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,12 +14,14 @@
 typedef struct {
     bool          loaded;
     bool          active;
+    bool          paused;
     mfx_type_t    type;
     float         bpm;
     float         amp1;
     float         amp2;
     float         spread_deg;
     uint32_t      start_us;
+    uint32_t      paused_elapsed_us;
     float         last_elapsed_s;
     uint16_t      target_count;
     mfx_target_t  targets[MFX_MAX_TARGETS];
@@ -132,7 +135,9 @@ bool mfx_load_slot(uint8_t slot, const char *body, size_t len)
 
     critical_section_enter_blocking(&mfx_lock);
     tmp.active = false;
+    tmp.paused = false;
     tmp.start_us = 0;
+    tmp.paused_elapsed_us = 0;
     memcpy(&slot_data[slot], &tmp, sizeof(mfx_slot_data_t));
     critical_section_exit(&mfx_lock);
     return true;
@@ -144,15 +149,62 @@ void mfx_start(uint8_t slot)
     critical_section_enter_blocking(&mfx_lock);
     if (slot_data[slot].loaded) {
         slot_data[slot].start_us = 0;
+        slot_data[slot].paused_elapsed_us = 0;
+        slot_data[slot].paused = false;
         slot_data[slot].active = true;
     }
     critical_section_exit(&mfx_lock);
 }
 
+void mfx_pause(uint8_t slot)
+{
+    if (slot >= MFX_MAX_SLOTS) return;
+    uint32_t now_us = time_us_32();
+    critical_section_enter_blocking(&mfx_lock);
+    if (slot_data[slot].active) {
+        if (slot_data[slot].start_us != 0)
+            slot_data[slot].paused_elapsed_us = now_us - slot_data[slot].start_us;
+        else
+            slot_data[slot].paused_elapsed_us = (uint32_t)(slot_data[slot].last_elapsed_s * 1000000.0f);
+        slot_data[slot].active = false;
+        slot_data[slot].paused = true;
+    }
+    critical_section_exit(&mfx_lock);
+}
+
+void mfx_resume(uint8_t slot)
+{
+    if (slot >= MFX_MAX_SLOTS) return;
+    critical_section_enter_blocking(&mfx_lock);
+    if (slot_data[slot].loaded && slot_data[slot].paused) {
+        slot_data[slot].start_us = 0;
+        slot_data[slot].active = true;
+        slot_data[slot].paused = false;
+    }
+    critical_section_exit(&mfx_lock);
+}
+
+void mfx_pause_toggle(uint8_t slot)
+{
+    if (slot >= MFX_MAX_SLOTS) return;
+    critical_section_enter_blocking(&mfx_lock);
+    bool active = slot_data[slot].active;
+    bool paused = slot_data[slot].paused;
+    critical_section_exit(&mfx_lock);
+    if (active) mfx_pause(slot);
+    else if (paused) mfx_resume(slot);
+    else mfx_start(slot);
+}
+
 void mfx_stop(void)
 {
     critical_section_enter_blocking(&mfx_lock);
-    for (int i = 0; i < MFX_MAX_SLOTS; i++) slot_data[i].active = false;
+    for (int i = 0; i < MFX_MAX_SLOTS; i++) {
+        slot_data[i].active = false;
+        slot_data[i].paused = false;
+        slot_data[i].start_us = 0;
+        slot_data[i].paused_elapsed_us = 0;
+    }
     critical_section_exit(&mfx_lock);
 }
 
@@ -161,6 +213,9 @@ void mfx_stop_slot(uint8_t slot)
     if (slot >= MFX_MAX_SLOTS) return;
     critical_section_enter_blocking(&mfx_lock);
     slot_data[slot].active = false;
+    slot_data[slot].paused = false;
+    slot_data[slot].start_us = 0;
+    slot_data[slot].paused_elapsed_us = 0;
     critical_section_exit(&mfx_lock);
 }
 
@@ -241,9 +296,14 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
     int active_count = 0;
     for (int i = 0; i < MFX_MAX_SLOTS; i++) {
         mfx_slot_data_t *sd = &slot_data[i];
-        if (!sd->active || !sd->loaded || sd->target_count == 0) continue;
-        if (sd->start_us == 0) sd->start_us = now_us;
-        float elapsed_s = (float)((uint32_t)(now_us - sd->start_us)) / 1e6f;
+        if ((!sd->active && !sd->paused) || !sd->loaded || sd->target_count == 0) continue;
+        if (sd->active && sd->start_us == 0) {
+            sd->start_us = now_us - sd->paused_elapsed_us;
+            sd->paused_elapsed_us = 0;
+        }
+        float elapsed_s = sd->paused
+            ? (float)sd->paused_elapsed_us / 1e6f
+            : (float)((uint32_t)(now_us - sd->start_us)) / 1e6f;
         sd->last_elapsed_s = elapsed_s;
 
         mfx_snap_t *sn = &snaps[active_count++];
@@ -308,16 +368,18 @@ void mfx_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 void mfx_get_status(mfx_status_t *out)
 {
     critical_section_enter_blocking(&mfx_lock);
-    uint64_t amask = 0, lmask = 0;
+    uint64_t amask = 0, pmask = 0, lmask = 0;
     float elapsed = 0.0f;
     for (int i = 0; i < MFX_MAX_SLOTS; i++) {
         if (slot_data[i].active) amask |= (uint64_t)1u << i;
+        if (slot_data[i].paused) pmask |= (uint64_t)1u << i;
         if (slot_data[i].loaded) lmask |= (uint64_t)1u << i;
     }
     for (int i = 0; i < MFX_MAX_SLOTS; i++) {
-        if (slot_data[i].active) { elapsed = slot_data[i].last_elapsed_s; break; }
+        if (slot_data[i].active || slot_data[i].paused) { elapsed = slot_data[i].last_elapsed_s; break; }
     }
     out->active_mask = amask;
+    out->paused_mask = pmask;
     out->loaded_mask = lmask;
     out->elapsed_s = elapsed;
     critical_section_exit(&mfx_lock);
@@ -329,8 +391,10 @@ void mfx_get_slot_info(uint8_t slot, mfx_slot_info_t *out)
     critical_section_enter_blocking(&mfx_lock);
     out->loaded = slot_data[slot].loaded;
     out->active = slot_data[slot].active;
+    out->paused = slot_data[slot].paused;
     out->type = (int)slot_data[slot].type;
     out->bpm = slot_data[slot].bpm;
+    out->elapsed_s = slot_data[slot].last_elapsed_s;
     out->target_count = slot_data[slot].target_count;
     critical_section_exit(&mfx_lock);
 }
