@@ -487,6 +487,110 @@
     </div>`;
   }
 
+  function fixtureGroupEditParts(control){
+    const type=control&&control.type;
+    if(type==='panTilt16')return[{part:'pan',label:'Pan',max:65535},{part:'tilt',label:'Tilt',max:65535}];
+    if(type==='panTilt8')return[{part:'pan',label:'Pan',max:255},{part:'tilt',label:'Tilt',max:255}];
+    if(type==='slider16')return[{part:'value',label:'Value',max:65535}];
+    if(type==='rgb'||type==='cmy')return[{part:'a',label:type==='cmy'?'Cyan':'Red',max:255},{part:'b',label:type==='cmy'?'Magenta':'Green',max:255},{part:'c',label:type==='cmy'?'Yellow':'Blue',max:255}];
+    if(type==='rgbw')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255}];
+    if(type==='rgbwa')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255},{part:'amber',label:'Amber',max:255}];
+    if(type==='cmyk')return[{part:'a',label:'Cyan',max:255},{part:'b',label:'Magenta',max:255},{part:'c',label:'Yellow',max:255},{part:'k',label:'Key',max:255}];
+    return[{part:'value',label:'Value',max:255}];
+  }
+
+  function fixtureGroupEditBytes16(value){
+    const n=clampInt(value,0,65535);
+    return{coarse:(n>>8)&255,fine:n&255};
+  }
+
+  function fixtureGroupEditControlHtml(options={}){
+    const control=options.control||{};
+    const type=control.type||'slider8';
+    const value=options.value;
+    const escape=options.escape||escapeHtml;
+    const attributes=typeof options.attributes==='function'?options.attributes:()=>'';
+    const attrs=(role,detail={})=>{
+      const result=String(attributes(role,detail)||'').trim();
+      return result?' '+result:'';
+    };
+    const scope=options.scopeText?'<span class="bytes">'+escape(options.scopeText)+'</span>':'';
+    const label=escape(options.label||control.label||control.scope||control.name||type||'Control');
+    const relative=(part,kind,max,step,text)=>{
+      const configured=typeof options.relativeStepValue==='function'?options.relativeStepValue(part,kind,step,max):step;
+      const current=clampInt(configured,1,max);
+      return '<div class="relative-control">'+
+      '<button type="button"'+attrs('relative',{part,kind,dir:-1,max,step})+' title="Decrease relative to each fixture current value">−</button>'+
+      '<label>'+escape(text)+'<input type="number" min="1" max="'+max+'" step="'+step+'" value="'+current+'"'+attrs('relativeStep',{part,kind,max,step})+'></label>'+
+      '<button type="button"'+attrs('relative',{part,kind,dir:1,max,step})+' title="Increase relative to each fixture current value">+</button>'+
+      '</div>';
+    };
+
+    if(type==='panTilt16'||type==='panTilt8'){
+      const max=type==='panTilt8'?255:65535;
+      const center=Math.round(max/2);
+      const pan=clampInt(value&&value.pan!=null?value.pan:center,0,max);
+      const tilt=clampInt(value&&value.tilt!=null?value.tilt:center,0,max);
+      const rows=type==='panTilt16'
+        ? relative('pan','coarse',max,256,'Pan coarse relative')+relative('pan','fine',max,1,'Pan fine relative')+relative('tilt','coarse',max,256,'Tilt coarse relative')+relative('tilt','fine',max,1,'Tilt fine relative')
+        : relative('pan','default',max,1,'Pan relative')+relative('tilt','default',max,1,'Tilt relative');
+      return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="bytes">Pan/Tilt '+(max===255?'8':'16')+'-bit</span>'+scope+'</div>'+
+        '<div class="xy-pad"'+attrs('xy')+'><div class="xy-dot" style="left:'+(pan/max*100)+'%;top:'+(100-tilt/max*100)+'%"></div></div>'+
+        '<div class="row"><span class="readout"'+attrs('readout',{part:'panTilt'})+'>Pan '+pan+' · Tilt '+tilt+'</span><button type="button"'+attrs('center')+'>Center</button></div>'+rows+'</div>';
+    }
+
+    if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type)){
+      const parts=fixtureGroupEditParts(control);
+      const current=value&&typeof value==='object'?value:{};
+      const color=type.startsWith('rgb')?rgbHex(current):(type==='cmy'?cmyHex(current):cmykHex(current));
+      return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="bytes">'+escape(type.toUpperCase())+'</span>'+scope+'</div>'+
+        '<label>Color picker<input type="color" value="'+color+'"'+attrs('colorPicker')+'></label>'+
+        parts.map(part=>'<label>'+escape(part.label)+' <span'+attrs('partReadout',{part:part.part})+'>'+clampInt(current[part.part],0,255)+'</span><input type="range" min="0" max="255" step="1" value="'+clampInt(current[part.part],0,255)+'"'+attrs('input',{part:part.part,kind:'range'})+'></label>'+relative(part.part,'default',255,1,part.label+' relative')).join('')+
+        '<div class="swatches"><button type="button" class="swatch" style="background:#fff"'+attrs('color',{color:'#ffffff'})+'></button><button type="button" class="swatch" style="background:#f00"'+attrs('color',{color:'#ff0000'})+'></button><button type="button" class="swatch" style="background:#0f0"'+attrs('color',{color:'#00ff00'})+'></button><button type="button" class="swatch" style="background:#00f"'+attrs('color',{color:'#0000ff'})+'></button></div></div>';
+    }
+
+    if(type==='wheel'){
+      const current=clampInt(value,0,255);
+      const active=selectedWheelOption(control,current);
+      const activeName=active?' · '+escape(active.name||''):'';
+      return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="bytes"'+attrs('readout',{part:'value'})+'>Wheel · '+current+activeName+'</span>'+scope+'</div>'+
+        '<div class="tabs">'+(control.options||[]).map((option,index)=>'<button type="button" class="tab '+(wheelOptionMatches(option,current)?'active':'')+'" title="'+escape(wheelOptionTitle(option))+'"'+attrs('wheel',{option,index,value:wheelOptionValue(option)})+'>'+wheelOptionIconHtml(option,escape)+escape(option.name||('Option '+(index+1)))+'</button>').join('')+'</div>'+
+        '<div'+attrs('wheelHost')+'>'+wheelRangeSliderHtml(active,current,attributes('input',{part:'value',kind:'range',range:true})||'',escape)+'</div>'+
+        '<div class="value-row"><input type="range" min="0" max="255" step="1" value="'+current+'"'+attrs('input',{part:'value',kind:'range'})+'><input type="number" min="0" max="255" step="1" value="'+current+'"'+attrs('input',{part:'value',kind:'number'})+'></div>'+relative('value','default',255,1,'Relative')+'</div>';
+    }
+
+    const max=type==='slider16'?65535:255;
+    const current=clampInt(value,0,max);
+    const bytes=fixtureGroupEditBytes16(current);
+    const rows=type==='slider16'
+      ? relative('value','coarse',max,256,'Coarse relative')+relative('value','fine',max,1,'Fine relative')
+      : relative('value','default',max,1,'Relative');
+    const byteSliders=type==='slider16'?'<div class="byte-sliders"><label>Coarse <span'+attrs('byteReadout',{part:'coarse'})+'>'+bytes.coarse+'</span><input type="range" min="0" max="255" step="1" value="'+bytes.coarse+'"'+attrs('byteInput',{part:'coarse'})+'></label><label>Fine <span'+attrs('byteReadout',{part:'fine'})+'>'+bytes.fine+'</span><input type="range" min="0" max="255" step="1" value="'+bytes.fine+'"'+attrs('byteInput',{part:'fine'})+'></label></div>':'';
+    const scalarAction=options.scalarActionLabel?'<button type="button"'+attrs('scalarAction')+'>'+escape(options.scalarActionLabel)+'</button>':'';
+    return '<div class="control"'+attrs('control')+'><div class="control-head"><h3>'+label+'</h3><span class="readout"'+attrs('readout',{part:'value'})+'>'+current+'</span><span class="bytes">'+escape(type)+'</span>'+scope+'</div>'+
+      (scalarAction?'<div class="row">'+scalarAction+'</div>':'')+'<input type="range" min="0" max="'+max+'" step="1" value="'+current+'"'+attrs('input',{part:'value',kind:'range'})+'>'+rows+byteSliders+'</div>';
+  }
+
+  function updateFixtureGroupEditWheelRangeHost(host,option,value,attrs='',escape=escapeHtml){
+    if(!host)return;
+    const range=wheelOptionRange(option);
+    if(wheelOptionIsAdjustable(option)&&range){
+      host.style.display='';
+      const input=host.querySelector('input[type="range"]');
+      const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
+      if(sameRange){
+        const next=clampInt(value,range[0],range[1]);
+        if(document.activeElement!==input&&Number(input.value)!==next)input.value=next;
+        host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>{el.textContent=next;});
+        return;
+      }
+      host.innerHTML=wheelRangeSliderHtml(option,value,attrs,escape);
+      return;
+    }
+    host.innerHTML='';
+    host.style.display='none';
+  }
+
   function applyBaseUrl(input,fallback=''){
     if(!input)return '';
     input.value=localStorage.getItem(BASE_URL_KEY)||fallback||'';
@@ -2763,6 +2867,9 @@
     wheelOptionRangeLabel,
     wheelOptionRangeText,
     wheelRangeSliderHtml,
+    fixtureGroupEditParts,
+    fixtureGroupEditControlHtml,
+    updateFixtureGroupEditWheelRangeHost,
     applyBaseUrl,
     bindBaseUrl,
     discoverPicoBaseUrl,

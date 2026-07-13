@@ -281,6 +281,8 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 <div id="chaserGroupModalBody" class="modal-body"></div>
 <div class="modal-actions">
+<button id="defaultChaserGroupBtn" type="button" title="Recall default values into the selected chase step">Default</button>
+<button id="blackoutChaserGroupBtn" type="button" title="Recall blackout values into the selected chase step">Blackout</button>
 <button id="closeChaserGroupModal2" type="button">Close</button>
 </div>
 </div>
@@ -620,18 +622,7 @@ const wheelOptionRange=DmxCommon.wheelOptionRange;
 const wheelOptionIsAdjustable=DmxCommon.wheelOptionIsAdjustable;
 const wheelRangeSliderHtml=DmxCommon.wheelRangeSliderHtml;
 function updateWheelRangeHost(host,option,value,attrs){
-  const range=wheelOptionRange(option);
-  if(wheelOptionIsAdjustable(option)&&range){
-    const input=host.querySelector('input[type="range"]');
-    const sameRange=input&&Number(input.min)===range[0]&&Number(input.max)===range[1];
-    if(sameRange){
-      const v=clamp(value,range[0],range[1]);
-      if(document.activeElement!==input&&Number(input.value)!==v)input.value=v;
-      host.querySelectorAll('[data-wheel-range-readout]').forEach(el=>el.textContent=v);
-      return;
-    }
-  }
-  host.innerHTML=wheelRangeSliderHtml(option,value,attrs,escAttr);
+  DmxCommon.updateFixtureGroupEditWheelRangeHost(host,option,value,attrs,escAttr);
 }
 function findChaserGroupControl(f,key){
   return(fixtureProfile(f)?.controls||[]).find(c=>isChaserControlSupported(c)&&chaserGroupKey(c)===key)||null;
@@ -673,6 +664,39 @@ function chaserGroupControlByDataKey(dataKey){
   const key=decodeURIComponent(dataKey||'');
   return getChaserGroupEditableControls().find(c=>chaserGroupKey(c)===key)||null;
 }
+function chaserGroupControlTargets(c){
+  const key=chaserGroupKey(c);
+  return chaserGroupEditFixtures().map(f=>({fixture:f,control:findChaserGroupControl(f,key)})).filter(target=>target.control&&isChaserGroupControlParticipating(target.fixture,target.control));
+}
+function chaserGroupControlScopeText(c){
+  const targets=chaserGroupControlTargets(c);
+  const names=[...new Set(targets.map(target=>fixtureProfile(target.fixture)?.name||'Unknown profile'))];
+  return targets.length+' matching fixture'+(targets.length===1?'':'s')+(names.length?' · '+names.join(', '):'');
+}
+function applyRelativeToChaserGroup(c,part,delta){
+  if(!delta)return 0;
+  stopPlaybackForManualEdit();
+  let changed=0;
+  chaserGroupControlTargets(c).forEach(target=>{
+    const current=getStepVal(target.fixture,target.control)??defaultValue(target.control);
+    if(part==='pan'||part==='tilt'){
+      const max=target.control.type==='panTilt8'?255:65535;
+      const center=target.control.type==='panTilt8'?128:32768;
+      const next={...(current&&typeof current==='object'?current:{pan:center,tilt:center})};
+      next[part]=clamp((Number(next[part])||0)+delta,0,max);
+      setStepVal(target.fixture,target.control,next);
+    }else if(['a','b','c','w','amber','k'].includes(part)){
+      const next={...(current&&typeof current==='object'?current:defaultValue(target.control))};
+      next[part]=clamp((Number(next[part])||0)+delta,0,255);
+      setStepVal(target.fixture,target.control,next);
+    }else{
+      const max=target.control.type==='slider16'?65535:255;
+      setStepVal(target.fixture,target.control,clamp((Number(current)||0)+delta,0,max));
+    }
+    changed++;
+  });
+  return changed;
+}
 function getChaserGroupValue(c){
   const key=chaserGroupKey(c);
   const fx=chaserGroupEditFixtures();
@@ -708,6 +732,14 @@ function getChaserGroupSourceValue(c){
   return defaultValue(c);
 }
 function setChaserGroupValue(c,val){
+  ensureChaserGroupStep();
+  const key=chaserGroupKey(c);
+  chaserGroupEditFixtures().forEach(f=>{
+    const mc=findChaserGroupControl(f,key);
+    if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
+  });
+}
+function ensureChaserGroupStep(){
   stopPlaybackForManualEdit();
   if(selectedStepIdx<0&&steps.length<CHASER_MAX_STEPS){
     const initial={};
@@ -719,11 +751,6 @@ function setChaserGroupValue(c,val){
     sourceFixtureId=firstStepFixtureId(s);
     drawStepList();
   }
-  const key=chaserGroupKey(c);
-  chaserGroupEditFixtures().forEach(f=>{
-    const mc=findChaserGroupControl(f,key);
-    if(mc&&isChaserGroupControlParticipating(f,mc))setStepVal(f,mc,JSON.parse(JSON.stringify(val)));
-  });
 }
 function applyChaserGroupSourceValue(c,options={}){
   setChaserGroupValue(c,getChaserGroupSourceValue(c));
@@ -734,49 +761,27 @@ function applyChaserGroupSourceValue(c,options={}){
   }
 }
 function renderChaserGroupControl(c){
-  const key=chaserGroupDataKey(c),gca=`data-cg="${key}"`;
-  const v=getChaserGroupValue(c);
-  if(c.type==='panTilt16'||c.type==='panTilt8'){
-    const max=c.type==='panTilt8'?255:65535;
-    const pan=bytes16(v.pan??Math.round(max/2)),tilt=bytes16(v.tilt??Math.round(max/2));
-    const bytes=c.type==='panTilt16'?`<div class="byte-sliders">
-      <label>Pan coarse <span data-cg-byte="${key}" data-part="panCoarse">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" ${gca} data-byte-axis="pan" data-byte-part="coarse"></label>
-      <label>Pan fine <span data-cg-byte="${key}" data-part="panFine">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" ${gca} data-byte-axis="pan" data-byte-part="fine"></label>
-      <label>Tilt coarse <span data-cg-byte="${key}" data-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" ${gca} data-byte-axis="tilt" data-byte-part="coarse"></label>
-      <label>Tilt fine <span data-cg-byte="${key}" data-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" ${gca} data-byte-axis="tilt" data-byte-part="fine"></label>
-    </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · group edit scope</span></div>
-      <div class="xy-pad" data-cgxy="${key}"><div class="xy-dot" style="left:${(v.pan??Math.round(max/2))/max*100}%;top:${100-(v.tilt??Math.round(max/2))/max*100}%"></div></div>
-      <div class="row"><span class="readout" data-cg-readout="${key}">Pan ${Math.round(v.pan??Math.round(max/2))} · Tilt ${Math.round(v.tilt??Math.round(max/2))}</span><button ${gca} data-cg-center="1">Center</button></div>
-      <label>Pan<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.pan??Math.round(max/2))}" ${gca} data-axis="pan"></label>
-      <label>Tilt<input type="range" min="0" max="${max}" step="1" value="${Math.round(v.tilt??Math.round(max/2))}" ${gca} data-axis="tilt"></label>
-      ${bytes}</div>`;
-  }
-  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type.toUpperCase()} · group edit scope</span></div>
-      <label>Color<input type="color" value="${color}" ${gca} data-color-picker="1"></label>
-      ${parts.map((part,i)=>`<label>${names[i]} <span data-cg-part="${key}" data-part="${part}">${Math.round(v[part]??0)}</span><input type="range" min="0" max="255" value="${Math.round(v[part]??0)}" ${gca} data-part="${part}"></label>`).join('')}
-      <div class="swatches"><button class="swatch" style="background:#fff" data-cg-color="#ffffff" ${gca}></button><button class="swatch" style="background:#f00" data-cg-color="#ff0000" ${gca}></button><button class="swatch" style="background:#0f0" data-cg-color="#00ff00" ${gca}></button><button class="swatch" style="background:#00f" data-cg-color="#0000ff" ${gca}></button></div></div>`;
-  }
-  if(c.type==='wheel'){
-    const wv=v??0;
-    const active=selectedWheelOption(c,wv);
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes" data-cg-readout="${key}">Wheel · ${wv}${active?' · '+escAttr(active.name):''}</span></div>
-      <div class="tabs">${(c.options||[]).map((o,i)=>`<button class="tab${wheelOptionMatches(o,wv)?' active':''}" title="${escAttr(wheelOptionTitle(o))}" data-cg-wheel="${wheelOptionValue(o)}" data-cg-wheel-option-index="${i}" ${gca}>${DmxCommon.wheelOptionIconHtml(o,escAttr)}${escAttr(o.name)}</button>`).join('')}</div>
-      <div data-cg-wheel-range-host="${key}">${wheelRangeSliderHtml(active,wv,gca,escAttr)}</div>
-      <input type="range" min="0" max="255" value="${wv}" ${gca}></div>`;
-  }
-  const max=c.type==='slider16'?65535:255;
-  const sv=v??0,b=bytes16(sv);
-  const extra=c.type==='slider16'?`<div class="byte-sliders">
-      <label>Coarse <span data-cg-byte="${key}" data-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" ${gca} data-byte-part="coarse"></label>
-      <label>Fine <span data-cg-byte="${key}" data-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" ${gca} data-byte-part="fine"></label>
-    </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="readout" data-cg-readout="${key}">${Math.round(sv)}</span><span class="bytes">${c.type} · group edit scope</span></div>
-    <input type="range" min="0" max="${max}" step="1" value="${Math.round(sv)}" ${gca}>${extra}</div>`;
+  const key=chaserGroupDataKey(c),safeKey=escAttr(key),base=`data-cg="${safeKey}"`;
+  const isColor=['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type);
+  return DmxCommon.fixtureGroupEditControlHtml({
+    control:c,key,value:getChaserGroupValue(c),scopeText:chaserGroupControlScopeText(c),escape:escAttr,
+    attributes:(role,detail={})=>{
+      if(role==='xy')return `data-cgxy="${safeKey}"`;
+      if(role==='readout')return `data-cg-readout="${safeKey}"`;
+      if(role==='partReadout')return `data-cg-part="${safeKey}" data-part="${detail.part}"`;
+      if(role==='byteReadout')return `data-cg-byte="${safeKey}" data-part="${detail.part}"`;
+      if(role==='center')return `${base} data-cg-center="1"`;
+      if(role==='colorPicker')return `${base} data-color-picker="1"`;
+      if(role==='color')return `${base} data-cg-color="${detail.color}"`;
+      if(role==='wheel')return `${base} data-cg-wheel="${detail.value}" data-cg-wheel-option-index="${detail.index}"`;
+      if(role==='wheelHost')return `data-cg-wheel-range-host="${safeKey}"`;
+      if(role==='input')return base+(isColor&&detail.part?` data-part="${detail.part}"`:'');
+      if(role==='byteInput')return `${base} data-byte-part="${detail.part}"`;
+      if(role==='relative')return `data-cg-relative="${safeKey}" data-part="${detail.part}" data-dir="${detail.dir}"`;
+      if(role==='relativeStep')return `data-cg-relative-step="1"`;
+      return'';
+    }
+  });
 }
 function updateChaserGroupControlDisplay(c){
   const key=chaserGroupDataKey(c),v=getChaserGroupValue(c);
@@ -835,11 +840,27 @@ function openChaserGroupModal(){
   if(state.fixtures.length<2||!state.controls.length){setStatus('Select at least one matching participating control on two or more fixtures first',true);return;}
   const n=state.fixtures.length;
   const titleStep=selectedStepIdx>=0?'step '+(selectedStepIdx+1):'new step';
-  document.getElementById('chaserGroupModalTitle').textContent='Group Edit - '+titleStep+' - '+n+' fixture'+(n===1?'':'s')+' · '+state.controls.length+' matching control'+(state.controls.length===1?'':'s');
+  document.getElementById('chaserGroupModalTitle').textContent='Group Edit — '+titleStep+' · '+n+' fixture'+(n===1?'':'s')+' selected · '+state.controls.length+' editable control'+(state.controls.length===1?'':'s');
   document.getElementById('chaserGroupModalBody').innerHTML=state.controls.map(c=>renderChaserGroupControl(c)).join('');
   DmxCommon.showModal('chaserGroupModal');
 }
 function closeChaserGroupModal(){DmxCommon.hideModal('chaserGroupModal');drawParticipation();drawStepList();drawStepEditor();refreshFanBasesFromStep();}
+function recallChaserGroupFixtureValues(which){
+  const controls=getChaserGroupEditableControls();
+  let changed=0;
+  ensureChaserGroupStep();
+  controls.forEach(c=>chaserGroupControlTargets(c).forEach(target=>{
+    const value=target.control?.[which];
+    if(value===undefined||value===null)return;
+    setStepVal(target.fixture,target.control,JSON.parse(JSON.stringify(value)));
+    changed++;
+  }));
+  controls.forEach(updateChaserGroupControlDisplay);
+  fanState.bases={};
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!changed){setStatus('No '+label+' values configured for the selected chase controls',true);return;}
+  setStatus('Group '+label+' recalled into '+(selectedStepIdx>=0?'step '+(selectedStepIdx+1):'the new step'));
+}
 
 function groupControlKey(c){return c.label+'|'+c.type;}
 function groupControlFixtureIds(){
@@ -1779,6 +1800,23 @@ function handleChaserGroupInput(e){
 }
 
 function handleChaserGroupClick(e){
+  const relative=e.target.closest('[data-cg-relative]');
+  if(relative){
+    const c=chaserGroupControlByDataKey(relative.dataset.cgRelative);if(!c)return;
+    const part=relative.dataset.part||'value';
+    const input=relative.closest('.relative-control')?.querySelector('[data-cg-relative-step]');
+    const max=c.type==='slider16'||c.type==='panTilt16'?65535:255;
+    const step=clamp(input?.value||1,1,max);
+    if(input)input.value=step;
+    const dir=parseInt(relative.dataset.dir,10)<0?-1:1;
+    const changed=applyRelativeToChaserGroup(c,part,dir*step);
+    if(changed){
+      updateChaserGroupControlDisplay(c);
+      fanState.bases={};
+      setStatus('Group '+c.label+' '+(dir>0?'+':'-')+step+' in chase step');
+    }
+    return;
+  }
   const target=e.target.closest('[data-cg]')||e.target;
   const c=chaserGroupControlByDataKey(target.dataset.cg);if(!c)return;
   if(target.dataset.cgCenter){
@@ -1810,6 +1848,8 @@ function setChaserGroupXY(e,pad){
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
 document.getElementById('closeChaserGroupModal2').onclick=closeChaserGroupModal;
+document.getElementById('defaultChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('defaultValue');
+document.getElementById('blackoutChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('blackoutValue');
 const chaserGroupModalBody=document.getElementById('chaserGroupModalBody');
 chaserGroupModalBody.oninput=handleChaserGroupInput;
 chaserGroupModalBody.onclick=handleChaserGroupClick;

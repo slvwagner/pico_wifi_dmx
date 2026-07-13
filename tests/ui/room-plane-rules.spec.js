@@ -882,6 +882,8 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#groupModalTitle')).toContainText('2 fixtures selected');
     await expect(page.locator('#groupModal')).toContainText('Dimmer');
     await expect(page.locator('#groupModal')).toContainText('Position');
+    await expect(page.locator('#defaultRoomGroupBtn')).toHaveText('Default');
+    await expect(page.locator('#blackoutRoomGroupBtn')).toHaveText('Blackout');
     await page.locator('#groupModal [data-room-gc^="slider8:Dimmer"]').first().fill('77');
     await expect.poll(() => sent.some(body => body.includes('10:77') && body.includes('30:77'))).toBe(true);
     await page.locator('#closeGroupModal2').click();

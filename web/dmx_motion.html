@@ -141,6 +141,8 @@ main{max-width:none;width:100%;margin:0}
 </div>
 <div id="motionGroupModalBody" class="modal-body"></div>
 <div class="modal-actions">
+<button id="defaultMotionGroupBtn" type="button" title="Recall default values as effect centers for every selected fixture">Default</button>
+<button id="blackoutMotionGroupBtn" type="button" title="Recall blackout values as effect centers for every selected fixture">Blackout</button>
 <button id="closeMotionGroupModal2" type="button">Close</button>
 </div>
 </div>
@@ -674,48 +676,21 @@ function applyRelativeToMotionGroup(c,part,delta){
   });
 }
 function renderMotionGroupControl(c){
-  const key=motionGroupKey(c);
-  const v=motionGroupValue(c);
-  const scope=`<span class="bytes">${motionGroupScopeText(c)}</span>`;
-  if(motionControlKind(c)!=='panTilt'){
-    const max=scalarMax(c);
-    const b=bytes16(v);
-    const bytes=c.type==='slider16'?`
-    <div class="byte-sliders">
-      <label>Coarse <span data-mg-byte="${key}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-mg="${key}" data-byte-part="coarse"></label>
-      <label>Fine <span data-mg-byte="${key}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-mg="${key}" data-byte-part="fine"></label>
-    </div>`:'';
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='slider16'?'16-bit scalar':'8-bit scalar'} · effect center</span>${scope}</div>
-      <div class="row"><span class="readout" data-mg-readout="${key}">${Math.round(v)}</span><button data-mg="${key}" data-mg-center="1">Zero</button></div>
-      <label>Value<input type="range" min="0" max="${max}" step="1" value="${Math.round(v)}" data-mg="${key}"></label>
-      ${c.type==='slider16'
-        ? relativeControlHtml(`data-mg="${key}" data-relative-part="value"`,max,256,'Coarse relative')+
-          relativeControlHtml(`data-mg="${key}" data-relative-part="value"`,max,1,'Fine relative')
-        : relativeControlHtml(`data-mg="${key}" data-relative-part="value"`,max,1,'Relative')}
-      ${bytes}
-    </div>`;
-  }
-  const max=c.type==='panTilt16'?65535:255;
-  const pan=bytes16(v.pan),tilt=bytes16(v.tilt);
-  const bytes=c.type==='panTilt16'?`
-    <div class="byte-sliders">
-      <label>Pan coarse <span data-mg-byte="${key}" data-byte-part="panCoarse">${pan.coarse}</span><input type="range" min="0" max="255" step="1" value="${pan.coarse}" data-mg="${key}" data-byte-axis="pan" data-byte-part="coarse"></label>
-      <label>Pan fine <span data-mg-byte="${key}" data-byte-part="panFine">${pan.fine}</span><input type="range" min="0" max="255" step="1" value="${pan.fine}" data-mg="${key}" data-byte-axis="pan" data-byte-part="fine"></label>
-      <label>Tilt coarse <span data-mg-byte="${key}" data-byte-part="tiltCoarse">${tilt.coarse}</span><input type="range" min="0" max="255" step="1" value="${tilt.coarse}" data-mg="${key}" data-byte-axis="tilt" data-byte-part="coarse"></label>
-      <label>Tilt fine <span data-mg-byte="${key}" data-byte-part="tiltFine">${tilt.fine}</span><input type="range" min="0" max="255" step="1" value="${tilt.fine}" data-mg="${key}" data-byte-axis="tilt" data-byte-part="fine"></label>
-    </div>`:'';
-  return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">${c.type==='panTilt16'?'Pan/Tilt 16-bit':'Pan/Tilt 8-bit'} · motion center</span>${scope}</div>
-    <div class="xy-pad" data-mgxy="${key}"><div class="xy-dot" style="left:${v.pan/max*100}%;top:${100-v.tilt/max*100}%"></div></div>
-    <div class="row"><span class="readout" data-mg-readout="${key}">Pan ${Math.round(v.pan)} · Tilt ${Math.round(v.tilt)}</span><button data-mg="${key}" data-mg-center="1">Center</button></div>
-    ${c.type==='panTilt16'
-      ? relativeControlHtml(`data-mg="${key}" data-relative-part="pan"`,max,256,'Pan coarse relative')+
-        relativeControlHtml(`data-mg="${key}" data-relative-part="pan"`,max,1,'Pan fine relative')+
-        relativeControlHtml(`data-mg="${key}" data-relative-part="tilt"`,max,256,'Tilt coarse relative')+
-        relativeControlHtml(`data-mg="${key}" data-relative-part="tilt"`,max,1,'Tilt fine relative')
-      : relativeControlHtml(`data-mg="${key}" data-relative-part="pan"`,max,1,'Pan relative')+
-        relativeControlHtml(`data-mg="${key}" data-relative-part="tilt"`,max,1,'Tilt relative')}
-    ${bytes}
-  </div>`;
+  const key=motionGroupKey(c),safeKey=DmxCommon.escapeHtml(key),base=`data-mg="${safeKey}"`;
+  return DmxCommon.fixtureGroupEditControlHtml({
+    control:c,key,value:motionGroupValue(c),scopeText:motionGroupScopeText(c),escape:DmxCommon.escapeHtml,
+    attributes:(role,detail={})=>{
+      if(role==='xy')return `data-mgxy="${safeKey}"`;
+      if(role==='readout')return `data-mg-readout="${safeKey}"`;
+      if(role==='byteReadout')return `data-mg-byte="${safeKey}" data-byte-part="${detail.part}"`;
+      if(role==='center')return `${base} data-mg-center="1"`;
+      if(role==='input')return base;
+      if(role==='byteInput')return `${base} data-byte-part="${detail.part}"`;
+      if(role==='relative')return `${base} data-relative-dir="${detail.dir}" data-relative-part="${detail.part}"`;
+      if(role==='relativeStep')return `${base} data-relative-step="1" data-relative-part="${detail.part}"`;
+      return'';
+    }
+  });
 }
 function updateMotionGroupDisplay(c){
   const key=motionGroupKey(c);
@@ -782,7 +757,7 @@ function openMotionGroupModal(){
   if(!common.length){setStatus('Select at least one fixture for the current effect target',true);return;}
   ensureMotionGroupSourceFixture();
   const n=motionGroupFixtureIds().length;
-  document.getElementById('motionGroupModalTitle').textContent='Group Edit - '+n+' fixture'+(n===1?'':'s')+' - '+common.length+' common effect control'+(common.length===1?'':'s');
+  document.getElementById('motionGroupModalTitle').textContent='Group Edit — '+n+' fixture'+(n===1?'':'s')+' selected · '+common.length+' editable effect control'+(common.length===1?'':'s');
   document.getElementById('motionGroupModalBody').innerHTML=common.map(c=>renderMotionGroupControl(c)).join('');
   DmxCommon.showModal('motionGroupModal');
 }
@@ -790,6 +765,33 @@ function closeMotionGroupModal(){
   DmxCommon.hideModal('motionGroupModal');
   drawFixtureList();
   drawPathPreview();
+}
+function recallMotionGroupFixtureValues(which){
+  const controls=getMotionGroupCommonControls();
+  let changed=0;
+  controls.forEach(control=>{
+    let controlChanged=false;
+    motionGroupEditFixtures().forEach(mf=>{
+      if(motionGroupKey(mf.control)!==motionGroupKey(control))return;
+      const value=mf.control?.[which];
+      if(value===undefined||value===null)return;
+      if(mf.kind==='panTilt'){
+        const max=mf.control.type==='panTilt16'?65535:255;
+        const next=value&&typeof value==='object'?value:{pan:value,tilt:value};
+        const pan=Number(next.pan),tilt=Number(next.tilt);
+        mf.basePan=clamp(Number.isFinite(pan)?pan:Math.round(max/2),0,max);
+        mf.baseTilt=clamp(Number.isFinite(tilt)?tilt:Math.round(max/2),0,max);
+      }else mf.baseValue=clamp(Number(value)||0,0,scalarMax(mf.control));
+      changed++;
+      controlChanged=true;
+    });
+    if(!controlChanged)return;
+    updateMotionGroupDisplay(control);
+    sendMotionGroupControl(control);
+  });
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!changed){setStatus('No '+label+' values configured for the selected effect controls',true);return;}
+  setStatus('Group '+label+' recalled as effect centers for '+motionGroupFixtureIds().length+' fixture'+(motionGroupFixtureIds().length===1?'':'s'));
 }
 function handleMotionGroupInput(target){
   if(target.dataset.relativeStep)return;
@@ -815,6 +817,8 @@ function handleMotionGroupInput(target){
 }
 document.getElementById('closeMotionGroupModal').onclick=closeMotionGroupModal;
 document.getElementById('closeMotionGroupModal2').onclick=closeMotionGroupModal;
+document.getElementById('defaultMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('defaultValue');
+document.getElementById('blackoutMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('blackoutValue');
 const motionGroupModalBody=document.getElementById('motionGroupModalBody');
 motionGroupModalBody.oninput=e=>handleMotionGroupInput(e.target);
 motionGroupModalBody.addEventListener('click',e=>{

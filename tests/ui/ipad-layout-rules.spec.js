@@ -724,7 +724,7 @@ test.describe('iPad layout rules', () => {
   test('Effects iPad touch drag scrolls the Group Edit modal even when starting on an XY pad', async ({ browser }) => {
     const context = await browser.newContext({
       baseURL: loadPathConfig().xamppBaseUrl,
-      viewport: { width: 768, height: 1024 },
+      viewport: { width: 1024, height: 640 },
       isMobile: true,
       hasTouch: true
     });
