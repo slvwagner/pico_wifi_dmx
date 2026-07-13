@@ -5,6 +5,11 @@
 Changed:
 
 - Started the 0.9.9 development branch.
+- Renamed the Show Run **Edit Layout** toggle to **Edit** / **Done** and expanded Edit mode into the common entry point for layout, tile, Live Control, master, and MIDI configuration.
+- Added computer USB MIDI support to Show Run through Web MIDI, with input/output selection, explicit connect/disconnect controls, automatic Launch Control XL preference, and the existing Pico UART MIDI diagnostics retained separately.
+- Added reusable MIDI Learn/clear editing for Groups, Scenes, Palettes, Pico Chaser Playback, Pico Effects Playback, Grand Master, Group Masters, and Live Controls. Continuous mappings use `0..127` scaling, soft takeover, and update coalescing; button mappings trigger the existing Show actions on their press edge.
+- Stored Show Run MIDI mappings in server-side UI state so setup export/import includes them, while keeping browser MIDI permission and port selection local to the XAMPP computer.
+- Added browser regression coverage with a simulated Launch Control XL for MIDI Learn, scene recall, Live Control faders, soft takeover, mapping persistence, and Edit-only mapping actions.
 
 ## 0.9.8 - 2026-07-13
 

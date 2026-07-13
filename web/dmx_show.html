@@ -84,6 +84,20 @@ body.layout-editing .card-empty:hover{border-color:var(--accent);color:var(--acc
 .summary-strip span{border:1px solid var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:12px}
 .midi-card{display:grid;gap:12px}
 .midi-headline{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.midi-usb-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:10px}
+.midi-usb-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.midi-usb-controls label{min-width:180px;flex:1 1 220px}
+.midi-usb-controls select{width:100%;min-height:40px}
+.midi-computer-event{font-size:12px;color:var(--muted);min-height:18px}
+.midi-mapping-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:9px;margin-top:12px}
+.midi-mapping-panel.mapped{border-color:#2f9e7d}
+.midi-mapping-summary{display:grid;gap:3px}
+.midi-mapping-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.midi-map-edit{display:none}
+body.layout-editing .midi-map-edit{display:inline-flex}
+.midi-map-edit.mapped,.midi-mapping-panel.mapped .midi-learn-btn{border-color:var(--accent);box-shadow:0 0 0 1px rgba(55,196,164,.35) inset}
+.slot-visual-btn.mapped{color:var(--accent);opacity:1;background:rgba(55,196,164,.16)}
+.midi-map-badge{display:inline-flex;border:1px solid #2f9e7d;border-radius:999px;padding:2px 6px;color:#bff7df;font-size:10px;line-height:1.2}
 .midi-status-pill{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted);font-size:13px;background:var(--panel2)}
 .midi-status-pill.ready{background:#08281e;border-color:#238966;color:#bff7df}
 .midi-status-pill.offline{background:#2b1010;border-color:#8c3535;color:#ffd1d1}
@@ -135,6 +149,7 @@ body.layout-editing .live-widget-delete{display:inline-flex}
 .master-delete{display:none;position:absolute;top:6px;right:6px;width:24px;height:24px;min-height:24px;padding:0;font-size:14px;z-index:4;background:rgba(60,27,27,.92);border:1px solid #ff7a7a;color:#ffd4d4;box-shadow:0 1px 6px rgba(0,0,0,.45)}
 body.layout-editing .master-delete{display:flex;align-items:center;justify-content:center}
 .master-delete:hover{background:#5a2020;border-color:#ff9d9d;color:#fff}
+.master-fader>.midi-map-edit{position:absolute;top:6px;left:6px}
 .master-target-actions,.master-edit-actions{display:none}
 body.layout-editing .master-target-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 body.layout-editing .master-edit-actions{display:flex}
@@ -193,7 +208,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_gpio.html?v=0.9.9">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
     <a class="nav" href="user-manual.html?v=0.9.9#4-show-run" target="_blank">Manual</a>
-    <button id="editLayoutBtn" type="button">Edit Layout</button>
+    <button id="editLayoutBtn" type="button">Edit</button>
   </div>
   </div>
   <div class="header-actions" aria-label="Show actions"></div>
@@ -221,6 +236,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     </div>
     <div class="master-faders">
       <div class="master-fader">
+        <button type="button" class="slot-visual-btn midi-map-edit" data-midi-edit-target="master:all" title="Edit Grand Master MIDI mapping" aria-label="Edit Grand Master MIDI mapping"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11.5V13h1.5l7-7L10 4.5l-7 7Z"/><path d="M11 3.5l1.5-1.5L14 3.5 12.5 5 11 3.5Z"/></svg></button>
         <h3>Grand Master</h3>
         <button type="button" data-master-full="all">Full</button>
         <input id="grandMasterFader" class="grand-master-fader" type="range" min="0" max="100" value="100" data-grand-master>
@@ -238,14 +254,25 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
   <section class="panel midi-card" id="cardMidi" data-show-card="midi" aria-label="MIDI input monitor">
     <div class="midi-headline">
       <div>
-        <h2>MIDI Input</h2>
-        <div class="small">Read-only signal monitor from the Pico MIDI input.</div>
+        <h2>MIDI Controller</h2>
+        <div class="small">Connect a USB MIDI controller to this computer and monitor the Pico UART MIDI input.</div>
       </div>
       <div class="buttons">
         <span id="midiStatusPill" class="midi-status-pill" data-midi-status-pill>Waiting</span>
         <button id="midiRefreshBtn" class="midi-refresh-btn" type="button">Check MIDI</button>
       </div>
     </div>
+    <div class="midi-usb-panel">
+      <div><strong>Computer USB MIDI</strong><div class="small">Use Chrome or Edge on this XAMPP computer. MIDI access starts only after you click Connect.</div></div>
+      <div class="midi-usb-controls">
+        <label>Input<select class="midi-computer-input" data-midi-computer-input><option value="">No input selected</option></select></label>
+        <label>Output<select class="midi-computer-output" data-midi-computer-output><option value="">No output selected</option></select></label>
+        <button class="midi-connect-btn primary" type="button" data-midi-connect>Connect MIDI</button>
+        <button class="midi-disconnect-btn" type="button" data-midi-disconnect disabled>Disconnect</button>
+      </div>
+      <div class="midi-computer-event" data-midi-computer-status>Not connected.</div>
+    </div>
+    <div class="small"><strong>Pico UART diagnostics</strong></div>
     <div class="midi-stat-grid">
       <div class="midi-stat"><div class="small">Hardware</div><strong id="midiHardware" data-midi-hardware>-</strong></div>
       <div class="midi-stat"><div class="small">Bytes</div><strong id="midiBytes" data-midi-bytes>0</strong></div>
@@ -517,10 +544,26 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 <div class="small">Choose a background color, then draw or upload an optional visual on top.</div>
 </div>
 <div id="showTileVisualHint" class="small"></div>
+<div id="showTileMidiMapping"></div>
 </div>
 <div class="modal-actions">
 <button id="showTileVisualSave" type="button" class="primary">Save tile</button>
 <button id="showTileVisualClose2" type="button">Close</button>
+</div>
+</div>
+</div>
+
+<div id="midiMappingModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="midiMappingTitle">
+<div class="modal-head">
+<button id="midiMappingClose" type="button" aria-label="Close">x</button>
+<h2 id="midiMappingTitle">MIDI Mapping</h2>
+</div>
+<div class="modal-body">
+<div id="midiMappingModalBody"></div>
+</div>
+<div class="modal-actions">
+<button id="midiMappingClose2" type="button">Close</button>
 </div>
 </div>
 </div>
@@ -584,7 +627,7 @@ let cardLayouts={};
 const moveSelected={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
 const moveSelectedLayout={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
 const cardIds=['group','scene','palette','plane','chaser','motion','live','midi','fixture','master'];
-const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Input'};
+const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Controller'};
 const repeatableCardIds=cardIds.slice();
 let cardOrder=[];
 let cardMoveMode=false;
@@ -598,6 +641,16 @@ let autoShowRefreshTimer=null;
 let midiStatus=null;
 let midiPollTimer=null;
 let midiLastMessageCount=null;
+let midiAccess=null;
+let midiInput=null;
+let midiOutput=null;
+let midiMappings=[];
+let midiLearningTarget=null;
+let midiEditorTarget=null;
+let showTileMidiKind='';
+const midiButtonState=new Map();
+const midiPickupState=new Map();
+const midiContinuousQueue=new Map();
 const liveButtonHeld=new Map();
 const liveTimerState=new Map();
 let liveTimerVisualInterval=null;
@@ -957,6 +1010,47 @@ function saveLiveControls(){
   localStorage.setItem(layoutKey('liveControls'),JSON.stringify(liveControls));
   saveShowUiStateValue('liveControls',liveControls);
 }
+function midiTargetKey(type,id){return String(type||'')+':'+String(id??'');}
+function normalizeMidiMapping(item){
+  if(!item||!item.targetType||item.targetId===undefined||!['cc','note'].includes(item.messageType))return null;
+  const channel=Math.max(1,Math.min(16,parseInt(item.channel,10)||1));
+  const number=Math.max(0,Math.min(127,parseInt(item.number,10)||0));
+  return {
+    targetType:String(item.targetType),targetId:String(item.targetId),
+    messageType:item.messageType,channel,number,
+    deviceId:String(item.deviceId||''),deviceName:String(item.deviceName||''),
+    mode:item.mode==='continuous'?'continuous':'trigger',pickup:item.mode==='continuous'&&item.pickup!==false
+  };
+}
+function loadMidiMappings(){
+  const source=savedValue('midiMappings');
+  let rows=[];
+  try{rows=Array.isArray(source)?source:JSON.parse(source||'[]')||[];}catch(_){rows=[];}
+  midiMappings=rows.map(normalizeMidiMapping).filter(Boolean);
+}
+function saveMidiMappings(){
+  localStorage.setItem(layoutKey('midiMappings'),JSON.stringify(midiMappings));
+  saveShowUiStateValue('midiMappings',midiMappings);
+}
+function midiMappingFor(type,id){
+  const key=midiTargetKey(type,id);
+  return midiMappings.find(item=>midiTargetKey(item.targetType,item.targetId)===key)||null;
+}
+function setMidiMapping(mapping){
+  const normalized=normalizeMidiMapping(mapping);
+  if(!normalized)return;
+  const key=midiTargetKey(normalized.targetType,normalized.targetId);
+  midiMappings=midiMappings.filter(item=>midiTargetKey(item.targetType,item.targetId)!==key);
+  midiMappings.push(normalized);
+  midiPickupState.delete(key);
+  saveMidiMappings();
+}
+function clearMidiMapping(type,id){
+  const key=midiTargetKey(type,id);
+  midiMappings=midiMappings.filter(item=>midiTargetKey(item.targetType,item.targetId)!==key);
+  midiPickupState.delete(key);
+  saveMidiMappings();
+}
 function normalizeTargetMasters(){
   if(!Array.isArray(targetMasters))targetMasters=[{id:'target_1',name:'Group Master 1',fixtureIds:[],factor:1}];
   targetMasters=targetMasters.map((item,index)=>({
@@ -1315,7 +1409,7 @@ function setLayoutEditing(enabled){
   if(btn){
     btn.classList.toggle('active',layoutEditing);
     btn.setAttribute('aria-pressed',layoutEditing?'true':'false');
-    btn.textContent=layoutEditing?'Done Layout':'Edit Layout';
+    btn.textContent=layoutEditing?'Done':'Edit';
   }
   if(!layoutEditing){
     cardMoveMode=false;
@@ -1617,7 +1711,7 @@ function closeHiddenTileModal(){
 function reviewHiddenTiles(autoOpen=true){
   const rows=allHiddenTileRows();
   if(!rows.length){closeHiddenTileModal();return;}
-  const message=rows.length+' show item'+(rows.length===1?' is':'s are')+' outside the visible layout. Review hidden items in Edit Layout.';
+  const message=rows.length+' show item'+(rows.length===1?' is':'s are')+' outside the visible layout. Review hidden items in Edit mode.';
   setStatus(message,true);
   if(autoOpen&&!hiddenTileModalDismissed){
     setLayoutEditing(true);
@@ -1770,6 +1864,337 @@ async function postJson(url,data){
   return j;
 }
 function currentShowBaseUrl(){return baseUrlEl.value||localStorage.getItem(DmxCommon.BASE_URL_KEY)||'';}
+function midiTargetInfo(type,id){
+  const targetId=String(id??'');
+  if(type==='group'){
+    const item=groups.find(row=>String(row.id)===targetId);
+    return item?{type,targetId,label:'Group: '+(item.name||targetId),mode:'trigger'}:null;
+  }
+  if(type==='scene'){
+    const entry=itemForTileKey('scene',targetId);
+    return entry?{type,targetId,label:'Scene: '+(entry.item.name||targetId),mode:'trigger'}:null;
+  }
+  if(type==='palette'){
+    const entry=itemForTileKey('palette',targetId);
+    return entry?{type,targetId,label:'Palette: '+(entry.item.name||targetId),mode:'trigger'}:null;
+  }
+  if(type==='chaser'){
+    const item=chaserSlots[parseInt(targetId,10)];
+    return item?.loaded?{type,targetId,label:'Pico Chaser: '+(item.label||('slot '+targetId)),mode:'trigger'}:null;
+  }
+  if(type==='motion'){
+    const item=motionSlots[parseInt(targetId,10)];
+    return item?.loaded?{type,targetId,label:'Pico Effect: '+(item.label||('slot '+targetId)),mode:'trigger'}:null;
+  }
+  if(type==='master'){
+    if(targetId==='all')return {type,targetId,label:'Grand Master',mode:'continuous'};
+    const master=targetMasters.find(row=>String(row.id)===targetId);
+    return master?{type,targetId,label:master.name,mode:'continuous'}:null;
+  }
+  if(type==='live'){
+    const item=liveControls.find(row=>String(row.id)===targetId);
+    const target=item&&liveControlTarget(item);
+    if(!item)return null;
+    return {type,targetId,label:'Live Control: '+liveControlLabel(item,target),mode:item.widget==='button'?'trigger':'continuous'};
+  }
+  return null;
+}
+function midiMappingDescription(mapping){
+  if(!mapping)return 'No MIDI control mapped.';
+  const source=mapping.messageType==='cc'?'CC '+mapping.number:'Note '+mapping.number;
+  return source+' · Channel '+mapping.channel+(mapping.deviceName?' · '+mapping.deviceName:'');
+}
+function midiTargetFromKey(key){
+  const split=String(key||'').indexOf(':');
+  return split<0?null:{type:String(key).slice(0,split),targetId:String(key).slice(split+1)};
+}
+function midiMappingPanelHtml(target){
+  const mapping=target&&midiMappingFor(target.type,target.targetId);
+  const mapped=!!mapping;
+  const pickup=mapping?.mode==='continuous'&&mapping.pickup!==false;
+  return `<div class="midi-mapping-panel ${mapped?'mapped':''}" data-midi-mapping-panel="${esc(midiTargetKey(target?.type,target?.targetId))}">
+    <div class="midi-mapping-summary"><strong>MIDI Mapping ${mapped?'<span class="midi-map-badge">Mapped</span>':''}</strong><span class="small">${esc(target?.label||'Unknown target')}</span><span class="small">${esc(midiMappingDescription(mapping))}</span></div>
+    ${mapping?.mode==='continuous'?`<label><span><input type="checkbox" data-midi-pickup ${pickup?'checked':''}> Soft takeover</span></label>`:''}
+    <div class="midi-mapping-actions"><button type="button" class="midi-learn-btn ${midiLearningTarget===midiTargetKey(target?.type,target?.targetId)?'active':''}" data-midi-learn>${midiLearningTarget===midiTargetKey(target?.type,target?.targetId)?'Move a control...':'Learn'}</button><button type="button" data-midi-clear ${mapped?'':'disabled'}>Clear mapping</button></div>
+    <div class="small">${target?.mode==='continuous'?'Move a knob or fader. Values are scaled from MIDI 0–127.':'Press the hardware button that should trigger this action.'}</div>
+  </div>`;
+}
+function bindMidiMappingPanel(host,target){
+  if(!host||!target)return;
+  const learn=host.querySelector('[data-midi-learn]');
+  if(learn)learn.onclick=async()=>{
+    try{
+      if(!midiInput)await connectComputerMidi();
+      if(!midiInput)throw new Error('Choose a connected MIDI input first');
+      midiLearningTarget=midiTargetKey(target.type,target.targetId);
+      renderMidiMappingPanel(host,target);
+      setStatus('MIDI Learn: move a control for '+target.label);
+    }catch(err){setStatus('MIDI connection failed: '+err.message,true);}
+  };
+  const clear=host.querySelector('[data-midi-clear]');
+  if(clear)clear.onclick=()=>{
+    clearMidiMapping(target.type,target.targetId);
+    if(midiLearningTarget===midiTargetKey(target.type,target.targetId))midiLearningTarget=null;
+    renderMidiMappingPanel(host,target);
+    updateMidiMappingIndicators();
+    setStatus('Cleared MIDI mapping for '+target.label);
+  };
+  const pickup=host.querySelector('[data-midi-pickup]');
+  if(pickup)pickup.onchange=()=>{
+    const mapping=midiMappingFor(target.type,target.targetId);
+    if(!mapping)return;
+    mapping.pickup=pickup.checked;
+    midiPickupState.delete(midiTargetKey(target.type,target.targetId));
+    saveMidiMappings();
+  };
+}
+function renderMidiMappingPanel(host,target){
+  if(!host||!target)return;
+  host.innerHTML=midiMappingPanelHtml(target);
+  bindMidiMappingPanel(host,target);
+}
+function openMidiMappingEditor(type,id){
+  const target=midiTargetInfo(type,id);
+  if(!target){setStatus('This MIDI mapping target is no longer available',true);return;}
+  midiEditorTarget=target;
+  document.getElementById('midiMappingTitle').textContent='Edit MIDI - '+target.label;
+  renderMidiMappingPanel(document.getElementById('midiMappingModalBody'),target);
+  DmxCommon.showModal('midiMappingModal');
+}
+function closeMidiMappingEditor(){
+  if(midiLearningTarget===midiTargetKey(midiEditorTarget?.type,midiEditorTarget?.targetId))midiLearningTarget=null;
+  midiEditorTarget=null;
+  DmxCommon.hideModal('midiMappingModal');
+}
+function renderShowTileMidiMapping(){
+  const host=document.getElementById('showTileMidiMapping');
+  const select=document.getElementById('showTileVisualTarget');
+  if(!host||!select||!showTileMidiKind||select.value==='__default'){if(host)host.innerHTML='';return;}
+  const target=midiTargetInfo(showTileMidiKind,select.value);
+  if(target)renderMidiMappingPanel(host,target);else host.innerHTML='';
+}
+function cancelShowTileMidiLearning(){
+  const select=document.getElementById('showTileVisualTarget');
+  const key=select&&select.value!=='__default'?midiTargetKey(showTileMidiKind,select.value):'';
+  if(key&&midiLearningTarget===key)midiLearningTarget=null;
+}
+function midiEditButtonHtml(type,id,label){
+  const mapped=!!midiMappingFor(type,id);
+  return `<button type="button" class="slot-visual-btn midi-map-edit ${mapped?'mapped':''}" data-midi-edit-target="${esc(midiTargetKey(type,id))}" title="Edit ${esc(label)} MIDI mapping" aria-label="Edit ${esc(label)} MIDI mapping"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11.5V13h1.5l7-7L10 4.5l-7 7Z"/><path d="M11 3.5l1.5-1.5L14 3.5 12.5 5 11 3.5Z"/></svg></button>`;
+}
+function bindMidiEditButtons(root=document){
+  root.querySelectorAll?.('[data-midi-edit-target]').forEach(btn=>{
+    btn.onclick=e=>{
+      e.stopPropagation();
+      const target=midiTargetFromKey(btn.dataset.midiEditTarget);
+      if(target)openMidiMappingEditor(target.type,target.targetId);
+    };
+  });
+}
+function updateMidiMappingIndicators(){
+  document.querySelectorAll('[data-midi-edit-target]').forEach(btn=>{
+    const target=midiTargetFromKey(btn.dataset.midiEditTarget);
+    btn.classList.toggle('mapped',!!(target&&midiMappingFor(target.type,target.targetId)));
+  });
+  document.querySelectorAll('[data-show-edit-tile]').forEach(btn=>{
+    const target=midiTargetFromKey(btn.dataset.showEditTile);
+    btn.classList.toggle('mapped',!!(target&&midiMappingFor(target.type,target.targetId)));
+  });
+}
+function midiPortRows(map){return map?Array.from(map.values()).filter(port=>port.state!=='disconnected'):[];}
+function renderComputerMidiControls(){
+  const inputs=midiPortRows(midiAccess?.inputs);
+  const outputs=midiPortRows(midiAccess?.outputs);
+  document.querySelectorAll('[data-midi-computer-input]').forEach(select=>{
+    const selected=midiInput?.id||localStorage.getItem(layoutKey('midiInputId'))||'';
+    select.innerHTML='<option value="">No input selected</option>'+inputs.map(port=>`<option value="${esc(port.id)}">${esc(port.name||port.manufacturer||'MIDI input')}</option>`).join('');
+    select.value=inputs.some(port=>port.id===selected)?selected:'';
+    select.onchange=()=>selectComputerMidiInput(select.value);
+  });
+  document.querySelectorAll('[data-midi-computer-output]').forEach(select=>{
+    const selected=midiOutput?.id||localStorage.getItem(layoutKey('midiOutputId'))||'';
+    select.innerHTML='<option value="">No output selected</option>'+outputs.map(port=>`<option value="${esc(port.id)}">${esc(port.name||port.manufacturer||'MIDI output')}</option>`).join('');
+    select.value=outputs.some(port=>port.id===selected)?selected:'';
+    select.onchange=()=>selectComputerMidiOutput(select.value);
+  });
+  document.querySelectorAll('[data-midi-connect]').forEach(btn=>{btn.textContent=midiInput?'MIDI Connected':'Connect MIDI';btn.disabled=!!midiInput;});
+  document.querySelectorAll('[data-midi-disconnect]').forEach(btn=>{btn.disabled=!midiInput;});
+  const label=midiInput?'Connected to '+(midiInput.name||'MIDI input'):(midiAccess?'Choose a MIDI input.':'Not connected.');
+  document.querySelectorAll('[data-midi-computer-status]').forEach(el=>{if(!el.dataset.midiEventActive)el.textContent=label;});
+}
+function selectComputerMidiInput(id){
+  if(midiInput)midiInput.onmidimessage=null;
+  midiInput=midiAccess?.inputs?.get(id)||null;
+  if(midiInput){
+    midiInput.onmidimessage=handleComputerMidiMessage;
+    midiInput.open?.().catch(()=>{});
+    localStorage.setItem(layoutKey('midiInputId'),midiInput.id);
+  }else localStorage.removeItem(layoutKey('midiInputId'));
+  midiButtonState.clear();midiPickupState.clear();
+  renderComputerMidiControls();
+}
+function selectComputerMidiOutput(id){
+  midiOutput=midiAccess?.outputs?.get(id)||null;
+  if(midiOutput){localStorage.setItem(layoutKey('midiOutputId'),midiOutput.id);midiOutput.open?.().catch(()=>{});}
+  else localStorage.removeItem(layoutKey('midiOutputId'));
+  renderComputerMidiControls();
+}
+async function connectComputerMidi(){
+  if(!navigator.requestMIDIAccess)throw new Error('Web MIDI is not available in this browser. Use Chrome or Edge on localhost.');
+  if(!midiAccess){
+    midiAccess=await navigator.requestMIDIAccess();
+    midiAccess.onstatechange=()=>{
+      if(midiInput&&(!midiAccess.inputs.has(midiInput.id)||midiInput.state==='disconnected'))midiInput=null;
+      renderComputerMidiControls();
+    };
+  }
+  const inputs=midiPortRows(midiAccess.inputs);
+  const outputs=midiPortRows(midiAccess.outputs);
+  const savedInput=localStorage.getItem(layoutKey('midiInputId'));
+  const preferredInput=inputs.find(port=>port.id===savedInput)||inputs.find(port=>/launch control xl/i.test(port.name||''))||inputs[0]||null;
+  const savedOutput=localStorage.getItem(layoutKey('midiOutputId'));
+  const preferredOutput=outputs.find(port=>port.id===savedOutput)||outputs.find(port=>/launch control xl/i.test(port.name||''))||outputs[0]||null;
+  selectComputerMidiInput(preferredInput?.id||'');
+  selectComputerMidiOutput(preferredOutput?.id||'');
+  if(!midiInput)setStatus('MIDI permission granted, but no input device was found',true);
+  else setStatus('Connected computer MIDI input: '+(midiInput.name||'MIDI input'));
+  return midiInput;
+}
+function disconnectComputerMidi(){
+  if(midiInput)midiInput.onmidimessage=null;
+  midiInput=null;midiOutput=null;midiLearningTarget=null;
+  midiButtonState.clear();midiPickupState.clear();
+  renderComputerMidiControls();
+  setStatus('Computer MIDI disconnected');
+}
+function computerMidiEvent(data){
+  const status=Number(data?.[0]||0);
+  const type=status&0xF0;
+  const channel=(status&0x0F)+1;
+  if(type===0xB0)return {messageType:'cc',channel,number:Number(data[1]||0),value:Number(data[2]||0)};
+  if(type===0x90||type===0x80)return {messageType:'note',channel,number:Number(data[1]||0),value:type===0x80?0:Number(data[2]||0)};
+  return null;
+}
+function midiMappingMatches(mapping,event){
+  if(mapping.messageType!==event.messageType||mapping.channel!==event.channel||mapping.number!==event.number)return false;
+  if(!mapping.deviceName)return true;
+  return String(mapping.deviceName)===String(midiInput?.name||'')||String(mapping.deviceId)===String(midiInput?.id||'');
+}
+function midiContinuousTarget(mapping){
+  if(mapping.targetType==='master'){
+    if(mapping.targetId==='all')return {current:masterFactors.grand*100,max:100};
+    const master=targetMasters.find(row=>String(row.id)===String(mapping.targetId));
+    return master?{current:master.factor*100,max:100}:null;
+  }
+  if(mapping.targetType==='live'){
+    const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
+    const target=item&&liveControlTarget(item);
+    return target?{current:liveControlCurrentValue(item),max:target.part.max}:null;
+  }
+  return null;
+}
+function midiPickupAllows(mapping,value){
+  if(mapping.pickup===false)return true;
+  const target=midiContinuousTarget(mapping);
+  if(!target)return false;
+  const key=midiTargetKey(mapping.targetType,mapping.targetId);
+  const state=midiPickupState.get(key)||{active:false,last:null};
+  if(state.active)return true;
+  const targetMidi=Math.round((target.current/Math.max(1,target.max))*127);
+  const crossed=state.last!==null&&((state.last<=targetMidi&&value>=targetMidi)||(state.last>=targetMidi&&value<=targetMidi));
+  state.active=Math.abs(value-targetMidi)<=2||crossed;
+  state.last=value;
+  midiPickupState.set(key,state);
+  return state.active;
+}
+function refreshMidiLiveControl(item){
+  const index=liveControls.indexOf(item);
+  const target=liveControlTarget(item);
+  if(index<0||!target)return;
+  const value=liveControlCurrentValue(item);
+  document.querySelectorAll(`[data-live-index="${index}"]`).forEach(input=>{input.value=String(value);updateLiveWidgetReadout(input);});
+}
+async function applyMidiContinuous(mapping,value){
+  const scaled=Math.max(0,Math.min(127,Number(value)||0));
+  if(mapping.targetType==='master'){
+    if(mapping.targetId==='all'){
+      const next=Math.round((scaled/127)*100);setMasterFaderDisplay('all',next);await applyDimmerMaster(next,'all');return;
+    }
+    const index=targetMasters.findIndex(row=>String(row.id)===String(mapping.targetId));
+    if(index>=0){const next=Math.round((scaled/127)*100);setMasterFaderDisplay('target:'+index,next);await applyDimmerMaster(next,'target:'+index);}
+    return;
+  }
+  if(mapping.targetType==='live'){
+    const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
+    const target=item&&liveControlTarget(item);
+    if(item&&target){await applyLiveControl(item,Math.round((scaled/127)*target.part.max));refreshMidiLiveControl(item);}
+  }
+}
+function queueMidiContinuous(mapping,value){
+  const key=midiTargetKey(mapping.targetType,mapping.targetId);
+  const queued=midiContinuousQueue.get(key)||{timer:null,mapping,value};
+  queued.mapping=mapping;queued.value=value;
+  if(!queued.timer)queued.timer=setTimeout(()=>{
+    midiContinuousQueue.delete(key);
+    applyMidiContinuous(queued.mapping,queued.value).catch(err=>setStatus(err.message,true));
+  },30);
+  midiContinuousQueue.set(key,queued);
+}
+function triggerMidiTarget(mapping,pressed,released){
+  if(mapping.targetType==='group'&&pressed){
+    const id=String(mapping.targetId);selectedGroupIds.has(id)?selectedGroupIds.delete(id):selectedGroupIds.add(id);syncFixtureSelectionFromGroups();renderGroups();renderFixtures();renderPlanes();return;
+  }
+  if(mapping.targetType==='scene'&&pressed){recallSceneKey(mapping.targetId);return;}
+  if(mapping.targetType==='palette'&&pressed){recallPaletteKey(mapping.targetId);return;}
+  if((mapping.targetType==='chaser'||mapping.targetType==='motion')&&pressed){
+    const type=mapping.targetType,slot=parseInt(mapping.targetId,10),item=playbackSlotsForType(type)[slot];
+    const action=(item?.active||item?.paused)?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+    action.catch(err=>setStatus(err.message,true));return;
+  }
+  if(mapping.targetType==='live'){
+    const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
+    if(!item)return;
+    const mode=item.buttonMode||'apply';
+    if(mode==='hold'){
+      if(pressed)pressHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+      if(released)releaseHoldLiveButton(item).catch(err=>setStatus(err.message,true));
+    }else if(mode==='timer'&&pressed)toggleLiveTimer(item);
+    else if(pressed)applyLiveControl(item,item.buttonValue).catch(err=>setStatus(err.message,true));
+  }
+}
+function handleComputerMidiMessage(message){
+  const event=computerMidiEvent(message.data);
+  if(!event)return;
+  const label=(event.messageType==='cc'?'CC ':'Note ')+event.number+' · Ch '+event.channel+' · '+event.value;
+  document.querySelectorAll('[data-midi-computer-status]').forEach(el=>{el.dataset.midiEventActive='1';el.textContent='Last event: '+label;});
+  if(midiLearningTarget&&(event.messageType==='cc'||event.value>0)){
+    const target=midiTargetFromKey(midiLearningTarget);
+    const info=target&&midiTargetInfo(target.type,target.targetId);
+    if(info){
+      setMidiMapping({targetType:info.type,targetId:info.targetId,messageType:event.messageType,channel:event.channel,number:event.number,deviceId:midiInput?.id||'',deviceName:midiInput?.name||'',mode:info.mode,pickup:info.mode==='continuous'});
+      const learned=midiMappingFor(info.type,info.targetId);
+      if(learned?.mode==='continuous')midiPickupAllows(learned,event.value);
+      midiLearningTarget=null;
+      const tileHost=document.getElementById('showTileMidiMapping');
+      if(tileHost&&tileHost.offsetParent)renderShowTileMidiMapping();
+      if(midiEditorTarget)renderMidiMappingPanel(document.getElementById('midiMappingModalBody'),midiEditorTarget);
+      updateMidiMappingIndicators();
+      setStatus('Mapped '+label+' to '+info.label);
+    }
+    return;
+  }
+  midiMappings.filter(mapping=>midiMappingMatches(mapping,event)).forEach(mapping=>{
+    if(mapping.mode==='continuous'){
+      if(midiPickupAllows(mapping,event.value))queueMidiContinuous(mapping,event.value);
+      return;
+    }
+    const stateKey=midiTargetKey(mapping.targetType,mapping.targetId);
+    const wasPressed=!!midiButtonState.get(stateKey);
+    const pressed=event.messageType==='note'?event.value>0:event.value>=64;
+    midiButtonState.set(stateKey,pressed);
+    triggerMidiTarget(mapping,pressed&&!wasPressed,!pressed&&wasPressed);
+  });
+}
 function midiTypeLabel(type){
   const t=Number(type)||0;
   return ({
@@ -1884,6 +2309,11 @@ function bindMidiCards(){
   document.querySelectorAll('.midi-refresh-btn').forEach(btn=>{
     btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'Checking...',success:'Checked',error:'Failed'},()=>loadMidiStatus()).catch(err=>setStatus('MIDI status failed: '+err.message,true));
   });
+  document.querySelectorAll('[data-midi-connect]').forEach(btn=>{
+    btn.onclick=()=>DmxCommon.withButtonFeedback(btn,{busy:'Connecting...',success:'Connected',error:'Failed'},()=>connectComputerMidi()).catch(err=>setStatus('MIDI connection failed: '+err.message,true));
+  });
+  document.querySelectorAll('[data-midi-disconnect]').forEach(btn=>{btn.onclick=disconnectComputerMidi;});
+  renderComputerMidiControls();
 }
 async function saveGroupsServer(){await postJson('group_setup.php',{baseUrl:currentShowBaseUrl(),groups});}
 async function saveScenesServer(){await postJson('scene_setup.php',{baseUrl:currentShowBaseUrl(),scenes,slotCols:sceneCols,slotRows:sceneRows});}
@@ -1923,6 +2353,7 @@ const showTileVisualEditor=DmxCommon.initSlotVisualEditor({
 function tileKindLabel(kind){return kind==='group'?'group':kind==='scene'?'scene':'palette';}
 function openShowTileEditor(kind,key){
   if(!showTileVisualEditor||!['group','scene','palette'].includes(kind))return;
+  showTileMidiKind=kind;
   const defaults={group:'#075b66',scene:'#225a50',palette:'#225a50'};
   showTileVisualEditor.open({
     targetLabel:tileKindLabel(kind)+' tiles',
@@ -1939,7 +2370,11 @@ function openShowTileEditor(kind,key){
         .catch(err=>setStatus(err.message,true));
     }
   });
+  renderShowTileMidiMapping();
 }
+document.getElementById('showTileVisualTarget').addEventListener('change',()=>setTimeout(renderShowTileMidiMapping,0));
+['showTileVisualClose','showTileVisualClose2','showTileVisualSave'].forEach(id=>document.getElementById(id)?.addEventListener('click',cancelShowTileMidiLearning));
+document.getElementById('showTileVisualModal').addEventListener('click',e=>{if(e.target.id==='showTileVisualModal')cancelShowTileMidiLearning();});
 function removeShowTilePlacement(kind,key,layoutId=kind){
   if(!['group','scene','palette'].includes(kind))return;
   const entry=itemForTileKey(kind,key);
@@ -2158,12 +2593,12 @@ function updateLiveWidgetReadout(input){
   if(small&&small.textContent.includes(' · '))small.textContent=small.textContent.replace(/ · \d+$/, ' · '+value);
 }
 function liveWidgetHtml(item,index,target){
-  if(!target)return `<div class="live-widget"><button class="live-widget-delete" data-live-delete="${index}">×</button><h3>${esc(item.label||'Missing control')}</h3><div class="small">Fixture or control no longer exists.</div></div>`;
+  if(!target)return `<div class="live-widget">${midiEditButtonHtml('live',item.id,item.label||'Live Control')}<button class="live-widget-delete" data-live-delete="${index}">×</button><h3>${esc(item.label||'Missing control')}</h3><div class="small">Fixture or control no longer exists.</div></div>`;
   const value=getControlPartValue(target.fixture,target.control,target.part.part);
   const label=liveControlLabel(item,target);
   const meta=target.control.type+' · '+target.part.label;
   const common=`min="0" max="${target.part.max}" step="1" value="${value}" data-live-index="${index}"`;
-  const del=`<button class="live-widget-delete" data-live-delete="${index}" title="Remove live control">×</button>`;
+  const del=midiEditButtonHtml('live',item.id,label)+`<button class="live-widget-delete" data-live-delete="${index}" title="Remove live control">×</button>`;
   if(item.widget==='button'){
     const buttonValue=clamp(item.buttonValue??target.part.max,0,target.part.max);
     const mode=item.buttonMode||'apply';
@@ -2194,10 +2629,11 @@ function renderLiveControls(){
     if(!grid)return;
     const indexed=liveControls.map((item,index)=>({item,index})).filter(row=>(row.item.cardId||'live')===cardId);
     if(!indexed.length){
-      grid.innerHTML='<div class="small">Use Edit Layout to add faders, knobs, or buttons for fixture controls.</div>';
+      grid.innerHTML='<div class="small">Use Edit to add faders, knobs, or buttons for fixture controls.</div>';
       return;
     }
     grid.innerHTML=indexed.map(row=>liveWidgetHtml(row.item,row.index,liveControlTarget(row.item))).join('');
+    bindMidiEditButtons(grid);
     grid.querySelectorAll('[data-live-index]').forEach(input=>{
       input.addEventListener('input',()=>{
         updateLiveWidgetReadout(input);
@@ -2232,6 +2668,7 @@ function renderLiveControls(){
         const index=parseInt(button.dataset.liveDelete,10);
         stopLiveTimer(liveControls[index],true);
         liveButtonHeld.delete(liveControls[index]?.id);
+        if(liveControls[index])clearMidiMapping('live',liveControls[index].id);
         liveControls.splice(index,1);
         saveLiveControls();
         renderLiveControls();
@@ -2352,6 +2789,7 @@ function bindShowTileActions(root){
     const [kind,key]=String(btn.dataset.showDeleteTile).split(':');
     removeShowTilePlacement(kind,key,btn.dataset.showDeleteLayout||kind);
   }));
+  updateMidiMappingIndicators();
 }
 function renderScenes(){normalizeSceneGrid('cols');const grid=document.getElementById('sceneGrid');renderSlots(grid,'sceneSummary',scenes,sceneCols,sceneRows,'scene');bindSceneGridRecall(grid);renderRepeatedCards();}
 function renderPalettes(){normalizePaletteGrid('cols');const grid=document.getElementById('paletteGrid');renderSlots(grid,'paletteSummary',palettes,paletteCols,paletteRows,'palette');bindPaletteGridRecall(grid);renderRepeatedCards();}
@@ -2994,10 +3432,11 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     const pauseLabel=item?.paused?'Resume':'Pause';
     const pauseAction=running?`<button data-${type}-pause-toggle="${sourceSlot}">${pauseLabel}</button>`:'';
     const actions=layoutEditing?'<div class="playback-actions small">Move tile</div>':`<div class="playback-actions"><button class="${actionClass}" data-${type}-toggle="${sourceSlot}">${actionLabel}</button>${pauseAction}</div>`;
-    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}><h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
+    if(payload)html+=`<div class="${DmxCommon.selectableCardClass('playback-card',(moveSelected[type]===i&&moveSelectedLayout[type]===layoutId)||selected)}" data-show-tile-index="${i}" ${type==='chaser'?`data-chaser-select="${sourceSlot}"`:`data-motion-select="${sourceSlot}"`}>${midiEditButtonHtml(type,sourceSlot,label)}<h3>${esc(label)}</h3><div class="small">${esc(meta)}</div>${actions}</div>`;
     else html+=`<div class="playback-card empty" data-show-tile-index="${i}"><h3>Tile ${i+1}</h3><div class="small">Empty</div></div>`;
   }
   container.innerHTML=html;
+  bindMidiEditButtons(container);
   container.querySelectorAll(`[data-${type}-toggle]`).forEach(btn=>btn.addEventListener('click',()=>{
     const slot=parseInt(btn.dataset[type+'Toggle'],10);
     const slotData=playbackSlotsForType(type)[slot];
@@ -3253,6 +3692,7 @@ function renderMasterCard(){
   document.querySelectorAll('[data-target-master-list]').forEach(list=>{
     list.innerHTML=targetMasters.map((master,index)=>`
       <div class="master-fader" data-target-master="${index}">
+        ${midiEditButtonHtml('master',master.id,master.name)}
         <button type="button" class="master-delete" data-target-master-delete="${index}" title="Delete ${esc(master.name)}" aria-label="Delete ${esc(master.name)}">×</button>
         <h3>${esc(master.name)}</h3>
         <button type="button" data-master-full="target:${index}">Full</button>
@@ -3281,6 +3721,8 @@ function setMasterFaderDisplay(scope,value){
 }
 function bindMasterCard(){
   renderMasterCard();
+  bindMidiEditButtons(document.getElementById('cardGrid'));
+  updateMidiMappingIndicators();
   document.querySelectorAll('[data-grand-master]').forEach(grand=>{
     grand.oninput=()=>{document.querySelectorAll('[data-grand-master-value]').forEach(el=>{el.textContent=grand.value+'%';});applyDimmerMaster(grand.value,'all').catch(err=>setStatus(err.message,true));};
   });
@@ -3338,6 +3780,7 @@ function bindMasterCard(){
       normalizeTargetMasters();
       const removed=targetMasters[index];
       if(!removed)return;
+      clearMidiMapping('master',removed.id);
       targetMasters.splice(index,1);
       saveTargetMasters();
       bindMasterCard();
@@ -3549,6 +3992,7 @@ async function loadShow(options={}){
   loadCardLayouts();
   loadLiveControls();
   loadTargetMasters();
+  loadMidiMappings();
   const savedUrl=localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
   if(savedUrl)baseUrlEl.value=savedUrl;
   const liveChaserSlots=await loadLivePicoChaserSlots(savedUrl||baseUrlEl.value);
@@ -3751,6 +4195,9 @@ document.getElementById('addShowCard').onclick=addShowCard;
 document.getElementById('addCardClose').onclick=closeAddCardModal;
 document.getElementById('addCardClose2').onclick=closeAddCardModal;
 document.getElementById('addCardModal').addEventListener('click',e=>{if(e.target.id==='addCardModal')closeAddCardModal();});
+document.getElementById('midiMappingClose').onclick=closeMidiMappingEditor;
+document.getElementById('midiMappingClose2').onclick=closeMidiMappingEditor;
+document.getElementById('midiMappingModal').addEventListener('click',e=>{if(e.target.id==='midiMappingModal')closeMidiMappingEditor();});
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 bindCardInputs();

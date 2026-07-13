@@ -464,7 +464,7 @@ Show Run loads the current XAMPP show data:
 - Mirrored Pico effect slots from `motion_setup.php?slots`
 - Current live values from `fixture_setup.php?livevalues`
 
-Show Run automatically refreshes this show data when the page becomes active again, for example after switching back from the Controller, Chaser, or Effects page. This keeps the operator page current without needing to reload the browser tab. Automatic refresh is skipped while **Edit Layout** is active so card moves, tile moves, and Live Controls edits are not overwritten. Use **Refresh Show Data** only when you want to force the same reload manually.
+Show Run automatically refreshes this show data when the page becomes active again, for example after switching back from the Controller, Chaser, or Effects page. This keeps the operator page current without needing to reload the browser tab. Automatic refresh is skipped while **Edit** is active so card moves, tile moves, Live Controls edits, and MIDI mapping edits are not overwritten. Use **Refresh Show Data** only when you want to force the same reload manually.
 
 ### Master Card
 
@@ -472,7 +472,7 @@ The **Master** card contains the global operator actions and dimmer masters. **R
 
 The **Grand Master** is a vertical fader. It does not overwrite stored live values; it multiplies dimmer output by a 0..1 factor, including 16-bit dimmer controls. **Blackout** below the Grand Master sets the Grand Master fader to **0%** and sends the scaled dimmer output immediately. **Group Master** faders work the same way, but only for fixtures assigned to that group master. The **Blackout** button below each Group Master sets only that Group Master to **0%**. When a master is below **100%**, Show Run also locks the affected dimmer channels on the Pico so running Pico chaser/effect playback cannot overwrite the master-limited dimmer output.
 
-To assign a Group Master, first select one or more groups or fixtures, click **Edit Layout**, then click **Assign** on the desired group master fader. **Add Group Master**, **Assign**, **Clear**, and the small tile `x` for deleting a Group Master are only available while **Edit Layout** is active. Deleting a Group Master removes that fader and saves the updated master layout to server UI state. The **Grand Master** is protected and never has a delete `x`. The Grand Master factor and Group Master assignments are saved to server UI state and restored on page load.
+To assign a Group Master, first select one or more groups or fixtures, click **Edit**, then click **Assign** on the desired group master fader. **Add Group Master**, **Assign**, **Clear**, and the small tile `x` for deleting a Group Master are only available while **Edit** is active. Deleting a Group Master removes that fader and saves the updated master layout to server UI state. The **Grand Master** is protected and never has a delete `x`. The Grand Master factor and Group Master assignments are saved to server UI state and restored on page load. The pencil at the upper-left of the Grand Master or a Group Master opens its MIDI mapping editor; use **Learn** and move a hardware fader or knob to assign it.
 
 ![Show Run Master card](screenshots/show-run-card-master.png)
 
@@ -481,6 +481,8 @@ To assign a Group Master, first select one or more groups or fixtures, click **E
 The **Groups** card contains the saved groups from the Controller page. Select one or more groups when you want scene, palette, or Group Master assignment to affect only those fixtures. Selecting a group also highlights the fixtures stored inside that group in the **Fixtures** card, so you can immediately see what the group contains. With no group or fixture selected, Show Run uses all fixtures.
 
 Group selection is an operator filter only. It does not edit the saved group definitions and it does not save setup data.
+
+While **Edit** is active, the pencil on a saved group tile also includes its MIDI mapping. A mapped hardware button selects or deselects that group through the same path as clicking the tile.
 
 The **Group Edit** button opens a Controller-style Group Edit modal for the current Show target. The modal shows matching controls from the selected group or fixture target and sends live-value changes through the same Show Run output path as the other operator controls. Use it for quick grouped dimmer, color, wheel, or pan/tilt adjustments from the run page without opening the full Controller.
 
@@ -498,11 +500,15 @@ Use this when a scene, palette, or Group Master should apply to one fixture or a
 
 The **Scenes** card recalls saved scene tiles from the Controller page. Click a scene tile to recall that scene to the current target. Show Run writes the recalled values to the live-value snapshot and sends the matching DMX channels to the Pico in one `/dmx/b` batch when a Pico base URL is set.
 
+While **Edit** is active, click the scene pencil, click **Learn** in the MIDI Mapping section, and press a hardware button. Pressing that button later recalls the scene.
+
 ![Show Run Scenes card](screenshots/show-run-card-scenes.png)
 
 ### Palettes Card
 
 The **Palettes** card recalls saved position, color, beam, dimmer, and effect palettes. If a group or fixture target is active, only stored values for the targeted fixtures are recalled. This lets one saved palette be reused for different parts of the rig.
+
+Palette pencils expose the same MIDI Learn section while **Edit** is active. A mapped hardware button applies the palette to the current Show target.
 
 ![Show Run Palettes card](screenshots/show-run-card-palettes.png)
 
@@ -520,43 +526,58 @@ The modal uses the current Show target. Select Groups or Fixtures first when onl
 
 The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a slot, set speed, play, pause/resume, set speed, or stop.
 
+In **Edit** mode, each loaded chaser tile has a pencil that opens its MIDI mapping editor. A mapped button toggles that slot between start and stop.
+
 ![Show Run Pico Chaser Playback card](screenshots/show-run-card-chaser.png)
 
 The **Pico Effects Playback** card shows effect slots uploaded from the Effects page. Choose a slot, set **BPM**, then start, set BPM, or stop the slot. Starting a mirrored slot reloads its payload before running it; starting a live-only Pico slot starts the already-loaded Pico slot without overwriting it.
 
+Loaded effect tiles have the same MIDI edit pencil. A mapped button toggles the effect slot between start and stop.
+
 ![Show Run Pico Effects Playback card](screenshots/show-run-card-effects.png)
 
-### MIDI Input Card
+### MIDI Controller Card
 
-The **MIDI Input** card is a read-only diagnostics card for the Pico MIDI input. It shows whether MIDI is ready, the GPIO/UART/baud configuration, byte and message counters, parse errors, and the last decoded event. Use it to verify MIDI wiring and signal reception before mapping hardware controls to show actions.
+The **MIDI Controller** card has two independent inputs:
 
-![Show Run MIDI Input card](screenshots/show-run-card-midi.png)
+- **Computer USB MIDI** connects a class-compliant controller, such as the Novation Launch Control XL, to Chrome or Edge on the XAMPP computer. Click **Connect MIDI**, allow browser MIDI access, and select the input and optional output ports. The page prefers a connected Launch Control XL automatically when available.
+- **Pico UART diagnostics** keeps the original read-only Pico GPIO5/UART1 monitor. It shows the UART/baud configuration, byte and message counters, parse errors, and last decoded event. This Pico input is not used by the new Show mappings.
+
+Open Show Run through `http://localhost/dmx/` on the XAMPP computer. Web MIDI requires a supported browser and a secure context; localhost qualifies for this local workflow. The browser asks for MIDI access only after **Connect MIDI** or **Learn** is clicked.
+
+MIDI mappings are edited only while **Edit** is active. Use the pencil on a supported tile or control, click **Learn**, then move a knob/fader or press a button. The first version supports Groups, Scenes, Palettes, Pico Chaser Playback, Pico Effects Playback, Grand Master, Group Masters, and Live Controls. Other Show cards remain unmapped until their desired behaviour is defined.
+
+Button mappings trigger on the press edge, so the release message does not repeat the action. Faders and knobs scale MIDI `0..127` to the complete target range. **Soft takeover** is enabled by default: if the physical control and Show value differ, output waits until the physical control reaches or crosses the current value. Continuous messages are coalesced before they use the normal Show/Pico output path.
+
+Mappings are stored with the server-side Show Run UI state and are included in setup export/import. The USB connection and selected computer ports are local to the browser; reconnect after opening a new browser session.
+
+![Show Run MIDI Controller card](screenshots/show-run-card-midi.png)
 
 ### Layout Editing
 
-The sticky title bar has **Edit Layout** on the right. Layout tools are hidden during normal operation. Click **Edit Layout** when you want to show the layout controls, then click **Done Layout** to return to the cleaner operator view.
+The sticky title bar has **Edit** on the right. Layout and MIDI mapping tools are hidden during normal operation. Click **Edit** to configure the Show page, then click **Done** to return to the cleaner operator view.
 
 In layout edit mode, the top of Show Run has a page-level card matrix. Use **Card cols** and **Card rows** to choose how many operator cards fit in the page grid. Empty card positions show a `+` tile; click it to open **Add Card**, choose the card type, then add it at that matrix position. If the matrix is full, Show Run still shows one extra `+` tile at the next position so another card can be added. After a card is added, Show Run reports the matrix position where it was placed. Every card type can be added more than once, so you can keep separate palette, scene, playback, or Live Controls cards with different tile layouts. Each card has a small top-right `x` while layout editing is active. That `x` removes the card from the Show Run page only; it does not delete the saved scenes, palettes, groups, chases, effects, or fixture data behind it.
 
 ![Show Run Add Card](screenshots/show-run-add-card.png)
 
-Drag a card by its title/header area to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. Dragging a card to an empty matrix spot places it there and leaves the other card positions unchanged. Dragging a card onto another card swaps only those two cards. The card body remains available for tile editing and other layout controls while **Edit Layout** is active.
+Drag a card by its title/header area to arrange whole cards, for example moving **Palettes** to the top-left and **Pico Effects Playback** to the top-right. Dragging a card to an empty matrix spot places it there and leaves the other card positions unchanged. Dragging a card onto another card swaps only those two cards. The card body remains available for tile editing and other configuration controls while **Edit** is active.
 
 ![Show Run Layout Editing](screenshots/show-run-layout-edit.png)
 
-Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, fixtures, scenes, palettes, planes, Pico chaser slots, and Pico effect slots. While **Edit Layout** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, and Live Controls configuration to the XAMPP server UI state, so the same operator page is restored on another computer and included in **Export Setup** / **Import Setup**. The layout does not rewrite the saved toolbox setup itself.
+Each tile section on Show Run has **Cols** and **Rows** controls like the toolboxes. These controls shape the operator page layout for groups, fixtures, scenes, palettes, planes, Pico chaser slots, and Pico effect slots. While **Edit** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, Live Controls configuration, and MIDI mappings to the XAMPP server UI state, so the same operator page is restored on another computer and included in **Export Setup** / **Import Setup**. The layout does not rewrite the saved toolbox setup itself.
 
-If saved groups, scenes, palettes, planes, or loaded Pico playback slots are outside the visible matrix, Show Run opens **Hidden Show Items** and switches into **Edit Layout**. Use **Expand** to increase that section's rows/columns until the hidden item is visible, or use **Place in Free Tile** when an empty visible tile is available. This prevents newly created palettes/scenes/planes or moved playback slots from being silently hidden on a row that is not currently displayed.
+If saved groups, scenes, palettes, planes, or loaded Pico playback slots are outside the visible matrix, Show Run opens **Hidden Show Items** and switches into **Edit**. Use **Expand** to increase that section's rows/columns until the hidden item is visible, or use **Place in Free Tile** when an empty visible tile is available. This prevents newly created palettes/scenes/planes or moved playback slots from being silently hidden on a row that is not currently displayed.
 
-While **Edit Layout** is active, saved group, scene, and palette tiles also show the small pencil and `x` actions. The pencil opens **Edit Tile**, where the tile name, background color, uploaded icon, or drawn icon can be changed with the same visual editor used on the setup pages. These visual edits change the shared saved tile, so the updated name/color/icon appears on the setup page and in every Show Run card that uses that item. The small tile `x` only removes that item from the current Show Run card position. It does not delete the saved group, scene, or palette from the XAMPP setup files, and it does not remove that same item from another repeated Show Run card.
+While **Edit** is active, saved group, scene, and palette tiles also show the small pencil and `x` actions. The pencil opens **Edit Tile**, where the tile name, background color, uploaded icon, or drawn icon can be changed and where the tile's MIDI mapping can be learned or cleared. These visual edits change the shared saved tile, so the updated name/color/icon appears on the setup page and in every Show Run card that uses that item. The small tile `x` only removes that item from the current Show Run card position. It does not delete the saved group, scene, or palette from the XAMPP setup files, and it does not remove that same item from another repeated Show Run card.
 
 ![Show Run Tile Actions](screenshots/show-run-tile-actions.png)
 
-Pico chaser/effect playback tiles use the same tile move behavior during layout editing. Their playback buttons are replaced by **Move tile** while **Edit Layout** is active, so a show cannot accidentally start or stop playback while you are arranging the operator page.
+Pico chaser/effect playback tiles use the same tile move behavior during editing. Their playback buttons are replaced by **Move tile** while **Edit** is active, so a show cannot accidentally start or stop playback while you are arranging the operator page. Their upper-left pencil opens the MIDI mapping editor.
 
 ### Live Controls
 
-The **Live Controls** card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click **Edit Layout**, choose a patched fixture, control, control part, and widget type, then click **Add Control**. The setup controls are hidden when **Done Layout** is active so the operator page keeps more space for the actual controls. Multiple Live Controls cards can be used to separate faders, buttons, and mixed show controls. Faders and knobs send their value while they are moved. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set.
+The **Live Controls** card can hold operator faders, knobs, and buttons that write directly to fixture controls without opening the full Controller page. Click **Edit**, choose a patched fixture, control, control part, and widget type, then click **Add Control**. The setup controls are hidden when **Done** is active so the operator page keeps more space for the actual controls. Multiple Live Controls cards can be used to separate faders, buttons, and mixed show controls. Faders and knobs send their value while they are moved. Compound controls are split into clear parts such as Pan, Tilt, Red, Green, Blue, White, or Amber. These widgets update the live-value snapshot and send the matching DMX bytes to the Pico when a Pico base URL is set. Use the upper-left pencil on a Live Control to learn or clear its MIDI mapping.
 
 ![Show Run Live Controls card](screenshots/show-run-card-live-controls.png)
 
@@ -572,7 +593,7 @@ To create a fog or haze timer, set **Widget** to **Button**, set **Button mode**
 
 Use **Apply** mode for one-shot commands that should send the configured value once and stay there.
 
-Live Control card configuration is stored with the server-side Show Run layout preferences. Use the small `x` on a live widget while **Edit Layout** is active to remove it from the operator page.
+Live Control card configuration is stored with the server-side Show Run preferences. Use the small `x` on a live widget while **Edit** is active to remove it from the operator page.
 
 ### Output Behavior
 
@@ -582,7 +603,7 @@ Show Run blackout is handled by the master faders. Click **Full** above a master
 
 The global **Stop All Playback** button calls both Pico stop endpoints.
 
-Show Run is intentionally read-mostly during normal operation. Outside **Edit Layout** it does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files. In **Edit Layout**, card placement, tile placement, Live Controls, and tile label/visual edits are saved intentionally.
+Show Run is intentionally read-mostly during normal operation. Outside **Edit** it does not create scenes, edit palettes, change fixture profiles, or overwrite the show setup files. In **Edit**, card placement, tile placement, Live Controls, MIDI mappings, and tile label/visual edits are saved intentionally.
 
 ## 5. Chaser
 

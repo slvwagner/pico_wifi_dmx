@@ -876,9 +876,9 @@ This means the normal workflow is: recall or set the base value first, then star
 
 ![Show Run page](docs/screenshots/show-run.png)
 
-Show Run is the operator page. It recalls saved groups, fixture targets, scenes, palettes, room planes, Pico chaser slots, Pico effect slots, and Live Controls without exposing the full setup UI. Every card can be arranged in a matrix while **Edit Layout** is active. Card positions, repeated card instances, tile rows/columns, tile order, and Live Controls are saved server-side in `data/ui_state.json`, so the same operator layout can be restored on another computer.
+Show Run is the operator page. It recalls saved groups, fixture targets, scenes, palettes, room planes, Pico chaser slots, Pico effect slots, and Live Controls without exposing the full setup UI. Every card can be arranged in a matrix while **Edit** is active. Card positions, repeated card instances, tile rows/columns, tile order, Live Controls, and computer MIDI mappings are saved server-side in `data/ui_state.json`, so the same operator layout can be restored on another computer.
 
-The **Master** card contains the Grand Master plus optional Group Master faders. Group Masters can be added, assigned, cleared, and removed only while **Edit Layout** is active. Each Group Master tile shows a small `x` in Edit Layout for deletion; the Grand Master is protected and cannot be deleted. Group Masters can be assigned from selected groups or from an explicit fixture selection. Selecting a Show Run group mirrors its fixture ids into the Fixtures card so the operator can see what the group contains; manually changing the fixture selection clears the group selection. Show Run **Groups** also has a **Group Edit** button that opens the same rich Controller-style group edit modal for the current show target, including pan/tilt, color, wheel, range, and relative controls where the selected fixtures support them.
+The **Master** card contains the Grand Master plus optional Group Master faders. Group Masters can be added, assigned, cleared, and removed only while **Edit** is active. Each Group Master tile shows a small `x` in Edit mode for deletion; the Grand Master is protected and cannot be deleted. Group Masters can be assigned from selected groups or from an explicit fixture selection. Selecting a Show Run group mirrors its fixture ids into the Fixtures card so the operator can see what the group contains; manually changing the fixture selection clears the group selection. Show Run **Groups** also has a **Group Edit** button that opens the same rich Controller-style group edit modal for the current show target, including pan/tilt, color, wheel, range, and relative controls where the selected fixtures support them.
 
 ![Show Run Planes card](docs/screenshots/show-run-card-planes.png)
 
@@ -910,11 +910,13 @@ Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, C
 
 Show Run blackout is handled by the Master card faders. **Full** above a master sets that master to `100%`. **Blackout** below the Grand Master sets the Grand Master to `0%` for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. When any master is below `100%`, Show Run sends affected dimmer channels to the Pico `/dmx/master` output-scaling endpoint as `channel:scale` factors. The Pico keeps chaser and effect playback writing their normal raw values, then scales the transmitted DMX output, so a running dimmer sine effect remains visible but follows the Grand/Group Master level. The stored live values are not overwritten. When entering Show Run, saved Grand Master and Group Master factors are restored to the Pico scaling layer. When leaving Show Run, the browser clears the Pico master scale and restores dimmer output to the underlying live values without those multipliers.
 
-Show Run refreshes its XAMPP show data automatically when the page becomes active again, so changes made on the Controller, Chaser, or Effects page are picked up when the operator returns. Auto-refresh is skipped while **Edit Layout** is active; **Refresh Show Data** remains as a manual fallback.
+Show Run refreshes its XAMPP show data automatically when the page becomes active again, so changes made on the Controller, Chaser, or Effects page are picked up when the operator returns. Auto-refresh is skipped while **Edit** is active; **Refresh Show Data** remains as a manual fallback.
 
-Show Run also has a configurable **Live Controls** card. While **Edit Layout** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds, current phase, remaining time, and a progress bar.
+Show Run also has a configurable **Live Controls** card. While **Edit** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds, current phase, remaining time, and a progress bar.
 
-Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, plus Live Controls cards and widgets. Because it is server-side UI state, **Export Setup** and **Import Setup** can move the operator page to another computer instead of relying on one browser's local storage.
+Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, Live Controls cards and widgets, and MIDI mappings. Because it is server-side UI state, **Export Setup** and **Import Setup** can move the operator page to another computer instead of relying on one browser's local storage.
+
+The **MIDI Controller** card can connect a class-compliant USB MIDI controller, such as the Novation Launch Control XL, directly to Chrome or Edge on the XAMPP computer. Click **Connect MIDI** to grant browser access and select the input/output ports. While **Edit** is active, use the pencil on group, scene, palette, Pico chaser/effect, Grand Master, Group Master, or Live Control tiles and click **Learn**, then move the desired hardware control. Buttons trigger the mapped show action; faders and knobs scale MIDI values `0..127` to the target range and use soft takeover to avoid sudden jumps. The separate Pico UART MIDI status remains available in the same card for GPIO5 diagnostics.
 
 **Room Plane**
 
@@ -1075,11 +1077,17 @@ Firmware endpoints:
 
 This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or use **Export Setup** before flashing/restarting so the mapping set can be restored and pushed again. Pico-side persistence can be added later once the action model is proven.
 
-### MIDI Input Prototype
+### MIDI Control
+
+The Show Run **MIDI Controller** card uses the browser Web MIDI API for a USB controller connected to the XAMPP computer. MIDI Learn mappings currently support group selection, scene and palette recall, Pico chaser/effect start-stop, Grand and Group Masters, and Live Controls. Continuous messages are coalesced before the existing Show output path is called, and soft takeover waits for a hardware fader or knob to reach the current Show value. The Web MIDI connection is browser-local, while the mappings are stored in server-side Show Run UI state and are included in setup export/import.
+
+The Show page must run in a Web MIDI-capable browser such as Chrome or Edge in a secure context. `http://localhost/dmx/` works when the controller and browser are on the XAMPP computer. MIDI access is requested only after **Connect MIDI** or **Learn** is clicked.
+
+### Pico UART MIDI Input Prototype
 
 The Pico firmware can receive classic DIN/TRS MIDI through a UART input. The default hardware mapping is GPIO5 on UART1 RX at the standard MIDI rate of 31,250 baud. This input is reserved from the GPIO mapper when MIDI is enabled.
 
-The first implementation is deliberately a diagnostics layer: it receives bytes, handles channel voice messages and running status, counts realtime bytes, and exposes the last parsed message. It does not trigger show actions yet.
+The Pico UART implementation remains deliberately a diagnostics layer: it receives bytes, handles channel voice messages and running status, counts realtime bytes, and exposes the last parsed message. It is separate from the computer USB MIDI mapping path and does not trigger show actions yet.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -1103,7 +1111,7 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `gpio_setup.php` | `data/gpio_setup.json` | GPIO/ADC editor mappings, enabled state, Pico base URL |
 | `room_plane_setup.php` | `data/room_plane_setup.json` | Room Plane A/B/C points, target/view state, saved planes, fixture mount positions, and fixture calibration |
 | `fixture_library.php` | `data/fixture_library.json` | Optional custom converted fixture library catalog |
-| `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, toolbox collapse state, and Show Run card/tile/live-control layout |
+| `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, toolbox collapse state, and Show Run card/tile/live-control/MIDI mapping configuration |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
 
