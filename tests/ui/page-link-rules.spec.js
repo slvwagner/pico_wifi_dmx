@@ -4,6 +4,7 @@ const { openDmxPage } = require('./helpers/dmx-page');
 const APP_PAGES = [
   { path: '', manualHref: 'user-manual.html?v=0.9.9#1-fixture-controller', manualText: 'Fixture Controller' },
   { path: 'dmx_show.html', manualHref: 'user-manual.html?v=0.9.9#4-show-run', manualText: 'Show Run' },
+  { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=0.9.9#midi-controller-card', manualText: 'MIDI Emulator' },
   { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=0.9.9#5-chaser', manualText: 'Chaser' },
   { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=0.9.9#6-effects', manualText: 'Effects' },
   { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.9#7-gpio-control', manualText: 'GPIO Control' },
