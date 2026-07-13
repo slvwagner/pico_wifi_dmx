@@ -543,7 +543,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <h2 id="5-chaser">5. Chaser</h2>
 <p><img src="screenshots/chaser.png" alt="Chaser"></p>
 <p>The Chaser page creates step-based sequences. The main page stays focused on <strong>Participating Controls</strong> and <strong>Edit Step</strong>, while the repeated working tools sit in the <strong>Toolboxes</strong> sidebar.</p>
-<p>The Chaser screenshot is captured with the important boxes visible on purpose: <strong>Groups</strong>, <strong>Chases</strong>, <strong>Chase Steps</strong>, and <strong>Chase Playback</strong>. Toolbox headers can be dragged up or down to reorder them in the sidebar. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.</p>
+<p>The Chaser screenshot is captured with the important boxes visible on purpose: <strong>Groups</strong>, <strong>Chases</strong>, <strong>Chase Steps</strong>, and <strong>Chase Playback</strong>. To reorder them, click <strong>Edit</strong> in the Toolboxes header, drag colored toolbox headers up or down, and click <strong>Done</strong>. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.</p>
 <h3 id="basic-workflow">Basic Workflow</h3>
 <ol>
 <li>Open <strong>Chaser</strong>.</li>
@@ -566,9 +566,11 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Double-click the resize line to reset the default width.</li>
 <li>The page content and the toolbox sidebar scroll independently. The page scrollbar sits beside the toolbox separation line, while the toolbox scrollbar stays inside the toolbox sidebar.</li>
 <li>Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.</li>
-<li>Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens. On iPad, toolbox reordering uses the app&#39;s pointer drag on the colored header instead of Safari&#39;s native drag/drop; the header also suppresses text selection/copy callouts as much as Safari allows.</li>
+<li>Toolbox reordering is locked by default. Click <strong>Edit</strong> in the Toolboxes header, drag a toolbox by its colored header, and click <strong>Done</strong> when the order is correct. The toolbox body is never a drag handle. While Edit is off, dragging a colored header scrolls vertically instead of moving the toolbox, which prevents accidental rearrangement on iPad. While Edit is active, the app uses pointer dragging instead of Safari&#39;s native drag/drop.</li>
 <li>On narrow screens, the sidebar changes into a bottom toolbox drawer.</li>
 </ul>
+<p><img src="screenshots/toolbox-reorder-locked.png" alt="Toolbox reordering locked"></p>
+<p><img src="screenshots/toolbox-reorder-editing.png" alt="Toolbox reordering enabled"></p>
 <p>The Chaser page uses several toolboxes:</p>
 <ul>
 <li><strong>Groups</strong> filters the fixture list by one or more saved fixture groups. It uses the cyan header, like the group tools on the controller page.</li>

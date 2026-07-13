@@ -964,6 +964,7 @@
   function setToolboxRailCollapsed(rail,collapsed,{save=false}={}){
     if(!rail)return;
     const next=!!collapsed;
+    if(next)setToolboxRailEditing(rail,false);
     rail.classList.toggle('collapsed',next);
     document.body.classList.toggle('toolbox-rail-collapsed',next);
     const toggle=rail.querySelector('.toolbox-rail-toggle');
@@ -988,15 +989,40 @@
     setToolboxRailCollapsed(rail,collapsed);
   }
 
+  function toolboxRailEditing(rail){
+    return !!rail?.classList.contains('toolbox-reorder-editing');
+  }
+
+  function setToolboxRailEditing(rail,editing){
+    if(!rail)return;
+    const active=!!editing;
+    rail.classList.toggle('toolbox-reorder-editing',active);
+    rail.dataset.toolboxReorderEditing=active?'1':'0';
+    const button=rail.querySelector('.toolbox-rail-edit');
+    if(button){
+      button.textContent=active?'Done':'Edit';
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',active?'true':'false');
+      button.title=active?'Finish reordering toolboxes':'Enable toolbox reordering';
+    }
+    rail.querySelectorAll('.scene-toolbox__header[data-toolbox-drag-handle="1"]').forEach(header=>{
+      header.title=active?'Drag to reorder toolbox':'Enable Toolboxes Edit to reorder';
+    });
+  }
+
   function initToolboxRailHeader(rail){
     if(!rail||rail.querySelector('.toolbox-rail-header'))return;
     const header=document.createElement('div');
     header.className='toolbox-rail-header';
-    header.innerHTML='<span class="toolbox-rail-title">Toolboxes</span><button class="toolbox-rail-toggle" type="button" title="Hide toolboxes" aria-expanded="true">›</button>';
+    header.innerHTML='<span class="toolbox-rail-title">Toolboxes</span><div class="toolbox-rail-actions"><button class="toolbox-rail-edit" type="button" title="Enable toolbox reordering" aria-pressed="false">Edit</button><button class="toolbox-rail-toggle" type="button" title="Hide toolboxes" aria-expanded="true">›</button></div>';
     rail.prepend(header);
+    header.querySelector('.toolbox-rail-edit').addEventListener('click',()=>{
+      setToolboxRailEditing(rail,!toolboxRailEditing(rail));
+    });
     header.querySelector('.toolbox-rail-toggle').addEventListener('click',()=>{
       setToolboxRailCollapsed(rail,!rail.classList.contains('collapsed'),{save:true});
     });
+    setToolboxRailEditing(rail,false);
   }
 
   function initToolboxRailResize(rail){
@@ -1044,7 +1070,8 @@
     if(!header)return;
     header.draggable=false;
     header.dataset.toolboxDragHandle='1';
-    header.title=header.title||'Drag to reorder toolbox';
+    const rail=box.closest('.toolbox-rail');
+    header.title=toolboxRailEditing(rail)?'Drag to reorder toolbox':'Enable Toolboxes Edit to reorder';
   }
 
   function findVerticalScroller(target,limit){
@@ -1105,7 +1132,12 @@
     });
     rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(configureToolboxRailDragHandle);
     applySharedToolboxOrder(rail).catch(()=>{});
-    if(rail.dataset.toolboxRailInit==='1')return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
+    if(rail.dataset.toolboxRailInit==='1')return {
+      applyOrder:()=>applySharedToolboxOrder(rail),
+      saveOrder:()=>saveSharedToolboxOrder(rail),
+      isEditing:()=>toolboxRailEditing(rail),
+      setEditing:editing=>setToolboxRailEditing(rail,editing)
+    };
     rail.dataset.toolboxRailInit='1';
 
     let reorderDrag=null;
@@ -1138,6 +1170,7 @@
       else rail.insertBefore(dragging,target.nextSibling);
     };
     rail.addEventListener('pointerdown',e=>{
+      if(!toolboxRailEditing(rail))return;
       const handle=e.target.closest('.scene-toolbox__header[data-toolbox-drag-handle="1"]');
       const box=handle?.closest('.scene-toolbox[data-toolbox-type]');
       if(!box||e.target.closest('button,input,select,textarea,a'))return;
@@ -1156,7 +1189,12 @@
     rail.addEventListener('dragstart',e=>{
       e.preventDefault();
     });
-    return {applyOrder:()=>applySharedToolboxOrder(rail),saveOrder:()=>saveSharedToolboxOrder(rail)};
+    return {
+      applyOrder:()=>applySharedToolboxOrder(rail),
+      saveOrder:()=>saveSharedToolboxOrder(rail),
+      isEditing:()=>toolboxRailEditing(rail),
+      setEditing:editing=>setToolboxRailEditing(rail,editing)
+    };
   }
 
   function restoreRailElementAnchor(element){

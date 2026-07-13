@@ -632,7 +632,7 @@ Show Run is intentionally read-mostly during normal operation. Outside **Edit** 
 
 The Chaser page creates step-based sequences. The main page stays focused on **Participating Controls** and **Edit Step**, while the repeated working tools sit in the **Toolboxes** sidebar.
 
-The Chaser screenshot is captured with the important boxes visible on purpose: **Groups**, **Chases**, **Chase Steps**, and **Chase Playback**. Toolbox headers can be dragged up or down to reorder them in the sidebar. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.
+The Chaser screenshot is captured with the important boxes visible on purpose: **Groups**, **Chases**, **Chase Steps**, and **Chase Playback**. To reorder them, click **Edit** in the Toolboxes header, drag colored toolbox headers up or down, and click **Done**. The order is shared with the other pages: if a page does not use one of the toolbox types, the next available toolbox moves up.
 
 ### Basic Workflow
 
@@ -660,8 +660,12 @@ Controller, Chaser, and Effects use a shared right-side toolbox sidebar on deskt
 - Double-click the resize line to reset the default width.
 - The page content and the toolbox sidebar scroll independently. The page scrollbar sits beside the toolbox separation line, while the toolbox scrollbar stays inside the toolbox sidebar.
 - Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.
-- Drag a toolbox by its colored header to reorder the sidebar. The toolbox body is not a drag handle, so slot clicks, sliders, and buttons are safe on touch screens. On iPad, toolbox reordering uses the app's pointer drag on the colored header instead of Safari's native drag/drop; the header also suppresses text selection/copy callouts as much as Safari allows.
+- Toolbox reordering is locked by default. Click **Edit** in the Toolboxes header, drag a toolbox by its colored header, and click **Done** when the order is correct. The toolbox body is never a drag handle. While Edit is off, dragging a colored header scrolls vertically instead of moving the toolbox, which prevents accidental rearrangement on iPad. While Edit is active, the app uses pointer dragging instead of Safari's native drag/drop.
 - On narrow screens, the sidebar changes into a bottom toolbox drawer.
+
+![Toolbox reordering locked](screenshots/toolbox-reorder-locked.png)
+
+![Toolbox reordering enabled](screenshots/toolbox-reorder-editing.png)
 
 The Chaser page uses several toolboxes:
 

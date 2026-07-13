@@ -4,6 +4,7 @@
 
 Changed:
 
+- Added a shared **Edit / Done** mode to the Toolboxes header on Controller, Chaser, Effects, and Room Plane. Toolbox headers reorder only while Edit is active; the default locked state restores vertical touch scrolling on toolbox headers and prevents accidental iPad rearrangement.
 - Added the missing **Scenes** toolbox to Chaser with the Controller tile visual language, shared Cols/Rows/Move controls, tile editing and deletion, and server-backed scene layout. A filled Scene replaces the selected chase step with that complete saved look and clears an unrelated group filter; an empty slot saves the selected step as a shared Scene.
 - Fixed saved Plane recall across Controller, Show Run, Chaser, and Effects so opening a tile both shows the target-adjustment modal and immediately applies the plane's current calibrated Pan/Tilt output. All operational Plane toolboxes now provide the same live drag, nudge, zoom, and pan-view workflow. Controller Plane recall now restores all patched fixtures saved in the Plane as the visible active selection, replacing any unrelated prior group selection before sending DMX.
 - Moved toolbox **Cols**, **Rows**, and **Move** controls into a shared `dmx-common.js` renderer and applied the same compact horizontal visual language across Controller, Chaser, Effects (including Scenes), and Room Plane toolboxes.

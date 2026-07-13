@@ -145,6 +145,32 @@ test.describe('iPad layout rules', () => {
     });
   }
 
+  for (const [label, path] of [
+    ['Controller', ''],
+    ['Chaser', 'dmx_chaser.html'],
+    ['Effects', 'dmx_motion.html'],
+    ['Room Plane', 'dmx_room_plane.html']
+  ]) {
+    test(`${label} toolbox rail starts locked with an Edit button`, async ({ page }) => {
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await openDmxPage(page, path);
+
+      const state = await page.evaluate(() => {
+        const rail = document.querySelector('.toolbox-rail');
+        const button = rail.querySelector('.toolbox-rail-edit');
+        const header = rail.querySelector('.scene-toolbox__header[data-toolbox-drag-handle="1"]');
+        return {
+          text: button.textContent,
+          pressed: button.getAttribute('aria-pressed'),
+          editing: rail.classList.contains('toolbox-reorder-editing'),
+          touchAction: getComputedStyle(header).touchAction
+        };
+      });
+
+      expect(state).toEqual({ text: 'Edit', pressed: 'false', editing: false, touchAction: 'pan-y' });
+    });
+  }
+
   test('iPad landscape keeps the toolbox rail as a right-side workspace', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await openDmxPage(page, '');
@@ -188,61 +214,67 @@ test.describe('iPad layout rules', () => {
     expect(layout.groupsBodyOverflow).toBeLessThanOrEqual(1);
   });
 
-  test('iPad toolbox reorder uses pointer dragging instead of native browser drag', async ({ page }) => {
+  test('iPad toolbox reorder is locked until Toolboxes Edit mode is enabled', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await openDmxPage(page, 'dmx_chaser.html');
 
     const result = await page.evaluate(async () => {
       const rail = document.querySelector('.toolbox-rail');
       const boxes = () => [...rail.querySelectorAll('.scene-toolbox[data-toolbox-type]')];
-      const first = boxes()[0];
-      const second = boxes()[1];
+      const initialOrder = boxes().map(box => box.dataset.toolboxType);
+      const first = boxes()[0], second = boxes()[1];
       const header = first.querySelector('.scene-toolbox__header');
-      const start = header.getBoundingClientRect();
-      const target = second.getBoundingClientRect();
+      const editButton = rail.querySelector('.toolbox-rail-edit');
       const nativeDragPrevented = (() => {
         const ev = new DragEvent('dragstart', { bubbles: true, cancelable: true });
         header.dispatchEvent(ev);
         return ev.defaultPrevented;
       })();
-      header.dispatchEvent(new PointerEvent('pointerdown', {
-        bubbles: true,
-        cancelable: true,
-        pointerId: 31,
-        pointerType: 'touch',
-        clientX: start.left + start.width / 2,
-        clientY: start.top + start.height / 2
-      }));
-      rail.dispatchEvent(new PointerEvent('pointermove', {
-        bubbles: true,
-        cancelable: true,
-        pointerId: 31,
-        pointerType: 'touch',
-        clientX: target.left + target.width / 2,
-        clientY: target.bottom - 4
-      }));
-      rail.dispatchEvent(new PointerEvent('pointerup', {
-        bubbles: true,
-        cancelable: true,
-        pointerId: 31,
-        pointerType: 'touch',
-        clientX: target.left + target.width / 2,
-        clientY: target.bottom - 4
-      }));
+      const drag = pointerId => {
+        const start = header.getBoundingClientRect(), target = second.getBoundingClientRect();
+        header.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId, pointerType: 'touch', clientX: start.left + start.width / 2, clientY: start.top + start.height / 2 }));
+        rail.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, pointerId, pointerType: 'touch', clientX: target.left + target.width / 2, clientY: target.bottom - 4 }));
+        rail.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId, pointerType: 'touch', clientX: target.left + target.width / 2, clientY: target.bottom - 4 }));
+      };
+      const lockedTouchAction = getComputedStyle(header).touchAction;
+      drag(31);
+      const lockedOrder = boxes().map(box => box.dataset.toolboxType);
+      editButton.click();
+      const editing = {
+        text: editButton.textContent,
+        pressed: editButton.getAttribute('aria-pressed'),
+        active: editButton.classList.contains('active'),
+        touchAction: getComputedStyle(header).touchAction
+      };
+      drag(32);
       await new Promise(resolve => setTimeout(resolve, 20));
+      const editedOrder = boxes().map(box => box.dataset.toolboxType);
+      editButton.click();
       return {
         nativeDragPrevented,
         headerDraggable: header.draggable,
-        before: first.dataset.toolboxType,
-        order: boxes().map(box => box.dataset.toolboxType),
-        saved: JSON.parse(localStorage.getItem('toolboxRailOrder') || '[]')
+        initialOrder,
+        lockedOrder,
+        lockedTouchAction,
+        editing,
+        editedOrder,
+        saved: JSON.parse(localStorage.getItem('toolboxRailOrder') || '[]'),
+        finalButtonText: editButton.textContent,
+        finalPressed: editButton.getAttribute('aria-pressed'),
+        finalTouchAction: getComputedStyle(header).touchAction
       };
     });
 
     expect(result.nativeDragPrevented).toBe(true);
     expect(result.headerDraggable).toBe(false);
-    expect(result.order[1]).toBe(result.before);
-    expect(result.saved[1]).toBe(result.before);
+    expect(result.lockedOrder).toEqual(result.initialOrder);
+    expect(result.lockedTouchAction).toBe('pan-y');
+    expect(result.editing).toEqual({ text: 'Done', pressed: 'true', active: true, touchAction: 'none' });
+    expect(result.editedOrder[1]).toBe(result.initialOrder[0]);
+    expect(result.saved[1]).toBe(result.initialOrder[0]);
+    expect(result.finalButtonText).toBe('Edit');
+    expect(result.finalPressed).toBe('false');
+    expect(result.finalTouchAction).toBe('pan-y');
   });
 
   test('toolbox divider stays visible while the toolbox rail is scrolled', async ({ page }) => {

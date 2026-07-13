@@ -154,6 +154,46 @@ try {
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
     }
 
+    function Save-ToolboxEditScreenshot {
+        param([string]$Name)
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const rail=document.querySelector('.toolbox-rail');
+  const header=rail?.querySelector('.toolbox-rail-header');
+  if(!rail||!header)throw new Error('Missing toolbox rail/header for Edit-mode screenshot');
+  rail.scrollTop=0;
+  rail.scrollLeft=0;
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const railRect=rail.getBoundingClientRect();
+  const editRect=header.querySelector('.toolbox-rail-edit')?.getBoundingClientRect();
+  if(!editRect)throw new Error('Missing toolbox rail Edit button for Edit-mode screenshot');
+  const pad=8;
+  return JSON.stringify({
+    x:Math.max(0,Math.floor(editRect.left-pad)),
+    y:Math.max(0,Math.floor(editRect.top-pad)),
+    width:Math.ceil(editRect.width+pad*2),
+    height:Math.max(48,Math.ceil(editRect.height+pad*2))
+  });
+})()
+"@
+        if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
+        $result = Send-Cdp "Page.captureScreenshot" @{
+            format = "png"
+            fromSurface = $true
+            captureBeyondViewport = $true
+            clip = @{
+                x = [double]$rect.x
+                y = [double]$rect.y
+                width = [double]$rect.width
+                height = [double]$rect.height
+                scale = 1
+            }
+        }
+        if (-not $result.result.data) { throw "Chrome returned an empty toolbox Edit-mode screenshot" }
+        $file = Join-Path $outPath $Name
+        Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+    }
+
     function Save-ElementScreenshot {
         param(
             [string]$Selector,
@@ -475,6 +515,33 @@ try {
     Save-ElementScreenshot "#sceneBox" "fixture-controller-toolbox-scenes.png"
     Save-ElementScreenshot "#paletteBox" "fixture-controller-toolbox-palettes.png"
     Save-ElementScreenshot "#fanToolbox" "fixture-controller-toolbox-fanout.png"
+
+    Eval-Js @"
+(async()=>{
+  docShots.setToolboxRail({collapsed:false});
+  const rail=document.querySelector('.toolbox-rail');
+  const edit=rail?.querySelector('.toolbox-rail-edit');
+  if(rail?.classList.contains('toolbox-reorder-editing')&&edit)edit.click();
+  rail.scrollTop=0;
+  await docShots.wait(300);
+})()
+"@
+    Save-ToolboxEditScreenshot "toolbox-reorder-locked.png"
+    Eval-Js @"
+(async()=>{
+  const edit=document.querySelector('.toolbox-rail-edit');
+  if(edit&&edit.getAttribute('aria-pressed')!=='true')edit.click();
+  await docShots.wait(300);
+})()
+"@
+    Save-ToolboxEditScreenshot "toolbox-reorder-editing.png"
+    Eval-Js @"
+(async()=>{
+  const edit=document.querySelector('.toolbox-rail-edit');
+  if(edit&&edit.getAttribute('aria-pressed')==='true')edit.click();
+  await docShots.wait(100);
+})()
+"@
 
     Eval-Js @"
 (async()=>{

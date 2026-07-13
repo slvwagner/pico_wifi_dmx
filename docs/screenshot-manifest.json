@@ -51,6 +51,16 @@
       "purpose": "controller fan out toolbox"
     },
     {
+      "file": "toolbox-reorder-locked.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "shared Toolboxes header with reordering locked"
+    },
+    {
+      "file": "toolbox-reorder-editing.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "shared Toolboxes header with Edit mode active"
+    },
+    {
       "file": "fixture-controller-edit-tile.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "shared visual edit modal"
