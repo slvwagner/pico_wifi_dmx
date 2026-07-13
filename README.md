@@ -840,7 +840,7 @@ Wheel options can be edited with the **Guided wheel editor** modal. Its row tabl
 
 ![Fixture live control cards](docs/screenshots/fixture-controller-live-controls.png)
 
-The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. Wheel controls can be edited with their option buttons, the DMX value slider, or the direct numeric DMX value field. The Control Surface header has a compact collapse toggle for all currently visible fixture cards. The Default and Blackout buttons recall the stored values for one fixture, while Select adds the fixture to group editing.
+The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. Wheel controls can be edited with their option buttons, the DMX value slider, or the direct numeric DMX value field. The Control Surface header has a **Cols** selector with Auto and 1–4 column preferences plus a compact collapse toggle for all currently visible fixture cards. Auto retains the spacious responsive layout; a fixed preference can show up to four cards across on wide screens and automatically falls back to fewer columns when the Toolboxes rail, viewport, or touch layout leaves too little usable card width. The column preference is stored in server UI state and therefore follows complete setup export/import. The Default and Blackout buttons recall the stored values for one fixture, while selecting the fixture card adds it to group editing.
 
 ![Saved Groups matrix](docs/screenshots/fixture-controller-saved-groups.png)
 

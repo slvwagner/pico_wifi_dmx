@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { openDmxPage } = require('./helpers/dmx-page');
+const { openDmxPage, routeControllerCompactServerSetup, injectControllerCompactSetup } = require('./helpers/dmx-page');
 const { loadPathConfig } = require('./helpers/pathconfig');
 
 async function touchDrag(context, page, x, y, deltaY) {
@@ -308,6 +308,56 @@ test.describe('iPad layout rules', () => {
     expect(layout.resizerLeft).toBeGreaterThanOrEqual(layout.railLeft);
     expect(layout.resizerRight).toBeLessThanOrEqual(layout.railLeft + 28);
     expect(layout.lineWidth).toBeGreaterThanOrEqual(8);
+  });
+
+  test('Controller fixture column preference remains usable in iPad landscape and portrait', async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: loadPathConfig().xamppBaseUrl,
+      viewport: { width: 1024, height: 768 },
+      deviceScaleFactor: 2,
+      hasTouch: true,
+      isMobile: true
+    });
+    const page = await context.newPage();
+    try {
+      await routeControllerCompactServerSetup(page);
+      await openDmxPage(page, '');
+      await injectControllerCompactSetup(page);
+      await page.locator('#surfaceColsSelect').selectOption('4');
+      await expect(page.locator('#surface')).toHaveAttribute('data-requested-columns', '4');
+      await expect(page.locator('#surface')).toHaveAttribute('data-effective-columns', '1');
+
+      const landscapeOpen = await page.locator('#surface').evaluate(surface => ({
+        tracks: getComputedStyle(surface).gridTemplateColumns.split(' ').filter(Boolean).length,
+        overflow: surface.scrollWidth - surface.clientWidth,
+        cardOverflow: [...surface.querySelectorAll('[data-fixture-card]')].map(card => card.scrollWidth - card.clientWidth)
+      }));
+      expect(landscapeOpen.tracks).toBe(1);
+      expect(landscapeOpen.overflow).toBeLessThanOrEqual(1);
+      expect(landscapeOpen.cardOverflow.every(value => value <= 1)).toBe(true);
+
+      await page.locator('#fixtureToolboxRail .toolbox-rail-toggle').click();
+      await expect(page.locator('#surface')).toHaveAttribute('data-effective-columns', '2');
+      const landscapeCollapsed = await page.locator('#surface').evaluate(surface => ({
+        tracks: getComputedStyle(surface).gridTemplateColumns.split(' ').filter(Boolean).length,
+        overflow: surface.scrollWidth - surface.clientWidth,
+        cardOverflow: [...surface.querySelectorAll('[data-fixture-card]')].map(card => card.scrollWidth - card.clientWidth)
+      }));
+      expect(landscapeCollapsed.tracks).toBe(2);
+      expect(landscapeCollapsed.overflow).toBeLessThanOrEqual(1);
+      expect(landscapeCollapsed.cardOverflow.every(value => value <= 1)).toBe(true);
+
+      await page.setViewportSize({ width: 768, height: 1024 });
+      await expect(page.locator('#surface')).toHaveAttribute('data-effective-columns', '1');
+      const portrait = await page.locator('#surface').evaluate(surface => ({
+        tracks: getComputedStyle(surface).gridTemplateColumns.split(' ').filter(Boolean).length,
+        overflow: surface.scrollWidth - surface.clientWidth
+      }));
+      expect(portrait.tracks).toBe(1);
+      expect(portrait.overflow).toBeLessThanOrEqual(1);
+    } finally {
+      await context.close();
+    }
   });
 
   test('Controller fixture tiles keep a usable layout after resizing the toolbox rail wide', async ({ page }) => {
