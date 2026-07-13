@@ -719,6 +719,32 @@ test.describe('Show Run page', () => {
     await expect(page.locator('[data-midi-edit-target="master:all"]')).toBeVisible();
     await expect(page.locator('#chaserSlots [data-midi-edit-target="chaser:0"]')).toBeVisible();
     await expect(page.locator('#motionSlots [data-midi-edit-target="motion:0"]')).toBeVisible();
+    for (const [container, type] of [['#chaserSlots', 'chaser'], ['#motionSlots', 'motion']]) {
+      const tile = page.locator(`${container} .playback-card`).filter({ has: page.locator(`[data-midi-edit-target="${type}:0"]`) });
+      const editButton = tile.locator(`[data-midi-edit-target="${type}:0"]`);
+      expect(await editButton.evaluate(button => button.offsetParent === button.closest('.playback-card'))).toBe(true);
+      const tileBox = await tile.boundingBox();
+      const buttonBox = await editButton.boundingBox();
+      expect(tileBox).not.toBeNull();
+      expect(buttonBox).not.toBeNull();
+      expect(buttonBox.x).toBeGreaterThanOrEqual(tileBox.x);
+      expect(buttonBox.y).toBeGreaterThanOrEqual(tileBox.y);
+      expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(tileBox.x + tileBox.width);
+      expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(tileBox.y + tileBox.height);
+      expect(await tile.evaluate(element => {
+        const button = element.querySelector('[data-midi-edit-target]');
+        const title = element.querySelector('h3');
+        if (!button || !title) return false;
+        const buttonRect = button.getBoundingClientRect();
+        const titleRange = document.createRange();
+        titleRange.selectNodeContents(title);
+        const titleRect = titleRange.getBoundingClientRect();
+        return buttonRect.right <= titleRect.left
+          || buttonRect.left >= titleRect.right
+          || buttonRect.bottom <= titleRect.top
+          || buttonRect.top >= titleRect.bottom;
+      })).toBe(true);
+    }
     await page.locator('#chaserSlots [data-midi-edit-target="chaser:0"]').click();
     await expect(page.locator('#midiMappingTitle')).toContainText('Pico Chaser');
   });

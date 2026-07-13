@@ -114,10 +114,11 @@ body.layout-editing .midi-map-edit{display:inline-flex}
 .pico-control-strip label{min-width:76px}
 .pico-control-strip input,.pico-control-strip select{min-height:38px;padding:7px 8px}
 .pico-control-strip .wide{grid-column:span 2}
-.playback-card{width:100%;height:100%;justify-self:stretch;align-self:stretch;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel2);display:grid;gap:8px;min-height:96px}
+.playback-card{position:relative;width:100%;height:100%;justify-self:stretch;align-self:stretch;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel2);display:grid;gap:8px;min-height:96px}
 .playback-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .playback-card.empty{opacity:.55;align-content:end}
 .playback-card h3{margin:0;font-size:14px}
+body.layout-editing .playback-card h3{padding-left:18px}
 .playback-actions{display:flex;gap:8px;flex-wrap:wrap}
 .live-control-toolbar{display:flex;gap:8px;align-items:end;justify-content:flex-end;flex-wrap:wrap}
 .live-control-toolbar.layout-tools{display:none}
