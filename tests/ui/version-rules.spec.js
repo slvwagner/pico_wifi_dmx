@@ -196,7 +196,7 @@ test.describe('Project versioning rules', () => {
     expect(futureError).toContain('newer than this software supports');
   });
 
-  test('complete setup export and import preserve saved group tile visuals', async ({ page }) => {
+  test('complete setup export and import preserve saved visuals and Show Run MIDI mappings', async ({ page }) => {
     await openDmxPage(page, '');
 
     const result = await page.evaluate(async () => {
@@ -266,7 +266,11 @@ test.describe('Project versioning rules', () => {
                 cardRows: 3,
                 cardOrder: ['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null],
                 liveControls: [{ id: 'live_restore', cardId: 'live', fixtureId: 101, controlId: 10, part: 'value', widget: 'fader' }],
-                paletteOrder: ['palette_1', null]
+                paletteOrder: ['palette_1', null],
+                midiMappings: [
+                  { targetType: 'scene', targetId: 'scene_1', messageType: 'note', channel: 1, number: 41, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false },
+                  { targetType: 'live', targetId: 'live_restore', messageType: 'cc', channel: 1, number: 77, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'continuous', pickup: true }
+                ]
               }
             }
           });
@@ -322,7 +326,11 @@ test.describe('Project versioning rules', () => {
       cardRows: 3,
       cardOrder: ['live', 'scene', 'palette', 'chaser', 'motion', 'group', null, null, null],
       liveControls: [{ id: 'live_restore', cardId: 'live', fixtureId: 101, controlId: 10, part: 'value', widget: 'fader' }],
-      paletteOrder: ['palette_1', null]
+      paletteOrder: ['palette_1', null],
+      midiMappings: [
+        { targetType: 'scene', targetId: 'scene_1', messageType: 'note', channel: 1, number: 41, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false },
+        { targetType: 'live', targetId: 'live_restore', messageType: 'cc', channel: 1, number: 77, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'continuous', pickup: true }
+      ]
     });
     expect(result.importedShowRun).toMatchObject(result.exportedShowRun);
   });

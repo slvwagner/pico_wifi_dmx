@@ -646,7 +646,39 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
     expect(calls.liveValues.at(-1)).toEqual({ '101:11': 100, '102:11': 200 });
-    expect(calls.uiStatePosts.some(post => Array.isArray(post.state?.midiMappings))).toBe(true);
+    await expect.poll(() => calls.uiStatePosts.find(post => Array.isArray(post.state?.midiMappings))?.state?.midiMappings?.[0]).toMatchObject({
+      targetType: 'scene',
+      targetId: 'scene_1',
+      messageType: 'note',
+      channel: 1,
+      number: 41,
+      deviceId: 'launch-control-xl-in',
+      deviceName: 'Launch Control XL',
+      mode: 'trigger',
+      pickup: false
+    });
+  });
+
+  test('loads a restored MIDI mapping from XAMPP UI state and recalls its scene without relearning', async ({ page }) => {
+    const calls = {
+      pico: [], liveValues: [], setupWrites: 0,
+      showRunState: {
+        midiMappings: [{
+          targetType: 'scene', targetId: 'scene_1', messageType: 'note', channel: 1, number: 41,
+          deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false
+        }]
+      }
+    };
+    await routeShowSetup(page, calls);
+    await installFakeComputerMidi(page);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await page.locator('[data-midi-connect]').click();
+    await page.evaluate(() => window.__emitComputerMidi([0x90, 41, 127]));
+
+    await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({ '101:11': 100, '102:11': 200 });
+    expect(calls.uiStatePosts.filter(post => Array.isArray(post.state?.midiMappings))).toHaveLength(0);
   });
 
   test('maps a computer MIDI fader to a Live Control with soft takeover', async ({ page }) => {
