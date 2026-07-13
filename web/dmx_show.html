@@ -269,8 +269,10 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         <label>Output<select class="midi-computer-output" data-midi-computer-output><option value="">No output selected</option></select></label>
         <button class="midi-connect-btn primary" type="button" data-midi-connect>Connect MIDI</button>
         <button class="midi-disconnect-btn" type="button" data-midi-disconnect disabled>Disconnect</button>
+        <a class="nav" href="dmx_midi_emulator.html" target="_blank">Open MIDI Emulator</a>
       </div>
       <div class="midi-computer-event" data-midi-computer-status>Not connected.</div>
+      <div class="midi-computer-event" data-midi-emulator-status>Emulator not detected.</div>
     </div>
     <div class="small"><strong>Pico UART diagnostics</strong></div>
     <div class="midi-stat-grid">
@@ -648,6 +650,8 @@ let midiMappings=[];
 let midiLearningTarget=null;
 let midiEditorTarget=null;
 let showTileMidiKind='';
+let midiEmulatorChannel=null;
+let midiEmulatorLastSeen=0;
 const midiButtonState=new Map();
 const midiPickupState=new Map();
 const midiContinuousQueue=new Map();
@@ -1922,14 +1926,10 @@ function midiMappingPanelHtml(target){
 function bindMidiMappingPanel(host,target){
   if(!host||!target)return;
   const learn=host.querySelector('[data-midi-learn]');
-  if(learn)learn.onclick=async()=>{
-    try{
-      if(!midiInput)await connectComputerMidi();
-      if(!midiInput)throw new Error('Choose a connected MIDI input first');
-      midiLearningTarget=midiTargetKey(target.type,target.targetId);
-      renderMidiMappingPanel(host,target);
-      setStatus('MIDI Learn: move a control for '+target.label);
-    }catch(err){setStatus('MIDI connection failed: '+err.message,true);}
+  if(learn)learn.onclick=()=>{
+    midiLearningTarget=midiTargetKey(target.type,target.targetId);
+    renderMidiMappingPanel(host,target);
+    setStatus('MIDI Learn: move a hardware or emulator control for '+target.label);
   };
   const clear=host.querySelector('[data-midi-clear]');
   if(clear)clear.onclick=()=>{
@@ -2000,6 +2000,37 @@ function updateMidiMappingIndicators(){
     const target=midiTargetFromKey(btn.dataset.showEditTile);
     btn.classList.toggle('mapped',!!(target&&midiMappingFor(target.type,target.targetId)));
   });
+}
+function midiEmulatorAvailable(){return Date.now()-midiEmulatorLastSeen<3500;}
+function renderMidiEmulatorStatus(){
+  const supported=typeof BroadcastChannel!=='undefined';
+  const connected=supported&&midiEmulatorAvailable();
+  document.querySelectorAll('[data-midi-emulator-status]').forEach(el=>{
+    el.textContent=!supported?'MIDI emulator is not supported in this browser.':connected?'MIDI emulator connected in another tab.':'Emulator not detected. Open it in another tab to test MIDI Learn.';
+    el.classList.toggle('ready',connected);
+  });
+}
+function initMidiEmulatorChannel(){
+  if(typeof BroadcastChannel==='undefined'){renderMidiEmulatorStatus();return;}
+  midiEmulatorChannel=new BroadcastChannel('dmxShowMidiEmulator');
+  midiEmulatorChannel.onmessage=message=>{
+    const payload=message.data||{};
+    if(payload.type==='emulator-hello'){
+      midiEmulatorLastSeen=Date.now();
+      midiEmulatorChannel.postMessage({type:'show-ready'});
+      renderMidiEmulatorStatus();
+      return;
+    }
+    if(payload.type==='midi'&&Array.isArray(payload.data)){
+      midiEmulatorLastSeen=Date.now();
+      midiEmulatorChannel.postMessage({type:'show-ready'});
+      renderMidiEmulatorStatus();
+      handleComputerMidiMessage({data:payload.data,deviceId:payload.deviceId||'launch-control-xl-emulator',deviceName:payload.deviceName||'Launch Control XL Emulator'});
+    }
+  };
+  midiEmulatorChannel.postMessage({type:'show-ready'});
+  renderMidiEmulatorStatus();
+  setInterval(renderMidiEmulatorStatus,1000);
 }
 function midiPortRows(map){return map?Array.from(map.values()).filter(port=>port.state!=='disconnected'):[];}
 function renderComputerMidiControls(){
@@ -2075,10 +2106,13 @@ function computerMidiEvent(data){
   if(type===0x90||type===0x80)return {messageType:'note',channel,number:Number(data[1]||0),value:type===0x80?0:Number(data[2]||0)};
   return null;
 }
-function midiMappingMatches(mapping,event){
+function midiMappingMatches(mapping,event,source){
   if(mapping.messageType!==event.messageType||mapping.channel!==event.channel||mapping.number!==event.number)return false;
   if(!mapping.deviceName)return true;
-  return String(mapping.deviceName)===String(midiInput?.name||'')||String(mapping.deviceId)===String(midiInput?.id||'');
+  if(String(mapping.deviceId)===String(source?.id||''))return true;
+  const family=name=>String(name||'').toLowerCase().replace(/\bemulator\b/g,'').replace(/\s+/g,' ').trim();
+  const mappedName=family(mapping.deviceName),sourceName=family(source?.name);
+  return !!mappedName&&!!sourceName&&(mappedName===sourceName||mappedName.includes(sourceName)||sourceName.includes(mappedName));
 }
 function midiContinuousTarget(mapping){
   if(mapping.targetType==='master'){
@@ -2165,13 +2199,17 @@ function triggerMidiTarget(mapping,pressed,released){
 function handleComputerMidiMessage(message){
   const event=computerMidiEvent(message.data);
   if(!event)return;
+  const source={
+    id:String(message.deviceId||message.target?.id||midiInput?.id||''),
+    name:String(message.deviceName||message.target?.name||midiInput?.name||'MIDI input')
+  };
   const label=(event.messageType==='cc'?'CC ':'Note ')+event.number+' · Ch '+event.channel+' · '+event.value;
-  document.querySelectorAll('[data-midi-computer-status]').forEach(el=>{el.dataset.midiEventActive='1';el.textContent='Last event: '+label;});
+  document.querySelectorAll('[data-midi-computer-status]').forEach(el=>{el.dataset.midiEventActive='1';el.textContent='Last event: '+label+' · '+source.name;});
   if(midiLearningTarget&&(event.messageType==='cc'||event.value>0)){
     const target=midiTargetFromKey(midiLearningTarget);
     const info=target&&midiTargetInfo(target.type,target.targetId);
     if(info){
-      setMidiMapping({targetType:info.type,targetId:info.targetId,messageType:event.messageType,channel:event.channel,number:event.number,deviceId:midiInput?.id||'',deviceName:midiInput?.name||'',mode:info.mode,pickup:info.mode==='continuous'});
+      setMidiMapping({targetType:info.type,targetId:info.targetId,messageType:event.messageType,channel:event.channel,number:event.number,deviceId:source.id,deviceName:source.name,mode:info.mode,pickup:info.mode==='continuous'});
       const learned=midiMappingFor(info.type,info.targetId);
       if(learned?.mode==='continuous')midiPickupAllows(learned,event.value);
       midiLearningTarget=null;
@@ -2183,7 +2221,7 @@ function handleComputerMidiMessage(message){
     }
     return;
   }
-  midiMappings.filter(mapping=>midiMappingMatches(mapping,event)).forEach(mapping=>{
+  midiMappings.filter(mapping=>midiMappingMatches(mapping,event,source)).forEach(mapping=>{
     if(mapping.mode==='continuous'){
       if(midiPickupAllows(mapping,event.value))queueMidiContinuous(mapping,event.value);
       return;
@@ -4209,6 +4247,7 @@ bindMatrixInputs('plane',normalizePlaneGrid,renderPlanes,32,32);
 bindMatrixInputs('chaser',normalizeChaserGrid,drawChaserPlayback,32,32);
 bindMatrixInputs('motion',normalizeMotionGrid,drawMotionPlayback,32,32);
 bindPlaybackTileMoveCapture();
+initMidiEmulatorChannel();
 startMidiPolling();
 refreshShowData({reason:'initial'}).catch(err=>setStatus(err.message,true));
 </script>

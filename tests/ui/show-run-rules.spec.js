@@ -624,6 +624,7 @@ test.describe('Show Run page', () => {
     await installFakeComputerMidi(page);
     await openDmxPage(page, 'dmx_show.html');
 
+    await page.locator('[data-midi-connect]').click();
     await page.locator('#editLayoutBtn').click();
     await page.locator('[data-show-edit-tile="scene:scene_1"]').click();
     await expect(page.locator('#showTileMidiMapping')).toContainText('No MIDI control mapped');
@@ -663,6 +664,7 @@ test.describe('Show Run page', () => {
     await installFakeComputerMidi(page);
     await openDmxPage(page, 'dmx_show.html');
 
+    await page.locator('[data-midi-connect]').click();
     await page.locator('#editLayoutBtn').click();
     await page.locator('[data-midi-edit-target="live:live_dimmer"]').click();
     await page.locator('#midiMappingModalBody [data-midi-learn]').click();
@@ -672,6 +674,39 @@ test.describe('Show Run page', () => {
 
     await expect.poll(() => calls.liveValues.at(-1)?.['101:11']).toBe(255);
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:255')).toBe(true);
+  });
+
+  test('learns and runs a scene mapping from the separate MIDI emulator page', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    const emulator = await page.context().newPage();
+    await emulator.goto(new URL('dmx_midi_emulator.html?test=' + Date.now(), page.url()).href);
+
+    await expect(emulator.locator('header h1 .app-version')).toHaveText(/v0\.9\.9/);
+    await expect(emulator.locator('#connectionPill')).toContainText('Connected to Show Run');
+    await expect(emulator.locator('[data-midi-cc]')).toHaveCount(32);
+    await expect(emulator.locator('[data-midi-note]')).toHaveCount(24);
+    await expect(page.locator('[data-midi-emulator-status]').first()).toContainText('connected');
+
+    await page.bringToFront();
+    await page.locator('#editLayoutBtn').click();
+    await page.locator('[data-show-edit-tile="scene:scene_1"]').click();
+    await page.locator('#showTileMidiMapping [data-midi-learn]').click();
+    await emulator.bringToFront();
+    await emulator.locator('[data-midi-note="41"]').click();
+
+    await page.bringToFront();
+    await expect(page.locator('#showTileMidiMapping')).toContainText('Launch Control XL Emulator');
+    await page.locator('#showTileVisualClose2').click();
+    await page.locator('#editLayoutBtn').click();
+    await emulator.bringToFront();
+    await emulator.locator('[data-midi-note="41"]').click();
+
+    await page.bringToFront();
+    await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({ '101:11': 100, '102:11': 200 });
+    await emulator.close();
   });
 
   test('shows MIDI edit actions for masters and Pico playback tiles only in Edit mode', async ({ page }) => {

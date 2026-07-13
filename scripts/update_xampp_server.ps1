@@ -49,6 +49,7 @@ if (-not $SkipVerify) {
         $checks = @(
             @{ Label = "Controller"; Path = "" },
             @{ Label = "Show Run"; Path = "dmx_show.html" },
+            @{ Label = "MIDI Emulator"; Path = "dmx_midi_emulator.html" },
             @{ Label = "Chaser"; Path = "dmx_chaser.html" },
             @{ Label = "Effects"; Path = "dmx_motion.html" },
             @{ Label = "GPIO"; Path = "dmx_gpio.html" },

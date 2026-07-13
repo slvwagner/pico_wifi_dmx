@@ -10,6 +10,7 @@ $routes = [
     '/index.html' => "$root/web/dmx_fixture_controller.html",
     '/dmx_fixture_controller.html' => "$root/web/dmx_fixture_controller.html",
     '/dmx_show.html' => "$root/web/dmx_show.html",
+    '/dmx_midi_emulator.html' => "$root/web/dmx_midi_emulator.html",
     '/dmx_motion.html' => "$root/web/dmx_motion.html",
     '/dmx_chaser.html' => "$root/web/dmx_chaser.html",
     '/dmx_monitor.html' => "$root/web/dmx_monitor.html",

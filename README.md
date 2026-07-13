@@ -464,6 +464,7 @@ pico_wifi_dmx/
 ├─ web/                      Browser UI pages served by XAMPP
 │  ├─ dmx_fixture_controller.html  Fixture setup and live control page
 │  ├─ dmx_show.html                Operator Show Run page
+│  ├─ dmx_midi_emulator.html       Browser Launch Control XL MIDI test surface
 │  ├─ dmx_chaser.html              Chaser editor and Pico chaser playback
 │  ├─ dmx_motion.html              Effects editor and Pico effects playback
 │  ├─ dmx_gpio.html                GPIO/ADC mapping page
@@ -781,6 +782,7 @@ Server-side Chaser, Effects, and UI-state updates hold an exclusive lock across 
 |------|------|-------------|
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
 | Show Run | `web/dmx_show.html` | Run a show from saved groups, fixtures, scenes, palettes, saved room planes, live fixture-control faders/knobs/buttons, and Pico chaser/effect playback slots without editing setup data |
+| MIDI Emulator | `web/dmx_midi_emulator.html` | Emulate Launch Control XL knobs, faders, and buttons in a second browser tab for Show Run MIDI Learn testing without hardware |
 | Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
 | Effects | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
 | GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
@@ -917,6 +919,8 @@ Show Run also has a configurable **Live Controls** card. While **Edit** is activ
 Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, Live Controls cards and widgets, and MIDI mappings. Because it is server-side UI state, **Export Setup** and **Import Setup** can move the operator page to another computer instead of relying on one browser's local storage.
 
 The **MIDI Controller** card can connect a class-compliant USB MIDI controller, such as the Novation Launch Control XL, directly to Chrome or Edge on the XAMPP computer. Click **Connect MIDI** to grant browser access and select the input/output ports. While **Edit** is active, use the pencil on group, scene, palette, Pico chaser/effect, Grand Master, Group Master, or Live Control tiles and click **Learn**, then move the desired hardware control. Buttons trigger the mapped show action; faders and knobs scale MIDI values `0..127` to the target range and use soft takeover to avoid sudden jumps. The separate Pico UART MIDI status remains available in the same card for GPIO5 diagnostics.
+
+Use **Open MIDI Emulator** when the physical controller is unavailable. The separate emulator page reproduces 24 CC knobs, 8 CC faders, 16 channel buttons, and 8 utility buttons. Keep it open beside Show Run on the same browser origin; the pages exchange MIDI-like messages through `BroadcastChannel`, so no virtual MIDI driver is installed and no Pico firmware is involved. The main knob/fader/button assignments follow the common Launch Control XL CC/note layout and every assignment is printed on the emulator surface. Mappings learned from the emulator remain compatible with a real Launch Control XL device name.
 
 **Room Plane**
 
@@ -1081,7 +1085,9 @@ This first prototype does not persist GPIO mappings on the Pico after reboot; sa
 
 The Show Run **MIDI Controller** card uses the browser Web MIDI API for a USB controller connected to the XAMPP computer. MIDI Learn mappings currently support group selection, scene and palette recall, Pico chaser/effect start-stop, Grand and Group Masters, and Live Controls. Continuous messages are coalesced before the existing Show output path is called, and soft takeover waits for a hardware fader or knob to reach the current Show value. The Web MIDI connection is browser-local, while the mappings are stored in server-side Show Run UI state and are included in setup export/import.
 
-The Show page must run in a Web MIDI-capable browser such as Chrome or Edge in a secure context. `http://localhost/dmx/` works when the controller and browser are on the XAMPP computer. MIDI access is requested only after **Connect MIDI** or **Learn** is clicked.
+The Show page must run in a Web MIDI-capable browser such as Chrome or Edge in a secure context. `http://localhost/dmx/` works when the controller and browser are on the XAMPP computer. Hardware MIDI access is requested only after **Connect MIDI** is clicked; the emulator needs no Web MIDI permission.
+
+For browser-only testing, open `dmx_midi_emulator.html` from the MIDI Controller card. Show Run and the emulator must use the same address—for example, both under `http://localhost/dmx/`, rather than one using `localhost` and the other using a LAN IP. The emulator sends the same CC and Note On/Off data into Show Run's mapping engine, but it does not register as a Windows MIDI device.
 
 ### Pico UART MIDI Input Prototype
 

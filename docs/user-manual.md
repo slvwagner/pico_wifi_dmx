@@ -543,7 +543,11 @@ The **MIDI Controller** card has two independent inputs:
 - **Computer USB MIDI** connects a class-compliant controller, such as the Novation Launch Control XL, to Chrome or Edge on the XAMPP computer. Click **Connect MIDI**, allow browser MIDI access, and select the input and optional output ports. The page prefers a connected Launch Control XL automatically when available.
 - **Pico UART diagnostics** keeps the original read-only Pico GPIO5/UART1 monitor. It shows the UART/baud configuration, byte and message counters, parse errors, and last decoded event. This Pico input is not used by the new Show mappings.
 
-Open Show Run through `http://localhost/dmx/` on the XAMPP computer. Web MIDI requires a supported browser and a secure context; localhost qualifies for this local workflow. The browser asks for MIDI access only after **Connect MIDI** or **Learn** is clicked.
+Click **Open MIDI Emulator** to test without the physical controller. It opens `dmx_midi_emulator.html` in a separate tab with 24 knobs, 8 faders, 16 channel buttons, and 8 utility buttons. The controls show the CC or note number they send. Keep Show Run and the emulator on the same XAMPP address; the connection indicators turn green when both tabs can see each other.
+
+To learn with the emulator, enter **Edit** on Show Run, open a supported pencil, click **Learn**, switch to the emulator tab, and operate the desired control. Switch back to Show Run and click **Done**, then operate the emulator control again to test the mapped action. The emulator uses a same-origin browser channel and does not install or emulate a Windows MIDI device. Mappings learned from it are treated as Launch Control XL-family mappings so they can also match the physical controller later.
+
+Open Show Run through `http://localhost/dmx/` on the XAMPP computer. Web MIDI requires a supported browser and a secure context; localhost qualifies for this local workflow. The browser asks for hardware MIDI access only after **Connect MIDI** is clicked. The emulator does not need Web MIDI permission.
 
 MIDI mappings are edited only while **Edit** is active. Use the pencil on a supported tile or control, click **Learn**, then move a knob/fader or press a button. The first version supports Groups, Scenes, Palettes, Pico Chaser Playback, Pico Effects Playback, Grand Master, Group Masters, and Live Controls. Other Show cards remain unmapped until their desired behaviour is defined.
 

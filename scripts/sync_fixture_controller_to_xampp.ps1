@@ -22,6 +22,7 @@ $versionSource = Join-Path $repoRoot "VERSION"
 $source = Join-Path $webDir "dmx_fixture_controller.html"
 $apiSource = Join-Path $apiDir "fixture_setup.php"
 $showSource = Join-Path $webDir "dmx_show.html"
+$midiEmulatorSource = Join-Path $webDir "dmx_midi_emulator.html"
 $motionSource = Join-Path $webDir "dmx_motion.html"
 $chaserSource = Join-Path $webDir "dmx_chaser.html"
 $benchSource = Join-Path $webDir "dmx_benchmark.html"
@@ -49,6 +50,7 @@ $dataTargetDir = Join-Path $targetDir "data"
 $target = Join-Path $targetDir "index.html"
 $apiTarget = Join-Path $targetDir "fixture_setup.php"
 $showTarget = Join-Path $targetDir "dmx_show.html"
+$midiEmulatorTarget = Join-Path $targetDir "dmx_midi_emulator.html"
 $motionTarget = Join-Path $targetDir "dmx_motion.html"
 $chaserTarget = Join-Path $targetDir "dmx_chaser.html"
 $benchTarget = Join-Path $benchTargetDir "index.html"
@@ -91,6 +93,10 @@ if (Test-Path -LiteralPath $assetsDir) {
 if (Test-Path -LiteralPath $showSource) {
     Copy-Item -LiteralPath $showSource -Destination $showTarget -Force
     Write-Host "Copied show run page to $showTarget"
+}
+if (Test-Path -LiteralPath $midiEmulatorSource) {
+    Copy-Item -LiteralPath $midiEmulatorSource -Destination $midiEmulatorTarget -Force
+    Write-Host "Copied MIDI emulator page to $midiEmulatorTarget"
 }
 if (Test-Path -LiteralPath $motionSource) {
     Copy-Item -LiteralPath $motionSource -Destination $motionTarget -Force
