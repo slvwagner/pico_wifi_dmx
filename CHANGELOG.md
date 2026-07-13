@@ -4,6 +4,7 @@
 
 Changed:
 
+- Fixed saved Plane recall across Controller, Show Run, Chaser, and Effects so opening a tile both shows the target-adjustment modal and immediately applies the plane's current calibrated Pan/Tilt output. All operational Plane toolboxes now provide the same live drag, nudge, zoom, and pan-view workflow. Controller Plane recall now restores all patched fixtures saved in the Plane as the visible active selection, replacing any unrelated prior group selection before sending DMX.
 - Moved toolbox **Cols**, **Rows**, and **Move** controls into a shared `dmx-common.js` renderer and applied the same compact horizontal visual language across Controller, Chaser, Effects (including Scenes), and Room Plane toolboxes.
 - Standardized modals across Controller, Show Run, Chaser, Effects, and Room Plane so clicking the dark backdrop never closes an editor or dialog; users must choose an explicit Close, Cancel, save, or other modal action.
 - Fixed saved Effect tile recall so changing from another target family cannot overwrite the saved preview amplitudes. If the browser preview is already active and its button reads **Stop**, recalling another tile now restarts that effect immediately with its saved timing and update rate; an idle preview remains stopped.

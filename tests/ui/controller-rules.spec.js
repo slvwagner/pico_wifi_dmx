@@ -513,7 +513,7 @@ test.describe('Fixture Controller established rules', () => {
     expect(after.b).toBe(89);
   });
 
-  test('saved plane recall opens a room preview and applies to the selected group fixtures', async ({ page }) => {
+  test('saved plane recall opens a room preview, recalls its fixture selection, and applies live output', async ({ page }) => {
     const dmxBatches = [];
     const roomPlaneWrites = [];
     await page.route('**/dmx/b', async route => {
@@ -588,8 +588,10 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#controllerPlaneModal')).toHaveClass(/section-control-modal/);
     await expect(page.locator('#controllerPlaneModal .modal-body').first()).toHaveCSS('overflow-y', 'auto');
     await expect(page.locator('#controllerPlaneTitle')).toContainText('Front Plane');
-    await expect(page.locator('#controllerPlaneSummary')).toContainText('selected 1 fixture');
-    await expect(page.locator('.controller-plane-fixture-row.selected')).toContainText('A 1');
+    await expect(page.locator('#controllerPlaneSummary')).toContainText('selected 2 fixtures');
+    await expect(page.locator('.controller-plane-fixture-row.selected')).toHaveCount(2);
+    await expect.poll(() => page.evaluate(() => values['101:12'])).toEqual({ pan: 2000, tilt: 3000 });
+    await expect.poll(() => dmxBatches.length).toBeGreaterThan(0);
     const planePadBox = await page.locator('#controllerPlanePad').boundingBox();
     const nudgeBox = await page.locator('.controller-plane-nudge').boundingBox();
     expect(planePadBox).toBeTruthy();
@@ -657,10 +659,12 @@ test.describe('Fixture Controller established rules', () => {
 
     const result = await page.evaluate(() => ({
       value: values['101:12'],
-      selected: [...selectedFixtureIds]
+      selected: [...selectedFixtureIds],
+      selectedGroups: [...activeSavedGroupIds]
     }));
     expect(result.value).toEqual({ pan: 2200, tilt: 3200 });
-    expect(result.selected).toEqual([101]);
+    expect(result.selected).toEqual([101, 102]);
+    expect(result.selectedGroups).toEqual([]);
     expect(dmxBatches.at(-1)).toContain('2:8');
     expect(dmxBatches.at(-1)).toContain('3:152');
     expect(dmxBatches.at(-1)).toContain('4:12');

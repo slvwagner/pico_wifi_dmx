@@ -3200,6 +3200,7 @@ function openShowPlaneModal(id){
   renderShowPlaneModal();
   DmxCommon.showModal('showPlaneModal');
   requestAnimationFrame(renderShowPlanePreview);
+  sendShowPlaneLiveTarget();
 }
 function closeShowPlaneModal(){
   DmxCommon.hideModal('showPlaneModal');

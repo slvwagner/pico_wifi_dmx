@@ -361,6 +361,46 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 
+<div id="chaserPlaneModal" class="modal-overlay controller-plane-modal section-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="chaserPlaneTitle">
+<div class="modal-head">
+<button id="chaserPlaneClose" type="button" aria-label="Close">x</button>
+<h2 id="chaserPlaneTitle">Recall Plane</h2>
+</div>
+<div class="modal-body">
+<div class="controller-plane-layout">
+<div>
+<div class="controller-plane-view">
+<button id="chaserPlaneZoomIn" type="button">Zoom in</button>
+<button id="chaserPlaneZoomOut" type="button">Zoom out</button>
+<button id="chaserPlaneResetView" type="button">Reset view</button>
+<button id="chaserPlanePanView" type="button">Pan view</button>
+</div>
+<div class="controller-plane-pad" id="chaserPlanePad">
+<div class="controller-plane-grid"></div>
+<div class="controller-plane-triangle" id="chaserPlaneTriangle"></div>
+<div class="controller-plane-target" id="chaserPlaneTarget"></div>
+</div>
+</div>
+<div class="controller-plane-nudge">
+<div class="small">Target nudge</div>
+<div class="controller-plane-nudge-grid" id="chaserPlaneNudgeControls">
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="coarse">−</button><label>X coarse<input id="chaserPlaneStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="coarse">+</button></div>
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="fine">−</button><label>X fine<input id="chaserPlaneStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label><button type="button" data-chaser-plane-nudge-axis="x" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="fine">+</button></div>
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="coarse">−</button><label>Y coarse<input id="chaserPlaneStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="coarse">+</button></div>
+<div class="relative-control"><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="-1" data-chaser-plane-nudge-step="fine">−</button><label>Y fine<input id="chaserPlaneStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label><button type="button" data-chaser-plane-nudge-axis="y" data-chaser-plane-nudge-dir="1" data-chaser-plane-nudge-step="fine">+</button></div>
+</div>
+</div>
+<div class="controller-plane-info">
+<div class="small" id="chaserPlaneSummary">No plane selected.</div>
+<div class="controller-plane-fixture-list" id="chaserPlaneFixtures"></div>
+</div>
+</div>
+</div>
+<div class="modal-actions"><button id="chaserPlaneClose2" type="button">Close</button></div>
+</div>
+</div>
+
 <div id="fanToolboxMount"></div>
 
 <aside id="chaserToolboxRail" class="toolbox-rail chaser-toolbox-rail" aria-label="Chaser toolboxes"></aside>
@@ -3031,6 +3071,108 @@ function recallChaserPlane(plane){
   refreshFanBasesFromStep();
   setStatus('Recalled plane "'+plane.name+'" into step '+(selectedStepIdx+1)+' for '+keys.length+' pan/tilt control'+(keys.length===1?'':'s'));
 }
+let activeChaserPlane=null;
+let activeChaserPlaneId=null;
+let chaserPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+let chaserPlanePanMode=false;
+let chaserPlaneRenderQueued=false;
+let chaserPlaneTargetDrag=null;
+let chaserPlaneViewDrag=null;
+let chaserPlaneLiveTimer=null;
+let chaserPlaneViewSaveTimer=null;
+function cloneChaserPlane(plane){return JSON.parse(JSON.stringify(plane));}
+function chaserPlaneSavedView(plane){
+  const view=plane?.view&&typeof plane.view==='object'?plane.view:{};
+  return {auto:view.auto!==false,centerX:Number(view.centerX)||0,centerY:Number(view.centerY)||0,zoom:Math.max(.25,Math.min(8,Number(view.zoom)||1))};
+}
+function chaserPlaneBounds(plane){
+  const base=DmxCommon.roomPlaneAutoBounds(plane);
+  if(chaserPlaneView.auto){chaserPlaneView.centerX=(base.minX+base.maxX)/2;chaserPlaneView.centerY=(base.minY+base.maxY)/2;}
+  const zoom=Math.max(.25,Math.min(8,Number(chaserPlaneView.zoom)||1));
+  const spanX=(base.maxX-base.minX)/zoom,spanY=(base.maxY-base.minY)/zoom;
+  const centerX=Number(chaserPlaneView.centerX)||((base.minX+base.maxX)/2),centerY=Number(chaserPlaneView.centerY)||((base.minY+base.maxY)/2);
+  return {minX:centerX-spanX/2,maxX:centerX+spanX/2,minY:centerY-spanY/2,maxY:centerY+spanY/2};
+}
+function chaserPlaneToScreen(point,bounds,rect){
+  const width=Math.max(1,rect?.width||1),height=Math.max(1,rect?.height||1);
+  const spanX=Math.max(.0001,bounds.maxX-bounds.minX),spanY=Math.max(.0001,bounds.maxY-bounds.minY),scale=Math.min(width/spanX,height/spanY);
+  const offsetX=(width-spanX*scale)/2,offsetY=(height-spanY*scale)/2;
+  return {x:((offsetX+(point.x-bounds.minX)*scale)/width)*100,y:((offsetY+(bounds.maxY-point.y)*scale)/height)*100};
+}
+function chaserPlaneScreenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width),height=Math.max(1,rect.height);
+  const spanX=Math.max(.0001,bounds.maxX-bounds.minX),spanY=Math.max(.0001,bounds.maxY-bounds.minY),scale=Math.min(width/spanX,height/spanY);
+  const offsetX=(width-spanX*scale)/2,offsetY=(height-spanY*scale)/2;
+  return {x:bounds.minX+(event.clientX-rect.left-offsetX)/scale,y:bounds.maxY-(event.clientY-rect.top-offsetY)/scale,z:0};
+}
+function setChaserPlanePanMode(active){
+  chaserPlanePanMode=!!active;chaserPlaneViewDrag=null;
+  const button=document.getElementById('chaserPlanePanView'),pad=document.getElementById('chaserPlanePad');
+  button.classList.toggle('active',chaserPlanePanMode);button.textContent=chaserPlanePanMode?'Stop pan view':'Pan view';button.setAttribute('aria-pressed',chaserPlanePanMode?'true':'false');pad.classList.toggle('pan-mode',chaserPlanePanMode);
+}
+function syncActiveChaserPlaneView(){
+  if(!activeChaserPlane||!activeChaserPlaneId)return;
+  const view={auto:chaserPlaneView.auto!==false,centerX:Number(chaserPlaneView.centerX)||0,centerY:Number(chaserPlaneView.centerY)||0,zoom:Math.max(.25,Math.min(8,Number(chaserPlaneView.zoom)||1))};
+  activeChaserPlane.view={...view};
+  const stored=chaserPlanes.find(plane=>String(plane.id)===String(activeChaserPlaneId));
+  if(stored)stored.view={...view};
+}
+async function saveChaserPlaneView(){
+  if(!activeChaserPlane||!activeChaserPlaneId||!DmxCommon.isHttp())return false;
+  syncActiveChaserPlaneView();
+  const response=await fetch('room_plane_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(chaserRoomPlanePayload())});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Plane view saved');return true;
+}
+function scheduleChaserPlaneViewSave(){
+  clearTimeout(chaserPlaneViewSaveTimer);
+  chaserPlaneViewSaveTimer=setTimeout(()=>{chaserPlaneViewSaveTimer=null;saveChaserPlaneView().catch(error=>setStatus('Plane view autosave failed: '+error.message,true));},800);
+}
+function zoomChaserPlaneView(factor){
+  if(!activeChaserPlane)return;
+  const bounds=chaserPlaneBounds(activeChaserPlane);
+  chaserPlaneView={auto:false,centerX:(bounds.minX+bounds.maxX)/2,centerY:(bounds.minY+bounds.maxY)/2,zoom:Math.max(.25,Math.min(8,(Number(chaserPlaneView.zoom)||1)*factor))};
+  syncActiveChaserPlaneView();scheduleChaserPlaneViewSave();queueChaserPlaneRender();
+}
+function resetChaserPlaneView(){chaserPlaneView={auto:true,centerX:0,centerY:0,zoom:1};syncActiveChaserPlaneView();scheduleChaserPlaneViewSave();queueChaserPlaneRender();}
+function scheduleChaserPlaneLive(){clearTimeout(chaserPlaneLiveTimer);chaserPlaneLiveTimer=setTimeout(()=>{chaserPlaneLiveTimer=null;if(activeChaserPlane)recallChaserPlane(activeChaserPlane);},40);}
+function setChaserPlaneTarget(room){
+  if(!activeChaserPlane)return;
+  activeChaserPlane.target={x:Number(room.x)||0,y:Number(room.y)||0,z:Number(room.z)||0};queueChaserPlaneRender();scheduleChaserPlaneLive();
+}
+function chaserPlaneNudgeStep(axis,kind){return Math.max(.001,Number(document.getElementById('chaserPlaneStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse'))?.value)||0);}
+function nudgeChaserPlaneTarget(axis,dir,kind){
+  if(!activeChaserPlane)return;
+  const target={...activeChaserPlane.target};target[axis]=(Number(target[axis])||0)+(Number(dir)||0)*chaserPlaneNudgeStep(axis,kind);setChaserPlaneTarget(target);setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
+}
+function chaserPlaneDrawLine(host,a,b){
+  const line=document.createElement('div'),dx=b.x-a.x,dy=b.y-a.y;line.className='controller-plane-line';line.style.left=a.x+'%';line.style.top=a.y+'%';line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';host.appendChild(line);
+}
+function renderChaserPlanePreview(){
+  const plane=activeChaserPlane,pad=document.getElementById('chaserPlanePad');if(!plane||!pad)return;
+  pad.querySelectorAll('.controller-plane-point,.controller-plane-line').forEach(el=>el.remove());
+  const selected=chaserPlaneSelectedIds(),rect=pad.getBoundingClientRect(),bounds=chaserPlaneBounds(plane),screens=plane.points.map(point=>chaserPlaneToScreen(point,bounds,rect));
+  const triangle=document.getElementById('chaserPlaneTriangle');
+  [['--ax',screens[0].x],['--ay',screens[0].y],['--bx',screens[1].x],['--by',screens[1].y],['--cx',screens[2].x],['--cy',screens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
+  screens.forEach((screen,index)=>{const point=document.createElement('div');point.className='controller-plane-point';point.textContent=plane.points[index].id;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);});
+  const targetScreen=chaserPlaneToScreen(plane.target,bounds,rect),target=document.getElementById('chaserPlaneTarget');target.style.left=targetScreen.x+'%';target.style.top=targetScreen.y+'%';
+  plane.fixtures.forEach((fixture,index)=>{const screen=chaserPlaneToScreen(fixture,bounds,rect),point=document.createElement('div');point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);chaserPlaneDrawLine(pad,screen,targetScreen);});
+}
+function renderChaserPlaneModal(){
+  const plane=activeChaserPlane;if(!plane)return;
+  const selected=chaserPlaneSelectedIds(),weights=DmxCommon.roomPlaneWeights(plane);
+  document.getElementById('chaserPlaneTitle').textContent='Recall Plane: '+plane.name;
+  document.getElementById('chaserPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('chaserPlaneFixtures').innerHTML=plane.fixtures.map(fixture=>{const isSelected=selected.has(String(fixture.id)),isPatched=(setup.fixtures||[]).some(item=>String(item.id)===String(fixture.id));const status=isSelected?(isPatched?'selected':'not patched'):(isPatched?'available':'not patched');return '<div class="controller-plane-fixture-row'+(isSelected?' selected':'')+'"><strong>'+DmxCommon.escapeHtml(fixture.name)+'</strong><span class="small">'+status+'</span></div>';}).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
+  renderChaserPlanePreview();
+}
+function queueChaserPlaneRender(){if(chaserPlaneRenderQueued)return;chaserPlaneRenderQueued=true;requestAnimationFrame(()=>{chaserPlaneRenderQueued=false;renderChaserPlaneModal();});}
+function openChaserPlaneModal(id){
+  const plane=chaserPlanes.find(item=>String(item.id)===String(id));if(!plane)return;
+  activeChaserPlaneId=String(id);activeChaserPlane=cloneChaserPlane(plane);chaserPlaneView=chaserPlaneSavedView(activeChaserPlane);setChaserPlanePanMode(false);renderChaserPlaneModal();DmxCommon.showModal('chaserPlaneModal');requestAnimationFrame(renderChaserPlanePreview);recallChaserPlane(activeChaserPlane);
+}
+function closeChaserPlaneModal(){DmxCommon.hideModal('chaserPlaneModal');clearTimeout(chaserPlaneLiveTimer);clearTimeout(chaserPlaneViewSaveTimer);chaserPlaneLiveTimer=null;chaserPlaneViewSaveTimer=null;chaserPlaneTargetDrag=null;chaserPlaneViewDrag=null;setChaserPlanePanMode(false);activeChaserPlane=null;activeChaserPlaneId=null;}
 const chaserPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
   matrixId:'chaserPlaneMatrix',
   colsId:'chaserPlaneCols',
@@ -3049,8 +3191,30 @@ const chaserPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
   onSetupLoaded:data=>{chaserRoomPlaneSetup=normalizeChaserRoomPlaneSetup(data);},
   onStatus:setStatus,
   fixtureSummary:chaserPlaneSummary,
-  onOpen:plane=>recallChaserPlane(plane)
+  onOpen:plane=>openChaserPlaneModal(plane.id)
 });
+document.getElementById('chaserPlaneClose').onclick=closeChaserPlaneModal;
+document.getElementById('chaserPlaneClose2').onclick=closeChaserPlaneModal;
+document.getElementById('chaserPlaneNudgeControls').addEventListener('click',event=>{const button=event.target.closest('[data-chaser-plane-nudge-axis]');if(button)nudgeChaserPlaneTarget(button.dataset.chaserPlaneNudgeAxis,Number(button.dataset.chaserPlaneNudgeDir)||0,button.dataset.chaserPlaneNudgeStep||'coarse');});
+document.getElementById('chaserPlaneZoomIn').onclick=()=>zoomChaserPlaneView(1.25);
+document.getElementById('chaserPlaneZoomOut').onclick=()=>zoomChaserPlaneView(1/1.25);
+document.getElementById('chaserPlaneResetView').onclick=resetChaserPlaneView;
+document.getElementById('chaserPlanePanView').onclick=()=>setChaserPlanePanMode(!chaserPlanePanMode);
+document.getElementById('chaserPlanePad').addEventListener('pointerdown',event=>{
+  if(!activeChaserPlane)return;event.preventDefault();const pad=event.currentTarget,rect=pad.getBoundingClientRect(),bounds=chaserPlaneBounds(activeChaserPlane);
+  if(chaserPlanePanMode||event.button===1||event.button===2||event.shiftKey){chaserPlaneView.auto=false;chaserPlaneViewDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};}
+  else{chaserPlaneTargetDrag={pointerId:event.pointerId,bounds};setChaserPlaneTarget(chaserPlaneScreenToRoom(event,rect,bounds));}
+  pad.setPointerCapture?.(event.pointerId);
+});
+document.getElementById('chaserPlanePad').addEventListener('pointermove',event=>{
+  const pad=event.currentTarget;
+  if(activeChaserPlane&&chaserPlaneViewDrag?.pointerId===event.pointerId){const rect=pad.getBoundingClientRect(),spanX=chaserPlaneViewDrag.bounds.maxX-chaserPlaneViewDrag.bounds.minX,spanY=chaserPlaneViewDrag.bounds.maxY-chaserPlaneViewDrag.bounds.minY;chaserPlaneView.centerX=((chaserPlaneViewDrag.bounds.minX+chaserPlaneViewDrag.bounds.maxX)/2)-(event.clientX-chaserPlaneViewDrag.x)/Math.max(1,rect.width)*spanX;chaserPlaneView.centerY=((chaserPlaneViewDrag.bounds.minY+chaserPlaneViewDrag.bounds.maxY)/2)+(event.clientY-chaserPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;syncActiveChaserPlaneView();scheduleChaserPlaneViewSave();queueChaserPlaneRender();return;}
+  if(activeChaserPlane&&chaserPlaneTargetDrag?.pointerId===event.pointerId)setChaserPlaneTarget(chaserPlaneScreenToRoom(event,pad.getBoundingClientRect(),chaserPlaneTargetDrag.bounds));
+});
+document.getElementById('chaserPlanePad').addEventListener('pointerup',event=>{if(chaserPlaneViewDrag?.pointerId===event.pointerId)chaserPlaneViewDrag=null;if(chaserPlaneTargetDrag?.pointerId===event.pointerId)chaserPlaneTargetDrag=null;event.currentTarget.releasePointerCapture?.(event.pointerId);});
+document.getElementById('chaserPlanePad').addEventListener('pointercancel',()=>{chaserPlaneTargetDrag=null;chaserPlaneViewDrag=null;});
+document.getElementById('chaserPlanePad').addEventListener('contextmenu',event=>event.preventDefault());
+document.getElementById('chaserPlanePad').addEventListener('wheel',event=>{event.preventDefault();zoomChaserPlaneView(event.deltaY<0?1.12:1/1.12);},{passive:false});
 const chaserPlanesToolbox=DmxCommon.initFloatingToolbox({
   boxId:'chaserPlanesBox',
   headerId:'chaserPlanesHdr',

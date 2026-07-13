@@ -244,6 +244,64 @@ main{max-width:none;width:100%;margin:0}
 </div>
 </div>
 
+<div id="motionPlaneModal" class="modal-overlay controller-plane-modal section-control-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="motionPlaneTitle">
+<div class="modal-head">
+<button id="motionPlaneClose" type="button" aria-label="Close">x</button>
+<h2 id="motionPlaneTitle">Recall Plane</h2>
+</div>
+<div class="modal-body">
+<div class="controller-plane-layout">
+<div>
+<div class="controller-plane-view">
+<button id="motionPlaneZoomIn" type="button">Zoom in</button>
+<button id="motionPlaneZoomOut" type="button">Zoom out</button>
+<button id="motionPlaneResetView" type="button">Reset view</button>
+<button id="motionPlanePanView" type="button">Pan view</button>
+</div>
+<div class="controller-plane-pad" id="motionPlanePad">
+<div class="controller-plane-grid"></div>
+<div class="controller-plane-triangle" id="motionPlaneTriangle"></div>
+<div class="controller-plane-target" id="motionPlaneTarget"></div>
+</div>
+</div>
+<div class="controller-plane-nudge">
+<div class="small">Target nudge</div>
+<div class="controller-plane-nudge-grid" id="motionPlaneNudgeControls">
+<div class="relative-control">
+<button type="button" data-motion-plane-nudge-axis="x" data-motion-plane-nudge-dir="-1" data-motion-plane-nudge-step="coarse" title="Move target X left by the coarse step">−</button>
+<label>X coarse<input id="motionPlaneStepXCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-motion-plane-nudge-axis="x" data-motion-plane-nudge-dir="1" data-motion-plane-nudge-step="coarse" title="Move target X right by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-motion-plane-nudge-axis="x" data-motion-plane-nudge-dir="-1" data-motion-plane-nudge-step="fine" title="Move target X left by the fine step">−</button>
+<label>X fine<input id="motionPlaneStepXFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-motion-plane-nudge-axis="x" data-motion-plane-nudge-dir="1" data-motion-plane-nudge-step="fine" title="Move target X right by the fine step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-motion-plane-nudge-axis="y" data-motion-plane-nudge-dir="-1" data-motion-plane-nudge-step="coarse" title="Move target Y down by the coarse step">−</button>
+<label>Y coarse<input id="motionPlaneStepYCoarse" type="number" min="0.001" step="0.1" value="0.5"></label>
+<button type="button" data-motion-plane-nudge-axis="y" data-motion-plane-nudge-dir="1" data-motion-plane-nudge-step="coarse" title="Move target Y up by the coarse step">+</button>
+</div>
+<div class="relative-control">
+<button type="button" data-motion-plane-nudge-axis="y" data-motion-plane-nudge-dir="-1" data-motion-plane-nudge-step="fine" title="Move target Y down by the fine step">−</button>
+<label>Y fine<input id="motionPlaneStepYFine" type="number" min="0.001" step="0.01" value="0.05"></label>
+<button type="button" data-motion-plane-nudge-axis="y" data-motion-plane-nudge-dir="1" data-motion-plane-nudge-step="fine" title="Move target Y up by the fine step">+</button>
+</div>
+</div>
+</div>
+<div class="controller-plane-info">
+<div class="small" id="motionPlaneSummary">No plane selected.</div>
+<div class="controller-plane-fixture-list" id="motionPlaneFixtures"></div>
+</div>
+</div>
+</div>
+<div class="modal-actions">
+<button id="motionPlaneClose2" type="button">Close</button>
+</div>
+</div>
+</div>
+
 <div id="motionEffectVisualModal" class="modal-overlay visual-editor-modal" style="display:none">
 <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="motionEffectVisualTitle">
 <div class="modal-head">
@@ -2441,6 +2499,184 @@ function recallMotionPlane(plane){
   if(panTilt)sendMotionGroupControl(panTilt.control);
   setStatus('Recalled plane "'+plane.name+'" as effect center for '+changed+' fixture'+(changed===1?'':'s'));
 }
+let activeMotionPlane=null;
+let activeMotionPlaneId=null;
+let motionPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+let motionPlanePanMode=false;
+let motionPlaneRenderQueued=false;
+let motionPlaneTargetDrag=null;
+let motionPlaneViewDrag=null;
+let motionPlaneLiveTimer=null;
+let motionPlaneViewSaveTimer=null;
+function cloneMotionPlane(plane){return JSON.parse(JSON.stringify(plane));}
+function motionPlaneSavedView(plane){
+  const view=plane?.view&&typeof plane.view==='object'?plane.view:{};
+  return {auto:view.auto!==false,centerX:Number(view.centerX)||0,centerY:Number(view.centerY)||0,zoom:Math.max(.25,Math.min(8,Number(view.zoom)||1))};
+}
+function motionPlaneBounds(plane){
+  const base=DmxCommon.roomPlaneAutoBounds(plane);
+  if(motionPlaneView.auto){
+    motionPlaneView.centerX=(base.minX+base.maxX)/2;
+    motionPlaneView.centerY=(base.minY+base.maxY)/2;
+  }
+  const zoom=Math.max(.25,Math.min(8,Number(motionPlaneView.zoom)||1));
+  const spanX=(base.maxX-base.minX)/zoom;
+  const spanY=(base.maxY-base.minY)/zoom;
+  const centerX=Number(motionPlaneView.centerX)||((base.minX+base.maxX)/2);
+  const centerY=Number(motionPlaneView.centerY)||((base.minY+base.maxY)/2);
+  return {minX:centerX-spanX/2,maxX:centerX+spanX/2,minY:centerY-spanY/2,maxY:centerY+spanY/2};
+}
+function motionPlaneToScreen(point,bounds,rect){
+  const width=Math.max(1,rect?.width||1),height=Math.max(1,rect?.height||1);
+  const spanX=Math.max(.0001,bounds.maxX-bounds.minX),spanY=Math.max(.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const offsetX=(width-spanX*scale)/2,offsetY=(height-spanY*scale)/2;
+  return {x:((offsetX+(point.x-bounds.minX)*scale)/width)*100,y:((offsetY+(bounds.maxY-point.y)*scale)/height)*100};
+}
+function motionPlaneScreenToRoom(event,rect,bounds){
+  const width=Math.max(1,rect.width),height=Math.max(1,rect.height);
+  const spanX=Math.max(.0001,bounds.maxX-bounds.minX),spanY=Math.max(.0001,bounds.maxY-bounds.minY);
+  const scale=Math.min(width/spanX,height/spanY);
+  const offsetX=(width-spanX*scale)/2,offsetY=(height-spanY*scale)/2;
+  return {x:bounds.minX+(event.clientX-rect.left-offsetX)/scale,y:bounds.maxY-(event.clientY-rect.top-offsetY)/scale,z:0};
+}
+function setMotionPlanePanMode(active){
+  motionPlanePanMode=!!active;
+  motionPlaneViewDrag=null;
+  const button=document.getElementById('motionPlanePanView');
+  const pad=document.getElementById('motionPlanePad');
+  button.classList.toggle('active',motionPlanePanMode);
+  button.textContent=motionPlanePanMode?'Stop pan view':'Pan view';
+  button.setAttribute('aria-pressed',motionPlanePanMode?'true':'false');
+  pad.classList.toggle('pan-mode',motionPlanePanMode);
+}
+function syncActiveMotionPlaneView(){
+  if(!activeMotionPlane||!activeMotionPlaneId)return;
+  const view={auto:motionPlaneView.auto!==false,centerX:Number(motionPlaneView.centerX)||0,centerY:Number(motionPlaneView.centerY)||0,zoom:Math.max(.25,Math.min(8,Number(motionPlaneView.zoom)||1))};
+  activeMotionPlane.view={...view};
+  const stored=motionPlanes.find(plane=>String(plane.id)===String(activeMotionPlaneId));
+  if(stored)stored.view={...view};
+}
+async function saveMotionPlaneView(){
+  if(!activeMotionPlane||!activeMotionPlaneId||!DmxCommon.isHttp())return false;
+  syncActiveMotionPlaneView();
+  const response=await fetch('room_plane_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(motionRoomPlanePayload())});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||('HTTP '+response.status));
+  setStatus('Plane view saved');
+  return true;
+}
+function scheduleMotionPlaneViewSave(){
+  clearTimeout(motionPlaneViewSaveTimer);
+  motionPlaneViewSaveTimer=setTimeout(()=>{motionPlaneViewSaveTimer=null;saveMotionPlaneView().catch(error=>setStatus('Plane view autosave failed: '+error.message,true));},800);
+}
+function zoomMotionPlaneView(factor){
+  if(!activeMotionPlane)return;
+  const bounds=motionPlaneBounds(activeMotionPlane);
+  motionPlaneView={auto:false,centerX:(bounds.minX+bounds.maxX)/2,centerY:(bounds.minY+bounds.maxY)/2,zoom:Math.max(.25,Math.min(8,(Number(motionPlaneView.zoom)||1)*factor))};
+  syncActiveMotionPlaneView();
+  scheduleMotionPlaneViewSave();
+  queueMotionPlaneRender();
+}
+function resetMotionPlaneView(){
+  motionPlaneView={auto:true,centerX:0,centerY:0,zoom:1};
+  syncActiveMotionPlaneView();
+  scheduleMotionPlaneViewSave();
+  queueMotionPlaneRender();
+}
+function scheduleMotionPlaneLive(){
+  clearTimeout(motionPlaneLiveTimer);
+  motionPlaneLiveTimer=setTimeout(()=>{motionPlaneLiveTimer=null;if(activeMotionPlane)recallMotionPlane(activeMotionPlane);},40);
+}
+function setMotionPlaneTarget(room){
+  if(!activeMotionPlane)return;
+  activeMotionPlane.target={x:Number(room.x)||0,y:Number(room.y)||0,z:Number(room.z)||0};
+  queueMotionPlaneRender();
+  scheduleMotionPlaneLive();
+}
+function motionPlaneNudgeStep(axis,kind){
+  const id='motionPlaneStep'+axis.toUpperCase()+(kind==='fine'?'Fine':'Coarse');
+  return Math.max(.001,Number(document.getElementById(id)?.value)||0);
+}
+function nudgeMotionPlaneTarget(axis,dir,kind){
+  if(!activeMotionPlane)return;
+  const target={...activeMotionPlane.target};
+  target[axis]=(Number(target[axis])||0)+(Number(dir)||0)*motionPlaneNudgeStep(axis,kind);
+  setMotionPlaneTarget(target);
+  setStatus('Plane target '+axis.toUpperCase()+' '+target[axis].toFixed(3)+' · live output updating');
+}
+function motionPlaneDrawLine(host,a,b){
+  const line=document.createElement('div');
+  const dx=b.x-a.x,dy=b.y-a.y;
+  line.className='controller-plane-line';
+  line.style.left=a.x+'%';line.style.top=a.y+'%';line.style.width=Math.sqrt(dx*dx+dy*dy)+'%';line.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';
+  host.appendChild(line);
+}
+function renderMotionPlanePreview(){
+  const plane=activeMotionPlane;
+  const pad=document.getElementById('motionPlanePad');
+  if(!plane||!pad)return;
+  pad.querySelectorAll('.controller-plane-point,.controller-plane-line').forEach(el=>el.remove());
+  const selected=motionPlaneSelectedIds();
+  const rect=pad.getBoundingClientRect();
+  const bounds=motionPlaneBounds(plane);
+  const screens=plane.points.map(point=>motionPlaneToScreen(point,bounds,rect));
+  const triangle=document.getElementById('motionPlaneTriangle');
+  [['--ax',screens[0].x],['--ay',screens[0].y],['--bx',screens[1].x],['--by',screens[1].y],['--cx',screens[2].x],['--cy',screens[2].y]].forEach(([name,value])=>triangle.style.setProperty(name,value+'%'));
+  screens.forEach((screen,index)=>{
+    const point=document.createElement('div');
+    point.className='controller-plane-point';point.textContent=plane.points[index].id;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);
+  });
+  const targetScreen=motionPlaneToScreen(plane.target,bounds,rect);
+  const target=document.getElementById('motionPlaneTarget');
+  target.style.left=targetScreen.x+'%';target.style.top=targetScreen.y+'%';
+  plane.fixtures.forEach((fixture,index)=>{
+    const screen=motionPlaneToScreen(fixture,bounds,rect);
+    const point=document.createElement('div');
+    point.className='controller-plane-point controller-plane-fixture'+(selected.has(String(fixture.id))?' selected':'');
+    point.textContent=String(fixture.name||'').replace(/[^0-9]/g,'')||String(index+1);point.title=fixture.name;point.style.left=screen.x+'%';point.style.top=screen.y+'%';pad.appendChild(point);
+    motionPlaneDrawLine(pad,screen,targetScreen);
+  });
+}
+function renderMotionPlaneModal(){
+  const plane=activeMotionPlane;
+  if(!plane)return;
+  const selected=motionPlaneSelectedIds();
+  const weights=DmxCommon.roomPlaneWeights(plane);
+  document.getElementById('motionPlaneTitle').textContent='Recall Plane: '+plane.name;
+  document.getElementById('motionPlaneSummary').textContent='Target X '+Number(plane.target.x).toFixed(3)+' / Y '+Number(plane.target.y).toFixed(3)+' · selected '+selected.size+' fixture'+(selected.size===1?'':'s')+' · weights A '+weights.wA.toFixed(3)+' / B '+weights.wB.toFixed(3)+' / C '+weights.wC.toFixed(3);
+  document.getElementById('motionPlaneFixtures').innerHTML=plane.fixtures.map(fixture=>{
+    const isSelected=selected.has(String(fixture.id));
+    const isPatched=motionFixtures.some(item=>String(item.fixture.id)===String(fixture.id)&&item.kind==='panTilt');
+    const status=isSelected?(isPatched?'selected':'not patched'):(isPatched?'available':'not patched');
+    return '<div class="controller-plane-fixture-row'+(isSelected?' selected':'')+'"><strong>'+escMotionHtml(fixture.name)+'</strong><span class="small">'+status+'</span></div>';
+  }).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
+  renderMotionPlanePreview();
+}
+function queueMotionPlaneRender(){
+  if(motionPlaneRenderQueued)return;
+  motionPlaneRenderQueued=true;
+  requestAnimationFrame(()=>{motionPlaneRenderQueued=false;renderMotionPlaneModal();});
+}
+function openMotionPlaneModal(id){
+  const plane=motionPlanes.find(item=>String(item.id)===String(id));
+  if(!plane)return;
+  activeMotionPlaneId=String(id);
+  activeMotionPlane=cloneMotionPlane(plane);
+  motionPlaneView=motionPlaneSavedView(activeMotionPlane);
+  setMotionPlanePanMode(false);
+  renderMotionPlaneModal();
+  DmxCommon.showModal('motionPlaneModal');
+  requestAnimationFrame(renderMotionPlanePreview);
+  recallMotionPlane(activeMotionPlane);
+}
+function closeMotionPlaneModal(){
+  DmxCommon.hideModal('motionPlaneModal');
+  clearTimeout(motionPlaneLiveTimer);clearTimeout(motionPlaneViewSaveTimer);
+  motionPlaneLiveTimer=null;motionPlaneViewSaveTimer=null;motionPlaneTargetDrag=null;motionPlaneViewDrag=null;
+  setMotionPlanePanMode(false);
+  activeMotionPlane=null;activeMotionPlaneId=null;
+}
 const motionPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
   matrixId:'motionPlaneMatrix',
   colsId:'motionPlaneCols',
@@ -2459,9 +2695,53 @@ const motionPlanesMatrix=DmxCommon.initSavedPlaneToolbox({
   onSetupLoaded:data=>{motionRoomPlaneSetup=normalizeMotionRoomPlaneSetup(data);},
   onStatus:setStatus,
   fixtureSummary:motionPlaneSummary,
-  onOpen:plane=>recallMotionPlane(plane)
+  onOpen:plane=>openMotionPlaneModal(plane.id)
 });
 window.motionPlanesMatrix=motionPlanesMatrix;
+document.getElementById('motionPlaneClose').onclick=closeMotionPlaneModal;
+document.getElementById('motionPlaneClose2').onclick=closeMotionPlaneModal;
+document.getElementById('motionPlaneNudgeControls').addEventListener('click',event=>{
+  const button=event.target.closest('[data-motion-plane-nudge-axis]');
+  if(!button)return;
+  nudgeMotionPlaneTarget(button.dataset.motionPlaneNudgeAxis,Number(button.dataset.motionPlaneNudgeDir)||0,button.dataset.motionPlaneNudgeStep||'coarse');
+});
+document.getElementById('motionPlaneZoomIn').onclick=()=>zoomMotionPlaneView(1.25);
+document.getElementById('motionPlaneZoomOut').onclick=()=>zoomMotionPlaneView(1/1.25);
+document.getElementById('motionPlaneResetView').onclick=resetMotionPlaneView;
+document.getElementById('motionPlanePanView').onclick=()=>setMotionPlanePanMode(!motionPlanePanMode);
+document.getElementById('motionPlanePad').addEventListener('pointerdown',event=>{
+  if(!activeMotionPlane)return;
+  event.preventDefault();
+  const pad=event.currentTarget,rect=pad.getBoundingClientRect(),bounds=motionPlaneBounds(activeMotionPlane);
+  if(motionPlanePanMode||event.button===1||event.button===2||event.shiftKey){
+    motionPlaneView.auto=false;
+    motionPlaneViewDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,bounds};
+  }else{
+    motionPlaneTargetDrag={pointerId:event.pointerId,bounds};
+    setMotionPlaneTarget(motionPlaneScreenToRoom(event,rect,bounds));
+  }
+  pad.setPointerCapture?.(event.pointerId);
+});
+document.getElementById('motionPlanePad').addEventListener('pointermove',event=>{
+  const pad=event.currentTarget;
+  if(activeMotionPlane&&motionPlaneViewDrag?.pointerId===event.pointerId){
+    const rect=pad.getBoundingClientRect();
+    const spanX=motionPlaneViewDrag.bounds.maxX-motionPlaneViewDrag.bounds.minX,spanY=motionPlaneViewDrag.bounds.maxY-motionPlaneViewDrag.bounds.minY;
+    motionPlaneView.centerX=((motionPlaneViewDrag.bounds.minX+motionPlaneViewDrag.bounds.maxX)/2)-(event.clientX-motionPlaneViewDrag.x)/Math.max(1,rect.width)*spanX;
+    motionPlaneView.centerY=((motionPlaneViewDrag.bounds.minY+motionPlaneViewDrag.bounds.maxY)/2)+(event.clientY-motionPlaneViewDrag.y)/Math.max(1,rect.height)*spanY;
+    syncActiveMotionPlaneView();scheduleMotionPlaneViewSave();queueMotionPlaneRender();return;
+  }
+  if(!activeMotionPlane||motionPlaneTargetDrag?.pointerId!==event.pointerId)return;
+  setMotionPlaneTarget(motionPlaneScreenToRoom(event,pad.getBoundingClientRect(),motionPlaneTargetDrag.bounds));
+});
+document.getElementById('motionPlanePad').addEventListener('pointerup',event=>{
+  if(motionPlaneViewDrag?.pointerId===event.pointerId)motionPlaneViewDrag=null;
+  if(motionPlaneTargetDrag?.pointerId===event.pointerId)motionPlaneTargetDrag=null;
+  event.currentTarget.releasePointerCapture?.(event.pointerId);
+});
+document.getElementById('motionPlanePad').addEventListener('pointercancel',()=>{motionPlaneTargetDrag=null;motionPlaneViewDrag=null;});
+document.getElementById('motionPlanePad').addEventListener('contextmenu',event=>event.preventDefault());
+document.getElementById('motionPlanePad').addEventListener('wheel',event=>{event.preventDefault();zoomMotionPlaneView(event.deltaY<0?1.12:1/1.12);},{passive:false});
 
 const motionSceneToolbox=DmxCommon.initFloatingToolbox({
   boxId:'motionSceneBox',

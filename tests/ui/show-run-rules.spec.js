@@ -611,6 +611,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#showPlaneModal .modal-actions')).toBeVisible();
     await expect.poll(() => page.locator('#showPlaneModal .modal-body').evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
     await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
+    await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:21': { pan: 2000, tilt: 3000 } });
     await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
     await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
     await page.locator('#showPlanePanView').click();

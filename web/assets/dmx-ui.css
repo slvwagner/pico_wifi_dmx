@@ -173,6 +173,31 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .tile-layout-controls .tile-layout-field input,.groups-layout-controls .tile-layout-field input{width:52px;padding:6px}
 .tile-move-btn{min-height:30px;height:30px;padding:5px 10px;align-self:center;line-height:1}
 .tile-move-btn.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#164e63;color:var(--text)}
+.controller-plane-modal .modal-card{max-width:920px;width:min(920px,calc(100vw - 32px))}
+.controller-plane-layout{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
+.controller-plane-view{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.controller-plane-view button.active{background:#103b30;border-color:#2f9e7d;color:var(--accent);font-weight:700}
+.controller-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
+.controller-plane-pad.pan-mode{cursor:grab}
+.controller-plane-pad.pan-mode:active{cursor:grabbing}
+.controller-plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
+.controller-plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);pointer-events:none}
+.controller-plane-point{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;z-index:2}
+.controller-plane-fixture{background:var(--warn);opacity:.65}
+.controller-plane-fixture.selected{background:var(--accent);opacity:1;box-shadow:0 0 0 6px rgba(55,196,164,.18)}
+.controller-plane-target{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff7a7a;border:2px solid #2b1010;transform:translate(-50%,-50%);box-shadow:0 0 0 6px rgba(255,122,122,.15);z-index:3}
+.controller-plane-line{position:absolute;height:1px;background:rgba(255,255,255,.28);transform-origin:0 50%;z-index:1}
+.controller-plane-info{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:10px}
+.controller-plane-fixture-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-height:280px;overflow:auto}
+.controller-plane-fixture-row{min-height:72px;display:grid;align-content:end;gap:4px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;padding:10px}
+.controller-plane-fixture-row strong,.controller-plane-fixture-row .small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.controller-plane-fixture-row:hover{border-color:var(--accent)}
+.controller-plane-fixture-row.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#10241f}
+.controller-plane-slot-meta{font-size:10px;color:inherit;opacity:.82;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.controller-plane-nudge{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:10px;display:grid;gap:8px}
+.controller-plane-nudge-grid{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:8px}
+@media(max-width:700px){.controller-plane-nudge-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.controller-plane-pad{min-height:320px}}
 .groups-layout-controls{grid-column:1/-1}
 .groups-edit-btn{grid-column:1/-1;grid-row:auto;align-self:start;width:100%;padding:8px 12px;line-height:1.1;min-height:44px}
 .groups-matrix{display:grid;gap:8px;align-content:start}

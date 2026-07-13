@@ -492,7 +492,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="controllerPlanesBoxToggle" class="scene-toolbox__toggle">—</button>
 </div>
 <div id="controllerPlanesBoxBody" class="scene-toolbox__body">
-<div class="small">Recall a saved room plane and apply its calibrated target to the selected fixtures or selected group.</div>
+<div class="small">Recall a saved room plane, restore its patched fixtures as the active selection, and apply the calibrated target.</div>
 <div id="controllerPlaneLayoutControls" class="tile-layout-controls"></div>
 <div id="controllerPlaneMatrix" class="scene-slot-matrix"></div>
 </div>
@@ -4968,11 +4968,14 @@ function normalizeControllerPlane(plane,index){
 function cloneControllerPlane(plane){
   return JSON.parse(JSON.stringify(plane));
 }
-function controllerPlaneSelectedIds(){
-  return new Set([...selectedFixtureIds].map(id=>String(id)));
+function controllerPlaneSelectedIds(plane=activeControllerPlane){
+  const selected=new Set([...selectedFixtureIds].map(id=>String(id)));
+  if(selected.size||!plane)return selected;
+  const planeFixtureIds=new Set((plane.fixtures||[]).map(fixture=>String(fixture.id)));
+  return new Set(fixtures.filter(fixture=>planeFixtureIds.has(String(fixture.id))).map(fixture=>String(fixture.id)));
 }
 function planeFixtureSummary(plane){
-  const selected=controllerPlaneSelectedIds();
+  const selected=controllerPlaneSelectedIds(plane);
   const matching=(plane.fixtures||[]).filter(f=>selected.has(String(f.id))).length;
   return (plane.fixtures||[]).length+' fixture'+((plane.fixtures||[]).length===1?'':'s')+(selected.size?' · '+matching+' selected match'+(matching===1?'':'es'):'');
 }
@@ -5358,11 +5361,26 @@ function renderControllerPlaneModal(){
   }).join('')||'<div class="small">No fixtures were saved with this plane.</div>';
   renderControllerPlanePreview();
 }
+function recallControllerPlaneFixtureSelection(plane){
+  const savedFixtureIds=new Set((plane.fixtures||[]).map(fixture=>String(fixture.id)));
+  selectedFixtureIds=new Set(fixtures.filter(fixture=>savedFixtureIds.has(String(fixture.id))).map(fixture=>fixture.id));
+  sourceFixtureId=selectedFixtureIds.size?String([...selectedFixtureIds][0]):null;
+  activeSavedGroupIds.clear();
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  activeFixtureFilterIds.clear();
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  drawSurface();
+}
 function openControllerPlaneModal(id){
   const plane=controllerPlanes.find(item=>String(item.id)===String(id));
   if(!plane)return;
   activeControllerPlaneId=String(id);
   activeControllerPlane=cloneControllerPlane(plane);
+  recallControllerPlaneFixtureSelection(activeControllerPlane);
   controllerPlaneView=controllerPlaneSavedView(activeControllerPlane);
   setControllerPlanePanMode(false);
   controllerPlaneLastLiveStatus='';
@@ -5370,6 +5388,7 @@ function openControllerPlaneModal(id){
   renderControllerPlaneModal();
   DmxCommon.showModal('controllerPlaneModal');
   requestAnimationFrame(renderControllerPlanePreview);
+  sendControllerPlaneLiveTarget({manual:false});
 }
 function closeControllerPlaneModal(){
   DmxCommon.hideModal('controllerPlaneModal');
@@ -5417,8 +5436,8 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
   }
   const selected=controllerPlaneSelectedIds();
   if(!selected.size){
-    const message='Select fixtures or a group before using plane live output';
-    if(manual)setStatus(message,true);
+    const message='No patched fixtures saved in this plane are available for live output';
+    setStatus(message,true);
     return {applied:0,errors:[message]};
   }
   const errors=[];

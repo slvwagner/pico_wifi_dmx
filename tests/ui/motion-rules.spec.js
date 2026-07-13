@@ -230,6 +230,47 @@ test.describe('Effects established rules', () => {
     await expect.poll(() => page.evaluate(() => motionGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
   });
 
+  test('clicking a saved Plane opens its target modal and applies the current target', async ({ page }) => {
+    const expected = await page.evaluate(() => {
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      setMotionTarget(motionControlKey(panTilt.control));
+      motionFixtures.forEach(mf => { mf.enabled = mf === panTilt; });
+      panTilt.basePan = 1111;
+      panTilt.baseTilt = 2222;
+      motionPlanes = [DmxCommon.normalizeRoomPlane({
+        id: 'plane_modal',
+        name: 'Modal Plane',
+        slot: 0,
+        target: { x: 1, y: 1, z: 0 },
+        fixtures: [{
+          id: panTilt.fixture.id,
+          name: panTilt.fixture.name,
+          x: 2,
+          y: 2,
+          z: 0,
+          cal: {
+            A: { calibrated: true, pan: 10000, tilt: 20000 },
+            B: { calibrated: true, pan: 20000, tilt: 30000 },
+            C: { calibrated: true, pan: 30000, tilt: 40000 }
+          }
+        }]
+      }, 0)];
+      motionPlanesMatrix.render();
+      const weights = DmxCommon.roomPlaneWeights(motionPlanes[0]);
+      const output = DmxCommon.roomPlaneInterpolateFixture(motionPlanes[0], motionPlanes[0].fixtures[0], weights);
+      return { basePan: Math.round(output.pan), baseTilt: Math.round(output.tilt) };
+    });
+
+    await page.locator('#motionPlaneMatrix [data-plane-slot="0"]').click();
+
+    await expect(page.locator('#motionPlaneModal')).toBeVisible();
+    const afterOpen = await page.evaluate(() => {
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      return { basePan: panTilt.basePan, baseTilt: panTilt.baseTilt };
+    });
+    expect(afterOpen).toEqual(expected);
+  });
+
   test('Effect Parameters + all keeps the clicked button anchored after expanding toolboxes', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 900 });
 

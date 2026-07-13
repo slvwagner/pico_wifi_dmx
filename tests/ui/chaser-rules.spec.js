@@ -131,6 +131,40 @@ test.describe('Chaser established rules', () => {
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
   });
 
+  test('clicking a saved Plane opens its target modal and applies the current target to the step', async ({ page }) => {
+    await page.evaluate(() => {
+      chaserPlanes = [DmxCommon.normalizeRoomPlane({
+        id: 'chaser_plane_modal',
+        name: 'Chaser Modal Plane',
+        slot: 0,
+        points: [
+          { id: 'A', x: 0, y: 0, z: 0 },
+          { id: 'B', x: 10, y: 0, z: 0 },
+          { id: 'C', x: 0, y: 10, z: 0 }
+        ],
+        target: { x: 5, y: 0, z: 0 },
+        fixtures: [{
+          id: 101,
+          name: 'A 1',
+          x: 1,
+          y: 1,
+          z: 0,
+          cal: {
+            A: { calibrated: true, pan: 1000, tilt: 2000 },
+            B: { calibrated: true, pan: 3000, tilt: 4000 },
+            C: { calibrated: true, pan: 5000, tilt: 6000 }
+          }
+        }]
+      }, 0)];
+      chaserPlanesMatrix.render();
+    });
+
+    await page.locator('#chaserPlaneMatrix [data-plane-slot="0"]').click();
+
+    await expect(page.locator('#chaserPlaneModal')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => steps[selectedStepIdx]?.values?.['101:12'])).toEqual({ pan: 2000, tilt: 3000 });
+  });
+
   test('Fan Out spread slider fills the shared toolbox width on Chaser', async ({ page }) => {
     const layout = await page.evaluate(() => {
       const slider = document.getElementById('fanSpread');
