@@ -28,6 +28,10 @@ test.describe('Project versioning rules', () => {
     for (const path of pages) {
       await openDmxPage(page, path);
       await page.evaluate(() => {
+        const groupsBox = document.querySelector('.scene-toolbox--groups');
+        if (groupsBox?.classList.contains('collapsed')) {
+          groupsBox.querySelector('.scene-toolbox__toggle')?.click();
+        }
         const group = { id: 'grp_selectable_test', name: 'Selectable Test', fixtureIds: [], values: {} };
         if (typeof savedGroups !== 'undefined' && typeof renderSavedGroupsList === 'function') {
           savedGroups.splice(0, savedGroups.length, group);

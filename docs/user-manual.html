@@ -1020,6 +1020,9 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 </ul>
 <p>The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.</p>
 <p>Use <strong>Import Setup</strong> on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.</p>
+<h3 id="using-multiple-browser-devices">Using Multiple Browser Devices</h3>
+<p>You can keep the controller or operator pages open on more than one browser device. Chaser slots, Effects slots, and shared UI-state updates are saved as locked transactions, so two nearly simultaneous saves do not overwrite each other with an older copy of the setup file. Pico HTTP requests are also isolated per connection, allowing status polling and control or slot-upload requests to overlap safely.</p>
+<p>When you expand the last toolbox on an iPad or another narrow portrait display, the toolbox rail automatically scrolls the expanded card into view. The card remains inside the toolbox rail; scroll the rail itself to reach the rest of its contents.</p>
 <p><strong>Patch CSV</strong> is separate. It exports the patched DMX channel table for documentation or troubleshooting, not for restoring the show.</p>
 <h2 id="11-clear-functions">11. Clear Functions</h2>
 <p>There are two different clear actions:</p>

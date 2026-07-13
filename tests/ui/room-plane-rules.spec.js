@@ -3,6 +3,17 @@ const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Room Plane rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/ui_state.php**', async route => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, exists: false, state: {} })
+        });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      }
+    });
     await page.route('**/room_plane_setup.php', async route => {
       await route.fulfill({
         status: 200,

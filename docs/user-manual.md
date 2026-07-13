@@ -1290,6 +1290,12 @@ The file also stores the project name, project version, export time, and setup f
 
 Use **Import Setup** on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.
 
+### Using Multiple Browser Devices
+
+You can keep the controller or operator pages open on more than one browser device. Chaser slots, Effects slots, and shared UI-state updates are saved as locked transactions, so two nearly simultaneous saves do not overwrite each other with an older copy of the setup file. Pico HTTP requests are also isolated per connection, allowing status polling and control or slot-upload requests to overlap safely.
+
+When you expand the last toolbox on an iPad or another narrow portrait display, the toolbox rail automatically scrolls the expanded card into view. The card remains inside the toolbox rail; scroll the rail itself to reach the rest of its contents.
+
 **Patch CSV** is separate. It exports the patched DMX channel table for documentation or troubleshooting, not for restoring the show.
 
 ## 11. Clear Functions

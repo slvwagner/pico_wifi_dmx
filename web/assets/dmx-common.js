@@ -1236,8 +1236,11 @@
 
     if(toggle)toggle.addEventListener('click',event=>{
       const expanding=box?.classList.contains('collapsed');
+      const rail=box?.closest('.toolbox-rail');
+      const buttonTop=event.currentTarget.getBoundingClientRect().top;
+      const nearRailBottom=rail&&buttonTop>rail.getBoundingClientRect().bottom-120;
       setCollapsed(!box.classList.contains('collapsed'),true);
-      if(expanding)restoreRailElementAnchor(event.currentTarget);
+      if(expanding&&!nearRailBottom)restoreRailElementAnchor(event.currentTarget);
     });
 
     return {box,header,toggle,clamp:clampBox,applyPosition,applySize,setCollapsed};

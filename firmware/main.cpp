@@ -96,12 +96,29 @@ static volatile bool application_running = true;
 static struct udp_pcb *discovery_udp;
 static char pico_unique_id[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 
-/* POST receive buffer */
+/* POST receive state. Bodies are owned by the individual HTTP connection. */
 #define POST_BUFFER_MAX (12 * 1024)
-static char    post_buffer[POST_BUFFER_MAX];
-static size_t  post_length = 0;
-static enum { POST_NONE = 0, POST_CHASER, POST_MOTION, POST_DMX_BATCH, POST_DMX_BLACKOUT, POST_DMX_MASTER, POST_GPIO_CONFIG } post_type = POST_NONE;
-static uint8_t post_slot = 0;
+typedef enum post_type_t {
+    POST_NONE = 0,
+    POST_CHASER,
+    POST_MOTION,
+    POST_DMX_BATCH,
+    POST_DMX_BLACKOUT,
+    POST_DMX_MASTER,
+    POST_GPIO_CONFIG,
+} post_type_t;
+
+typedef struct post_state_t {
+    void *connection;
+    char *buffer;
+    size_t length;
+    size_t expected_length;
+    post_type_t type;
+    uint8_t slot;
+    struct post_state_t *next;
+} post_state_t;
+
+static post_state_t *post_states;
 
 extern char __StackLimit;
 
@@ -1403,7 +1420,7 @@ static void build_motion_slots_response()
         mfx_slot_info_t info;
         mfx_get_slot_info(i, &info);
         used += snprintf(http_playback_json + used, sizeof(http_playback_json) - used,
-            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"paused\":%s,\"type\":%d,\"bpm\":%.2f,\"elapsed_s\":%.2f,\"target_count\":%u,\"fixture_count\":%u}",
+            "%s{\"slot\":%u,\"loaded\":%s,\"active\":%s,\"paused\":%s,\"type\":%d,\"bpm\":%.2f,\"elapsed_s\":%.2f,\"target_count\":%u}",
             i == 0 ? "" : ",",
             (unsigned)i,
             info.loaded ? "true" : "false",
@@ -1412,7 +1429,6 @@ static void build_motion_slots_response()
             info.type,
             (double)info.bpm,
             (double)info.elapsed_s,
-            info.target_count,
             info.target_count);
     }
     snprintf(http_playback_json + used, sizeof(http_playback_json) - used, "]}\n");
@@ -1442,8 +1458,63 @@ static void build_playback_err_response(const char *msg)
         "{\"ok\":false,\"error\":\"%s\"}\n", msg);
 }
 
+static bool is_generated_http_buffer(const char *data)
+{
+    return data == http_page || data == http_logs || data == http_status_json ||
+           data == http_dmx_json || data == http_dmx_base_json ||
+           data == http_playback_json || data == http_gpio_json ||
+           data == http_midi_json;
+}
+
+/* fs_open_custom() builds responses in reusable scratch buffers. Copy a
+ * completed response before returning it to lwIP so an overlapping request
+ * cannot mutate bytes that are still queued for transmission. */
+class scoped_http_file_t {
+public:
+    explicit scoped_http_file_t(struct fs_file *file) : file_(file)
+    {
+        if (file_) {
+            file_->data = NULL;
+            file_->len = 0;
+            file_->index = 0;
+            file_->flags = 0;
+            file_->pextension = NULL;
+        }
+    }
+
+    ~scoped_http_file_t()
+    {
+        if (!file_ || !is_generated_http_buffer(file_->data) || file_->len <= 0) {
+            return;
+        }
+
+        char *copy = (char *)malloc((size_t)file_->len + 1u);
+        if (copy) {
+            memcpy(copy, file_->data, (size_t)file_->len);
+            copy[file_->len] = '\0';
+            file_->data = copy;
+            file_->pextension = copy;
+            return;
+        }
+
+        static const char out_of_memory_response[] =
+            "HTTP/1.0 503 Service Unavailable\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
+            "Connection: close\r\n\r\n"
+            "{\"ok\":false,\"error\":\"response allocation failed\"}\n";
+        file_->data = out_of_memory_response;
+        file_->len = (int)(sizeof(out_of_memory_response) - 1u);
+        file_->index = file_->len;
+        file_->pextension = NULL;
+    }
+
+private:
+    struct fs_file *file_;
+};
+
 extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 {
+    scoped_http_file_t http_file(file);
     scoped_http_perf_t http_perf;
 
     if (path_matches(name, "/dmx/set")) {
@@ -1919,7 +1990,36 @@ extern "C" int fs_open_custom(struct fs_file *file, const char *name)
 
 extern "C" void fs_close_custom(struct fs_file *file)
 {
-    (void)file;
+    if (file && file->pextension) {
+        free(file->pextension);
+        file->pextension = NULL;
+    }
+}
+
+static post_state_t *find_post_state(void *connection)
+{
+    for (post_state_t *state = post_states; state; state = state->next) {
+        if (state->connection == connection) {
+            return state;
+        }
+    }
+    return NULL;
+}
+
+static void free_post_state(post_state_t *state)
+{
+    if (!state) {
+        return;
+    }
+    post_state_t **link = &post_states;
+    while (*link && *link != state) {
+        link = &(*link)->next;
+    }
+    if (*link == state) {
+        *link = state->next;
+    }
+    free(state->buffer);
+    free(state);
 }
 
 /* ========================================================================
@@ -1939,36 +2039,53 @@ extern "C" err_t httpd_post_begin(void *connection,
     (void)connection; (void)http_request; (void)http_request_len;
     (void)response_uri; (void)response_uri_len;
 
-    post_length = 0;
     *post_auto_wnd = 1;
 
-    if (content_len > (int)(POST_BUFFER_MAX - 1))
+    if (!connection || content_len < 0 || content_len > (int)(POST_BUFFER_MAX - 1))
         return ERR_VAL; /* body too large */
 
+    /* A connection handle must not own two active requests. This also cleans
+     * up defensively if lwIP reuses a handle after an aborted request. */
+    free_post_state(find_post_state(connection));
+
+    post_state_t *state = (post_state_t *)calloc(1, sizeof(*state));
+    if (!state) {
+        return ERR_MEM;
+    }
+    state->buffer = (char *)malloc((size_t)content_len + 1u);
+    if (!state->buffer) {
+        free(state);
+        return ERR_MEM;
+    }
+    state->connection = connection;
+    state->expected_length = (size_t)content_len;
+    state->next = post_states;
+    post_states = state;
+
     if (strcmp(uri, "/gpio/config") == 0) {
-        post_type = POST_GPIO_CONFIG;
+        state->type = POST_GPIO_CONFIG;
         return ERR_OK;
     }
 
     /* /chaser/load or /chaser/load/<slot> */
     if (strncmp(uri, "/chaser/load", 12) == 0 &&
         (uri[12] == '\0' || uri[12] == '/')) {
-        post_type = POST_CHASER;
-        post_slot = 0;
+        state->type = POST_CHASER;
+        state->slot = 0;
         if (uri[12] == '/') {
             unsigned long s = strtoul(uri + 13, NULL, 10);
-            if (s < CHASER_MAX_SLOTS) post_slot = (uint8_t)s;
+            if (s < CHASER_MAX_SLOTS) state->slot = (uint8_t)s;
         }
         return ERR_OK;
     }
     /* /motion/load or /motion/load/<slot> */
     if (strncmp(uri, "/motion/load", 12) == 0 &&
         (uri[12] == '\0' || uri[12] == '/')) {
-        post_type = POST_MOTION;
-        post_slot = 0;
+        state->type = POST_MOTION;
+        state->slot = 0;
         if (uri[12] == '/') {
             unsigned long s = strtoul(uri + 13, NULL, 10);
-            if (s < MFX_MAX_SLOTS) post_slot = (uint8_t)s;
+            if (s < MFX_MAX_SLOTS) state->slot = (uint8_t)s;
         }
         return ERR_OK;
     }
@@ -1976,40 +2093,44 @@ extern "C" err_t httpd_post_begin(void *connection,
     /* POST /dmx/blackout — batch set and lock blackout channels */
     if (strncmp(uri, "/dmx/blackout", 13) == 0 &&
         (uri[13] == '\0' || uri[13] == '/' || uri[13] == '?')) {
-        post_type = POST_DMX_BLACKOUT;
+        state->type = POST_DMX_BLACKOUT;
         return ERR_OK;
     }
 
     /* POST /dmx/master - batch set output master scales as ch:scale pairs */
     if (strncmp(uri, "/dmx/master", 11) == 0 &&
         (uri[11] == '\0' || uri[11] == '/' || uri[11] == '?')) {
-        post_type = POST_DMX_MASTER;
+        state->type = POST_DMX_MASTER;
         return ERR_OK;
     }
 
     /* POST /dmx/b  — batch DMX set with ch:val pairs in body */
     if (strncmp(uri, "/dmx/b", 6) == 0 &&
         (uri[6] == '\0' || uri[6] == '/' || uri[6] == '?')) {
-        post_type = POST_DMX_BATCH;
+        state->type = POST_DMX_BATCH;
         return ERR_OK;
     }
 
-    post_type = POST_NONE;
+    free_post_state(state);
     return ERR_VAL;
 }
 
 extern "C" err_t httpd_post_receive_data(void *connection, struct pbuf *p)
 {
     scoped_http_perf_t http_perf;
-    (void)connection;
+    post_state_t *state = find_post_state(connection);
+    if (!state) {
+        pbuf_free(p);
+        return ERR_VAL;
+    }
     struct pbuf *q = p;
     while (q != NULL) {
         uint16_t copy = q->len;
-        if (post_length + copy > POST_BUFFER_MAX - 1)
-            copy = (uint16_t)(POST_BUFFER_MAX - 1 - post_length);
+        if (state->length + copy > state->expected_length)
+            copy = (uint16_t)(state->expected_length - state->length);
         if (copy > 0) {
-            memcpy(post_buffer + post_length, q->payload, copy);
-            post_length += copy;
+            memcpy(state->buffer + state->length, q->payload, copy);
+            state->length += copy;
         }
         q = q->next;
     }
@@ -2022,22 +2143,32 @@ extern "C" void httpd_post_finished(void *connection,
                                      u16_t response_uri_len)
 {
     scoped_http_perf_t http_perf;
-    (void)connection;
-    post_buffer[post_length] = '\0';
+    post_state_t *state = find_post_state(connection);
+    if (!state) {
+        return;
+    }
+    state->buffer[state->length] = '\0';
 
-    if (post_type == POST_CHASER) {
-        bool ok = chaser_load_slot(post_slot, post_buffer, post_length);
+    if (state->length != state->expected_length) {
+        build_playback_err_response("incomplete request body");
+        snprintf(response_uri, response_uri_len, "/chaser/load_ok");
+        free_post_state(state);
+        return;
+    }
+
+    if (state->type == POST_CHASER) {
+        bool ok = chaser_load_slot(state->slot, state->buffer, state->length);
         if (ok) build_playback_ok_response("chaser loaded");
         else    build_playback_err_response("parse error");
         snprintf(response_uri, response_uri_len, "/chaser/load_ok");
-    } else if (post_type == POST_MOTION) {
-        bool ok = mfx_load_slot(post_slot, post_buffer, post_length);
+    } else if (state->type == POST_MOTION) {
+        bool ok = mfx_load_slot(state->slot, state->buffer, state->length);
         if (ok) build_playback_ok_response("motion loaded");
         else    build_playback_err_response("parse error");
         snprintf(response_uri, response_uri_len, "/motion/load_ok");
-    } else if (post_type == POST_GPIO_CONFIG) {
+    } else if (state->type == POST_GPIO_CONFIG) {
         char err[160] = {0};
-        bool ok = gpio_control_configure_text(post_buffer, post_length, err, sizeof(err));
+        bool ok = gpio_control_configure_text(state->buffer, state->length, err, sizeof(err));
         if (ok) {
             build_gpio_json_response(200, "OK", "{\"ok\":true,\"message\":\"gpio config loaded\"}\n");
         } else {
@@ -2045,10 +2176,10 @@ extern "C" void httpd_post_finished(void *connection,
             build_gpio_json_response(400, "Bad Request", http_gpio_body);
         }
         snprintf(response_uri, response_uri_len, "/gpio/config_ok");
-    } else if (post_type == POST_DMX_BATCH) {
+    } else if (state->type == POST_DMX_BATCH) {
         dmx_engine_status_t status;
         dmx_engine_get_status(&status);
-        uint16_t updated = parse_and_apply_dmx_pairs(post_buffer, false, status.channels);
+        uint16_t updated = parse_and_apply_dmx_pairs(state->buffer, false, status.channels);
         snprintf(http_dmx_json, sizeof(http_dmx_json),
             "HTTP/1.0 200 OK\r\n"
             "Content-Type: application/json; charset=utf-8\r\n"
@@ -2059,11 +2190,11 @@ extern "C" void httpd_post_finished(void *connection,
             "{\"ok\":true,\"updated\":%u}\n",
             updated);
         snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
-    } else if (post_type == POST_DMX_BLACKOUT) {
+    } else if (state->type == POST_DMX_BLACKOUT) {
         dmx_engine_clear_blackout();
         dmx_engine_status_t status;
         dmx_engine_get_status(&status);
-        uint16_t updated = parse_and_apply_dmx_pairs(post_buffer, true, status.channels);
+        uint16_t updated = parse_and_apply_dmx_pairs(state->buffer, true, status.channels);
         snprintf(http_dmx_json, sizeof(http_dmx_json),
             "HTTP/1.0 200 OK\r\n"
             "Content-Type: application/json; charset=utf-8\r\n"
@@ -2075,11 +2206,11 @@ extern "C" void httpd_post_finished(void *connection,
             updated,
             dmx_engine_blackout_channel_count());
         snprintf(response_uri, response_uri_len, "/dmx/b_post_ok");
-    } else if (post_type == POST_DMX_MASTER) {
+    } else if (state->type == POST_DMX_MASTER) {
         dmx_engine_clear_master_scale();
         dmx_engine_status_t status;
         dmx_engine_get_status(&status);
-        uint16_t updated = parse_and_apply_master_pairs(post_buffer, status.channels);
+        uint16_t updated = parse_and_apply_master_pairs(state->buffer, status.channels);
         snprintf(http_dmx_json, sizeof(http_dmx_json),
             "HTTP/1.0 200 OK\r\n"
             "Content-Type: application/json; charset=utf-8\r\n"
@@ -2096,8 +2227,7 @@ extern "C" void httpd_post_finished(void *connection,
         snprintf(response_uri, response_uri_len, "/chaser/load_ok");
     }
 
-    post_type   = POST_NONE;
-    post_length = 0;
+    free_post_state(state);
 }
 
 static void core1_network_log_server()

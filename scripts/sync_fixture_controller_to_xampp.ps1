@@ -37,6 +37,7 @@ $gpioApiSource    = Join-Path $apiDir "gpio_setup.php"
 $roomPlaneApiSource = Join-Path $apiDir "room_plane_setup.php"
 $fixtureLibraryApiSource = Join-Path $apiDir "fixture_library.php"
 $uiStateSource   = Join-Path $apiDir "ui_state.php"
+$jsonStoreSource = Join-Path $apiDir "json_store.php"
 $picoDiscoveryApiSource = Join-Path $apiDir "pico_discovery.php"
 $manualSource    = Join-Path $docsDir "user-manual.html"
 $manualPdfSource = Join-Path $docsDir "user-manual.pdf"
@@ -63,6 +64,7 @@ $gpioApiTarget    = Join-Path $targetDir "gpio_setup.php"
 $roomPlaneApiTarget = Join-Path $targetDir "room_plane_setup.php"
 $fixtureLibraryApiTarget = Join-Path $targetDir "fixture_library.php"
 $uiStateTarget   = Join-Path $targetDir "ui_state.php"
+$jsonStoreTarget = Join-Path $targetDir "json_store.php"
 $picoDiscoveryApiTarget = Join-Path $targetDir "pico_discovery.php"
 $manualTarget    = Join-Path $targetDir "user-manual.html"
 $manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
@@ -150,6 +152,10 @@ if (Test-Path -LiteralPath $fixtureLibraryApiSource) {
 if (Test-Path -LiteralPath $uiStateSource) {
     Copy-Item -LiteralPath $uiStateSource -Destination $uiStateTarget -Force
     Write-Host "Copied UI state API to $uiStateTarget"
+}
+if (Test-Path -LiteralPath $jsonStoreSource) {
+    Copy-Item -LiteralPath $jsonStoreSource -Destination $jsonStoreTarget -Force
+    Write-Host "Copied atomic JSON store helper to $jsonStoreTarget"
 }
 if (Test-Path -LiteralPath $picoDiscoveryApiSource) {
     Copy-Item -LiteralPath $picoDiscoveryApiSource -Destination $picoDiscoveryApiTarget -Force

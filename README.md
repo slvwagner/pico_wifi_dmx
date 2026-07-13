@@ -661,6 +661,8 @@ The release package also includes `docs/user-manual.md`, the generated manual HT
 
 Cross-core data access is protected by `critical_section_t` hardware spinlocks. DMX buffer writes from the HTTP handler (Core 1) and from the playback engines (Core 0) are coordinated so neither blocks the other.
 
+The firmware HTTP layer also isolates overlapping network requests. Each POST upload owns its request body until that connection finishes, and every dynamically generated response is copied into connection-owned storage until lwIP closes the file. This prevents simultaneous browser polling, control writes, and slot uploads from overwriting one another's in-flight data.
+
 ---
 
 ## Playback Modes
@@ -772,6 +774,8 @@ The `TARGET` line contains DMX channel positions only. It does not store fixed c
 ## Web UI
 
 The UI is served from a separate web server (XAMPP in development). All pages talk to the Pico via cross-origin HTTP requests using `new Image().src` for fire-and-forget GET calls.
+
+Server-side Chaser, Effects, and UI-state updates hold an exclusive lock across the complete JSON read-modify-write operation. Multiple open browsers can therefore update different mirrored Pico slots or UI-state keys without a later request silently restoring an older copy of the file.
 
 | Page | File | Description |
 |------|------|-------------|
@@ -1129,7 +1133,7 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 | `firmware/pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
 | `firmware/pico_motion.cpp` / `.h` | Pico-side generic FX oscillator — **64 independent slots**, pan/tilt and scalar targets, simultaneous playback with bigger-wins channel merge, target-aware axis writes, 100 Hz tick, hardware spinlock |
 | `firmware/gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |
-| `firmware/lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving |
+| `firmware/lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving, and per-file extension storage for owned responses |
 | `firmware/fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
 | `pico_sdk_import.cmake` | Pico SDK CMake integration |
 | `CMakeLists.txt` | Build target, source files, SDK libraries |
@@ -1139,6 +1143,7 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 | `api/group_setup.php` | REST handler — save/load fixture groups (`data/group_setup.json`) |
 | `api/chaser_setup.php` | REST handler — save/load saved Chases toolbox entries and mirrored Pico slot payloads (`data/chaser_setup.json`) |
 | `api/motion_setup.php` | REST handler — save/load Effects setup, saved effect recipes, and mirrored Pico slot payloads (`data/motion_setup.json`) |
+| `api/json_store.php` | Locked JSON read-modify-write helper used when multiple browser requests can update one setup file |
 | `api/room_plane_setup.php` | REST handler — save/load Room Plane calibration setup (`data/room_plane_setup.json`) |
 | `api/ui_state.php` | REST handler — per-page UI state persistence (`data/ui_state.json`); merges partial state on POST |
 | `scripts/sync_fixture_controller_to_xampp.ps1` | PowerShell script — copies all HTML pages and PHP handlers to the local XAMPP htdocs folder |
