@@ -1917,10 +1917,15 @@ function moveMotionEffectSlot(fromSlot,toSlot){
 function recallMotionEffect(effect){
   const recipe=effect.recipe||effect;
   if(!recipe.targetKey){setStatus('Effect has no target data',true);return;}
+  const previewWasRunning=running;
   clearMotionGroupSelection();
   selectedMotionTargetKey=recipe.targetKey;
   localStorage.setItem('motionEffectTargetKey',selectedMotionTargetKey);
   const p=recipe.params||{};
+  // Establish the recalled target/effect mode before restoring amplitudes.
+  // updateEffectParameterUi() may adjust hidden axes while changing families.
+  populateMotionControlFilter();
+  populateEffectTypeFilter(p.effectType);
   if(p.bpm!==undefined)document.getElementById('bpm').value=p.bpm;
   if(p.panAmp!==undefined){document.getElementById('panAmp').value=p.panAmp;document.getElementById('panAmpVal').textContent=p.panAmp;}
   if(p.tiltAmp!==undefined){document.getElementById('tiltAmp').value=p.tiltAmp;document.getElementById('tiltAmpVal').textContent=p.tiltAmp;}
@@ -1933,13 +1938,22 @@ function recallMotionEffect(effect){
     const saved=(recipe.fixtures||[]).find(f=>String(f.fixtureId)===String(mf.fixture.id)&&String(f.controlId)===String(mf.control.id));
     if(saved&&saved.phaseOffset!==undefined)mf.phaseOffset=saved.phaseOffset;
   });
-  populateMotionControlFilter();
-  populateEffectTypeFilter(p.effectType);
   drawFixtureList();
   drawPathPreview();
   refreshMotionGroupActions();
   saveMotionWorkingState();
-  setStatus('Recalled effect "'+(effect.name||'Effect')+'"');
+  const effectName=effect.name||'Effect';
+  if(previewWasRunning){
+    clearInterval(intervalId);
+    startTime=performance.now();
+    sentToPico={};
+    const hz=clamp(document.getElementById('updateRate').value,5,50);
+    intervalId=setInterval(tick,1000/hz);
+    tick();
+    setStatus('Running recalled effect "'+effectName+'"');
+  }else{
+    setStatus('Recalled effect "'+effectName+'"');
+  }
 }
 function saveMotionEffectsServer(){
   saveMotionToServer();

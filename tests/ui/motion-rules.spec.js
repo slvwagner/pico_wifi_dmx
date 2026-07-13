@@ -71,6 +71,101 @@ test.describe('Effects established rules', () => {
     await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
   });
 
+  test('recalling an Effect tile restores its preview parameters after changing target family', async ({ page }) => {
+    const beforePreview = await page.evaluate(() => {
+      const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');
+      selectedMotionTargetKey = motionControlKey(scalar.control);
+      populateMotionControlFilter();
+      populateEffectTypeFilter('sine');
+      motionFixtures.forEach(mf => mf.enabled = mf === scalar);
+      document.getElementById('panAmp').value = '91';
+      document.getElementById('panAmpVal').textContent = '91';
+      drawPathPreview();
+
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      motionEffects = [{
+        id: 'preview_recall',
+        name: 'Saved Circle',
+        slot: 0,
+        recipe: {
+          targetKey: motionControlKey(panTilt.control),
+          params: { effectType: 'circle', bpm: 123, panAmp: 37, tiltAmp: 63, phaseSpread: 90, updateRate: 30 },
+          fixtures: [{ fixtureId: panTilt.fixture.id, controlId: panTilt.control.id, phaseOffset: 15 }]
+        }
+      }];
+      renderMotionEffectMatrix();
+      return document.getElementById('pathCanvas').toDataURL();
+    });
+
+    await page.locator('[data-motion-effect-slot="0"]').click();
+
+    await expect(page.locator('#effectType')).toHaveValue('circle');
+    await expect(page.locator('#bpm')).toHaveValue('123');
+    await expect(page.locator('#panAmp')).toHaveValue('37');
+    await expect(page.locator('#tiltAmp')).toHaveValue('63');
+    await expect(page.locator('#phaseSpread')).toHaveValue('90');
+    await expect(page.locator('#updateRate')).toHaveValue('30');
+    await expect(page.locator('#status')).toContainText('Recalled effect "Saved Circle"');
+
+    const recalled = await page.evaluate(() => ({
+      enabled: motionFixtures.filter(mf => mf.enabled).map(mf => mf.kind),
+      phaseOffset: motionFixtures.find(mf => mf.enabled)?.phaseOffset,
+      preview: document.getElementById('pathCanvas').toDataURL(),
+      running
+    }));
+    expect(recalled.enabled).toEqual(['panTilt']);
+    expect(recalled.phaseOffset).toBe(15);
+    expect(recalled.preview).not.toBe(beforePreview);
+    expect(recalled.running).toBe(false);
+  });
+
+  test('recalling an Effect tile restarts an active browser preview with the recalled update rate', async ({ page }) => {
+    const initial = await page.evaluate(() => {
+      const panTilt = motionFixtures.find(mf => mf.kind === 'panTilt');
+      motionEffects = [{
+        id: 'running_preview_recall',
+        name: 'Fast Circle',
+        slot: 0,
+        recipe: {
+          targetKey: motionControlKey(panTilt.control),
+          params: { effectType: 'circle', bpm: 140, panAmp: 42, tiltAmp: 31, phaseSpread: 0, updateRate: 25 },
+          fixtures: [{ fixtureId: panTilt.fixture.id, controlId: panTilt.control.id, phaseOffset: 0 }]
+        }
+      }];
+      renderMotionEffectMatrix();
+      running = true;
+      startTime = performance.now() - 5000;
+      sentToPico = { 1: 99 };
+      intervalId = setInterval(() => {}, 1000);
+      document.getElementById('startStop').textContent = '■ Stop';
+      document.getElementById('startStop').className = 'stop';
+      return { startTime, intervalId };
+    });
+
+    await page.locator('[data-motion-effect-slot="0"]').click();
+
+    await expect(page.locator('#startStop')).toHaveText('■ Stop');
+    await expect(page.locator('#startStop')).toHaveClass('stop');
+    await expect(page.locator('#status')).toContainText('Running recalled effect "Fast Circle"');
+    const recalled = await page.evaluate(() => {
+      const state = {
+        running,
+        startTime,
+        intervalId,
+        sentToPico: { ...sentToPico },
+        updateRate: document.getElementById('updateRate').value
+      };
+      clearInterval(intervalId);
+      running = false;
+      return state;
+    });
+    expect(recalled.running).toBe(true);
+    expect(recalled.startTime).toBeGreaterThan(initial.startTime);
+    expect(recalled.intervalId).not.toBe(initial.intervalId);
+    expect(recalled.sentToPico).toEqual({});
+    expect(recalled.updateRate).toBe('25');
+  });
+
   test('Effects toolbox tile matrices expose common Move controls', async ({ page }) => {
     await page.evaluate(() => {
       motionGroupsBox.setGroups([
