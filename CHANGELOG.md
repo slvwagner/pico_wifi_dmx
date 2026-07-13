@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.8 - Unreleased
+## 0.9.8 - 2026-07-13
 
 Changed:
 
@@ -33,6 +33,7 @@ Fixed:
 - Removed the duplicate `fixture_count` value from `/motion/slots`; `target_count` is now the single documented target-count field.
 - Added regression coverage for firmware HTTP ownership, locked JSON transactions, the Effects slot schema, and toolbox expansion scrolling.
 - Fixed **Planes > Edit > Recall A/B/C** not moving a fixture after loading a saved room plane. Saved calibration snapshots now bind by fixture ID to the current Controller profile and patch address before sending live DMX output.
+- Fixed the Controller and Show Run **Planes** modal pan-mode buttons so they change to **Stop pan view** with the same active styling as the Room Plane page, then return to **Pan view** when panning is disabled.
 
 ## 0.9.7 - 2026-07-05
 

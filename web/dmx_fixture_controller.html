@@ -38,6 +38,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .controller-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden}
 .controller-plane-pad.pan-mode{cursor:grab}
 .controller-plane-pad.pan-mode:active{cursor:grabbing}
+#controllerPlanePanView.active{background:#103b30;border-color:#2f9e7d;color:var(--accent);font-weight:700}
 .controller-plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
 .controller-plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);pointer-events:none}
 .controller-plane-point{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;z-index:2}
@@ -5259,6 +5260,16 @@ function resetControllerPlaneView(){
   scheduleControllerPlaneViewAutosave();
   queueControllerPlaneRender();
 }
+function setControllerPlanePanMode(active){
+  controllerPlanePanMode=!!active;
+  controllerPlaneViewDrag=null;
+  const button=document.getElementById('controllerPlanePanView');
+  const pad=document.getElementById('controllerPlanePad');
+  button.classList.toggle('active',controllerPlanePanMode);
+  button.textContent=controllerPlanePanMode?'Stop pan view':'Pan view';
+  button.setAttribute('aria-pressed',controllerPlanePanMode?'true':'false');
+  pad.classList.toggle('pan-mode',controllerPlanePanMode);
+}
 function controllerPlaneToScreen(point,bounds,rect){
   const width=Math.max(1,rect?.width||1),height=Math.max(1,rect?.height||1);
   const spanX=Math.max(0.0001,bounds.maxX-bounds.minX),spanY=Math.max(0.0001,bounds.maxY-bounds.minY);
@@ -5428,9 +5439,7 @@ function openControllerPlaneModal(id){
   activeControllerPlaneId=String(id);
   activeControllerPlane=cloneControllerPlane(plane);
   controllerPlaneView=controllerPlaneSavedView(activeControllerPlane);
-  controllerPlanePanMode=false;
-  document.getElementById('controllerPlanePanView').classList.remove('active');
-  document.getElementById('controllerPlanePad').classList.remove('pan-mode');
+  setControllerPlanePanMode(false);
   controllerPlaneLastLiveStatus='';
   controllerPlaneLiveSendPending=false;
   renderControllerPlaneModal();
@@ -5446,10 +5455,8 @@ function closeControllerPlaneModal(){
   controllerPlaneViewAutosaveTimer=null;
   controllerPlaneTargetDrag=null;
   controllerPlaneViewDrag=null;
-  controllerPlanePanMode=false;
+  setControllerPlanePanMode(false);
   activeControllerPlaneId=null;
-  document.getElementById('controllerPlanePanView').classList.remove('active');
-  document.getElementById('controllerPlanePad').classList.remove('pan-mode');
 }
 function controllerPanTiltControl(fixture){
   const profile=fixtureProfile(fixture);
@@ -5556,11 +5563,7 @@ document.getElementById('controllerPlaneNudgeControls').addEventListener('click'
 document.getElementById('controllerPlaneZoomIn').onclick=()=>zoomControllerPlaneView(1.25);
 document.getElementById('controllerPlaneZoomOut').onclick=()=>zoomControllerPlaneView(1/1.25);
 document.getElementById('controllerPlaneResetView').onclick=()=>resetControllerPlaneView();
-document.getElementById('controllerPlanePanView').onclick=()=>{
-  controllerPlanePanMode=!controllerPlanePanMode;
-  document.getElementById('controllerPlanePanView').classList.toggle('active',controllerPlanePanMode);
-  document.getElementById('controllerPlanePad').classList.toggle('pan-mode',controllerPlanePanMode);
-};
+document.getElementById('controllerPlanePanView').onclick=()=>setControllerPlanePanMode(!controllerPlanePanMode);
 let controllerPlaneTargetDrag=null;
 let controllerPlaneViewDrag=null;
 document.getElementById('controllerPlanePad').addEventListener('pointerdown',event=>{

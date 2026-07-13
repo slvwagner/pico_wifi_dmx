@@ -445,6 +445,21 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#showPlaneModal .modal-actions')).toBeVisible();
     await expect.poll(() => page.locator('#showPlaneModal .modal-body').evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
     await expect(page.locator('#showPlaneSummary')).toContainText('selected 1 fixture');
+    await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
+    await page.locator('#showPlanePanView').click();
+    await expect(page.locator('#showPlanePanView')).toHaveText('Stop pan view');
+    await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#showPlanePanView')).toHaveClass(/active/);
+    await expect(page.locator('#showPlanePanView')).toHaveCSS('background-color', 'rgb(16, 59, 48)');
+    await expect(page.locator('#showPlanePanView')).toHaveCSS('border-color', 'rgb(47, 158, 125)');
+    await expect(page.locator('#showPlanePanView')).toHaveCSS('font-weight', '700');
+    await expect(page.locator('#showPlanePad')).toHaveClass(/pan-mode/);
+    await page.locator('#showPlanePanView').click();
+    await expect(page.locator('#showPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#showPlanePanView')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#showPlanePanView')).not.toHaveClass(/active/);
+    await expect(page.locator('#showPlanePad')).not.toHaveClass(/pan-mode/);
 
     await page.locator('#showPlaneStepXCoarse').fill('1');
     await page.locator('[data-show-plane-nudge-axis="x"][data-show-plane-nudge-dir="1"][data-show-plane-nudge-step="coarse"]').click();

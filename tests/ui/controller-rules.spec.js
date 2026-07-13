@@ -611,6 +611,8 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#controllerPlaneZoomOut')).toBeVisible();
     await expect(page.locator('#controllerPlaneResetView')).toBeVisible();
     await expect(page.locator('#controllerPlanePanView')).toBeVisible();
+    await expect(page.locator('#controllerPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#controllerPlanePanView')).toHaveAttribute('aria-pressed', 'false');
 
     await page.locator('#controllerPlaneZoomIn').click();
     await expect.poll(() => page.evaluate(() => controllerPlaneView.zoom)).toBeGreaterThan(2);
@@ -621,8 +623,17 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#controllerPlaneResetView').click();
     await expect.poll(() => page.evaluate(() => controllerPlaneView.auto && controllerPlaneView.zoom)).toBe(1);
     await page.locator('#controllerPlanePanView').click();
+    await expect(page.locator('#controllerPlanePanView')).toHaveText('Stop pan view');
+    await expect(page.locator('#controllerPlanePanView')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#controllerPlanePanView')).toHaveClass(/active/);
+    await expect(page.locator('#controllerPlanePanView')).toHaveCSS('background-color', 'rgb(16, 59, 48)');
+    await expect(page.locator('#controllerPlanePanView')).toHaveCSS('border-color', 'rgb(47, 158, 125)');
+    await expect(page.locator('#controllerPlanePanView')).toHaveCSS('font-weight', '700');
     await expect(page.locator('#controllerPlanePad')).toHaveClass(/pan-mode/);
     await page.locator('#controllerPlanePanView').click();
+    await expect(page.locator('#controllerPlanePanView')).toHaveText('Pan view');
+    await expect(page.locator('#controllerPlanePanView')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#controllerPlanePanView')).not.toHaveClass(/active/);
     await expect(page.locator('#controllerPlanePad')).not.toHaveClass(/pan-mode/);
 
     const target = page.locator('#controllerPlaneTarget');

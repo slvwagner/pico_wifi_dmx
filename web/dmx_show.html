@@ -152,6 +152,7 @@ body.layout-editing .master-edit-actions{display:flex}
 .show-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
 .show-plane-pad.pan-mode{cursor:grab}
 .show-plane-pad.pan-mode:active{cursor:grabbing}
+#showPlanePanView.active{background:#103b30;border-color:#2f9e7d;color:var(--accent);font-weight:700}
 .show-plane-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:10% 10%}
 .show-plane-triangle{position:absolute;inset:0;clip-path:polygon(var(--ax) var(--ay),var(--bx) var(--by),var(--cx) var(--cy));background:rgba(55,196,164,.12);pointer-events:none}
 .show-plane-point{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--accent);border:2px solid #06110e;transform:translate(-50%,-50%);display:grid;place-items:center;color:#06110e;font-size:10px;font-weight:900;z-index:2}
@@ -2520,6 +2521,7 @@ function resetShowPlaneView(){
 }
 function setShowPlanePanMode(enabled){
   showPlanePanMode=!!enabled;
+  showPlaneViewDrag=null;
   const button=document.getElementById('showPlanePanView');
   const pad=document.getElementById('showPlanePad');
   if(button){
