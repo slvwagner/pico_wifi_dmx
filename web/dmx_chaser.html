@@ -334,6 +334,18 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 
+<div id="chaserSceneBox" class="scene-toolbox">
+<div id="chaserSceneHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Scenes</span>
+<button id="chaserSceneBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="chaserSceneBoxBody" class="scene-toolbox__body">
+<div class="small" style="color:var(--muted)">Empty slot saves the selected step as a Scene. Filled slot recalls the complete Scene into the selected step.</div>
+<div id="chaserSceneLayoutControls" class="tile-layout-controls"></div>
+<div id="chaserSceneMatrix" class="scene-slot-matrix"></div>
+</div>
+</div>
+
 <div id="chaserPaletteBox" class="scene-toolbox scene-toolbox--palettes">
 <div id="chaserPaletteHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Palettes</span>
@@ -409,6 +421,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
 [
   ['chaserChaseLayoutControls',{colsId:'chaseSlotCols',rowsId:'chaseSlotRows',moveId:'moveChaseSlotsBtn',cols:4,rows:4,moveTitle:'Move chase tiles by dragging them to another slot'}],
+  ['chaserSceneLayoutControls',{colsId:'chaserSceneCols',rowsId:'chaserSceneRows',moveId:'moveChaserScenesBtn',cols:4,rows:4,moveTitle:'Move scene tiles by dragging them to another slot'}],
   ['chaserPaletteLayoutControls',{colsId:'chaserPaletteCols',rowsId:'chaserPaletteRows',moveId:'moveChaserPalettesBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
   ['chaserPlaneLayoutControls',{colsId:'chaserPlaneCols',rowsId:'chaserPlaneRows',moveId:'moveChaserPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
 ].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
@@ -418,6 +431,7 @@ const chaserToolboxRailEntries=[
   {box:'chaserGroupsBox',type:'groups'},
   {box:'chaseBox',type:'chases'},
   {box:'stepsBox',type:'steps'},
+  {box:'chaserSceneBox',type:'scenes'},
   {box:'chaserPaletteBox',type:'palettes'},
   {box:'chaserPlanesBox',type:'planes'},
   {box:'fanToolbox',type:'fan'},
@@ -2666,6 +2680,165 @@ function applyParticipatingData(data,redraw=true){
   activeStepValueKeys=null;
   if(redraw){drawParticipation();drawStepEditor();}
 }
+
+// ---- scenes toolbox (complete Controller looks into the selected step) ----
+let chaserScenes=[];
+let chaserSceneCols=4,chaserSceneRows=4;
+let chaserSceneMoveMode=false;
+let chaserSceneMoveSelectedSlot=null;
+let chaserSceneSaveQueue=Promise.resolve();
+const CHASER_SCENE_GRID_MAX=32;
+let chaserSceneVisualDefault=(()=>{
+  try{return DmxCommon.normalizeSlotVisualDefault(JSON.parse(localStorage.getItem('sceneVisualDefault')||'null'),'#225a50');}
+  catch(_){return {type:'visual',color:'#225a50',image:''};}
+})();
+function saveChaserSceneVisualDefault(){localStorage.setItem('sceneVisualDefault',JSON.stringify(chaserSceneVisualDefault));}
+saveChaserSceneVisualDefault();
+function currentChaserSceneVisualForSave(){return DmxCommon.normalizeSlotVisualDefault(chaserSceneVisualDefault,'#225a50');}
+function requiredChaserSceneSlots(){return chaserScenes.reduce((max,scene)=>Math.max(max,(parseInt(scene.slot,10)||0)+1),0);}
+function normalizeChaserSceneGrid(priority='cols'){
+  const needed=requiredChaserSceneSlots();
+  chaserSceneCols=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(chaserSceneCols)||4));
+  chaserSceneRows=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(chaserSceneRows)||4));
+  if(needed&&chaserSceneCols*chaserSceneRows<needed){
+    if(priority==='rows'){
+      chaserSceneCols=Math.max(chaserSceneCols,Math.ceil(needed/chaserSceneRows));
+      if(chaserSceneCols>CHASER_SCENE_GRID_MAX){chaserSceneCols=CHASER_SCENE_GRID_MAX;chaserSceneRows=Math.ceil(needed/chaserSceneCols);}
+    }else{
+      chaserSceneRows=Math.max(chaserSceneRows,Math.ceil(needed/chaserSceneCols));
+      if(chaserSceneRows>CHASER_SCENE_GRID_MAX){chaserSceneRows=CHASER_SCENE_GRID_MAX;chaserSceneCols=Math.ceil(needed/chaserSceneRows);}
+    }
+  }
+  const colsInput=document.getElementById('chaserSceneCols'),rowsInput=document.getElementById('chaserSceneRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/chaserSceneRows));colsInput.value=chaserSceneCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(Math.max(needed,1)/chaserSceneCols));rowsInput.value=chaserSceneRows;}
+}
+function normalizedChaserSceneValues(sourceValues){
+  const wrapped=remapChaserKeysForCurrentSetup({steps:[{values:JSON.parse(JSON.stringify(sourceValues||{}))}]});
+  const valid=validControlKeySet(),out={};
+  Object.entries(wrapped.steps[0].values||{}).forEach(([key,value])=>{if(valid.has(key))out[key]=value;});
+  return out;
+}
+function applyChaserSceneParticipatingKeys(keys){
+  const valid=validControlKeySet(),next={};
+  valid.forEach(key=>{next[key]=false;});
+  keys.forEach(key=>{if(valid.has(key))next[key]=true;});
+  participating=next;
+  activeStepValueKeys=new Set(keys.filter(key=>valid.has(key)));
+}
+function renderChaserSceneMatrix(){
+  const grid=document.getElementById('chaserSceneMatrix');if(!grid)return;
+  normalizeChaserSceneGrid('cols');
+  const total=chaserSceneCols*chaserSceneRows,moveBtn=document.getElementById('moveChaserScenesBtn');
+  if(moveBtn){moveBtn.classList.toggle('active',chaserSceneMoveMode);moveBtn.setAttribute('aria-pressed',chaserSceneMoveMode?'true':'false');}
+  grid.classList.toggle('tile-move-mode',chaserSceneMoveMode);
+  grid.style.gridTemplateColumns='repeat('+chaserSceneCols+',minmax(54px,1fr))';
+  let html='';
+  for(let i=0;i<total;i++){
+    const scene=chaserScenes.find(item=>parseInt(item.slot,10)===i);
+    if(scene)html+=`<div class="${DmxCommon.savedTileClass('slot filled',chaserSceneMoveSelectedSlot===i)}" data-chaser-scene-slot="${i}" title="${chaserSceneMoveMode?'Move scene':'Click: recall complete scene into selected step'}" style="${DmxCommon.slotVisualStyle(scene)}">${DmxCommon.slotVisualButtonHtml('data-visual-chaser-scene-slot',i,'Edit scene tile')}<button class="slot-del" data-del-chaser-scene="${i}" title="Delete scene">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(scene)}<span class="palette-slot-name">${DmxCommon.escapeHtml(scene.name||('Scene '+(i+1)))}</span></div></div>`;
+    else html+=`<div class="slot" data-chaser-scene-slot="${i}" title="Click to save the selected step as a Scene">${i+1}</div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-chaser-scene-slot]').forEach(el=>el.addEventListener('click',()=>chaserSceneSlotClick(parseInt(el.dataset.chaserSceneSlot,10))));
+  grid.querySelectorAll('[data-del-chaser-scene]').forEach(button=>button.addEventListener('click',event=>{
+    event.stopPropagation();
+    const slot=parseInt(button.dataset.delChaserScene,10),scene=chaserScenes.find(item=>parseInt(item.slot,10)===slot);if(!scene)return;
+    if(!confirm('Delete scene "'+(scene.name||('Scene '+(slot+1)))+'"?'))return;
+    chaserScenes=chaserScenes.filter(item=>parseInt(item.slot,10)!==slot);
+    renderChaserSceneMatrix();saveChaserScenesServer();
+  }));
+  grid.querySelectorAll('[data-visual-chaser-scene-slot]').forEach(button=>button.addEventListener('click',event=>{
+    event.stopPropagation();openChaserSceneVisualModal(parseInt(button.dataset.visualChaserSceneSlot,10));
+  }));
+  DmxCommon.initTileMoveGrid({
+    grid,button:'moveChaserScenesBtn',active:chaserSceneMoveMode,itemSelector:'[data-chaser-scene-slot]',
+    getIndex:el=>parseInt(el.dataset.chaserSceneSlot,10),
+    canDrag:slot=>!!chaserScenes.find(scene=>parseInt(scene.slot,10)===slot),
+    onMove:moveChaserSceneSlot
+  });
+}
+function chaserSceneSlotClick(slot){
+  if(chaserSceneMoveMode){
+    const scene=chaserScenes.find(item=>parseInt(item.slot,10)===slot);
+    if(chaserSceneMoveSelectedSlot===null){if(!scene)return;chaserSceneMoveSelectedSlot=slot;renderChaserSceneMatrix();setStatus('Select a destination slot for '+(scene.name||'Scene'));return;}
+    if(chaserSceneMoveSelectedSlot===slot){chaserSceneMoveSelectedSlot=null;renderChaserSceneMatrix();return;}
+    moveChaserSceneSlot(chaserSceneMoveSelectedSlot,slot);return;
+  }
+  const scene=chaserScenes.find(item=>parseInt(item.slot,10)===slot);
+  if(scene){recallChaserScene(scene);return;}
+  const step=steps[selectedStepIdx];
+  if(!step||!Object.keys(step.values||{}).length){setStatus('Select a step with values before saving a Scene',true);return;}
+  const values=normalizedChaserSceneValues(step.values);
+  if(!Object.keys(values).length){setStatus('The selected step has no compatible values to save',true);return;}
+  const name=(prompt('Scene name:',step.label||('Scene '+(slot+1)))||'').trim();if(!name)return;
+  chaserScenes=chaserScenes.filter(item=>parseInt(item.slot,10)!==slot);
+  chaserScenes.push({id:'scene_'+Date.now(),name,slot,values,visual:currentChaserSceneVisualForSave()});
+  renderChaserSceneMatrix();saveChaserScenesServer();setStatus('Saved step '+(selectedStepIdx+1)+' as scene "'+name+'"');
+}
+function moveChaserSceneSlot(fromSlot,toSlot){
+  const moving=chaserScenes.find(scene=>parseInt(scene.slot,10)===fromSlot);if(!moving||fromSlot===toSlot)return false;
+  const target=chaserScenes.find(scene=>parseInt(scene.slot,10)===toSlot);
+  moving.slot=toSlot;if(target)target.slot=fromSlot;chaserSceneMoveSelectedSlot=null;
+  renderChaserSceneMatrix();saveChaserScenesServer();setStatus(target?'Swapped scenes '+(fromSlot+1)+' and '+(toSlot+1):'Moved scene to slot '+(toSlot+1));return true;
+}
+function recallChaserScene(scene){
+  const values=normalizedChaserSceneValues(scene.values),keys=Object.keys(values);
+  if(!keys.length){setStatus('Scene has no compatible controls in this setup',true);return;}
+  let step=steps[selectedStepIdx];
+  if(!step){
+    if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return;}
+    step=makeStep(scene.name||'Scene',values);steps.push(step);selectedStepIdx=steps.length-1;
+  }else step.values=values;
+  applyChaserSceneParticipatingKeys(keys);
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();else DmxCommon.saveSharedGroupSelection([]);
+  sourceFixtureId=firstFixtureIdFromKeys(keys)||firstStepFixtureId(step);
+  const batchMap={};
+  keys.forEach(key=>{
+    const parts=String(key).split(':'),fixture=setup.fixtures?.find(item=>String(item.id)===parts[0]);
+    const control=fixture&&fixtureProfile(fixture)?.controls.find(item=>String(item.id)===parts[1]);
+    if(fixture&&control)collectChannels(fixture,control,values[key],batchMap);
+  });
+  sendBatch(batchMap);drawParticipation();drawStepList();drawStepEditor();refreshChaserGroupActions();refreshFanBasesFromStep();
+  setStatus('Recalled scene "'+(scene.name||'Scene')+'" into step '+(selectedStepIdx+1)+' with '+keys.length+' participating control'+(keys.length===1?'':'s'));
+}
+function saveChaserScenesServer(){
+  const payload=DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,scenes:JSON.parse(JSON.stringify(chaserScenes)),slotCols:chaserSceneCols,slotRows:chaserSceneRows});
+  chaserSceneSaveQueue=chaserSceneSaveQueue.catch(()=>{}).then(()=>fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}))
+    .then(response=>response.json()).then(data=>{if(!data.ok)throw new Error(data.error||'Scenes save failed');return data;})
+    .catch(error=>{setStatus('Scenes save error: '+error.message,true);throw error;});
+  return chaserSceneSaveQueue;
+}
+function loadChaserScenesServer(){
+  fetch('scene_setup.php',{cache:'no-store'}).then(response=>response.json()).then(data=>{
+    if(data.ok&&data.exists){
+      if(data.baseUrl&&!localStorage.getItem('dmxPicoBaseUrl'))baseUrlEl.value=data.baseUrl;
+      chaserScenes=Array.isArray(data.scenes)?data.scenes:[];
+      if(data.slotCols)chaserSceneCols=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(data.slotCols)||4));
+      if(data.slotRows)chaserSceneRows=Math.max(1,Math.min(CHASER_SCENE_GRID_MAX,parseInt(data.slotRows)||4));
+    }else chaserScenes=[];
+    renderChaserSceneMatrix();
+  }).catch(()=>{chaserScenes=[];renderChaserSceneMatrix();});
+}
+function openChaserSceneVisualModal(slot){
+  chaseVisualEditor.open({
+    targetLabel:'Scenes',hint:'Choose a name, background color, and optional visual. Scene recall still uses the stored fixture values.',
+    defaultColor:'#225a50',defaultVisual:chaserSceneVisualDefault,
+    targets:chaserScenes.slice().sort((a,b)=>(parseInt(a.slot)||0)-(parseInt(b.slot)||0)).map(scene=>({key:String(parseInt(scene.slot,10)||0),item:scene,label:'Slot '+((parseInt(scene.slot,10)||0)+1)+': '+(scene.name||'Scene')})),
+    selectedKey:slot,
+    onSaveDefault:visual=>{chaserSceneVisualDefault=DmxCommon.normalizeSlotVisualDefault(visual,'#225a50');saveChaserSceneVisualDefault();setStatus('Default scene visual updated');},
+    onSaveTarget:(target,visual)=>{target.visual=visual;renderChaserSceneMatrix();saveChaserScenesServer();setStatus('Updated scene tile for "'+(target.name||'Scene')+'"');}
+  });
+}
+document.getElementById('chaserSceneCols').addEventListener('input',event=>{chaserSceneCols=event.target.value;normalizeChaserSceneGrid('cols');renderChaserSceneMatrix();saveChaserScenesServer();});
+document.getElementById('chaserSceneRows').addEventListener('input',event=>{chaserSceneRows=event.target.value;normalizeChaserSceneGrid('rows');renderChaserSceneMatrix();saveChaserScenesServer();});
+document.getElementById('moveChaserScenesBtn').onclick=()=>{chaserSceneMoveMode=!chaserSceneMoveMode;chaserSceneMoveSelectedSlot=null;renderChaserSceneMatrix();setStatus(chaserSceneMoveMode?'Scene move mode enabled':'Scene move mode disabled');};
+const chaserSceneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'chaserSceneBox',headerId:'chaserSceneHdr',toggleId:'chaserSceneBoxToggle',
+  posStorageKey:'chaserSceneBoxPos',collapsedStorageKey:'chaserSceneBoxCollapsed',
+  uiStatePage:'chaser',uiStatePosKey:'chaserSceneBoxPos',uiStateCollapsedKey:'chaserSceneBoxCollapsed'
+});
+loadChaserScenesServer();
 
 // ---- palette toolbox (save/recall selected step values) ----
 let chaserPalettes=[];

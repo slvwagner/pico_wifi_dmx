@@ -5,6 +5,17 @@ const path = require('path');
 
 test.describe('Chaser established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/scene_setup.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, scenes: [], slotCols: 4, slotRows: 4 })
+      });
+    });
     await openDmxPage(page, 'dmx_chaser.html');
     await injectChaserCompactSetup(page);
   });
@@ -79,6 +90,10 @@ test.describe('Chaser established rules', () => {
         { id: 'chase_a', name: 'Chase A', slot: 0, data: currentChaseSlotData() },
         { id: 'chase_b', name: 'Chase B', slot: 1, data: currentChaseSlotData() }
       ];
+      chaserScenes = [
+        { id: 'scene_a', name: 'Scene A', slot: 0, values: { '101:11': 80 } },
+        { id: 'scene_b', name: 'Scene B', slot: 1, values: { '102:21': 40 } }
+      ];
       chaserPalettes = [
         { id: 'pal_a', name: 'Palette A', slot: 0, values: { '101:11': 80 } },
         { id: 'pal_b', name: 'Palette B', slot: 1, values: { '102:21': 40 } }
@@ -88,6 +103,7 @@ test.describe('Chaser established rules', () => {
         DmxCommon.normalizeRoomPlane({ id: 'plane_b', name: 'Plane B', slot: 1, fixtures: [] }, 1)
       ];
       renderChaseSlotMatrix();
+      renderChaserSceneMatrix();
       renderChaserPaletteMatrix();
       chaserPlanesMatrix.render();
     });
@@ -98,6 +114,7 @@ test.describe('Chaser established rules', () => {
     await expect(page.locator('#chaserGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#chaserGroupsList [data-delete-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#moveChaseSlotsBtn')).toBeVisible();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
     await expect(page.locator('#moveChaserPalettesBtn')).toBeVisible();
     await expect(page.locator('#moveChaserPlanesBtn')).toBeVisible();
 
@@ -115,6 +132,11 @@ test.describe('Chaser established rules', () => {
     await page.locator('[data-chase-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => savedChases.find(chase => chase.id === 'chase_a').slot)).toBe(3);
 
+    await page.locator('#moveChaserScenesBtn').click();
+    await page.locator('[data-chaser-scene-slot="0"]').click();
+    await page.locator('[data-chaser-scene-slot="3"]').click();
+    await expect.poll(() => page.evaluate(() => chaserScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
+
     await page.locator('#moveChaserPalettesBtn').click();
     await page.locator('[data-chaser-palette-slot="0"]').click();
     await page.locator('[data-chaser-palette-slot="3"]').click();
@@ -129,6 +151,45 @@ test.describe('Chaser established rules', () => {
     await page.locator('#chaserGroupsList [data-group-slot="0"]').click();
     await page.locator('#chaserGroupsList [data-group-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
+  });
+
+  test('Scenes toolbox matches Controller tiles and recalls a complete scene into the selected step', async ({ page }) => {
+    await expect(page.locator('#chaserSceneBox')).toBeVisible();
+    await expect(page.locator('#chaserSceneLayoutControls')).toBeVisible();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
+
+    await page.evaluate(() => {
+      chaserGroupsBox.setGroups([{ id: 'grp_scene', name: 'Old target', slot: 0, fixtureIds: [101], values: {} }]);
+      chaserScenes = [{
+        id: 'scene_full',
+        name: 'Full Look',
+        slot: 0,
+        values: { '101:11': 75, '102:21': 35 },
+        visual: { type: 'visual', color: '#225a50', image: '' }
+      }];
+      steps = [makeStep('Existing step', { '101:12': { pan: 1234, tilt: 5678 } })];
+      selectedStepIdx = 0;
+      applyStepParticipating(steps[0]);
+      renderChaserSceneMatrix();
+      drawStepList();
+      drawStepEditor();
+    });
+
+    await page.locator('#chaserGroupsList [data-group-index="0"]').click();
+    await expect(page.locator('#chaserSceneMatrix [data-chaser-scene-slot="0"]')).toBeVisible();
+    await expect(page.locator('#chaserSceneMatrix [data-visual-chaser-scene-slot="0"]')).toBeVisible();
+    await expect(page.locator('#chaserSceneMatrix [data-del-chaser-scene="0"]')).toBeVisible();
+    await page.locator('#chaserSceneMatrix [data-chaser-scene-slot="0"]').click();
+
+    const recalled = await page.evaluate(() => ({
+      values: steps[0].values,
+      participating: [...activeStepValueKeys].sort(),
+      selectedGroups: chaserGroupsBox.selectedGroups().map(group => group.id)
+    }));
+    expect(recalled.values).toEqual({ '101:11': 75, '102:21': 35 });
+    expect(recalled.participating).toEqual(['101:11', '102:21']);
+    expect(recalled.selectedGroups).toEqual([]);
+    await expect(page.locator('#status')).toContainText('Recalled scene "Full Look" into step 1');
   });
 
   test('clicking a saved Plane opens its target modal and applies the current target to the step', async ({ page }) => {

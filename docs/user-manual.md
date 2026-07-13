@@ -680,6 +680,7 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
+- **Scenes** uses the same saved Scene tiles as the Fixture Controller. Clicking a filled tile replaces the selected chase step with the complete Scene, makes the Scene controls the participating controls, clears an unrelated Groups filter, and sends those values live when a Pico base URL is set. Clicking an empty tile saves the selected step as a shared Scene. The pencil edits the shared Scene name/visual, `x` deletes it, and **Cols**, **Rows**, and **Move** update the shared Scene layout.
 - **Planes** recalls saved room planes into the selected chase step. Select a group first if only part of the rig should be affected. Chaser uses the plane target and calibrated fixtures to write pan/tilt values into the step, rebuilds the participating controls for those pan/tilt channels, and sends the changed step values to the Pico when a Pico base URL is set. The Planes tile matrix uses the same **Cols**, **Rows**, and **Move** behavior as the other saved tile toolboxes.
 
 ![Chaser Planes toolbox](screenshots/chaser-toolbox-planes.png)
