@@ -297,11 +297,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 <div id="chaseBoxBody" class="scene-toolbox__body">
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaseSlotCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaseSlotRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<button id="moveChaseSlotsBtn" class="tile-move-btn" title="Move chase tiles by dragging them to another slot">Move</button>
-</div>
+<div id="chaserChaseLayoutControls" class="tile-layout-controls"></div>
 <div id="chaseSlotMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -348,11 +344,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 <button id="mergeChaserPaletteBtn" class="palette-merge-btn" title="Merge selected step values into an existing palette">Merge</button>
 </div>
 <div class="small" style="color:var(--muted)">Empty slot saves the selected step values. Filled slot recalls compatible values into the selected step. Merge adds selected step values to an existing palette.</div>
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-<button id="moveChaserPalettesBtn" class="tile-move-btn" title="Move palette tiles by dragging them to another slot">Move</button>
-</div>
+<div id="chaserPaletteLayoutControls" class="tile-layout-controls"></div>
 <div id="chaserPaletteMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -364,11 +356,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 <div id="chaserPlanesBoxBody" class="scene-toolbox__body">
 <div class="small" style="color:var(--muted)">Recall a saved room plane into the selected chase step.</div>
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="chaserPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="chaserPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-<button id="moveChaserPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
-</div>
+<div id="chaserPlaneLayoutControls" class="tile-layout-controls"></div>
 <div id="chaserPlaneMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -379,6 +367,11 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 
 <script>
 document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
+[
+  ['chaserChaseLayoutControls',{colsId:'chaseSlotCols',rowsId:'chaseSlotRows',moveId:'moveChaseSlotsBtn',cols:4,rows:4,moveTitle:'Move chase tiles by dragging them to another slot'}],
+  ['chaserPaletteLayoutControls',{colsId:'chaserPaletteCols',rowsId:'chaserPaletteRows',moveId:'moveChaserPalettesBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
+  ['chaserPlaneLayoutControls',{colsId:'chaserPlaneCols',rowsId:'chaserPlaneRows',moveId:'moveChaserPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
+].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group or participating fixtures.'});
 const chaserToolboxRail=document.getElementById('chaserToolboxRail');
 const chaserToolboxRailEntries=[

@@ -1510,6 +1510,26 @@
     return sharedGroupVisualEditor;
   }
 
+  function mountTileLayoutControls(host,options={}){
+    const el=typeof host==='string'?document.getElementById(host):host;
+    if(!el)return null;
+    const colsId=String(options.colsId||'').trim();
+    const rowsId=String(options.rowsId||'').trim();
+    if(!colsId||!rowsId)return null;
+    const minCols=clampInt(options.minCols??1,1,999);
+    const minRows=clampInt(options.minRows??1,1,999);
+    const maxCols=Math.max(minCols,clampInt(options.maxCols??32,minCols,999));
+    const maxRows=Math.max(minRows,clampInt(options.maxRows??32,minRows,999));
+    const cols=clampInt(options.cols??4,minCols,maxCols);
+    const rows=clampInt(options.rows??4,minRows,maxRows);
+    const moveId=String(options.moveId||'').trim();
+    el.classList.add('tile-layout-controls');
+    el.innerHTML=`<label class="tile-layout-field">Cols<input id="${escapeHtml(colsId)}" type="number" min="${minCols}" max="${maxCols}" value="${cols}" aria-label="Tile columns"></label>`+
+      `<label class="tile-layout-field">Rows<input id="${escapeHtml(rowsId)}" type="number" min="${minRows}" max="${maxRows}" value="${rows}" aria-label="Tile rows"></label>`+
+      (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}">Move</button>`:'');
+    return{host:el,cols:document.getElementById(colsId),rows:document.getElementById(rowsId),move:moveId?document.getElementById(moveId):null};
+  }
+
   function initGroupsToolbox(options){
     const page=options.page||'groups';
     const idPrefix=options.idPrefix||page+'Groups';
@@ -1545,15 +1565,12 @@
       <div class="scene-toolbox__body">
         <div class="groups-toolbar">
           ${showEdit?`<button id="${idPrefix}Edit" class="primary groups-edit-btn" title="Edit selected groups">Group<br>Edit</button>`:''}
-          <div class="groups-layout-controls">
-            <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="${colsId}" type="number" min="1" max="8" value="2" style="width:52px;padding:6px"></label>
-            <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="${rowsId}" type="number" min="1" max="12" value="4" style="width:52px;padding:6px"></label>
-            <button id="${moveId}" class="tile-move-btn" title="Move group tiles by dragging them to another slot">Move</button>
-          </div>
+          <div id="${idPrefix}LayoutControls" class="groups-layout-controls"></div>
         </div>
         <div id="${listId}" class="list groups-matrix"><div class="small">No saved groups yet.</div></div>
       </div>`;
     host.appendChild(box);
+    mountTileLayoutControls(idPrefix+'LayoutControls',{colsId,rowsId,moveId,cols:2,rows:4,maxCols:8,maxRows:12,moveTitle:'Move group tiles by dragging them to another slot'});
     if(host.classList?.contains('toolbox-rail')){
       initToolboxRail(host,[]);
     }
@@ -2940,6 +2957,7 @@
     initToolboxRail,
     initToolboxCollapseGroup,
     initFloatingToolbox,
+    mountTileLayoutControls,
     initGroupsToolbox,
     normalizeSlotVisual,
     normalizeSlotVisualDefault,

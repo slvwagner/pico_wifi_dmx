@@ -203,11 +203,7 @@ main{max-width:none;width:100%;margin:0}
 </div>
 <div class="scene-toolbox__body">
   <div class="small" style="color:var(--muted)">Click an empty slot to save the current effect recipe. Click a filled slot to recall it.</div>
-  <div class="slot-actions">
-    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionEffectCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionEffectRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-    <button id="moveMotionEffectsBtn" class="tile-move-btn" title="Move effect tiles by dragging them to another slot">Move</button>
-  </div>
+  <div id="motionEffectLayoutControls" class="tile-layout-controls"></div>
   <div id="motionEffectMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -230,11 +226,7 @@ main{max-width:none;width:100%;margin:0}
 </div>
 <div class="scene-toolbox__body">
   <div class="small" style="color:var(--muted)">Click a palette to use compatible values as the effect center.</div>
-  <div class="slot-actions">
-    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionPaletteCols" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionPaletteRows" type="number" min="1" max="32" value="4" style="width:52px;padding:6px"></label>
-    <button id="moveMotionPalettesBtn" class="tile-move-btn" title="Move palette tiles by dragging them to another slot">Move</button>
-  </div>
+  <div id="motionPaletteLayoutControls" class="tile-layout-controls"></div>
 <div id="motionPaletteMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -246,11 +238,7 @@ main{max-width:none;width:100%;margin:0}
 </div>
 <div id="motionPlanesBoxBody" class="scene-toolbox__body">
   <div class="small" style="color:var(--muted)">Recall a saved room plane as the effect center for calibrated pan/tilt fixtures.</div>
-  <div class="slot-actions">
-    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Cols<input id="motionPlaneCols" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-    <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Rows<input id="motionPlaneRows" type="number" min="1" max="16" value="3" style="width:52px;padding:6px"></label>
-    <button id="moveMotionPlanesBtn" class="tile-move-btn" title="Move plane tiles by dragging them to another slot">Move</button>
-  </div>
+  <div id="motionPlaneLayoutControls" class="tile-layout-controls"></div>
   <div id="motionPlaneMatrix" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -286,6 +274,11 @@ main{max-width:none;width:100%;margin:0}
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
+[
+  ['motionEffectLayoutControls',{colsId:'motionEffectCols',rowsId:'motionEffectRows',moveId:'moveMotionEffectsBtn',cols:4,rows:4,moveTitle:'Move effect tiles by dragging them to another slot'}],
+  ['motionPaletteLayoutControls',{colsId:'motionPaletteCols',rowsId:'motionPaletteRows',moveId:'moveMotionPalettesBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
+  ['motionPlaneLayoutControls',{colsId:'motionPlaneCols',rowsId:'motionPlaneRows',moveId:'moveMotionPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
+].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
 const motionToolboxRail=document.getElementById('motionToolboxRail');
 DmxCommon.initToolboxRail(motionToolboxRail,[{box:'motionEffectBox',type:'motionEffect'},{box:'motionSavedEffectBox',type:'effects'},{box:'motionSceneBox',type:'scenes'},{box:'motionPaletteBox',type:'palettes'},{box:'motionPlanesBox',type:'planes'}]);
 // ---- helpers ----
