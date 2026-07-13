@@ -697,6 +697,10 @@ test.describe('Show Run page', () => {
     await expect(emulator.locator('#connectionPill')).toContainText('Connected to Show Run');
     await expect(emulator.locator('[data-midi-cc]')).toHaveCount(32);
     await expect(emulator.locator('[data-midi-note]')).toHaveCount(24);
+    await expect(emulator.locator('[data-emulator-section]')).toHaveCount(4);
+    await expect(emulator.locator('[data-emulator-section="faders"] [data-midi-note]')).toHaveCount(0);
+    await expect(emulator.locator('[data-emulator-section="channel-buttons"] [data-midi-note]')).toHaveCount(16);
+    await expect(emulator.locator('[data-emulator-section="utility-buttons"] [data-midi-note]')).toHaveCount(8);
     await expect(page.locator('[data-midi-emulator-status]').first()).toContainText('connected');
 
     await page.bringToFront();

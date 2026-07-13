@@ -18,21 +18,25 @@ h1{font-size:22px;margin:0}.status{min-height:18px}
 .emulator-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #39434b;padding-bottom:12px}
 .emulator-brand{font-size:20px;font-weight:800;letter-spacing:.05em}.emulator-brand span{color:var(--accent)}
 .emulator-settings{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.emulator-settings select{min-width:90px}
-.knob-row{display:grid;grid-template-columns:repeat(8,minmax(82px,1fr));gap:12px}
+.control-section{display:grid;gap:12px;border-top:1px solid #39434b;padding-top:16px}
+.emulator-head+.control-section{border-top:0;padding-top:0}
+.control-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.control-heading h2{margin:0;font-size:15px}.control-heading .small{max-width:720px}
+.knob-row,.fader-row,.button-row{display:grid;grid-template-columns:repeat(8,minmax(82px,1fr));gap:12px}
 .em-control{display:grid;justify-items:center;gap:7px;min-width:0}.em-control label{font-size:11px;text-align:center;color:var(--muted);white-space:nowrap}
 .knob-face{width:62px;height:62px;border-radius:50%;border:3px solid #4a5660;background:conic-gradient(var(--knob-color,var(--accent)) var(--angle,0deg),#090d10 0);display:grid;place-items:center;box-shadow:inset 0 0 0 8px #171d22,0 3px 8px rgba(0,0,0,.45);font-weight:800;font-size:12px}
 .knob-row:nth-child(2) .knob-face{--knob-color:#ffbc6b}.knob-row:nth-child(3) .knob-face{--knob-color:#ff7a7a}
 .knob-range{width:76px;padding:0;height:18px}
-.channel-strip{display:grid;grid-template-columns:repeat(8,minmax(88px,1fr));gap:12px;border-top:1px solid #39434b;padding-top:16px}
-.channel-column{display:grid;justify-items:center;gap:9px;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 6px;background:rgba(0,0,0,.16)}
+.fader-control{display:grid;justify-items:center;gap:9px;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 6px;background:rgba(0,0,0,.16)}
+.fader-control label{font-size:11px;text-align:center;color:var(--muted)}
 .fader{writing-mode:vertical-lr;direction:rtl;width:34px;height:155px;padding:0}
 .em-button{width:100%;min-height:34px;padding:5px 7px;border-color:#596773;background:#1c242b;font-size:11px}
 .em-button.pressed{background:var(--accent);border-color:var(--accent);color:#06110e;box-shadow:0 0 16px rgba(55,196,164,.42)}
-.utility-row{display:grid;grid-template-columns:repeat(8,minmax(92px,1fr));gap:10px;border-top:1px solid #39434b;padding-top:16px}
+.button-row+.button-row{margin-top:-2px}.utility-row{display:grid;grid-template-columns:repeat(8,minmax(92px,1fr));gap:10px}
 .event-panel{display:grid;gap:8px}.event-log{display:grid;gap:5px;max-height:180px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:var(--muted)}
 .event-row{border:1px solid var(--line);border-radius:6px;background:var(--panel2);padding:6px 8px}.event-row:first-child{color:var(--text);border-color:#2f9e7d}
-@media(max-width:900px){.knob-row,.channel-strip,.utility-row{grid-template-columns:repeat(4,minmax(78px,1fr))}}
-@media(max-width:520px){main{padding:10px}.emulator{padding:12px}.knob-row,.channel-strip,.utility-row{grid-template-columns:repeat(2,minmax(76px,1fr))}}
+@media(max-width:900px){.knob-row,.fader-row,.button-row,.utility-row{grid-template-columns:repeat(4,minmax(78px,1fr))}}
+@media(max-width:520px){main{padding:10px}.emulator{padding:12px}.knob-row,.fader-row,.button-row,.utility-row{grid-template-columns:repeat(2,minmax(76px,1fr))}}
 </style>
 </head>
 <body>
@@ -66,9 +70,23 @@ h1{font-size:22px;margin:0}.status{min-height:18px}
       <button id="resetControls" type="button">Reset controls</button>
     </div>
   </div>
-  <div id="knobRows"></div>
-  <div id="channelStrip" class="channel-strip"></div>
-  <div id="utilityButtons" class="utility-row"></div>
+  <div class="control-section" data-emulator-section="knobs">
+    <div class="control-heading"><h2>Knobs</h2><div class="small">24 independent Control Change controls</div></div>
+    <div id="knobRows"></div>
+  </div>
+  <div class="control-section" data-emulator-section="faders">
+    <div class="control-heading"><h2>Faders</h2><div class="small">8 independent Control Change controls</div></div>
+    <div id="faderControls" class="fader-row"></div>
+  </div>
+  <div id="channelButtons" class="control-section" data-emulator-section="channel-buttons">
+    <div class="control-heading"><h2>Channel Buttons</h2><div class="small">Independent Note controls; columns only match their physical positions on the controller</div></div>
+    <div id="topButtons" class="button-row" aria-label="Top channel button row"></div>
+    <div id="bottomButtons" class="button-row" aria-label="Bottom channel button row"></div>
+  </div>
+  <div class="control-section" data-emulator-section="utility-buttons">
+    <div class="control-heading"><h2>Utility Buttons</h2><div class="small">Independent Note controls</div></div>
+    <div id="utilityButtons" class="utility-row"></div>
+  </div>
 </section>
 
 <section class="panel event-panel">
@@ -83,7 +101,9 @@ const DEVICE_ID='launch-control-xl-emulator';
 const DEVICE_NAME='Launch Control XL Emulator';
 const CHANNEL_NAME='dmxShowMidiEmulator';
 const knobRows=document.getElementById('knobRows');
-const channelStrip=document.getElementById('channelStrip');
+const faderControls=document.getElementById('faderControls');
+const topButtons=document.getElementById('topButtons');
+const bottomButtons=document.getElementById('bottomButtons');
 const utilityButtons=document.getElementById('utilityButtons');
 const channelSelect=document.getElementById('midiChannel');
 const statusEl=document.getElementById('status');
@@ -141,7 +161,9 @@ function knobHtml(cc,row,index){
   return `<div class="em-control"><label>Knob ${row+1}.${index+1} · CC ${cc}</label><div class="knob-face" data-knob-face="${cc}" style="--angle:0deg">0</div><input class="knob-range" type="range" min="0" max="127" value="0" data-midi-cc="${cc}" aria-label="Knob ${row+1}.${index+1} CC ${cc}"></div>`;
 }
 knobRows.innerHTML=knobCcs.map((row,rowIndex)=>`<div class="knob-row">${row.map((cc,index)=>knobHtml(cc,rowIndex,index)).join('')}</div>`).join('');
-channelStrip.innerHTML=faderCcs.map((cc,index)=>`<div class="channel-column"><label>Channel ${index+1}<br>Fader CC ${cc}</label><input class="fader" type="range" min="0" max="127" value="0" data-midi-cc="${cc}" aria-label="Fader ${index+1} CC ${cc}"><button type="button" class="em-button" data-midi-note="${topNotes[index]}">Top · Note ${topNotes[index]}</button><button type="button" class="em-button" data-midi-note="${bottomNotes[index]}">Bottom · Note ${bottomNotes[index]}</button></div>`).join('');
+faderControls.innerHTML=faderCcs.map((cc,index)=>`<div class="fader-control"><label>Fader ${index+1}<br>CC ${cc}</label><input class="fader" type="range" min="0" max="127" value="0" data-midi-cc="${cc}" aria-label="Fader ${index+1} CC ${cc}"></div>`).join('');
+topButtons.innerHTML=topNotes.map((note,index)=>`<button type="button" class="em-button" data-midi-note="${note}">Ch ${index+1} Top · Note ${note}</button>`).join('');
+bottomButtons.innerHTML=bottomNotes.map((note,index)=>`<button type="button" class="em-button" data-midi-note="${note}">Ch ${index+1} Bottom · Note ${note}</button>`).join('');
 utilityButtons.innerHTML=utilityNotes.map(item=>`<button type="button" class="em-button" data-midi-note="${item.note}">${esc(item.label)} · Note ${item.note}</button>`).join('');
 
 document.querySelectorAll('[data-midi-cc]').forEach(input=>{

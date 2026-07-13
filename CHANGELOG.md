@@ -4,6 +4,7 @@
 
 Changed:
 
+- Separated the MIDI Emulator surface into distinct Knobs, Faders, Channel Buttons, and Utility Buttons sections. Button columns still match the Launch Control XL hardware positions without implying that a button is functionally tied to the fader above it.
 - Started the 0.9.9 development branch.
 - Renamed the Show Run **Edit Layout** toggle to **Edit** / **Done** and expanded Edit mode into the common entry point for layout, tile, Live Control, master, and MIDI configuration.
 - Added computer USB MIDI support to Show Run through Web MIDI, with input/output selection, explicit connect/disconnect controls, automatic Launch Control XL preference, and the existing Pico UART MIDI diagnostics retained separately.
