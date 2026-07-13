@@ -47,4 +47,27 @@ test.describe('Modal visual rules', () => {
     expect(state.bodyOverflowY).toBe('auto');
     expect(parseFloat(state.modalWidth)).toBeLessThanOrEqual(760);
   });
+
+  test('all page modals require an explicit close action and ignore backdrop clicks', async ({ page }) => {
+    for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_room_plane.html']) {
+      await openDmxPage(page, path);
+      const results = await page.evaluate(() => [...document.querySelectorAll('.modal-overlay')].map(overlay => {
+        DmxCommon.showModal(overlay);
+        overlay.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        const result = {
+          id: overlay.id,
+          displayAfterBackdropClick: getComputedStyle(overlay).display,
+          explicitCloseOnly: overlay.dataset.explicitCloseOnly
+        };
+        DmxCommon.hideModal(overlay);
+        return result;
+      }));
+
+      expect(results.length, `${path || 'index.html'} should expose modal overlays`).toBeGreaterThan(0);
+      for (const result of results) {
+        expect(result.displayAfterBackdropClick, `${path || 'index.html'}#${result.id}`).toBe('flex');
+        expect(result.explicitCloseOnly, `${path || 'index.html'}#${result.id}`).toBe('1');
+      }
+    }
+  });
 });

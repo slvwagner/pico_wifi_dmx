@@ -4,6 +4,7 @@
 
 Changed:
 
+- Standardized modals across Controller, Show Run, Chaser, Effects, and Room Plane so clicking the dark backdrop never closes an editor or dialog; users must choose an explicit Close, Cancel, save, or other modal action.
 - Fixed saved Effect tile recall so changing from another target family cannot overwrite the saved preview amplitudes. If the browser preview is already active and its button reads **Stop**, recalling another tile now restarts that effect immediately with its saved timing and update rate; an idle preview remains stopped.
 - Linked the Launch Control XL MIDI Emulator **Manual** button directly to its MIDI Controller and emulator instructions instead of the top of the Show Run chapter.
 - Controller, Show Run, Chaser, Effects, and Room Plane **Group Edit** now use one shared autosave implementation for relative adjustment step sizes. Each page stores its own values, including separate Pan/Tilt coarse and fine steps, in server UI state and restores them whenever the modal or page is reopened.

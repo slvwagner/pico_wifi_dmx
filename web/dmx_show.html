@@ -1714,7 +1714,7 @@ function openHiddenTileModal(rows){
     placeHiddenTile(kind,key);
   }));
   list.querySelectorAll('[data-hidden-expand]').forEach(btn=>btn.addEventListener('click',()=>expandMatrixForHiddenKind(btn.dataset.hiddenExpand)));
-  document.getElementById('hiddenTileModal').style.display='flex';
+  DmxCommon.showModal('hiddenTileModal');
 }
 function closeHiddenTileModal(){
   const modal=document.getElementById('hiddenTileModal');
@@ -2457,7 +2457,6 @@ function openShowTileEditor(kind,key){
 }
 document.getElementById('showTileVisualTarget').addEventListener('change',()=>setTimeout(renderShowTileMidiMapping,0));
 ['showTileVisualClose','showTileVisualClose2','showTileVisualSave'].forEach(id=>document.getElementById(id)?.addEventListener('click',cancelShowTileMidiLearning));
-document.getElementById('showTileVisualModal').addEventListener('click',e=>{if(e.target.id==='showTileVisualModal')cancelShowTileMidiLearning();});
 function removeShowTilePlacement(kind,key,layoutId=kind){
   if(!['group','scene','palette'].includes(kind))return;
   const entry=itemForTileKey(kind,key);
@@ -4297,10 +4296,8 @@ document.getElementById('addCardType').onchange=updateAddCardOptions;
 document.getElementById('addShowCard').onclick=addShowCard;
 document.getElementById('addCardClose').onclick=closeAddCardModal;
 document.getElementById('addCardClose2').onclick=closeAddCardModal;
-document.getElementById('addCardModal').addEventListener('click',e=>{if(e.target.id==='addCardModal')closeAddCardModal();});
 document.getElementById('midiMappingClose').onclick=closeMidiMappingEditor;
 document.getElementById('midiMappingClose2').onclick=closeMidiMappingEditor;
-document.getElementById('midiMappingModal').addEventListener('click',e=>{if(e.target.id==='midiMappingModal')closeMidiMappingEditor();});
 document.getElementById('hiddenTileClose').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 document.getElementById('hiddenTileClose2').onclick=()=>{hiddenTileModalDismissed=true;closeHiddenTileModal();};
 bindCardInputs();

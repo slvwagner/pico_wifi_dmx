@@ -117,6 +117,7 @@ strong { color: #ffffff; }
 <p>The web interface is normally opened from XAMPP. On the same computer that runs XAMPP this is often:</p>
 <pre><code>http://localhost/dmx/</code></pre>
 <p>From an iPad, phone, or another computer, use the XAMPP computer&#39;s LAN address or hostname instead, for example <code>http://192.168.0.50/dmx/</code>. This XAMPP URL is only the address of the web interface and server-side show storage.</p>
+<p>Modal editors and dialogs require an explicit action to close. Clicking the dark area outside a modal does not dismiss it, which prevents accidental loss of edits. Use the modal&#39;s <strong>Close</strong>, <strong>Cancel</strong>, save, or other action button when you are finished.</p>
 <p>The Pico itself is controlled over the network with its base URL, for example:</p>
 <pre><code>http://192.168.0.24/</code></pre>
 <p>Enter the Pico base URL once in any page. The browser stores it and shares it with the other pages. Across the UI, live Pico updates only happen while a Pico base URL is set; clearing the URL puts the page into browser-only editing. The Pico base URL is separate from the XAMPP URL: XAMPP serves the controller pages, while the Pico base URL is the lighting controller hardware API.</p>

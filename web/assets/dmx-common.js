@@ -1948,6 +1948,14 @@
   function showModal(modal){
     const el=typeof modal==='string'?document.getElementById(modal):modal;
     if(el){
+      if(el.dataset.explicitCloseOnly!=='1'){
+        el.dataset.explicitCloseOnly='1';
+        el.addEventListener('click',event=>{
+          if(event.target!==el)return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        },true);
+      }
       enableModalTouchScroll(el);
       el.style.display='flex';
     }
@@ -2188,7 +2196,6 @@
       const el=document.getElementById(id);
       if(el)el.onclick=close;
     });
-    modal.addEventListener('click',e=>{if(e.target===modal)close();});
     return {open,close,normalize:normalizeSlotVisual,html:slotVisualHtml,style:slotVisualStyle};
   }
 

@@ -10,6 +10,8 @@ http://localhost/dmx/
 
 From an iPad, phone, or another computer, use the XAMPP computer's LAN address or hostname instead, for example `http://192.168.0.50/dmx/`. This XAMPP URL is only the address of the web interface and server-side show storage.
 
+Modal editors and dialogs require an explicit action to close. Clicking the dark area outside a modal does not dismiss it, which prevents accidental loss of edits. Use the modal's **Close**, **Cancel**, save, or other action button when you are finished.
+
 The Pico itself is controlled over the network with its base URL, for example:
 
 ```text
