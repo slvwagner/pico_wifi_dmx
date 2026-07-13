@@ -155,14 +155,6 @@ body.layout-editing .master-delete{display:flex;align-items:center;justify-conte
 body.layout-editing .master-target-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 body.layout-editing .master-edit-actions{display:flex}
 .show-plane-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px}
-.show-group-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px}
-.show-group-controls{display:grid;gap:10px}
-.show-group-control{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:10px;display:grid;gap:10px}
-.show-group-control h3{margin:0;font-size:15px}
-.show-group-control-row{display:grid;grid-template-columns:minmax(88px,130px) minmax(0,1fr) minmax(78px,100px);gap:8px;align-items:end}
-.show-group-control-row input[type=range]{width:100%;padding:0}
-.show-group-control-row input[type=number]{width:100%;min-width:0}
-.show-group-relative{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
 .show-plane-layout{display:grid;gap:12px}
 .show-plane-view{display:flex;gap:8px;flex-wrap:wrap}
 .show-plane-pad{position:relative;min-height:380px;border:1px solid var(--line);border-radius:8px;background:#0a0d10;overflow:hidden;touch-action:none}
@@ -513,11 +505,10 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 <button id="showGroupModalClose" type="button" aria-label="Close">x</button>
 <h2 id="showGroupModalTitle">Group Edit</h2>
 </div>
-<div class="modal-body">
-<div class="small" id="showGroupModalHint"></div>
-<div id="showGroupModalBody" class="show-group-controls"></div>
-</div>
+<div id="showGroupModalBody" class="modal-body"></div>
 <div class="modal-actions">
+<button id="showGroupDefaultBtn" type="button" title="Recall configured default values for the current Show target">Default</button>
+<button id="showGroupBlackoutBtn" type="button" title="Recall configured blackout values for the current Show target">Blackout</button>
 <button id="showGroupModalClose2" type="button">Close</button>
 </div>
 </div>
@@ -840,46 +831,51 @@ function showGroupControlHtml(row){
   const c=row.control;
   const sourceName=target?.fixture?.name||'Source';
   const parts=scalarControlParts(c);
-  const partRows=parts.map(part=>{
-    const value=target?getControlPartValue(target.fixture,target.control,part.part):0;
-    return `<div class="show-group-control-row" data-show-group-part-row="${esc(row.key)}:${esc(part.part)}">
-<label>${esc(part.label)}<input type="number" min="0" max="${part.max}" step="1" value="${value}" data-show-group-number="${esc(row.key)}" data-part="${esc(part.part)}"></label>
-<input type="range" min="0" max="${part.max}" step="1" value="${value}" data-show-group-slider="${esc(row.key)}" data-part="${esc(part.part)}">
-<div class="small" data-show-group-readout="${esc(row.key)}:${esc(part.part)}">${value}</div>
-</div>`;
-  }).join('');
-  const relative=parts.map(part=>{
-    const step=part.max>255?256:1;
-    const fine=part.max>255?showGroupRelativeControlHtml(row.key,part,1,part.label+' fine'):'';
-    return showGroupRelativeControlHtml(row.key,part,step,part.label+(part.max>255?' coarse':' relative'))+fine;
-  }).join('');
-  let rich='';
+  const scope=`<span class="bytes">${row.targets.length} matching fixture${row.targets.length===1?'':'s'} · source ${esc(sourceName)}</span>`;
   if(c.type==='panTilt16'||c.type==='panTilt8'){
     const pan=target?getControlPartValue(target.fixture,target.control,'pan'):(c.type==='panTilt8'?128:32768);
     const tilt=target?getControlPartValue(target.fixture,target.control,'tilt'):(c.type==='panTilt8'?128:32768);
     const max=c.type==='panTilt8'?255:65535;
-    rich=`<div class="xy-pad" data-show-group-xy="${esc(row.key)}"><div class="xy-dot" style="left:${pan/max*100}%;top:${100-tilt/max*100}%"></div></div>
-<div class="row"><span class="readout" data-show-group-xy-readout="${esc(row.key)}">Pan ${pan} · Tilt ${tilt}</span><button type="button" data-show-group-center="${esc(row.key)}">Center</button></div>`;
-  }else if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
+    const relative=parts.map(part=>{
+      if(max<=255)return showGroupRelativeControlHtml(row.key,part,1,part.label+' relative');
+      return showGroupRelativeControlHtml(row.key,part,256,part.label+' coarse relative')+showGroupRelativeControlHtml(row.key,part,1,part.label+' fine relative');
+    }).join('');
+    return `<div class="control" data-show-group-control="${esc(row.key)}"><div class="control-head"><h3>${esc(showGroupControlLabel(c))}</h3><span class="bytes">Pan/Tilt ${max===255?'8':'16'}-bit</span>${scope}</div>
+<div class="xy-pad" data-show-group-xy="${esc(row.key)}"><div class="xy-dot" style="left:${pan/max*100}%;top:${100-tilt/max*100}%"></div></div>
+<div class="row"><span class="readout" data-show-group-xy-readout="${esc(row.key)}">Pan ${pan} · Tilt ${tilt}</span><button type="button" data-show-group-center="${esc(row.key)}">Center</button></div>
+${relative}</div>`;
+  }
+  if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
     const v=target?getValue(target.fixture,target.control,defaultValueForControl(target.control)):defaultValueForControl(c);
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    rich=`<label>Color picker<input type="color" value="${color}" data-show-group-color-picker="${esc(row.key)}"></label>
-<div class="swatches"><button type="button" class="swatch" style="background:#fff" data-show-group-color="${esc(row.key)}" data-color="#ffffff"></button><button type="button" class="swatch" style="background:#f00" data-show-group-color="${esc(row.key)}" data-color="#ff0000"></button><button type="button" class="swatch" style="background:#0f0" data-show-group-color="${esc(row.key)}" data-color="#00ff00"></button><button type="button" class="swatch" style="background:#00f" data-show-group-color="${esc(row.key)}" data-color="#0000ff"></button></div>`;
-  }else if(c.type==='wheel'){
+    return `<div class="control" data-show-group-control="${esc(row.key)}"><div class="control-head"><h3>${esc(showGroupControlLabel(c))}</h3><span class="bytes">${esc(c.type.toUpperCase())}</span>${scope}</div>
+<label>Color picker<input type="color" value="${color}" data-show-group-color-picker="${esc(row.key)}"></label>
+${parts.map(part=>`<label>${esc(part.label)} <span data-show-group-readout="${esc(row.key)}:${esc(part.part)}">${v[part.part]}</span><input type="range" min="0" max="255" step="1" value="${v[part.part]}" data-show-group-slider="${esc(row.key)}" data-part="${esc(part.part)}"></label>${showGroupRelativeControlHtml(row.key,part,1,part.label+' relative')}`).join('')}
+<div class="swatches"><button type="button" class="swatch" style="background:#fff" data-show-group-color="${esc(row.key)}" data-color="#ffffff"></button><button type="button" class="swatch" style="background:#f00" data-show-group-color="${esc(row.key)}" data-color="#ff0000"></button><button type="button" class="swatch" style="background:#0f0" data-show-group-color="${esc(row.key)}" data-color="#00ff00"></button><button type="button" class="swatch" style="background:#00f" data-show-group-color="${esc(row.key)}" data-color="#0000ff"></button></div></div>`;
+  }
+  if(c.type==='wheel'){
     const v=target?getControlPartValue(target.fixture,target.control,'value'):0;
     const active=selectedWheelOption(c,v);
-    rich=`<div class="tabs">${(c.options||[]).map((option,index)=>`<button type="button" class="tab ${wheelOptionMatches(option,v)?'active':''}" title="${esc(wheelOptionTitle(option))}" data-show-group-wheel="${esc(row.key)}" data-wheel-value="${wheelOptionValue(option)}" data-wheel-option-index="${index}">${wheelOptionIconHtml(option)}${esc(option.name)}</button>`).join('')}</div>
-<div data-show-group-wheel-range-host="${esc(row.key)}">${wheelRangeSliderHtml(active,v,`data-show-group-slider="${esc(row.key)}" data-part="value"`,esc)}</div>`;
+    const valuePart=parts[0]||{part:'value',label:'Value',max:255};
+    return `<div class="control" data-show-group-control="${esc(row.key)}"><div class="control-head"><h3>${esc(showGroupControlLabel(c))}</h3><span class="bytes" data-show-group-wheel-readout="${esc(row.key)}">Wheel · ${v}${active?' · '+esc(active.name):''}</span>${scope}</div>
+<div class="tabs">${(c.options||[]).map((option,index)=>`<button type="button" class="tab ${wheelOptionMatches(option,v)?'active':''}" title="${esc(wheelOptionTitle(option))}" data-show-group-wheel="${esc(row.key)}" data-wheel-value="${wheelOptionValue(option)}" data-wheel-option-index="${index}">${wheelOptionIconHtml(option)}${esc(option.name)}</button>`).join('')}</div>
+<div data-show-group-wheel-range-host="${esc(row.key)}">${wheelRangeSliderHtml(active,v,`data-show-group-slider="${esc(row.key)}" data-part="value"`,esc)}</div>
+<div class="value-row"><input type="range" min="0" max="255" step="1" value="${v}" data-show-group-slider="${esc(row.key)}" data-part="value"><input type="number" min="0" max="255" step="1" value="${v}" data-show-group-number="${esc(row.key)}" data-part="value"></div>
+${showGroupRelativeControlHtml(row.key,valuePart,1,'Relative')}</div>`;
   }
-  return `<section class="show-group-control" data-show-group-control="${esc(row.key)}">
-<div>
-<h3>${esc(showGroupControlLabel(c))}</h3>
-<div class="small">${row.targets.length} fixture(s) · source ${esc(sourceName)} · ${esc(c.type||'control')}</div>
-</div>
-${rich}
-${partRows}
-<div class="show-group-relative">${relative}</div>
-</section>`;
+  const part=parts[0]||{part:'value',label:'Value',max:c.type==='slider16'?65535:255};
+  const value=target?getControlPartValue(target.fixture,target.control,part.part):0;
+  const b=bytes16(value);
+  const relative=part.max>255
+    ? showGroupRelativeControlHtml(row.key,part,256,'Coarse relative')+showGroupRelativeControlHtml(row.key,part,1,'Fine relative')
+    : showGroupRelativeControlHtml(row.key,part,1,'Relative');
+  const byteSliders=c.type==='slider16'?`<div class="byte-sliders">
+<label>Coarse <span data-show-group-byte-readout="${esc(row.key)}" data-byte-part="coarse">${b.coarse}</span><input type="range" min="0" max="255" step="1" value="${b.coarse}" data-show-group-byte="${esc(row.key)}" data-byte-part="coarse"></label>
+<label>Fine <span data-show-group-byte-readout="${esc(row.key)}" data-byte-part="fine">${b.fine}</span><input type="range" min="0" max="255" step="1" value="${b.fine}" data-show-group-byte="${esc(row.key)}" data-byte-part="fine"></label>
+</div>`:'';
+  return `<div class="control" data-show-group-control="${esc(row.key)}"><div class="control-head"><h3>${esc(showGroupControlLabel(c))}</h3><span class="readout" data-show-group-readout="${esc(row.key)}:${esc(part.part)}">${value}</span><span class="bytes">${esc(c.type||'control')}</span>${scope}</div>
+<input type="range" min="0" max="${part.max}" step="1" value="${value}" data-show-group-slider="${esc(row.key)}" data-part="${esc(part.part)}">
+${relative}${byteSliders}</div>`;
 }
 function refreshShowGroupControlRow(rowKey,part){
   const row=showGroupEditControls().find(item=>item.key===rowKey);
@@ -901,11 +897,20 @@ function refreshShowGroupControlRow(rowKey,part){
     document.querySelectorAll(`[data-show-group-color-picker="${CSS.escape(rowKey)}"]`).forEach(input=>{if(input.value!==color)input.value=color;});
   }
   if(part==='value'&&target.control.type==='wheel'){
+    const active=selectedWheelOption(target.control,value);
+    document.querySelectorAll(`[data-show-group-wheel-readout="${CSS.escape(rowKey)}"]`).forEach(el=>{el.textContent='Wheel · '+value+(active?' · '+active.name:'');});
     document.querySelectorAll(`[data-show-group-wheel-range-host="${CSS.escape(rowKey)}"]`).forEach(host=>updateWheelRangeHost(host,selectedWheelOption(target.control,value),value,`data-show-group-slider="${esc(rowKey)}" data-part="value"`));
     document.querySelectorAll(`[data-show-group-wheel="${CSS.escape(rowKey)}"]`).forEach(button=>{
       const option=(target.control.options||[])[parseInt(button.dataset.wheelOptionIndex,10)];
       button.classList.toggle('active',option?wheelOptionMatches(option,value):parseInt(button.dataset.wheelValue,10)===value);
     });
+  }
+  if(part==='value'&&target.control.type==='slider16'){
+    const b=bytes16(value);
+    document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="coarse"]`).forEach(input=>{input.value=b.coarse;});
+    document.querySelectorAll(`[data-show-group-byte="${CSS.escape(rowKey)}"][data-byte-part="fine"]`).forEach(input=>{input.value=b.fine;});
+    document.querySelectorAll(`[data-show-group-byte-readout="${CSS.escape(rowKey)}"][data-byte-part="coarse"]`).forEach(el=>{el.textContent=b.coarse;});
+    document.querySelectorAll(`[data-show-group-byte-readout="${CSS.escape(rowKey)}"][data-byte-part="fine"]`).forEach(el=>{el.textContent=b.fine;});
   }
 }
 function updateShowGroupEditButton(){
@@ -920,12 +925,26 @@ function openShowGroupEditModal(){
   const targets=showGroupEditFixtureRows();
   const controls=showGroupEditControls();
   if(!targets.length||!controls.length){setStatus('Select a group or fixture with editable controls first',true);updateShowGroupEditButton();return;}
-  document.getElementById('showGroupModalTitle').textContent='Group Edit - '+targets.length+' fixture'+(targets.length===1?'':'s');
-  document.getElementById('showGroupModalHint').textContent='Edits apply to the current Show target. The first fixture in the target is used as the source value.';
+  document.getElementById('showGroupModalTitle').textContent='Group Edit — '+targets.length+' fixture'+(targets.length===1?'':'s')+' selected · '+controls.length+' editable control'+(controls.length===1?'':'s');
   document.getElementById('showGroupModalBody').innerHTML=controls.map(showGroupControlHtml).join('');
   DmxCommon.showModal('showGroupModal');
 }
 function closeShowGroupEditModal(){DmxCommon.hideModal('showGroupModal');}
+async function recallShowGroupFixtureValues(which){
+  const rows=showGroupEditControls();
+  const changed=[];
+  rows.forEach(row=>row.targets.forEach(target=>{
+    const value=target.control?.[which];
+    if(value===null||value===undefined)return;
+    setValue(target.fixture,target.control,cloneValue(value));
+    changed.push(target);
+  }));
+  const label=which==='defaultValue'?'default':'blackout';
+  if(!changed.length){setStatus('No '+label+' values configured for the current Show target',true);return;}
+  await sendShowGroupPatch(changed);
+  rows.forEach(row=>scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(row.key,part.part)));
+  setStatus('Group '+label+' recalled for '+showGroupEditFixtureRows().length+' fixture'+(showGroupEditFixtureRows().length===1?'':'s'));
+}
 function savedValue(key){
   return showUiState&&Object.prototype.hasOwnProperty.call(showUiState,key)?showUiState[key]:localStorage.getItem(layoutKey(key));
 }
@@ -4103,6 +4122,8 @@ document.getElementById('clearFilterBtn').onclick=()=>{selectedGroupIds.clear();
 document.getElementById('showGroupEditBtn').onclick=openShowGroupEditModal;
 document.getElementById('showGroupModalClose').onclick=closeShowGroupEditModal;
 document.getElementById('showGroupModalClose2').onclick=closeShowGroupEditModal;
+document.getElementById('showGroupDefaultBtn').onclick=()=>recallShowGroupFixtureValues('defaultValue').catch(err=>setStatus(err.message,true));
+document.getElementById('showGroupBlackoutBtn').onclick=()=>recallShowGroupFixtureValues('blackoutValue').catch(err=>setStatus(err.message,true));
 document.getElementById('showGroupModalBody').addEventListener('input',e=>{
   const colorInput=e.target.closest?.('[data-show-group-color-picker]');
   if(colorInput){
@@ -4124,6 +4145,20 @@ document.getElementById('showGroupModalBody').addEventListener('input',e=>{
     });
     scalarControlParts(row.control).forEach(part=>refreshShowGroupControlRow(key,part.part));
     sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' color -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
+    return;
+  }
+  const byteInput=e.target.closest?.('[data-show-group-byte]');
+  if(byteInput){
+    const key=byteInput.dataset.showGroupByte;
+    const row=showGroupEditControls().find(item=>item.key===key);
+    const target=showGroupSourceTarget(row);
+    if(!row||!target||row.control.type!=='slider16')return;
+    const b=bytes16(getControlPartValue(target.fixture,target.control,'value'));
+    b[byteInput.dataset.bytePart]=clamp(byteInput.value,0,255);
+    const value=(b.coarse<<8)|b.fine;
+    row.targets.forEach(item=>setControlPartValue(item.fixture,item.control,'value',value));
+    refreshShowGroupControlRow(key,'value');
+    sendShowGroupPatch(row.targets).then(()=>setStatus('Group Edit '+showGroupControlLabel(row.control)+' -> '+row.targets.length+' fixture'+(row.targets.length===1?'':'s'))).catch(err=>setStatus(err.message,true));
     return;
   }
   const input=e.target.closest?.('[data-show-group-slider],[data-show-group-number]');

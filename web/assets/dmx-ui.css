@@ -127,11 +127,13 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .fixture-control-modal .modal-card{width:min(760px,calc(100vw - 32px));max-width:760px;overflow:hidden}
 .fixture-control-modal .modal-body{display:flex;flex-direction:column;gap:12px;overflow-x:hidden;overflow-y:auto;min-width:0;flex:0 1 auto;max-height:min(620px,calc(100dvh - 170px));padding-right:4px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .fixture-control-modal .modal-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap;padding-top:4px;flex:0 0 auto}
-.fixture-control-modal .control{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:visible;flex:0 0 auto}
-.fixture-control-modal .control-head{min-width:0}
+.fixture-control-modal .control{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:visible;flex:0 0 auto;border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.fixture-control-modal .control-head{min-width:0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.fixture-control-modal .readout{font-size:26px;line-height:1;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;min-width:7ch}
+.fixture-control-modal .bytes{color:var(--muted);font-size:13px}
 .fixture-control-modal .control label{min-width:0;max-width:100%}
 .fixture-control-modal input,.fixture-control-modal select,.fixture-control-modal textarea{min-width:0;max-width:100%}
-.fixture-control-modal .byte-sliders{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.fixture-control-modal .byte-sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .fixture-control-modal .tabs{min-width:0;max-width:100%;overflow:hidden}
 .fixture-control-modal .tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
 .section-control-modal .modal-card{width:min(920px,calc(100vw - 32px));max-width:920px;overflow:hidden}

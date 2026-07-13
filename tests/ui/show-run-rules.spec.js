@@ -346,13 +346,22 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#showGroupModal')).toBeVisible();
     await expect(page.locator('#showGroupModalTitle')).toContainText('2 fixtures');
-    const dimmer = page.locator('[data-show-group-number][data-part="value"]').first();
+    await expect(page.locator('#showGroupModalBody .control')).toHaveCount(2);
+    await expect(page.locator('#showGroupModalBody .control-head')).toHaveCount(2);
+    await expect(page.locator('#showGroupModalBody .readout')).toBeVisible();
+    await expect(page.locator('#showGroupDefaultBtn')).toBeVisible();
+    await expect(page.locator('#showGroupBlackoutBtn')).toBeVisible();
+    expect((await page.locator('#showGroupModal .modal-card').boundingBox()).width).toBeLessThanOrEqual(762);
+    const dimmer = page.locator('[data-show-group-slider][data-part="value"]').first();
     await expect(dimmer).toBeVisible();
     await dimmer.fill('77');
 
     await expect.poll(() => calls.liveValues.at(-1)).toEqual({ '101:11': 77, '102:11': 77 });
     await expect.poll(() => calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body.includes('1:77') && call.body.includes('11:77'))).toBe(true);
     await expect(page.locator('#status')).toContainText('Group Edit Dimmer -> 2 fixtures');
+    await page.locator('#showGroupBlackoutBtn').click();
+    await expect.poll(() => calls.liveValues.at(-1)).toMatchObject({ '101:11': 0, '102:11': 0 });
+    await expect(page.locator('#status')).toContainText('Group blackout recalled for 2 fixtures');
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -371,7 +380,8 @@ test.describe('Show Run page', () => {
             { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 },
             { id: 12, type: 'rgb', label: 'Color', a: 2, b: 3, c: 4 },
             { id: 13, type: 'panTilt16', label: 'Pan/Tilt', pan: 5, panFine: 6, tilt: 7, tiltFine: 8 },
-            { id: 14, type: 'wheel', label: 'Gobo', channel: 9, options: [{ name: 'Open', value: 0 }, { name: 'Dots', value: 32 }] }
+            { id: 14, type: 'wheel', label: 'Gobo', channel: 9, options: [{ name: 'Open', value: 0 }, { name: 'Dots', value: 32 }] },
+            { id: 15, type: 'slider16', label: 'Focus', channel: 10, fine: 11 }
           ]
         }
       ],
@@ -390,10 +400,11 @@ test.describe('Show Run page', () => {
     await page.locator('#showGroupEditBtn').click();
 
     await expect(page.locator('#showGroupModal')).toBeVisible();
-    await expect(page.locator('#showGroupModalBody .show-group-control h3')).toHaveText(['Color', 'Dimmer', 'Gobo', 'Pan / Tilt']);
+    await expect(page.locator('#showGroupModalBody .control h3')).toHaveText(['Color', 'Dimmer', 'Focus', 'Gobo', 'Pan / Tilt']);
     await expect(page.locator('#showGroupModalBody .xy-pad')).toBeVisible();
     await expect(page.locator('#showGroupModalBody input[type="color"]')).toBeVisible();
     await expect(page.locator('#showGroupModalBody .swatch')).toHaveCount(4);
+    await expect(page.locator('#showGroupModalBody .byte-sliders input')).toHaveCount(2);
     await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Open' })).toBeVisible();
     await expect(page.locator('#showGroupModalBody .tab', { hasText: 'Dots' })).toBeVisible();
 
