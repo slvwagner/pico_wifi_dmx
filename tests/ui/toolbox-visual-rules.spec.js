@@ -7,6 +7,9 @@ test.describe('Toolbox visual tile rules', () => {
       { path: '', host: '#controllerSceneLayoutControls' },
       { path: 'dmx_chaser.html', host: '#chaserChaseLayoutControls' },
       { path: 'dmx_motion.html', host: '#motionEffectLayoutControls' },
+      { path: 'dmx_motion.html', host: '#motionSceneLayoutControls' },
+      { path: 'dmx_motion.html', host: '#motionPaletteLayoutControls' },
+      { path: 'dmx_motion.html', host: '#motionPlaneLayoutControls' },
       { path: 'dmx_room_plane.html', host: '#roomPlaneLayoutControls' }
     ];
     const samples = [];

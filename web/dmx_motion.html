@@ -215,6 +215,7 @@ main{max-width:none;width:100%;margin:0}
 </div>
 <div class="scene-toolbox__body">
   <div class="small" style="color:var(--muted)">Click a scene to use as effect center</div>
+  <div id="motionSceneLayoutControls" class="tile-layout-controls"></div>
   <div id="motionSlotGrid" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -276,6 +277,7 @@ main{max-width:none;width:100%;margin:0}
 document.body.classList.add('toolbox-rail-layout');
 [
   ['motionEffectLayoutControls',{colsId:'motionEffectCols',rowsId:'motionEffectRows',moveId:'moveMotionEffectsBtn',cols:4,rows:4,moveTitle:'Move effect tiles by dragging them to another slot'}],
+  ['motionSceneLayoutControls',{colsId:'motionSceneCols',rowsId:'motionSceneRows',moveId:'moveMotionScenesBtn',cols:4,rows:4,moveTitle:'Move scene tiles by dragging them to another slot'}],
   ['motionPaletteLayoutControls',{colsId:'motionPaletteCols',rowsId:'motionPaletteRows',moveId:'moveMotionPalettesBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
   ['motionPlaneLayoutControls',{colsId:'motionPlaneCols',rowsId:'motionPlaneRows',moveId:'moveMotionPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
 ].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
@@ -2073,34 +2075,93 @@ if(!new URLSearchParams(location.search).has('docshot_overview')){
 }
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
+let motionSceneMoveMode=false;
+let motionSceneMoveSelectedSlot=null;
+const MOTION_SCENE_GRID_MAX=32;
 function requiredMotionSceneSlots(){
   return motionScenes.reduce((max,s)=>Math.max(max,(parseInt(s.slot,10)||0)+1),0);
 }
-function normalizeMotionSceneGrid(){
+function normalizeMotionSceneGrid(priority='cols'){
   const needed=requiredMotionSceneSlots();
-  motionSlotCols=Math.max(1,parseInt(motionSlotCols)||4);
-  motionSlotRows=Math.max(1,parseInt(motionSlotRows)||4);
+  motionSlotCols=Math.max(1,Math.min(MOTION_SCENE_GRID_MAX,parseInt(motionSlotCols)||4));
+  motionSlotRows=Math.max(1,Math.min(MOTION_SCENE_GRID_MAX,parseInt(motionSlotRows)||4));
   if(needed&&motionSlotCols*motionSlotRows<needed){
-    motionSlotRows=Math.ceil(needed/motionSlotCols);
+    if(priority==='rows')motionSlotCols=Math.max(motionSlotCols,Math.ceil(needed/motionSlotRows));
+    else motionSlotRows=Math.max(motionSlotRows,Math.ceil(needed/motionSlotCols));
   }
+  const colsInput=document.getElementById('motionSceneCols');
+  const rowsInput=document.getElementById('motionSceneRows');
+  if(colsInput){colsInput.min=Math.max(1,Math.ceil(needed/motionSlotRows));colsInput.value=motionSlotCols;}
+  if(rowsInput){rowsInput.min=Math.max(1,Math.ceil(needed/motionSlotCols));rowsInput.value=motionSlotRows;}
 }
 function escMotionHtml(s){return DmxCommon.escapeHtml(s);}
 function renderMotionSlotGrid(){
   const grid=document.getElementById('motionSlotGrid');
+  if(!grid)return;
   normalizeMotionSceneGrid();
   const total=motionSlotCols*motionSlotRows;
   grid.style.gridTemplateColumns='repeat('+motionSlotCols+',minmax(54px,1fr))';
+  grid.classList.toggle('tile-move-mode',motionSceneMoveMode);
+  const moveBtn=document.getElementById('moveMotionScenesBtn');
+  if(moveBtn){
+    moveBtn.classList.toggle('active',motionSceneMoveMode);
+    moveBtn.setAttribute('aria-pressed',motionSceneMoveMode?'true':'false');
+  }
   let html='';
   for(let i=0;i<total;i++){
-    const s=motionScenes.find(sc=>sc.slot===i);
-    if(s)html+=`<div class="${DmxCommon.savedTileClass('slot filled')}" data-mslot="${i}" title="${escMotionHtml(s.name)}">${escMotionHtml(s.name)}</div>`;
-    else html+=`<div class="slot readonly">${i+1}</div>`;
+    const s=motionScenes.find(sc=>parseInt(sc.slot,10)===i);
+    if(s)html+=`<div class="${DmxCommon.savedTileClass('slot filled',motionSceneMoveSelectedSlot===i)}" data-mslot="${i}" title="${motionSceneMoveMode?'Move scene':'Click: use scene as effect center'}">${escMotionHtml(s.name)}</div>`;
+    else html+=`<div class="slot readonly" data-mslot="${i}" title="${motionSceneMoveMode?'Move scene here':'Empty scene slot'}">${i+1}</div>`;
   }
   grid.innerHTML=html;
-  grid.querySelectorAll('.slot.filled').forEach(el=>{
-    const idx=parseInt(el.dataset.mslot);
-    el.addEventListener('click',()=>{const s=motionScenes.find(sc=>sc.slot===idx);if(s)applySceneAsCenter(s);});
+  grid.querySelectorAll('[data-mslot]').forEach(el=>{
+    const idx=parseInt(el.dataset.mslot,10);
+    el.addEventListener('click',()=>motionSceneSlotClick(idx));
   });
+  DmxCommon.initTileMoveGrid({
+    grid,
+    button:'moveMotionScenesBtn',
+    active:motionSceneMoveMode,
+    itemSelector:'[data-mslot]',
+    getIndex:el=>parseInt(el.dataset.mslot,10),
+    canDrag:idx=>motionScenes.some(s=>parseInt(s.slot,10)===idx),
+    onMove:moveMotionSceneSlot
+  });
+}
+function motionSceneSlotClick(slot){
+  if(motionSceneMoveMode){
+    const scene=motionScenes.find(s=>parseInt(s.slot,10)===slot);
+    if(motionSceneMoveSelectedSlot===null){
+      if(!scene)return;
+      motionSceneMoveSelectedSlot=slot;
+      renderMotionSlotGrid();
+      setStatus('Select a destination slot for '+(scene.name||'Scene'));
+      return;
+    }
+    if(motionSceneMoveSelectedSlot===slot){
+      motionSceneMoveSelectedSlot=null;
+      renderMotionSlotGrid();
+      setStatus('Scene move selection cleared');
+      return;
+    }
+    moveMotionSceneSlot(motionSceneMoveSelectedSlot,slot);
+    return;
+  }
+  const scene=motionScenes.find(s=>parseInt(s.slot,10)===slot);
+  if(scene)applySceneAsCenter(scene);
+}
+function moveMotionSceneSlot(fromSlot,toSlot){
+  const from=motionScenes.find(s=>parseInt(s.slot,10)===fromSlot);
+  if(!from||fromSlot===toSlot)return false;
+  const target=motionScenes.find(s=>parseInt(s.slot,10)===toSlot);
+  from.slot=toSlot;
+  if(target)target.slot=fromSlot;
+  motionScenes.sort((a,b)=>(parseInt(a.slot,10)||0)-(parseInt(b.slot,10)||0));
+  motionSceneMoveSelectedSlot=null;
+  renderMotionSlotGrid();
+  saveMotionScenesServer();
+  setStatus(target?'Swapped scenes '+(fromSlot+1)+' and '+(toSlot+1):'Moved scene to slot '+(toSlot+1));
+  return true;
 }
 function applySceneAsCenter(s){
   const batchMap={};
@@ -2133,6 +2194,14 @@ function loadMotionScenesServer(){
     renderMotionSlotGrid();
   }).catch(()=>{motionScenes=[];renderMotionSlotGrid();});
 }
+function saveMotionScenesServer(){
+  fetch('scene_setup.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload({baseUrl:baseUrlEl.value,scenes:motionScenes,slotCols:motionSlotCols,slotRows:motionSlotRows}))})
+    .then(r=>r.json()).then(d=>{if(!d.ok)setStatus('Scenes save failed: '+d.error,true);})
+    .catch(e=>setStatus('Scenes save error: '+e.message,true));
+}
+document.getElementById('motionSceneCols').addEventListener('input',e=>{motionSlotCols=e.target.value;normalizeMotionSceneGrid('cols');renderMotionSlotGrid();saveMotionScenesServer();});
+document.getElementById('motionSceneRows').addEventListener('input',e=>{motionSlotRows=e.target.value;normalizeMotionSceneGrid('rows');renderMotionSlotGrid();saveMotionScenesServer();});
+document.getElementById('moveMotionScenesBtn').onclick=()=>{motionSceneMoveMode=!motionSceneMoveMode;motionSceneMoveSelectedSlot=null;renderMotionSlotGrid();setStatus(motionSceneMoveMode?'Scene move mode enabled':'Scene move mode disabled');};
 
 // ---- palette toolbox (recall compatible values as motion centers) ----
 let motionPalettes=[];

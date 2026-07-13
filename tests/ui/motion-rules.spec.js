@@ -176,6 +176,10 @@ test.describe('Effects established rules', () => {
         { id: 'fx_a', name: 'Effect A', slot: 0, recipe: { targetKey: '', params: {}, fixtures: [] } },
         { id: 'fx_b', name: 'Effect B', slot: 1, recipe: { targetKey: '', params: {}, fixtures: [] } }
       ];
+      motionScenes = [
+        { id: 'scene_a', name: 'Scene A', slot: 0, values: { '101:11': 80 } },
+        { id: 'scene_b', name: 'Scene B', slot: 1, values: { '102:21': 40 } }
+      ];
       motionPalettes = [
         { id: 'pal_a', name: 'Palette A', slot: 0, values: { '101:11': 80 } },
         { id: 'pal_b', name: 'Palette B', slot: 1, values: { '102:21': 40 } }
@@ -185,6 +189,7 @@ test.describe('Effects established rules', () => {
         DmxCommon.normalizeRoomPlane({ id: 'plane_b', name: 'Plane B', slot: 1, fixtures: [] }, 1)
       ];
       renderMotionEffectMatrix();
+      renderMotionSlotGrid();
       renderMotionPaletteMatrix();
       motionPlanesMatrix.render();
     });
@@ -195,6 +200,7 @@ test.describe('Effects established rules', () => {
     await expect(page.locator('#motionGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#motionGroupsList [data-delete-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#moveMotionEffectsBtn')).toBeVisible();
+    await expect(page.locator('#moveMotionScenesBtn')).toBeVisible();
     await expect(page.locator('#moveMotionPalettesBtn')).toBeVisible();
     await expect(page.locator('#moveMotionPlanesBtn')).toBeVisible();
 
@@ -202,6 +208,11 @@ test.describe('Effects established rules', () => {
     await page.locator('[data-motion-effect-slot="0"]').click();
     await page.locator('[data-motion-effect-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionEffects.find(effect => effect.id === 'fx_a').slot)).toBe(3);
+
+    await page.locator('#moveMotionScenesBtn').click();
+    await page.locator('[data-mslot="0"]').click();
+    await page.locator('[data-mslot="3"]').click();
+    await expect.poll(() => page.evaluate(() => motionScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
 
     await page.locator('#moveMotionPalettesBtn').click();
     await page.locator('[data-motion-palette-slot="0"]').click();

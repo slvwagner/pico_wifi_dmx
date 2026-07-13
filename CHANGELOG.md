@@ -4,7 +4,7 @@
 
 Changed:
 
-- Moved toolbox **Cols**, **Rows**, and **Move** controls into a shared `dmx-common.js` renderer and applied the same compact horizontal visual language across Controller, Chaser, Effects, and Room Plane toolboxes.
+- Moved toolbox **Cols**, **Rows**, and **Move** controls into a shared `dmx-common.js` renderer and applied the same compact horizontal visual language across Controller, Chaser, Effects (including Scenes), and Room Plane toolboxes.
 - Standardized modals across Controller, Show Run, Chaser, Effects, and Room Plane so clicking the dark backdrop never closes an editor or dialog; users must choose an explicit Close, Cancel, save, or other modal action.
 - Fixed saved Effect tile recall so changing from another target family cannot overwrite the saved preview amplitudes. If the browser preview is already active and its button reads **Stop**, recalling another tile now restarts that effect immediately with its saved timing and update rate; an idle preview remains stopped.
 - Linked the Launch Control XL MIDI Emulator **Manual** button directly to its MIDI Controller and emulator instructions instead of the top of the Show Run chapter.
