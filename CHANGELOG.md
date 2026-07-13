@@ -4,6 +4,7 @@
 
 Changed:
 
+- Added USB and Launch Control XL Emulator MIDI-to-DMX latency measurement to the Pico Performance Test. The primary result measures the MIDI event until the browser starts `/dmx/b`, including Show-style 30 ms continuous-control coalescing or immediate button handling; Pico transport, acknowledgement, output-buffer visibility, and confirmed-frame time remain separate diagnostics. **Run Full Test** now loads the emulator invisibly in the Performance page when no MIDI input is connected, generates all configured samples automatically without opening or focusing another tab, records a dedicated Connection & Core Timing result and Timing History value, and restores the selected DMX test channel afterward. A connected physical USB input remains available for manual hardware measurements.
 - Moved Fixture Library, Fixture Profiles, and Patch Fixtures inside the Controller's first **Show** card. Collapsing Show now hides all show-setup tools together, while each nested card keeps its own independent collapse state.
 - Added an Auto/1–4 **Cols** selector to the Fixture Controller Control Surface. The preference is saved in server UI state, supports up to four fixture columns on wide desktops, and automatically reduces the effective count when the available width or an iPad layout would make fixture controls too narrow.
 - Started the 0.9.10 development branch.

@@ -56,6 +56,7 @@ test.describe('Pico Performance Test established rules', () => {
   test('checks Pico logs and buffer readback from the configured base URL', async ({ page }) => {
     await openDmxPage(page, 'test/');
     await expect(page.locator('header h1')).toContainText('Pico Performance Test');
+    await expect(page.locator('#connectionTimingPanel + #timingHistoryPanel')).toBeVisible();
 
     await page.locator('#baseUrl').fill('http://127.0.0.1:18992/');
     await page.locator('#btnCheckPico').click();
@@ -79,7 +80,194 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
   });
 
+  test('finds the Pico and measures USB or emulated MIDI through a confirmed DMX frame', async ({ page, context }) => {
+    await page.addInitScript(() => {
+      const input = {
+        id: 'launch-control-xl-test',
+        name: 'Launch Control XL',
+        manufacturer: 'Novation',
+        state: 'connected',
+        onmidimessage: null,
+        open: async () => input
+      };
+      window.__midiLatencyInput = input;
+      window.__emitMidiLatency = data => input.onmidimessage?.({
+        data,
+        receivedTime: performance.now(),
+        target: input
+      });
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        configurable: true,
+        value: async () => ({
+          inputs: new Map([[input.id, input]]),
+          outputs: new Map(),
+          onstatechange: null
+        })
+      });
+    });
+
+    await page.route('**/pico_discovery.php**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        devices: [{ id: 'pico-test', name: 'pico-wifi-dmx', version: '0.9.10', url: 'http://127.0.0.1:18992/' }]
+      })
+    }));
+
+    let frameCount = 1400;
+    const outputValues = Array.from({ length: 512 }, () => 73);
+    const writes = [];
+    await page.unroute('http://127.0.0.1:18992/status.json');
+    await page.unroute('http://127.0.0.1:18992/dmx/output.json');
+    await page.unroute('http://127.0.0.1:18992/dmx/base');
+    await page.unroute('http://127.0.0.1:18992/dmx/b**');
+    await page.route('http://127.0.0.1:18992/status.json', route => {
+      frameCount += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, dmx: { running: true, channels: 512, refresh_rate: 43, frame_count: frameCount } })
+      });
+    });
+    await page.route('http://127.0.0.1:18992/dmx/output.json', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        channels: 512,
+        frame_count: frameCount,
+        values: outputValues
+      })
+    }));
+    await page.route('http://127.0.0.1:18992/dmx/base', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(outputValues)
+    }));
+    await page.route('http://127.0.0.1:18992/dmx/b**', route => {
+      const body = route.request().postData() || '';
+      if (route.request().method() === 'POST') writes.push(body);
+      body.split(',').forEach(pair => {
+        const match = pair.match(/^(\d+):(\d+)$/);
+        if (match && Number(match[1]) >= 1 && Number(match[1]) <= 512) outputValues[Number(match[1]) - 1] = Number(match[2]);
+      });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await openDmxPage(page, 'test/');
+    await page.getByRole('button', { name: 'Find Pico' }).click();
+    await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
+
+    await page.locator('#btnMidiLatencyConnect').click();
+    await expect(page.locator('#midiLatencyInput')).toHaveValue('launch-control-xl-test');
+    await page.locator('#midiLatencySamples').fill('2');
+    await page.locator('#btnMidiLatencyStart').click();
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Move a MIDI control');
+
+    await page.evaluate(() => window.__emitMidiLatency([0xb0, 21, 64]));
+    await expect(page.locator('#midiLatencyResultsBody tr')).toHaveCount(1);
+    await expect(page.locator('#midiLatencyResultsBody tr').first()).toContainText('CC 21');
+    await expect(page.locator('#midiLatencyResultsBody tr').first()).toContainText('129');
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Move again');
+
+    await page.evaluate(() => window.__emitMidiLatency([0xb0, 21, 100]));
+    await expect(page.locator('#midiLatencyResultsBody tr')).toHaveCount(2);
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Complete');
+    await expect(page.locator('#midiLatencyMedian')).not.toHaveText('—');
+    await expect(page.locator('#midiLatencyP95')).not.toHaveText('—');
+    await expect(page.locator('#midiLatencyTransportP95')).not.toHaveText('—');
+    await expect(page.locator('#btnMidiLatencyStart')).toBeEnabled();
+    await expect(page.locator('#checkMidiLatency .check-state')).toHaveText('Pass');
+    await expect(page.locator('#checkMidiLatency .check-detail')).toContainText('MIDI-to-POST median');
+    expect(writes.slice(0, 2)).toEqual(['512:129', '512:201']);
+    expect(writes.at(-1)).toBe('512:73');
+
+    await page.locator('#midiLatencySamples').fill('1');
+    await page.locator('#chPerReq').fill('16');
+    await page.locator('#reqCount').fill('10');
+    await page.locator('#btnRunFull').click();
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Ready. Move', { timeout: 10000 });
+    await page.evaluate(() => window.__emitMidiLatency([0xb0, 21, 80]));
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 10000 });
+    await expect(page.locator('#checkMidiLatency .check-state')).toHaveText('Pass');
+    await expect(page.locator('#timingHistoryBody tr')).toHaveCount(1);
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('POST median');
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('p95');
+
+    const emulator = await context.newPage();
+    await emulator.goto(new URL('../dmx_midi_emulator.html?latency=' + Date.now(), page.url()).href);
+    await expect(page.locator('#midiLatencyInput option[value="launch-control-xl-emulator"]')).toHaveCount(1);
+    await page.locator('#midiLatencyInput').selectOption('launch-control-xl-emulator');
+    await page.locator('#midiLatencySamples').fill('1');
+    await page.locator('#btnMidiLatencyStart').click();
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Ready. Move');
+    await emulator.locator('[data-midi-cc="77"]').fill('90');
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Complete');
+    await expect(page.locator('#checkMidiLatency .check-detail')).toContainText('Launch Control XL Emulator');
+    await emulator.close();
+  });
+
+  test('Full Test uses the emulator when Web MIDI is unavailable', async ({ page, context }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        configurable: true,
+        value: undefined
+      });
+    });
+
+    await openDmxPage(page, 'test/');
+    await page.locator('#baseUrl').fill('http://127.0.0.1:18992/');
+    await page.locator('#chPerReq').fill('16');
+    await page.locator('#reqCount').fill('1');
+    await page.locator('#midiLatencySamples').fill('3');
+
+    let frameCount = 1500;
+    const outputValues = Array.from({ length: 512 }, () => 73);
+    await page.unroute('http://127.0.0.1:18992/status.json');
+    await page.unroute('http://127.0.0.1:18992/dmx/output.json');
+    await page.unroute('http://127.0.0.1:18992/dmx/b**');
+    await page.route('http://127.0.0.1:18992/status.json', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, dmx: { running: true, channels: 512, refresh_rate: 43, frame_count: ++frameCount } })
+    }));
+    await page.route('http://127.0.0.1:18992/dmx/output.json', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, channels: 512, frame_count: frameCount, values: outputValues })
+    }));
+    await page.route('http://127.0.0.1:18992/dmx/b**', route => {
+      (route.request().postData() || '').split(',').forEach(pair => {
+        const match = pair.match(/^(\d+):(\d+)$/);
+        if(match)outputValues[Number(match[1])-1]=Number(match[2]);
+      });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    const pageCount = context.pages().length;
+    await page.locator('#btnRunFull').click();
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Complete: 3 samples measured', { timeout: 10000 });
+    await expect(page.locator('#midiLatencyEmulatorFrame')).toHaveCount(1);
+    expect(context.pages()).toHaveLength(pageCount);
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 10000 });
+    await expect(page.locator('#checkMidiLatency .check-detail')).toContainText('Launch Control XL Emulator');
+    await expect(page.locator('#checkMidiLatency .check-detail')).toContainText('3 samples');
+    await expect(page.locator('#checkMidiLatency .check-detail')).not.toContainText('Web MIDI is unavailable');
+  });
+
   test('full test keeps write checks useful when old firmware blocks logs or base readback', async ({ page }) => {
+    await page.addInitScript(() => {
+      const appendChild = Element.prototype.appendChild;
+      Element.prototype.appendChild = function(child) {
+        if(child?.id === 'midiLatencyEmulatorFrame') return child;
+        return appendChild.call(this, child);
+      };
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        configurable: true,
+        value: undefined
+      });
+    });
     await page.route('http://127.0.0.1:18992/logs.txt', route => route.fulfill({
       status: 500,
       contentType: 'text/plain',
@@ -107,6 +295,8 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#checkCore0 .check-state')).toHaveText('Warn');
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Warn');
     await expect(page.locator('#checkWrite .check-state')).toHaveText('Pass');
+    await expect(page.locator('#checkMidiLatency .check-state')).toHaveText('Warn');
+    await expect(page.locator('#checkMidiLatency .check-detail')).toContainText('MIDI phase skipped');
     await expect(page.locator('#timingHistoryBody tr')).toHaveCount(1);
     await expect(page.locator('#timingHistoryBody tr').first()).toContainText('WARN');
     await expect(page.locator('#timingHistoryBody tr').first()).toContainText('logs unavailable');

@@ -859,7 +859,7 @@ test.describe('Show Run page', () => {
     const emulator = await page.context().newPage();
     await emulator.goto(new URL('dmx_midi_emulator.html?test=' + Date.now(), page.url()).href);
 
-    await expect(emulator.locator('header h1 .app-version')).toHaveText(/v0\.9\.9/);
+    await expect(emulator.locator('header h1 .app-version')).toHaveText(/v0\.9\.10/);
     await expect(emulator.locator('#connectionPill')).toContainText('Connected to Show Run');
     await expect(emulator.locator('[data-midi-cc]')).toHaveCount(32);
     await expect(emulator.locator('[data-midi-note]')).toHaveCount(24);

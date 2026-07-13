@@ -1067,6 +1067,12 @@ The **Free memory** check shows the firmware heap/stack gap. The **100 Hz headro
 
 Use **Buffer Readback** to write a known batch with `/dmx/b`, then compare the tested channels from both `/dmx/output.json` and `/dmx/base.json`.
 
+Use **MIDI-to-DMX Latency** to measure a controller event through the browser and Pico. Click **Find Pico**, then click **Connect MIDI** for USB hardware or open the visible **MIDI Emulator** when you want to perform a standalone manual test. Select whether the Show Run target behaves as a **Fader / knob (30 ms)** or an immediate **Button**, choose an unused DMX test channel and sample count, then start the measurement. For a manual test, move one control and pause until **Move again** appears for each sample. USB and emulator events use the same measurement handler after ingestion; the emulator substitutes a same-origin `BroadcastChannel` hop for the physical USB/driver hop.
+
+The primary result is **MIDI → POST**: time from the MIDI event until the browser starts the `/dmx/b` request to the Pico. This intentionally includes the 30 ms coalescing queue for faders and knobs. Fader/knob p95 is PASS at no more than 35 ms, WARN through 50 ms, and FAIL above 50 ms. An immediate button is PASS at no more than 5 ms, WARN through 15 ms, and FAIL above 15 ms. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and conservative confirmed-following-frame time are reported separately as diagnostics and do not determine the primary MIDI status. The page restores the original base value of the test channel when the measurement completes or is stopped. Do not use a channel currently controlled by playback, blackout, or a master.
+
+**Run Full Test** needs no manual MIDI movement when the emulator is used. If no MIDI input is connected, the Performance page loads the emulator invisibly inside itself, keeps browser focus on the Performance page, and commands it to generate every configured sample through the normal emulator message path. No extra tab opens. If a physical USB MIDI input is already connected, Full Test uses it and waits for you to move the hardware control. If neither source can connect, the other checks still finish and the MIDI result shows a warning. The dedicated **MIDI-to-DMX timing** card and Timing History store the MIDI-to-POST median and p95.
+
 Use **DMX Write Test** to compare:
 
 - Single-channel updates
@@ -1084,11 +1090,11 @@ The write-test result panel shows:
 - Jitter
 - Errors
 
-Use **Run Full Test** to run the Pico status/performance check, buffer readback, write test, and a final timing check in one sequence.
+Use **Run Full Test** to run the Pico status/performance check, buffer readback, write test, automatic emulated MIDI-to-DMX samples (or interactive physical USB samples), and a final timing check in one sequence.
 
 Use **Playback + Palette Stress** to stress playback without overwriting saved Pico slots. The page starts chaser/effect slots that are already loaded, adds temporary demo data only to slots that are currently empty, stores those temporary slot numbers in the server UI state, then sends repeated full 512-channel palette-style `/dmx/b` recalls while playback is running. When the run finishes, the page stops playback, clears only the temporary demo slots, and removes the temporary-slot marker from the server. If a browser session is interrupted, the next stress run first reads the marker and clears the previously recorded temporary slots.
 
-The **Timing History** table records each Pico timing check. A manual **Check Pico** adds one row immediately. **Run Full Test** and **Playback + Palette Stress** record a final timing sample, so the row reflects Core0/Core1 slack after the selected checks have run. The 100 Hz and Core1 columns use the same wording as the status cards, for example "Minimum 9419us left before missing the 10ms update budget".
+The **Timing History** table records each Pico timing check. A manual **Check Pico** adds one row immediately. **Run Full Test** and **Playback + Palette Stress** record a final timing sample, so the row reflects Core0/Core1 slack after the selected checks have run. Full Test also records the latest MIDI-to-POST median and p95 in the MIDI column. The 100 Hz and Core1 columns use the same wording as the status cards, for example "Minimum 9419us left before missing the 10ms update budget".
 
 Use **Export CSV** to save results for later comparison.
 
