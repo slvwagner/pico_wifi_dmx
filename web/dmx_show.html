@@ -639,6 +639,7 @@ let midiAccess=null;
 let midiInput=null;
 let midiOutput=null;
 let midiMappings=[];
+const midiPlaybackActionDrafts=new Map();
 let midiLearningTarget=null;
 let midiEditorTarget=null;
 let showTileMidiKind='';
@@ -1035,16 +1036,34 @@ function saveLiveControls(){
   saveShowUiStateValue('liveControls',liveControls);
 }
 function midiTargetKey(type,id){return String(type||'')+':'+String(id??'');}
+const MIDI_PLAYBACK_ACTIONS=[
+  {value:'toggle-run',label:'Start / Stop toggle'},
+  {value:'start',label:'Start'},
+  {value:'stop',label:'Stop'},
+  {value:'toggle-pause',label:'Pause / Resume toggle'},
+  {value:'pause',label:'Pause'},
+  {value:'resume',label:'Resume'}
+];
+function isMidiPlaybackTarget(type){return type==='chaser'||type==='motion';}
+function normalizeMidiPlaybackAction(value){return MIDI_PLAYBACK_ACTIONS.some(item=>item.value===value)?value:'toggle-run';}
+function midiPlaybackActionLabel(value){return MIDI_PLAYBACK_ACTIONS.find(item=>item.value===normalizeMidiPlaybackAction(value))?.label||'Start / Stop toggle';}
+function midiPlaybackActionFor(type,id){
+  if(!isMidiPlaybackTarget(type))return '';
+  const key=midiTargetKey(type,id);
+  return normalizeMidiPlaybackAction(midiMappingFor(type,id)?.action||midiPlaybackActionDrafts.get(key));
+}
 function normalizeMidiMapping(item){
   if(!item||!item.targetType||item.targetId===undefined||!['cc','note'].includes(item.messageType))return null;
   const channel=Math.max(1,Math.min(16,parseInt(item.channel,10)||1));
   const number=Math.max(0,Math.min(127,parseInt(item.number,10)||0));
-  return {
+  const normalized={
     targetType:String(item.targetType),targetId:String(item.targetId),
     messageType:item.messageType,channel,number,
     deviceId:String(item.deviceId||''),deviceName:String(item.deviceName||''),
     mode:item.mode==='continuous'?'continuous':'trigger',pickup:item.mode==='continuous'&&item.pickup!==false
   };
+  if(isMidiPlaybackTarget(normalized.targetType))normalized.action=normalizeMidiPlaybackAction(item.action);
+  return normalized;
 }
 function loadMidiMappings(){
   const source=savedValue('midiMappings');
@@ -1072,6 +1091,7 @@ function setMidiMapping(mapping){
 function clearMidiMapping(type,id){
   const key=midiTargetKey(type,id);
   midiMappings=midiMappings.filter(item=>midiTargetKey(item.targetType,item.targetId)!==key);
+  midiPlaybackActionDrafts.delete(key);
   midiPickupState.delete(key);
   saveMidiMappings();
 }
@@ -1926,7 +1946,8 @@ function midiTargetInfo(type,id){
 function midiMappingDescription(mapping){
   if(!mapping)return 'No MIDI control mapped.';
   const source=mapping.messageType==='cc'?'CC '+mapping.number:'Note '+mapping.number;
-  return source+' · Channel '+mapping.channel+(mapping.deviceName?' · '+mapping.deviceName:'');
+  const action=isMidiPlaybackTarget(mapping.targetType)?' · '+midiPlaybackActionLabel(mapping.action):'';
+  return source+' · Channel '+mapping.channel+(mapping.deviceName?' · '+mapping.deviceName:'')+action;
 }
 function midiTargetFromKey(key){
   const split=String(key||'').indexOf(':');
@@ -1936,11 +1957,14 @@ function midiMappingPanelHtml(target){
   const mapping=target&&midiMappingFor(target.type,target.targetId);
   const mapped=!!mapping;
   const pickup=mapping?.mode==='continuous'&&mapping.pickup!==false;
+  const playback=isMidiPlaybackTarget(target?.type);
+  const playbackAction=playback?midiPlaybackActionFor(target.type,target.targetId):'';
   return `<div class="midi-mapping-panel ${mapped?'mapped':''}" data-midi-mapping-panel="${esc(midiTargetKey(target?.type,target?.targetId))}">
     <div class="midi-mapping-summary"><strong>MIDI Mapping ${mapped?'<span class="midi-map-badge">Mapped</span>':''}</strong><span class="small">${esc(target?.label||'Unknown target')}</span><span class="small">${esc(midiMappingDescription(mapping))}</span></div>
+    ${playback?`<label>Playback action<select data-midi-playback-action>${MIDI_PLAYBACK_ACTIONS.map(item=>`<option value="${item.value}" ${item.value===playbackAction?'selected':''}>${esc(item.label)}</option>`).join('')}</select></label>`:''}
     ${mapping?.mode==='continuous'?`<label><span><input type="checkbox" data-midi-pickup ${pickup?'checked':''}> Soft takeover</span></label>`:''}
     <div class="midi-mapping-actions"><button type="button" class="midi-learn-btn ${midiLearningTarget===midiTargetKey(target?.type,target?.targetId)?'active':''}" data-midi-learn>${midiLearningTarget===midiTargetKey(target?.type,target?.targetId)?'Move a control...':'Learn'}</button><button type="button" data-midi-clear ${mapped?'':'disabled'}>Clear mapping</button></div>
-    <div class="small">${target?.mode==='continuous'?'Move a knob or fader. Values are scaled from MIDI 0–127.':'Press the hardware button that should trigger this action.'}</div>
+    <div class="small">${target?.mode==='continuous'?'Move a knob or fader. Values are scaled from MIDI 0–127.':playback?'Press the hardware button that should run the selected playback action.':'Press the hardware button that should trigger this action.'}</div>
   </div>`;
 }
 function bindMidiMappingPanel(host,target){
@@ -1958,6 +1982,17 @@ function bindMidiMappingPanel(host,target){
     renderMidiMappingPanel(host,target);
     updateMidiMappingIndicators();
     setStatus('Cleared MIDI mapping for '+target.label);
+  };
+  const playbackAction=host.querySelector('[data-midi-playback-action]');
+  if(playbackAction)playbackAction.onchange=()=>{
+    const action=normalizeMidiPlaybackAction(playbackAction.value);
+    const key=midiTargetKey(target.type,target.targetId);
+    const mapping=midiMappingFor(target.type,target.targetId);
+    if(mapping){mapping.action=action;saveMidiMappings();}
+    else midiPlaybackActionDrafts.set(key,action);
+    renderMidiMappingPanel(host,target);
+    updateMidiMappingIndicators();
+    setStatus(target.label+' MIDI action set to '+midiPlaybackActionLabel(action));
   };
   const pickup=host.querySelector('[data-midi-pickup]');
   if(pickup)pickup.onchange=()=>{
@@ -2205,16 +2240,26 @@ function queueMidiContinuous(mapping,value){
   },30);
   midiContinuousQueue.set(key,queued);
 }
+function runMidiPlaybackAction(mapping){
+  const type=mapping.targetType;
+  const slot=parseInt(mapping.targetId,10);
+  const action=normalizeMidiPlaybackAction(mapping.action);
+  if(action==='start')return startPicoSlot(type,slot);
+  if(action==='stop')return stopPicoSlot(type,slot);
+  if(action==='toggle-pause')return togglePlaybackPauseResume(type,slot);
+  if(action==='pause')return type==='chaser'?pauseChaserSlot(slot):pauseMotionSlot(slot);
+  if(action==='resume')return type==='chaser'?resumeChaserSlot(slot):resumeMotionSlot(slot);
+  const item=playbackSlotsForType(type)[slot];
+  return (item?.active||item?.paused)?stopPicoSlot(type,slot):startPicoSlot(type,slot);
+}
 function triggerMidiTarget(mapping,pressed,released){
   if(mapping.targetType==='group'&&pressed){
     const id=String(mapping.targetId);selectedGroupIds.has(id)?selectedGroupIds.delete(id):selectedGroupIds.add(id);syncFixtureSelectionFromGroups();renderGroups();renderFixtures();renderPlanes();return;
   }
   if(mapping.targetType==='scene'&&pressed){recallSceneKey(mapping.targetId);return;}
   if(mapping.targetType==='palette'&&pressed){recallPaletteKey(mapping.targetId);return;}
-  if((mapping.targetType==='chaser'||mapping.targetType==='motion')&&pressed){
-    const type=mapping.targetType,slot=parseInt(mapping.targetId,10),item=playbackSlotsForType(type)[slot];
-    const action=(item?.active||item?.paused)?stopPicoSlot(type,slot):startPicoSlot(type,slot);
-    action.catch(err=>setStatus(err.message,true));return;
+  if(isMidiPlaybackTarget(mapping.targetType)&&pressed){
+    runMidiPlaybackAction(mapping).catch(err=>setStatus(err.message,true));return;
   }
   if(mapping.targetType==='live'){
     const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
@@ -2240,7 +2285,8 @@ function handleComputerMidiMessage(message){
     const target=midiTargetFromKey(midiLearningTarget);
     const info=target&&midiTargetInfo(target.type,target.targetId);
     if(info){
-      setMidiMapping({targetType:info.type,targetId:info.targetId,messageType:event.messageType,channel:event.channel,number:event.number,deviceId:source.id,deviceName:source.name,mode:info.mode,pickup:info.mode==='continuous'});
+      setMidiMapping({targetType:info.type,targetId:info.targetId,messageType:event.messageType,channel:event.channel,number:event.number,deviceId:source.id,deviceName:source.name,mode:info.mode,pickup:info.mode==='continuous',action:isMidiPlaybackTarget(info.type)?midiPlaybackActionFor(info.type,info.targetId):undefined});
+      midiPlaybackActionDrafts.delete(midiTargetKey(info.type,info.targetId));
       const learned=midiMappingFor(info.type,info.targetId);
       if(learned?.mode==='continuous')midiPickupAllows(learned,event.value);
       midiLearningTarget=null;

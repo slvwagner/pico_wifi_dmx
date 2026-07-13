@@ -269,7 +269,8 @@ test.describe('Project versioning rules', () => {
                 paletteOrder: ['palette_1', null],
                 midiMappings: [
                   { targetType: 'scene', targetId: 'scene_1', messageType: 'note', channel: 1, number: 41, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false },
-                  { targetType: 'live', targetId: 'live_restore', messageType: 'cc', channel: 1, number: 77, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'continuous', pickup: true }
+                  { targetType: 'live', targetId: 'live_restore', messageType: 'cc', channel: 1, number: 77, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'continuous', pickup: true },
+                  { targetType: 'motion', targetId: '2', messageType: 'note', channel: 1, number: 42, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false, action: 'toggle-pause' }
                 ]
               }
             }
@@ -329,7 +330,8 @@ test.describe('Project versioning rules', () => {
       paletteOrder: ['palette_1', null],
       midiMappings: [
         { targetType: 'scene', targetId: 'scene_1', messageType: 'note', channel: 1, number: 41, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false },
-        { targetType: 'live', targetId: 'live_restore', messageType: 'cc', channel: 1, number: 77, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'continuous', pickup: true }
+        { targetType: 'live', targetId: 'live_restore', messageType: 'cc', channel: 1, number: 77, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'continuous', pickup: true },
+        { targetType: 'motion', targetId: '2', messageType: 'note', channel: 1, number: 42, deviceId: 'launch-control-xl-in', deviceName: 'Launch Control XL', mode: 'trigger', pickup: false, action: 'toggle-pause' }
       ]
     });
     expect(result.importedShowRun).toMatchObject(result.exportedShowRun);

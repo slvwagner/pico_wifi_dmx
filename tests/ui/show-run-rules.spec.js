@@ -806,6 +806,59 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#midiMappingTitle')).toContainText('Pico Chaser');
   });
 
+  test('learns selectable pause and resume MIDI actions for Pico chaser and effects tiles', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await installFakeComputerMidi(page);
+    await openDmxPage(page, 'dmx_show.html');
+
+    expect(await page.evaluate(() => normalizeMidiMapping({
+      targetType: 'chaser', targetId: '0', messageType: 'note', channel: 1, number: 40, mode: 'trigger'
+    }).action)).toBe('toggle-run');
+
+    await page.locator('[data-midi-connect]').click();
+    await page.locator('#editLayoutBtn').click();
+    for (const target of [
+      { type: 'chaser', container: '#chaserSlots', note: 41 },
+      { type: 'motion', container: '#motionSlots', note: 42 }
+    ]) {
+      await page.locator(`${target.container} [data-midi-edit-target="${target.type}:0"]`).click();
+      const actionSelect = page.locator('#midiMappingModalBody [data-midi-playback-action]');
+      await expect(actionSelect.locator('option')).toHaveCount(6);
+      await expect(actionSelect).toHaveValue('toggle-run');
+      await actionSelect.selectOption('toggle-pause');
+      await page.locator('#midiMappingModalBody [data-midi-learn]').click();
+      await page.evaluate(note => window.__emitComputerMidi([0x90, note, 127]), target.note);
+      await expect(page.locator('#midiMappingModalBody')).toContainText('Pause / Resume toggle');
+      await page.locator('#midiMappingClose2').click();
+    }
+    await page.locator('#editLayoutBtn').click();
+
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.midiMappings') || '[]'))).toEqual(expect.arrayContaining([
+      expect.objectContaining({ targetType: 'chaser', targetId: '0', number: 41, action: 'toggle-pause' }),
+      expect.objectContaining({ targetType: 'motion', targetId: '0', number: 42, action: 'toggle-pause' })
+    ]));
+    await expect.poll(() => {
+      const post = [...calls.uiStatePosts].reverse().find(item => Array.isArray(item.state?.midiMappings));
+      return post?.state?.midiMappings;
+    }).toEqual(expect.arrayContaining([
+      expect.objectContaining({ targetType: 'chaser', targetId: '0', action: 'toggle-pause' }),
+      expect.objectContaining({ targetType: 'motion', targetId: '0', action: 'toggle-pause' })
+    ]));
+
+    for (const target of [
+      { type: 'chaser', note: 41 },
+      { type: 'motion', note: 42 }
+    ]) {
+      await page.evaluate(note => window.__emitComputerMidi([0x80, note, 0]), target.note);
+      await page.evaluate(note => window.__emitComputerMidi([0x90, note, 127]), target.note);
+      await expect.poll(() => calls.pico.some(call => call.url === `http://pico.test/${target.type}/pause/0`)).toBe(true);
+      await page.evaluate(note => window.__emitComputerMidi([0x80, note, 0]), target.note);
+      await page.evaluate(note => window.__emitComputerMidi([0x90, note, 127]), target.note);
+      await expect.poll(() => calls.pico.some(call => call.url === `http://pico.test/${target.type}/resume/0`)).toBe(true);
+    }
+  });
+
   test('lets the operator add a MIDI Controller card through Show Run card management', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);

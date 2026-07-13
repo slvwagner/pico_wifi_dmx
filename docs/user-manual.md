@@ -526,13 +526,13 @@ The modal uses the current Show target. Select Groups or Fixtures first when onl
 
 The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a slot, set speed, play, pause/resume, set speed, or stop.
 
-In **Edit** mode, each loaded chaser tile has a pencil that opens its MIDI mapping editor. A mapped button toggles that slot between start and stop.
+In **Edit** mode, each loaded chaser tile has a pencil that opens its MIDI mapping editor. Choose the button's **Playback action** before learning it: start/stop toggle, start, stop, pause/resume toggle, pause, or resume.
 
 ![Show Run Pico Chaser Playback card](screenshots/show-run-card-chaser.png)
 
 The **Pico Effects Playback** card shows effect slots uploaded from the Effects page. Choose a slot, set **BPM**, then start, set BPM, or stop the slot. Starting a mirrored slot reloads its payload before running it; starting a live-only Pico slot starts the already-loaded Pico slot without overwriting it.
 
-Loaded effect tiles have the same MIDI edit pencil. A mapped button toggles the effect slot between start and stop.
+Loaded effect tiles have the same MIDI edit pencil and playback-action choices, including dedicated pause and resume buttons or one pause/resume toggle.
 
 ![Show Run Pico Effects Playback card](screenshots/show-run-card-effects.png)
 
@@ -549,7 +549,7 @@ To learn with the emulator, enter **Edit** on Show Run, open a supported pencil,
 
 Open Show Run through `http://localhost/dmx/` on the XAMPP computer. Web MIDI requires a supported browser and a secure context; localhost qualifies for this local workflow. The browser asks for hardware MIDI access only after **Connect MIDI** is clicked. The emulator does not need Web MIDI permission.
 
-MIDI mappings are edited only while **Edit** is active. Use the pencil on a supported tile or control, click **Learn**, then move a knob/fader or press a button. The first version supports Groups, Scenes, Palettes, Pico Chaser Playback, Pico Effects Playback, Grand Master, Group Masters, and Live Controls. Other Show cards remain unmapped until their desired behaviour is defined.
+MIDI mappings are edited only while **Edit** is active. Use the pencil on a supported tile or control, choose a playback action when editing a Pico Chaser or Effects tile, click **Learn**, then move a knob/fader or press a button. The first version supports Groups, Scenes, Palettes, Pico Chaser Playback, Pico Effects Playback, Grand Master, Group Masters, and Live Controls. Other Show cards remain unmapped until their desired behaviour is defined.
 
 Button mappings trigger on the press edge, so the release message does not repeat the action. Faders and knobs scale MIDI `0..127` to the complete target range. **Soft takeover** is enabled by default: if the physical control and Show value differ, output waits until the physical control reaches or crosses the current value. Continuous messages are coalesced before they use the normal Show/Pico output path.
 
