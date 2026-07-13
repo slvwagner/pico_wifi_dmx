@@ -39,6 +39,7 @@ Changed:
 
 Fixed:
 
+- Enforced one full-range scaling path for continuous MIDI mappings, converting controller values `0..127` across the complete master, 8-bit DMX, or 16-bit DMX target range and using the inverse conversion for soft takeover.
 - Anchored the Show Run Pico Chaser and Pico Effects MIDI edit pencils to their individual playback tiles, matching the existing tile-edit visual language while keeping each mapping tied to its own playback slot.
 - Isolated Pico HTTP POST bodies and generated responses per connection so overlapping polling, control, and slot-upload requests cannot corrupt one another.
 - Made Chaser, Effects, and UI-state JSON read-modify-write saves hold one exclusive transaction lock, preventing simultaneous browser saves from losing updates.

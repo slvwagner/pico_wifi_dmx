@@ -2115,16 +2115,28 @@ function midiMappingMatches(mapping,event,source){
   const mappedName=family(mapping.deviceName),sourceName=family(source?.name);
   return !!mappedName&&!!sourceName&&(mappedName===sourceName||mappedName.includes(sourceName)||sourceName.includes(mappedName));
 }
+function scaleMidi7Bit(value,min,max){
+  const midi=clamp(value,0,127);
+  const low=Number.isFinite(Number(min))?Number(min):0;
+  const high=Number.isFinite(Number(max))?Number(max):low;
+  return Math.round(low+(midi/127)*(high-low));
+}
+function targetValueToMidi7Bit(value,min,max){
+  const low=Number.isFinite(Number(min))?Number(min):0;
+  const high=Number.isFinite(Number(max))?Number(max):low;
+  if(high===low)return 0;
+  return clamp(Math.round(((Number(value)-low)/(high-low))*127),0,127);
+}
 function midiContinuousTarget(mapping){
   if(mapping.targetType==='master'){
-    if(mapping.targetId==='all')return {current:masterFactors.grand*100,max:100};
+    if(mapping.targetId==='all')return {current:masterFactors.grand*100,min:0,max:100};
     const master=targetMasters.find(row=>String(row.id)===String(mapping.targetId));
-    return master?{current:master.factor*100,max:100}:null;
+    return master?{current:master.factor*100,min:0,max:100}:null;
   }
   if(mapping.targetType==='live'){
     const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
     const target=item&&liveControlTarget(item);
-    return target?{current:liveControlCurrentValue(item),max:target.part.max}:null;
+    return target?{current:liveControlCurrentValue(item),min:0,max:target.part.max}:null;
   }
   return null;
 }
@@ -2135,7 +2147,7 @@ function midiPickupAllows(mapping,value){
   const key=midiTargetKey(mapping.targetType,mapping.targetId);
   const state=midiPickupState.get(key)||{active:false,last:null};
   if(state.active)return true;
-  const targetMidi=Math.round((target.current/Math.max(1,target.max))*127);
+  const targetMidi=targetValueToMidi7Bit(target.current,target.min,target.max);
   const crossed=state.last!==null&&((state.last<=targetMidi&&value>=targetMidi)||(state.last>=targetMidi&&value<=targetMidi));
   state.active=Math.abs(value-targetMidi)<=2||crossed;
   state.last=value;
@@ -2150,19 +2162,18 @@ function refreshMidiLiveControl(item){
   document.querySelectorAll(`[data-live-index="${index}"]`).forEach(input=>{input.value=String(value);updateLiveWidgetReadout(input);});
 }
 async function applyMidiContinuous(mapping,value){
-  const scaled=Math.max(0,Math.min(127,Number(value)||0));
   if(mapping.targetType==='master'){
     if(mapping.targetId==='all'){
-      const next=Math.round((scaled/127)*100);setMasterFaderDisplay('all',next);await applyDimmerMaster(next,'all');return;
+      const next=scaleMidi7Bit(value,0,100);setMasterFaderDisplay('all',next);await applyDimmerMaster(next,'all');return;
     }
     const index=targetMasters.findIndex(row=>String(row.id)===String(mapping.targetId));
-    if(index>=0){const next=Math.round((scaled/127)*100);setMasterFaderDisplay('target:'+index,next);await applyDimmerMaster(next,'target:'+index);}
+    if(index>=0){const next=scaleMidi7Bit(value,0,100);setMasterFaderDisplay('target:'+index,next);await applyDimmerMaster(next,'target:'+index);}
     return;
   }
   if(mapping.targetType==='live'){
     const item=liveControls.find(row=>String(row.id)===String(mapping.targetId));
     const target=item&&liveControlTarget(item);
-    if(item&&target){await applyLiveControl(item,Math.round((scaled/127)*target.part.max));refreshMidiLiveControl(item);}
+    if(item&&target){await applyLiveControl(item,scaleMidi7Bit(value,0,target.part.max));refreshMidiLiveControl(item);}
   }
 }
 function queueMidiContinuous(mapping,value){

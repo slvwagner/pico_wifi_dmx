@@ -674,6 +674,16 @@ test.describe('Show Run page', () => {
 
     await expect.poll(() => calls.liveValues.at(-1)?.['101:11']).toBe(255);
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:255')).toBe(true);
+    await page.evaluate(() => window.__emitComputerMidi([0xB0, 77, 64]));
+    await expect.poll(() => calls.liveValues.at(-1)?.['101:11']).toBe(129);
+    expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '1:129')).toBe(true);
+    expect(await page.evaluate(() => [
+      scaleMidi7Bit(0, 0, 255),
+      scaleMidi7Bit(64, 0, 255),
+      scaleMidi7Bit(127, 0, 255),
+      scaleMidi7Bit(127, 0, 100),
+      scaleMidi7Bit(127, 0, 65535)
+    ])).toEqual([0, 129, 255, 100, 65535]);
   });
 
   test('learns and runs a scene mapping from the separate MIDI emulator page', async ({ page }) => {
