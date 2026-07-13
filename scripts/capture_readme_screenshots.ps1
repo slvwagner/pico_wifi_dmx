@@ -533,7 +533,7 @@ try {
   if(name)name.value='Warm beam';
 })()
 "@
-    Save-ElementScreenshot "#paletteVisualModal .modal" "fixture-controller-edit-tile.png"
+    Save-ElementScreenshot "#paletteVisualModal .modal-card" "fixture-controller-edit-tile.png"
     Eval-Js "document.getElementById('paletteVisualClose2')?.click();"
 
     Eval-Js @"
@@ -794,7 +794,7 @@ try {
   await wait(300);
 })()
 "@
-    Save-ElementScreenshot "#addCardModal .modal" "show-run-add-card.png"
+    Save-ElementScreenshot "#addCardModal .modal-card" "show-run-add-card.png"
 
     Eval-Js @"
 (async()=>{
@@ -816,7 +816,7 @@ try {
   await wait(600);
 })()
 "@
-    Save-ElementScreenshot "#showPlaneModal .modal" "show-run-plane-modal.png"
+    Save-ElementScreenshot "#showPlaneModal .modal-card" "show-run-plane-modal.png"
 
     Eval-Js @"
 (async()=>{
@@ -1282,7 +1282,7 @@ try {
   if(name)name.value='Slow circle';
 })()
 "@
-    Save-ElementScreenshot "#motionEffectVisualModal .modal" "motion-edit-tile.png"
+    Save-ElementScreenshot "#motionEffectVisualModal .modal-card" "motion-edit-tile.png"
 }
 finally {
     if ($socket) { $socket.Dispose() }
