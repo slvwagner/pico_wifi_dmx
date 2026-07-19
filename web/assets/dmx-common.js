@@ -993,6 +993,18 @@
     return !!rail?.classList.contains('toolbox-reorder-editing');
   }
 
+  function setToolboxTileLayoutControlsVisible(rail,visible){
+    if(!rail)return;
+    const active=!!visible;
+    if(!active){
+      rail.querySelectorAll('.tile-layout-controls .tile-move-btn.active,.tile-layout-controls .tile-move-btn[aria-pressed="true"]').forEach(button=>button.click());
+    }
+    rail.querySelectorAll('.tile-layout-controls').forEach(controls=>{
+      controls.hidden=!active;
+      controls.style.display=active?'':'none';
+    });
+  }
+
   function setToolboxRailEditing(rail,editing){
     if(!rail)return;
     const active=!!editing;
@@ -1008,6 +1020,7 @@
     rail.querySelectorAll('.scene-toolbox__header[data-toolbox-drag-handle="1"]').forEach(header=>{
       header.title=active?'Drag to reorder toolbox':'Enable Toolboxes Edit to reorder';
     });
+    setToolboxTileLayoutControlsVisible(rail,active);
   }
 
   function initToolboxRailHeader(rail){
@@ -1131,6 +1144,7 @@
       rail.appendChild(box);
     });
     rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(configureToolboxRailDragHandle);
+    setToolboxTileLayoutControlsVisible(rail,toolboxRailEditing(rail));
     applySharedToolboxOrder(rail).catch(()=>{});
     if(rail.dataset.toolboxRailInit==='1')return {
       applyOrder:()=>applySharedToolboxOrder(rail),
@@ -1565,6 +1579,8 @@
     el.innerHTML=`<label class="tile-layout-field">Cols<input id="${escapeHtml(colsId)}" type="number" min="${minCols}" max="${maxCols}" value="${cols}" aria-label="Tile columns"></label>`+
       `<label class="tile-layout-field">Rows<input id="${escapeHtml(rowsId)}" type="number" min="${minRows}" max="${maxRows}" value="${rows}" aria-label="Tile rows"></label>`+
       (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}">Move</button>`:'');
+    const rail=el.closest('.toolbox-rail');
+    if(rail)setToolboxTileLayoutControlsVisible(rail,toolboxRailEditing(rail));
     return{host:el,cols:document.getElementById(colsId),rows:document.getElementById(rowsId),move:moveId?document.getElementById(moveId):null};
   }
 

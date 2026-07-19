@@ -194,6 +194,7 @@ test.describe('Effects established rules', () => {
       motionPlanesMatrix.render();
     });
 
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#motionGroupsMove')).toBeVisible();
     await expect(page.locator('#motionGroupsRename')).toHaveCount(0);
     await expect(page.locator('#motionGroupsDelete')).toHaveCount(0);

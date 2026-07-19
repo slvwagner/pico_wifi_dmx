@@ -282,6 +282,7 @@ test.describe('Room Plane rules', () => {
     });
 
     await openDmxPage(page, 'dmx_room_plane.html');
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#planeCols')).toHaveValue('2');
     await expect(page.locator('#planeRows')).toHaveValue('2');
     const colBox = await page.locator('#planeCols').boundingBox();

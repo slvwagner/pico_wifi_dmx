@@ -16,6 +16,7 @@ test.describe('Toolbox visual tile rules', () => {
 
     for (const entry of pages) {
       await openDmxPage(page, entry.path);
+      await page.locator('.toolbox-rail .toolbox-rail-edit').click();
       const sample = await page.locator(entry.host).evaluate(host => {
         const label = host.querySelector('.tile-layout-field');
         const input = label.querySelector('input');
@@ -53,6 +54,29 @@ test.describe('Toolbox visual tile rules', () => {
       expect(sample.moveHeight).toBe('30px');
       expect(sample.labels).toEqual(['Cols', 'Rows']);
       expect(sample.inputCount).toBe(2);
+    }
+  });
+
+  test('toolbox tile layout controls are only available while Toolboxes Edit is active', async ({ page }) => {
+    for (const path of ['', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_room_plane.html']) {
+      await openDmxPage(page, path);
+      const controls = page.locator('.toolbox-rail .tile-layout-controls');
+      expect(await controls.count()).toBeGreaterThan(0);
+      await expect(controls.first()).toBeHidden();
+
+      const edit = page.locator('.toolbox-rail .toolbox-rail-edit');
+      await edit.click();
+      await expect(edit).toHaveText('Done');
+      await expect(controls.first()).toBeVisible();
+
+      const move = controls.locator('.tile-move-btn').first();
+      await move.click();
+      await expect(move).toHaveClass(/active/);
+
+      await edit.click();
+      await expect(edit).toHaveText('Edit');
+      await expect(controls.first()).toBeHidden();
+      await expect(move).not.toHaveClass(/active/);
     }
   });
 

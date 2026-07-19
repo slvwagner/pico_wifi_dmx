@@ -115,6 +115,7 @@ test.describe('Chaser established rules', () => {
       chaserPlanesMatrix.render();
     });
 
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#chaserGroupsMove')).toBeVisible();
     await expect(page.locator('#chaserGroupsRename')).toHaveCount(0);
     await expect(page.locator('#chaserGroupsDelete')).toHaveCount(0);
@@ -162,6 +163,7 @@ test.describe('Chaser established rules', () => {
 
   test('Scenes toolbox matches Controller tiles and recalls a complete scene into the selected step', async ({ page }) => {
     await expect(page.locator('#chaserSceneBox')).toBeVisible();
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#chaserSceneLayoutControls')).toBeVisible();
     await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
 

@@ -742,6 +742,7 @@ test.describe('Fixture Controller established rules', () => {
       renderControllerPlanes();
     });
 
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#controllerPlaneCols')).toBeVisible();
     await expect(page.locator('#controllerPlaneRows')).toBeVisible();
     await expect(page.locator('#moveControllerPlanesBtn')).toBeVisible();
@@ -822,6 +823,8 @@ test.describe('Fixture Controller established rules', () => {
       savedGroups = [{ id: 'grp_test', name: 'Front Wash', fixtureIds: [101, 102], values: {} }];
       renderSavedGroupsList();
     });
+
+    await page.locator('.toolbox-rail-edit').click();
 
     const layout = await page.evaluate(() => {
       const toolbar = document.querySelector('#groupsBox .groups-toolbar').getBoundingClientRect();
