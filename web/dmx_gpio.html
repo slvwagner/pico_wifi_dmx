@@ -57,8 +57,6 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
     <button id="addAdcMapping" class="primary">Add ADC speed/BPM</button>
     <button id="pushConfig">Push to Pico</button>
     <button id="pullConfig">Read from Pico</button>
-    <button id="saveLocal">Save local</button>
-    <button id="clearLocal" class="danger">Clear local</button>
   </div>
   <div id="mappingList" class="grid"></div>
 </section>
@@ -443,7 +441,6 @@ document.getElementById('addAdcMapping').onclick=()=>{
 };
 document.getElementById('pushConfig').onclick=pushConfig;
 document.getElementById('pullConfig').onclick=pullConfig;
-document.getElementById('saveLocal').onclick=()=>{saveLocal();render();};
 if(document.getElementById('exportConfig'))document.getElementById('exportConfig').onclick=exportGPIOConfig;
 if(document.getElementById('importConfig'))document.getElementById('importConfig').onclick=()=>document.getElementById('importConfigFile')?.click();
 if(document.getElementById('importConfigFile'))document.getElementById('importConfigFile').addEventListener('change',e=>{
@@ -451,7 +448,6 @@ if(document.getElementById('importConfigFile'))document.getElementById('importCo
   e.target.value='';
   if(file)importGPIOConfig(file);
 });
-document.getElementById('clearLocal').onclick=()=>{if(confirm('Clear local GPIO mappings?')){mappings=[];saveLocal();render();}};
 document.getElementById('gpioEnabled').addEventListener('change',render);
 document.getElementById('gpioEnabled').addEventListener('change',autosaveSetup);
 document.getElementById('mappingList').addEventListener('change',e=>{

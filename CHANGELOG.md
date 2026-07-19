@@ -12,6 +12,7 @@ Changed:
 - Simplified tile-based toolboxes by showing touch-friendly **Cols** and **Rows** dropdowns only while Toolboxes **Edit** is active and enabling tile movement automatically in Edit mode, removing the separate Move buttons.
 - Kept the Toolboxes **Edit** and sidebar collapse controls visible in a sticky header while scrolling through toolbox tiles.
 - Added recall-only **Scenes** and **Palettes** toolboxes to Room Plane. They use the shared tile layouts and send the stored fixture values to DMX so complete looks or partial palettes can be previewed while calibrating the room plane.
+- Removed the redundant GPIO **Save local** and misleading **Clear local** buttons. GPIO edits continue to autosave to browser storage and the XAMPP server, while **Push to Pico** and **Read from Pico** remain explicit actions.
 
 Fixed:
 
