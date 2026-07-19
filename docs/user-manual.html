@@ -273,7 +273,7 @@ strong { color: #ffffff; }
 <p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, <strong>Move</strong> reorders tiles, and the small top-left pencil icon opens <strong>Edit Tile</strong> for that slot&#39;s name, background, and optional drawing/upload.</p>
 <p><img src="screenshots/fixture-controller-toolbox-palettes.png" alt="Controller Palettes toolbox"></p>
 <p><strong>Palettes</strong> stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched. <strong>Move</strong> reorders palette tiles without recalling them.</p>
-<p><strong>Planes</strong> recalls room planes saved on the Room Plane page. Clicking a filled Plane tile opens the virtual room target modal and immediately recalls the Plane&#39;s fixture scope: every fixture saved in the Plane that still exists in the current Controller patch becomes selected, while an unrelated saved-group selection is cleared. Fixtures saved in the Plane but no longer patched are ignored. The modal applies the saved target&#39;s calibrated Pan/Tilt values to that recalled selection and sends them live when a Pico base URL is configured. Drag or click the red target, or use the X/Y coarse and fine nudge controls, to keep updating those fixtures. Closing the modal does not change the saved Plane definition.</p>
+<p><strong>Planes</strong> recalls room planes saved on the Room Plane page. Clicking a filled Plane tile opens the virtual room target modal and immediately recalls the Plane&#39;s fixture scope: every fixture saved in the Plane that still exists in the current Controller patch becomes selected, while an unrelated saved-group selection is cleared. Fixtures saved in the Plane but no longer patched are ignored. The modal applies the saved target&#39;s calibrated Pan/Tilt values to that recalled selection and sends them live when a Pico base URL is configured. Drag or click the red target, use the X/Y coarse and fine nudge controls, or pinch with two fingers to zoom the plot without moving the target. Closing the modal does not change the saved Plane definition.</p>
 <p>Toolboxes <strong>Edit</strong> automatically enables tile movement in Groups, Scenes, Palettes, and Planes while showing their <strong>Cols</strong> and <strong>Rows</strong> layout dropdowns. Tap either dropdown to choose the matrix size with the native iPad picker. Drag a filled tile to a new position. While dragging, the source tile gets the same accent outline used when moving toolboxes, and the target position shows an accent insertion line. On touch screens, tap the filled source tile and then tap the destination. Dropping onto an empty slot moves the tile there; dropping onto another filled tile swaps the two slots. Click <strong>Done</strong> to return the tiles to their normal recall/use behavior. Groups use the same tile-slot behavior as Scenes and Palettes; the fixture order stored inside a group is not changed by moving the group tile.</p>
 <p><img src="screenshots/fixture-controller-toolbox-fanout.png" alt="Controller Fan Out toolbox"></p>
 <p><strong>Fan Out</strong> shapes the currently selected fixtures or groups by spreading one compatible control through the selected order. It is documented in more detail below because its output can be saved as scenes or palettes.</p>
@@ -449,6 +449,26 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p><img src="screenshots/show-run.png" alt="Show Run"></p>
 <p>Open it from the <strong>Show</strong> navigation link or directly:</p>
 <pre><code>http://localhost/dmx/dmx_show.html</code></pre>
+<p>On supported PC and iPad browsers, use <strong>Full Screen</strong> in the sticky header to give the operator controls the maximum available screen area. The same button changes to <strong>Exit Full Screen</strong> while active. Browsers require this action to start from a direct click or tap. The button is hidden when the browser does not provide a page fullscreen API; you can still use an installed Home Screen web app or the browser&#39;s own display controls in that case.</p>
+<h3 id="run-show-run-as-an-ipad-web-app">Run Show Run as an iPad web app</h3>
+<p>The iPad Fullscreen API displays a system message and allows a downward swipe to exit fullscreen. For show operation without that fullscreen prompt, install the Show Run page on the iPad Home Screen and open it as a web app:</p>
+<ol>
+<li>Open <strong>Safari</strong> on the iPad and load the Show Run page, for example <code>http://192.168.0.12/dmx/dmx_show.html</code>.</li>
+<li>Tap <strong>Share</strong>, tap <strong>More</strong> if necessary, then tap <strong>Add to Home Screen</strong>.</li>
+<li>Enable <strong>Open as Web App</strong>.</li>
+<li>Tap <strong>Add</strong>.</li>
+<li>Return to the Home Screen and open Show Run using the new icon instead of opening it from a Safari tab.</li>
+</ol>
+<p>The Home Screen version uses an app-like window without Safari&#39;s normal toolbar. Do not tap the page&#39;s <strong>Full Screen</strong> button in this mode; the installed web-app window is the intended iPad display mode and does not need the browser Fullscreen API.</p>
+<p>If you prefer the Home Screen app to open on the Fixture Controller, open <code>http://192.168.0.12/dmx/</code> before using <strong>Add to Home Screen</strong>. The installed app is named <strong>DMX Controller</strong> and uses the blue XAMPP icon; open <strong>Show</strong> from its navigation when you are ready to operate the show. If an older Home Screen icon still says <strong>DMX Fixture Controller Prototype</strong> or shows a page-preview tile, remove that icon and add the Controller page again so iPadOS reads the new name and icon metadata.</p>
+<p>To prevent an operator from accidentally leaving the Show Run web app, you can additionally use iPad <strong>Guided Access</strong>:</p>
+<ol>
+<li>Open <strong>Settings &gt; Accessibility &gt; Guided Access</strong>, turn it on, and configure <strong>Passcode Settings</strong>.</li>
+<li>Open Show Run from its Home Screen icon.</li>
+<li>Triple-click the iPad top button, or the Home button on an older iPad, and select <strong>Guided Access</strong> if the accessibility menu appears.</li>
+<li>Review the session settings and tap <strong>Start</strong>.</li>
+<li>To leave later, triple-click the same button, authenticate with the Guided Access passcode, Face ID, or Touch ID, then tap <strong>End</strong>.</li>
+</ol>
 <p>Show Run loads the current XAMPP show data:</p>
 <ul>
 <li>Fixture profiles and patched fixtures from <code>fixture_setup.php</code></li>
@@ -932,7 +952,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Move the red target in the virtual room plane. The selected fixtures update automatically.</li>
 <li>In the <strong>Planes</strong> toolbox, click an empty tile to save the current plane definition and fixture calibration.</li>
 </ol>
-<p>The target can be moved by dragging the red dot, by clicking in the plane, or by using the coarse/fine target nudge buttons below the plot. The view itself can be zoomed with the zoom buttons or mouse wheel. Use <strong>Pan view</strong> when you want to drag the coordinate view instead of the target.</p>
+<p>The target can be moved by dragging the red dot, by clicking in the plane, or by using the coarse/fine target nudge buttons below the plot. The view itself can be zoomed with the zoom buttons, mouse wheel, or a two-finger pinch on a touch screen. Pinch zoom is also available in the Controller and Show Run room-plane modals and does not move the live target when the gesture begins. Use <strong>Pan view</strong> when you want to drag the coordinate view instead of the target.</p>
 <h3 id="10-2-room-plane-toolbox">10.2 Room Plane Toolbox</h3>
 <p><img src="screenshots/room-plane-toolbox-plane.png" alt="Room Plane Toolbox"></p>
 <p>The <strong>Room Plane</strong> toolbox contains the measured A/B/C points and the current target controls.</p>

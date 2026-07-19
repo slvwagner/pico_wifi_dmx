@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Room Plane</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.11-4">
-<script src="assets/dmx-common.js?v=0.9.11-5"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.12-8">
+<script src="assets/dmx-common.js?v=0.9.12-8"></script>
 <style>
 body{min-height:100vh}
 .room-titlebar{padding:10px 14px;background:var(--bg);display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
@@ -96,11 +96,11 @@ canvas{display:none}
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.11">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.12">GPIO</a>
     <a class="nav" href="dmx_monitor.html">Monitor</a>
     <a class="nav" href="test/">Performance</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.11#10-room-plane" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.12#10-room-plane" target="_blank">Manual</a>
   </div>
   </div>
 </header>
@@ -1988,7 +1988,30 @@ document.getElementById('loadPatchedFixtures').onclick=()=>loadPatchedMovingLigh
 let fixtureDrag=null;
 let targetDrag=null;
 let viewPanDrag=null;
-document.getElementById('planePad').addEventListener('pointerdown',event=>{
+const planePad=document.getElementById('planePad');
+let planePinchSnapshot=null;
+DmxCommon.initPinchZoom(planePad,{
+  getZoom:()=>planeView.zoom,
+  onFirstTouch:()=>{
+    planePinchSnapshot={target:currentTarget(),fixtures:fixtures.map(fixture=>({x:fixture.x,y:fixture.y}))};
+  },
+  onStart:()=>{
+    fixtureDrag=null;
+    targetDrag=null;
+    viewPanDrag=null;
+    if(!planePinchSnapshot)return;
+    planePinchSnapshot.fixtures.forEach((position,index)=>{
+      if(!fixtures[index])return;
+      fixtures[index].x=position.x;
+      fixtures[index].y=position.y;
+      updateFixturePositionInputs(index);
+    });
+    setTarget(planePinchSnapshot.target);
+  },
+  onZoom:zoom=>zoomPlaneView(zoom/Math.max(0.25,Number(planeView.zoom)||1)),
+  onEnd:()=>{planePinchSnapshot=null;}
+});
+planePad.addEventListener('pointerdown',event=>{
   const fixtureMarker=event.target.closest('.plane-point.fixture');
   const pad=event.currentTarget;
   const rect=pad.getBoundingClientRect();
@@ -2021,7 +2044,7 @@ document.getElementById('planePad').addEventListener('pointerdown',event=>{
   pad.setPointerCapture?.(event.pointerId);
   setTarget(room);
 });
-document.getElementById('planePad').addEventListener('pointermove',event=>{
+planePad.addEventListener('pointermove',event=>{
   if(viewPanDrag&&viewPanDrag.pointerId===event.pointerId){
     const rect=event.currentTarget.getBoundingClientRect();
     const spanX=viewPanDrag.bounds.maxX-viewPanDrag.bounds.minX;
@@ -2051,7 +2074,7 @@ document.getElementById('planePad').addEventListener('pointermove',event=>{
   render();
   scheduleRoomPlaneAutosave();
 });
-document.getElementById('planePad').addEventListener('pointerup',event=>{
+planePad.addEventListener('pointerup',event=>{
   if(viewPanDrag&&viewPanDrag.pointerId===event.pointerId){
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     viewPanDrag=null;
@@ -2065,9 +2088,9 @@ document.getElementById('planePad').addEventListener('pointerup',event=>{
     fixtureDrag=null;
   }
 });
-document.getElementById('planePad').addEventListener('pointercancel',()=>{fixtureDrag=null;targetDrag=null;viewPanDrag=null;});
-document.getElementById('planePad').addEventListener('contextmenu',event=>event.preventDefault());
-document.getElementById('planePad').addEventListener('wheel',event=>{
+planePad.addEventListener('pointercancel',()=>{fixtureDrag=null;targetDrag=null;viewPanDrag=null;});
+planePad.addEventListener('contextmenu',event=>event.preventDefault());
+planePad.addEventListener('wheel',event=>{
   event.preventDefault();
   zoomPlaneView(event.deltaY<0?1.12:1/1.12);
 },{passive:false});

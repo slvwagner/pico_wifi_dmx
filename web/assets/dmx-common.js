@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.11';
+  const APP_VERSION='0.9.12';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -2038,13 +2038,13 @@
     const visual=normalizeSlotVisual(item&&item.visual);
     if(!visual||!visual.color)return '';
     const text=contrastTextForColor(visual.color);
-    const lum=luminanceForColor(visual.color);
-    const overlay=lum>0.45?'rgba(0,0,0,.28)':'rgba(255,255,255,.18)';
-    const ring=lum>0.45?'rgba(0,0,0,.5)':'rgba(1,255,230,.45)';
-    const actionColor=lum>0.45?'#06110e':'#01ffe6';
-    const actionHover=lum>0.45?'rgba(0,0,0,.14)':'rgba(1,255,230,.12)';
-    const actionHoverStrong=lum>0.45?'rgba(0,0,0,.22)':'rgba(1,255,230,.18)';
-    const actionBorder=lum>0.45?'rgba(0,0,0,.35)':'rgba(1,255,230,.35)';
+    const useDarkContrast=text==='#06110e';
+    const overlay=useDarkContrast?'rgba(0,0,0,.28)':'rgba(255,255,255,.18)';
+    const ring=useDarkContrast?'rgba(0,0,0,.5)':'rgba(1,255,230,.45)';
+    const actionColor=useDarkContrast?'#06110e':'#01ffe6';
+    const actionHover=useDarkContrast?'rgba(0,0,0,.14)':'rgba(1,255,230,.12)';
+    const actionHoverStrong=useDarkContrast?'rgba(0,0,0,.22)':'rgba(1,255,230,.18)';
+    const actionBorder=useDarkContrast?'rgba(0,0,0,.35)':'rgba(1,255,230,.35)';
     return `background:${visual.color};border-color:${visual.color};color:${text};--slot-bg:${visual.color};--slot-highlight-overlay:${overlay};--slot-highlight-ring:${ring};--slot-action-color:${actionColor};--slot-action-hover:${actionHover};--slot-action-hover-strong:${actionHoverStrong};--slot-action-border:${actionBorder}`;
   }
 
@@ -2501,6 +2501,77 @@
       x:Number(point?.x??fallback?.x??0)||0,
       y:Number(point?.y??fallback?.y??0)||0,
       z:Number(point?.z??fallback?.z??0)||0
+    };
+  }
+
+  function initPinchZoom(element,options={}){
+    if(!element)return null;
+    const pointers=new Map();
+    const suppressed=new Set();
+    let gesture=null;
+    const distance=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
+    const stop=event=>{
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const pointerDown=event=>{
+      if(event.pointerType!=='touch')return;
+      if(!pointers.size)options.onFirstTouch?.(event);
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(pointers.size<2||gesture)return;
+      const ids=[...pointers.keys()].slice(0,2);
+      const startDistance=distance(pointers.get(ids[0]),pointers.get(ids[1]));
+      if(startDistance<1)return;
+      gesture={ids,startDistance,startZoom:Number(options.getZoom?.())||1};
+      ids.forEach(id=>{
+        suppressed.add(id);
+        try{element.setPointerCapture?.(id);}catch(_){/* Synthetic pointers and older Safari may not be capturable. */}
+      });
+      options.onStart?.(event);
+      stop(event);
+    };
+    const pointerMove=event=>{
+      if(event.pointerType!=='touch'||!pointers.has(event.pointerId))return;
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(!suppressed.has(event.pointerId)||!gesture)return;
+      const [first,second]=gesture.ids.map(id=>pointers.get(id));
+      if(first&&second){
+        const scale=distance(first,second)/gesture.startDistance;
+        const min=Number.isFinite(options.min)?options.min:0.25;
+        const max=Number.isFinite(options.max)?options.max:8;
+        const zoom=Math.max(min,Math.min(max,gesture.startZoom*scale));
+        options.onZoom?.(zoom,{scale,event});
+      }
+      stop(event);
+    };
+    const pointerEnd=event=>{
+      if(event.pointerType!=='touch'&&!pointers.has(event.pointerId))return;
+      const wasSuppressed=suppressed.has(event.pointerId);
+      const endedGesture=gesture&&gesture.ids.includes(event.pointerId);
+      pointers.delete(event.pointerId);
+      suppressed.delete(event.pointerId);
+      if(endedGesture){
+        gesture=null;
+        options.onEnd?.(event);
+      }
+      if(!pointers.size)suppressed.clear();
+      if(wasSuppressed)stop(event);
+    };
+    element.addEventListener('pointerdown',pointerDown,true);
+    element.addEventListener('pointermove',pointerMove,true);
+    element.addEventListener('pointerup',pointerEnd,true);
+    element.addEventListener('pointercancel',pointerEnd,true);
+    return {
+      isPinching:()=>!!gesture,
+      destroy(){
+        element.removeEventListener('pointerdown',pointerDown,true);
+        element.removeEventListener('pointermove',pointerMove,true);
+        element.removeEventListener('pointerup',pointerEnd,true);
+        element.removeEventListener('pointercancel',pointerEnd,true);
+        pointers.clear();
+        suppressed.clear();
+        gesture=null;
+      }
     };
   }
 
@@ -3065,6 +3136,7 @@
     slotVisualHtml,
     slotVisualButtonHtml,
     initTileMoveGrid,
+    initPinchZoom,
     normalizeRoomPlane,
     roomPlaneWeights,
     roomPlaneInterpolateFixture,

@@ -3,9 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.11-4">
-<script src="assets/dmx-common.js?v=0.9.11-5"></script>
+<meta name="application-name" content="DMX Controller">
+<meta name="apple-mobile-web-app-title" content="DMX Controller">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0f12">
+<title>DMX Controller</title>
+<link rel="icon" href="assets/favicon.ico?v=0.9.12">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.12">
+<link rel="manifest" href="assets/manifest.webmanifest?v=0.9.12">
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.12-8">
+<script src="assets/dmx-common.js?v=0.9.12-8"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -147,9 +155,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.11">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.12">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=0.9.11#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=0.9.12#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -5594,7 +5602,20 @@ document.getElementById('controllerPlaneResetView').onclick=()=>resetControllerP
 document.getElementById('controllerPlanePanView').onclick=()=>setControllerPlanePanMode(!controllerPlanePanMode);
 let controllerPlaneTargetDrag=null;
 let controllerPlaneViewDrag=null;
-document.getElementById('controllerPlanePad').addEventListener('pointerdown',event=>{
+const controllerPlanePad=document.getElementById('controllerPlanePad');
+let controllerPlanePinchTarget=null;
+DmxCommon.initPinchZoom(controllerPlanePad,{
+  getZoom:()=>controllerPlaneView.zoom,
+  onFirstTouch:()=>{controllerPlanePinchTarget=activeControllerPlane?{...activeControllerPlane.target}:null;},
+  onStart:()=>{
+    controllerPlaneTargetDrag=null;
+    controllerPlaneViewDrag=null;
+    if(controllerPlanePinchTarget)setControllerPlaneTarget(controllerPlanePinchTarget);
+  },
+  onZoom:zoom=>zoomControllerPlaneView(zoom/Math.max(0.25,Number(controllerPlaneView.zoom)||1)),
+  onEnd:()=>{controllerPlanePinchTarget=null;}
+});
+controllerPlanePad.addEventListener('pointerdown',event=>{
   if(!activeControllerPlane)return;
   event.preventDefault();
   const pad=event.currentTarget;
@@ -5611,7 +5632,7 @@ document.getElementById('controllerPlanePad').addEventListener('pointerdown',eve
   pad.setPointerCapture?.(event.pointerId);
   setControllerPlaneTarget(room);
 });
-document.getElementById('controllerPlanePad').addEventListener('pointermove',event=>{
+controllerPlanePad.addEventListener('pointermove',event=>{
   if(activeControllerPlane&&controllerPlaneViewDrag&&controllerPlaneViewDrag.pointerId===event.pointerId){
     const rect=event.currentTarget.getBoundingClientRect();
     const spanX=controllerPlaneViewDrag.bounds.maxX-controllerPlaneViewDrag.bounds.minX;
@@ -5631,7 +5652,7 @@ document.getElementById('controllerPlanePad').addEventListener('pointermove',eve
   const room=controllerPlaneScreenToRoom(event,rect,controllerPlaneTargetDrag.bounds);
   setControllerPlaneTarget(room);
 });
-document.getElementById('controllerPlanePad').addEventListener('pointerup',event=>{
+controllerPlanePad.addEventListener('pointerup',event=>{
   if(controllerPlaneViewDrag&&controllerPlaneViewDrag.pointerId===event.pointerId){
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     controllerPlaneViewDrag=null;
@@ -5641,9 +5662,9 @@ document.getElementById('controllerPlanePad').addEventListener('pointerup',event
     controllerPlaneTargetDrag=null;
   }
 });
-document.getElementById('controllerPlanePad').addEventListener('pointercancel',()=>{controllerPlaneTargetDrag=null;controllerPlaneViewDrag=null;});
-document.getElementById('controllerPlanePad').addEventListener('contextmenu',event=>event.preventDefault());
-document.getElementById('controllerPlanePad').addEventListener('wheel',event=>{
+controllerPlanePad.addEventListener('pointercancel',()=>{controllerPlaneTargetDrag=null;controllerPlaneViewDrag=null;});
+controllerPlanePad.addEventListener('contextmenu',event=>event.preventDefault());
+controllerPlanePad.addEventListener('wheel',event=>{
   event.preventDefault();
   zoomControllerPlaneView(event.deltaY<0?1.12:1/1.12);
 },{passive:false});

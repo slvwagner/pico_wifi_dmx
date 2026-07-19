@@ -85,11 +85,11 @@ target_compile_definitions(pico_wifi_dmx PRIVATE
         MIDI_RX_PIN=${MIDI_RX_PIN}
         MIDI_UART_ID=${MIDI_UART_ID}
         MIDI_BAUD=${MIDI_BAUD}
-        PICO_DMX_VERSION="0.9.11"
+        PICO_DMX_VERSION="0.9.12"
 )
 
 pico_set_program_name(pico_wifi_dmx "pico-wifi-dmx")
-pico_set_program_version(pico_wifi_dmx "0.9.11")
+pico_set_program_version(pico_wifi_dmx "0.9.12")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(pico_wifi_dmx 0)

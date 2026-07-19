@@ -361,6 +361,63 @@ test.describe('iPad layout rules', () => {
     }
   });
 
+  test('Controller palette tiles keep a touch-safe recall area beside edit and delete controls', async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: loadPathConfig().xamppBaseUrl,
+      viewport: { width: 1024, height: 768 },
+      deviceScaleFactor: 2,
+      hasTouch: true,
+      isMobile: true
+    });
+    const page = await context.newPage();
+    try {
+      await routeControllerCompactServerSetup(page);
+      await openDmxPage(page, '');
+      await injectControllerCompactSetup(page);
+      await page.evaluate(() => {
+        palettes.splice(0, palettes.length, {
+          id: 'palette_ipad_touch',
+          name: 'Touch Palette',
+          slot: 0,
+          scope: 'dimmer',
+          values: { '101:11': 77 },
+          visual: { type: 'visual', color: '#225a50', image: '' }
+        });
+        paletteCols = 4;
+        paletteRows = 1;
+        renderPaletteMatrix();
+      });
+
+      const tile = page.locator('#paletteMatrix [data-palette-slot="0"]');
+      await expect(tile).toBeVisible();
+      const geometry = await tile.evaluate(element => {
+        const tileRect = element.getBoundingClientRect();
+        const editRect = element.querySelector('.slot-visual-btn').getBoundingClientRect();
+        const deleteRect = element.querySelector('.slot-del').getBoundingClientRect();
+        return {
+          tileWidth: tileRect.width,
+          tileHeight: tileRect.height,
+          editWidth: editRect.width,
+          editHeight: editRect.height,
+          deleteWidth: deleteRect.width,
+          deleteHeight: deleteRect.height,
+          recallWidth: tileRect.width - editRect.width - deleteRect.width
+        };
+      });
+
+      expect(geometry.editWidth).toBeLessThanOrEqual(geometry.tileWidth * 0.26);
+      expect(geometry.deleteWidth).toBeLessThanOrEqual(geometry.tileWidth * 0.26);
+      expect(geometry.editHeight).toBeLessThanOrEqual(geometry.tileHeight * 0.26);
+      expect(geometry.deleteHeight).toBeLessThanOrEqual(geometry.tileHeight * 0.26);
+      expect(geometry.recallWidth).toBeGreaterThanOrEqual(geometry.tileWidth * 0.48);
+
+      await tile.click({ position: { x: geometry.tileWidth / 2, y: geometry.tileHeight / 2 } });
+      await expect(page.locator('#status')).toContainText('Recalled palette: "Touch Palette"');
+    } finally {
+      await context.close();
+    }
+  });
+
   test('Controller fixture tiles keep a usable layout after resizing the toolbox rail wide', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await openDmxPage(page, '');

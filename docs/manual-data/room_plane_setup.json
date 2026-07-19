@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "appVersion": "0.9.11",
+    "appVersion": "0.9.12",
     "baseUrl": "http://192.168.0.24/",
     "activePlaneId": "doc_main_stage",
     "name": "Main stage plane",
