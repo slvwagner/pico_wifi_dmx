@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.12 - Unreleased
+
+Changed:
+
+- Started the 0.9.12 development branch.
+
 ## 0.9.11 - 2026-07-19
 
 Changed:
