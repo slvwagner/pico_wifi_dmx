@@ -12,6 +12,7 @@ Changed:
 - Added `scripts/backup_show.ps1` for timestamped, read-only HTTP backups containing the split importable show and complete fixture-library files, diagnostic endpoint responses, restore instructions, and SHA-256 hashes. The script defaults to `/dmx-test/` and requires an explicit switch before reading `/dmx/`.
 - Organized external source material by moving the Open Fixture Library export to `tools/fixture-library/` and the Launch Control XL programmer reference to `docs/references/`; the fixture-library builder now uses the new archive path by default.
 - Linked the README and user manual to the original Open Fixture Library project.
+- Added normalized OFL fixture information to the Controller library preview, including authors/dates, physical specifications, and safe source/manual/product/video links. A compact metadata sidecar enriches older custom catalogs in browser memory without writing server data, while the converter's metadata-only mode preserves all curated fixtures and controls.
 
 ## 0.9.12 - 2026-07-19
 

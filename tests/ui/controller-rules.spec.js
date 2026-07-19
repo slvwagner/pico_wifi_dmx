@@ -1468,6 +1468,123 @@ test.describe('Fixture Controller established rules', () => {
     ]));
   });
 
+  test('Fixture Library preview presents normalized OFL fixture information and safe source links', async ({ page }) => {
+    await page.evaluate(() => {
+      fixtureLibraryState.data = normalizeFixtureLibrary({
+        schemaVersion: 1,
+        source: 'Fixture metadata test',
+        fixtures: [{
+          key: 'fun-generation/picospot-20-led',
+          manufacturerName: 'Fun Generation',
+          name: 'PicoSpot 20 LED',
+          categories: ['Moving Head', 'Color Changer'],
+          metadata: {
+            source: 'ofl',
+            sourceUrl: 'https://open-fixture-library.org/fun-generation/picospot-20-led',
+            authors: ['LordVonAdel', 'Moritz Weirauch'],
+            createDate: '2019-08-21',
+            lastModifyDate: '2024-05-07',
+            links: {
+              manual: ['https://example.test/picospot-manual.pdf', 'javascript:alert(1)'],
+              productPage: ['https://example.test/picospot'],
+              video: ['https://example.test/picospot-video']
+            },
+            physical: {
+              dimensionsMm: { width: 162, height: 242, depth: 174 },
+              weightKg: 3,
+              powerW: 35,
+              dmxConnector: '3-pin',
+              lightSource: '12W white CREE LED',
+              beamAngleDegrees: { min: 13, max: 13 }
+            }
+          },
+          modes: [{
+            name: '5-channel',
+            channels: 5,
+            profile: { name: 'PicoSpot 20 LED', mode: '5-channel', channels: 5, controls: [] },
+            warnings: []
+          }]
+        }]
+      });
+      fixtureLibraryState.selectedKey = '';
+      fixtureLibraryState.selectedModeIndex = 0;
+      document.getElementById('fixtureLibrarySearch').disabled = false;
+      setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false);
+      renderFixtureLibraryResults();
+    });
+
+    const information = page.locator('[data-fixture-library-information]');
+    await expect(information).toBeVisible();
+    await expect(information).toContainText('Fixture Information');
+    await expect(information).toContainText('LordVonAdel, Moritz Weirauch');
+    await expect(information).toContainText('Created 2019-08-21');
+    await expect(information).toContainText('Updated 2024-05-07');
+    await expect(information).toContainText('162 × 242 × 174 mm');
+    await expect(information).toContainText('3 kg');
+    await expect(information).toContainText('35 W');
+    await expect(information).toContainText('3-pin');
+    await expect(information).toContainText('12W white CREE LED');
+    await expect(information).toContainText('13°');
+    await expect(information.locator('a[href="https://open-fixture-library.org/fun-generation/picospot-20-led"]')).toHaveAttribute('target', '_blank');
+    await expect(information.locator('a[href="https://example.test/picospot-manual.pdf"]')).toHaveText('Manual');
+    await expect(information.locator('a[href="https://example.test/picospot"]')).toHaveText('Product page');
+    await expect(information.locator('a[href="https://example.test/picospot-video"]')).toHaveText('Video');
+    await expect(information.locator('a[href^="javascript:"]')).toHaveCount(0);
+  });
+
+  test('built-in OFL metadata enriches a custom library without replacing curated fixtures or controls', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const customLibrary = normalizeFixtureLibrary({
+        schemaVersion: 1,
+        source: 'Curated custom library',
+        fixtureCount: 2,
+        fixtures: [{
+          key: 'fun-generation/picospot-20-led',
+          manufacturerName: 'Fun Generation',
+          name: 'PicoSpot 20 LED',
+          categories: ['Moving Head'],
+          modes: [{
+            name: 'Curated mode',
+            channels: 1,
+            profile: { name: 'PicoSpot 20 LED', mode: 'Curated mode', channels: 1, controls: [{ id: 7001, type: 'slider8', label: 'Curated Dimmer', channel: 1, defaultValue: 123 }] },
+            warnings: ['Keep this warning']
+          }]
+        }, {
+          key: 'custom/keep-me', manufacturerName: 'Custom', name: 'Keep Me', categories: ['Custom'], modes: []
+        }]
+      });
+      const enriched = mergeFixtureLibraryMetadata(customLibrary, {
+        schemaVersion: 1,
+        source: 'Open Fixture Library metadata',
+        fixtures: [{
+          key: 'fun-generation/picospot-20-led',
+          metadata: { source: 'ofl', sourceUrl: 'https://open-fixture-library.org/fun-generation/picospot-20-led', authors: ['OFL Author'] }
+        }, {
+          key: 'eurolite/led-tmh-w36',
+          metadata: { source: 'ofl', sourceUrl: 'https://open-fixture-library.org/eurolite/led-tmh-w36' }
+        }]
+      });
+      const pico = enriched.fixtures.find(fixture => fixture.key === 'fun-generation/picospot-20-led');
+      return {
+        source: enriched.source,
+        fixtureCount: enriched.fixtureCount,
+        keys: enriched.fixtures.map(fixture => fixture.key),
+        metadata: pico.metadata,
+        modeName: pico.modes[0].name,
+        control: pico.modes[0].profile.controls[0],
+        warning: pico.modes[0].warnings[0]
+      };
+    });
+
+    expect(result.source).toBe('Curated custom library');
+    expect(result.fixtureCount).toBe(2);
+    expect(result.keys).toEqual(['fun-generation/picospot-20-led', 'custom/keep-me']);
+    expect(result.metadata).toEqual(expect.objectContaining({ source: 'ofl', authors: ['OFL Author'] }));
+    expect(result.modeName).toBe('Curated mode');
+    expect(result.control).toEqual(expect.objectContaining({ id: 7001, label: 'Curated Dimmer', defaultValue: 123 }));
+    expect(result.warning).toBe('Keep this warning');
+  });
+
   test('Fixture Library preserves OFL wheel slot names, ranges, and colors', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false));
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded', { timeout: 15000 });

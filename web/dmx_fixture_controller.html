@@ -105,6 +105,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-library-preview{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px;min-height:120px}
 .fixture-library-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .fixture-library-controls label{min-width:220px;flex:1 1 260px}
+.fixture-library-information{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:7px;background:#0d1318}
+.fixture-library-information h4{margin:0}
+.fixture-library-information-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 12px}
+.fixture-library-information-grid>div{display:flex;gap:6px;align-items:baseline;min-width:0}
+.fixture-library-information-grid span{color:var(--muted);font-size:12px;font-weight:700}
+.fixture-library-information-grid strong{font-size:13px;overflow-wrap:anywhere}
+.fixture-library-information-links{display:flex;gap:6px;flex-wrap:wrap}
+.fixture-library-information-links a{display:inline-flex;align-items:center;min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:#172027;color:var(--text);text-decoration:none;font-size:12px;font-weight:700}
+.fixture-library-information-links a:hover{border-color:var(--accent);color:var(--accent)}
 .fixture-library-control-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px}
 .profile-editor-block{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:12px;display:grid;gap:10px}
 .profile-editor-block .toolbar{align-items:end}
@@ -1576,6 +1585,15 @@ function applyNoneCheckboxes(){
   document.getElementById('blkAmberWrap').style.display=(!blkNone&&type==='rgbwa')?'grid':'none';
 }
 
+function mergeFixtureLibraryMetadata(library,metadataCatalog){
+  if(!library?.fixtures||!Array.isArray(metadataCatalog?.fixtures))return library;
+  const metadataByKey=new Map(metadataCatalog.fixtures.filter(item=>item?.key&&item?.metadata).map(item=>[String(item.key),item.metadata]));
+  library.fixtures.forEach(fixture=>{
+    const metadata=metadataByKey.get(String(fixture?.key||''));
+    if(metadata&&(!fixture.metadata||fixture.metadata.source==='ofl'))fixture.metadata=JSON.parse(JSON.stringify(metadata));
+  });
+  return library;
+}
 async function loadFixtureLibrary(options={}){
   const force=!!options.force;
   if(fixtureLibraryState.data&&!force){
@@ -1593,12 +1611,20 @@ async function loadFixtureLibrary(options={}){
   document.getElementById('fixtureLibraryPreview').innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
   try{
     let loadedFrom='built-in';
+    let informationCount=0;
     try{
       const serverResponse=await fetch('fixture_library.php',{cache:'no-store'});
       const serverJson=await serverResponse.json();
       if(serverResponse.ok&&serverJson.ok&&serverJson.exists&&serverJson.library?.fixtures?.length){
         fixtureLibraryState.data=normalizeFixtureLibrary(serverJson.library);
         loadedFrom='custom';
+        try{
+          const metadataResponse=await fetch('assets/fixture-metadata.json',{cache:'no-store'});
+          if(metadataResponse.ok){
+            mergeFixtureLibraryMetadata(fixtureLibraryState.data,await metadataResponse.json());
+            informationCount=fixtureLibraryState.data.fixtures.filter(fixture=>fixture.metadata).length;
+          }
+        }catch(_metadataError){}
       }
     }catch(_){}
     if(!fixtureLibraryState.data){
@@ -1608,7 +1634,7 @@ async function loadFixtureLibrary(options={}){
     }
     fixtureLibraryState.selectedKey='';
     fixtureLibraryState.selectedModeIndex=0;
-    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.';
+    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.'+(informationCount?' Fixture information available for '+informationCount+'.':'');
     if(search)search.disabled=false;
     renderFixtureLibraryResults();
     return fixtureLibraryState.data;
@@ -1661,7 +1687,55 @@ async function importFixtureLibraryFile(file){
   setStatus('Fixture library imported');
 }
 function fixtureLibrarySearchText(fixture){
-  return [fixture.manufacturerName,fixture.name,fixture.key,(fixture.categories||[]).join(' '),(fixture.modes||[]).map(m=>m.name+' '+m.shortName).join(' ')].join(' ').toLowerCase();
+  const metadata=fixture.metadata||{};
+  return [fixture.manufacturerName,fixture.name,fixture.key,(fixture.categories||[]).join(' '),(fixture.modes||[]).map(m=>m.name+' '+m.shortName).join(' '),(metadata.authors||[]).join(' '),metadata.physical?.dmxConnector,metadata.physical?.lightSource].join(' ').toLowerCase();
+}
+function safeFixtureInformationUrl(value){
+  try{
+    const url=new URL(String(value||''));
+    return url.protocol==='http:'||url.protocol==='https:'?url.href:'';
+  }catch(_err){return'';}
+}
+function fixtureInformationValue(value,unit=''){
+  if(value===null||value===undefined||value==='')return'';
+  return String(value)+(unit?' '+unit:'');
+}
+function renderFixtureLibraryInformation(fixture){
+  const metadata=fixture?.metadata;
+  if(!metadata||typeof metadata!=='object')return'';
+  const physical=metadata.physical||{};
+  const rows=[];
+  const addRow=(label,value)=>{if(value!==null&&value!==undefined&&String(value).trim())rows.push(`<div><span>${escHtml(label)}</span> <strong>${escHtml(String(value))}</strong></div>`);};
+  addRow('Authors',(metadata.authors||[]).join(', '));
+  addRow('Created',metadata.createDate);
+  addRow('Updated',metadata.lastModifyDate);
+  const dimensions=physical.dimensionsMm;
+  if(dimensions&&[dimensions.width,dimensions.height,dimensions.depth].every(value=>value!==null&&value!==undefined&&value!=='')){
+    addRow('Dimensions',dimensions.width+' × '+dimensions.height+' × '+dimensions.depth+' mm');
+  }
+  addRow('Weight',fixtureInformationValue(physical.weightKg,'kg'));
+  addRow('Power',fixtureInformationValue(physical.powerW,'W'));
+  addRow('DMX connector',physical.dmxConnector);
+  addRow('Light source',physical.lightSource);
+  const beam=physical.beamAngleDegrees;
+  if(beam&&beam.min!==null&&beam.min!==undefined&&beam.min!==''&&beam.max!==null&&beam.max!==undefined&&beam.max!==''){
+    addRow('Beam angle',String(beam.min)+(String(beam.min)===String(beam.max)?'°':'–'+beam.max+'°'));
+  }
+  const links=[];
+  const addLinks=(label,values)=>{
+    const safeValues=(Array.isArray(values)?values:[values]).map(safeFixtureInformationUrl).filter(Boolean);
+    safeValues.forEach((url,index)=>links.push(`<a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">${escHtml(label+(safeValues.length>1?' '+(index+1):''))}</a>`));
+  };
+  addLinks('Open Fixture Library',metadata.sourceUrl);
+  addLinks('Manual',metadata.links?.manual||[]);
+  addLinks('Product page',metadata.links?.productPage||[]);
+  addLinks('Video',metadata.links?.video||[]);
+  if(!rows.length&&!links.length)return'';
+  return `<section class="fixture-library-information" data-fixture-library-information>
+    <h4>Fixture Information</h4>
+    ${rows.length?`<div class="fixture-library-information-grid">${rows.join('')}</div>`:''}
+    ${links.length?`<div class="fixture-library-information-links">${links.join('')}</div>`:''}
+  </section>`;
 }
 function renderFixtureLibraryResults(){
   const resultsEl=document.getElementById('fixtureLibraryResults');
@@ -1701,6 +1775,7 @@ function renderFixtureLibraryPreview(){
       <h3>${escHtml(fixture.manufacturerName)} · ${escHtml(fixture.name)}</h3>
       <div class="small">${escHtml((fixture.categories||[]).join(', ')||'Uncategorized')}</div>
     </div>
+    ${renderFixtureLibraryInformation(fixture)}
     <div class="toolbar">
       <label>Mode<select id="fixtureLibraryMode">${(fixture.modes||[]).map((m,i)=>`<option value="${i}" ${i===fixtureLibraryState.selectedModeIndex?'selected':''}>${escHtml(m.name||('Mode '+(i+1)))} · ${m.channels}ch</option>`).join('')}</select></label>
       <button id="importFixtureLibraryProfile" class="primary" ${profile?'':'disabled'}>Import profile</button>

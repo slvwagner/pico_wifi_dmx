@@ -64,13 +64,15 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 
 ![Fixture Library search and mode preview](screenshots/fixture-controller-fixture-library.png)
 
-The **Fixture Library** panel imports fixture profiles from an export of the original [Open Fixture Library](https://open-fixture-library.org/) project. Use it when you want to start from an existing fixture definition instead of building every channel by hand.
+The **Fixture Library** panel imports fixture profiles from an export of the original [Open Fixture Library](https://open-fixture-library.org/) project. Use it when you want to start from an existing fixture definition instead of building every channel by hand. Selecting a fixture shows **Fixture Information** when OFL provides it: authors, creation/update dates, dimensions, weight, power, DMX connector, light source, beam angle, and links to the OFL entry, manual, product page, or video. External information links open in a new tab and only HTTP/HTTPS links are accepted.
 
 The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a **Retry** button.
 
 Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, **Update Library** changes to **Updating...** and then **Updated** when the fixture library write is complete.
 
 Use **Export Library** to download the currently loaded fixture catalog as `pico_dmx_fixture_library.json`. Use **Import Library** to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script `scripts/sync_fixture_library_from_xampp.ps1` can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys. When fixtures differ, the script asks whether to take each XAMPP change or keep the bundled copy; `-AcceptAllChanges`, `-KeepExistingChanges`, and `-DryRun` are available for intentional automated runs.
+
+Older custom catalogs may not contain Fixture Information yet. In that case, the Controller overlays matching information from the built-in `fixture-metadata.json` sidecar in browser memory. This does not save, replace, or otherwise modify the custom catalog on the XAMPP server.
 
 1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
 2. Select the matching fixture from the results list.

@@ -893,7 +893,7 @@ From this page you can move individual controls live, save and recall scenes, or
 
 The **Show** card is the first Controller card and the user-facing project/setup point. Its show-name field is directly editable and uses the normal 800 ms server autosave. Its top action bar keeps **Export Show**, **Import Show**, **Export Library**, and **Import Library** visible together, followed by the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards. Collapsing Show hides all of that show-related setup together; expanding it restores the nested cards without changing their individual collapse states. **New Show** confirms the reset and asks for a required show name before clearing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, Show Run layout, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Show** downloads a self-contained show-name-specific backup, including the richer definitions used by its patched fixtures, and **Import Show** restores any valid show JSON regardless of its filename. **Export Library** and **Import Library** independently handle the complete `pico_dmx_fixture_library.json` catalog. When an embedded show definition is missing from or differs from the current library, a mapping table appears before any data is written. Tap rows to highlight the fixtures that should use their mapped library versions; unselected rows keep the show versions, which are merged without removing unrelated catalog entries. **Patch CSV** remains separate for documenting the patched DMX channel table.
 
-The Fixture Library panel loads the built-in catalog converted from the original [Open Fixture Library](https://open-fixture-library.org/) project by default. **Export Library** downloads the currently loaded catalog as `pico_dmx_fixture_library.json`; **Import Library** saves a converted fixture catalog to the XAMPP server so it becomes the preferred library for all browsers. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`. During development, refresh that bundled fallback from the current XAMPP catalog with:
+The Fixture Library panel loads the built-in catalog converted from the original [Open Fixture Library](https://open-fixture-library.org/) project by default. Selecting a fixture shows **Fixture Information** with available authorship and update dates, dimensions, weight, power, DMX connector, light source, beam angle, and safe links to OFL, manuals, product pages, and videos. **Export Library** downloads the currently loaded catalog as `pico_dmx_fixture_library.json`; **Import Library** saves a converted fixture catalog to the XAMPP server so it becomes the preferred library for all browsers. If that custom catalog does not yet contain metadata, the browser enriches matching fixtures from the compact built-in `web/assets/fixture-metadata.json` sidecar without posting or changing the server catalog. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`. During development, refresh that bundled fallback from the current XAMPP catalog with:
 
 ```powershell
 .\scripts\sync_fixture_library_from_xampp.ps1
@@ -908,6 +908,14 @@ To rebuild the bundled catalog directly from the stored Open Fixture Library exp
 ```
 
 Its default source is `tools/fixture-library/ofl_export_ofl.zip`; pass `-ZipPath` only when converting a different export. Third-party hardware manuals, including the Launch Control XL programmer reference, are kept under `docs/references/` rather than in the repository root.
+
+Use metadata-only mode to refresh fixture information without replacing curated controls or custom fixtures:
+
+```powershell
+.\scripts\build_fixture_library.ps1 -MetadataOnly -MetadataOutputPath web/assets/fixture-metadata.json
+```
+
+`-MetadataOnly` updates metadata only on matching existing fixture keys. It preserves the catalog source, fixture set, modes, controls, IDs, defaults, wheel details, warnings, and custom entries. `-MetadataOutputPath` also writes the compact sidecar used to enrich older custom catalogs in browser memory.
 
 Setup command buttons use shared direct feedback: while work is running the button shows a short busy label, then briefly switches to a success or failure label such as **Added**, **Updated**, **Imported**, or **Failed** before returning to its normal text.
 

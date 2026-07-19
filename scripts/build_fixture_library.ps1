@@ -1,12 +1,15 @@
 param(
     [string]$ZipPath = "tools/fixture-library/ofl_export_ofl.zip",
-    [string]$OutputPath = "web/assets/fixture-library.json"
+    [string]$OutputPath = "web/assets/fixture-library.json",
+    [string]$MetadataOutputPath = "",
+    [switch]$MetadataOnly
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $zipFile = if ([System.IO.Path]::IsPathRooted($ZipPath)) { $ZipPath } else { Join-Path $repoRoot $ZipPath }
 $outFile = if ([System.IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else { Join-Path $repoRoot $OutputPath }
+$metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($MetadataOutputPath)) { $MetadataOutputPath } else { Join-Path $repoRoot $MetadataOutputPath }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -34,6 +37,58 @@ function Get-CapColor($channel) {
     $cap = @(Get-Capabilities $channel | Select-Object -First 1)
     if ($cap.Count) { return [string](Get-Prop $cap[0] "color") }
     return ""
+}
+
+function New-FixtureMetadata($fixture) {
+    $meta = Get-Prop $fixture "meta"
+    $links = Get-Prop $fixture "links"
+    $physical = Get-Prop $fixture "physical"
+    $dimensions = @(Get-Prop $physical "dimensions")
+    $bulb = Get-Prop $physical "bulb"
+    $lens = Get-Prop $physical "lens"
+    $degrees = @(Get-Prop $lens "degreesMinMax")
+
+    $normalizedLinks = [ordered]@{}
+    foreach ($name in @("manual", "productPage", "video")) {
+        $values = @((Get-Prop $links $name) | Where-Object { $_ })
+        if ($values.Count) { $normalizedLinks[$name] = $values }
+    }
+
+    $normalizedPhysical = [ordered]@{}
+    if ($dimensions.Count -ge 3) {
+        $normalizedPhysical["dimensionsMm"] = [ordered]@{
+            width = $dimensions[0]
+            height = $dimensions[1]
+            depth = $dimensions[2]
+        }
+    }
+    $weight = Get-Prop $physical "weight"
+    if ($null -ne $weight) { $normalizedPhysical["weightKg"] = $weight }
+    $power = Get-Prop $physical "power"
+    if ($null -ne $power) { $normalizedPhysical["powerW"] = $power }
+    $dmxConnector = [string](Get-Prop $physical "DMXconnector")
+    if ($dmxConnector) { $normalizedPhysical["dmxConnector"] = $dmxConnector }
+    $lightSource = [string](Get-Prop $bulb "type")
+    if ($lightSource) { $normalizedPhysical["lightSource"] = $lightSource }
+    if ($degrees.Count -ge 2) {
+        $normalizedPhysical["beamAngleDegrees"] = [ordered]@{
+            min = $degrees[0]
+            max = $degrees[1]
+        }
+    }
+
+    $metadata = [ordered]@{ source = "ofl" }
+    $sourceUrl = [string](Get-Prop $fixture "oflURL")
+    if ($sourceUrl) { $metadata["sourceUrl"] = $sourceUrl }
+    $authors = @((Get-Prop $meta "authors") | Where-Object { $_ })
+    if ($authors.Count) { $metadata["authors"] = $authors }
+    $createDate = [string](Get-Prop $meta "createDate")
+    if ($createDate) { $metadata["createDate"] = $createDate }
+    $lastModifyDate = [string](Get-Prop $meta "lastModifyDate")
+    if ($lastModifyDate) { $metadata["lastModifyDate"] = $lastModifyDate }
+    if ($normalizedLinks.Count) { $metadata["links"] = $normalizedLinks }
+    if ($normalizedPhysical.Count) { $metadata["physical"] = $normalizedPhysical }
+    return $metadata
 }
 
 function Flatten-PixelKeys($value, [System.Collections.Generic.List[string]]$out) {
@@ -330,6 +385,7 @@ try {
                 manufacturerName = $manufacturerName
                 name = [string](Get-Prop $fixture "name")
                 categories = @(Get-Prop $fixture "categories")
+                metadata = New-FixtureMetadata $fixture
                 modes = @($modes)
             })
         }
@@ -342,9 +398,50 @@ try {
         fixtureCount = $fixtures.Count
         fixtures = @($fixtures)
     }
+    if ($metadataOutFile) {
+        $metadataPayload = [ordered]@{
+            schemaVersion = 1
+            source = "Open Fixture Library metadata"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+            fixtureCount = $fixtures.Count
+            fixtures = @($fixtures | ForEach-Object {
+                [ordered]@{ key = $_.key; metadata = $_.metadata }
+            })
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $metadataOutFile) | Out-Null
+        $metadataPayload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $metadataOutFile -Encoding UTF8
+        Write-Host "Wrote metadata for $($fixtures.Count) fixtures to $metadataOutFile"
+    }
+    if ($MetadataOnly) {
+        if (-not (Test-Path -LiteralPath $outFile)) {
+            throw "Metadata-only merge requires an existing fixture library: $outFile"
+        }
+        $existingLibrary = Get-Content -LiteralPath $outFile -Raw | ConvertFrom-Json
+        if ($null -eq $existingLibrary -or -not ($existingLibrary.PSObject.Properties.Name -contains "fixtures")) {
+            throw "Existing fixture library is invalid: $outFile"
+        }
+        $metadataByKey = @{}
+        foreach ($convertedFixture in $fixtures) {
+            $metadataByKey[[string]$convertedFixture.key] = $convertedFixture.metadata
+        }
+        $updatedCount = 0
+        foreach ($existingFixture in @($existingLibrary.fixtures)) {
+            $key = [string]$existingFixture.key
+            if (-not $metadataByKey.ContainsKey($key)) { continue }
+            $existingFixture | Add-Member -NotePropertyName metadata -NotePropertyValue $metadataByKey[$key] -Force
+            $updatedCount++
+        }
+        $existingLibrary.fixtureCount = @($existingLibrary.fixtures).Count
+        $existingLibrary.generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+        $payload = $existingLibrary
+    }
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outFile) | Out-Null
     $payload | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
-    Write-Host "Wrote $($fixtures.Count) fixtures to $outFile"
+    if ($MetadataOnly) {
+        Write-Host "Added metadata to $updatedCount of $(@($payload.fixtures).Count) existing fixtures in $outFile"
+    } else {
+        Write-Host "Wrote $($fixtures.Count) fixtures to $outFile"
+    }
 }
 finally {
     $zip.Dispose()
