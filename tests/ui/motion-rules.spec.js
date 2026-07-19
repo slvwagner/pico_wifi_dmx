@@ -166,7 +166,7 @@ test.describe('Effects established rules', () => {
     expect(recalled.updateRate).toBe('25');
   });
 
-  test('Effects toolbox tile matrices expose common Move controls', async ({ page }) => {
+  test('Effects Toolboxes Edit enables moving in every tile matrix', async ({ page }) => {
     await page.evaluate(() => {
       motionGroupsBox.setGroups([
         { id: 'grp_a', name: 'Group A', slot: 0, fixtureIds: [101], values: {} },
@@ -195,37 +195,33 @@ test.describe('Effects established rules', () => {
     });
 
     await page.locator('.toolbox-rail-edit').click();
-    await expect(page.locator('#motionGroupsMove')).toBeVisible();
+    await expect(page.locator('#motionGroupsMove')).toBeHidden();
+    await expect(page.locator('#motionGroupsMove')).toHaveClass(/active/);
     await expect(page.locator('#motionGroupsRename')).toHaveCount(0);
     await expect(page.locator('#motionGroupsDelete')).toHaveCount(0);
     await expect(page.locator('#motionGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#motionGroupsList [data-delete-group-tile="0"]')).toBeVisible();
-    await expect(page.locator('#moveMotionEffectsBtn')).toBeVisible();
-    await expect(page.locator('#moveMotionScenesBtn')).toBeVisible();
-    await expect(page.locator('#moveMotionPalettesBtn')).toBeVisible();
-    await expect(page.locator('#moveMotionPlanesBtn')).toBeVisible();
+    await expect(page.locator('#moveMotionEffectsBtn')).toBeHidden();
+    await expect(page.locator('#moveMotionScenesBtn')).toBeHidden();
+    await expect(page.locator('#moveMotionPalettesBtn')).toBeHidden();
+    await expect(page.locator('#moveMotionPlanesBtn')).toBeHidden();
 
-    await page.locator('#moveMotionEffectsBtn').click();
     await page.locator('[data-motion-effect-slot="0"]').click();
     await page.locator('[data-motion-effect-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionEffects.find(effect => effect.id === 'fx_a').slot)).toBe(3);
 
-    await page.locator('#moveMotionScenesBtn').click();
     await page.locator('[data-mslot="0"]').click();
     await page.locator('[data-mslot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
 
-    await page.locator('#moveMotionPalettesBtn').click();
     await page.locator('[data-motion-palette-slot="0"]').click();
     await page.locator('[data-motion-palette-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionPalettes.find(palette => palette.id === 'pal_a').slot)).toBe(3);
 
-    await page.locator('#moveMotionPlanesBtn').click();
     await page.locator('#motionPlaneMatrix [data-plane-slot="0"]').click();
     await page.locator('#motionPlaneMatrix [data-plane-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
 
-    await page.locator('#motionGroupsMove').click();
     await page.locator('#motionGroupsList [data-group-slot="0"]').click();
     await page.locator('#motionGroupsList [data-group-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);

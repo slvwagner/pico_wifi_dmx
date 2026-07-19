@@ -997,9 +997,13 @@
   function setToolboxTileLayoutControlsVisible(rail,visible){
     if(!rail)return;
     const active=!!visible;
-    if(!active){
-      rail.querySelectorAll('.tile-layout-controls .tile-move-btn.active,.tile-layout-controls .tile-move-btn[aria-pressed="true"]').forEach(button=>button.click());
-    }
+    rail.querySelectorAll('.tile-layout-controls .tile-move-btn').forEach(button=>{
+      const moveActive=button.classList.contains('active')||button.getAttribute('aria-pressed')==='true';
+      if(moveActive!==active)button.click();
+      button.hidden=true;
+      button.setAttribute('aria-hidden','true');
+      button.tabIndex=-1;
+    });
     rail.querySelectorAll('.tile-layout-controls').forEach(controls=>{
       controls.hidden=!active;
       controls.style.display=active?'':'none';
@@ -1593,7 +1597,7 @@
     el.classList.add('tile-layout-controls');
     el.innerHTML=`<label class="tile-layout-field">Cols<input id="${escapeHtml(colsId)}" type="number" min="${minCols}" max="${maxCols}" value="${cols}" aria-label="Tile columns"></label>`+
       `<label class="tile-layout-field">Rows<input id="${escapeHtml(rowsId)}" type="number" min="${minRows}" max="${maxRows}" value="${rows}" aria-label="Tile rows"></label>`+
-      (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}">Move</button>`:'');
+      (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}" hidden aria-hidden="true" tabindex="-1">Move</button>`:'');
     const rail=el.closest('.toolbox-rail');
     if(rail)setToolboxTileLayoutControlsVisible(rail,toolboxRailEditing(rail));
     return{host:el,cols:document.getElementById(colsId),rows:document.getElementById(rowsId),move:moveId?document.getElementById(moveId):null};

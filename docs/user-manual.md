@@ -222,7 +222,7 @@ The Fixture Controller uses the shared right-side **Toolboxes** sidebar.
 
 **Planes** recalls room planes saved on the Room Plane page. Clicking a filled Plane tile opens the virtual room target modal and immediately recalls the Plane's fixture scope: every fixture saved in the Plane that still exists in the current Controller patch becomes selected, while an unrelated saved-group selection is cleared. Fixtures saved in the Plane but no longer patched are ignored. The modal applies the saved target's calibrated Pan/Tilt values to that recalled selection and sends them live when a Pico base URL is configured. Drag or click the red target, or use the X/Y coarse and fine nudge controls, to keep updating those fixtures. Closing the modal does not change the saved Plane definition.
 
-While Toolboxes **Edit** is active, **Move** appears beside the **Cols** and **Rows** layout controls in Groups, Scenes, Palettes, and Planes because it organizes the tile grid. Click **Move** to enable move mode, then drag a filled tile to a new position. While dragging, the source tile gets the same accent outline used when moving toolboxes, and the target position shows an accent insertion line. On touch screens, tap the filled source tile and then tap the destination. Dropping onto an empty slot moves the tile there; dropping onto another filled tile swaps the two slots. Groups use the same tile-slot behavior as Scenes and Palettes; the fixture order stored inside a group is not changed by moving the group tile.
+Toolboxes **Edit** automatically enables tile movement in Groups, Scenes, Palettes, and Planes while showing their **Cols** and **Rows** layout controls. Drag a filled tile to a new position. While dragging, the source tile gets the same accent outline used when moving toolboxes, and the target position shows an accent insertion line. On touch screens, tap the filled source tile and then tap the destination. Dropping onto an empty slot moves the tile there; dropping onto another filled tile swaps the two slots. Click **Done** to return the tiles to their normal recall/use behavior. Groups use the same tile-slot behavior as Scenes and Palettes; the fixture order stored inside a group is not changed by moving the group tile.
 
 ![Controller Fan Out toolbox](screenshots/fixture-controller-toolbox-fanout.png)
 
@@ -664,7 +664,7 @@ Controller, Chaser, and Effects use a shared right-side toolbox sidebar on deskt
 - Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.
 - The Toolboxes header stays visible at the top of the sidebar while its toolbox tiles scroll, keeping **Edit** and the sidebar arrow within reach.
 - Toolbox reordering is locked by default. Click **Edit** in the Toolboxes header, drag a toolbox by its colored header, and click **Done** when the order is correct. The toolbox body is never a drag handle. While Edit is off, dragging a colored header scrolls vertically instead of moving the toolbox, which prevents accidental rearrangement on iPad. While Edit is active, the app uses pointer dragging instead of Safari's native drag/drop.
-- The **Cols**, **Rows**, and **Move** controls in tile-based toolboxes are also visible only while Toolboxes **Edit** is active. Clicking **Done** hides them and exits any active tile Move mode.
+- The **Cols** and **Rows** controls in tile-based toolboxes are visible only while Toolboxes **Edit** is active. Edit also enables movement in every tile matrix automatically, so no separate Move button is needed. Clicking **Done** hides the layout controls and restores normal tile actions.
 - On narrow screens, the sidebar changes into a bottom toolbox drawer.
 
 ![Toolbox reordering locked](screenshots/toolbox-reorder-locked.png)
@@ -688,8 +688,8 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
-- **Scenes** uses the same saved Scene tiles as the Fixture Controller. Clicking a filled tile replaces the selected chase step with the complete Scene, makes the Scene controls the participating controls, clears an unrelated Groups filter, and sends those values live when a Pico base URL is set. Clicking an empty tile saves the selected step as a shared Scene. The pencil edits the shared Scene name/visual, `x` deletes it, and **Cols**, **Rows**, and **Move** update the shared Scene layout.
-- **Planes** recalls saved room planes into the selected chase step. Select a group first if only part of the rig should be affected. Chaser uses the plane target and calibrated fixtures to write pan/tilt values into the step, rebuilds the participating controls for those pan/tilt channels, and sends the changed step values to the Pico when a Pico base URL is set. The Planes tile matrix uses the same **Cols**, **Rows**, and **Move** behavior as the other saved tile toolboxes.
+- **Scenes** uses the same saved Scene tiles as the Fixture Controller. Clicking a filled tile replaces the selected chase step with the complete Scene, makes the Scene controls the participating controls, clears an unrelated Groups filter, and sends those values live when a Pico base URL is set. Clicking an empty tile saves the selected step as a shared Scene. The pencil edits the shared Scene name/visual, `x` deletes it, and **Cols** and **Rows** update the shared Scene layout while Toolboxes Edit enables tile movement.
+- **Planes** recalls saved room planes into the selected chase step. Select a group first if only part of the rig should be affected. Chaser uses the plane target and calibrated fixtures to write pan/tilt values into the step, rebuilds the participating controls for those pan/tilt channels, and sends the changed step values to the Pico when a Pico base URL is set. The Planes tile matrix uses the same **Cols**, **Rows**, and Toolboxes Edit movement behavior as the other saved tile toolboxes.
 
 ![Chaser Planes toolbox](screenshots/chaser-toolbox-planes.png)
 
@@ -975,7 +975,7 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 
 ![Effects Planes toolbox](screenshots/motion-toolbox-planes.png)
 
-**Planes** recalls saved room planes as the current pan/tilt effect center. Select **Pan/Tilt** as the effect target, optionally select one or more groups, then click a filled plane tile. Effects interpolates the calibrated pan/tilt values for matching fixtures, enables those fixtures for the current target, sends the new center values to the Pico, and keeps the effect recipe itself separate from the recalled center. The Planes toolbox uses the same **Cols**, **Rows**, and **Move** tile behavior as Groups, Palettes, and Effects.
+**Planes** recalls saved room planes as the current pan/tilt effect center. Select **Pan/Tilt** as the effect target, optionally select one or more groups, then click a filled plane tile. Effects interpolates the calibrated pan/tilt values for matching fixtures, enables those fixtures for the current target, sends the new center values to the Pico, and keeps the effect recipe itself separate from the recalled center. The Planes toolbox uses the same **Cols**, **Rows**, and Toolboxes Edit movement behavior as Groups, Palettes, and Effects.
 
 ### Recommended Workflow
 

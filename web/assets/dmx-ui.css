@@ -171,7 +171,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .tile-layout-controls,.groups-layout-controls{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
 .tile-layout-controls .tile-layout-field,.groups-layout-controls .tile-layout-field{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);min-width:0;margin:0}
 .tile-layout-controls .tile-layout-field input,.groups-layout-controls .tile-layout-field input{width:52px;padding:6px}
-.tile-move-btn{min-height:30px;height:30px;padding:5px 10px;align-self:center;line-height:1}
+.tile-move-btn{display:none!important;min-height:30px;height:30px;padding:5px 10px;align-self:center;line-height:1}
 .tile-move-btn.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#164e63;color:var(--text)}
 .controller-plane-modal .modal-card{max-width:920px;width:min(920px,calc(100vw - 32px))}
 .controller-plane-layout{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}

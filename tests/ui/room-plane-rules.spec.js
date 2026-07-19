@@ -308,6 +308,7 @@ test.describe('Room Plane rules', () => {
       return planes.find(plane => plane.id === 'front')?.visual?.color;
     }).toBe('#884422');
 
+    await page.locator('.toolbox-rail-edit').click();
     await page.locator('[data-recall-plane="back"]').click();
     await expect(page.locator('#planeName')).toHaveValue('Back');
     await expect(page.locator('#targetX')).toHaveValue('4');

@@ -87,7 +87,7 @@ test.describe('Chaser established rules', () => {
     expect(chaserLayout.buttons).toEqual(expect.arrayContaining(['fanSpreadDown', 'fanSpreadUp']));
   });
 
-  test('Chaser toolbox tile matrices expose common Move controls', async ({ page }) => {
+  test('Chaser Toolboxes Edit enables moving in every tile matrix', async ({ page }) => {
     await page.evaluate(() => {
       chaserGroupsBox.setGroups([
         { id: 'grp_a', name: 'Group A', slot: 0, fixtureIds: [101], values: {} },
@@ -116,15 +116,16 @@ test.describe('Chaser established rules', () => {
     });
 
     await page.locator('.toolbox-rail-edit').click();
-    await expect(page.locator('#chaserGroupsMove')).toBeVisible();
+    await expect(page.locator('#chaserGroupsMove')).toBeHidden();
+    await expect(page.locator('#chaserGroupsMove')).toHaveClass(/active/);
     await expect(page.locator('#chaserGroupsRename')).toHaveCount(0);
     await expect(page.locator('#chaserGroupsDelete')).toHaveCount(0);
     await expect(page.locator('#chaserGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#chaserGroupsList [data-delete-group-tile="0"]')).toBeVisible();
-    await expect(page.locator('#moveChaseSlotsBtn')).toBeVisible();
-    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
-    await expect(page.locator('#moveChaserPalettesBtn')).toBeVisible();
-    await expect(page.locator('#moveChaserPlanesBtn')).toBeVisible();
+    await expect(page.locator('#moveChaseSlotsBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserPalettesBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserPlanesBtn')).toBeHidden();
 
     await page.locator('#chaserGroupsList [data-edit-group-tile="0"]').click();
     await expect(page.locator('#sharedGroupVisualModal')).toBeVisible();
@@ -135,27 +136,22 @@ test.describe('Chaser established rules', () => {
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').name)).toBe('Renamed Group A');
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').visual?.color)).toBe('#115577');
 
-    await page.locator('#moveChaseSlotsBtn').click();
     await page.locator('[data-chase-slot="0"]').click();
     await page.locator('[data-chase-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => savedChases.find(chase => chase.id === 'chase_a').slot)).toBe(3);
 
-    await page.locator('#moveChaserScenesBtn').click();
     await page.locator('[data-chaser-scene-slot="0"]').click();
     await page.locator('[data-chaser-scene-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
 
-    await page.locator('#moveChaserPalettesBtn').click();
     await page.locator('[data-chaser-palette-slot="0"]').click();
     await page.locator('[data-chaser-palette-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserPalettes.find(palette => palette.id === 'pal_a').slot)).toBe(3);
 
-    await page.locator('#moveChaserPlanesBtn').click();
     await page.locator('#chaserPlaneMatrix [data-plane-slot="0"]').click();
     await page.locator('#chaserPlaneMatrix [data-plane-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
 
-    await page.locator('#chaserGroupsMove').click();
     await page.locator('#chaserGroupsList [data-group-slot="0"]').click();
     await page.locator('#chaserGroupsList [data-group-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
@@ -165,7 +161,8 @@ test.describe('Chaser established rules', () => {
     await expect(page.locator('#chaserSceneBox')).toBeVisible();
     await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#chaserSceneLayoutControls')).toBeVisible();
-    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserScenesBtn')).toHaveClass(/active/);
 
     await page.evaluate(() => {
       chaserGroupsBox.setGroups([{ id: 'grp_scene', name: 'Old target', slot: 0, fixtureIds: [101], values: {} }]);
@@ -184,6 +181,7 @@ test.describe('Chaser established rules', () => {
       drawStepEditor();
     });
 
+    await page.locator('.toolbox-rail-edit').click();
     await page.locator('#chaserGroupsList [data-group-index="0"]').click();
     await expect(page.locator('#chaserSceneMatrix [data-chaser-scene-slot="0"]')).toBeVisible();
     await expect(page.locator('#chaserSceneMatrix [data-visual-chaser-scene-slot="0"]')).toBeVisible();

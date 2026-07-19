@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Toolbox visual tile rules', () => {
-  test('Controller, Chaser, Effects, and Room Plane share Cols Rows Move controls', async ({ page }) => {
+  test('Controller, Chaser, Effects, and Room Plane share Cols and Rows controls', async ({ page }) => {
     const pages = [
       { path: '', host: '#controllerSceneLayoutControls' },
       { path: 'dmx_chaser.html', host: '#chaserChaseLayoutControls' },
@@ -20,11 +20,9 @@ test.describe('Toolbox visual tile rules', () => {
       const sample = await page.locator(entry.host).evaluate(host => {
         const label = host.querySelector('.tile-layout-field');
         const input = label.querySelector('input');
-        const move = host.querySelector('.tile-move-btn');
         const hostStyle = getComputedStyle(host);
         const labelStyle = getComputedStyle(label);
         const inputStyle = getComputedStyle(input);
-        const moveStyle = getComputedStyle(move);
         return {
           hostClass: host.className,
           hostDisplay: hostStyle.display,
@@ -34,7 +32,6 @@ test.describe('Toolbox visual tile rules', () => {
           labelGap: labelStyle.gap,
           inputWidth: inputStyle.width,
           inputPaddingTop: inputStyle.paddingTop,
-          moveHeight: moveStyle.height,
           labels: [...host.querySelectorAll('.tile-layout-field')].map(item => item.textContent.trim()),
           inputCount: host.querySelectorAll('input[type="number"]').length
         };
@@ -51,32 +48,38 @@ test.describe('Toolbox visual tile rules', () => {
       expect(sample.labelGap).toBe('6px');
       expect(sample.inputWidth).toBe('52px');
       expect(sample.inputPaddingTop).toBe('6px');
-      expect(sample.moveHeight).toBe('30px');
       expect(sample.labels).toEqual(['Cols', 'Rows']);
       expect(sample.inputCount).toBe(2);
     }
   });
 
-  test('toolbox tile layout controls are only available while Toolboxes Edit is active', async ({ page }) => {
+  test('Toolboxes Edit shows layout controls and automatically enables every tile mover', async ({ page }) => {
     for (const path of ['', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_room_plane.html']) {
       await openDmxPage(page, path);
       const controls = page.locator('.toolbox-rail .tile-layout-controls');
+      const movers = controls.locator('.tile-move-btn');
       expect(await controls.count()).toBeGreaterThan(0);
+      expect(await movers.count()).toBeGreaterThan(0);
       await expect(controls.first()).toBeHidden();
+      await expect(movers.first()).toBeHidden();
 
       const edit = page.locator('.toolbox-rail .toolbox-rail-edit');
       await edit.click();
       await expect(edit).toHaveText('Done');
       await expect(controls.first()).toBeVisible();
-
-      const move = controls.locator('.tile-move-btn').first();
-      await move.click();
-      await expect(move).toHaveClass(/active/);
+      await expect(movers.first()).toBeHidden();
+      for (const mover of await movers.all()) {
+        await expect(mover).toHaveClass(/active/);
+        await expect(mover).toHaveAttribute('aria-pressed', 'true');
+      }
 
       await edit.click();
       await expect(edit).toHaveText('Edit');
       await expect(controls.first()).toBeHidden();
-      await expect(move).not.toHaveClass(/active/);
+      for (const mover of await movers.all()) {
+        await expect(mover).not.toHaveClass(/active/);
+        await expect(mover).toHaveAttribute('aria-pressed', 'false');
+      }
     }
   });
 

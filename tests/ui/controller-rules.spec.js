@@ -745,7 +745,8 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#controllerPlaneCols')).toBeVisible();
     await expect(page.locator('#controllerPlaneRows')).toBeVisible();
-    await expect(page.locator('#moveControllerPlanesBtn')).toBeVisible();
+    await expect(page.locator('#moveControllerPlanesBtn')).toBeHidden();
+    await expect(page.locator('#moveControllerPlanesBtn')).toHaveClass(/active/);
     await expect(page.locator('[data-controller-plane-slot="0"]')).toContainText('Plane A');
     await expect(page.locator('[data-controller-plane-slot="1"]')).toContainText('Plane B');
     await expect(page.locator('[data-controller-plane-slot="2"]')).toContainText('3');
@@ -753,8 +754,6 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#controllerPlaneRows').fill('3');
     await expect.poll(() => roomPlaneWrites.at(-1)?.planeRows).toBe(3);
 
-    await page.locator('#moveControllerPlanesBtn').click();
-    await expect(page.locator('#moveControllerPlanesBtn')).toHaveClass(/active/);
     await page.locator('[data-controller-plane-slot="0"]').click();
     await page.locator('[data-controller-plane-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => controllerPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
