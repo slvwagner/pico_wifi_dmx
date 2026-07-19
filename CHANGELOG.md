@@ -25,6 +25,7 @@ Changed:
 
 Fixed:
 
+- Fixed iPad palette tiles becoming difficult to recall because the shared coarse-pointer button rule expanded the edit and delete overlays. Touch overlays now scale with the tile while desktop sizing remains unchanged.
 - Stabilized the motion pause/resume hardware regression test by sampling after pause confirmation and polling for resumed output movement instead of relying on one timing-sensitive sample.
 - Fixed Show Run Pico Chaser Playback tiles not redrawing after pause or resume, which left their button labels stale even though the Pico command succeeded.
 - Fixed Chaser previews so recalling a saved chase immediately sends its first selected step to DMX, and manually selecting another step sends that step's programmed values, including Pan/Tilt, without requiring chase playback.

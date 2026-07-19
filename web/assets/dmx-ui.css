@@ -327,8 +327,8 @@ input[type=number],input[type=url],input[type=text],select,textarea{min-height:4
 .compact-collapse-panel.collapsed-panel .collapse-btn{min-height:40px;height:40px}
 .scene-toolbox__header{min-height:48px;padding:11px 14px}
 .slot{min-width:64px;height:64px;font-size:11px}
-.slot-visual-btn,.slot-del{width:24px;height:24px;font-size:13px}
-.slot-visual-btn svg{width:14px;height:14px}
+.slot-visual-btn,.slot-del{width:22%;min-width:15px;max-width:24px;height:auto;min-height:15px;max-height:24px;aspect-ratio:1;font-size:11px}
+.slot-visual-btn svg{width:65%;height:65%}
 .scene-slot-matrix{gap:8px}
 main::after{content:"";display:block;height:calc(18vh + env(safe-area-inset-bottom,0px));min-height:90px;flex:0 0 auto;grid-column:1/-1;pointer-events:none}
 .toolbox-rail-scroll::after{content:"";display:block;height:calc(30vh + env(safe-area-inset-bottom,0px));min-height:150px;flex:0 0 auto;pointer-events:none}
