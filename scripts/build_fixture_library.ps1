@@ -1,5 +1,5 @@
 param(
-    [string]$ZipPath = "ofl_export_ofl.zip",
+    [string]$ZipPath = "tools/fixture-library/ofl_export_ofl.zip",
     [string]$OutputPath = "web/assets/fixture-library.json"
 )
 

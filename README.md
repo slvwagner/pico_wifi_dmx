@@ -537,12 +537,18 @@ pico_wifi_dmx/
 │  └─ local-paths.example.json
 ├─ docs/                     User manual, generated PDF, screenshots
 │  ├─ manual-data/           Deterministic JSON baseline for screenshots
+│  ├─ references/            Third-party hardware reference manuals
+│  │  └─ launch-control-xl-programmer-s-reference-guide.pdf
 │  └─ screenshots/           Generated manual/README screenshots
+├─ tools/                    Source material used by repository tooling
+│  └─ fixture-library/       Open Fixture Library export used by the converter
+│     └─ ofl_export_ofl.zip
 ├─ scripts/                  XAMPP sync, test, documentation, and release automation
 │  ├─ sync_fixture_controller_to_xampp.ps1
 │  ├─ sync_test_app_to_xampp.ps1
 │  ├─ update_xampp_server.ps1
 │  ├─ update_user_manual.ps1
+│  ├─ build_fixture_library.ps1
 │  ├─ sync_fixture_library_from_xampp.ps1
 │  ├─ flash_firmware.ps1
 │  ├─ start_version_branch.ps1
@@ -894,6 +900,14 @@ The Fixture Library panel loads the built-in converted Open Fixture Library cata
 ```
 
 The script validates `schemaVersion`, `fixtureCount`, unique fixture keys, and the fixture/mode arrays before writing the project asset. If the XAMPP library differs from the bundled asset, it reviews added, removed, and changed fixtures one by one and asks whether to take the XAMPP version or keep the bundled version. Use `-AcceptAllChanges` for an intentional full refresh, `-KeepExistingChanges` to keep the current bundled fixture edits, or `-DryRun` to review without writing.
+
+To rebuild the bundled catalog directly from the stored Open Fixture Library export, run:
+
+```powershell
+.\scripts\build_fixture_library.ps1
+```
+
+Its default source is `tools/fixture-library/ofl_export_ofl.zip`; pass `-ZipPath` only when converting a different export. Third-party hardware manuals, including the Launch Control XL programmer reference, are kept under `docs/references/` rather than in the repository root.
 
 Setup command buttons use shared direct feedback: while work is running the button shows a short busy label, then briefly switches to a success or failure label such as **Added**, **Updated**, **Imported**, or **Failed** before returning to its normal text.
 
