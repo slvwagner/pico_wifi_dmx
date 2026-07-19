@@ -70,9 +70,9 @@ The library loads automatically when the controller page opens. While it is load
 
 Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, **Update Library** changes to **Comparing...** while its merge dialog is open and then **Updated** when the chosen operation is complete.
 
-Use **Export Library** to download the currently loaded fixture catalog as `pico_dmx_fixture_library.json`. Use **Import Library** to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script `scripts/sync_fixture_library_from_xampp.ps1` can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys. When fixtures differ, the script asks whether to take each XAMPP change or keep the bundled copy; `-AcceptAllChanges`, `-KeepExistingChanges`, and `-DryRun` are available for intentional automated runs.
+Use **Export Library** to download the currently loaded fixture catalog as the compressed `pico_dmx_fixture_library.zip`; it contains `pico_dmx_fixture_library.json`. Use **Import Library** to upload that ZIP or an older uncompressed library JSON file to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script `scripts/sync_fixture_library_from_xampp.ps1` can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys. When fixtures differ, the script asks whether to take each XAMPP change or keep the bundled copy; `-AcceptAllChanges`, `-KeepExistingChanges`, and `-DryRun` are available for intentional automated runs.
 
-Older custom catalogs may not contain Fixture Information yet. In that case, the Controller overlays matching information from the built-in `fixture-metadata.json` sidecar in browser memory. This does not save, replace, or otherwise modify the custom catalog on the XAMPP server.
+Older custom catalogs may not contain Fixture Information or normalized capability data yet. In that case, the Controller overlays matching information from the built-in `fixture-metadata.json` and `fixture-capabilities.json` sidecars in browser memory. This does not save, replace, or otherwise modify the custom catalog on the XAMPP server.
 
 1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
 2. Select the matching fixture from the results list.
@@ -89,6 +89,8 @@ The converter keeps the richer Open Fixture Library data where the controller ca
 - Wheel slots keep their OFL names and colors when the library provides them.
 - Wheel DMX ranges are preserved. Normal slot buttons send the midpoint of the range.
 - Adjustable wheel functions such as `WheelShake`, `WheelRotation`, and `WheelSlotRotation` show a bounded speed/range slider after you select that option.
+- Segmented shutter/strobe, program, effect, prism, and maintenance channels become named option controls. Their buttons send a value safely inside the selected DMX range.
+- Continuous capabilities retain their DMX range and speed information so the UI can provide a bounded control where the capability supports it.
 - Unsupported or ambiguous channels are kept as simple 8-bit sliders so no channel is silently lost.
 
 ### Create a Fixture Profile
@@ -1370,7 +1372,7 @@ Use three non-collinear points. If A, B, and C are on one line, the determinant 
 Use **Fixture Controller > Show > Export Show** before large changes or before moving the show to another computer. Show and catalog backup are separate actions:
 
 - **Export Show** downloads a show-name-specific file such as `pico_dmx_summer-gala_show.json`. It stores the show name and embeds the richer fixture-library entries and modes referenced by patched fixtures.
-- **Export Library** downloads `pico_dmx_fixture_library.json`, preserving the complete reusable fixture catalog.
+- **Export Library** downloads `pico_dmx_fixture_library.zip`, containing `pico_dmx_fixture_library.json` and preserving the complete reusable fixture catalog.
 
 For a timestamped repository backup, run this command from the project folder:
 
@@ -1405,7 +1407,7 @@ Before the restore writes any data, **Resolve Fixture Updates** appears when a s
 - **Use All Matches** highlights every row that already has a library mapping.
 - **Cancel Import** closes the dialog without importing any setup data.
 
-When a library profile is selected, matching show control IDs are preserved so existing saved values continue to refer to the corresponding controls. To restore the complete reusable catalog, import `pico_dmx_fixture_library.json` through **Controller > Show > Import Library**. The separate **Export Library** button exports the same complete catalog without exporting a show.
+When a library profile is selected, matching show control IDs are preserved so existing saved values continue to refer to the corresponding controls. To restore the complete reusable catalog, import `pico_dmx_fixture_library.zip` through **Controller > Show > Import Library**. Existing uncompressed `pico_dmx_fixture_library.json` files remain supported. The separate **Export Library** button exports the same complete catalog without exporting a show.
 
 ### Using Multiple Browser Devices
 

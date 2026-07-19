@@ -858,7 +858,7 @@ test.describe('Project versioning rules', () => {
       page.waitForEvent('download'),
       page.locator('#exportFixtureLibrary').click()
     ]).then(([dl]) => dl);
-    expect(download.suggestedFilename()).toBe('pico_dmx_fixture_library.json');
+    expect(download.suggestedFilename()).toBe('pico_dmx_fixture_library.zip');
 
     const library = {
       schemaVersion: 1,
@@ -868,6 +868,7 @@ test.describe('Project versioning rules', () => {
         key: 'test/demo',
         manufacturerName: 'Test',
         name: 'Demo Fixture',
+        notes: 'Repeated fixture capability data '.repeat(100),
         categories: ['Dimmer'],
         modes: [{
           name: '1ch',
@@ -876,10 +877,15 @@ test.describe('Project versioning rules', () => {
         }]
       }]
     };
+    const zippedLibrary = await page.evaluate(async payload => {
+      const bytes = await DmxCommon.zipJsonBytes('pico_dmx_fixture_library.json', payload);
+      return { bytes: Array.from(bytes), jsonBytes: new TextEncoder().encode(JSON.stringify(payload)).length };
+    }, library);
+    expect(zippedLibrary.bytes.length).toBeLessThan(zippedLibrary.jsonBytes);
     await page.locator('#importFixtureLibraryFile').setInputFiles({
-      name: 'fixture-library-test.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(library))
+      name: 'fixture-library-test.zip',
+      mimeType: 'application/zip',
+      buffer: Buffer.from(zippedLibrary.bytes)
     });
 
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Imported 1 library fixtures');
@@ -887,6 +893,38 @@ test.describe('Project versioning rules', () => {
     await expect(page.locator('#profilesBody')).toBeVisible();
     await expect(page.locator('#profilesCollapseBtn')).toHaveText('−');
     expect(importedLibrary).toMatchObject({ source: 'Test import', fixtureCount: 1 });
+
+    await page.locator('#importFixtureLibraryFile').setInputFiles({
+      name: 'legacy-fixture-library.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(library))
+    });
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Imported 1 library fixtures from legacy-fixture-library.json');
+  });
+
+  test('compressed fixture library round-trip substantially reduces the complete catalog', async ({ page }) => {
+    await openDmxPage(page, '');
+    const stats = await page.evaluate(async () => {
+      const response = await fetch('assets/fixture-library.json', { cache: 'no-store' });
+      const text = await response.text();
+      const library = JSON.parse(text);
+      const zipped = await DmxCommon.zipJsonBytes('pico_dmx_fixture_library.json', library);
+      const restored = await DmxCommon.unzipJsonBytes(zipped);
+      return {
+        jsonBytes: new TextEncoder().encode(JSON.stringify(library)).length,
+        zipBytes: zipped.length,
+        sourceCount: library.fixtureCount,
+        restoredCount: restored.fixtureCount,
+        firstKey: restored.fixtures[0]?.key,
+        lastKey: restored.fixtures.at(-1)?.key
+      };
+    });
+
+    expect(stats.sourceCount).toBeGreaterThan(600);
+    expect(stats.restoredCount).toBe(stats.sourceCount);
+    expect(stats.firstKey).toBeTruthy();
+    expect(stats.lastKey).toBeTruthy();
+    expect(stats.zipBytes).toBeLessThan(stats.jsonBytes * 0.3);
   });
 
   test('Update Library compares a show profile before merging it into the reusable library', async ({ page }) => {

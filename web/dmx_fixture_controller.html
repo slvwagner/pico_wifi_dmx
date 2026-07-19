@@ -211,7 +211,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <button id="importJson" class="icon-btn import-btn" title="Import a pico_dmx_setup.json show file"><span>Import Show</span></button>
 <button id="importFixtureLibrary" class="icon-btn import-btn" title="Import a complete reusable fixture catalog"><span>Import Library</span></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
-<input id="importFixtureLibraryFile" type="file" accept=".json,application/json" style="display:none">
+<input id="importFixtureLibraryFile" type="file" accept=".zip,.json,application/zip,application/json" style="display:none">
 </div>
 
 <section class="panel" id="fixtureLibraryPanel">
@@ -1806,15 +1806,16 @@ async function saveFixtureLibraryToServer(library){
 function openFixtureProfilesSection(){
   setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);
 }
-function exportCurrentFixtureLibrary(){
+async function exportCurrentFixtureLibrary(){
   if(!fixtureLibraryState.data?.fixtures?.length){setStatus('Fixture library is not loaded yet',true);throw new Error('Fixture library is not loaded yet');}
-  DmxCommon.downloadJson('pico_dmx_fixture_library.json',fixtureLibraryState.data);
+  await DmxCommon.downloadZipJson('pico_dmx_fixture_library.zip','pico_dmx_fixture_library.json',fixtureLibraryState.data);
   setStatus('Fixture library exported');
   return true;
 }
 async function importFixtureLibraryFile(file){
-  const text=await file.text();
-  const library=normalizeFixtureLibrary(JSON.parse(text));
+  const zipped=file.name.toLowerCase().endsWith('.zip')||file.type==='application/zip'||file.type==='application/x-zip-compressed';
+  const payload=zipped?await DmxCommon.unzipJsonBytes(await file.arrayBuffer()):JSON.parse(await file.text());
+  const library=normalizeFixtureLibrary(payload);
   await saveFixtureLibraryToServer(library);
   fixtureLibraryState.data=library;
   fixtureLibraryState.selectedKey='';

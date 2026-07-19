@@ -4,7 +4,9 @@ param(
     [string]$MetadataOutputPath = "",
     [string]$CapabilitiesOutputPath = "",
     [switch]$MetadataOnly,
-    [switch]$CapabilitiesOnly
+    [switch]$CapabilitiesOnly,
+    [switch]$SidecarsOnly,
+    [ValidateRange(0, 64)][int]$ThrottleLimit = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,6 +15,9 @@ $zipFile = if ([System.IO.Path]::IsPathRooted($ZipPath)) { $ZipPath } else { Joi
 $outFile = if ([System.IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else { Join-Path $repoRoot $OutputPath }
 $metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($MetadataOutputPath)) { $MetadataOutputPath } else { Join-Path $repoRoot $MetadataOutputPath }
 $capabilitiesOutFile = if (-not $CapabilitiesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($CapabilitiesOutputPath)) { $CapabilitiesOutputPath } else { Join-Path $repoRoot $CapabilitiesOutputPath }
+$effectiveThrottleLimit = if ($ThrottleLimit -gt 0) { $ThrottleLimit } else { [Math]::Max(2, [Math]::Min([Environment]::ProcessorCount, 16)) }
+if ($SidecarsOnly -and ($MetadataOnly -or $CapabilitiesOnly)) { throw "SidecarsOnly cannot be combined with MetadataOnly or CapabilitiesOnly." }
+if ($SidecarsOnly -and -not $metadataOutFile -and -not $capabilitiesOutFile) { throw "SidecarsOnly requires MetadataOutputPath or CapabilitiesOutputPath." }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -374,8 +379,37 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
     }
 }
 
+function Convert-FixtureDocument([string]$entryName, [string]$text, $manufacturers) {
+    try { $fixture = $text | ConvertFrom-Json } catch { return $null }
+    $parts = $entryName -split '/'
+    if ($parts.Count -lt 2) { return $null }
+    $manufacturerKey = $parts[0]
+    $fixtureKey = [System.IO.Path]::GetFileNameWithoutExtension($parts[-1])
+    $manufacturerName = if ($manufacturers.ContainsKey($manufacturerKey)) { $manufacturers[$manufacturerKey] } else { $manufacturerKey }
+    $available = @{}
+    $availableChannels = Get-Prop $fixture "availableChannels"
+    if ($availableChannels) {
+        foreach ($prop in $availableChannels.PSObject.Properties) { $available[$prop.Name] = $prop.Value }
+    }
+    $modes = [System.Collections.Generic.List[object]]::new()
+    foreach ($mode in @(Get-Prop $fixture "modes")) {
+        $modes.Add((Convert-Mode $fixture $manufacturerName $mode $available))
+    }
+    if (-not $modes.Count) { return $null }
+    return [ordered]@{
+        key = "$manufacturerKey/$fixtureKey"
+        manufacturerKey = $manufacturerKey
+        manufacturerName = $manufacturerName
+        name = [string](Get-Prop $fixture "name")
+        categories = @(Get-Prop $fixture "categories")
+        metadata = New-FixtureMetadata $fixture
+        modes = @($modes)
+    }
+}
+
 if (-not (Test-Path -LiteralPath $zipFile)) { throw "Fixture library zip not found: $zipFile" }
 
+$extractRoot = ""
 $zip = [System.IO.Compression.ZipFile]::OpenRead($zipFile)
 try {
     $manufacturers = @{}
@@ -389,38 +423,33 @@ try {
         }
     }
 
-    $fixtures = [System.Collections.Generic.List[object]]::new()
-    foreach ($entry in ($zip.Entries | Where-Object { $_.FullName -like "*.json" -and $_.FullName -ne "manufacturers.json" } | Sort-Object FullName)) {
-        $reader = [System.IO.StreamReader]::new($entry.Open())
-        $text = $reader.ReadToEnd()
-        $reader.Close()
-        try { $fixture = $text | ConvertFrom-Json } catch { continue }
-        $parts = $entry.FullName -split '/'
-        if ($parts.Count -lt 2) { continue }
-        $manufacturerKey = $parts[0]
-        $fixtureKey = [System.IO.Path]::GetFileNameWithoutExtension($parts[-1])
-        $manufacturerName = if ($manufacturers.ContainsKey($manufacturerKey)) { $manufacturers[$manufacturerKey] } else { $manufacturerKey }
-        $available = @{}
-        $availableChannels = Get-Prop $fixture "availableChannels"
-        if ($availableChannels) {
-            foreach ($prop in $availableChannels.PSObject.Properties) { $available[$prop.Name] = $prop.Value }
-        }
-        $modes = [System.Collections.Generic.List[object]]::new()
-        foreach ($mode in @(Get-Prop $fixture "modes")) {
-            $modes.Add((Convert-Mode $fixture $manufacturerName $mode $available))
-        }
-        if ($modes.Count) {
-            $fixtures.Add([ordered]@{
-                key = "$manufacturerKey/$fixtureKey"
-                manufacturerKey = $manufacturerKey
-                manufacturerName = $manufacturerName
-                name = [string](Get-Prop $fixture "name")
-                categories = @(Get-Prop $fixture "categories")
-                metadata = New-FixtureMetadata $fixture
-                modes = @($modes)
-            })
-        }
+    $extractRoot = Join-Path ([IO.Path]::GetTempPath()) ("pico-dmx-fixture-build-" + [Guid]::NewGuid().ToString("N"))
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipFile, $extractRoot)
+    $jsonFiles = @(Get-ChildItem -LiteralPath $extractRoot -Recurse -File -Filter "*.json" | Where-Object { $_.Name -ne "manufacturers.json" } | Sort-Object FullName)
+    $functionNames = @(
+        "Get-Prop", "Get-Capabilities", "Get-CapType", "Get-CapColor", "New-NormalizedCapabilities",
+        "New-FixtureMetadata", "Flatten-PixelKeys", "Get-PixelKeys", "Expand-ModeChannels", "Channel-Map",
+        "New-Control", "Get-WheelSlot", "Get-WheelSlotLabel", "Get-WheelSlotColor", "New-WheelOptionName",
+        "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
+    )
+    $functionSource = ($functionNames | ForEach-Object { "function $_ {`n$((Get-Command $_ -CommandType Function).Definition)`n}" }) -join "`n"
+    if ($PSVersionTable.PSVersion.Major -ge 7 -and $effectiveThrottleLimit -gt 1) {
+        $convertedFixtures = @($jsonFiles | ForEach-Object -Parallel {
+            if (-not (Get-Command Convert-FixtureDocument -ErrorAction SilentlyContinue)) {
+                Invoke-Expression $using:functionSource
+            }
+            $relative = [IO.Path]::GetRelativePath($using:extractRoot, $_.FullName).Replace('\', '/')
+            Convert-FixtureDocument $relative ([IO.File]::ReadAllText($_.FullName)) $using:manufacturers
+        } -ThrottleLimit $effectiveThrottleLimit)
+    } else {
+        $convertedFixtures = @($jsonFiles | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath($extractRoot, $_.FullName).Replace('\', '/')
+            Convert-FixtureDocument $relative ([IO.File]::ReadAllText($_.FullName)) $manufacturers
+        })
     }
+    $fixtures = @($convertedFixtures | Where-Object { $null -ne $_ } | Sort-Object {
+        if ($_ -is [System.Collections.IDictionary]) { [string]$_['key'] } else { [string]$_.key }
+    })
 
     $payload = [ordered]@{
         schemaVersion = 1
@@ -525,18 +554,29 @@ try {
         $existingLibrary.generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
         $payload = $existingLibrary
     }
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outFile) | Out-Null
-    $payload | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
+    if (-not $SidecarsOnly) {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outFile) | Out-Null
+        $payload | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
+    }
     if ($MetadataOnly) {
         Write-Host "Added metadata to $updatedCount of $(@($payload.fixtures).Count) existing fixtures in $outFile"
     }
     if ($CapabilitiesOnly) {
         Write-Host "Added capabilities to $capabilityControlCount existing controls in $outFile"
     }
-    if (-not $MetadataOnly -and -not $CapabilitiesOnly) {
+    if ($SidecarsOnly) {
+        Write-Host "Sidecar build complete; fixture library output was not changed."
+    } elseif (-not $MetadataOnly -and -not $CapabilitiesOnly) {
         Write-Host "Wrote $($fixtures.Count) fixtures to $outFile"
     }
 }
 finally {
     $zip.Dispose()
+    if ($extractRoot) {
+        $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+        $resolvedExtractRoot = [IO.Path]::GetFullPath($extractRoot)
+        if ($resolvedExtractRoot.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path -Leaf $resolvedExtractRoot).StartsWith("pico-dmx-fixture-build-")) {
+            Remove-Item -LiteralPath $resolvedExtractRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
