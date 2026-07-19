@@ -3,6 +3,13 @@ const { openDmxPage, injectChaserCompactSetup } = require('./helpers/dmx-page');
 const fs = require('fs');
 const path = require('path');
 
+function parseDmxBatch(body) {
+  return Object.fromEntries(String(body || '').split(',').filter(Boolean).map(pair => {
+    const [channel, value] = pair.split(':').map(Number);
+    return [channel, value];
+  }));
+}
+
 test.describe('Chaser established rules', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/scene_setup.php**', async route => {
@@ -1019,5 +1026,37 @@ test.describe('Chaser established rules', () => {
     expect(state.buttonAfterUpdate.text).toBe('Updated');
     expect(state.buttonAfterUpdate.success).toBe(true);
     expect(state.disabledAfterNewSave).toBe(true);
+  });
+
+  test('recalling a chase and selecting a step immediately sends that step to DMX', async ({ page }) => {
+    const batches = [];
+    await page.route('http://127.0.0.1:18993/**', async route => {
+      if (route.request().url().includes('/dmx/b')) batches.push(parseDmxBatch(route.request().postData()));
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(async () => {
+      baseUrlEl.value = 'http://127.0.0.1:18993/';
+      sentToPico = {};
+      const chase = {
+        id: 'dmx_recall_test',
+        name: 'DMX Recall Test',
+        slot: 0,
+        data: {
+          steps: [
+            makeStep('Position A', { '101:11': 10, '101:12': { pan: 4660, tilt: 22136 } }),
+            makeStep('Position B', { '101:11': 20, '101:12': { pan: 65535, tilt: 0 } })
+          ]
+        }
+      };
+      await loadChaseSlot(chase);
+    });
+
+    await expect.poll(() => batches.length).toBe(1);
+    expect(batches[0]).toMatchObject({ 1: 10, 2: 18, 3: 52, 4: 86, 5: 120 });
+
+    await page.evaluate(() => selectStepForEdit(1));
+    await expect.poll(() => batches.length).toBe(2);
+    expect(batches[1]).toMatchObject({ 1: 20, 2: 255, 3: 255, 4: 0, 5: 0 });
   });
 });

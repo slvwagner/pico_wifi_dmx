@@ -594,6 +594,15 @@ function sendEditedControlValue(f,c,val){
   collectChannels(f,c,val,batchMap);
   sendBatch(batchMap);
 }
+function sendStepToDmx(step=steps[selectedStepIdx]){
+  if(!step)return;
+  const batchMap={};
+  getParticipatingList().forEach(({f,c})=>{
+    const key=controlKey(f,c);
+    collectChannels(f,c,step.values?.[key]??defaultValue(c),batchMap);
+  });
+  sendBatch(batchMap);
+}
 
 function selectedChaserGroupFixtureIds(){
   const selected=chaserGroupsBox?.selectedGroups?.()||[];
@@ -1666,6 +1675,7 @@ function drawStepList(){
 async function selectStepForEdit(idx){
   stopPlaybackForManualEdit();
   const result=loadStepIntoEditor(idx);
+  sendStepToDmx(steps[idx]);
   setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
 }
 function loadStepIntoEditor(idx,options={}){
@@ -2490,11 +2500,13 @@ function saveChaseToSlot(idx,name){
 }
 async function loadChaseSlot(chase){
   if(!chase?.data)return;
+  stopPlaybackForManualEdit();
   await clearChaserGroupSelectionForLoadedStep();
   applyChaserData(chase.data,false);
   setActiveRecalledChaseSlot(chase.slot);
   drawParticipation();drawStepList();drawStepEditor();
   refreshFanBasesFromStep();
+  sendStepToDmx(steps[selectedStepIdx]);
   setStatus('Loaded chase: "'+chase.name+'"');
 }
 async function updateActiveRecalledChase(){
