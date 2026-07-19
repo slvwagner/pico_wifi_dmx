@@ -1726,6 +1726,43 @@ function mergeFixtureLibraryCapabilities(library,capabilityCatalog){
   });
   return library;
 }
+let fixtureLibraryResourceCatalog=null;
+function mergeFixtureLibraryResources(library,resourceCatalog){
+  if(!library?.fixtures||!resourceCatalog?.resources)return library;
+  const patchesByKey=new Map((resourceCatalog.fixtures||[]).filter(item=>item?.key).map(item=>[String(item.key),item]));
+  library.fixtures.forEach(fixture=>{
+    const fixturePatch=patchesByKey.get(String(fixture?.key||''));
+    if(!fixturePatch)return;
+    (fixture.modes||[]).forEach(mode=>(mode?.profile?.controls||[]).forEach(control=>{
+      const controlPatch=(fixturePatch.controls||[]).find(item=>String(item?.label||'').trim().toLowerCase()===String(control?.label||'').trim().toLowerCase());
+      if(!controlPatch)return;
+      (control.options||[]).forEach(option=>{
+        const optionPatch=(controlPatch.options||[]).find(item=>item.slotNumber!=null&&option.slotNumber!=null?String(item.slotNumber)===String(option.slotNumber):String(item.value)===String(option.value));
+        if(optionPatch?.resourceKey&&!option.resourceKey)option.resourceKey=String(optionPatch.resourceKey);
+      });
+    }));
+  });
+  library.fixtures.forEach(fixture=>(fixture.modes||[]).forEach(mode=>(mode?.profile?.controls||[]).forEach(control=>(control.options||[]).forEach(option=>{
+    const resource=resourceCatalog.resources[String(option?.resourceKey||'')];
+    if(resource?.image&&!option.image)option.image=String(resource.image);
+  }))));
+  return library;
+}
+async function enrichFixtureLibraryResources(library){
+  if(!fixtureLibraryResourceCatalog){
+    const response=await fetch('assets/fixture-resources.json',{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    fixtureLibraryResourceCatalog=await response.json();
+  }
+  return mergeFixtureLibraryResources(library,fixtureLibraryResourceCatalog);
+}
+function fixtureLibraryForExport(library){
+  const exported=JSON.parse(JSON.stringify(library));
+  (exported.fixtures||[]).forEach(fixture=>(fixture.modes||[]).forEach(mode=>(mode?.profile?.controls||[]).forEach(control=>(control.options||[]).forEach(option=>{
+    if(option.resourceKey)delete option.image;
+  }))));
+  return exported;
+}
 async function loadFixtureLibrary(options={}){
   const force=!!options.force;
   if(fixtureLibraryState.data&&!force){
@@ -1745,6 +1782,7 @@ async function loadFixtureLibrary(options={}){
     let loadedFrom='built-in';
     let informationCount=0;
     let capabilityControlCount=0;
+    let resourceImageCount=0;
     try{
       const serverResponse=await fetch('fixture_library.php',{cache:'no-store'});
       const serverJson=await serverResponse.json();
@@ -1772,9 +1810,13 @@ async function loadFixtureLibrary(options={}){
         capabilityControlCount=fixtureLibraryState.data.fixtures.reduce((count,fixture)=>count+(fixture.modes||[]).reduce((modeCount,mode)=>modeCount+(mode.profile?.controls||[]).filter(control=>Array.isArray(control.capabilities)&&control.capabilities.length).length,0),0);
       }
     }catch(_capabilityError){}
+    try{
+      await enrichFixtureLibraryResources(fixtureLibraryState.data);
+      resourceImageCount=fixtureLibraryState.data.fixtures.reduce((count,fixture)=>count+(fixture.modes||[]).reduce((modeCount,mode)=>modeCount+(mode.profile?.controls||[]).reduce((controlCount,control)=>controlCount+(control.options||[]).filter(option=>option.image).length,0),0),0);
+    }catch(_resourceError){}
     fixtureLibraryState.selectedKey='';
     fixtureLibraryState.selectedModeIndex=0;
-    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.'+(informationCount?' Fixture information available for '+informationCount+'.':'')+(capabilityControlCount?' Capability ranges available for '+capabilityControlCount+' controls.':'');
+    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.'+(informationCount?' Fixture information available for '+informationCount+'.':'')+(capabilityControlCount?' Capability ranges available for '+capabilityControlCount+' controls.':'')+(resourceImageCount?' Wheel images available for '+resourceImageCount+' options.':'');
     if(search)search.disabled=false;
     renderFixtureLibraryResults();
     return fixtureLibraryState.data;
@@ -1808,7 +1850,7 @@ function openFixtureProfilesSection(){
 }
 async function exportCurrentFixtureLibrary(){
   if(!fixtureLibraryState.data?.fixtures?.length){setStatus('Fixture library is not loaded yet',true);throw new Error('Fixture library is not loaded yet');}
-  await DmxCommon.downloadZipJson('pico_dmx_fixture_library.zip','pico_dmx_fixture_library.json',fixtureLibraryState.data);
+  await DmxCommon.downloadZipJson('pico_dmx_fixture_library.zip','pico_dmx_fixture_library.json',fixtureLibraryForExport(fixtureLibraryState.data));
   setStatus('Fixture library exported');
   return true;
 }
@@ -1818,6 +1860,7 @@ async function importFixtureLibraryFile(file){
   const library=normalizeFixtureLibrary(payload);
   await saveFixtureLibraryToServer(library);
   fixtureLibraryState.data=library;
+  try{await enrichFixtureLibraryResources(fixtureLibraryState.data);}catch(_resourceError){}
   fixtureLibraryState.selectedKey='';
   fixtureLibraryState.selectedModeIndex=0;
   const search=document.getElementById('fixtureLibrarySearch');

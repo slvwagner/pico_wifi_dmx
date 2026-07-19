@@ -95,6 +95,23 @@ test.describe('Fixture Controller established rules', () => {
     await expect(button).toHaveText('Highlight');
   });
 
+  test('fixture library resolves deduplicated OFL wheel resource images without embedding them in exports', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const library = { fixtures: [{ key: 'test/fixture', modes: [{ profile: { controls: [{ label: 'Gobo Wheel', options: [{ name: 'Gobo 1', slotNumber: 2, value: 10 }] }] } }] }] };
+      mergeFixtureLibraryResources(library, {
+        resources: { 'gobos/test': { image: 'data:image/svg+xml;base64,PHN2Zy8+' } },
+        fixtures: [{ key: 'test/fixture', controls: [{ label: 'Gobo Wheel', options: [{ slotNumber: 2, value: 10, resourceKey: 'gobos/test' }] }] }]
+      });
+      const resolved = library.fixtures[0].modes[0].profile.controls[0].options[0];
+      const exported = fixtureLibraryForExport(library).fixtures[0].modes[0].profile.controls[0].options[0];
+      return { resolvedImage: resolved.image, exportedImage: exported.image, resourceKey: exported.resourceKey };
+    });
+
+    expect(result.resolvedImage).toBe('data:image/svg+xml;base64,PHN2Zy8+');
+    expect(result.exportedImage).toBeUndefined();
+    expect(result.resourceKey).toBe('gobos/test');
+  });
+
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
     const state = await page.evaluate(() => {
       selectedFixtureIds = new Set([101, 102, 103]);
@@ -962,10 +979,13 @@ test.describe('Fixture Controller established rules', () => {
       const originalFetch = window.fetch;
       const calls = [];
       const resolvers = [];
-      window.fetch = (_url, options = {}) => new Promise(resolve => {
+      window.fetch = (url, options = {}) => {
+        if (!String(url).includes('scene_setup.php')) return originalFetch(url, options);
+        return new Promise(resolve => {
         calls.push(JSON.parse(options.body || '{}'));
         resolvers.push(resolve);
-      });
+        });
+      };
       const okResponse = () => ({ json: () => Promise.resolve({ ok: true }) });
 
       try {

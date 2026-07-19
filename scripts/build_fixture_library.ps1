@@ -3,6 +3,7 @@ param(
     [string]$OutputPath = "web/assets/fixture-library.json",
     [string]$MetadataOutputPath = "",
     [string]$CapabilitiesOutputPath = "",
+    [string]$ResourcesOutputPath = "",
     [switch]$MetadataOnly,
     [switch]$CapabilitiesOnly,
     [switch]$SidecarsOnly,
@@ -15,9 +16,10 @@ $zipFile = if ([System.IO.Path]::IsPathRooted($ZipPath)) { $ZipPath } else { Joi
 $outFile = if ([System.IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else { Join-Path $repoRoot $OutputPath }
 $metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($MetadataOutputPath)) { $MetadataOutputPath } else { Join-Path $repoRoot $MetadataOutputPath }
 $capabilitiesOutFile = if (-not $CapabilitiesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($CapabilitiesOutputPath)) { $CapabilitiesOutputPath } else { Join-Path $repoRoot $CapabilitiesOutputPath }
+$resourcesOutFile = if (-not $ResourcesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($ResourcesOutputPath)) { $ResourcesOutputPath } else { Join-Path $repoRoot $ResourcesOutputPath }
 $effectiveThrottleLimit = if ($ThrottleLimit -gt 0) { $ThrottleLimit } else { [Math]::Max(2, [Math]::Min([Environment]::ProcessorCount, 16)) }
 if ($SidecarsOnly -and ($MetadataOnly -or $CapabilitiesOnly)) { throw "SidecarsOnly cannot be combined with MetadataOnly or CapabilitiesOnly." }
-if ($SidecarsOnly -and -not $metadataOutFile -and -not $capabilitiesOutFile) { throw "SidecarsOnly requires MetadataOutputPath or CapabilitiesOutputPath." }
+if ($SidecarsOnly -and -not $metadataOutFile -and -not $capabilitiesOutFile -and -not $resourcesOutFile) { throw "SidecarsOnly requires MetadataOutputPath, CapabilitiesOutputPath, or ResourcesOutputPath." }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -310,6 +312,31 @@ function Get-WheelSlotColor($fixture, [string]$wheelName, [int]$slotNumber) {
     return ""
 }
 
+function Get-WheelSlotImage($fixture, [string]$wheelName, [int]$slotNumber) {
+    $slot = Get-WheelSlot $fixture $wheelName $slotNumber
+    $resource = Get-Prop $slot "resource"
+    $image = Get-Prop $resource "image"
+    $mimeType = [string](Get-Prop $image "mimeType")
+    $data = [string](Get-Prop $image "data")
+    $encoding = [string](Get-Prop $image "encoding")
+    if ($mimeType -notmatch '^image/[a-z0-9.+-]+(?:;[a-z0-9._=-]+)?$' -or -not $data) { return "" }
+    if ($encoding -eq "base64") { return "data:$mimeType;base64,$data" }
+    if ($encoding -eq "utf-8") {
+        $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($data))
+        return "data:$mimeType;base64,$encoded"
+    }
+    return ""
+}
+
+function Get-WheelSlotResourceKey($fixture, [string]$wheelName, [int]$slotNumber) {
+    $slot = Get-WheelSlot $fixture $wheelName $slotNumber
+    $resource = Get-Prop $slot "resource"
+    $type = [string](Get-Prop $resource "type")
+    $key = [string](Get-Prop $resource "key")
+    if (-not $type -or -not $key) { return "" }
+    return "$type/$key"
+}
+
 function New-WheelOptionName($fixture, [string]$wheelName, $cap, [string]$capType) {
     $comment = [string](Get-Prop $cap "comment")
     if ($comment) { return $comment }
@@ -381,6 +408,14 @@ function New-WheelOptions($fixture, $channel, [string]$wheelName) {
         if ($colors.Count) { $color = [string]$colors[0] }
         if (-not $color -and $slotNumber) { $color = Get-WheelSlotColor $fixture $wheelName $slotNumber }
         if ($color) { $option["color"] = $color }
+        if ($slotNumber) {
+            $image = Get-WheelSlotImage $fixture $wheelName $slotNumber
+            $resourceKey = Get-WheelSlotResourceKey $fixture $wheelName $slotNumber
+            if ($image -and $resourceKey) {
+                $option["resourceKey"] = $resourceKey
+                $option["image"] = $image
+            }
+        }
         foreach ($speedProp in @("speedStart","speedEnd","shakeSpeedStart","shakeSpeedEnd")) {
             $speed = [string](Get-Prop $cap $speedProp)
             if ($speed) { $option[$speedProp] = $speed }
@@ -619,7 +654,7 @@ try {
         "New-FixtureMetadata", "Flatten-PixelKeys", "Get-PixelKeys", "Expand-ModeChannels", "Channel-Map",
         "Get-DmxValueByteResolution", "Convert-DmxValue", "Get-CompatibleMatrixRgb",
         "New-Control", "Get-WheelSlot", "Get-WheelSlotLabel", "Get-WheelSlotColor", "New-WheelOptionName",
-        "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
+        "Get-WheelSlotImage", "Get-WheelSlotResourceKey", "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
     )
     $functionSource = ($functionNames | ForEach-Object { "function $_ {`n$((Get-Command $_ -CommandType Function).Definition)`n}" }) -join "`n"
     if ($PSVersionTable.PSVersion.Major -ge 7 -and $effectiveThrottleLimit -gt 1) {
@@ -639,6 +674,40 @@ try {
     $fixtures = @($convertedFixtures | Where-Object { $null -ne $_ } | Sort-Object {
         if ($_ -is [System.Collections.IDictionary]) { [string]$_['key'] } else { [string]$_.key }
     })
+    $resourceMap = [ordered]@{}
+    $resourceFixturePatches = [System.Collections.Generic.List[object]]::new()
+    foreach ($fixtureItem in $fixtures) {
+        $resourceOptionsByControl = [ordered]@{}
+        foreach ($modeItem in @($fixtureItem.modes)) {
+            foreach ($controlItem in @($modeItem.profile.controls)) {
+                foreach ($optionItem in @($controlItem.options)) {
+                    $resourceKey = [string]$optionItem.resourceKey
+                    $resourceImage = [string]$optionItem.image
+                    if (-not $resourceKey -or -not $resourceImage) { continue }
+                    if (-not $resourceMap.Contains($resourceKey)) { $resourceMap[$resourceKey] = [ordered]@{ image = $resourceImage } }
+                    $controlLabel = [string]$controlItem.label
+                    if (-not $resourceOptionsByControl.Contains($controlLabel)) { $resourceOptionsByControl[$controlLabel] = [ordered]@{} }
+                    $optionKey = [string]$optionItem.slotNumber
+                    if (-not $optionKey) { $optionKey = [string]$optionItem.value }
+                    $resourceOptionsByControl[$controlLabel][$optionKey] = [ordered]@{
+                        slotNumber = $optionItem.slotNumber
+                        value = $optionItem.value
+                        resourceKey = $resourceKey
+                    }
+                    if ($optionItem -is [System.Collections.IDictionary]) { $optionItem.Remove("image") }
+                    else { $optionItem.PSObject.Properties.Remove("image") }
+                }
+            }
+        }
+        if ($resourceOptionsByControl.Count) {
+            $resourceFixturePatches.Add([ordered]@{
+                key = $fixtureItem.key
+                controls = @($resourceOptionsByControl.Keys | ForEach-Object {
+                    [ordered]@{ label = $_; options = @($resourceOptionsByControl[$_].Values) }
+                })
+            })
+        }
+    }
 
     $payload = [ordered]@{
         schemaVersion = 1
@@ -697,6 +766,19 @@ try {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $capabilitiesOutFile) | Out-Null
         $capabilitiesPayload | ConvertTo-Json -Depth 40 -Compress | Set-Content -LiteralPath $capabilitiesOutFile -Encoding UTF8
         Write-Host "Wrote capabilities for $($capabilityFixtures.Count) fixtures to $capabilitiesOutFile"
+    }
+    if ($resourcesOutFile) {
+        $resourcesPayload = [ordered]@{
+            schemaVersion = 1
+            source = "Open Fixture Library resources"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+            resourceCount = $resourceMap.Count
+            resources = $resourceMap
+            fixtures = @($resourceFixturePatches)
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $resourcesOutFile) | Out-Null
+        $resourcesPayload | ConvertTo-Json -Depth 10 -Compress | Set-Content -LiteralPath $resourcesOutFile -Encoding UTF8
+        Write-Host "Wrote $($resourceMap.Count) unique wheel resources to $resourcesOutFile"
     }
     if ($MetadataOnly -or $CapabilitiesOnly) {
         if (-not (Test-Path -LiteralPath $outFile)) {

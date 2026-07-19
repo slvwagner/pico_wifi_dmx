@@ -11,11 +11,13 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $outputPath = Join-Path ([IO.Path]::GetTempPath()) 'pico-dmx-fixture-library-metadata-test.json'
 $metadataOutputPath = Join-Path ([IO.Path]::GetTempPath()) ('pico-dmx-fixture-metadata-test-' + [Guid]::NewGuid().ToString('N') + '.json')
 $capabilitiesOutputPath = Join-Path ([IO.Path]::GetTempPath()) ('pico-dmx-fixture-capabilities-test-' + [Guid]::NewGuid().ToString('N') + '.json')
+$resourcesOutputPath = Join-Path ([IO.Path]::GetTempPath()) ('pico-dmx-fixture-resources-test-' + [Guid]::NewGuid().ToString('N') + '.json')
 
-& (Join-Path $repoRoot 'scripts/build_fixture_library.ps1') -OutputPath $outputPath -MetadataOutputPath $metadataOutputPath -CapabilitiesOutputPath $capabilitiesOutputPath
+& (Join-Path $repoRoot 'scripts/build_fixture_library.ps1') -OutputPath $outputPath -MetadataOutputPath $metadataOutputPath -CapabilitiesOutputPath $capabilitiesOutputPath -ResourcesOutputPath $resourcesOutputPath
 $library = Get-Content -LiteralPath $outputPath -Raw | ConvertFrom-Json
 $metadataCatalog = Get-Content -LiteralPath $metadataOutputPath -Raw | ConvertFrom-Json
 $capabilitiesCatalog = Get-Content -LiteralPath $capabilitiesOutputPath -Raw | ConvertFrom-Json
+$resourcesCatalog = Get-Content -LiteralPath $resourcesOutputPath -Raw | ConvertFrom-Json
 $fixture = $library.fixtures | Where-Object key -eq 'fun-generation/picospot-20-led' | Select-Object -First 1
 $metadataFixture = $metadataCatalog.fixtures | Where-Object key -eq 'fun-generation/picospot-20-led' | Select-Object -First 1
 
@@ -96,6 +98,20 @@ $arriMode = $arri.modes | Where-Object name -eq 'P06: CCT & RGBW 16bit' | Select
 $arriDimmer = $arriMode.profile.controls | Where-Object label -eq 'Dimmer' | Select-Object -First 1
 Assert-Equal $arriDimmer.type 'slider16' 'The OFL highlight fixture did not retain its 16-bit dimmer.'
 Assert-Equal $arriDimmer.highlightValue 65535 'The OFL 8-bit highlight value was not scaled to the imported 16-bit control.'
+
+$intimidator = $library.fixtures | Where-Object key -eq 'chauvet-dj/intimidator-spot-160' | Select-Object -First 1
+$intimidatorMode = $intimidator.modes | Where-Object name -eq '11-channel' | Select-Object -First 1
+$intimidatorGobo = $intimidatorMode.profile.controls | Where-Object label -eq 'Gobo Wheel' | Select-Object -First 1
+$intimidatorGoboOne = $intimidatorGobo.options | Where-Object slotNumber -eq 2 | Select-Object -First 1
+Assert-Equal $intimidatorGoboOne.resourceKey 'gobos/10-circles' 'The OFL gobo resource key was not retained by the wheel option.'
+if ($intimidatorGoboOne.image) { throw 'The deduplicated OFL gobo image was unexpectedly embedded in the fixture catalog.' }
+$resourceFixturePatch = $resourcesCatalog.fixtures | Where-Object key -eq 'chauvet-dj/intimidator-spot-160' | Select-Object -First 1
+$resourceControlPatch = $resourceFixturePatch.controls | Where-Object label -eq 'Gobo Wheel' | Select-Object -First 1
+Assert-Equal ($resourceControlPatch.options | Where-Object slotNumber -eq 2 | Select-Object -First 1).resourceKey 'gobos/10-circles' 'The resource sidecar cannot enrich an older fixture catalog.'
+$goboImage = [string]$resourcesCatalog.resources.'gobos/10-circles'.image
+if ($goboImage -notmatch '^data:image/svg\+xml[^,]*;base64,') { throw 'The embedded OFL SVG gobo was not converted to an inline resource image.' }
+$goboSvg = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($goboImage -split ',', 2)[1]))
+if ($goboSvg -notmatch '<svg') { throw 'The converted OFL gobo image does not contain SVG data.' }
 
 $capabilitySidecarFixture = $capabilitiesCatalog.fixtures | Where-Object key -eq 'american-dj/inno-pocket-spot' | Select-Object -First 1
 $capabilitySidecarShutter = $capabilitySidecarFixture.controls | Where-Object label -eq 'Shutter/Strobe' | Select-Object -First 1
