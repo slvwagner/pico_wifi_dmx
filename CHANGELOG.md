@@ -13,6 +13,7 @@ Changed:
 - Kept the Toolboxes **Edit** and sidebar collapse controls visible in a sticky header while scrolling through toolbox tiles.
 - Added recall-only **Scenes** and **Palettes** toolboxes to Room Plane. They use the shared tile layouts and send the stored fixture values to DMX so complete looks or partial palettes can be previewed while calibrating the room plane.
 - Removed the redundant GPIO **Save local** and misleading **Clear local** buttons. GPIO edits continue to autosave to browser storage and the XAMPP server, while **Push to Pico** and **Read from Pico** remain explicit actions.
+- Replaced the old numeric Show Run matrix dimension fields with the same native **Cols** and **Rows** dropdowns used by tile toolboxes, including the overall card matrix and repeated cards.
 
 Fixed:
 

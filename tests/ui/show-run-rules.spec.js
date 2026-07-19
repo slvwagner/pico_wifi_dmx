@@ -989,7 +989,7 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('#cardGrid [data-show-card="midi"] h2')).toHaveText('MIDI Controller');
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardRows').fill('5');
+    await page.locator('#cardRows').selectOption('5');
     await page.locator('[data-add-card-position="9"]').click();
     await page.locator('#addCardType').selectOption('midi');
     await expect(page.locator('#addShowCard')).toHaveText('Add MIDI Controller Card');
@@ -1610,22 +1610,44 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await expect(page.locator('#sceneCols')).toBeVisible();
 
-    await page.locator('#sceneCols').fill('3');
-    await page.locator('#sceneRows').fill('2');
+    await page.locator('#sceneCols').selectOption('3');
+    await page.locator('#sceneRows').selectOption('2');
     await expect(page.locator('#sceneGrid .slot')).toHaveCount(6);
     await expect(page.locator('#sceneGrid')).toHaveCSS('grid-template-columns', /.* .* .*/);
     const sceneGridWidth = await page.locator('#sceneGrid').evaluate(el => el.getBoundingClientRect().width);
     const sceneTileWidth = await page.locator('#sceneGrid .slot').first().evaluate(el => el.getBoundingClientRect().width);
     expect(sceneTileWidth).toBeGreaterThan((sceneGridWidth / 3) - 12);
 
-    await page.locator('#chaserCols').fill('2');
-    await page.locator('#chaserRows').fill('2');
+    await page.locator('#chaserCols').selectOption('2');
+    await page.locator('#chaserRows').selectOption('2');
     await expect(page.locator('#chaserSlots .playback-card')).toHaveCount(4);
     const chaserGridWidth = await page.locator('#chaserSlots').evaluate(el => el.getBoundingClientRect().width);
     const chaserTileWidth = await page.locator('#chaserSlots .playback-card').first().evaluate(el => el.getBoundingClientRect().width);
     expect(chaserTileWidth).toBeGreaterThan((chaserGridWidth / 2) - 12);
 
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('uses native dropdowns for every Show Run matrix dimension', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    await page.locator('#editLayoutBtn').click();
+    const dimensions = [
+      ['cardCols', 5], ['cardRows', 5],
+      ['groupCols', 8], ['groupRows', 12],
+      ['fixtureCols', 32], ['fixtureRows', 32],
+      ['sceneCols', 32], ['sceneRows', 32],
+      ['paletteCols', 32], ['paletteRows', 32],
+      ['planeCols', 32], ['planeRows', 32],
+      ['chaserCols', 32], ['chaserRows', 32],
+      ['motionCols', 32], ['motionRows', 32]
+    ];
+    for (const [id, optionCount] of dimensions) {
+      const select = page.locator('#' + id);
+      await expect(select).toHaveJSProperty('tagName', 'SELECT');
+      await expect(select.locator('option')).toHaveCount(optionCount);
+    }
   });
 
   test('changes the page background while Show Run layout editing is active', async ({ page }) => {
@@ -1660,12 +1682,12 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#paletteCols').fill('2');
-    await page.locator('#paletteRows').fill('1');
+    await page.locator('#paletteCols').selectOption('2');
+    await page.locator('#paletteRows').selectOption('1');
     await expect(page.locator('#paletteRows')).toHaveValue('1');
     await expect(page.locator('#paletteGrid .slot')).toHaveCount(2);
 
-    await page.locator('#chaserRows').fill('2');
+    await page.locator('#chaserRows').selectOption('2');
 
     await expect(page.locator('#chaserRows')).toHaveValue('2');
     await expect(page.locator('#chaserSlots .playback-card')).toHaveCount(8);
@@ -1692,8 +1714,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#motionCols').fill('4');
-    await page.locator('#motionRows').fill('1');
+    await page.locator('#motionCols').selectOption('4');
+    await page.locator('#motionRows').selectOption('1');
 
     await expect(page.locator('#motionRows')).toHaveValue('1');
     await expect(page.locator('#motionSlots .playback-card')).toHaveCount(4);
@@ -1766,8 +1788,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#paletteCols').fill('2');
-    await page.locator('#paletteRows').fill('1');
+    await page.locator('#paletteCols').selectOption('2');
+    await page.locator('#paletteRows').selectOption('1');
     await expect(page.locator('#paletteMove')).toHaveCount(0);
     await page.getByRole('button', { name: /Red/ }).click();
     await page.locator('#paletteGrid .slot').nth(1).click();
@@ -1787,8 +1809,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#paletteCols').fill('2');
-    await page.locator('#paletteRows').fill('1');
+    await page.locator('#paletteCols').selectOption('2');
+    await page.locator('#paletteRows').selectOption('1');
     await expect(page.locator('#groupMove, #sceneMove, #paletteMove, #chaserMove, #motionMove')).toHaveCount(0);
 
     const source = page.getByRole('button', { name: /Red/ });
@@ -2099,8 +2121,8 @@ test.describe('Show Run page', () => {
     await page.locator('#editLayoutBtn').click();
     await expect(page.locator('#cardMove')).toHaveCount(0);
 
-    await page.locator('#cardCols').fill('2');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardCols').selectOption('2');
+    await page.locator('#cardRows').selectOption('3');
 
     await page.locator('#cardPalette .panel-head').dragTo(page.locator('#cardGroup .panel-head'));
     await page.locator('#cardMotion .panel-head').dragTo(page.locator('#cardScene .panel-head'));
@@ -2117,8 +2139,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('2');
+    await page.locator('#cardCols').selectOption('3');
+    await page.locator('#cardRows').selectOption('2');
 
     await expect(page.locator('#cardGrid > *')).toHaveCount(6);
     await expect(page.locator('[data-add-card-position="6"]')).toHaveCount(0);
@@ -2131,8 +2153,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('2');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardCols').selectOption('2');
+    await page.locator('#cardRows').selectOption('3');
 
     // Row 2 / col 2 is the fourth visible card in a 2-column matrix.
     await page.locator('#cardChaser .panel-head').dragTo(page.locator('#cardGroup .panel-head'));
@@ -2152,8 +2174,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardCols').selectOption('3');
+    await page.locator('#cardRows').selectOption('3');
 
     const beforeOrder = await page.evaluate(() => JSON.parse(localStorage.getItem('dmxShowRun.cardOrder') || '[]'));
     expect(beforeOrder.slice(0, 6)).toEqual(['group', 'scene', 'palette', 'chaser', 'motion', 'live']);
@@ -2178,8 +2200,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('4');
+    await page.locator('#cardCols').selectOption('3');
+    await page.locator('#cardRows').selectOption('4');
 
     // Position 5 contains Pico Effects Playback, position 6 contains Live Controls,
     // position 7 contains MIDI Input, position 8 contains Fixtures, position 9 contains Master,
@@ -2205,8 +2227,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('4');
+    await page.locator('#cardCols').selectOption('3');
+    await page.locator('#cardRows').selectOption('4');
 
     await expect(page.locator('#cardLive .card-move-handle')).toHaveCount(0);
     await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardGrid > :nth-child(10)'));
@@ -2228,8 +2250,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardCols').selectOption('3');
+    await page.locator('#cardRows').selectOption('3');
 
     await expect(page.locator('#cardLive .card-move-handle')).toHaveCount(0);
     await page.locator('#cardLive .panel-head').dragTo(page.locator('#cardScene .panel-head'));
@@ -2252,8 +2274,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardCols').selectOption('3');
+    await page.locator('#cardRows').selectOption('3');
 
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');
@@ -2309,7 +2331,7 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardRows').fill('5');
+    await page.locator('#cardRows').selectOption('5');
     await expect(page.locator('[data-add-card-position="9"]')).toBeVisible();
     await page.locator('[data-add-card-position="9"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
@@ -2434,7 +2456,7 @@ test.describe('Show Run page', () => {
     await expect(paletteCards).toHaveCount(2);
     await expect(paletteCards.nth(0).locator('.slot')).toHaveCount(1);
     await expect(secondPalette.locator('.slot')).toHaveCount(2);
-    const secondRows = secondPalette.locator('.matrix-tools label', { hasText: 'Rows' }).locator('input');
+    const secondRows = secondPalette.locator('.matrix-tools label', { hasText: 'Rows' }).locator('select');
     expect(await secondRows.evaluate(input => typeof input.oninput)).toBe('function');
 
     await secondRows.evaluate(input => {
@@ -2563,8 +2585,8 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await page.locator('#editLayoutBtn').click();
-    await page.locator('#cardCols').fill('3');
-    await page.locator('#cardRows').fill('3');
+    await page.locator('#cardCols').selectOption('3');
+    await page.locator('#cardRows').selectOption('3');
 
     await expect(page.locator('#cardGrid > :nth-child(2) h2')).toHaveText('Scenes');
     await expect(page.locator('#cardGrid > :nth-child(6) h2')).toHaveText('Live Controls');

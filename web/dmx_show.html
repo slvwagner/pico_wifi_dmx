@@ -29,7 +29,7 @@ main{padding:14px;display:grid;gap:14px;width:100%;max-width:none;margin:0}
 .panel-tools{display:grid;gap:8px;justify-items:end}
 .matrix-tools{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
 .matrix-tools label{display:flex;gap:5px;align-items:center}
-.matrix-tools input{width:54px;padding:6px 7px;min-height:32px}
+.matrix-tools input,.matrix-tools select{width:68px;padding:6px 7px;min-height:44px}
 .layout-tools{display:none}
 body.layout-editing .layout-tools{display:flex}
 .card-delete{display:none}
@@ -208,10 +208,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 </header>
 <main>
   <section class="panel topbar layout-tools" aria-label="Show card matrix layout">
-    <div class="matrix-tools">
-      <label>Card cols<input id="cardCols" type="number" min="1" max="5" value="2"></label>
-      <label>Card rows<input id="cardRows" type="number" min="1" max="5" value="5"></label>
-    </div>
+    <div id="showCardLayoutControls" class="matrix-tools"></div>
   </section>
 
   <div id="cardGrid" class="card-grid">
@@ -289,10 +286,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
       <div class="panel-tools">
         <button id="showGroupEditBtn" type="button" class="primary">Group Edit</button>
         <div id="targetSummary" class="small"></div>
-        <div class="matrix-tools layout-tools" aria-label="Show target matrix layout">
-          <label>Cols<input id="groupCols" type="number" min="1" max="8" value="2"></label>
-          <label>Rows<input id="groupRows" type="number" min="1" max="12" value="4"></label>
-        </div>
+        <div id="showGroupLayoutControls" class="matrix-tools layout-tools" aria-label="Show target matrix layout"></div>
       </div>
     </div>
     <div id="groupGrid" class="grid"></div>
@@ -306,10 +300,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         </div>
         <div class="panel-tools">
           <div id="fixtureSummary" class="small"></div>
-          <div class="matrix-tools layout-tools" aria-label="Fixture matrix layout">
-            <label>Cols<input id="fixtureCols" type="number" min="1" max="32" value="4"></label>
-            <label>Rows<input id="fixtureRows" type="number" min="1" max="32" value="4"></label>
-          </div>
+          <div id="showFixtureLayoutControls" class="matrix-tools layout-tools" aria-label="Fixture matrix layout"></div>
         </div>
       </div>
       <div id="fixtureGrid" class="grid"></div>
@@ -323,10 +314,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         </div>
         <div class="panel-tools">
           <div id="sceneSummary" class="small"></div>
-          <div class="matrix-tools layout-tools" aria-label="Scene matrix layout">
-            <label>Cols<input id="sceneCols" type="number" min="1" max="32" value="4"></label>
-            <label>Rows<input id="sceneRows" type="number" min="1" max="32" value="4"></label>
-          </div>
+          <div id="showSceneLayoutControls" class="matrix-tools layout-tools" aria-label="Scene matrix layout"></div>
         </div>
       </div>
       <div id="sceneGrid" class="grid"></div>
@@ -340,10 +328,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         </div>
         <div class="panel-tools">
           <div id="paletteSummary" class="small"></div>
-          <div class="matrix-tools layout-tools" aria-label="Palette matrix layout">
-            <label>Cols<input id="paletteCols" type="number" min="1" max="32" value="4"></label>
-            <label>Rows<input id="paletteRows" type="number" min="1" max="32" value="4"></label>
-          </div>
+          <div id="showPaletteLayoutControls" class="matrix-tools layout-tools" aria-label="Palette matrix layout"></div>
         </div>
       </div>
       <div id="paletteGrid" class="grid"></div>
@@ -357,10 +342,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         </div>
         <div class="panel-tools">
           <div id="planeSummary" class="small"></div>
-          <div class="matrix-tools layout-tools" aria-label="Plane matrix layout">
-            <label>Cols<input id="planeCols" type="number" min="1" max="32" value="3"></label>
-            <label>Rows<input id="planeRows" type="number" min="1" max="32" value="3"></label>
-          </div>
+          <div id="showPlaneLayoutControls" class="matrix-tools layout-tools" aria-label="Plane matrix layout"></div>
         </div>
       </div>
       <div id="planeGrid" class="grid"></div>
@@ -374,10 +356,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         </div>
         <div class="panel-tools">
           <button id="stopChaserBtn" class="stop">Stop Chaser</button>
-          <div class="matrix-tools layout-tools" aria-label="Chaser playback matrix layout">
-            <label>Cols<input id="chaserCols" type="number" min="1" max="32" value="4"></label>
-            <label>Rows<input id="chaserRows" type="number" min="1" max="32" value="4"></label>
-          </div>
+          <div id="showChaserLayoutControls" class="matrix-tools layout-tools" aria-label="Chaser playback matrix layout"></div>
         </div>
       </div>
       <div class="pico-control-strip">
@@ -402,10 +381,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
         </div>
         <div class="panel-tools">
           <button id="stopMotionBtn" class="stop">Stop Effects</button>
-          <div class="matrix-tools layout-tools" aria-label="Effects playback matrix layout">
-            <label>Cols<input id="motionCols" type="number" min="1" max="32" value="4"></label>
-            <label>Rows<input id="motionRows" type="number" min="1" max="32" value="4"></label>
-          </div>
+          <div id="showMotionLayoutControls" class="matrix-tools layout-tools" aria-label="Effects playback matrix layout"></div>
         </div>
       </div>
       <div class="pico-control-strip">
@@ -597,6 +573,14 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
 </div>
 
 <script>
+DmxCommon.mountTileLayoutControls('showCardLayoutControls',{colsId:'cardCols',rowsId:'cardRows',cols:2,rows:5,maxCols:5,maxRows:5});
+DmxCommon.mountTileLayoutControls('showGroupLayoutControls',{colsId:'groupCols',rowsId:'groupRows',cols:2,rows:4,maxCols:8,maxRows:12});
+DmxCommon.mountTileLayoutControls('showFixtureLayoutControls',{colsId:'fixtureCols',rowsId:'fixtureRows',cols:4,rows:4,maxCols:32,maxRows:32});
+DmxCommon.mountTileLayoutControls('showSceneLayoutControls',{colsId:'sceneCols',rowsId:'sceneRows',cols:4,rows:4,maxCols:32,maxRows:32});
+DmxCommon.mountTileLayoutControls('showPaletteLayoutControls',{colsId:'paletteCols',rowsId:'paletteRows',cols:4,rows:4,maxCols:32,maxRows:32});
+DmxCommon.mountTileLayoutControls('showPlaneLayoutControls',{colsId:'planeCols',rowsId:'planeRows',cols:3,rows:3,maxCols:32,maxRows:32});
+DmxCommon.mountTileLayoutControls('showChaserLayoutControls',{colsId:'chaserCols',rowsId:'chaserRows',cols:4,rows:4,maxCols:32,maxRows:32});
+DmxCommon.mountTileLayoutControls('showMotionLayoutControls',{colsId:'motionCols',rowsId:'motionRows',cols:4,rows:4,maxCols:32,maxRows:32});
 'use strict';
 const baseUrlEl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl);
@@ -1291,8 +1275,8 @@ function bindPaletteGridRecall(grid,layoutId='palette'){
 function bindRepeatedMatrixInputs(card,kind,layoutId,renderFn,maxCols=32,maxRows=32){
   const layout=ensureCardLayout(layoutId,kind);
   const matrixLabels=[...card.querySelectorAll('.matrix-tools label')];
-  const colsInput=(matrixLabels.find(label=>/^Cols/i.test(label.textContent.trim()))||matrixLabels[0])?.querySelector('input')||null;
-  const rowsInput=(matrixLabels.find(label=>/^Rows/i.test(label.textContent.trim()))||matrixLabels[1])?.querySelector('input')||null;
+  const colsInput=(matrixLabels.find(label=>/^Cols/i.test(label.textContent.trim()))||matrixLabels[0])?.querySelector('input,select')||null;
+  const rowsInput=(matrixLabels.find(label=>/^Rows/i.test(label.textContent.trim()))||matrixLabels[1])?.querySelector('input,select')||null;
   const rerender=()=>{saveCardLayouts();renderFn();};
   if(colsInput){
     colsInput.value=layout.cols;
