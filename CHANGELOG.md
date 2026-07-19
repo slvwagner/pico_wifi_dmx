@@ -8,6 +8,7 @@ Changed:
 - Expanded the README versioning policy with stable/development versions, SemVer meanings, the release-branch lifecycle, synchronized version sources, cache-revision behavior, and current 0.9.12 firmware paths.
 - Added `scripts/start_version_branch.ps1` to validate, preview, create, update, and optionally commit the next version branch without manually editing every synchronized version source.
 - Split show and fixture-catalog backups into four explicit actions: **Export Show**, **Import Show**, **Export Library**, and **Import Library**. `pico_dmx_setup.json` embeds the definitions used by the show, while `pico_dmx_fixture_library.json` preserves the complete reusable catalog. Show import compares changed or missing embedded definitions with the current catalog in a mapping table: highlighted rows use the selected library mode, unselected rows keep the show version, and unrelated catalog entries are preserved. Browser regression coverage now imports a library file followed by a differing show file and verifies that the mapping modal appears before any show data is written.
+- Added a persistent show name requested by **New Show**, displayed it in the Show card, stored it in show backups, restored it on import, and used it for readable export filenames such as `pico_dmx_summer-gala_show.json`. Older unnamed backups load as **Untitled Show**.
 
 ## 0.9.12 - 2026-07-19
 

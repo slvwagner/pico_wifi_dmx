@@ -208,7 +208,7 @@ The Fixture Controller uses the shared right-side **Toolboxes** sidebar.
 
 ![Controller Groups toolbox](screenshots/fixture-controller-toolbox-groups.png)
 
-**Show** is the first Controller card and the project-level home for show setup. Its top action bar displays **Export Show**, **Import Show**, **Export Library**, and **Import Library** together; the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards follow below. Collapse Show to hide all of those setup tools at once. When Show is expanded again, each nested card returns with its own previous expanded or collapsed state. **New Show** starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. **Export Show** and **Import Show** handle the show backup; **Export Library** and **Import Library** independently handle the complete reusable catalog. **Patch CSV** exports the patched channel table.
+**Show** is the first Controller card and the project-level home for show setup. The current show name appears below its heading. Its top action bar displays **Export Show**, **Import Show**, **Export Library**, and **Import Library** together; the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards follow below. Collapse Show to hide all of those setup tools at once. When Show is expanded again, each nested card returns with its own previous expanded or collapsed state. **New Show** confirms the reset and then asks for the required show name before clearing fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. **Export Show** and **Import Show** handle the show backup; **Export Library** and **Import Library** independently handle the complete reusable catalog. **Patch CSV** exports the patched channel table.
 
 **Groups** stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small `x`, import/export group JSON, reorder group tiles with **Move**, and open **Group Edit** when the current scope supports it.
 
@@ -1365,7 +1365,7 @@ Use three non-collinear points. If A, B, and C are on one line, the determinant 
 
 Use **Fixture Controller > Show > Export Show** before large changes or before moving the show to another computer. Show and catalog backup are separate actions:
 
-- **Export Show** downloads `pico_dmx_setup.json`, the self-contained show backup that embeds the richer fixture-library entries and modes referenced by patched fixtures.
+- **Export Show** downloads a show-name-specific file such as `pico_dmx_summer-gala_show.json`. It stores the show name and embeds the richer fixture-library entries and modes referenced by patched fixtures.
 - **Export Library** downloads `pico_dmx_fixture_library.json`, preserving the complete reusable fixture catalog.
 
 The exported setup file includes:
@@ -1383,7 +1383,7 @@ The exported setup file includes:
 
 The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.
 
-Use **Import Show** on the Fixture Controller to restore `pico_dmx_setup.json`. Its Controller profiles, patched fixtures, and embedded used definitions are sufficient to operate the restored show.
+Use **Import Show** on the Fixture Controller to restore a show backup. Its saved show name, Controller profiles, patched fixtures, and embedded used definitions are sufficient to operate the restored show. Older backups without a show name load as **Untitled Show**.
 
 Before the restore writes any data, **Resolve Fixture Updates** appears when a show fixture definition is missing from or differs from the current server library. Each table row shows the show fixture, the difference, and a library fixture/mode selector:
 

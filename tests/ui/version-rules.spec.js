@@ -189,6 +189,7 @@ test.describe('Project versioning rules', () => {
       },
       fixtureLibrary: { fixtureCount: 1, fixtures: [{ key: 'legacy/fixture' }] }
     });
+    expect(migrated.showName).toBe('Untitled Show');
 
     const futureError = await page.evaluate(() => {
       try {
@@ -236,6 +237,7 @@ test.describe('Project versioning rules', () => {
       });
 
       try {
+        showName = 'Visual Tour';
         profiles = [
           { id: 1, name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 10, type: 'slider8', label: 'Dimmer', channel: 1 }] },
           { id: 2, name: 'Unused Profile', mode: '2ch', channels: 2, controls: [{ id: 20, type: 'slider8', label: 'Dimmer', channel: 1 }] }
@@ -330,7 +332,7 @@ test.describe('Project versioning rules', () => {
         };
 
         await exportFullSetup();
-        const showDownload = downloads.find(download => download.filename === 'pico_dmx_setup.json');
+        const showDownload = downloads.find(download => download.payload?.type === 'pico_wifi_dmx_full_setup');
         await importFullSetup(showDownload.payload);
 
         const groupImport = posts.filter(post => post.url.includes('group_setup.php')).pop();
@@ -338,6 +340,8 @@ test.describe('Project versioning rules', () => {
         const showRunImport = posts.filter(post => post.url.includes('ui_state.php') && post.body.page === 'showRun').pop();
         return {
           filenames: downloads.map(download => download.filename),
+          showName: showDownload.payload.showName,
+          fixtureShowName: showDownload.payload.fixture.showName,
           setupFormatVersion: showDownload.payload.setupFormatVersion,
           setupFixtureLibrary: showDownload.payload.fixtureLibrary,
           setupProfiles: showDownload.payload.fixture.profiles.map(profile => profile.name),
@@ -356,7 +360,9 @@ test.describe('Project versioning rules', () => {
       }
     });
 
-    expect(result.filenames).toEqual(['pico_dmx_setup.json']);
+    expect(result.filenames).toEqual(['pico_dmx_visual-tour_show.json']);
+    expect(result.showName).toBe('Visual Tour');
+    expect(result.fixtureShowName).toBe('Visual Tour');
     expect(result.setupFormatVersion).toBe(3);
     expect(result.setupProfiles).toEqual(['Profile A', 'Unused Profile']);
     expect(result.setupFixtureLibrary).toMatchObject({
@@ -612,6 +618,7 @@ test.describe('Project versioning rules', () => {
     const result = await page.evaluate(async () => {
       const originalFetch = window.fetch;
       const originalConfirm = window.confirm;
+      const originalPrompt = window.prompt;
       const posts = [];
       const response = body => ({
         ok: true,
@@ -634,6 +641,7 @@ test.describe('Project versioning rules', () => {
         draw();
 
         window.confirm = () => true;
+        window.prompt = () => 'Summer Gala';
         window.fetch = async (url, options = {}) => {
           const href = String(url);
           const method = String(options.method || 'GET').toUpperCase();
@@ -664,6 +672,8 @@ test.describe('Project versioning rules', () => {
           motionSlotDeletes: countPosts('motion_setup.php?delete_slot='),
           fixtureLibraryPosts: countPosts('fixture_library.php'),
           local: {
+            showName,
+            showNameLabel: document.getElementById('showNameLabel')?.textContent,
             profiles: profiles.length,
             fixtures: fixtures.length,
             values: Object.keys(values).length,
@@ -678,10 +688,12 @@ test.describe('Project versioning rules', () => {
       } finally {
         window.fetch = originalFetch;
         window.confirm = originalConfirm;
+        window.prompt = originalPrompt;
       }
     });
 
     expect(result.fixture.fixtures).toEqual([]);
+    expect(result.fixture.showName).toBe('Summer Gala');
     expect(result.fixture.profiles).toHaveLength(1);
     expect(result.fixture.profiles[0].name).toBe('Generic Moving Head');
     expect(result.liveValues).toEqual({});
@@ -706,6 +718,8 @@ test.describe('Project versioning rules', () => {
     expect(result.motionSlotDeletes).toBe(0);
     expect(result.fixtureLibraryPosts).toBe(0);
     expect(result.local).toMatchObject({
+      showName: 'Summer Gala',
+      showNameLabel: 'Summer Gala',
       profiles: 1,
       fixtures: 0,
       values: 0,
@@ -714,7 +728,7 @@ test.describe('Project versioning rules', () => {
       palettes: 0,
       selectedFixtures: 0,
       selectedGroups: 0,
-      status: 'New show started'
+      status: 'New show started: Summer Gala'
     });
   });
 

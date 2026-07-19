@@ -179,7 +179,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 <section class="panel setup-files-card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-<h2>Show</h2>
+<div><h2>Show</h2><div class="small" id="showNameLabel">Untitled Show</div></div>
 <button id="showCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
 <div id="showBody" class="show-setup-body">
@@ -638,6 +638,7 @@ DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{b
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
+let showName='Untitled Show';
 let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
@@ -1839,8 +1840,20 @@ function patchFixture(){
   scheduleSetupAutosave();
 }
 
-function saveData(){return DmxCommon.versionedPayload({baseUrl:baseUrl.value,profiles,fixtures});}
+function normalizeShowName(value){return String(value||'').trim().slice(0,80)||'Untitled Show';}
+function renderShowName(){
+  const label=document.getElementById('showNameLabel');
+  if(label)label.textContent=normalizeShowName(showName);
+}
+function showExportFilename(value){
+  const slug=normalizeShowName(value).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'untitled-show';
+  return 'pico_dmx_'+slug+'_show.json';
+}
+function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:baseUrl.value,profiles,fixtures});}
 function applyData(data){
+  showName=normalizeShowName(data?.showName);
+  renderShowName();
   baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
@@ -2715,6 +2728,7 @@ function fullSetupFormatVersion(data){
 function fullSetupMetadata(){
   return {
     type:FULL_SETUP_TYPE,
+    showName:normalizeShowName(showName),
     project:{
       id:PROJECT_ID,
       name:'Pico WiFi DMX',
@@ -2777,7 +2791,9 @@ function migrateFullSetupPayload(setup){
       throw new Error('No migration path from setup file format '+version+' to '+FULL_SETUP_FORMAT_VERSION+'.');
     }
   }
+  const importedShowName=migrated.showName||migrated.fixture?.showName||'Untitled Show';
   migrated={...fullSetupMetadata(),...migrated,setupFormatVersion:FULL_SETUP_FORMAT_VERSION};
+  migrated.showName=normalizeShowName(importedShowName);
   migrated.project={...fullSetupMetadata().project,...(migrated.project||{})};
   return migrated;
 }
@@ -3009,7 +3025,7 @@ async function exportFullSetup(){
     fixtureLibrary:showFixtureLibrary,
     uiState:(await fetchSetupPayload('ui_state.php',null,{ok:true,exists:false,state:{}})).state||{}
   },2);
-  DmxCommon.downloadJson('pico_dmx_setup.json',full);
+  DmxCommon.downloadJson(showExportFilename(showName),full);
   setStatus('Show exported with '+showFixtureLibrary.fixtureCount+' used fixture definition'+(showFixtureLibrary.fixtureCount===1?'':'s'));
 }
 async function postSetupPayload(url,data){
@@ -3070,8 +3086,13 @@ function resetShowLocalState(){
 }
 async function startNewShow(){
   if(!confirm('Start a fresh show?\n\nThis clears fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico playback slots, and saved toolbox layout. The fixture library is kept.'))return;
+  const requestedShowName=prompt('Show name',normalizeShowName(showName));
+  if(requestedShowName===null)return;
+  if(!String(requestedShowName).trim()){showError('Show name is required');return;}
   const showBaseUrl=baseUrl.value;
   resetShowLocalState();
+  showName=normalizeShowName(requestedShowName);
+  renderShowName();
   baseUrl.value=showBaseUrl;
   localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
   const fixturePayload=saveData();
@@ -3107,7 +3128,7 @@ async function startNewShow(){
   await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
   await postSetupPayload('room_plane_setup.php',defaultRoomPlaneSetup(showBaseUrl));
   for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
-  setStatus('New show started');
+  setStatus('New show started: '+showName);
 }
 async function importFullSetup(data){
   const full=normalizeFullSetupPayload(data);
@@ -3119,7 +3140,7 @@ async function importFullSetup(data){
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
   if(!confirm('Import show?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
-  let fixtureSetup=migrated.fixture;
+  let fixtureSetup={...migrated.fixture,showName:normalizeShowName(migrated.fixture?.showName||migrated.showName)};
   let fixtureLibraryResolution=null;
   if(migrated.fixtureLibrary){
     const currentLibrary=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true})||{schemaVersion:1,fixtures:[]});
