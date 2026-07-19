@@ -13,6 +13,7 @@ Changed:
 - Organized external source material by moving the Open Fixture Library export to `tools/fixture-library/` and the Launch Control XL programmer reference to `docs/references/`; the fixture-library builder now uses the new archive path by default.
 - Linked the README and user manual to the original Open Fixture Library project.
 - Added normalized OFL fixture information to the Controller library preview, including authors/dates, physical specifications, and safe source/manual/product/video links. A compact metadata sidecar enriches older custom catalogs in browser memory without writing server data, while the converter's metadata-only mode preserves all curated fixtures and controls.
+- Changed each Fixture Profile **Update Library** action into a bidirectional comparison: **Use show in library** updates the matching reusable mode, while **Use library in show** refreshes the existing show profile. Stable fixture/mode links replace later name guessing, library-only metadata/capabilities/warnings and unrelated modes are preserved, and show-only IDs plus Pan/Tilt mounting corrections remain in the show.
 
 ## 0.9.12 - 2026-07-19
 

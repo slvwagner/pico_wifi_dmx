@@ -889,7 +889,7 @@ test.describe('Project versioning rules', () => {
     expect(importedLibrary).toMatchObject({ source: 'Test import', fixtureCount: 1 });
   });
 
-  test('selected fixture profile can update the fixture library catalog', async ({ page }) => {
+  test('Update Library compares a show profile before merging it into the reusable library', async ({ page }) => {
     let savedLibrary = null;
     const initialLibrary = {
       schemaVersion: 1,
@@ -899,11 +899,13 @@ test.describe('Project versioning rules', () => {
         key: 'test/demo',
         manufacturerName: 'Test',
         name: 'Demo Fixture',
+        metadata: { source: 'ofl', authors: ['Library Author'] },
         categories: ['Dimmer'],
         modes: [{
           name: '1ch',
           channels: 1,
-          profile: { name: 'Demo Fixture', mode: '1ch', channels: 1, controls: [{ id: 1, type: 'slider8', label: 'Dimmer', channel: 1 }] }
+          warnings: ['Keep this warning'],
+          profile: { name: 'Demo Fixture', mode: '1ch', channels: 1, controls: [{ id: 1, type: 'slider8', label: 'Dimmer', channel: 1, capability: { type: 'Intensity' } }] }
         }]
       }]
     };
@@ -922,10 +924,12 @@ test.describe('Project versioning rules', () => {
     await page.evaluate(() => {
       profiles.splice(0, profiles.length, {
         id: 7001,
-        name: 'Demo Fixture',
+        name: 'Renamed Show Fixture',
         mode: '1ch',
+        libraryFixtureKey: 'test/demo',
+        libraryModeName: '1ch',
         channels: 1,
-        controls: [{ id: 7002, type: 'slider8', label: 'Dimmer Fine', channel: 1 }]
+        controls: [{ id: 7002, type: 'slider8', label: 'Dimmer Fine', channel: 1, default: 200 }]
       });
       fixtures.splice(0, fixtures.length);
       activeProfileId = 7001;
@@ -933,11 +937,103 @@ test.describe('Project versioning rules', () => {
       draw();
     });
     await page.locator('[data-update-profile-library="7001"]').click();
+    await expect(page.locator('#fixtureProfileMergeModal')).toBeVisible();
+    await expect(page.locator('#fixtureProfileMergeBody')).toContainText('Renamed Show Fixture');
+    await expect(page.locator('#fixtureProfileMergeBody')).toContainText('Demo Fixture');
+    await page.locator('[data-profile-merge-direction="show"]').click();
+    await expect(page.locator('[data-profile-merge-direction="show"]')).toHaveClass(/selected/);
+    await page.locator('#fixtureProfileMergeApply').click();
     await expect(page.locator('[data-update-profile-library="7001"]')).toHaveText('Updated');
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Updated library fixture Demo Fixture');
 
     const mode = savedLibrary.fixtures[0].modes.find(item => item.name === '1ch');
-    expect(mode.profile.controls).toEqual([expect.objectContaining({ label: 'Dimmer Fine', channel: 1 })]);
+    expect(savedLibrary.fixtures[0].metadata).toEqual({ source: 'ofl', authors: ['Library Author'] });
+    expect(mode.warnings).toEqual(['Keep this warning']);
+    expect(mode.profile.controls).toEqual([expect.objectContaining({
+      id: 1,
+      label: 'Dimmer Fine',
+      channel: 1,
+      default: 200,
+      capability: { type: 'Intensity' }
+    })]);
+  });
+
+  test('Update Library can merge the reusable library definition back into the existing show profile', async ({ page }) => {
+    let libraryPosts = 0;
+    const initialLibrary = {
+      schemaVersion: 1,
+      source: 'Test library',
+      fixtureCount: 1,
+      fixtures: [{
+        key: 'test/mover',
+        manufacturerName: 'Test',
+        name: 'Mover',
+        metadata: { source: 'ofl', authors: ['Library Author'] },
+        categories: ['Moving Head'],
+        modes: [{
+          name: '4ch',
+          channels: 4,
+          profile: {
+            name: 'Mover', mode: '4ch', channels: 4,
+            controls: [{ id: 10, type: 'panTilt16', label: 'Library Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4, panReverse: false, tiltReverse: false, panTiltSwap: false }]
+          }
+        }]
+      }]
+    };
+    await page.route('**/fixture_library.php', async route => {
+      if (route.request().method() === 'POST') {
+        libraryPosts += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"file":"fixture_library.json"}' });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: true, library: initialLibrary }) });
+    });
+    await openDmxPage(page, '');
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded 1 custom library fixtures', { timeout: 15000 });
+
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 7101,
+        name: 'My Installed Mover',
+        mode: '4ch',
+        libraryFixtureKey: 'test/mover',
+        libraryModeName: '4ch',
+        channels: 4,
+        controls: [{ id: 7102, type: 'panTilt16', label: 'Show Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4, panReverse: true, tiltReverse: true, panTiltSwap: true }]
+      });
+      fixtures.splice(0, fixtures.length);
+      activeProfileId = 7101;
+      loadProfileEditor(profiles[0]);
+      draw();
+    });
+
+    await page.locator('[data-update-profile-library="7101"]').click();
+    await expect(page.locator('#fixtureProfileMergeModal')).toBeVisible();
+    await page.locator('[data-profile-merge-direction="library"]').click();
+    await page.locator('#fixtureProfileMergeApply').click();
+    await expect(page.locator('#fixtureProfileMergeModal')).toBeHidden();
+
+    const result = await page.evaluate(() => {
+      const profile = profiles.find(item => item.id === 7101);
+      return { profile, status: document.getElementById('status').textContent };
+    });
+    expect(result.profile).toMatchObject({
+      id: 7101,
+      name: 'Mover',
+      mode: '4ch',
+      libraryFixtureKey: 'test/mover',
+      libraryModeName: '4ch'
+    });
+    expect(result.profile.controls).toEqual([expect.objectContaining({
+      id: 7102,
+      label: 'Library Pan/Tilt',
+      panReverse: true,
+      tiltReverse: true,
+      panTiltSwap: true
+    })]);
+    expect(result.status).toContain('Show profile updated from fixture library');
+    expect(libraryPosts).toBe(0);
   });
 
   test('fixture profile fields autosave without a save profile button', async ({ page }) => {

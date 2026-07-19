@@ -68,7 +68,7 @@ The **Fixture Library** panel imports fixture profiles from an export of the ori
 
 The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a **Retry** button.
 
-Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, **Update Library** changes to **Updating...** and then **Updated** when the fixture library write is complete.
+Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, **Update Library** changes to **Comparing...** while its merge dialog is open and then **Updated** when the chosen operation is complete.
 
 Use **Export Library** to download the currently loaded fixture catalog as `pico_dmx_fixture_library.json`. Use **Import Library** to upload a converted fixture library catalog to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script `scripts/sync_fixture_library_from_xampp.ps1` can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys. When fixtures differ, the script asks whether to take each XAMPP change or keep the bundled copy; `-AcceptAllChanges`, `-KeepExistingChanges`, and `-DryRun` are available for intentional automated runs.
 
@@ -80,7 +80,7 @@ Older custom catalogs may not contain Fixture Information yet. In that case, the
 4. Review the converted controls and channel count in the preview.
 5. Click **Import profile**.
 
-The imported fixture is added to **Fixture Profiles** and becomes the active profile. You can edit it like any manually created profile, including changing labels, defaults, blackout values, and wheel options.
+The imported fixture is added to **Fixture Profiles** and becomes the active profile. You can edit it like any manually created profile, including changing labels, defaults, blackout values, and wheel options. The imported profile remembers its library fixture key and mode, so later updates still find the correct reusable definition if you rename the show profile.
 
 The converter keeps the richer Open Fixture Library data where the controller can use it:
 
@@ -124,7 +124,9 @@ These options belong to the fixture profile, so every patched fixture using that
 
 To change an existing control, click **Edit** in the Fixture Profiles list. The compact **Add / Edit Control** fields load the selected type, label, and channels, and the control details modal opens automatically. After editing, click **Save control** in the modal. If a Pico base URL is set, saving an existing control immediately resends the current live value for every patched fixture using that profile/control, so Pan/Tilt reverse or axis-swap changes are applied to the output right away. The **Fixture Profiles** collapse button hides the profile list and the compact Add / Edit Control box together.
 
-Click **Update Library** when the selected profile should become part of the fixture library. The controller saves the current profile name, mode, channel count, and controls into the fixture library catalog on the XAMPP server. If the same fixture and mode already exist in the library, that mode is replaced; otherwise a new custom fixture entry is added. For existing Open Fixture Library modes, Update Library preserves richer wheel metadata such as `WheelShake`, `WheelRotation`, slot numbers, and speed ranges even when the edited controller profile only shows plain wheel values. Pan/Tilt reverse and axis-swap options are not written into the fixture library, because they describe how a fixture is mounted in one show rather than the fixture's DMX personality.
+Click **Update Library** to compare the selected show profile with its linked reusable fixture mode. The **Merge Fixture Profile** dialog shows both names, modes, channel counts, control counts, and a short difference summary. Choose **Use show in library** to update the reusable mode from the show, or choose **Use library in show** to refresh the existing show profile without adding a duplicate profile. A profile that has no library match can only be added with **Use show in library**.
+
+The merge keeps data that belongs to only one side. Fixture Information, OFL capabilities, warnings, categories, unrelated modes, and richer wheel details remain in the library. Show profile/control IDs and Pan/Tilt reverse or axis-swap settings remain in the show because they describe patch references and how fixtures are mounted in this show. When **Use show in library** is selected, matching reusable controls retain their library IDs and metadata while editable names, channel mappings, defaults, and blackout values come from the show.
 
 ### Default and Blackout Values
 

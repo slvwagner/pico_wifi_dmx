@@ -1454,12 +1454,15 @@ test.describe('Fixture Controller established rules', () => {
       return imported ? {
         name: imported.name,
         mode: imported.mode,
+        libraryFixtureKey: imported.libraryFixtureKey,
+        libraryModeName: imported.libraryModeName,
         channels: imported.channels,
         controls: imported.controls.map(c => ({ type: c.type, label: c.label, pan: c.pan, panFine: c.panFine, tilt: c.tilt, tiltFine: c.tiltFine, channel: c.channel }))
       } : null;
     });
 
     expect(profile).toBeTruthy();
+    expect(profile).toMatchObject({ libraryFixtureKey: 'american-dj/inno-pocket-spot', libraryModeName: '11-channel' });
     expect(profile.channels).toBe(11);
     expect(profile.controls).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'panTilt16', label: 'Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }),

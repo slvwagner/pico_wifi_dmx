@@ -154,6 +154,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-import-difference{display:grid;gap:2px;min-width:180px}
 .fixture-import-difference strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-import-map-note{padding:10px;border:1px solid var(--line);border-radius:8px;background:#10161b}
+.fixture-profile-merge-modal .modal-card{width:min(920px,calc(100vw - 24px));max-width:920px}
+.fixture-profile-merge-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fixture-profile-merge-side{padding:12px;border:1px solid var(--line);border-radius:8px;background:#10161b;display:grid;gap:5px}
+.fixture-profile-merge-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.fixture-profile-merge-option{padding:14px;text-align:left;border:1px solid var(--line);border-radius:8px;background:#10161b;display:grid;gap:5px;min-height:92px}
+.fixture-profile-merge-option.selected{border-color:var(--accent);background:#12352d;box-shadow:inset 4px 0 0 var(--accent)}
+.fixture-profile-merge-option:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:700px){.fixture-profile-merge-summary,.fixture-profile-merge-options{grid-template-columns:1fr}}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
 #addControlBody{display:grid;gap:10px}
@@ -631,6 +639,20 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="fixtureProfileMergeModal" class="modal-overlay form-modal fixture-profile-merge-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fixtureProfileMergeTitle">
+<div class="modal-head">
+<button id="fixtureProfileMergeClose" type="button" aria-label="Cancel fixture profile merge">x</button>
+<div class="modal-title-stack"><h2 id="fixtureProfileMergeTitle">Merge Fixture Profile</h2><div class="small">Choose which reusable definition should win. Show-only mounting settings and library-only fixture information are preserved automatically.</div></div>
+</div>
+<div class="modal-body" id="fixtureProfileMergeBody"></div>
+<div class="modal-actions">
+<button id="fixtureProfileMergeCancel" type="button">Cancel</button>
+<button id="fixtureProfileMergeApply" type="button" class="primary">Apply Merge</button>
+</div>
+</div>
+</div>
+
 <div id="fanToolboxMount"></div>
 
 <aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
@@ -1028,6 +1050,8 @@ function fixtureLibraryKeyFromName(name){
     .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'fixture';
 }
 function profileMatchesLibraryFixture(profile,fixture){
+  const linkedKey=String(profile?.libraryFixtureKey||'').trim();
+  if(linkedKey)return String(fixture?.key||'')===linkedKey;
   const fullName=((fixture.manufacturerName?fixture.manufacturerName+' ':'')+(fixture.name||'')).trim().toLowerCase();
   const fixtureName=String(fixture.name||'').trim().toLowerCase();
   const profileName=String(profile.name||'').trim().toLowerCase();
@@ -1036,8 +1060,13 @@ function profileMatchesLibraryFixture(profile,fixture){
   return (fixture.modes||[]).some(mode=>String(mode?.profile?.name||'').trim().toLowerCase()===profileName);
 }
 function libraryModeMatchesProfile(mode,profile){
-  const profileMode=String(profile.mode||'').trim().toLowerCase();
+  const profileMode=String(profile?.libraryModeName||profile?.mode||'').trim().toLowerCase();
   return String(mode?.name||'').trim().toLowerCase()===profileMode||String(mode?.profile?.mode||'').trim().toLowerCase()===profileMode;
+}
+function libraryFixtureAndModeForProfile(library,profile){
+  const fixture=(library?.fixtures||[]).find(candidate=>profileMatchesLibraryFixture(profile,candidate))||null;
+  const mode=(fixture?.modes||[]).find(candidate=>libraryModeMatchesProfile(candidate,profile))||null;
+  return {fixture,mode};
 }
 function canonicalLibraryProfileName(fixture,profileName){
   const name=String(profileName||'').trim();
@@ -1105,17 +1134,22 @@ function controlLibraryIdentity(control){
 function mergeLibraryControlMetadata(existingControls,newControls){
   const existingByIdentity=new Map();
   const existingByLabel=new Map();
+  const existingByChannels=new Map();
   (existingControls||[]).forEach(control=>{
     existingByIdentity.set(controlLibraryIdentity(control),control);
     const labelKey=[control.type,control.label].join('|');
     if(!existingByLabel.has(labelKey))existingByLabel.set(labelKey,[]);
     existingByLabel.get(labelKey).push(control);
+    const channelKey=[control.type,controlChannels(control).join(',')].join('|');
+    if(!existingByChannels.has(channelKey))existingByChannels.set(channelKey,[]);
+    existingByChannels.get(channelKey).push(control);
   });
   return (newControls||[]).map(control=>{
     const exact=existingByIdentity.get(controlLibraryIdentity(control));
     const byLabel=existingByLabel.get([control.type,control.label].join('|'))||[];
-    const existing=exact||byLabel.find(candidate=>candidate.channel===control.channel)||byLabel[0]||null;
-    const merged=existing?{...existing,...control}:control;
+    const byChannels=existingByChannels.get([control.type,controlChannels(control).join(',')].join('|'))||[];
+    const existing=exact||byLabel.find(candidate=>candidate.channel===control.channel)||byLabel[0]||byChannels[0]||null;
+    const merged=existing?{...existing,...control,id:existing.id||control.id}:control;
     if(merged.type==='wheel'){
       merged.options=mergeLibraryWheelOptions(existing?.options,control.options);
     }
@@ -1133,14 +1167,14 @@ function mergeLibraryModeProfileMetadata(existingMode,cleanProfile){
 function upsertProfileIntoFixtureLibrary(library,profile){
   const cleanProfile=libraryProfileFromControllerProfile(profile);
   const fixtureName=cleanProfile.name;
-  let fixture=library.fixtures.find(candidate=>profileMatchesLibraryFixture(cleanProfile,candidate));
+  let fixture=libraryFixtureAndModeForProfile(library,profile).fixture;
   if(!fixture){
     const key='custom/'+fixtureLibraryKeyFromName(fixtureName);
     fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
     library.fixtures.push(fixture);
   }
   cleanProfile.name=canonicalLibraryProfileName(fixture,cleanProfile.name);
-  const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,cleanProfile));
+  const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,profile));
   if(!Array.isArray(fixture.modes))fixture.modes=[];
   const existingMode=modeIndex>=0?fixture.modes[modeIndex]:null;
   const profileWithMetadata=mergeLibraryModeProfileMetadata(existingMode,cleanProfile);
@@ -1153,6 +1187,47 @@ function upsertProfileIntoFixtureLibrary(library,profile){
   library.source=library.source&&library.source!=='Built-in fixture library' ? library.source : 'Controller edited fixture library';
   return {fixture,mode};
 }
+let fixtureProfileMergeResolve=null;
+let fixtureProfileMergeDirection='show';
+function setFixtureProfileMergeDirection(direction){
+  fixtureProfileMergeDirection=direction;
+  document.querySelectorAll('[data-profile-merge-direction]').forEach(button=>{
+    button.classList.toggle('selected',button.dataset.profileMergeDirection===direction);
+    button.setAttribute('aria-pressed',button.dataset.profileMergeDirection===direction?'true':'false');
+  });
+}
+function closeFixtureProfileMerge(result){
+  document.getElementById('fixtureProfileMergeModal').style.display='none';
+  const resolve=fixtureProfileMergeResolve;
+  fixtureProfileMergeResolve=null;
+  if(resolve)resolve(result);
+}
+function openFixtureProfileMerge(profile,fixture,mode){
+  const showControls=profile?.controls||[];
+  const libraryControls=mode?.profile?.controls||[];
+  const hasLibrary=!!(fixture&&mode);
+  const differences=[];
+  if(!hasLibrary)differences.push('This profile does not exist in the library yet.');
+  else{
+    if(String(profile.name||'')!==String(mode.profile?.name||fixture.name||''))differences.push('Profile names differ.');
+    if(String(profile.mode||'')!==String(mode.profile?.mode||mode.name||''))differences.push('Mode names differ.');
+    if(Number(profile.channels||0)!==Number(mode.profile?.channels||mode.channels||0))differences.push('Channel counts differ.');
+    if(JSON.stringify(libraryProfileFromControllerProfile(profile).controls)!==JSON.stringify(libraryControls))differences.push('Control definitions differ.');
+  }
+  document.getElementById('fixtureProfileMergeBody').innerHTML=`
+    <div class="fixture-import-map-note small">${escHtml(differences.join(' ')||'The reusable definitions match. You can still choose a direction to refresh their linked identity.')}</div>
+    <div class="fixture-profile-merge-summary">
+      <div class="fixture-profile-merge-side"><strong>Show profile</strong><span>${escHtml(profile?.name||'Fixture')}</span><span class="small">${escHtml(profile?.mode||'mode')} · ${profile?.channels||0}ch · ${showControls.length} control${showControls.length===1?'':'s'}</span></div>
+      <div class="fixture-profile-merge-side"><strong>Fixture library</strong><span>${escHtml(fixture?((fixture.manufacturerName?fixture.manufacturerName+' ':'')+fixture.name):'No matching fixture')}</span><span class="small">${escHtml(mode?.name||'No matching mode')} · ${mode?.channels||0}ch · ${libraryControls.length} control${libraryControls.length===1?'':'s'}</span></div>
+    </div>
+    <div class="fixture-profile-merge-options">
+      <button type="button" class="fixture-profile-merge-option" data-profile-merge-direction="show" aria-pressed="false"><strong>Use show in library</strong><span class="small">Update this reusable library mode from the show. Library information, capabilities, warnings, and other modes remain intact.</span></button>
+      <button type="button" class="fixture-profile-merge-option" data-profile-merge-direction="library" aria-pressed="false" ${hasLibrary?'':'disabled'}><strong>Use library in show</strong><span class="small">Update this existing show profile from the reusable mode. Profile/control IDs and Pan/Tilt mounting settings remain intact.</span></button>
+    </div>`;
+  document.getElementById('fixtureProfileMergeModal').style.display='grid';
+  setFixtureProfileMergeDirection('show');
+  return new Promise(resolve=>{fixtureProfileMergeResolve=resolve;});
+}
 async function updateSelectedProfileInFixtureLibrary(){
   const profile=activeProfile();
   if(!profile)throw new Error('Select a profile first');
@@ -1163,15 +1238,43 @@ async function updateSelectedProfileInFixtureLibrary(){
 }
 async function updateProfileInFixtureLibrary(profile){
   const library=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true}));
+  const existing=libraryFixtureAndModeForProfile(library,profile);
+  const direction=await openFixtureProfileMerge(profile,existing.fixture,existing.mode);
+  if(!direction){
+    setStatus('Fixture profile merge cancelled');
+    const cancelled=new Error('Fixture profile merge cancelled');
+    cancelled.fixtureMergeCancelled=true;
+    throw cancelled;
+  }
+  if(direction==='library'){
+    if(!existing.fixture||!existing.mode)throw new Error('No matching library fixture mode');
+    const profileIndex=profiles.findIndex(item=>String(item.id)===String(profile.id));
+    if(profileIndex<0)throw new Error('Show profile is no longer available');
+    const merged=importedProfileFromLibraryMode(profile,existing.mode,existing.fixture);
+    profiles[profileIndex]=merged;
+    activeProfileId=merged.id;
+    loadProfileEditor(merged);
+    draw();
+    scheduleSetupAutosave();
+    fixtureLibraryState.selectedKey=existing.fixture.key;
+    fixtureLibraryState.selectedModeIndex=Math.max(0,(existing.fixture.modes||[]).indexOf(existing.mode));
+    renderFixtureLibraryResults();
+    document.getElementById('fixtureLibraryStatus').textContent='Updated show profile from library fixture '+existing.fixture.name+' · '+existing.mode.name+'.';
+    setStatus('Show profile updated from fixture library: '+merged.name+' ('+merged.mode+')');
+    return {fixture:existing.fixture,mode:existing.mode,profile:merged,direction};
+  }
   const result=upsertProfileIntoFixtureLibrary(library,profile);
   await saveFixtureLibraryToServer(library);
+  profile.libraryFixtureKey=result.fixture.key;
+  profile.libraryModeName=result.mode.name;
+  scheduleSetupAutosave();
   fixtureLibraryState.data=library;
   fixtureLibraryState.selectedKey=result.fixture.key;
   fixtureLibraryState.selectedModeIndex=Math.max(0,(result.fixture.modes||[]).findIndex(mode=>libraryModeMatchesProfile(mode,profile)));
   renderFixtureLibraryResults();
   document.getElementById('fixtureLibraryStatus').textContent='Updated library fixture '+result.fixture.name+' · '+result.mode.name+'.';
   setStatus('Fixture library updated from profile: '+profile.name+' ('+profile.mode+')');
-  return result;
+  return {...result,profile,direction};
 }
 async function updateProfileCardInFixtureLibrary(profileId){
   const profile=profiles.find(item=>item.id===parseInt(profileId,10));
@@ -1179,6 +1282,13 @@ async function updateProfileCardInFixtureLibrary(profileId){
   selectProfile(profile.id,{status:false});
   return updateProfileInFixtureLibrary(profile);
 }
+document.getElementById('fixtureProfileMergeBody').addEventListener('click',event=>{
+  const option=event.target.closest('[data-profile-merge-direction]');
+  if(option&&!option.disabled)setFixtureProfileMergeDirection(option.dataset.profileMergeDirection);
+});
+document.getElementById('fixtureProfileMergeClose').onclick=()=>closeFixtureProfileMerge(null);
+document.getElementById('fixtureProfileMergeCancel').onclick=()=>closeFixtureProfileMerge(null);
+document.getElementById('fixtureProfileMergeApply').onclick=()=>closeFixtureProfileMerge(fixtureProfileMergeDirection);
 
 function controlFromEditor(existingId=0){
   const type=document.getElementById('controlType').value;
@@ -1787,6 +1897,8 @@ function renderFixtureLibraryPreview(){
 function cloneLibraryProfile(profile,fixture){
   const next=JSON.parse(JSON.stringify(profile));
   next.id=uid();
+  next.libraryFixtureKey=fixture.key;
+  next.libraryModeName=profile.mode||'Library mode';
   const manufacturer=String(fixture.manufacturerName||'').trim();
   const fixtureName=String(fixture.name||'').trim();
   const profileName=String(profile.name||fixtureName||'Library fixture').trim();
@@ -1999,7 +2111,7 @@ function drawProfiles(){
     const used=[...new Set(p.controls.flatMap(controlChannels).filter(ch=>ch>=1&&ch<=p.channels))].sort((a,b)=>a-b);
     const item=document.createElement('div');item.className=DmxCommon.selectableCardClass('item profile-card',p.id===activeProfileId);item.dataset.profileCard=p.id;
     item.innerHTML=`<div class="profile-card-head" data-profile-card-head="${p.id}" title="Select this fixture profile"><h3>${escHtml(p.name)}</h3><span class="small">Mode ${escHtml(p.mode)} · ${p.channels} channels · ${p.controls.length} controls</span></div>
-      <div class="buttons profile-card-actions"><button data-update-profile-library="${p.id}" title="Save this profile into the fixture library">Update Library</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
+      <div class="buttons profile-card-actions"><button data-update-profile-library="${p.id}" title="Compare and merge this show profile with the fixture library">Update Library</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
       <div class="profile-card-controls">
       <div class="small">Used channels: ${used.join(', ')||'none'}</div>
       <div class="profile-control-list">${p.controls.map(c=>`<div class="profile-control-row"><span class="small profile-control-desc">${escHtml(c.label)} (${escHtml(c.type)}) · ${escHtml(controlChannelText(c))}</span><div class="profile-control-actions"><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div></div>`).join('')||'<div class="small">No controls yet</div>'}</div>
@@ -2531,7 +2643,10 @@ profilesEl.onclick=e=>{
   const editControl=editControlBtn?.dataset.editControl;
   const removeControl=removeControlBtn?.dataset.removeControl;
   if(updateLibrary){
-    DmxCommon.withButtonFeedback(updateLibraryBtn,{busy:'Updating...',success:'Updated',error:'Failed'},()=>updateProfileCardInFixtureLibrary(updateLibrary)).catch(err=>showError('Fixture library update failed: '+err.message));
+    DmxCommon.withButtonFeedback(updateLibraryBtn,{busy:'Comparing...',success:'Updated',error:'Failed'},()=>updateProfileCardInFixtureLibrary(updateLibrary)).catch(err=>{
+      if(err.fixtureMergeCancelled){DmxCommon.restoreButtonFeedback(updateLibraryBtn);return;}
+      showError('Fixture library update failed: '+err.message);
+    });
     return;
   }
   if(select){
@@ -3006,7 +3121,7 @@ function setFixtureImportRowSelected(row,selected){
   const decision=row.querySelector('.fixture-import-decision');
   if(decision)decision.textContent=active?'Use library':'Keep show';
 }
-function importedProfileFromLibraryMode(showProfile,libraryMode){
+function importedProfileFromLibraryMode(showProfile,libraryMode,libraryFixture=null){
   const imported=JSON.parse(JSON.stringify(libraryMode?.profile||{}));
   const oldControls=showProfile.controls||[];
   imported.controls=(imported.controls||[]).map(control=>{
@@ -3014,7 +3129,14 @@ function importedProfileFromLibraryMode(showProfile,libraryMode){
     const sameLabel=oldControls.find(existing=>existing.type===control.type&&String(existing.label||'').trim().toLowerCase()===String(control.label||'').trim().toLowerCase());
     const channels=controlChannels(control).join(',');
     const sameChannels=oldControls.find(existing=>existing.type===control.type&&controlChannels(existing).join(',')===channels);
-    return {...control,id:(exact||sameLabel||sameChannels)?.id||control.id||uid()};
+    const previous=exact||sameLabel||sameChannels||null;
+    const merged={...control,id:previous?.id||control.id||uid()};
+    if((control.type==='panTilt16'||control.type==='panTilt8')&&previous){
+      merged.panReverse=!!previous.panReverse;
+      merged.tiltReverse=!!previous.tiltReverse;
+      merged.panTiltSwap=!!previous.panTiltSwap;
+    }
+    return merged;
   });
   return {
     ...showProfile,
@@ -3023,7 +3145,9 @@ function importedProfileFromLibraryMode(showProfile,libraryMode){
     name:imported.name||showProfile.name,
     mode:imported.mode||libraryMode?.name||showProfile.mode,
     channels:imported.channels||libraryMode?.channels||showProfile.channels,
-    controls:imported.controls
+    controls:imported.controls,
+    libraryFixtureKey:libraryFixture?.key||showProfile.libraryFixtureKey||'',
+    libraryModeName:libraryMode?.name||imported.mode||showProfile.libraryModeName||''
   };
 }
 function mergeShowFixtureModeIntoLibrary(library,row){
@@ -3049,7 +3173,7 @@ function resolveFixtureImportDifferences(fixtureSetup,currentLibrary,rows,choice
     const candidate=row.candidates.find(item=>item.value===choice.mappingValue);
     if(choice.useLibrary&&candidate){
       const profileIndex=(resolvedSetup.profiles||[]).findIndex(profile=>String(profile.id)===String(row.profileId));
-      if(profileIndex>=0)resolvedSetup.profiles[profileIndex]=importedProfileFromLibraryMode(resolvedSetup.profiles[profileIndex],candidate.mode);
+      if(profileIndex>=0)resolvedSetup.profiles[profileIndex]=importedProfileFromLibraryMode(resolvedSetup.profiles[profileIndex],candidate.mode,candidate.fixture);
       return;
     }
     mergeShowFixtureModeIntoLibrary(resolvedLibrary,row);
