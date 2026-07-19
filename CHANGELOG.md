@@ -9,7 +9,7 @@ Changed:
 - Moved the CYW43 Wi-Fi firmware into its own RP2350 flash partition, cutting normal application UF2 updates roughly in half. Release packages now include regular and try-before-you-buy Wi-Fi firmware UF2s with separate checksums and one-time provisioning instructions.
 - Added `scripts/flash_firmware.ps1` to validate and flash the partitioned application and Wi-Fi UF2s in the required order, with an application-only mode for subsequent updates.
 - Unified Pico Chaser playback pause/resume controls into one state-aware button on the Chaser and Show Run pages. Each control now changes between **Pause** and **Resume** with the selected slot's live state.
-- Simplified tile-based toolboxes by showing **Cols** and **Rows** only while Toolboxes **Edit** is active and enabling tile movement automatically in Edit mode, removing the separate Move buttons.
+- Simplified tile-based toolboxes by showing touch-friendly **Cols** and **Rows** dropdowns only while Toolboxes **Edit** is active and enabling tile movement automatically in Edit mode, removing the separate Move buttons.
 - Kept the Toolboxes **Edit** and sidebar collapse controls visible in a sticky header while scrolling through toolbox tiles.
 
 Fixed:

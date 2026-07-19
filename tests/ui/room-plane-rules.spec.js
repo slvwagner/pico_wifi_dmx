@@ -293,7 +293,7 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#planeLibrary .slot')).toHaveCount(4);
     await expect(page.locator('#planeLibrary [data-recall-plane="front"]')).toHaveClass(/active/);
 
-    await page.locator('#planeCols').fill('3');
+    await page.locator('#planeCols').selectOption('3');
     await expect(page.locator('#planeLibrary .slot')).toHaveCount(6);
     await expect.poll(() => posts.at(-1)?.planeCols).toBe(3);
 

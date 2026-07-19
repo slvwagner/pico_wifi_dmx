@@ -19,7 +19,7 @@ test.describe('Toolbox visual tile rules', () => {
       await page.locator('.toolbox-rail .toolbox-rail-edit').click();
       const sample = await page.locator(entry.host).evaluate(host => {
         const label = host.querySelector('.tile-layout-field');
-        const input = label.querySelector('input');
+        const input = label.querySelector('select');
         const hostStyle = getComputedStyle(host);
         const labelStyle = getComputedStyle(label);
         const inputStyle = getComputedStyle(input);
@@ -32,8 +32,8 @@ test.describe('Toolbox visual tile rules', () => {
           labelGap: labelStyle.gap,
           inputWidth: inputStyle.width,
           inputPaddingTop: inputStyle.paddingTop,
-          labels: [...host.querySelectorAll('.tile-layout-field')].map(item => item.textContent.trim()),
-          inputCount: host.querySelectorAll('input[type="number"]').length
+          labels: [...host.querySelectorAll('.tile-layout-name')].map(item => item.textContent.trim()),
+          inputCount: host.querySelectorAll('select.tile-layout-select').length
         };
       });
       samples.push(sample);
@@ -46,11 +46,32 @@ test.describe('Toolbox visual tile rules', () => {
       expect(sample.hostAlign).toBe('center');
       expect(sample.labelDisplay).toBe('flex');
       expect(sample.labelGap).toBe('6px');
-      expect(sample.inputWidth).toBe('52px');
+      expect(sample.inputWidth).toBe('68px');
       expect(sample.inputPaddingTop).toBe('6px');
       expect(sample.labels).toEqual(['Cols', 'Rows']);
       expect(sample.inputCount).toBe(2);
     }
+  });
+
+  test('tile matrix dimensions use native iPad-friendly dropdowns', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openDmxPage(page, '');
+    await page.locator('.toolbox-rail-edit').click();
+
+    const field = page.locator('#controllerSceneLayoutControls .tile-layout-field').first();
+    const select = field.locator('select.tile-layout-select');
+    await expect(select).toHaveAttribute('aria-label', 'Tile columns');
+    await expect(select.locator('option')).toHaveCount(32);
+    await expect(select.locator('option').first()).toHaveAttribute('value', '1');
+    await expect(select.locator('option').last()).toHaveAttribute('value', '32');
+
+    const box = await select.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(68);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+
+    await select.selectOption('6');
+    await expect(select).toHaveValue('6');
+    await expect.poll(() => page.locator('#slotMatrix .slot').count()).toBe(24);
   });
 
   test('Toolboxes Edit shows layout controls and automatically enables every tile mover', async ({ page }) => {

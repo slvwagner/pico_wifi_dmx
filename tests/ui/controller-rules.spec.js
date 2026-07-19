@@ -751,7 +751,7 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('[data-controller-plane-slot="1"]')).toContainText('Plane B');
     await expect(page.locator('[data-controller-plane-slot="2"]')).toContainText('3');
 
-    await page.locator('#controllerPlaneRows').fill('3');
+    await page.locator('#controllerPlaneRows').selectOption('3');
     await expect.poll(() => roomPlaneWrites.at(-1)?.planeRows).toBe(3);
 
     await page.locator('[data-controller-plane-slot="0"]').click();

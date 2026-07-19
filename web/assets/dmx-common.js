@@ -1594,13 +1594,32 @@
     const cols=clampInt(options.cols??4,minCols,maxCols);
     const rows=clampInt(options.rows??4,minRows,maxRows);
     const moveId=String(options.moveId||'').trim();
+    const dimensionOptions=(min,max,selected)=>Array.from({length:max-min+1},(_,index)=>{
+      const value=min+index;
+      return `<option value="${value}"${value===selected?' selected':''}>${value}</option>`;
+    }).join('');
     el.classList.add('tile-layout-controls');
-    el.innerHTML=`<label class="tile-layout-field">Cols<input id="${escapeHtml(colsId)}" type="number" min="${minCols}" max="${maxCols}" value="${cols}" aria-label="Tile columns"></label>`+
-      `<label class="tile-layout-field">Rows<input id="${escapeHtml(rowsId)}" type="number" min="${minRows}" max="${maxRows}" value="${rows}" aria-label="Tile rows"></label>`+
+    el.innerHTML=`<label class="tile-layout-field"><span class="tile-layout-name">Cols</span><select id="${escapeHtml(colsId)}" class="tile-layout-select" aria-label="Tile columns">${dimensionOptions(minCols,maxCols,cols)}</select></label>`+
+      `<label class="tile-layout-field"><span class="tile-layout-name">Rows</span><select id="${escapeHtml(rowsId)}" class="tile-layout-select" aria-label="Tile rows">${dimensionOptions(minRows,maxRows,rows)}</select></label>`+
       (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}" hidden aria-hidden="true" tabindex="-1">Move</button>`:'');
+    const colsSelect=document.getElementById(colsId);
+    const rowsSelect=document.getElementById(rowsId);
+    const configureRange=(select,initialMin,initialMax)=>{
+      let effectiveMin=initialMin;
+      let effectiveMax=initialMax;
+      const sync=()=>Array.from(select.options).forEach(option=>{
+        const value=parseInt(option.value,10);
+        option.disabled=value<effectiveMin||value>effectiveMax;
+      });
+      Object.defineProperty(select,'min',{configurable:true,get:()=>String(effectiveMin),set:value=>{effectiveMin=clampInt(value,initialMin,initialMax);sync();}});
+      Object.defineProperty(select,'max',{configurable:true,get:()=>String(effectiveMax),set:value=>{effectiveMax=clampInt(value,initialMin,initialMax);sync();}});
+      sync();
+    };
+    configureRange(colsSelect,minCols,maxCols);
+    configureRange(rowsSelect,minRows,maxRows);
     const rail=el.closest('.toolbox-rail');
     if(rail)setToolboxTileLayoutControlsVisible(rail,toolboxRailEditing(rail));
-    return{host:el,cols:document.getElementById(colsId),rows:document.getElementById(rowsId),move:moveId?document.getElementById(moveId):null};
+    return{host:el,cols:colsSelect,rows:rowsSelect,move:moveId?document.getElementById(moveId):null};
   }
 
   function initGroupsToolbox(options){
