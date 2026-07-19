@@ -5,6 +5,7 @@
 Changed:
 
 - Started the 0.9.13 development branch.
+- Expanded the README versioning policy with stable/development versions, SemVer meanings, the release-branch lifecycle, synchronized version sources, cache-revision behavior, and current 0.9.12 firmware paths.
 
 ## 0.9.12 - 2026-07-19
 

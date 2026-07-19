@@ -2,6 +2,11 @@
 
 WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). One Pico drives one full 512-channel DMX universe. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the Pico so show playback does not depend on browser timing or WiFi latency.
 
+- **Latest stable release:** `0.9.12`
+- **Current development version:** `0.9.13`
+
+See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## Overview
 
 The project combines firmware, a XAMPP-hosted web interface, JSON-based setup storage, and automated tests/documentation for a complete small lighting-control workflow.
@@ -175,21 +180,21 @@ Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller >
 The latest committed firmware release is stored in:
 
 ```text
-release/v0.9.10/pico_wifi_dmx-v0.9.10.uf2
+release/v0.9.12/pico_wifi_dmx-v0.9.12.uf2
 ```
 
-Use that prebuilt UF2 when you only want to install the software and do not need to build from source. To install it:
+Use that application UF2 when the separate Wi-Fi firmware partition has already been provisioned and you do not need to build from source. To update it:
 
 1. Hold the Pico 2 W **BOOTSEL** button while plugging it into USB.
 2. Wait for the `RPI-RP2` drive to appear.
-3. Copy `release/v0.9.10/pico_wifi_dmx-v0.9.10.uf2` to that drive.
+3. Copy `release/v0.9.12/pico_wifi_dmx-v0.9.12.uf2` to that drive.
 4. The Pico reboots automatically.
 5. Open the serial log and note the printed Pico URL.
 
 The matching checksum is stored beside it in:
 
 ```text
-release/v0.9.10/pico_wifi_dmx-v0.9.10.uf2.sha256
+release/v0.9.12/pico_wifi_dmx-v0.9.12.uf2.sha256
 ```
 
 Release 0.9.10 is the final single-UF2 release. Starting with 0.9.11, the CYW43 Wi-Fi firmware is stored in its own RP2350 flash partition. A new device, or a device upgrading from 0.9.10 or older, must receive both of these files once:
@@ -203,9 +208,9 @@ Flash the application UF2 first so it installs the partition table, enter USB bo
 
 ```powershell
 $Picotool = "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe"
-& $Picotool load release/v0.9.11/pico_wifi_dmx-v0.9.11.uf2
+& $Picotool load release/v0.9.12/pico_wifi_dmx-v0.9.12.uf2
 & $Picotool reboot -u
-& $Picotool load -ux release/v0.9.11/pico_wifi_dmx-wifi-firmware-v0.9.11.uf2
+& $Picotool load -ux release/v0.9.12/pico_wifi_dmx-wifi-firmware-v0.9.12.uf2
 ```
 
 After that one-time provisioning, normal application updates require only `pico_wifi_dmx-v<VERSION>.uf2`. Reflash the separate Wi-Fi firmware only when a release explicitly says that its CYW43 firmware changed. The release also contains a `-tbyb` Wi-Fi UF2 for advanced RP2350 try-before-you-buy updates; it is not needed for a normal initial installation. If no prebuilt UF2 is available, build it from source with the developer steps below.
@@ -552,7 +557,7 @@ pico_wifi_dmx/
 │  ├─ pathconfig.json        Tracked default test environment config
 │  └─ pathconfig.example.json Example local/XAMPP/Pico config
 ├─ release/                  Committed release packages, UF2 files, docs, checksums
-│  └─ v0.9.10/
+│  └─ v0.9.12/
 ├─ package.json              Node/Playwright test scripts
 ├─ package-lock.json         Locked JavaScript test dependencies
 ├─ playwright.config.js      Playwright browser test configuration
@@ -570,7 +575,25 @@ pico_wifi_dmx/
 
 ## Versioning
 
-The project uses SemVer-style application versions. The current version is stored in `VERSION`, shown beside each page title, and copied to XAMPP by `scripts/sync_fixture_controller_to_xampp.ps1`.
+The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conventions:
+
+- `MAJOR` is reserved for incompatible public API, stored-show, or hardware workflow changes.
+- `MINOR` introduces a new compatible feature set. While the project remains below `1.0.0`, a minor release may still contain significant workflow changes that are called out in the changelog.
+- `PATCH` contains compatible fixes and smaller improvements.
+
+The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `0.9.13`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
+
+All application-facing version sources must agree:
+
+- `VERSION` is the canonical application version copied to XAMPP and included in release packages.
+- `CMakeLists.txt` supplies the matching firmware and Pico program versions.
+- `web/assets/dmx-common.js` reports the application version in stored/exported data and the UI.
+- Page and manual query strings use the application version for browser cache invalidation.
+- `CHANGELOG.md` records user-visible changes under the matching version.
+
+An asset suffix such as `?v=0.9.13-8` is a browser-cache revision within application version `0.9.13`; `-8` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
+
+Application versions are independent from data-format versions. `schemaVersion` and `setupFormatVersion` change only when a stored JSON format requires a migration or compatibility decision.
 
 Stored/exported JSON files include:
 
