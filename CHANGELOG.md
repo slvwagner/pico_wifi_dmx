@@ -6,6 +6,7 @@ Changed:
 
 - Started the 0.9.11 development branch.
 - Updated the Raspberry Pi Pico SDK and picotool integration from 2.2.0 to 2.3.0.
+- Moved the CYW43 Wi-Fi firmware into its own RP2350 flash partition, cutting normal application UF2 updates roughly in half. Release packages now include regular and try-before-you-buy Wi-Fi firmware UF2s with separate checksums and one-time provisioning instructions.
 
 ## 0.9.10 - 2026-07-19
 

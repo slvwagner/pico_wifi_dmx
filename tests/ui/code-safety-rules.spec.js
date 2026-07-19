@@ -63,4 +63,15 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('if ($RunHardwareTests -and -not $SkipTests)');
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
   });
+
+  test('release packaging keeps partitioned CYW43 firmware with the application', () => {
+    const cmake = read('CMakeLists.txt');
+    const releaseScript = read('scripts/prepare_release.ps1');
+
+    expect(cmake).toContain('pico_use_wifi_firmware_partition(pico_wifi_dmx)');
+    expect(releaseScript).toContain('pico_wifi_dmx_wifi_firmware.uf2');
+    expect(releaseScript).toContain('pico_wifi_dmx_wifi_firmware_tbyb.uf2');
+    expect(releaseScript).toContain('wifiFirmware = $releaseArtifacts.wifiFirmware');
+    expect(releaseScript).toContain('wifiFirmwareTbyb = $releaseArtifacts.wifiFirmwareTbyb');
+  });
 });

@@ -116,5 +116,10 @@ target_link_libraries(pico_wifi_dmx
         
         )
 
+# Keep the CYW43 firmware in its own RP2350 flash partition. New devices must
+# receive the generated Wi-Fi firmware UF2 once; normal application updates can
+# then use the smaller pico_wifi_dmx UF2 without rewriting the Wi-Fi blob.
+pico_use_wifi_firmware_partition(pico_wifi_dmx)
+
 pico_add_extra_outputs(pico_wifi_dmx)
 

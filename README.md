@@ -150,24 +150,40 @@ Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller >
 The latest committed firmware release is stored in:
 
 ```text
-release/v0.9.7/pico_wifi_dmx-v0.9.7.uf2
+release/v0.9.10/pico_wifi_dmx-v0.9.10.uf2
 ```
 
 Use that prebuilt UF2 when you only want to install the software and do not need to build from source. To install it:
 
 1. Hold the Pico 2 W **BOOTSEL** button while plugging it into USB.
 2. Wait for the `RPI-RP2` drive to appear.
-3. Copy `release/v0.9.7/pico_wifi_dmx-v0.9.7.uf2` to that drive.
+3. Copy `release/v0.9.10/pico_wifi_dmx-v0.9.10.uf2` to that drive.
 4. The Pico reboots automatically.
 5. Open the serial log and note the printed Pico URL.
 
 The matching checksum is stored beside it in:
 
 ```text
-release/v0.9.7/pico_wifi_dmx-v0.9.7.uf2.sha256
+release/v0.9.10/pico_wifi_dmx-v0.9.10.uf2.sha256
 ```
 
-Future releases use the same pattern: `release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2`. If no prebuilt UF2 is available, build it from source with the developer steps below.
+Release 0.9.10 is the final single-UF2 release. Starting with 0.9.11, the CYW43 Wi-Fi firmware is stored in its own RP2350 flash partition. A new device, or a device upgrading from 0.9.10 or older, must receive both of these files once:
+
+```text
+release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
+release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2
+```
+
+Flash the application UF2 first so it installs the partition table, enter USB boot mode again, and then flash the Wi-Fi firmware UF2. With picotool:
+
+```powershell
+$Picotool = "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe"
+& $Picotool load release/v0.9.11/pico_wifi_dmx-v0.9.11.uf2
+& $Picotool reboot -u
+& $Picotool load -ux release/v0.9.11/pico_wifi_dmx-wifi-firmware-v0.9.11.uf2
+```
+
+After that one-time provisioning, normal application updates require only `pico_wifi_dmx-v<VERSION>.uf2`. Reflash the separate Wi-Fi firmware only when a release explicitly says that its CYW43 firmware changed. The release also contains a `-tbyb` Wi-Fi UF2 for advanced RP2350 try-before-you-buy updates; it is not needed for a normal initial installation. If no prebuilt UF2 is available, build it from source with the developer steps below.
 
 ### Build the firmware from source
 
@@ -641,13 +657,15 @@ pwsh -NoProfile -ExecutionPolicy Bypass \
 
 Replace `-PicoBaseUrl` with the URL printed by the Pico serial log. Hardware tests write the configured DMX test channels and overwrite the configured chaser/motion test slots.
 
-The script copies `build/pico_wifi_dmx.uf2` into:
+The script packages the application, regular Wi-Fi firmware, and try-before-you-buy Wi-Fi firmware UF2s as:
 
 ```text
 release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
+release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2
+release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2
 ```
 
-It also writes a SHA256 checksum and `release-manifest.json` containing the version, branch, commit, firmware size, and checksum. The `release/` directory is intentionally not ignored so the firmware package can be committed if you want it in Git. For public distribution, a GitHub Release asset is usually cleaner than committing every binary artifact forever; this repository supports either workflow.
+It writes a SHA256 checksum for every UF2 and records all three artifacts in `release-manifest.json`, together with the version, branch, and commit. The `release/` directory is intentionally not ignored so the firmware package can be committed if you want it in Git. For public distribution, a GitHub Release asset is usually cleaner than committing every binary artifact forever; this repository supports either workflow.
 
 The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
 
@@ -1204,19 +1222,30 @@ The default DMX data output is Pico `GPIO2`. Connect that pin to the `DI` or tra
 & "$env:USERPROFILE/.pico-sdk/ninja/v1.12.1/ninja.exe" -C build
 ```
 
-Output: `build/pico_wifi_dmx.uf2`
+Outputs:
+
+```text
+build/pico_wifi_dmx.uf2
+build/pico_wifi_dmx_wifi_firmware.uf2
+build/pico_wifi_dmx_wifi_firmware_tbyb.uf2
+```
 
 ---
 
 ## Flash
 
-Using picotool (Pico connected via USB in normal run mode):
+For a new device or the first upgrade from firmware 0.9.10 or older, load the partitioned application and Wi-Fi firmware in sequence:
 
 ```powershell
-& "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe" load build/pico_wifi_dmx.elf -fx
+$Picotool = "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe"
+& $Picotool load build/pico_wifi_dmx.uf2
+& $Picotool reboot -u
+& $Picotool load -ux build/pico_wifi_dmx_wifi_firmware.uf2
 ```
 
-Using OpenOCD + Picoprobe/CMSIS-DAP:
+For subsequent application-only updates, load `build/pico_wifi_dmx.uf2` normally; the Wi-Fi partition remains intact.
+
+Using OpenOCD + Picoprobe/CMSIS-DAP for subsequent application updates after the Wi-Fi partition has been provisioned:
 
 ```powershell
 & "$env:USERPROFILE/.pico-sdk/openocd/0.12.0+dev/openocd.exe" `
