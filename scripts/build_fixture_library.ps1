@@ -131,7 +131,26 @@ function Flatten-PixelKeys($value, [System.Collections.Generic.List[string]]$out
 function Get-PixelKeys($fixture) {
     $list = [System.Collections.Generic.List[string]]::new()
     $matrix = Get-Prop $fixture "matrix"
-    Flatten-PixelKeys (Get-Prop $matrix "pixelKeys") $list
+    $pixelKeys = Get-Prop $matrix "pixelKeys"
+    if ($pixelKeys) {
+        Flatten-PixelKeys $pixelKeys $list
+        return @($list)
+    }
+    $pixelCount = @(Get-Prop $matrix "pixelCount")
+    if ($pixelCount.Count -ge 3) {
+        $width = [int]$pixelCount[0]
+        $height = [int]$pixelCount[1]
+        $depth = [int]$pixelCount[2]
+        for ($z = 1; $z -le $depth; $z++) {
+            for ($y = 1; $y -le $height; $y++) {
+                for ($x = 1; $x -le $width; $x++) {
+                    if ($height -eq 1 -and $depth -eq 1) { $list.Add([string]$x) }
+                    elseif ($depth -eq 1) { $list.Add("($x, $y)") }
+                    else { $list.Add("($x, $y, $z)") }
+                }
+            }
+        }
+    }
     return @($list)
 }
 
@@ -147,16 +166,85 @@ function Expand-ModeChannels($fixture, $mode) {
         $insert = [string](Get-Prop $channel "insert")
         if ($insert -eq "matrixChannels") {
             $templates = @(Get-Prop $channel "templateChannels")
-            if ($templates.Count -and $pixelKeys.Count) {
-                foreach ($pixelKey in $pixelKeys) {
+            $repeatFor = Get-Prop $channel "repeatFor"
+            $repeatKeys = if ($repeatFor -is [System.Collections.IEnumerable] -and $repeatFor -isnot [string]) {
+                @($repeatFor)
+            } elseif ([string]$repeatFor -eq "eachPixelGroup") {
+                @((Get-Prop (Get-Prop $fixture "matrix") "pixelGroups").PSObject.Properties.Name)
+            } else {
+                @($pixelKeys)
+            }
+            if ([string]$repeatFor -eq "eachPixelABC") { $repeatKeys = @($repeatKeys | Sort-Object) }
+            if ($templates.Count -and $repeatKeys.Count) {
+                if ([string](Get-Prop $channel "channelOrder") -eq "perChannel") {
                     foreach ($template in $templates) {
-                        $expanded.Add(([string]$template).Replace('$pixelKey', $pixelKey))
+                        foreach ($pixelKey in $repeatKeys) {
+                            $expanded.Add(([string]$template).Replace('$pixelKey', [string]$pixelKey))
+                        }
+                    }
+                } else {
+                    foreach ($pixelKey in $repeatKeys) {
+                        foreach ($template in $templates) {
+                            $expanded.Add(([string]$template).Replace('$pixelKey', [string]$pixelKey))
+                        }
                     }
                 }
             }
         }
     }
     return @($expanded)
+}
+
+function Get-CompatibleMatrixRgb($fixture, $mode, $channelMap) {
+    $matrix = Get-Prop $fixture "matrix"
+    $pixelCount = @(Get-Prop $matrix "pixelCount")
+    if ($pixelCount.Count -lt 3 -or [int]$pixelCount[0] -lt 1 -or [int]$pixelCount[1] -lt 1 -or [int]$pixelCount[2] -ne 1) { return $null }
+    $width = [int]$pixelCount[0]
+    $height = [int]$pixelCount[1]
+    $pixelKeys = @(Get-PixelKeys $fixture)
+    if ($pixelKeys.Count -ne $width * $height) { return $null }
+    $templateChannels = Get-Prop $fixture "templateChannels"
+    foreach ($block in @(Get-Prop $mode "channels")) {
+        if ($block -is [string] -or [string](Get-Prop $block "insert") -ne "matrixChannels") { continue }
+        if ([string](Get-Prop $block "repeatFor") -ne "eachPixelXYZ" -or [string](Get-Prop $block "channelOrder") -ne "perPixel") { continue }
+        $templates = @(Get-Prop $block "templateChannels")
+        if ($templates.Count -ne 3) { continue }
+        $colors = foreach ($template in $templates) {
+            $definition = Get-Prop $templateChannels ([string]$template)
+            [string](Get-CapColor $definition)
+        }
+        if (($colors -join ',').ToLowerInvariant() -ne 'red,green,blue') { continue }
+        $resolvedNames = [System.Collections.Generic.List[string]]::new()
+        foreach ($pixelKey in $pixelKeys) {
+            foreach ($template in $templates) { $resolvedNames.Add(([string]$template).Replace('$pixelKey', $pixelKey)) }
+        }
+        if (-not $resolvedNames.Count -or -not $channelMap.ContainsKey($resolvedNames[0])) { continue }
+        $start = [int]$channelMap[$resolvedNames[0]]
+        $sequential = $true
+        for ($index = 0; $index -lt $resolvedNames.Count; $index++) {
+            if (-not $channelMap.ContainsKey($resolvedNames[$index]) -or [int]$channelMap[$resolvedNames[$index]] -ne $start + $index) {
+                $sequential = $false
+                break
+            }
+        }
+        if (-not $sequential) { continue }
+        $defaults = @()
+        foreach ($template in $templates) {
+            $definition = Get-Prop $templateChannels ([string]$template)
+            $value = Convert-DmxValue $definition (Get-Prop $definition "defaultValue") 1
+            if ($null -ne $value) { $defaults += $value } else { $defaults += 0 }
+        }
+        return [ordered]@{
+            channel = $start
+            width = $width
+            height = $height
+            channelNames = @($resolvedNames)
+            defaultValue = [ordered]@{
+                pixels = @(1..($width * $height) | ForEach-Object { [ordered]@{ a = $defaults[0]; b = $defaults[1]; c = $defaults[2] } })
+            }
+        }
+    }
+    return $null
 }
 
 function Channel-Map($channels) {
@@ -358,6 +446,18 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         $used[$name] = $true; $used[$tiltName] = $true
     }
 
+    $matrixRgb = Get-CompatibleMatrixRgb $fixture $mode $channelMap
+    if ($matrixRgb) {
+        $controls.Add((New-Control $nextId "matrixRgb" "Pixels" @{
+            channel = $matrixRgb.channel
+            width = $matrixRgb.width
+            height = $matrixRgb.height
+            defaultValue = $matrixRgb.defaultValue
+        }))
+        $nextId++
+        foreach ($matrixChannelName in @($matrixRgb.channelNames)) { $used[$matrixChannelName] = $true }
+    }
+
     $colors = @{}
     foreach ($name in $channelNames) {
         if ($used[$name]) { continue }
@@ -493,7 +593,7 @@ try {
     $functionNames = @(
         "Get-Prop", "Get-Capabilities", "Get-CapType", "Get-CapColor", "New-NormalizedCapabilities",
         "New-FixtureMetadata", "Flatten-PixelKeys", "Get-PixelKeys", "Expand-ModeChannels", "Channel-Map",
-        "Get-DmxValueByteResolution", "Convert-DmxValue",
+        "Get-DmxValueByteResolution", "Convert-DmxValue", "Get-CompatibleMatrixRgb",
         "New-Control", "Get-WheelSlot", "Get-WheelSlotLabel", "Get-WheelSlotColor", "New-WheelOptionName",
         "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
     )
