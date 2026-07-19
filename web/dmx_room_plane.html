@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Room Plane</title>
 <link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.11-4">
-<script src="assets/dmx-common.js?v=0.9.11-4"></script>
+<script src="assets/dmx-common.js?v=0.9.11-5"></script>
 <style>
 body{min-height:100vh}
 .room-titlebar{padding:10px 14px;background:var(--bg);display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
@@ -205,6 +205,34 @@ canvas{display:none}
   </div>
 </section>
 
+<section id="roomSceneBox" class="scene-toolbox">
+  <div id="roomSceneBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Scenes</span>
+    <div class="room-toolbox-actions">
+      <button id="roomSceneBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomSceneBoxBody" class="scene-toolbox__body">
+    <div class="small">Recall a shared scene to preview its stored fixture values on the Room Plane. Empty tiles are read-only.</div>
+    <div id="roomSceneLayoutControls" class="tile-layout-controls"></div>
+    <div id="roomSceneMatrix" class="scene-slot-matrix"></div>
+  </div>
+</section>
+
+<section id="roomPaletteBox" class="scene-toolbox scene-toolbox--palettes">
+  <div id="roomPaletteBoxHdr" class="scene-toolbox__header">
+    <span style="font-weight:700;font-size:13px">Palettes</span>
+    <div class="room-toolbox-actions">
+      <button id="roomPaletteBoxToggle" class="scene-toolbox__toggle">—</button>
+    </div>
+  </div>
+  <div id="roomPaletteBoxBody" class="scene-toolbox__body">
+    <div class="small">Recall a shared palette to preview its stored fixture values on the Room Plane. Empty tiles are read-only.</div>
+    <div id="roomPaletteLayoutControls" class="tile-layout-controls"></div>
+    <div id="roomPaletteMatrix" class="scene-slot-matrix"></div>
+  </div>
+</section>
+
 <div id="planeVisualModal" class="modal-overlay visual-editor-modal" style="display:none">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="planeVisualTitle">
     <div class="modal-head">
@@ -282,12 +310,15 @@ canvas{display:none}
 
 <script>
 DmxCommon.mountTileLayoutControls('roomPlaneLayoutControls',{colsId:'planeCols',rowsId:'planeRows',moveId:'moveRoomPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'});
+DmxCommon.mountTileLayoutControls('roomSceneLayoutControls',{colsId:'roomSceneCols',rowsId:'roomSceneRows',moveId:'moveRoomScenesBtn',cols:4,rows:4,maxCols:32,maxRows:32,moveTitle:'Move scene tiles by dragging them to another slot'});
+DmxCommon.mountTileLayoutControls('roomPaletteLayoutControls',{colsId:'roomPaletteCols',rowsId:'roomPaletteRows',moveId:'moveRoomPalettesBtn',cols:4,rows:4,maxCols:32,maxRows:32,moveTitle:'Move palette tiles by dragging them to another slot'});
 const points=[
   {id:'A',x:0,y:0},
   {id:'B',x:5,y:0},
   {id:'C',x:0,y:3}
 ];
 let fixtures=[];
+let controllerFixtures=[];
 let controllerMovingFixtures=[];
 let editingFixtureIndex=null;
 let selectedFixtureIds=new Set();
@@ -330,6 +361,8 @@ let roomGroupsBox=DmxCommon.initGroupsToolbox({
 DmxCommon.initToolboxRail(roomPlaneToolboxRail,[
   {box:'roomPlaneBox',type:'roomPlane'},
   {box:'roomPlaneLibraryBox',type:'roomPlaneLibrary'},
+  {box:'roomSceneBox',type:'roomScenes'},
+  {box:'roomPaletteBox',type:'roomPalettes'},
   {box:'roomFixturesBox',type:'roomFixtures'}
 ]);
 const roomPlaneToolbox=DmxCommon.initFloatingToolbox({
@@ -365,14 +398,26 @@ const roomFixturesToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'roomFixturesBoxPos',
   uiStateSizeKey:'roomFixturesBoxSize'
 });
+const roomSceneToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomSceneBox',headerId:'roomSceneBoxHdr',toggleId:'roomSceneBoxToggle',
+  collapsedStorageKey:'roomSceneBoxCollapsed',posStorageKey:'roomSceneBoxPos',sizeStorageKey:'roomSceneBoxSize',
+  uiStateCollapsedKey:'roomSceneBoxCollapsed',uiStatePosKey:'roomSceneBoxPos',uiStateSizeKey:'roomSceneBoxSize'
+});
+const roomPaletteToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'roomPaletteBox',headerId:'roomPaletteBoxHdr',toggleId:'roomPaletteBoxToggle',
+  collapsedStorageKey:'roomPaletteBoxCollapsed',posStorageKey:'roomPaletteBoxPos',sizeStorageKey:'roomPaletteBoxSize',
+  uiStateCollapsedKey:'roomPaletteBoxCollapsed',uiStatePosKey:'roomPaletteBoxPos',uiStateSizeKey:'roomPaletteBoxSize'
+});
 DmxCommon.initToolboxCollapseGroup({
   group:'room-plane',
   items:[
     {id:'roomPlaneBox',toolbox:roomPlaneToolbox},
     {id:'roomPlaneLibraryBox',toolbox:roomPlaneLibraryToolbox},
+    {id:'roomSceneBox',toolbox:roomSceneToolbox},
+    {id:'roomPaletteBox',toolbox:roomPaletteToolbox},
     {id:'roomFixturesBox',toolbox:roomFixturesToolbox}
   ],
-  toggleIds:['roomPlaneBoxToggle','roomPlaneLibraryBoxToggle','roomFixturesBoxToggle'],
+  toggleIds:['roomPlaneBoxToggle','roomPlaneLibraryBoxToggle','roomSceneBoxToggle','roomPaletteBoxToggle','roomFixturesBoxToggle'],
   collapseTitle:'Collapse all room plane toolboxes',
   expandTitle:'Uncollapse all room plane toolboxes'
 });
@@ -731,6 +776,7 @@ async function loadControllerSetupForRoomPlane(){
   baseUrl.value=localStorage.getItem(DmxCommon.BASE_URL_KEY)||data.setup.baseUrl||baseUrl.value;
   try{liveValues=await DmxCommon.fetchFixtureLiveValues()||data.setup.values||{};}catch(_){liveValues=data.setup.values||{};}
   const patched=Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
+  controllerFixtures=patched;
   const moving=patched.filter(f=>{
     const profile=profiles.find(item=>String(item.id)===String(f.profileId));
     return profile&&Array.isArray(profile.controls)&&profile.controls.some(isPanTiltControl);
@@ -906,6 +952,124 @@ async function sendDmxBatch(rows){
   const response=await fetch(root+'/dmx/b',{method:'POST',body,cache:'no-store'});
   if(!response.ok)throw new Error('HTTP '+response.status+' on DMX batch update');
   return normalized.map(row=>({...row,confirmed:true}));
+}
+
+function recalledControlDmxRows(f,c,value){
+  const rows=[];
+  const add=(channel,val,param='')=>rows.push({channel,value:val,param});
+  if(c.type==='panTilt16'||c.type==='panTilt8'){
+    for(const row of DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)))add(row.ch,row.val,row.param);
+  }else if(c.type==='slider16'){
+    const bytes=bytes16(value);
+    add(absolute(f.start,c.channel),bytes.coarse,c.label+' coarse');
+    add(absolute(f.start,c.fine??c.channel+1),bytes.fine,c.label+' fine');
+  }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
+    const parts=c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:c.type==='cmyk'?['a','b','c','k']:['a','b','c'];
+    parts.forEach(part=>{if(c[part]!=null)add(absolute(f.start,c[part]),value?.[part]??0,c.label);});
+  }else if(c.type==='matrixRgb'){
+    const pixels=Array.isArray(value?.pixels)?value.pixels:[];
+    const count=Math.max(1,Math.min(170,parseInt(c.width,10)*parseInt(c.height,10)||pixels.length||1));
+    const start=Math.max(1,parseInt(c.channel,10)||1);
+    for(let i=0;i<count;i++){
+      const pixel=pixels[i]||{a:0,b:0,c:0};
+      add(absolute(f.start,start+i*3),pixel.a??0,c.label);
+      add(absolute(f.start,start+i*3+1),pixel.b??0,c.label);
+      add(absolute(f.start,start+i*3+2),pixel.c??0,c.label);
+    }
+  }else add(absolute(f.start,c.channel),value,c.label);
+  return rows;
+}
+
+async function recallRoomFixtureValues(item,kind){
+  try{
+    if(!controllerFixtures.length)await loadControllerSetupForRoomPlane();
+    const values=item&&item.values&&typeof item.values==='object'?item.values:{};
+    const patch={};
+    const rows=[];
+    Object.entries(values).forEach(([key,value])=>{
+      const split=key.indexOf(':');
+      if(split<1)return;
+      const fixtureId=key.slice(0,split),controlId=key.slice(split+1);
+      const fixture=controllerFixtures.find(entry=>String(entry.id)===fixtureId);
+      const profile=fixture&&profileForFixture(fixture);
+      const control=profile?.controls?.find(entry=>String(entry.id)===controlId);
+      if(!fixture||!control)return;
+      patch[key]=cloneValue(value);
+      rows.push(...recalledControlDmxRows(fixture,control,value));
+    });
+    if(!rows.length)throw new Error('No stored values match the patched fixtures');
+    await sendDmxBatch(rows);
+    Object.assign(liveValues,patch);
+    DmxCommon.mergeFixtureLiveValues(patch).catch(()=>{});
+    fixtures.forEach(fixture=>{
+      const patched=controllerFixtures.find(entry=>String(entry.id)===String(fixture.id));
+      if(patched)fixture.control=fixtureControlFromLive(patched);
+    });
+    syncTables();
+    setStatus('Recalled '+kind+': "'+(item.name||kind)+'"');
+  }catch(error){setStatus('Could not recall '+kind+': '+error.message,true);}
+}
+
+function createRoomRecallToolbox(options){
+  let items=[],cols=4,rows=4,moveMode=false,selected=null;
+  const grid=document.getElementById(options.gridId);
+  const colsInput=document.getElementById(options.colsId);
+  const rowsInput=document.getElementById(options.rowsId);
+  const moveButton=document.getElementById(options.moveId);
+  const normalize=()=>{
+    cols=Math.max(1,Math.min(32,parseInt(cols,10)||4));
+    rows=Math.max(1,Math.min(32,parseInt(rows,10)||4));
+    const needed=items.reduce((max,item)=>Math.max(max,(parseInt(item.slot,10)||0)+1),0);
+    if(cols*rows<needed)rows=Math.min(32,Math.ceil(needed/cols));
+    colsInput.value=cols;rowsInput.value=rows;
+  };
+  const save=async()=>{
+    const payload={baseUrl:baseUrl.value,[options.itemsKey]:items,[options.colsKey]:cols,[options.rowsKey]:rows};
+    const response=await fetch(options.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DmxCommon.versionedPayload(payload))});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+  };
+  const move=(from,to)=>{
+    from=parseInt(from,10);to=parseInt(to,10);
+    const source=items.find(item=>parseInt(item.slot,10)===from);
+    if(!source||from===to)return false;
+    const target=items.find(item=>parseInt(item.slot,10)===to);
+    source.slot=to;if(target)target.slot=from;
+    selected=null;render();
+    save().catch(error=>setStatus('Could not save '+options.kind+' layout: '+error.message,true));
+    return true;
+  };
+  const click=slot=>{
+    const item=items.find(entry=>parseInt(entry.slot,10)===slot);
+    if(moveMode){
+      if(selected==null){if(item){selected=slot;render();}}else{move(selected,slot);}
+      return;
+    }
+    if(item)recallRoomFixtureValues(item,options.kind);
+  };
+  function render(){
+    normalize();
+    grid.style.gridTemplateColumns='repeat('+cols+',minmax(54px,1fr))';
+    let html='';
+    for(let i=0;i<cols*rows;i++){
+      const item=items.find(entry=>parseInt(entry.slot,10)===i);
+      const attr=options.slotAttr+'="'+i+'"';
+      if(item)html+='<div class="'+DmxCommon.savedTileClass('slot filled',selected===i)+'" '+attr+' title="'+(moveMode?'Move '+options.kind:'Recall '+options.kind)+'" style="'+DmxCommon.slotVisualStyle(item)+'"><div class="palette-slot-content">'+DmxCommon.slotVisualHtml(item)+'<span class="palette-slot-name">'+DmxCommon.escapeHtml(item.name||options.kind)+'</span></div></div>';
+      else html+='<div class="slot readonly" '+attr+' title="'+(moveMode?'Move a tile here':'Empty read-only slot')+'">'+(i+1)+'</div>';
+    }
+    grid.innerHTML=html;
+    grid.querySelectorAll('.slot').forEach(tile=>tile.addEventListener('click',()=>click(parseInt(tile.getAttribute(options.slotAttr),10))));
+    DmxCommon.initTileMoveGrid({grid,button:moveButton,active:moveMode,itemSelector:'.slot',getIndex:el=>parseInt(el.getAttribute(options.slotAttr),10),canDrag:index=>items.some(item=>parseInt(item.slot,10)===index),onMove:move});
+  }
+  moveButton.addEventListener('click',()=>{moveMode=!moveMode;selected=null;render();});
+  colsInput.addEventListener('input',()=>{cols=colsInput.value;render();save().catch(error=>setStatus(error.message,true));});
+  rowsInput.addEventListener('input',()=>{rows=rowsInput.value;render();save().catch(error=>setStatus(error.message,true));});
+  return {load:async()=>{
+    const response=await fetch(options.endpoint,{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error('Could not load '+options.kind+'s');
+    items=Array.isArray(data[options.itemsKey])?data[options.itemsKey]:[];
+    cols=data[options.colsKey]||4;rows=data[options.rowsKey]||4;render();
+  }};
 }
 
 function liveFixtureDmxPatch(f,next){
@@ -1908,6 +2072,10 @@ document.getElementById('planePad').addEventListener('wheel',event=>{
   zoomPlaneView(event.deltaY<0?1.12:1/1.12);
 },{passive:false});
 DmxCommon.loadUiState('roomPlane').then(state=>roomGroupRelativeStepStore.load(state.groupEditRelativeSteps)).catch(()=>{});
+const roomScenes=createRoomRecallToolbox({kind:'scene',endpoint:'scene_setup.php',itemsKey:'scenes',colsKey:'slotCols',rowsKey:'slotRows',gridId:'roomSceneMatrix',colsId:'roomSceneCols',rowsId:'roomSceneRows',moveId:'moveRoomScenesBtn',slotAttr:'data-room-scene-slot'});
+const roomPalettes=createRoomRecallToolbox({kind:'palette',endpoint:'palette_setup.php',itemsKey:'palettes',colsKey:'paletteCols',rowsKey:'paletteRows',gridId:'roomPaletteMatrix',colsId:'roomPaletteCols',rowsId:'roomPaletteRows',moveId:'moveRoomPalettesBtn',slotAttr:'data-room-palette-slot'});
+roomScenes.load().catch(error=>setStatus(error.message,true));
+roomPalettes.load().catch(error=>setStatus(error.message,true));
 loadRoomPlaneSetup();
 </script>
 </body>

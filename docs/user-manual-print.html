@@ -945,7 +945,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 </tbody>
 </table>
 <p>The Z value is stored with the plane and fixture mount positions. The current target interpolation uses X/Y coordinates on the plane. Z is kept so the same saved data can later support full 3D fixture-position calculations.</p>
-<p>Use <strong>-- all</strong> in any of the Room Plane, Planes, or Fixtures toolbox headers to collapse those three toolboxes together. When they are all collapsed, the button changes to <strong>+ all</strong>.</p>
+<p>Use <strong>-- all</strong> in the Room Plane, Planes, or Fixtures toolbox header to collapse all five Room Plane page toolboxes together. Scenes and Palettes keep their standard single-toolbox collapse button, matching those toolboxes on the other pages. When all five toolboxes are collapsed, <strong>-- all</strong> changes to <strong>+ all</strong>.</p>
 <h3 id="10-3-planes">10.3 Planes</h3>
 <p><img src="screenshots/room-plane-toolbox-saved-planes.png" alt="Planes Toolbox"></p>
 <p>The <strong>Planes</strong> toolbox stores complete plane definitions as tiles, using the same visual language as scene, palette, group, and chase tiles.</p>
@@ -960,6 +960,9 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 </tbody>
 </table>
 <p><img src="screenshots/room-plane-edit-plane-tile.png" alt="Edit Plane Tile"></p>
+<h4 id="scenes-and-palettes">Scenes and Palettes</h4>
+<p>The <strong>Scenes</strong> and <strong>Palettes</strong> toolboxes show the same shared tiles saved by Controller, Chaser, Effects, and Show Run. Click a filled Scene to send its complete stored look to the currently patched fixture controls. Click a filled Palette to send only that palette&#39;s stored controls, leaving unrelated live controls unchanged. Both recalls update the Room Plane&#39;s live fixture values so calibrated Pan/Tilt and Dimmer readings stay in step with the DMX output.</p>
+<p>These two toolboxes are recall-only on Room Plane: clicking an empty tile never saves or overwrites data. While Toolboxes <strong>Edit</strong> is active, their <strong>Cols</strong> and <strong>Rows</strong> dropdowns and shared drag/tap tile movement remain available and are saved back to the shared Scene or Palette layout.</p>
 <h3 id="10-4-fixture-calibration">10.4 Fixture Calibration</h3>
 <p><img src="screenshots/room-plane-toolbox-fixtures.png" alt="Room Plane Fixtures"></p>
 <p>The <strong>Fixtures</strong> toolbox stores the relationship between each moving light and the room plane.</p>

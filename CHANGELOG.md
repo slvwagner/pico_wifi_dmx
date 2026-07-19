@@ -11,6 +11,7 @@ Changed:
 - Unified Pico Chaser playback pause/resume controls into one state-aware button on the Chaser and Show Run pages. Each control now changes between **Pause** and **Resume** with the selected slot's live state.
 - Simplified tile-based toolboxes by showing touch-friendly **Cols** and **Rows** dropdowns only while Toolboxes **Edit** is active and enabling tile movement automatically in Edit mode, removing the separate Move buttons.
 - Kept the Toolboxes **Edit** and sidebar collapse controls visible in a sticky header while scrolling through toolbox tiles.
+- Added recall-only **Scenes** and **Palettes** toolboxes to Room Plane. They use the shared tile layouts and send the stored fixture values to DMX so complete looks or partial palettes can be previewed while calibrating the room plane.
 
 Fixed:
 
@@ -21,6 +22,7 @@ Fixed:
 - Fixed Pico chaser slot startup so the first programmed step is output immediately instead of fading up from zero/default values, and multi-step slots begin the Step 1-to-Step 2 transition on the next playback tick instead of holding Step 1 for its full duration first.
 - Fixed Chaser **Play Slot** responsiveness by releasing browser Chase Playback synchronously, before waiting for the Pico HTTP response, with regression coverage enforcing a sub-20 ms browser-side DMX handoff.
 - Fixed Fixture Controller card **Default** and **Blackout** recalls being immediately overwritten by active Pico playback. These manual recalls now stop Pico Chaser and Motion playback before sending the configured fixture values to DMX.
+- Fixed shared toolbox-order saving so page-specific toolboxes such as Room Plane, Planes, Fixtures, and Room Plane Scenes/Palettes are retained in server UI state and restored after reload.
 
 ## 0.9.10 - 2026-07-19
 

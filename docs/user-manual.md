@@ -1163,7 +1163,7 @@ The **Room Plane** toolbox contains the measured A/B/C points and the current ta
 
 The Z value is stored with the plane and fixture mount positions. The current target interpolation uses X/Y coordinates on the plane. Z is kept so the same saved data can later support full 3D fixture-position calculations.
 
-Use **-- all** in any of the Room Plane, Planes, or Fixtures toolbox headers to collapse those three toolboxes together. When they are all collapsed, the button changes to **+ all**.
+Use **-- all** in the Room Plane, Planes, or Fixtures toolbox header to collapse all five Room Plane page toolboxes together. Scenes and Palettes keep their standard single-toolbox collapse button, matching those toolboxes on the other pages. When all five toolboxes are collapsed, **-- all** changes to **+ all**.
 
 ### 10.3 Planes
 
@@ -1181,6 +1181,12 @@ The **Planes** toolbox stores complete plane definitions as tiles, using the sam
 | Move | Uses the same shared tile move behavior as the Controller, Chaser, Effects, and Show Run plane/toolbox matrices. Drag a filled plane tile to another slot, or tap a source tile and then a destination on touch screens. |
 
 ![Edit Plane Tile](screenshots/room-plane-edit-plane-tile.png)
+
+#### Scenes and Palettes
+
+The **Scenes** and **Palettes** toolboxes show the same shared tiles saved by Controller, Chaser, Effects, and Show Run. Click a filled Scene to send its complete stored look to the currently patched fixture controls. Click a filled Palette to send only that palette's stored controls, leaving unrelated live controls unchanged. Both recalls update the Room Plane's live fixture values so calibrated Pan/Tilt and Dimmer readings stay in step with the DMX output.
+
+These two toolboxes are recall-only on Room Plane: clicking an empty tile never saves or overwrites data. While Toolboxes **Edit** is active, their **Cols** and **Rows** dropdowns and shared drag/tap tile movement remain available and are saved back to the shared Scene or Palette layout.
 
 ### 10.4 Fixture Calibration
 

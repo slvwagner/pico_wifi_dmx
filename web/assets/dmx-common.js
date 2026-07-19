@@ -903,7 +903,15 @@
     const order=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'))
       .map(box=>box.dataset.toolboxType)
       .filter(Boolean);
-    const merged=normalizeToolboxOrder(order,DEFAULT_TOOLBOX_ORDER);
+    let previous=[];
+    try{previous=JSON.parse(localStorage.getItem(TOOLBOX_ORDER_KEY)||'[]');}catch(_){previous=[];}
+    if(!Array.isArray(previous)||!previous.length)previous=DEFAULT_TOOLBOX_ORDER;
+    const currentSet=new Set(order);
+    const firstSharedIndex=previous.findIndex(type=>currentSet.has(type));
+    const insertAt=firstSharedIndex<0?previous.length:firstSharedIndex;
+    const before=previous.slice(0,insertAt).filter(type=>!currentSet.has(type));
+    const after=previous.slice(insertAt).filter(type=>!currentSet.has(type));
+    const merged=Array.from(new Set([...before,...order,...after,...DEFAULT_TOOLBOX_ORDER]));
     localStorage.setItem(TOOLBOX_ORDER_KEY,JSON.stringify(merged));
     saveUiState('toolboxes',TOOLBOX_ORDER_KEY,merged);
   }
