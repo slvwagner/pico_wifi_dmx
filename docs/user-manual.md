@@ -72,7 +72,7 @@ Command buttons that save, import, export, or update setup data briefly show the
 
 Use **Export Library** to download the currently loaded fixture catalog as the compressed `pico_dmx_fixture_library.zip`; it contains `pico_dmx_fixture_library.json`. Use **Import Library** to upload that ZIP or an older uncompressed library JSON file to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script `scripts/sync_fixture_library_from_xampp.ps1` can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys. When fixtures differ, the script asks whether to take each XAMPP change or keep the bundled copy; `-AcceptAllChanges`, `-KeepExistingChanges`, and `-DryRun` are available for intentional automated runs.
 
-Older custom catalogs may not contain Fixture Information or normalized capability data yet. In that case, the Controller overlays matching information from the built-in `fixture-metadata.json` and `fixture-capabilities.json` sidecars in browser memory. This does not save, replace, or otherwise modify the custom catalog on the XAMPP server.
+Older custom catalogs may not contain Fixture Information, normalized capability data, or OFL wheel-resource links yet. In that case, the Controller overlays matching information from the built-in `fixture-metadata.json`, `fixture-capabilities.json`, and `fixture-resources.json` sidecars in browser memory. The resource sidecar stores each offline SVG/PNG once and maps it to matching fixture wheel slots. This does not save, replace, or otherwise modify the custom catalog on the XAMPP server.
 
 1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
 2. Select the matching fixture from the results list.
@@ -85,12 +85,16 @@ The imported fixture is added to **Fixture Profiles** and becomes the active pro
 The converter keeps the richer Open Fixture Library data where the controller can use it:
 
 - Pan/tilt channels are grouped as 8-bit or 16-bit pan/tilt controls when matching channels are present.
+- Scalar coarse/fine pairs such as dimmer, focus, zoom, iris, and color temperature become one 16-bit control instead of separate coarse and fine sliders.
 - RGB, RGBW, and RGBWA color intensity channels are grouped into color controls.
-- Wheel slots keep their OFL names and colors when the library provides them.
+- Explicit OFL defaults are imported and scaled to the actual 8-bit or 16-bit control resolution.
+- Compatible rectangular matrices using sequential RGB channels per pixel become native RGB matrix controls. Unsupported arrangements are left uncollapsed rather than mapped incorrectly.
+- Wheel slots keep their OFL names, colors, and offline SVG/PNG images when the library provides them.
 - Wheel DMX ranges are preserved. Normal slot buttons send the midpoint of the range.
 - Adjustable wheel functions such as `WheelShake`, `WheelRotation`, and `WheelSlotRotation` show a bounded speed/range slider after you select that option.
 - Segmented shutter/strobe, program, effect, prism, and maintenance channels become named option controls. Their buttons send a value safely inside the selected DMX range.
 - Continuous capabilities retain their DMX range and speed information so the UI can provide a bounded control where the capability supports it.
+- Explicit OFL highlight values enable a temporary **Highlight** / **Restore** action on the patched fixture card.
 - Unsupported or ambiguous channels are kept as simple 8-bit sliders so no channel is silently lost.
 
 ### Create a Fixture Profile
@@ -198,11 +202,13 @@ Fixture profiles imported from the **Fixture Library** keep richer Open Fixture 
 
 Use **Default** or **Blackout** on a fixture card to recall the stored values for that fixture only. A fixture-card recall takes manual control of the DMX output: it stops Pico Chaser and Pico Motion playback first, then sends the configured values so active playback cannot immediately overwrite the recalled look.
 
+If an imported OFL profile provides explicit highlight values, its fixture card also shows **Highlight**. Click it to stop Pico playback, remember the current look, and send only the declared highlight values for fixture identification or focusing. The same button changes to **Restore**. The temporary highlight is not autosaved; click **Restore** to send back the exact remembered values and return to normal editing.
+
 Use **Cols** in the **Control Surface** header to choose **Auto** or a preferred count from 1 to 4. Auto keeps the spacious responsive card width. A fixed preference can show three or four fixtures across on a wide desktop, but the Controller automatically reduces the effective count when the Toolboxes rail, available viewport width, or iPad layout would make sliders, buttons, readouts, or XY pads too narrow. The saved preference is stored in server UI state and is included in complete setup export/import.
 
 Use the small button in the **Control Surface** header to collapse all visible fixture cards or expand them again. The button affects only the fixtures currently shown by the active group, scene, or palette filter.
 
-Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Default, Blackout, or collapse controls does not change fixture selection.
+Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Highlight/Restore, Default, Blackout, or collapse controls does not change fixture selection.
 
 After a hard page reload, no fixture cards are selected automatically. This keeps Group Edit disabled until you deliberately choose the fixtures you want to edit.
 
