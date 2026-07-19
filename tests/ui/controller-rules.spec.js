@@ -68,6 +68,33 @@ test.describe('Fixture Controller established rules', () => {
     await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(7);
   });
 
+  test('fixture card Highlight temporarily applies OFL highlight values and restores the previous look', async ({ page }) => {
+    const urls = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      urls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      const control = profiles.find(profile => profile.id === 1).controls.find(item => item.id === 11);
+      control.highlightValue = 255;
+      baseUrl.value = 'http://127.0.0.1:18991/';
+      values['101:11'] = 44;
+      drawSurface();
+    });
+
+    const button = page.locator('[data-fixture-card="101"] [data-highlight-fixture="101"]');
+    await button.click();
+    await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(255);
+    await expect.poll(() => urls.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/255'))).toBe(true);
+    await expect(button).toHaveText('Restore');
+
+    urls.length = 0;
+    await button.click();
+    await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(44);
+    await expect.poll(() => urls.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/44'))).toBe(true);
+    await expect(button).toHaveText('Highlight');
+  });
+
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
     const state = await page.evaluate(() => {
       selectedFixtureIds = new Set([101, 102, 103]);

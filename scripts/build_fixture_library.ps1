@@ -426,6 +426,13 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
                     tilt = if ($null -ne $tiltDefault) { $tiltDefault } else { 0 }
                 }
             }
+            $panHighlight = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 2
+            $tiltHighlight = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "highlightValue") 2
+            if ($null -ne $panHighlight -or $null -ne $tiltHighlight) {
+                $props["highlightValue"] = @{}
+                if ($null -ne $panHighlight) { $props["highlightValue"]["pan"] = $panHighlight }
+                if ($null -ne $tiltHighlight) { $props["highlightValue"]["tilt"] = $tiltHighlight }
+            }
             $controls.Add((New-Control $nextId "panTilt16" "Pan/Tilt" $props))
             $used[$panFine[0]] = $true; $used[$tiltFine[0]] = $true
         } else {
@@ -439,6 +446,13 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
                     pan = if ($null -ne $panDefault) { $panDefault } else { 0 }
                     tilt = if ($null -ne $tiltDefault) { $tiltDefault } else { 0 }
                 }
+            }
+            $panHighlight = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 1
+            $tiltHighlight = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "highlightValue") 1
+            if ($null -ne $panHighlight -or $null -ne $tiltHighlight) {
+                $props["highlightValue"] = @{}
+                if ($null -ne $panHighlight) { $props["highlightValue"]["pan"] = $panHighlight }
+                if ($null -ne $tiltHighlight) { $props["highlightValue"]["tilt"] = $tiltHighlight }
             }
             $controls.Add((New-Control $nextId "panTilt8" "Pan/Tilt" $props))
         }
@@ -477,13 +491,17 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         if ($colors.ContainsKey("white")) { $type = "rgbw"; $props["w"] = $channelMap[$colors["white"]] }
         if ($colors.ContainsKey("white") -and $colors.ContainsKey("amber")) { $type = "rgbwa"; $props["amber"] = $channelMap[$colors["amber"]] }
         $colorDefaults = [ordered]@{}
+        $colorHighlights = [ordered]@{}
         foreach ($component in @(@("red", "a"), @("green", "b"), @("blue", "c"), @("white", "w"), @("amber", "amber"))) {
             if (-not $colors.ContainsKey($component[0])) { continue }
             $colorChannel = $available[$colors[$component[0]]]
             $componentDefault = Convert-DmxValue $colorChannel (Get-Prop $colorChannel "defaultValue") 1
             if ($null -ne $componentDefault) { $colorDefaults[$component[1]] = $componentDefault }
+            $componentHighlight = Convert-DmxValue $colorChannel (Get-Prop $colorChannel "highlightValue") 1
+            if ($null -ne $componentHighlight) { $colorHighlights[$component[1]] = $componentHighlight }
         }
         if ($colorDefaults.Count) { $props["defaultValue"] = $colorDefaults }
+        if ($colorHighlights.Count) { $props["highlightValue"] = $colorHighlights }
         $controls.Add((New-Control $nextId $type "Color" $props))
         $nextId++
         foreach ($key in @("red","green","blue","white","amber")) { if ($colors.ContainsKey($key)) { $used[$colors[$key]] = $true } }
@@ -506,6 +524,8 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
             }
             $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 2
             if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $highlightValue = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 2
+            if ($null -ne $highlightValue) { $props["highlightValue"] = $highlightValue }
             $controls.Add((New-Control $nextId "slider16" $label $props))
             $used[$fineAlias[0]] = $true
         } elseif ($isOptionControl) {
@@ -516,11 +536,15 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
             }
             $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
             if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $highlightValue = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 1
+            if ($null -ne $highlightValue) { $props["highlightValue"] = $highlightValue }
             $controls.Add((New-Control $nextId "wheel" $label $props))
         } else {
             $props = @{ channel = $channelMap[$name]; capabilities = $capabilities }
             $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
             if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $highlightValue = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 1
+            if ($null -ne $highlightValue) { $props["highlightValue"] = $highlightValue }
             $controls.Add((New-Control $nextId "slider8" $label $props))
         }
         $nextId++

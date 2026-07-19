@@ -91,6 +91,12 @@ Assert-Equal $illusionMatrix.width 4 'The compatible OFL RGB matrix width is inc
 Assert-Equal $illusionMatrix.height 4 'The compatible OFL RGB matrix height is incorrect.'
 Assert-Equal @($illusionMode.profile.controls | Where-Object { $_.label -match '^(Red|Green|Blue) \(' }).Count 0 'Matrix pixel channels were also emitted as separate controls.'
 
+$arri = $library.fixtures | Where-Object key -eq 'arri/l5-c' | Select-Object -First 1
+$arriMode = $arri.modes | Where-Object name -eq 'P06: CCT & RGBW 16bit' | Select-Object -First 1
+$arriDimmer = $arriMode.profile.controls | Where-Object label -eq 'Dimmer' | Select-Object -First 1
+Assert-Equal $arriDimmer.type 'slider16' 'The OFL highlight fixture did not retain its 16-bit dimmer.'
+Assert-Equal $arriDimmer.highlightValue 65535 'The OFL 8-bit highlight value was not scaled to the imported 16-bit control.'
+
 $capabilitySidecarFixture = $capabilitiesCatalog.fixtures | Where-Object key -eq 'american-dj/inno-pocket-spot' | Select-Object -First 1
 $capabilitySidecarShutter = $capabilitySidecarFixture.controls | Where-Object label -eq 'Shutter/Strobe' | Select-Object -First 1
 Assert-Equal $capabilitySidecarShutter.type 'wheel' 'Capability sidecar does not include the segmented shutter upgrade.'

@@ -42,7 +42,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-title{display:grid;gap:2px;align-items:start;min-width:0;overflow:hidden}
 .fixture-title h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
+.fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:wrap;min-height:28px}
 .fixture-card.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .controller-plane-modal .modal-card{max-width:920px;width:min(920px,calc(100vw - 32px))}
 .controller-plane-layout{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
@@ -2266,8 +2266,10 @@ function drawSurface(){
     const coll=collapsedFixtureIds.has(f.id);
     const hasDefault=p.controls.some(c=>c.defaultValue!=null);
     const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
+    const hasHighlight=p.controls.some(c=>c.highlightValue!=null);
+    const isHighlighted=fixtureHighlightSnapshots.has(f.id);
     const card=document.createElement('article');card.className=DmxCommon.selectableCardClass('card fixture-card'+(isSource?' source-fixture':''),sel,'selected');card.dataset.fixtureCard=f.id;
-    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${escHtml(f.name)}${isSource?' <span class="ctrl-chip">Source</span>':''}</h2><span class="small">${escHtml(p.name)} · ${escHtml(p.mode)} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${escHtml(f.name)}${isSource?' <span class="ctrl-chip">Source</span>':''}</h2><span class="small">${escHtml(p.name)} · ${escHtml(p.mode)} · start ${f.start}</span></div><div class="fixture-actions">${hasHighlight?`<button class="sel-btn" data-highlight-fixture="${f.id}" title="${isHighlighted?'Restore the values from before highlighting':'Temporarily apply the fixture highlight values'}" ${isHighlighted?'style="color:var(--accent)"':''}>${isHighlighted?'Restore':'Highlight'}</button>`:''} ${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   resizeFixtureXyPads();
@@ -2436,6 +2438,38 @@ async function recallFixtureValues(fixtureId,which){
   writeLiveValues();
   if(errors.length)setStatus(errors.join(', '),true);
   else setStatus(f.name+' '+(which==='defaultValue'?'default':'blackout')+' recalled');
+}
+const fixtureHighlightSnapshots=new Map();
+function mergedHighlightValue(control,current){
+  const highlight=control.highlightValue;
+  if(highlight&&typeof highlight==='object'&&!Array.isArray(highlight))return{...(current&&typeof current==='object'?cloneValue(current):{}),...cloneValue(highlight)};
+  return cloneValue(highlight);
+}
+async function toggleFixtureHighlight(fixtureId){
+  const f=fixtures.find(fx=>fx.id===fixtureId);
+  const p=f&&fixtureProfile(f);
+  if(!f||!p)return;
+  await stopPicoPlaybackForFixtureRecall();
+  const restoring=fixtureHighlightSnapshots.has(fixtureId);
+  const snapshot=restoring?fixtureHighlightSnapshots.get(fixtureId):new Map();
+  const errors=[];
+  for(const c of p.controls){
+    if(restoring){
+      if(!snapshot.has(c.id))continue;
+      setValue(f,c,cloneValue(snapshot.get(c.id)));
+    }else{
+      if(c.highlightValue===null||c.highlightValue===undefined)continue;
+      snapshot.set(c.id,cloneValue(getValue(f,c,defaultValueForControl(c))));
+      setValue(f,c,mergedHighlightValue(c,getValue(f,c,defaultValueForControl(c))));
+    }
+    try{await sendControl(f,c,true);}catch(err){errors.push(err.message);}
+    updateControlDisplay(f,c);
+  }
+  if(restoring){fixtureHighlightSnapshots.delete(fixtureId);writeLiveValues();}
+  else fixtureHighlightSnapshots.set(fixtureId,snapshot);
+  drawSurface();
+  if(errors.length)setStatus(errors.join(', '),true);
+  else setStatus(f.name+(restoring?' restored':' highlighted'));
 }
 function draw(){drawProfiles();drawPatched();drawSurface();}
 
@@ -4141,6 +4175,8 @@ surfaceEl.addEventListener('click',e=>{
   }
   const rec=e.target.closest('[data-recall-fixture]');
   if(rec){e.stopPropagation();recallFixtureValues(parseInt(rec.dataset.recallFixture,10),rec.dataset.recallWhich);return;}
+  const highlight=e.target.closest('[data-highlight-fixture]');
+  if(highlight){e.stopPropagation();toggleFixtureHighlight(parseInt(highlight.dataset.highlightFixture,10));return;}
   if(isFixtureCardInteractiveClick(e.target))return;
   const card=e.target.closest('[data-fixture-card]');if(!card)return;
   e.stopPropagation();
