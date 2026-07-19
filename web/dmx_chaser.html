@@ -1674,6 +1674,7 @@ function drawStepList(){
 
 async function selectStepForEdit(idx){
   stopPlaybackForManualEdit();
+  await stopPicoPlaybackForBrowserControl();
   const result=loadStepIntoEditor(idx);
   sendStepToDmx(steps[idx]);
   setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
@@ -2081,17 +2082,23 @@ function schedulePlaybackVisualUpdate(ptList){
   });
 }
 
-function startPlayback(){
+function stopPicoPlaybackForBrowserControl(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return Promise.resolve([]);
+  const requests=[
+    fetch(root+'/chaser/stop').catch(()=>null),
+    fetch(root+'/motion/stop').catch(()=>null)
+  ];
+  stopPicoStatusPoll();
+  setPicoStatus('Stopped (browser took over)','var(--muted)');
+  return Promise.allSettled(requests);
+}
+
+function startPlayback(options={}){
   if(!steps.length){setStatus('Add some steps first',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
   // Stop any running Pico playback so it doesn't fight the browser
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(root){
-    fetch(root+'/chaser/stop').catch(()=>{});
-    fetch(root+'/motion/stop').catch(()=>{});
-    stopPicoStatusPoll();
-    setPicoStatus('Stopped (browser took over)','var(--muted)');
-  }
+  if(options.stopPico!==false)stopPicoPlaybackForBrowserControl();
   playing=true;
   playbackDirectionStep=directionStepFromSelect();
   activeStepIdx=browserStartStepIndex();
@@ -2500,13 +2507,16 @@ function saveChaseToSlot(idx,name){
 }
 async function loadChaseSlot(chase){
   if(!chase?.data)return;
+  const continueBrowserPlayback=playing;
   stopPlaybackForManualEdit();
+  await stopPicoPlaybackForBrowserControl();
   await clearChaserGroupSelectionForLoadedStep();
   applyChaserData(chase.data,false);
   setActiveRecalledChaseSlot(chase.slot);
   drawParticipation();drawStepList();drawStepEditor();
   refreshFanBasesFromStep();
-  sendStepToDmx(steps[selectedStepIdx]);
+  if(continueBrowserPlayback)startPlayback({stopPico:false});
+  else sendStepToDmx(steps[selectedStepIdx]);
   setStatus('Loaded chase: "'+chase.name+'"');
 }
 async function updateActiveRecalledChase(){

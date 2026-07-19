@@ -366,5 +366,148 @@ test.describe('Browser playback established rules', () => {
     expect(state).toContain('Reverse');
     expect(state).toContain('Ping Pong on');
   });
+
+  test('recalling another saved chase while browser playback is running continues with the recalled chase', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"ok":true}'
+    }));
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    await page.evaluate(async () => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      savedChases = [
+        { id: 'running_a', name: 'Running A', slot: 0, data: { steps: [makeStep('A step', { '101:11': 10 })] } },
+        { id: 'running_b', name: 'Running B', slot: 1, data: { steps: [makeStep('B step', { '101:11': 200 })] } }
+      ];
+      renderChaseSlotMatrix();
+      await loadChaseSlot(savedChases[0]);
+      startPlayback();
+    });
+
+    await page.locator('[data-chase-slot="1"]').click();
+    await expect.poll(() => page.evaluate(() => steps[0]?.label)).toBe('B step');
+    await expect.poll(() => page.evaluate(() => playing)).toBe(true);
+    await expect.poll(() => page.evaluate(() => activeStepIdx)).toBe(0);
+    await page.evaluate(() => stopPlayback());
+  });
+
+  test('recalling a saved chase stops Pico chaser and motion playback', async ({ page }) => {
+    const urls = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      urls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    await page.evaluate(async () => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      await loadChaseSlot({
+        id: 'stop_pico',
+        name: 'Stop Pico',
+        slot: 0,
+        data: { steps: [makeStep('Preview', { '101:11': 90 })] }
+      });
+    });
+
+    await expect.poll(() => urls).toContain('http://127.0.0.1:18991/chaser/stop');
+    await expect.poll(() => urls).toContain('http://127.0.0.1:18991/motion/stop');
+  });
+
+  test('selecting a step stops browser chase playback', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"ok":true}'
+    }));
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      steps = [makeStep('Step A', { '101:11': 10 }), makeStep('Step B', { '101:11': 20 })];
+      selectedStepIdx = 0;
+      applyStepParticipating(steps[0]);
+      drawStepList();
+      drawStepEditor();
+      startPlayback();
+    });
+
+    await page.locator('#stepList [data-step-index="1"]').click();
+    await expect.poll(() => page.evaluate(() => ({ playing, activeStepIdx, selectedStepIdx }))).toEqual({
+      playing: false,
+      activeStepIdx: -1,
+      selectedStepIdx: 1
+    });
+    await expect(page.locator('#btnPlay')).toHaveText('▶ Play');
+  });
+
+  test('selecting a step stops Pico playback and previews its DMX values', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push({
+        url: route.request().url(),
+        body: route.request().postData() || ''
+      });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      steps = [makeStep('Step A', { '101:11': 10 }), makeStep('Step B', { '101:11': 200 })];
+      selectedStepIdx = 0;
+      applyStepParticipating(steps[0]);
+      drawStepList();
+      drawStepEditor();
+      sentToPico = {};
+    });
+
+    await page.locator('#stepList [data-step-index="1"]').click();
+    await expect.poll(() => requests.map(request => request.url)).toContain('http://127.0.0.1:18991/chaser/stop');
+    await expect.poll(() => requests.map(request => request.url)).toContain('http://127.0.0.1:18991/motion/stop');
+    await expect.poll(() => requests.find(request => request.url === 'http://127.0.0.1:18991/dmx/b')?.body).toBe('1:200');
+  });
+
+  test('Pico Play Slot stops browser chase playback', async ({ page }) => {
+    const urls = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      urls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      steps = [makeStep('Browser step', { '101:11': 10 })];
+      selectedStepIdx = 0;
+      applyStepParticipating(steps[0]);
+      drawStepList();
+      drawStepEditor();
+      _lastChaserReportedSlotCount = 32;
+      document.getElementById('picoSlot').value = '0';
+      startPlayback();
+    });
+
+    await page.locator('#btnPicoPlaySlot').click();
+    await expect.poll(() => urls).toContain('http://127.0.0.1:18991/chaser/play/0');
+    await expect.poll(() => page.evaluate(() => ({ playing, activeStepIdx }))).toEqual({ playing: false, activeStepIdx: -1 });
+    await expect(page.locator('#btnPlay')).toHaveText('▶ Play');
+  });
 });
 

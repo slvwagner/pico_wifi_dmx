@@ -707,11 +707,11 @@ The Chaser page uses several toolboxes:
 
 - **Chase Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. **Mode** chooses **Single**, **Loop**, **Loop N**, or **Ping Pong**. **Direction** chooses whether playback starts at the first step and moves forward or starts at the last step and moves backward. **Loops** is only used by **Loop N**; normal **Loop** runs forever. **Ping Pong** reverses at the end of the chase instead of jumping back to the first or last step. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
 - While Chase Playback runs, the currently playing step automatically becomes the selected step. This means **Edit Step** follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.
-- Selecting a step in **Chase Steps** or manually changing controls in **Edit Step** stops browser Chase Playback. This prevents playback from immediately overwriting the values you are trying to edit.
+- Selecting a step in **Chase Steps** stops browser Chase Playback and both Pico playback engines, then sends that step's programmed DMX values immediately. This lets you verify positions, colors, and other programmed values without starting the chase. Manually changing controls in **Edit Step** also stops browser Chase Playback so playback cannot immediately overwrite the values you are editing.
 
 ![Chaser Chase Playback toolbox](screenshots/chaser-toolbox-browser-playback.png)
 
-On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
+On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box stops Pico Chaser and Pico Motion playback, updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If browser Chase Playback was already running, the recalled chase begins playing immediately; otherwise, Step 1 is sent to DMX as a static preview. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
 Saved chases also recall the playback controls that were saved with them, including browser mode, Loop N count, Ping Pong, direction, BPM, and Pico speed. The Chases toolbox tiles still show only the chase name and visual so they stay consistent with the other toolboxes. Uploading to a Pico slot uses the current **Chase Playback** playmode, loop count, and direction, so the Pico slot behaves like the chase you previewed in the browser. Per-slot playback details are shown in the **Pico Playback** slot tiles after a chase has been uploaded to a Pico slot. Each loaded Pico slot shows compact lines for loop state, direction, and Ping Pong state.
 
@@ -784,12 +784,14 @@ When you define participating controls manually:
 
 When you click a step in the **Chase Steps** toolbox:
 
+- Browser Chase Playback, Pico Chaser playback, and Pico Motion playback are stopped before the step is recalled.
 - The step values are checked against the current fixture setup.
 - Invalid fixture/control references are removed from the edited step.
 - The Participating Controls panel is rebuilt from the chase values.
 - If no group is selected, only fixtures and controls that are actually stored in the selected step are shown, and **Group Edit** becomes step-dependent.
 - If a group is selected, the selected step is filtered to that group and **Group Edit** uses the grouped fixtures as its edit scope.
 - The Edit Step card shows the same scoped fixture/control set, so editing Step 2 cannot accidentally show or edit unrelated controls from another group or old filter.
+- The selected step's programmed values are sent to DMX immediately so the look can be verified without starting playback.
 
 When you click a saved chase in the **Chases** toolbox:
 
@@ -858,6 +860,8 @@ If Chaser reports that no Fixture Controller values are available, open the Fixt
 ### Pico Slot Playback
 
 Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open. The Pico slot strip is the upload target: click an empty slot to upload the current chase. Click a loaded slot once to select it for play, pause, resume, speed, or stop. Click the selected loaded slot again if you want to replace it with the current chase; the page asks before overwriting.
+
+Starting a Pico slot with **Play Slot** stops browser Chase Playback first, so only one chase engine controls the DMX output.
 
 ![Chaser Pico Playback](screenshots/chaser-pico-playback.png)
 
