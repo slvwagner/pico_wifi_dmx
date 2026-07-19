@@ -25,6 +25,7 @@ Changed:
 
 Fixed:
 
+- Fixed selected tile highlights blending into light custom tile colors by applying the same contrast decision used for tile text to every saved tile's dark or bright highlight ring.
 - Fixed iPad palette tiles becoming difficult to recall because the shared coarse-pointer button rule expanded the edit and delete overlays. Touch overlays now scale with the tile while desktop sizing remains unchanged.
 - Stabilized the motion pause/resume hardware regression test by sampling after pause confirmation and polling for resumed output movement instead of relying on one timing-sensitive sample.
 - Fixed Show Run Pico Chaser Playback tiles not redrawing after pause or resume, which left their button labels stale even though the Pico command succeeded.

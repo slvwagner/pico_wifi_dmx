@@ -2038,13 +2038,13 @@
     const visual=normalizeSlotVisual(item&&item.visual);
     if(!visual||!visual.color)return '';
     const text=contrastTextForColor(visual.color);
-    const lum=luminanceForColor(visual.color);
-    const overlay=lum>0.45?'rgba(0,0,0,.28)':'rgba(255,255,255,.18)';
-    const ring=lum>0.45?'rgba(0,0,0,.5)':'rgba(1,255,230,.45)';
-    const actionColor=lum>0.45?'#06110e':'#01ffe6';
-    const actionHover=lum>0.45?'rgba(0,0,0,.14)':'rgba(1,255,230,.12)';
-    const actionHoverStrong=lum>0.45?'rgba(0,0,0,.22)':'rgba(1,255,230,.18)';
-    const actionBorder=lum>0.45?'rgba(0,0,0,.35)':'rgba(1,255,230,.35)';
+    const useDarkContrast=text==='#06110e';
+    const overlay=useDarkContrast?'rgba(0,0,0,.28)':'rgba(255,255,255,.18)';
+    const ring=useDarkContrast?'rgba(0,0,0,.5)':'rgba(1,255,230,.45)';
+    const actionColor=useDarkContrast?'#06110e':'#01ffe6';
+    const actionHover=useDarkContrast?'rgba(0,0,0,.14)':'rgba(1,255,230,.12)';
+    const actionHoverStrong=useDarkContrast?'rgba(0,0,0,.22)':'rgba(1,255,230,.18)';
+    const actionBorder=useDarkContrast?'rgba(0,0,0,.35)':'rgba(1,255,230,.35)';
     return `background:${visual.color};border-color:${visual.color};color:${text};--slot-bg:${visual.color};--slot-highlight-overlay:${overlay};--slot-highlight-ring:${ring};--slot-action-color:${actionColor};--slot-action-hover:${actionHover};--slot-action-hover-strong:${actionHoverStrong};--slot-action-border:${actionBorder}`;
   }
 

@@ -382,13 +382,15 @@ test.describe('Toolbox visual tile rules', () => {
 
     const state = await page.evaluate(() => {
       const host = document.createElement('div');
-      const light = { visual: { type: 'visual', color: '#f8fafc', image: '' } };
-      host.innerHTML = `<div class="slot filled active" style="${DmxCommon.slotVisualStyle(light)}">${DmxCommon.slotVisualButtonHtml('data-test-visual', '1', 'Edit tile')}<button class="slot-del" title="Delete">×</button><div class="palette-slot-content"><span class="palette-slot-name">Light Scene</span></div></div>`;
+      const light = { visual: { type: 'visual', color: '#8ea2d2', image: '' } };
+      host.innerHTML = `<div class="slot filled saved-tile active" style="${DmxCommon.slotVisualStyle(light)}">${DmxCommon.slotVisualButtonHtml('data-test-visual', '1', 'Edit tile')}<button class="slot-del" title="Delete">×</button><div class="palette-slot-content"><span class="palette-slot-name">Light Scene</span></div></div><div class="item group-tile saved-tile active" style="${DmxCommon.slotVisualStyle(light)}"><div class="group-tile-content"><span class="group-tile-name">Light Group</span></div></div>`;
       document.body.appendChild(host);
       const tile = host.querySelector('.slot');
+      const groupTile = host.querySelector('.group-tile');
       const visualButton = host.querySelector('.slot-visual-btn');
       const deleteButton = host.querySelector('.slot-del');
       const tileStyle = getComputedStyle(tile);
+      const groupTileStyle = getComputedStyle(groupTile);
       const visualButtonStyle = getComputedStyle(visualButton);
       const deleteButtonStyle = getComputedStyle(deleteButton);
       const overlayStyle = getComputedStyle(tile, '::after');
@@ -396,20 +398,25 @@ test.describe('Toolbox visual tile rules', () => {
         background: tileStyle.backgroundColor,
         color: tileStyle.color,
         actionColor: tileStyle.getPropertyValue('--slot-action-color').trim(),
+        highlightRing: tileStyle.getPropertyValue('--slot-highlight-ring').trim(),
         visualButtonColor: visualButtonStyle.color,
         deleteButtonColor: deleteButtonStyle.color,
         boxShadow: tileStyle.boxShadow,
+        groupBoxShadow: groupTileStyle.boxShadow,
         overlayOpacity: overlayStyle.opacity,
         overlayBackground: overlayStyle.backgroundColor
       };
     });
 
-    expect(state.background).toBe('rgb(248, 250, 252)');
+    expect(state.background).toBe('rgb(142, 162, 210)');
     expect(state.color).toBe('rgb(6, 17, 14)');
     expect(state.actionColor).toBe('#06110e');
+    expect(state.highlightRing).toBe('rgba(0,0,0,.5)');
     expect(state.visualButtonColor).toBe('rgb(6, 17, 14)');
     expect(state.deleteButtonColor).toBe('rgb(6, 17, 14)');
     expect(state.boxShadow).not.toBe('none');
+    expect(state.boxShadow).toContain('rgba(0, 0, 0, 0.5)');
+    expect(state.groupBoxShadow).toContain('rgba(0, 0, 0, 0.5)');
     expect(Number(state.overlayOpacity)).toBeGreaterThan(0);
     expect(state.overlayBackground).toBe('rgba(0, 0, 0, 0.28)');
   });
