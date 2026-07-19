@@ -278,17 +278,18 @@ test.describe('Effects established rules', () => {
     const result = await page.evaluate(async () => {
       const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const rail = document.getElementById('motionToolboxRail');
+      const scrollHost = rail?.querySelector('.toolbox-rail-scroll');
       const button = document.querySelector('#motionEffectBox [data-collapse-group="motion-effects"]');
       const effectBox = document.getElementById('motionEffectBox');
       const savedBox = document.getElementById('motionSavedEffectBox');
-      if (!rail || !button || !effectBox || !savedBox) throw new Error('Effects toolboxes missing');
+      if (!rail || !scrollHost || !button || !effectBox || !savedBox) throw new Error('Effects toolboxes missing');
 
       if (!effectBox.classList.contains('collapsed') || !savedBox.classList.contains('collapsed')) {
         button.click();
         await waitFrames();
       }
 
-      rail.scrollTop = Math.max(0, effectBox.offsetTop - 18);
+      scrollHost.scrollTop = Math.max(0, effectBox.offsetTop - 18);
       await waitFrames();
       const beforeTop = button.getBoundingClientRect().top;
       button.click();
@@ -316,16 +317,17 @@ test.describe('Effects established rules', () => {
     const result = await page.evaluate(async () => {
       const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const rail = document.getElementById('motionToolboxRail');
+      const scrollHost = rail?.querySelector('.toolbox-rail-scroll');
       const box = document.getElementById('motionSavedEffectBox');
       const button = document.getElementById('motionSavedEffectBoxToggle');
-      if (!rail || !box || !button) throw new Error('Effects toolbox missing');
+      if (!rail || !scrollHost || !box || !button) throw new Error('Effects toolbox missing');
 
       if (!box.classList.contains('collapsed')) {
         button.click();
         await waitFrames();
       }
 
-      rail.scrollTop = Math.max(0, box.offsetTop - 220);
+      scrollHost.scrollTop = Math.max(0, box.offsetTop - 220);
       await waitFrames();
       const beforeTop = button.getBoundingClientRect().top;
       button.click();
@@ -337,7 +339,7 @@ test.describe('Effects established rules', () => {
         afterTop,
         text: button.textContent,
         collapsed: box.classList.contains('collapsed'),
-        scrollable: rail.scrollHeight > rail.clientHeight
+        scrollable: scrollHost.scrollHeight > scrollHost.clientHeight
       };
     });
 

@@ -662,6 +662,7 @@ Controller, Chaser, and Effects use a shared right-side toolbox sidebar on deskt
 - Double-click the resize line to reset the default width.
 - The page content and the toolbox sidebar scroll independently. The page scrollbar sits beside the toolbox separation line, while the toolbox scrollbar stays inside the toolbox sidebar.
 - Use the arrow button in the Toolboxes header to collapse or reopen the whole sidebar. The collapsed state is shared across toolbox pages.
+- The Toolboxes header stays visible at the top of the sidebar while its toolbox tiles scroll, keeping **Edit** and the sidebar arrow within reach.
 - Toolbox reordering is locked by default. Click **Edit** in the Toolboxes header, drag a toolbox by its colored header, and click **Done** when the order is correct. The toolbox body is never a drag handle. While Edit is off, dragging a colored header scrolls vertically instead of moving the toolbox, which prevents accidental rearrangement on iPad. While Edit is active, the app uses pointer dragging instead of Safari's native drag/drop.
 - The **Cols**, **Rows**, and **Move** controls in tile-based toolboxes are also visible only while Toolboxes **Edit** is active. Clicking **Done** hides them and exits any active tile Move mode.
 - On narrow screens, the sidebar changes into a bottom toolbox drawer.

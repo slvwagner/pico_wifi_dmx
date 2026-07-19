@@ -80,6 +80,33 @@ test.describe('Toolbox visual tile rules', () => {
     }
   });
 
+  test('Toolboxes Edit and collapse controls remain visible while the toolbox rail scrolls', async ({ page }) => {
+    for (const viewport of [{ width: 1280, height: 650 }, { width: 820, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      for (const path of ['', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_room_plane.html']) {
+        await openDmxPage(page, path);
+        const rail = page.locator('.toolbox-rail');
+        const header = rail.locator('.toolbox-rail-header');
+        const scrollHost = rail.locator('.toolbox-rail-scroll');
+        const railBox = await rail.boundingBox();
+        const initial = await header.boundingBox();
+
+        await expect(scrollHost).toHaveCount(1);
+        expect(await header.evaluate((element, scroller) => element.parentElement === scroller, await scrollHost.elementHandle())).toBe(false);
+        await scrollHost.locator('.scene-toolbox__header').first().hover();
+        await page.mouse.wheel(0, 4000);
+        await page.waitForTimeout(100);
+
+        const scrolled = await header.boundingBox();
+        expect(await scrollHost.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+        expect(scrolled.y).toBeGreaterThanOrEqual(railBox.y);
+        expect(scrolled.y).toBeLessThanOrEqual(initial.y);
+        await expect(header.locator('.toolbox-rail-edit')).toBeVisible();
+        await expect(header.locator('.toolbox-rail-toggle')).toBeVisible();
+      }
+    }
+  });
+
   test('shared visual default normalization strips icons but keeps colors', async ({ page }) => {
     await openDmxPage(page, '');
 

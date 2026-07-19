@@ -883,6 +883,7 @@
 
   async function applySharedToolboxOrder(rail){
     if(!rail)return;
+    const host=rail.querySelector('.toolbox-rail-scroll')||rail;
     const boxes=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'));
     const types=boxes.map(box=>box.dataset.toolboxType).filter(Boolean);
     let order=savedToolboxOrder(types);
@@ -893,7 +894,7 @@
     }
     order.forEach(type=>{
       const box=boxes.find(b=>b.dataset.toolboxType===type);
-      if(box)rail.appendChild(box);
+      if(box)host.appendChild(box);
     });
   }
 
@@ -1076,6 +1077,17 @@
     });
   }
 
+  function initToolboxRailScrollHost(rail){
+    if(!rail)return null;
+    let host=rail.querySelector(':scope > .toolbox-rail-scroll');
+    if(host)return host;
+    host=document.createElement('div');
+    host.className='toolbox-rail-scroll';
+    Array.from(rail.children).filter(child=>child.classList.contains('scene-toolbox')).forEach(box=>host.appendChild(box));
+    rail.appendChild(host);
+    return host;
+  }
+
   function configureToolboxRailDragHandle(box){
     if(!box)return;
     box.draggable=false;
@@ -1133,6 +1145,7 @@
     if(!rail)return;
     initToolboxRailHeader(rail);
     initToolboxRailResize(rail);
+    const scrollHost=initToolboxRailScrollHost(rail);
     initToolboxRailScrollGuard(rail);
     applySharedToolboxRailWidth().catch(()=>{});
     applySharedToolboxRailCollapsed(rail).catch(()=>{});
@@ -1141,7 +1154,7 @@
       if(!box)return;
       box.dataset.toolboxType=entry.type||box.id;
       configureToolboxRailDragHandle(box);
-      rail.appendChild(box);
+      scrollHost.appendChild(box);
     });
     rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(configureToolboxRailDragHandle);
     setToolboxTileLayoutControlsVisible(rail,toolboxRailEditing(rail));
@@ -1180,8 +1193,8 @@
       const before=e.clientY<rect.top+rect.height/2;
       target.classList.toggle('toolbox-drop-before',before);
       target.classList.toggle('toolbox-drop-after',!before);
-      if(before)rail.insertBefore(dragging,target);
-      else rail.insertBefore(dragging,target.nextSibling);
+      if(before)scrollHost.insertBefore(dragging,target);
+      else scrollHost.insertBefore(dragging,target.nextSibling);
     };
     rail.addEventListener('pointerdown',e=>{
       if(!toolboxRailEditing(rail))return;
@@ -1214,10 +1227,11 @@
   function restoreRailElementAnchor(element){
     const rail=element?.closest?.('.toolbox-rail');
     if(!rail)return;
+    const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
     const before=element.getBoundingClientRect().top;
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       if(!element.isConnected)return;
-      rail.scrollTop+=element.getBoundingClientRect().top-before;
+      scrollHost.scrollTop+=element.getBoundingClientRect().top-before;
     }));
   }
 
@@ -1384,8 +1398,9 @@
         requestAnimationFrame(()=>{
           const rail=box.closest('.toolbox-rail');
           if(!rail)return;
+          const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
           const top=Math.max(0,box.offsetTop-12);
-          rail.scrollTo({top,behavior:'auto'});
+          scrollHost.scrollTo({top,behavior:'auto'});
         });
       }
     }
