@@ -31,6 +31,28 @@ User-facing operating instructions are in [docs/user-manual.md](docs/user-manual
 
 ---
 
+## Critical XAMPP environment safety
+
+The two XAMPP applications have different owners and must never be treated as interchangeable:
+
+- `http://192.168.0.12/dmx/` (`E:\Software\xampp\htdocs\dmx`) is the user's working environment. Its `data/*.json` files contain user-owned show data.
+- `http://192.168.0.12/dmx-test/` (`E:\Software\xampp\htdocs\dmx-test`) is the automated-test playground. Browser tests may overwrite its JSON data.
+
+These rules are mandatory for developers, scripts, and AI agents:
+
+1. **Never run Playwright, `npm`/`npx` test commands, browser automation, screenshot capture, manual generation, or test diagnostics against `/dmx/`.** Many UI tests intentionally save mock groups, palettes, chases, tile positions, and UI state through the PHP endpoints. A test can destroy live show data even when its assertions look read-only.
+2. **Never point `DMX_TEST_BASE_URL`, Playwright `baseURL`, `tests/pathconfig.local.json`, or a temporary test override at `/dmx/`.** The only XAMPP target allowed for automation is `/dmx-test/`. The repository-local PHP server with deterministic `docs/manual-data/` is preferred for manuals and screenshots.
+3. **Before starting any browser automation, verify that the target URL path is `/dmx-test/` or a repository-local development server. Stop immediately if it resolves to `/dmx/`.** Do not rely on hostname differences such as `localhost` versus `192.168.0.12`; the URL path determines the environment.
+4. **Deploy source changes to `/dmx/` only with `scripts/update_xampp_server.ps1`.** Do not directly copy, edit, delete, or replace files under `E:\Software\xampp\htdocs\dmx`. Use the script with `-AppFolder dmx -BaseUrl http://192.168.0.12/dmx/`, then verify the page manually or with read-only HTTP GET requests.
+5. **Use `/dmx-test/` for regression testing.** Synchronize it through `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://192.168.0.12/dmx-test/` before running tests. Test failures caused by test data must be resolved inside this isolated environment, never by switching the suite to `/dmx/`.
+6. **Generate manuals and screenshots outside the user's environment.** Use `scripts/update_user_manual.ps1 -LocalOnly` and the repository's deterministic manual data, or an explicitly isolated test app. Never capture them from `/dmx/`.
+7. **Treat XAMPP `data/*.json` as irreplaceable user data.** Do not write, restore, migrate, or import it without explicit user authorization. Before an authorized recovery, snapshot the current files and restore only the files the user approved.
+8. **For bug fixes, add and run a failing regression test in the isolated environment before changing implementation code.** After the fix, rerun the focused browser tests there. Run real hardware tests only for firmware changes or when the user explicitly requests them.
+
+The deployment wrapper copies application source and verifies HTTP availability; it is not permission to run tests against the deployed user environment.
+
+---
+
 ## Getting Started
 
 ### Run the software
@@ -390,7 +412,7 @@ npm install
 npx playwright install chromium
 ```
 
-Make sure XAMPP is running and the isolated test app is available at the configured URL before running the UI tests. The normal working app remains under `http://localhost/dmx/`; tests should use `http://localhost/dmx-test/` so they cannot touch your live show data. If needed, sync the current project files into the test app first:
+Make sure XAMPP is running and the isolated test app is available at the configured URL before running the UI tests. The working `/dmx/` app is protected user data and **must never be used as a Playwright target**. Tests must use `/dmx-test/` or a repository-local server, as required by [Critical XAMPP environment safety](#critical-xampp-environment-safety). If needed, sync the current project files into the test app first:
 
 ```powershell
 .\scripts\sync_test_app_to_xampp.ps1
