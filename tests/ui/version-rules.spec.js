@@ -43,6 +43,9 @@ test.describe('Project versioning rules', () => {
         }
       });
       await expect(page.locator('.scene-toolbox--groups .groups-toolbar').first()).toBeVisible();
+      await expect(page.locator('.scene-toolbox--groups .groups-layout-controls').first()).toBeHidden();
+      await page.locator('.toolbox-rail-edit').click();
+      await expect(page.locator('.scene-toolbox--groups .groups-layout-controls').first()).toBeVisible();
       measurements.push(await page.evaluate(() => {
         const toolbar = document.querySelector('.scene-toolbox--groups .groups-toolbar').getBoundingClientRect();
         const edit = document.querySelector('.scene-toolbox--groups .groups-edit-btn').getBoundingClientRect();
