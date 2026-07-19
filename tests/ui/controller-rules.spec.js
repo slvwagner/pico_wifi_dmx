@@ -36,6 +36,38 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
   });
 
+  test('fixture card Default and Blackout buttons recall their values to DMX', async ({ page }) => {
+    const urls = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      urls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      const control = profiles.find(profile => profile.id === 1).controls.find(item => item.id === 11);
+      control.defaultValue = 173;
+      control.blackoutValue = 7;
+      baseUrl.value = 'http://127.0.0.1:18991/';
+      values['101:11'] = 44;
+      drawSurface();
+    });
+
+    await page.locator('[data-fixture-card="101"] [data-recall-which="defaultValue"]').click();
+    await expect.poll(() => urls).toContain('http://127.0.0.1:18991/chaser/stop');
+    await expect.poll(() => urls).toContain('http://127.0.0.1:18991/motion/stop');
+    await expect.poll(() => urls.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/173'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(173);
+    const defaultDmxIndex = urls.findIndex(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/173'));
+    expect(urls.indexOf('http://127.0.0.1:18991/chaser/stop')).toBeLessThan(defaultDmxIndex);
+    expect(urls.indexOf('http://127.0.0.1:18991/motion/stop')).toBeLessThan(defaultDmxIndex);
+
+    urls.length = 0;
+    await page.locator('[data-fixture-card="101"] [data-recall-which="blackoutValue"]').click();
+    await expect.poll(() => urls).toContain('http://127.0.0.1:18991/chaser/stop');
+    await expect.poll(() => urls).toContain('http://127.0.0.1:18991/motion/stop');
+    await expect.poll(() => urls.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/7'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(7);
+  });
+
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
     const state = await page.evaluate(() => {
       selectedFixtureIds = new Set([101, 102, 103]);
@@ -710,18 +742,18 @@ test.describe('Fixture Controller established rules', () => {
       renderControllerPlanes();
     });
 
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#controllerPlaneCols')).toBeVisible();
     await expect(page.locator('#controllerPlaneRows')).toBeVisible();
-    await expect(page.locator('#moveControllerPlanesBtn')).toBeVisible();
+    await expect(page.locator('#moveControllerPlanesBtn')).toBeHidden();
+    await expect(page.locator('#moveControllerPlanesBtn')).toHaveClass(/active/);
     await expect(page.locator('[data-controller-plane-slot="0"]')).toContainText('Plane A');
     await expect(page.locator('[data-controller-plane-slot="1"]')).toContainText('Plane B');
     await expect(page.locator('[data-controller-plane-slot="2"]')).toContainText('3');
 
-    await page.locator('#controllerPlaneRows').fill('3');
+    await page.locator('#controllerPlaneRows').selectOption('3');
     await expect.poll(() => roomPlaneWrites.at(-1)?.planeRows).toBe(3);
 
-    await page.locator('#moveControllerPlanesBtn').click();
-    await expect(page.locator('#moveControllerPlanesBtn')).toHaveClass(/active/);
     await page.locator('[data-controller-plane-slot="0"]').click();
     await page.locator('[data-controller-plane-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => controllerPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
@@ -790,6 +822,8 @@ test.describe('Fixture Controller established rules', () => {
       savedGroups = [{ id: 'grp_test', name: 'Front Wash', fixtureIds: [101, 102], values: {} }];
       renderSavedGroupsList();
     });
+
+    await page.locator('.toolbox-rail-edit').click();
 
     const layout = await page.evaluate(() => {
       const toolbar = document.querySelector('#groupsBox .groups-toolbar').getBoundingClientRect();

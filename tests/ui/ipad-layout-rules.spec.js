@@ -283,16 +283,17 @@ test.describe('iPad layout rules', () => {
 
     const layout = await page.evaluate(async () => {
       const rail = document.querySelector('.toolbox-rail');
+      const scrollHost = rail.querySelector('.toolbox-rail-scroll');
       const resizer = document.querySelector('.toolbox-rail-resizer');
       const stepsBox = document.getElementById('stepsBox');
       if (stepsBox) stepsBox.style.height = '900px';
-      rail.scrollTop = 600;
+      scrollHost.scrollTop = 600;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const railRect = rail.getBoundingClientRect();
       const resizerRect = resizer.getBoundingClientRect();
       const lineWidth = parseFloat(getComputedStyle(resizer, '::after').width);
       return {
-        railScrollTop: rail.scrollTop,
+        railScrollTop: scrollHost.scrollTop,
         railLeft: Math.round(railRect.left),
         resizerTop: Math.round(resizerRect.top),
         resizerBottom: Math.round(resizerRect.bottom),
@@ -482,18 +483,19 @@ test.describe('iPad layout rules', () => {
       await openDmxPage(page, cfg.path);
       const layout = await page.evaluate(async label => {
         const rail = document.querySelector('.toolbox-rail');
+        const scrollHost = rail.querySelector('.toolbox-rail-scroll');
         document.querySelectorAll('.toolbox-rail .scene-toolbox.collapsed .scene-toolbox__toggle').forEach(btn => btn.click());
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const boxes = Array.from(rail.querySelectorAll('.scene-toolbox')).filter(box => getComputedStyle(box).display !== 'none');
         const last = boxes[boxes.length - 1];
         const body = last.querySelector('.scene-toolbox__body');
-        rail.scrollTop = Math.max(0, last.offsetTop - 24);
+        scrollHost.scrollTop = Math.max(0, last.offsetTop - 24);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const railRectAtTop = rail.getBoundingClientRect();
         const lastRectAtTop = last.getBoundingClientRect();
         const firstChild = body?.firstElementChild;
         const firstChildRect = firstChild?.getBoundingClientRect();
-        rail.scrollTop = rail.scrollHeight;
+        scrollHost.scrollTop = scrollHost.scrollHeight;
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const railRect = rail.getBoundingClientRect();
         const lastRect = last.getBoundingClientRect();
@@ -536,6 +538,7 @@ test.describe('iPad layout rules', () => {
       await openDmxPage(page, cfg.path);
       const layout = await page.evaluate(async label => {
         const rail = document.querySelector('.toolbox-rail');
+        const scrollHost = rail.querySelector('.toolbox-rail-scroll');
         const boxes = Array.from(rail.querySelectorAll('.scene-toolbox')).filter(box => getComputedStyle(box).display !== 'none');
         boxes.forEach(box => {
           if (!box.classList.contains('collapsed')) box.querySelector('.scene-toolbox__toggle')?.click();
@@ -557,7 +560,7 @@ test.describe('iPad layout rules', () => {
           railBottom: Math.round(railRect.bottom),
           lastTop: Math.round(lastRect.top),
           lastBottom: Math.round(lastRect.bottom),
-          scrollTop: rail.scrollTop,
+          scrollTop: scrollHost.scrollTop,
           bodyDisplay: getComputedStyle(last.querySelector('.scene-toolbox__body')).display
         };
       }, cfg.label);
@@ -590,10 +593,11 @@ test.describe('iPad layout rules', () => {
         await openDmxPage(page, cfg.path);
         const layout = await page.evaluate(async label => {
           const rail = document.querySelector('.toolbox-rail');
+          const scrollHost = rail.querySelector('.toolbox-rail-scroll');
           const main = document.querySelector('main');
           document.querySelectorAll('.toolbox-rail .scene-toolbox.collapsed .scene-toolbox__toggle').forEach(btn => btn.click());
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          rail.scrollTop = rail.scrollHeight;
+          scrollHost.scrollTop = scrollHost.scrollHeight;
           main.scrollTop = main.scrollHeight;
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           const boxes = Array.from(rail.querySelectorAll('.scene-toolbox')).filter(box => getComputedStyle(box).display !== 'none');
@@ -606,13 +610,13 @@ test.describe('iPad layout rules', () => {
             coarse: matchMedia('(pointer:coarse)').matches,
             mainAfterDisplay: getComputedStyle(main, '::after').display,
             mainAfterHeight: parseFloat(getComputedStyle(main, '::after').height),
-            railAfterDisplay: getComputedStyle(rail, '::after').display,
-            railAfterHeight: parseFloat(getComputedStyle(rail, '::after').height),
+            railAfterDisplay: getComputedStyle(scrollHost, '::after').display,
+            railAfterHeight: parseFloat(getComputedStyle(scrollHost, '::after').height),
             railBottom: Math.round(railRect.bottom),
             lastBottom: Math.round(lastRect.bottom),
             mainBottom: Math.round(mainRect.bottom),
             mainScrollTop: main.scrollTop,
-            railScrollTop: rail.scrollTop
+            railScrollTop: scrollHost.scrollTop
           };
         }, cfg.label);
 

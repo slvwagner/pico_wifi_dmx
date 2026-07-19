@@ -111,7 +111,7 @@ test.describe('Pico Performance Test established rules', () => {
       contentType: 'application/json',
       body: JSON.stringify({
         ok: true,
-        devices: [{ id: 'pico-test', name: 'pico-wifi-dmx', version: '0.9.10', url: 'http://127.0.0.1:18992/' }]
+        devices: [{ id: 'pico-test', name: 'pico-wifi-dmx', version: '0.9.11', url: 'http://127.0.0.1:18992/' }]
       })
     }));
 
