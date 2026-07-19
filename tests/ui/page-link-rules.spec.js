@@ -14,6 +14,34 @@ const APP_PAGES = [
 ];
 
 test.describe('Page link rules', () => {
+  test('Controller exposes the DMX Controller Home Screen name and app icons', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    await expect(page).toHaveTitle('DMX Controller');
+    await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'DMX Controller');
+    await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'DMX Controller');
+    await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes');
+    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', 'assets/favicon.ico?v=0.9.12');
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', 'assets/app-icon-180.png?v=0.9.12');
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', 'assets/manifest.webmanifest?v=0.9.12');
+
+    const manifest = await page.evaluate(async () => {
+      const response = await fetch('assets/manifest.webmanifest?v=0.9.12');
+      return response.json();
+    });
+    expect(manifest).toMatchObject({
+      name: 'DMX Controller',
+      short_name: 'DMX Controller',
+      start_url: '../',
+      scope: '../',
+      display: 'standalone'
+    });
+    expect(manifest.icons).toEqual(expect.arrayContaining([
+      expect.objectContaining({ src: 'app-icon-192.png', sizes: '192x192', type: 'image/png' }),
+      expect.objectContaining({ src: 'app-icon-512.png', sizes: '512x512', type: 'image/png' })
+    ]));
+  });
+
   test('main pages link to Show Run', async ({ page }) => {
     for (const path of ['', 'dmx_show.html', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_gpio.html', 'dmx_monitor.html', 'dmx_room_plane.html']) {
       await openDmxPage(page, path);

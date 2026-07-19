@@ -6,6 +6,7 @@ Changed:
 
 - Started the 0.9.12 development branch.
 - Added a state-aware **Full Screen / Exit Full Screen** control to the sticky Show Run header for supported PC and iPad browsers, including Safari-prefixed API compatibility.
+- Added **DMX Controller** web-app metadata and XAMPP-derived favicon/touch icons so saving the Controller page to an iPad Home Screen uses the correct name and a dedicated app icon.
 
 ## 0.9.11 - 2026-07-19
 

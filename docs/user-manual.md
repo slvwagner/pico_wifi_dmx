@@ -474,6 +474,8 @@ The iPad Fullscreen API displays a system message and allows a downward swipe to
 
 The Home Screen version uses an app-like window without Safari's normal toolbar. Do not tap the page's **Full Screen** button in this mode; the installed web-app window is the intended iPad display mode and does not need the browser Fullscreen API.
 
+If you prefer the Home Screen app to open on the Fixture Controller, open `http://192.168.0.12/dmx/` before using **Add to Home Screen**. The installed app is named **DMX Controller** and uses the blue XAMPP icon; open **Show** from its navigation when you are ready to operate the show. If an older Home Screen icon still says **DMX Fixture Controller Prototype** or shows a page-preview tile, remove that icon and add the Controller page again so iPadOS reads the new name and icon metadata.
+
 To prevent an operator from accidentally leaving the Show Run web app, you can additionally use iPad **Guided Access**:
 
 1. Open **Settings > Accessibility > Guided Access**, turn it on, and configure **Passcode Settings**.
