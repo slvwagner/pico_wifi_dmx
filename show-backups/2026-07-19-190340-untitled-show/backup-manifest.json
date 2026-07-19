@@ -1,0 +1,83 @@
+{
+  "createdAt": "2026-07-19T17:03:40.2334819Z",
+  "sourceBaseUrl": "http://192.168.0.12/dmx/",
+  "readOnlySource": true,
+  "appVersion": "0.9.13",
+  "showName": "Untitled Show",
+  "showFile": "pico_dmx_untitled-show_show.json",
+  "fixtureLibraryFile": "pico_dmx_fixture_library.json",
+  "usedFixtureDefinitions": 1,
+  "completeFixtureDefinitions": 623,
+  "files": [
+    {
+      "name": "endpoint-responses/chaser.json",
+      "sizeBytes": 8198,
+      "sha256": "1571a3b65c2185e58005fe82342a9950426710fb427a12578cf657f6ada1320a"
+    },
+    {
+      "name": "endpoint-responses/fixture.json",
+      "sizeBytes": 51402,
+      "sha256": "207ada8e3e9416a83a08078c5b99c34fe4e7f67ba9c7c2f462273c58e3825570"
+    },
+    {
+      "name": "endpoint-responses/fixtureLibrary.json",
+      "sizeBytes": 10329465,
+      "sha256": "2a606a9ed6379b725034740f20257b6dd514402f253e3fac06965a98162c5b67"
+    },
+    {
+      "name": "endpoint-responses/gpio.json",
+      "sizeBytes": 919,
+      "sha256": "20a15a2ee25df49db3936fd5e18868c8015723278eadb39f4b336420c2fc4d25"
+    },
+    {
+      "name": "endpoint-responses/groups.json",
+      "sizeBytes": 710,
+      "sha256": "8742939043a0556a0148950e79e2b377a1d0ab85805acb431de24d22f3ee83d4"
+    },
+    {
+      "name": "endpoint-responses/liveValues.json",
+      "sizeBytes": 2239,
+      "sha256": "f5106588989dfa75cdfd500964a7a4fd45fbf3d51ba853029406d123f3fb086b"
+    },
+    {
+      "name": "endpoint-responses/motion.json",
+      "sizeBytes": 8829,
+      "sha256": "d7af6aed446a44e71b9a3e7597afb37f001f8eeb8f97eff07021de973cf0cbae"
+    },
+    {
+      "name": "endpoint-responses/palettes.json",
+      "sizeBytes": 75894,
+      "sha256": "6f9d327eef5cf69e9f4cc185468bff7fb378e4ea1475596d4947a0334bbd43da"
+    },
+    {
+      "name": "endpoint-responses/roomPlane.json",
+      "sizeBytes": 19997,
+      "sha256": "632c9c4a4fdf5bc474568f6ffe048d0d403eb050e75be068bdac77aa50f75cef"
+    },
+    {
+      "name": "endpoint-responses/scenes.json",
+      "sizeBytes": 8056,
+      "sha256": "191b08e875e2252f68a3c2504d49b44bacb87cae15ff6970cf595b5ecb62d610"
+    },
+    {
+      "name": "endpoint-responses/uiState.json",
+      "sizeBytes": 11243,
+      "sha256": "df7d6fecd41f6554a8dce9801ec55a974f616cfad7bbdb022c4e1b83850f7d29"
+    },
+    {
+      "name": "pico_dmx_fixture_library.json",
+      "sizeBytes": 9669636,
+      "sha256": "1fa070913b0095dae76a9a75a5fcad96850672587065feb6a1417a685c07b238"
+    },
+    {
+      "name": "pico_dmx_untitled-show_show.json",
+      "sizeBytes": 241442,
+      "sha256": "9afcab69f46e3b34a5cd8d36ae14bedcb18c789f6d0604968a7ac1a5ff4e55b2"
+    },
+    {
+      "name": "README.md",
+      "sizeBytes": 488,
+      "sha256": "41f8c68028e323c868c9f6f6e38f37bf57231979e698eddc640e4827241acf33"
+    }
+  ]
+}

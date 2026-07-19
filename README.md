@@ -1200,6 +1200,14 @@ All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges parti
 
 The controller's **Export Show** action reads these same endpoints and writes a show-name-specific JSON file, embedding only the catalog entries and modes the show uses. Importing it restores the stored show name and posts each show subsystem back to its existing endpoint, so the pages continue to use the normal autosave files after restore. **Export Library** and **Import Library** independently handle the complete `pico_dmx_fixture_library.json` catalog.
 
+For a timestamped command-line backup, use the read-only backup script:
+
+```powershell
+.\scripts\backup_show.ps1 -BaseUrl http://192.168.0.12/dmx/ -AllowProtectedEnvironment
+```
+
+The script performs HTTP `GET` requests only; it never posts data or directly accesses the XAMPP `data` directory. It creates a folder below `show-backups/` containing the importable show file, the complete fixture-library file, diagnostic endpoint-response snapshots, a short restore README, and a SHA-256 manifest. The default URL is the isolated `/dmx-test/` environment. The explicit `-AllowProtectedEnvironment` switch is required for `/dmx/` so an agent cannot accidentally read the user's working show when testing the script.
+
 ### Development sync
 
 HTML files are developed locally and synced to XAMPP with:

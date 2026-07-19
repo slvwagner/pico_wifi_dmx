@@ -1,0 +1,383 @@
+{
+  "ok": true,
+  "exists": true,
+  "motion": {
+    "appVersion": "0.9.9",
+    "schemaVersion": 1,
+    "baseUrl": "http://192.168.0.14/",
+    "targetKey": "panTilt16:Pan/Tilt:panTilt",
+    "effects": [
+      {
+        "id": "motion_effect_1783976332283",
+        "name": "Dimmer Puls",
+        "slot": 4,
+        "recipe": {
+          "targetKey": "slider8:Dimmer:value",
+          "params": {
+            "effectType": "pulse",
+            "bpm": 30,
+            "panAmp": 72,
+            "tiltAmp": 0,
+            "phaseSpread": 146,
+            "updateRate": 25
+          },
+          "fixtures": [
+            {
+              "fixtureId": 1782079883845,
+              "controlId": 1782079869318,
+              "phaseOffset": 0
+            },
+            {
+              "fixtureId": 1782079883825,
+              "controlId": 1782079869318,
+              "phaseOffset": 0
+            }
+          ]
+        },
+        "visual": {
+          "type": "visual",
+          "color": "#225a50",
+          "image": ""
+        }
+      },
+      {
+        "id": "motion_effect_1783976612407",
+        "name": "Effect 1",
+        "slot": 0,
+        "recipe": {
+          "targetKey": "panTilt16:Pan/Tilt:panTilt",
+          "params": {
+            "effectType": "circle",
+            "bpm": 10,
+            "panAmp": 10,
+            "tiltAmp": 8,
+            "phaseSpread": 76,
+            "updateRate": 25
+          },
+          "fixtures": [
+            {
+              "fixtureId": 1782079883845,
+              "controlId": 1782079869109,
+              "phaseOffset": 0
+            },
+            {
+              "fixtureId": 1782079883825,
+              "controlId": 1782079869109,
+              "phaseOffset": 0
+            }
+          ]
+        },
+        "visual": {
+          "type": "visual",
+          "color": "#225a50",
+          "image": ""
+        }
+      },
+      {
+        "id": "motion_effect_1783976833320",
+        "name": "Circle slow",
+        "slot": 1,
+        "recipe": {
+          "targetKey": "panTilt16:Pan/Tilt:panTilt",
+          "params": {
+            "effectType": "circle",
+            "bpm": 2,
+            "panAmp": 10,
+            "tiltAmp": 8,
+            "phaseSpread": 76,
+            "updateRate": 25
+          },
+          "fixtures": [
+            {
+              "fixtureId": 1782079883845,
+              "controlId": 1782079869109,
+              "phaseOffset": 0
+            },
+            {
+              "fixtureId": 1782079883825,
+              "controlId": 1782079869109,
+              "phaseOffset": 0
+            }
+          ]
+        },
+        "visual": {
+          "type": "visual",
+          "color": "#225a50",
+          "image": ""
+        }
+      },
+      {
+        "id": "motion_effect_1783976854767",
+        "name": "Effect 3",
+        "slot": 2,
+        "recipe": {
+          "targetKey": "panTilt16:Pan/Tilt:panTilt",
+          "params": {
+            "effectType": "circle",
+            "bpm": 10,
+            "panAmp": 43,
+            "tiltAmp": 8,
+            "phaseSpread": 76,
+            "updateRate": 25
+          },
+          "fixtures": [
+            {
+              "fixtureId": 1782079883845,
+              "controlId": 1782079869109,
+              "phaseOffset": 0
+            },
+            {
+              "fixtureId": 1782079883825,
+              "controlId": 1782079869109,
+              "phaseOffset": 0
+            }
+          ]
+        },
+        "visual": {
+          "type": "visual",
+          "color": "#225a50",
+          "image": ""
+        }
+      }
+    ],
+    "effectCols": 4,
+    "effectRows": 4,
+    "params": {
+      "effectType": "circle",
+      "bpm": 10,
+      "panAmp": 43,
+      "tiltAmp": 8,
+      "phaseSpread": 76,
+      "updateRate": 25
+    },
+    "fixtures": [
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869109,
+        "kind": "panTilt",
+        "enabled": true,
+        "phaseOffset": 0,
+        "basePan": 19101,
+        "baseTilt": 22664,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869652,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869771,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869369,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869318,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 205
+      },
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869497,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869074,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883845,
+        "controlId": 1782079869110,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869109,
+        "kind": "panTilt",
+        "enabled": true,
+        "phaseOffset": 0,
+        "basePan": 23371,
+        "baseTilt": 22664,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869652,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869771,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869369,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869318,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869497,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869074,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      },
+      {
+        "fixtureId": 1782079883825,
+        "controlId": 1782079869110,
+        "kind": "scalar8",
+        "enabled": false,
+        "phaseOffset": 0,
+        "basePan": 128,
+        "baseTilt": 128,
+        "baseValue": 0
+      }
+    ],
+    "pico_slots": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "pico_url": "http://192.168.0.14/"
+  }
+}

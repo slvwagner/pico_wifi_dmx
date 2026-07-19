@@ -1368,6 +1368,14 @@ Use **Fixture Controller > Show > Export Show** before large changes or before m
 - **Export Show** downloads a show-name-specific file such as `pico_dmx_summer-gala_show.json`. It stores the show name and embeds the richer fixture-library entries and modes referenced by patched fixtures.
 - **Export Library** downloads `pico_dmx_fixture_library.json`, preserving the complete reusable fixture catalog.
 
+For a timestamped repository backup, run this command from the project folder:
+
+```powershell
+.\scripts\backup_show.ps1 -BaseUrl http://192.168.0.12/dmx/ -AllowProtectedEnvironment
+```
+
+The script is read-only toward XAMPP: it uses HTTP `GET` requests and does not post, restore, edit, or directly copy server data. It creates a timestamped folder under `show-backups/` with the same two importable files, diagnostic endpoint-response snapshots, restore instructions, and a SHA-256 integrity manifest. Without `-AllowProtectedEnvironment`, the script refuses to read `/dmx/`; its default target is the isolated `/dmx-test/` environment.
+
 The exported setup file includes:
 
 - Fixture profiles and patched fixtures
@@ -1393,7 +1401,7 @@ Before the restore writes any data, **Resolve Fixture Updates** appears when a s
 - **Use All Matches** highlights every row that already has a library mapping.
 - **Cancel Import** closes the dialog without importing any setup data.
 
-When a library profile is selected, matching show control IDs are preserved so existing saved values continue to refer to the corresponding controls. To restore the complete reusable catalog, import `pico_dmx_fixture_library.json` through **Fixture Library > Import Library**. The separate **Export Library** button exports the same complete catalog without exporting a show.
+When a library profile is selected, matching show control IDs are preserved so existing saved values continue to refer to the corresponding controls. To restore the complete reusable catalog, import `pico_dmx_fixture_library.json` through **Controller > Show > Import Library**. The separate **Export Library** button exports the same complete catalog without exporting a show.
 
 ### Using Multiple Browser Devices
 

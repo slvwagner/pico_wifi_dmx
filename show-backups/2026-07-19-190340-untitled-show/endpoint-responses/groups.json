@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "exists": true,
+  "groups": [
+    {
+      "id": "grp_1782163180046_132",
+      "name": "PicoSpot 20LED",
+      "slot": 0,
+      "fixtureIds": [
+        1782079883845,
+        1782079883825
+      ],
+      "values": [],
+      "visual": {
+        "type": "visual",
+        "color": "#8ea2d2",
+        "image": ""
+      }
+    },
+    {
+      "id": "grp_1784469803848_444",
+      "name": "Backdrop Movings",
+      "slot": 1,
+      "fixtureIds": [
+        1783982155873,
+        1783982156357,
+        1783982155828,
+        1783982156014
+      ],
+      "values": []
+    }
+  ],
+  "baseUrl": "http://192.168.0.14/",
+  "appVersion": null,
+  "schemaVersion": null
+}

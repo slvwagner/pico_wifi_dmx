@@ -1068,6 +1068,9 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li><strong>Export Show</strong> downloads a show-name-specific file such as <code>pico_dmx_summer-gala_show.json</code>. It stores the show name and embeds the richer fixture-library entries and modes referenced by patched fixtures.</li>
 <li><strong>Export Library</strong> downloads <code>pico_dmx_fixture_library.json</code>, preserving the complete reusable fixture catalog.</li>
 </ul>
+<p>For a timestamped repository backup, run this command from the project folder:</p>
+<pre><code>.\scripts\backup_show.ps1 -BaseUrl http://192.168.0.12/dmx/ -AllowProtectedEnvironment</code></pre>
+<p>The script is read-only toward XAMPP: it uses HTTP <code>GET</code> requests and does not post, restore, edit, or directly copy server data. It creates a timestamped folder under <code>show-backups/</code> with the same two importable files, diagnostic endpoint-response snapshots, restore instructions, and a SHA-256 integrity manifest. Without <code>-AllowProtectedEnvironment</code>, the script refuses to read <code>/dmx/</code>; its default target is the isolated <code>/dmx-test/</code> environment.</p>
 <p>The exported setup file includes:</p>
 <ul>
 <li>Fixture profiles and patched fixtures</li>
@@ -1091,7 +1094,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li><strong>Use All Matches</strong> highlights every row that already has a library mapping.</li>
 <li><strong>Cancel Import</strong> closes the dialog without importing any setup data.</li>
 </ul>
-<p>When a library profile is selected, matching show control IDs are preserved so existing saved values continue to refer to the corresponding controls. To restore the complete reusable catalog, import <code>pico_dmx_fixture_library.json</code> through <strong>Fixture Library &gt; Import Library</strong>. The separate <strong>Export Library</strong> button exports the same complete catalog without exporting a show.</p>
+<p>When a library profile is selected, matching show control IDs are preserved so existing saved values continue to refer to the corresponding controls. To restore the complete reusable catalog, import <code>pico_dmx_fixture_library.json</code> through <strong>Controller &gt; Show &gt; Import Library</strong>. The separate <strong>Export Library</strong> button exports the same complete catalog without exporting a show.</p>
 <h3 id="using-multiple-browser-devices">Using Multiple Browser Devices</h3>
 <p>You can keep the controller or operator pages open on more than one browser device. Chaser slots, Effects slots, and shared UI-state updates are saved as locked transactions, so two nearly simultaneous saves do not overwrite each other with an older copy of the setup file. Pico HTTP requests are also isolated per connection, allowing status polling and control or slot-upload requests to overlap safely.</p>
 <p>When you expand the last toolbox on an iPad or another narrow portrait display, the toolbox rail automatically scrolls the expanded card into view. The card remains inside the toolbox rail; scroll the rail itself to reach the rest of its contents.</p>
