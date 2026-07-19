@@ -462,6 +462,26 @@ http://localhost/dmx/dmx_show.html
 
 On supported PC and iPad browsers, use **Full Screen** in the sticky header to give the operator controls the maximum available screen area. The same button changes to **Exit Full Screen** while active. Browsers require this action to start from a direct click or tap. The button is hidden when the browser does not provide a page fullscreen API; you can still use an installed Home Screen web app or the browser's own display controls in that case.
 
+### Run Show Run as an iPad web app
+
+The iPad Fullscreen API displays a system message and allows a downward swipe to exit fullscreen. For show operation without that fullscreen prompt, install the Show Run page on the iPad Home Screen and open it as a web app:
+
+1. Open **Safari** on the iPad and load the Show Run page, for example `http://192.168.0.12/dmx/dmx_show.html`.
+2. Tap **Share**, tap **More** if necessary, then tap **Add to Home Screen**.
+3. Enable **Open as Web App**.
+4. Tap **Add**.
+5. Return to the Home Screen and open Show Run using the new icon instead of opening it from a Safari tab.
+
+The Home Screen version uses an app-like window without Safari's normal toolbar. Do not tap the page's **Full Screen** button in this mode; the installed web-app window is the intended iPad display mode and does not need the browser Fullscreen API.
+
+To prevent an operator from accidentally leaving the Show Run web app, you can additionally use iPad **Guided Access**:
+
+1. Open **Settings > Accessibility > Guided Access**, turn it on, and configure **Passcode Settings**.
+2. Open Show Run from its Home Screen icon.
+3. Triple-click the iPad top button, or the Home button on an older iPad, and select **Guided Access** if the accessibility menu appears.
+4. Review the session settings and tap **Start**.
+5. To leave later, triple-click the same button, authenticate with the Guided Access passcode, Face ID, or Touch ID, then tap **End**.
+
 Show Run loads the current XAMPP show data:
 
 - Fixture profiles and patched fixtures from `fixture_setup.php`
