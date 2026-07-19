@@ -515,7 +515,7 @@ test.describe('Project versioning rules', () => {
     });
   });
 
-  test('Import Library followed by Import Show opens fixture mapping before writing differing show data', async ({ page }) => {
+  test('Import Library followed by an arbitrarily named show file opens fixture mapping before writing differing show data', async ({ page }) => {
     await openDmxPage(page, '');
 
     await page.evaluate(() => {
@@ -525,7 +525,10 @@ test.describe('Project versioning rules', () => {
         setTimeout: window.setTimeout
       };
       window.__combinedImportPosts = [];
-      window.confirm = () => true;
+      window.confirm = message => {
+        window.__combinedImportConfirm = message;
+        return true;
+      };
       window.setTimeout = () => 0;
       window.fetch = async (url, options = {}) => {
         const method = String(options.method || 'GET').toUpperCase();
@@ -560,8 +563,10 @@ test.describe('Project versioning rules', () => {
 
     const show = {
       type: 'pico_wifi_dmx_full_setup', schemaVersion: 1, setupFormatVersion: 3,
+      showName: 'xyz_show',
       project: { id: 'pico_wifi_dmx', name: 'Pico WiFi DMX', version: '0.9.13' },
       fixture: {
+        showName: 'xyz_show',
         baseUrl: '',
         profiles: [{ id: 1, name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 101, type: 'slider8', label: 'Show Dimmer', channel: 1, default: 10 }] }],
         fixtures: [{ id: 101, name: 'Fixture A', profileId: 1, start: 1 }]
@@ -578,12 +583,13 @@ test.describe('Project versioning rules', () => {
       }
     };
     await page.locator('#importJsonFile').setInputFiles({
-      name: 'pico_dmx_setup.json',
+      name: 'xampp setup.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(show))
     });
 
     await expect(page.locator('#fixtureImportMappingModal')).toBeVisible();
+    expect(await page.evaluate(() => window.__combinedImportConfirm.split('\n')[0])).toBe('Import xyz_show?');
     await expect(page.locator('.fixture-import-map-row')).toHaveCount(1);
     await expect(page.locator('.fixture-import-map-row')).toContainText('Definition differs');
     expect(await page.evaluate(() => {
@@ -609,6 +615,38 @@ test.describe('Project versioning rules', () => {
     expect(importedProfile).toMatchObject({
       id: 1,
       controls: [{ id: 101, label: 'Library Dimmer', default: 200 }]
+    });
+  });
+
+  test('show name is directly editable and autosaved to fixture setup', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    await page.evaluate(() => {
+      window.__showNameOriginalFetch = window.fetch;
+      window.__showNamePosts = [];
+      window.fetch = async (url, options = {}) => {
+        if (String(options.method || 'GET').toUpperCase() === 'POST') {
+          window.__showNamePosts.push({ url: String(url), body: JSON.parse(options.body || '{}') });
+        }
+        return { ok: true, json: async () => ({ ok: true }) };
+      };
+      applyData({ showName: 'Original Show', baseUrl: '', profiles: [], fixtures: [] });
+    });
+
+    const input = page.locator('#showNameInput');
+    await expect(input).toHaveValue('Original Show');
+    await input.fill('Renamed Show');
+    await expect.poll(() => page.evaluate(() => window.__showNamePosts.some(post => post.url.includes('fixture_setup.php') && post.body.showName === 'Renamed Show'))).toBe(true);
+
+    const result = await page.evaluate(() => {
+      const current = { showName, filename: showExportFilename(showName), saved: saveData().showName };
+      window.fetch = window.__showNameOriginalFetch;
+      return current;
+    });
+    expect(result).toEqual({
+      showName: 'Renamed Show',
+      filename: 'pico_dmx_renamed-show_show.json',
+      saved: 'Renamed Show'
     });
   });
 
@@ -673,7 +711,7 @@ test.describe('Project versioning rules', () => {
           fixtureLibraryPosts: countPosts('fixture_library.php'),
           local: {
             showName,
-            showNameLabel: document.getElementById('showNameLabel')?.textContent,
+            showNameInput: document.getElementById('showNameInput')?.value,
             profiles: profiles.length,
             fixtures: fixtures.length,
             values: Object.keys(values).length,
@@ -719,7 +757,7 @@ test.describe('Project versioning rules', () => {
     expect(result.fixtureLibraryPosts).toBe(0);
     expect(result.local).toMatchObject({
       showName: 'Summer Gala',
-      showNameLabel: 'Summer Gala',
+      showNameInput: 'Summer Gala',
       profiles: 1,
       fixtures: 0,
       values: 0,

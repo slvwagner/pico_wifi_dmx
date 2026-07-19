@@ -85,6 +85,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #patched .item{align-content:start}
 .show-setup-body{display:grid;gap:16px;margin-top:12px}
 .show-setup-body>.panel{margin:0;background:#10161b}
+.show-title-stack{display:grid;gap:4px;min-width:min(320px,75vw)}
+.show-name-field{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;font-weight:700}
+.show-name-field input{width:min(360px,58vw);min-width:140px;padding:5px 8px}
 .show-file-actions{padding-bottom:4px}
 .patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .patch-actions-grid button{width:100%;min-width:0}
@@ -179,7 +182,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 <section class="panel setup-files-card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-<div><h2>Show</h2><div class="small" id="showNameLabel">Untitled Show</div></div>
+<div class="show-title-stack"><h2>Show</h2><label class="show-name-field">Show name<input id="showNameInput" type="text" maxlength="80" value="Untitled Show"></label></div>
 <button id="showCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
 <div id="showBody" class="show-setup-body">
@@ -1842,8 +1845,8 @@ function patchFixture(){
 
 function normalizeShowName(value){return String(value||'').trim().slice(0,80)||'Untitled Show';}
 function renderShowName(){
-  const label=document.getElementById('showNameLabel');
-  if(label)label.textContent=normalizeShowName(showName);
+  const input=document.getElementById('showNameInput');
+  if(input)input.value=normalizeShowName(showName);
 }
 function showExportFilename(value){
   const slug=normalizeShowName(value).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
@@ -2704,6 +2707,14 @@ patchProfile.onchange=()=>{
   if(profile)document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
 };
 baseUrl.addEventListener('input',scheduleSetupAutosave);
+document.getElementById('showNameInput').addEventListener('input',event=>{
+  showName=String(event.target.value||'').slice(0,80);
+  scheduleSetupAutosave();
+});
+document.getElementById('showNameInput').addEventListener('blur',()=>{
+  showName=normalizeShowName(showName);
+  renderShowName();
+});
 document.getElementById('exportCsv').onclick=exportCsv;
 async function fetchSetupPayload(url,prop,fallback){
   try{
@@ -3139,8 +3150,9 @@ async function importFullSetup(data){
     return;
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
-  if(!confirm('Import show?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
-  let fixtureSetup={...migrated.fixture,showName:normalizeShowName(migrated.fixture?.showName||migrated.showName)};
+  const importedShowName=normalizeShowName(migrated.fixture?.showName||migrated.showName);
+  if(!confirm('Import '+importedShowName+'?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
+  let fixtureSetup={...migrated.fixture,showName:importedShowName};
   let fixtureLibraryResolution=null;
   if(migrated.fixtureLibrary){
     const currentLibrary=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true})||{schemaVersion:1,fixtures:[]});
