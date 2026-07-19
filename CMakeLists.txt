@@ -15,9 +15,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.2.0)
+set(sdkVersion 2.3.0)
 set(toolchainVersion 14_2_Rel1)
-set(picotoolVersion 2.2.0-a4)
+set(picotoolVersion 2.3.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -85,11 +85,11 @@ target_compile_definitions(pico_wifi_dmx PRIVATE
         MIDI_RX_PIN=${MIDI_RX_PIN}
         MIDI_UART_ID=${MIDI_UART_ID}
         MIDI_BAUD=${MIDI_BAUD}
-        PICO_DMX_VERSION="0.9.10"
+        PICO_DMX_VERSION="0.9.11"
 )
 
 pico_set_program_name(pico_wifi_dmx "pico-wifi-dmx")
-pico_set_program_version(pico_wifi_dmx "0.9.10")
+pico_set_program_version(pico_wifi_dmx "0.9.11")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(pico_wifi_dmx 0)

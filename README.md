@@ -206,7 +206,7 @@ cmake --build build
 If CMake cannot find the Pico SDK, install the Raspberry Pi Pico VS Code extension on Ubuntu or point CMake at an SDK checkout:
 
 ```bash
-export PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.2.0"
+export PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.0"
 ```
 
 The firmware output is:
@@ -534,7 +534,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "0.9.10",
+  "appVersion": "0.9.11",
   "schemaVersion": 1
 }
 ```
@@ -1168,7 +1168,7 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 ## Requirements
 
 - Raspberry Pi Pico 2 W (`PICO_BOARD=pico2_w`, RP2350)
-- Pico SDK 2.2.0
+- Pico SDK 2.3.0
 - CMake 3.13+, Ninja, ARM embedded GCC toolchain
 
 ---
@@ -1213,7 +1213,7 @@ Output: `build/pico_wifi_dmx.uf2`
 Using picotool (Pico connected via USB in normal run mode):
 
 ```powershell
-& "$env:USERPROFILE/.pico-sdk/picotool/2.2.0-a4/picotool/picotool.exe" load build/pico_wifi_dmx.elf -fx
+& "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe" load build/pico_wifi_dmx.elf -fx
 ```
 
 Using OpenOCD + Picoprobe/CMSIS-DAP:

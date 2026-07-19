@@ -2,15 +2,15 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 const APP_PAGES = [
-  { path: '', manualHref: 'user-manual.html?v=0.9.10#1-fixture-controller', manualText: 'Fixture Controller' },
-  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=0.9.10#4-show-run', manualText: 'Show Run' },
-  { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=0.9.10#midi-controller-card', manualText: 'MIDI Emulator' },
-  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=0.9.10#5-chaser', manualText: 'Chaser' },
-  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=0.9.10#6-effects', manualText: 'Effects' },
-  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.10#7-gpio-control', manualText: 'GPIO Control' },
-  { path: 'test/', manualHref: '../user-manual.html?v=0.9.10#8-pico-performance-test', manualText: 'Pico Performance Test' },
-  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=0.9.10#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
-  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=0.9.10#10-room-plane', manualText: 'Room Plane' }
+  { path: '', manualHref: 'user-manual.html?v=0.9.11#1-fixture-controller', manualText: 'Fixture Controller' },
+  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=0.9.11#4-show-run', manualText: 'Show Run' },
+  { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=0.9.11#midi-controller-card', manualText: 'MIDI Emulator' },
+  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=0.9.11#5-chaser', manualText: 'Chaser' },
+  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=0.9.11#6-effects', manualText: 'Effects' },
+  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.11#7-gpio-control', manualText: 'GPIO Control' },
+  { path: 'test/', manualHref: '../user-manual.html?v=0.9.11#8-pico-performance-test', manualText: 'Pico Performance Test' },
+  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=0.9.11#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
+  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=0.9.11#10-room-plane', manualText: 'Room Plane' }
 ];
 
 test.describe('Page link rules', () => {

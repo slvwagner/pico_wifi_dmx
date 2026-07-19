@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.11 - Unreleased
+
+Changed:
+
+- Started the 0.9.11 development branch.
+- Updated the Raspberry Pi Pico SDK and picotool integration from 2.2.0 to 2.3.0.
+
 ## 0.9.10 - 2026-07-19
 
 Changed:
