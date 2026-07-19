@@ -60,6 +60,14 @@ Assert-Equal $programSpeed.capabilities[0].type 'EffectSpeed' 'Continuous capabi
 Assert-Equal $programSpeed.capabilities[0].speedStart 'slow' 'Continuous capability speed start is missing.'
 Assert-Equal $programSpeed.capabilities[0].speedEnd 'fast' 'Continuous capability speed end is missing.'
 
+$encore = $library.fixtures | Where-Object key -eq 'american-dj/encore-lp12z-ip' | Select-Object -First 1
+$encoreMode = $encore.modes | Where-Object name -eq '9-channel' | Select-Object -First 1
+$encoreDimmer = $encoreMode.profile.controls | Where-Object label -eq 'Dimmer' | Select-Object -First 1
+Assert-Equal $encoreDimmer.type 'slider16' 'A scalar channel with a fine alias was not converted to a 16-bit slider.'
+Assert-Equal $encoreDimmer.channel 6 'The 16-bit dimmer coarse channel is incorrect.'
+Assert-Equal $encoreDimmer.fine 7 'The 16-bit dimmer fine channel is incorrect.'
+Assert-Equal @($encoreMode.profile.controls | Where-Object label -eq 'Dimmer fine').Count 0 'The fine channel was also emitted as a separate control.'
+
 $capabilitySidecarFixture = $capabilitiesCatalog.fixtures | Where-Object key -eq 'american-dj/inno-pocket-spot' | Select-Object -First 1
 $capabilitySidecarShutter = $capabilitySidecarFixture.controls | Where-Object label -eq 'Shutter/Strobe' | Select-Object -First 1
 Assert-Equal $capabilitySidecarShutter.type 'wheel' 'Capability sidecar does not include the segmented shutter upgrade.'

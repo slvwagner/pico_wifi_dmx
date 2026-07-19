@@ -350,7 +350,16 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         $capabilities = @(New-NormalizedCapabilities $channel)
         $label = $name -replace '\s+', ' '
         $segmentedCapabilities = $capabilities.Count -gt 1 -and @($capabilities | Where-Object { @($_.dmxRange).Count -gt 0 }).Count -eq $capabilities.Count
-        if ($capType -eq "WheelSlot" -or $segmentedCapabilities -or $label -match '(?i)\b(wheel|gobo|macro|preset)\b') {
+        $isOptionControl = $capType -eq "WheelSlot" -or $segmentedCapabilities -or $label -match '(?i)\b(wheel|gobo|macro|preset)\b'
+        $fineAlias = @((Get-Prop $channel "fineChannelAliases") | Where-Object { $_ -and $channelMap.ContainsKey($_) -and -not $used[$_] } | Select-Object -First 1)
+        if ($fineAlias.Count -and -not $isOptionControl) {
+            $controls.Add((New-Control $nextId "slider16" $label @{
+                channel = $channelMap[$name]
+                fine = $channelMap[$fineAlias[0]]
+                capabilities = $capabilities
+            }))
+            $used[$fineAlias[0]] = $true
+        } elseif ($isOptionControl) {
             $controls.Add((New-Control $nextId "wheel" $label @{
                 channel = $channelMap[$name]
                 options = @(New-WheelOptions $fixture $channel $label)
