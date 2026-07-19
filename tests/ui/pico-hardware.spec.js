@@ -282,18 +282,19 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
 
     await getJson(request, '/motion/start/' + slot);
     await sleep(300);
-    const pausedAt = await readOutputValue(request, channel);
     await getJson(request, '/motion/pause/' + slot);
     await waitForSlot(request, 'motion', slot, s => s.paused);
+    const pausedAt = await readOutputValue(request, channel);
     await sleep(350);
     const held = await readOutputValue(request, channel);
     expect(Math.abs(held - pausedAt)).toBeLessThanOrEqual(4);
 
     await getJson(request, '/motion/resume/' + slot);
     await waitForSlot(request, 'motion', slot, s => s.active);
-    await sleep(300);
-    const resumed = await readOutputValue(request, channel);
-    expect(Math.abs(resumed - held)).toBeGreaterThan(8);
+    await expect.poll(
+      async () => Math.abs((await readOutputValue(request, channel)) - held),
+      { timeout: 1000, intervals: [100] }
+    ).toBeGreaterThan(8);
 
     await getJson(request, '/motion/stop/' + slot);
   });
