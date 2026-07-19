@@ -2133,11 +2133,21 @@ function updateControlDisplay(f,c){
   }
 }
 
+async function stopPicoPlaybackForFixtureRecall(){
+  const root=endpoint();
+  if(!root)return;
+  await Promise.allSettled([
+    fetch(root+'/chaser/stop',{cache:'no-store'}),
+    fetch(root+'/motion/stop',{cache:'no-store'})
+  ]);
+}
+
 async function recallFixtureValues(fixtureId,which){
   const f=fixtures.find(fx=>fx.id===fixtureId);
   if(!f)return;
   const p=fixtureProfile(f);
   if(!p)return;
+  await stopPicoPlaybackForFixtureRecall();
   const errors=[];
   for(const c of p.controls){
     const v=c[which];

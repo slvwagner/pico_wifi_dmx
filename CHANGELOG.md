@@ -18,6 +18,7 @@ Fixed:
 - Fixed Chaser playback ownership rules: recalling another chase while browser playback is active now continues playback with the recalled chase, while recalling a chase stops Pico chaser and motion playback. Manually selecting a step now also stops both Pico playback engines before sending the step's DMX preview; Pico **Play Slot** continues to stop browser chase playback. Added regression coverage for each transition.
 - Fixed Pico chaser slot startup so the first programmed step is output immediately instead of fading up from zero/default values, and multi-step slots begin the Step 1-to-Step 2 transition on the next playback tick instead of holding Step 1 for its full duration first.
 - Fixed Chaser **Play Slot** responsiveness by releasing browser Chase Playback synchronously, before waiting for the Pico HTTP response, with regression coverage enforcing a sub-20 ms browser-side DMX handoff.
+- Fixed Fixture Controller card **Default** and **Blackout** recalls being immediately overwritten by active Pico playback. These manual recalls now stop Pico Chaser and Motion playback before sending the configured fixture values to DMX.
 
 ## 0.9.10 - 2026-07-19
 

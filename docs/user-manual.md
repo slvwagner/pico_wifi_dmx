@@ -190,7 +190,7 @@ Fixture profiles imported from the **Fixture Library** keep richer Open Fixture 
 
 ![OFL wheel range control](screenshots/fixture-controller-ofl-wheel-range.png)
 
-Use **Default** or **Blackout** on a fixture card to recall the stored values for that fixture only.
+Use **Default** or **Blackout** on a fixture card to recall the stored values for that fixture only. A fixture-card recall takes manual control of the DMX output: it stops Pico Chaser and Pico Motion playback first, then sends the configured values so active playback cannot immediately overwrite the recalled look.
 
 Use **Cols** in the **Control Surface** header to choose **Auto** or a preferred count from 1 to 4. Auto keeps the spacious responsive card width. A fixed preference can show three or four fixtures across on a wide desktop, but the Controller automatically reduces the effective count when the Toolboxes rail, available viewport width, or iPad layout would make sliders, buttons, readouts, or XY pads too narrow. The saved preference is stored in server UI state and is included in complete setup export/import.
 
