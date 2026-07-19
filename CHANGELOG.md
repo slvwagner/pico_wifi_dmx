@@ -25,6 +25,7 @@ Fixed:
 - Fixed Chaser **Play Slot** responsiveness by releasing browser Chase Playback synchronously, before waiting for the Pico HTTP response, with regression coverage enforcing a sub-20 ms browser-side DMX handoff.
 - Fixed Fixture Controller card **Default** and **Blackout** recalls being immediately overwritten by active Pico playback. These manual recalls now stop Pico Chaser and Motion playback before sending the configured fixture values to DMX.
 - Fixed shared toolbox-order saving so page-specific toolboxes such as Room Plane, Planes, Fixtures, and Room Plane Scenes/Palettes are retained in server UI state and restored after reload.
+- Fixed the Show Run sticky header disappearing near the bottom of long operator layouts by allowing the document body to grow with its content.
 
 ## 0.9.10 - 2026-07-19
 

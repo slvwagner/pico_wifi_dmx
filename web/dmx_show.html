@@ -9,7 +9,8 @@
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
-html,body{height:100%}
+html{min-height:100%}
+body{min-height:100%;height:auto}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,sans-serif;transition:background-color .18s ease}
 body.layout-editing{--bg:#774041;--panel:#182223;--panel2:#111b1d;background:#101915}
 header{position:sticky;top:0;z-index:90;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}

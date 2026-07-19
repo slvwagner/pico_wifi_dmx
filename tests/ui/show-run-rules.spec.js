@@ -1041,6 +1041,33 @@ test.describe('Show Run page', () => {
     expect(calls.setupWrites).toBe(0);
   });
 
+  test('keeps the Show Run header sticky at the very bottom of the document', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await routeShowSetup(page, calls);
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await openDmxPage(page, 'dmx_show.html');
+
+    const metrics = await page.evaluate(async () => {
+      const spacer = document.createElement('div');
+      spacer.style.height = '2400px';
+      document.querySelector('main').appendChild(spacer);
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const rect = document.querySelector('header').getBoundingClientRect();
+      return {
+        top: Math.round(rect.top),
+        bottom: Math.round(rect.bottom),
+        scrollY: Math.round(window.scrollY),
+        maxScroll: Math.round(document.documentElement.scrollHeight - window.innerHeight)
+      };
+    });
+
+    expect(metrics.scrollY).toBeGreaterThan(1000);
+    expect(Math.abs(metrics.scrollY - metrics.maxScroll)).toBeLessThanOrEqual(1);
+    expect(Math.abs(metrics.top)).toBeLessThanOrEqual(1);
+    expect(metrics.bottom).toBeGreaterThan(0);
+  });
+
   test('auto-refreshes show data when the Show Run page becomes active again', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
