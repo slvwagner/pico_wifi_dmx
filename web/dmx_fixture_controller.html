@@ -126,6 +126,22 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .setup-files-card .toolbar{align-items:center}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
+.fixture-import-map-modal .modal-card{width:min(1180px,calc(100vw - 24px));max-width:1180px}
+.fixture-import-map-table-wrap{overflow:auto;max-height:min(62vh,680px);border:1px solid var(--line);border-radius:8px}
+.fixture-import-map-table{width:100%;border-collapse:collapse;min-width:760px}
+.fixture-import-map-table th,.fixture-import-map-table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.fixture-import-map-table th{position:sticky;top:0;z-index:1;background:#182027;color:var(--muted);font-size:12px}
+.fixture-import-map-table tr:last-child td{border-bottom:0}
+.fixture-import-map-table select{width:100%;min-width:260px}
+.fixture-import-map-row{cursor:pointer;transition:background .12s ease,box-shadow .12s ease}
+.fixture-import-map-row:hover{background:#131d22}
+.fixture-import-map-row.library-selected{background:#12352d;box-shadow:inset 4px 0 0 var(--accent)}
+.fixture-import-map-row.library-selected td{border-bottom-color:#286b5b}
+.fixture-import-decision{display:inline-flex;align-items:center;justify-content:center;min-width:108px;padding:6px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}
+.fixture-import-map-row.library-selected .fixture-import-decision{border-color:var(--accent);background:#0f4a3d;color:#dffcf5}
+.fixture-import-difference{display:grid;gap:2px;min-width:180px}
+.fixture-import-difference strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fixture-import-map-note{padding:10px;border:1px solid var(--line);border-radius:8px;background:#10161b}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
 #addControlBody{display:grid;gap:10px}
@@ -170,9 +186,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="toolbar show-file-actions">
 <button id="newShow" class="danger" title="Start a fresh show setup">New Show</button>
 <button id="exportCsv" class="icon-btn export-btn" title="Export patched fixtures and DMX channels as CSV"><span>Patch CSV</span></button>
-<button id="exportJson" class="icon-btn export-btn" title="Export the complete show setup file"><span>Export Setup</span></button>
-<button id="importJson" class="icon-btn import-btn" title="Import a complete show setup file"><span>Import Setup</span></button>
+<button id="exportJson" class="icon-btn export-btn" title="Export the complete show as pico_dmx_setup.json"><span>Export Show</span></button>
+<button id="exportFixtureLibrary" class="icon-btn export-btn" title="Export the complete reusable fixture catalog"><span>Export Library</span></button>
+<button id="importJson" class="icon-btn import-btn" title="Import a pico_dmx_setup.json show file"><span>Import Show</span></button>
+<button id="importFixtureLibrary" class="icon-btn import-btn" title="Import a complete reusable fixture catalog"><span>Import Library</span></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
+<input id="importFixtureLibraryFile" type="file" accept=".json,application/json" style="display:none">
 </div>
 
 <section class="panel" id="fixtureLibraryPanel">
@@ -183,9 +202,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="fixtureLibraryBody">
 <div class="fixture-library-controls">
 <label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket" disabled></label>
-<button id="exportFixtureLibrary" title="Export the currently loaded fixture library catalog">Export Library</button>
-<button id="importFixtureLibrary" title="Import a converted fixture library catalog">Import Library</button>
-<input id="importFixtureLibraryFile" type="file" accept=".json,application/json" style="display:none">
 <button id="retryFixtureLibrary" style="display:none">Retry</button>
 </div>
 <div class="small" id="fixtureLibraryStatus">Loading fixture library...</div>
@@ -585,6 +601,24 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="fixtureImportMappingModal" class="modal-overlay form-modal fixture-import-map-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fixtureImportMappingTitle">
+<div class="modal-head">
+<button id="fixtureImportMappingClose" type="button" aria-label="Cancel fixture mapping">x</button>
+<div class="modal-title-stack"><h2 id="fixtureImportMappingTitle">Resolve Fixture Updates</h2><div class="small">Review fixture definitions that differ between the show backup and this server's library.</div></div>
+</div>
+<div class="modal-body">
+<div class="fixture-import-map-note small">Rows start with the definition embedded in the show. Tap a row to highlight it and update that show profile from the mapped library mode; tap it again to keep the show version. Fixtures and modes not listed here remain unchanged.</div>
+<div id="fixtureImportMappingBody"></div>
+</div>
+<div class="modal-actions">
+<button id="fixtureImportUseAllMatches" type="button">Use All Matches</button>
+<button id="fixtureImportMappingCancel" type="button">Cancel Import</button>
+<button id="fixtureImportApply" type="button" class="primary">Continue Import</button>
+</div>
+</div>
+</div>
+
 <div id="fanToolboxMount"></div>
 
 <aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
@@ -608,6 +642,7 @@ let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
 const FULL_SETUP_TYPE='pico_wifi_dmx_full_setup';
+const SHOW_FIXTURE_LIBRARY_TYPE='pico_wifi_dmx_show_fixture_library';
 const FULL_SETUP_FORMAT_VERSION=3;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
@@ -2757,16 +2792,212 @@ function validateFullSetupPayload(setup){
   if(setup.liveValues!==undefined&&(!setup.liveValues||typeof setup.liveValues!=='object'))throw new Error('Setup file live values must be an object.');
   return setup;
 }
+function fixtureLibraryForShow(library,fixtureSetup=saveData()){
+  const source=library&&Array.isArray(library.fixtures)?normalizeFixtureLibrary(library):{schemaVersion:1,fixtures:[]};
+  const patchedProfileIds=new Set((fixtureSetup.fixtures||[]).map(fixture=>String(fixture.profileId)));
+  const usedProfiles=(fixtureSetup.profiles||[]).filter(profile=>patchedProfileIds.has(String(profile.id)));
+  const selectedFixtures=new Map();
+  usedProfiles.forEach(profile=>{
+    const sourceFixture=source.fixtures.find(fixture=>profileMatchesLibraryFixture(profile,fixture));
+    const sourceMode=(sourceFixture?.modes||[]).find(mode=>libraryModeMatchesProfile(mode,profile));
+    const key=sourceFixture?.key||('show/'+fixtureLibraryKeyFromName(profile.name));
+    if(!selectedFixtures.has(key)){
+      selectedFixtures.set(key,sourceFixture
+        ? {...JSON.parse(JSON.stringify(sourceFixture)),modes:[]}
+        : {key,manufacturerName:'Show',name:profile.name||'Fixture',categories:['Show'],modes:[]});
+    }
+    const selected=selectedFixtures.get(key);
+    const mode=sourceMode
+      ? JSON.parse(JSON.stringify(sourceMode))
+      : {name:profile.mode||'mode',channels:profile.channels||1,profile:libraryProfileFromControllerProfile(profile),warnings:[]};
+    if(!selected.modes.some(existing=>libraryModeMatchesProfile(existing,profile)))selected.modes.push(mode);
+  });
+  const fixturesForShow=[...selectedFixtures.values()];
+  return DmxCommon.versionedPayload({
+    type:SHOW_FIXTURE_LIBRARY_TYPE,
+    source:'Fixture definitions used by this Pico WiFi DMX show',
+    generatedAt:new Date().toISOString(),
+    fixtureCount:fixturesForShow.length,
+    fixtures:fixturesForShow
+  },source.schemaVersion||1);
+}
+function fixtureLibraryModeValue(fixture,mode){
+  return String(fixture?.key||'')+'::'+String(mode?.name||'');
+}
+function fixtureDefinitionSignature(fixture,mode){
+  return JSON.stringify({
+    manufacturerName:fixture?.manufacturerName||'',
+    name:fixture?.name||'',
+    categories:Array.isArray(fixture?.categories)?fixture.categories:[],
+    mode:{name:mode?.name||'',channels:mode?.channels||0,profile:mode?.profile||null}
+  });
+}
+function fixtureLibraryCandidates(library){
+  return (library?.fixtures||[]).flatMap(fixture=>(fixture.modes||[]).map(mode=>({
+    value:fixtureLibraryModeValue(fixture,mode),
+    fixture,
+    mode,
+    label:[fixture.manufacturerName,fixture.name,'—',mode.name,'('+(mode.channels||mode.profile?.channels||0)+'ch)'].filter(Boolean).join(' ')
+  })));
+}
+function fixtureImportDifferenceRows(showLibrary,currentLibrary,fixtureSetup){
+  const usedLibrary=fixtureLibraryForShow(showLibrary,fixtureSetup);
+  const candidates=fixtureLibraryCandidates(currentLibrary);
+  const patchedProfileIds=new Set((fixtureSetup.fixtures||[]).map(fixture=>String(fixture.profileId)));
+  return (fixtureSetup.profiles||[]).filter(profile=>patchedProfileIds.has(String(profile.id))).flatMap(profile=>{
+    const showFixture=(usedLibrary.fixtures||[]).find(fixture=>profileMatchesLibraryFixture(profile,fixture));
+    const showMode=(showFixture?.modes||[]).find(mode=>libraryModeMatchesProfile(mode,profile));
+    if(!showFixture||!showMode)return[];
+    const currentFixture=(currentLibrary.fixtures||[]).find(fixture=>fixture.key===showFixture.key)
+      ||(currentLibrary.fixtures||[]).find(fixture=>profileMatchesLibraryFixture(profile,fixture));
+    const currentMode=(currentFixture?.modes||[]).find(mode=>libraryModeMatchesProfile(mode,profile));
+    if(currentMode&&fixtureDefinitionSignature(showFixture,showMode)===fixtureDefinitionSignature(currentFixture,currentMode))return[];
+    return [{
+      profileId:profile.id,
+      profile,
+      showFixture,
+      showMode,
+      currentValue:currentFixture&&currentMode?fixtureLibraryModeValue(currentFixture,currentMode):'',
+      reason:currentMode?'Definition differs':'Missing from library',
+      candidates
+    }];
+  });
+}
+let fixtureImportMappingResolve=null;
+let fixtureImportMappingRows=[];
+function closeFixtureImportMapping(result){
+  document.getElementById('fixtureImportMappingModal').style.display='none';
+  const resolve=fixtureImportMappingResolve;
+  fixtureImportMappingResolve=null;
+  fixtureImportMappingRows=[];
+  if(resolve)resolve(result);
+}
+function openFixtureImportMapping(rows){
+  if(!rows.length)return Promise.resolve([]);
+  fixtureImportMappingRows=rows;
+  document.getElementById('fixtureImportMappingBody').innerHTML=`
+    <div class="fixture-import-map-table-wrap"><table class="fixture-import-map-table">
+      <thead><tr><th>Show fixture</th><th>Difference</th><th>Library fixture / mode</th><th>Tap row to choose</th></tr></thead>
+      <tbody>${rows.map((row,index)=>`<tr class="fixture-import-map-row" data-row-index="${index}" data-profile-id="${escHtml(String(row.profileId))}" role="checkbox" aria-checked="false" tabindex="0">
+        <td><div class="fixture-import-difference"><strong>${escHtml(row.profile.name||row.showFixture.name||'Fixture')}</strong><span class="small">${escHtml(row.profile.mode||row.showMode.name||'mode')} · ${row.profile.channels||row.showMode.channels||0}ch</span></div></td>
+        <td><span class="small">${escHtml(row.reason)}</span></td>
+        <td><select data-library-mapping data-row-index="${index}"><option value="">Choose a library fixture...</option>${row.candidates.map(candidate=>`<option value="${escHtml(candidate.value)}" ${candidate.value===row.currentValue?'selected':''}>${escHtml(candidate.label)}</option>`).join('')}</select></td>
+        <td><span class="fixture-import-decision">Keep show</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  document.getElementById('fixtureImportMappingModal').style.display='grid';
+  return new Promise(resolve=>{fixtureImportMappingResolve=resolve;});
+}
+function fixtureImportChoicesFromModal(){
+  return fixtureImportMappingRows.map((row,index)=>{
+    const select=document.querySelector(`select[data-library-mapping][data-row-index="${index}"]`);
+    const tableRow=document.querySelector(`.fixture-import-map-row[data-row-index="${index}"]`);
+    return {useLibrary:!!tableRow?.classList.contains('library-selected')&&!!select?.value,mappingValue:select?.value||''};
+  });
+}
+function setFixtureImportRowSelected(row,selected){
+  if(!row)return;
+  const select=row.querySelector('select[data-library-mapping]');
+  const active=!!selected&&!!select?.value;
+  row.classList.toggle('library-selected',active);
+  row.setAttribute('aria-checked',active?'true':'false');
+  const decision=row.querySelector('.fixture-import-decision');
+  if(decision)decision.textContent=active?'Use library':'Keep show';
+}
+function importedProfileFromLibraryMode(showProfile,libraryMode){
+  const imported=JSON.parse(JSON.stringify(libraryMode?.profile||{}));
+  const oldControls=showProfile.controls||[];
+  imported.controls=(imported.controls||[]).map(control=>{
+    const exact=oldControls.find(existing=>controlLibraryIdentity(existing)===controlLibraryIdentity(control));
+    const sameLabel=oldControls.find(existing=>existing.type===control.type&&String(existing.label||'').trim().toLowerCase()===String(control.label||'').trim().toLowerCase());
+    const channels=controlChannels(control).join(',');
+    const sameChannels=oldControls.find(existing=>existing.type===control.type&&controlChannels(existing).join(',')===channels);
+    return {...control,id:(exact||sameLabel||sameChannels)?.id||control.id||uid()};
+  });
+  return {
+    ...showProfile,
+    ...imported,
+    id:showProfile.id,
+    name:imported.name||showProfile.name,
+    mode:imported.mode||libraryMode?.name||showProfile.mode,
+    channels:imported.channels||libraryMode?.channels||showProfile.channels,
+    controls:imported.controls
+  };
+}
+function mergeShowFixtureModeIntoLibrary(library,row){
+  let target=(library.fixtures||[]).find(fixture=>fixture.key===row.showFixture.key)
+    ||(library.fixtures||[]).find(fixture=>profileMatchesLibraryFixture(row.profile,fixture));
+  if(!target){
+    target={...JSON.parse(JSON.stringify(row.showFixture)),modes:[]};
+    library.fixtures.push(target);
+  }
+  const modes=Array.isArray(target.modes)?target.modes:[];
+  const modeIndex=modes.findIndex(mode=>libraryModeMatchesProfile(mode,row.profile));
+  const showMode=JSON.parse(JSON.stringify(row.showMode));
+  if(modeIndex>=0)modes[modeIndex]=showMode;
+  else modes.push(showMode);
+  target.modes=modes;
+}
+function resolveFixtureImportDifferences(fixtureSetup,currentLibrary,rows,choices){
+  const resolvedSetup=JSON.parse(JSON.stringify(fixtureSetup));
+  const resolvedLibrary=normalizeFixtureLibrary(JSON.parse(JSON.stringify(currentLibrary)));
+  let libraryChanged=false;
+  rows.forEach((row,index)=>{
+    const choice=choices[index]||{};
+    const candidate=row.candidates.find(item=>item.value===choice.mappingValue);
+    if(choice.useLibrary&&candidate){
+      const profileIndex=(resolvedSetup.profiles||[]).findIndex(profile=>String(profile.id)===String(row.profileId));
+      if(profileIndex>=0)resolvedSetup.profiles[profileIndex]=importedProfileFromLibraryMode(resolvedSetup.profiles[profileIndex],candidate.mode);
+      return;
+    }
+    mergeShowFixtureModeIntoLibrary(resolvedLibrary,row);
+    libraryChanged=true;
+  });
+  if(libraryChanged){
+    resolvedLibrary.fixtureCount=resolvedLibrary.fixtures.length;
+    resolvedLibrary.generatedAt=new Date().toISOString();
+    resolvedLibrary.source='Fixture library merged during show import';
+  }
+  return {fixtureSetup:resolvedSetup,library:resolvedLibrary,libraryChanged};
+}
+document.getElementById('fixtureImportMappingBody').addEventListener('change',event=>{
+  const select=event.target.closest('select[data-library-mapping]');
+  if(!select)return;
+  setFixtureImportRowSelected(select.closest('.fixture-import-map-row'),!!select.value);
+});
+document.getElementById('fixtureImportMappingBody').addEventListener('click',event=>{
+  if(event.target.closest('select,option'))return;
+  const row=event.target.closest('.fixture-import-map-row');
+  if(row)setFixtureImportRowSelected(row,!row.classList.contains('library-selected'));
+});
+document.getElementById('fixtureImportMappingBody').addEventListener('keydown',event=>{
+  if(event.key!=='Enter'&&event.key!==' ')return;
+  if(event.target.closest('select'))return;
+  const row=event.target.closest('.fixture-import-map-row');
+  if(!row)return;
+  event.preventDefault();
+  setFixtureImportRowSelected(row,!row.classList.contains('library-selected'));
+});
+document.getElementById('fixtureImportUseAllMatches').onclick=()=>{
+  document.querySelectorAll('#fixtureImportMappingBody .fixture-import-map-row').forEach(row=>setFixtureImportRowSelected(row,true));
+};
+document.getElementById('fixtureImportMappingClose').onclick=()=>closeFixtureImportMapping(null);
+document.getElementById('fixtureImportMappingCancel').onclick=()=>closeFixtureImportMapping(null);
+document.getElementById('fixtureImportApply').onclick=()=>closeFixtureImportMapping(fixtureImportChoicesFromModal());
 async function exportFullSetup(){
   try{
     await saveSetup();
   }catch(err){
     setStatus('Export continues with browser setup; server save failed: '+err.message,true);
   }
+  const fixtureSetup=saveData();
+  const library=await fetchSetupPayload('fixture_library.php','library',fixtureLibraryState.data||null);
+  const completeFixtureLibrary=normalizeFixtureLibrary(library||fixtureLibraryState.data||{schemaVersion:1,fixtures:[]});
+  const showFixtureLibrary=fixtureLibraryForShow(completeFixtureLibrary,fixtureSetup);
   const full=DmxCommon.versionedPayload({
     ...fullSetupMetadata(),
     exportedAt:new Date().toISOString(),
-    fixture:saveData(),
+    fixture:fixtureSetup,
     liveValues:cloneValue(values),
     groups:await fetchSetupPayload('group_setup.php',null,{ok:true,exists:false,groups:[]}),
     scenes:await fetchSetupPayload('scene_setup.php',null,{ok:true,exists:false,scenes:[],slotCols:4,slotRows:4}),
@@ -2775,11 +3006,11 @@ async function exportFullSetup(){
     motion:await fetchSetupPayload('motion_setup.php','motion',{}),
     gpio:await fetchSetupPayload('gpio_setup.php',null,{ok:true,exists:false,enabled:true,mappings:[],adcMappings:[]}),
     roomPlane:await fetchSetupPayload('room_plane_setup.php','setup',defaultRoomPlaneSetup(baseUrl.value)),
-    fixtureLibrary:await fetchSetupPayload('fixture_library.php','library',null),
+    fixtureLibrary:showFixtureLibrary,
     uiState:(await fetchSetupPayload('ui_state.php',null,{ok:true,exists:false,state:{}})).state||{}
   },2);
   DmxCommon.downloadJson('pico_dmx_setup.json',full);
-  setStatus('Complete setup exported');
+  setStatus('Show exported with '+showFixtureLibrary.fixtureCount+' used fixture definition'+(showFixtureLibrary.fixtureCount===1?'':'s'));
 }
 async function postSetupPayload(url,data){
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data||{})});
@@ -2887,8 +3118,18 @@ async function importFullSetup(data){
     return;
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
-  if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
-  if(migrated.fixture)await postSetupPayload('fixture_setup.php',migrated.fixture);
+  if(!confirm('Import show?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
+  let fixtureSetup=migrated.fixture;
+  let fixtureLibraryResolution=null;
+  if(migrated.fixtureLibrary){
+    const currentLibrary=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true})||{schemaVersion:1,fixtures:[]});
+    const differences=fixtureImportDifferenceRows(normalizeFixtureLibrary(migrated.fixtureLibrary),currentLibrary,fixtureSetup);
+    const choices=await openFixtureImportMapping(differences);
+    if(choices===null){setStatus('Setup import cancelled');return;}
+    fixtureLibraryResolution=resolveFixtureImportDifferences(fixtureSetup,currentLibrary,differences,choices);
+    fixtureSetup=fixtureLibraryResolution.fixtureSetup;
+  }
+  if(fixtureSetup)await postSetupPayload('fixture_setup.php',fixtureSetup);
   if(migrated.liveValues&&typeof migrated.liveValues==='object')await postSetupPayload('fixture_setup.php?livevalues',migrated.liveValues);
   if(migrated.groups)await postSetupPayload('group_setup.php',{baseUrl:migrated.groups.baseUrl||migrated.fixture?.baseUrl||'',groups:Array.isArray(migrated.groups.groups)?migrated.groups.groups:[]});
   if(migrated.scenes)await postSetupPayload('scene_setup.php',{baseUrl:migrated.scenes.baseUrl||migrated.fixture?.baseUrl||'',scenes:Array.isArray(migrated.scenes.scenes)?migrated.scenes.scenes:[],slotCols:migrated.scenes.slotCols||4,slotRows:migrated.scenes.slotRows||4});
@@ -2897,21 +3138,24 @@ async function importFullSetup(data){
   if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
   if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
   if(migrated.roomPlane&&typeof migrated.roomPlane==='object')await postSetupPayload('room_plane_setup.php',migrated.roomPlane);
-  if(migrated.fixtureLibrary)await saveFixtureLibraryToServer(normalizeFixtureLibrary(migrated.fixtureLibrary));
+  if(fixtureLibraryResolution?.libraryChanged){
+    await saveFixtureLibraryToServer(fixtureLibraryResolution.library);
+    fixtureLibraryState.data=fixtureLibraryResolution.library;
+  }
   if(migrated.uiState&&typeof migrated.uiState==='object'){
     for(const [page,state] of Object.entries(migrated.uiState)){
       if(state&&typeof state==='object')await postSetupPayload('ui_state.php',{page,state});
     }
   }
-  applyData(migrated.fixture||{});
+  applyData(fixtureSetup||{});
   Object.keys(values).forEach(k=>delete values[k]);
   Object.assign(values,migrated.liveValues||{});
   writeLiveValues(true);
   localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
-  setStatus('Complete setup imported. Reloading...');
+  setStatus('Show imported. Reloading...');
   setTimeout(()=>location.reload(),600);
 }
-document.getElementById('exportJson').onclick=()=>exportFullSetup().catch(err=>showError('Setup export failed: '+err.message));
+document.getElementById('exportJson').onclick=()=>exportFullSetup().catch(err=>showError('Show export failed: '+err.message));
 document.getElementById('importJson').onclick=()=>document.getElementById('importJsonFile').click();
 document.getElementById('newShow').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Starting...',success:'Started',error:'Failed'},startNewShow).catch(err=>showError('New show failed: '+err.message));
 document.getElementById('importJsonFile').onchange=e=>{
@@ -2921,7 +3165,7 @@ document.getElementById('importJsonFile').onchange=e=>{
     try{
       const data=JSON.parse(reader.result);
       await importFullSetup(data);
-    }catch(err){showError('Invalid JSON: '+err.message);}
+    }catch(err){showError('Show import failed: '+err.message);}
     e.target.value='';
   };
   reader.readAsText(file);

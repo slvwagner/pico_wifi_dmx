@@ -28,7 +28,7 @@ Core features:
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time against a Pico.
 - **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, barycentric target interpolation, and shared Scene/Palette recalls for checking the programmed look while positioning fixtures.
-- **Complete setup backup** — Fixture Controller **Export Setup** / **Import Setup** saves or restores the full show setup in one file, including fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico slot payloads, custom fixture library data, Show Run layout/Live Controls, and saved UI layout.
+- **Portable show and library backups** — Fixture Controller provides separate **Export Show**, **Import Show**, **Export Library**, and **Import Library** actions. The show file embeds definitions used by its patched fixtures; the library file contains the complete reusable catalog.
 - **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
@@ -173,7 +173,7 @@ Changing IP numbers are handled in two places:
 - **XAMPP/server URL**: configure scripts and tests with `config/local-paths.json`, `tests/pathconfig.local.json`, or `DMX_TEST_BASE_URL`. The browser app itself uses relative URLs for setup files, so once a page is opened from the right XAMPP address it continues to talk to the same server.
 - **Pico base URL**: use **Find Pico** or `DMX_PICO_BASE_URL` for hardware tests. A discovered Pico URL takes priority over older setup JSON values so page navigation does not restore a stale DHCP address.
 
-Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Setup** before large changes when you want an extra backup of the complete show setup.
+Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Show** before large changes when you want an extra backup of the complete show setup.
 
 ### Install the firmware
 
@@ -616,7 +616,7 @@ Stored/exported JSON files include:
 
 `appVersion` tells you which application wrote the file. `schemaVersion` is for future data-format migrations; current imports stay backward compatible with older JSON files that do not contain these fields. Firmware program version is kept in `CMakeLists.txt` with `pico_set_program_version(...)`.
 
-The complete show backup exported from the Fixture Controller is `pico_dmx_setup.json`. It wraps the individual server-side JSON stores into one portable file with `type: "pico_wifi_dmx_full_setup"` and the same version metadata.
+Fixture Controller **Export Show** downloads only `pico_dmx_setup.json`. It wraps the individual show-side JSON stores into one portable file with `type: "pico_wifi_dmx_full_setup"` and embeds the richer fixture-library entries and modes referenced by patched fixtures. **Export Library** independently downloads the complete reusable catalog as `pico_dmx_fixture_library.json`; the corresponding **Import Show** and **Import Library** buttons restore each file type.
 
 Complete setup exports also include a `project` block and `setupFormatVersion`. Import runs the setup through a versioned migration guard before writing anything to the server. Older supported setup formats are upgraded step-by-step to the current format; files with a newer setup format than the running software supports are refused with a clear update-software message.
 
@@ -885,7 +885,7 @@ The Fixture Controller is the main setup and live-control page. It defines fixtu
 
 From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
 
-The **Show** card is the first Controller card and the user-facing project/setup point. It contains the project-file actions plus the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards. Collapsing Show hides all of that show-related setup together; expanding it restores the nested cards without changing their individual collapse states. **New Show** starts a fresh show after confirmation, clearing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, Show Run layout, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Setup** downloads `pico_dmx_setup.json`, a complete show backup containing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, custom fixture library data, Show Run card/tile layout, Show Run Live Controls, and saved toolbox/UI layout. **Import Setup** restores that complete setup through the existing XAMPP JSON endpoints and reloads the controller page. **Patch CSV** remains separate for documenting the patched DMX channel table.
+The **Show** card is the first Controller card and the user-facing project/setup point. Its top action bar keeps **Export Show**, **Import Show**, **Export Library**, and **Import Library** visible together, followed by the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards. Collapsing Show hides all of that show-related setup together; expanding it restores the nested cards without changing their individual collapse states. **New Show** starts a fresh show after confirmation, clearing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, Show Run layout, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Show** downloads the self-contained `pico_dmx_setup.json` show backup, including the richer definitions used by its patched fixtures, and **Import Show** restores it through the existing XAMPP JSON endpoints. **Export Library** and **Import Library** independently handle the complete `pico_dmx_fixture_library.json` catalog. When an embedded show definition is missing from or differs from the current library, a mapping table appears before any data is written. Tap rows to highlight the fixtures that should use their mapped library versions; unselected rows keep the show versions, which are merged without removing unrelated catalog entries. **Patch CSV** remains separate for documenting the patched DMX channel table.
 
 The Fixture Library panel loads the built-in converted Open Fixture Library catalog by default. **Export Library** downloads the currently loaded catalog as `pico_dmx_fixture_library.json`; **Import Library** saves a converted fixture catalog to the XAMPP server so it becomes the preferred library for all browsers. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`. During development, refresh that bundled fallback from the current XAMPP catalog with:
 
@@ -993,7 +993,7 @@ Show Run refreshes its XAMPP show data automatically when the page becomes activ
 
 Show Run also has a configurable **Live Controls** card. While **Edit** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds, current phase, remaining time, and a progress bar.
 
-Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, Live Controls cards and widgets, and MIDI mappings. Because it is server-side UI state, **Export Setup** and **Import Setup** can move the operator page to another computer instead of relying on one browser's local storage.
+Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, Live Controls cards and widgets, and MIDI mappings. Because it is server-side UI state, **Export Show** and **Import Show** can move the operator page to another computer instead of relying on one browser's local storage.
 
 The **MIDI Controller** card can connect a class-compliant USB MIDI controller, such as the Novation Launch Control XL, directly to Chrome or Edge on the XAMPP computer. Click **Connect MIDI** to grant browser access and select the input/output ports. While **Edit** is active, use the pencil on group, scene, palette, Pico chaser/effect, Grand Master, Group Master, or Live Control tiles and click **Learn**, then move the desired hardware control. Pico playback tiles also provide a **Playback action** selector: start/stop toggle, start, stop, pause/resume toggle, pause, or resume. Buttons trigger the mapped show action; faders and knobs scale MIDI values `0..127` to the target range and use soft takeover to avoid sudden jumps. The separate Pico UART MIDI status remains available in the same card for GPIO5 diagnostics.
 
@@ -1045,7 +1045,7 @@ Fixtures can be organised into named **Saved Groups** (stored server-side via `g
 - A collapsible **Group Bar** appears above the fixture list; clicking a group instantly selects all its fixtures and scrolls to the first one.
 - The **Group Edit** modal can recall **Default** or **Blackout** for every selected fixture at once, using each fixture profile's own stored default/blackout values.
 - Groups can be edited with **Edit Tile** for name and visual appearance, or deleted from the Saved Groups panel.
-- Groups are included in the complete **Export Setup** / **Import Setup** backup from the Fixture Controller.
+- Groups are included in the complete **Export Show** / **Import Show** backup from the Fixture Controller.
 
 ### Fixture Controller — Default and Blackout Values
 
@@ -1116,7 +1116,7 @@ When browser motion starts, the page fetches `/dmx/values.json` from the Pico an
 The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
 
 - The page loads and autosaves mappings on the XAMPP server through `gpio_setup.php` / `data/gpio_setup.json`, with browser `localStorage` only as a fallback. The active mapping set is pushed to the Pico with `POST /gpio/config`.
-- GPIO mappings are included in the complete **Export Setup** / **Import Setup** backup from the Fixture Controller, including Pico base URL, enabled state, digital mappings, and ADC mappings.
+- GPIO mappings are included in the complete **Export Show** / **Import Show** backup from the Fixture Controller, including Pico base URL, enabled state, digital mappings, and ADC mappings.
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
 - Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`, `MIDI_RX_PIN=5` by default) and disables pins already used by another mapping.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
@@ -1156,7 +1156,7 @@ Firmware endpoints:
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
 | `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
 
-This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or use **Export Setup** before flashing/restarting so the mapping set can be restored and pushed again. Pico-side persistence can be added later once the action model is proven.
+This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or use **Export Show** before flashing/restarting so the mapping set can be restored and pushed again. Pico-side persistence can be added later once the action model is proven.
 
 ### MIDI Control
 
@@ -1198,7 +1198,7 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
 
-The controller's complete setup export reads these same endpoints and writes one `pico_dmx_setup.json` file. Importing that file posts each subsystem back to its existing endpoint, so the pages continue to use the normal autosave files after restore.
+The controller's **Export Show** action reads these same endpoints and writes `pico_dmx_setup.json`, embedding only the catalog entries and modes the show uses. Importing it posts each show subsystem back to its existing endpoint, so the pages continue to use the normal autosave files after restore. **Export Library** and **Import Library** independently handle the complete `pico_dmx_fixture_library.json` catalog.
 
 ### Development sync
 

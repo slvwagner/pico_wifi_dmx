@@ -58,7 +58,7 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 3. If DHCP changed the Pico address, click **Find Pico**. The XAMPP server listens briefly for the Pico's UDP discovery beacon and fills the URL when a Pico is found on the same LAN. The discovered URL is stored in the browser and saved back to the current page's XAMPP setup file on Controller, Chaser, Effects, and GPIO, so the other pages and other devices can reuse the corrected address after reload.
 4. The Pico base URL field checks `/status.json` automatically. It turns dark green when the Pico is reachable, dark red when it cannot connect, and keeps retrying in the background so it can recover after flashing or rebooting the Pico.
 5. Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.
-6. Fixture setup changes are autosaved to the XAMPP server. Use **Export Setup** before large changes when you want an extra backup of the complete show setup.
+6. Fixture setup changes are autosaved to the XAMPP server. Use **Export Show** before large changes when you want an extra backup of the complete show setup.
 
 ### Fixture Library
 
@@ -208,7 +208,7 @@ The Fixture Controller uses the shared right-side **Toolboxes** sidebar.
 
 ![Controller Groups toolbox](screenshots/fixture-controller-toolbox-groups.png)
 
-**Show** is the first Controller card and the project-level home for show setup. It contains the setup-file actions plus the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards. Collapse Show to hide all of those setup tools at once. When Show is expanded again, each nested card returns with its own previous expanded or collapsed state. **New Show** starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. **Export Setup** downloads the complete show backup, **Import Setup** restores one, and **Patch CSV** exports the patched channel table.
+**Show** is the first Controller card and the project-level home for show setup. Its top action bar displays **Export Show**, **Import Show**, **Export Library**, and **Import Library** together; the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards follow below. Collapse Show to hide all of those setup tools at once. When Show is expanded again, each nested card returns with its own previous expanded or collapsed state. **New Show** starts a fresh show after confirmation, clearing fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. **Export Show** and **Import Show** handle the show backup; **Export Library** and **Import Library** independently handle the complete reusable catalog. **Patch CSV** exports the patched channel table.
 
 **Groups** stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small `x`, import/export group JSON, reorder group tiles with **Move**, and open **Group Edit** when the current scope supports it.
 
@@ -612,7 +612,7 @@ Drag a card by its title/header area to arrange whole cards, for example moving 
 
 ![Show Run Layout Editing](screenshots/show-run-layout-edit.png)
 
-Each tile section on Show Run has native **Cols** and **Rows** dropdowns like the toolboxes, including the overall card matrix and any repeated cards. Tap a dropdown to use the native iPad picker. These controls shape the operator page layout for groups, fixtures, scenes, palettes, planes, Pico chaser slots, and Pico effect slots. While **Edit** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, Live Controls configuration, and MIDI mappings to the XAMPP server UI state, so the same operator page is restored on another computer and included in **Export Setup** / **Import Setup**. The layout does not rewrite the saved toolbox setup itself.
+Each tile section on Show Run has native **Cols** and **Rows** dropdowns like the toolboxes, including the overall card matrix and any repeated cards. Tap a dropdown to use the native iPad picker. These controls shape the operator page layout for groups, fixtures, scenes, palettes, planes, Pico chaser slots, and Pico effect slots. While **Edit** is active, tile move mode is active automatically: drag a filled tile to another position, or on touch screens tap the filled tile and then tap the destination tile. Show Run saves card layout, tile layout, Live Controls configuration, and MIDI mappings to the XAMPP server UI state, so the same operator page is restored on another computer and included in **Export Show** / **Import Show**. The layout does not rewrite the saved toolbox setup itself.
 
 If saved groups, scenes, palettes, planes, or loaded Pico playback slots are outside the visible matrix, Show Run opens **Hidden Show Items** and switches into **Edit**. Use **Expand** to increase that section's rows/columns until the hidden item is visible, or use **Place in Free Tile** when an empty visible tile is available. This prevents newly created palettes/scenes/planes or moved playback slots from being silently hidden on a row that is not currently displayed.
 
@@ -1363,7 +1363,10 @@ Use three non-collinear points. If A, B, and C are on one line, the determinant 
 
 ## 11. Backup and Import
 
-Use **Fixture Controller > Show > Export Setup** before large changes or before moving the show to another computer.
+Use **Fixture Controller > Show > Export Show** before large changes or before moving the show to another computer. Show and catalog backup are separate actions:
+
+- **Export Show** downloads `pico_dmx_setup.json`, the self-contained show backup that embeds the richer fixture-library entries and modes referenced by patched fixtures.
+- **Export Library** downloads `pico_dmx_fixture_library.json`, preserving the complete reusable fixture catalog.
 
 The exported setup file includes:
 
@@ -1376,12 +1379,21 @@ The exported setup file includes:
 - Effects settings, saved effects, and saved Pico effect slot payloads
 - Saved room planes and fixture calibration
 - GPIO mappings
-- Custom imported fixture library catalog, if one is saved on the XAMPP server
 - Toolbox layout, collapse state, grid sizes, and other saved UI state
 
 The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.
 
-Use **Import Setup** on the Fixture Controller to restore the complete setup file. Import replaces the saved setup on the XAMPP server and reloads the controller page after the restore.
+Use **Import Show** on the Fixture Controller to restore `pico_dmx_setup.json`. Its Controller profiles, patched fixtures, and embedded used definitions are sufficient to operate the restored show.
+
+Before the restore writes any data, **Resolve Fixture Updates** appears when a show fixture definition is missing from or differs from the current server library. Each table row shows the show fixture, the difference, and a library fixture/mode selector:
+
+- Rows initially show **Keep show**. The embedded show definition is kept and merged into the catalog without removing unrelated fixtures or modes.
+- Tap a row to highlight it and change its decision to **Use library**. The imported show profile then uses the selected library mode. Tap the row again to return to **Keep show**.
+- Change the selector to map a show fixture to a different library fixture or mode; that row is highlighted automatically.
+- **Use All Matches** highlights every row that already has a library mapping.
+- **Cancel Import** closes the dialog without importing any setup data.
+
+When a library profile is selected, matching show control IDs are preserved so existing saved values continue to refer to the corresponding controls. To restore the complete reusable catalog, import `pico_dmx_fixture_library.json` through **Fixture Library > Import Library**. The separate **Export Library** button exports the same complete catalog without exporting a show.
 
 ### Using Multiple Browser Devices
 
