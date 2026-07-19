@@ -68,6 +68,20 @@ Assert-Equal $encoreDimmer.channel 6 'The 16-bit dimmer coarse channel is incorr
 Assert-Equal $encoreDimmer.fine 7 'The 16-bit dimmer fine channel is incorrect.'
 Assert-Equal @($encoreMode.profile.controls | Where-Object label -eq 'Dimmer fine').Count 0 'The fine channel was also emitted as a separate control.'
 
+$warp = $library.fixtures | Where-Object key -eq 'adb/warp-m' | Select-Object -First 1
+$warpMode = $warp.modes | Where-Object name -eq '12-30' | Select-Object -First 1
+$warpPanTilt = $warpMode.profile.controls | Where-Object type -eq 'panTilt16' | Select-Object -First 1
+$warpShutterRotation = $warpMode.profile.controls | Where-Object label -eq 'Shutter A Rotation' | Select-Object -First 1
+Assert-Equal $warpPanTilt.defaultValue.pan 32767 'The OFL 16-bit Pan default was not imported.'
+Assert-Equal $warpPanTilt.defaultValue.tilt 32767 'The OFL 16-bit Tilt default was not imported.'
+Assert-Equal $warpShutterRotation.defaultValue 32767 'The OFL scalar 16-bit default was not imported.'
+$picoShutter = $picoMode.profile.controls | Where-Object label -eq 'Shutter / Strobe' | Select-Object -First 1
+Assert-Equal $picoShutter.defaultValue 0 'The OFL option-control default was not imported.'
+
+$autoSpot = $library.fixtures | Where-Object key -eq 'american-dj/auto-spot-150' | Select-Object -First 1
+$autoSpotPanTilt = $autoSpot.modes[0].profile.controls | Where-Object { $_.type -like 'panTilt*' } | Select-Object -First 1
+Assert-Equal $autoSpotPanTilt.defaultValue.pan 128 'The OFL percentage default was not converted to an 8-bit Pan value.'
+
 $capabilitySidecarFixture = $capabilitiesCatalog.fixtures | Where-Object key -eq 'american-dj/inno-pocket-spot' | Select-Object -First 1
 $capabilitySidecarShutter = $capabilitySidecarFixture.controls | Where-Object label -eq 'Shutter/Strobe' | Select-Object -First 1
 Assert-Equal $capabilitySidecarShutter.type 'wheel' 'Capability sidecar does not include the segmented shutter upgrade.'

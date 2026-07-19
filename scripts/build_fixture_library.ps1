@@ -168,6 +168,26 @@ function Channel-Map($channels) {
     return $map
 }
 
+function Get-DmxValueByteResolution($channel) {
+    $declared = [string](Get-Prop $channel "dmxValueResolution")
+    if ($declared -match '^(\d+)bit$') { return [Math]::Max(1, [int]$Matches[1] / 8) }
+    return 1 + @((Get-Prop $channel "fineChannelAliases") | Where-Object { $_ }).Count
+}
+
+function Convert-DmxValue($channel, $value, [int]$targetBytes) {
+    if ($null -eq $value) { return $null }
+    $targetBytes = [Math]::Max(1, [Math]::Min($targetBytes, 4))
+    $targetMax = [Math]::Pow(256, $targetBytes) - 1
+    if ($value -is [string] -and $value.Trim() -match '^(-?\d+(?:\.\d+)?)%$') {
+        return [int][Math]::Round(([double]$Matches[1] / 100) * $targetMax, [MidpointRounding]::AwayFromZero)
+    }
+    $sourceBytes = Get-DmxValueByteResolution $channel
+    $sourceMax = [Math]::Pow(256, $sourceBytes) - 1
+    $numeric = [double]$value
+    $scaled = if ($sourceMax -eq $targetMax) { $numeric } else { ($numeric / $sourceMax) * $targetMax }
+    return [int][Math]::Round([Math]::Max(0, [Math]::Min($targetMax, $scaled)), [MidpointRounding]::AwayFromZero)
+}
+
 function New-Control($id, $type, $label, $props = @{}) {
     $obj = [ordered]@{ id = $id; type = $type; label = $label }
     foreach ($key in $props.Keys) { $obj[$key] = $props[$key] }
@@ -306,15 +326,33 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         $panFine = @((Get-Prop $channel "fineChannelAliases") | Where-Object { $_ -and $channelMap.ContainsKey($_) } | Select-Object -First 1)
         $tiltFine = @((Get-Prop $available[$tiltName] "fineChannelAliases") | Where-Object { $_ -and $channelMap.ContainsKey($_) } | Select-Object -First 1)
         if ($panFine.Count -and $tiltFine.Count) {
-            $controls.Add((New-Control $nextId "panTilt16" "Pan/Tilt" @{
+            $props = @{
                 pan = $channelMap[$name]; panFine = $channelMap[$panFine[0]];
                 tilt = $channelMap[$tiltName]; tiltFine = $channelMap[$tiltFine[0]]
-            }))
+            }
+            $panDefault = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 2
+            $tiltDefault = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "defaultValue") 2
+            if ($null -ne $panDefault -or $null -ne $tiltDefault) {
+                $props["defaultValue"] = @{
+                    pan = if ($null -ne $panDefault) { $panDefault } else { 0 }
+                    tilt = if ($null -ne $tiltDefault) { $tiltDefault } else { 0 }
+                }
+            }
+            $controls.Add((New-Control $nextId "panTilt16" "Pan/Tilt" $props))
             $used[$panFine[0]] = $true; $used[$tiltFine[0]] = $true
         } else {
-            $controls.Add((New-Control $nextId "panTilt8" "Pan/Tilt" @{
+            $props = @{
                 pan = $channelMap[$name]; tilt = $channelMap[$tiltName]
-            }))
+            }
+            $panDefault = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
+            $tiltDefault = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "defaultValue") 1
+            if ($null -ne $panDefault -or $null -ne $tiltDefault) {
+                $props["defaultValue"] = @{
+                    pan = if ($null -ne $panDefault) { $panDefault } else { 0 }
+                    tilt = if ($null -ne $tiltDefault) { $tiltDefault } else { 0 }
+                }
+            }
+            $controls.Add((New-Control $nextId "panTilt8" "Pan/Tilt" $props))
         }
         $nextId++
         $used[$name] = $true; $used[$tiltName] = $true
@@ -338,6 +376,14 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         $type = "rgb"
         if ($colors.ContainsKey("white")) { $type = "rgbw"; $props["w"] = $channelMap[$colors["white"]] }
         if ($colors.ContainsKey("white") -and $colors.ContainsKey("amber")) { $type = "rgbwa"; $props["amber"] = $channelMap[$colors["amber"]] }
+        $colorDefaults = [ordered]@{}
+        foreach ($component in @(@("red", "a"), @("green", "b"), @("blue", "c"), @("white", "w"), @("amber", "amber"))) {
+            if (-not $colors.ContainsKey($component[0])) { continue }
+            $colorChannel = $available[$colors[$component[0]]]
+            $componentDefault = Convert-DmxValue $colorChannel (Get-Prop $colorChannel "defaultValue") 1
+            if ($null -ne $componentDefault) { $colorDefaults[$component[1]] = $componentDefault }
+        }
+        if ($colorDefaults.Count) { $props["defaultValue"] = $colorDefaults }
         $controls.Add((New-Control $nextId $type "Color" $props))
         $nextId++
         foreach ($key in @("red","green","blue","white","amber")) { if ($colors.ContainsKey($key)) { $used[$colors[$key]] = $true } }
@@ -353,20 +399,29 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         $isOptionControl = $capType -eq "WheelSlot" -or $segmentedCapabilities -or $label -match '(?i)\b(wheel|gobo|macro|preset)\b'
         $fineAlias = @((Get-Prop $channel "fineChannelAliases") | Where-Object { $_ -and $channelMap.ContainsKey($_) -and -not $used[$_] } | Select-Object -First 1)
         if ($fineAlias.Count -and -not $isOptionControl) {
-            $controls.Add((New-Control $nextId "slider16" $label @{
+            $props = @{
                 channel = $channelMap[$name]
                 fine = $channelMap[$fineAlias[0]]
                 capabilities = $capabilities
-            }))
+            }
+            $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 2
+            if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $controls.Add((New-Control $nextId "slider16" $label $props))
             $used[$fineAlias[0]] = $true
         } elseif ($isOptionControl) {
-            $controls.Add((New-Control $nextId "wheel" $label @{
+            $props = @{
                 channel = $channelMap[$name]
                 options = @(New-WheelOptions $fixture $channel $label)
                 capabilities = $capabilities
-            }))
+            }
+            $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
+            if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $controls.Add((New-Control $nextId "wheel" $label $props))
         } else {
-            $controls.Add((New-Control $nextId "slider8" $label @{ channel = $channelMap[$name]; capabilities = $capabilities }))
+            $props = @{ channel = $channelMap[$name]; capabilities = $capabilities }
+            $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
+            if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $controls.Add((New-Control $nextId "slider8" $label $props))
         }
         $nextId++
         $used[$name] = $true
@@ -438,6 +493,7 @@ try {
     $functionNames = @(
         "Get-Prop", "Get-Capabilities", "Get-CapType", "Get-CapColor", "New-NormalizedCapabilities",
         "New-FixtureMetadata", "Flatten-PixelKeys", "Get-PixelKeys", "Expand-ModeChannels", "Channel-Map",
+        "Get-DmxValueByteResolution", "Convert-DmxValue",
         "New-Control", "Get-WheelSlot", "Get-WheelSlotLabel", "Get-WheelSlotColor", "New-WheelOptionName",
         "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
     )
