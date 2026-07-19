@@ -1704,6 +1704,28 @@ function mergeFixtureLibraryMetadata(library,metadataCatalog){
   });
   return library;
 }
+function mergeFixtureLibraryCapabilities(library,capabilityCatalog){
+  if(!library?.fixtures||!Array.isArray(capabilityCatalog?.fixtures))return library;
+  const patchesByKey=new Map(capabilityCatalog.fixtures.filter(item=>item?.key&&Array.isArray(item.controls)).map(item=>[String(item.key),item]));
+  library.fixtures.forEach(fixture=>{
+    const fixturePatch=patchesByKey.get(String(fixture?.key||''));
+    if(!fixturePatch)return;
+    (fixture.modes||[]).forEach(mode=>{
+      const controls=mode?.profile?.controls||[];
+      (fixturePatch.controls||[]).forEach(controlPatch=>{
+        const label=String(controlPatch?.label||'').trim().toLowerCase();
+        const control=controls.find(candidate=>String(candidate?.label||'').trim().toLowerCase()===label);
+        if(!control)return;
+        if(Array.isArray(controlPatch.capabilities))control.capabilities=JSON.parse(JSON.stringify(controlPatch.capabilities));
+        if(control.type==='slider8'&&controlPatch.type==='wheel'&&Array.isArray(controlPatch.options)){
+          control.type='wheel';
+          control.options=JSON.parse(JSON.stringify(controlPatch.options));
+        }
+      });
+    });
+  });
+  return library;
+}
 async function loadFixtureLibrary(options={}){
   const force=!!options.force;
   if(fixtureLibraryState.data&&!force){
@@ -1722,6 +1744,7 @@ async function loadFixtureLibrary(options={}){
   try{
     let loadedFrom='built-in';
     let informationCount=0;
+    let capabilityControlCount=0;
     try{
       const serverResponse=await fetch('fixture_library.php',{cache:'no-store'});
       const serverJson=await serverResponse.json();
@@ -1742,9 +1765,16 @@ async function loadFixtureLibrary(options={}){
       if(!r.ok)throw new Error('HTTP '+r.status);
       fixtureLibraryState.data=normalizeFixtureLibrary(await r.json());
     }
+    try{
+      const capabilityResponse=await fetch('assets/fixture-capabilities.json',{cache:'no-store'});
+      if(capabilityResponse.ok){
+        mergeFixtureLibraryCapabilities(fixtureLibraryState.data,await capabilityResponse.json());
+        capabilityControlCount=fixtureLibraryState.data.fixtures.reduce((count,fixture)=>count+(fixture.modes||[]).reduce((modeCount,mode)=>modeCount+(mode.profile?.controls||[]).filter(control=>Array.isArray(control.capabilities)&&control.capabilities.length).length,0),0);
+      }
+    }catch(_capabilityError){}
     fixtureLibraryState.selectedKey='';
     fixtureLibraryState.selectedModeIndex=0;
-    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.'+(informationCount?' Fixture information available for '+informationCount+'.':'');
+    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.'+(informationCount?' Fixture information available for '+informationCount+'.':'')+(capabilityControlCount?' Capability ranges available for '+capabilityControlCount+' controls.':'');
     if(search)search.disabled=false;
     renderFixtureLibraryResults();
     return fixtureLibraryState.data;

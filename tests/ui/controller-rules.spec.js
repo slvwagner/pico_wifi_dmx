@@ -1457,7 +1457,7 @@ test.describe('Fixture Controller established rules', () => {
         libraryFixtureKey: imported.libraryFixtureKey,
         libraryModeName: imported.libraryModeName,
         channels: imported.channels,
-        controls: imported.controls.map(c => ({ type: c.type, label: c.label, pan: c.pan, panFine: c.panFine, tilt: c.tilt, tiltFine: c.tiltFine, channel: c.channel }))
+        controls: imported.controls.map(c => ({ type: c.type, label: c.label, pan: c.pan, panFine: c.panFine, tilt: c.tilt, tiltFine: c.tiltFine, channel: c.channel, options: c.options, capabilities: c.capabilities }))
       } : null;
     });
 
@@ -1467,6 +1467,7 @@ test.describe('Fixture Controller established rules', () => {
     expect(profile.controls).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'panTilt16', label: 'Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }),
       expect.objectContaining({ type: 'wheel', label: 'Color Wheel', channel: 5 }),
+      expect.objectContaining({ type: 'wheel', label: 'Shutter/Strobe', channel: 7, options: expect.arrayContaining([expect.objectContaining({ kind: 'ShutterStrobe', shutterEffect: 'Strobe', range: [16, 131] })]), capabilities: expect.any(Array) }),
       expect.objectContaining({ type: 'slider8', label: 'Dimmer', channel: 8 })
     ]));
   });
@@ -1586,6 +1587,60 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.modeName).toBe('Curated mode');
     expect(result.control).toEqual(expect.objectContaining({ id: 7001, label: 'Curated Dimmer', defaultValue: 123 }));
     expect(result.warning).toBe('Keep this warning');
+  });
+
+  test('OFL capability enrichment upgrades segmented sliders without replacing curated show defaults', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const library = normalizeFixtureLibrary({
+        schemaVersion: 1,
+        source: 'Curated capability library',
+        fixtures: [{
+          key: 'demo/capability-fixture',
+          manufacturerName: 'Demo',
+          name: 'Capability Fixture',
+          metadata: { source: 'custom', authors: ['Keep Me'] },
+          modes: [{
+            name: '2ch', channels: 2, warnings: ['Keep warning'],
+            profile: { name: 'Capability Fixture', mode: '2ch', channels: 2, controls: [
+              { id: 9001, type: 'slider8', label: 'Shutter', channel: 1, default: 255, blackout: 0 },
+              { id: 9002, type: 'wheel', label: 'Gobo Wheel', channel: 2, options: [{ name: 'Custom Gobo', value: 10, image: 'data:image/png;base64,CUSTOM' }] }
+            ] }
+          }]
+        }]
+      });
+      mergeFixtureLibraryCapabilities(library, {
+        schemaVersion: 1,
+        fixtures: [{
+          key: 'demo/capability-fixture',
+          controls: [
+            {
+              type: 'wheel', label: 'Shutter', channel: 1,
+              capabilities: [
+                { type: 'ShutterStrobe', dmxRange: [0, 9], shutterEffect: 'Open' },
+                { type: 'ShutterStrobe', dmxRange: [10, 255], shutterEffect: 'Strobe', speedStart: 'slow', speedEnd: 'fast' }
+              ],
+              options: [
+                { name: 'Open', value: 5, range: [0, 9], kind: 'ShutterStrobe', shutterEffect: 'Open' },
+                { name: 'Strobe', value: 133, range: [10, 255], kind: 'ShutterStrobe', shutterEffect: 'Strobe', speedStart: 'slow', speedEnd: 'fast' }
+              ]
+            },
+            { type: 'wheel', label: 'Gobo Wheel', channel: 2, capabilities: [{ type: 'WheelSlot', dmxRange: [0, 255] }], options: [{ name: 'OFL Gobo', value: 127 }] }
+          ]
+        }]
+      });
+      const fixture = library.fixtures[0];
+      return { fixture, shutter: fixture.modes[0].profile.controls[0], gobo: fixture.modes[0].profile.controls[1] };
+    });
+
+    expect(result.fixture.metadata).toEqual({ source: 'custom', authors: ['Keep Me'] });
+    expect(result.fixture.modes[0].warnings).toEqual(['Keep warning']);
+    expect(result.shutter).toEqual(expect.objectContaining({
+      id: 9001, type: 'wheel', label: 'Shutter', channel: 1, default: 255, blackout: 0
+    }));
+    expect(result.shutter.capabilities).toHaveLength(2);
+    expect(result.shutter.options[1]).toEqual(expect.objectContaining({ kind: 'ShutterStrobe', range: [10, 255], speedStart: 'slow', speedEnd: 'fast' }));
+    expect(result.gobo.options).toEqual([{ name: 'Custom Gobo', value: 10, image: 'data:image/png;base64,CUSTOM' }]);
+    expect(result.gobo.capabilities).toEqual([{ type: 'WheelSlot', dmxRange: [0, 255] }]);
   });
 
   test('Fixture Library preserves OFL wheel slot names, ranges, and colors', async ({ page }) => {

@@ -2,7 +2,9 @@ param(
     [string]$ZipPath = "tools/fixture-library/ofl_export_ofl.zip",
     [string]$OutputPath = "web/assets/fixture-library.json",
     [string]$MetadataOutputPath = "",
-    [switch]$MetadataOnly
+    [string]$CapabilitiesOutputPath = "",
+    [switch]$MetadataOnly,
+    [switch]$CapabilitiesOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,6 +12,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $zipFile = if ([System.IO.Path]::IsPathRooted($ZipPath)) { $ZipPath } else { Join-Path $repoRoot $ZipPath }
 $outFile = if ([System.IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else { Join-Path $repoRoot $OutputPath }
 $metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($MetadataOutputPath)) { $MetadataOutputPath } else { Join-Path $repoRoot $MetadataOutputPath }
+$capabilitiesOutFile = if (-not $CapabilitiesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($CapabilitiesOutputPath)) { $CapabilitiesOutputPath } else { Join-Path $repoRoot $CapabilitiesOutputPath }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -37,6 +40,27 @@ function Get-CapColor($channel) {
     $cap = @(Get-Capabilities $channel | Select-Object -First 1)
     if ($cap.Count) { return [string](Get-Prop $cap[0] "color") }
     return ""
+}
+
+function New-NormalizedCapabilities($channel) {
+    $normalized = [System.Collections.Generic.List[object]]::new()
+    foreach ($cap in Get-Capabilities $channel) {
+        $item = [ordered]@{}
+        foreach ($name in @(
+            "type", "dmxRange", "comment", "effectName", "shutterEffect", "color", "colors",
+            "speedStart", "speedEnd", "shakeSpeedStart", "shakeSpeedEnd",
+            "durationStart", "durationEnd", "angleStart", "angleEnd",
+            "distanceStart", "distanceEnd", "percentStart", "percentEnd",
+            "slotNumber", "slotNumberStart", "slotNumberEnd"
+        )) {
+            $value = Get-Prop $cap $name
+            if ($null -eq $value) { continue }
+            if ($value -is [string] -and -not $value) { continue }
+            $item[$name] = $value
+        }
+        if ($item.Count) { $normalized.Add($item) }
+    }
+    return @($normalized)
 }
 
 function New-FixtureMetadata($fixture) {
@@ -248,6 +272,10 @@ function New-WheelOptions($fixture, $channel, [string]$wheelName) {
             $speed = [string](Get-Prop $cap $speedProp)
             if ($speed) { $option[$speedProp] = $speed }
         }
+        foreach ($detailProp in @("comment","effectName","shutterEffect","durationStart","durationEnd","angleStart","angleEnd","distanceStart","distanceEnd","percentStart","percentEnd")) {
+            $detail = Get-Prop $cap $detailProp
+            if ($null -ne $detail -and (-not ($detail -is [string]) -or $detail)) { $option[$detailProp] = $detail }
+        }
         $options.Add($option)
     }
     if (-not $options.Count) { $options.Add([ordered]@{ name = "Open"; value = 0 }) }
@@ -314,14 +342,17 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         if ($used[$name]) { continue }
         $channel = $available[$name]
         $capType = Get-CapType $channel
+        $capabilities = @(New-NormalizedCapabilities $channel)
         $label = $name -replace '\s+', ' '
-        if ($capType -eq "WheelSlot" -or $label -match '(?i)\b(wheel|gobo|macro|preset)\b') {
+        $segmentedCapabilities = $capabilities.Count -gt 1 -and @($capabilities | Where-Object { @($_.dmxRange).Count -gt 0 }).Count -eq $capabilities.Count
+        if ($capType -eq "WheelSlot" -or $segmentedCapabilities -or $label -match '(?i)\b(wheel|gobo|macro|preset)\b') {
             $controls.Add((New-Control $nextId "wheel" $label @{
                 channel = $channelMap[$name]
                 options = @(New-WheelOptions $fixture $channel $label)
+                capabilities = $capabilities
             }))
         } else {
-            $controls.Add((New-Control $nextId "slider8" $label @{ channel = $channelMap[$name] }))
+            $controls.Add((New-Control $nextId "slider8" $label @{ channel = $channelMap[$name]; capabilities = $capabilities }))
         }
         $nextId++
         $used[$name] = $true
@@ -412,24 +443,83 @@ try {
         $metadataPayload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $metadataOutFile -Encoding UTF8
         Write-Host "Wrote metadata for $($fixtures.Count) fixtures to $metadataOutFile"
     }
-    if ($MetadataOnly) {
+    $capabilityFixtures = @($fixtures | ForEach-Object {
+        $controlPatchesByLabel = [ordered]@{}
+        foreach ($convertedMode in @($_.modes)) {
+            foreach ($convertedControl in @($convertedMode.profile.controls)) {
+                $capabilityValues = @($convertedControl.capabilities | Where-Object { $null -ne $_ })
+                if (-not $capabilityValues.Count) { continue }
+                $labelText = [string]$convertedControl.label
+                $isCapabilityDrivenWheel = $convertedControl.type -eq "wheel" -and $capabilityValues.Count -gt 1 -and $labelText -notmatch '(?i)\b(wheel|gobo|macro|preset)\b'
+                $isCapabilitySlider = $convertedControl.type -eq "slider8"
+                if (-not $isCapabilityDrivenWheel -and -not $isCapabilitySlider) { continue }
+                $labelKey = ([string]$convertedControl.label).Trim().ToLowerInvariant()
+                if (-not $labelKey) { continue }
+                $patch = [ordered]@{
+                    type = $convertedControl.type
+                    label = $convertedControl.label
+                    capabilities = $capabilityValues
+                }
+                if ($convertedControl.type -eq "wheel") { $patch["options"] = @($convertedControl.options) }
+                if (-not $controlPatchesByLabel.Contains($labelKey) -or $convertedControl.type -eq "wheel") {
+                    $controlPatchesByLabel[$labelKey] = $patch
+                }
+            }
+        }
+        if ($controlPatchesByLabel.Count) { [ordered]@{ key = $_.key; controls = @($controlPatchesByLabel.Values) } }
+    })
+    if ($capabilitiesOutFile) {
+        $capabilitiesPayload = [ordered]@{
+            schemaVersion = 1
+            source = "Open Fixture Library capabilities"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+            fixtureCount = $capabilityFixtures.Count
+            fixtures = $capabilityFixtures
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $capabilitiesOutFile) | Out-Null
+        $capabilitiesPayload | ConvertTo-Json -Depth 40 -Compress | Set-Content -LiteralPath $capabilitiesOutFile -Encoding UTF8
+        Write-Host "Wrote capabilities for $($capabilityFixtures.Count) fixtures to $capabilitiesOutFile"
+    }
+    if ($MetadataOnly -or $CapabilitiesOnly) {
         if (-not (Test-Path -LiteralPath $outFile)) {
-            throw "Metadata-only merge requires an existing fixture library: $outFile"
+            throw "Enrichment-only merge requires an existing fixture library: $outFile"
         }
         $existingLibrary = Get-Content -LiteralPath $outFile -Raw | ConvertFrom-Json
         if ($null -eq $existingLibrary -or -not ($existingLibrary.PSObject.Properties.Name -contains "fixtures")) {
             throw "Existing fixture library is invalid: $outFile"
         }
-        $metadataByKey = @{}
-        foreach ($convertedFixture in $fixtures) {
-            $metadataByKey[[string]$convertedFixture.key] = $convertedFixture.metadata
-        }
         $updatedCount = 0
-        foreach ($existingFixture in @($existingLibrary.fixtures)) {
-            $key = [string]$existingFixture.key
-            if (-not $metadataByKey.ContainsKey($key)) { continue }
-            $existingFixture | Add-Member -NotePropertyName metadata -NotePropertyValue $metadataByKey[$key] -Force
-            $updatedCount++
+        if ($MetadataOnly) {
+            $metadataByKey = @{}
+            foreach ($convertedFixture in $fixtures) { $metadataByKey[[string]$convertedFixture.key] = $convertedFixture.metadata }
+            foreach ($existingFixture in @($existingLibrary.fixtures)) {
+                $key = [string]$existingFixture.key
+                if (-not $metadataByKey.ContainsKey($key)) { continue }
+                $existingFixture | Add-Member -NotePropertyName metadata -NotePropertyValue $metadataByKey[$key] -Force
+                $updatedCount++
+            }
+        }
+        $capabilityControlCount = 0
+        if ($CapabilitiesOnly) {
+            $capabilityByKey = @{}
+            foreach ($capabilityFixture in $capabilityFixtures) { $capabilityByKey[[string]$capabilityFixture.key] = $capabilityFixture }
+            foreach ($existingFixture in @($existingLibrary.fixtures)) {
+                $fixturePatch = $capabilityByKey[[string]$existingFixture.key]
+                if ($null -eq $fixturePatch) { continue }
+                foreach ($existingMode in @($existingFixture.modes)) {
+                    foreach ($controlPatch in @($fixturePatch.controls)) {
+                        $existingControl = @($existingMode.profile.controls | Where-Object { [string]$_.label -eq [string]$controlPatch.label } | Select-Object -First 1)
+                        if (-not $existingControl.Count) { continue }
+                        $targetControl = $existingControl[0]
+                        $targetControl | Add-Member -NotePropertyName capabilities -NotePropertyValue @($controlPatch.capabilities) -Force
+                        if ([string]$targetControl.type -eq "slider8" -and [string]$controlPatch.type -eq "wheel") {
+                            $targetControl.type = "wheel"
+                            $targetControl | Add-Member -NotePropertyName options -NotePropertyValue @($controlPatch.options) -Force
+                        }
+                        $capabilityControlCount++
+                    }
+                }
+            }
         }
         $existingLibrary.fixtureCount = @($existingLibrary.fixtures).Count
         $existingLibrary.generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
@@ -439,7 +529,11 @@ try {
     $payload | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
     if ($MetadataOnly) {
         Write-Host "Added metadata to $updatedCount of $(@($payload.fixtures).Count) existing fixtures in $outFile"
-    } else {
+    }
+    if ($CapabilitiesOnly) {
+        Write-Host "Added capabilities to $capabilityControlCount existing controls in $outFile"
+    }
+    if (-not $MetadataOnly -and -not $CapabilitiesOnly) {
         Write-Host "Wrote $($fixtures.Count) fixtures to $outFile"
     }
 }
