@@ -64,7 +64,7 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 
 ![Fixture Library search and mode preview](screenshots/fixture-controller-fixture-library.png)
 
-The **Fixture Library** panel imports fixture profiles from the converted Open Fixture Library export. Use it when you want to start from an existing fixture definition instead of building every channel by hand.
+The **Fixture Library** panel imports fixture profiles from an export of the original [Open Fixture Library](https://open-fixture-library.org/) project. Use it when you want to start from an existing fixture definition instead of building every channel by hand.
 
 The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a **Retry** button.
 
