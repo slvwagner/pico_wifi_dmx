@@ -6,6 +6,7 @@ Changed:
 
 - Started the 0.9.13 development branch.
 - Expanded the README versioning policy with stable/development versions, SemVer meanings, the release-branch lifecycle, synchronized version sources, cache-revision behavior, and current 0.9.12 firmware paths.
+- Added `scripts/start_version_branch.ps1` to validate, preview, create, update, and optionally commit the next version branch without manually editing every synchronized version source.
 
 ## 0.9.12 - 2026-07-19
 

@@ -545,6 +545,7 @@ pico_wifi_dmx/
 │  ├─ update_user_manual.ps1
 │  ├─ sync_fixture_library_from_xampp.ps1
 │  ├─ flash_firmware.ps1
+│  ├─ start_version_branch.ps1
 │  ├─ prepare_release.ps1
 │  ├─ dev-router.php         PHP built-in-server router for local development
 │  ├─ capture_readme_screenshots.ps1
@@ -582,6 +583,15 @@ The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conv
 - `PATCH` contains compatible fixes and smaller improvements.
 
 The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `0.9.13`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
+
+After merging a release into `main`, preview and create the next version branch with:
+
+```powershell
+.\scripts\start_version_branch.ps1 -Version 0.9.14 -DryRun
+.\scripts\start_version_branch.ps1 -Version 0.9.14 -Commit
+```
+
+The script requires a clean `main` tree by default, refuses an existing or non-increasing version, creates the version-named branch, updates the synchronized sources and browser cache URLs, adds the new `Unreleased` changelog section, and optionally commits the result. It deliberately does not push the branch or deploy it to XAMPP. Use `-FromBranch <name>` only when intentionally starting from a branch other than `main`.
 
 All application-facing version sources must agree:
 
