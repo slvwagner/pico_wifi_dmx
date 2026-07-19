@@ -158,6 +158,7 @@ try {
   if(!el)throw new Error('Missing screenshot element: '+selector);
   const rail=el.closest('.toolbox-rail')||document.querySelector('.toolbox-rail');
   if(!rail)throw new Error('Missing toolbox rail for '+selector);
+  const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
   const railToggle=rail.querySelector('.toolbox-rail-toggle');
   if(rail.classList.contains('collapsed')&&railToggle)railToggle.click();
   if(el.classList.contains('collapsed')){
@@ -165,18 +166,18 @@ try {
     if(toggle)toggle.click();
     el.classList.remove('collapsed');
   }
-  const firstBox=rail.querySelector('.scene-toolbox');
-  if(firstBox&&firstBox!==el)rail.insertBefore(el,firstBox);
-  rail.scrollTop=0;
+  const firstBox=scrollHost.querySelector('.scene-toolbox');
+  if(firstBox&&firstBox!==el)scrollHost.insertBefore(el,firstBox);
+  scrollHost.scrollTop=0;
   await wait(80);
   const railRect=rail.getBoundingClientRect();
   const elRect=el.getBoundingClientRect();
-  rail.scrollTop=Math.max(0,rail.scrollTop+(elRect.top-railRect.top)-64);
-  rail.scrollLeft=0;
+  scrollHost.scrollTop=Math.max(0,scrollHost.scrollTop+(elRect.top-railRect.top)-64);
+  scrollHost.scrollLeft=0;
   await wait(300);
-  const firstBoxAfter=rail.querySelector('.scene-toolbox');
-  if(firstBoxAfter&&firstBoxAfter!==el)rail.insertBefore(el,firstBoxAfter);
-  rail.scrollTop=0;
+  const firstBoxAfter=scrollHost.querySelector('.scene-toolbox');
+  if(firstBoxAfter&&firstBoxAfter!==el)scrollHost.insertBefore(el,firstBoxAfter);
+  scrollHost.scrollTop=0;
   return true;
 })()
 "@ | Out-Null
@@ -190,13 +191,14 @@ try {
   if(!el)throw new Error('Missing screenshot element: '+selector);
   const rail=el.closest('.toolbox-rail');
   if(rail){
+    const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
     if(el.classList.contains('collapsed')){
       const toggle=el.querySelector('.scene-toolbox__toggle');
       if(toggle)toggle.click();
       el.classList.remove('collapsed');
     }
-    rail.scrollTop=Math.max(0,el.offsetTop-64);
-    rail.scrollLeft=0;
+    scrollHost.scrollTop=Math.max(0,el.offsetTop-64);
+    scrollHost.scrollLeft=0;
     await wait(260);
     const r=rail.getBoundingClientRect();
     return JSON.stringify({
@@ -305,7 +307,8 @@ try {
   document.querySelector('main')?.scrollTo(0,0);
   window.scrollTo(0,0);
   const rail2=document.querySelector('.toolbox-rail');
-  if(rail2)rail2.scrollTop=0;
+  const scrollHost2=rail2?.querySelector('.toolbox-rail-scroll')||rail2;
+  if(scrollHost2)scrollHost2.scrollTop=0;
   document.getElementById('picoSlot').value='0';
   document.getElementById('picoChaserMode').value='loop';
   document.getElementById('picoDirection').value='forward';

@@ -3,6 +3,13 @@ const { openDmxPage, injectChaserCompactSetup } = require('./helpers/dmx-page');
 const fs = require('fs');
 const path = require('path');
 
+function parseDmxBatch(body) {
+  return Object.fromEntries(String(body || '').split(',').filter(Boolean).map(pair => {
+    const [channel, value] = pair.split(':').map(Number);
+    return [channel, value];
+  }));
+}
+
 test.describe('Chaser established rules', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/scene_setup.php**', async route => {
@@ -80,7 +87,7 @@ test.describe('Chaser established rules', () => {
     expect(chaserLayout.buttons).toEqual(expect.arrayContaining(['fanSpreadDown', 'fanSpreadUp']));
   });
 
-  test('Chaser toolbox tile matrices expose common Move controls', async ({ page }) => {
+  test('Chaser Toolboxes Edit enables moving in every tile matrix', async ({ page }) => {
     await page.evaluate(() => {
       chaserGroupsBox.setGroups([
         { id: 'grp_a', name: 'Group A', slot: 0, fixtureIds: [101], values: {} },
@@ -108,15 +115,17 @@ test.describe('Chaser established rules', () => {
       chaserPlanesMatrix.render();
     });
 
-    await expect(page.locator('#chaserGroupsMove')).toBeVisible();
+    await page.locator('.toolbox-rail-edit').click();
+    await expect(page.locator('#chaserGroupsMove')).toBeHidden();
+    await expect(page.locator('#chaserGroupsMove')).toHaveClass(/active/);
     await expect(page.locator('#chaserGroupsRename')).toHaveCount(0);
     await expect(page.locator('#chaserGroupsDelete')).toHaveCount(0);
     await expect(page.locator('#chaserGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#chaserGroupsList [data-delete-group-tile="0"]')).toBeVisible();
-    await expect(page.locator('#moveChaseSlotsBtn')).toBeVisible();
-    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
-    await expect(page.locator('#moveChaserPalettesBtn')).toBeVisible();
-    await expect(page.locator('#moveChaserPlanesBtn')).toBeVisible();
+    await expect(page.locator('#moveChaseSlotsBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserPalettesBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserPlanesBtn')).toBeHidden();
 
     await page.locator('#chaserGroupsList [data-edit-group-tile="0"]').click();
     await expect(page.locator('#sharedGroupVisualModal')).toBeVisible();
@@ -127,27 +136,22 @@ test.describe('Chaser established rules', () => {
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').name)).toBe('Renamed Group A');
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').visual?.color)).toBe('#115577');
 
-    await page.locator('#moveChaseSlotsBtn').click();
     await page.locator('[data-chase-slot="0"]').click();
     await page.locator('[data-chase-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => savedChases.find(chase => chase.id === 'chase_a').slot)).toBe(3);
 
-    await page.locator('#moveChaserScenesBtn').click();
     await page.locator('[data-chaser-scene-slot="0"]').click();
     await page.locator('[data-chaser-scene-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
 
-    await page.locator('#moveChaserPalettesBtn').click();
     await page.locator('[data-chaser-palette-slot="0"]').click();
     await page.locator('[data-chaser-palette-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserPalettes.find(palette => palette.id === 'pal_a').slot)).toBe(3);
 
-    await page.locator('#moveChaserPlanesBtn').click();
     await page.locator('#chaserPlaneMatrix [data-plane-slot="0"]').click();
     await page.locator('#chaserPlaneMatrix [data-plane-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
 
-    await page.locator('#chaserGroupsMove').click();
     await page.locator('#chaserGroupsList [data-group-slot="0"]').click();
     await page.locator('#chaserGroupsList [data-group-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => chaserGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
@@ -155,8 +159,10 @@ test.describe('Chaser established rules', () => {
 
   test('Scenes toolbox matches Controller tiles and recalls a complete scene into the selected step', async ({ page }) => {
     await expect(page.locator('#chaserSceneBox')).toBeVisible();
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#chaserSceneLayoutControls')).toBeVisible();
-    await expect(page.locator('#moveChaserScenesBtn')).toBeVisible();
+    await expect(page.locator('#moveChaserScenesBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserScenesBtn')).toHaveClass(/active/);
 
     await page.evaluate(() => {
       chaserGroupsBox.setGroups([{ id: 'grp_scene', name: 'Old target', slot: 0, fixtureIds: [101], values: {} }]);
@@ -175,6 +181,7 @@ test.describe('Chaser established rules', () => {
       drawStepEditor();
     });
 
+    await page.locator('.toolbox-rail-edit').click();
     await page.locator('#chaserGroupsList [data-group-index="0"]').click();
     await expect(page.locator('#chaserSceneMatrix [data-chaser-scene-slot="0"]')).toBeVisible();
     await expect(page.locator('#chaserSceneMatrix [data-visual-chaser-scene-slot="0"]')).toBeVisible();
@@ -254,6 +261,41 @@ test.describe('Chaser established rules', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('#picoPanel .panel-body')).toBeHidden();
     await expect(page.locator('[data-panel-toggle="picoPanel"]')).toHaveText('+');
+  });
+
+  test('Pico Playback uses one state-aware Pause and Resume button', async ({ page }) => {
+    let paused = false;
+    const urls = [];
+    await page.route('http://pico.test/**', async route => {
+      const url = route.request().url();
+      urls.push(url);
+      if (url.includes('/chaser/pause/')) paused = true;
+      if (url.includes('/chaser/resume/')) paused = false;
+      const slot = { slot: 0, loaded: true, active: !paused, paused, loop: true, mode: 1, direction: 0, step_count: 2, speed_mult: 1 };
+      const body = url.endsWith('/chaser/status')
+        ? { ok: true, active_mask: paused ? 0 : 1, paused_mask: paused ? 1 : 0, step: 0, step_count: 2, elapsed_ms: 100 }
+        : url.endsWith('/chaser/slots')
+          ? { ok: true, slots: [slot] }
+          : { ok: true };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://pico.test';
+      renderChaserSlotStrip([
+        { slot: 0, loaded: true, active: true, paused: false, loop: true, mode: 1, direction: 0, step_count: 2, speed_mult: 1 }
+      ], 1);
+    });
+
+    await expect(page.locator('#btnPicoPauseSlot')).toHaveCount(0);
+    await expect(page.locator('#btnPicoResumeSlot')).toHaveCount(0);
+    const toggle = page.locator('#btnPicoPauseResumeSlot');
+    await expect(toggle).toHaveText('Pause');
+    await toggle.click();
+    await expect(toggle).toHaveText('Resume');
+    await toggle.click();
+    await expect(toggle).toHaveText('Pause');
+    expect(urls).toContain('http://pico.test/chaser/pause/0');
+    expect(urls).toContain('http://pico.test/chaser/resume/0');
   });
 
   test('collapsing Participating Controls keeps the sticky header stable and moves Edit Step up', async ({ page }) => {
@@ -984,5 +1026,37 @@ test.describe('Chaser established rules', () => {
     expect(state.buttonAfterUpdate.text).toBe('Updated');
     expect(state.buttonAfterUpdate.success).toBe(true);
     expect(state.disabledAfterNewSave).toBe(true);
+  });
+
+  test('recalling a chase and selecting a step immediately sends that step to DMX', async ({ page }) => {
+    const batches = [];
+    await page.route('http://127.0.0.1:18993/**', async route => {
+      if (route.request().url().includes('/dmx/b')) batches.push(parseDmxBatch(route.request().postData()));
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(async () => {
+      baseUrlEl.value = 'http://127.0.0.1:18993/';
+      sentToPico = {};
+      const chase = {
+        id: 'dmx_recall_test',
+        name: 'DMX Recall Test',
+        slot: 0,
+        data: {
+          steps: [
+            makeStep('Position A', { '101:11': 10, '101:12': { pan: 4660, tilt: 22136 } }),
+            makeStep('Position B', { '101:11': 20, '101:12': { pan: 65535, tilt: 0 } })
+          ]
+        }
+      };
+      await loadChaseSlot(chase);
+    });
+
+    await expect.poll(() => batches.length).toBe(1);
+    expect(batches[0]).toMatchObject({ 1: 10, 2: 18, 3: 52, 4: 86, 5: 120 });
+
+    await page.evaluate(() => selectStepForEdit(1));
+    await expect.poll(() => batches.length).toBe(2);
+    expect(batches[1]).toMatchObject({ 1: 20, 2: 255, 3: 255, 4: 0, 5: 0 });
   });
 });

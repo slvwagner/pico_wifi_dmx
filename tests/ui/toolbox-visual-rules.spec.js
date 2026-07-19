@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Toolbox visual tile rules', () => {
-  test('Controller, Chaser, Effects, and Room Plane share Cols Rows Move controls', async ({ page }) => {
+  test('Controller, Chaser, Effects, and Room Plane share Cols and Rows controls', async ({ page }) => {
     const pages = [
       { path: '', host: '#controllerSceneLayoutControls' },
       { path: 'dmx_chaser.html', host: '#chaserChaseLayoutControls' },
@@ -16,14 +16,13 @@ test.describe('Toolbox visual tile rules', () => {
 
     for (const entry of pages) {
       await openDmxPage(page, entry.path);
+      await page.locator('.toolbox-rail .toolbox-rail-edit').click();
       const sample = await page.locator(entry.host).evaluate(host => {
         const label = host.querySelector('.tile-layout-field');
-        const input = label.querySelector('input');
-        const move = host.querySelector('.tile-move-btn');
+        const input = label.querySelector('select');
         const hostStyle = getComputedStyle(host);
         const labelStyle = getComputedStyle(label);
         const inputStyle = getComputedStyle(input);
-        const moveStyle = getComputedStyle(move);
         return {
           hostClass: host.className,
           hostDisplay: hostStyle.display,
@@ -33,9 +32,8 @@ test.describe('Toolbox visual tile rules', () => {
           labelGap: labelStyle.gap,
           inputWidth: inputStyle.width,
           inputPaddingTop: inputStyle.paddingTop,
-          moveHeight: moveStyle.height,
-          labels: [...host.querySelectorAll('.tile-layout-field')].map(item => item.textContent.trim()),
-          inputCount: host.querySelectorAll('input[type="number"]').length
+          labels: [...host.querySelectorAll('.tile-layout-name')].map(item => item.textContent.trim()),
+          inputCount: host.querySelectorAll('select.tile-layout-select').length
         };
       });
       samples.push(sample);
@@ -48,11 +46,88 @@ test.describe('Toolbox visual tile rules', () => {
       expect(sample.hostAlign).toBe('center');
       expect(sample.labelDisplay).toBe('flex');
       expect(sample.labelGap).toBe('6px');
-      expect(sample.inputWidth).toBe('52px');
+      expect(sample.inputWidth).toBe('68px');
       expect(sample.inputPaddingTop).toBe('6px');
-      expect(sample.moveHeight).toBe('30px');
       expect(sample.labels).toEqual(['Cols', 'Rows']);
       expect(sample.inputCount).toBe(2);
+    }
+  });
+
+  test('tile matrix dimensions use native iPad-friendly dropdowns', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await openDmxPage(page, '');
+    await page.locator('.toolbox-rail-edit').click();
+
+    const field = page.locator('#controllerSceneLayoutControls .tile-layout-field').first();
+    const select = field.locator('select.tile-layout-select');
+    await expect(select).toHaveAttribute('aria-label', 'Tile columns');
+    await expect(select.locator('option')).toHaveCount(32);
+    await expect(select.locator('option').first()).toHaveAttribute('value', '1');
+    await expect(select.locator('option').last()).toHaveAttribute('value', '32');
+
+    const box = await select.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(68);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+
+    await select.selectOption('6');
+    await expect(select).toHaveValue('6');
+    await expect.poll(() => page.locator('#slotMatrix .slot').count()).toBe(24);
+  });
+
+  test('Toolboxes Edit shows layout controls and automatically enables every tile mover', async ({ page }) => {
+    for (const path of ['', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_room_plane.html']) {
+      await openDmxPage(page, path);
+      const controls = page.locator('.toolbox-rail .tile-layout-controls');
+      const movers = controls.locator('.tile-move-btn');
+      expect(await controls.count()).toBeGreaterThan(0);
+      expect(await movers.count()).toBeGreaterThan(0);
+      await expect(controls.first()).toBeHidden();
+      await expect(movers.first()).toBeHidden();
+
+      const edit = page.locator('.toolbox-rail .toolbox-rail-edit');
+      await edit.click();
+      await expect(edit).toHaveText('Done');
+      await expect(controls.first()).toBeVisible();
+      await expect(movers.first()).toBeHidden();
+      for (const mover of await movers.all()) {
+        await expect(mover).toHaveClass(/active/);
+        await expect(mover).toHaveAttribute('aria-pressed', 'true');
+      }
+
+      await edit.click();
+      await expect(edit).toHaveText('Edit');
+      await expect(controls.first()).toBeHidden();
+      for (const mover of await movers.all()) {
+        await expect(mover).not.toHaveClass(/active/);
+        await expect(mover).toHaveAttribute('aria-pressed', 'false');
+      }
+    }
+  });
+
+  test('Toolboxes Edit and collapse controls remain visible while the toolbox rail scrolls', async ({ page }) => {
+    for (const viewport of [{ width: 1280, height: 650 }, { width: 820, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      for (const path of ['', 'dmx_chaser.html', 'dmx_motion.html', 'dmx_room_plane.html']) {
+        await openDmxPage(page, path);
+        const rail = page.locator('.toolbox-rail');
+        const header = rail.locator('.toolbox-rail-header');
+        const scrollHost = rail.locator('.toolbox-rail-scroll');
+        const railBox = await rail.boundingBox();
+        const initial = await header.boundingBox();
+
+        await expect(scrollHost).toHaveCount(1);
+        expect(await header.evaluate((element, scroller) => element.parentElement === scroller, await scrollHost.elementHandle())).toBe(false);
+        await scrollHost.locator('.scene-toolbox__header').first().hover();
+        await page.mouse.wheel(0, 4000);
+        await page.waitForTimeout(100);
+
+        const scrolled = await header.boundingBox();
+        expect(await scrollHost.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+        expect(scrolled.y).toBeGreaterThanOrEqual(railBox.y);
+        expect(scrolled.y).toBeLessThanOrEqual(initial.y);
+        await expect(header.locator('.toolbox-rail-edit')).toBeVisible();
+        await expect(header.locator('.toolbox-rail-toggle')).toBeVisible();
+      }
     }
   });
 

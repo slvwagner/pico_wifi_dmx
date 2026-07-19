@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.10';
+  const APP_VERSION='0.9.11';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -883,6 +883,7 @@
 
   async function applySharedToolboxOrder(rail){
     if(!rail)return;
+    const host=rail.querySelector('.toolbox-rail-scroll')||rail;
     const boxes=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'));
     const types=boxes.map(box=>box.dataset.toolboxType).filter(Boolean);
     let order=savedToolboxOrder(types);
@@ -893,7 +894,7 @@
     }
     order.forEach(type=>{
       const box=boxes.find(b=>b.dataset.toolboxType===type);
-      if(box)rail.appendChild(box);
+      if(box)host.appendChild(box);
     });
   }
 
@@ -902,7 +903,15 @@
     const order=Array.from(rail.querySelectorAll('.scene-toolbox[data-toolbox-type]'))
       .map(box=>box.dataset.toolboxType)
       .filter(Boolean);
-    const merged=normalizeToolboxOrder(order,DEFAULT_TOOLBOX_ORDER);
+    let previous=[];
+    try{previous=JSON.parse(localStorage.getItem(TOOLBOX_ORDER_KEY)||'[]');}catch(_){previous=[];}
+    if(!Array.isArray(previous)||!previous.length)previous=DEFAULT_TOOLBOX_ORDER;
+    const currentSet=new Set(order);
+    const firstSharedIndex=previous.findIndex(type=>currentSet.has(type));
+    const insertAt=firstSharedIndex<0?previous.length:firstSharedIndex;
+    const before=previous.slice(0,insertAt).filter(type=>!currentSet.has(type));
+    const after=previous.slice(insertAt).filter(type=>!currentSet.has(type));
+    const merged=Array.from(new Set([...before,...order,...after,...DEFAULT_TOOLBOX_ORDER]));
     localStorage.setItem(TOOLBOX_ORDER_KEY,JSON.stringify(merged));
     saveUiState('toolboxes',TOOLBOX_ORDER_KEY,merged);
   }
@@ -993,6 +1002,22 @@
     return !!rail?.classList.contains('toolbox-reorder-editing');
   }
 
+  function setToolboxTileLayoutControlsVisible(rail,visible){
+    if(!rail)return;
+    const active=!!visible;
+    rail.querySelectorAll('.tile-layout-controls .tile-move-btn').forEach(button=>{
+      const moveActive=button.classList.contains('active')||button.getAttribute('aria-pressed')==='true';
+      if(moveActive!==active)button.click();
+      button.hidden=true;
+      button.setAttribute('aria-hidden','true');
+      button.tabIndex=-1;
+    });
+    rail.querySelectorAll('.tile-layout-controls').forEach(controls=>{
+      controls.hidden=!active;
+      controls.style.display=active?'':'none';
+    });
+  }
+
   function setToolboxRailEditing(rail,editing){
     if(!rail)return;
     const active=!!editing;
@@ -1008,6 +1033,7 @@
     rail.querySelectorAll('.scene-toolbox__header[data-toolbox-drag-handle="1"]').forEach(header=>{
       header.title=active?'Drag to reorder toolbox':'Enable Toolboxes Edit to reorder';
     });
+    setToolboxTileLayoutControlsVisible(rail,active);
   }
 
   function initToolboxRailHeader(rail){
@@ -1061,6 +1087,17 @@
       document.documentElement.style.removeProperty('--toolbox-rail-width');
       saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,null);
     });
+  }
+
+  function initToolboxRailScrollHost(rail){
+    if(!rail)return null;
+    let host=rail.querySelector(':scope > .toolbox-rail-scroll');
+    if(host)return host;
+    host=document.createElement('div');
+    host.className='toolbox-rail-scroll';
+    Array.from(rail.children).filter(child=>child.classList.contains('scene-toolbox')).forEach(box=>host.appendChild(box));
+    rail.appendChild(host);
+    return host;
   }
 
   function configureToolboxRailDragHandle(box){
@@ -1120,6 +1157,7 @@
     if(!rail)return;
     initToolboxRailHeader(rail);
     initToolboxRailResize(rail);
+    const scrollHost=initToolboxRailScrollHost(rail);
     initToolboxRailScrollGuard(rail);
     applySharedToolboxRailWidth().catch(()=>{});
     applySharedToolboxRailCollapsed(rail).catch(()=>{});
@@ -1128,9 +1166,10 @@
       if(!box)return;
       box.dataset.toolboxType=entry.type||box.id;
       configureToolboxRailDragHandle(box);
-      rail.appendChild(box);
+      scrollHost.appendChild(box);
     });
     rail.querySelectorAll('.scene-toolbox[data-toolbox-type]').forEach(configureToolboxRailDragHandle);
+    setToolboxTileLayoutControlsVisible(rail,toolboxRailEditing(rail));
     applySharedToolboxOrder(rail).catch(()=>{});
     if(rail.dataset.toolboxRailInit==='1')return {
       applyOrder:()=>applySharedToolboxOrder(rail),
@@ -1166,8 +1205,8 @@
       const before=e.clientY<rect.top+rect.height/2;
       target.classList.toggle('toolbox-drop-before',before);
       target.classList.toggle('toolbox-drop-after',!before);
-      if(before)rail.insertBefore(dragging,target);
-      else rail.insertBefore(dragging,target.nextSibling);
+      if(before)scrollHost.insertBefore(dragging,target);
+      else scrollHost.insertBefore(dragging,target.nextSibling);
     };
     rail.addEventListener('pointerdown',e=>{
       if(!toolboxRailEditing(rail))return;
@@ -1200,10 +1239,11 @@
   function restoreRailElementAnchor(element){
     const rail=element?.closest?.('.toolbox-rail');
     if(!rail)return;
+    const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
     const before=element.getBoundingClientRect().top;
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       if(!element.isConnected)return;
-      rail.scrollTop+=element.getBoundingClientRect().top-before;
+      scrollHost.scrollTop+=element.getBoundingClientRect().top-before;
     }));
   }
 
@@ -1370,8 +1410,9 @@
         requestAnimationFrame(()=>{
           const rail=box.closest('.toolbox-rail');
           if(!rail)return;
+          const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
           const top=Math.max(0,box.offsetTop-12);
-          rail.scrollTo({top,behavior:'auto'});
+          scrollHost.scrollTo({top,behavior:'auto'});
         });
       }
     }
@@ -1561,11 +1602,32 @@
     const cols=clampInt(options.cols??4,minCols,maxCols);
     const rows=clampInt(options.rows??4,minRows,maxRows);
     const moveId=String(options.moveId||'').trim();
+    const dimensionOptions=(min,max,selected)=>Array.from({length:max-min+1},(_,index)=>{
+      const value=min+index;
+      return `<option value="${value}"${value===selected?' selected':''}>${value}</option>`;
+    }).join('');
     el.classList.add('tile-layout-controls');
-    el.innerHTML=`<label class="tile-layout-field">Cols<input id="${escapeHtml(colsId)}" type="number" min="${minCols}" max="${maxCols}" value="${cols}" aria-label="Tile columns"></label>`+
-      `<label class="tile-layout-field">Rows<input id="${escapeHtml(rowsId)}" type="number" min="${minRows}" max="${maxRows}" value="${rows}" aria-label="Tile rows"></label>`+
-      (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}">Move</button>`:'');
-    return{host:el,cols:document.getElementById(colsId),rows:document.getElementById(rowsId),move:moveId?document.getElementById(moveId):null};
+    el.innerHTML=`<label class="tile-layout-field"><span class="tile-layout-name">Cols</span><select id="${escapeHtml(colsId)}" class="tile-layout-select" aria-label="Tile columns">${dimensionOptions(minCols,maxCols,cols)}</select></label>`+
+      `<label class="tile-layout-field"><span class="tile-layout-name">Rows</span><select id="${escapeHtml(rowsId)}" class="tile-layout-select" aria-label="Tile rows">${dimensionOptions(minRows,maxRows,rows)}</select></label>`+
+      (moveId?`<button id="${escapeHtml(moveId)}" class="tile-move-btn" title="${escapeHtml(options.moveTitle||'Move tiles by dragging them to another slot')}" hidden aria-hidden="true" tabindex="-1">Move</button>`:'');
+    const colsSelect=document.getElementById(colsId);
+    const rowsSelect=document.getElementById(rowsId);
+    const configureRange=(select,initialMin,initialMax)=>{
+      let effectiveMin=initialMin;
+      let effectiveMax=initialMax;
+      const sync=()=>Array.from(select.options).forEach(option=>{
+        const value=parseInt(option.value,10);
+        option.disabled=value<effectiveMin||value>effectiveMax;
+      });
+      Object.defineProperty(select,'min',{configurable:true,get:()=>String(effectiveMin),set:value=>{effectiveMin=clampInt(value,initialMin,initialMax);sync();}});
+      Object.defineProperty(select,'max',{configurable:true,get:()=>String(effectiveMax),set:value=>{effectiveMax=clampInt(value,initialMin,initialMax);sync();}});
+      sync();
+    };
+    configureRange(colsSelect,minCols,maxCols);
+    configureRange(rowsSelect,minRows,maxRows);
+    const rail=el.closest('.toolbox-rail');
+    if(rail)setToolboxTileLayoutControlsVisible(rail,toolboxRailEditing(rail));
+    return{host:el,cols:colsSelect,rows:rowsSelect,move:moveId?document.getElementById(moveId):null};
   }
 
   function initGroupsToolbox(options){

@@ -6,6 +6,13 @@ test.describe('GPIO established rules', () => {
     await openDmxPage(page, 'dmx_gpio.html');
   });
 
+  test('relies on autosave without manual save or clear buttons', async ({ page }) => {
+    await expect(page.locator('#saveLocal')).toHaveCount(0);
+    await expect(page.locator('#clearLocal')).toHaveCount(0);
+    await expect(page.locator('#pushConfig')).toHaveText('Push to Pico');
+    await expect(page.locator('#pullConfig')).toHaveText('Read from Pico');
+  });
+
   test('ADC mapping only offers Pico ADC-capable GPIO pins', async ({ page }) => {
     const pins = await page.evaluate(() => {
       mappings = [];

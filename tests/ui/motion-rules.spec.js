@@ -166,7 +166,7 @@ test.describe('Effects established rules', () => {
     expect(recalled.updateRate).toBe('25');
   });
 
-  test('Effects toolbox tile matrices expose common Move controls', async ({ page }) => {
+  test('Effects Toolboxes Edit enables moving in every tile matrix', async ({ page }) => {
     await page.evaluate(() => {
       motionGroupsBox.setGroups([
         { id: 'grp_a', name: 'Group A', slot: 0, fixtureIds: [101], values: {} },
@@ -194,37 +194,34 @@ test.describe('Effects established rules', () => {
       motionPlanesMatrix.render();
     });
 
-    await expect(page.locator('#motionGroupsMove')).toBeVisible();
+    await page.locator('.toolbox-rail-edit').click();
+    await expect(page.locator('#motionGroupsMove')).toBeHidden();
+    await expect(page.locator('#motionGroupsMove')).toHaveClass(/active/);
     await expect(page.locator('#motionGroupsRename')).toHaveCount(0);
     await expect(page.locator('#motionGroupsDelete')).toHaveCount(0);
     await expect(page.locator('#motionGroupsList [data-edit-group-tile="0"]')).toBeVisible();
     await expect(page.locator('#motionGroupsList [data-delete-group-tile="0"]')).toBeVisible();
-    await expect(page.locator('#moveMotionEffectsBtn')).toBeVisible();
-    await expect(page.locator('#moveMotionScenesBtn')).toBeVisible();
-    await expect(page.locator('#moveMotionPalettesBtn')).toBeVisible();
-    await expect(page.locator('#moveMotionPlanesBtn')).toBeVisible();
+    await expect(page.locator('#moveMotionEffectsBtn')).toBeHidden();
+    await expect(page.locator('#moveMotionScenesBtn')).toBeHidden();
+    await expect(page.locator('#moveMotionPalettesBtn')).toBeHidden();
+    await expect(page.locator('#moveMotionPlanesBtn')).toBeHidden();
 
-    await page.locator('#moveMotionEffectsBtn').click();
     await page.locator('[data-motion-effect-slot="0"]').click();
     await page.locator('[data-motion-effect-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionEffects.find(effect => effect.id === 'fx_a').slot)).toBe(3);
 
-    await page.locator('#moveMotionScenesBtn').click();
     await page.locator('[data-mslot="0"]').click();
     await page.locator('[data-mslot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionScenes.find(scene => scene.id === 'scene_a').slot)).toBe(3);
 
-    await page.locator('#moveMotionPalettesBtn').click();
     await page.locator('[data-motion-palette-slot="0"]').click();
     await page.locator('[data-motion-palette-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionPalettes.find(palette => palette.id === 'pal_a').slot)).toBe(3);
 
-    await page.locator('#moveMotionPlanesBtn').click();
     await page.locator('#motionPlaneMatrix [data-plane-slot="0"]').click();
     await page.locator('#motionPlaneMatrix [data-plane-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionPlanes.find(plane => plane.id === 'plane_a').slot)).toBe(3);
 
-    await page.locator('#motionGroupsMove').click();
     await page.locator('#motionGroupsList [data-group-slot="0"]').click();
     await page.locator('#motionGroupsList [data-group-slot="3"]').click();
     await expect.poll(() => page.evaluate(() => motionGroupsBox.groups.find(group => group.id === 'grp_a').slot)).toBe(3);
@@ -277,17 +274,18 @@ test.describe('Effects established rules', () => {
     const result = await page.evaluate(async () => {
       const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const rail = document.getElementById('motionToolboxRail');
+      const scrollHost = rail?.querySelector('.toolbox-rail-scroll');
       const button = document.querySelector('#motionEffectBox [data-collapse-group="motion-effects"]');
       const effectBox = document.getElementById('motionEffectBox');
       const savedBox = document.getElementById('motionSavedEffectBox');
-      if (!rail || !button || !effectBox || !savedBox) throw new Error('Effects toolboxes missing');
+      if (!rail || !scrollHost || !button || !effectBox || !savedBox) throw new Error('Effects toolboxes missing');
 
       if (!effectBox.classList.contains('collapsed') || !savedBox.classList.contains('collapsed')) {
         button.click();
         await waitFrames();
       }
 
-      rail.scrollTop = Math.max(0, effectBox.offsetTop - 18);
+      scrollHost.scrollTop = Math.max(0, effectBox.offsetTop - 18);
       await waitFrames();
       const beforeTop = button.getBoundingClientRect().top;
       button.click();
@@ -315,16 +313,17 @@ test.describe('Effects established rules', () => {
     const result = await page.evaluate(async () => {
       const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const rail = document.getElementById('motionToolboxRail');
+      const scrollHost = rail?.querySelector('.toolbox-rail-scroll');
       const box = document.getElementById('motionSavedEffectBox');
       const button = document.getElementById('motionSavedEffectBoxToggle');
-      if (!rail || !box || !button) throw new Error('Effects toolbox missing');
+      if (!rail || !scrollHost || !box || !button) throw new Error('Effects toolbox missing');
 
       if (!box.classList.contains('collapsed')) {
         button.click();
         await waitFrames();
       }
 
-      rail.scrollTop = Math.max(0, box.offsetTop - 220);
+      scrollHost.scrollTop = Math.max(0, box.offsetTop - 220);
       await waitFrames();
       const beforeTop = button.getBoundingClientRect().top;
       button.click();
@@ -336,7 +335,7 @@ test.describe('Effects established rules', () => {
         afterTop,
         text: button.textContent,
         collapsed: box.classList.contains('collapsed'),
-        scrollable: rail.scrollHeight > rail.clientHeight
+        scrollable: scrollHost.scrollHeight > scrollHost.clientHeight
       };
     });
 

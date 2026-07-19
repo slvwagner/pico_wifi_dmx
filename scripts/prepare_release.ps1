@@ -39,6 +39,17 @@ function Get-FileSha256($Path) {
     (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
+function ConvertTo-ComparableFirmwareEntry($Entry) {
+    if (-not $Entry) {
+        return $null
+    }
+    return [ordered]@{
+        file = [string]$Entry.file
+        sizeBytes = [int64]$Entry.sizeBytes
+        sha256 = [string]$Entry.sha256
+    }
+}
+
 function ConvertTo-ManifestTimestampString($Value) {
     if ($Value -is [datetime]) {
         return $Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -79,11 +90,9 @@ function ConvertTo-ComparableReleaseManifest($ManifestObject) {
         branch = [string]$ManifestObject.branch
         tests = [ordered]@{ hardware = [bool]$ManifestObject.tests.hardware }
         docsGenerated = [bool]$ManifestObject.docsGenerated
-        firmware = [ordered]@{
-            file = [string]$ManifestObject.firmware.file
-            sizeBytes = [int64]$ManifestObject.firmware.sizeBytes
-            sha256 = [string]$ManifestObject.firmware.sha256
-        }
+        firmware = ConvertTo-ComparableFirmwareEntry $ManifestObject.firmware
+        wifiFirmware = ConvertTo-ComparableFirmwareEntry $ManifestObject.wifiFirmware
+        wifiFirmwareTbyb = ConvertTo-ComparableFirmwareEntry $ManifestObject.wifiFirmwareTbyb
         docs = $docs
     } | ConvertTo-Json -Depth 6 -Compress
 }
@@ -207,9 +216,29 @@ if (-not $SkipTests) {
     }
 }
 
-$uf2Path = Resolve-Path -LiteralPath (Join-Path $BuildDir "pico_wifi_dmx.uf2") -ErrorAction SilentlyContinue
-if (-not $uf2Path) {
-    throw "Firmware UF2 not found at '$BuildDir\pico_wifi_dmx.uf2'. Build the firmware first or pass -Build."
+$artifactSpecs = @(
+    [ordered]@{
+        key = "firmware"
+        sourceName = "pico_wifi_dmx.uf2"
+        releaseName = "pico_wifi_dmx-v$Version.uf2"
+    },
+    [ordered]@{
+        key = "wifiFirmware"
+        sourceName = "pico_wifi_dmx_wifi_firmware.uf2"
+        releaseName = "pico_wifi_dmx-wifi-firmware-v$Version.uf2"
+    },
+    [ordered]@{
+        key = "wifiFirmwareTbyb"
+        sourceName = "pico_wifi_dmx_wifi_firmware_tbyb.uf2"
+        releaseName = "pico_wifi_dmx-wifi-firmware-tbyb-v$Version.uf2"
+    }
+)
+
+foreach ($artifact in $artifactSpecs) {
+    $artifact.sourcePath = Resolve-Path -LiteralPath (Join-Path $BuildDir $artifact.sourceName) -ErrorAction SilentlyContinue
+    if (-not $artifact.sourcePath) {
+        throw "Required UF2 not found at '$BuildDir\$($artifact.sourceName)'. Build the firmware with Pico SDK 2.3.0 first or pass -Build."
+    }
 }
 
 $releaseDir = Join-Path $OutDir "v$Version"
@@ -217,13 +246,20 @@ if (-not (Test-Path -LiteralPath $releaseDir)) {
     New-Item -ItemType Directory -Path $releaseDir | Out-Null
 }
 
-$firmwareName = "pico_wifi_dmx-v$Version.uf2"
-$firmwareOut = Join-Path $releaseDir $firmwareName
-Copy-Item -LiteralPath $uf2Path.Path -Destination $firmwareOut -Force
-
-$sha256 = Get-FileSha256 $firmwareOut
-$shaPath = "$firmwareOut.sha256"
-"$sha256  $firmwareName" | Set-Content -LiteralPath $shaPath -Encoding ascii
+$releaseArtifacts = [ordered]@{}
+foreach ($artifact in $artifactSpecs) {
+    $artifactOut = Join-Path $releaseDir $artifact.releaseName
+    Copy-Item -LiteralPath $artifact.sourcePath.Path -Destination $artifactOut -Force
+    $artifactSha256 = Get-FileSha256 $artifactOut
+    "$artifactSha256  $($artifact.releaseName)" | Set-Content -LiteralPath "$artifactOut.sha256" -Encoding ascii
+    $artifact.outPath = $artifactOut
+    $artifact.sha256 = $artifactSha256
+    $releaseArtifacts[$artifact.key] = [ordered]@{
+        file = $artifact.releaseName
+        sizeBytes = (Get-Item -LiteralPath $artifactOut).Length
+        sha256 = $artifactSha256
+    }
+}
 
 $commit = (git rev-parse --short HEAD).Trim()
 $branch = (git branch --show-current).Trim()
@@ -236,11 +272,9 @@ $manifest = [ordered]@{
         hardware = [bool]$RunHardwareTests
     }
     docsGenerated = -not [bool]$SkipManual
-    firmware = [ordered]@{
-        file = $firmwareName
-        sizeBytes = (Get-Item -LiteralPath $firmwareOut).Length
-        sha256 = $sha256
-    }
+    firmware = $releaseArtifacts.firmware
+    wifiFirmware = $releaseArtifacts.wifiFirmware
+    wifiFirmwareTbyb = $releaseArtifacts.wifiFirmwareTbyb
     docs = [ordered]@{}
 }
 
@@ -310,5 +344,7 @@ if ($manifestUnchanged) {
 Write-Host ""
 Write-Host "Release package ready:"
 Write-Host "  $releaseDir"
-Write-Host "  $firmwareOut"
-Write-Host "  SHA256 $sha256"
+foreach ($artifact in $artifactSpecs) {
+    Write-Host "  $($artifact.outPath)"
+    Write-Host "  SHA256 $($artifact.sha256)"
+}

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.10">
-<script src="assets/dmx-common.js?v=0.9.10"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.11-4">
+<script src="assets/dmx-common.js?v=0.9.11-5"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -81,9 +81,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.10">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=0.9.11">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.10#5-chaser" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.11#5-chaser" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -252,8 +252,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       </select>
     </label>
     <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
-    <button id="btnPicoPauseSlot">Pause</button>
-    <button id="btnPicoResumeSlot">Resume</button>
+    <button id="btnPicoPauseResumeSlot" title="Pause or resume the selected Pico slot">Pause</button>
     <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
     <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
@@ -593,6 +592,15 @@ function refreshChaserGroupActionsSoon(){
 function sendEditedControlValue(f,c,val){
   const batchMap={};
   collectChannels(f,c,val,batchMap);
+  sendBatch(batchMap);
+}
+function sendStepToDmx(step=steps[selectedStepIdx]){
+  if(!step)return;
+  const batchMap={};
+  getParticipatingList().forEach(({f,c})=>{
+    const key=controlKey(f,c);
+    collectChannels(f,c,step.values?.[key]??defaultValue(c),batchMap);
+  });
   sendBatch(batchMap);
 }
 
@@ -1666,7 +1674,9 @@ function drawStepList(){
 
 async function selectStepForEdit(idx){
   stopPlaybackForManualEdit();
+  await stopPicoPlaybackForBrowserControl();
   const result=loadStepIntoEditor(idx);
+  sendStepToDmx(steps[idx]);
   setStatus('Step '+(idx+1)+' edit loaded '+result.active+' participating control'+(result.active===1?'':'s')+(result.removed?' · removed '+result.removed+' invalid value'+(result.removed===1?'':'s'):''));
 }
 function loadStepIntoEditor(idx,options={}){
@@ -2072,17 +2082,23 @@ function schedulePlaybackVisualUpdate(ptList){
   });
 }
 
-function startPlayback(){
+function stopPicoPlaybackForBrowserControl(){
+  const root=baseUrlEl.value.replace(/\/+$/,'');
+  if(!root)return Promise.resolve([]);
+  const requests=[
+    fetch(root+'/chaser/stop').catch(()=>null),
+    fetch(root+'/motion/stop').catch(()=>null)
+  ];
+  stopPicoStatusPoll();
+  setPicoStatus('Stopped (browser took over)','var(--muted)');
+  return Promise.allSettled(requests);
+}
+
+function startPlayback(options={}){
   if(!steps.length){setStatus('Add some steps first',true);return;}
   if(!baseUrlEl.value.trim()){setStatus('Set Pico base URL first',true);return;}
   // Stop any running Pico playback so it doesn't fight the browser
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(root){
-    fetch(root+'/chaser/stop').catch(()=>{});
-    fetch(root+'/motion/stop').catch(()=>{});
-    stopPicoStatusPoll();
-    setPicoStatus('Stopped (browser took over)','var(--muted)');
-  }
+  if(options.stopPico!==false)stopPicoPlaybackForBrowserControl();
   playing=true;
   playbackDirectionStep=directionStepFromSelect();
   activeStepIdx=browserStartStepIndex();
@@ -2491,11 +2507,16 @@ function saveChaseToSlot(idx,name){
 }
 async function loadChaseSlot(chase){
   if(!chase?.data)return;
+  const continueBrowserPlayback=playing;
+  stopPlaybackForManualEdit();
+  await stopPicoPlaybackForBrowserControl();
   await clearChaserGroupSelectionForLoadedStep();
   applyChaserData(chase.data,false);
   setActiveRecalledChaseSlot(chase.slot);
   drawParticipation();drawStepList();drawStepEditor();
   refreshFanBasesFromStep();
+  if(continueBrowserPlayback)startPlayback({stopPico:false});
+  else sendStepToDmx(steps[selectedStepIdx]);
   setStatus('Loaded chase: "'+chase.name+'"');
 }
 async function updateActiveRecalledChase(){
@@ -3619,6 +3640,15 @@ function setPicoStatus(msg,color){
 let _lastChaserSlots = null;
 let _lastChaserActiveMask = 0;
 let _lastChaserReportedSlotCount = PICO_SLOT_COUNT;
+
+function updatePicoChaserPauseResumeButton(){
+  const btn=document.getElementById('btnPicoPauseResumeSlot');
+  if(!btn)return;
+  const current=_lastChaserSlots?.[selectedChaserSlot()];
+  const paused=!!current?.paused;
+  btn.textContent=paused?'Resume':'Pause';
+  btn.dataset.action=paused?'resume':'pause';
+}
 let savedPicoChaserSlotInfo = Array.from({length:PICO_SLOT_COUNT},()=>null);
 
 function selectedChaserSlot(){
@@ -3752,6 +3782,7 @@ function renderChaserSlotStrip(slots, activeMask) {
   });
   _lastChaserSlots = slots;
   _lastChaserActiveMask = activeMask;
+  updatePicoChaserPauseResumeButton();
 }
 
 async function deleteChaserSlot(slot){
@@ -3872,37 +3903,33 @@ document.getElementById('btnPicoPlaySlot').onclick=async()=>{
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  stopPlayback();
   try{
     const r=await fetch(root+'/chaser/play/'+slot);
     const j=await r.json();
-    if(j.ok){stopPlayback();setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
+    if(j.ok){setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
     else{setPicoStatus('Play error: '+(j.error||'?'),'var(--bad)');}
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 
-document.getElementById('btnPicoPauseSlot').onclick=async()=>{
+document.getElementById('btnPicoPauseResumeSlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  const action=_lastChaserSlots?.[slot]?.paused?'resume':'pause';
   try{
-    const r=await fetch(root+'/chaser/pause/'+slot);
+    const r=await fetch(root+'/chaser/'+action+'/'+slot);
     const j=await r.json();
-    if(j.ok){setPicoStatus('Paused slot '+slot,'var(--warn)');pollPicoStatus();}
-    else{setPicoStatus('Pause error: '+(j.error||'?'),'var(--bad)');}
-  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
-};
-
-document.getElementById('btnPicoResumeSlot').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
-  if(!ensureChaserSlotSupported())return;
-  const slot=parseInt(document.getElementById('picoSlot').value)||0;
-  try{
-    const r=await fetch(root+'/chaser/resume/'+slot);
-    const j=await r.json();
-    if(j.ok){setPicoStatus('Resumed slot '+slot,'var(--accent)');startPicoStatusPoll();}
-    else{setPicoStatus('Resume error: '+(j.error||'?'),'var(--bad)');}
+    if(j.ok){
+      if(_lastChaserSlots?.[slot]){
+        Object.assign(_lastChaserSlots[slot],{active:action==='resume',paused:action==='pause'});
+        const activeMask=action==='resume'?(_lastChaserActiveMask|(1<<slot)):(_lastChaserActiveMask&~(1<<slot));
+        renderChaserSlotStrip(_lastChaserSlots,activeMask);
+      }
+      setPicoStatus((action==='pause'?'Paused':'Resumed')+' slot '+slot,action==='pause'?'var(--warn)':'var(--accent)');
+      if(action==='resume')startPicoStatusPoll(); else pollPicoStatus();
+    }else{setPicoStatus((action==='pause'?'Pause':'Resume')+' error: '+(j.error||'?'),'var(--bad)');}
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 

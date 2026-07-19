@@ -30,6 +30,67 @@ test.describe('Room Plane rules', () => {
     });
   });
 
+  test('Scenes and Palettes toolboxes recall shared fixture values to DMX', async ({ page }) => {
+    const dmxBodies = [];
+    await page.route('**/fixture_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://pico.test',
+            values: {},
+            profiles: [{ id: 1, name: 'Wash', controls: [
+              { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 },
+              { id: 12, type: 'rgb', label: 'Color', a: 2, b: 3, c: 4 }
+            ] }],
+            fixtures: [{ id: 101, name: 'Wash 1', profileId: 1, start: 1 }]
+          }
+        })
+      });
+    });
+    await page.route('**/scene_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, scenes: [
+          { id: 'scene_room', name: 'Room Scene', slot: 0, values: { '101:11': 75 } }
+        ], slotCols: 2, slotRows: 2 })
+      });
+    });
+    await page.route('**/palette_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, palettes: [
+          { id: 'palette_room', name: 'Room Color', slot: 0, values: { '101:12': { a: 10, b: 20, c: 30 } } }
+        ], paletteCols: 2, paletteRows: 2 })
+      });
+    });
+    await page.route('http://pico.test/dmx/b', async route => {
+      dmxBodies.push(route.request().postData());
+      await route.fulfill({ status: 200, contentType: 'text/plain', body: 'ok' });
+    });
+
+    await openDmxPage(page, 'dmx_room_plane.html');
+
+    await expect(page.locator('#roomSceneBox')).toBeVisible();
+    await expect(page.locator('#roomPaletteBox')).toBeVisible();
+    await expect(page.locator('#roomSceneMatrix [data-room-scene-slot="0"]')).toContainText('Room Scene');
+    await expect(page.locator('#roomPaletteMatrix [data-room-palette-slot="0"]')).toContainText('Room Color');
+
+    await page.locator('#roomSceneMatrix [data-room-scene-slot="0"]').click();
+    await expect.poll(() => dmxBodies.at(-1)).toBe('1:75');
+    await expect(page.locator('#status')).toContainText('Recalled scene: "Room Scene"');
+
+    await page.locator('#roomPaletteMatrix [data-room-palette-slot="0"]').click();
+    await expect.poll(() => dmxBodies.at(-1)).toBe('2:10,3:20,4:30');
+    await expect(page.locator('#status')).toContainText('Recalled palette: "Room Color"');
+    await expect.poll(() => page.evaluate(() => liveValues['101:12'])).toEqual({ a: 10, b: 20, c: 30 });
+  });
+
   test('interpolates fixture pan and tilt from the calibrated plane points', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 
@@ -282,6 +343,7 @@ test.describe('Room Plane rules', () => {
     });
 
     await openDmxPage(page, 'dmx_room_plane.html');
+    await page.locator('.toolbox-rail-edit').click();
     await expect(page.locator('#planeCols')).toHaveValue('2');
     await expect(page.locator('#planeRows')).toHaveValue('2');
     const colBox = await page.locator('#planeCols').boundingBox();
@@ -292,7 +354,7 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#planeLibrary .slot')).toHaveCount(4);
     await expect(page.locator('#planeLibrary [data-recall-plane="front"]')).toHaveClass(/active/);
 
-    await page.locator('#planeCols').fill('3');
+    await page.locator('#planeCols').selectOption('3');
     await expect(page.locator('#planeLibrary .slot')).toHaveCount(6);
     await expect.poll(() => posts.at(-1)?.planeCols).toBe(3);
 
@@ -307,6 +369,7 @@ test.describe('Room Plane rules', () => {
       return planes.find(plane => plane.id === 'front')?.visual?.color;
     }).toBe('#884422');
 
+    await page.locator('.toolbox-rail-edit').click();
     await page.locator('[data-recall-plane="back"]').click();
     await expect(page.locator('#planeName')).toHaveValue('Back');
     await expect(page.locator('#targetX')).toHaveValue('4');
@@ -324,19 +387,62 @@ test.describe('Room Plane rules', () => {
 
     const collapseAll = page.locator('[data-collapse-group="room-plane"]');
     await expect(collapseAll).toHaveCount(3);
+    await expect(page.locator('#roomSceneBox [data-collapse-group="room-plane"]')).toHaveCount(0);
+    await expect(page.locator('#roomPaletteBox [data-collapse-group="room-plane"]')).toHaveCount(0);
     await expect(collapseAll.first()).toHaveText('-- all');
 
     await collapseAll.first().click();
     await expect(page.locator('#roomPlaneBox')).toHaveClass(/collapsed/);
     await expect(page.locator('#roomPlaneLibraryBox')).toHaveClass(/collapsed/);
+    await expect(page.locator('#roomSceneBox')).toHaveClass(/collapsed/);
+    await expect(page.locator('#roomPaletteBox')).toHaveClass(/collapsed/);
     await expect(page.locator('#roomFixturesBox')).toHaveClass(/collapsed/);
     await expect(collapseAll.first()).toHaveText('+ all');
 
     await collapseAll.first().click();
     await expect(page.locator('#roomPlaneBox')).not.toHaveClass(/collapsed/);
     await expect(page.locator('#roomPlaneLibraryBox')).not.toHaveClass(/collapsed/);
+    await expect(page.locator('#roomSceneBox')).not.toHaveClass(/collapsed/);
+    await expect(page.locator('#roomPaletteBox')).not.toHaveClass(/collapsed/);
     await expect(page.locator('#roomFixturesBox')).not.toHaveClass(/collapsed/);
     await expect(collapseAll.first()).toHaveText('-- all');
+  });
+
+  test('persists a reordered Fixtures toolbox between Planes and Scenes after reload', async ({ page }) => {
+    let toolboxState = {};
+    await page.unroute('**/ui_state.php**');
+    await page.route('**/ui_state.php**', async route => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, exists: Object.keys(toolboxState).length > 0, state: { toolboxes: toolboxState } })
+        });
+        return;
+      }
+      const body = JSON.parse(route.request().postData() || '{}');
+      if (body.page === 'toolboxes') toolboxState = { ...toolboxState, ...(body.state || {}) };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await openDmxPage(page, 'dmx_room_plane.html');
+    await page.locator('#roomPlaneToolboxRail .toolbox-rail-edit').click();
+    await page.evaluate(() => {
+      const rail = document.getElementById('roomPlaneToolboxRail');
+      const fixture = document.getElementById('roomFixturesBox');
+      const scene = document.getElementById('roomSceneBox');
+      const header = fixture.querySelector('.scene-toolbox__header');
+      const start = header.getBoundingClientRect();
+      const target = scene.getBoundingClientRect();
+      header.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 81, pointerType: 'touch', clientX: start.left + 20, clientY: start.top + 20 }));
+      rail.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, pointerId: 81, pointerType: 'touch', clientX: target.left + 20, clientY: target.top + 2 }));
+      rail.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 81, pointerType: 'touch', clientX: target.left + 20, clientY: target.top + 2 }));
+    });
+
+    await expect.poll(() => toolboxState.toolboxRailOrder).toEqual(expect.arrayContaining(['roomPlaneLibrary', 'roomFixtures', 'roomScenes']));
+    await page.reload();
+    await expect.poll(() => page.locator('#roomPlaneToolboxRail .scene-toolbox[data-toolbox-type]').evaluateAll(boxes => boxes.map(box => box.dataset.toolboxType)))
+      .toEqual(['groups', 'roomPlane', 'roomPlaneLibrary', 'roomFixtures', 'roomScenes', 'roomPalettes']);
   });
 
   test('uses the navy plane toolbox header color for all room plane toolboxes', async ({ page }) => {
