@@ -460,6 +460,8 @@ Open it from the **Show** navigation link or directly:
 http://localhost/dmx/dmx_show.html
 ```
 
+On supported PC and iPad browsers, use **Full Screen** in the sticky header to give the operator controls the maximum available screen area. The same button changes to **Exit Full Screen** while active. Browsers require this action to start from a direct click or tap. The button is hidden when the browser does not provide a page fullscreen API; you can still use an installed Home Screen web app or the browser's own display controls in that case.
+
 Show Run loads the current XAMPP show data:
 
 - Fixture profiles and patched fixtures from `fixture_setup.php`

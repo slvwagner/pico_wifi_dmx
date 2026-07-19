@@ -1,5 +1,9 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
+const fs = require('fs');
+const path = require('path');
+
+const appVersion = fs.readFileSync(path.join(__dirname, '..', '..', 'VERSION'), 'utf8').trim();
 
 const profiles = [
   {
@@ -272,6 +276,50 @@ async function installFakeComputerMidi(page) {
 }
 
 test.describe('Show Run page', () => {
+  test('toggles browser fullscreen from the sticky Show Run header', async ({ page }) => {
+    const calls = { pico: [], liveValues: [], setupWrites: 0 };
+    await page.addInitScript(() => {
+      let fullscreenElement = null;
+      window.__fullscreenRequests = 0;
+      window.__fullscreenExits = 0;
+      Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, get: () => true });
+      Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fullscreenElement });
+      Object.defineProperty(Element.prototype, 'requestFullscreen', {
+        configurable: true,
+        value: async function () {
+          window.__fullscreenRequests += 1;
+          fullscreenElement = this;
+          document.dispatchEvent(new Event('fullscreenchange'));
+        }
+      });
+      Object.defineProperty(document, 'exitFullscreen', {
+        configurable: true,
+        value: async () => {
+          window.__fullscreenExits += 1;
+          fullscreenElement = null;
+          document.dispatchEvent(new Event('fullscreenchange'));
+        }
+      });
+    });
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    const button = page.locator('#fullscreenBtn');
+    await expect(button).toBeVisible();
+    await expect(button).toHaveText('Full Screen');
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
+
+    await button.click();
+    await expect(button).toHaveText('Exit Full Screen');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(await page.evaluate(() => window.__fullscreenRequests)).toBe(1);
+
+    await button.click();
+    await expect(button).toHaveText('Full Screen');
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(await page.evaluate(() => window.__fullscreenExits)).toBe(1);
+  });
+
   test('recalls scenes only to the selected group and does not save setup data', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
@@ -859,7 +907,7 @@ test.describe('Show Run page', () => {
     const emulator = await page.context().newPage();
     await emulator.goto(new URL('dmx_midi_emulator.html?test=' + Date.now(), page.url()).href);
 
-    await expect(emulator.locator('header h1 .app-version')).toHaveText(/v0\.9\.11/);
+    await expect(emulator.locator('header h1 .app-version')).toHaveText('v' + appVersion);
     await expect(emulator.locator('#connectionPill')).toContainText('Connected to Show Run');
     await expect(emulator.locator('[data-midi-cc]')).toHaveCount(32);
     await expect(emulator.locator('[data-midi-note]')).toHaveCount(24);

@@ -202,6 +202,7 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_gpio.html?v=0.9.12">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
     <a class="nav" href="user-manual.html?v=0.9.12#4-show-run" target="_blank">Manual</a>
+    <button id="fullscreenBtn" type="button" aria-pressed="false" hidden>Full Screen</button>
     <button id="editLayoutBtn" type="button">Edit</button>
   </div>
   </div>
@@ -4275,6 +4276,41 @@ document.getElementById('motionControlStart').onclick=()=>DmxCommon.withButtonFe
 document.getElementById('motionControlPauseResume').onclick=()=>toggleMotionPauseResume().catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlSetBpm').onclick=()=>DmxCommon.withButtonFeedback('motionControlSetBpm',{busy:'Setting...',success:'BPM Set',error:'Failed'},()=>setMotionSlotBpm(motionSelectedSlot)).catch(err=>setStatus(err.message,true));
 document.getElementById('motionControlStopSlot').onclick=()=>DmxCommon.withButtonFeedback('motionControlStopSlot',{busy:'Stopping...',success:'Stopped',error:'Failed'},()=>stopPicoSlot('motion',motionSelectedSlot)).catch(err=>setStatus(err.message,true));
+function currentFullscreenElement(){
+  return document.fullscreenElement||document.webkitFullscreenElement||null;
+}
+function updateFullscreenButton(){
+  const btn=document.getElementById('fullscreenBtn');
+  if(!btn)return;
+  const request=document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen;
+  const exit=document.exitFullscreen||document.webkitExitFullscreen;
+  const supported=Boolean(request&&exit);
+  const active=Boolean(currentFullscreenElement());
+  btn.hidden=!supported;
+  btn.classList.toggle('active',active);
+  btn.setAttribute('aria-pressed',active?'true':'false');
+  btn.textContent=active?'Exit Full Screen':'Full Screen';
+}
+async function toggleFullscreen(){
+  try{
+    if(currentFullscreenElement()){
+      const exit=document.exitFullscreen||document.webkitExitFullscreen;
+      await exit.call(document);
+    }else{
+      const root=document.documentElement;
+      const request=root.requestFullscreen||root.webkitRequestFullscreen;
+      await request.call(root);
+    }
+  }catch(err){
+    setStatus('Full screen could not be changed: '+(err?.message||err),true);
+  }finally{
+    updateFullscreenButton();
+  }
+}
+document.addEventListener('fullscreenchange',updateFullscreenButton);
+document.addEventListener('webkitfullscreenchange',updateFullscreenButton);
+document.getElementById('fullscreenBtn').onclick=toggleFullscreen;
+updateFullscreenButton();
 document.getElementById('editLayoutBtn').onclick=()=>setLayoutEditing(!layoutEditing);
 document.getElementById('addCardType').onchange=updateAddCardOptions;
 document.getElementById('addShowCard').onclick=addShowCard;
