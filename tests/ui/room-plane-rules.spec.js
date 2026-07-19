@@ -273,6 +273,35 @@ test.describe('Room Plane rules', () => {
     await expect(page.locator('#planePad')).not.toHaveClass(/pan-mode/);
   });
 
+  test('pinch zooms the virtual room plane without moving its target', async ({ page }) => {
+    await openDmxPage(page, 'dmx_room_plane.html');
+    const before = await page.evaluate(() => ({ zoom: planeView.zoom, x: Number(targetX.value), y: Number(targetY.value) }));
+
+    await page.locator('#planePad').evaluate(pad => {
+      const rect = pad.getBoundingClientRect();
+      const fire = (type, pointerId, x) => pad.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerId,
+        pointerType: 'touch',
+        isPrimary: pointerId === 41,
+        clientX: rect.left + x,
+        clientY: rect.top + rect.height / 2
+      }));
+      fire('pointerdown', 41, rect.width / 2 - 40);
+      fire('pointerdown', 42, rect.width / 2 + 40);
+      fire('pointermove', 41, rect.width / 2 - 90);
+      fire('pointermove', 42, rect.width / 2 + 90);
+      fire('pointerup', 41, rect.width / 2 - 90);
+      fire('pointerup', 42, rect.width / 2 + 90);
+    });
+
+    const after = await page.evaluate(() => ({ zoom: planeView.zoom, x: Number(targetX.value), y: Number(targetY.value) }));
+    expect(after.zoom).toBeGreaterThan(before.zoom * 2);
+    expect(after.x).toBeCloseTo(before.x, 6);
+    expect(after.y).toBeCloseTo(before.y, 6);
+  });
+
   test('reset calibration marks fixtures incomplete', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 

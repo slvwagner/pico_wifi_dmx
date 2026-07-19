@@ -676,6 +676,23 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#showPlanePanView')).not.toHaveClass(/active/);
     await expect(page.locator('#showPlanePad')).not.toHaveClass(/pan-mode/);
 
+    const showTargetBeforePinch = await page.evaluate(() => ({ ...activeShowPlane.target }));
+    await page.locator('#showPlanePad').evaluate(pad => {
+      const rect = pad.getBoundingClientRect();
+      const fire = (type, pointerId, x) => pad.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId, pointerType: 'touch', isPrimary: pointerId === 61,
+        clientX: rect.left + x, clientY: rect.top + rect.height / 2
+      }));
+      fire('pointerdown', 61, rect.width / 2 - 40);
+      fire('pointerdown', 62, rect.width / 2 + 40);
+      fire('pointermove', 61, rect.width / 2 - 80);
+      fire('pointermove', 62, rect.width / 2 + 80);
+      fire('pointerup', 61, rect.width / 2 - 80);
+      fire('pointerup', 62, rect.width / 2 + 80);
+    });
+    await expect.poll(() => page.evaluate(() => showPlaneView.zoom)).toBeGreaterThan(3.9);
+    expect(await page.evaluate(() => activeShowPlane.target)).toEqual(showTargetBeforePinch);
+
     await page.locator('#showPlaneStepXCoarse').fill('1');
     await page.locator('[data-show-plane-nudge-axis="x"][data-show-plane-nudge-dir="1"][data-show-plane-nudge-step="coarse"]').click();
 

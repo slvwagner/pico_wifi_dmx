@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.12-7">
-<script src="assets/dmx-common.js?v=0.9.12-7"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.12-8">
+<script src="assets/dmx-common.js?v=0.9.12-8"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -3272,7 +3272,20 @@ document.getElementById('showPlaneZoomIn')?.addEventListener('click',()=>zoomSho
 document.getElementById('showPlaneZoomOut')?.addEventListener('click',()=>zoomShowPlaneView(1/1.25));
 document.getElementById('showPlaneResetView')?.addEventListener('click',()=>resetShowPlaneView());
 document.getElementById('showPlanePanView')?.addEventListener('click',()=>setShowPlanePanMode(!showPlanePanMode));
-document.getElementById('showPlanePad')?.addEventListener('pointerdown',event=>{
+const showPlanePad=document.getElementById('showPlanePad');
+let showPlanePinchTarget=null;
+DmxCommon.initPinchZoom(showPlanePad,{
+  getZoom:()=>showPlaneView.zoom,
+  onFirstTouch:()=>{showPlanePinchTarget=activeShowPlane?{...activeShowPlane.target}:null;},
+  onStart:()=>{
+    showPlaneTargetDrag=null;
+    showPlaneViewDrag=null;
+    if(showPlanePinchTarget)setShowPlaneTarget(showPlanePinchTarget);
+  },
+  onZoom:zoom=>zoomShowPlaneView(zoom/Math.max(0.25,Number(showPlaneView.zoom)||1)),
+  onEnd:()=>{showPlanePinchTarget=null;}
+});
+showPlanePad?.addEventListener('pointerdown',event=>{
   if(!activeShowPlane)return;
   event.preventDefault();
   const pad=event.currentTarget;
@@ -3288,7 +3301,7 @@ document.getElementById('showPlanePad')?.addEventListener('pointerdown',event=>{
   pad.setPointerCapture?.(event.pointerId);
   setShowPlaneTarget(showPlaneScreenToRoom(event,rect,bounds));
 });
-document.getElementById('showPlanePad')?.addEventListener('pointermove',event=>{
+showPlanePad?.addEventListener('pointermove',event=>{
   if(activeShowPlane&&showPlaneViewDrag&&showPlaneViewDrag.pointerId===event.pointerId){
     const rect=event.currentTarget.getBoundingClientRect();
     const spanX=showPlaneViewDrag.bounds.maxX-showPlaneViewDrag.bounds.minX;
@@ -3307,7 +3320,7 @@ document.getElementById('showPlanePad')?.addEventListener('pointermove',event=>{
   const rect=event.currentTarget.getBoundingClientRect();
   setShowPlaneTarget(showPlaneScreenToRoom(event,rect,showPlaneTargetDrag.bounds));
 });
-document.getElementById('showPlanePad')?.addEventListener('pointerup',event=>{
+showPlanePad?.addEventListener('pointerup',event=>{
   if(showPlaneViewDrag&&showPlaneViewDrag.pointerId===event.pointerId){
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     showPlaneViewDrag=null;
@@ -3317,9 +3330,9 @@ document.getElementById('showPlanePad')?.addEventListener('pointerup',event=>{
     showPlaneTargetDrag=null;
   }
 });
-document.getElementById('showPlanePad')?.addEventListener('pointercancel',()=>{showPlaneTargetDrag=null;showPlaneViewDrag=null;});
-document.getElementById('showPlanePad')?.addEventListener('contextmenu',event=>event.preventDefault());
-document.getElementById('showPlanePad')?.addEventListener('wheel',event=>{event.preventDefault();zoomShowPlaneView(event.deltaY<0?1.12:1/1.12);},{passive:false});
+showPlanePad?.addEventListener('pointercancel',()=>{showPlaneTargetDrag=null;showPlaneViewDrag=null;});
+showPlanePad?.addEventListener('contextmenu',event=>event.preventDefault());
+showPlanePad?.addEventListener('wheel',event=>{event.preventDefault();zoomShowPlaneView(event.deltaY<0?1.12:1/1.12);},{passive:false});
 function slotPayloadLabel(payload,index,prefix){
   if(!payload)return '';
   try{

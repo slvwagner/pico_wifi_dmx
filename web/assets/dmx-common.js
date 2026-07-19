@@ -2504,6 +2504,77 @@
     };
   }
 
+  function initPinchZoom(element,options={}){
+    if(!element)return null;
+    const pointers=new Map();
+    const suppressed=new Set();
+    let gesture=null;
+    const distance=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
+    const stop=event=>{
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const pointerDown=event=>{
+      if(event.pointerType!=='touch')return;
+      if(!pointers.size)options.onFirstTouch?.(event);
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(pointers.size<2||gesture)return;
+      const ids=[...pointers.keys()].slice(0,2);
+      const startDistance=distance(pointers.get(ids[0]),pointers.get(ids[1]));
+      if(startDistance<1)return;
+      gesture={ids,startDistance,startZoom:Number(options.getZoom?.())||1};
+      ids.forEach(id=>{
+        suppressed.add(id);
+        try{element.setPointerCapture?.(id);}catch(_){/* Synthetic pointers and older Safari may not be capturable. */}
+      });
+      options.onStart?.(event);
+      stop(event);
+    };
+    const pointerMove=event=>{
+      if(event.pointerType!=='touch'||!pointers.has(event.pointerId))return;
+      pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(!suppressed.has(event.pointerId)||!gesture)return;
+      const [first,second]=gesture.ids.map(id=>pointers.get(id));
+      if(first&&second){
+        const scale=distance(first,second)/gesture.startDistance;
+        const min=Number.isFinite(options.min)?options.min:0.25;
+        const max=Number.isFinite(options.max)?options.max:8;
+        const zoom=Math.max(min,Math.min(max,gesture.startZoom*scale));
+        options.onZoom?.(zoom,{scale,event});
+      }
+      stop(event);
+    };
+    const pointerEnd=event=>{
+      if(event.pointerType!=='touch'&&!pointers.has(event.pointerId))return;
+      const wasSuppressed=suppressed.has(event.pointerId);
+      const endedGesture=gesture&&gesture.ids.includes(event.pointerId);
+      pointers.delete(event.pointerId);
+      suppressed.delete(event.pointerId);
+      if(endedGesture){
+        gesture=null;
+        options.onEnd?.(event);
+      }
+      if(!pointers.size)suppressed.clear();
+      if(wasSuppressed)stop(event);
+    };
+    element.addEventListener('pointerdown',pointerDown,true);
+    element.addEventListener('pointermove',pointerMove,true);
+    element.addEventListener('pointerup',pointerEnd,true);
+    element.addEventListener('pointercancel',pointerEnd,true);
+    return {
+      isPinching:()=>!!gesture,
+      destroy(){
+        element.removeEventListener('pointerdown',pointerDown,true);
+        element.removeEventListener('pointermove',pointerMove,true);
+        element.removeEventListener('pointerup',pointerEnd,true);
+        element.removeEventListener('pointercancel',pointerEnd,true);
+        pointers.clear();
+        suppressed.clear();
+        gesture=null;
+      }
+    };
+  }
+
   function normalizeRoomPlaneFixture(fixture,index){
     return {
       id:fixture?.id,
@@ -3065,6 +3136,7 @@
     slotVisualHtml,
     slotVisualButtonHtml,
     initTileMoveGrid,
+    initPinchZoom,
     normalizeRoomPlane,
     roomPlaneWeights,
     roomPlaneInterpolateFixture,

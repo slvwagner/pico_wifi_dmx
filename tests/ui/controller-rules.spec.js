@@ -648,6 +648,23 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#controllerPlanePanView')).toHaveText('Pan view');
     await expect(page.locator('#controllerPlanePanView')).toHaveAttribute('aria-pressed', 'false');
 
+    const controllerTargetBeforePinch = await page.evaluate(() => ({ ...activeControllerPlane.target }));
+    await page.locator('#controllerPlanePad').evaluate(pad => {
+      const rect = pad.getBoundingClientRect();
+      const fire = (type, pointerId, x) => pad.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId, pointerType: 'touch', isPrimary: pointerId === 51,
+        clientX: rect.left + x, clientY: rect.top + rect.height / 2
+      }));
+      fire('pointerdown', 51, rect.width / 2 - 40);
+      fire('pointerdown', 52, rect.width / 2 + 40);
+      fire('pointermove', 51, rect.width / 2 - 80);
+      fire('pointermove', 52, rect.width / 2 + 80);
+      fire('pointerup', 51, rect.width / 2 - 80);
+      fire('pointerup', 52, rect.width / 2 + 80);
+    });
+    await expect.poll(() => page.evaluate(() => controllerPlaneView.zoom)).toBeGreaterThan(3.9);
+    expect(await page.evaluate(() => activeControllerPlane.target)).toEqual(controllerTargetBeforePinch);
+
     await page.locator('#controllerPlaneZoomIn').click();
     await expect.poll(() => page.evaluate(() => controllerPlaneView.zoom)).toBeGreaterThan(2);
     await expect.poll(() => roomPlaneWrites.length).toBeGreaterThan(0);
