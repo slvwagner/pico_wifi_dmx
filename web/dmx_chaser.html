@@ -252,8 +252,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
       </select>
     </label>
     <button id="btnPicoPlaySlot" title="Run the already-loaded selected Pico slot">&#x25B6; Play Slot</button>
-    <button id="btnPicoPauseSlot">Pause</button>
-    <button id="btnPicoResumeSlot">Resume</button>
+    <button id="btnPicoPauseResumeSlot" title="Pause or resume the selected Pico slot">Pause</button>
     <button id="btnPicoSetSpeed">&#x23F1; Set Speed</button>
     <button id="btnPicoStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop" id="btnPicoStop">&#x25A0; Stop All</button>
@@ -3619,6 +3618,15 @@ function setPicoStatus(msg,color){
 let _lastChaserSlots = null;
 let _lastChaserActiveMask = 0;
 let _lastChaserReportedSlotCount = PICO_SLOT_COUNT;
+
+function updatePicoChaserPauseResumeButton(){
+  const btn=document.getElementById('btnPicoPauseResumeSlot');
+  if(!btn)return;
+  const current=_lastChaserSlots?.[selectedChaserSlot()];
+  const paused=!!current?.paused;
+  btn.textContent=paused?'Resume':'Pause';
+  btn.dataset.action=paused?'resume':'pause';
+}
 let savedPicoChaserSlotInfo = Array.from({length:PICO_SLOT_COUNT},()=>null);
 
 function selectedChaserSlot(){
@@ -3752,6 +3760,7 @@ function renderChaserSlotStrip(slots, activeMask) {
   });
   _lastChaserSlots = slots;
   _lastChaserActiveMask = activeMask;
+  updatePicoChaserPauseResumeButton();
 }
 
 async function deleteChaserSlot(slot){
@@ -3880,29 +3889,24 @@ document.getElementById('btnPicoPlaySlot').onclick=async()=>{
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 
-document.getElementById('btnPicoPauseSlot').onclick=async()=>{
+document.getElementById('btnPicoPauseResumeSlot').onclick=async()=>{
   const root=baseUrlEl.value.replace(/\/+$/,'');
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  const action=_lastChaserSlots?.[slot]?.paused?'resume':'pause';
   try{
-    const r=await fetch(root+'/chaser/pause/'+slot);
+    const r=await fetch(root+'/chaser/'+action+'/'+slot);
     const j=await r.json();
-    if(j.ok){setPicoStatus('Paused slot '+slot,'var(--warn)');pollPicoStatus();}
-    else{setPicoStatus('Pause error: '+(j.error||'?'),'var(--bad)');}
-  }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
-};
-
-document.getElementById('btnPicoResumeSlot').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
-  if(!ensureChaserSlotSupported())return;
-  const slot=parseInt(document.getElementById('picoSlot').value)||0;
-  try{
-    const r=await fetch(root+'/chaser/resume/'+slot);
-    const j=await r.json();
-    if(j.ok){setPicoStatus('Resumed slot '+slot,'var(--accent)');startPicoStatusPoll();}
-    else{setPicoStatus('Resume error: '+(j.error||'?'),'var(--bad)');}
+    if(j.ok){
+      if(_lastChaserSlots?.[slot]){
+        Object.assign(_lastChaserSlots[slot],{active:action==='resume',paused:action==='pause'});
+        const activeMask=action==='resume'?(_lastChaserActiveMask|(1<<slot)):(_lastChaserActiveMask&~(1<<slot));
+        renderChaserSlotStrip(_lastChaserSlots,activeMask);
+      }
+      setPicoStatus((action==='pause'?'Paused':'Resumed')+' slot '+slot,action==='pause'?'var(--warn)':'var(--accent)');
+      if(action==='resume')startPicoStatusPoll(); else pollPicoStatus();
+    }else{setPicoStatus((action==='pause'?'Pause':'Resume')+' error: '+(j.error||'?'),'var(--bad)');}
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 

@@ -1412,9 +1412,13 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#chaserControlPauseResume')).toHaveText('Pause');
     await page.locator('#chaserControlPlay').click();
     await expect(page.locator('#chaserControlPauseResume')).toHaveText('Pause');
-    await page.locator('#chaserControlPauseResume').click();
+    const chaserTilePauseResume = page.locator('#chaserSlots [data-chaser-pause-toggle="0"]');
+    await expect(chaserTilePauseResume).toHaveText('Pause');
+    await chaserTilePauseResume.click();
+    await expect(chaserTilePauseResume).toHaveText('Resume');
     await expect(page.locator('#chaserControlPauseResume')).toHaveText('Resume');
-    await page.locator('#chaserControlPauseResume').click();
+    await chaserTilePauseResume.click();
+    await expect(chaserTilePauseResume).toHaveText('Pause');
     await expect(page.locator('#chaserControlPauseResume')).toHaveText('Pause');
     await page.locator('#chaserControlSetSpeed').click();
     await page.locator('#chaserControlStopSlot').click();

@@ -256,6 +256,41 @@ test.describe('Chaser established rules', () => {
     await expect(page.locator('[data-panel-toggle="picoPanel"]')).toHaveText('+');
   });
 
+  test('Pico Playback uses one state-aware Pause and Resume button', async ({ page }) => {
+    let paused = false;
+    const urls = [];
+    await page.route('http://pico.test/**', async route => {
+      const url = route.request().url();
+      urls.push(url);
+      if (url.includes('/chaser/pause/')) paused = true;
+      if (url.includes('/chaser/resume/')) paused = false;
+      const slot = { slot: 0, loaded: true, active: !paused, paused, loop: true, mode: 1, direction: 0, step_count: 2, speed_mult: 1 };
+      const body = url.endsWith('/chaser/status')
+        ? { ok: true, active_mask: paused ? 0 : 1, paused_mask: paused ? 1 : 0, step: 0, step_count: 2, elapsed_ms: 100 }
+        : url.endsWith('/chaser/slots')
+          ? { ok: true, slots: [slot] }
+          : { ok: true };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://pico.test';
+      renderChaserSlotStrip([
+        { slot: 0, loaded: true, active: true, paused: false, loop: true, mode: 1, direction: 0, step_count: 2, speed_mult: 1 }
+      ], 1);
+    });
+
+    await expect(page.locator('#btnPicoPauseSlot')).toHaveCount(0);
+    await expect(page.locator('#btnPicoResumeSlot')).toHaveCount(0);
+    const toggle = page.locator('#btnPicoPauseResumeSlot');
+    await expect(toggle).toHaveText('Pause');
+    await toggle.click();
+    await expect(toggle).toHaveText('Resume');
+    await toggle.click();
+    await expect(toggle).toHaveText('Pause');
+    expect(urls).toContain('http://pico.test/chaser/pause/0');
+    expect(urls).toContain('http://pico.test/chaser/resume/0');
+  });
+
   test('collapsing Participating Controls keeps the sticky header stable and moves Edit Step up', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 900 });
     await openDmxPage(page, 'dmx_chaser.html');

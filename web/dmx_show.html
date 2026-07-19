@@ -3929,8 +3929,7 @@ async function pauseChaserSlot(slot){
   if(!root)throw new Error('Set Pico base URL first');
   const r=await fetch(root+'/chaser/pause/'+slot,{cache:'no-store'});
   if(!r.ok)throw new Error('Pico chaser pause failed: HTTP '+r.status);
-  if(chaserSlots[slot])chaserSlots[slot].paused=true;
-  updateChaserPauseResumeButton();
+  updatePlaybackSlotState('chaser',slot,{active:false,paused:true});
   setStatus('chaser slot '+slot+' paused');
 }
 async function resumeChaserSlot(slot){
@@ -3938,8 +3937,7 @@ async function resumeChaserSlot(slot){
   if(!root)throw new Error('Set Pico base URL first');
   const r=await fetch(root+'/chaser/resume/'+slot,{cache:'no-store'});
   if(!r.ok)throw new Error('Pico chaser resume failed: HTTP '+r.status);
-  if(chaserSlots[slot])chaserSlots[slot].paused=false;
-  updateChaserPauseResumeButton();
+  updatePlaybackSlotState('chaser',slot,{active:true,paused:false});
   setStatus('chaser slot '+slot+' resumed');
 }
 async function pauseMotionSlot(slot){
