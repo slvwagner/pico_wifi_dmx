@@ -8,6 +8,12 @@ Changed:
 - Updated the Raspberry Pi Pico SDK and picotool integration from 2.2.0 to 2.3.0.
 - Moved the CYW43 Wi-Fi firmware into its own RP2350 flash partition, cutting normal application UF2 updates roughly in half. Release packages now include regular and try-before-you-buy Wi-Fi firmware UF2s with separate checksums and one-time provisioning instructions.
 - Added `scripts/flash_firmware.ps1` to validate and flash the partitioned application and Wi-Fi UF2s in the required order, with an application-only mode for subsequent updates.
+- Unified Pico Chaser playback pause/resume controls into one state-aware button on the Chaser and Show Run pages. Each control now changes between **Pause** and **Resume** with the selected slot's live state.
+
+Fixed:
+
+- Stabilized the motion pause/resume hardware regression test by sampling after pause confirmation and polling for resumed output movement instead of relying on one timing-sensitive sample.
+- Fixed Show Run Pico Chaser Playback tiles not redrawing after pause or resume, which left their button labels stale even though the Pico command succeeded.
 
 ## 0.9.10 - 2026-07-19
 
