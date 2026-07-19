@@ -4,15 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Fixture Controller Prototype</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.9">
-<script src="assets/dmx-common.js?v=0.9.9"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.10">
+<script src="assets/dmx-common.js?v=0.9.10"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
 .panel,.card{align-content:start}
-.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:14px}
+.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:16px}.surface{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:14px}.surface.surface-columns-fixed{grid-template-columns:repeat(var(--surface-effective-cols,1),minmax(0,1fr))}
 #controlSurfacePanel{display:flex;flex-direction:column;gap:8px}
 #surface{scrollbar-gutter:stable}
+.control-surface-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.control-surface-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.surface-column-field{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-weight:700}
+.surface-column-field select{min-width:74px;width:auto;padding:6px 8px}
 input[type=number]{width:96px}input[type=text]{min-width:160px}input[type=url]{min-width:220px}textarea{min-height:70px;min-width:260px}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .control{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
@@ -71,6 +75,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #patched .patched-row-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600}
 #patched .patched-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
 #patched .item{align-content:start}
+.show-setup-body{display:grid;gap:16px;margin-top:12px}
+.show-setup-body>.panel{margin:0;background:#10161b}
+.show-file-actions{padding-bottom:4px}
 .patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .patch-actions-grid button{width:100%;min-width:0}
 .patch-actions-grid .minor{padding:3px 8px;font-size:12px;line-height:1.1;min-height:0}
@@ -120,7 +127,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fan-preview-card.active{border-color:rgba(244,114,182,.75)}
 .fan-preview-card strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fan-preview-card span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
-@media(max-width:900px){.columns{grid-template-columns:1fr}.surface{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
+@media(max-width:900px){.columns{grid-template-columns:1fr}.surface,.surface.surface-columns-fixed{grid-template-columns:1fr}.fixture-actions{flex-wrap:wrap}}
 @media(max-width:900px){.fixture-library-layout{grid-template-columns:1fr}}
 #groupBar{display:grid;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
 #groupBar .group-bar-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0}
@@ -140,9 +147,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.9">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.10">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=0.9.9#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=0.9.10#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -151,14 +158,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <h2>Show</h2>
 <button id="showCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
-<div id="showBody" class="toolbar">
+<div id="showBody" class="show-setup-body">
+<div class="toolbar show-file-actions">
 <button id="newShow" class="danger" title="Start a fresh show setup">New Show</button>
 <button id="exportCsv" class="icon-btn export-btn" title="Export patched fixtures and DMX channels as CSV"><span>Patch CSV</span></button>
 <button id="exportJson" class="icon-btn export-btn" title="Export the complete show setup file"><span>Export Setup</span></button>
 <button id="importJson" class="icon-btn import-btn" title="Import a complete show setup file"><span>Import Setup</span></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
 </div>
-</section>
 
 <section class="panel" id="fixtureLibraryPanel">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
@@ -324,10 +331,24 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </section>
 
+</div>
+</section>
+
 <section class="panel" id="controlSurfacePanel">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+<div class="control-surface-head">
 <h2>Control Surface</h2>
+<div class="control-surface-actions">
+<label class="surface-column-field" for="surfaceColsSelect">Cols
+<select id="surfaceColsSelect" title="Choose the preferred number of fixture columns">
+<option value="auto">Auto</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+</select>
+</label>
 <button id="surfaceCollapseAllBtn" class="scene-toolbox__toggle" title="Collapse all visible fixtures" aria-label="Collapse all visible fixtures">—</button>
+</div>
 </div>
 <div id="groupBar" style="display:none"></div>
 <div class="surface" id="surface"></div>
@@ -589,9 +610,55 @@ const profilesEl=document.getElementById('profiles');
 const patchProfile=document.getElementById('patchProfile');
 const patchedEl=document.getElementById('patched');
 const surfaceEl=document.getElementById('surface');
+const surfaceColsSelect=document.getElementById('surfaceColsSelect');
+const SURFACE_COLUMN_STORAGE_KEY='controlSurfaceCols';
+const SURFACE_FIXED_MIN_CARD_WIDTH=280;
+let surfaceColumnPreference=normalizeSurfaceColumnPreference(localStorage.getItem(SURFACE_COLUMN_STORAGE_KEY));
 let sceneFixtureFilterActive=false;
 let activeControlScopeKeys=new Set();
 let activeFixtureFilterIds=new Set();
+
+function normalizeSurfaceColumnPreference(value){
+  if(String(value??'').toLowerCase()==='auto')return'auto';
+  const cols=parseInt(value,10);
+  return cols>=1&&cols<=4?String(cols):'auto';
+}
+function maximumSafeSurfaceColumns(){
+  if(window.matchMedia('(max-width:900px)').matches)return 1;
+  const gap=parseFloat(getComputedStyle(surfaceEl).columnGap)||14;
+  const width=surfaceEl.clientWidth||surfaceEl.getBoundingClientRect().width||0;
+  let max=Math.max(1,Math.min(4,Math.floor((width+gap)/(SURFACE_FIXED_MIN_CARD_WIDTH+gap))||1));
+  if(window.matchMedia('(pointer:coarse)').matches)max=Math.min(max,2);
+  return max;
+}
+function applyControlSurfaceColumns(){
+  surfaceColumnPreference=normalizeSurfaceColumnPreference(surfaceColumnPreference);
+  if(surfaceColsSelect)surfaceColsSelect.value=surfaceColumnPreference;
+  surfaceEl.dataset.requestedColumns=surfaceColumnPreference;
+  if(surfaceColumnPreference==='auto'){
+    surfaceEl.classList.remove('surface-columns-fixed');
+    surfaceEl.style.removeProperty('--surface-effective-cols');
+    surfaceEl.dataset.effectiveColumns='auto';
+    if(surfaceColsSelect)surfaceColsSelect.title='Automatically fit fixture columns with a 360 px preferred card width';
+    return;
+  }
+  const requested=Number(surfaceColumnPreference);
+  const effective=Math.min(requested,maximumSafeSurfaceColumns());
+  surfaceEl.classList.add('surface-columns-fixed');
+  surfaceEl.style.setProperty('--surface-effective-cols',effective);
+  surfaceEl.dataset.effectiveColumns=String(effective);
+  if(surfaceColsSelect)surfaceColsSelect.title=effective===requested
+    ?`Showing ${effective} fixture column${effective===1?'':'s'}`
+    :`Requested ${requested}; showing ${effective} to keep fixture controls usable`;
+}
+function setControlSurfaceColumnPreference(value,{persist=false}={}){
+  surfaceColumnPreference=normalizeSurfaceColumnPreference(value);
+  localStorage.setItem(SURFACE_COLUMN_STORAGE_KEY,surfaceColumnPreference);
+  applyControlSurfaceColumns();
+  queueFixtureXyPadResize();
+  if(persist)saveUiStateServer(SURFACE_COLUMN_STORAGE_KEY,surfaceColumnPreference==='auto'?'auto':Number(surfaceColumnPreference));
+}
+applyControlSurfaceColumns();
 
 function clamp(v,min,max){return DmxCommon.clampInt(v,min,max);}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
@@ -2564,6 +2631,7 @@ document.getElementById('nextFreeAddr').onclick=()=>{
   document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
 };
 document.getElementById('surfaceCollapseAllBtn').onclick=toggleAllVisibleFixtureCards;
+surfaceColsSelect.addEventListener('change',e=>setControlSurfaceColumnPreference(e.target.value,{persist:true}));
 patchProfile.onchange=()=>{
   const profileId=parseInt(patchProfile.value,10);
   const profile=profiles.find(p=>p.id===profileId);
@@ -2760,9 +2828,11 @@ async function startNewShow(){
   const fixturePayload=saveData();
   const emptyUiState={
     fixture:{
+      showCollapsed:false,
       patchCollapsed:false,
       profilesCollapsed:false,
       fixtureLibraryCollapsed:false,
+      controlSurfaceCols:'auto',
       fixtureCardCollapsed:[],
       fanOutPresets:[],
       groupsBoxCols:2,
@@ -3986,10 +4056,14 @@ loadSetup().then(ok=>{
   });
 }).catch(()=>addDefaultProfile());
 loadSavedGroups();
-window.addEventListener('resize',queueFixtureXyPadResize);
-window.addEventListener('toolboxrailresize',queueFixtureXyPadResize);
+function refreshFixtureSurfaceLayout(){
+  applyControlSurfaceColumns();
+  queueFixtureXyPadResize();
+}
+window.addEventListener('resize',refreshFixtureSurfaceLayout);
+window.addEventListener('toolboxrailresize',refreshFixtureSurfaceLayout);
 if(window.ResizeObserver){
-  const surfaceResizeObserver=new ResizeObserver(queueFixtureXyPadResize);
+  const surfaceResizeObserver=new ResizeObserver(refreshFixtureSurfaceLayout);
   surfaceResizeObserver.observe(surfaceEl);
   const mainEl=document.querySelector('main');
   if(mainEl)surfaceResizeObserver.observe(mainEl);
@@ -5720,6 +5794,9 @@ function saveUiStateServer(key,val){
       localStorage.setItem('fixtureCardCollapsed',JSON.stringify(st.fixtureCardCollapsed));
       collapsedFixtureIds=new Set(st.fixtureCardCollapsed);
       drawSurface();
+    }
+    if(st[SURFACE_COLUMN_STORAGE_KEY]!==undefined){
+      setControlSurfaceColumnPreference(st[SURFACE_COLUMN_STORAGE_KEY]);
     }
     if(st[GROUP_RELATIVE_STEPS_KEY]&&typeof st[GROUP_RELATIVE_STEPS_KEY]==='object'&&!Array.isArray(st[GROUP_RELATIVE_STEPS_KEY])){
       groupRelativeStepStore.load(st[GROUP_RELATIVE_STEPS_KEY]);

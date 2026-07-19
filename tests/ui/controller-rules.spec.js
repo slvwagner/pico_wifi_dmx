@@ -840,19 +840,43 @@ test.describe('Fixture Controller established rules', () => {
     expect(layout.saveLeft).toBe(layout.summaryLeft);
   });
 
-  test('Show card can collapse its project file buttons', async ({ page }) => {
-    await expect(page.locator('.setup-files-card h2')).toHaveText('Show');
+  test('Show card contains all fixture setup cards and preserves their individual collapse state', async ({ page }) => {
+    const showCard = page.locator('main > section.setup-files-card');
+    await expect(showCard.locator(':scope > div').first().locator('h2')).toHaveText('Show');
+    await expect(page.locator('main > section.panel').first()).toHaveClass(/setup-files-card/);
+    await expect(showCard.locator('#fixtureLibraryPanel')).toHaveCount(1);
+    await expect(showCard.locator('#profilesSection')).toHaveCount(1);
+    await expect(showCard.locator('#patchSection')).toHaveCount(1);
+    await expect(page.locator('main > #fixtureLibraryPanel, main > #profilesSection, main > #patchSection')).toHaveCount(0);
+
+    await page.evaluate(() => {
+      setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false);
+      setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false);
+      setSectionCollapsed('patchCollapseBtn', 'patchBody', 'patchCollapsed', false);
+    });
     await expect(page.locator('#newShow')).toBeVisible();
     await expect(page.locator('#exportJson')).toBeVisible();
+    await expect(page.locator('#fixtureLibraryBody')).toBeVisible();
+    await expect(page.locator('#profilesBody')).toBeVisible();
+    await expect(page.locator('#patchBody')).toBeVisible();
+
+    await page.locator('#profilesCollapseBtn').click();
+    await expect(page.locator('#profilesBody')).toBeHidden();
 
     await page.locator('#showCollapseBtn').click();
     await expect(page.locator('#showBody')).toBeHidden();
     await expect(page.locator('#showCollapseBtn')).toHaveText('+');
     await expect(page.locator('#newShow')).toBeHidden();
+    await expect(page.locator('#fixtureLibraryPanel')).toBeHidden();
+    await expect(page.locator('#profilesSection')).toBeHidden();
+    await expect(page.locator('#patchSection')).toBeHidden();
 
     await page.locator('#showCollapseBtn').click();
     await expect(page.locator('#showBody')).toBeVisible();
     await expect(page.locator('#showCollapseBtn')).toHaveText('−');
+    await expect(page.locator('#fixtureLibraryBody')).toBeVisible();
+    await expect(page.locator('#profilesBody')).toBeHidden();
+    await expect(page.locator('#patchBody')).toBeVisible();
   });
 
   test('scene saves are serialized so deleting a scene removes its visual from the server payload', async ({ page }) => {
@@ -1639,7 +1663,7 @@ test.describe('Fixture Controller established rules', () => {
 
   test('control details live in modal below compact profile fields', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
-    const profilePanel = page.locator('section.panel', { hasText: 'Fixture Profiles' });
+    const profilePanel = page.locator('#profilesSection');
     await expect(profilePanel).toContainText('Add / Edit Control');
     await expect(profilePanel.locator('#controlType')).toBeVisible();
     await expect(profilePanel.locator('#controlLabel')).toBeVisible();
@@ -1804,6 +1828,75 @@ test.describe('Fixture Controller established rules', () => {
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.locator('#fixtureLibraryBody')).toBeHidden();
     await expect(page.locator('#fixtureLibraryCollapseBtn')).toHaveText('+');
+  });
+
+  test('Control Surface column preference supports four columns and safely falls back as space narrows', async ({ page }) => {
+    const posts = [];
+    await page.route('**/ui_state.php**', async route => {
+      if (route.request().method() === 'POST') {
+        posts.push(route.request().postDataJSON());
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fallback();
+    });
+
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.locator('#surfaceColsSelect').selectOption('4');
+    await expect(page.locator('#surface')).toHaveAttribute('data-requested-columns', '4');
+    await expect(page.locator('#surface')).toHaveAttribute('data-effective-columns', '4');
+
+    const wide = await page.locator('#surface').evaluate(surface => ({
+      tracks: getComputedStyle(surface).gridTemplateColumns.split(' ').filter(Boolean).length,
+      overflow: surface.scrollWidth - surface.clientWidth,
+      cardWidths: [...surface.querySelectorAll('[data-fixture-card]')].map(card => Math.round(card.getBoundingClientRect().width))
+    }));
+    expect(wide.tracks).toBe(4);
+    expect(wide.overflow).toBeLessThanOrEqual(1);
+    expect(wide.cardWidths.every(width => width >= 280)).toBe(true);
+    await expect.poll(() => posts).toContainEqual(expect.objectContaining({
+      page: 'fixture',
+      state: expect.objectContaining({ controlSurfaceCols: 4 })
+    }));
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page.locator('#surface')).toHaveAttribute('data-effective-columns', '3');
+    const narrower = await page.locator('#surface').evaluate(surface => ({
+      tracks: getComputedStyle(surface).gridTemplateColumns.split(' ').filter(Boolean).length,
+      overflow: surface.scrollWidth - surface.clientWidth,
+      cardOverflow: [...surface.querySelectorAll('[data-fixture-card]')].map(card => card.scrollWidth - card.clientWidth)
+    }));
+    expect(narrower.tracks).toBe(3);
+    expect(narrower.overflow).toBeLessThanOrEqual(1);
+    expect(narrower.cardOverflow.every(value => value <= 1)).toBe(true);
+  });
+
+  test('Control Surface restores its column preference from server UI state', async ({ page }) => {
+    await page.unroute('**/ui_state.php**');
+    await page.route('**/ui_state.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          state: {
+            fixture: { controlSurfaceCols: 3 },
+            toolboxes: { selectedGroupIds: [] }
+          }
+        })
+      });
+    });
+    await page.evaluate(() => localStorage.removeItem('controlSurfaceCols'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    await expect(page.locator('#surfaceColsSelect')).toHaveValue('3');
+    await expect(page.locator('#surface')).toHaveAttribute('data-requested-columns', '3');
+    expect(await page.evaluate(() => localStorage.getItem('controlSurfaceCols'))).toBe('3');
   });
 
   test('Control Surface header collapses and expands all visible fixture cards', async ({ page }) => {

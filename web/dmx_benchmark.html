@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico Performance Test</title>
-<link rel="stylesheet" href="../assets/dmx-ui.css?v=0.9.9">
-<script src="../assets/dmx-common.js?v=0.9.9"></script>
+<link rel="stylesheet" href="../assets/dmx-ui.css?v=0.9.10">
+<script src="../assets/dmx-common.js?v=0.9.10"></script>
 <style>
 main{max-width:1160px;margin:0 auto;padding:20px;display:grid;gap:16px}
 h2{font-size:16px}
@@ -41,6 +41,10 @@ th{color:var(--muted);font-weight:600}
 .check.bad{border-color:#9b4747;background:#1c1010}
 .check.bad .check-state{color:var(--bad)}
 .result-line{color:var(--muted);font-size:12px;margin-top:10px}
+.midi-latency-status{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:#0a0d10;color:var(--muted)}
+.midi-latency-status.ready{border-color:#2b8f73;color:var(--accent)}
+.midi-latency-status.busy{border-color:#9f7134;color:var(--warn)}
+.midi-latency-status.bad{border-color:#9b4747;color:var(--bad)}
 </style>
 </head>
 <body>
@@ -57,14 +61,14 @@ th{color:var(--muted);font-weight:600}
     <a class="nav" href="../dmx_show.html">Show</a>
     <a class="nav" href="../dmx_chaser.html">Chaser</a>
     <a class="nav" href="../dmx_motion.html">Effects</a>
-    <a class="nav" href="../dmx_gpio.html?v=0.9.9">GPIO</a>
+    <a class="nav" href="../dmx_gpio.html?v=0.9.10">GPIO</a>
     <a class="nav" href="../dmx_monitor.html">Monitor</a>
     <a class="nav" href="../dmx_room_plane.html">Plane</a>
-    <a class="nav" href="../user-manual.html?v=0.9.9#8-pico-performance-test" target="_blank">Manual</a>
+    <a class="nav" href="../user-manual.html?v=0.9.10#8-pico-performance-test" target="_blank">Manual</a>
   </div>
 </header>
 
-<section class="panel">
+<section class="panel" id="connectionTimingPanel">
   <div class="section-head">
     <h2>Connection & Core Timing</h2>
     <div class="toolbar">
@@ -84,7 +88,19 @@ th{color:var(--muted);font-weight:600}
     <div class="check" id="checkDmx"><div class="check-state">Idle</div><div class="check-title">DMX frame counters</div><div class="check-detail">No frame counter data yet.</div></div>
     <div class="check" id="checkBuffer"><div class="check-state">Idle</div><div class="check-title">Buffer readback</div><div class="check-detail">No readback test run yet.</div></div>
     <div class="check" id="checkWrite"><div class="check-state">Idle</div><div class="check-title">DMX write load</div><div class="check-detail">No write benchmark run yet.</div></div>
+    <div class="check" id="checkMidiLatency"><div class="check-state">Idle</div><div class="check-title">MIDI-to-Pico POST timing</div><div class="check-detail">No MIDI timing measurement run yet.</div></div>
   </div>
+</section>
+
+<section class="panel" id="timingHistoryPanel">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h2>Timing History</h2>
+    <button id="btnClearTimingHistory">Clear</button>
+  </div>
+  <table>
+    <thead><tr><th>Run</th><th>Time</th><th>Status</th><th>Memory</th><th>100 Hz left</th><th>Core1 left</th><th>Core0 late</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th><th>MIDI</th></tr></thead>
+    <tbody id="timingHistoryBody"></tbody>
+  </table>
 </section>
 
 <section class="panel">
@@ -100,14 +116,37 @@ th{color:var(--muted);font-weight:600}
   <div class="result-line" id="bufferResult">Writes a known batch, reads live output and base buffer, then compares the tested channels.</div>
 </section>
 
-<section class="panel">
-  <div class="row" style="justify-content:space-between;align-items:center">
-    <h2>Timing History</h2>
-    <button id="btnClearTimingHistory">Clear</button>
+<section class="panel" id="midiLatencyPanel">
+  <div class="section-head">
+    <div>
+      <h2>MIDI-to-DMX Latency</h2>
+      <div class="small">Measures a real Web MIDI event through Pico acknowledgement, output-buffer verification, and a confirmed following DMX frame.</div>
+    </div>
+    <div class="toolbar">
+      <label>MIDI input<select id="midiLatencyInput"><option value="">No input connected</option></select></label>
+      <button id="btnMidiLatencyConnect">Connect MIDI</button>
+      <a class="nav" href="../dmx_midi_emulator.html" target="_blank">Open MIDI Emulator</a>
+      <label>Mapping type<select id="midiLatencyMode"><option value="continuous">Fader / knob (30 ms)</option><option value="trigger">Button (immediate)</option></select></label>
+      <label>Test channel<input id="midiLatencyChannel" type="number" min="1" max="512" value="512"></label>
+      <label>Samples<input id="midiLatencySamples" type="number" min="1" max="50" value="5"></label>
+      <button class="primary" id="btnMidiLatencyStart" disabled>Start measurement</button>
+      <button class="stop" id="btnMidiLatencyStop" disabled>Stop</button>
+    </div>
   </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Latest MIDI → POST</div><div class="stat-value" id="midiLatencyLatest">—</div><div class="stat-unit">ms to start Pico request</div></div>
+    <div class="stat"><div class="stat-label">Median MIDI → POST</div><div class="stat-value" id="midiLatencyMedian">—</div><div class="stat-unit">ms</div></div>
+    <div class="stat"><div class="stat-label">p95 MIDI → POST</div><div class="stat-value" id="midiLatencyP95">—</div><div class="stat-unit">ms · PASS ≤35 fader / ≤5 button</div></div>
+    <div class="stat"><div class="stat-label">Median Pico acknowledgement</div><div class="stat-value" id="midiLatencyAck">—</div><div class="stat-unit">ms</div></div>
+    <div class="stat"><div class="stat-label">p95 transport after coalescing</div><div class="stat-value" id="midiLatencyTransportP95">—</div><div class="stat-unit">ms · PASS ≤20</div></div>
+    <div class="stat"><div class="stat-label">Configured update ceiling</div><div class="stat-value" id="midiLatencyRate">33.3</div><div class="stat-unit">updates / s</div></div>
+    <div class="stat"><div class="stat-label">Samples</div><div class="stat-value" id="midiLatencyDone">0</div><div class="stat-unit" id="midiLatencyDoneOf">of 5</div></div>
+  </div>
+  <div id="midiLatencyStatus" class="midi-latency-status">Connect a MIDI controller, choose an unused DMX channel, and start the measurement. The original base value is restored afterward.</div>
+  <div class="result-line">The primary latency is measured from the emulator or USB MIDI event until the browser starts POST /dmx/b. ACK, buffer, and confirmed-frame timing remain diagnostic detail. For each sample, move one control and pause until “Move again” appears.</div>
   <table>
-    <thead><tr><th>Run</th><th>Time</th><th>Status</th><th>Memory</th><th>100 Hz left</th><th>Core1 left</th><th>Core0 late</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th></tr></thead>
-    <tbody id="timingHistoryBody"></tbody>
+    <thead><tr><th>Sample</th><th>MIDI event</th><th>DMX value</th><th>MIDI → POST</th><th>Transport</th><th>Pico ACK</th><th>Buffer visible</th><th>Confirmed frame</th></tr></thead>
+    <tbody id="midiLatencyResultsBody"></tbody>
   </table>
 </section>
 
@@ -253,12 +292,19 @@ function formatBytes(bytes){
 
 let timingHistory=[];
 let lastBufferSnapshot={state:'idle',detail:'not run'};
+let lastMidiLatencySnapshot={state:'idle',detail:'not run',shortDetail:'not run'};
 
 function timingStateLabel(state){
   return state==='pass'?'PASS':state==='warn'?'WARN':state==='bad'?'FAIL':'IDLE';
 }
 
 function shortBufferLabel(snapshot){
+  const state=timingStateLabel(snapshot&&snapshot.state);
+  const detail=(snapshot&&snapshot.shortDetail)||'not run';
+  return state+' '+detail;
+}
+
+function shortMidiLatencyLabel(snapshot){
   const state=timingStateLabel(snapshot&&snapshot.state);
   const detail=(snapshot&&snapshot.shortDetail)||'not run';
   return state+' '+detail;
@@ -278,6 +324,7 @@ function renderTimingHistory(){
       <td>${r.httpPeak}</td>
       <td>${r.dmx}</td>
       <td>${r.bufferLabel}</td>
+      <td>${r.midiLatencyLabel}</td>
     </tr>`
   ).join('');
 }
@@ -425,8 +472,8 @@ function renderCoreTiming(parsed){
 }
 
 function overallTimingState(row){
-  return [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('bad')?'bad'
-    : [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState].includes('warn')?'warn'
+  return [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState,row.midiLatencyState].includes('bad')?'bad'
+    : [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState,row.midiLatencyState].includes('warn')?'warn'
     : 'pass';
 }
 
@@ -468,6 +515,9 @@ async function checkPico(options={}){
     historyRow.bufferState=lastBufferSnapshot.state;
     historyRow.buffer=lastBufferSnapshot.detail;
     historyRow.bufferLabel=shortBufferLabel(lastBufferSnapshot);
+    historyRow.midiLatencyState=lastMidiLatencySnapshot.state;
+    historyRow.midiLatency=lastMidiLatencySnapshot.detail;
+    historyRow.midiLatencyLabel=shortMidiLatencyLabel(lastMidiLatencySnapshot);
     historyRow.overall=overallTimingState(historyRow);
     if(record)addTimingHistory(historyRow);
     return true;
@@ -497,6 +547,9 @@ async function checkPico(options={}){
       bufferState:lastBufferSnapshot.state,
       buffer:lastBufferSnapshot.detail,
       bufferLabel:shortBufferLabel(lastBufferSnapshot),
+      midiLatencyState:lastMidiLatencySnapshot.state,
+      midiLatency:lastMidiLatencySnapshot.detail,
+      midiLatencyLabel:shortMidiLatencyLabel(lastMidiLatencySnapshot),
       overall:'bad'
     });
     return false;
@@ -634,6 +687,354 @@ function channelValue(payload,ch){
   return undefined;
 }
 
+const MIDI_LATENCY_COALESCE_MS=30;
+const MIDI_LATENCY_EMULATOR_ID='launch-control-xl-emulator';
+let midiLatencyAccess=null;
+let midiLatencyInput=null;
+let midiLatencyRun=null;
+let midiLatencyEmulatorChannel=null;
+let midiLatencyEmulatorLastSeen=0;
+
+function midiLatencySetStatus(text,state=''){
+  const el=document.getElementById('midiLatencyStatus');
+  el.textContent=text;
+  el.className='midi-latency-status'+(state?' '+state:'');
+}
+
+function midiLatencyPorts(){
+  return midiLatencyAccess?Array.from(midiLatencyAccess.inputs.values()).filter(port=>port.state!=='disconnected'):[];
+}
+
+function midiLatencyEmulatorAvailable(){return Date.now()-midiLatencyEmulatorLastSeen<3500;}
+function midiLatencyEmulatorPort(){return {id:MIDI_LATENCY_EMULATOR_ID,name:'Launch Control XL Emulator',state:'connected',emulated:true};}
+function midiLatencyEmulatorSelected(){return midiLatencyInput?.id===MIDI_LATENCY_EMULATOR_ID||document.getElementById('midiLatencyInput')?.value===MIDI_LATENCY_EMULATOR_ID;}
+
+function ensureMidiLatencyEmulatorFrame(){
+  let frame=document.getElementById('midiLatencyEmulatorFrame');
+  if(frame)return frame;
+  frame=document.createElement('iframe');
+  frame.id='midiLatencyEmulatorFrame';
+  frame.title='Automated MIDI emulator';
+  frame.src='../dmx_midi_emulator.html?performance-test=1&embedded=1';
+  frame.hidden=true;
+  document.body.appendChild(frame);
+  return frame;
+}
+
+async function waitForMidiLatencyEmulator(timeoutMs=1200){
+  if(midiLatencyEmulatorAvailable())return true;
+  midiLatencyEmulatorChannel?.postMessage({type:'show-ready',consumer:'performance'});
+  const deadline=performance.now()+timeoutMs;
+  while(performance.now()<deadline){
+    await new Promise(resolve=>setTimeout(resolve,50));
+    if(midiLatencyEmulatorAvailable())return true;
+  }
+  return false;
+}
+
+function selectMidiLatencyInput(id){
+  if(midiLatencyInput&&!midiLatencyInput.emulated)midiLatencyInput.onmidimessage=null;
+  midiLatencyInput=id===MIDI_LATENCY_EMULATOR_ID&&midiLatencyEmulatorAvailable()?midiLatencyEmulatorPort():(midiLatencyAccess?.inputs?.get(id)||null);
+  if(midiLatencyInput&&!midiLatencyInput.emulated){
+    midiLatencyInput.onmidimessage=handleMidiLatencyMessage;
+    midiLatencyInput.open?.().catch(()=>{});
+  }
+  document.getElementById('btnMidiLatencyStart').disabled=!midiLatencyInput||!!midiLatencyRun?.active;
+}
+
+function renderMidiLatencyInputs(){
+  const select=document.getElementById('midiLatencyInput');
+  const ports=midiLatencyPorts();
+  if(midiLatencyEmulatorAvailable())ports.push(midiLatencyEmulatorPort());
+  const selected=midiLatencyInput?.id||'';
+  select.innerHTML='<option value="">No input selected</option>'+ports.map(port=>`<option value="${DmxCommon.escapeHtml(port.id)}">${DmxCommon.escapeHtml(port.name||port.manufacturer||'MIDI input')}</option>`).join('');
+  select.value=ports.some(port=>port.id===selected)?selected:'';
+  document.getElementById('btnMidiLatencyConnect').textContent=midiLatencyInput?'MIDI connected':'Connect MIDI';
+  document.getElementById('btnMidiLatencyStart').disabled=!midiLatencyInput||!!midiLatencyRun?.active;
+}
+
+async function connectMidiLatencyInput(){
+  const button=document.getElementById('btnMidiLatencyConnect');
+  button.disabled=true;
+  button.textContent='Connecting...';
+  try{
+    if(await waitForMidiLatencyEmulator()){
+      selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
+      renderMidiLatencyInputs();
+      midiLatencySetStatus('Connected to Launch Control XL Emulator. Choose an unused DMX channel and start the measurement.','ready');
+      return;
+    }
+    if(!navigator.requestMIDIAccess)throw new Error('No MIDI emulator was detected and Web MIDI is unavailable. Open the MIDI Emulator, or use Chrome or Edge for a physical USB controller.');
+    midiLatencyAccess=midiLatencyAccess||await navigator.requestMIDIAccess();
+    midiLatencyAccess.onstatechange=()=>{
+      if(midiLatencyInput&&!midiLatencyInput.emulated&&(!midiLatencyAccess.inputs.has(midiLatencyInput.id)||midiLatencyInput.state==='disconnected'))midiLatencyInput=null;
+      renderMidiLatencyInputs();
+    };
+    const ports=midiLatencyPorts();
+    const preferred=ports.find(port=>/launch control xl/i.test(port.name||''))||ports[0]||null;
+    selectMidiLatencyInput(preferred?.id||'');
+    renderMidiLatencyInputs();
+    if(!midiLatencyInput)throw new Error('MIDI permission was granted, but no input device was found.');
+    midiLatencySetStatus('Connected to '+(midiLatencyInput.name||'MIDI input')+'. Choose an unused DMX channel and start the measurement.','ready');
+  }finally{
+    button.disabled=false;
+    renderMidiLatencyInputs();
+  }
+}
+
+function initMidiLatencyEmulator(){
+  if(typeof BroadcastChannel==='undefined')return;
+  midiLatencyEmulatorChannel=new BroadcastChannel('dmxShowMidiEmulator');
+  midiLatencyEmulatorChannel.onmessage=message=>{
+    const payload=message.data||{};
+    if(payload.type==='emulator-hello'){
+      midiLatencyEmulatorLastSeen=Date.now();
+      midiLatencyEmulatorChannel.postMessage({type:'show-ready',consumer:'performance'});
+      if(!midiLatencyInput)selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
+      renderMidiLatencyInputs();
+      return;
+    }
+    if(payload.type==='midi'&&Array.isArray(payload.data)){
+      midiLatencyEmulatorLastSeen=Date.now();
+      midiLatencyEmulatorChannel.postMessage({type:'show-ready',consumer:'performance'});
+      if(!midiLatencyInput)selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
+      renderMidiLatencyInputs();
+      if(midiLatencyInput?.emulated)handleMidiLatencyMessage({
+        data:payload.data,
+        receivedTime:Number.isFinite(Number(payload.sentAtEpochMs))?Number(payload.sentAtEpochMs)-performance.timeOrigin:performance.now(),
+        deviceId:payload.deviceId||MIDI_LATENCY_EMULATOR_ID,
+        deviceName:payload.deviceName||'Launch Control XL Emulator'
+      });
+    }
+  };
+  midiLatencyEmulatorChannel.postMessage({type:'show-ready',consumer:'performance'});
+  setInterval(()=>{
+    if(midiLatencyInput?.emulated&&!midiLatencyEmulatorAvailable()&&!midiLatencyRun?.active)midiLatencyInput=null;
+    renderMidiLatencyInputs();
+  },1000);
+}
+
+function parseMidiLatencyEvent(message){
+  const data=message?.data||[];
+  const status=Number(data[0]||0);
+  const type=status&0xf0;
+  const channel=(status&0x0f)+1;
+  if(type===0xb0)return {kind:'CC',number:Number(data[1]||0),channel,value:Number(data[2]||0)};
+  if(type===0x90||type===0x80)return {kind:'Note',number:Number(data[1]||0),channel,value:type===0x80?0:Number(data[2]||0)};
+  return null;
+}
+
+function queueAutomatedMidiLatencySample(state){
+  if(!state?.active||!state.automated)return;
+  clearTimeout(state.autoTimer);
+  state.autoTimer=setTimeout(()=>{
+    if(!state.active||state.busy)return;
+    midiLatencyEmulatorChannel?.postMessage({
+      type:'performance-midi-sample',
+      mode:state.mode,
+      index:state.results.length
+    });
+  },80);
+}
+
+function renderMidiLatencyStats(state){
+  const rows=state?.results||[];
+  const dispatch=[...rows.map(row=>row.postDispatchMs)].sort((a,b)=>a-b);
+  const ack=[...rows.map(row=>row.ackMs)].sort((a,b)=>a-b);
+  const transport=[...rows.map(row=>row.transportMs)].sort((a,b)=>a-b);
+  const latest=rows.at(-1);
+  document.getElementById('midiLatencyLatest').textContent=latest?latest.postDispatchMs.toFixed(1):'—';
+  document.getElementById('midiLatencyMedian').textContent=dispatch.length?percentile(dispatch,.5).toFixed(1):'—';
+  document.getElementById('midiLatencyP95').textContent=dispatch.length?percentile(dispatch,.95).toFixed(1):'—';
+  document.getElementById('midiLatencyAck').textContent=ack.length?percentile(ack,.5).toFixed(1):'—';
+  document.getElementById('midiLatencyTransportP95').textContent=transport.length?percentile(transport,.95).toFixed(1):'—';
+  document.getElementById('midiLatencyDone').textContent=String(rows.length);
+  document.getElementById('midiLatencyDoneOf').textContent='of '+String(state?.sampleCount||document.getElementById('midiLatencySamples').value||0);
+  document.getElementById('midiLatencyResultsBody').innerHTML=rows.map((row,index)=>`<tr>
+    <td>${index+1}</td><td>${row.event.kind} ${row.event.number} · Ch ${row.event.channel} · ${row.event.value}</td><td>${row.dmxValue}</td>
+    <td>${row.postDispatchMs.toFixed(1)} ms</td><td>${row.transportMs.toFixed(1)} ms</td><td>${row.ackMs.toFixed(1)} ms</td><td>${row.bufferMs.toFixed(1)} ms</td><td>${row.frameMs.toFixed(1)} ms</td>
+  </tr>`).join('');
+}
+
+function setMidiLatencyRunControls(active){
+  ['midiLatencyInput','midiLatencyMode','midiLatencyChannel','midiLatencySamples','btnMidiLatencyConnect'].forEach(id=>{document.getElementById(id).disabled=active;});
+  document.getElementById('btnMidiLatencyStart').disabled=active||!midiLatencyInput;
+  document.getElementById('btnMidiLatencyStop').disabled=!active;
+}
+
+async function waitForMidiLatencyOutput(channel,value,timeoutMs=1200){
+  const deadline=performance.now()+timeoutMs;
+  let snapshot=null;
+  do{
+    snapshot=await fetchPicoJson('/dmx/output.json');
+    if(Number(channelValue(snapshot,channel))===value)return snapshot;
+    await new Promise(resolve=>setTimeout(resolve,2));
+  }while(performance.now()<deadline);
+  throw new Error('Pico output channel '+channel+' did not reach '+value+'. Choose a channel not controlled by playback, blackout, or a master.');
+}
+
+async function waitForMidiLatencyFrame(frame,timeoutMs=1200){
+  const deadline=performance.now()+timeoutMs;
+  do{
+    const status=await fetchPicoJson('/status.json');
+    const next=Number(status?.dmx?.frame_count);
+    if(Number.isFinite(next)&&next>frame)return next;
+    await new Promise(resolve=>setTimeout(resolve,2));
+  }while(performance.now()<deadline);
+  throw new Error('No following DMX frame was observed within '+timeoutMs+' ms.');
+}
+
+async function finishMidiLatencyTest({cancelled=false,error=''}={}){
+  const state=midiLatencyRun;
+  if(!state)return;
+  state.active=false;
+  clearTimeout(state.timer);
+  clearTimeout(state.autoTimer);
+  state.timer=null;
+  state.autoTimer=null;
+  state.pending=null;
+  try{
+    if(Number.isFinite(state.originalBase))await postPicoText('/dmx/b',state.channel+':'+state.originalBase);
+  }catch(restoreError){
+    error=error||('Could not restore DMX channel '+state.channel+': '+restoreError.message);
+  }
+  setMidiLatencyRunControls(false);
+  midiLatencyRun=null;
+  if(error){
+    lastMidiLatencySnapshot={state:'bad',detail:error,shortDetail:error};
+    setCheck('checkMidiLatency','bad','MIDI-to-DMX timing',error);
+    midiLatencySetStatus(error,'bad');
+  }else if(cancelled){
+    const detail='Measurement stopped after '+state.results.length+' of '+state.sampleCount+' samples.';
+    lastMidiLatencySnapshot={state:'warn',detail,shortDetail:'stopped '+state.results.length+'/'+state.sampleCount};
+    setCheck('checkMidiLatency','warn','MIDI-to-DMX timing',detail);
+    midiLatencySetStatus('Measurement stopped. DMX channel '+state.channel+' was restored.');
+  }else{
+    const confirmed=[...state.results.map(row=>row.frameMs)].sort((a,b)=>a-b);
+    const ack=[...state.results.map(row=>row.ackMs)].sort((a,b)=>a-b);
+    const transport=[...state.results.map(row=>row.transportMs)].sort((a,b)=>a-b);
+    const dispatch=[...state.results.map(row=>row.postDispatchMs)].sort((a,b)=>a-b);
+    const p95=percentile(confirmed,.95);
+    const medianAck=percentile(ack,.5);
+    const transportP95=percentile(transport,.95);
+    const dispatchMedian=percentile(dispatch,.5);
+    const dispatchP95=percentile(dispatch,.95);
+    const dispatchPass=state.mode==='continuous'?35:5;
+    const dispatchWarn=state.mode==='continuous'?50:15;
+    const resultState=dispatchP95<=dispatchPass?'pass':dispatchP95<=dispatchWarn?'warn':'bad';
+    const modeLabel=state.mode==='continuous'?'fader/knob':'button';
+    const sourceLabel=state.inputName||'MIDI input';
+    const detail=sourceLabel+' · '+modeLabel+' · '+state.results.length+' samples · MIDI-to-POST median '+dispatchMedian.toFixed(1)+' ms, p95 '+dispatchP95.toFixed(1)+' ms · transport p95 '+transportP95.toFixed(1)+' ms · confirmed frame p95 '+p95.toFixed(1)+' ms · Pico ACK median '+medianAck.toFixed(1)+' ms';
+    lastMidiLatencySnapshot={state:resultState,detail,shortDetail:'POST median '+dispatchMedian.toFixed(1)+'ms · p95 '+dispatchP95.toFixed(1)+'ms'};
+    setCheck('checkMidiLatency',resultState,'MIDI-to-DMX timing',detail);
+    midiLatencySetStatus('Complete: '+state.results.length+' samples measured. DMX channel '+state.channel+' was restored.','ready');
+  }
+  state.completionResolve?.(!error&&!cancelled);
+}
+
+async function measureMidiLatencyEvent(state,pending){
+  if(!state.active||state.busy)return;
+  state.busy=true;
+  const dmxValue=Math.max(0,Math.min(255,Math.round((pending.event.value/127)*255)));
+  midiLatencySetStatus('Measuring sample '+(state.results.length+1)+' of '+state.sampleCount+'...','busy');
+  try{
+    const postAt=performance.now();
+    await postPicoText('/dmx/b',state.channel+':'+dmxValue);
+    const ackAt=performance.now();
+    const output=await waitForMidiLatencyOutput(state.channel,dmxValue);
+    const bufferAt=performance.now();
+    await waitForMidiLatencyFrame(Number(output.frame_count)||0);
+    const frameAt=performance.now();
+    state.results.push({
+      event:pending.event,
+      dmxValue,
+      postDispatchMs:Math.max(0,postAt-pending.eventAt),
+      transportMs:Math.max(0,ackAt-postAt),
+      ackMs:ackAt-pending.eventAt,
+      bufferMs:bufferAt-pending.eventAt,
+      frameMs:frameAt-pending.eventAt
+    });
+    renderMidiLatencyStats(state);
+    if(state.results.length>=state.sampleCount){
+      await finishMidiLatencyTest();
+      return;
+    }
+    state.busy=false;
+    if(state.automated){
+      midiLatencySetStatus('Sample '+state.results.length+' recorded. Generating the next emulator sample...','busy');
+      queueAutomatedMidiLatencySample(state);
+    }else midiLatencySetStatus('Sample '+state.results.length+' recorded. Move again, then pause for the next sample.','ready');
+  }catch(e){
+    await finishMidiLatencyTest({error:e.message});
+  }
+}
+
+function handleMidiLatencyMessage(message){
+  const state=midiLatencyRun;
+  const event=parseMidiLatencyEvent(message);
+  if(!state?.active||state.busy||!event)return;
+  const mode=state.mode;
+  if(mode==='trigger'){
+    const pressed=event.kind==='Note'?event.value>0:event.value>=64;
+    if(!pressed)return;
+  }
+  const received=Number(message.receivedTime);
+  const now=performance.now();
+  const eventAt=Number.isFinite(received)&&received>0&&received<=now+1000?received:now;
+  const pending={event,eventAt};
+  if(mode==='continuous'){
+    state.pending=pending;
+    if(!state.timer)state.timer=setTimeout(()=>{
+      state.timer=null;
+      const latest=state.pending;
+      state.pending=null;
+      measureMidiLatencyEvent(state,latest);
+    },MIDI_LATENCY_COALESCE_MS);
+  }else measureMidiLatencyEvent(state,pending);
+}
+
+async function startMidiLatencyTest(options={}){
+  if(!midiLatencyInput){midiLatencySetStatus('Connect a MIDI input first.','bad');return false;}
+  if(!picoRoot()){midiLatencySetStatus('Find the Pico or enter its base URL first.','bad');return false;}
+  const channel=Math.max(1,Math.min(512,Math.round(Number(document.getElementById('midiLatencyChannel').value)||512)));
+  const sampleCount=Math.max(1,Math.min(50,Math.round(Number(document.getElementById('midiLatencySamples').value)||5)));
+  const mode=document.getElementById('midiLatencyMode').value==='trigger'?'trigger':'continuous';
+  setMidiLatencyRunControls(true);
+  setCheck('checkMidiLatency','warn','MIDI-to-DMX timing','Waiting for '+sampleCount+' MIDI sample'+(sampleCount===1?'':'s')+'...');
+  midiLatencySetStatus('Preparing test channel '+channel+'...','busy');
+  try{
+    const [output,status]=await Promise.all([
+      fetchPicoJson('/dmx/output.json'),
+      fetchPicoJson('/status.json')
+    ]);
+    let base=null;
+    try{base=await fetchPicoJson('/dmx/base');}catch(_){base=null;}
+    const baseValue=Number(channelValue(base,channel));
+    const outputValue=Number(channelValue(output,channel));
+    const originalBase=Number.isFinite(baseValue)?baseValue:outputValue;
+    if(!Number.isFinite(originalBase))throw new Error('Could not read the original value for DMX channel '+channel+'.');
+    const refreshRate=Math.max(1,Number(status?.dmx?.refresh_rate)||43);
+    const updateRate=mode==='continuous'?Math.min(1000/MIDI_LATENCY_COALESCE_MS,refreshRate):refreshRate;
+    document.getElementById('midiLatencyRate').textContent=updateRate.toFixed(1);
+    let completionResolve=null;
+    const completion=new Promise(resolve=>{completionResolve=resolve;});
+    const automated=Boolean(options.automated&&midiLatencyEmulatorSelected());
+    midiLatencyRun={active:true,busy:false,timer:null,autoTimer:null,pending:null,mode,channel,sampleCount,originalBase,inputName:midiLatencyInput.name||'MIDI input',results:[],output,completionResolve,automated};
+    renderMidiLatencyStats(midiLatencyRun);
+    if(automated){
+      midiLatencySetStatus('Ready. Generating emulator sample 1 of '+sampleCount+'...','busy');
+      queueAutomatedMidiLatencySample(midiLatencyRun);
+    }else midiLatencySetStatus('Ready. Move a MIDI control, then pause until the sample is recorded.','ready');
+    return options.waitForCompletion?completion:true;
+  }catch(e){
+    setMidiLatencyRunControls(false);
+    lastMidiLatencySnapshot={state:'bad',detail:e.message,shortDetail:e.message};
+    setCheck('checkMidiLatency','bad','MIDI-to-DMX timing',e.message);
+    midiLatencySetStatus(e.message,'bad');
+    return false;
+  }
+}
+
 async function runBufferReadback(){
   const root=picoRoot();
   if(!root){setStatus('Set Pico base URL first',true);return false;}
@@ -769,10 +1170,34 @@ async function runTest(){
 
 async function runFullPerformanceTest(){
   document.getElementById('btnRunFull').disabled=true;
+  let embeddedEmulator=null;
+  if(!midiLatencyInput&&!midiLatencyEmulatorAvailable()){
+    embeddedEmulator=ensureMidiLatencyEmulatorFrame();
+  }
   try{
+    if(!midiLatencyInput&&embeddedEmulator){
+      setStatus('Starting the MIDI Emulator...');
+      if(await waitForMidiLatencyEmulator(3500)){
+        selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
+        renderMidiLatencyInputs();
+      }
+    }
+    if(!midiLatencyInput){
+      try{await connectMidiLatencyInput();}
+      catch(e){
+        const detail='MIDI phase skipped: '+e.message+(embeddedEmulator?' The embedded emulator did not connect.':'');
+        lastMidiLatencySnapshot={state:'warn',detail,shortDetail:'not connected'};
+        setCheck('checkMidiLatency','warn','MIDI-to-DMX timing',detail);
+      }
+    }
     await checkPico({record:false});
     await runBufferReadback();
     await runTest();
+    if(midiLatencyInput){
+      const samples=Math.max(1,Math.min(50,Math.round(Number(document.getElementById('midiLatencySamples').value)||5)));
+      setStatus(midiLatencyEmulatorSelected()?'Automated checks complete. Generating '+samples+' MIDI emulator timing sample'+(samples===1?'':'s')+'...':'Automated checks complete. Move a MIDI control and pause for each of '+samples+' timing sample'+(samples===1?'':'s')+'.');
+      await startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()});
+    }
     await checkPico();
   }finally{
     document.getElementById('btnRunFull').disabled=false;
@@ -971,6 +1396,9 @@ async function runPlaybackPaletteStress(){
     historyRow.bufferState=lastBufferSnapshot.state;
     historyRow.buffer=lastBufferSnapshot.detail;
     historyRow.bufferLabel=shortBufferLabel(lastBufferSnapshot);
+    historyRow.midiLatencyState=lastMidiLatencySnapshot.state;
+    historyRow.midiLatency=lastMidiLatencySnapshot.detail;
+    historyRow.midiLatencyLabel=shortMidiLatencyLabel(lastMidiLatencySnapshot);
     historyRow.overall=overallTimingState(historyRow);
     addTimingHistory(historyRow);
     setCheck('checkWrite',errors?'warn':'pass','Playback + palette stress',paletteCount+' palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots played; temporary slots will be cleared'+(errors?' · '+errors+' errors':''));
@@ -989,6 +1417,7 @@ async function runPlaybackPaletteStress(){
   }
 }
 
+initMidiLatencyEmulator();
 document.getElementById('preset').onchange=e=>applyPreset(e.target.value);
 ['channel','value','chPerReq','reqCount','durationSec'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{document.getElementById('preset').value='custom';updateModeHint();}));
 document.getElementById('btnStart').onclick=runTest;
@@ -998,6 +1427,11 @@ document.getElementById('btnClearHistory').onclick=()=>{history=[];renderHistory
 document.getElementById('btnClearTimingHistory').onclick=()=>{timingHistory=[];renderTimingHistory();};
 document.getElementById('btnCheckPico').onclick=checkPico;
 document.getElementById('btnBufferReadback').onclick=runBufferReadback;
+document.getElementById('midiLatencyInput').onchange=e=>{selectMidiLatencyInput(e.target.value);renderMidiLatencyInputs();};
+document.getElementById('btnMidiLatencyConnect').onclick=()=>connectMidiLatencyInput().catch(e=>midiLatencySetStatus(e.message,'bad'));
+document.getElementById('btnMidiLatencyStart').onclick=startMidiLatencyTest;
+document.getElementById('btnMidiLatencyStop').onclick=()=>finishMidiLatencyTest({cancelled:true});
+document.getElementById('midiLatencyMode').onchange=e=>{document.getElementById('midiLatencyRate').textContent=e.target.value==='continuous'?'33.3':'43.0';};
 document.getElementById('btnRunFull').onclick=runFullPerformanceTest;
 document.getElementById('btnRunPlaybackPaletteStress').onclick=runPlaybackPaletteStress;
 window.addEventListener('resize',()=>{if(latencies.length)drawChart();});

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Launch Control XL MIDI Emulator</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.9">
-<script src="assets/dmx-common.js?v=0.9.9"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.10">
+<script src="assets/dmx-common.js?v=0.9.10"></script>
 <style>
 main{width:min(1240px,100%);margin:0 auto;padding:18px;display:grid;gap:16px}
 header{position:sticky;top:0;z-index:90;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
@@ -49,7 +49,7 @@ h1{font-size:22px;margin:0}.status{min-height:18px}
   <div class="toolbar">
     <span id="connectionPill" class="connection-pill">Waiting for Show Run</span>
     <a class="nav" href="dmx_show.html">Show</a>
-    <a class="nav" href="user-manual.html?v=0.9.9#midi-controller-card" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.10#midi-controller-card" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -145,7 +145,7 @@ function logEvent(label,data){
   eventLog.innerHTML=events.map(row=>`<div class="event-row">${esc(row.time)} · ${esc(row.label)} · [${row.data.join(', ')}]</div>`).join('');
 }
 function sendMidi(data,label){
-  if(channel)channel.postMessage({type:'midi',deviceId:DEVICE_ID,deviceName:DEVICE_NAME,data:[...data]});
+  if(channel)channel.postMessage({type:'midi',deviceId:DEVICE_ID,deviceName:DEVICE_NAME,data:[...data],sentAtEpochMs:performance.timeOrigin+performance.now()});
   logEvent(label,data);
   setStatus((showConnected()?'Sent ':'Broadcast ')+label);
 }
@@ -200,9 +200,14 @@ if(typeof BroadcastChannel==='undefined'){
 }else{
   channel=new BroadcastChannel(CHANNEL_NAME);
   channel.onmessage=message=>{
-    if(message.data?.type==='show-ready'){
+    const payload=message.data||{};
+    if(payload.type==='show-ready'){
       showLastSeen=Date.now();
       renderConnection();
+    }else if(payload.type==='performance-midi-sample'){
+      const index=Math.max(0,parseInt(payload.index,10)||0);
+      if(payload.mode==='trigger')sendNote(41,127);
+      else sendCc(77,(17+(index*23))%128);
     }
   };
   const hello=()=>channel.postMessage({type:'emulator-hello',deviceId:DEVICE_ID,deviceName:DEVICE_NAME});
