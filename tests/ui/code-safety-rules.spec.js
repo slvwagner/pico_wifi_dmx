@@ -67,11 +67,16 @@ test.describe('Code safety regression rules', () => {
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {
     const cmake = read('CMakeLists.txt');
     const releaseScript = read('scripts/prepare_release.ps1');
+    const flashScript = read('scripts/flash_firmware.ps1');
 
     expect(cmake).toContain('pico_use_wifi_firmware_partition(pico_wifi_dmx)');
     expect(releaseScript).toContain('pico_wifi_dmx_wifi_firmware.uf2');
     expect(releaseScript).toContain('pico_wifi_dmx_wifi_firmware_tbyb.uf2');
     expect(releaseScript).toContain('wifiFirmware = $releaseArtifacts.wifiFirmware');
     expect(releaseScript).toContain('wifiFirmwareTbyb = $releaseArtifacts.wifiFirmwareTbyb');
+    expect(flashScript).toContain("family ID 'cyw43-firmware'");
+    expect(flashScript).toContain('block type:\\s+partition table');
+    expect(flashScript).toContain('Invoke-Picotool (@("reboot", "-u")');
+    expect(flashScript).toContain('Invoke-Picotool (@("load", "-u", "-v", "-x", $wifiFirmware)');
   });
 });

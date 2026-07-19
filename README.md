@@ -514,6 +514,7 @@ pico_wifi_dmx/
 │  ├─ update_xampp_server.ps1
 │  ├─ update_user_manual.ps1
 │  ├─ sync_fixture_library_from_xampp.ps1
+│  ├─ flash_firmware.ps1
 │  ├─ prepare_release.ps1
 │  ├─ dev-router.php         PHP built-in-server router for local development
 │  ├─ capture_readme_screenshots.ps1
@@ -526,7 +527,7 @@ pico_wifi_dmx/
 │  ├─ pathconfig.json        Tracked default test environment config
 │  └─ pathconfig.example.json Example local/XAMPP/Pico config
 ├─ release/                  Committed release packages, UF2 files, docs, checksums
-│  └─ v0.9.7/
+│  └─ v0.9.10/
 ├─ package.json              Node/Playwright test scripts
 ├─ package-lock.json         Locked JavaScript test dependencies
 ├─ playwright.config.js      Playwright browser test configuration
@@ -1234,16 +1235,28 @@ build/pico_wifi_dmx_wifi_firmware_tbyb.uf2
 
 ## Flash
 
-For a new device or the first upgrade from firmware 0.9.10 or older, load the partitioned application and Wi-Fi firmware in sequence:
+For a new device or the first upgrade from firmware 0.9.10 or older, put the Pico 2 W into BOOTSEL mode and run the validated two-stage flashing script:
+
+```powershell
+.\scripts\flash_firmware.ps1
+```
+
+The script verifies the RP2350 partition table and CYW43 UF2 family before writing anything. It then loads the application, returns the Pico to BOOTSEL mode, loads the Wi-Fi partition, verifies both writes, and starts the application. To select release-package files instead of `build/` outputs, pass `-ApplicationUf2` and `-WifiFirmwareUf2`.
+
+For subsequent application-only updates, leave the Wi-Fi partition intact:
+
+```powershell
+.\scripts\flash_firmware.ps1 -ApplicationOnly
+```
+
+The equivalent initial provisioning commands are:
 
 ```powershell
 $Picotool = "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe"
 & $Picotool load build/pico_wifi_dmx.uf2
 & $Picotool reboot -u
-& $Picotool load -ux build/pico_wifi_dmx_wifi_firmware.uf2
+& $Picotool load -u -v -x build/pico_wifi_dmx_wifi_firmware.uf2
 ```
-
-For subsequent application-only updates, load `build/pico_wifi_dmx.uf2` normally; the Wi-Fi partition remains intact.
 
 Using OpenOCD + Picoprobe/CMSIS-DAP for subsequent application updates after the Wi-Fi partition has been provisioned:
 
