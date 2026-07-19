@@ -32,6 +32,7 @@ typedef struct {
     uint32_t step_entered_us;
     uint32_t paused_elapsed_us;
     uint16_t completed_loops;
+    bool     advance_after_first_output;
     uint8_t  from_values[513];  /* channel values at last step boundary */
     uint32_t last_elapsed_ms;
 } chaser_play_state_t;
@@ -176,7 +177,13 @@ void chaser_play(uint8_t slot)
         play_state[slot].step_entered_us = 0;
         play_state[slot].paused_elapsed_us = 0;
         play_state[slot].completed_loops = 0;
+        play_state[slot].advance_after_first_output = slot_data[slot].step_count > 1;
         memset(play_state[slot].from_values, 0, sizeof(play_state[slot].from_values));
+        const chaser_step_t *first_step = &slot_data[slot].steps[play_state[slot].current_step];
+        for (uint16_t i = 0; i < first_step->ch_count; i++) {
+            const chaser_ch_t *entry = &slot_data[slot].channels[first_step->ch_start + i];
+            play_state[slot].from_values[entry->channel] = entry->value;
+        }
         play_state[slot].paused          = false;
         play_state[slot].playing         = true;
     }
@@ -234,6 +241,7 @@ void chaser_stop(void)
         play_state[i].step_entered_us = 0;
         play_state[i].paused_elapsed_us = 0;
         play_state[i].completed_loops = 0;
+        play_state[i].advance_after_first_output = false;
     }
     critical_section_exit(&chaser_lock);
 }
@@ -249,6 +257,7 @@ void chaser_stop_slot(uint8_t slot)
     play_state[slot].step_entered_us = 0;
     play_state[slot].paused_elapsed_us = 0;
     play_state[slot].completed_loops = 0;
+    play_state[slot].advance_after_first_output = false;
     critical_section_exit(&chaser_lock);
 }
 
@@ -348,7 +357,8 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
             }
         }
 
-        if (ps->playing && elapsed >= dur_us) {
+        if (ps->playing && (elapsed >= dur_us || ps->advance_after_first_output)) {
+            ps->advance_after_first_output = false;
             for (uint16_t i = 0; i < step.ch_count; i++)
                 ps->from_values[sd->channels[step.ch_start + i].channel] =
                     sd->channels[step.ch_start + i].value;

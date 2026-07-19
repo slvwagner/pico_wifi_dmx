@@ -509,5 +509,40 @@ test.describe('Browser playback established rules', () => {
     await expect.poll(() => page.evaluate(() => ({ playing, activeStepIdx }))).toEqual({ playing: false, activeStepIdx: -1 });
     await expect(page.locator('#btnPlay')).toHaveText('▶ Play');
   });
+
+  test('Pico Play Slot releases browser DMX control before the Pico response arrives', async ({ page }) => {
+    let releasePlayResponse;
+    const playResponseGate = new Promise(resolve => { releasePlayResponse = resolve; });
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      if (route.request().url().endsWith('/chaser/play/0')) await playResponseGate;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await openDmxPage(page, 'dmx_chaser.html');
+    await injectChaserCompactSetup(page);
+
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      Object.keys(participating).forEach(k => participating[k] = false);
+      participating['101:11'] = true;
+      steps = [makeStep('Browser step', { '101:11': 10 })];
+      selectedStepIdx = 0;
+      applyStepParticipating(steps[0]);
+      drawStepList();
+      drawStepEditor();
+      _lastChaserReportedSlotCount = 32;
+      document.getElementById('picoSlot').value = '0';
+      startPlayback();
+    });
+
+    const handoff = await page.evaluate(() => {
+      const startedAt = performance.now();
+      document.getElementById('btnPicoPlaySlot').click();
+      return { latencyMs: performance.now() - startedAt, playing, activeStepIdx };
+    });
+    expect(handoff).toMatchObject({ playing: false, activeStepIdx: -1 });
+    expect(handoff.latencyMs).toBeLessThan(20);
+    await expect(page.locator('#btnPlay')).toHaveText('▶ Play');
+    releasePlayResponse();
+  });
 });
 

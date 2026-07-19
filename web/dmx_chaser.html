@@ -3903,10 +3903,11 @@ document.getElementById('btnPicoPlaySlot').onclick=async()=>{
   if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
+  stopPlayback();
   try{
     const r=await fetch(root+'/chaser/play/'+slot);
     const j=await r.json();
-    if(j.ok){stopPlayback();setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
+    if(j.ok){setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
     else{setPicoStatus('Play error: '+(j.error||'?'),'var(--bad)');}
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };

@@ -197,6 +197,74 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await waitForSlot(request, 'chaser', slot, s => !s.active);
   });
 
+  test('Chaser Play Slot outputs the first programmed step immediately', async ({ request }) => {
+    const slot = Number(hardware.chaserSlot);
+    const channel = (hardware.dmxTestChannels || [1])[0];
+    const firstValue = 200;
+    const body = [
+      'LOOP 0',
+      'MODE single',
+      'LOOPS 1',
+      'DIR forward',
+      'SPEED 1.00',
+      'STEP 3000 100',
+      `CH ${channel} ${firstValue}`,
+      'END'
+    ].join('\n');
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await postText(request, '/dmx/b', `${channel}:73`);
+    await postText(request, '/chaser/load/' + slot, body);
+    await waitForSlot(request, 'chaser', slot, s => s.loaded && Number(s.step_count) === 1);
+
+    try {
+      await getJson(request, '/chaser/play/' + slot);
+      await waitForSlot(request, 'chaser', slot, s => s.active);
+      await sleep(100);
+      const firstOutput = await readOutputValue(request, channel);
+      expect(firstOutput).toBe(firstValue);
+    } finally {
+      await getJson(request, '/chaser/stop/' + slot).catch(() => {});
+    }
+  });
+
+  test('Chaser Play Slot starts moving toward step two without holding step one', async ({ request }) => {
+    const slot = Number(hardware.chaserSlot);
+    const channel = (hardware.dmxTestChannels || [1])[0];
+    const firstValue = 40;
+    const secondValue = 200;
+    const body = [
+      'LOOP 0',
+      'MODE single',
+      'LOOPS 1',
+      'DIR forward',
+      'SPEED 1.00',
+      'STEP 3000 0',
+      `CH ${channel} ${firstValue}`,
+      'STEP 1000 100',
+      `CH ${channel} ${secondValue}`,
+      'END'
+    ].join('\n');
+
+    await getJson(request, '/chaser/stop');
+    await getJson(request, '/motion/stop');
+    await postText(request, '/dmx/b', `${channel}:0`);
+    await postText(request, '/chaser/load/' + slot, body);
+    await waitForSlot(request, 'chaser', slot, s => s.loaded && Number(s.step_count) === 2);
+
+    try {
+      await getJson(request, '/chaser/play/' + slot);
+      await waitForSlot(request, 'chaser', slot, s => s.active);
+      await sleep(80);
+      const movingOutput = await readOutputValue(request, channel);
+      expect(movingOutput).toBeGreaterThan(firstValue);
+      expect(movingOutput).toBeLessThan(secondValue);
+    } finally {
+      await getJson(request, '/chaser/stop/' + slot).catch(() => {});
+    }
+  });
+
   test('Chaser pause holds the current fade position and resume continues from it', async ({ request }) => {
     const slot = Number(hardware.chaserSlot);
     const channel = (hardware.dmxTestChannels || [1])[0];
@@ -206,6 +274,8 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
       'LOOPS 1',
       'DIR forward',
       'SPEED 1.00',
+      'STEP 200 0',
+      `CH ${channel} 20`,
       'STEP 2000 100',
       `CH ${channel} 200`,
       'END'
@@ -215,10 +285,10 @@ describeHardware('Real Pico endpoint and slot behavior', () => {
     await getJson(request, '/motion/stop');
     await getJson(request, '/dmx/clear');
     await postText(request, '/chaser/load/' + slot, body);
-    await waitForSlot(request, 'chaser', slot, s => s.loaded && Number(s.step_count) === 1);
+    await waitForSlot(request, 'chaser', slot, s => s.loaded && Number(s.step_count) === 2);
 
     await getJson(request, '/chaser/play/' + slot);
-    await sleep(450);
+    await sleep(650);
     const pausedAt = await readOutputValue(request, channel);
     await getJson(request, '/chaser/pause/' + slot);
     await waitForSlot(request, 'chaser', slot, s => s.paused);
