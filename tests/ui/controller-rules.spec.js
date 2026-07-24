@@ -199,6 +199,47 @@ test.describe('Fixture Controller established rules', () => {
     await expect.poll(() => requests.some(item => item.url.endsWith('/dmx/b') && item.body === '1:0,2:0,3:255')).toBe(true);
   });
 
+  test('recalling a Pixel Matrix replaces the Controller fixture selection with its mapped fixtures', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'matrix-output', name: 'Matrix Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' }
+      ]);
+      fixtures.find(fixture => fixture.id === 102).outputId = 'matrix-output';
+      selectedFixtureIds = new Set([101, 103]);
+      activeSavedGroupIds = new Set(['group-that-was-selected']);
+      activeFixtureFilterIds = new Set([101, 103]);
+      sceneFixtureFilterActive = true;
+      pixelMatrixCols = 1;
+      pixelMatrixRows = 1;
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-selection', name: 'Selection', slot: 0, width: 1, height: 1, mappings: ['102:22'], pixels: ['#ff0000'] }
+      ]);
+      renderPixelMatrixList();
+      drawSurface();
+    });
+
+    await page.locator('[data-pixel-matrix-slot="0"]').click();
+
+    const selection = await page.evaluate(() => ({
+      fixtureIds: [...selectedFixtureIds],
+      activeGroups: [...activeSavedGroupIds],
+      activeFixtureFilters: [...activeFixtureFilterIds],
+      sceneFixtureFilterActive,
+      selectedCards: [...document.querySelectorAll('.fixture-card.selected')].map(card => Number(card.dataset.fixtureCard))
+    }));
+    expect(selection).toEqual({
+      fixtureIds: [102],
+      activeGroups: [],
+      activeFixtureFilters: [],
+      sceneFixtureFilterActive: false,
+      selectedCards: [102]
+    });
+  });
+
   test('Pixel Matrix maps individual native matrixRgb pixels and converts an image in the browser', async ({ page }) => {
     const requests = [];
     await page.route('http://127.0.0.1:18993/**', async route => {
@@ -361,7 +402,13 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#pixelMatrixWidth').press('Tab');
     await page.locator('#pixelMatrixHeight').fill('1');
     await page.locator('#pixelMatrixHeight').press('Tab');
+    const tileGrid = page.locator('#pixelMatrixTileGrid');
+    await expect(tileGrid).toHaveAttribute('data-fit', 'contain');
+    await expect(tileGrid).toHaveAttribute('data-image-rect', '30,0,60,120');
+    await page.locator('#pixelMatrixFit').selectOption('cover');
+    await expect(tileGrid).toHaveAttribute('data-source-rect', '0,30,120,60');
     await page.locator('#pixelMatrixFit').selectOption('stretch');
+    await expect(tileGrid).toHaveAttribute('data-source-rect', '0,0,120,120');
     await page.locator('#pixelMatrixTileColor').fill('#345678');
     await page.locator('#pixelMatrixTileImage').setInputFiles({
       name: 'matrix-icon.svg',

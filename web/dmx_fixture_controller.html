@@ -1038,7 +1038,27 @@ async function stopControllerPixelMatrixPlayback(matrix){
     fetch(root+'/motion/stop',{cache:'no-store'})
   ]));
 }
+function selectControllerPixelMatrixFixtures(matrix){
+  const targets=new Map(controllerPixelMatrixTargets().map(target=>[target.key,target]));
+  const involved=[];
+  matrix.mappings.forEach(key=>{
+    const fixtureId=targets.get(key)?.fixture?.id;
+    if(fixtureId!=null&&!involved.includes(fixtureId))involved.push(fixtureId);
+  });
+  selectedFixtureIds=new Set(involved);
+  sourceFixtureId=involved.length?String(involved[0]):null;
+  activeSavedGroupIds.clear();
+  activeFixtureFilterIds.clear();
+  sceneFixtureFilterActive=false;
+  activeControlScopeKeys.clear();
+  fanState.bases={};
+  fanAffectedKeys.clear();
+  DmxCommon.saveSharedGroupSelection([]);
+  renderSavedGroupsList();
+  drawSurface();
+}
 function recallControllerPixelMatrix(matrix){
+  selectControllerPixelMatrixFixtures(DmxCommon.normalizePixelMatrix(matrix));
   return DmxCommon.recallPixelMatrix(matrix,{
     stopPlayback:stopControllerPixelMatrixPlayback,
     apply:applyControllerPixelMatrix

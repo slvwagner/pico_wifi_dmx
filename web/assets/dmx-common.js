@@ -306,8 +306,8 @@
 <section id="pixelMatrixTileAppearance" class="slot-visual-editor pixel-matrix-tile-appearance" aria-labelledby="pixelMatrixTileAppearanceTitle">
 <h3 id="pixelMatrixTileAppearanceTitle">Tile appearance</h3>
 <div class="toolbar"><label>Background color<input id="pixelMatrixTileColor" type="color" value="#25323c"></label><button id="pixelMatrixTileResetColor" type="button">Default background</button><label>Upload icon<input id="pixelMatrixTileImage" type="file" accept="image/*"></label></div>
-<div class="toolbar"><canvas id="pixelMatrixTileCanvas" class="gobo-canvas" width="120" height="120" aria-label="Draw Pixel Matrix tile icon"></canvas><button id="pixelMatrixTileClearIcon" type="button">No icon</button><button id="pixelMatrixTileToMatrix" type="button" disabled>Use icon as matrix</button></div>
-<div class="small">Choose the saved toolbox tile background and optionally draw or upload an icon. This appearance is separate from the matrix pixel colors.</div>
+<div class="toolbar"><span class="pixel-matrix-tile-canvas-stack"><canvas id="pixelMatrixTileCanvas" class="gobo-canvas" width="120" height="120" aria-label="Draw Pixel Matrix tile icon"></canvas><canvas id="pixelMatrixTileGrid" class="gobo-canvas pixel-matrix-tile-grid" width="120" height="120" aria-hidden="true"></canvas></span><button id="pixelMatrixTileClearIcon" type="button">No icon</button><button id="pixelMatrixTileToMatrix" type="button" disabled>Use icon as matrix</button></div>
+<div class="small">Choose the saved toolbox tile background and optionally draw or upload an icon. The grid preview follows the matrix Width, Height, and Fit without becoming part of the saved icon.</div>
 </section>
 <div class="small" id="pixelMatrixSummary"></div>
 <div id="pixelMatrixEditorGrid" class="pixel-matrix-grid"></div>
@@ -331,6 +331,8 @@
     const tileImageInput=document.getElementById('pixelMatrixTileImage');
     const tileCanvas=document.getElementById('pixelMatrixTileCanvas');
     const tileContext=tileCanvas.getContext('2d');
+    const tileGrid=document.getElementById('pixelMatrixTileGrid');
+    const tileGridContext=tileGrid.getContext('2d');
     const tileToMatrixButton=document.getElementById('pixelMatrixTileToMatrix');
     let tileIcon='';
     let tileDrawing=false;
@@ -345,10 +347,99 @@
       tileContext.lineCap='round';
       tileContext.lineJoin='round';
     }
+    function tileFitGeometry(matrix){
+      const canvasWidth=tileCanvas.width,canvasHeight=tileCanvas.height;
+      const width=clampInt(matrix?.width,1,64),height=clampInt(matrix?.height,1,64);
+      const fit=['contain','cover','stretch'].includes(matrix?.fit)?matrix.fit:'contain';
+      const full={x:0,y:0,width:canvasWidth,height:canvasHeight};
+      if(fit==='stretch')return{fit,width,height,source:full,image:full};
+      if(fit==='contain'){
+        const scale=Math.min(width/canvasWidth,height/canvasHeight);
+        const imageWidth=canvasWidth*scale,imageHeight=canvasHeight*scale;
+        return{
+          fit,width,height,source:full,
+          image:{
+            x:(width-imageWidth)*canvasWidth/(2*width),
+            y:(height-imageHeight)*canvasHeight/(2*height),
+            width:imageWidth*canvasWidth/width,
+            height:imageHeight*canvasHeight/height
+          }
+        };
+      }
+      const scale=Math.max(width/canvasWidth,height/canvasHeight);
+      const sourceWidth=width/scale,sourceHeight=height/scale;
+      return{
+        fit,width,height,image:full,
+        source:{
+          x:(canvasWidth-sourceWidth)/2,
+          y:(canvasHeight-sourceHeight)/2,
+          width:sourceWidth,
+          height:sourceHeight
+        }
+      };
+    }
+    function geometryText(rect){
+      return [rect.x,rect.y,rect.width,rect.height].map(value=>String(Math.round(value*1000)/1000)).join(',');
+    }
+    function renderTileGridOverlay(){
+      const matrix=getMatrix();
+      tileGridContext.clearRect(0,0,tileGrid.width,tileGrid.height);
+      if(!matrix)return;
+      const geometry=tileFitGeometry(matrix);
+      const source=document.createElement('canvas');
+      source.width=tileCanvas.width;
+      source.height=tileCanvas.height;
+      const sourceContext=source.getContext('2d');
+      sourceContext.fillStyle=tileColorInput.value||defaultTileColor(matrix);
+      sourceContext.fillRect(0,0,source.width,source.height);
+      sourceContext.drawImage(tileCanvas,0,0);
+      tileGridContext.fillStyle=tileColorInput.value||defaultTileColor(matrix);
+      tileGridContext.fillRect(0,0,tileGrid.width,tileGrid.height);
+      const s=geometry.source,d=geometry.image;
+      tileGridContext.drawImage(source,s.x,s.y,s.width,s.height,d.x,d.y,d.width,d.height);
+      tileGridContext.lineCap='butt';
+      for(let column=0;column<=geometry.width;column++){
+        const x=column*tileGrid.width/geometry.width;
+        tileGridContext.beginPath();
+        tileGridContext.moveTo(x,0);
+        tileGridContext.lineTo(x,tileGrid.height);
+        tileGridContext.strokeStyle='rgba(0,0,0,.8)';
+        tileGridContext.lineWidth=3;
+        tileGridContext.stroke();
+        tileGridContext.strokeStyle='rgba(255,255,255,.82)';
+        tileGridContext.lineWidth=1;
+        tileGridContext.stroke();
+      }
+      for(let row=0;row<=geometry.height;row++){
+        const y=row*tileGrid.height/geometry.height;
+        tileGridContext.beginPath();
+        tileGridContext.moveTo(0,y);
+        tileGridContext.lineTo(tileGrid.width,y);
+        tileGridContext.strokeStyle='rgba(0,0,0,.8)';
+        tileGridContext.lineWidth=3;
+        tileGridContext.stroke();
+        tileGridContext.strokeStyle='rgba(255,255,255,.82)';
+        tileGridContext.lineWidth=1;
+        tileGridContext.stroke();
+      }
+      if(geometry.fit==='contain'&&(d.x||d.y)){
+        tileGridContext.setLineDash([5,3]);
+        tileGridContext.strokeStyle='rgba(1,255,230,.95)';
+        tileGridContext.lineWidth=2;
+        tileGridContext.strokeRect(d.x,d.y,d.width,d.height);
+        tileGridContext.setLineDash([]);
+      }
+      tileGrid.dataset.fit=geometry.fit;
+      tileGrid.dataset.columns=String(geometry.width);
+      tileGrid.dataset.rows=String(geometry.height);
+      tileGrid.dataset.sourceRect=geometryText(s);
+      tileGrid.dataset.imageRect=geometryText(d);
+    }
     function clearTileCanvas(){
       tileContext.clearRect(0,0,tileCanvas.width,tileCanvas.height);
       tileCanvas.style.background=tileColorInput.value;
       prepareTileBrush();
+      renderTileGridOverlay();
     }
     function drawTileIcon(image){
       clearTileCanvas();
@@ -359,6 +450,7 @@
         icon.onload=()=>{
           clearTileCanvas();
           tileContext.drawImage(icon,0,0,tileCanvas.width,tileCanvas.height);
+          renderTileGridOverlay();
           tileToMatrixButton.disabled=false;
           resolve(true);
         };
@@ -380,9 +472,16 @@
     }
     function tilePointerPosition(event){
       const rect=tileCanvas.getBoundingClientRect();
-      return{
+      const destination={
         x:(event.clientX-rect.left)*tileCanvas.width/rect.width,
         y:(event.clientY-rect.top)*tileCanvas.height/rect.height
+      };
+      const geometry=tileFitGeometry(getMatrix());
+      const d=geometry.image,s=geometry.source;
+      if(destination.x<d.x||destination.x>d.x+d.width||destination.y<d.y||destination.y>d.y+d.height)return null;
+      return{
+        x:s.x+(destination.x-d.x)*s.width/d.width,
+        y:s.y+(destination.y-d.y)*s.height/d.height
       };
     }
 
@@ -442,6 +541,7 @@
       }).join('');
       const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
       document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
+      renderTileGridOverlay();
     }
     function reset(){
       const matrix=getMatrix();
@@ -538,12 +638,14 @@
       tileCanvas.style.background=tileColorInput.value;
       prepareTileBrush();
       syncTileVisual();
+      renderTileGridOverlay();
     });
     document.getElementById('pixelMatrixTileResetColor').onclick=()=>{
       tileColorInput.value=defaultTileColor(getMatrix());
       tileCanvas.style.background=tileColorInput.value;
       prepareTileBrush();
       syncTileVisual();
+      renderTileGridOverlay();
     };
     tileImageInput.addEventListener('change',event=>{
       const file=event.target.files?.[0];
@@ -568,6 +670,7 @@
       if(!getMatrix())return;
       event.preventDefault();
       const point=tilePointerPosition(event);
+      if(!point)return;
       tileCanvas.setPointerCapture?.(event.pointerId);
       tileToMatrixButton.disabled=true;
       prepareTileBrush();
@@ -578,10 +681,12 @@
     tileCanvas.addEventListener('pointermove',event=>{
       if(!tileDrawing)return;
       const point=tilePointerPosition(event);
+      if(!point)return;
       tileContext.lineTo(point.x,point.y);
       tileContext.stroke();
       tileContext.beginPath();
       tileContext.moveTo(point.x,point.y);
+      renderTileGridOverlay();
     });
     const finishTileDrawing=event=>{
       if(!tileDrawing)return;
@@ -590,6 +695,7 @@
       tileIcon=tileCanvas.toDataURL('image/png');
       syncTileVisual();
       tileToMatrixButton.disabled=false;
+      renderTileGridOverlay();
     };
     tileCanvas.addEventListener('pointerup',finishTileDrawing);
     tileCanvas.addEventListener('pointercancel',finishTileDrawing);
