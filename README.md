@@ -45,7 +45,7 @@ Core features:
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
-- **Windows customer installer** — package a minimal Apache/PHP Windows service with the app, manual, app shortcuts, optional Private-network access, upgrade snapshots, persistent `ProgramData` storage, pinned runtime hashes, and optional Authenticode signing—without shipping MariaDB, phpMyAdmin, or the XAMPP developer control panel.
+- **Windows customer installer** — package a minimal Apache/PHP Windows service with the app, manual, a native WebView2 application window, optional Private-network access, upgrade snapshots, persistent `ProgramData` storage, pinned runtime hashes, and optional Authenticode signing—without shipping MariaDB, phpMyAdmin, or the XAMPP developer control panel.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
@@ -87,8 +87,8 @@ XAMPP development stack. The installer:
 - stores mutable shows and fixture data below
   `C:\ProgramData\Pico DMX Controller\data`;
 - starts the `PicoDmxController` Windows service automatically;
-- creates Start Menu and desktop shortcuts that open the controller as an
-  Edge app window, with the default browser as fallback;
+- creates Start Menu and desktop shortcuts that open a dedicated native
+  application window, with the default browser as fallback;
 - optionally enables TCP port 8090 on the Windows **Private** firewall profile
   so iPads and other trusted LAN devices can connect;
 - snapshots existing data before an upgrade and preserves all `ProgramData`
@@ -103,6 +103,14 @@ The installer source and reproducible build instructions are in
 [`installer/windows/README.md`](installer/windows/README.md). Customer release
 builds should be Authenticode-signed; unsigned development builds can trigger a
 Windows SmartScreen warning.
+
+The native application window provides normal minimize/maximize/close controls,
+F11 fullscreen, Escape to leave fullscreen, and Open/fullscreen/exit actions
+from its tray icon. Fullscreen retains a small bar with **Exit full screen** and
+**Close application**, so it never traps the operator in kiosk mode. Closing
+the GUI leaves the `PicoDmxController` service running for iPads and other
+operator devices; use Windows Services or uninstall the product when the server
+itself must be stopped.
 
 ### Run the developer XAMPP environment
 

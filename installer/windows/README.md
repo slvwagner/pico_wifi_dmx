@@ -5,12 +5,20 @@ This package installs only the components required by Pico DMX Controller:
 - Apache HTTP Server as the `PicoDmxController` Windows service
 - x64 Thread Safe PHP for the PHP setup endpoints
 - the browser application and user manual
+- a self-contained native WebView2 operator window
 
 It does not install MariaDB, phpMyAdmin, the XAMPP control panel, or development
 tools. Program files are installed below `C:\Program Files\Pico DMX Controller`.
 Mutable shows and fixture data are stored separately below
 `C:\ProgramData\Pico DMX Controller\data` and are preserved by uninstall and
 upgrade.
+
+The desktop and Start Menu shortcuts open `PicoDmxShell.exe`. It supplies
+normal window controls, F11 fullscreen, Escape restore, a fullscreen exit/close
+bar, and a tray menu. Closing the shell does not stop the Windows service, so
+LAN operator devices remain connected. If the installed Microsoft Edge
+WebView2 Runtime cannot initialize, the shell opens the controller in the
+default browser and explains the fallback.
 
 ## Build
 
@@ -22,7 +30,8 @@ any SHA-256 hash differs from `dependencies.json`:
 .\installer\windows\get_dependencies.ps1
 ```
 
-Install NSIS separately, then build with the verified files:
+Install the .NET 8 SDK and NSIS separately, then build with the verified files.
+The locked Microsoft WebView2 package is restored during the build:
 
 ```powershell
 .\installer\windows\build_installer.ps1

@@ -72,6 +72,7 @@ Section "-Pico DMX Controller" SEC_CORE
     SetOutPath "$INSTDIR"
     File /r "${STAGE_DIR}\app"
     File /r "${STAGE_DIR}\runtime"
+    File /r "${STAGE_DIR}\shell"
     File /r "${STAGE_DIR}\support"
     File "${STAGE_DIR}\LICENSE"
     File "${STAGE_DIR}\VERSION"
@@ -125,13 +126,13 @@ Section "-Pico DMX Controller" SEC_CORE
 
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-    CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$INSTDIR\support\open_controller.ps1" -Port ${PRODUCT_PORT}' "$INSTDIR\app\assets\favicon.ico"
+    CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\PicoDmxShell.exe" '--url http://localhost:${PRODUCT_PORT}/' "$INSTDIR\shell\PicoDmxShell.exe"
     CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
-    CreateShortcut "$DESKTOP\${PRODUCT_NAME}.lnk" "$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$INSTDIR\support\open_controller.ps1" -Port ${PRODUCT_PORT}' "$INSTDIR\app\assets\favicon.ico"
+    CreateShortcut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\PicoDmxShell.exe" '--url http://localhost:${PRODUCT_PORT}/' "$INSTDIR\shell\PicoDmxShell.exe"
 SectionEnd
 
 Function LaunchController
-    Exec '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$INSTDIR\support\open_controller.ps1" -Port ${PRODUCT_PORT}'
+    Exec '"$INSTDIR\shell\PicoDmxShell.exe" --url http://localhost:${PRODUCT_PORT}/'
 FunctionEnd
 
 Section "Uninstall"

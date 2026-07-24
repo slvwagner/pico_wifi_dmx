@@ -18,6 +18,8 @@ $version = (Get-Content -LiteralPath (Join-Path $repoRoot "VERSION") -Raw).Trim(
 $buildRoot = Join-Path $repoRoot "build\windows-installer"
 $stageDir = Join-Path $buildRoot "stage"
 $extractDir = Join-Path $buildRoot "extract"
+$shellProject = Join-Path $installerDir "shell\PicoDmxShell.csproj"
+$shellPublishDir = Join-Path $buildRoot "shell-publish"
 if (-not $OutputDir) {
     $OutputDir = Join-Path $repoRoot "release\v$version"
 }
@@ -66,6 +68,21 @@ if ($VcRedistPath) {
 
 Reset-BuildDirectory $stageDir
 Reset-BuildDirectory $extractDir
+Reset-BuildDirectory $shellPublishDir
+
+& dotnet restore $shellProject -r win-x64 --locked-mode
+if ($LASTEXITCODE -ne 0) {
+    throw "The locked Windows shell package restore failed with exit code $LASTEXITCODE."
+}
+& dotnet publish $shellProject `
+    -c Release `
+    -r win-x64 `
+    --self-contained true `
+    --no-restore `
+    -o $shellPublishDir
+if ($LASTEXITCODE -ne 0) {
+    throw "The Windows application shell publish failed with exit code $LASTEXITCODE."
+}
 
 $apacheExtract = Join-Path $extractDir "apache"
 $phpExtract = Join-Path $extractDir "php"
@@ -87,7 +104,8 @@ $phpRoot = $phpDll.Directory.FullName
 $stageApp = Join-Path $stageDir "app"
 $stageRuntime = Join-Path $stageDir "runtime"
 $stageSupport = Join-Path $stageDir "support"
-New-Item -ItemType Directory -Path $stageApp, $stageRuntime, $stageSupport -Force | Out-Null
+$stageShell = Join-Path $stageDir "shell"
+New-Item -ItemType Directory -Path $stageApp, $stageRuntime, $stageSupport, $stageShell -Force | Out-Null
 
 Copy-Item -LiteralPath $apacheRoot -Destination (Join-Path $stageRuntime "apache") -Recurse -Force
 Copy-Item -LiteralPath $phpRoot -Destination (Join-Path $stageRuntime "php") -Recurse -Force
@@ -133,6 +151,20 @@ Copy-Item -LiteralPath (Join-Path $installerDir "runtime\httpd.conf.template") -
 Copy-Item -LiteralPath (Join-Path $installerDir "runtime\php.ini.template") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\configure_install.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\open_controller.ps1") -Destination $stageSupport
+Copy-Item -LiteralPath (Join-Path $shellPublishDir "PicoDmxShell.exe") -Destination $stageShell
+
+$shellLicenseDir = Join-Path $stageShell "licenses"
+New-Item -ItemType Directory -Path $shellLicenseDir -Force | Out-Null
+$dotnetRoot = Split-Path -Parent (Get-Command dotnet).Source
+Copy-Item -LiteralPath (Join-Path $dotnetRoot "LICENSE.txt") `
+    -Destination (Join-Path $shellLicenseDir "dotnet-LICENSE.txt")
+Copy-Item -LiteralPath (Join-Path $dotnetRoot "ThirdPartyNotices.txt") `
+    -Destination (Join-Path $shellLicenseDir "dotnet-ThirdPartyNotices.txt")
+$webViewPackageRoot = Join-Path $env:USERPROFILE ".nuget\packages\microsoft.web.webview2\1.0.4078.44"
+Copy-Item -LiteralPath (Join-Path $webViewPackageRoot "LICENSE.txt") `
+    -Destination (Join-Path $shellLicenseDir "webview2-LICENSE.txt")
+Copy-Item -LiteralPath (Join-Path $webViewPackageRoot "NOTICE.txt") `
+    -Destination (Join-Path $shellLicenseDir "webview2-NOTICE.txt")
 if ($VcRedistPath) {
     Copy-Item -LiteralPath $VcRedistPath -Destination (Join-Path $stageSupport "vc_redist.x64.exe")
 }

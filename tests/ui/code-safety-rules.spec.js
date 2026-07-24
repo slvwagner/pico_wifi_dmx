@@ -96,6 +96,8 @@ test.describe('Code safety regression rules', () => {
       '.env',
       '.env.*',
       'installer/windows/signing/',
+      '**/bin/',
+      '**/obj/',
       'release/v*/pico-dmx-controller-*-windows-*.exe',
       'release/v*/pico-dmx-controller-*-windows-*.exe.sha256'
     ]) {
@@ -103,6 +105,24 @@ test.describe('Code safety regression rules', () => {
     }
     expect(builder).not.toMatch(/CertificatePassword|PfxPassword|SecureString/);
     expect(builder).toContain('SigningCertificateThumbprint');
+  });
+
+  test('Windows customer app uses a closeable WebView2 shell without stopping the server', () => {
+    const project = read('installer/windows/shell/PicoDmxShell.csproj');
+    const form = read('installer/windows/shell/MainForm.cs');
+    const builder = read('installer/windows/build_installer.ps1');
+    const installer = read('installer/windows/pico-dmx-controller.nsi');
+
+    expect(project).toContain('Microsoft.Web.WebView2');
+    expect(form).toContain('new WebView2');
+    expect(form).toContain('Keys.F11');
+    expect(form).toContain('Keys.Escape');
+    expect(form).toContain('NotifyIcon');
+    expect(form).toContain('Exit application');
+    expect(form).toContain('Environment.SpecialFolder.LocalApplicationData');
+    expect(form).not.toMatch(/ServiceController\s*\.\s*Stop|Stop-Service|PicoDmxController.*(?:stop|Stop)/);
+    expect(builder).toContain('dotnet publish');
+    expect(installer).toContain('PicoDmxShell.exe');
   });
 
   test('motion slot response exposes target count without a duplicate fixture count', () => {

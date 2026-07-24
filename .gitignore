@@ -1,4 +1,6 @@
 build
+**/bin/
+**/obj/
 data/
 node_modules/
 test-results/
