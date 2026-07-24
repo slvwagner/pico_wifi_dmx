@@ -45,7 +45,7 @@ Core features:
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
-- **Windows and Ubuntu customer installers** — package the app, manual, persistent show storage, an automatically started web service, desktop/application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
+- **Windows, macOS, and Ubuntu customer installers** — package the app, manual, persistent show storage, an automatically started web service, native/desktop application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
@@ -115,6 +115,35 @@ application**, so it never traps the operator in kiosk mode. Closing the GUI
 leaves the `PicoDmxController` service running for iPads and other operator
 devices; use Windows Services or uninstall the product when the server itself
 must be stopped.
+
+### Install the macOS customer application
+
+Build the architecture-specific macOS package on macOS 12 or newer:
+
+```bash
+./installer/macos/build_php_runtime.sh
+./installer/macos/build_package.sh
+```
+
+Open the generated
+`pico-dmx-controller-<VERSION>-macos-<ARCH>.pkg`, then start **Pico DMX
+Controller** from Applications. Its native dark WKWebView window supplies
+Controller Settings, reload, normal macOS fullscreen, and standard close/quit
+actions. First-run setup accepts an available HTTP port from `1024–65535`
+(default `8090`) and keeps access local unless the customer explicitly enables
+trusted-LAN access.
+
+The app installs its own per-user LaunchAgent, so the bundled PHP server starts
+at login and remains available to operator devices after the GUI closes. App
+code stays under `/Applications`; show data and pre-upgrade snapshots stay
+separately under `~/Library/Application Support/Pico DMX Controller`. Removing
+the app therefore does not silently remove shows.
+
+The package source, pinned standalone-PHP build, Developer ID signing, Apple
+notarization, stapling, and customer instructions are documented in
+[`installer/macos/README.md`](installer/macos/README.md). Build customer
+releases with organization-owned **Developer ID Application** and **Developer
+ID Installer** identities and a protected Keychain notarization profile.
 
 ### Install the Ubuntu customer application
 

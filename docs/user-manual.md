@@ -2,9 +2,9 @@
 
 This manual explains how to use the browser-based DMX controller with the Pico firmware. It is written for daily operation: creating fixtures, controlling lights, saving scenes, building chasers, creating effects, and using GPIO buttons or ADC inputs.
 
-The web interface can be installed with the Pico DMX Windows customer installer or hosted from the project's XAMPP development setup.
+The web interface can be installed with the Pico DMX Windows, macOS, or Ubuntu customer package, or hosted from the project's XAMPP development setup.
 
-With the customer installer, open **Pico DMX Controller** from the desktop or Start Menu. With the default installer port, the local address is:
+With a customer installer, open **Pico DMX Controller** from the desktop, Start Menu, or Applications folder. With the default installer port, the local address is:
 
 ```text
 http://localhost:8090/
@@ -49,6 +49,21 @@ Closing the application window exits only the operator GUI. The web server remai
 
 Do not forward the selected controller port from the internet router. The LAN option is intended for a trusted private lighting network. An unsigned development installer can display a Windows SmartScreen warning; customer release installers should carry the supplier's Authenticode signature.
 
+## macOS Customer Installation
+
+1. Open `pico-dmx-controller-<VERSION>-macos-<ARCH>.pkg` and complete the standard macOS installation.
+2. Start **Pico DMX Controller** from Applications.
+3. In the first-run **Controller Settings**, keep port `8090` or enter another unused port from `1024` to `65535`. The app refuses a port already used by another program.
+4. Leave **Allow access from trusted iPads and PCs** disabled for operation only on the Mac. Enable it only for devices on the intended private lighting network.
+5. For an iPad on the same trusted Wi-Fi, open `http://<mac-address>:<selected-port>/`, for example `http://192.168.0.50:8090/`.
+6. Configure the hardware in **DMX Outputs**, then use **Export Show** to keep a portable backup.
+
+The native dark application window provides normal macOS close, resize, reload, and fullscreen behavior. Use **Pico DMX Controller → Controller Settings…** to change the port or LAN mode later. Closing or quitting the window does not stop the server: the app's per-user LaunchAgent keeps it available and starts it at login.
+
+Application code lives below `/Applications/Pico DMX Controller.app`. Shows and fixture data live separately below `~/Library/Application Support/Pico DMX Controller/data`; the first launch after an upgrade creates a snapshot below the neighboring `backups` directory. Removing the app does not remove those customer files. macOS may ask whether the signed bundled server may accept incoming connections when trusted-LAN access is enabled.
+
+Do not forward the selected controller port from the internet router. Direct customer packages should be Developer ID-signed, notarized by Apple, and have their notarization ticket stapled so Gatekeeper can validate them offline.
+
 ## Main Pages
 
 | Page | Purpose |
@@ -71,7 +86,7 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 
 ### Configure Picos and Read Header Status
 
-1. Open the controller URL: normally `http://localhost:8090/` for a Windows customer installation using the default port, `http://localhost:<selected-port>/` when it was changed, or the configured XAMPP URL in a development environment.
+1. Open the controller URL: normally `http://localhost:8090/` for a Windows or macOS customer installation using the default port, `http://localhost:<selected-port>/` when it was changed, or the configured XAMPP URL in a development environment.
 2. Click **DMX Outputs**, then use **Find Picos** or enter each Pico URL manually.
 3. Give every output a descriptive name and unique universe, then click **Done**.
 4. Read the fleet pill in the sticky header. **2/2 Picos online** in green means all used outputs answered; amber means only some answered; red means none answered. Click the pill to refresh immediately.

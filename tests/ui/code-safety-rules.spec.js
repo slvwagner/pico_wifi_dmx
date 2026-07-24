@@ -145,6 +145,46 @@ test.describe('Code safety regression rules', () => {
     expect(portCheck).toContain('[System.Net.Sockets.TcpListener]');
   });
 
+  test('macOS customer package keeps app code separate from persistent user data', () => {
+    const builder = read('installer/macos/build_package.sh');
+    const app = read('installer/macos/app/PicoDmxController.swift');
+    const router = read('installer/macos/support/router.php');
+
+    expect(builder).toContain('Pico DMX Controller.app');
+    expect(builder).toContain('pkgbuild');
+    expect(builder).toContain('productsign');
+    expect(builder).toContain('notarytool');
+    expect(builder).toContain('stapler staple');
+    expect(builder).toContain('codesign');
+    expect(builder).toContain('sha256');
+    expect(builder).not.toMatch(/rm\s+-rf[^\n]*(?:Application Support|pico-dmx-controller\/data)/i);
+    expect(app).toContain('Library/Application Support/Pico DMX Controller');
+    expect(app).toContain('Library/LaunchAgents');
+    expect(app).toContain('com.picodmx.controller.server');
+    expect(app).toContain('backups');
+    expect(router).toContain("getenv('PICO_DMX_APP_DIR')");
+  });
+
+  test('macOS app provides native configurable port, LAN access, and closeable web shell', () => {
+    const app = read('installer/macos/app/PicoDmxController.swift');
+    const runtimeBuilder = read('installer/macos/build_php_runtime.sh');
+    const ignore = read('.gitignore');
+
+    expect(app).toContain('import WebKit');
+    expect(app).toContain('WKWebView');
+    expect(app).toContain('Controller Settings');
+    expect(app).toContain('1024...65535');
+    expect(app).toContain('127.0.0.1');
+    expect(app).toContain('0.0.0.0');
+    expect(app).toContain('launchctl');
+    expect(app).toContain('toggleFullScreen');
+    expect(app).toContain('Closing this window leaves the controller server running');
+    expect(runtimeBuilder).toContain('static-php-cli');
+    expect(runtimeBuilder).toContain('sha256');
+    expect(ignore).toContain('release/v*/pico-dmx-controller-*-macos-*.pkg');
+    expect(ignore).toContain('installer/macos/signing/');
+  });
+
   test('motion slot response exposes target count without a duplicate fixture count', () => {
     const main = read('firmware/main.cpp');
     const slotFormat = main.match(/static void build_motion_slots_response\(\)[\s\S]*?static void build_playback_ok_response/);

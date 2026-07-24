@@ -114,8 +114,8 @@ strong { color: #ffffff; }
 <main>
 <h1 id="pico-wifi-dmx-user-manual">Pico WiFi DMX User Manual</h1>
 <p>This manual explains how to use the browser-based DMX controller with the Pico firmware. It is written for daily operation: creating fixtures, controlling lights, saving scenes, building chasers, creating effects, and using GPIO buttons or ADC inputs.</p>
-<p>The web interface can be installed with the Pico DMX Windows customer installer or hosted from the project&#39;s XAMPP development setup.</p>
-<p>With the customer installer, open <strong>Pico DMX Controller</strong> from the desktop or Start Menu. With the default installer port, the local address is:</p>
+<p>The web interface can be installed with the Pico DMX Windows, macOS, or Ubuntu customer package, or hosted from the project&#39;s XAMPP development setup.</p>
+<p>With a customer installer, open <strong>Pico DMX Controller</strong> from the desktop, Start Menu, or Applications folder. With the default installer port, the local address is:</p>
 <pre><code>http://localhost:8090/</code></pre>
 <p>With XAMPP, the address on the same computer is often:</p>
 <pre><code>http://localhost/dmx/</code></pre>
@@ -145,6 +145,18 @@ strong { color: #ffffff; }
 <p>The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. Press <strong>F11</strong> to enter fullscreen and <strong>Escape</strong> to leave it. Fullscreen also keeps an <strong>Exit full screen</strong> button and <strong>Close application</strong> button visible. The tray icon offers <strong>Open</strong>, <strong>Toggle full screen</strong>, and <strong>Exit application</strong>. Opening the shortcut again activates the existing window instead of creating another instance.</p>
 <p>Closing the application window exits only the operator GUI. The web server remains available to iPads and other devices as the automatic <code>PicoDmxController</code> Windows service, so the operator does not need to open a XAMPP control panel. Application binaries live below <code>C:\Program Files\Pico DMX Controller</code>; show data lives separately below <code>C:\ProgramData\Pico DMX Controller\data</code>. An upgrade snapshots existing data below the neighboring <code>backups</code> folder before replacing application files. Uninstall removes the app and service but preserves the <code>ProgramData</code> show data deliberately.</p>
 <p>Do not forward the selected controller port from the internet router. The LAN option is intended for a trusted private lighting network. An unsigned development installer can display a Windows SmartScreen warning; customer release installers should carry the supplier&#39;s Authenticode signature.</p>
+<h2 id="macos-customer-installation">macOS Customer Installation</h2>
+<ol>
+<li>Open <code>pico-dmx-controller-&lt;VERSION&gt;-macos-&lt;ARCH&gt;.pkg</code> and complete the standard macOS installation.</li>
+<li>Start <strong>Pico DMX Controller</strong> from Applications.</li>
+<li>In the first-run <strong>Controller Settings</strong>, keep port <code>8090</code> or enter another unused port from <code>1024</code> to <code>65535</code>. The app refuses a port already used by another program.</li>
+<li>Leave <strong>Allow access from trusted iPads and PCs</strong> disabled for operation only on the Mac. Enable it only for devices on the intended private lighting network.</li>
+<li>For an iPad on the same trusted Wi-Fi, open <code>http://&lt;mac-address&gt;:&lt;selected-port&gt;/</code>, for example <code>http://192.168.0.50:8090/</code>.</li>
+<li>Configure the hardware in <strong>DMX Outputs</strong>, then use <strong>Export Show</strong> to keep a portable backup.</li>
+</ol>
+<p>The native dark application window provides normal macOS close, resize, reload, and fullscreen behavior. Use <strong>Pico DMX Controller → Controller Settings…</strong> to change the port or LAN mode later. Closing or quitting the window does not stop the server: the app&#39;s per-user LaunchAgent keeps it available and starts it at login.</p>
+<p>Application code lives below <code>/Applications/Pico DMX Controller.app</code>. Shows and fixture data live separately below <code>~/Library/Application Support/Pico DMX Controller/data</code>; the first launch after an upgrade creates a snapshot below the neighboring <code>backups</code> directory. Removing the app does not remove those customer files. macOS may ask whether the signed bundled server may accept incoming connections when trusted-LAN access is enabled.</p>
+<p>Do not forward the selected controller port from the internet router. Direct customer packages should be Developer ID-signed, notarized by Apple, and have their notarization ticket stapled so Gatekeeper can validate them offline.</p>
 <h2 id="main-pages">Main Pages</h2>
 <table>
 <thead><tr><th>Page</th><th>Purpose</th></tr></thead><tbody>
@@ -164,7 +176,7 @@ strong { color: #ffffff; }
 <p>The Fixture Controller is the central page. Use it first when setting up a new show or fixture set.</p>
 <h3 id="configure-picos-and-read-header-status">Configure Picos and Read Header Status</h3>
 <ol>
-<li>Open the controller URL: normally <code>http://localhost:8090/</code> for a Windows customer installation using the default port, <code>http://localhost:&lt;selected-port&gt;/</code> when it was changed, or the configured XAMPP URL in a development environment.</li>
+<li>Open the controller URL: normally <code>http://localhost:8090/</code> for a Windows or macOS customer installation using the default port, <code>http://localhost:&lt;selected-port&gt;/</code> when it was changed, or the configured XAMPP URL in a development environment.</li>
 <li>Click <strong>DMX Outputs</strong>, then use <strong>Find Picos</strong> or enter each Pico URL manually.</li>
 <li>Give every output a descriptive name and unique universe, then click <strong>Done</strong>.</li>
 <li>Read the fleet pill in the sticky header. <strong>2/2 Picos online</strong> in green means all used outputs answered; amber means only some answered; red means none answered. Click the pill to refresh immediately.</li>

@@ -51,3 +51,8 @@ release/v*/pico-dmx-controller-*-windows-*.exe.sha256
 # Generated Ubuntu customer packages are distribution artifacts, not source.
 release/v*/pico-dmx-controller_*_all.deb
 release/v*/pico-dmx-controller_*_all.deb.sha256
+
+# Generated macOS customer packages and protected signing material.
+release/v*/pico-dmx-controller-*-macos-*.pkg
+release/v*/pico-dmx-controller-*-macos-*.pkg.sha256
+installer/macos/signing/
