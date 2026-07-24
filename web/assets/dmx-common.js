@@ -63,6 +63,146 @@
     return String(output?.baseUrl||'').trim().replace(/\/+$/,'');
   }
 
+  function fixtureSetupEndpoint(){
+    return /\/test(?:\/|\/index\.html?)?$/i.test(location.pathname)?'../fixture_setup.php':'fixture_setup.php';
+  }
+
+  function showUsedDmxOutputs(setup){
+    const source=setup&&typeof setup==='object'?setup:{};
+    const outputs=normalizeDmxOutputs(source.dmxOutputs,source.baseUrl);
+    if(!outputs.some(output=>output.baseUrl))return[];
+    const fixtures=Array.isArray(source.fixtures)?source.fixtures:[];
+    if(!fixtures.length)return outputs.filter(output=>output.baseUrl);
+    const primaryId=outputs[0]?.id||'';
+    const usedIds=new Set(fixtures.map(fixture=>String(fixture?.outputId||primaryId)).filter(Boolean));
+    const used=outputs.filter(output=>usedIds.has(output.id));
+    return used.length?used:outputs.filter(output=>output.baseUrl);
+  }
+
+  async function checkPicoFleetOutput(output,timeoutMs=1800){
+    const root=dmxOutputEndpoint(output);
+    if(!root)return{output,online:false,error:'URL not configured'};
+    const controller=typeof AbortController!=='undefined'?new AbortController():null;
+    const timeout=setTimeout(()=>controller?.abort(),timeoutMs);
+    try{
+      const response=await fetch(root+'/status.json',{cache:'no-store',signal:controller?.signal});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const status=await response.json();
+      if(!status||!status.dmx)throw new Error('Unexpected status response');
+      return{output,online:true,status};
+    }catch(error){
+      return{output,online:false,error:error?.name==='AbortError'?'timeout':(error?.message||String(error))};
+    }finally{
+      clearTimeout(timeout);
+    }
+  }
+
+  let picoFleetRefreshPromise=null;
+  async function refreshPicoFleetStatus(options={}){
+    const indicators=[...document.querySelectorAll('[data-pico-fleet-status]')];
+    if(!indicators.length)return null;
+    if(picoFleetRefreshPromise&&!options.force)return picoFleetRefreshPromise;
+    indicators.forEach(indicator=>{
+      indicator.dataset.state='checking';
+      indicator.textContent='Checking Picos…';
+      indicator.title='Checking every DMX output used by this show';
+    });
+    picoFleetRefreshPromise=(async()=>{
+      try{
+        let setup=options.setup;
+        if(!setup){
+          const response=await fetch(options.setupUrl||fixtureSetupEndpoint(),{cache:'no-store'});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.error||('HTTP '+response.status));
+          setup=result.exists===false?{}:(result.setup||result);
+        }
+        const outputs=showUsedDmxOutputs(setup);
+        if(!outputs.length){
+          indicators.forEach(indicator=>{
+            indicator.dataset.state='empty';
+            indicator.textContent='No Picos configured';
+            indicator.title='Open DMX Outputs on the Controller page to configure show outputs';
+          });
+          return{outputs:[],results:[],online:0,total:0};
+        }
+        const headerBaseInput=document.querySelector('header #baseUrl');
+        const primaryUrl=String(outputs[0]?.baseUrl||'').trim();
+        if(headerBaseInput&&primaryUrl&&headerBaseInput.value!==primaryUrl){
+          const descriptor=Object.getOwnPropertyDescriptor(window.HTMLInputElement?.prototype||{},'value');
+          if(descriptor?.set)descriptor.set.call(headerBaseInput,primaryUrl);
+          else headerBaseInput.value=primaryUrl;
+          localStorage.setItem(BASE_URL_KEY,primaryUrl);
+        }
+        const results=await Promise.all(outputs.map(output=>checkPicoFleetOutput(output,options.timeoutMs)));
+        const online=results.filter(result=>result.online).length;
+        const total=results.length;
+        const state=online===total?'online':(online?'partial':'offline');
+        const noun=total===1?'Pico':'Picos';
+        const details=results.map(result=>
+          result.output.name+' · U'+result.output.universe+': '+(result.online?'online':'offline'+(result.error?' ('+result.error+')':''))
+        ).join('\n');
+        indicators.forEach(indicator=>{
+          indicator.dataset.state=state;
+          indicator.textContent=online+'/'+total+' '+noun+' online';
+          indicator.title=details+'\nClick to check again.';
+        });
+        return{outputs,results,online,total};
+      }catch(error){
+        indicators.forEach(indicator=>{
+          indicator.dataset.state='error';
+          indicator.textContent='Pico status unavailable';
+          indicator.title='Could not load the show DMX Outputs: '+(error?.message||String(error));
+        });
+        return{outputs:[],results:[],online:0,total:0,error};
+      }finally{
+        picoFleetRefreshPromise=null;
+      }
+    })();
+    return picoFleetRefreshPromise;
+  }
+
+  function initAdaptiveHeader(){
+    const header=document.querySelector('header');
+    if(!header||header.dataset.adaptiveHeader==='1')return header;
+    header.dataset.adaptiveHeader='1';
+    header.classList.add('app-sticky-header');
+    const toolbar=header.querySelector('.toolbar');
+    const links=[...header.querySelectorAll('a.nav')];
+    if(links.length){
+      const nav=document.createElement('nav');
+      nav.className='app-page-nav';
+      nav.setAttribute('aria-label','Application pages');
+      links.forEach(link=>nav.appendChild(link));
+      header.appendChild(nav);
+    }
+    const baseInput=header.querySelector('#baseUrl');
+    if(baseInput){
+      baseInput.closest('label')?.classList.add('pico-header-url-field');
+      baseInput.setAttribute('aria-hidden','true');
+      baseInput.tabIndex=-1;
+    }
+    header.querySelectorAll('.pico-discovery-btn').forEach(button=>button.remove());
+    if(toolbar&&!toolbar.querySelector('[data-pico-fleet-status]')){
+      const indicator=document.createElement('button');
+      indicator.type='button';
+      indicator.className='pico-fleet-status';
+      indicator.dataset.picoFleetStatus='';
+      indicator.dataset.state='checking';
+      indicator.textContent='Checking Picos…';
+      indicator.addEventListener('click',()=>refreshPicoFleetStatus({force:true}));
+      toolbar.insertBefore(indicator,toolbar.firstChild);
+    }
+    refreshPicoFleetStatus();
+    const pollMs=10000;
+    const poll=()=>setTimeout(()=>{
+      if(document.contains(header)){
+        refreshPicoFleetStatus().finally(poll);
+      }
+    },pollMs);
+    poll();
+    return header;
+  }
+
   function normalizePixelMatrix(matrix,index=0){
     const source=matrix&&typeof matrix==='object'?matrix:{};
     const width=clampInt(source.width||8,1,64);
@@ -1054,6 +1194,7 @@
   function bindBaseUrl(input,options={}){
     if(!input)return;
     if(options&&options.nodeType===1)options={};
+    if(input.closest('header'))options={...options,discovery:false};
     applyBaseUrl(input,options.fallback);
     if(options.discovery!==false)attachPicoDiscoveryButton(input);
     let timer=0;
@@ -3358,6 +3499,10 @@
     normalizeDmxOutputs,
     dmxOutputForFixture,
     dmxOutputEndpoint,
+    showUsedDmxOutputs,
+    checkPicoFleetOutput,
+    refreshPicoFleetStatus,
+    initAdaptiveHeader,
     normalizePixelMatrix,
     normalizePixelMatrices,
     pixelMatrixImageColors,
@@ -3438,4 +3583,6 @@
     hideModal,
     initSlotVisualEditor
   };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initAdaptiveHeader,{once:true});
+  else setTimeout(initAdaptiveHeader,0);
 })();

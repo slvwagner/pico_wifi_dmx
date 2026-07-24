@@ -12,28 +12,13 @@ test.describe('Fixture Controller established rules', () => {
     await injectControllerCompactSetup(page);
   });
 
-  test('Find Pico is available on the Controller page and fills the Pico base URL', async ({ page }) => {
-    await page.route('**/pico_discovery.php**', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          ok: true,
-          devices: [{ id: 'test-pico', name: 'pico-wifi-dmx', ip: '192.0.2.55', http: 80, url: 'http://192.0.2.55/' }]
-        })
-      });
-    });
-    await page.route('http://192.0.2.55/status.json', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
-      });
-    });
-
-    await page.getByRole('button', { name: 'Find Pico' }).click();
-
-    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
+  test('keeps Pico configuration in DMX Outputs instead of the page header', async ({ page }) => {
+    await expect(page.locator('header #baseUrl')).toBeHidden();
+    await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('No Picos configured');
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+    await expect(page.locator('#dmxOutputsModal')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Find Picos' })).toBeVisible();
   });
 
   test('legacy Pico base URL migrates to the first shared DMX output', async ({ page }) => {

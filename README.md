@@ -15,7 +15,7 @@ Core features:
 
 - **Fixture Controller** — define fixture profiles, patch one or many fixtures, edit live values, recall Default/Blackout values, create fixture groups, save scenes, and build reusable palettes.
 - **Fixture Library** — load fixture profiles from the converted Open Fixture Library catalog with defaults, fine channels, compatible RGB matrices, capability ranges, highlights, and wheel images; merge edited show profiles with reusable library modes in either direction; and export/import the complete catalog as a compressed ZIP.
-- **Show Run operator page** — arrange Groups, Fixtures, Scenes, Palettes, Pixel Matrices, Room Planes, Live Controls, masters, MIDI, and Pico playback in a configurable card matrix. Card and tile layouts are saved to the server, cards can be repeated for separate operator banks, and the sticky header provides a state-aware full-screen control on supported PC and iPad browsers.
+- **Show Run operator page** — arrange Groups, Fixtures, Scenes, Palettes, Pixel Matrices, Room Planes, Live Controls, masters, MIDI, and Pico playback in a configurable card matrix. Card and tile layouts are saved to the server, cards can be repeated for separate operator banks, and the adaptive sticky header keeps navigation visible beside wide toolboxes while reporting show-wide Pico output health.
 - **Shared Toolboxes sidebar** — scenes, groups, palettes, fan out, chases, chase steps, playback, effects, and room-plane tools live in a shared resizable sidebar. A common Edit mode enables touch-friendly toolbox and tile reordering plus Cols/Rows selectors, while width, order, collapse state, and group selection are restored consistently across pages.
 - **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
@@ -158,20 +158,14 @@ After `config/local-paths.json` contains the Ubuntu paths, updating this machine
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/update_xampp_server.ps1
 ```
 
-Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device. The XAMPP URL is only the address of the web interface and server-side show storage; it is independent from the Pico base URL used for DMX hardware control.
+Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device. The XAMPP URL is only the address of the web interface and server-side show storage; it is independent from the Pico URLs assigned to the show's DMX Outputs.
 
-Enter the Pico base URL shown in the Pico serial log, for example:
-
-```text
-http://192.168.0.24/
-```
-
-If DHCP changed the Pico address, click **Find Pico** next to the Pico base URL field. The Pico firmware broadcasts a small UDP discovery beacon on port `64540`; the XAMPP endpoint `pico_discovery.php` listens briefly and returns the discovered URL to the browser. The discovered URL is written to the shared browser key and saved back to the current page's XAMPP setup file on Controller, Chaser, Effects, and GPIO, so the corrected Pico address survives reloads and is reused by other devices that open the same show data. This works when the browser/XAMPP machine and Pico are on the same LAN and local firewall rules allow UDP broadcasts to reach Apache/PHP.
+Configure hardware from **Fixture Controller → DMX Outputs**. Use **Find Picos** to receive every Pico discovery beacon on UDP port `64540`, then add the wanted devices and assign their universes. URLs can also be entered manually in that modal. The sticky header on every page checks the outputs used by patched fixtures and shows **online/total Picos online**; click the pill to refresh immediately. Green means every used output answered, amber means only some answered, and red means none answered.
 
 Changing IP numbers are handled in two places:
 
 - **XAMPP/server URL**: configure scripts and tests with `config/local-paths.json`, `tests/pathconfig.local.json`, or `DMX_TEST_BASE_URL`. The browser app itself uses relative URLs for setup files, so once a page is opened from the right XAMPP address it continues to talk to the same server.
-- **Pico base URL**: use **Find Pico** or `DMX_PICO_BASE_URL` for hardware tests. A discovered Pico URL takes priority over older setup JSON values so page navigation does not restore a stale DHCP address.
+- **Pico URLs**: configure show hardware with Controller → **DMX Outputs**. Hardware tests may still override their target with `DMX_PICO_BASE_URL`.
 
 Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Show** before large changes when you want an extra backup of the complete show setup.
 
@@ -979,7 +973,7 @@ The Chaser page builds step-based sequences. A chase is made from multiple steps
 
 Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
 
-The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, and use the header arrow to collapse or reopen the sidebar. Toolbox reordering is locked by default: click **Edit** in the Toolboxes header, drag colored toolbox headers into place, and click **Done**. With Edit off, toolbox headers retain vertical touch scrolling, preventing accidental iPad rearrangement. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, Effects, and Room Plane. Filled scene, palette, chase, effect, and plane slots use a small top-left pencil icon to open **Edit Tile** where that tile type supports visuals; the small `x` remains the delete control. Chaser can recall complete shared Scenes, overlay shared Palettes, and recall saved Room Planes into the selected step. Its Scenes toolbox also saves a selected step into an empty shared Scene slot. All saved tile matrices use the same Cols, Rows, and Move behavior.
+The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, and use the header arrow to collapse or reopen the sidebar. The sticky application header measures the remaining workspace rather than the full browser viewport: its navigation links occupy a separate wrapping row and remain reachable even when Toolboxes uses two thirds of the screen. Toolbox reordering is locked by default: click **Edit** in the Toolboxes header, drag colored toolbox headers into place, and click **Done**. With Edit off, toolbox headers retain vertical touch scrolling, preventing accidental iPad rearrangement. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, Effects, and Room Plane. Filled scene, palette, chase, effect, and plane slots use a small top-left pencil icon to open **Edit Tile** where that tile type supports visuals; the small `x` remains the delete control. Chaser can recall complete shared Scenes, overlay shared Palettes, and recall saved Room Planes into the selected step. Its Scenes toolbox also saves a selected step into an empty shared Scene slot. All saved tile matrices use the same Cols, Rows, and Move behavior.
 
 **Effects**
 
@@ -1047,7 +1041,7 @@ The Plane page calibrates moving lights against measured room points A/B/C. Each
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
-The **Pico base URL** is persisted in `localStorage` under the key `dmxPicoBaseUrl` and is shared across all pages — typing the IP once on any page is enough. When **Find Pico** updates the URL, Controller, Chaser, Effects, and GPIO also save the corrected URL to their XAMPP setup JSON. Live Pico updates only happen while this URL is set; clearing it puts the UI into browser-only editing.
+Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show and keeps the first output internally available to one-device tools such as Pico slot playback, GPIO, Monitor, and Performance; the editable single-URL header field is no longer shown.
 
 ### Chaser / Effects — Saved Chases, Presets and Pico Slots
 

@@ -241,6 +241,14 @@ async function routeShowSetup(page, calls) {
       });
       return;
     }
+    if (url === 'http://pico.test/status.json') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, dmx: { channels: 512, frame_count: 42 } })
+      });
+      return;
+    }
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
 }
@@ -1529,31 +1537,15 @@ test.describe('Show Run page', () => {
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/chaser/play/1');
   });
 
-  test('Find Pico fills the Pico base URL from the discovery endpoint', async ({ page }) => {
+  test('shows primary show output health instead of a Pico URL editor', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
-    await page.route('**/pico_discovery.php**', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          ok: true,
-          devices: [{ id: 'test-pico', name: 'pico-wifi-dmx', ip: '192.0.2.55', http: 80, url: 'http://192.0.2.55/' }]
-        })
-      });
-    });
-    await page.route('http://192.0.2.55/status.json', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
-      });
-    });
     await openDmxPage(page, 'dmx_show.html');
 
-    await page.getByRole('button', { name: 'Find Pico' }).click();
-
-    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
+    await expect(page.locator('header #baseUrl')).toBeHidden();
+    await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('1/1 Pico online');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://pico.test');
   });
 
   test('offers Pico chaser and effects playback controls on Show Run', async ({ page }) => {
