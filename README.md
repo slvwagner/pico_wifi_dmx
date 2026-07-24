@@ -224,15 +224,29 @@ After that one-time provisioning, normal application updates require only `pico_
 
 ### Build the firmware from source
 
-Install the firmware build tools:
+This project was created around the official Raspberry Pi Pico development environment for Visual Studio Code. The checked-in configuration targets:
 
-- **Raspberry Pi Pico VS Code extension**. This is the easiest Windows setup because it installs/locates the Pico SDK, CMake, Ninja, ARM GCC, picotool, and OpenOCD.
-- **Visual Studio Code**
-- Recommended VS Code extensions:
-  - Raspberry Pi Pico
-  - C/C++
-  - CMake Tools
-  - PowerShell
+| Component | Project configuration |
+| --- | --- |
+| Board | Raspberry Pi Pico 2 W (`pico2_w`, RP2350) |
+| Pico SDK | 2.3.0 |
+| ARM GNU Toolchain | 14.2.Rel1 |
+| picotool | 2.3.0 |
+| CMake | 3.31.5 |
+| Ninja | 1.12.1 |
+| OpenOCD | 0.12.0+dev |
+
+Install [Visual Studio Code](https://code.visualstudio.com/) and open the repository as a single-folder workspace. VS Code reads [`.vscode/extensions.json`](.vscode/extensions.json) and offers to install the extensions used by this project:
+
+| Marketplace extension | ID | Used here for |
+| --- | --- | --- |
+| [Raspberry Pi Pico](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico) | `raspberry-pi.raspberry-pi-pico` | Official Pico SDK/toolchain management, CMake configuration, compilation, target selection, flashing, and debug commands |
+| [C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) | `ms-vscode.cpptools` | C/C++ IntelliSense, code navigation, and `compile_commands.json` integration |
+| [C/C++ Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools-extension-pack) | `ms-vscode.cpptools-extension-pack` | Installs the broader Microsoft C/C++ environment, including CMake Tools |
+| [Cortex-Debug](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug) | `marus25.cortex-debug` | RP2350 GDB debugging through OpenOCD, including the supplied internal and external OpenOCD launch profiles |
+| [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor) | `ms-vscode.vscode-serial-monitor` | Viewing Pico boot, network, and diagnostic output over USB serial |
+
+The repository configuration supplies the matching environment paths on Windows, Linux, and macOS. It also provides VS Code tasks for **Compile Project**, picotool **Run Project**, OpenOCD **Flash**, **Rescue Reset**, and **RISC-V Reset (RP2350)**. The Raspberry Pi Pico extension is the simplest way to install or locate the pinned SDK, compiler, CMake, Ninja, picotool, and OpenOCD versions; if prompted by CMake Tools, select the supplied **Pico** kit.
 
 Configure WiFi and build:
 
