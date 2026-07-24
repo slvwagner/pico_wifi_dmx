@@ -686,6 +686,8 @@ pico_wifi_dmx/
 ├─ config/                   Local machine path configuration templates
 │  └─ local-paths.example.json
 ├─ docs/                     User manual, generated PDF, screenshots
+│  ├─ hardware/
+│  │  └─ datasheets/         WiFiPicoDMX Rev. A component datasheet index
 │  ├─ manual-data/           Deterministic JSON baseline for screenshots
 │  ├─ references/            Third-party hardware reference manuals
 │  │  └─ launch-control-xl-programmer-s-reference-guide.pdf
