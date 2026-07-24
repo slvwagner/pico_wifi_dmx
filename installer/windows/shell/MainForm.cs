@@ -17,6 +17,13 @@ internal sealed class MainForm : Form
         Other
     }
 
+    private enum ExitChoice
+    {
+        Cancel,
+        ExitOnly,
+        ExitAndStopServer
+    }
+
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
     private static readonly Color ShellBackground = Color.FromArgb(18, 22, 29);
@@ -130,7 +137,7 @@ internal sealed class MainForm : Form
         application.DropDownItems.Add("Open controller", null, (_, _) => NavigateHome());
         application.DropDownItems.Add("Reload", null, (_, _) => webView.Reload());
         application.DropDownItems.Add(new ToolStripSeparator());
-        application.DropDownItems.Add("Exit and stop server", null, (_, _) => ExitApplication());
+        application.DropDownItems.Add("Exit…", null, (_, _) => ExitApplication());
 
         var view = new ToolStripMenuItem("&View");
         view.DropDownItems.Add("Toggle full screen", null, (_, _) => ToggleFullscreen());
@@ -185,7 +192,7 @@ internal sealed class MainForm : Form
 
         var close = new Button
         {
-            Text = "Stop server and close",
+            Text = "Close application",
             AutoSize = true,
             Height = 32,
             Top = 6,
@@ -228,7 +235,7 @@ internal sealed class MainForm : Form
             ToggleFullscreen();
         });
         context.Items.Add(new ToolStripSeparator());
-        context.Items.Add("Exit and stop server", null, (_, _) => ExitApplication());
+        context.Items.Add("Exit…", null, (_, _) => ExitApplication());
 
         var notifyIcon = new NotifyIcon
         {
@@ -295,7 +302,7 @@ internal sealed class MainForm : Form
                 statusLabel.Text = "Loading…";
             webView.CoreWebView2.NavigationCompleted += (_, eventArgs) =>
                 statusLabel.Text = eventArgs.IsSuccess
-                    ? "Ready — closing this window also stops the Pico DMX server."
+                    ? "Ready — when closing, choose whether the server should keep running."
                     : $"Page load failed: {eventArgs.WebErrorStatus}";
             NavigateHome();
         }
@@ -525,16 +532,16 @@ internal sealed class MainForm : Form
             return;
         }
 
-        var answer = MessageBox.Show(
-            this,
-            "Stopping the server disconnects iPads and other operator devices.\r\n\r\n" +
-            "Stop WiFiPicoDMX and exit?",
-            "WiFiPicoDMX",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question,
-            MessageBoxDefaultButton.Button2);
-        if (answer != DialogResult.Yes)
+        var choice = ShowExitChoiceDialog();
+        if (choice == ExitChoice.Cancel)
         {
+            return;
+        }
+
+        if (choice == ExitChoice.ExitOnly)
+        {
+            exiting = true;
+            Close();
             return;
         }
 
@@ -559,6 +566,99 @@ internal sealed class MainForm : Form
 
         exiting = true;
         Close();
+    }
+
+    private ExitChoice ShowExitChoiceDialog()
+    {
+        var choice = ExitChoice.Cancel;
+        using var dialog = new Form
+        {
+            Text = "Exit WiFiPicoDMX",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            ClientSize = new Size(570, 220),
+            BackColor = ShellBackground,
+            ForeColor = ShellForeground
+        };
+        dialog.Icon = Icon;
+
+        var heading = new Label
+        {
+            Text = "How should WiFiPicoDMX exit?",
+            AutoSize = true,
+            Font = new Font(Font, FontStyle.Bold),
+            Left = 24,
+            Top = 22
+        };
+        var explanation = new Label
+        {
+            Text = "Exit only\r\n" +
+                   "Keep the server running for iPads and other operator devices.\r\n\r\n" +
+                   "Exit and stop server\r\n" +
+                   "Stopping the server disconnects iPads and other operator devices.\r\n" +
+                   "Stop WiFiPicoDMX and exit?",
+            AutoSize = false,
+            Left = 24,
+            Top = 54,
+            Width = 520,
+            Height = 95
+        };
+        var stopAndExit = CreateExitDialogButton("Exit and stop server", Color.FromArgb(116, 42, 49));
+        var exitOnly = CreateExitDialogButton("Exit only", HoverBackground);
+        var cancel = CreateExitDialogButton("Cancel", SurfaceBackground);
+
+        cancel.DialogResult = DialogResult.Cancel;
+        cancel.Click += (_, _) => choice = ExitChoice.Cancel;
+        exitOnly.Click += (_, _) =>
+        {
+            choice = ExitChoice.ExitOnly;
+            dialog.DialogResult = DialogResult.OK;
+        };
+        stopAndExit.Click += (_, _) =>
+        {
+            choice = ExitChoice.ExitAndStopServer;
+            dialog.DialogResult = DialogResult.OK;
+        };
+
+        var buttons = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            AutoSize = true,
+            Left = 24,
+            Top = 165,
+            Width = 520,
+            Height = 38
+        };
+        buttons.Controls.Add(cancel);
+        buttons.Controls.Add(stopAndExit);
+        buttons.Controls.Add(exitOnly);
+
+        dialog.Controls.Add(heading);
+        dialog.Controls.Add(explanation);
+        dialog.Controls.Add(buttons);
+        dialog.CancelButton = cancel;
+        dialog.ShowDialog(this);
+        return choice;
+    }
+
+    private static Button CreateExitDialogButton(string text, Color background)
+    {
+        var button = new Button
+        {
+            Text = text,
+            AutoSize = true,
+            Height = 32,
+            Margin = new Padding(8, 0, 0, 0),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = background,
+            ForeColor = ShellForeground
+        };
+        button.FlatAppearance.BorderColor = Color.FromArgb(74, 88, 106);
+        return button;
     }
 
     private static async Task<bool> StopControllerServiceAsync()

@@ -20,10 +20,12 @@ normal window controls, F11 fullscreen, Escape restore, a fullscreen exit/close
 bar, and a tray menu. The supported Windows DWM dark-frame attribute and custom
 WinForms color table keep the title bar, menu/dropdowns, status bar, tray menu,
 and fullscreen controls aligned with the web application's dark theme. Closing
-the shell asks for confirmation, explains that operator devices will be
-disconnected, requests Windows administrator approval to stop only the
+the shell offers **Exit only**, **Exit and stop server**, and **Cancel**. Exit
+only closes the local operator window while leaving the service available to
+iPads and other PCs. Exit and stop server explains that operator devices will
+be disconnected, requests Windows administrator approval to stop only the
 `PicoDmxController` service, and exits after Windows reports that service
-stopped. Cancelling the confirmation or UAC keeps the application open. If the
+stopped. Cancelling the dialog or UAC keeps the application open. If the
 shortcut is opened while the service is stopped, the shell explains why
 administrator approval is needed, starts `PicoDmxController`, waits for it to
 run, and then loads the controller. An already-running service does not cause a

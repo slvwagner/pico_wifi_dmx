@@ -114,11 +114,13 @@ The native **WiFiPicoDMX** application window provides normal minimize/maximize/
 F11 fullscreen, Escape to leave fullscreen, and Open/fullscreen/exit actions
 from its tray icon. Its Windows title bar/frame, menu and dropdown surfaces,
 status bar, tray menu, and fullscreen controls use a matching dark theme.
-Fullscreen retains a small bar with **Exit full screen** and **Stop server and
-close**, so it never traps the operator in kiosk mode. Closing the GUI confirms
-that iPads and other operator devices will disconnect, requests Windows
-administrator approval, stops the `PicoDmxController` service, and then exits.
-Cancelling either confirmation leaves the application and server running.
+Fullscreen retains a small bar with **Exit full screen** and **Close
+application**, so it never traps the operator in kiosk mode. Closing the GUI
+offers **Exit only**, **Exit and stop server**, and **Cancel**. Exit only closes
+the local window while keeping the server available to iPads and other PCs.
+Exit and stop server requests Windows administrator approval, stops the
+`PicoDmxController` service, and then exits. Cancelling leaves the application
+and server running.
 When the shortcut is opened after such a shutdown, the shell explains that
 administrator approval is required, starts the stopped service, and then loads
 the controller. No approval prompt is shown when the service is already

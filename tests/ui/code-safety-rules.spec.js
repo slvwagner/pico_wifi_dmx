@@ -109,7 +109,7 @@ test.describe('Code safety regression rules', () => {
     expect(builder).toContain('SigningCertificateThumbprint');
   });
 
-  test('Windows customer app uses a closeable WebView2 shell and stops its server on exit', () => {
+  test('Windows customer app lets the operator exit with or without stopping its server', () => {
     const project = read('installer/windows/shell/PicoDmxShell.csproj');
     const form = read('installer/windows/shell/MainForm.cs');
     const builder = read('installer/windows/build_installer.ps1');
@@ -121,6 +121,8 @@ test.describe('Code safety regression rules', () => {
     expect(form).toContain('Keys.Escape');
     expect(form).toContain('NotifyIcon');
     expect(form).toContain('Exit and stop server');
+    expect(form).toContain('Exit only');
+    expect(form).toContain('Keep the server running for iPads and other operator devices.');
     expect(form).toContain('Environment.SpecialFolder.LocalApplicationData');
     expect(form).toContain('DwmSetWindowAttribute');
     expect(form).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
