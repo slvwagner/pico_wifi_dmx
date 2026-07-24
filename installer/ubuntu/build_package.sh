@@ -120,7 +120,7 @@ install -m 0644 "$installer_dir/package/pico-dmx-controller.ufw" \
 install -m 0644 "$installer_dir/package/pico-dmx-controller.service" \
     "$package_root/usr/lib/systemd/system/pico-dmx-controller.service"
 install -m 0644 "$installer_dir/package/pico-dmx-controller-polkit.rules" \
-    "$package_root/usr/share/polkit-1/rules.d/49-pico-dmx-controller.rules"
+    "$package_root/usr/share/polkit-1/rules.d/00-pico-dmx-controller.rules"
 install -m 0755 "$installer_dir/package/pico-dmx-controller" \
     "$package_root/usr/bin/pico-dmx-controller"
 install -m 0755 "$installer_dir/package/pico-dmx-config" \

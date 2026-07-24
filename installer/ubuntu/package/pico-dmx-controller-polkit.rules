@@ -1,14 +1,6 @@
 polkit.addRule(function(action, subject) {
-    if (action.id !== "org.freedesktop.systemd1.manage-units" ||
-        !subject.local ||
-        !subject.active) {
-        return polkit.Result.NOT_HANDLED;
-    }
-
-    var unit = action.lookup("unit");
-    var verb = action.lookup("verb");
-    if (unit === "pico-dmx-controller.service" &&
-        (verb === "start" || verb === "stop" || verb === "restart")) {
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") === "pico-dmx-controller.service") {
         return polkit.Result.YES;
     }
 

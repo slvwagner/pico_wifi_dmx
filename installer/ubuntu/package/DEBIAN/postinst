@@ -66,11 +66,19 @@ install_desktop_shortcuts() {
 
         runtime_dir="/run/user/$uid"
         if command -v gio >/dev/null 2>&1 && [ -S "$runtime_dir/bus" ]; then
-            runuser -u "$account" -- env \
-                XDG_RUNTIME_DIR="$runtime_dir" \
-                DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_dir/bus" \
-                gio set "$shortcut" metadata::trusted true \
-                >/dev/null 2>&1 || true
+            trust_attempt=1
+            while [ "$trust_attempt" -le 5 ]; do
+                if runuser -u "$account" -- env \
+                    XDG_RUNTIME_DIR="$runtime_dir" \
+                    DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_dir/bus" \
+                    gio set "$shortcut" metadata::trusted true \
+                    >/dev/null 2>&1
+                then
+                    break
+                fi
+                trust_attempt=$((trust_attempt + 1))
+                sleep 1
+            done
         fi
     done
 }
