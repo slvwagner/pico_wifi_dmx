@@ -128,6 +128,23 @@ test.describe('Code safety regression rules', () => {
     expect(installer).toContain('PicoDmxShell.exe');
   });
 
+  test('Windows installer supports a validated persistent customer HTTP port', () => {
+    const installer = read('installer/windows/pico-dmx-controller.nsi');
+    const builder = read('installer/windows/build_installer.ps1');
+    const portCheck = read('installer/windows/scripts/test_port.ps1');
+
+    expect(installer).toContain('Function PortPageCreate');
+    expect(installer).toContain('Function PortPageLeave');
+    expect(installer).toContain('ReadRegStr $0 HKLM "Software\\PicoDmxController" "Port"');
+    expect(installer).toContain('WriteRegStr HKLM "Software\\PicoDmxController" "Port" "$ProductPort"');
+    expect(installer).toContain('-Port $ProductPort');
+    expect(installer).toContain('localport=$ProductPort');
+    expect(installer).toContain('http://localhost:$ProductPort/');
+    expect(installer).not.toContain('${PRODUCT_PORT}');
+    expect(builder).toContain('scripts\\test_port.ps1');
+    expect(portCheck).toContain('[System.Net.Sockets.TcpListener]');
+  });
+
   test('motion slot response exposes target count without a duplicate fixture count', () => {
     const main = read('firmware/main.cpp');
     const slotFormat = main.match(/static void build_motion_slots_response\(\)[\s\S]*?static void build_playback_ok_response/);

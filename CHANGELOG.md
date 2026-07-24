@@ -19,6 +19,7 @@ Changed:
 - Protected Windows signing certificates, private keys, local environment/credential files, IDE state, and future customer show backups with repository ignore rules. Signing uses the protected Windows certificate store or CI service and passes only a non-secret certificate thumbprint to the build script.
 - Replaced the browser-only Windows shortcut with a self-contained native WebView2 application shell. It waits for the local service, opens the controller in a dedicated resizable window, supports F11 fullscreen and Escape restore, keeps visible **Exit full screen** and **Close application** controls in fullscreen, exposes Open/fullscreen/exit actions through a tray icon, and falls back to the default browser if WebView2 cannot initialize. Closing the GUI deliberately leaves the automatic web service available to iPads and other operator devices.
 - Matched the Windows shell to the controller's dark visual language. Supported Windows versions receive an immersive dark title bar and frame, while the native menu bar, dropdowns, status bar, tray menu, and fullscreen buttons use coordinated dark surfaces, light text, hover states, and a distinct close action.
+- Added a customer-selectable HTTP port to the Windows installer. Setup defaults to 8090, validates ports 1024–65535, detects conflicts, remembers the installed port during upgrades, and consistently applies it to Apache, the optional Private-network firewall rule, application shortcuts, and launch-after-install.
 
 ## 0.9.14 - 2026-07-24
 

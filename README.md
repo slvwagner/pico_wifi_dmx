@@ -89,15 +89,17 @@ XAMPP development stack. The installer:
 - starts the `PicoDmxController` Windows service automatically;
 - creates Start Menu and desktop shortcuts that open a dedicated native
   application window, with the default browser as fallback;
-- optionally enables TCP port 8090 on the Windows **Private** firewall profile
-  so iPads and other trusted LAN devices can connect;
+- lets the customer choose an available HTTP port, defaulting to 8090, and
+  remembers that choice during upgrades;
+- optionally enables the selected TCP port on the Windows **Private** firewall
+  profile so iPads and other trusted LAN devices can connect;
 - snapshots existing data before an upgrade and preserves all `ProgramData`
   when the software is uninstalled.
 
 Keep the Private-network option disabled when the controller will be used only
 on the Windows PC. Enable it when an iPad or another operator device must open
-`http://<controller-pc-address>:8090/`. Do not expose port 8090 to the public
-internet.
+`http://<controller-pc-address>:<selected-port>/`. Do not expose the selected
+port to the public internet.
 
 The installer source and reproducible build instructions are in
 [`installer/windows/README.md`](installer/windows/README.md). Customer release

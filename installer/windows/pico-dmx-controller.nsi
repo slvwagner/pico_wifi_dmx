@@ -4,6 +4,7 @@ SetCompressor /SOLID lzma
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
+!include "nsDialogs.nsh"
 
 !ifndef STAGE_DIR
   !error "STAGE_DIR must be supplied by build_installer.ps1"
@@ -17,7 +18,7 @@ SetCompressor /SOLID lzma
 
 !define PRODUCT_NAME "Pico DMX Controller"
 !define SERVICE_NAME "PicoDmxController"
-!define PRODUCT_PORT "8090"
+!define DEFAULT_PORT "8090"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "${OUTPUT_FILE}"
@@ -26,6 +27,9 @@ InstallDirRegKey HKLM "Software\PicoDmxController" "InstallDir"
 
 Var ListenAddress
 Var DataDir
+Var ProductPort
+Var ExistingPort
+Var PortInput
 
 !define MUI_ABORTWARNING
 !define MUI_ICON "${STAGE_DIR}\app\assets\favicon.ico"
@@ -34,6 +38,7 @@ Var DataDir
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "${STAGE_DIR}\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
+Page custom PortPageCreate PortPageLeave
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN
@@ -51,6 +56,64 @@ Function .onInit
     SetShellVarContext all
     StrCpy $ListenAddress "127.0.0.1"
     StrCpy $DataDir "$APPDATA\${PRODUCT_NAME}\data"
+    StrCpy $ProductPort "${DEFAULT_PORT}"
+    StrCpy $ExistingPort ""
+    ReadRegStr $0 HKLM "Software\PicoDmxController" "Port"
+    ${If} $0 != ""
+        StrCpy $ProductPort $0
+        StrCpy $ExistingPort $0
+    ${EndIf}
+FunctionEnd
+
+Function PortPageCreate
+    !insertmacro MUI_HEADER_TEXT "Controller port" "Choose the local HTTP port used by the Pico DMX Controller."
+    nsDialogs::Create 1018
+    Pop $0
+    ${If} $0 == error
+        Abort
+    ${EndIf}
+
+    ${NSD_CreateLabel} 0 4u 100% 24u "HTTP port (1024-65535):"
+    Pop $0
+    ${NSD_CreateNumber} 0 28u 90u 13u "$ProductPort"
+    Pop $PortInput
+    ${NSD_SetTextLimit} $PortInput 5
+    ${NSD_CreateLabel} 0 52u 100% 40u "The default is 8090. Change it when that port is already used or when the customer's network policy requires another port."
+    Pop $0
+
+    nsDialogs::Show
+FunctionEnd
+
+Function PortPageLeave
+    ${NSD_GetText} $PortInput $ProductPort
+    ${If} $ProductPort == ""
+        MessageBox MB_ICONEXCLAMATION "Enter an HTTP port from 1024 to 65535."
+        Abort
+    ${EndIf}
+
+    IntCmp $ProductPort 1024 check_port_max invalid_port check_port_max
+
+    check_port_max:
+        IntCmp $ProductPort 65535 port_in_range port_in_range invalid_port
+
+    invalid_port:
+        MessageBox MB_ICONEXCLAMATION "The HTTP port must be a number from 1024 to 65535."
+        Abort
+
+    port_in_range:
+        InitPluginsDir
+        File /oname=$PLUGINSDIR\test_port.ps1 "${STAGE_DIR}\support\test_port.ps1"
+        ${If} $ProductPort == $ExistingPort
+            Return
+        ${EndIf}
+
+        nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\test_port.ps1" -Port $ProductPort'
+        Pop $0
+        Pop $1
+        ${If} $0 != 0
+            MessageBox MB_ICONEXCLAMATION "Port $ProductPort is already in use. Close the other application or choose another port."
+            Abort
+        ${EndIf}
 FunctionEnd
 
 Section /o "Allow access from iPads and PCs on the private network" SEC_LAN
@@ -61,6 +124,14 @@ Section "-Pico DMX Controller" SEC_CORE
     SetShellVarContext all
 
     nsExec::ExecToLog '"$INSTDIR\runtime\apache\bin\httpd.exe" -k stop -n "${SERVICE_NAME}"'
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\test_port.ps1" -Port $ProductPort'
+    Pop $0
+    Pop $1
+    ${If} $0 != 0
+        nsExec::ExecToLog '"$INSTDIR\runtime\apache\bin\httpd.exe" -k start -n "${SERVICE_NAME}"'
+        MessageBox MB_ICONSTOP "Port $ProductPort became unavailable. No application files were replaced; close the other application or choose another port."
+        Abort
+    ${EndIf}
     nsExec::ExecToLog '"$INSTDIR\runtime\apache\bin\httpd.exe" -k uninstall -n "${SERVICE_NAME}"'
 
     IfFileExists "$DataDir\*.*" 0 no_upgrade_backup
@@ -79,7 +150,7 @@ Section "-Pico DMX Controller" SEC_CORE
 
     CreateDirectory "$DataDir"
 
-    nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\support\configure_install.ps1" -InstallDir "$INSTDIR" -DataDir "$DataDir" -ListenAddress "$ListenAddress" -Port ${PRODUCT_PORT}'
+    nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\support\configure_install.ps1" -InstallDir "$INSTDIR" -DataDir "$DataDir" -ListenAddress "$ListenAddress" -Port $ProductPort'
     Pop $0
     ${If} $0 != 0
         MessageBox MB_ICONSTOP "Could not create the web-server configuration (exit code $0)."
@@ -109,13 +180,14 @@ Section "-Pico DMX Controller" SEC_CORE
     IntOp $1 $1 & ${SF_SELECTED}
     ${If} $1 <> 0
         nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="${PRODUCT_NAME}"'
-        nsExec::ExecToLog 'netsh advfirewall firewall add rule name="${PRODUCT_NAME}" dir=in action=allow protocol=TCP localport=${PRODUCT_PORT} profile=private program="$INSTDIR\runtime\apache\bin\httpd.exe"'
+        nsExec::ExecToLog 'netsh advfirewall firewall add rule name="${PRODUCT_NAME}" dir=in action=allow protocol=TCP localport=$ProductPort profile=private program="$INSTDIR\runtime\apache\bin\httpd.exe"'
     ${Else}
         nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="${PRODUCT_NAME}"'
     ${EndIf}
 
     WriteRegStr HKLM "Software\PicoDmxController" "InstallDir" "$INSTDIR"
     WriteRegStr HKLM "Software\PicoDmxController" "Version" "${PRODUCT_VERSION}"
+    WriteRegStr HKLM "Software\PicoDmxController" "Port" "$ProductPort"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "DisplayVersion" "${PRODUCT_VERSION}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "Publisher" "Pico DMX"
@@ -126,13 +198,13 @@ Section "-Pico DMX Controller" SEC_CORE
 
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-    CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\PicoDmxShell.exe" '--url http://localhost:${PRODUCT_PORT}/' "$INSTDIR\shell\PicoDmxShell.exe"
+    CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\PicoDmxShell.exe" '--url http://localhost:$ProductPort/' "$INSTDIR\shell\PicoDmxShell.exe"
     CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
-    CreateShortcut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\PicoDmxShell.exe" '--url http://localhost:${PRODUCT_PORT}/' "$INSTDIR\shell\PicoDmxShell.exe"
+    CreateShortcut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\PicoDmxShell.exe" '--url http://localhost:$ProductPort/' "$INSTDIR\shell\PicoDmxShell.exe"
 SectionEnd
 
 Function LaunchController
-    Exec '"$INSTDIR\shell\PicoDmxShell.exe" --url http://localhost:${PRODUCT_PORT}/'
+    Exec '"$INSTDIR\shell\PicoDmxShell.exe" --url http://localhost:$ProductPort/'
 FunctionEnd
 
 Section "Uninstall"

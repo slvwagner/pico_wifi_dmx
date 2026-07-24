@@ -63,5 +63,7 @@ arguments or stored in project configuration.
 
 The optional installer component **Allow access from iPads and PCs on the
 private network** binds the service to all interfaces and creates a
-Private-profile Windows Firewall rule for TCP port 8090. If it is not selected,
-the service listens only on `127.0.0.1`.
+Private-profile Windows Firewall rule for the HTTP port selected during setup.
+The port defaults to `8090`, must be from `1024` to `65535`, and is checked for
+conflicts before installation. Upgrades preload the currently installed port.
+If LAN access is not selected, the service listens only on `127.0.0.1`.

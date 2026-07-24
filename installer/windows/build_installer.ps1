@@ -151,6 +151,7 @@ Copy-Item -LiteralPath (Join-Path $installerDir "runtime\httpd.conf.template") -
 Copy-Item -LiteralPath (Join-Path $installerDir "runtime\php.ini.template") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\configure_install.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\open_controller.ps1") -Destination $stageSupport
+Copy-Item -LiteralPath (Join-Path $installerDir "scripts\test_port.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $shellPublishDir "PicoDmxShell.exe") -Destination $stageShell
 
 $shellLicenseDir = Join-Path $stageShell "licenses"

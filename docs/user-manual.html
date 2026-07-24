@@ -115,11 +115,11 @@ strong { color: #ffffff; }
 <h1 id="pico-wifi-dmx-user-manual">Pico WiFi DMX User Manual</h1>
 <p>This manual explains how to use the browser-based DMX controller with the Pico firmware. It is written for daily operation: creating fixtures, controlling lights, saving scenes, building chasers, creating effects, and using GPIO buttons or ADC inputs.</p>
 <p>The web interface can be installed with the Pico DMX Windows customer installer or hosted from the project&#39;s XAMPP development setup.</p>
-<p>With the customer installer, open <strong>Pico DMX Controller</strong> from the desktop or Start Menu. The local address is:</p>
+<p>With the customer installer, open <strong>Pico DMX Controller</strong> from the desktop or Start Menu. With the default installer port, the local address is:</p>
 <pre><code>http://localhost:8090/</code></pre>
 <p>With XAMPP, the address on the same computer is often:</p>
 <pre><code>http://localhost/dmx/</code></pre>
-<p>From an iPad, phone, or another computer, use the controller computer&#39;s LAN address or hostname. A customer installation that enabled <strong>Allow access from iPads and PCs on the private network</strong> uses an address such as <code>http://192.168.0.50:8090/</code>; a XAMPP development installation may use <code>http://192.168.0.50/dmx/</code>. This computer URL is only the address of the web interface and server-side show storage.</p>
+<p>From an iPad, phone, or another computer, use the controller computer&#39;s LAN address or hostname and the HTTP port chosen during installation. A customer installation that kept port <code>8090</code> and enabled <strong>Allow access from iPads and PCs on the private network</strong> uses an address such as <code>http://192.168.0.50:8090/</code>; a XAMPP development installation may use <code>http://192.168.0.50/dmx/</code>. This computer URL is only the address of the web interface and server-side show storage.</p>
 <p>Modal editors and dialogs require an explicit action to close. Clicking the dark area outside a modal does not dismiss it, which prevents accidental loss of edits. Use the modal&#39;s <strong>Close</strong>, <strong>Cancel</strong>, save, or other action button when you are finished.</p>
 <p>The Fixture Controller stores Pico network addresses as named <strong>DMX Outputs</strong>, with one DMX universe per Pico. Pico URLs are separate from the XAMPP URL: XAMPP serves the pages and stores the show, while each output URL identifies one lighting-controller hardware API.</p>
 <p>This applies to every page that can talk to the Pico:</p>
@@ -136,14 +136,15 @@ strong { color: #ffffff; }
 <ol>
 <li>Run <code>pico-dmx-controller-&lt;VERSION&gt;-windows-x64.exe</code> as an administrator.</li>
 <li>Keep the default installation folder unless company policy requires another location.</li>
-<li>Enable <strong>Allow access from iPads and PCs on the private network</strong> only when another trusted device needs the controller. This creates a Windows Private-profile firewall rule for TCP port 8090. It does not expose the app through the router or public internet.</li>
-<li>Finish the installer and select <strong>Open Pico DMX Controller</strong>, or use its desktop/Start Menu shortcut later. The shortcut opens a dedicated application window rather than a normal browser tab.</li>
-<li>For an iPad on the same private Wi-Fi, open <code>http://&lt;controller-pc-address&gt;:8090/</code>. The PC and the Pico controllers must be reachable from that Wi-Fi.</li>
+<li>On <strong>Controller port</strong>, keep the default <code>8090</code> or enter another unused port from <code>1024</code> to <code>65535</code>. The installer detects a conflict and asks for a different port. An upgrade starts with the currently installed port so existing bookmarks continue to work unless you deliberately change it.</li>
+<li>Enable <strong>Allow access from iPads and PCs on the private network</strong> only when another trusted device needs the controller. This creates a Windows Private-profile firewall rule for the selected TCP port. It does not expose the app through the router or public internet.</li>
+<li>Finish the installer and select <strong>Open Pico DMX Controller</strong>, or use its desktop/Start Menu shortcut later. The shortcut opens the selected port in a dedicated application window rather than a normal browser tab.</li>
+<li>For an iPad on the same private Wi-Fi, open <code>http://&lt;controller-pc-address&gt;:&lt;selected-port&gt;/</code>, for example <code>http://192.168.0.50:8090/</code>. The PC and the Pico controllers must be reachable from that Wi-Fi.</li>
 <li>Configure the hardware in <strong>DMX Outputs</strong>, then use <strong>Export Show</strong> to keep a portable backup in addition to the server copy.</li>
 </ol>
 <p>The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. Press <strong>F11</strong> to enter fullscreen and <strong>Escape</strong> to leave it. Fullscreen also keeps an <strong>Exit full screen</strong> button and <strong>Close application</strong> button visible. The tray icon offers <strong>Open</strong>, <strong>Toggle full screen</strong>, and <strong>Exit application</strong>. Opening the shortcut again activates the existing window instead of creating another instance.</p>
 <p>Closing the application window exits only the operator GUI. The web server remains available to iPads and other devices as the automatic <code>PicoDmxController</code> Windows service, so the operator does not need to open a XAMPP control panel. Application binaries live below <code>C:\Program Files\Pico DMX Controller</code>; show data lives separately below <code>C:\ProgramData\Pico DMX Controller\data</code>. An upgrade snapshots existing data below the neighboring <code>backups</code> folder before replacing application files. Uninstall removes the app and service but preserves the <code>ProgramData</code> show data deliberately.</p>
-<p>Do not forward port 8090 from the internet router. The LAN option is intended for a trusted private lighting network. An unsigned development installer can display a Windows SmartScreen warning; customer release installers should carry the supplier&#39;s Authenticode signature.</p>
+<p>Do not forward the selected controller port from the internet router. The LAN option is intended for a trusted private lighting network. An unsigned development installer can display a Windows SmartScreen warning; customer release installers should carry the supplier&#39;s Authenticode signature.</p>
 <h2 id="main-pages">Main Pages</h2>
 <table>
 <thead><tr><th>Page</th><th>Purpose</th></tr></thead><tbody>
@@ -163,7 +164,7 @@ strong { color: #ffffff; }
 <p>The Fixture Controller is the central page. Use it first when setting up a new show or fixture set.</p>
 <h3 id="configure-picos-and-read-header-status">Configure Picos and Read Header Status</h3>
 <ol>
-<li>Open the controller URL: normally <code>http://localhost:8090/</code> for a Windows customer installation, or the configured XAMPP URL in a development environment.</li>
+<li>Open the controller URL: normally <code>http://localhost:8090/</code> for a Windows customer installation using the default port, <code>http://localhost:&lt;selected-port&gt;/</code> when it was changed, or the configured XAMPP URL in a development environment.</li>
 <li>Click <strong>DMX Outputs</strong>, then use <strong>Find Picos</strong> or enter each Pico URL manually.</li>
 <li>Give every output a descriptive name and unique universe, then click <strong>Done</strong>.</li>
 <li>Read the fleet pill in the sticky header. <strong>2/2 Picos online</strong> in green means all used outputs answered; amber means only some answered; red means none answered. Click the pill to refresh immediately.</li>
