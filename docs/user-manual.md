@@ -608,6 +608,16 @@ Palette pencils expose the same MIDI Learn section while **Edit** is active. A m
 
 ![Show Run Palettes card](screenshots/show-run-card-palettes.png)
 
+### Pixel Matrices Card
+
+The **Pixel Matrices** card recalls pictures created and mapped on the Fixture Controller page. If the card is not already part of your saved Show layout, click **Edit**, click an empty card `+`, choose **Pixel Matrices**, and click **Add Pixel Matrices Card**.
+
+Click a picture tile to send its mapped colors immediately. With no Groups or Fixtures selected, every compatible mapped fixture is recalled. When a Show target is selected, only mappings belonging to those fixtures are applied. This works with separate RGB/RGBW/RGBWA/CMY/CMYK fixture controls and individual pixels of a native **RGB pixel matrix** control. The recalled values are written to the shared live-value snapshot, so the Controller and Chaser see the same current look.
+
+Pixel Matrix cards use the standard Show layout behavior. During **Edit**, change **Cols** and **Rows**, drag or tap picture tiles to arrange them locally, remove a picture from only that card with its `x`, or add another Pixel Matrices card with an independent layout. Image upload, fixture mapping, renaming, and deletion of the saved matrix remain on the Fixture Controller.
+
+![Show Run Pixel Matrices card](screenshots/show-run-card-pixel-matrices.png)
+
 ### Planes Card
 
 The **Planes** card recalls saved room planes from the Plane page. Click a plane tile to open a virtual room modal without leaving Show Run.

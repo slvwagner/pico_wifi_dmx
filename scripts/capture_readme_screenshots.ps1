@@ -890,6 +890,10 @@ try {
     {id:'doc_palette_1',name:'Red Beam',slot:0,scope:'Color',values:{'990101:990012':{a:255,b:0,c:0},'990102:990012':{a:160,b:0,c:0}},visual:{type:'visual',color:'#8f2525'}},
     {id:'doc_palette_2',name:'Open Gobo',slot:1,scope:'Gobo',values:{'990101:990010':0},visual:{type:'visual',color:'#225a50'}}
   );
+  pixelMatrices.splice(0,pixelMatrices.length,
+    DmxCommon.normalizePixelMatrix({id:'doc_matrix_sunset',name:'Sunset Wall',slot:0,width:2,height:1,mappings:['990101:990012','990102:990012'],pixels:['#ff5b35','#ffbd4a']}),
+    DmxCommon.normalizePixelMatrix({id:'doc_matrix_ocean',name:'Ocean Wall',slot:1,width:2,height:1,mappings:['990101:990012','990102:990012'],pixels:['#155fbc','#35c9d0']})
+  );
   planes.splice(0,planes.length,
     {
       id:'doc_plane_front',
@@ -929,10 +933,11 @@ try {
   fixtureCols=2;fixtureRows=1;
   sceneCols=2;sceneRows=1;
   paletteCols=2;paletteRows=1;
+  matrixCols=2;matrixRows=1;
   planeCols=2;planeRows=1;
   chaserCols=2;chaserRows=1;
   motionCols=2;motionRows=1;
-  cardOrder=['master','group','fixture','scene','palette','plane','chaser','motion','live','midi'];
+  cardOrder=['master','group','fixture','scene','palette','matrix','plane','chaser','motion','live','midi'];
   cardLayouts={};
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
@@ -946,6 +951,7 @@ try {
   if(typeof renderFixtures==='function')renderFixtures();
   if(typeof renderScenes==='function')renderScenes();
   if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPixelMatrices==='function')renderPixelMatrices();
   if(typeof renderPlanes==='function')renderPlanes();
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
   if(typeof renderLiveControls==='function')renderLiveControls();
@@ -962,6 +968,7 @@ try {
     Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png"
     Save-ElementScreenshot "#cardScene" "show-run-card-scenes.png"
     Save-ElementScreenshot "#cardPalette" "show-run-card-palettes.png"
+    Save-ElementScreenshot "#cardMatrix" "show-run-card-pixel-matrices.png"
     Save-ElementScreenshot "#cardPlane" "show-run-card-planes.png"
     Save-ElementScreenshot "#cardChaser" "show-run-card-chaser.png"
     Save-ElementScreenshot "#cardMotion" "show-run-card-effects.png"

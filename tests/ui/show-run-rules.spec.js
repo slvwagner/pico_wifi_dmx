@@ -393,7 +393,7 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await expect(page.locator('#cardMatrix h2')).toHaveText('Pixel Matrices');
-    await expect(page.locator('#matrixGrid .slot-name')).toHaveText('Show Picture');
+    await expect(page.locator('#matrixGrid [data-matrix-key="picture-show"] .slot-name')).toHaveText('Show Picture');
     await page.locator('#matrixGrid [data-matrix-key="picture-show"]').click();
 
     await expect(page.locator('#status')).toContainText('Pixel Matrix "Show Picture" recalled');
@@ -1794,6 +1794,7 @@ test.describe('Show Run page', () => {
       ['fixtureCols', 32], ['fixtureRows', 32],
       ['sceneCols', 32], ['sceneRows', 32],
       ['paletteCols', 32], ['paletteRows', 32],
+      ['matrixCols', 32], ['matrixRows', 32],
       ['planeCols', 32], ['planeRows', 32],
       ['chaserCols', 32], ['chaserRows', 32],
       ['motionCols', 32], ['motionRows', 32]
@@ -2541,7 +2542,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#addCardModal')).toBeVisible();
     await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
-    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
+    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Pixel Matrices', 'Planes', 'Scenes', 'Groups'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
@@ -2683,7 +2684,7 @@ test.describe('Show Run page', () => {
     await page.locator('[data-add-card-position="2"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
-    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
+    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Pixel Matrices', 'Planes', 'Scenes', 'Groups'].sort());
 
     await page.locator('#addCardType').selectOption('palette');
     await page.locator('#addShowCard').click();

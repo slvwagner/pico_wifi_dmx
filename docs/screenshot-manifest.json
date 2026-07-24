@@ -131,6 +131,11 @@
       "purpose": "Show Run Palettes card"
     },
     {
+      "file": "show-run-card-pixel-matrices.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Show Run Pixel Matrices card"
+    },
+    {
       "file": "show-run-card-planes.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "Show Run Planes card"
