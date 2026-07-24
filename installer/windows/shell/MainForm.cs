@@ -45,7 +45,7 @@ internal sealed class MainForm : Form
         controllerUri = NormalizeControllerUri(url);
         this.activateEvent = activateEvent;
 
-        Text = "Pico DMX Controller";
+        Text = "WiFiPicoDMX";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(900, 600);
         Width = 1440;
@@ -233,7 +233,7 @@ internal sealed class MainForm : Form
         var notifyIcon = new NotifyIcon
         {
             Icon = icon,
-            Text = "Pico DMX Controller",
+            Text = "WiFiPicoDMX",
             Visible = true,
             ContextMenuStrip = context
         };
@@ -266,7 +266,7 @@ internal sealed class MainForm : Form
 
     private async Task InitializeBrowserAsync()
     {
-        statusLabel.Text = "Starting Pico DMX Controller…";
+        statusLabel.Text = "Starting WiFiPicoDMX…";
         if (!await EnsureControllerServiceRunningAsync())
         {
             statusLabel.Text = "The Pico DMX server is stopped.";
@@ -282,7 +282,7 @@ internal sealed class MainForm : Form
         {
             var userDataFolder = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Pico DMX Controller",
+                "WiFiPicoDMX",
                 "WebView2");
             Directory.CreateDirectory(userDataFolder);
             var environment = await CoreWebView2Environment.CreateAsync(
@@ -307,7 +307,7 @@ internal sealed class MainForm : Form
                 this,
                 "The native application window could not start WebView2, so the controller was opened in your default browser.\r\n\r\n" +
                 exception.Message,
-                "Pico DMX Controller",
+                "WiFiPicoDMX",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }
@@ -325,8 +325,8 @@ internal sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "The Pico DMX Controller service is not installed. Repair or reinstall the application.",
-                "Pico DMX Controller",
+                "The WiFiPicoDMX service is not installed. Repair or reinstall the application.",
+                "WiFiPicoDMX",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return false;
@@ -336,7 +336,7 @@ internal sealed class MainForm : Form
             this,
             "The Pico DMX server is stopped.\r\n\r\n" +
             "Starting the controller server requires Windows administrator approval.",
-            "Pico DMX Controller",
+            "WiFiPicoDMX",
             MessageBoxButtons.OKCancel,
             MessageBoxIcon.Information);
         if (answer != DialogResult.OK)
@@ -379,7 +379,7 @@ internal sealed class MainForm : Form
         MessageBox.Show(
             this,
             "The Pico DMX server could not be started, or administrator approval was cancelled.",
-            "Pico DMX Controller",
+            "WiFiPicoDMX",
             MessageBoxButtons.OK,
             MessageBoxIcon.Warning);
         return false;
@@ -528,8 +528,8 @@ internal sealed class MainForm : Form
         var answer = MessageBox.Show(
             this,
             "Stopping the server disconnects iPads and other operator devices.\r\n\r\n" +
-            "Stop Pico DMX Controller and exit?",
-            "Pico DMX Controller",
+            "Stop WiFiPicoDMX and exit?",
+            "WiFiPicoDMX",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question,
             MessageBoxDefaultButton.Button2);
@@ -551,7 +551,7 @@ internal sealed class MainForm : Form
                 this,
                 "The Pico DMX server could not be stopped, or administrator approval was cancelled.\r\n\r\n" +
                 "The application will remain open.",
-                "Pico DMX Controller",
+                "WiFiPicoDMX",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             return;

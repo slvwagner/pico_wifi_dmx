@@ -80,11 +80,13 @@ The deployment wrapper copies application source and verifies HTTP availability;
 ### Install the Windows customer application
 
 For a customer PC, use the generated
-`pico-dmx-controller-<VERSION>-windows-x64.exe` instead of installing the full
+`wifi-pico-dmx-<VERSION>-windows-x64.exe` instead of installing the full
 XAMPP development stack. The installer:
 
-- installs the application below `C:\Program Files\Pico DMX Controller`;
-- stores mutable shows and fixture data below
+- installs the customer-facing **WiFiPicoDMX** application below
+  `C:\Program Files\WiFiPicoDMX` on a new installation (an upgrade can retain
+  the earlier program directory);
+- stores mutable shows and fixture data in the upgrade-compatible location
   `C:\ProgramData\Pico DMX Controller\data`;
 - starts the `PicoDmxController` Windows service automatically;
 - creates Start Menu and desktop shortcuts that open a dedicated native
@@ -108,7 +110,7 @@ The installer source and reproducible build instructions are in
 builds should be Authenticode-signed; unsigned development builds can trigger a
 Windows SmartScreen warning.
 
-The native application window provides normal minimize/maximize/close controls,
+The native **WiFiPicoDMX** application window provides normal minimize/maximize/close controls,
 F11 fullscreen, Escape to leave fullscreen, and Open/fullscreen/exit actions
 from its tray icon. Its Windows title bar/frame, menu and dropdown surfaces,
 status bar, tray menu, and fullscreen controls use a matching dark theme.

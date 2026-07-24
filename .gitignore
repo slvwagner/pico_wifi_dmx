@@ -47,6 +47,8 @@ show-backups/
 # Generated Windows customer installers are distribution artifacts, not source.
 release/v*/pico-dmx-controller-*-windows-*.exe
 release/v*/pico-dmx-controller-*-windows-*.exe.sha256
+release/v*/wifi-pico-dmx-*-windows-*.exe
+release/v*/wifi-pico-dmx-*-windows-*.exe.sha256
 
 # Generated Ubuntu customer packages are distribution artifacts, not source.
 release/v*/pico-dmx-controller_*_all.deb

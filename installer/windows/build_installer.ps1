@@ -153,7 +153,7 @@ Copy-Item -LiteralPath (Join-Path $installerDir "scripts\configure_install.ps1")
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\open_controller.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\test_port.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\port_owner.ps1") -Destination $stageSupport
-Copy-Item -LiteralPath (Join-Path $shellPublishDir "PicoDmxShell.exe") -Destination $stageShell
+Copy-Item -LiteralPath (Join-Path $shellPublishDir "WiFiPicoDMX.exe") -Destination $stageShell
 
 $shellLicenseDir = Join-Path $stageShell "licenses"
 New-Item -ItemType Directory -Path $shellLicenseDir -Force | Out-Null
@@ -188,7 +188,7 @@ if (-not $MakensisPath) {
 $MakensisPath = Assert-File $MakensisPath "NSIS compiler"
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-$outputFile = Join-Path ([System.IO.Path]::GetFullPath($OutputDir)) "pico-dmx-controller-$version-windows-x64.exe"
+$outputFile = Join-Path ([System.IO.Path]::GetFullPath($OutputDir)) "wifi-pico-dmx-$version-windows-x64.exe"
 $nsiScript = Join-Path $installerDir "pico-dmx-controller.nsi"
 
 & $MakensisPath `

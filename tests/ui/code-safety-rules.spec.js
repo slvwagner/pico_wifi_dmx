@@ -73,8 +73,10 @@ test.describe('Code safety regression rules', () => {
     const apache = read('installer/windows/runtime/httpd.conf.template');
 
     expect(installer).toContain('SetShellVarContext all');
-    expect(installer).toContain('$APPDATA\\${PRODUCT_NAME}\\data');
-    expect(installer).toContain('$APPDATA\\${PRODUCT_NAME}\\backups');
+    expect(installer).toContain('!define PRODUCT_NAME "WiFiPicoDMX"');
+    expect(installer).toContain('!define LEGACY_PRODUCT_NAME "Pico DMX Controller"');
+    expect(installer).toContain('$APPDATA\\${LEGACY_PRODUCT_NAME}\\data');
+    expect(installer).toContain('$APPDATA\\${LEGACY_PRODUCT_NAME}\\backups');
     expect(installer).toContain('PicoDmxController');
     expect(installer).not.toMatch(/RMDir\s+\/r\s+["']?\$PROGRAMDATA/i);
     expect(builder).not.toContain('api\\data');
@@ -98,8 +100,8 @@ test.describe('Code safety regression rules', () => {
       'installer/windows/signing/',
       '**/bin/',
       '**/obj/',
-      'release/v*/pico-dmx-controller-*-windows-*.exe',
-      'release/v*/pico-dmx-controller-*-windows-*.exe.sha256'
+      'release/v*/wifi-pico-dmx-*-windows-*.exe',
+      'release/v*/wifi-pico-dmx-*-windows-*.exe.sha256'
     ]) {
       expect(ignore).toContain(pattern);
     }
@@ -123,7 +125,7 @@ test.describe('Code safety regression rules', () => {
     expect(form).toContain('DwmSetWindowAttribute');
     expect(form).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
     expect(form).toContain('DarkColorTable');
-    expect(form).toContain('Stop Pico DMX Controller and exit?');
+    expect(form).toContain('Stop WiFiPicoDMX and exit?');
     expect(form).toContain('PicoDmxController');
     expect(form).toContain('sc.exe');
     expect(form).toContain('Arguments = "start PicoDmxController"');
@@ -155,7 +157,7 @@ test.describe('Code safety regression rules', () => {
     expect(portOwner).toContain('Get-NetTCPConnection');
     expect(portOwner).toContain('PicoDmxController');
     expect(portOwner).toContain('ExpectedProcessId');
-    expect(installer).toContain('Pico DMX Controller is already running on port $ProductPort');
+    expect(installer).toContain('WiFiPicoDMX is already running on port $ProductPort');
     expect(installer).toContain('Close it now and continue?');
     expect(installer).toContain('-ExpectedProcessId $PortOwnerPid -Stop');
     expect(installer).toContain('PicoDmxShell.exe');

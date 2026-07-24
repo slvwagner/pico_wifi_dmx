@@ -1,6 +1,6 @@
 # Windows customer installer
 
-This package installs only the components required by Pico DMX Controller:
+This package installs only the components required by WiFiPicoDMX:
 
 - Apache HTTP Server as the `PicoDmxController` Windows service
 - x64 Thread Safe PHP for the PHP setup endpoints
@@ -8,12 +8,14 @@ This package installs only the components required by Pico DMX Controller:
 - a self-contained native WebView2 operator window
 
 It does not install MariaDB, phpMyAdmin, the XAMPP control panel, or development
-tools. Program files are installed below `C:\Program Files\Pico DMX Controller`.
+tools. A new installation places program files below
+`C:\Program Files\WiFiPicoDMX`; an upgrade can retain the former program
+directory so the existing registered installation remains serviceable.
 Mutable shows and fixture data are stored separately below
 `C:\ProgramData\Pico DMX Controller\data` and are preserved by uninstall and
 upgrade.
 
-The desktop and Start Menu shortcuts open `PicoDmxShell.exe`. It supplies
+The desktop and Start Menu shortcuts open `WiFiPicoDMX.exe`. It supplies
 normal window controls, F11 fullscreen, Escape restore, a fullscreen exit/close
 bar, and a tray menu. The supported Windows DWM dark-frame attribute and custom
 WinForms color table keep the title bar, menu/dropdowns, status bar, tray menu,
