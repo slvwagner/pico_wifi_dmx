@@ -456,20 +456,34 @@ test.describe('Fixture Controller established rules', () => {
   });
 
   test('Pixel Matrix tiles apply normally and swap slots while Toolboxes Edit is active', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
     await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'matrix-output', name: 'Matrix Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' }
+      ]);
+      fixtures.find(fixture => fixture.id === 102).outputId = 'matrix-output';
       pixelMatrixCols = 2;
       pixelMatrixRows = 1;
       pixelMatrices = DmxCommon.normalizePixelMatrices([
-        { id: 'matrix-left', name: 'Left', slot: 0, width: 1, height: 1, pixels: ['#ff0000'] },
-        { id: 'matrix-right', name: 'Right', slot: 1, width: 1, height: 1, pixels: ['#0000ff'] }
+        { id: 'matrix-left', name: 'Left', slot: 0, width: 1, height: 1, mappings: ['102:22'], pixels: ['#ff0000'] },
+        { id: 'matrix-right', name: 'Right', slot: 1, width: 1, height: 1, mappings: ['102:22'], pixels: ['#0000ff'] }
       ]);
-      window.__appliedMatrix = '';
-      window.applyControllerPixelMatrix = async matrix => { window.__appliedMatrix = matrix.id; return 1; };
       renderPixelMatrixList();
     });
 
     await page.locator('[data-pixel-matrix-slot="0"]').click();
-    await expect.poll(() => page.evaluate(() => window.__appliedMatrix)).toBe('matrix-left');
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/chaser/stop')).toBe(true);
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/motion/stop')).toBe(true);
+    await expect.poll(() => requests.some(request =>
+      request.url === 'http://127.0.0.1:18991/dmx/b' && request.body === '22:255,23:0,24:0'
+    )).toBe(true);
+    const dmxIndex = requests.findIndex(request => request.url === 'http://127.0.0.1:18991/dmx/b');
+    expect(requests.findIndex(request => request.url === 'http://127.0.0.1:18991/chaser/stop')).toBeLessThan(dmxIndex);
+    expect(requests.findIndex(request => request.url === 'http://127.0.0.1:18991/motion/stop')).toBeLessThan(dmxIndex);
 
     await page.locator('.toolbox-rail-edit').click();
     await page.locator('[data-pixel-matrix-slot="0"]').click();

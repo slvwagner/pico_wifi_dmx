@@ -1025,6 +1025,25 @@ async function applyControllerPixelMatrix(matrix){
   setStatus('Applied '+normalized.name+' to '+applied+' mapped pixel'+(applied===1?'':'s'));
   return applied;
 }
+async function stopControllerPixelMatrixPlayback(matrix){
+  const targets=new Map(controllerPixelMatrixTargets().map(target=>[target.key,target]));
+  const roots=new Set();
+  matrix.mappings.forEach(key=>{
+    const target=targets.get(key);
+    const root=target?DmxCommon.dmxOutputEndpoint(fixtureDmxOutput(target.fixture)):'';
+    if(root)roots.add(root);
+  });
+  await Promise.allSettled([...roots].flatMap(root=>[
+    fetch(root+'/chaser/stop',{cache:'no-store'}),
+    fetch(root+'/motion/stop',{cache:'no-store'})
+  ]));
+}
+function recallControllerPixelMatrix(matrix){
+  return DmxCommon.recallPixelMatrix(matrix,{
+    stopPlayback:stopControllerPixelMatrixPlayback,
+    apply:applyControllerPixelMatrix
+  });
+}
 function renderPixelMatrixList(){
   const grid=document.getElementById('pixelMatrixGrid');
   if(!grid)return;
@@ -6764,7 +6783,7 @@ document.getElementById('pixelMatrixGrid').addEventListener('click',event=>{
     return;
   }
   if(matrix){
-    applyControllerPixelMatrix(matrix).catch(error=>showError(error.message||'Pixel Matrix could not be applied'));
+    recallControllerPixelMatrix(matrix).catch(error=>showError(error.message||'Pixel Matrix could not be applied'));
     return;
   }
   openPixelMatrix(null,slot);
@@ -6773,7 +6792,7 @@ pixelMatrixEditor=DmxCommon.initPixelMatrixEditor({
   getMatrix:()=>editingPixelMatrix,
   sync:syncEditingPixelMatrixFields,
   targets:controllerPixelMatrixTargets,
-  preview:matrix=>applyControllerPixelMatrix(matrix),
+  preview:matrix=>recallControllerPixelMatrix(matrix),
   onImageConverted:(file,matrix)=>setStatus('Converted '+file.name+' to '+matrix.width+'×'+matrix.height+' pixels'),
   onError:message=>showError(message)
 });

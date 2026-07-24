@@ -238,6 +238,15 @@
     }).sort((a,b)=>a.slot-b.slot);
   }
 
+  async function recallPixelMatrix(matrix,options={}){
+    if(!matrix)return false;
+    const normalized=normalizePixelMatrix(matrix);
+    if(options.stopPlayback)await options.stopPlayback(normalized);
+    if(options.resetOutputCache)options.resetOutputCache(normalized);
+    if(typeof options.apply!=='function')return false;
+    return options.apply(normalized);
+  }
+
   async function imageSourceBitmap(source){
     if(typeof createImageBitmap==='function')return createImageBitmap(source);
     const url=typeof source==='string'?source:URL.createObjectURL(source);
@@ -3776,6 +3785,7 @@
     initAdaptiveHeader,
     normalizePixelMatrix,
     normalizePixelMatrices,
+    recallPixelMatrix,
     pixelMatrixImageColors,
     pixelMatrixToolboxHtml,
     mountPixelMatrixToolbox,

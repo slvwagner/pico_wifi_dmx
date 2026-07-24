@@ -977,6 +977,39 @@ test.describe('Chaser established rules', () => {
     expect(state.pico).toContain('STEP 500 0\nCH 22 255\nCH 23 255\nCH 24 255\nCH 101 17\nCH 102 34\nCH 103 51\nCH 104 68\nCH 105 85\nCH 106 102');
   });
 
+  test('clicking a Pixel Matrix tile stops playback and forces its cached values to DMX', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      setup.pixelMatrixCols = 1;
+      setup.pixelMatrixRows = 1;
+      setup.pixelMatrices = DmxCommon.normalizePixelMatrices([{
+        id: 'picture-force',
+        name: 'Force Picture',
+        slot: 0,
+        width: 1,
+        height: 1,
+        mappings: ['102:22'],
+        pixels: ['#ff0000']
+      }]);
+      sentToPico = { 22: 255, 23: 0, 24: 0 };
+      renderChaserPixelMatrices();
+    });
+
+    await page.locator('[data-chaser-pixel-matrix-slot="0"]').click();
+
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/chaser/stop')).toBe(true);
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/motion/stop')).toBe(true);
+    await expect.poll(() => requests.some(request =>
+      request.url === 'http://127.0.0.1:18991/dmx/b' && request.body === '22:255,23:0,24:0'
+    )).toBe(true);
+    await expect.poll(() => page.evaluate(() => steps[selectedStepIdx]?.values['102:22'])).toEqual({ a: 255, b: 0, c: 0 });
+  });
+
   test('Pixel Matrix tiles can be edited and deleted from the Chaser toolbox', async ({ page }) => {
     await page.evaluate(() => {
       setup.pixelMatrixCols = 2;

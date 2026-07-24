@@ -3428,12 +3428,10 @@ function renderChaserPixelMatrices(){
     onMove:moveChaserPixelMatrixSlot
   });
 }
-async function recallChaserPixelMatrix(matrix){
+async function applyChaserPixelMatrixRecall(matrix){
   const values=chaserPixelMatrixStepValues(matrix);
   const keys=Object.keys(values);
   if(!keys.length){setStatus('Pixel Matrix "'+(matrix?.name||'Picture')+'" has no compatible mappings in this setup',true);return false;}
-  stopPlaybackForManualEdit();
-  await stopPicoPlaybackForBrowserControl();
   let step=steps[selectedStepIdx];
   if(!step){
     if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return false;}
@@ -3460,6 +3458,16 @@ async function recallChaserPixelMatrix(matrix){
   refreshFanBasesFromStep();
   setStatus('Recalled Pixel Matrix "'+(matrix.name||'Picture')+'" into step '+(selectedStepIdx+1)+' with '+keys.length+' mapped control'+(keys.length===1?'':'s'));
   return true;
+}
+function recallChaserPixelMatrix(matrix){
+  return DmxCommon.recallPixelMatrix(matrix,{
+    stopPlayback:async()=>{
+      stopPlaybackForManualEdit();
+      await stopPicoPlaybackForBrowserControl();
+    },
+    resetOutputCache:()=>{sentToPico={};},
+    apply:applyChaserPixelMatrixRecall
+  });
 }
 document.getElementById('chaserPixelMatrixGrid').addEventListener('click',event=>{
   const edit=event.target.closest('[data-edit-chaser-pixel-matrix]');
