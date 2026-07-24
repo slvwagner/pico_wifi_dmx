@@ -306,6 +306,56 @@ try {
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
     }
 
+    function Save-ExactElementScreenshot {
+        param(
+            [string]$Selector,
+            [string]$Name
+        )
+        $selectorJson = $Selector | ConvertTo-Json -Compress
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const el=document.querySelector(selector);
+  if(!el)throw new Error('Missing exact screenshot element: '+selector);
+  const rail=el.closest('.toolbox-rail');
+  if(rail){
+    const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
+    const firstBox=scrollHost.querySelector('.scene-toolbox');
+    if(firstBox&&firstBox!==el)scrollHost.insertBefore(el,firstBox);
+    scrollHost.scrollTop=0;
+    scrollHost.scrollLeft=0;
+  }else{
+    el.scrollIntoView({block:'start',inline:'nearest'});
+  }
+  await new Promise(resolve=>setTimeout(resolve,300));
+  const r=el.getBoundingClientRect();
+  const pad=8;
+  return JSON.stringify({
+    x:Math.max(0,Math.floor(r.left-pad)),
+    y:Math.max(0,Math.floor(r.top-pad)),
+    width:Math.ceil(r.width+pad*2),
+    height:Math.ceil(r.height+pad*2)
+  });
+})()
+"@
+        if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
+        $result = Send-Cdp "Page.captureScreenshot" @{
+            format = "png"
+            fromSurface = $true
+            captureBeyondViewport = $true
+            clip = @{
+                x = [double]$rect.x
+                y = [double]$rect.y
+                width = [double]$rect.width
+                height = [double]$rect.height
+                scale = 1
+            }
+        }
+        if (-not $result.result.data) { throw "Chrome returned an empty exact screenshot for $Selector" }
+        $file = Join-Path $outPath $Name
+        Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+    }
+
     Send-Cdp "Page.enable" | Out-Null
     Send-Cdp "Runtime.enable" | Out-Null
     Start-Sleep -Seconds 2
@@ -417,6 +467,48 @@ try {
 
     Eval-Js @"
 (async()=>{
+  dmxOutputs=DmxCommon.normalizeDmxOutputs([{id:'dmx-output-1',name:'Pico 1',universe:1,baseUrl:''}]);
+  discoveredPicos=[
+    {id:'DOC-PICO-FRONT',name:'Front truss Pico',version:'0.9.14',ip:'192.168.0.21',http:80,url:'http://192.168.0.21/'},
+    {id:'DOC-PICO-PIXELS',name:'Pixel matrix Pico',version:'0.9.14',ip:'192.168.0.22',http:80,url:'http://192.168.0.22/'}
+  ];
+  renderDmxOutputsEditor();
+  renderDiscoveredPicos();
+  const status=document.getElementById('dmxDiscoveryStatus');
+  if(status)status.textContent='Found 2 Pico controllers.';
+  DmxCommon.showModal(document.getElementById('dmxOutputsModal'));
+  await docShots.wait(350);
+})()
+"@
+    Save-ElementScreenshot "#dmxOutputsModal .modal-card" "fixture-controller-dmx-output-discovery.png"
+
+    Eval-Js @"
+(async()=>{
+  dmxOutputs=DmxCommon.normalizeDmxOutputs([
+    {id:'dmx-output-1',deviceId:'DOC-PICO-FRONT',name:'Front truss Pico',universe:1,baseUrl:'http://192.168.0.21/'},
+    {id:'dmx-output-2',deviceId:'DOC-PICO-PIXELS',name:'Pixel matrix Pico',universe:2,baseUrl:'http://192.168.0.22/'}
+  ]);
+  renderDmxOutputsEditor();
+  renderDiscoveredPicos();
+  const status=document.getElementById('dmxDiscoveryStatus');
+  if(status)status.textContent='Found 2 Pico controllers. Both are assigned.';
+  await docShots.wait(250);
+})()
+"@
+    Save-ElementScreenshot "#dmxOutputsModal .modal-card" "fixture-controller-dmx-outputs.png"
+
+    Eval-Js @"
+(async()=>{
+  DmxCommon.hideModal(document.getElementById('dmxOutputsModal'));
+  discoveredPicos=[];
+  dmxOutputs=DmxCommon.normalizeDmxOutputs([],baseUrl.value);
+  renderPatchOutputOptions();
+  await docShots.wait(150);
+})()
+"@
+
+    Eval-Js @"
+(async()=>{
   docShots.setSetupSections({profiles:false,patch:true});
   docShots.setToolboxRail({collapsed:true});
   docShots.setSceneBox({visible:false});
@@ -519,6 +611,54 @@ try {
     Save-ElementScreenshot "#sceneBox" "fixture-controller-toolbox-scenes.png"
     Save-ElementScreenshot "#paletteBox" "fixture-controller-toolbox-palettes.png"
     Save-ElementScreenshot "#fanToolbox" "fixture-controller-toolbox-fanout.png"
+
+    Eval-Js @"
+(async()=>{
+  const targets=controllerPixelMatrixTargets().filter(target=>target.fixture.name.startsWith('RGB Spot')).slice(0,12);
+  const pixels=[
+    '#ff4938','#ff8f3d','#ffd54a','#fff1a6',
+    '#62d36f','#30c9b0','#3b8eea','#6559d9',
+    '#a85ad4','#df5ca8','#f06c76','#f2a3a3'
+  ];
+  pixelMatrices=[DmxCommon.normalizePixelMatrix({
+    id:'doc-stage-wall',
+    name:'Stage Pixel Wall',
+    width:4,
+    height:3,
+    fit:'cover',
+    brightness:80,
+    imageName:'stage-gradient.png',
+    mappings:targets.map(target=>target.key),
+    pixels
+  })];
+  renderPixelMatrixList();
+  const box=document.getElementById('pixelMatrixToolbox');
+  box.style.display='';
+  if(box.classList.contains('collapsed'))document.getElementById('pixelMatrixToolboxToggle')?.click();
+  docShots.setToolboxRail({collapsed:false});
+  await docShots.wait(400);
+})()
+"@
+    Save-ExactElementScreenshot "#pixelMatrixToolbox" "fixture-controller-toolbox-pixel-matrices.png"
+
+    Eval-Js @"
+(async()=>{
+  const targets=controllerPixelMatrixTargets().filter(target=>target.fixture.name.startsWith('RGB Spot')).slice(0,12);
+  const preview=JSON.parse(JSON.stringify(pixelMatrices[0]));
+  preview.mappings=targets.map((target,index)=>index<8?target.key:'');
+  openPixelMatrix(preview);
+  const target=document.getElementById('pixelMatrixTarget');
+  if(target&&targets[8])target.value=targets[8].key;
+  await docShots.wait(400);
+})()
+"@
+    Save-ElementScreenshot "#pixelMatrixModal .modal-card" "fixture-controller-pixel-matrix-editor.png"
+    Eval-Js @"
+(async()=>{
+  DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
+  await docShots.wait(100);
+})()
+"@
 
     Eval-Js @"
 (async()=>{
@@ -750,6 +890,10 @@ try {
     {id:'doc_palette_1',name:'Red Beam',slot:0,scope:'Color',values:{'990101:990012':{a:255,b:0,c:0},'990102:990012':{a:160,b:0,c:0}},visual:{type:'visual',color:'#8f2525'}},
     {id:'doc_palette_2',name:'Open Gobo',slot:1,scope:'Gobo',values:{'990101:990010':0},visual:{type:'visual',color:'#225a50'}}
   );
+  pixelMatrices.splice(0,pixelMatrices.length,
+    DmxCommon.normalizePixelMatrix({id:'doc_matrix_sunset',name:'Sunset Wall',slot:0,width:2,height:1,mappings:['990101:990012','990102:990012'],pixels:['#ff5b35','#ffbd4a']}),
+    DmxCommon.normalizePixelMatrix({id:'doc_matrix_ocean',name:'Ocean Wall',slot:1,width:2,height:1,mappings:['990101:990012','990102:990012'],pixels:['#155fbc','#35c9d0']})
+  );
   planes.splice(0,planes.length,
     {
       id:'doc_plane_front',
@@ -789,10 +933,11 @@ try {
   fixtureCols=2;fixtureRows=1;
   sceneCols=2;sceneRows=1;
   paletteCols=2;paletteRows=1;
+  matrixCols=2;matrixRows=1;
   planeCols=2;planeRows=1;
   chaserCols=2;chaserRows=1;
   motionCols=2;motionRows=1;
-  cardOrder=['master','group','fixture','scene','palette','plane','chaser','motion','live','midi'];
+  cardOrder=['master','group','fixture','scene','palette','matrix','plane','chaser','motion','live','midi'];
   cardLayouts={};
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_dimmer',fixtureId:990101,controlId:990011,part:'value',widget:'fader',label:'Dimmer'},
@@ -806,6 +951,7 @@ try {
   if(typeof renderFixtures==='function')renderFixtures();
   if(typeof renderScenes==='function')renderScenes();
   if(typeof renderPalettes==='function')renderPalettes();
+  if(typeof renderPixelMatrices==='function')renderPixelMatrices();
   if(typeof renderPlanes==='function')renderPlanes();
   if(typeof renderPlaybackSlots==='function')renderPlaybackSlots();
   if(typeof renderLiveControls==='function')renderLiveControls();
@@ -822,6 +968,7 @@ try {
     Save-ElementScreenshot "#cardFixture" "show-run-card-fixtures.png"
     Save-ElementScreenshot "#cardScene" "show-run-card-scenes.png"
     Save-ElementScreenshot "#cardPalette" "show-run-card-palettes.png"
+    Save-ElementScreenshot "#cardMatrix" "show-run-card-pixel-matrices.png"
     Save-ElementScreenshot "#cardPlane" "show-run-card-planes.png"
     Save-ElementScreenshot "#cardChaser" "show-run-card-chaser.png"
     Save-ElementScreenshot "#cardMotion" "show-run-card-effects.png"

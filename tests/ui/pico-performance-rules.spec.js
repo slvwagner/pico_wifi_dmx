@@ -3,6 +3,20 @@ const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Pico Performance Test established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/fixture_setup.php**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          baseUrl: 'http://127.0.0.1:18992/',
+          dmxOutputs: [{ id: 'performance-pico', name: 'Performance Pico', universe: 1, baseUrl: 'http://127.0.0.1:18992/' }],
+          profiles: [],
+          fixtures: []
+        }
+      })
+    }));
     await page.route('http://127.0.0.1:18992/status.json', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -58,7 +72,7 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('header h1')).toContainText('Pico Performance Test');
     await expect(page.locator('#connectionTimingPanel + #timingHistoryPanel')).toBeVisible();
 
-    await page.locator('#baseUrl').fill('http://127.0.0.1:18992/');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#btnCheckPico').click();
     await expect(page.locator('#checkMemory .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkMemory .check-detail')).toContainText('96 KB');
@@ -80,7 +94,7 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
   });
 
-  test('finds the Pico and measures USB or emulated MIDI through a confirmed DMX frame', async ({ page, context }) => {
+  test('uses the show Pico and measures USB or emulated MIDI through a confirmed DMX frame', async ({ page, context }) => {
     await page.addInitScript(() => {
       const input = {
         id: 'launch-control-xl-test',
@@ -105,15 +119,6 @@ test.describe('Pico Performance Test established rules', () => {
         })
       });
     });
-
-    await page.route('**/pico_discovery.php**', route => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        devices: [{ id: 'pico-test', name: 'pico-wifi-dmx', version: '0.9.13', url: 'http://127.0.0.1:18992/' }]
-      })
-    }));
 
     let frameCount = 1400;
     const outputValues = Array.from({ length: 512 }, () => 73);
@@ -156,7 +161,6 @@ test.describe('Pico Performance Test established rules', () => {
     });
 
     await openDmxPage(page, 'test/');
-    await page.getByRole('button', { name: 'Find Pico' }).click();
     await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
 
     await page.locator('#btnMidiLatencyConnect').click();
@@ -217,7 +221,7 @@ test.describe('Pico Performance Test established rules', () => {
     });
 
     await openDmxPage(page, 'test/');
-    await page.locator('#baseUrl').fill('http://127.0.0.1:18992/');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#chPerReq').fill('16');
     await page.locator('#reqCount').fill('1');
     await page.locator('#midiLatencySamples').fill('3');
@@ -285,12 +289,12 @@ test.describe('Pico Performance Test established rules', () => {
     }));
 
     await openDmxPage(page, 'test/');
-    await page.locator('#baseUrl').fill('http://127.0.0.1:18992/');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#chPerReq').fill('16');
     await page.locator('#reqCount').fill('10');
     await page.locator('#btnRunFull').click();
 
-    await expect(page.locator('#btnRunFull')).toBeEnabled();
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 10000 });
     await expect(page.locator('#checkStatus .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkCore0 .check-state')).toHaveText('Warn');
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Warn');
@@ -370,7 +374,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.route('http://127.0.0.1:18992/dmx/blackout/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
 
     await openDmxPage(page, 'test/');
-    await page.locator('#baseUrl').fill('http://127.0.0.1:18992/');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#btnRunPlaybackPaletteStress').click();
 
     await expect(page.locator('#btnRunPlaybackPaletteStress')).toBeEnabled({ timeout: 15000 });
@@ -461,7 +465,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.route('http://127.0.0.1:18992/dmx/blackout/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
 
     await openDmxPage(page, 'test/');
-    await page.locator('#baseUrl').fill('http://127.0.0.1:18992/');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#btnRunPlaybackPaletteStress').click();
 
     await expect(page.locator('#btnRunPlaybackPaletteStress')).toBeEnabled({ timeout: 15000 });

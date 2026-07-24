@@ -12,6 +12,24 @@ function parseDmxBatch(body) {
 
 test.describe('Chaser established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/fixture_setup.php**', async route => {
+      if (route.request().method() === 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('**/ui_state.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
+      });
+    });
     await page.route('**/scene_setup.php**', async route => {
       if (route.request().method() !== 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
@@ -899,27 +917,228 @@ test.describe('Chaser established rules', () => {
     expect(result.panReadout).toContain('Pan 45678');
   });
 
-  test('Matrix controls are excluded from chaser participation until matrix step editing exists', async ({ page }) => {
-    const state = await page.evaluate(() => {
+  test('Pixel Matrix pictures can be recalled into separate chase steps and serialized for Pico playback', async ({ page }) => {
+    const state = await page.evaluate(async () => {
       setup.profiles.push({
         id: 90,
         name: 'Matrix Profile',
-        mode: '2x2',
-        channels: 12,
-        controls: [{ id: 91, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 2 }]
+        mode: '2x1',
+        channels: 6,
+        controls: [{ id: 91, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 1 }]
       });
       setup.fixtures.push({ id: 190, name: 'Matrix Fixture', profileId: 90, start: 101 });
+      setup.pixelMatrixCols = 2;
+      setup.pixelMatrixRows = 1;
+      setup.pixelMatrices = [
+        {
+          id: 'picture-a',
+          name: 'Picture A',
+          slot: 0,
+          width: 3,
+          height: 1,
+          mappings: ['102:22', '190:91:0', '190:91:1'],
+          pixels: ['#ff0000', '#00ff00', '#0000ff']
+        },
+        {
+          id: 'picture-b',
+          name: 'Picture B',
+          slot: 1,
+          width: 3,
+          height: 1,
+          mappings: ['102:22', '190:91:0', '190:91:1'],
+          pixels: ['#ffffff', '#112233', '#445566']
+        }
+      ];
       rebuildParticipation();
+      renderChaserPixelMatrices();
+      await recallChaserPixelMatrix(setup.pixelMatrices[0]);
+      selectedStepIdx = -1;
+      await recallChaserPixelMatrix(setup.pixelMatrices[1]);
       return {
-        hasMatrixParticipation: Object.keys(participating).some(key => key === '190:91'),
-        listedControls: getParticipatingList().map(({ f, c }) => f.id + ':' + c.type),
-        checkboxCount: document.querySelectorAll('#participationList input[data-key="190:91"]').length
+        tileNames: [...document.querySelectorAll('#chaserPixelMatrixGrid .palette-slot-name')].map(node => node.textContent),
+        steps: JSON.parse(JSON.stringify(steps)),
+        pico: serializeChaserForPico()
       };
     });
 
-    expect(state.hasMatrixParticipation).toBe(false);
-    expect(state.listedControls).not.toContain('190:matrixRgb');
-    expect(state.checkboxCount).toBe(0);
+    expect(state.tileNames).toEqual(['Picture A', 'Picture B']);
+    expect(state.steps).toHaveLength(2);
+    expect(state.steps[0].values['102:22']).toEqual({ a: 255, b: 0, c: 0 });
+    expect(state.steps[0].values['190:91'].pixels).toEqual([
+      { a: 0, b: 255, c: 0 },
+      { a: 0, b: 0, c: 255 }
+    ]);
+    expect(state.steps[1].values['102:22']).toEqual({ a: 255, b: 255, c: 255 });
+    expect(state.steps[1].values['190:91'].pixels).toEqual([
+      { a: 17, b: 34, c: 51 },
+      { a: 68, b: 85, c: 102 }
+    ]);
+    expect(state.pico).toContain('STEP 500 0\nCH 22 255\nCH 23 0\nCH 24 0\nCH 101 0\nCH 102 255\nCH 103 0\nCH 104 0\nCH 105 0\nCH 106 255');
+    expect(state.pico).toContain('STEP 500 0\nCH 22 255\nCH 23 255\nCH 24 255\nCH 101 17\nCH 102 34\nCH 103 51\nCH 104 68\nCH 105 85\nCH 106 102');
+  });
+
+  test('clicking a Pixel Matrix tile stops playback and forces its cached values to DMX', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      baseUrlEl.value = 'http://127.0.0.1:18991/';
+      setup.pixelMatrixCols = 1;
+      setup.pixelMatrixRows = 1;
+      setup.pixelMatrices = DmxCommon.normalizePixelMatrices([{
+        id: 'picture-force',
+        name: 'Force Picture',
+        slot: 0,
+        width: 1,
+        height: 1,
+        mappings: ['102:22'],
+        pixels: ['#ff0000']
+      }]);
+      sentToPico = { 22: 255, 23: 0, 24: 0 };
+      renderChaserPixelMatrices();
+    });
+
+    await page.locator('[data-chaser-pixel-matrix-slot="0"]').click();
+
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/chaser/stop')).toBe(true);
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/motion/stop')).toBe(true);
+    await expect.poll(() => requests.some(request =>
+      request.url === 'http://127.0.0.1:18991/dmx/b' && request.body === '22:255,23:0,24:0'
+    )).toBe(true);
+    await expect.poll(() => page.evaluate(() => steps[selectedStepIdx]?.values['102:22'])).toEqual({ a: 255, b: 0, c: 0 });
+  });
+
+  test('Pixel Matrix tiles can be edited and deleted from the Chaser toolbox', async ({ page }) => {
+    await page.evaluate(() => {
+      setup.pixelMatrixCols = 2;
+      setup.pixelMatrixRows = 1;
+      setup.pixelMatrices = DmxCommon.normalizePixelMatrices([
+        {
+          id: 'picture-edit',
+          name: 'Picture Edit',
+          slot: 0,
+          width: 2,
+          height: 1,
+          mappings: ['101:13', '102:22'],
+          pixels: ['#ff0000', '#00ff00']
+        },
+        {
+          id: 'picture-delete',
+          name: 'Picture Delete',
+          slot: 1,
+          width: 1,
+          height: 1,
+          mappings: ['101:13'],
+          pixels: ['#0000ff']
+        }
+      ]);
+      renderChaserPixelMatrices();
+    });
+
+    await expect(page.locator('#chaserPixelMatrixGrid [data-edit-chaser-pixel-matrix]')).toHaveCount(2);
+    await expect(page.locator('#chaserPixelMatrixGrid [data-delete-chaser-pixel-matrix]')).toHaveCount(2);
+
+    await page.locator('[data-edit-chaser-pixel-matrix="picture-edit"]').click();
+    await expect(page.locator('#pixelMatrixModal')).toBeVisible();
+    await expect(page.locator('#pixelMatrixName')).toHaveValue('Picture Edit');
+    await expect(page.locator('#pixelMatrixDelete')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixApply')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#pixelMatrixTileAppearance')).toBeVisible();
+    await expect(page.locator('#pixelMatrixTileToMatrix')).toBeVisible();
+    await page.locator('#pixelMatrixTileColor').fill('#456789');
+    await page.evaluate(() => {
+      window.pixelMatrixPreviewCalls = [];
+      recallChaserPixelMatrix = matrix => {
+        window.pixelMatrixPreviewCalls.push(JSON.parse(JSON.stringify(matrix)));
+        return true;
+      };
+    });
+    await page.locator('#pixelMatrixColor').fill('#123456');
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    expect(await page.evaluate(() => editingChaserPixelMatrix.pixels)).toEqual(['#123456', '#00ff00']);
+    expect(await page.evaluate(() => editingChaserPixelMatrix.mappings)).toEqual(['101:13', '102:22']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(1);
+    await page.locator('#pixelMatrixEditMapping').click();
+    await expect(page.locator('#pixelMatrixMappingTools')).toBeVisible();
+    await page.locator('#pixelMatrixTarget').selectOption('102:22');
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    expect(await page.evaluate(() => editingChaserPixelMatrix.pixels)).toEqual(['#123456', '#00ff00']);
+    expect(await page.evaluate(() => editingChaserPixelMatrix.mappings)).toEqual(['102:22', '']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(2);
+    await page.locator('#pixelMatrixName').fill('Edited Picture');
+    const editRequest = page.waitForRequest(request =>
+      request.method() === 'POST' && /fixture_setup\.php(?:\?|$)/.test(request.url())
+    );
+    await page.locator('#pixelMatrixSave').click();
+    const editPayload = (await editRequest).postDataJSON();
+    expect(editPayload.pixelMatrices.find(matrix => matrix.id === 'picture-edit')).toEqual(expect.objectContaining({
+      name: 'Edited Picture',
+      pixels: ['#123456', '#00ff00'],
+      mappings: ['102:22', ''],
+      visual: { type: 'visual', color: '#456789', image: '' }
+    }));
+    await expect(page.locator('#pixelMatrixModal')).toBeHidden();
+    await expect(page.locator('#chaserPixelMatrixGrid')).toContainText('Edited Picture');
+    await expect(page.locator('#chaserPixelMatrixGrid .slot.filled').first()).toHaveAttribute('style', /background:#456789/i);
+    await expect.poll(() => page.evaluate(() => setup.pixelMatrices.find(matrix => matrix.id === 'picture-edit')?.name)).toBe('Edited Picture');
+
+    page.once('dialog', dialog => dialog.accept());
+    const deleteRequest = page.waitForRequest(request =>
+      request.method() === 'POST' && /fixture_setup\.php(?:\?|$)/.test(request.url())
+    );
+    await page.locator('[data-delete-chaser-pixel-matrix="picture-delete"]').click();
+    const deletePayload = (await deleteRequest).postDataJSON();
+    expect(deletePayload.pixelMatrices.map(matrix => matrix.id)).toEqual(['picture-edit']);
+    await expect(page.locator('#chaserPixelMatrixGrid .slot.filled')).toHaveCount(1);
+    expect(await page.evaluate(() => setup.pixelMatrices.map(matrix => matrix.id))).toEqual(['picture-edit']);
+  });
+
+  test('Pixel Matrix toolbox creates pictures and shares Controller layout movement', async ({ page }) => {
+    await page.evaluate(() => {
+      setup.pixelMatrixCols = 2;
+      setup.pixelMatrixRows = 2;
+      setup.pixelMatrices = DmxCommon.normalizePixelMatrices([
+        {
+          id: 'picture-move',
+          name: 'Picture Move',
+          slot: 0,
+          width: 1,
+          height: 1,
+          mappings: ['102:22'],
+          pixels: ['#ff0000']
+        }
+      ]);
+      renderChaserPixelMatrices();
+    });
+
+    await expect(page.locator('#chaserPixelMatrixGrid [data-chaser-pixel-matrix-slot]')).toHaveCount(4);
+    await expect(page.locator('#chaserPixelMatrixGrid [data-chaser-pixel-matrix-slot="1"]')).toHaveText('+');
+
+    await page.locator('#chaserPixelMatrixGrid [data-chaser-pixel-matrix-slot="1"]').click();
+    await expect(page.locator('#pixelMatrixModal')).toBeVisible();
+    await expect(page.locator('#pixelMatrixName')).toHaveValue('Pixel Matrix 2');
+    await page.locator('#pixelMatrixName').fill('Created in Chaser');
+    const createRequest = page.waitForRequest(request =>
+      request.method() === 'POST' && /fixture_setup\.php(?:\?|$)/.test(request.url())
+    );
+    await page.locator('#pixelMatrixSave').click();
+    const createPayload = (await createRequest).postDataJSON();
+    expect(createPayload.pixelMatrices.find(matrix => matrix.name === 'Created in Chaser')?.slot).toBe(1);
+
+    await page.locator('.toolbox-rail-edit').click();
+    await expect(page.locator('#chaserPixelMatrixLayoutControls')).toBeVisible();
+    await expect(page.locator('#moveChaserPixelMatricesBtn')).toBeHidden();
+    await expect(page.locator('#moveChaserPixelMatricesBtn')).toHaveClass(/active/);
+    await page.locator('#chaserPixelMatrixCols').selectOption('3');
+    await page.locator('#chaserPixelMatrixRows').selectOption('2');
+    await expect(page.locator('#chaserPixelMatrixGrid [data-chaser-pixel-matrix-slot]')).toHaveCount(6);
+
+    await page.locator('[data-chaser-pixel-matrix-slot="0"]').click();
+    await page.locator('[data-chaser-pixel-matrix-slot="4"]').click();
+    await expect.poll(() => page.evaluate(() => setup.pixelMatrices.find(matrix => matrix.id === 'picture-move')?.slot)).toBe(4);
   });
 
   test('selecting a step rebuilds the edit scope from that step values', async ({ page }) => {

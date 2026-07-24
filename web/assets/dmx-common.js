@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.13';
+  const APP_VERSION='0.9.14';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -23,6 +23,707 @@
       schemaVersion: schemaVersion||DEFAULT_SCHEMA_VERSION,
       ...(data||{})
     };
+  }
+
+  function normalizeDmxOutput(output,index=0){
+    const source=output&&typeof output==='object'?output:{};
+    const fallbackNumber=index+1;
+    const universe=Math.max(1,Math.min(9999,parseInt(source.universe,10)||fallbackNumber));
+    return {
+      id:String(source.id||('dmx-output-'+fallbackNumber)),
+      ...(source.deviceId?{deviceId:String(source.deviceId)}:{}),
+      name:String(source.name||('Pico '+fallbackNumber)).trim().slice(0,80)||('Pico '+fallbackNumber),
+      universe,
+      baseUrl:String(source.baseUrl||source.url||'').trim()
+    };
+  }
+
+  function normalizeDmxOutputs(outputs,legacyBaseUrl=''){
+    const source=Array.isArray(outputs)?outputs.filter(output=>output&&typeof output==='object'):[];
+    const normalized=(source.length?source:[{baseUrl:legacyBaseUrl}]).map(normalizeDmxOutput);
+    const ids=new Set();
+    normalized.forEach((output,index)=>{
+      let id=output.id;
+      let suffix=2;
+      while(ids.has(id))id=output.id+'-'+suffix++;
+      output.id=id;
+      ids.add(id);
+      if(index===0&&legacyBaseUrl&&!output.baseUrl)output.baseUrl=String(legacyBaseUrl).trim();
+    });
+    return normalized;
+  }
+
+  function dmxOutputForFixture(fixture,outputs){
+    const list=normalizeDmxOutputs(outputs);
+    const requested=String(fixture?.outputId||'');
+    return list.find(output=>output.id===requested)||list[0];
+  }
+
+  function dmxOutputEndpoint(output){
+    return String(output?.baseUrl||'').trim().replace(/\/+$/,'');
+  }
+
+  function fixtureSetupEndpoint(){
+    return /\/test(?:\/|\/index\.html?)?$/i.test(location.pathname)?'../fixture_setup.php':'fixture_setup.php';
+  }
+
+  function showUsedDmxOutputs(setup){
+    const source=setup&&typeof setup==='object'?setup:{};
+    const outputs=normalizeDmxOutputs(source.dmxOutputs,source.baseUrl);
+    if(!outputs.some(output=>output.baseUrl))return[];
+    const fixtures=Array.isArray(source.fixtures)?source.fixtures:[];
+    if(!fixtures.length)return outputs.filter(output=>output.baseUrl);
+    const primaryId=outputs[0]?.id||'';
+    const usedIds=new Set(fixtures.map(fixture=>String(fixture?.outputId||primaryId)).filter(Boolean));
+    const used=outputs.filter(output=>usedIds.has(output.id));
+    return used.length?used:outputs.filter(output=>output.baseUrl);
+  }
+
+  async function checkPicoFleetOutput(output,timeoutMs=1800){
+    const root=dmxOutputEndpoint(output);
+    if(!root)return{output,online:false,error:'URL not configured'};
+    const controller=typeof AbortController!=='undefined'?new AbortController():null;
+    const timeout=setTimeout(()=>controller?.abort(),timeoutMs);
+    try{
+      const response=await fetch(root+'/status.json',{cache:'no-store',signal:controller?.signal});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const status=await response.json();
+      if(!status||!status.dmx)throw new Error('Unexpected status response');
+      return{output,online:true,status};
+    }catch(error){
+      return{output,online:false,error:error?.name==='AbortError'?'timeout':(error?.message||String(error))};
+    }finally{
+      clearTimeout(timeout);
+    }
+  }
+
+  let picoFleetRefreshPromise=null;
+  async function refreshPicoFleetStatus(options={}){
+    const indicators=[...document.querySelectorAll('[data-pico-fleet-status]')];
+    if(!indicators.length)return null;
+    if(picoFleetRefreshPromise&&!options.force)return picoFleetRefreshPromise;
+    indicators.forEach(indicator=>{
+      indicator.dataset.state='checking';
+      indicator.textContent='Checking Picos…';
+      indicator.title='Checking every DMX output used by this show';
+    });
+    picoFleetRefreshPromise=(async()=>{
+      try{
+        let setup=options.setup;
+        if(!setup){
+          const response=await fetch(options.setupUrl||fixtureSetupEndpoint(),{cache:'no-store'});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.error||('HTTP '+response.status));
+          setup=result.exists===false?{}:(result.setup||result);
+        }
+        const outputs=showUsedDmxOutputs(setup);
+        if(!outputs.length){
+          indicators.forEach(indicator=>{
+            indicator.dataset.state='empty';
+            indicator.textContent='No Picos configured';
+            indicator.title='Open DMX Outputs on the Controller page to configure show outputs';
+          });
+          return{outputs:[],results:[],online:0,total:0};
+        }
+        const headerBaseInput=document.querySelector('header #baseUrl');
+        const primaryUrl=String(outputs[0]?.baseUrl||'').trim();
+        if(headerBaseInput&&primaryUrl&&headerBaseInput.value!==primaryUrl){
+          const descriptor=Object.getOwnPropertyDescriptor(window.HTMLInputElement?.prototype||{},'value');
+          if(descriptor?.set)descriptor.set.call(headerBaseInput,primaryUrl);
+          else headerBaseInput.value=primaryUrl;
+          localStorage.setItem(BASE_URL_KEY,primaryUrl);
+        }
+        const results=await Promise.all(outputs.map(output=>checkPicoFleetOutput(output,options.timeoutMs)));
+        const online=results.filter(result=>result.online).length;
+        const total=results.length;
+        const state=online===total?'online':(online?'partial':'offline');
+        const noun=total===1?'Pico':'Picos';
+        const details=results.map(result=>
+          result.output.name+' · U'+result.output.universe+': '+(result.online?'online':'offline'+(result.error?' ('+result.error+')':''))
+        ).join('\n');
+        indicators.forEach(indicator=>{
+          indicator.dataset.state=state;
+          indicator.textContent=online+'/'+total+' '+noun+' online';
+          indicator.title=details+'\nClick to check again.';
+        });
+        return{outputs,results,online,total};
+      }catch(error){
+        indicators.forEach(indicator=>{
+          indicator.dataset.state='error';
+          indicator.textContent='Pico status unavailable';
+          indicator.title='Could not load the show DMX Outputs: '+(error?.message||String(error));
+        });
+        return{outputs:[],results:[],online:0,total:0,error};
+      }finally{
+        picoFleetRefreshPromise=null;
+      }
+    })();
+    return picoFleetRefreshPromise;
+  }
+
+  function initAdaptiveHeader(){
+    const header=document.querySelector('header');
+    if(!header||header.dataset.adaptiveHeader==='1')return header;
+    header.dataset.adaptiveHeader='1';
+    header.classList.add('app-sticky-header');
+    const toolbar=header.querySelector('.toolbar');
+    const links=[...header.querySelectorAll('a.nav')];
+    if(links.length){
+      const nav=document.createElement('nav');
+      nav.className='app-page-nav';
+      nav.setAttribute('aria-label','Application pages');
+      links.forEach(link=>nav.appendChild(link));
+      header.appendChild(nav);
+    }
+    const baseInput=header.querySelector('#baseUrl');
+    if(baseInput){
+      baseInput.closest('label')?.classList.add('pico-header-url-field');
+      baseInput.setAttribute('aria-hidden','true');
+      baseInput.tabIndex=-1;
+    }
+    header.querySelectorAll('.pico-discovery-btn').forEach(button=>button.remove());
+    if(toolbar&&!toolbar.querySelector('[data-pico-fleet-status]')){
+      const indicator=document.createElement('button');
+      indicator.type='button';
+      indicator.className='pico-fleet-status';
+      indicator.dataset.picoFleetStatus='';
+      indicator.dataset.state='checking';
+      indicator.textContent='Checking Picos…';
+      indicator.addEventListener('click',()=>refreshPicoFleetStatus({force:true}));
+      toolbar.insertBefore(indicator,toolbar.firstChild);
+    }
+    refreshPicoFleetStatus();
+    const pollMs=10000;
+    const poll=()=>setTimeout(()=>{
+      if(document.contains(header)){
+        refreshPicoFleetStatus().finally(poll);
+      }
+    },pollMs);
+    poll();
+    return header;
+  }
+
+  function normalizePixelMatrix(matrix,index=0){
+    const source=matrix&&typeof matrix==='object'?matrix:{};
+    const width=clampInt(source.width||8,1,64);
+    const height=clampInt(source.height||8,1,64);
+    const count=width*height;
+    const mappings=Array.isArray(source.mappings)?source.mappings.slice(0,count).map(value=>String(value||'')):[];
+    const pixels=Array.isArray(source.pixels)?source.pixels.slice(0,count).map(value=>/^#[0-9a-f]{6}$/i.test(String(value))?String(value).toLowerCase():'#000000'):[];
+    const visual=normalizeSlotVisual(source.visual);
+    while(mappings.length<count)mappings.push('');
+    while(pixels.length<count)pixels.push('#000000');
+    return {
+      id:String(source.id||('pixel-matrix-'+(index+1))),
+      name:String(source.name||('Pixel Matrix '+(index+1))).trim().slice(0,80)||('Pixel Matrix '+(index+1)),
+      slot:Math.max(0,parseInt(source.slot,10)>=0?parseInt(source.slot,10):index),
+      width,
+      height,
+      fit:['contain','cover','stretch'].includes(source.fit)?source.fit:'contain',
+      brightness:clampInt(source.brightness??100,1,100),
+      imageName:String(source.imageName||'').slice(0,160),
+      mappings,
+      pixels,
+      ...(visual?{visual}:{})
+    };
+  }
+
+  function normalizePixelMatrices(matrices){
+    const used=new Set();
+    return (Array.isArray(matrices)?matrices:[]).map((matrix,index)=>{
+      const normalized=normalizePixelMatrix(matrix,index);
+      while(used.has(normalized.slot))normalized.slot++;
+      used.add(normalized.slot);
+      return normalized;
+    }).sort((a,b)=>a.slot-b.slot);
+  }
+
+  async function recallPixelMatrix(matrix,options={}){
+    if(!matrix)return false;
+    const normalized=normalizePixelMatrix(matrix);
+    if(options.stopPlayback)await options.stopPlayback(normalized);
+    if(options.resetOutputCache)options.resetOutputCache(normalized);
+    if(typeof options.apply!=='function')return false;
+    return options.apply(normalized);
+  }
+
+  async function imageSourceBitmap(source){
+    if(typeof createImageBitmap==='function')return createImageBitmap(source);
+    const url=typeof source==='string'?source:URL.createObjectURL(source);
+    try{
+      return await new Promise((resolve,reject)=>{
+        const image=new Image();
+        image.onload=()=>resolve(image);
+        image.onerror=()=>reject(new Error('Image could not be decoded'));
+        image.src=url;
+      });
+    }finally{
+      if(typeof source!=='string')URL.revokeObjectURL(url);
+    }
+  }
+
+  async function pixelMatrixImageColors(source,width,height,options={}){
+    const w=clampInt(width,1,64),h=clampInt(height,1,64);
+    const fit=['contain','cover','stretch'].includes(options.fit)?options.fit:'contain';
+    const brightness=clampInt(options.brightness??100,1,100)/100;
+    const bitmap=await imageSourceBitmap(source);
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    ctx.fillStyle=options.background||'#000000';
+    ctx.fillRect(0,0,w,h);
+    const sw=bitmap.width||bitmap.naturalWidth,sh=bitmap.height||bitmap.naturalHeight;
+    if(!sw||!sh)throw new Error('Image has no usable dimensions');
+    if(fit==='stretch')ctx.drawImage(bitmap,0,0,w,h);
+    else{
+      const scale=fit==='cover'?Math.max(w/sw,h/sh):Math.min(w/sw,h/sh);
+      const dw=sw*scale,dh=sh*scale;
+      ctx.drawImage(bitmap,(w-dw)/2,(h-dh)/2,dw,dh);
+    }
+    bitmap.close?.();
+    const data=ctx.getImageData(0,0,w,h).data;
+    const colors=[];
+    for(let i=0;i<w*h;i++){
+      const offset=i*4;
+      colors.push('#'+hexByte(data[offset]*brightness)+hexByte(data[offset+1]*brightness)+hexByte(data[offset+2]*brightness));
+    }
+    return colors;
+  }
+
+  function pixelMatrixToolboxHtml(){
+    return `<div id="pixelMatrixToolbox" class="scene-toolbox scene-toolbox--pixel-matrix">
+<div id="pixelMatrixToolboxHdr" class="scene-toolbox__header"><span style="font-weight:700;font-size:13px">Pixel Matrices</span><button id="pixelMatrixToolboxToggle" class="scene-toolbox__toggle">—</button></div>
+<div id="pixelMatrixToolboxBody" class="scene-toolbox__body"><div id="pixelMatrixLayoutControls" class="tile-layout-controls"></div><div id="pixelMatrixGrid" class="scene-slot-matrix"></div></div>
+</div>
+<div id="pixelMatrixModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card wide-modal pixel-matrix-modal" role="dialog" aria-modal="true" aria-labelledby="pixelMatrixTitle">
+<div class="modal-head"><button id="pixelMatrixClose" type="button" aria-label="Close">x</button><div class="modal-title-stack"><h2 id="pixelMatrixTitle">Pixel Matrix</h2><div class="small">Paint pixel colors, map fixture color controls, convert an image, and send the result to all assigned DMX outputs.</div></div></div>
+<div class="modal-body">
+<section id="pixelMatrixTileAppearance" class="slot-visual-editor pixel-matrix-tile-appearance" aria-labelledby="pixelMatrixTileAppearanceTitle">
+<h3 id="pixelMatrixTileAppearanceTitle">Tile appearance</h3>
+<div class="toolbar"><label>Background color<input id="pixelMatrixTileColor" type="color" value="#25323c"></label><button id="pixelMatrixTileResetColor" type="button">Default background</button><label>Upload icon<input id="pixelMatrixTileImage" type="file" accept="image/*"></label></div>
+<div class="toolbar"><span class="pixel-matrix-tile-canvas-stack"><canvas id="pixelMatrixTileCanvas" class="gobo-canvas" width="120" height="120" aria-label="Draw Pixel Matrix tile icon"></canvas><canvas id="pixelMatrixTileGrid" class="gobo-canvas pixel-matrix-tile-grid" width="120" height="120" aria-hidden="true"></canvas></span><button id="pixelMatrixTileClearIcon" type="button">No icon</button><button id="pixelMatrixTileToMatrix" type="button" disabled>Use icon as matrix</button></div>
+<div class="small">Choose the saved toolbox tile background and optionally draw or upload an icon. The grid preview follows the matrix Width, Height, and Fit without becoming part of the saved icon.</div>
+</section>
+<div class="toolbar"><label>Name<input id="pixelMatrixName" type="text" maxlength="80"></label><label>Width<input id="pixelMatrixWidth" type="number" min="1" max="64"></label><label>Height<input id="pixelMatrixHeight" type="number" min="1" max="64"></label><label>Fit<select id="pixelMatrixFit"><option value="contain">Contain</option><option value="cover">Cover</option><option value="stretch">Stretch</option></select></label><label>Brightness %<input id="pixelMatrixBrightness" type="number" min="1" max="100"></label></div>
+<div class="toolbar"><label>Image<input id="pixelMatrixImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button id="pixelMatrixClearImage" type="button">Clear Image</button></div>
+<div class="toolbar pixel-matrix-edit-toolbar"><button id="pixelMatrixEditMapping" class="pixel-matrix-mode-toggle" type="button" aria-pressed="false">Edit Mapping</button><div id="pixelMatrixColorTools" class="pixel-matrix-inline-tools"><label>Pixel color<input id="pixelMatrixColor" type="color" value="#ffffff"></label><span class="small">Choose a color, then click pixels to paint them.</span></div></div>
+<div id="pixelMatrixMappingTools" class="toolbar pixel-matrix-inline-tools" hidden><label>Mapping target<select id="pixelMatrixTarget"></select></label><button id="pixelMatrixAutoMap" type="button">Auto Map</button><button id="pixelMatrixClearMap" type="button">Clear Mapping</button><span class="small">Click pixels to assign the selected fixture target.</span></div>
+<div class="small" id="pixelMatrixSummary"></div>
+<div id="pixelMatrixEditorGrid" class="pixel-matrix-grid"></div>
+</div>
+<div class="modal-actions"><button id="pixelMatrixSave" class="primary" type="button">Save</button><button id="pixelMatrixClose2" type="button">Close</button></div>
+</div></div>`;
+  }
+
+  function mountPixelMatrixToolbox(target){
+    const el=typeof target==='string'?document.getElementById(target):target;
+    if(!el)return null;
+    el.outerHTML=pixelMatrixToolboxHtml();
+    return document.getElementById('pixelMatrixToolbox');
+  }
+
+  function initPixelMatrixEditor(options={}){
+    const getMatrix=()=>options.getMatrix?.()||null;
+    const getTargets=()=>options.targets?.()||[];
+    let mappingMode=false;
+    const tileColorInput=document.getElementById('pixelMatrixTileColor');
+    const tileImageInput=document.getElementById('pixelMatrixTileImage');
+    const tileCanvas=document.getElementById('pixelMatrixTileCanvas');
+    const tileContext=tileCanvas.getContext('2d');
+    const tileGrid=document.getElementById('pixelMatrixTileGrid');
+    const tileGridContext=tileGrid.getContext('2d');
+    const tileToMatrixButton=document.getElementById('pixelMatrixTileToMatrix');
+    let tileIcon='';
+    let tileDrawing=false;
+
+    function defaultTileColor(matrix){
+      const color=String(matrix?.pixels?.[0]||'');
+      return /^#[0-9a-f]{6}$/i.test(color)?color:'#25323c';
+    }
+    function prepareTileBrush(){
+      tileContext.strokeStyle=contrastTextForColor(tileColorInput.value);
+      tileContext.lineWidth=6;
+      tileContext.lineCap='round';
+      tileContext.lineJoin='round';
+    }
+    function tileFitGeometry(matrix){
+      const canvasWidth=tileCanvas.width,canvasHeight=tileCanvas.height;
+      const width=clampInt(matrix?.width,1,64),height=clampInt(matrix?.height,1,64);
+      const fit=['contain','cover','stretch'].includes(matrix?.fit)?matrix.fit:'contain';
+      const full={x:0,y:0,width:canvasWidth,height:canvasHeight};
+      if(fit==='stretch')return{fit,width,height,source:full,image:full};
+      if(fit==='contain'){
+        const scale=Math.min(width/canvasWidth,height/canvasHeight);
+        const imageWidth=canvasWidth*scale,imageHeight=canvasHeight*scale;
+        return{
+          fit,width,height,source:full,
+          image:{
+            x:(width-imageWidth)*canvasWidth/(2*width),
+            y:(height-imageHeight)*canvasHeight/(2*height),
+            width:imageWidth*canvasWidth/width,
+            height:imageHeight*canvasHeight/height
+          }
+        };
+      }
+      const scale=Math.max(width/canvasWidth,height/canvasHeight);
+      const sourceWidth=width/scale,sourceHeight=height/scale;
+      return{
+        fit,width,height,image:full,
+        source:{
+          x:(canvasWidth-sourceWidth)/2,
+          y:(canvasHeight-sourceHeight)/2,
+          width:sourceWidth,
+          height:sourceHeight
+        }
+      };
+    }
+    function geometryText(rect){
+      return [rect.x,rect.y,rect.width,rect.height].map(value=>String(Math.round(value*1000)/1000)).join(',');
+    }
+    function renderTileGridOverlay(){
+      const matrix=getMatrix();
+      tileGridContext.clearRect(0,0,tileGrid.width,tileGrid.height);
+      if(!matrix)return;
+      const geometry=tileFitGeometry(matrix);
+      const source=document.createElement('canvas');
+      source.width=tileCanvas.width;
+      source.height=tileCanvas.height;
+      const sourceContext=source.getContext('2d');
+      sourceContext.fillStyle=tileColorInput.value||defaultTileColor(matrix);
+      sourceContext.fillRect(0,0,source.width,source.height);
+      sourceContext.drawImage(tileCanvas,0,0);
+      tileGridContext.fillStyle=tileColorInput.value||defaultTileColor(matrix);
+      tileGridContext.fillRect(0,0,tileGrid.width,tileGrid.height);
+      const s=geometry.source,d=geometry.image;
+      tileGridContext.drawImage(source,s.x,s.y,s.width,s.height,d.x,d.y,d.width,d.height);
+      tileGridContext.lineCap='butt';
+      for(let column=0;column<=geometry.width;column++){
+        const x=column*tileGrid.width/geometry.width;
+        tileGridContext.beginPath();
+        tileGridContext.moveTo(x,0);
+        tileGridContext.lineTo(x,tileGrid.height);
+        tileGridContext.strokeStyle='rgba(0,0,0,.8)';
+        tileGridContext.lineWidth=3;
+        tileGridContext.stroke();
+        tileGridContext.strokeStyle='rgba(255,255,255,.82)';
+        tileGridContext.lineWidth=1;
+        tileGridContext.stroke();
+      }
+      for(let row=0;row<=geometry.height;row++){
+        const y=row*tileGrid.height/geometry.height;
+        tileGridContext.beginPath();
+        tileGridContext.moveTo(0,y);
+        tileGridContext.lineTo(tileGrid.width,y);
+        tileGridContext.strokeStyle='rgba(0,0,0,.8)';
+        tileGridContext.lineWidth=3;
+        tileGridContext.stroke();
+        tileGridContext.strokeStyle='rgba(255,255,255,.82)';
+        tileGridContext.lineWidth=1;
+        tileGridContext.stroke();
+      }
+      if(geometry.fit==='contain'&&(d.x||d.y)){
+        tileGridContext.setLineDash([5,3]);
+        tileGridContext.strokeStyle='rgba(1,255,230,.95)';
+        tileGridContext.lineWidth=2;
+        tileGridContext.strokeRect(d.x,d.y,d.width,d.height);
+        tileGridContext.setLineDash([]);
+      }
+      tileGrid.dataset.fit=geometry.fit;
+      tileGrid.dataset.columns=String(geometry.width);
+      tileGrid.dataset.rows=String(geometry.height);
+      tileGrid.dataset.sourceRect=geometryText(s);
+      tileGrid.dataset.imageRect=geometryText(d);
+    }
+    function clearTileCanvas(){
+      tileContext.clearRect(0,0,tileCanvas.width,tileCanvas.height);
+      tileCanvas.style.background=tileColorInput.value;
+      prepareTileBrush();
+      renderTileGridOverlay();
+    }
+    function drawTileIcon(image){
+      clearTileCanvas();
+      tileToMatrixButton.disabled=true;
+      if(!image)return Promise.resolve(false);
+      const icon=new Image();
+      return new Promise(resolve=>{
+        icon.onload=()=>{
+          clearTileCanvas();
+          tileContext.drawImage(icon,0,0,tileCanvas.width,tileCanvas.height);
+          renderTileGridOverlay();
+          tileToMatrixButton.disabled=false;
+          resolve(true);
+        };
+        icon.onerror=()=>{
+          report('Tile icon could not be decoded');
+          resolve(false);
+        };
+        icon.src=image;
+      });
+    }
+    function syncTileVisual(){
+      const matrix=getMatrix();
+      if(!matrix)return;
+      matrix.visual={
+        type:'visual',
+        color:tileColorInput.value||defaultTileColor(matrix),
+        image:/^data:image\//.test(tileIcon)?tileIcon:''
+      };
+    }
+    function tilePointerPosition(event){
+      const rect=tileCanvas.getBoundingClientRect();
+      const destination={
+        x:(event.clientX-rect.left)*tileCanvas.width/rect.width,
+        y:(event.clientY-rect.top)*tileCanvas.height/rect.height
+      };
+      const geometry=tileFitGeometry(getMatrix());
+      const d=geometry.image,s=geometry.source;
+      if(destination.x<d.x||destination.x>d.x+d.width||destination.y<d.y||destination.y>d.y+d.height)return null;
+      return{
+        x:s.x+(destination.x-d.x)*s.width/d.width,
+        y:s.y+(destination.y-d.y)*s.height/d.height
+      };
+    }
+
+    function report(message,error){
+      if(options.onError)options.onError(message,error);
+      else console.error(message,error);
+    }
+    function preview(){
+      const matrix=getMatrix();
+      if(!matrix||!options.preview)return Promise.resolve(false);
+      return Promise.resolve()
+        .then(()=>options.preview(matrix))
+        .catch(error=>{
+          report('Pixel Matrix preview failed: '+(error?.message||error),error);
+          return false;
+        });
+    }
+    function sync(){
+      return options.sync?.()||getMatrix();
+    }
+    function nextUnusedTarget(currentKey,matrix,targets){
+      if(!currentKey)return'';
+      const currentIndex=targets.findIndex(target=>target.key===currentKey);
+      const mapped=new Set(matrix.mappings.filter(Boolean));
+      for(let offset=1;offset<=targets.length;offset++){
+        const candidate=targets[(currentIndex+offset)%targets.length]?.key||'';
+        if(candidate&&!mapped.has(candidate))return candidate;
+      }
+      return'';
+    }
+    function render(){
+      const matrix=getMatrix();
+      if(!matrix)return;
+      const mappingToggle=document.getElementById('pixelMatrixEditMapping');
+      mappingToggle.setAttribute('aria-pressed',String(mappingMode));
+      mappingToggle.classList.toggle('active',mappingMode);
+      document.getElementById('pixelMatrixColorTools').hidden=mappingMode;
+      document.getElementById('pixelMatrixMappingTools').hidden=!mappingMode;
+      document.getElementById('pixelMatrixName').value=matrix.name;
+      document.getElementById('pixelMatrixWidth').value=matrix.width;
+      document.getElementById('pixelMatrixHeight').value=matrix.height;
+      document.getElementById('pixelMatrixFit').value=matrix.fit;
+      document.getElementById('pixelMatrixBrightness').value=matrix.brightness;
+      const targets=getTargets();
+      const targetSelect=document.getElementById('pixelMatrixTarget');
+      const previous=targetSelect.value;
+      targetSelect.innerHTML='<option value="">Unmapped</option>'+targets.map(target=>`<option value="${escapeHtml(target.key)}">${escapeHtml(target.label)}</option>`).join('');
+      if(targets.some(target=>target.key===previous))targetSelect.value=previous;
+      const labels=new Map(targets.map(target=>[target.key,target.label]));
+      const grid=document.getElementById('pixelMatrixEditorGrid');
+      const paintColor=document.getElementById('pixelMatrixColor').value;
+      grid.style.gridTemplateColumns=`repeat(${matrix.width},minmax(24px,1fr))`;
+      grid.innerHTML=matrix.pixels.map((color,index)=>{
+        const key=matrix.mappings[index];
+        const detail=mappingMode?(key?' · '+escapeHtml(labels.get(key)||key):' · unmapped'):' · '+color+' · paint '+paintColor;
+        return `<button type="button" class="pixel-matrix-cell${mappingMode&&!key?' unmapped':''}" data-pixel-matrix-cell="${index}" style="background:${color}" title="Pixel ${index+1}${detail}"><span>${index+1}</span></button>`;
+      }).join('');
+      const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
+      document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
+      renderTileGridOverlay();
+    }
+    function reset(){
+      const matrix=getMatrix();
+      mappingMode=false;
+      document.getElementById('pixelMatrixColor').value=matrix?.pixels?.[0]||'#ffffff';
+      const visual=normalizeSlotVisual(matrix?.visual);
+      tileColorInput.value=visual?.color||defaultTileColor(matrix);
+      tileIcon=visual?.image||'';
+      tileImageInput.value='';
+      drawTileIcon(tileIcon);
+      render();
+    }
+
+    ['pixelMatrixWidth','pixelMatrixHeight'].forEach(id=>{
+      document.getElementById(id).addEventListener('change',()=>{
+        if(!getMatrix())return;
+        sync();
+        render();
+        preview();
+      });
+    });
+    ['pixelMatrixFit','pixelMatrixBrightness'].forEach(id=>{
+      document.getElementById(id).addEventListener('change',()=>{
+        if(!getMatrix())return;
+        sync();
+        render();
+      });
+    });
+    document.getElementById('pixelMatrixEditorGrid').addEventListener('click',event=>{
+      const cell=event.target.closest('[data-pixel-matrix-cell]');
+      if(!cell||!getMatrix())return;
+      const matrix=sync();
+      const index=clampInt(cell.dataset.pixelMatrixCell,0,matrix.pixels.length-1);
+      if(!mappingMode){
+        matrix.pixels[index]=document.getElementById('pixelMatrixColor').value;
+        render();
+        preview();
+        return;
+      }
+      const targetKey=document.getElementById('pixelMatrixTarget').value;
+      if(targetKey)matrix.mappings=matrix.mappings.map(key=>key===targetKey?'':key);
+      matrix.mappings[index]=targetKey;
+      const nextTargetKey=nextUnusedTarget(targetKey,matrix,getTargets());
+      render();
+      document.getElementById('pixelMatrixTarget').value=nextTargetKey;
+      preview();
+    });
+    document.getElementById('pixelMatrixEditMapping').onclick=()=>{
+      mappingMode=!mappingMode;
+      render();
+    };
+    document.getElementById('pixelMatrixAutoMap').onclick=()=>{
+      if(!getMatrix())return;
+      const matrix=sync();
+      const targets=getTargets();
+      matrix.mappings=matrix.mappings.map((_,index)=>targets[index]?.key||'');
+      render();
+      preview();
+    };
+    document.getElementById('pixelMatrixClearMap').onclick=()=>{
+      if(!getMatrix())return;
+      const matrix=sync();
+      matrix.mappings.fill('');
+      render();
+      preview();
+    };
+    document.getElementById('pixelMatrixClearImage').onclick=()=>{
+      if(!getMatrix())return;
+      const matrix=sync();
+      matrix.pixels.fill('#000000');
+      matrix.imageName='';
+      document.getElementById('pixelMatrixImage').value='';
+      render();
+      preview();
+    };
+    document.getElementById('pixelMatrixImage').addEventListener('change',async event=>{
+      const file=event.target.files?.[0];
+      if(!file||!getMatrix())return;
+      const matrix=sync();
+      event.target.disabled=true;
+      try{
+        matrix.pixels=await pixelMatrixImageColors(file,matrix.width,matrix.height,{fit:matrix.fit,brightness:matrix.brightness});
+        matrix.imageName=file.name;
+        render();
+        await preview();
+        options.onImageConverted?.(file,matrix);
+      }catch(error){
+        report('Image conversion failed: '+(error?.message||error),error);
+      }finally{
+        event.target.disabled=false;
+      }
+    });
+    tileColorInput.addEventListener('input',()=>{
+      tileCanvas.style.background=tileColorInput.value;
+      prepareTileBrush();
+      syncTileVisual();
+      renderTileGridOverlay();
+    });
+    document.getElementById('pixelMatrixTileResetColor').onclick=()=>{
+      tileColorInput.value=defaultTileColor(getMatrix());
+      tileCanvas.style.background=tileColorInput.value;
+      prepareTileBrush();
+      syncTileVisual();
+      renderTileGridOverlay();
+    };
+    tileImageInput.addEventListener('change',event=>{
+      const file=event.target.files?.[0];
+      if(!file||!getMatrix())return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        tileIcon=String(reader.result||'');
+        syncTileVisual();
+        drawTileIcon(tileIcon);
+      };
+      reader.onerror=()=>report('Tile icon could not be read',reader.error);
+      reader.readAsDataURL(file);
+    });
+    document.getElementById('pixelMatrixTileClearIcon').onclick=()=>{
+      tileIcon='';
+      tileImageInput.value='';
+      clearTileCanvas();
+      tileToMatrixButton.disabled=true;
+      syncTileVisual();
+    };
+    tileCanvas.addEventListener('pointerdown',event=>{
+      if(!getMatrix())return;
+      event.preventDefault();
+      const point=tilePointerPosition(event);
+      if(!point)return;
+      tileCanvas.setPointerCapture?.(event.pointerId);
+      tileToMatrixButton.disabled=true;
+      prepareTileBrush();
+      tileContext.beginPath();
+      tileContext.moveTo(point.x,point.y);
+      tileDrawing=true;
+    });
+    tileCanvas.addEventListener('pointermove',event=>{
+      if(!tileDrawing)return;
+      const point=tilePointerPosition(event);
+      if(!point)return;
+      tileContext.lineTo(point.x,point.y);
+      tileContext.stroke();
+      tileContext.beginPath();
+      tileContext.moveTo(point.x,point.y);
+      renderTileGridOverlay();
+    });
+    const finishTileDrawing=event=>{
+      if(!tileDrawing)return;
+      tileDrawing=false;
+      tileCanvas.releasePointerCapture?.(event.pointerId);
+      tileIcon=tileCanvas.toDataURL('image/png');
+      syncTileVisual();
+      tileToMatrixButton.disabled=false;
+      renderTileGridOverlay();
+    };
+    tileCanvas.addEventListener('pointerup',finishTileDrawing);
+    tileCanvas.addEventListener('pointercancel',finishTileDrawing);
+    tileToMatrixButton.onclick=async()=>{
+      if(!tileIcon||!getMatrix())return;
+      const matrix=sync();
+      const composite=document.createElement('canvas');
+      composite.width=tileCanvas.width;
+      composite.height=tileCanvas.height;
+      const context=composite.getContext('2d');
+      context.fillStyle=tileColorInput.value||defaultTileColor(matrix);
+      context.fillRect(0,0,composite.width,composite.height);
+      context.drawImage(tileCanvas,0,0);
+      tileToMatrixButton.disabled=true;
+      try{
+        matrix.pixels=await pixelMatrixImageColors(composite,matrix.width,matrix.height,{fit:matrix.fit,brightness:matrix.brightness});
+        matrix.imageName='Tile icon';
+        render();
+        await preview();
+        options.onTileIconConverted?.(matrix);
+      }catch(error){
+        report('Tile icon conversion failed: '+(error?.message||error),error);
+      }finally{
+        tileToMatrixButton.disabled=!tileIcon;
+      }
+    };
+
+    return {render,reset,preview,isMappingMode:()=>mappingMode};
   }
 
   function downloadJson(filename,data){
@@ -847,11 +1548,7 @@
       button.textContent='Finding...';
     }
     try{
-      const r=await fetch('pico_discovery.php?timeoutMs=3200',{cache:'no-store'});
-      const j=await r.json();
-      if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
-      const devices=Array.isArray(j.devices)?j.devices:[];
-      if(!devices.length)throw new Error('No Pico beacon received');
+      const devices=await discoverPicoDevices();
       const device=devices[0];
       const url=String(device.url||('http://'+device.ip+'/'));
       input.value=url;
@@ -869,6 +1566,16 @@
         button.textContent=button.dataset.originalText||'Find Pico';
       }
     }
+  }
+
+  async function discoverPicoDevices(options={}){
+    const timeoutMs=Math.max(250,Math.min(10000,parseInt(options.timeoutMs,10)||3200));
+    const r=await fetch('pico_discovery.php?timeoutMs='+timeoutMs,{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    const devices=Array.isArray(j.devices)?j.devices.filter(device=>device&&typeof device==='object'):[];
+    if(!devices.length)throw new Error('No Pico beacon received');
+    return devices;
   }
 
   function attachPicoDiscoveryButton(input){
@@ -909,6 +1616,7 @@
   function bindBaseUrl(input,options={}){
     if(!input)return;
     if(options&&options.nodeType===1)options={};
+    if(input.closest('header'))options={...options,discovery:false};
     applyBaseUrl(input,options.fallback);
     if(options.discovery!==false)attachPicoDiscoveryButton(input);
     let timer=0;
@@ -3209,6 +3917,21 @@
     escapeHtml,
     appVersion,
     versionedPayload,
+    normalizeDmxOutput,
+    normalizeDmxOutputs,
+    dmxOutputForFixture,
+    dmxOutputEndpoint,
+    showUsedDmxOutputs,
+    checkPicoFleetOutput,
+    refreshPicoFleetStatus,
+    initAdaptiveHeader,
+    normalizePixelMatrix,
+    normalizePixelMatrices,
+    recallPixelMatrix,
+    pixelMatrixImageColors,
+    pixelMatrixToolboxHtml,
+    mountPixelMatrixToolbox,
+    initPixelMatrixEditor,
     downloadJson,
     zipJsonBytes,
     unzipJsonBytes,
@@ -3251,6 +3974,7 @@
     applyBaseUrl,
     bindBaseUrl,
     discoverPicoBaseUrl,
+    discoverPicoDevices,
     preferStoredBaseUrl,
     saveUiState,
     loadUiState,
@@ -3283,4 +4007,6 @@
     hideModal,
     initSlotVisualEditor
   };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initAdaptiveHeader,{once:true});
+  else setTimeout(initAdaptiveHeader,0);
 })();

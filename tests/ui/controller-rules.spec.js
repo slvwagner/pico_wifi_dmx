@@ -12,28 +12,618 @@ test.describe('Fixture Controller established rules', () => {
     await injectControllerCompactSetup(page);
   });
 
-  test('Find Pico is available on the Controller page and fills the Pico base URL', async ({ page }) => {
+  test('keeps Pico configuration in DMX Outputs instead of the page header', async ({ page }) => {
+    await expect(page.locator('header #baseUrl')).toBeHidden();
+    await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('No Picos configured');
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+    await expect(page.locator('#dmxOutputsModal')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Find Picos' })).toBeVisible();
+  });
+
+  test('legacy Pico base URL migrates to the first shared DMX output', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const migrated = DmxCommon.normalizeDmxOutputs([], 'http://192.0.2.40/');
+      return {
+        outputs: migrated,
+        selected: DmxCommon.dmxOutputForFixture({ id: 101 }, migrated)
+      };
+    });
+
+    expect(state.outputs).toHaveLength(1);
+    expect(state.outputs[0]).toMatchObject({
+      name: 'Pico 1',
+      universe: 1,
+      baseUrl: 'http://192.0.2.40/'
+    });
+    expect(state.selected.id).toBe(state.outputs[0].id);
+  });
+
+  test('fixtures on different DMX outputs may use the same address and send to their assigned Pico', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      fixtures.splice(0, fixtures.length,
+        { id: 8101, name: 'Front fixture', profileId: 1, start: 1, outputId: 'front' },
+        { id: 8102, name: 'Rear fixture', profileId: 1, start: 1, outputId: 'rear' }
+      );
+      values['8101:11'] = 71;
+      values['8102:11'] = 72;
+    });
+
+    const result = await page.evaluate(async () => {
+      const front = fixtures.find(fixture => fixture.id === 8101);
+      const rear = fixtures.find(fixture => fixture.id === 8102);
+      const control = profiles.find(profile => profile.id === 1).controls.find(item => item.id === 11);
+      const conflict = fixtureAddressConflictInList(1, 8, fixtures, 8101, 'front');
+      await sendControl(front, control, true);
+      await sendControl(rear, control, true);
+      return { conflict: !!conflict };
+    });
+
+    expect(result.conflict).toBe(false);
+    await expect.poll(() => requests.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/71'))).toBe(true);
+    await expect.poll(() => requests.some(url => url.startsWith('http://127.0.0.1:18992/dmx/set/1/72'))).toBe(true);
+
+    requests.length = 0;
+    await page.evaluate(async () => {
+      await sendFixtureDmxRows([
+        { fixture: fixtures.find(item => item.id === 8101), row: { ch: 2, val: 81 } },
+        { fixture: fixtures.find(item => item.id === 8102), row: { ch: 2, val: 82 } }
+      ]);
+    });
+    await expect.poll(() => requests).toContain('http://127.0.0.1:18991/dmx/b');
+    await expect.poll(() => requests).toContain('http://127.0.0.1:18992/dmx/b');
+  });
+
+  test('changing a patched fixture to another universe immediately sends its current values to the new output', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      fixtures.splice(0, fixtures.length,
+        { id: 8101, name: 'Movable fixture', profileId: 1, start: 1, outputId: 'front' }
+      );
+      values['8101:11'] = 93;
+      draw();
+    });
+
+    await page.locator('[data-fixture-output="8101"]').selectOption('rear', { force: true });
+    expect(await page.evaluate(() => fixtures[0].outputId)).toBe('rear');
+    expect(await page.evaluate(() => saveData().fixtures[0].outputId)).toBe('rear');
+
+    await expect.poll(() => requests.some(url => url.startsWith('http://127.0.0.1:18992/dmx/'))).toBe(true);
+  });
+
+  test('DMX Outputs editor adds another universe and exposes it in fixture patching', async ({ page }) => {
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+    await expect(page.locator('#dmxOutputsModal')).toBeVisible();
+    await page.getByRole('button', { name: 'Add output' }).click();
+
+    await expect(page.locator('[data-dmx-output-row]')).toHaveCount(2);
+    await page.locator('[data-dmx-output-name]').nth(1).fill('Pixel Pico 2');
+    await page.locator('[data-dmx-output-url]').nth(1).fill('http://192.0.2.42/');
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    await expect(page.locator('#patchOutput')).toContainText('Pixel Pico 2');
+    const saved = await page.evaluate(() => saveData().dmxOutputs);
+    expect(saved).toHaveLength(2);
+    expect(saved[1]).toMatchObject({
+      name: 'Pixel Pico 2',
+      universe: 2,
+      baseUrl: 'http://192.0.2.42/'
+    });
+  });
+
+  test('DMX Outputs discovery lists every Pico and adds each device only once', async ({ page }) => {
     await page.route('**/pico_discovery.php**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           ok: true,
-          devices: [{ id: 'test-pico', name: 'pico-wifi-dmx', ip: '192.0.2.55', http: 80, url: 'http://192.0.2.55/' }]
+          devices: [
+            { id: 'pico-front', name: 'Front Pico', ip: '192.0.2.51', http: 80, url: 'http://192.0.2.51/' },
+            { id: 'pico-rear', name: 'Rear Pico', ip: '192.0.2.52', http: 80, url: 'http://192.0.2.52/' }
+          ]
         })
       });
     });
-    await page.route('http://192.0.2.55/status.json', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
-      });
+
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+    await page.getByRole('button', { name: 'Find Picos' }).click();
+
+    await expect(page.locator('[data-discovered-pico]')).toHaveCount(2);
+    await expect(page.locator('[data-discovered-pico="pico-front"]')).toContainText('Front Pico');
+    await expect(page.locator('[data-discovered-pico="pico-front"]')).toContainText('192.0.2.51');
+    await expect(page.locator('[data-discovered-pico="pico-rear"]')).toContainText('Rear Pico');
+
+    await page.locator('[data-add-discovered-pico="pico-front"]').click();
+    await page.locator('[data-add-discovered-pico="pico-rear"]').click();
+
+    await expect(page.locator('[data-dmx-output-row]')).toHaveCount(2);
+    await expect(page.locator('[data-add-discovered-pico="pico-front"]')).toBeDisabled();
+    await expect(page.locator('[data-add-discovered-pico="pico-rear"]')).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Done' }).click();
+    const saved = await page.evaluate(() => saveData().dmxOutputs);
+    expect(saved).toEqual([
+      expect.objectContaining({ deviceId: 'pico-front', name: 'Front Pico', universe: 1, baseUrl: 'http://192.0.2.51/' }),
+      expect.objectContaining({ deviceId: 'pico-rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://192.0.2.52/' })
+    ]);
+  });
+
+  test('Pixel Matrix normalizes mappings and applies mapped colors across DMX outputs', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
     });
 
-    await page.getByRole('button', { name: 'Find Pico' }).click();
+    const result = await page.evaluate(async () => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      profiles.splice(0, profiles.length, {
+        id: 9100,
+        name: 'RGB pixel',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9101, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9110, name: 'Pixel A', profileId: 9100, start: 1, outputId: 'front' },
+        { id: 9120, name: 'Pixel B', profileId: 9100, start: 1, outputId: 'rear' }
+      );
+      const targets = controllerPixelMatrixTargets();
+      const matrix = DmxCommon.normalizePixelMatrix({
+        id: 'matrix-test',
+        name: 'Test matrix',
+        width: 2,
+        height: 1,
+        mappings: targets.map(target => target.key),
+        pixels: ['#ff0000', '#0000ff']
+      });
+      await applyControllerPixelMatrix(matrix);
+      return {
+        matrix,
+        targetCount: targets.length,
+        first: values['9110:9101'],
+        second: values['9120:9101']
+      };
+    });
 
-    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
+    expect(result.targetCount).toBe(2);
+    expect(result.matrix.mappings).toHaveLength(2);
+    expect(result.first).toEqual({ a: 255, b: 0, c: 0 });
+    expect(result.second).toEqual({ a: 0, b: 0, c: 255 });
+    await expect.poll(() => requests.some(item => item.url.endsWith('/dmx/b') && item.body === '1:255,2:0,3:0')).toBe(true);
+    await expect.poll(() => requests.some(item => item.url.endsWith('/dmx/b') && item.body === '1:0,2:0,3:255')).toBe(true);
+  });
+
+  test('recalling a Pixel Matrix selects its mapped fixtures and an exactly matching saved group', async ({ page }) => {
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'matrix-output', name: 'Matrix Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' }
+      ]);
+      fixtures.find(fixture => fixture.id === 102).outputId = 'matrix-output';
+      fixtures.push({ id: 104, name: 'B 2', profileId: 2, start: 61, outputId: 'matrix-output' });
+      savedGroups = normalizeSavedGroups([
+        { id: 'grp_matrix_partial', name: 'Partial', slot: 0, fixtureIds: [102], values: {} },
+        { id: 'grp_matrix_exact', name: 'Matrix Fixtures', slot: 1, fixtureIds: [104, 102], values: {} },
+        { id: 'grp_matrix_superset', name: 'Superset', slot: 2, fixtureIds: [102, 103, 104], values: {} }
+      ]);
+      selectedFixtureIds = new Set([101, 103]);
+      activeSavedGroupIds = new Set(['group-that-was-selected']);
+      activeFixtureFilterIds = new Set([101, 103]);
+      sceneFixtureFilterActive = true;
+      pixelMatrixCols = 2;
+      pixelMatrixRows = 1;
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-selection', name: 'Selection', slot: 0, width: 2, height: 1, mappings: ['102:22', '104:22'], pixels: ['#ff0000', '#0000ff'] }
+      ]);
+      renderSavedGroupsList();
+      renderPixelMatrixList();
+      drawSurface();
+    });
+
+    await page.locator('[data-pixel-matrix-slot="0"]').click();
+
+    const selection = await page.evaluate(() => ({
+      fixtureIds: [...selectedFixtureIds],
+      activeGroups: [...activeSavedGroupIds],
+      activeFixtureFilters: [...activeFixtureFilterIds],
+      sceneFixtureFilterActive,
+      selectedCards: [...document.querySelectorAll('.fixture-card.selected')].map(card => Number(card.dataset.fixtureCard))
+    }));
+    expect(selection).toEqual({
+      fixtureIds: [102, 104],
+      activeGroups: ['grp_matrix_exact'],
+      activeFixtureFilters: [],
+      sceneFixtureFilterActive: false,
+      selectedCards: [102, 104]
+    });
+  });
+
+  test('Pixel Matrix maps individual native matrixRgb pixels and converts an image in the browser', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18993/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    const result = await page.evaluate(async () => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'matrix-output', name: 'Matrix Pico', universe: 3, baseUrl: 'http://127.0.0.1:18993/' }
+      ]);
+      profiles.splice(0, profiles.length, {
+        id: 9200,
+        name: 'Native matrix',
+        mode: '2x1',
+        channels: 6,
+        controls: [{ id: 9201, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 1 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9210, name: 'Matrix fixture', profileId: 9200, start: 1, outputId: 'matrix-output' }
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = 1;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#ff0000';
+      context.fillRect(0, 0, 1, 1);
+      context.fillStyle = '#0000ff';
+      context.fillRect(1, 0, 1, 1);
+      const source = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const pixels = await DmxCommon.pixelMatrixImageColors(source, 2, 1, { fit: 'stretch' });
+      const targets = controllerPixelMatrixTargets();
+      await applyControllerPixelMatrix({
+        name: 'Native matrix test',
+        width: 2,
+        height: 1,
+        mappings: targets.map(target => target.key),
+        pixels
+      });
+      return {
+        targets: targets.map(target => ({ key: target.key, pixelIndex: target.pixelIndex })),
+        pixels,
+        value: values['9210:9201']
+      };
+    });
+
+    expect(result.targets).toEqual([
+      { key: '9210:9201:0', pixelIndex: 0 },
+      { key: '9210:9201:1', pixelIndex: 1 }
+    ]);
+    expect(result.pixels).toEqual(['#ff0000', '#0000ff']);
+    expect(result.value).toEqual({ pixels: [{ a: 255, b: 0, c: 0 }, { a: 0, b: 0, c: 255 }] });
+    await expect.poll(() => requests.some(item =>
+      item.url.endsWith('/dmx/b') && item.body === '1:255,2:0,3:0,4:0,5:0,6:255'
+    )).toBe(true);
+  });
+
+  test('Pixel Matrix toolbox creates a row-major mapping and stores it with the fixture setup', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 9300,
+        name: 'RGB pixels',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9301, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9310, name: 'Pixel 1', profileId: 9300, start: 1 },
+        { id: 9320, name: 'Pixel 2', profileId: 9300, start: 4 }
+      );
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
+    await expect(page.locator('#pixelMatrixModal')).toBeVisible();
+    await page.locator('#pixelMatrixName').fill('Front wall');
+    await page.locator('#pixelMatrixWidth').fill('2');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+    await page.locator('#pixelMatrixEditMapping').click();
+    await page.locator('#pixelMatrixAutoMap').click();
+    await page.locator('#pixelMatrixSave').click();
+
+    await expect(page.locator('#pixelMatrixModal')).toBeHidden();
+    await expect(page.locator('#pixelMatrixGrid')).toContainText('Front wall');
+    const saved = await page.evaluate(() => saveData().pixelMatrices);
+    expect(saved).toEqual([
+      expect.objectContaining({
+        name: 'Front wall',
+        width: 2,
+        height: 1,
+        mappings: ['9310:9301', '9320:9301']
+      })
+    ]);
+  });
+
+  test('Pixel Matrix cells paint colors by default and map only in Edit Mapping mode', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 9350,
+        name: 'Paintable RGB pixels',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9351, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9360, name: 'Pixel 1', profileId: 9350, start: 1 },
+        { id: 9370, name: 'Pixel 2', profileId: 9350, start: 4 }
+      );
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
+    await page.locator('#pixelMatrixWidth').fill('2');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+
+    await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#pixelMatrixDelete')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixApply')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixColorTools')).toBeVisible();
+    await expect(page.locator('#pixelMatrixMappingTools')).toBeHidden();
+    await page.evaluate(() => {
+      window.pixelMatrixPreviewCalls = [];
+      applyControllerPixelMatrix = async matrix => {
+        window.pixelMatrixPreviewCalls.push(JSON.parse(JSON.stringify(matrix)));
+      };
+    });
+    await page.locator('#pixelMatrixColor').fill('#123456');
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    expect(await page.evaluate(() => editingPixelMatrix.pixels)).toEqual(['#123456', '#000000']);
+    expect(await page.evaluate(() => editingPixelMatrix.mappings)).toEqual(['', '']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(1);
+
+    await page.locator('#pixelMatrixEditMapping').click();
+    await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#pixelMatrixColorTools')).toBeHidden();
+    await expect(page.locator('#pixelMatrixMappingTools')).toBeVisible();
+    await page.locator('#pixelMatrixTarget').selectOption('9360:9351');
+    await page.locator('[data-pixel-matrix-cell="1"]').click();
+    expect(await page.evaluate(() => editingPixelMatrix.pixels)).toEqual(['#123456', '#000000']);
+    expect(await page.evaluate(() => editingPixelMatrix.mappings)).toEqual(['', '9360:9351']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(2);
+  });
+
+  test('Pixel Matrix modal stores tile background color and icon in a separate appearance box', async ({ page }) => {
+    await page.evaluate(() => {
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
+    await expect(page.locator('#pixelMatrixTileAppearance')).toBeVisible();
+    expect(await page.locator('#pixelMatrixModal .modal-body').evaluate(body =>
+      body.firstElementChild?.id
+    )).toBe('pixelMatrixTileAppearance');
+    await page.locator('#pixelMatrixName').fill('Visual Matrix');
+    await page.locator('#pixelMatrixWidth').fill('2');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+    const tileGrid = page.locator('#pixelMatrixTileGrid');
+    await expect(tileGrid).toHaveAttribute('data-fit', 'contain');
+    await expect(tileGrid).toHaveAttribute('data-image-rect', '30,0,60,120');
+    await page.locator('#pixelMatrixFit').selectOption('cover');
+    await expect(tileGrid).toHaveAttribute('data-source-rect', '0,30,120,60');
+    await page.locator('#pixelMatrixFit').selectOption('stretch');
+    await expect(tileGrid).toHaveAttribute('data-source-rect', '0,0,120,120');
+    await page.locator('#pixelMatrixTileColor').fill('#345678');
+    await page.locator('#pixelMatrixTileImage').setInputFiles({
+      name: 'matrix-icon.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#ff0000"/></svg>')
+    });
+    await expect.poll(() => page.evaluate(() => editingPixelMatrix.visual?.image?.startsWith('data:image/'))).toBe(true);
+    await expect(page.locator('#pixelMatrixTileToMatrix')).toBeEnabled();
+    await page.locator('#pixelMatrixTileToMatrix').click();
+    await expect.poll(() => page.evaluate(() => editingPixelMatrix.pixels)).toEqual(['#ff0000', '#ff0000']);
+    await page.locator('#pixelMatrixSave').click();
+
+    const saved = await page.evaluate(() => saveData().pixelMatrices[0]);
+    expect(saved.visual).toEqual(expect.objectContaining({
+      type: 'visual',
+      color: '#345678',
+      image: expect.stringMatching(/^data:image\//)
+    }));
+    const tile = page.locator('#pixelMatrixGrid .slot.filled').first();
+    await expect(tile).toHaveAttribute('style', /background:#345678/i);
+    await expect(tile.locator('.palette-visual')).toHaveCount(1);
+  });
+
+  test('Pixel Matrix modal uses one touch scroll area that can reveal the final matrix row', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await expect.poll(() => page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+
+    await page.evaluate(() => {
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-tall', name: 'Tall Matrix', slot: 0, width: 4, height: 20 }
+      ]);
+      renderPixelMatrixList();
+    });
+    await page.locator('[data-edit-pixel-matrix="matrix-tall"]').click();
+
+    const result = await page.locator('#pixelMatrixModal .modal-body').evaluate(body => {
+      const grid = body.querySelector('#pixelMatrixEditorGrid');
+      body.scrollTop = body.scrollHeight;
+      const bodyRect = body.getBoundingClientRect();
+      const lastCellRect = grid.lastElementChild.getBoundingClientRect();
+      return {
+        bodyScrollable: body.scrollHeight > body.clientHeight,
+        bodyReachedBottom: Math.abs(body.scrollTop - (body.scrollHeight - body.clientHeight)) <= 1,
+        gridHasNestedVerticalScroll: grid.scrollHeight > grid.clientHeight + 1,
+        lastCellVisible: lastCellRect.top >= bodyRect.top - 1 && lastCellRect.bottom <= bodyRect.bottom + 1
+      };
+    });
+
+    expect(result).toEqual({
+      bodyScrollable: true,
+      bodyReachedBottom: true,
+      gridHasNestedVerticalScroll: false,
+      lastCellVisible: true
+    });
+    await expect(page.locator('#pixelMatrixSave')).toBeVisible();
+    await expect(page.locator('#pixelMatrixClose2')).toBeVisible();
+  });
+
+  test('Pixel Matrix manual mapping advances to the next unused fixture target', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 9400,
+        name: 'Manual RGB pixels',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9401, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9410, name: 'Pixel 1', profileId: 9400, start: 1 },
+        { id: 9420, name: 'Pixel 2', profileId: 9400, start: 4 },
+        { id: 9430, name: 'Pixel 3', profileId: 9400, start: 7 }
+      );
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
+    await page.locator('#pixelMatrixWidth').fill('3');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+    await page.locator('#pixelMatrixEditMapping').click();
+    await page.locator('#pixelMatrixTarget').selectOption('9410:9401');
+
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    await expect(page.locator('#pixelMatrixTarget')).toHaveValue('9420:9401');
+
+    await page.locator('[data-pixel-matrix-cell="1"]').click();
+    await expect(page.locator('#pixelMatrixTarget')).toHaveValue('9430:9401');
+
+    await page.locator('[data-pixel-matrix-cell="2"]').click();
+    await expect(page.locator('#pixelMatrixTarget')).toHaveValue('');
+    const mappings = await page.evaluate(() => editingPixelMatrix.mappings);
+    expect(mappings).toEqual(['9410:9401', '9420:9401', '9430:9401']);
+  });
+
+  test('Pixel Matrix toolbox uses the shared tile layout with edit, delete, and persisted dimensions', async ({ page }) => {
+    await page.evaluate(() => {
+      pixelMatrixCols = 2;
+      pixelMatrixRows = 2;
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-a', name: 'Matrix A', slot: 0, width: 2, height: 1, pixels: ['#ff0000', '#00ff00'] },
+        { id: 'matrix-b', name: 'Matrix B', slot: 1, width: 1, height: 1, pixels: ['#0000ff'] }
+      ]);
+      renderPixelMatrixList();
+    });
+
+    await expect(page.locator('#pixelMatrixGrid [data-pixel-matrix-slot]')).toHaveCount(4);
+    await expect(page.locator('#pixelMatrixGrid .slot.filled')).toHaveCount(2);
+    await expect(page.locator('#pixelMatrixGrid [data-edit-pixel-matrix]')).toHaveCount(2);
+    await expect(page.locator('#pixelMatrixGrid [data-delete-pixel-matrix]')).toHaveCount(2);
+    await expect(page.locator('#pixelMatrixGrid .slot:not(.filled)').first()).toContainText('+');
+
+    await page.locator('.toolbox-rail-edit').click();
+    await expect(page.locator('#pixelMatrixLayoutControls')).toBeVisible();
+    await page.locator('#pixelMatrixCols').selectOption('3');
+    await page.locator('#pixelMatrixRows').selectOption('2');
+    await expect(page.locator('#pixelMatrixGrid [data-pixel-matrix-slot]')).toHaveCount(6);
+
+    const dimensions = await page.evaluate(() => {
+      const data = saveData();
+      return { cols: data.pixelMatrixCols, rows: data.pixelMatrixRows };
+    });
+    expect(dimensions).toEqual({ cols: 3, rows: 2 });
+
+    await page.locator('[data-edit-pixel-matrix="matrix-a"]').click();
+    await expect(page.locator('#pixelMatrixModal')).toBeVisible();
+    await expect(page.locator('#pixelMatrixName')).toHaveValue('Matrix A');
+    await page.locator('#pixelMatrixClose2').click();
+
+    await page.evaluate(() => { window.confirm = () => true; });
+    await page.locator('[data-delete-pixel-matrix="matrix-b"]').click();
+    await expect(page.locator('#pixelMatrixGrid .slot.filled')).toHaveCount(1);
+    expect(await page.evaluate(() => pixelMatrices.map(matrix => matrix.id))).toEqual(['matrix-a']);
+  });
+
+  test('Pixel Matrix tiles apply normally and swap slots while Toolboxes Edit is active', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'matrix-output', name: 'Matrix Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' }
+      ]);
+      fixtures.find(fixture => fixture.id === 102).outputId = 'matrix-output';
+      pixelMatrixCols = 2;
+      pixelMatrixRows = 1;
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-left', name: 'Left', slot: 0, width: 1, height: 1, mappings: ['102:22'], pixels: ['#ff0000'] },
+        { id: 'matrix-right', name: 'Right', slot: 1, width: 1, height: 1, mappings: ['102:22'], pixels: ['#0000ff'] }
+      ]);
+      renderPixelMatrixList();
+    });
+
+    await page.locator('[data-pixel-matrix-slot="0"]').click();
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/chaser/stop')).toBe(true);
+    await expect.poll(() => requests.some(request => request.url === 'http://127.0.0.1:18991/motion/stop')).toBe(true);
+    await expect.poll(() => requests.some(request =>
+      request.url === 'http://127.0.0.1:18991/dmx/b' && request.body === '22:255,23:0,24:0'
+    )).toBe(true);
+    const dmxIndex = requests.findIndex(request => request.url === 'http://127.0.0.1:18991/dmx/b');
+    expect(requests.findIndex(request => request.url === 'http://127.0.0.1:18991/chaser/stop')).toBeLessThan(dmxIndex);
+    expect(requests.findIndex(request => request.url === 'http://127.0.0.1:18991/motion/stop')).toBeLessThan(dmxIndex);
+
+    await page.locator('.toolbox-rail-edit').click();
+    await page.locator('[data-pixel-matrix-slot="0"]').click();
+    await page.locator('[data-pixel-matrix-slot="1"]').click();
+    expect(await page.evaluate(() => pixelMatrices.map(matrix => ({ id: matrix.id, slot: matrix.slot })))).toEqual([
+      { id: 'matrix-right', slot: 0 },
+      { id: 'matrix-left', slot: 1 }
+    ]);
   });
 
   test('fixture card Default and Blackout buttons recall their values to DMX', async ({ page }) => {
@@ -972,6 +1562,20 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#fixtureLibraryBody')).toBeVisible();
     await expect(page.locator('#profilesBody')).toBeHidden();
     await expect(page.locator('#patchBody')).toBeVisible();
+  });
+
+  test('DMX Outputs opens while the Show card remains collapsed', async ({ page }) => {
+    await page.evaluate(() => {
+      setSectionCollapsed('showCollapseBtn', 'showBody', 'showCollapsed', true);
+    });
+    await expect(page.locator('#showBody')).toBeHidden();
+    await expect(page.locator('#showCollapseBtn')).toHaveText('+');
+
+    await page.locator('#openDmxOutputs').click();
+
+    await expect(page.locator('#dmxOutputsModal')).toBeVisible();
+    await expect(page.locator('#showBody')).toBeHidden();
+    await expect(page.locator('#showCollapseBtn')).toHaveText('+');
   });
 
   test('scene saves are serialized so deleting a scene removes its visual from the server payload', async ({ page }) => {
@@ -2204,6 +2808,40 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#surfaceCollapseAllBtn')).toHaveText('—');
     await expect(page.locator('[data-fixture-card="9102"] [data-control="9101"]')).toBeVisible();
     await expect(page.locator('[data-fixture-card="9103"] [data-control="9101"]')).toBeVisible();
+  });
+
+  test('collapsed fixture Default and Blackout buttons fit inside the header on iPad', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await expect.poll(() => page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+
+    await page.evaluate(() => {
+      const profile = profiles.find(item => item.id === 1);
+      const dimmer = profile.controls.find(control => control.id === 11);
+      dimmer.defaultValue = 127;
+      dimmer.blackoutValue = 0;
+      collapsedFixtureIds = new Set([101]);
+      drawSurface();
+    });
+
+    const geometry = await page.locator('[data-fixture-card="101"]').evaluate(card => {
+      const header = card.querySelector('.fixture-head').getBoundingClientRect();
+      const buttons = [...card.querySelectorAll('.fixture-actions button')].map(button => {
+        const rect = button.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom, height: rect.height };
+      });
+      return {
+        header: { top: header.top, bottom: header.bottom, height: header.height },
+        buttons
+      };
+    });
+
+    expect(geometry.buttons.length).toBe(3);
+    expect(geometry.buttons.every(button =>
+      button.top >= geometry.header.top - 0.5 &&
+      button.bottom <= geometry.header.bottom + 0.5
+    )).toBe(true);
   });
 
   test('scene recall clears groups and filters the surface to involved fixtures', async ({ page }) => {

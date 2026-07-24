@@ -53,7 +53,10 @@ async function routeShowSetup(page, calls) {
           baseUrl: 'http://pico.test',
           profiles: calls.profiles || profiles,
           fixtures: calls.fixtures || fixtures,
-          values: calls.setupValues || {}
+          values: calls.setupValues || {},
+          pixelMatrices: calls.pixelMatrices || [],
+          pixelMatrixCols: calls.pixelMatrixCols || 4,
+          pixelMatrixRows: calls.pixelMatrixRows || 4
         }
       })
     });
@@ -238,6 +241,14 @@ async function routeShowSetup(page, calls) {
       });
       return;
     }
+    if (url === 'http://pico.test/status.json') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, dmx: { channels: 512, frame_count: 42 } })
+      });
+      return;
+    }
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
 }
@@ -347,6 +358,74 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
     expect(calls.liveValues.at(-1)).toEqual({ '102:11': 200 });
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('Pixel Matrices card recalls regular and native matrix pixels to live DMX', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [
+        ...profiles,
+        {
+          id: 90,
+          name: 'Native Matrix',
+          mode: '2x1',
+          channels: 6,
+          controls: [{ id: 91, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 1 }]
+        }
+      ],
+      fixtures: [
+        ...fixtures,
+        { id: 190, name: 'Matrix 1', profileId: 90, start: 21 }
+      ],
+      pixelMatrixCols: 2,
+      pixelMatrixRows: 1,
+      pixelMatrices: [{
+        id: 'picture-show',
+        name: 'Show Picture',
+        slot: 0,
+        width: 3,
+        height: 1,
+        mappings: ['101:12', '190:91:0', '190:91:1'],
+        pixels: ['#ff0000', '#00ff00', '#0000ff'],
+        visual: {
+          type: 'visual',
+          color: '#56789a',
+          image: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 10 10%22%3E%3Ccircle cx=%225%22 cy=%225%22 r=%224%22 fill=%22white%22/%3E%3C/svg%3E'
+        }
+      }],
+      showRunState: {
+        cardCols: 2,
+        cardRows: 5,
+        cardOrder: ['matrix', 'group', 'fixture', 'scene', 'palette', 'plane', 'chaser', 'motion', 'live', 'midi']
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardMatrix h2')).toHaveText('Pixel Matrices');
+    const matrixTile = page.locator('#matrixGrid [data-matrix-key="picture-show"]');
+    await expect(matrixTile.locator('.slot-name')).toHaveText('Show Picture');
+    await expect(matrixTile).toHaveAttribute('style', /background:#56789a/i);
+    await expect(matrixTile.locator('.palette-visual')).toHaveCount(1);
+    await page.locator('#matrixGrid [data-matrix-key="picture-show"]').click();
+
+    await expect(page.locator('#status')).toContainText('Pixel Matrix "Show Picture" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({
+      '101:12': { a: 255, b: 0, c: 0 },
+      '190:91': {
+        pixels: [
+          { a: 0, b: 255, c: 0 },
+          { a: 0, b: 0, c: 255 }
+        ]
+      }
+    });
+    expect(calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b'
+      && call.body === '2:255,3:0,4:0,21:0,22:255,23:0,24:0,25:0,26:255'
+    )).toBe(true);
     expect(calls.setupWrites).toBe(0);
   });
 
@@ -1466,31 +1545,15 @@ test.describe('Show Run page', () => {
     expect(calls.pico.map(call => call.url)).toContain('http://pico.test/chaser/play/1');
   });
 
-  test('Find Pico fills the Pico base URL from the discovery endpoint', async ({ page }) => {
+  test('shows primary show output health instead of a Pico URL editor', async ({ page }) => {
     const calls = { pico: [], liveValues: [], setupWrites: 0 };
     await routeShowSetup(page, calls);
-    await page.route('**/pico_discovery.php**', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          ok: true,
-          devices: [{ id: 'test-pico', name: 'pico-wifi-dmx', ip: '192.0.2.55', http: 80, url: 'http://192.0.2.55/' }]
-        })
-      });
-    });
-    await page.route('http://192.0.2.55/status.json', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
-      });
-    });
     await openDmxPage(page, 'dmx_show.html');
 
-    await page.getByRole('button', { name: 'Find Pico' }).click();
-
-    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
+    await expect(page.locator('header #baseUrl')).toBeHidden();
+    await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('1/1 Pico online');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://pico.test');
   });
 
   test('offers Pico chaser and effects playback controls on Show Run', async ({ page }) => {
@@ -1731,6 +1794,7 @@ test.describe('Show Run page', () => {
       ['fixtureCols', 32], ['fixtureRows', 32],
       ['sceneCols', 32], ['sceneRows', 32],
       ['paletteCols', 32], ['paletteRows', 32],
+      ['matrixCols', 32], ['matrixRows', 32],
       ['planeCols', 32], ['planeRows', 32],
       ['chaserCols', 32], ['chaserRows', 32],
       ['motionCols', 32], ['motionRows', 32]
@@ -2478,7 +2542,7 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#addCardModal')).toBeVisible();
     await expect(page.locator('#addCardType option:disabled')).toHaveCount(0);
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent));
-    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
+    expect(addOptions.sort()).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Pixel Matrices', 'Planes', 'Scenes', 'Groups'].sort());
     await page.locator('#addCardType').selectOption('scene');
     await expect(page.locator('#addShowCard')).toHaveText('Add Scenes Card');
     await page.locator('#addShowCard').click();
@@ -2620,7 +2684,7 @@ test.describe('Show Run page', () => {
     await page.locator('[data-add-card-position="2"]').click();
     await expect(page.locator('#addCardModal')).toBeVisible();
     const addOptions = await page.locator('#addCardType option').evaluateAll(options => options.map(option => option.textContent).sort());
-    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Planes', 'Scenes', 'Groups'].sort());
+    expect(addOptions).toEqual(['Fixtures', 'Live Controls', 'Master', 'MIDI Controller', 'Palettes', 'Pico Chaser Playback', 'Pico Effects Playback', 'Pixel Matrices', 'Planes', 'Scenes', 'Groups'].sort());
 
     await page.locator('#addCardType').selectOption('palette');
     await page.locator('#addShowCard').click();

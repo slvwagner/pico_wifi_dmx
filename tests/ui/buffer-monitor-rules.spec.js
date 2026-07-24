@@ -20,6 +20,28 @@ test.describe('DMX Buffer Monitor established rules', () => {
   test('Clear all sends the Pico clear command and resets the displayed buffer', async ({ page }) => {
     let clearCalled = false;
     let cleared = false;
+    await page.route('**/fixture_setup.php**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          baseUrl: 'http://192.0.2.24/',
+          dmxOutputs: [
+            { id: 'monitor-pico', name: 'Monitor Pico', universe: 1, baseUrl: 'http://192.0.2.24/' }
+          ],
+          profiles: [],
+          fixtures: [],
+          values: {}
+        }
+      })
+    }));
+    await page.route('http://192.0.2.24/status.json', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
+    }));
     await page.route('http://192.0.2.24/dmx/output.json', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -36,7 +58,7 @@ test.describe('DMX Buffer Monitor established rules', () => {
       return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
     });
     await openDmxPage(page, 'dmx_monitor.html');
-    await page.locator('#baseUrl').fill('http://192.0.2.24/');
+    await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.24/');
     await page.locator('#refreshBtn').click();
     await expect(page.locator('.dmx-val').first()).toHaveText('12');
 

@@ -33,7 +33,8 @@ test.describe('Cross-page Group Edit contract', () => {
   test('Controller: hard reload plus Select All enables Group Edit for mixed fixture types', async ({ page }) => {
     await routeControllerCompactServerSetup(page);
     await openDmxPage(page, '');
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('header h1')).toBeVisible();
 
     await page.locator('#selectAllFixtures').click();
     await expect(page.locator('#editSelectedGroups')).toBeEnabled();
