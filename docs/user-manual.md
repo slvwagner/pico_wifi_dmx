@@ -4,7 +4,7 @@ This manual explains how to use the browser-based DMX controller with the Pico f
 
 The web interface can be installed with the Pico DMX Windows, macOS, or Ubuntu customer package, or hosted from the project's XAMPP development setup.
 
-With the Windows customer installer, open **WiFiPicoDMX** from the desktop or Start Menu. The macOS and Ubuntu packages currently use **Pico DMX Controller** in their application launchers. With the default installer port, the local address is:
+With a Windows, macOS, or Ubuntu customer installer, open **WiFiPicoDMX** from the desktop, Start Menu, or Applications folder. With the default installer port, the local address is:
 
 ```text
 http://localhost:8090/
@@ -51,18 +51,29 @@ Do not forward the selected controller port from the internet router. The LAN op
 
 ## macOS Customer Installation
 
-1. Open `pico-dmx-controller-<VERSION>-macos-<ARCH>.pkg` and complete the standard macOS installation.
-2. Start **Pico DMX Controller** from Applications.
+1. Open `wifi-pico-dmx-<VERSION>-macos-<ARCH>.pkg` and complete the standard macOS installation.
+2. Start **WiFiPicoDMX** from Applications.
 3. In the first-run **Controller Settings**, keep port `8090` or enter another unused port from `1024` to `65535`. The app refuses a port already used by another program.
 4. Leave **Allow access from trusted iPads and PCs** disabled for operation only on the Mac. Enable it only for devices on the intended private lighting network.
 5. For an iPad on the same trusted Wi-Fi, open `http://<mac-address>:<selected-port>/`, for example `http://192.168.0.50:8090/`.
 6. Configure the hardware in **DMX Outputs**, then use **Export Show** to keep a portable backup.
 
-The native dark application window provides normal macOS close, resize, reload, and fullscreen behavior. Use **Pico DMX Controller → Controller Settings…** to change the port or LAN mode later. Closing or quitting the window does not stop the server: the app's per-user LaunchAgent keeps it available and starts it at login.
+The native dark application window provides normal macOS close, resize, reload, and fullscreen behavior. Use **WiFiPicoDMX → Controller Settings…** to change the port or LAN mode later. Closing or quitting offers **Exit only**, **Exit and stop server**, and **Cancel**. Exit only closes the local application while its per-user LaunchAgent keeps the server available. Exit and stop server unloads that LaunchAgent and disconnects operator devices; starting WiFiPicoDMX again installs and starts it.
 
 Application code lives below `/Applications/Pico DMX Controller.app`. Shows and fixture data live separately below `~/Library/Application Support/Pico DMX Controller/data`; the first launch after an upgrade creates a snapshot below the neighboring `backups` directory. Removing the app does not remove those customer files. macOS may ask whether the signed bundled server may accept incoming connections when trusted-LAN access is enabled.
 
 Do not forward the selected controller port from the internet router. Direct customer packages should be Developer ID-signed, notarized by Apple, and have their notarization ticket stapled so Gatekeeper can validate them offline.
+
+## Ubuntu Customer Installation
+
+1. Install `wifi-pico-dmx_<VERSION>_<ARCHITECTURE>.deb` through Ubuntu App Center or with `sudo apt install ./wifi-pico-dmx_<VERSION>_amd64.deb`.
+2. Start **WiFiPicoDMX** from Applications or its installer-owned desktop shortcut.
+3. Use `sudo pico-dmx-config --lan` only when trusted iPads or other PCs need access. The default remains local-only on port `8090`.
+4. Configure the hardware in **DMX Outputs**, then use **Export Show** to keep a portable backup.
+
+Closing WiFiPicoDMX offers **Exit only**, **Exit and stop server**, and **Cancel**. Exit only closes the Electron/Chromium application but leaves the `pico-dmx-controller.service` server available. Exit and stop server waits until no other local WiFiPicoDMX window is using the service, then stops it. Cancel returns to the application. Use `sudo pico-dmx-config --always-on` when the server must also start automatically at boot; use `sudo pico-dmx-config --application-managed` to restore application-managed startup.
+
+Application files remain below `/opt/pico-dmx-controller`, while customer shows and upgrade snapshots remain below `/var/lib/pico-dmx-controller`. Removing the package deliberately preserves that data.
 
 ## Main Pages
 

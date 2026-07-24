@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=Pico DMX Controller
-Comment=Open the Pico DMX lighting controller
+Name=WiFiPicoDMX
+Comment=Open the WiFiPicoDMX lighting controller
 Exec=pico-dmx-controller
 Icon=pico-dmx-controller
 Terminal=false

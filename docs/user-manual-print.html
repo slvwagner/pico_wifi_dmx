@@ -115,7 +115,7 @@ strong { color: #ffffff; }
 <h1 id="pico-wifi-dmx-user-manual">Pico WiFi DMX User Manual</h1>
 <p>This manual explains how to use the browser-based DMX controller with the Pico firmware. It is written for daily operation: creating fixtures, controlling lights, saving scenes, building chasers, creating effects, and using GPIO buttons or ADC inputs.</p>
 <p>The web interface can be installed with the Pico DMX Windows, macOS, or Ubuntu customer package, or hosted from the project&#39;s XAMPP development setup.</p>
-<p>With the Windows customer installer, open <strong>WiFiPicoDMX</strong> from the desktop or Start Menu. The macOS and Ubuntu packages currently use <strong>Pico DMX Controller</strong> in their application launchers. With the default installer port, the local address is:</p>
+<p>With a Windows, macOS, or Ubuntu customer installer, open <strong>WiFiPicoDMX</strong> from the desktop, Start Menu, or Applications folder. With the default installer port, the local address is:</p>
 <pre><code>http://localhost:8090/</code></pre>
 <p>With XAMPP, the address on the same computer is often:</p>
 <pre><code>http://localhost/dmx/</code></pre>
@@ -147,16 +147,25 @@ strong { color: #ffffff; }
 <p>Do not forward the selected controller port from the internet router. The LAN option is intended for a trusted private lighting network. An unsigned development installer can display a Windows SmartScreen warning; customer release installers should carry the supplier&#39;s Authenticode signature.</p>
 <h2 id="macos-customer-installation">macOS Customer Installation</h2>
 <ol>
-<li>Open <code>pico-dmx-controller-&lt;VERSION&gt;-macos-&lt;ARCH&gt;.pkg</code> and complete the standard macOS installation.</li>
-<li>Start <strong>Pico DMX Controller</strong> from Applications.</li>
+<li>Open <code>wifi-pico-dmx-&lt;VERSION&gt;-macos-&lt;ARCH&gt;.pkg</code> and complete the standard macOS installation.</li>
+<li>Start <strong>WiFiPicoDMX</strong> from Applications.</li>
 <li>In the first-run <strong>Controller Settings</strong>, keep port <code>8090</code> or enter another unused port from <code>1024</code> to <code>65535</code>. The app refuses a port already used by another program.</li>
 <li>Leave <strong>Allow access from trusted iPads and PCs</strong> disabled for operation only on the Mac. Enable it only for devices on the intended private lighting network.</li>
 <li>For an iPad on the same trusted Wi-Fi, open <code>http://&lt;mac-address&gt;:&lt;selected-port&gt;/</code>, for example <code>http://192.168.0.50:8090/</code>.</li>
 <li>Configure the hardware in <strong>DMX Outputs</strong>, then use <strong>Export Show</strong> to keep a portable backup.</li>
 </ol>
-<p>The native dark application window provides normal macOS close, resize, reload, and fullscreen behavior. Use <strong>Pico DMX Controller → Controller Settings…</strong> to change the port or LAN mode later. Closing or quitting the window does not stop the server: the app&#39;s per-user LaunchAgent keeps it available and starts it at login.</p>
+<p>The native dark application window provides normal macOS close, resize, reload, and fullscreen behavior. Use <strong>WiFiPicoDMX → Controller Settings…</strong> to change the port or LAN mode later. Closing or quitting offers <strong>Exit only</strong>, <strong>Exit and stop server</strong>, and <strong>Cancel</strong>. Exit only closes the local application while its per-user LaunchAgent keeps the server available. Exit and stop server unloads that LaunchAgent and disconnects operator devices; starting WiFiPicoDMX again installs and starts it.</p>
 <p>Application code lives below <code>/Applications/Pico DMX Controller.app</code>. Shows and fixture data live separately below <code>~/Library/Application Support/Pico DMX Controller/data</code>; the first launch after an upgrade creates a snapshot below the neighboring <code>backups</code> directory. Removing the app does not remove those customer files. macOS may ask whether the signed bundled server may accept incoming connections when trusted-LAN access is enabled.</p>
 <p>Do not forward the selected controller port from the internet router. Direct customer packages should be Developer ID-signed, notarized by Apple, and have their notarization ticket stapled so Gatekeeper can validate them offline.</p>
+<h2 id="ubuntu-customer-installation">Ubuntu Customer Installation</h2>
+<ol>
+<li>Install <code>wifi-pico-dmx_&lt;VERSION&gt;_&lt;ARCHITECTURE&gt;.deb</code> through Ubuntu App Center or with <code>sudo apt install ./wifi-pico-dmx_&lt;VERSION&gt;_amd64.deb</code>.</li>
+<li>Start <strong>WiFiPicoDMX</strong> from Applications or its installer-owned desktop shortcut.</li>
+<li>Use <code>sudo pico-dmx-config --lan</code> only when trusted iPads or other PCs need access. The default remains local-only on port <code>8090</code>.</li>
+<li>Configure the hardware in <strong>DMX Outputs</strong>, then use <strong>Export Show</strong> to keep a portable backup.</li>
+</ol>
+<p>Closing WiFiPicoDMX offers <strong>Exit only</strong>, <strong>Exit and stop server</strong>, and <strong>Cancel</strong>. Exit only closes the Electron/Chromium application but leaves the <code>pico-dmx-controller.service</code> server available. Exit and stop server waits until no other local WiFiPicoDMX window is using the service, then stops it. Cancel returns to the application. Use <code>sudo pico-dmx-config --always-on</code> when the server must also start automatically at boot; use <code>sudo pico-dmx-config --application-managed</code> to restore application-managed startup.</p>
+<p>Application files remain below <code>/opt/pico-dmx-controller</code>, while customer shows and upgrade snapshots remain below <code>/var/lib/pico-dmx-controller</code>. Removing the package deliberately preserves that data.</p>
 <h2 id="main-pages">Main Pages</h2>
 <table>
 <thead><tr><th>Page</th><th>Purpose</th></tr></thead><tbody>

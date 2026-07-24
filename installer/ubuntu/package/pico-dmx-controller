@@ -2,8 +2,12 @@
 set -euo pipefail
 
 config_file=/etc/default/pico-dmx-controller
+EXIT_KEEP_SERVER=20
+EXIT_STOP_SERVER=21
 port=8090
 always_on=0
+keep_server=0
+force_stop=0
 if [[ -r "$config_file" ]]; then
     configured_port="$(sed -n 's/^PICO_DMX_PORT=\([0-9][0-9]*\)$/\1/p' "$config_file" | tail -n 1)"
     if [[ -n "$configured_port" ]]; then
@@ -30,16 +34,30 @@ fi
 exec 9>"$lock_file"
 flock --shared 9
 if ! systemctl start pico-dmx-controller.service; then
-    printf 'Could not start the Pico DMX Controller service.\n' >&2
+    printf 'Could not start the WiFiPicoDMX service.\n' >&2
     exit 1
 fi
 
 cleanup_service() {
     local application_result=$?
     trap - EXIT
+    case "$application_result" in
+        "$EXIT_KEEP_SERVER")
+            keep_server=1
+            application_result=0
+            ;;
+        "$EXIT_STOP_SERVER")
+            force_stop=1
+            application_result=0
+            ;;
+    esac
     flock --unlock 9
-    if [[ "$always_on" != 1 ]] && flock --exclusive --nonblock 9; then
-        systemctl stop pico-dmx-controller.service || true
+    if flock --exclusive --nonblock 9; then
+        if [[ "$force_stop" == 1 ]] ||
+            { [[ "$always_on" != 1 ]] && [[ "$keep_server" != 1 ]]; }
+        then
+            systemctl stop pico-dmx-controller.service || true
+        fi
     fi
     exit "$application_result"
 }

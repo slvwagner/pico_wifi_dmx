@@ -198,11 +198,37 @@ test.describe('Code safety regression rules', () => {
     expect(app).toContain('0.0.0.0');
     expect(app).toContain('launchctl');
     expect(app).toContain('toggleFullScreen');
-    expect(app).toContain('Closing this window leaves the controller server running');
+    expect(app).toContain('private let productName = "WiFiPicoDMX"');
+    expect(app).toContain('applicationShouldTerminate');
+    expect(app).toContain('Exit only');
+    expect(app).toContain('Exit and stop server');
+    expect(app).toContain('stopLaunchAgent');
     expect(runtimeBuilder).toContain('static-php-cli');
     expect(runtimeBuilder).toContain('sha256');
-    expect(ignore).toContain('release/v*/pico-dmx-controller-*-macos-*.pkg');
+    expect(ignore).toContain('release/v*/wifi-pico-dmx-*-macos-*.pkg');
     expect(ignore).toContain('installer/macos/signing/');
+  });
+
+  test('Ubuntu app uses WiFiPicoDMX branding and an explicit server exit choice', () => {
+    const main = read('installer/ubuntu/shell/main.js');
+    const shellPage = read('installer/ubuntu/shell/shell.html');
+    const launcher = read('installer/ubuntu/package/pico-dmx-controller');
+    const desktop = read('installer/ubuntu/package/pico-dmx-controller.desktop');
+    const builder = read('installer/ubuntu/build_package.sh');
+    const ignore = read('.gitignore');
+
+    expect(main).toContain("app.setName('WiFiPicoDMX')");
+    expect(main).toContain("'Exit only'");
+    expect(main).toContain("'Exit and stop server'");
+    expect(main).toContain('app.exit(EXIT_KEEP_SERVER)');
+    expect(main).toContain('app.exit(EXIT_STOP_SERVER)');
+    expect(shellPage).toContain('<title>WiFiPicoDMX</title>');
+    expect(launcher).toContain('EXIT_KEEP_SERVER=20');
+    expect(launcher).toContain('EXIT_STOP_SERVER=21');
+    expect(launcher).toContain('systemctl stop pico-dmx-controller.service');
+    expect(desktop).toContain('Name=WiFiPicoDMX');
+    expect(builder).toContain('wifi-pico-dmx_${version}_${architecture}.deb');
+    expect(ignore).toContain('release/v*/wifi-pico-dmx_*_amd64.deb');
   });
 
   test('motion slot response exposes target count without a duplicate fixture count', () => {

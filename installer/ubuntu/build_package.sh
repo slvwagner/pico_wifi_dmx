@@ -10,7 +10,7 @@ package_root="$build_root/package"
 electron_build_root="$build_root/electron"
 download_root="$build_root/downloads"
 architecture="$(dpkg --print-architecture)"
-package_name="pico-dmx-controller_${version}_${architecture}.deb"
+package_name="wifi-pico-dmx_${version}_${architecture}.deb"
 
 case "$version" in
     ''|*[!0-9A-Za-z.+:~-]*)

@@ -2,8 +2,14 @@ import Cocoa
 import Darwin
 import WebKit
 
-private let productName = "Pico DMX Controller"
+private let productName = "WiFiPicoDMX"
 private let serviceLabel = "com.picodmx.controller.server"
+
+private enum ExitChoice {
+    case exitOnly
+    case exitAndStopServer
+    case cancel
+}
 
 private struct ControllerConfig: Codable, Equatable {
     var port: Int = 8090
@@ -36,6 +42,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private var window: NSWindow!
     private var webView: WKWebView!
     private var statusLabel: NSTextField!
+    private var terminationApproved = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -48,6 +55,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         createUpgradeSnapshotIfNeeded()
 
         if !hadConfig && !showSettings(initialSetup: true) {
+            terminationApproved = true
             NSApp.terminate(nil)
             return
         }
@@ -60,6 +68,32 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if terminationApproved {
+            return .terminateNow
+        }
+
+        switch showExitChoice() {
+        case .exitOnly:
+            terminationApproved = true
+            return .terminateNow
+        case .exitAndStopServer:
+            stopLaunchAgent()
+            terminationApproved = true
+            return .terminateNow
+        case .cancel:
+            return .terminateCancel
+        }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if terminationApproved {
+            return true
+        }
+        NSApp.terminate(nil)
+        return false
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -113,7 +147,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         webView.navigationDelegate = self
         webView.underPageBackgroundColor = .clear
 
-        statusLabel = NSTextField(labelWithString: "Closing this window leaves the controller server running for operator devices.")
+        statusLabel = NSTextField(labelWithString: "When closing, choose whether the controller server should keep running.")
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.textColor = NSColor(calibratedWhite: 0.78, alpha: 1)
         statusLabel.backgroundColor = NSColor(calibratedWhite: 0.11, alpha: 1)
@@ -147,7 +181,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     private func showSettings(initialSetup: Bool) -> Bool {
         let alert = NSAlert()
-        alert.messageText = initialSetup ? "Set up Pico DMX Controller" : "Controller Settings"
+        alert.messageText = initialSetup ? "Set up \(productName)" : "Controller Settings"
         alert.informativeText = "Choose an HTTP port from 1024 to 65535. Enable LAN access only for trusted iPads and PCs on the same private network."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Save")
@@ -265,6 +299,30 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             }
         } catch {
             showError("The controller service could not be configured: \(error.localizedDescription)")
+        }
+    }
+
+    private func stopLaunchAgent() {
+        let domain = "gui/\(getuid())"
+        _ = run("/bin/launchctl", ["bootout", domain, paths.launchAgent.path])
+    }
+
+    private func showExitChoice() -> ExitChoice {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "How should \(productName) exit?"
+        alert.informativeText = "Exit only keeps the server running for iPads and other operator devices.\n\nExit and stop server disconnects those devices."
+        alert.addButton(withTitle: "Exit only")
+        alert.addButton(withTitle: "Exit and stop server")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return .exitOnly
+        case .alertSecondButtonReturn:
+            return .exitAndStopServer
+        default:
+            return .cancel
         }
     }
 

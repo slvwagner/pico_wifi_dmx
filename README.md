@@ -136,18 +136,20 @@ Build the architecture-specific macOS package on macOS 12 or newer:
 ```
 
 Open the generated
-`pico-dmx-controller-<VERSION>-macos-<ARCH>.pkg`, then start **Pico DMX
-Controller** from Applications. Its native dark WKWebView window supplies
+`wifi-pico-dmx-<VERSION>-macos-<ARCH>.pkg`, then start **WiFiPicoDMX** from
+Applications. Its native dark WKWebView window supplies
 Controller Settings, reload, normal macOS fullscreen, and standard close/quit
 actions. First-run setup accepts an available HTTP port from `1024–65535`
 (default `8090`) and keeps access local unless the customer explicitly enables
 trusted-LAN access.
 
-The app installs its own per-user LaunchAgent, so the bundled PHP server starts
-at login and remains available to operator devices after the GUI closes. App
-code stays under `/Applications`; show data and pre-upgrade snapshots stay
-separately under `~/Library/Application Support/Pico DMX Controller`. Removing
-the app therefore does not silently remove shows.
+The app installs its own per-user LaunchAgent. Closing or quitting offers
+**Exit only**, **Exit and stop server**, and **Cancel**. Exit only keeps the
+server available to operator devices; Exit and stop server unloads only that
+LaunchAgent. The upgrade-compatible app bundle and show-data paths remain
+under `/Applications/Pico DMX Controller.app` and
+`~/Library/Application Support/Pico DMX Controller`. Removing the app therefore
+does not silently remove shows.
 
 The package source, pinned standalone-PHP build, Developer ID signing, Apple
 notarization, stapling, and customer instructions are documented in
@@ -167,20 +169,21 @@ Install the generated package from `release/v<VERSION>/` by double-clicking it
 in Ubuntu's App Center, or with APT:
 
 ```bash
-sudo apt install ./pico-dmx-controller_<VERSION>_amd64.deb
+sudo apt install ./wifi-pico-dmx_<VERSION>_amd64.deb
 ```
 
 The package installs the read-only application below
 `/opt/pico-dmx-controller`, stores mutable shows and fixture data below
 `/var/lib/pico-dmx-controller/data`, manages its systemd service with the app,
-and adds **Pico DMX Controller** to the Applications menu. The self-contained
+and adds **WiFiPicoDMX** to the Applications menu. The self-contained
 application includes its own Chromium engine, dark frame, application and
 fullscreen controls, status bar, tray menu, and Web MIDI support. The installer
 also creates an executable shortcut on normal users' configured XDG desktops
 without replacing unrelated files. The service listens only on
-`127.0.0.1:8090` by default. Launching the application starts that service;
-closing the application stops all Electron/Chromium processes and background
-PHP workers.
+`127.0.0.1:8090` by default. Launching the application starts that service.
+Closing offers **Exit only**, **Exit and stop server**, and **Cancel**; Exit
+only leaves PHP available to operator devices, while Exit and stop server
+stops it after all local WiFiPicoDMX windows have closed.
 
 To allow iPads and other operator devices on a trusted local network, run:
 
@@ -194,9 +197,9 @@ This changes the listener to all network interfaces and adds the packaged TCP
 Upgrades snapshot current show data, and removing the package preserves all
 data under `/var/lib/pico-dmx-controller`.
 
-Application-managed service lifetime is the default. Installations that must
-remain available to LAN operator devices after the desktop window closes can
-opt in with `sudo pico-dmx-config --always-on`; restore the default with
+Application-managed startup remains the default. Installations that must start
+the server automatically at boot can opt in with
+`sudo pico-dmx-config --always-on`; restore application-managed startup with
 `sudo pico-dmx-config --application-managed`.
 
 The package source, behavior, and build instructions are documented in

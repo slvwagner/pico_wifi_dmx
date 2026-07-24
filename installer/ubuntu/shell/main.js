@@ -3,6 +3,7 @@
 const {
   app,
   BrowserWindow,
+  dialog,
   Menu,
   Tray,
   WebContentsView,
@@ -21,12 +22,15 @@ const SHELL_BOTTOM_NORMAL = 28;
 const CONTROLLER_FALLBACK = 'http://127.0.0.1:8090/';
 const DARK_SURFACE = '#1c212a';
 const DARK_BACKGROUND = '#12161d';
+const EXIT_KEEP_SERVER = 20;
+const EXIT_STOP_SERVER = 21;
 
 let mainWindow = null;
 let controllerView = null;
 let tray = null;
 let controllerUrl = normalizeControllerUrl(readArgument('--url'));
 let fullscreen = false;
+let exitChoiceOpen = false;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -34,7 +38,7 @@ if (!app.requestSingleInstanceLock()) {
 
 app.commandLine.appendSwitch('class', 'pico-dmx-controller');
 app.on('second-instance', () => restoreWindow());
-app.setName('Pico DMX Controller');
+app.setName('WiFiPicoDMX');
 nativeTheme.themeSource = 'dark';
 
 app.whenReady().then(async () => {
@@ -62,7 +66,7 @@ app.on('activate', () => {
 function createWindow() {
   const iconPath = path.join(__dirname, 'icon.png');
   mainWindow = new BrowserWindow({
-    title: 'Pico DMX Controller',
+    title: 'WiFiPicoDMX',
     width: 1440,
     height: 960,
     minWidth: 900,
@@ -99,6 +103,10 @@ function createWindow() {
   mainWindow.on('resize', layoutController);
   mainWindow.on('enter-full-screen', () => setFullscreenState(true));
   mainWindow.on('leave-full-screen', () => setFullscreenState(false));
+  mainWindow.on('close', (event) => {
+    event.preventDefault();
+    void requestExit();
+  });
   mainWindow.on('closed', () => {
     if (controllerView && !controllerView.webContents.isDestroyed()) {
       controllerView.webContents.close();
@@ -127,7 +135,7 @@ function createWindow() {
     sendStatus('Loading…');
   });
   controllerView.webContents.on('did-finish-load', () => {
-    sendStatus('Ready — closing this window leaves the Pico DMX server running.');
+    sendStatus('Ready — when closing, choose whether the server should keep running.');
   });
   controllerView.webContents.on(
     'did-fail-load',
@@ -157,7 +165,7 @@ function createWindow() {
 function createTray() {
   const image = nativeImage.createFromPath(path.join(__dirname, 'icon.png'));
   tray = new Tray(image.resize({ width: 22, height: 22 }));
-  tray.setToolTip('Pico DMX Controller');
+  tray.setToolTip('WiFiPicoDMX');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open', click: restoreWindow },
     { label: 'Toggle full screen', click: () => {
@@ -165,7 +173,7 @@ function createTray() {
       toggleFullscreen();
     } },
     { type: 'separator' },
-    { label: 'Exit application', click: () => app.quit() },
+    { label: 'Exit…', click: () => void requestExit() },
   ]));
   tray.on('double-click', restoreWindow);
 }
@@ -179,17 +187,43 @@ function registerShellActions() {
   ipcMain.on('shell:exit-fullscreen', () => {
     if (fullscreen) toggleFullscreen();
   });
-  ipcMain.on('shell:close', () => app.quit());
+  ipcMain.on('shell:close', () => void requestExit());
   ipcMain.on('shell:browser', () => void shell.openExternal(controllerUrl));
 }
 
 async function openController() {
-  sendStatus('Starting Pico DMX Controller…');
+  sendStatus('Starting WiFiPicoDMX…');
   const available = await waitForServer(controllerUrl, 20000);
   if (!available) {
     sendStatus('The local server did not answer; loading it for another retry…');
   }
   await controllerView?.webContents.loadURL(controllerUrl);
+}
+
+async function requestExit() {
+  if (exitChoiceOpen) return;
+  exitChoiceOpen = true;
+  try {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      title: 'Exit WiFiPicoDMX',
+      message: 'How should WiFiPicoDMX exit?',
+      detail:
+        'Exit only keeps the server running for iPads and other operator devices.\n\n' +
+        'Exit and stop server disconnects those devices.',
+      buttons: ['Exit only', 'Exit and stop server', 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+      noLink: true,
+    });
+    if (response === 0) {
+      app.exit(EXIT_KEEP_SERVER);
+    } else if (response === 1) {
+      app.exit(EXIT_STOP_SERVER);
+    }
+  } finally {
+    exitChoiceOpen = false;
+  }
 }
 
 async function waitForServer(url, timeoutMs) {

@@ -5,12 +5,12 @@ Windows installer:
 
 - read-only application files under `/opt/pico-dmx-controller`;
 - mutable show and fixture data under `/var/lib/pico-dmx-controller/data`;
-- a `pico-dmx-controller.service` started and stopped with the application;
+- an upgrade-compatible `pico-dmx-controller.service` managed by the application;
 - a self-contained desktop application with its own embedded Chromium engine,
   dark frame, application controls, fullscreen bar, status bar, and tray menu;
 - Applications-menu and executable desktop launchers for normal desktop users;
-- application-managed service startup and shutdown by default, so closing the
-  desktop application also stops every background PHP worker;
+- an explicit close choice that either keeps the service available, stops it
+  after the final local window closes, or cancels;
 - safe localhost-only access by default and an explicit trusted-LAN option;
 - a data snapshot before every package upgrade; and
 - removal that deliberately preserves shows and upgrade snapshots.
@@ -46,25 +46,26 @@ Double-click the `.deb` file in Ubuntu's App Center, or use APT so dependencies
 are installed automatically:
 
 ```bash
-sudo apt install ./pico-dmx-controller_<VERSION>_amd64.deb
+sudo apt install ./wifi-pico-dmx_<VERSION>_amd64.deb
 ```
 
-Open **Pico DMX Controller** from the Applications menu. The controller is
+Open **WiFiPicoDMX** from the Applications menu. The controller is
 available locally at `http://127.0.0.1:8090/`.
 
-The installer also creates **Pico DMX Controller** on each normal user's
+The installer also creates **WiFiPicoDMX** on each normal user's
 configured XDG desktop. It never replaces an unrelated file with the same name.
 Package removal deletes only shortcuts carrying the package's ownership marker.
 
 The application window provides Controller, Reload, Full screen, and
 Open in browser actions. F11 toggles fullscreen, Escape restores the window,
 and fullscreen retains visible **Exit full screen** and **Close application**
-buttons. Closing the desktop application exits its Electron/Chromium processes
-and gracefully stops the complete Pico DMX background service.
+buttons. Closing presents **Exit only**, **Exit and stop server**, and
+**Cancel**. Exit only closes Electron/Chromium while keeping the server
+available. Exit and stop server stops it once no other local WiFiPicoDMX window
+is using it.
 
-The default application-managed lifecycle means the web interface is available
-only while the desktop application is open. To keep serving iPads or other
-operator devices after the window closes, explicitly enable always-on mode:
+Exit only can keep serving iPads after a normal close. To also start the server
+automatically at boot, explicitly enable always-on mode:
 
 ```bash
 sudo pico-dmx-config --always-on

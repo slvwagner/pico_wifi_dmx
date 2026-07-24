@@ -156,8 +156,8 @@ else
 fi
 codesign --verify --deep --strict --verbose=2 "$app_bundle"
 
-unsigned_pkg="$build_root/pico-dmx-controller-$version-macos-$architecture-unsigned.pkg"
-output_pkg="$output_dir/pico-dmx-controller-$version-macos-$architecture.pkg"
+unsigned_pkg="$build_root/wifi-pico-dmx-$version-macos-$architecture-unsigned.pkg"
+output_pkg="$output_dir/wifi-pico-dmx-$version-macos-$architecture.pkg"
 pkgbuild \
     --root "$build_root/payload" \
     --identifier com.picodmx.controller.pkg \

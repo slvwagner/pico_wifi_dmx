@@ -57,8 +57,16 @@ release/v*/pico-dmx-controller_*_amd64.deb
 release/v*/pico-dmx-controller_*_amd64.deb.sha256
 release/v*/pico-dmx-controller_*_arm64.deb
 release/v*/pico-dmx-controller_*_arm64.deb.sha256
+release/v*/wifi-pico-dmx_*_all.deb
+release/v*/wifi-pico-dmx_*_all.deb.sha256
+release/v*/wifi-pico-dmx_*_amd64.deb
+release/v*/wifi-pico-dmx_*_amd64.deb.sha256
+release/v*/wifi-pico-dmx_*_arm64.deb
+release/v*/wifi-pico-dmx_*_arm64.deb.sha256
 
 # Generated macOS customer packages and protected signing material.
 release/v*/pico-dmx-controller-*-macos-*.pkg
 release/v*/pico-dmx-controller-*-macos-*.pkg.sha256
+release/v*/wifi-pico-dmx-*-macos-*.pkg
+release/v*/wifi-pico-dmx-*-macos-*.pkg.sha256
 installer/macos/signing/

@@ -43,7 +43,15 @@ install_desktop_shortcuts() {
             esac
         fi
 
-        shortcut="$desktop_dir/Pico DMX Controller.desktop"
+        legacy_shortcut="$desktop_dir/Pico DMX Controller.desktop"
+        if runuser -u "$account" -- \
+            grep -Fqx 'X-PicoDmx-PackagedShortcut=true' "$legacy_shortcut" \
+            2>/dev/null
+        then
+            runuser -u "$account" -- rm -f -- "$legacy_shortcut"
+        fi
+
+        shortcut="$desktop_dir/WiFiPicoDMX.desktop"
         if [ -e "$shortcut" ] &&
             ! runuser -u "$account" -- \
                 grep -Fqx 'X-PicoDmx-PackagedShortcut=true' "$shortcut" \

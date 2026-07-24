@@ -32,13 +32,16 @@ remove_desktop_shortcuts() {
             esac
         fi
 
-        shortcut="$desktop_dir/Pico DMX Controller.desktop"
-        if runuser -u "$account" -- \
-            grep -Fqx 'X-PicoDmx-PackagedShortcut=true' "$shortcut" \
-            2>/dev/null
-        then
-            runuser -u "$account" -- rm -f -- "$shortcut"
-        fi
+        for shortcut_name in "WiFiPicoDMX.desktop" "Pico DMX Controller.desktop"
+        do
+            shortcut="$desktop_dir/$shortcut_name"
+            if runuser -u "$account" -- \
+                grep -Fqx 'X-PicoDmx-PackagedShortcut=true' "$shortcut" \
+                2>/dev/null
+            then
+                runuser -u "$account" -- rm -f -- "$shortcut"
+            fi
+        done
     done
 }
 

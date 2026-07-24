@@ -62,7 +62,7 @@ case "${1:-}" in
         if systemctl is-active --quiet "$service_name"; then
             systemctl restart "$service_name"
         fi
-        printf 'Pico DMX Controller is available only on this computer.\n'
+        printf 'WiFiPicoDMX is available only on this computer.\n'
         ;;
     --lan)
         [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
@@ -74,7 +74,7 @@ case "${1:-}" in
         write_config 0.0.0.0 "$always_on"
         if ufw_is_active; then
             ufw allow 'Pico DMX Controller'
-            printf 'Added the Pico DMX Controller rule to UFW.\n'
+            printf 'Added the WiFiPicoDMX rule to UFW.\n'
         elif command -v ufw >/dev/null 2>&1; then
             printf 'UFW is installed but inactive; no firewall rule was needed.\n'
         else

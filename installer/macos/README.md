@@ -3,13 +3,14 @@
 The macOS package provides the same customer-facing behavior as the Windows
 installer while following native macOS conventions:
 
-- **Pico DMX Controller.app** is installed in `/Applications`;
+- **WiFiPicoDMX** is installed using the upgrade-compatible
+  `/Applications/Pico DMX Controller.app` bundle path;
 - a native dark Cocoa/WKWebView window provides normal close, resize, fullscreen,
   reload, and settings controls;
 - first-run **Controller Settings** selects an available HTTP port from
   `1024–65535` (default `8090`) and local-only or trusted-LAN access;
-- a per-user LaunchAgent keeps the bundled PHP server running after the app
-  window closes and starts it again at login;
+- closing or quitting offers **Exit only**, **Exit and stop server**, and
+  **Cancel**, using the app's per-user LaunchAgent for the server choice;
 - shows and fixture data live outside the app at
   `~/Library/Application Support/Pico DMX Controller/data`;
 - the first launch of a newer version snapshots existing data under the
@@ -71,7 +72,7 @@ notarization passwords must never be stored in this repository.
 
 ## Customer operation
 
-1. Open the `.pkg` and install **Pico DMX Controller**.
+1. Open the `.pkg` and install **WiFiPicoDMX**.
 2. Start it from Applications.
 3. Keep port `8090` or choose another unused port from `1024–65535`.
 4. Enable trusted-LAN access only when iPads or other PCs need to connect.
@@ -82,9 +83,9 @@ macOS may ask whether the signed bundled server may accept incoming
 connections when LAN access is enabled. Allow it only on the intended private
 lighting network. Do not forward the selected port through an internet router.
 
-Use **Pico DMX Controller → Controller Settings…** to change the port or access
-mode later. The app rewrites and restarts only its own user LaunchAgent.
-Closing or quitting the app leaves that server running; removing the LaunchAgent
-at `~/Library/LaunchAgents/com.picodmx.controller.server.plist` stops automatic
-startup. Customer data remains under Application Support until its owner
-explicitly removes it.
+Use **WiFiPicoDMX → Controller Settings…** to change the port or access mode
+later. The app rewrites and restarts only its own user LaunchAgent. On close or
+quit, **Exit only** keeps that server running, **Exit and stop server** unloads
+it, and **Cancel** returns to the application. Starting WiFiPicoDMX again
+reinstalls and starts the LaunchAgent. Customer data remains under the legacy
+Application Support path until its owner explicitly removes it.
