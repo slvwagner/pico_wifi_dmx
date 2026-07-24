@@ -1048,12 +1048,23 @@ function selectControllerPixelMatrixFixtures(matrix){
   selectedFixtureIds=new Set(involved);
   sourceFixtureId=involved.length?String(involved[0]):null;
   activeSavedGroupIds.clear();
+  const involvedKeys=new Set(involved.map(id=>String(id)));
+  if(involvedKeys.size){
+    savedGroups.forEach((group,index)=>{
+      const groupKeys=new Set((Array.isArray(group.fixtureIds)?group.fixtureIds:[]).map(id=>String(id)));
+      if(groupKeys.size===involvedKeys.size&&[...involvedKeys].every(id=>groupKeys.has(id))){
+        activeSavedGroupIds.add(savedGroupKey(group,index));
+      }
+    });
+  }
   activeFixtureFilterIds.clear();
   sceneFixtureFilterActive=false;
   activeControlScopeKeys.clear();
   fanState.bases={};
   fanAffectedKeys.clear();
-  DmxCommon.saveSharedGroupSelection([]);
+  groupValues={};
+  selectedSavedGroups().forEach(group=>Object.assign(groupValues,group.values||{}));
+  DmxCommon.saveSharedGroupSelection(selectedSavedGroupIds());
   renderSavedGroupsList();
   drawSurface();
 }

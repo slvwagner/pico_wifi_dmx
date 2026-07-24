@@ -229,7 +229,7 @@ test.describe('Fixture Controller established rules', () => {
     await expect.poll(() => requests.some(item => item.url.endsWith('/dmx/b') && item.body === '1:0,2:0,3:255')).toBe(true);
   });
 
-  test('recalling a Pixel Matrix replaces the Controller fixture selection with its mapped fixtures', async ({ page }) => {
+  test('recalling a Pixel Matrix selects its mapped fixtures and an exactly matching saved group', async ({ page }) => {
     await page.route('http://127.0.0.1:18991/**', async route => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
     });
@@ -239,15 +239,22 @@ test.describe('Fixture Controller established rules', () => {
         { id: 'matrix-output', name: 'Matrix Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' }
       ]);
       fixtures.find(fixture => fixture.id === 102).outputId = 'matrix-output';
+      fixtures.push({ id: 104, name: 'B 2', profileId: 2, start: 61, outputId: 'matrix-output' });
+      savedGroups = normalizeSavedGroups([
+        { id: 'grp_matrix_partial', name: 'Partial', slot: 0, fixtureIds: [102], values: {} },
+        { id: 'grp_matrix_exact', name: 'Matrix Fixtures', slot: 1, fixtureIds: [104, 102], values: {} },
+        { id: 'grp_matrix_superset', name: 'Superset', slot: 2, fixtureIds: [102, 103, 104], values: {} }
+      ]);
       selectedFixtureIds = new Set([101, 103]);
       activeSavedGroupIds = new Set(['group-that-was-selected']);
       activeFixtureFilterIds = new Set([101, 103]);
       sceneFixtureFilterActive = true;
-      pixelMatrixCols = 1;
+      pixelMatrixCols = 2;
       pixelMatrixRows = 1;
       pixelMatrices = DmxCommon.normalizePixelMatrices([
-        { id: 'matrix-selection', name: 'Selection', slot: 0, width: 1, height: 1, mappings: ['102:22'], pixels: ['#ff0000'] }
+        { id: 'matrix-selection', name: 'Selection', slot: 0, width: 2, height: 1, mappings: ['102:22', '104:22'], pixels: ['#ff0000', '#0000ff'] }
       ]);
+      renderSavedGroupsList();
       renderPixelMatrixList();
       drawSurface();
     });
@@ -262,11 +269,11 @@ test.describe('Fixture Controller established rules', () => {
       selectedCards: [...document.querySelectorAll('.fixture-card.selected')].map(card => Number(card.dataset.fixtureCard))
     }));
     expect(selection).toEqual({
-      fixtureIds: [102],
-      activeGroups: [],
+      fixtureIds: [102, 104],
+      activeGroups: ['grp_matrix_exact'],
       activeFixtureFilters: [],
       sceneFixtureFilterActive: false,
-      selectedCards: [102]
+      selectedCards: [102, 104]
     });
   });
 
@@ -427,6 +434,9 @@ test.describe('Fixture Controller established rules', () => {
 
     await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
     await expect(page.locator('#pixelMatrixTileAppearance')).toBeVisible();
+    expect(await page.locator('#pixelMatrixModal .modal-body').evaluate(body =>
+      body.firstElementChild?.id
+    )).toBe('pixelMatrixTileAppearance');
     await page.locator('#pixelMatrixName').fill('Visual Matrix');
     await page.locator('#pixelMatrixWidth').fill('2');
     await page.locator('#pixelMatrixWidth').press('Tab');
