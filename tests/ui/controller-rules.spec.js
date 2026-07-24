@@ -88,6 +88,36 @@ test.describe('Fixture Controller established rules', () => {
     await expect.poll(() => requests).toContain('http://127.0.0.1:18992/dmx/b');
   });
 
+  test('changing a patched fixture to another universe immediately sends its current values to the new output', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      fixtures.splice(0, fixtures.length,
+        { id: 8101, name: 'Movable fixture', profileId: 1, start: 1, outputId: 'front' }
+      );
+      values['8101:11'] = 93;
+      draw();
+    });
+
+    await page.locator('[data-fixture-output="8101"]').selectOption('rear', { force: true });
+    expect(await page.evaluate(() => fixtures[0].outputId)).toBe('rear');
+    expect(await page.evaluate(() => saveData().fixtures[0].outputId)).toBe('rear');
+
+    await expect.poll(() => requests.some(url => url.startsWith('http://127.0.0.1:18992/dmx/'))).toBe(true);
+  });
+
   test('DMX Outputs editor adds another universe and exposes it in fixture patching', async ({ page }) => {
     await page.getByRole('button', { name: 'DMX Outputs' }).click();
     await expect(page.locator('#dmxOutputsModal')).toBeVisible();

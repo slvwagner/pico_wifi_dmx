@@ -3186,6 +3186,13 @@ patchedEl.onchange=e=>{
   fixture.outputId=outputId;
   draw();
   scheduleSetupAutosave();
+  const entries=[];
+  profile.controls.forEach(control=>{
+    resolveDmxBytes(fixture,control).forEach(row=>entries.push({fixture,row}));
+  });
+  sendFixtureDmxRows(entries)
+    .then(sent=>setStatus('Moved '+fixture.name+' to '+fixtureDmxOutput(fixture).name+' · Universe '+fixtureDmxOutput(fixture).universe+' and sent '+sent+' DMX channel'+(sent===1?'':'s')))
+    .catch(error=>setStatus('Fixture output changed, but DMX update failed: '+error.message,true));
 };
 
 surfaceEl.oninput=e=>{
