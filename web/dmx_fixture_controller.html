@@ -1037,7 +1037,8 @@ function renderPixelMatrixList(){
     if(!matrix)return `<div class="slot" data-pixel-matrix-slot="${slot}" title="${pixelMatrixMoveMode?'Move a saved matrix here':'Create a Pixel Matrix here'}">+</div>`;
     const mapped=matrix.mappings.filter(Boolean).length;
     const color=/^#[0-9a-f]{6}$/i.test(matrix.pixels[0]||'')?matrix.pixels[0]:'#25323c';
-    return `<div class="${DmxCommon.savedTileClass('slot filled',pixelMatrixMoveSelectedSlot===slot)}" data-pixel-matrix-slot="${slot}" title="${pixelMatrixMoveMode?'Drag to move, or tap this matrix and then a target slot':'Apply '+escHtml(matrix.name)+' to DMX'}" style="background:${color};--slot-bg:${color}">${DmxCommon.slotVisualButtonHtml('data-edit-pixel-matrix',matrix.id,'Edit Pixel Matrix')}<button class="slot-del" data-delete-pixel-matrix="${escHtml(matrix.id)}" title="Delete Pixel Matrix">×</button><div class="palette-slot-content"><span class="palette-slot-name">${escHtml(matrix.name)}</span><span class="small">${matrix.width}×${matrix.height} · ${mapped}/${matrix.width*matrix.height}</span></div></div>`;
+    const style=DmxCommon.slotVisualStyle(matrix)||`background:${color};--slot-bg:${color}`;
+    return `<div class="${DmxCommon.savedTileClass('slot filled',pixelMatrixMoveSelectedSlot===slot)}" data-pixel-matrix-slot="${slot}" title="${pixelMatrixMoveMode?'Drag to move, or tap this matrix and then a target slot':'Apply '+escHtml(matrix.name)+' to DMX'}" style="${style}">${DmxCommon.slotVisualButtonHtml('data-edit-pixel-matrix',matrix.id,'Edit Pixel Matrix')}<button class="slot-del" data-delete-pixel-matrix="${escHtml(matrix.id)}" title="Delete Pixel Matrix">×</button><div class="palette-slot-content">${DmxCommon.slotVisualHtml(matrix)}<span class="palette-slot-name">${escHtml(matrix.name)}</span><span class="small">${matrix.width}×${matrix.height} · ${mapped}/${matrix.width*matrix.height}</span></div></div>`;
   }).join('');
   DmxCommon.initTileMoveGrid({
     grid,

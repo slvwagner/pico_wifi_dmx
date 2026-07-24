@@ -348,6 +348,35 @@ test.describe('Fixture Controller established rules', () => {
     await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(2);
   });
 
+  test('Pixel Matrix modal stores tile background color and icon in a separate appearance box', async ({ page }) => {
+    await page.evaluate(() => {
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
+    await expect(page.locator('#pixelMatrixTileAppearance')).toBeVisible();
+    await page.locator('#pixelMatrixName').fill('Visual Matrix');
+    await page.locator('#pixelMatrixTileColor').fill('#345678');
+    await page.locator('#pixelMatrixTileImage').setInputFiles({
+      name: 'matrix-icon.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+    });
+    await expect.poll(() => page.evaluate(() => editingPixelMatrix.visual?.image?.startsWith('data:image/png'))).toBe(true);
+    await page.locator('#pixelMatrixSave').click();
+
+    const saved = await page.evaluate(() => saveData().pixelMatrices[0]);
+    expect(saved.visual).toEqual(expect.objectContaining({
+      type: 'visual',
+      color: '#345678',
+      image: expect.stringMatching(/^data:image\/png/)
+    }));
+    const tile = page.locator('#pixelMatrixGrid .slot.filled').first();
+    await expect(tile).toHaveAttribute('style', /background:#345678/i);
+    await expect(tile.locator('.palette-visual')).toHaveCount(1);
+  });
+
   test('Pixel Matrix manual mapping advances to the next unused fixture target', async ({ page }) => {
     await page.evaluate(() => {
       profiles.splice(0, profiles.length, {

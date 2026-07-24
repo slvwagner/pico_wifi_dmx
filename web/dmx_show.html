@@ -2943,8 +2943,9 @@ function renderPixelMatrixGrid(gridRef,layoutId='matrix',cols=matrixCols,rows=ma
     const matrix=entry?.item;
     if(!matrix)return`<div class="slot empty" data-show-tile-index="${index}"><span class="slot-name">${index+1}</span></div>`;
     const color=/^#[0-9a-f]{6}$/i.test(matrix.pixels?.[0]||'')?matrix.pixels[0]:'#25323c';
+    const style=DmxCommon.slotVisualStyle(matrix)||`background:${color};--slot-bg:${color}`;
     const remove=layoutEditing?`<button class="slot-del" data-show-delete-tile="${esc('matrix:'+entry.key)}" data-show-delete-layout="${esc(layoutId)}" title="Remove Pixel Matrix from this card">×</button>`:'';
-    return`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected.matrix===index&&moveSelectedLayout.matrix===layoutId)}" data-show-tile-index="${index}" data-matrix-key="${esc(entry.key)}" title="Recall Pixel Matrix ${esc(matrix.name||String(index+1))}" style="background:${color};--slot-bg:${color}">${remove}<span class="show-tile-content"><span class="slot-name">${esc(matrix.name||('Pixel Matrix '+(index+1)))}</span><span class="slot-meta small">${matrix.width}×${matrix.height}</span></span></div>`;
+    return`<div role="button" tabindex="0" class="${DmxCommon.savedTileClass('slot filled',moveSelected.matrix===index&&moveSelectedLayout.matrix===layoutId)}" data-show-tile-index="${index}" data-matrix-key="${esc(entry.key)}" title="Recall Pixel Matrix ${esc(matrix.name||String(index+1))}" style="${style}">${remove}${DmxCommon.slotVisualHtml(matrix)}<span class="show-tile-content"><span class="slot-name">${esc(matrix.name||('Pixel Matrix '+(index+1)))}</span><span class="slot-meta small">${matrix.width}×${matrix.height}</span></span></div>`;
   }).join('');
   grid.querySelectorAll('[data-matrix-key]').forEach(tile=>tile.addEventListener('click',()=>{
     const index=parseInt(tile.dataset.showTileIndex,10);

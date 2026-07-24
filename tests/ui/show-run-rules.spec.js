@@ -389,7 +389,12 @@ test.describe('Show Run page', () => {
         width: 3,
         height: 1,
         mappings: ['101:12', '190:91:0', '190:91:1'],
-        pixels: ['#ff0000', '#00ff00', '#0000ff']
+        pixels: ['#ff0000', '#00ff00', '#0000ff'],
+        visual: {
+          type: 'visual',
+          color: '#56789a',
+          image: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 10 10%22%3E%3Ccircle cx=%225%22 cy=%225%22 r=%224%22 fill=%22white%22/%3E%3C/svg%3E'
+        }
       }],
       showRunState: {
         cardCols: 2,
@@ -401,7 +406,10 @@ test.describe('Show Run page', () => {
     await openDmxPage(page, 'dmx_show.html');
 
     await expect(page.locator('#cardMatrix h2')).toHaveText('Pixel Matrices');
-    await expect(page.locator('#matrixGrid [data-matrix-key="picture-show"] .slot-name')).toHaveText('Show Picture');
+    const matrixTile = page.locator('#matrixGrid [data-matrix-key="picture-show"]');
+    await expect(matrixTile.locator('.slot-name')).toHaveText('Show Picture');
+    await expect(matrixTile).toHaveAttribute('style', /background:#56789a/i);
+    await expect(matrixTile.locator('.palette-visual')).toHaveCount(1);
     await page.locator('#matrixGrid [data-matrix-key="picture-show"]').click();
 
     await expect(page.locator('#status')).toContainText('Pixel Matrix "Show Picture" recalled');

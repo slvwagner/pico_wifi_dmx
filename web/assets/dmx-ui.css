@@ -372,4 +372,8 @@ main::after{content:"";display:block;height:calc(18vh + env(safe-area-inset-bott
 .pixel-matrix-edit-toolbar{align-items:end}
 .pixel-matrix-mode-toggle.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#164e63;color:var(--text)}
 #pixelMatrixColor{width:64px;min-height:38px;padding:3px;cursor:pointer}
+.pixel-matrix-tile-appearance{border-color:#53606b;background:#0e171d}
+.pixel-matrix-tile-appearance h3{margin:0;color:#d7e2ea;font-size:14px}
+#pixelMatrixTileColor{width:64px;min-height:38px;padding:3px;cursor:pointer}
+#pixelMatrixTileCanvas{background:#25323c}
 .pixel-matrix-list-item{display:grid;gap:4px;width:100%;text-align:left}

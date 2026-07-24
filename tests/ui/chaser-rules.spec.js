@@ -1013,6 +1013,8 @@ test.describe('Chaser established rules', () => {
     await expect(page.locator('#pixelMatrixDelete')).toHaveCount(0);
     await expect(page.locator('#pixelMatrixApply')).toHaveCount(0);
     await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#pixelMatrixTileAppearance')).toBeVisible();
+    await page.locator('#pixelMatrixTileColor').fill('#456789');
     await page.evaluate(() => {
       window.pixelMatrixPreviewCalls = [];
       recallChaserPixelMatrix = matrix => {
@@ -1041,10 +1043,12 @@ test.describe('Chaser established rules', () => {
     expect(editPayload.pixelMatrices.find(matrix => matrix.id === 'picture-edit')).toEqual(expect.objectContaining({
       name: 'Edited Picture',
       pixels: ['#123456', '#00ff00'],
-      mappings: ['102:22', '']
+      mappings: ['102:22', ''],
+      visual: { type: 'visual', color: '#456789', image: '' }
     }));
     await expect(page.locator('#pixelMatrixModal')).toBeHidden();
     await expect(page.locator('#chaserPixelMatrixGrid')).toContainText('Edited Picture');
+    await expect(page.locator('#chaserPixelMatrixGrid .slot.filled').first()).toHaveAttribute('style', /background:#456789/i);
     await expect.poll(() => page.evaluate(() => setup.pixelMatrices.find(matrix => matrix.id === 'picture-edit')?.name)).toBe('Edited Picture');
 
     page.once('dialog', dialog => dialog.accept());

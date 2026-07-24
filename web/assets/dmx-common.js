@@ -210,6 +210,7 @@
     const count=width*height;
     const mappings=Array.isArray(source.mappings)?source.mappings.slice(0,count).map(value=>String(value||'')):[];
     const pixels=Array.isArray(source.pixels)?source.pixels.slice(0,count).map(value=>/^#[0-9a-f]{6}$/i.test(String(value))?String(value).toLowerCase():'#000000'):[];
+    const visual=normalizeSlotVisual(source.visual);
     while(mappings.length<count)mappings.push('');
     while(pixels.length<count)pixels.push('#000000');
     return {
@@ -222,7 +223,8 @@
       brightness:clampInt(source.brightness??100,1,100),
       imageName:String(source.imageName||'').slice(0,160),
       mappings,
-      pixels
+      pixels,
+      ...(visual?{visual}:{})
     };
   }
 
@@ -292,6 +294,12 @@
 <div class="toolbar"><label>Image<input id="pixelMatrixImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button id="pixelMatrixClearImage" type="button">Clear Image</button></div>
 <div class="toolbar pixel-matrix-edit-toolbar"><button id="pixelMatrixEditMapping" class="pixel-matrix-mode-toggle" type="button" aria-pressed="false">Edit Mapping</button><div id="pixelMatrixColorTools" class="pixel-matrix-inline-tools"><label>Pixel color<input id="pixelMatrixColor" type="color" value="#ffffff"></label><span class="small">Choose a color, then click pixels to paint them.</span></div></div>
 <div id="pixelMatrixMappingTools" class="toolbar pixel-matrix-inline-tools" hidden><label>Mapping target<select id="pixelMatrixTarget"></select></label><button id="pixelMatrixAutoMap" type="button">Auto Map</button><button id="pixelMatrixClearMap" type="button">Clear Mapping</button><span class="small">Click pixels to assign the selected fixture target.</span></div>
+<section id="pixelMatrixTileAppearance" class="slot-visual-editor pixel-matrix-tile-appearance" aria-labelledby="pixelMatrixTileAppearanceTitle">
+<h3 id="pixelMatrixTileAppearanceTitle">Tile appearance</h3>
+<div class="toolbar"><label>Background color<input id="pixelMatrixTileColor" type="color" value="#25323c"></label><button id="pixelMatrixTileResetColor" type="button">Default background</button><label>Upload icon<input id="pixelMatrixTileImage" type="file" accept="image/*"></label></div>
+<div class="toolbar"><canvas id="pixelMatrixTileCanvas" class="gobo-canvas" width="120" height="120" aria-label="Draw Pixel Matrix tile icon"></canvas><button id="pixelMatrixTileClearIcon" type="button">No icon</button></div>
+<div class="small">Choose the saved toolbox tile background and optionally draw or upload an icon. This appearance is separate from the matrix pixel colors.</div>
+</section>
 <div class="small" id="pixelMatrixSummary"></div>
 <div id="pixelMatrixEditorGrid" class="pixel-matrix-grid"></div>
 </div>
@@ -310,6 +318,54 @@
     const getMatrix=()=>options.getMatrix?.()||null;
     const getTargets=()=>options.targets?.()||[];
     let mappingMode=false;
+    const tileColorInput=document.getElementById('pixelMatrixTileColor');
+    const tileImageInput=document.getElementById('pixelMatrixTileImage');
+    const tileCanvas=document.getElementById('pixelMatrixTileCanvas');
+    const tileContext=tileCanvas.getContext('2d');
+    let tileIcon='';
+    let tileDrawing=false;
+
+    function defaultTileColor(matrix){
+      const color=String(matrix?.pixels?.[0]||'');
+      return /^#[0-9a-f]{6}$/i.test(color)?color:'#25323c';
+    }
+    function prepareTileBrush(){
+      tileContext.strokeStyle=contrastTextForColor(tileColorInput.value);
+      tileContext.lineWidth=6;
+      tileContext.lineCap='round';
+      tileContext.lineJoin='round';
+    }
+    function clearTileCanvas(){
+      tileContext.clearRect(0,0,tileCanvas.width,tileCanvas.height);
+      tileCanvas.style.background=tileColorInput.value;
+      prepareTileBrush();
+    }
+    function drawTileIcon(image){
+      clearTileCanvas();
+      if(!image)return;
+      const icon=new Image();
+      icon.onload=()=>{
+        clearTileCanvas();
+        tileContext.drawImage(icon,0,0,tileCanvas.width,tileCanvas.height);
+      };
+      icon.src=image;
+    }
+    function syncTileVisual(){
+      const matrix=getMatrix();
+      if(!matrix)return;
+      matrix.visual={
+        type:'visual',
+        color:tileColorInput.value||defaultTileColor(matrix),
+        image:/^data:image\//.test(tileIcon)?tileIcon:''
+      };
+    }
+    function tilePointerPosition(event){
+      const rect=tileCanvas.getBoundingClientRect();
+      return{
+        x:(event.clientX-rect.left)*tileCanvas.width/rect.width,
+        y:(event.clientY-rect.top)*tileCanvas.height/rect.height
+      };
+    }
 
     function report(message,error){
       if(options.onError)options.onError(message,error);
@@ -372,6 +428,11 @@
       const matrix=getMatrix();
       mappingMode=false;
       document.getElementById('pixelMatrixColor').value=matrix?.pixels?.[0]||'#ffffff';
+      const visual=normalizeSlotVisual(matrix?.visual);
+      tileColorInput.value=visual?.color||defaultTileColor(matrix);
+      tileIcon=visual?.image||'';
+      tileImageInput.value='';
+      drawTileIcon(tileIcon);
       render();
     }
 
@@ -454,6 +515,62 @@
         event.target.disabled=false;
       }
     });
+    tileColorInput.addEventListener('input',()=>{
+      tileCanvas.style.background=tileColorInput.value;
+      prepareTileBrush();
+      syncTileVisual();
+    });
+    document.getElementById('pixelMatrixTileResetColor').onclick=()=>{
+      tileColorInput.value=defaultTileColor(getMatrix());
+      tileCanvas.style.background=tileColorInput.value;
+      prepareTileBrush();
+      syncTileVisual();
+    };
+    tileImageInput.addEventListener('change',event=>{
+      const file=event.target.files?.[0];
+      if(!file||!getMatrix())return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        tileIcon=String(reader.result||'');
+        syncTileVisual();
+        drawTileIcon(tileIcon);
+      };
+      reader.onerror=()=>report('Tile icon could not be read',reader.error);
+      reader.readAsDataURL(file);
+    });
+    document.getElementById('pixelMatrixTileClearIcon').onclick=()=>{
+      tileIcon='';
+      tileImageInput.value='';
+      clearTileCanvas();
+      syncTileVisual();
+    };
+    tileCanvas.addEventListener('pointerdown',event=>{
+      if(!getMatrix())return;
+      event.preventDefault();
+      const point=tilePointerPosition(event);
+      tileCanvas.setPointerCapture?.(event.pointerId);
+      prepareTileBrush();
+      tileContext.beginPath();
+      tileContext.moveTo(point.x,point.y);
+      tileDrawing=true;
+    });
+    tileCanvas.addEventListener('pointermove',event=>{
+      if(!tileDrawing)return;
+      const point=tilePointerPosition(event);
+      tileContext.lineTo(point.x,point.y);
+      tileContext.stroke();
+      tileContext.beginPath();
+      tileContext.moveTo(point.x,point.y);
+    });
+    const finishTileDrawing=event=>{
+      if(!tileDrawing)return;
+      tileDrawing=false;
+      tileCanvas.releasePointerCapture?.(event.pointerId);
+      tileIcon=tileCanvas.toDataURL('image/png');
+      syncTileVisual();
+    };
+    tileCanvas.addEventListener('pointerup',finishTileDrawing);
+    tileCanvas.addEventListener('pointercancel',finishTileDrawing);
 
     return {render,reset,preview,isMappingMode:()=>mappingMode};
   }
