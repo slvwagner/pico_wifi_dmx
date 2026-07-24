@@ -39,6 +39,70 @@ test.describe('Code safety regression rules', () => {
     expect(unlock).toBeGreaterThan(truncate);
   });
 
+  test('customer data endpoints support an installer-owned external data directory', () => {
+    const paths = read('api/app_paths.php');
+    expect(paths).toContain("getenv('PICO_DMX_DATA_DIR')");
+    expect(paths).toContain("$_SERVER['PICO_DMX_DATA_DIR']");
+
+    for (const endpoint of [
+      'api/fixture_setup.php',
+      'api/fixture_library.php',
+      'api/group_setup.php',
+      'api/scene_setup.php',
+      'api/palette_setup.php',
+      'api/chaser_setup.php',
+      'api/motion_setup.php',
+      'api/gpio_setup.php',
+      'api/room_plane_setup.php',
+      'api/ui_state.php'
+    ]) {
+      const source = read(endpoint);
+      expect(source, endpoint).toContain("require_once __DIR__ . DIRECTORY_SEPARATOR . 'app_paths.php'");
+      expect(source, endpoint).toContain('pico_dmx_data_dir()');
+      expect(source, endpoint).not.toMatch(/__DIR__\s*\.\s*(?:DIRECTORY_SEPARATOR\s*\.\s*)?['"](?:\/)?data['"]/);
+    }
+
+    const deployment = read('scripts/sync_fixture_controller_to_xampp.ps1');
+    expect(deployment).toContain('$appPathsSource');
+    expect(deployment).toContain('$appPathsTarget');
+  });
+
+  test('Windows customer installer separates program files from persistent show data', () => {
+    const installer = read('installer/windows/pico-dmx-controller.nsi');
+    const builder = read('installer/windows/build_installer.ps1');
+    const apache = read('installer/windows/runtime/httpd.conf.template');
+
+    expect(installer).toContain('SetShellVarContext all');
+    expect(installer).toContain('$APPDATA\\${PRODUCT_NAME}\\data');
+    expect(installer).toContain('$APPDATA\\${PRODUCT_NAME}\\backups');
+    expect(installer).toContain('PicoDmxController');
+    expect(installer).not.toMatch(/RMDir\s+\/r\s+["']?\$PROGRAMDATA/i);
+    expect(builder).not.toContain('api\\data');
+    expect(builder).not.toContain('mysql');
+    expect(apache).toContain('SetEnv PICO_DMX_DATA_DIR');
+    expect(apache).toContain('Options -Indexes');
+  });
+
+  test('Windows signing credentials and local secrets cannot be committed', () => {
+    const ignore = read('.gitignore');
+    const builder = read('installer/windows/build_installer.ps1');
+
+    for (const pattern of [
+      '*.pfx',
+      '*.p12',
+      '*.pvk',
+      '*.snk',
+      '*.private.pem',
+      '.env',
+      '.env.*',
+      'installer/windows/signing/'
+    ]) {
+      expect(ignore).toContain(pattern);
+    }
+    expect(builder).not.toMatch(/CertificatePassword|PfxPassword|SecureString/);
+    expect(builder).toContain('SigningCertificateThumbprint');
+  });
+
   test('motion slot response exposes target count without a duplicate fixture count', () => {
     const main = read('firmware/main.cpp');
     const slotFormat = main.match(/static void build_motion_slots_response\(\)[\s\S]*?static void build_playback_ok_response/);

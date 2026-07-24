@@ -7,3 +7,37 @@ tests/pathconfig.local.json
 config/local-paths.json
 debug.log
 !.vscode/*
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.secrets.json
+*.credentials.json
+
+# Code-signing certificates and private keys must stay outside Git.
+installer/windows/signing/
+*.pfx
+*.p12
+*.pvk
+*.snk
+*.key
+*.pem
+*.private.pem
+*-private.pem
+*.cer
+*.crt
+*.p7b
+*.p7c
+*.csr
+
+# Machine-local IDE state
+.vs/
+*.suo
+*.user
+*.userprefs
+
+# Show backups may contain customer-owned fixtures, network addresses, and cues.
+# Existing tracked backups are intentionally unaffected by this ignore rule.
+show-backups/

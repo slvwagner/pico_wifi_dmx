@@ -45,6 +45,7 @@ Core features:
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
+- **Windows customer installer** — package a minimal Apache/PHP Windows service with the app, manual, app shortcuts, optional Private-network access, upgrade snapshots, persistent `ProgramData` storage, pinned runtime hashes, and optional Authenticode signing—without shipping MariaDB, phpMyAdmin, or the XAMPP developer control panel.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
@@ -76,7 +77,34 @@ The deployment wrapper copies application source and verifies HTTP availability;
 
 ## Getting Started
 
-### Run the software
+### Install the Windows customer application
+
+For a customer PC, use the generated
+`pico-dmx-controller-<VERSION>-windows-x64.exe` instead of installing the full
+XAMPP development stack. The installer:
+
+- installs the application below `C:\Program Files\Pico DMX Controller`;
+- stores mutable shows and fixture data below
+  `C:\ProgramData\Pico DMX Controller\data`;
+- starts the `PicoDmxController` Windows service automatically;
+- creates Start Menu and desktop shortcuts that open the controller as an
+  Edge app window, with the default browser as fallback;
+- optionally enables TCP port 8090 on the Windows **Private** firewall profile
+  so iPads and other trusted LAN devices can connect;
+- snapshots existing data before an upgrade and preserves all `ProgramData`
+  when the software is uninstalled.
+
+Keep the Private-network option disabled when the controller will be used only
+on the Windows PC. Enable it when an iPad or another operator device must open
+`http://<controller-pc-address>:8090/`. Do not expose port 8090 to the public
+internet.
+
+The installer source and reproducible build instructions are in
+[`installer/windows/README.md`](installer/windows/README.md). Customer release
+builds should be Authenticode-signed; unsigned development builds can trigger a
+Windows SmartScreen warning.
+
+### Run the developer XAMPP environment
 
 Install the runtime tools:
 

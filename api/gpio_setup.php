@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'app_paths.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-$dataDir = __DIR__ . DIRECTORY_SEPARATOR . 'data';
+$dataDir = pico_dmx_data_dir();
 if (!is_dir($dataDir)) {
     mkdir($dataDir, 0775, true);
 }
