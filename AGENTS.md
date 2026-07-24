@@ -34,5 +34,6 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 1. Implement the featre 
 2. Synchronize the automation playground with `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://localhost//dmx-test/`.
 3. Deploy user-facing source changes only with `scripts/update_xampp_server.ps1 -AppFolder dmx -BaseUrl http://localhost/dmx/`.
+4. Only create manualls and screenshots if the user ask for it
 
 Before an authorized data recovery, make a recoverable snapshot and restore only the approved files. Deployment authorization does not imply authorization to modify user data.
