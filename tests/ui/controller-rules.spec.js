@@ -472,6 +472,43 @@ test.describe('Fixture Controller established rules', () => {
     await expect(tile.locator('.palette-visual')).toHaveCount(1);
   });
 
+  test('Pixel Matrix modal uses one touch scroll area that can reveal the final matrix row', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await expect.poll(() => page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+
+    await page.evaluate(() => {
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-tall', name: 'Tall Matrix', slot: 0, width: 4, height: 20 }
+      ]);
+      renderPixelMatrixList();
+    });
+    await page.locator('[data-edit-pixel-matrix="matrix-tall"]').click();
+
+    const result = await page.locator('#pixelMatrixModal .modal-body').evaluate(body => {
+      const grid = body.querySelector('#pixelMatrixEditorGrid');
+      body.scrollTop = body.scrollHeight;
+      const bodyRect = body.getBoundingClientRect();
+      const lastCellRect = grid.lastElementChild.getBoundingClientRect();
+      return {
+        bodyScrollable: body.scrollHeight > body.clientHeight,
+        bodyReachedBottom: Math.abs(body.scrollTop - (body.scrollHeight - body.clientHeight)) <= 1,
+        gridHasNestedVerticalScroll: grid.scrollHeight > grid.clientHeight + 1,
+        lastCellVisible: lastCellRect.top >= bodyRect.top - 1 && lastCellRect.bottom <= bodyRect.bottom + 1
+      };
+    });
+
+    expect(result).toEqual({
+      bodyScrollable: true,
+      bodyReachedBottom: true,
+      gridHasNestedVerticalScroll: false,
+      lastCellVisible: true
+    });
+    await expect(page.locator('#pixelMatrixSave')).toBeVisible();
+    await expect(page.locator('#pixelMatrixClose2')).toBeVisible();
+  });
+
   test('Pixel Matrix manual mapping advances to the next unused fixture target', async ({ page }) => {
     await page.evaluate(() => {
       profiles.splice(0, profiles.length, {
@@ -2771,6 +2808,40 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#surfaceCollapseAllBtn')).toHaveText('—');
     await expect(page.locator('[data-fixture-card="9102"] [data-control="9101"]')).toBeVisible();
     await expect(page.locator('[data-fixture-card="9103"] [data-control="9101"]')).toBeVisible();
+  });
+
+  test('collapsed fixture Default and Blackout buttons fit inside the header on iPad', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await expect.poll(() => page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+
+    await page.evaluate(() => {
+      const profile = profiles.find(item => item.id === 1);
+      const dimmer = profile.controls.find(control => control.id === 11);
+      dimmer.defaultValue = 127;
+      dimmer.blackoutValue = 0;
+      collapsedFixtureIds = new Set([101]);
+      drawSurface();
+    });
+
+    const geometry = await page.locator('[data-fixture-card="101"]').evaluate(card => {
+      const header = card.querySelector('.fixture-head').getBoundingClientRect();
+      const buttons = [...card.querySelectorAll('.fixture-actions button')].map(button => {
+        const rect = button.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom, height: rect.height };
+      });
+      return {
+        header: { top: header.top, bottom: header.bottom, height: header.height },
+        buttons
+      };
+    });
+
+    expect(geometry.buttons.length).toBe(3);
+    expect(geometry.buttons.every(button =>
+      button.top >= geometry.header.top - 0.5 &&
+      button.bottom <= geometry.header.bottom + 0.5
+    )).toBe(true);
   });
 
   test('scene recall clears groups and filters the surface to involved fixtures', async ({ page }) => {

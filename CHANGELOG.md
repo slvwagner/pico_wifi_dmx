@@ -21,6 +21,8 @@ Changed:
 - Reworked the sticky application header on every page. Navigation now occupies its own compact wrapping row and responds to the workspace left by the resizable Toolboxes rail, so page buttons remain visible even when the rail uses two thirds of a desktop or iPad landscape screen. The obsolete single **Pico base URL** and **Find Pico** header controls are hidden; a shared, refreshable fleet pill instead checks every DMX Output used by the show and reports full, partial, offline, or unconfigured status. Pico discovery and URL editing remain centralized in Controller → **DMX Outputs**, while one-device Pico operations automatically use the first show output for compatibility.
 - Fixed Controller **DMX Outputs** so its modal opens from the sticky header even while the main **Show** setup card is collapsed; opening the modal no longer changes the saved Show-card collapse state.
 - Fixed later fixture DMX-output/universe reassignment only changing the saved patch. After an overlap-safe move, the Controller now immediately sends every current control value for that fixture to its newly assigned Pico and reports any transport failure.
+- Fixed collapsed Controller fixture cards clipping the lower edge of Default, Blackout, Highlight/Restore, and expand controls on iPad. Fixture headers now grow around the shared 44 px coarse-pointer touch targets while retaining their compact desktop minimum height.
+- Fixed tall Pixel Matrix definitions becoming inaccessible in the shared editor on iPad. The modal body is now the single touch-friendly vertical and horizontal scroll container, eliminating the nested `55vh` matrix scroller while keeping Save and Close fixed outside the scrolling content.
 
 ## 0.9.13 - 2026-07-24
 

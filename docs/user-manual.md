@@ -103,6 +103,8 @@ To create and test a matrix:
 
 **Clear Image** makes every logical pixel black without changing its mapping. Saved matrices use the normal 800 ms fixture-setup autosave, are included in **Export Show**, and are restored by **Import Show**. The first implementation handles one converted still frame; animation and video playback are not yet included.
 
+For tall or wide matrices on an iPad, scroll anywhere in the modal content to reach every pixel row or column. The editor uses one touch scroll area rather than a second vertical scroller inside the matrix. **Save** and **Close** remain fixed below the scrolling content, so they stay available after editing the final row.
+
 ### Fixture Library
 
 ![Fixture Library search and mode preview](screenshots/fixture-controller-fixture-library.png)
@@ -250,7 +252,7 @@ If an imported OFL profile provides explicit highlight values, its fixture card 
 
 Use **Cols** in the **Control Surface** header to choose **Auto** or a preferred count from 1 to 4. Auto keeps the spacious responsive card width. A fixed preference can show three or four fixtures across on a wide desktop, but the Controller automatically reduces the effective count when the Toolboxes rail, available viewport width, or iPad layout would make sliders, buttons, readouts, or XY pads too narrow. The saved preference is stored in server UI state and is included in complete setup export/import.
 
-Use the small button in the **Control Surface** header to collapse all visible fixture cards or expand them again. The button affects only the fixtures currently shown by the active group, scene, or palette filter.
+Use the small button in the **Control Surface** header to collapse all visible fixture cards or expand them again. The button affects only the fixtures currently shown by the active group, scene, or palette filter. A collapsed card keeps its Highlight/Restore, Default, Blackout, and expand controls visible. On iPad those controls retain full-size touch targets and the card header grows when necessary, preventing the bottom edge of a button from being cropped.
 
 Click a fixture card header or empty card area to include or exclude that fixture for group editing. The selected card uses the same accent outline style as other selectable tiles in the app. Clicking sliders, color controls, wheel buttons, Highlight/Restore, Default, Blackout, or collapse controls does not change fixture selection.
 
