@@ -3937,7 +3937,15 @@ async function startNewShow(){
   await postSetupPayload('chaser_setup.php',{baseUrl:showBaseUrl,chases:[],chaseSlotCols:4,chaseSlotRows:4});
   await clearPicoSlots('chaser_setup.php',32);
   await postSetupPayload('motion_setup.php?reset_show',{baseUrl:showBaseUrl,effects:[],effectCols:4,effectRows:4,pico_slots:Array(64).fill(null)});
-  await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
+  const emptyGpioOutputConfigs=Object.fromEntries(dmxOutputs.map(output=>[output.id,{enabled:true,mappings:[],adcMappings:[]}]));
+  await postSetupPayload('gpio_setup.php',{
+    baseUrl:showBaseUrl,
+    selectedOutputId:dmxOutputs[0]?.id||'',
+    enabled:true,
+    mappings:[],
+    adcMappings:[],
+    outputConfigs:emptyGpioOutputConfigs
+  });
   await postSetupPayload('room_plane_setup.php',defaultRoomPlaneSetup(showBaseUrl));
   for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
   setStatus('New show started: '+showName);
@@ -3970,7 +3978,17 @@ async function importFullSetup(data){
   if(migrated.palettes)await postSetupPayload('palette_setup.php',{baseUrl:migrated.palettes.baseUrl||migrated.fixture?.baseUrl||'',palettes:Array.isArray(migrated.palettes.palettes)?migrated.palettes.palettes:[],paletteCols:migrated.palettes.paletteCols||4,paletteRows:migrated.palettes.paletteRows||4});
   if(migrated.chaser&&typeof migrated.chaser==='object')await postSetupPayload('chaser_setup.php',migrated.chaser);
   if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
-  if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
+  if(migrated.gpio){
+    const {ok,exists,error,...gpioSetup}=migrated.gpio;
+    await postSetupPayload('gpio_setup.php',{
+      ...gpioSetup,
+      baseUrl:gpioSetup.baseUrl||migrated.fixture?.baseUrl||'',
+      enabled:gpioSetup.enabled!==false,
+      mappings:Array.isArray(gpioSetup.mappings)?gpioSetup.mappings:[],
+      adcMappings:Array.isArray(gpioSetup.adcMappings)?gpioSetup.adcMappings:[],
+      ...(gpioSetup.outputConfigs&&typeof gpioSetup.outputConfigs==='object'?{outputConfigs:gpioSetup.outputConfigs}:{})
+    });
+  }
   if(migrated.roomPlane&&typeof migrated.roomPlane==='object')await postSetupPayload('room_plane_setup.php',migrated.roomPlane);
   if(fixtureLibraryResolution?.libraryChanged){
     await saveFixtureLibraryToServer(fixtureLibraryResolution.library);

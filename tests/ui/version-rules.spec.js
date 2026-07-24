@@ -242,7 +242,11 @@ test.describe('Project versioning rules', () => {
           { id: 1, name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 10, type: 'slider8', label: 'Dimmer', channel: 1 }] },
           { id: 2, name: 'Unused Profile', mode: '2ch', channels: 2, controls: [{ id: 20, type: 'slider8', label: 'Dimmer', channel: 1 }] }
         ];
-        fixtures = [{ id: 101, name: 'Fixture A', profileId: 1, start: 1 }];
+        dmxOutputs = DmxCommon.normalizeDmxOutputs([
+          { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://192.0.2.41/' },
+          { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://192.0.2.42/' }
+        ]);
+        fixtures = [{ id: 101, name: 'Fixture A', profileId: 1, start: 1, outputId: 'rear' }];
         Object.keys(values).forEach(key => delete values[key]);
         values['101:1'] = 77;
         savedGroups = [{
@@ -270,7 +274,27 @@ test.describe('Project versioning rules', () => {
           if (href.includes('palette_setup.php')) return response({ ok: true, exists: true, baseUrl: '', palettes: [], paletteCols: 4, paletteRows: 4 });
           if (href.includes('chaser_setup.php')) return response({ ok: true, exists: false });
           if (href.includes('motion_setup.php')) return response({ ok: true, exists: false });
-          if (href.includes('gpio_setup.php')) return response({ ok: true, exists: true, baseUrl: '', enabled: true, mappings: [], adcMappings: [] });
+          if (href.includes('gpio_setup.php')) return response({
+            ok: true,
+            exists: true,
+            baseUrl: 'http://192.0.2.41/',
+            selectedOutputId: 'rear',
+            enabled: true,
+            mappings: [{ pin: 18, pull: 'pullup', trigger: 'falling', action: 'chaser_toggle', slot: 2, debounce_ms: 30 }],
+            adcMappings: [],
+            outputConfigs: {
+              front: {
+                enabled: true,
+                mappings: [{ pin: 16, pull: 'pullup', trigger: 'falling', action: 'dmx_clear', slot: 0, debounce_ms: 30 }],
+                adcMappings: []
+              },
+              rear: {
+                enabled: true,
+                mappings: [{ pin: 18, pull: 'pullup', trigger: 'falling', action: 'chaser_toggle', slot: 2, debounce_ms: 30 }],
+                adcMappings: [{ pin: 26, action: 'chaser_speed', slot: 2, min_x100: 10, max_x100: 300 }]
+              }
+            }
+          });
           if (href.includes('room_plane_setup.php')) return response({
             ok: true,
             exists: true,
@@ -337,6 +361,7 @@ test.describe('Project versioning rules', () => {
 
         const groupImport = posts.filter(post => post.url.includes('group_setup.php')).pop();
         const roomPlaneImport = posts.filter(post => post.url.includes('room_plane_setup.php')).pop();
+        const gpioImport = posts.filter(post => post.url.includes('gpio_setup.php')).pop();
         const showRunImport = posts.filter(post => post.url.includes('ui_state.php') && post.body.page === 'showRun').pop();
         return {
           filenames: downloads.map(download => download.filename),
@@ -345,6 +370,10 @@ test.describe('Project versioning rules', () => {
           setupFormatVersion: showDownload.payload.setupFormatVersion,
           setupFixtureLibrary: showDownload.payload.fixtureLibrary,
           setupProfiles: showDownload.payload.fixture.profiles.map(profile => profile.name),
+          exportedDmxOutputs: showDownload.payload.fixture.dmxOutputs,
+          exportedFixtureOutputId: showDownload.payload.fixture.fixtures[0].outputId,
+          exportedGpio: showDownload.payload.gpio,
+          importedGpio: gpioImport.body,
           exported: showDownload.payload.groups.groups[0],
           imported: groupImport.body.groups[0],
           exportedRoomPlane: showDownload.payload.roomPlane,
@@ -365,6 +394,13 @@ test.describe('Project versioning rules', () => {
     expect(result.fixtureShowName).toBe('Visual Tour');
     expect(result.setupFormatVersion).toBe(5);
     expect(result.setupProfiles).toEqual(['Profile A', 'Unused Profile']);
+    expect(result.exportedDmxOutputs).toEqual([
+      { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://192.0.2.41/' },
+      { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://192.0.2.42/' }
+    ]);
+    expect(result.exportedFixtureOutputId).toBe('rear');
+    const { ok: _gpioOk, exists: _gpioExists, ...exportedGpioSetup } = result.exportedGpio;
+    expect(result.importedGpio).toEqual(exportedGpioSetup);
     expect(result.setupFixtureLibrary).toMatchObject({
       type: 'pico_wifi_dmx_show_fixture_library',
       fixtureCount: 1,

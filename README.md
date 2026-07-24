@@ -180,7 +180,7 @@ Changing IP numbers are handled in two places:
 - **XAMPP/server URL**: configure scripts and tests with `config/local-paths.json`, `tests/pathconfig.local.json`, or `DMX_TEST_BASE_URL`. The browser app itself uses relative URLs for setup files, so once a page is opened from the right XAMPP address it continues to talk to the same server.
 - **Pico URLs**: configure show hardware with Controller → **DMX Outputs**. Hardware tests may still override their target with `DMX_PICO_BASE_URL`.
 
-Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Show** before large changes when you want an extra backup of the complete show setup.
+Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Show** before large changes when you want an extra backup of the complete show setup, including named DMX Outputs/universes, fixture output assignments, and every Pico's GPIO/ADC mappings.
 
 ### Install the firmware
 
