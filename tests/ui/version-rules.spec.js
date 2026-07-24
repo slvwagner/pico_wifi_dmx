@@ -163,6 +163,7 @@ test.describe('Project versioning rules', () => {
         chaser: {},
         motion: {},
         gpio: { enabled: true, mappings: [], adcMappings: [] },
+        fixtureLibrary: { schemaVersion: 1, fixtureCount: 1, fixtures: [{ key: 'legacy/fixture', name: 'Legacy Fixture', modes: [] }] },
         uiState: {}
       };
       return validateFullSetupPayload(migrateFullSetupPayload(oldSetup));
@@ -185,8 +186,10 @@ test.describe('Project versioning rules', () => {
         id: 'pico_wifi_dmx',
         name: 'Pico WiFi DMX',
         version: '0.9.4'
-      }
+      },
+      fixtureLibrary: { fixtureCount: 1, fixtures: [{ key: 'legacy/fixture' }] }
     });
+    expect(migrated.showName).toBe('Untitled Show');
 
     const futureError = await page.evaluate(() => {
       try {
@@ -202,20 +205,43 @@ test.describe('Project versioning rules', () => {
   test('complete setup export and import preserve saved visuals and Show Run MIDI mappings', async ({ page }) => {
     await openDmxPage(page, '');
 
+    await expect(page.locator('#exportJson')).toHaveText('Export Show');
+    await expect(page.locator('#importJson')).toHaveText('Import Show');
+    await expect(page.locator('#exportFixtureLibrary')).toHaveText('Export Library');
+    await expect(page.locator('#importFixtureLibrary')).toHaveText('Import Library');
+    await expect(page.locator('.show-file-actions').locator('#exportJson, #importJson, #exportFixtureLibrary, #importFixtureLibrary')).toHaveCount(4);
+    await expect(page.locator('.show-file-actions #exportJson')).toBeVisible();
+    await expect(page.locator('.show-file-actions #importJson')).toBeVisible();
+    await expect(page.locator('.show-file-actions #exportFixtureLibrary')).toBeVisible();
+    await expect(page.locator('.show-file-actions #importFixtureLibrary')).toBeVisible();
+    await expect(page.locator('#fixtureLibraryBody #exportFixtureLibrary')).toHaveCount(0);
+    expect(await page.locator('.show-file-actions > button').evaluateAll(buttons => buttons.map(button => button.id))).toEqual([
+      'newShow',
+      'exportCsv',
+      'exportJson',
+      'exportFixtureLibrary',
+      'importJson',
+      'importFixtureLibrary'
+    ]);
+
     const result = await page.evaluate(async () => {
       const originalFetch = window.fetch;
       const originalDownloadJson = DmxCommon.downloadJson;
       const originalConfirm = window.confirm;
       const originalSetTimeout = window.setTimeout;
       const posts = [];
-      let downloaded = null;
+      const downloads = [];
       const response = body => ({
         ok: true,
         json: async () => body
       });
 
       try {
-        profiles = [{ id: 1, name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 10, type: 'slider8', label: 'Dimmer', channel: 1 }] }];
+        showName = 'Visual Tour';
+        profiles = [
+          { id: 1, name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 10, type: 'slider8', label: 'Dimmer', channel: 1 }] },
+          { id: 2, name: 'Unused Profile', mode: '2ch', channels: 2, controls: [{ id: 20, type: 'slider8', label: 'Dimmer', channel: 1 }] }
+        ];
         fixtures = [{ id: 101, name: 'Fixture A', profileId: 1, start: 1 }];
         Object.keys(values).forEach(key => delete values[key]);
         values['101:1'] = 77;
@@ -228,7 +254,7 @@ test.describe('Project versioning rules', () => {
         }];
 
         DmxCommon.downloadJson = (filename, payload) => {
-          downloaded = { filename, payload };
+          downloads.push({ filename, payload });
         };
         window.confirm = () => true;
         window.setTimeout = () => 0;
@@ -259,7 +285,30 @@ test.describe('Project versioning rules', () => {
               activePlaneId: 'plane_visual'
             }
           });
-          if (href.includes('fixture_library.php')) return response({ ok: true, exists: false, library: null });
+          if (href.includes('fixture_library.php')) {
+            const library = {
+              schemaVersion: 1,
+              source: 'Test library',
+              generatedAt: '2026-01-01T00:00:00Z',
+              fixtureCount: 2,
+              fixtures: [
+                {
+                  key: 'demo/profile-a',
+                  manufacturerName: 'Demo',
+                  name: 'Profile A',
+                  modes: [{ name: '1ch', channels: 1, profile: { name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 10, type: 'slider8', label: 'Dimmer', channel: 1 }] } }]
+                },
+                {
+                  key: 'demo/unused',
+                  manufacturerName: 'Demo',
+                  name: 'Unused Profile',
+                  modes: [{ name: '2ch', channels: 2, profile: { name: 'Unused Profile', mode: '2ch', channels: 2, controls: [] } }]
+                }
+              ]
+            };
+            fixtureLibraryState.data = library;
+            return response({ ok: true, exists: true, library });
+          }
           if (href.includes('ui_state.php')) return response({
             ok: true,
             exists: true,
@@ -283,19 +332,24 @@ test.describe('Project versioning rules', () => {
         };
 
         await exportFullSetup();
-        await importFullSetup(downloaded.payload);
+        const showDownload = downloads.find(download => download.payload?.type === 'pico_wifi_dmx_full_setup');
+        await importFullSetup(showDownload.payload);
 
         const groupImport = posts.filter(post => post.url.includes('group_setup.php')).pop();
         const roomPlaneImport = posts.filter(post => post.url.includes('room_plane_setup.php')).pop();
         const showRunImport = posts.filter(post => post.url.includes('ui_state.php') && post.body.page === 'showRun').pop();
         return {
-          filename: downloaded.filename,
-          setupFormatVersion: downloaded.payload.setupFormatVersion,
-          exported: downloaded.payload.groups.groups[0],
+          filenames: downloads.map(download => download.filename),
+          showName: showDownload.payload.showName,
+          fixtureShowName: showDownload.payload.fixture.showName,
+          setupFormatVersion: showDownload.payload.setupFormatVersion,
+          setupFixtureLibrary: showDownload.payload.fixtureLibrary,
+          setupProfiles: showDownload.payload.fixture.profiles.map(profile => profile.name),
+          exported: showDownload.payload.groups.groups[0],
           imported: groupImport.body.groups[0],
-          exportedRoomPlane: downloaded.payload.roomPlane,
+          exportedRoomPlane: showDownload.payload.roomPlane,
           importedRoomPlane: roomPlaneImport.body,
-          exportedShowRun: downloaded.payload.uiState.showRun,
+          exportedShowRun: showDownload.payload.uiState.showRun,
           importedShowRun: showRunImport.body.state
         };
       } finally {
@@ -306,8 +360,16 @@ test.describe('Project versioning rules', () => {
       }
     });
 
-    expect(result.filename).toBe('pico_dmx_setup.json');
+    expect(result.filenames).toEqual(['pico_dmx_visual-tour_show.json']);
+    expect(result.showName).toBe('Visual Tour');
+    expect(result.fixtureShowName).toBe('Visual Tour');
     expect(result.setupFormatVersion).toBe(3);
+    expect(result.setupProfiles).toEqual(['Profile A', 'Unused Profile']);
+    expect(result.setupFixtureLibrary).toMatchObject({
+      type: 'pico_wifi_dmx_show_fixture_library',
+      fixtureCount: 1,
+      fixtures: [{ key: 'demo/profile-a', modes: [{ name: '1ch' }] }]
+    });
     expect(result.exported).toMatchObject({
       id: 'grp_visual',
       name: 'Visual Group',
@@ -340,12 +402,261 @@ test.describe('Project versioning rules', () => {
     expect(result.importedShowRun).toMatchObject(result.exportedShowRun);
   });
 
+  test('setup import maps changed show fixtures to library versions without removing unrelated catalog entries', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    await page.evaluate(() => {
+      window.__fixtureImportOriginals = {
+        fetch: window.fetch,
+        confirm: window.confirm,
+        setTimeout: window.setTimeout
+      };
+      window.__fixtureImportPosts = [];
+      window.confirm = () => true;
+      window.setTimeout = () => 0;
+      const response = body => ({ ok: true, json: async () => body });
+      window.fetch = async (url, options = {}) => {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (method === 'POST') {
+          window.__fixtureImportPosts.push({ url: String(url), body: JSON.parse(options.body || '{}') });
+          return response({ ok: true });
+        }
+        return response({ ok: true, exists: false });
+      };
+      fixtureLibraryState.data = normalizeFixtureLibrary({
+        schemaVersion: 1,
+        fixtureCount: 2,
+        fixtures: [
+          {
+            key: 'demo/profile-a', manufacturerName: 'Demo', name: 'Profile A',
+            modes: [{ name: '1ch', channels: 1, profile: { name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 901, type: 'slider8', label: 'Library Dimmer', channel: 1, default: 200 }] } }]
+          },
+          {
+            key: 'demo/unrelated', manufacturerName: 'Demo', name: 'Unrelated',
+            modes: [{ name: '4ch', channels: 4, profile: { name: 'Unrelated', mode: '4ch', channels: 4, controls: [] } }]
+          }
+        ]
+      });
+      const setup = {
+        type: 'pico_wifi_dmx_full_setup', schemaVersion: 1, setupFormatVersion: 3,
+        project: { id: 'pico_wifi_dmx', name: 'Pico WiFi DMX', version: '0.9.13' },
+        fixture: {
+          baseUrl: '',
+          profiles: [
+            { id: 1, name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 101, type: 'slider8', label: 'Show Dimmer', channel: 1, default: 10 }] },
+            { id: 2, name: 'Show Only', mode: '2ch', channels: 2, controls: [{ id: 201, type: 'slider8', label: 'Show Only Dimmer', channel: 1 }] }
+          ],
+          fixtures: [
+            { id: 101, name: 'Fixture A', profileId: 1, start: 1 },
+            { id: 102, name: 'Fixture B', profileId: 2, start: 10 }
+          ]
+        },
+        liveValues: {}, groups: { groups: [] }, scenes: { scenes: [] }, palettes: { palettes: [] },
+        chaser: {}, motion: {}, gpio: { mappings: [], adcMappings: [] }, roomPlane: {}, uiState: {},
+        fixtureLibrary: {
+          schemaVersion: 1,
+          fixtureCount: 2,
+          fixtures: [
+            {
+              key: 'demo/profile-a', manufacturerName: 'Demo', name: 'Profile A',
+              modes: [{ name: '1ch', channels: 1, profile: { name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 101, type: 'slider8', label: 'Show Dimmer', channel: 1, default: 10 }] } }]
+            },
+            {
+              key: 'show/show-only', manufacturerName: 'Show', name: 'Show Only',
+              modes: [{ name: '2ch', channels: 2, profile: { name: 'Show Only', mode: '2ch', channels: 2, controls: [{ id: 201, type: 'slider8', label: 'Show Only Dimmer', channel: 1 }] } }]
+            }
+          ]
+        }
+      };
+      window.__fixtureImportPromise = importFullSetup(setup);
+    });
+
+    await expect(page.locator('#fixtureImportMappingModal')).toBeVisible();
+    await expect(page.locator('.fixture-import-map-row')).toHaveCount(2);
+    expect(await page.evaluate(() => window.__fixtureImportPosts.length)).toBe(0);
+
+    const changedRow = page.locator('.fixture-import-map-row[data-profile-id="1"]');
+    await expect(changedRow.locator('select[data-library-mapping]')).toHaveValue('demo/profile-a::1ch');
+    await changedRow.locator('.fixture-import-decision').click();
+    await expect(changedRow).toHaveClass(/library-selected/);
+    await expect(changedRow.locator('.fixture-import-decision')).toHaveText('Use library');
+    await page.locator('#fixtureImportApply').click();
+
+    const result = await page.evaluate(async () => {
+      await window.__fixtureImportPromise;
+      const fixtureSetup = window.__fixtureImportPosts.find(post => post.url.includes('fixture_setup.php') && !post.url.includes('livevalues'))?.body;
+      const library = window.__fixtureImportPosts.find(post => post.url.includes('fixture_library.php'))?.body;
+      const originals = window.__fixtureImportOriginals;
+      window.fetch = originals.fetch;
+      window.confirm = originals.confirm;
+      window.setTimeout = originals.setTimeout;
+      return { fixtureSetup, library };
+    });
+
+    expect(result.fixtureSetup.profiles.find(profile => profile.id === 1)).toMatchObject({
+      id: 1,
+      name: 'Profile A',
+      mode: '1ch',
+      controls: [{ id: 101, label: 'Library Dimmer', default: 200 }]
+    });
+    expect(result.fixtureSetup.profiles.find(profile => profile.id === 2)).toMatchObject({
+      id: 2,
+      name: 'Show Only',
+      controls: [{ label: 'Show Only Dimmer' }]
+    });
+    expect(result.library.fixtures.map(fixture => fixture.key)).toEqual([
+      'demo/profile-a',
+      'demo/unrelated',
+      'show/show-only'
+    ]);
+    expect(result.library.fixtures.find(fixture => fixture.key === 'demo/profile-a').modes[0].profile.controls[0]).toMatchObject({
+      label: 'Library Dimmer',
+      default: 200
+    });
+  });
+
+  test('Import Library followed by an arbitrarily named show file opens fixture mapping before writing differing show data', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    await page.evaluate(() => {
+      window.__combinedImportOriginals = {
+        fetch: window.fetch,
+        confirm: window.confirm,
+        setTimeout: window.setTimeout
+      };
+      window.__combinedImportPosts = [];
+      window.confirm = message => {
+        window.__combinedImportConfirm = message;
+        return true;
+      };
+      window.setTimeout = () => 0;
+      window.fetch = async (url, options = {}) => {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (method === 'POST') {
+          window.__combinedImportPosts.push({ url: String(url), body: JSON.parse(options.body || '{}') });
+        }
+        return { ok: true, json: async () => ({ ok: true, exists: false }) };
+      };
+    });
+
+    const library = {
+      schemaVersion: 1,
+      source: 'Imported test catalog',
+      fixtureCount: 2,
+      fixtures: [
+        {
+          key: 'demo/profile-a', manufacturerName: 'Demo', name: 'Profile A',
+          modes: [{ name: '1ch', channels: 1, profile: { name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 901, type: 'slider8', label: 'Library Dimmer', channel: 1, default: 200 }] } }]
+        },
+        {
+          key: 'demo/unrelated', manufacturerName: 'Demo', name: 'Unrelated',
+          modes: [{ name: '4ch', channels: 4, profile: { name: 'Unrelated', mode: '4ch', channels: 4, controls: [] } }]
+        }
+      ]
+    };
+    await page.locator('#importFixtureLibraryFile').setInputFiles({
+      name: 'pico_dmx_fixture_library.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(library))
+    });
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Imported 2 library fixtures');
+
+    const show = {
+      type: 'pico_wifi_dmx_full_setup', schemaVersion: 1, setupFormatVersion: 3,
+      showName: 'xyz_show',
+      project: { id: 'pico_wifi_dmx', name: 'Pico WiFi DMX', version: '0.9.13' },
+      fixture: {
+        showName: 'xyz_show',
+        baseUrl: '',
+        profiles: [{ id: 1, name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 101, type: 'slider8', label: 'Show Dimmer', channel: 1, default: 10 }] }],
+        fixtures: [{ id: 101, name: 'Fixture A', profileId: 1, start: 1 }]
+      },
+      liveValues: {}, groups: { groups: [] }, scenes: { scenes: [] }, palettes: { palettes: [] },
+      chaser: {}, motion: {}, gpio: { mappings: [], adcMappings: [] }, roomPlane: {}, uiState: {},
+      fixtureLibrary: {
+        schemaVersion: 1,
+        fixtureCount: 1,
+        fixtures: [{
+          key: 'demo/profile-a', manufacturerName: 'Demo', name: 'Profile A',
+          modes: [{ name: '1ch', channels: 1, profile: { name: 'Profile A', mode: '1ch', channels: 1, controls: [{ id: 101, type: 'slider8', label: 'Show Dimmer', channel: 1, default: 10 }] } }]
+        }]
+      }
+    };
+    await page.locator('#importJsonFile').setInputFiles({
+      name: 'xampp setup.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(show))
+    });
+
+    await expect(page.locator('#fixtureImportMappingModal')).toBeVisible();
+    expect(await page.evaluate(() => window.__combinedImportConfirm.split('\n')[0])).toBe('Import xyz_show?');
+    await expect(page.locator('.fixture-import-map-row')).toHaveCount(1);
+    await expect(page.locator('.fixture-import-map-row')).toContainText('Definition differs');
+    expect(await page.evaluate(() => {
+      const showEndpoints = ['fixture_setup.php', 'group_setup.php', 'scene_setup.php', 'palette_setup.php', 'chaser_setup.php', 'motion_setup.php', 'gpio_setup.php', 'room_plane_setup.php'];
+      return window.__combinedImportPosts.filter(post => showEndpoints.some(endpoint => post.url.includes(endpoint))).length;
+    })).toBe(0);
+
+    const row = page.locator('.fixture-import-map-row');
+    await expect(row.locator('select[data-library-mapping]')).toHaveValue('demo/profile-a::1ch');
+    await row.locator('.fixture-import-decision').click();
+    await expect(row).toHaveClass(/library-selected/);
+    await page.locator('#fixtureImportApply').click();
+    await expect.poll(() => page.evaluate(() => window.__combinedImportPosts.some(post => post.url.includes('fixture_setup.php') && !post.url.includes('livevalues')))).toBe(true);
+
+    const importedProfile = await page.evaluate(() => {
+      const post = window.__combinedImportPosts.find(item => item.url.includes('fixture_setup.php') && !item.url.includes('livevalues'));
+      const originals = window.__combinedImportOriginals;
+      window.fetch = originals.fetch;
+      window.confirm = originals.confirm;
+      window.setTimeout = originals.setTimeout;
+      return post.body.profiles[0];
+    });
+    expect(importedProfile).toMatchObject({
+      id: 1,
+      controls: [{ id: 101, label: 'Library Dimmer', default: 200 }]
+    });
+  });
+
+  test('show name is directly editable and autosaved to fixture setup', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    await page.evaluate(() => {
+      window.__showNameOriginalFetch = window.fetch;
+      window.__showNamePosts = [];
+      window.fetch = async (url, options = {}) => {
+        if (String(options.method || 'GET').toUpperCase() === 'POST') {
+          window.__showNamePosts.push({ url: String(url), body: JSON.parse(options.body || '{}') });
+        }
+        return { ok: true, json: async () => ({ ok: true }) };
+      };
+      applyData({ showName: 'Original Show', baseUrl: '', profiles: [], fixtures: [] });
+    });
+
+    const input = page.locator('#showNameInput');
+    await expect(input).toHaveValue('Original Show');
+    await input.fill('Renamed Show');
+    await expect.poll(() => page.evaluate(() => window.__showNamePosts.some(post => post.url.includes('fixture_setup.php') && post.body.showName === 'Renamed Show'))).toBe(true);
+
+    const result = await page.evaluate(() => {
+      const current = { showName, filename: showExportFilename(showName), saved: saveData().showName };
+      window.fetch = window.__showNameOriginalFetch;
+      return current;
+    });
+    expect(result).toEqual({
+      showName: 'Renamed Show',
+      filename: 'pico_dmx_renamed-show_show.json',
+      saved: 'Renamed Show'
+    });
+  });
+
   test('New Show clears show data and Pico playback slots but keeps fixture library separate', async ({ page }) => {
     await openDmxPage(page, '');
 
     const result = await page.evaluate(async () => {
       const originalFetch = window.fetch;
       const originalConfirm = window.confirm;
+      const originalPrompt = window.prompt;
       const posts = [];
       const response = body => ({
         ok: true,
@@ -368,6 +679,7 @@ test.describe('Project versioning rules', () => {
         draw();
 
         window.confirm = () => true;
+        window.prompt = () => 'Summer Gala';
         window.fetch = async (url, options = {}) => {
           const href = String(url);
           const method = String(options.method || 'GET').toUpperCase();
@@ -398,6 +710,8 @@ test.describe('Project versioning rules', () => {
           motionSlotDeletes: countPosts('motion_setup.php?delete_slot='),
           fixtureLibraryPosts: countPosts('fixture_library.php'),
           local: {
+            showName,
+            showNameInput: document.getElementById('showNameInput')?.value,
             profiles: profiles.length,
             fixtures: fixtures.length,
             values: Object.keys(values).length,
@@ -412,10 +726,12 @@ test.describe('Project versioning rules', () => {
       } finally {
         window.fetch = originalFetch;
         window.confirm = originalConfirm;
+        window.prompt = originalPrompt;
       }
     });
 
     expect(result.fixture.fixtures).toEqual([]);
+    expect(result.fixture.showName).toBe('Summer Gala');
     expect(result.fixture.profiles).toHaveLength(1);
     expect(result.fixture.profiles[0].name).toBe('Generic Moving Head');
     expect(result.liveValues).toEqual({});
@@ -440,6 +756,8 @@ test.describe('Project versioning rules', () => {
     expect(result.motionSlotDeletes).toBe(0);
     expect(result.fixtureLibraryPosts).toBe(0);
     expect(result.local).toMatchObject({
+      showName: 'Summer Gala',
+      showNameInput: 'Summer Gala',
       profiles: 1,
       fixtures: 0,
       values: 0,
@@ -448,7 +766,7 @@ test.describe('Project versioning rules', () => {
       palettes: 0,
       selectedFixtures: 0,
       selectedGroups: 0,
-      status: 'New show started'
+      status: 'New show started: Summer Gala'
     });
   });
 
@@ -540,7 +858,7 @@ test.describe('Project versioning rules', () => {
       page.waitForEvent('download'),
       page.locator('#exportFixtureLibrary').click()
     ]).then(([dl]) => dl);
-    expect(download.suggestedFilename()).toBe('pico_dmx_fixture_library.json');
+    expect(download.suggestedFilename()).toBe('pico_dmx_fixture_library.zip');
 
     const library = {
       schemaVersion: 1,
@@ -550,6 +868,7 @@ test.describe('Project versioning rules', () => {
         key: 'test/demo',
         manufacturerName: 'Test',
         name: 'Demo Fixture',
+        notes: 'Repeated fixture capability data '.repeat(100),
         categories: ['Dimmer'],
         modes: [{
           name: '1ch',
@@ -558,10 +877,15 @@ test.describe('Project versioning rules', () => {
         }]
       }]
     };
+    const zippedLibrary = await page.evaluate(async payload => {
+      const bytes = await DmxCommon.zipJsonBytes('pico_dmx_fixture_library.json', payload);
+      return { bytes: Array.from(bytes), jsonBytes: new TextEncoder().encode(JSON.stringify(payload)).length };
+    }, library);
+    expect(zippedLibrary.bytes.length).toBeLessThan(zippedLibrary.jsonBytes);
     await page.locator('#importFixtureLibraryFile').setInputFiles({
-      name: 'fixture-library-test.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(library))
+      name: 'fixture-library-test.zip',
+      mimeType: 'application/zip',
+      buffer: Buffer.from(zippedLibrary.bytes)
     });
 
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Imported 1 library fixtures');
@@ -569,9 +893,41 @@ test.describe('Project versioning rules', () => {
     await expect(page.locator('#profilesBody')).toBeVisible();
     await expect(page.locator('#profilesCollapseBtn')).toHaveText('−');
     expect(importedLibrary).toMatchObject({ source: 'Test import', fixtureCount: 1 });
+
+    await page.locator('#importFixtureLibraryFile').setInputFiles({
+      name: 'legacy-fixture-library.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(library))
+    });
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Imported 1 library fixtures from legacy-fixture-library.json');
   });
 
-  test('selected fixture profile can update the fixture library catalog', async ({ page }) => {
+  test('compressed fixture library round-trip substantially reduces the complete catalog', async ({ page }) => {
+    await openDmxPage(page, '');
+    const stats = await page.evaluate(async () => {
+      const response = await fetch('assets/fixture-library.json', { cache: 'no-store' });
+      const text = await response.text();
+      const library = JSON.parse(text);
+      const zipped = await DmxCommon.zipJsonBytes('pico_dmx_fixture_library.json', library);
+      const restored = await DmxCommon.unzipJsonBytes(zipped);
+      return {
+        jsonBytes: new TextEncoder().encode(JSON.stringify(library)).length,
+        zipBytes: zipped.length,
+        sourceCount: library.fixtureCount,
+        restoredCount: restored.fixtureCount,
+        firstKey: restored.fixtures[0]?.key,
+        lastKey: restored.fixtures.at(-1)?.key
+      };
+    });
+
+    expect(stats.sourceCount).toBeGreaterThan(600);
+    expect(stats.restoredCount).toBe(stats.sourceCount);
+    expect(stats.firstKey).toBeTruthy();
+    expect(stats.lastKey).toBeTruthy();
+    expect(stats.zipBytes).toBeLessThan(stats.jsonBytes * 0.3);
+  });
+
+  test('Update Library compares a show profile before merging it into the reusable library', async ({ page }) => {
     let savedLibrary = null;
     const initialLibrary = {
       schemaVersion: 1,
@@ -581,11 +937,13 @@ test.describe('Project versioning rules', () => {
         key: 'test/demo',
         manufacturerName: 'Test',
         name: 'Demo Fixture',
+        metadata: { source: 'ofl', authors: ['Library Author'] },
         categories: ['Dimmer'],
         modes: [{
           name: '1ch',
           channels: 1,
-          profile: { name: 'Demo Fixture', mode: '1ch', channels: 1, controls: [{ id: 1, type: 'slider8', label: 'Dimmer', channel: 1 }] }
+          warnings: ['Keep this warning'],
+          profile: { name: 'Demo Fixture', mode: '1ch', channels: 1, controls: [{ id: 1, type: 'slider8', label: 'Dimmer', channel: 1, capability: { type: 'Intensity' } }] }
         }]
       }]
     };
@@ -604,10 +962,12 @@ test.describe('Project versioning rules', () => {
     await page.evaluate(() => {
       profiles.splice(0, profiles.length, {
         id: 7001,
-        name: 'Demo Fixture',
+        name: 'Renamed Show Fixture',
         mode: '1ch',
+        libraryFixtureKey: 'test/demo',
+        libraryModeName: '1ch',
         channels: 1,
-        controls: [{ id: 7002, type: 'slider8', label: 'Dimmer Fine', channel: 1 }]
+        controls: [{ id: 7002, type: 'slider8', label: 'Dimmer Fine', channel: 1, default: 200 }]
       });
       fixtures.splice(0, fixtures.length);
       activeProfileId = 7001;
@@ -615,11 +975,103 @@ test.describe('Project versioning rules', () => {
       draw();
     });
     await page.locator('[data-update-profile-library="7001"]').click();
+    await expect(page.locator('#fixtureProfileMergeModal')).toBeVisible();
+    await expect(page.locator('#fixtureProfileMergeBody')).toContainText('Renamed Show Fixture');
+    await expect(page.locator('#fixtureProfileMergeBody')).toContainText('Demo Fixture');
+    await page.locator('[data-profile-merge-direction="show"]').click();
+    await expect(page.locator('[data-profile-merge-direction="show"]')).toHaveClass(/selected/);
+    await page.locator('#fixtureProfileMergeApply').click();
     await expect(page.locator('[data-update-profile-library="7001"]')).toHaveText('Updated');
     await expect(page.locator('#fixtureLibraryStatus')).toContainText('Updated library fixture Demo Fixture');
 
     const mode = savedLibrary.fixtures[0].modes.find(item => item.name === '1ch');
-    expect(mode.profile.controls).toEqual([expect.objectContaining({ label: 'Dimmer Fine', channel: 1 })]);
+    expect(savedLibrary.fixtures[0].metadata).toEqual({ source: 'ofl', authors: ['Library Author'] });
+    expect(mode.warnings).toEqual(['Keep this warning']);
+    expect(mode.profile.controls).toEqual([expect.objectContaining({
+      id: 1,
+      label: 'Dimmer Fine',
+      channel: 1,
+      default: 200,
+      capability: { type: 'Intensity' }
+    })]);
+  });
+
+  test('Update Library can merge the reusable library definition back into the existing show profile', async ({ page }) => {
+    let libraryPosts = 0;
+    const initialLibrary = {
+      schemaVersion: 1,
+      source: 'Test library',
+      fixtureCount: 1,
+      fixtures: [{
+        key: 'test/mover',
+        manufacturerName: 'Test',
+        name: 'Mover',
+        metadata: { source: 'ofl', authors: ['Library Author'] },
+        categories: ['Moving Head'],
+        modes: [{
+          name: '4ch',
+          channels: 4,
+          profile: {
+            name: 'Mover', mode: '4ch', channels: 4,
+            controls: [{ id: 10, type: 'panTilt16', label: 'Library Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4, panReverse: false, tiltReverse: false, panTiltSwap: false }]
+          }
+        }]
+      }]
+    };
+    await page.route('**/fixture_library.php', async route => {
+      if (route.request().method() === 'POST') {
+        libraryPosts += 1;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"file":"fixture_library.json"}' });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, exists: true, library: initialLibrary }) });
+    });
+    await openDmxPage(page, '');
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded 1 custom library fixtures', { timeout: 15000 });
+
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 7101,
+        name: 'My Installed Mover',
+        mode: '4ch',
+        libraryFixtureKey: 'test/mover',
+        libraryModeName: '4ch',
+        channels: 4,
+        controls: [{ id: 7102, type: 'panTilt16', label: 'Show Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4, panReverse: true, tiltReverse: true, panTiltSwap: true }]
+      });
+      fixtures.splice(0, fixtures.length);
+      activeProfileId = 7101;
+      loadProfileEditor(profiles[0]);
+      draw();
+    });
+
+    await page.locator('[data-update-profile-library="7101"]').click();
+    await expect(page.locator('#fixtureProfileMergeModal')).toBeVisible();
+    await page.locator('[data-profile-merge-direction="library"]').click();
+    await page.locator('#fixtureProfileMergeApply').click();
+    await expect(page.locator('#fixtureProfileMergeModal')).toBeHidden();
+
+    const result = await page.evaluate(() => {
+      const profile = profiles.find(item => item.id === 7101);
+      return { profile, status: document.getElementById('status').textContent };
+    });
+    expect(result.profile).toMatchObject({
+      id: 7101,
+      name: 'Mover',
+      mode: '4ch',
+      libraryFixtureKey: 'test/mover',
+      libraryModeName: '4ch'
+    });
+    expect(result.profile.controls).toEqual([expect.objectContaining({
+      id: 7102,
+      label: 'Library Pan/Tilt',
+      panReverse: true,
+      tiltReverse: true,
+      panTiltSwap: true
+    })]);
+    expect(result.status).toContain('Show profile updated from fixture library');
+    expect(libraryPosts).toBe(0);
   });
 
   test('fixture profile fields autosave without a save profile button', async ({ page }) => {

@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='0.9.12';
+  const APP_VERSION='0.9.13';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -27,6 +27,134 @@
 
   function downloadJson(filename,data){
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  let zipCrcTable=null;
+  function crc32(bytes){
+    if(!zipCrcTable){
+      zipCrcTable=Array.from({length:256},(_,value)=>{
+        let crc=value;
+        for(let bit=0;bit<8;bit++)crc=(crc&1)?(0xedb88320^(crc>>>1)):(crc>>>1);
+        return crc>>>0;
+      });
+    }
+    let crc=0xffffffff;
+    for(const byte of bytes)crc=zipCrcTable[(crc^byte)&0xff]^(crc>>>8);
+    return (crc^0xffffffff)>>>0;
+  }
+
+  function joinBytes(parts){
+    const size=parts.reduce((total,part)=>total+part.length,0);
+    const result=new Uint8Array(size);
+    let offset=0;
+    parts.forEach(part=>{result.set(part,offset);offset+=part.length;});
+    return result;
+  }
+
+  async function transformBytes(bytes,format,decompress=false){
+    const StreamType=decompress?window.DecompressionStream:window.CompressionStream;
+    if(typeof StreamType!=='function')throw new Error((decompress?'Decompression':'Compression')+' is not supported by this browser');
+    const stream=new Blob([bytes]).stream().pipeThrough(new StreamType(format));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  function zipHeader(size){
+    const bytes=new Uint8Array(size);
+    return {bytes,view:new DataView(bytes.buffer)};
+  }
+
+  async function zipJsonBytes(entryName,data){
+    const nameBytes=new TextEncoder().encode(entryName||'pico_dmx_fixture_library.json');
+    const jsonBytes=new TextEncoder().encode(JSON.stringify(data));
+    let method=0;
+    let compressed=jsonBytes;
+    try{
+      compressed=await transformBytes(jsonBytes,'deflate-raw');
+      method=8;
+    }catch(_){
+      compressed=jsonBytes;
+      method=0;
+    }
+    const crc=crc32(jsonBytes);
+    const local=zipHeader(30);
+    local.view.setUint32(0,0x04034b50,true);
+    local.view.setUint16(4,20,true);
+    local.view.setUint16(6,0x0800,true);
+    local.view.setUint16(8,method,true);
+    local.view.setUint32(14,crc,true);
+    local.view.setUint32(18,compressed.length,true);
+    local.view.setUint32(22,jsonBytes.length,true);
+    local.view.setUint16(26,nameBytes.length,true);
+    const centralOffset=local.bytes.length+nameBytes.length+compressed.length;
+    const central=zipHeader(46);
+    central.view.setUint32(0,0x02014b50,true);
+    central.view.setUint16(4,20,true);
+    central.view.setUint16(6,20,true);
+    central.view.setUint16(8,0x0800,true);
+    central.view.setUint16(10,method,true);
+    central.view.setUint32(16,crc,true);
+    central.view.setUint32(20,compressed.length,true);
+    central.view.setUint32(24,jsonBytes.length,true);
+    central.view.setUint16(28,nameBytes.length,true);
+    const end=zipHeader(22);
+    end.view.setUint32(0,0x06054b50,true);
+    end.view.setUint16(8,1,true);
+    end.view.setUint16(10,1,true);
+    end.view.setUint32(12,central.bytes.length+nameBytes.length,true);
+    end.view.setUint32(16,centralOffset,true);
+    return joinBytes([local.bytes,nameBytes,compressed,central.bytes,nameBytes,end.bytes]);
+  }
+
+  async function unzipJsonBytes(input){
+    const bytes=input instanceof Uint8Array?input:new Uint8Array(input);
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    let endOffset=-1;
+    for(let offset=Math.max(0,bytes.length-22);offset>=Math.max(0,bytes.length-65557);offset--){
+      if(view.getUint32(offset,true)===0x06054b50){endOffset=offset;break;}
+    }
+    if(endOffset<0)throw new Error('ZIP end record was not found');
+    const entries=view.getUint16(endOffset+10,true);
+    let centralOffset=view.getUint32(endOffset+16,true);
+    let selected=null;
+    for(let index=0;index<entries;index++){
+      if(view.getUint32(centralOffset,true)!==0x02014b50)throw new Error('ZIP directory is invalid');
+      const flags=view.getUint16(centralOffset+8,true);
+      const method=view.getUint16(centralOffset+10,true);
+      const crc=view.getUint32(centralOffset+16,true);
+      const compressedSize=view.getUint32(centralOffset+20,true);
+      const uncompressedSize=view.getUint32(centralOffset+24,true);
+      const nameLength=view.getUint16(centralOffset+28,true);
+      const extraLength=view.getUint16(centralOffset+30,true);
+      const commentLength=view.getUint16(centralOffset+32,true);
+      const localOffset=view.getUint32(centralOffset+42,true);
+      const name=new TextDecoder().decode(bytes.slice(centralOffset+46,centralOffset+46+nameLength));
+      if(!selected&&name.toLowerCase().endsWith('.json'))selected={name,flags,method,crc,compressedSize,uncompressedSize,localOffset};
+      centralOffset+=46+nameLength+extraLength+commentLength;
+    }
+    if(!selected)throw new Error('ZIP does not contain a JSON fixture library');
+    if(selected.flags&1)throw new Error('Encrypted ZIP files are not supported');
+    if(view.getUint32(selected.localOffset,true)!==0x04034b50)throw new Error('ZIP entry header is invalid');
+    const localNameLength=view.getUint16(selected.localOffset+26,true);
+    const localExtraLength=view.getUint16(selected.localOffset+28,true);
+    const dataOffset=selected.localOffset+30+localNameLength+localExtraLength;
+    const compressed=bytes.slice(dataOffset,dataOffset+selected.compressedSize);
+    let jsonBytes;
+    if(selected.method===0)jsonBytes=compressed;
+    else if(selected.method===8)jsonBytes=await transformBytes(compressed,'deflate-raw',true);
+    else throw new Error('ZIP compression method '+selected.method+' is not supported');
+    if(jsonBytes.length!==selected.uncompressedSize)throw new Error('ZIP entry size does not match');
+    if(crc32(jsonBytes)!==selected.crc)throw new Error('ZIP entry checksum failed');
+    return JSON.parse(new TextDecoder().decode(jsonBytes));
+  }
+
+  async function downloadZipJson(filename,entryName,data){
+    const bytes=await zipJsonBytes(entryName,data);
+    const blob=new Blob([bytes],{type:'application/zip'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     a.download=filename;
@@ -3082,6 +3210,9 @@
     appVersion,
     versionedPayload,
     downloadJson,
+    zipJsonBytes,
+    unzipJsonBytes,
+    downloadZipJson,
     fetchFixtureLiveValues,
     mergeFixtureLiveValues,
     feedbackButton,

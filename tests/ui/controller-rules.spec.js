@@ -68,6 +68,50 @@ test.describe('Fixture Controller established rules', () => {
     await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(7);
   });
 
+  test('fixture card Highlight temporarily applies OFL highlight values and restores the previous look', async ({ page }) => {
+    const urls = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      urls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      const control = profiles.find(profile => profile.id === 1).controls.find(item => item.id === 11);
+      control.highlightValue = 255;
+      baseUrl.value = 'http://127.0.0.1:18991/';
+      values['101:11'] = 44;
+      drawSurface();
+    });
+
+    const button = page.locator('[data-fixture-card="101"] [data-highlight-fixture="101"]');
+    await button.click();
+    await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(255);
+    await expect.poll(() => urls.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/255'))).toBe(true);
+    await expect(button).toHaveText('Restore');
+
+    urls.length = 0;
+    await button.click();
+    await expect.poll(() => page.evaluate(() => values['101:11'])).toBe(44);
+    await expect.poll(() => urls.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/44'))).toBe(true);
+    await expect(button).toHaveText('Highlight');
+  });
+
+  test('fixture library resolves deduplicated OFL wheel resource images without embedding them in exports', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const library = { fixtures: [{ key: 'test/fixture', modes: [{ profile: { controls: [{ label: 'Gobo Wheel', options: [{ name: 'Gobo 1', slotNumber: 2, value: 10 }] }] } }] }] };
+      mergeFixtureLibraryResources(library, {
+        resources: { 'gobos/test': { image: 'data:image/svg+xml;base64,PHN2Zy8+' } },
+        fixtures: [{ key: 'test/fixture', controls: [{ label: 'Gobo Wheel', options: [{ slotNumber: 2, value: 10, resourceKey: 'gobos/test' }] }] }]
+      });
+      const resolved = library.fixtures[0].modes[0].profile.controls[0].options[0];
+      const exported = fixtureLibraryForExport(library).fixtures[0].modes[0].profile.controls[0].options[0];
+      return { resolvedImage: resolved.image, exportedImage: exported.image, resourceKey: exported.resourceKey };
+    });
+
+    expect(result.resolvedImage).toBe('data:image/svg+xml;base64,PHN2Zy8+');
+    expect(result.exportedImage).toBeUndefined();
+    expect(result.resourceKey).toBe('gobos/test');
+  });
+
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
     const state = await page.evaluate(() => {
       selectedFixtureIds = new Set([101, 102, 103]);
@@ -935,10 +979,13 @@ test.describe('Fixture Controller established rules', () => {
       const originalFetch = window.fetch;
       const calls = [];
       const resolvers = [];
-      window.fetch = (_url, options = {}) => new Promise(resolve => {
+      window.fetch = (url, options = {}) => {
+        if (!String(url).includes('scene_setup.php')) return originalFetch(url, options);
+        return new Promise(resolve => {
         calls.push(JSON.parse(options.body || '{}'));
         resolvers.push(resolve);
-      });
+        });
+      };
       const okResponse = () => ({ json: () => Promise.resolve({ ok: true }) });
 
       try {
@@ -1454,18 +1501,195 @@ test.describe('Fixture Controller established rules', () => {
       return imported ? {
         name: imported.name,
         mode: imported.mode,
+        libraryFixtureKey: imported.libraryFixtureKey,
+        libraryModeName: imported.libraryModeName,
         channels: imported.channels,
-        controls: imported.controls.map(c => ({ type: c.type, label: c.label, pan: c.pan, panFine: c.panFine, tilt: c.tilt, tiltFine: c.tiltFine, channel: c.channel }))
+        controls: imported.controls.map(c => ({ type: c.type, label: c.label, pan: c.pan, panFine: c.panFine, tilt: c.tilt, tiltFine: c.tiltFine, channel: c.channel, options: c.options, capabilities: c.capabilities }))
       } : null;
     });
 
     expect(profile).toBeTruthy();
+    expect(profile).toMatchObject({ libraryFixtureKey: 'american-dj/inno-pocket-spot', libraryModeName: '11-channel' });
     expect(profile.channels).toBe(11);
     expect(profile.controls).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'panTilt16', label: 'Pan/Tilt', pan: 1, panFine: 2, tilt: 3, tiltFine: 4 }),
       expect.objectContaining({ type: 'wheel', label: 'Color Wheel', channel: 5 }),
+      expect.objectContaining({ type: 'wheel', label: 'Shutter/Strobe', channel: 7, options: expect.arrayContaining([expect.objectContaining({ kind: 'ShutterStrobe', shutterEffect: 'Strobe', range: [16, 131] })]), capabilities: expect.any(Array) }),
       expect.objectContaining({ type: 'slider8', label: 'Dimmer', channel: 8 })
     ]));
+  });
+
+  test('Fixture Library preview presents normalized OFL fixture information and safe source links', async ({ page }) => {
+    await page.evaluate(() => {
+      fixtureLibraryState.data = normalizeFixtureLibrary({
+        schemaVersion: 1,
+        source: 'Fixture metadata test',
+        fixtures: [{
+          key: 'fun-generation/picospot-20-led',
+          manufacturerName: 'Fun Generation',
+          name: 'PicoSpot 20 LED',
+          categories: ['Moving Head', 'Color Changer'],
+          metadata: {
+            source: 'ofl',
+            sourceUrl: 'https://open-fixture-library.org/fun-generation/picospot-20-led',
+            authors: ['LordVonAdel', 'Moritz Weirauch'],
+            createDate: '2019-08-21',
+            lastModifyDate: '2024-05-07',
+            links: {
+              manual: ['https://example.test/picospot-manual.pdf', 'javascript:alert(1)'],
+              productPage: ['https://example.test/picospot'],
+              video: ['https://example.test/picospot-video']
+            },
+            physical: {
+              dimensionsMm: { width: 162, height: 242, depth: 174 },
+              weightKg: 3,
+              powerW: 35,
+              powerVa: 1250,
+              dmxConnector: '3-pin',
+              lightSource: '12W white CREE LED',
+              beamAngleDegrees: { min: 13, max: 13 }
+            }
+          },
+          modes: [{
+            name: '5-channel',
+            channels: 5,
+            profile: { name: 'PicoSpot 20 LED', mode: '5-channel', channels: 5, controls: [] },
+            warnings: []
+          }]
+        }]
+      });
+      fixtureLibraryState.selectedKey = '';
+      fixtureLibraryState.selectedModeIndex = 0;
+      document.getElementById('fixtureLibrarySearch').disabled = false;
+      setSectionCollapsed('fixtureLibraryCollapseBtn', 'fixtureLibraryBody', 'fixtureLibraryCollapsed', false);
+      renderFixtureLibraryResults();
+    });
+
+    const information = page.locator('[data-fixture-library-information]');
+    await expect(information).toBeVisible();
+    await expect(information).toContainText('Fixture Information');
+    await expect(information).toContainText('LordVonAdel, Moritz Weirauch');
+    await expect(information).toContainText('Created 2019-08-21');
+    await expect(information).toContainText('Updated 2024-05-07');
+    await expect(information).toContainText('162 × 242 × 174 mm');
+    await expect(information).toContainText('3 kg');
+    await expect(information).toContainText('35 W');
+    await expect(information).toContainText('1250 VA');
+    await expect(information).toContainText('3-pin');
+    await expect(information).toContainText('12W white CREE LED');
+    await expect(information).toContainText('13°');
+    await expect(information.locator('a[href="https://open-fixture-library.org/fun-generation/picospot-20-led"]')).toHaveAttribute('target', '_blank');
+    await expect(information.locator('a[href="https://example.test/picospot-manual.pdf"]')).toHaveText('Manual');
+    await expect(information.locator('a[href="https://example.test/picospot"]')).toHaveText('Product page');
+    await expect(information.locator('a[href="https://example.test/picospot-video"]')).toHaveText('Video');
+    await expect(information.locator('a[href^="javascript:"]')).toHaveCount(0);
+  });
+
+  test('built-in OFL metadata enriches a custom library without replacing curated fixtures or controls', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const customLibrary = normalizeFixtureLibrary({
+        schemaVersion: 1,
+        source: 'Curated custom library',
+        fixtureCount: 2,
+        fixtures: [{
+          key: 'fun-generation/picospot-20-led',
+          manufacturerName: 'Fun Generation',
+          name: 'PicoSpot 20 LED',
+          categories: ['Moving Head'],
+          modes: [{
+            name: 'Curated mode',
+            channels: 1,
+            profile: { name: 'PicoSpot 20 LED', mode: 'Curated mode', channels: 1, controls: [{ id: 7001, type: 'slider8', label: 'Curated Dimmer', channel: 1, defaultValue: 123 }] },
+            warnings: ['Keep this warning']
+          }]
+        }, {
+          key: 'custom/keep-me', manufacturerName: 'Custom', name: 'Keep Me', categories: ['Custom'], modes: []
+        }]
+      });
+      const enriched = mergeFixtureLibraryMetadata(customLibrary, {
+        schemaVersion: 1,
+        source: 'Open Fixture Library metadata',
+        fixtures: [{
+          key: 'fun-generation/picospot-20-led',
+          metadata: { source: 'ofl', sourceUrl: 'https://open-fixture-library.org/fun-generation/picospot-20-led', authors: ['OFL Author'] }
+        }, {
+          key: 'eurolite/led-tmh-w36',
+          metadata: { source: 'ofl', sourceUrl: 'https://open-fixture-library.org/eurolite/led-tmh-w36' }
+        }]
+      });
+      const pico = enriched.fixtures.find(fixture => fixture.key === 'fun-generation/picospot-20-led');
+      return {
+        source: enriched.source,
+        fixtureCount: enriched.fixtureCount,
+        keys: enriched.fixtures.map(fixture => fixture.key),
+        metadata: pico.metadata,
+        modeName: pico.modes[0].name,
+        control: pico.modes[0].profile.controls[0],
+        warning: pico.modes[0].warnings[0]
+      };
+    });
+
+    expect(result.source).toBe('Curated custom library');
+    expect(result.fixtureCount).toBe(2);
+    expect(result.keys).toEqual(['fun-generation/picospot-20-led', 'custom/keep-me']);
+    expect(result.metadata).toEqual(expect.objectContaining({ source: 'ofl', authors: ['OFL Author'] }));
+    expect(result.modeName).toBe('Curated mode');
+    expect(result.control).toEqual(expect.objectContaining({ id: 7001, label: 'Curated Dimmer', defaultValue: 123 }));
+    expect(result.warning).toBe('Keep this warning');
+  });
+
+  test('OFL capability enrichment upgrades segmented sliders without replacing curated show defaults', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const library = normalizeFixtureLibrary({
+        schemaVersion: 1,
+        source: 'Curated capability library',
+        fixtures: [{
+          key: 'demo/capability-fixture',
+          manufacturerName: 'Demo',
+          name: 'Capability Fixture',
+          metadata: { source: 'custom', authors: ['Keep Me'] },
+          modes: [{
+            name: '2ch', channels: 2, warnings: ['Keep warning'],
+            profile: { name: 'Capability Fixture', mode: '2ch', channels: 2, controls: [
+              { id: 9001, type: 'slider8', label: 'Shutter', channel: 1, default: 255, blackout: 0 },
+              { id: 9002, type: 'wheel', label: 'Gobo Wheel', channel: 2, options: [{ name: 'Custom Gobo', value: 10, image: 'data:image/png;base64,CUSTOM' }] }
+            ] }
+          }]
+        }]
+      });
+      mergeFixtureLibraryCapabilities(library, {
+        schemaVersion: 1,
+        fixtures: [{
+          key: 'demo/capability-fixture',
+          controls: [
+            {
+              type: 'wheel', label: 'Shutter', channel: 1,
+              capabilities: [
+                { type: 'ShutterStrobe', dmxRange: [0, 9], shutterEffect: 'Open' },
+                { type: 'ShutterStrobe', dmxRange: [10, 255], shutterEffect: 'Strobe', speedStart: 'slow', speedEnd: 'fast' }
+              ],
+              options: [
+                { name: 'Open', value: 5, range: [0, 9], kind: 'ShutterStrobe', shutterEffect: 'Open' },
+                { name: 'Strobe', value: 133, range: [10, 255], kind: 'ShutterStrobe', shutterEffect: 'Strobe', speedStart: 'slow', speedEnd: 'fast' }
+              ]
+            },
+            { type: 'wheel', label: 'Gobo Wheel', channel: 2, capabilities: [{ type: 'WheelSlot', dmxRange: [0, 255] }], options: [{ name: 'OFL Gobo', value: 127 }] }
+          ]
+        }]
+      });
+      const fixture = library.fixtures[0];
+      return { fixture, shutter: fixture.modes[0].profile.controls[0], gobo: fixture.modes[0].profile.controls[1] };
+    });
+
+    expect(result.fixture.metadata).toEqual({ source: 'custom', authors: ['Keep Me'] });
+    expect(result.fixture.modes[0].warnings).toEqual(['Keep warning']);
+    expect(result.shutter).toEqual(expect.objectContaining({
+      id: 9001, type: 'wheel', label: 'Shutter', channel: 1, default: 255, blackout: 0
+    }));
+    expect(result.shutter.capabilities).toHaveLength(2);
+    expect(result.shutter.options[1]).toEqual(expect.objectContaining({ kind: 'ShutterStrobe', range: [10, 255], speedStart: 'slow', speedEnd: 'fast' }));
+    expect(result.gobo.options).toEqual([{ name: 'Custom Gobo', value: 10, image: 'data:image/png;base64,CUSTOM' }]);
+    expect(result.gobo.capabilities).toEqual([{ type: 'WheelSlot', dmxRange: [0, 255] }]);
   });
 
   test('Fixture Library preserves OFL wheel slot names, ranges, and colors', async ({ page }) => {

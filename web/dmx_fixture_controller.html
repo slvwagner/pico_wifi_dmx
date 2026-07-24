@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0f12">
 <title>DMX Controller</title>
-<link rel="icon" href="assets/favicon.ico?v=0.9.12">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.12">
-<link rel="manifest" href="assets/manifest.webmanifest?v=0.9.12">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.12-8">
-<script src="assets/dmx-common.js?v=0.9.12-8"></script>
+<link rel="icon" href="assets/favicon.ico?v=0.9.13">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.13">
+<link rel="manifest" href="assets/manifest.webmanifest?v=0.9.13">
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.13-8">
+<script src="assets/dmx-common.js?v=0.9.13-8"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -42,7 +42,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-title{display:grid;gap:2px;align-items:start;min-width:0;overflow:hidden}
 .fixture-title h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fixture-title .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap;height:28px;overflow:hidden}
+.fixture-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:wrap;min-height:28px}
 .fixture-card.source-fixture{background:#0a0d10;border:1.5px solid var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .controller-plane-modal .modal-card{max-width:920px;width:min(920px,calc(100vw - 32px))}
 .controller-plane-layout{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
@@ -85,6 +85,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #patched .item{align-content:start}
 .show-setup-body{display:grid;gap:16px;margin-top:12px}
 .show-setup-body>.panel{margin:0;background:#10161b}
+.show-title-stack{display:grid;gap:4px;min-width:min(320px,75vw)}
+.show-name-field{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;font-weight:700}
+.show-name-field input{width:min(360px,58vw);min-width:140px;padding:5px 8px}
 .show-file-actions{padding-bottom:4px}
 .patch-actions-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .patch-actions-grid button{width:100%;min-width:0}
@@ -102,6 +105,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fixture-library-preview{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px;min-height:120px}
 .fixture-library-controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .fixture-library-controls label{min-width:220px;flex:1 1 260px}
+.fixture-library-information{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:7px;background:#0d1318}
+.fixture-library-information h4{margin:0}
+.fixture-library-information-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 12px}
+.fixture-library-information-grid>div{display:flex;gap:6px;align-items:baseline;min-width:0}
+.fixture-library-information-grid span{color:var(--muted);font-size:12px;font-weight:700}
+.fixture-library-information-grid strong{font-size:13px;overflow-wrap:anywhere}
+.fixture-library-information-links{display:flex;gap:6px;flex-wrap:wrap}
+.fixture-library-information-links a{display:inline-flex;align-items:center;min-height:30px;padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:#172027;color:var(--text);text-decoration:none;font-size:12px;font-weight:700}
+.fixture-library-information-links a:hover{border-color:var(--accent);color:var(--accent)}
 .fixture-library-control-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px}
 .profile-editor-block{border:1px solid var(--line);border-radius:8px;background:#10161b;padding:12px;display:grid;gap:10px}
 .profile-editor-block .toolbar{align-items:end}
@@ -126,6 +138,30 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .setup-files-card .toolbar{align-items:center}
 .setup-files-card .icon-btn{width:auto;min-width:0;gap:7px;padding:7px 11px}
 .setup-files-card .icon-btn span{line-height:1;white-space:nowrap}
+.fixture-import-map-modal .modal-card{width:min(1180px,calc(100vw - 24px));max-width:1180px}
+.fixture-import-map-table-wrap{overflow:auto;max-height:min(62vh,680px);border:1px solid var(--line);border-radius:8px}
+.fixture-import-map-table{width:100%;border-collapse:collapse;min-width:760px}
+.fixture-import-map-table th,.fixture-import-map-table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.fixture-import-map-table th{position:sticky;top:0;z-index:1;background:#182027;color:var(--muted);font-size:12px}
+.fixture-import-map-table tr:last-child td{border-bottom:0}
+.fixture-import-map-table select{width:100%;min-width:260px}
+.fixture-import-map-row{cursor:pointer;transition:background .12s ease,box-shadow .12s ease}
+.fixture-import-map-row:hover{background:#131d22}
+.fixture-import-map-row.library-selected{background:#12352d;box-shadow:inset 4px 0 0 var(--accent)}
+.fixture-import-map-row.library-selected td{border-bottom-color:#286b5b}
+.fixture-import-decision{display:inline-flex;align-items:center;justify-content:center;min-width:108px;padding:6px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}
+.fixture-import-map-row.library-selected .fixture-import-decision{border-color:var(--accent);background:#0f4a3d;color:#dffcf5}
+.fixture-import-difference{display:grid;gap:2px;min-width:180px}
+.fixture-import-difference strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fixture-import-map-note{padding:10px;border:1px solid var(--line);border-radius:8px;background:#10161b}
+.fixture-profile-merge-modal .modal-card{width:min(920px,calc(100vw - 24px));max-width:920px}
+.fixture-profile-merge-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fixture-profile-merge-side{padding:12px;border:1px solid var(--line);border-radius:8px;background:#10161b;display:grid;gap:5px}
+.fixture-profile-merge-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.fixture-profile-merge-option{padding:14px;text-align:left;border:1px solid var(--line);border-radius:8px;background:#10161b;display:grid;gap:5px;min-height:92px}
+.fixture-profile-merge-option.selected{border-color:var(--accent);background:#12352d;box-shadow:inset 4px 0 0 var(--accent)}
+.fixture-profile-merge-option:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:700px){.fixture-profile-merge-summary,.fixture-profile-merge-options{grid-template-columns:1fr}}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{min-width:42px;height:34px;padding:0;border-radius:6px}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab.active{border-color:var(--accent)}
 .wheel-editor{border:1px solid var(--line);border-radius:8px;padding:12px;background:#10161b;display:grid;gap:10px}
 #addControlBody{display:grid;gap:10px}
@@ -155,24 +191,27 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.12">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.13">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=0.9.12#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=0.9.13#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
 <section class="panel setup-files-card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-<h2>Show</h2>
+<div class="show-title-stack"><h2>Show</h2><label class="show-name-field">Show name<input id="showNameInput" type="text" maxlength="80" value="Untitled Show"></label></div>
 <button id="showCollapseBtn" style="padding:3px 10px;font-size:15px;line-height:1;min-width:28px">−</button>
 </div>
 <div id="showBody" class="show-setup-body">
 <div class="toolbar show-file-actions">
 <button id="newShow" class="danger" title="Start a fresh show setup">New Show</button>
 <button id="exportCsv" class="icon-btn export-btn" title="Export patched fixtures and DMX channels as CSV"><span>Patch CSV</span></button>
-<button id="exportJson" class="icon-btn export-btn" title="Export the complete show setup file"><span>Export Setup</span></button>
-<button id="importJson" class="icon-btn import-btn" title="Import a complete show setup file"><span>Import Setup</span></button>
+<button id="exportJson" class="icon-btn export-btn" title="Export the complete show as pico_dmx_setup.json"><span>Export Show</span></button>
+<button id="exportFixtureLibrary" class="icon-btn export-btn" title="Export the complete reusable fixture catalog"><span>Export Library</span></button>
+<button id="importJson" class="icon-btn import-btn" title="Import a pico_dmx_setup.json show file"><span>Import Show</span></button>
+<button id="importFixtureLibrary" class="icon-btn import-btn" title="Import a complete reusable fixture catalog"><span>Import Library</span></button>
 <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none">
+<input id="importFixtureLibraryFile" type="file" accept=".zip,.json,application/zip,application/json" style="display:none">
 </div>
 
 <section class="panel" id="fixtureLibraryPanel">
@@ -183,9 +222,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="fixtureLibraryBody">
 <div class="fixture-library-controls">
 <label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket" disabled></label>
-<button id="exportFixtureLibrary" title="Export the currently loaded fixture library catalog">Export Library</button>
-<button id="importFixtureLibrary" title="Import a converted fixture library catalog">Import Library</button>
-<input id="importFixtureLibraryFile" type="file" accept=".json,application/json" style="display:none">
 <button id="retryFixtureLibrary" style="display:none">Retry</button>
 </div>
 <div class="small" id="fixtureLibraryStatus">Loading fixture library...</div>
@@ -585,6 +621,38 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="fixtureImportMappingModal" class="modal-overlay form-modal fixture-import-map-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fixtureImportMappingTitle">
+<div class="modal-head">
+<button id="fixtureImportMappingClose" type="button" aria-label="Cancel fixture mapping">x</button>
+<div class="modal-title-stack"><h2 id="fixtureImportMappingTitle">Resolve Fixture Updates</h2><div class="small">Review fixture definitions that differ between the show backup and this server's library.</div></div>
+</div>
+<div class="modal-body">
+<div class="fixture-import-map-note small">Rows start with the definition embedded in the show. Tap a row to highlight it and update that show profile from the mapped library mode; tap it again to keep the show version. Fixtures and modes not listed here remain unchanged.</div>
+<div id="fixtureImportMappingBody"></div>
+</div>
+<div class="modal-actions">
+<button id="fixtureImportUseAllMatches" type="button">Use All Matches</button>
+<button id="fixtureImportMappingCancel" type="button">Cancel Import</button>
+<button id="fixtureImportApply" type="button" class="primary">Continue Import</button>
+</div>
+</div>
+</div>
+
+<div id="fixtureProfileMergeModal" class="modal-overlay form-modal fixture-profile-merge-modal" style="display:none">
+<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fixtureProfileMergeTitle">
+<div class="modal-head">
+<button id="fixtureProfileMergeClose" type="button" aria-label="Cancel fixture profile merge">x</button>
+<div class="modal-title-stack"><h2 id="fixtureProfileMergeTitle">Merge Fixture Profile</h2><div class="small">Choose which reusable definition should win. Show-only mounting settings and library-only fixture information are preserved automatically.</div></div>
+</div>
+<div class="modal-body" id="fixtureProfileMergeBody"></div>
+<div class="modal-actions">
+<button id="fixtureProfileMergeCancel" type="button">Cancel</button>
+<button id="fixtureProfileMergeApply" type="button" class="primary">Apply Merge</button>
+</div>
+</div>
+</div>
+
 <div id="fanToolboxMount"></div>
 
 <aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
@@ -604,10 +672,12 @@ DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{b
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
+let showName='Untitled Show';
 let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
 const FULL_SETUP_TYPE='pico_wifi_dmx_full_setup';
+const SHOW_FIXTURE_LIBRARY_TYPE='pico_wifi_dmx_show_fixture_library';
 const FULL_SETUP_FORMAT_VERSION=3;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
@@ -980,6 +1050,8 @@ function fixtureLibraryKeyFromName(name){
     .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'fixture';
 }
 function profileMatchesLibraryFixture(profile,fixture){
+  const linkedKey=String(profile?.libraryFixtureKey||'').trim();
+  if(linkedKey)return String(fixture?.key||'')===linkedKey;
   const fullName=((fixture.manufacturerName?fixture.manufacturerName+' ':'')+(fixture.name||'')).trim().toLowerCase();
   const fixtureName=String(fixture.name||'').trim().toLowerCase();
   const profileName=String(profile.name||'').trim().toLowerCase();
@@ -988,8 +1060,13 @@ function profileMatchesLibraryFixture(profile,fixture){
   return (fixture.modes||[]).some(mode=>String(mode?.profile?.name||'').trim().toLowerCase()===profileName);
 }
 function libraryModeMatchesProfile(mode,profile){
-  const profileMode=String(profile.mode||'').trim().toLowerCase();
+  const profileMode=String(profile?.libraryModeName||profile?.mode||'').trim().toLowerCase();
   return String(mode?.name||'').trim().toLowerCase()===profileMode||String(mode?.profile?.mode||'').trim().toLowerCase()===profileMode;
+}
+function libraryFixtureAndModeForProfile(library,profile){
+  const fixture=(library?.fixtures||[]).find(candidate=>profileMatchesLibraryFixture(profile,candidate))||null;
+  const mode=(fixture?.modes||[]).find(candidate=>libraryModeMatchesProfile(candidate,profile))||null;
+  return {fixture,mode};
 }
 function canonicalLibraryProfileName(fixture,profileName){
   const name=String(profileName||'').trim();
@@ -1057,17 +1134,22 @@ function controlLibraryIdentity(control){
 function mergeLibraryControlMetadata(existingControls,newControls){
   const existingByIdentity=new Map();
   const existingByLabel=new Map();
+  const existingByChannels=new Map();
   (existingControls||[]).forEach(control=>{
     existingByIdentity.set(controlLibraryIdentity(control),control);
     const labelKey=[control.type,control.label].join('|');
     if(!existingByLabel.has(labelKey))existingByLabel.set(labelKey,[]);
     existingByLabel.get(labelKey).push(control);
+    const channelKey=[control.type,controlChannels(control).join(',')].join('|');
+    if(!existingByChannels.has(channelKey))existingByChannels.set(channelKey,[]);
+    existingByChannels.get(channelKey).push(control);
   });
   return (newControls||[]).map(control=>{
     const exact=existingByIdentity.get(controlLibraryIdentity(control));
     const byLabel=existingByLabel.get([control.type,control.label].join('|'))||[];
-    const existing=exact||byLabel.find(candidate=>candidate.channel===control.channel)||byLabel[0]||null;
-    const merged=existing?{...existing,...control}:control;
+    const byChannels=existingByChannels.get([control.type,controlChannels(control).join(',')].join('|'))||[];
+    const existing=exact||byLabel.find(candidate=>candidate.channel===control.channel)||byLabel[0]||byChannels[0]||null;
+    const merged=existing?{...existing,...control,id:existing.id||control.id}:control;
     if(merged.type==='wheel'){
       merged.options=mergeLibraryWheelOptions(existing?.options,control.options);
     }
@@ -1085,14 +1167,14 @@ function mergeLibraryModeProfileMetadata(existingMode,cleanProfile){
 function upsertProfileIntoFixtureLibrary(library,profile){
   const cleanProfile=libraryProfileFromControllerProfile(profile);
   const fixtureName=cleanProfile.name;
-  let fixture=library.fixtures.find(candidate=>profileMatchesLibraryFixture(cleanProfile,candidate));
+  let fixture=libraryFixtureAndModeForProfile(library,profile).fixture;
   if(!fixture){
     const key='custom/'+fixtureLibraryKeyFromName(fixtureName);
     fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
     library.fixtures.push(fixture);
   }
   cleanProfile.name=canonicalLibraryProfileName(fixture,cleanProfile.name);
-  const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,cleanProfile));
+  const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,profile));
   if(!Array.isArray(fixture.modes))fixture.modes=[];
   const existingMode=modeIndex>=0?fixture.modes[modeIndex]:null;
   const profileWithMetadata=mergeLibraryModeProfileMetadata(existingMode,cleanProfile);
@@ -1105,6 +1187,47 @@ function upsertProfileIntoFixtureLibrary(library,profile){
   library.source=library.source&&library.source!=='Built-in fixture library' ? library.source : 'Controller edited fixture library';
   return {fixture,mode};
 }
+let fixtureProfileMergeResolve=null;
+let fixtureProfileMergeDirection='show';
+function setFixtureProfileMergeDirection(direction){
+  fixtureProfileMergeDirection=direction;
+  document.querySelectorAll('[data-profile-merge-direction]').forEach(button=>{
+    button.classList.toggle('selected',button.dataset.profileMergeDirection===direction);
+    button.setAttribute('aria-pressed',button.dataset.profileMergeDirection===direction?'true':'false');
+  });
+}
+function closeFixtureProfileMerge(result){
+  document.getElementById('fixtureProfileMergeModal').style.display='none';
+  const resolve=fixtureProfileMergeResolve;
+  fixtureProfileMergeResolve=null;
+  if(resolve)resolve(result);
+}
+function openFixtureProfileMerge(profile,fixture,mode){
+  const showControls=profile?.controls||[];
+  const libraryControls=mode?.profile?.controls||[];
+  const hasLibrary=!!(fixture&&mode);
+  const differences=[];
+  if(!hasLibrary)differences.push('This profile does not exist in the library yet.');
+  else{
+    if(String(profile.name||'')!==String(mode.profile?.name||fixture.name||''))differences.push('Profile names differ.');
+    if(String(profile.mode||'')!==String(mode.profile?.mode||mode.name||''))differences.push('Mode names differ.');
+    if(Number(profile.channels||0)!==Number(mode.profile?.channels||mode.channels||0))differences.push('Channel counts differ.');
+    if(JSON.stringify(libraryProfileFromControllerProfile(profile).controls)!==JSON.stringify(libraryControls))differences.push('Control definitions differ.');
+  }
+  document.getElementById('fixtureProfileMergeBody').innerHTML=`
+    <div class="fixture-import-map-note small">${escHtml(differences.join(' ')||'The reusable definitions match. You can still choose a direction to refresh their linked identity.')}</div>
+    <div class="fixture-profile-merge-summary">
+      <div class="fixture-profile-merge-side"><strong>Show profile</strong><span>${escHtml(profile?.name||'Fixture')}</span><span class="small">${escHtml(profile?.mode||'mode')} · ${profile?.channels||0}ch · ${showControls.length} control${showControls.length===1?'':'s'}</span></div>
+      <div class="fixture-profile-merge-side"><strong>Fixture library</strong><span>${escHtml(fixture?((fixture.manufacturerName?fixture.manufacturerName+' ':'')+fixture.name):'No matching fixture')}</span><span class="small">${escHtml(mode?.name||'No matching mode')} · ${mode?.channels||0}ch · ${libraryControls.length} control${libraryControls.length===1?'':'s'}</span></div>
+    </div>
+    <div class="fixture-profile-merge-options">
+      <button type="button" class="fixture-profile-merge-option" data-profile-merge-direction="show" aria-pressed="false"><strong>Use show in library</strong><span class="small">Update this reusable library mode from the show. Library information, capabilities, warnings, and other modes remain intact.</span></button>
+      <button type="button" class="fixture-profile-merge-option" data-profile-merge-direction="library" aria-pressed="false" ${hasLibrary?'':'disabled'}><strong>Use library in show</strong><span class="small">Update this existing show profile from the reusable mode. Profile/control IDs and Pan/Tilt mounting settings remain intact.</span></button>
+    </div>`;
+  document.getElementById('fixtureProfileMergeModal').style.display='grid';
+  setFixtureProfileMergeDirection('show');
+  return new Promise(resolve=>{fixtureProfileMergeResolve=resolve;});
+}
 async function updateSelectedProfileInFixtureLibrary(){
   const profile=activeProfile();
   if(!profile)throw new Error('Select a profile first');
@@ -1115,15 +1238,43 @@ async function updateSelectedProfileInFixtureLibrary(){
 }
 async function updateProfileInFixtureLibrary(profile){
   const library=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true}));
+  const existing=libraryFixtureAndModeForProfile(library,profile);
+  const direction=await openFixtureProfileMerge(profile,existing.fixture,existing.mode);
+  if(!direction){
+    setStatus('Fixture profile merge cancelled');
+    const cancelled=new Error('Fixture profile merge cancelled');
+    cancelled.fixtureMergeCancelled=true;
+    throw cancelled;
+  }
+  if(direction==='library'){
+    if(!existing.fixture||!existing.mode)throw new Error('No matching library fixture mode');
+    const profileIndex=profiles.findIndex(item=>String(item.id)===String(profile.id));
+    if(profileIndex<0)throw new Error('Show profile is no longer available');
+    const merged=importedProfileFromLibraryMode(profile,existing.mode,existing.fixture);
+    profiles[profileIndex]=merged;
+    activeProfileId=merged.id;
+    loadProfileEditor(merged);
+    draw();
+    scheduleSetupAutosave();
+    fixtureLibraryState.selectedKey=existing.fixture.key;
+    fixtureLibraryState.selectedModeIndex=Math.max(0,(existing.fixture.modes||[]).indexOf(existing.mode));
+    renderFixtureLibraryResults();
+    document.getElementById('fixtureLibraryStatus').textContent='Updated show profile from library fixture '+existing.fixture.name+' · '+existing.mode.name+'.';
+    setStatus('Show profile updated from fixture library: '+merged.name+' ('+merged.mode+')');
+    return {fixture:existing.fixture,mode:existing.mode,profile:merged,direction};
+  }
   const result=upsertProfileIntoFixtureLibrary(library,profile);
   await saveFixtureLibraryToServer(library);
+  profile.libraryFixtureKey=result.fixture.key;
+  profile.libraryModeName=result.mode.name;
+  scheduleSetupAutosave();
   fixtureLibraryState.data=library;
   fixtureLibraryState.selectedKey=result.fixture.key;
   fixtureLibraryState.selectedModeIndex=Math.max(0,(result.fixture.modes||[]).findIndex(mode=>libraryModeMatchesProfile(mode,profile)));
   renderFixtureLibraryResults();
   document.getElementById('fixtureLibraryStatus').textContent='Updated library fixture '+result.fixture.name+' · '+result.mode.name+'.';
   setStatus('Fixture library updated from profile: '+profile.name+' ('+profile.mode+')');
-  return result;
+  return {...result,profile,direction};
 }
 async function updateProfileCardInFixtureLibrary(profileId){
   const profile=profiles.find(item=>item.id===parseInt(profileId,10));
@@ -1131,6 +1282,13 @@ async function updateProfileCardInFixtureLibrary(profileId){
   selectProfile(profile.id,{status:false});
   return updateProfileInFixtureLibrary(profile);
 }
+document.getElementById('fixtureProfileMergeBody').addEventListener('click',event=>{
+  const option=event.target.closest('[data-profile-merge-direction]');
+  if(option&&!option.disabled)setFixtureProfileMergeDirection(option.dataset.profileMergeDirection);
+});
+document.getElementById('fixtureProfileMergeClose').onclick=()=>closeFixtureProfileMerge(null);
+document.getElementById('fixtureProfileMergeCancel').onclick=()=>closeFixtureProfileMerge(null);
+document.getElementById('fixtureProfileMergeApply').onclick=()=>closeFixtureProfileMerge(fixtureProfileMergeDirection);
 
 function controlFromEditor(existingId=0){
   const type=document.getElementById('controlType').value;
@@ -1537,6 +1695,74 @@ function applyNoneCheckboxes(){
   document.getElementById('blkAmberWrap').style.display=(!blkNone&&type==='rgbwa')?'grid':'none';
 }
 
+function mergeFixtureLibraryMetadata(library,metadataCatalog){
+  if(!library?.fixtures||!Array.isArray(metadataCatalog?.fixtures))return library;
+  const metadataByKey=new Map(metadataCatalog.fixtures.filter(item=>item?.key&&item?.metadata).map(item=>[String(item.key),item.metadata]));
+  library.fixtures.forEach(fixture=>{
+    const metadata=metadataByKey.get(String(fixture?.key||''));
+    if(metadata&&(!fixture.metadata||fixture.metadata.source==='ofl'))fixture.metadata=JSON.parse(JSON.stringify(metadata));
+  });
+  return library;
+}
+function mergeFixtureLibraryCapabilities(library,capabilityCatalog){
+  if(!library?.fixtures||!Array.isArray(capabilityCatalog?.fixtures))return library;
+  const patchesByKey=new Map(capabilityCatalog.fixtures.filter(item=>item?.key&&Array.isArray(item.controls)).map(item=>[String(item.key),item]));
+  library.fixtures.forEach(fixture=>{
+    const fixturePatch=patchesByKey.get(String(fixture?.key||''));
+    if(!fixturePatch)return;
+    (fixture.modes||[]).forEach(mode=>{
+      const controls=mode?.profile?.controls||[];
+      (fixturePatch.controls||[]).forEach(controlPatch=>{
+        const label=String(controlPatch?.label||'').trim().toLowerCase();
+        const control=controls.find(candidate=>String(candidate?.label||'').trim().toLowerCase()===label);
+        if(!control)return;
+        if(Array.isArray(controlPatch.capabilities))control.capabilities=JSON.parse(JSON.stringify(controlPatch.capabilities));
+        if(control.type==='slider8'&&controlPatch.type==='wheel'&&Array.isArray(controlPatch.options)){
+          control.type='wheel';
+          control.options=JSON.parse(JSON.stringify(controlPatch.options));
+        }
+      });
+    });
+  });
+  return library;
+}
+let fixtureLibraryResourceCatalog=null;
+function mergeFixtureLibraryResources(library,resourceCatalog){
+  if(!library?.fixtures||!resourceCatalog?.resources)return library;
+  const patchesByKey=new Map((resourceCatalog.fixtures||[]).filter(item=>item?.key).map(item=>[String(item.key),item]));
+  library.fixtures.forEach(fixture=>{
+    const fixturePatch=patchesByKey.get(String(fixture?.key||''));
+    if(!fixturePatch)return;
+    (fixture.modes||[]).forEach(mode=>(mode?.profile?.controls||[]).forEach(control=>{
+      const controlPatch=(fixturePatch.controls||[]).find(item=>String(item?.label||'').trim().toLowerCase()===String(control?.label||'').trim().toLowerCase());
+      if(!controlPatch)return;
+      (control.options||[]).forEach(option=>{
+        const optionPatch=(controlPatch.options||[]).find(item=>item.slotNumber!=null&&option.slotNumber!=null?String(item.slotNumber)===String(option.slotNumber):String(item.value)===String(option.value));
+        if(optionPatch?.resourceKey&&!option.resourceKey)option.resourceKey=String(optionPatch.resourceKey);
+      });
+    }));
+  });
+  library.fixtures.forEach(fixture=>(fixture.modes||[]).forEach(mode=>(mode?.profile?.controls||[]).forEach(control=>(control.options||[]).forEach(option=>{
+    const resource=resourceCatalog.resources[String(option?.resourceKey||'')];
+    if(resource?.image&&!option.image)option.image=String(resource.image);
+  }))));
+  return library;
+}
+async function enrichFixtureLibraryResources(library){
+  if(!fixtureLibraryResourceCatalog){
+    const response=await fetch('assets/fixture-resources.json',{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    fixtureLibraryResourceCatalog=await response.json();
+  }
+  return mergeFixtureLibraryResources(library,fixtureLibraryResourceCatalog);
+}
+function fixtureLibraryForExport(library){
+  const exported=JSON.parse(JSON.stringify(library));
+  (exported.fixtures||[]).forEach(fixture=>(fixture.modes||[]).forEach(mode=>(mode?.profile?.controls||[]).forEach(control=>(control.options||[]).forEach(option=>{
+    if(option.resourceKey)delete option.image;
+  }))));
+  return exported;
+}
 async function loadFixtureLibrary(options={}){
   const force=!!options.force;
   if(fixtureLibraryState.data&&!force){
@@ -1554,12 +1780,22 @@ async function loadFixtureLibrary(options={}){
   document.getElementById('fixtureLibraryPreview').innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
   try{
     let loadedFrom='built-in';
+    let informationCount=0;
+    let capabilityControlCount=0;
+    let resourceImageCount=0;
     try{
       const serverResponse=await fetch('fixture_library.php',{cache:'no-store'});
       const serverJson=await serverResponse.json();
       if(serverResponse.ok&&serverJson.ok&&serverJson.exists&&serverJson.library?.fixtures?.length){
         fixtureLibraryState.data=normalizeFixtureLibrary(serverJson.library);
         loadedFrom='custom';
+        try{
+          const metadataResponse=await fetch('assets/fixture-metadata.json',{cache:'no-store'});
+          if(metadataResponse.ok){
+            mergeFixtureLibraryMetadata(fixtureLibraryState.data,await metadataResponse.json());
+            informationCount=fixtureLibraryState.data.fixtures.filter(fixture=>fixture.metadata).length;
+          }
+        }catch(_metadataError){}
       }
     }catch(_){}
     if(!fixtureLibraryState.data){
@@ -1567,9 +1803,20 @@ async function loadFixtureLibrary(options={}){
       if(!r.ok)throw new Error('HTTP '+r.status);
       fixtureLibraryState.data=normalizeFixtureLibrary(await r.json());
     }
+    try{
+      const capabilityResponse=await fetch('assets/fixture-capabilities.json',{cache:'no-store'});
+      if(capabilityResponse.ok){
+        mergeFixtureLibraryCapabilities(fixtureLibraryState.data,await capabilityResponse.json());
+        capabilityControlCount=fixtureLibraryState.data.fixtures.reduce((count,fixture)=>count+(fixture.modes||[]).reduce((modeCount,mode)=>modeCount+(mode.profile?.controls||[]).filter(control=>Array.isArray(control.capabilities)&&control.capabilities.length).length,0),0);
+      }
+    }catch(_capabilityError){}
+    try{
+      await enrichFixtureLibraryResources(fixtureLibraryState.data);
+      resourceImageCount=fixtureLibraryState.data.fixtures.reduce((count,fixture)=>count+(fixture.modes||[]).reduce((modeCount,mode)=>modeCount+(mode.profile?.controls||[]).reduce((controlCount,control)=>controlCount+(control.options||[]).filter(option=>option.image).length,0),0),0);
+    }catch(_resourceError){}
     fixtureLibraryState.selectedKey='';
     fixtureLibraryState.selectedModeIndex=0;
-    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.';
+    status.textContent='Loaded '+(fixtureLibraryState.data.fixtureCount||fixtureLibraryState.data.fixtures?.length||0)+' '+loadedFrom+' library fixtures.'+(informationCount?' Fixture information available for '+informationCount+'.':'')+(capabilityControlCount?' Capability ranges available for '+capabilityControlCount+' controls.':'')+(resourceImageCount?' Wheel images available for '+resourceImageCount+' options.':'');
     if(search)search.disabled=false;
     renderFixtureLibraryResults();
     return fixtureLibraryState.data;
@@ -1601,17 +1848,19 @@ async function saveFixtureLibraryToServer(library){
 function openFixtureProfilesSection(){
   setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);
 }
-function exportCurrentFixtureLibrary(){
+async function exportCurrentFixtureLibrary(){
   if(!fixtureLibraryState.data?.fixtures?.length){setStatus('Fixture library is not loaded yet',true);throw new Error('Fixture library is not loaded yet');}
-  DmxCommon.downloadJson('pico_dmx_fixture_library.json',fixtureLibraryState.data);
+  await DmxCommon.downloadZipJson('pico_dmx_fixture_library.zip','pico_dmx_fixture_library.json',fixtureLibraryForExport(fixtureLibraryState.data));
   setStatus('Fixture library exported');
   return true;
 }
 async function importFixtureLibraryFile(file){
-  const text=await file.text();
-  const library=normalizeFixtureLibrary(JSON.parse(text));
+  const zipped=file.name.toLowerCase().endsWith('.zip')||file.type==='application/zip'||file.type==='application/x-zip-compressed';
+  const payload=zipped?await DmxCommon.unzipJsonBytes(await file.arrayBuffer()):JSON.parse(await file.text());
+  const library=normalizeFixtureLibrary(payload);
   await saveFixtureLibraryToServer(library);
   fixtureLibraryState.data=library;
+  try{await enrichFixtureLibraryResources(fixtureLibraryState.data);}catch(_resourceError){}
   fixtureLibraryState.selectedKey='';
   fixtureLibraryState.selectedModeIndex=0;
   const search=document.getElementById('fixtureLibrarySearch');
@@ -1622,7 +1871,56 @@ async function importFixtureLibraryFile(file){
   setStatus('Fixture library imported');
 }
 function fixtureLibrarySearchText(fixture){
-  return [fixture.manufacturerName,fixture.name,fixture.key,(fixture.categories||[]).join(' '),(fixture.modes||[]).map(m=>m.name+' '+m.shortName).join(' ')].join(' ').toLowerCase();
+  const metadata=fixture.metadata||{};
+  return [fixture.manufacturerName,fixture.name,fixture.key,(fixture.categories||[]).join(' '),(fixture.modes||[]).map(m=>m.name+' '+m.shortName).join(' '),(metadata.authors||[]).join(' '),metadata.physical?.dmxConnector,metadata.physical?.lightSource].join(' ').toLowerCase();
+}
+function safeFixtureInformationUrl(value){
+  try{
+    const url=new URL(String(value||''));
+    return url.protocol==='http:'||url.protocol==='https:'?url.href:'';
+  }catch(_err){return'';}
+}
+function fixtureInformationValue(value,unit=''){
+  if(value===null||value===undefined||value==='')return'';
+  return String(value)+(unit?' '+unit:'');
+}
+function renderFixtureLibraryInformation(fixture){
+  const metadata=fixture?.metadata;
+  if(!metadata||typeof metadata!=='object')return'';
+  const physical=metadata.physical||{};
+  const rows=[];
+  const addRow=(label,value)=>{if(value!==null&&value!==undefined&&String(value).trim())rows.push(`<div><span>${escHtml(label)}</span> <strong>${escHtml(String(value))}</strong></div>`);};
+  addRow('Authors',(metadata.authors||[]).join(', '));
+  addRow('Created',metadata.createDate);
+  addRow('Updated',metadata.lastModifyDate);
+  const dimensions=physical.dimensionsMm;
+  if(dimensions&&[dimensions.width,dimensions.height,dimensions.depth].every(value=>value!==null&&value!==undefined&&value!=='')){
+    addRow('Dimensions',dimensions.width+' × '+dimensions.height+' × '+dimensions.depth+' mm');
+  }
+  addRow('Weight',fixtureInformationValue(physical.weightKg,'kg'));
+  addRow('Power',fixtureInformationValue(physical.powerW,'W'));
+  addRow('Power consumption',fixtureInformationValue(physical.powerVa,'VA'));
+  addRow('DMX connector',physical.dmxConnector);
+  addRow('Light source',physical.lightSource);
+  const beam=physical.beamAngleDegrees;
+  if(beam&&beam.min!==null&&beam.min!==undefined&&beam.min!==''&&beam.max!==null&&beam.max!==undefined&&beam.max!==''){
+    addRow('Beam angle',String(beam.min)+(String(beam.min)===String(beam.max)?'°':'–'+beam.max+'°'));
+  }
+  const links=[];
+  const addLinks=(label,values)=>{
+    const safeValues=(Array.isArray(values)?values:[values]).map(safeFixtureInformationUrl).filter(Boolean);
+    safeValues.forEach((url,index)=>links.push(`<a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">${escHtml(label+(safeValues.length>1?' '+(index+1):''))}</a>`));
+  };
+  addLinks('Open Fixture Library',metadata.sourceUrl);
+  addLinks('Manual',metadata.links?.manual||[]);
+  addLinks('Product page',metadata.links?.productPage||[]);
+  addLinks('Video',metadata.links?.video||[]);
+  if(!rows.length&&!links.length)return'';
+  return `<section class="fixture-library-information" data-fixture-library-information>
+    <h4>Fixture Information</h4>
+    ${rows.length?`<div class="fixture-library-information-grid">${rows.join('')}</div>`:''}
+    ${links.length?`<div class="fixture-library-information-links">${links.join('')}</div>`:''}
+  </section>`;
 }
 function renderFixtureLibraryResults(){
   const resultsEl=document.getElementById('fixtureLibraryResults');
@@ -1662,6 +1960,7 @@ function renderFixtureLibraryPreview(){
       <h3>${escHtml(fixture.manufacturerName)} · ${escHtml(fixture.name)}</h3>
       <div class="small">${escHtml((fixture.categories||[]).join(', ')||'Uncategorized')}</div>
     </div>
+    ${renderFixtureLibraryInformation(fixture)}
     <div class="toolbar">
       <label>Mode<select id="fixtureLibraryMode">${(fixture.modes||[]).map((m,i)=>`<option value="${i}" ${i===fixtureLibraryState.selectedModeIndex?'selected':''}>${escHtml(m.name||('Mode '+(i+1)))} · ${m.channels}ch</option>`).join('')}</select></label>
       <button id="importFixtureLibraryProfile" class="primary" ${profile?'':'disabled'}>Import profile</button>
@@ -1673,6 +1972,8 @@ function renderFixtureLibraryPreview(){
 function cloneLibraryProfile(profile,fixture){
   const next=JSON.parse(JSON.stringify(profile));
   next.id=uid();
+  next.libraryFixtureKey=fixture.key;
+  next.libraryModeName=profile.mode||'Library mode';
   const manufacturer=String(fixture.manufacturerName||'').trim();
   const fixtureName=String(fixture.name||'').trim();
   const profileName=String(profile.name||fixtureName||'Library fixture').trim();
@@ -1804,8 +2105,20 @@ function patchFixture(){
   scheduleSetupAutosave();
 }
 
-function saveData(){return DmxCommon.versionedPayload({baseUrl:baseUrl.value,profiles,fixtures});}
+function normalizeShowName(value){return String(value||'').trim().slice(0,80)||'Untitled Show';}
+function renderShowName(){
+  const input=document.getElementById('showNameInput');
+  if(input)input.value=normalizeShowName(showName);
+}
+function showExportFilename(value){
+  const slug=normalizeShowName(value).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'untitled-show';
+  return 'pico_dmx_'+slug+'_show.json';
+}
+function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:baseUrl.value,profiles,fixtures});}
 function applyData(data){
+  showName=normalizeShowName(data?.showName);
+  renderShowName();
   baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
@@ -1873,7 +2186,7 @@ function drawProfiles(){
     const used=[...new Set(p.controls.flatMap(controlChannels).filter(ch=>ch>=1&&ch<=p.channels))].sort((a,b)=>a-b);
     const item=document.createElement('div');item.className=DmxCommon.selectableCardClass('item profile-card',p.id===activeProfileId);item.dataset.profileCard=p.id;
     item.innerHTML=`<div class="profile-card-head" data-profile-card-head="${p.id}" title="Select this fixture profile"><h3>${escHtml(p.name)}</h3><span class="small">Mode ${escHtml(p.mode)} · ${p.channels} channels · ${p.controls.length} controls</span></div>
-      <div class="buttons profile-card-actions"><button data-update-profile-library="${p.id}" title="Save this profile into the fixture library">Update Library</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
+      <div class="buttons profile-card-actions"><button data-update-profile-library="${p.id}" title="Compare and merge this show profile with the fixture library">Update Library</button><button class="warn" data-remove-profile="${p.id}">Remove</button></div>
       <div class="profile-card-controls">
       <div class="small">Used channels: ${used.join(', ')||'none'}</div>
       <div class="profile-control-list">${p.controls.map(c=>`<div class="profile-control-row"><span class="small profile-control-desc">${escHtml(c.label)} (${escHtml(c.type)}) · ${escHtml(controlChannelText(c))}</span><div class="profile-control-actions"><button data-edit-control="${c.id}" data-profile="${p.id}">Edit</button><button class="warn" data-remove-control="${c.id}" data-profile="${p.id}">Remove</button></div></div>`).join('')||'<div class="small">No controls yet</div>'}</div>
@@ -1997,8 +2310,10 @@ function drawSurface(){
     const coll=collapsedFixtureIds.has(f.id);
     const hasDefault=p.controls.some(c=>c.defaultValue!=null);
     const hasBlackout=p.controls.some(c=>c.blackoutValue!=null);
+    const hasHighlight=p.controls.some(c=>c.highlightValue!=null);
+    const isHighlighted=fixtureHighlightSnapshots.has(f.id);
     const card=document.createElement('article');card.className=DmxCommon.selectableCardClass('card fixture-card'+(isSource?' source-fixture':''),sel,'selected');card.dataset.fixtureCard=f.id;
-    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${escHtml(f.name)}${isSource?' <span class="ctrl-chip">Source</span>':''}</h2><span class="small">${escHtml(p.name)} · ${escHtml(p.mode)} · start ${f.start}</span></div><div class="fixture-actions">${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
+    card.innerHTML=`<div class="fixture-head"><div class="fixture-title"><h2>${escHtml(f.name)}${isSource?' <span class="ctrl-chip">Source</span>':''}</h2><span class="small">${escHtml(p.name)} · ${escHtml(p.mode)} · start ${f.start}</span></div><div class="fixture-actions">${hasHighlight?`<button class="sel-btn" data-highlight-fixture="${f.id}" title="${isHighlighted?'Restore the values from before highlighting':'Temporarily apply the fixture highlight values'}" ${isHighlighted?'style="color:var(--accent)"':''}>${isHighlighted?'Restore':'Highlight'}</button>`:''} ${hasDefault?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="defaultValue" title="Recall default values" style="color:var(--accent)">Default</button>`:''} ${hasBlackout?`<button class="sel-btn" data-recall-fixture="${f.id}" data-recall-which="blackoutValue" title="Recall blackout values">Blackout</button>`:''}<button class="sel-btn" data-collapse-fixture="${f.id}" title="${coll?'Expand':'Collapse'}">${coll?'▶':'▼'}</button></div></div><div${coll?' style="display:none"':''}>${p.controls.map(c=>renderControl(f,c)).join('')}</div>`;
     surfaceEl.appendChild(card);
   });
   resizeFixtureXyPads();
@@ -2167,6 +2482,38 @@ async function recallFixtureValues(fixtureId,which){
   writeLiveValues();
   if(errors.length)setStatus(errors.join(', '),true);
   else setStatus(f.name+' '+(which==='defaultValue'?'default':'blackout')+' recalled');
+}
+const fixtureHighlightSnapshots=new Map();
+function mergedHighlightValue(control,current){
+  const highlight=control.highlightValue;
+  if(highlight&&typeof highlight==='object'&&!Array.isArray(highlight))return{...(current&&typeof current==='object'?cloneValue(current):{}),...cloneValue(highlight)};
+  return cloneValue(highlight);
+}
+async function toggleFixtureHighlight(fixtureId){
+  const f=fixtures.find(fx=>fx.id===fixtureId);
+  const p=f&&fixtureProfile(f);
+  if(!f||!p)return;
+  await stopPicoPlaybackForFixtureRecall();
+  const restoring=fixtureHighlightSnapshots.has(fixtureId);
+  const snapshot=restoring?fixtureHighlightSnapshots.get(fixtureId):new Map();
+  const errors=[];
+  for(const c of p.controls){
+    if(restoring){
+      if(!snapshot.has(c.id))continue;
+      setValue(f,c,cloneValue(snapshot.get(c.id)));
+    }else{
+      if(c.highlightValue===null||c.highlightValue===undefined)continue;
+      snapshot.set(c.id,cloneValue(getValue(f,c,defaultValueForControl(c))));
+      setValue(f,c,mergedHighlightValue(c,getValue(f,c,defaultValueForControl(c))));
+    }
+    try{await sendControl(f,c,true);}catch(err){errors.push(err.message);}
+    updateControlDisplay(f,c);
+  }
+  if(restoring){fixtureHighlightSnapshots.delete(fixtureId);writeLiveValues();}
+  else fixtureHighlightSnapshots.set(fixtureId,snapshot);
+  drawSurface();
+  if(errors.length)setStatus(errors.join(', '),true);
+  else setStatus(f.name+(restoring?' restored':' highlighted'));
 }
 function draw(){drawProfiles();drawPatched();drawSurface();}
 
@@ -2405,7 +2752,10 @@ profilesEl.onclick=e=>{
   const editControl=editControlBtn?.dataset.editControl;
   const removeControl=removeControlBtn?.dataset.removeControl;
   if(updateLibrary){
-    DmxCommon.withButtonFeedback(updateLibraryBtn,{busy:'Updating...',success:'Updated',error:'Failed'},()=>updateProfileCardInFixtureLibrary(updateLibrary)).catch(err=>showError('Fixture library update failed: '+err.message));
+    DmxCommon.withButtonFeedback(updateLibraryBtn,{busy:'Comparing...',success:'Updated',error:'Failed'},()=>updateProfileCardInFixtureLibrary(updateLibrary)).catch(err=>{
+      if(err.fixtureMergeCancelled){DmxCommon.restoreButtonFeedback(updateLibraryBtn);return;}
+      showError('Fixture library update failed: '+err.message);
+    });
     return;
   }
   if(select){
@@ -2656,6 +3006,14 @@ patchProfile.onchange=()=>{
   if(profile)document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
 };
 baseUrl.addEventListener('input',scheduleSetupAutosave);
+document.getElementById('showNameInput').addEventListener('input',event=>{
+  showName=String(event.target.value||'').slice(0,80);
+  scheduleSetupAutosave();
+});
+document.getElementById('showNameInput').addEventListener('blur',()=>{
+  showName=normalizeShowName(showName);
+  renderShowName();
+});
 document.getElementById('exportCsv').onclick=exportCsv;
 async function fetchSetupPayload(url,prop,fallback){
   try{
@@ -2680,6 +3038,7 @@ function fullSetupFormatVersion(data){
 function fullSetupMetadata(){
   return {
     type:FULL_SETUP_TYPE,
+    showName:normalizeShowName(showName),
     project:{
       id:PROJECT_ID,
       name:'Pico WiFi DMX',
@@ -2742,7 +3101,9 @@ function migrateFullSetupPayload(setup){
       throw new Error('No migration path from setup file format '+version+' to '+FULL_SETUP_FORMAT_VERSION+'.');
     }
   }
+  const importedShowName=migrated.showName||migrated.fixture?.showName||'Untitled Show';
   migrated={...fullSetupMetadata(),...migrated,setupFormatVersion:FULL_SETUP_FORMAT_VERSION};
+  migrated.showName=normalizeShowName(importedShowName);
   migrated.project={...fullSetupMetadata().project,...(migrated.project||{})};
   return migrated;
 }
@@ -2757,16 +3118,221 @@ function validateFullSetupPayload(setup){
   if(setup.liveValues!==undefined&&(!setup.liveValues||typeof setup.liveValues!=='object'))throw new Error('Setup file live values must be an object.');
   return setup;
 }
+function fixtureLibraryForShow(library,fixtureSetup=saveData()){
+  const source=library&&Array.isArray(library.fixtures)?normalizeFixtureLibrary(library):{schemaVersion:1,fixtures:[]};
+  const patchedProfileIds=new Set((fixtureSetup.fixtures||[]).map(fixture=>String(fixture.profileId)));
+  const usedProfiles=(fixtureSetup.profiles||[]).filter(profile=>patchedProfileIds.has(String(profile.id)));
+  const selectedFixtures=new Map();
+  usedProfiles.forEach(profile=>{
+    const sourceFixture=source.fixtures.find(fixture=>profileMatchesLibraryFixture(profile,fixture));
+    const sourceMode=(sourceFixture?.modes||[]).find(mode=>libraryModeMatchesProfile(mode,profile));
+    const key=sourceFixture?.key||('show/'+fixtureLibraryKeyFromName(profile.name));
+    if(!selectedFixtures.has(key)){
+      selectedFixtures.set(key,sourceFixture
+        ? {...JSON.parse(JSON.stringify(sourceFixture)),modes:[]}
+        : {key,manufacturerName:'Show',name:profile.name||'Fixture',categories:['Show'],modes:[]});
+    }
+    const selected=selectedFixtures.get(key);
+    const mode=sourceMode
+      ? JSON.parse(JSON.stringify(sourceMode))
+      : {name:profile.mode||'mode',channels:profile.channels||1,profile:libraryProfileFromControllerProfile(profile),warnings:[]};
+    if(!selected.modes.some(existing=>libraryModeMatchesProfile(existing,profile)))selected.modes.push(mode);
+  });
+  const fixturesForShow=[...selectedFixtures.values()];
+  return DmxCommon.versionedPayload({
+    type:SHOW_FIXTURE_LIBRARY_TYPE,
+    source:'Fixture definitions used by this Pico WiFi DMX show',
+    generatedAt:new Date().toISOString(),
+    fixtureCount:fixturesForShow.length,
+    fixtures:fixturesForShow
+  },source.schemaVersion||1);
+}
+function fixtureLibraryModeValue(fixture,mode){
+  return String(fixture?.key||'')+'::'+String(mode?.name||'');
+}
+function fixtureDefinitionSignature(fixture,mode){
+  return JSON.stringify({
+    manufacturerName:fixture?.manufacturerName||'',
+    name:fixture?.name||'',
+    categories:Array.isArray(fixture?.categories)?fixture.categories:[],
+    mode:{name:mode?.name||'',channels:mode?.channels||0,profile:mode?.profile||null}
+  });
+}
+function fixtureLibraryCandidates(library){
+  return (library?.fixtures||[]).flatMap(fixture=>(fixture.modes||[]).map(mode=>({
+    value:fixtureLibraryModeValue(fixture,mode),
+    fixture,
+    mode,
+    label:[fixture.manufacturerName,fixture.name,'—',mode.name,'('+(mode.channels||mode.profile?.channels||0)+'ch)'].filter(Boolean).join(' ')
+  })));
+}
+function fixtureImportDifferenceRows(showLibrary,currentLibrary,fixtureSetup){
+  const usedLibrary=fixtureLibraryForShow(showLibrary,fixtureSetup);
+  const candidates=fixtureLibraryCandidates(currentLibrary);
+  const patchedProfileIds=new Set((fixtureSetup.fixtures||[]).map(fixture=>String(fixture.profileId)));
+  return (fixtureSetup.profiles||[]).filter(profile=>patchedProfileIds.has(String(profile.id))).flatMap(profile=>{
+    const showFixture=(usedLibrary.fixtures||[]).find(fixture=>profileMatchesLibraryFixture(profile,fixture));
+    const showMode=(showFixture?.modes||[]).find(mode=>libraryModeMatchesProfile(mode,profile));
+    if(!showFixture||!showMode)return[];
+    const currentFixture=(currentLibrary.fixtures||[]).find(fixture=>fixture.key===showFixture.key)
+      ||(currentLibrary.fixtures||[]).find(fixture=>profileMatchesLibraryFixture(profile,fixture));
+    const currentMode=(currentFixture?.modes||[]).find(mode=>libraryModeMatchesProfile(mode,profile));
+    if(currentMode&&fixtureDefinitionSignature(showFixture,showMode)===fixtureDefinitionSignature(currentFixture,currentMode))return[];
+    return [{
+      profileId:profile.id,
+      profile,
+      showFixture,
+      showMode,
+      currentValue:currentFixture&&currentMode?fixtureLibraryModeValue(currentFixture,currentMode):'',
+      reason:currentMode?'Definition differs':'Missing from library',
+      candidates
+    }];
+  });
+}
+let fixtureImportMappingResolve=null;
+let fixtureImportMappingRows=[];
+function closeFixtureImportMapping(result){
+  document.getElementById('fixtureImportMappingModal').style.display='none';
+  const resolve=fixtureImportMappingResolve;
+  fixtureImportMappingResolve=null;
+  fixtureImportMappingRows=[];
+  if(resolve)resolve(result);
+}
+function openFixtureImportMapping(rows){
+  if(!rows.length)return Promise.resolve([]);
+  fixtureImportMappingRows=rows;
+  document.getElementById('fixtureImportMappingBody').innerHTML=`
+    <div class="fixture-import-map-table-wrap"><table class="fixture-import-map-table">
+      <thead><tr><th>Show fixture</th><th>Difference</th><th>Library fixture / mode</th><th>Tap row to choose</th></tr></thead>
+      <tbody>${rows.map((row,index)=>`<tr class="fixture-import-map-row" data-row-index="${index}" data-profile-id="${escHtml(String(row.profileId))}" role="checkbox" aria-checked="false" tabindex="0">
+        <td><div class="fixture-import-difference"><strong>${escHtml(row.profile.name||row.showFixture.name||'Fixture')}</strong><span class="small">${escHtml(row.profile.mode||row.showMode.name||'mode')} · ${row.profile.channels||row.showMode.channels||0}ch</span></div></td>
+        <td><span class="small">${escHtml(row.reason)}</span></td>
+        <td><select data-library-mapping data-row-index="${index}"><option value="">Choose a library fixture...</option>${row.candidates.map(candidate=>`<option value="${escHtml(candidate.value)}" ${candidate.value===row.currentValue?'selected':''}>${escHtml(candidate.label)}</option>`).join('')}</select></td>
+        <td><span class="fixture-import-decision">Keep show</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  document.getElementById('fixtureImportMappingModal').style.display='grid';
+  return new Promise(resolve=>{fixtureImportMappingResolve=resolve;});
+}
+function fixtureImportChoicesFromModal(){
+  return fixtureImportMappingRows.map((row,index)=>{
+    const select=document.querySelector(`select[data-library-mapping][data-row-index="${index}"]`);
+    const tableRow=document.querySelector(`.fixture-import-map-row[data-row-index="${index}"]`);
+    return {useLibrary:!!tableRow?.classList.contains('library-selected')&&!!select?.value,mappingValue:select?.value||''};
+  });
+}
+function setFixtureImportRowSelected(row,selected){
+  if(!row)return;
+  const select=row.querySelector('select[data-library-mapping]');
+  const active=!!selected&&!!select?.value;
+  row.classList.toggle('library-selected',active);
+  row.setAttribute('aria-checked',active?'true':'false');
+  const decision=row.querySelector('.fixture-import-decision');
+  if(decision)decision.textContent=active?'Use library':'Keep show';
+}
+function importedProfileFromLibraryMode(showProfile,libraryMode,libraryFixture=null){
+  const imported=JSON.parse(JSON.stringify(libraryMode?.profile||{}));
+  const oldControls=showProfile.controls||[];
+  imported.controls=(imported.controls||[]).map(control=>{
+    const exact=oldControls.find(existing=>controlLibraryIdentity(existing)===controlLibraryIdentity(control));
+    const sameLabel=oldControls.find(existing=>existing.type===control.type&&String(existing.label||'').trim().toLowerCase()===String(control.label||'').trim().toLowerCase());
+    const channels=controlChannels(control).join(',');
+    const sameChannels=oldControls.find(existing=>existing.type===control.type&&controlChannels(existing).join(',')===channels);
+    const previous=exact||sameLabel||sameChannels||null;
+    const merged={...control,id:previous?.id||control.id||uid()};
+    if((control.type==='panTilt16'||control.type==='panTilt8')&&previous){
+      merged.panReverse=!!previous.panReverse;
+      merged.tiltReverse=!!previous.tiltReverse;
+      merged.panTiltSwap=!!previous.panTiltSwap;
+    }
+    return merged;
+  });
+  return {
+    ...showProfile,
+    ...imported,
+    id:showProfile.id,
+    name:imported.name||showProfile.name,
+    mode:imported.mode||libraryMode?.name||showProfile.mode,
+    channels:imported.channels||libraryMode?.channels||showProfile.channels,
+    controls:imported.controls,
+    libraryFixtureKey:libraryFixture?.key||showProfile.libraryFixtureKey||'',
+    libraryModeName:libraryMode?.name||imported.mode||showProfile.libraryModeName||''
+  };
+}
+function mergeShowFixtureModeIntoLibrary(library,row){
+  let target=(library.fixtures||[]).find(fixture=>fixture.key===row.showFixture.key)
+    ||(library.fixtures||[]).find(fixture=>profileMatchesLibraryFixture(row.profile,fixture));
+  if(!target){
+    target={...JSON.parse(JSON.stringify(row.showFixture)),modes:[]};
+    library.fixtures.push(target);
+  }
+  const modes=Array.isArray(target.modes)?target.modes:[];
+  const modeIndex=modes.findIndex(mode=>libraryModeMatchesProfile(mode,row.profile));
+  const showMode=JSON.parse(JSON.stringify(row.showMode));
+  if(modeIndex>=0)modes[modeIndex]=showMode;
+  else modes.push(showMode);
+  target.modes=modes;
+}
+function resolveFixtureImportDifferences(fixtureSetup,currentLibrary,rows,choices){
+  const resolvedSetup=JSON.parse(JSON.stringify(fixtureSetup));
+  const resolvedLibrary=normalizeFixtureLibrary(JSON.parse(JSON.stringify(currentLibrary)));
+  let libraryChanged=false;
+  rows.forEach((row,index)=>{
+    const choice=choices[index]||{};
+    const candidate=row.candidates.find(item=>item.value===choice.mappingValue);
+    if(choice.useLibrary&&candidate){
+      const profileIndex=(resolvedSetup.profiles||[]).findIndex(profile=>String(profile.id)===String(row.profileId));
+      if(profileIndex>=0)resolvedSetup.profiles[profileIndex]=importedProfileFromLibraryMode(resolvedSetup.profiles[profileIndex],candidate.mode,candidate.fixture);
+      return;
+    }
+    mergeShowFixtureModeIntoLibrary(resolvedLibrary,row);
+    libraryChanged=true;
+  });
+  if(libraryChanged){
+    resolvedLibrary.fixtureCount=resolvedLibrary.fixtures.length;
+    resolvedLibrary.generatedAt=new Date().toISOString();
+    resolvedLibrary.source='Fixture library merged during show import';
+  }
+  return {fixtureSetup:resolvedSetup,library:resolvedLibrary,libraryChanged};
+}
+document.getElementById('fixtureImportMappingBody').addEventListener('change',event=>{
+  const select=event.target.closest('select[data-library-mapping]');
+  if(!select)return;
+  setFixtureImportRowSelected(select.closest('.fixture-import-map-row'),!!select.value);
+});
+document.getElementById('fixtureImportMappingBody').addEventListener('click',event=>{
+  if(event.target.closest('select,option'))return;
+  const row=event.target.closest('.fixture-import-map-row');
+  if(row)setFixtureImportRowSelected(row,!row.classList.contains('library-selected'));
+});
+document.getElementById('fixtureImportMappingBody').addEventListener('keydown',event=>{
+  if(event.key!=='Enter'&&event.key!==' ')return;
+  if(event.target.closest('select'))return;
+  const row=event.target.closest('.fixture-import-map-row');
+  if(!row)return;
+  event.preventDefault();
+  setFixtureImportRowSelected(row,!row.classList.contains('library-selected'));
+});
+document.getElementById('fixtureImportUseAllMatches').onclick=()=>{
+  document.querySelectorAll('#fixtureImportMappingBody .fixture-import-map-row').forEach(row=>setFixtureImportRowSelected(row,true));
+};
+document.getElementById('fixtureImportMappingClose').onclick=()=>closeFixtureImportMapping(null);
+document.getElementById('fixtureImportMappingCancel').onclick=()=>closeFixtureImportMapping(null);
+document.getElementById('fixtureImportApply').onclick=()=>closeFixtureImportMapping(fixtureImportChoicesFromModal());
 async function exportFullSetup(){
   try{
     await saveSetup();
   }catch(err){
     setStatus('Export continues with browser setup; server save failed: '+err.message,true);
   }
+  const fixtureSetup=saveData();
+  const library=await fetchSetupPayload('fixture_library.php','library',fixtureLibraryState.data||null);
+  const completeFixtureLibrary=normalizeFixtureLibrary(library||fixtureLibraryState.data||{schemaVersion:1,fixtures:[]});
+  const showFixtureLibrary=fixtureLibraryForShow(completeFixtureLibrary,fixtureSetup);
   const full=DmxCommon.versionedPayload({
     ...fullSetupMetadata(),
     exportedAt:new Date().toISOString(),
-    fixture:saveData(),
+    fixture:fixtureSetup,
     liveValues:cloneValue(values),
     groups:await fetchSetupPayload('group_setup.php',null,{ok:true,exists:false,groups:[]}),
     scenes:await fetchSetupPayload('scene_setup.php',null,{ok:true,exists:false,scenes:[],slotCols:4,slotRows:4}),
@@ -2775,11 +3341,11 @@ async function exportFullSetup(){
     motion:await fetchSetupPayload('motion_setup.php','motion',{}),
     gpio:await fetchSetupPayload('gpio_setup.php',null,{ok:true,exists:false,enabled:true,mappings:[],adcMappings:[]}),
     roomPlane:await fetchSetupPayload('room_plane_setup.php','setup',defaultRoomPlaneSetup(baseUrl.value)),
-    fixtureLibrary:await fetchSetupPayload('fixture_library.php','library',null),
+    fixtureLibrary:showFixtureLibrary,
     uiState:(await fetchSetupPayload('ui_state.php',null,{ok:true,exists:false,state:{}})).state||{}
   },2);
-  DmxCommon.downloadJson('pico_dmx_setup.json',full);
-  setStatus('Complete setup exported');
+  DmxCommon.downloadJson(showExportFilename(showName),full);
+  setStatus('Show exported with '+showFixtureLibrary.fixtureCount+' used fixture definition'+(showFixtureLibrary.fixtureCount===1?'':'s'));
 }
 async function postSetupPayload(url,data){
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data||{})});
@@ -2839,8 +3405,13 @@ function resetShowLocalState(){
 }
 async function startNewShow(){
   if(!confirm('Start a fresh show?\n\nThis clears fixtures, live values, groups, scenes, palettes, chases, effects, GPIO mappings, Pico playback slots, and saved toolbox layout. The fixture library is kept.'))return;
+  const requestedShowName=prompt('Show name',normalizeShowName(showName));
+  if(requestedShowName===null)return;
+  if(!String(requestedShowName).trim()){showError('Show name is required');return;}
   const showBaseUrl=baseUrl.value;
   resetShowLocalState();
+  showName=normalizeShowName(requestedShowName);
+  renderShowName();
   baseUrl.value=showBaseUrl;
   localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
   const fixturePayload=saveData();
@@ -2876,7 +3447,7 @@ async function startNewShow(){
   await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
   await postSetupPayload('room_plane_setup.php',defaultRoomPlaneSetup(showBaseUrl));
   for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
-  setStatus('New show started');
+  setStatus('New show started: '+showName);
 }
 async function importFullSetup(data){
   const full=normalizeFullSetupPayload(data);
@@ -2887,8 +3458,19 @@ async function importFullSetup(data){
     return;
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
-  if(!confirm('Import complete setup?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
-  if(migrated.fixture)await postSetupPayload('fixture_setup.php',migrated.fixture);
+  const importedShowName=normalizeShowName(migrated.fixture?.showName||migrated.showName);
+  if(!confirm('Import '+importedShowName+'?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
+  let fixtureSetup={...migrated.fixture,showName:importedShowName};
+  let fixtureLibraryResolution=null;
+  if(migrated.fixtureLibrary){
+    const currentLibrary=normalizeFixtureLibrary(fixtureLibraryState.data||await loadFixtureLibrary({force:true})||{schemaVersion:1,fixtures:[]});
+    const differences=fixtureImportDifferenceRows(normalizeFixtureLibrary(migrated.fixtureLibrary),currentLibrary,fixtureSetup);
+    const choices=await openFixtureImportMapping(differences);
+    if(choices===null){setStatus('Setup import cancelled');return;}
+    fixtureLibraryResolution=resolveFixtureImportDifferences(fixtureSetup,currentLibrary,differences,choices);
+    fixtureSetup=fixtureLibraryResolution.fixtureSetup;
+  }
+  if(fixtureSetup)await postSetupPayload('fixture_setup.php',fixtureSetup);
   if(migrated.liveValues&&typeof migrated.liveValues==='object')await postSetupPayload('fixture_setup.php?livevalues',migrated.liveValues);
   if(migrated.groups)await postSetupPayload('group_setup.php',{baseUrl:migrated.groups.baseUrl||migrated.fixture?.baseUrl||'',groups:Array.isArray(migrated.groups.groups)?migrated.groups.groups:[]});
   if(migrated.scenes)await postSetupPayload('scene_setup.php',{baseUrl:migrated.scenes.baseUrl||migrated.fixture?.baseUrl||'',scenes:Array.isArray(migrated.scenes.scenes)?migrated.scenes.scenes:[],slotCols:migrated.scenes.slotCols||4,slotRows:migrated.scenes.slotRows||4});
@@ -2897,21 +3479,24 @@ async function importFullSetup(data){
   if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
   if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
   if(migrated.roomPlane&&typeof migrated.roomPlane==='object')await postSetupPayload('room_plane_setup.php',migrated.roomPlane);
-  if(migrated.fixtureLibrary)await saveFixtureLibraryToServer(normalizeFixtureLibrary(migrated.fixtureLibrary));
+  if(fixtureLibraryResolution?.libraryChanged){
+    await saveFixtureLibraryToServer(fixtureLibraryResolution.library);
+    fixtureLibraryState.data=fixtureLibraryResolution.library;
+  }
   if(migrated.uiState&&typeof migrated.uiState==='object'){
     for(const [page,state] of Object.entries(migrated.uiState)){
       if(state&&typeof state==='object')await postSetupPayload('ui_state.php',{page,state});
     }
   }
-  applyData(migrated.fixture||{});
+  applyData(fixtureSetup||{});
   Object.keys(values).forEach(k=>delete values[k]);
   Object.assign(values,migrated.liveValues||{});
   writeLiveValues(true);
   localStorage.setItem('dmxFixtureController',JSON.stringify(saveData()));
-  setStatus('Complete setup imported. Reloading...');
+  setStatus('Show imported. Reloading...');
   setTimeout(()=>location.reload(),600);
 }
-document.getElementById('exportJson').onclick=()=>exportFullSetup().catch(err=>showError('Setup export failed: '+err.message));
+document.getElementById('exportJson').onclick=()=>exportFullSetup().catch(err=>showError('Show export failed: '+err.message));
 document.getElementById('importJson').onclick=()=>document.getElementById('importJsonFile').click();
 document.getElementById('newShow').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Starting...',success:'Started',error:'Failed'},startNewShow).catch(err=>showError('New show failed: '+err.message));
 document.getElementById('importJsonFile').onchange=e=>{
@@ -2921,7 +3506,7 @@ document.getElementById('importJsonFile').onchange=e=>{
     try{
       const data=JSON.parse(reader.result);
       await importFullSetup(data);
-    }catch(err){showError('Invalid JSON: '+err.message);}
+    }catch(err){showError('Show import failed: '+err.message);}
     e.target.value='';
   };
   reader.readAsText(file);
@@ -3634,6 +4219,8 @@ surfaceEl.addEventListener('click',e=>{
   }
   const rec=e.target.closest('[data-recall-fixture]');
   if(rec){e.stopPropagation();recallFixtureValues(parseInt(rec.dataset.recallFixture,10),rec.dataset.recallWhich);return;}
+  const highlight=e.target.closest('[data-highlight-fixture]');
+  if(highlight){e.stopPropagation();toggleFixtureHighlight(parseInt(highlight.dataset.highlightFixture,10));return;}
   if(isFixtureCardInteractiveClick(e.target))return;
   const card=e.target.closest('[data-fixture-card]');if(!card)return;
   e.stopPropagation();

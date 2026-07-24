@@ -1,12 +1,29 @@
 param(
-    [string]$ZipPath = "ofl_export_ofl.zip",
-    [string]$OutputPath = "web/assets/fixture-library.json"
+    [string]$ZipPath = "tools/fixture-library/ofl_export_ofl.zip",
+    [string]$OutputPath = "web/assets/fixture-library.json",
+    [string]$MetadataOutputPath = "",
+    [string]$CapabilitiesOutputPath = "",
+    [string]$ResourcesOutputPath = "",
+    [string]$CustomFixturePath = "tools/fixture-library/custom",
+    [switch]$MetadataOnly,
+    [switch]$CapabilitiesOnly,
+    [switch]$SidecarsOnly,
+    [switch]$CustomOnly,
+    [ValidateRange(0, 64)][int]$ThrottleLimit = 0
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $zipFile = if ([System.IO.Path]::IsPathRooted($ZipPath)) { $ZipPath } else { Join-Path $repoRoot $ZipPath }
 $outFile = if ([System.IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else { Join-Path $repoRoot $OutputPath }
+$metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($MetadataOutputPath)) { $MetadataOutputPath } else { Join-Path $repoRoot $MetadataOutputPath }
+$capabilitiesOutFile = if (-not $CapabilitiesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($CapabilitiesOutputPath)) { $CapabilitiesOutputPath } else { Join-Path $repoRoot $CapabilitiesOutputPath }
+$resourcesOutFile = if (-not $ResourcesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($ResourcesOutputPath)) { $ResourcesOutputPath } else { Join-Path $repoRoot $ResourcesOutputPath }
+$customFixtureDirectory = if (-not $CustomFixturePath) { "" } elseif ([System.IO.Path]::IsPathRooted($CustomFixturePath)) { $CustomFixturePath } else { Join-Path $repoRoot $CustomFixturePath }
+$effectiveThrottleLimit = if ($ThrottleLimit -gt 0) { $ThrottleLimit } else { [Math]::Max(2, [Math]::Min([Environment]::ProcessorCount, 16)) }
+if ($SidecarsOnly -and ($MetadataOnly -or $CapabilitiesOnly)) { throw "SidecarsOnly cannot be combined with MetadataOnly or CapabilitiesOnly." }
+if ($SidecarsOnly -and -not $metadataOutFile -and -not $capabilitiesOutFile -and -not $resourcesOutFile) { throw "SidecarsOnly requires MetadataOutputPath, CapabilitiesOutputPath, or ResourcesOutputPath." }
+if ($CustomOnly -and ($MetadataOnly -or $CapabilitiesOnly -or $SidecarsOnly)) { throw "CustomOnly cannot be combined with enrichment-only options." }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -36,6 +53,79 @@ function Get-CapColor($channel) {
     return ""
 }
 
+function New-NormalizedCapabilities($channel) {
+    $normalized = [System.Collections.Generic.List[object]]::new()
+    foreach ($cap in Get-Capabilities $channel) {
+        $item = [ordered]@{}
+        foreach ($name in @(
+            "type", "dmxRange", "comment", "effectName", "shutterEffect", "color", "colors",
+            "speedStart", "speedEnd", "shakeSpeedStart", "shakeSpeedEnd",
+            "durationStart", "durationEnd", "angleStart", "angleEnd",
+            "distanceStart", "distanceEnd", "percentStart", "percentEnd",
+            "slotNumber", "slotNumberStart", "slotNumberEnd"
+        )) {
+            $value = Get-Prop $cap $name
+            if ($null -eq $value) { continue }
+            if ($value -is [string] -and -not $value) { continue }
+            $item[$name] = $value
+        }
+        if ($item.Count) { $normalized.Add($item) }
+    }
+    return @($normalized)
+}
+
+function New-FixtureMetadata($fixture) {
+    $meta = Get-Prop $fixture "meta"
+    $links = Get-Prop $fixture "links"
+    $physical = Get-Prop $fixture "physical"
+    $dimensions = @(Get-Prop $physical "dimensions")
+    $bulb = Get-Prop $physical "bulb"
+    $lens = Get-Prop $physical "lens"
+    $degrees = @(Get-Prop $lens "degreesMinMax")
+
+    $normalizedLinks = [ordered]@{}
+    foreach ($name in @("manual", "productPage", "video")) {
+        $values = @((Get-Prop $links $name) | Where-Object { $_ })
+        if ($values.Count) { $normalizedLinks[$name] = $values }
+    }
+
+    $normalizedPhysical = [ordered]@{}
+    if ($dimensions.Count -ge 3) {
+        $normalizedPhysical["dimensionsMm"] = [ordered]@{
+            width = $dimensions[0]
+            height = $dimensions[1]
+            depth = $dimensions[2]
+        }
+    }
+    $weight = Get-Prop $physical "weight"
+    if ($null -ne $weight) { $normalizedPhysical["weightKg"] = $weight }
+    $power = Get-Prop $physical "power"
+    if ($null -ne $power) { $normalizedPhysical["powerW"] = $power }
+    $dmxConnector = [string](Get-Prop $physical "DMXconnector")
+    if ($dmxConnector) { $normalizedPhysical["dmxConnector"] = $dmxConnector }
+    $lightSource = [string](Get-Prop $bulb "type")
+    if ($lightSource) { $normalizedPhysical["lightSource"] = $lightSource }
+    if ($degrees.Count -ge 2) {
+        $normalizedPhysical["beamAngleDegrees"] = [ordered]@{
+            min = $degrees[0]
+            max = $degrees[1]
+        }
+    }
+
+    $metadata = [ordered]@{ source = "ofl" }
+    $sourceUrl = [string](Get-Prop $fixture "oflURL")
+    if ($sourceUrl) { $metadata["sourceUrl"] = $sourceUrl }
+    $authors = @((Get-Prop $meta "authors") | Where-Object { $_ })
+    if ($authors.Count) { $metadata["authors"] = $authors }
+    $createDate = [string](Get-Prop $meta "createDate")
+    if ($createDate) { $metadata["createDate"] = $createDate }
+    $lastModifyDate = [string](Get-Prop $meta "lastModifyDate")
+    if ($lastModifyDate) { $metadata["lastModifyDate"] = $lastModifyDate }
+    if ($normalizedLinks.Count) { $metadata["links"] = $normalizedLinks }
+    if ($normalizedPhysical.Count) { $metadata["physical"] = $normalizedPhysical }
+    return $metadata
+}
+
 function Flatten-PixelKeys($value, [System.Collections.Generic.List[string]]$out) {
     if ($null -eq $value) { return }
     if ($value -is [string]) { $out.Add($value); return }
@@ -47,7 +137,26 @@ function Flatten-PixelKeys($value, [System.Collections.Generic.List[string]]$out
 function Get-PixelKeys($fixture) {
     $list = [System.Collections.Generic.List[string]]::new()
     $matrix = Get-Prop $fixture "matrix"
-    Flatten-PixelKeys (Get-Prop $matrix "pixelKeys") $list
+    $pixelKeys = Get-Prop $matrix "pixelKeys"
+    if ($pixelKeys) {
+        Flatten-PixelKeys $pixelKeys $list
+        return @($list)
+    }
+    $pixelCount = @(Get-Prop $matrix "pixelCount")
+    if ($pixelCount.Count -ge 3) {
+        $width = [int]$pixelCount[0]
+        $height = [int]$pixelCount[1]
+        $depth = [int]$pixelCount[2]
+        for ($z = 1; $z -le $depth; $z++) {
+            for ($y = 1; $y -le $height; $y++) {
+                for ($x = 1; $x -le $width; $x++) {
+                    if ($height -eq 1 -and $depth -eq 1) { $list.Add([string]$x) }
+                    elseif ($depth -eq 1) { $list.Add("($x, $y)") }
+                    else { $list.Add("($x, $y, $z)") }
+                }
+            }
+        }
+    }
     return @($list)
 }
 
@@ -63,16 +172,85 @@ function Expand-ModeChannels($fixture, $mode) {
         $insert = [string](Get-Prop $channel "insert")
         if ($insert -eq "matrixChannels") {
             $templates = @(Get-Prop $channel "templateChannels")
-            if ($templates.Count -and $pixelKeys.Count) {
-                foreach ($pixelKey in $pixelKeys) {
+            $repeatFor = Get-Prop $channel "repeatFor"
+            $repeatKeys = if ($repeatFor -is [System.Collections.IEnumerable] -and $repeatFor -isnot [string]) {
+                @($repeatFor)
+            } elseif ([string]$repeatFor -eq "eachPixelGroup") {
+                @((Get-Prop (Get-Prop $fixture "matrix") "pixelGroups").PSObject.Properties.Name)
+            } else {
+                @($pixelKeys)
+            }
+            if ([string]$repeatFor -eq "eachPixelABC") { $repeatKeys = @($repeatKeys | Sort-Object) }
+            if ($templates.Count -and $repeatKeys.Count) {
+                if ([string](Get-Prop $channel "channelOrder") -eq "perChannel") {
                     foreach ($template in $templates) {
-                        $expanded.Add(([string]$template).Replace('$pixelKey', $pixelKey))
+                        foreach ($pixelKey in $repeatKeys) {
+                            $expanded.Add(([string]$template).Replace('$pixelKey', [string]$pixelKey))
+                        }
+                    }
+                } else {
+                    foreach ($pixelKey in $repeatKeys) {
+                        foreach ($template in $templates) {
+                            $expanded.Add(([string]$template).Replace('$pixelKey', [string]$pixelKey))
+                        }
                     }
                 }
             }
         }
     }
     return @($expanded)
+}
+
+function Get-CompatibleMatrixRgb($fixture, $mode, $channelMap) {
+    $matrix = Get-Prop $fixture "matrix"
+    $pixelCount = @(Get-Prop $matrix "pixelCount")
+    if ($pixelCount.Count -lt 3 -or [int]$pixelCount[0] -lt 1 -or [int]$pixelCount[1] -lt 1 -or [int]$pixelCount[2] -ne 1) { return $null }
+    $width = [int]$pixelCount[0]
+    $height = [int]$pixelCount[1]
+    $pixelKeys = @(Get-PixelKeys $fixture)
+    if ($pixelKeys.Count -ne $width * $height) { return $null }
+    $templateChannels = Get-Prop $fixture "templateChannels"
+    foreach ($block in @(Get-Prop $mode "channels")) {
+        if ($block -is [string] -or [string](Get-Prop $block "insert") -ne "matrixChannels") { continue }
+        if ([string](Get-Prop $block "repeatFor") -ne "eachPixelXYZ" -or [string](Get-Prop $block "channelOrder") -ne "perPixel") { continue }
+        $templates = @(Get-Prop $block "templateChannels")
+        if ($templates.Count -ne 3) { continue }
+        $colors = foreach ($template in $templates) {
+            $definition = Get-Prop $templateChannels ([string]$template)
+            [string](Get-CapColor $definition)
+        }
+        if (($colors -join ',').ToLowerInvariant() -ne 'red,green,blue') { continue }
+        $resolvedNames = [System.Collections.Generic.List[string]]::new()
+        foreach ($pixelKey in $pixelKeys) {
+            foreach ($template in $templates) { $resolvedNames.Add(([string]$template).Replace('$pixelKey', $pixelKey)) }
+        }
+        if (-not $resolvedNames.Count -or -not $channelMap.ContainsKey($resolvedNames[0])) { continue }
+        $start = [int]$channelMap[$resolvedNames[0]]
+        $sequential = $true
+        for ($index = 0; $index -lt $resolvedNames.Count; $index++) {
+            if (-not $channelMap.ContainsKey($resolvedNames[$index]) -or [int]$channelMap[$resolvedNames[$index]] -ne $start + $index) {
+                $sequential = $false
+                break
+            }
+        }
+        if (-not $sequential) { continue }
+        $defaults = @()
+        foreach ($template in $templates) {
+            $definition = Get-Prop $templateChannels ([string]$template)
+            $value = Convert-DmxValue $definition (Get-Prop $definition "defaultValue") 1
+            if ($null -ne $value) { $defaults += $value } else { $defaults += 0 }
+        }
+        return [ordered]@{
+            channel = $start
+            width = $width
+            height = $height
+            channelNames = @($resolvedNames)
+            defaultValue = [ordered]@{
+                pixels = @(1..($width * $height) | ForEach-Object { [ordered]@{ a = $defaults[0]; b = $defaults[1]; c = $defaults[2] } })
+            }
+        }
+    }
+    return $null
 }
 
 function Channel-Map($channels) {
@@ -82,6 +260,26 @@ function Channel-Map($channels) {
         if ($name -is [string] -and -not $map.ContainsKey($name)) { $map[$name] = $i + 1 }
     }
     return $map
+}
+
+function Get-DmxValueByteResolution($channel) {
+    $declared = [string](Get-Prop $channel "dmxValueResolution")
+    if ($declared -match '^(\d+)bit$') { return [Math]::Max(1, [int]$Matches[1] / 8) }
+    return 1 + @((Get-Prop $channel "fineChannelAliases") | Where-Object { $_ }).Count
+}
+
+function Convert-DmxValue($channel, $value, [int]$targetBytes) {
+    if ($null -eq $value) { return $null }
+    $targetBytes = [Math]::Max(1, [Math]::Min($targetBytes, 4))
+    $targetMax = [Math]::Pow(256, $targetBytes) - 1
+    if ($value -is [string] -and $value.Trim() -match '^(-?\d+(?:\.\d+)?)%$') {
+        return [int][Math]::Round(([double]$Matches[1] / 100) * $targetMax, [MidpointRounding]::AwayFromZero)
+    }
+    $sourceBytes = Get-DmxValueByteResolution $channel
+    $sourceMax = [Math]::Pow(256, $sourceBytes) - 1
+    $numeric = [double]$value
+    $scaled = if ($sourceMax -eq $targetMax) { $numeric } else { ($numeric / $sourceMax) * $targetMax }
+    return [int][Math]::Round([Math]::Max(0, [Math]::Min($targetMax, $scaled)), [MidpointRounding]::AwayFromZero)
 }
 
 function New-Control($id, $type, $label, $props = @{}) {
@@ -116,6 +314,31 @@ function Get-WheelSlotColor($fixture, [string]$wheelName, [int]$slotNumber) {
     $colors = @(Get-Prop $slot "colors")
     if ($colors.Count) { return [string]$colors[0] }
     return ""
+}
+
+function Get-WheelSlotImage($fixture, [string]$wheelName, [int]$slotNumber) {
+    $slot = Get-WheelSlot $fixture $wheelName $slotNumber
+    $resource = Get-Prop $slot "resource"
+    $image = Get-Prop $resource "image"
+    $mimeType = [string](Get-Prop $image "mimeType")
+    $data = [string](Get-Prop $image "data")
+    $encoding = [string](Get-Prop $image "encoding")
+    if ($mimeType -notmatch '^image/[a-z0-9.+-]+(?:;[a-z0-9._=-]+)?$' -or -not $data) { return "" }
+    if ($encoding -eq "base64") { return "data:$mimeType;base64,$data" }
+    if ($encoding -eq "utf-8") {
+        $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($data))
+        return "data:$mimeType;base64,$encoded"
+    }
+    return ""
+}
+
+function Get-WheelSlotResourceKey($fixture, [string]$wheelName, [int]$slotNumber) {
+    $slot = Get-WheelSlot $fixture $wheelName $slotNumber
+    $resource = Get-Prop $slot "resource"
+    $type = [string](Get-Prop $resource "type")
+    $key = [string](Get-Prop $resource "key")
+    if (-not $type -or -not $key) { return "" }
+    return "$type/$key"
 }
 
 function New-WheelOptionName($fixture, [string]$wheelName, $cap, [string]$capType) {
@@ -189,9 +412,21 @@ function New-WheelOptions($fixture, $channel, [string]$wheelName) {
         if ($colors.Count) { $color = [string]$colors[0] }
         if (-not $color -and $slotNumber) { $color = Get-WheelSlotColor $fixture $wheelName $slotNumber }
         if ($color) { $option["color"] = $color }
+        if ($slotNumber) {
+            $image = Get-WheelSlotImage $fixture $wheelName $slotNumber
+            $resourceKey = Get-WheelSlotResourceKey $fixture $wheelName $slotNumber
+            if ($image -and $resourceKey) {
+                $option["resourceKey"] = $resourceKey
+                $option["image"] = $image
+            }
+        }
         foreach ($speedProp in @("speedStart","speedEnd","shakeSpeedStart","shakeSpeedEnd")) {
             $speed = [string](Get-Prop $cap $speedProp)
             if ($speed) { $option[$speedProp] = $speed }
+        }
+        foreach ($detailProp in @("comment","effectName","shutterEffect","durationStart","durationEnd","angleStart","angleEnd","distanceStart","distanceEnd","percentStart","percentEnd")) {
+            $detail = Get-Prop $cap $detailProp
+            if ($null -ne $detail -and (-not ($detail -is [string]) -or $detail)) { $option[$detailProp] = $detail }
         }
         $options.Add($option)
     }
@@ -218,18 +453,62 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         $panFine = @((Get-Prop $channel "fineChannelAliases") | Where-Object { $_ -and $channelMap.ContainsKey($_) } | Select-Object -First 1)
         $tiltFine = @((Get-Prop $available[$tiltName] "fineChannelAliases") | Where-Object { $_ -and $channelMap.ContainsKey($_) } | Select-Object -First 1)
         if ($panFine.Count -and $tiltFine.Count) {
-            $controls.Add((New-Control $nextId "panTilt16" "Pan/Tilt" @{
+            $props = @{
                 pan = $channelMap[$name]; panFine = $channelMap[$panFine[0]];
                 tilt = $channelMap[$tiltName]; tiltFine = $channelMap[$tiltFine[0]]
-            }))
+            }
+            $panDefault = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 2
+            $tiltDefault = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "defaultValue") 2
+            if ($null -ne $panDefault -or $null -ne $tiltDefault) {
+                $props["defaultValue"] = @{
+                    pan = if ($null -ne $panDefault) { $panDefault } else { 0 }
+                    tilt = if ($null -ne $tiltDefault) { $tiltDefault } else { 0 }
+                }
+            }
+            $panHighlight = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 2
+            $tiltHighlight = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "highlightValue") 2
+            if ($null -ne $panHighlight -or $null -ne $tiltHighlight) {
+                $props["highlightValue"] = @{}
+                if ($null -ne $panHighlight) { $props["highlightValue"]["pan"] = $panHighlight }
+                if ($null -ne $tiltHighlight) { $props["highlightValue"]["tilt"] = $tiltHighlight }
+            }
+            $controls.Add((New-Control $nextId "panTilt16" "Pan/Tilt" $props))
             $used[$panFine[0]] = $true; $used[$tiltFine[0]] = $true
         } else {
-            $controls.Add((New-Control $nextId "panTilt8" "Pan/Tilt" @{
+            $props = @{
                 pan = $channelMap[$name]; tilt = $channelMap[$tiltName]
-            }))
+            }
+            $panDefault = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
+            $tiltDefault = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "defaultValue") 1
+            if ($null -ne $panDefault -or $null -ne $tiltDefault) {
+                $props["defaultValue"] = @{
+                    pan = if ($null -ne $panDefault) { $panDefault } else { 0 }
+                    tilt = if ($null -ne $tiltDefault) { $tiltDefault } else { 0 }
+                }
+            }
+            $panHighlight = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 1
+            $tiltHighlight = Convert-DmxValue $available[$tiltName] (Get-Prop $available[$tiltName] "highlightValue") 1
+            if ($null -ne $panHighlight -or $null -ne $tiltHighlight) {
+                $props["highlightValue"] = @{}
+                if ($null -ne $panHighlight) { $props["highlightValue"]["pan"] = $panHighlight }
+                if ($null -ne $tiltHighlight) { $props["highlightValue"]["tilt"] = $tiltHighlight }
+            }
+            $controls.Add((New-Control $nextId "panTilt8" "Pan/Tilt" $props))
         }
         $nextId++
         $used[$name] = $true; $used[$tiltName] = $true
+    }
+
+    $matrixRgb = Get-CompatibleMatrixRgb $fixture $mode $channelMap
+    if ($matrixRgb) {
+        $controls.Add((New-Control $nextId "matrixRgb" "Pixels" @{
+            channel = $matrixRgb.channel
+            width = $matrixRgb.width
+            height = $matrixRgb.height
+            defaultValue = $matrixRgb.defaultValue
+        }))
+        $nextId++
+        foreach ($matrixChannelName in @($matrixRgb.channelNames)) { $used[$matrixChannelName] = $true }
     }
 
     $colors = @{}
@@ -250,6 +529,18 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         $type = "rgb"
         if ($colors.ContainsKey("white")) { $type = "rgbw"; $props["w"] = $channelMap[$colors["white"]] }
         if ($colors.ContainsKey("white") -and $colors.ContainsKey("amber")) { $type = "rgbwa"; $props["amber"] = $channelMap[$colors["amber"]] }
+        $colorDefaults = [ordered]@{}
+        $colorHighlights = [ordered]@{}
+        foreach ($component in @(@("red", "a"), @("green", "b"), @("blue", "c"), @("white", "w"), @("amber", "amber"))) {
+            if (-not $colors.ContainsKey($component[0])) { continue }
+            $colorChannel = $available[$colors[$component[0]]]
+            $componentDefault = Convert-DmxValue $colorChannel (Get-Prop $colorChannel "defaultValue") 1
+            if ($null -ne $componentDefault) { $colorDefaults[$component[1]] = $componentDefault }
+            $componentHighlight = Convert-DmxValue $colorChannel (Get-Prop $colorChannel "highlightValue") 1
+            if ($null -ne $componentHighlight) { $colorHighlights[$component[1]] = $componentHighlight }
+        }
+        if ($colorDefaults.Count) { $props["defaultValue"] = $colorDefaults }
+        if ($colorHighlights.Count) { $props["highlightValue"] = $colorHighlights }
         $controls.Add((New-Control $nextId $type "Color" $props))
         $nextId++
         foreach ($key in @("red","green","blue","white","amber")) { if ($colors.ContainsKey($key)) { $used[$colors[$key]] = $true } }
@@ -259,14 +550,41 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         if ($used[$name]) { continue }
         $channel = $available[$name]
         $capType = Get-CapType $channel
+        $capabilities = @(New-NormalizedCapabilities $channel)
         $label = $name -replace '\s+', ' '
-        if ($capType -eq "WheelSlot" -or $label -match '(?i)\b(wheel|gobo|macro|preset)\b') {
-            $controls.Add((New-Control $nextId "wheel" $label @{
+        $segmentedCapabilities = $capabilities.Count -gt 1 -and @($capabilities | Where-Object { @($_.dmxRange).Count -gt 0 }).Count -eq $capabilities.Count
+        $isOptionControl = $capType -eq "WheelSlot" -or $segmentedCapabilities -or $label -match '(?i)\b(wheel|gobo|macro|preset)\b'
+        $fineAlias = @((Get-Prop $channel "fineChannelAliases") | Where-Object { $_ -and $channelMap.ContainsKey($_) -and -not $used[$_] } | Select-Object -First 1)
+        if ($fineAlias.Count -and -not $isOptionControl) {
+            $props = @{
+                channel = $channelMap[$name]
+                fine = $channelMap[$fineAlias[0]]
+                capabilities = $capabilities
+            }
+            $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 2
+            if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $highlightValue = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 2
+            if ($null -ne $highlightValue) { $props["highlightValue"] = $highlightValue }
+            $controls.Add((New-Control $nextId "slider16" $label $props))
+            $used[$fineAlias[0]] = $true
+        } elseif ($isOptionControl) {
+            $props = @{
                 channel = $channelMap[$name]
                 options = @(New-WheelOptions $fixture $channel $label)
-            }))
+                capabilities = $capabilities
+            }
+            $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
+            if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $highlightValue = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 1
+            if ($null -ne $highlightValue) { $props["highlightValue"] = $highlightValue }
+            $controls.Add((New-Control $nextId "wheel" $label $props))
         } else {
-            $controls.Add((New-Control $nextId "slider8" $label @{ channel = $channelMap[$name] }))
+            $props = @{ channel = $channelMap[$name]; capabilities = $capabilities }
+            $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
+            if ($null -ne $defaultValue) { $props["defaultValue"] = $defaultValue }
+            $highlightValue = Convert-DmxValue $channel (Get-Prop $channel "highlightValue") 1
+            if ($null -ne $highlightValue) { $props["highlightValue"] = $highlightValue }
+            $controls.Add((New-Control $nextId "slider8" $label $props))
         }
         $nextId++
         $used[$name] = $true
@@ -288,8 +606,84 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
     }
 }
 
+function Convert-FixtureDocument([string]$entryName, [string]$text, $manufacturers) {
+    try { $fixture = $text | ConvertFrom-Json } catch { return $null }
+    $parts = $entryName -split '/'
+    if ($parts.Count -lt 2) { return $null }
+    $manufacturerKey = $parts[0]
+    $fixtureKey = [System.IO.Path]::GetFileNameWithoutExtension($parts[-1])
+    $manufacturerName = if ($manufacturers.ContainsKey($manufacturerKey)) { $manufacturers[$manufacturerKey] } else { $manufacturerKey }
+    $available = @{}
+    $availableChannels = Get-Prop $fixture "availableChannels"
+    if ($availableChannels) {
+        foreach ($prop in $availableChannels.PSObject.Properties) { $available[$prop.Name] = $prop.Value }
+    }
+    $modes = [System.Collections.Generic.List[object]]::new()
+    foreach ($mode in @(Get-Prop $fixture "modes")) {
+        $modes.Add((Convert-Mode $fixture $manufacturerName $mode $available))
+    }
+    if (-not $modes.Count) { return $null }
+    return [ordered]@{
+        key = "$manufacturerKey/$fixtureKey"
+        manufacturerKey = $manufacturerKey
+        manufacturerName = $manufacturerName
+        name = [string](Get-Prop $fixture "name")
+        categories = @(Get-Prop $fixture "categories")
+        metadata = New-FixtureMetadata $fixture
+        modes = @($modes)
+    }
+}
+
+function Get-CustomFixtures([string]$directory) {
+    if (-not $directory -or -not (Test-Path -LiteralPath $directory -PathType Container)) { return @() }
+    $fixtures = [System.Collections.Generic.List[object]]::new()
+    foreach ($file in @(Get-ChildItem -LiteralPath $directory -File -Filter "*.json" | Sort-Object Name)) {
+        try { $fixture = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json }
+        catch { throw "Invalid custom fixture JSON '$($file.FullName)': $($_.Exception.Message)" }
+        if (-not [string](Get-Prop $fixture "key") -or -not [string](Get-Prop $fixture "name") -or -not @(Get-Prop $fixture "modes").Count) {
+            throw "Custom fixture must contain key, name, and at least one mode: $($file.FullName)"
+        }
+        $fixtures.Add($fixture)
+    }
+    return @($fixtures)
+}
+
+function Merge-CustomFixtures($fixtures, $customFixtures) {
+    $customByKey = [ordered]@{}
+    foreach ($fixture in @($customFixtures)) { $customByKey[[string](Get-Prop $fixture "key")] = $fixture }
+    $result = [System.Collections.Generic.List[object]]::new()
+    foreach ($fixture in @($fixtures)) {
+        $key = [string](Get-Prop $fixture "key")
+        if ($customByKey.Contains($key)) {
+            $result.Add($customByKey[$key])
+            $customByKey.Remove($key)
+        } else {
+            $result.Add($fixture)
+        }
+    }
+    foreach ($key in @($customByKey.Keys | Sort-Object)) { $result.Add($customByKey[$key]) }
+    return @($result)
+}
+
+if ($CustomOnly) {
+    if (-not (Test-Path -LiteralPath $outFile -PathType Leaf)) { throw "CustomOnly requires an existing fixture library: $outFile" }
+    $customFixtures = @(Get-CustomFixtures $customFixtureDirectory)
+    if (-not $customFixtures.Count) { throw "No custom fixtures found in: $customFixtureDirectory" }
+    $existingLibrary = Get-Content -LiteralPath $outFile -Raw | ConvertFrom-Json
+    if ($null -eq $existingLibrary -or -not ($existingLibrary.PSObject.Properties.Name -contains "fixtures")) {
+        throw "Existing fixture library is invalid: $outFile"
+    }
+    $existingLibrary.fixtures = @(Merge-CustomFixtures @($existingLibrary.fixtures) $customFixtures)
+    $existingLibrary.fixtureCount = @($existingLibrary.fixtures).Count
+    $existingLibrary.generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+    $existingLibrary | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
+    Write-Host "Merged $($customFixtures.Count) custom fixture(s) into $outFile"
+    return
+}
+
 if (-not (Test-Path -LiteralPath $zipFile)) { throw "Fixture library zip not found: $zipFile" }
 
+$extractRoot = ""
 $zip = [System.IO.Compression.ZipFile]::OpenRead($zipFile)
 try {
     $manufacturers = @{}
@@ -303,34 +697,63 @@ try {
         }
     }
 
-    $fixtures = [System.Collections.Generic.List[object]]::new()
-    foreach ($entry in ($zip.Entries | Where-Object { $_.FullName -like "*.json" -and $_.FullName -ne "manufacturers.json" } | Sort-Object FullName)) {
-        $reader = [System.IO.StreamReader]::new($entry.Open())
-        $text = $reader.ReadToEnd()
-        $reader.Close()
-        try { $fixture = $text | ConvertFrom-Json } catch { continue }
-        $parts = $entry.FullName -split '/'
-        if ($parts.Count -lt 2) { continue }
-        $manufacturerKey = $parts[0]
-        $fixtureKey = [System.IO.Path]::GetFileNameWithoutExtension($parts[-1])
-        $manufacturerName = if ($manufacturers.ContainsKey($manufacturerKey)) { $manufacturers[$manufacturerKey] } else { $manufacturerKey }
-        $available = @{}
-        $availableChannels = Get-Prop $fixture "availableChannels"
-        if ($availableChannels) {
-            foreach ($prop in $availableChannels.PSObject.Properties) { $available[$prop.Name] = $prop.Value }
+    $extractRoot = Join-Path ([IO.Path]::GetTempPath()) ("pico-dmx-fixture-build-" + [Guid]::NewGuid().ToString("N"))
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipFile, $extractRoot)
+    $jsonFiles = @(Get-ChildItem -LiteralPath $extractRoot -Recurse -File -Filter "*.json" | Where-Object { $_.Name -ne "manufacturers.json" } | Sort-Object FullName)
+    $functionNames = @(
+        "Get-Prop", "Get-Capabilities", "Get-CapType", "Get-CapColor", "New-NormalizedCapabilities",
+        "New-FixtureMetadata", "Flatten-PixelKeys", "Get-PixelKeys", "Expand-ModeChannels", "Channel-Map",
+        "Get-DmxValueByteResolution", "Convert-DmxValue", "Get-CompatibleMatrixRgb",
+        "New-Control", "Get-WheelSlot", "Get-WheelSlotLabel", "Get-WheelSlotColor", "New-WheelOptionName",
+        "Get-WheelSlotImage", "Get-WheelSlotResourceKey", "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
+    )
+    $functionSource = ($functionNames | ForEach-Object { "function $_ {`n$((Get-Command $_ -CommandType Function).Definition)`n}" }) -join "`n"
+    if ($PSVersionTable.PSVersion.Major -ge 7 -and $effectiveThrottleLimit -gt 1) {
+        $convertedFixtures = @($jsonFiles | ForEach-Object -Parallel {
+            if (-not (Get-Command Convert-FixtureDocument -ErrorAction SilentlyContinue)) {
+                Invoke-Expression $using:functionSource
+            }
+            $relative = [IO.Path]::GetRelativePath($using:extractRoot, $_.FullName).Replace('\', '/')
+            Convert-FixtureDocument $relative ([IO.File]::ReadAllText($_.FullName)) $using:manufacturers
+        } -ThrottleLimit $effectiveThrottleLimit)
+    } else {
+        $convertedFixtures = @($jsonFiles | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath($extractRoot, $_.FullName).Replace('\', '/')
+            Convert-FixtureDocument $relative ([IO.File]::ReadAllText($_.FullName)) $manufacturers
+        })
+    }
+    $fixtures = @(Merge-CustomFixtures @($convertedFixtures | Where-Object { $null -ne $_ }) @(Get-CustomFixtures $customFixtureDirectory))
+    $resourceMap = [ordered]@{}
+    $resourceFixturePatches = [System.Collections.Generic.List[object]]::new()
+    foreach ($fixtureItem in $fixtures) {
+        $resourceOptionsByControl = [ordered]@{}
+        foreach ($modeItem in @($fixtureItem.modes)) {
+            foreach ($controlItem in @($modeItem.profile.controls)) {
+                foreach ($optionItem in @($controlItem.options)) {
+                    $resourceKey = [string]$optionItem.resourceKey
+                    $resourceImage = [string]$optionItem.image
+                    if (-not $resourceKey -or -not $resourceImage) { continue }
+                    if (-not $resourceMap.Contains($resourceKey)) { $resourceMap[$resourceKey] = [ordered]@{ image = $resourceImage } }
+                    $controlLabel = [string]$controlItem.label
+                    if (-not $resourceOptionsByControl.Contains($controlLabel)) { $resourceOptionsByControl[$controlLabel] = [ordered]@{} }
+                    $optionKey = [string]$optionItem.slotNumber
+                    if (-not $optionKey) { $optionKey = [string]$optionItem.value }
+                    $resourceOptionsByControl[$controlLabel][$optionKey] = [ordered]@{
+                        slotNumber = $optionItem.slotNumber
+                        value = $optionItem.value
+                        resourceKey = $resourceKey
+                    }
+                    if ($optionItem -is [System.Collections.IDictionary]) { $optionItem.Remove("image") }
+                    else { $optionItem.PSObject.Properties.Remove("image") }
+                }
+            }
         }
-        $modes = [System.Collections.Generic.List[object]]::new()
-        foreach ($mode in @(Get-Prop $fixture "modes")) {
-            $modes.Add((Convert-Mode $fixture $manufacturerName $mode $available))
-        }
-        if ($modes.Count) {
-            $fixtures.Add([ordered]@{
-                key = "$manufacturerKey/$fixtureKey"
-                manufacturerKey = $manufacturerKey
-                manufacturerName = $manufacturerName
-                name = [string](Get-Prop $fixture "name")
-                categories = @(Get-Prop $fixture "categories")
-                modes = @($modes)
+        if ($resourceOptionsByControl.Count) {
+            $resourceFixturePatches.Add([ordered]@{
+                key = $fixtureItem.key
+                controls = @($resourceOptionsByControl.Keys | ForEach-Object {
+                    [ordered]@{ label = $_; options = @($resourceOptionsByControl[$_].Values) }
+                })
             })
         }
     }
@@ -342,10 +765,138 @@ try {
         fixtureCount = $fixtures.Count
         fixtures = @($fixtures)
     }
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outFile) | Out-Null
-    $payload | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
-    Write-Host "Wrote $($fixtures.Count) fixtures to $outFile"
+    if ($metadataOutFile) {
+        $metadataPayload = [ordered]@{
+            schemaVersion = 1
+            source = "Open Fixture Library metadata"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+            fixtureCount = $fixtures.Count
+            fixtures = @($fixtures | ForEach-Object {
+                [ordered]@{ key = $_.key; metadata = $_.metadata }
+            })
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $metadataOutFile) | Out-Null
+        $metadataPayload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $metadataOutFile -Encoding UTF8
+        Write-Host "Wrote metadata for $($fixtures.Count) fixtures to $metadataOutFile"
+    }
+    $capabilityFixtures = @($fixtures | ForEach-Object {
+        $controlPatchesByLabel = [ordered]@{}
+        foreach ($convertedMode in @($_.modes)) {
+            foreach ($convertedControl in @($convertedMode.profile.controls)) {
+                $capabilityValues = @($convertedControl.capabilities | Where-Object { $null -ne $_ })
+                if (-not $capabilityValues.Count) { continue }
+                $labelText = [string]$convertedControl.label
+                $isCapabilityDrivenWheel = $convertedControl.type -eq "wheel" -and $capabilityValues.Count -gt 1 -and $labelText -notmatch '(?i)\b(wheel|gobo|macro|preset)\b'
+                $isCapabilitySlider = $convertedControl.type -eq "slider8"
+                if (-not $isCapabilityDrivenWheel -and -not $isCapabilitySlider) { continue }
+                $labelKey = ([string]$convertedControl.label).Trim().ToLowerInvariant()
+                if (-not $labelKey) { continue }
+                $patch = [ordered]@{
+                    type = $convertedControl.type
+                    label = $convertedControl.label
+                    capabilities = $capabilityValues
+                }
+                if ($convertedControl.type -eq "wheel") { $patch["options"] = @($convertedControl.options) }
+                if (-not $controlPatchesByLabel.Contains($labelKey) -or $convertedControl.type -eq "wheel") {
+                    $controlPatchesByLabel[$labelKey] = $patch
+                }
+            }
+        }
+        if ($controlPatchesByLabel.Count) { [ordered]@{ key = $_.key; controls = @($controlPatchesByLabel.Values) } }
+    })
+    if ($capabilitiesOutFile) {
+        $capabilitiesPayload = [ordered]@{
+            schemaVersion = 1
+            source = "Open Fixture Library capabilities"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+            fixtureCount = $capabilityFixtures.Count
+            fixtures = $capabilityFixtures
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $capabilitiesOutFile) | Out-Null
+        $capabilitiesPayload | ConvertTo-Json -Depth 40 -Compress | Set-Content -LiteralPath $capabilitiesOutFile -Encoding UTF8
+        Write-Host "Wrote capabilities for $($capabilityFixtures.Count) fixtures to $capabilitiesOutFile"
+    }
+    if ($resourcesOutFile) {
+        $resourcesPayload = [ordered]@{
+            schemaVersion = 1
+            source = "Open Fixture Library resources"
+            generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+            resourceCount = $resourceMap.Count
+            resources = $resourceMap
+            fixtures = @($resourceFixturePatches)
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $resourcesOutFile) | Out-Null
+        $resourcesPayload | ConvertTo-Json -Depth 10 -Compress | Set-Content -LiteralPath $resourcesOutFile -Encoding UTF8
+        Write-Host "Wrote $($resourceMap.Count) unique wheel resources to $resourcesOutFile"
+    }
+    if ($MetadataOnly -or $CapabilitiesOnly) {
+        if (-not (Test-Path -LiteralPath $outFile)) {
+            throw "Enrichment-only merge requires an existing fixture library: $outFile"
+        }
+        $existingLibrary = Get-Content -LiteralPath $outFile -Raw | ConvertFrom-Json
+        if ($null -eq $existingLibrary -or -not ($existingLibrary.PSObject.Properties.Name -contains "fixtures")) {
+            throw "Existing fixture library is invalid: $outFile"
+        }
+        $updatedCount = 0
+        if ($MetadataOnly) {
+            $metadataByKey = @{}
+            foreach ($convertedFixture in $fixtures) { $metadataByKey[[string]$convertedFixture.key] = $convertedFixture.metadata }
+            foreach ($existingFixture in @($existingLibrary.fixtures)) {
+                $key = [string]$existingFixture.key
+                if (-not $metadataByKey.ContainsKey($key)) { continue }
+                $existingFixture | Add-Member -NotePropertyName metadata -NotePropertyValue $metadataByKey[$key] -Force
+                $updatedCount++
+            }
+        }
+        $capabilityControlCount = 0
+        if ($CapabilitiesOnly) {
+            $capabilityByKey = @{}
+            foreach ($capabilityFixture in $capabilityFixtures) { $capabilityByKey[[string]$capabilityFixture.key] = $capabilityFixture }
+            foreach ($existingFixture in @($existingLibrary.fixtures)) {
+                $fixturePatch = $capabilityByKey[[string]$existingFixture.key]
+                if ($null -eq $fixturePatch) { continue }
+                foreach ($existingMode in @($existingFixture.modes)) {
+                    foreach ($controlPatch in @($fixturePatch.controls)) {
+                        $existingControl = @($existingMode.profile.controls | Where-Object { [string]$_.label -eq [string]$controlPatch.label } | Select-Object -First 1)
+                        if (-not $existingControl.Count) { continue }
+                        $targetControl = $existingControl[0]
+                        $targetControl | Add-Member -NotePropertyName capabilities -NotePropertyValue @($controlPatch.capabilities) -Force
+                        if ([string]$targetControl.type -eq "slider8" -and [string]$controlPatch.type -eq "wheel") {
+                            $targetControl.type = "wheel"
+                            $targetControl | Add-Member -NotePropertyName options -NotePropertyValue @($controlPatch.options) -Force
+                        }
+                        $capabilityControlCount++
+                    }
+                }
+            }
+        }
+        $existingLibrary.fixtureCount = @($existingLibrary.fixtures).Count
+        $existingLibrary.generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+        $payload = $existingLibrary
+    }
+    if (-not $SidecarsOnly) {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outFile) | Out-Null
+        $payload | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
+    }
+    if ($MetadataOnly) {
+        Write-Host "Added metadata to $updatedCount of $(@($payload.fixtures).Count) existing fixtures in $outFile"
+    }
+    if ($CapabilitiesOnly) {
+        Write-Host "Added capabilities to $capabilityControlCount existing controls in $outFile"
+    }
+    if ($SidecarsOnly) {
+        Write-Host "Sidecar build complete; fixture library output was not changed."
+    } elseif (-not $MetadataOnly -and -not $CapabilitiesOnly) {
+        Write-Host "Wrote $($fixtures.Count) fixtures to $outFile"
+    }
 }
 finally {
     $zip.Dispose()
+    if ($extractRoot) {
+        $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+        $resolvedExtractRoot = [IO.Path]::GetFullPath($extractRoot)
+        if ($resolvedExtractRoot.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path -Leaf $resolvedExtractRoot).StartsWith("pico-dmx-fixture-build-")) {
+            Remove-Item -LiteralPath $resolvedExtractRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
