@@ -7,6 +7,7 @@ Changed:
 - Started the 0.9.15 development branch.
 - Added a dedicated README core-feature description for Pixel Matrices, including fixture mapping, browser image conversion, live DMX recall, Chaser-step sequences, and shared Controller/Chaser/Show Run operation.
 - Reorganized the README core-feature overview into setup/data, programming/visualization, live operation, and firmware/diagnostics sections, with multi-Pico DMX Outputs documented explicitly.
+- Replaced machine-specific XAMPP URLs and filesystem paths in the public README with generic host/path placeholders and a conventional `C:\xampp` configuration example.
 
 ## 0.9.14 - 2026-07-24
 
