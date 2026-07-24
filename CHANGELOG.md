@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.13 - Unreleased
+## 0.9.13 - 2026-07-24
 
 Changed:
 
