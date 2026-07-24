@@ -1336,6 +1336,20 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#patchBody')).toBeVisible();
   });
 
+  test('DMX Outputs opens while the Show card remains collapsed', async ({ page }) => {
+    await page.evaluate(() => {
+      setSectionCollapsed('showCollapseBtn', 'showBody', 'showCollapsed', true);
+    });
+    await expect(page.locator('#showBody')).toBeHidden();
+    await expect(page.locator('#showCollapseBtn')).toHaveText('+');
+
+    await page.locator('#openDmxOutputs').click();
+
+    await expect(page.locator('#dmxOutputsModal')).toBeVisible();
+    await expect(page.locator('#showBody')).toBeHidden();
+    await expect(page.locator('#showCollapseBtn')).toHaveText('+');
+  });
+
   test('scene saves are serialized so deleting a scene removes its visual from the server payload', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const originalFetch = window.fetch;

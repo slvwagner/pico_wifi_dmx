@@ -3412,9 +3412,11 @@ baseUrl.addEventListener('input',()=>{
   scheduleSetupAutosave();
 });
 document.getElementById('openDmxOutputs').onclick=()=>{
+  const modal=document.getElementById('dmxOutputsModal');
+  if(modal.parentElement!==document.body)document.body.appendChild(modal);
   renderDmxOutputsEditor();
   renderDiscoveredPicos();
-  DmxCommon.showModal(document.getElementById('dmxOutputsModal'));
+  DmxCommon.showModal(modal);
 };
 document.getElementById('closeDmxOutputs').onclick=commitDmxOutputsEditor;
 document.getElementById('doneDmxOutputs').onclick=commitDmxOutputsEditor;
