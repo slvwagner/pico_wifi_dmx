@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-11">
-<script src="assets/dmx-common.js?v=0.9.14-11"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-12">
+<script src="assets/dmx-common.js?v=0.9.14-12"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -360,6 +360,17 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 </div>
 
+<div id="chaserPixelMatrixBox" class="scene-toolbox scene-toolbox--pixel-matrix">
+<div id="chaserPixelMatrixHdr" class="scene-toolbox__header">
+<span style="font-weight:700;font-size:13px">Pixel Matrices</span>
+<button id="chaserPixelMatrixBoxToggle" class="scene-toolbox__toggle">—</button>
+</div>
+<div id="chaserPixelMatrixBoxBody" class="scene-toolbox__body">
+<div class="small" style="color:var(--muted)">Recall a saved picture into the selected step. Select another step to build a chase from multiple pictures.</div>
+<div id="chaserPixelMatrixGrid" class="scene-slot-matrix"></div>
+</div>
+</div>
+
 <div id="chaserPlanesBox" class="scene-toolbox scene-toolbox--planes">
 <div id="chaserPlanesHdr" class="scene-toolbox__header">
 <span style="font-weight:700;font-size:13px">Planes</span>
@@ -432,6 +443,7 @@ const chaserToolboxRailEntries=[
   {box:'stepsBox',type:'steps'},
   {box:'chaserSceneBox',type:'scenes'},
   {box:'chaserPaletteBox',type:'palettes'},
+  {box:'chaserPixelMatrixBox',type:'pixelMatrices'},
   {box:'chaserPlanesBox',type:'planes'},
   {box:'fanToolbox',type:'fan'},
   {box:'browserPlaybackBox',type:'browserPlayback'}
@@ -441,6 +453,25 @@ DmxCommon.initToolboxRail(chaserToolboxRail,chaserToolboxRailEntries);
 function clamp(v,lo,hi){return DmxCommon.clampFloat(v,lo,hi);}
 function bytes16(v){const n=Math.round(clamp(v,0,65535));return{coarse:(n>>8)&255,fine:n&255};}
 function absolute(start,rel){return start+rel-1;}
+function matrixWidth(c){return Math.max(1,Math.min(64,parseInt(c?.width,10)||1));}
+function matrixHeight(c){return Math.max(1,Math.min(64,parseInt(c?.height,10)||1));}
+function matrixPixelCount(c){return matrixWidth(c)*matrixHeight(c);}
+function matrixPixelChannels(c,index){
+  const base=(parseInt(c?.channel,10)||1)+index*3;
+  return{a:base,b:base+1,c:base+2};
+}
+function matrixDefaultValue(c,color={a:0,b:0,c:0}){
+  return{pixels:Array.from({length:matrixPixelCount(c)},()=>({a:clamp(color.a,0,255),b:clamp(color.b,0,255),c:clamp(color.c,0,255)}))};
+}
+function normalizeMatrixValue(c,value){
+  const result=matrixDefaultValue(c);
+  const pixels=Array.isArray(value?.pixels)?value.pixels:[];
+  result.pixels=result.pixels.map((fallback,index)=>{
+    const pixel=pixels[index]||fallback;
+    return{a:clamp(pixel.a,0,255),b:clamp(pixel.b,0,255),c:clamp(pixel.c,0,255)};
+  });
+  return result;
+}
 function uid(){return Date.now()+Math.floor(Math.random()*1000);}
 const PICO_SLOT_COUNT=32;
 const CHASER_MAX_STEPS=32;
@@ -466,7 +497,8 @@ function lerp(a,b,t){return a+(b-a)*t;}
 function interpolateValue(from,to,t){
   if(t<=0)return from;if(t>=1)return to;
   if(typeof to==='number')return lerp(typeof from==='number'?from:0,to,t);
-  if(typeof to==='object'&&to!==null){const r={};Object.keys(to).forEach(k=>{r[k]=lerp((from??{})[k]??0,to[k],t);});return r;}
+  if(Array.isArray(to))return to.map((value,index)=>interpolateValue(Array.isArray(from)?from[index]:undefined,value,t));
+  if(typeof to==='object'&&to!==null){const r={};Object.keys(to).forEach(k=>{r[k]=interpolateValue((from??{})[k],to[k],t);});return r;}
   return t<0.5?from:to;
 }
 
@@ -520,6 +552,13 @@ function collectChannels(f,c,val,map){
     const b=bytes16(val??0);
     map[absolute(f.start,c.channel)]=b.coarse;
     map[absolute(f.start,c.fine??c.channel+1)]=b.fine;
+  }else if(c.type==='matrixRgb'){
+    normalizeMatrixValue(c,val).pixels.forEach((pixel,index)=>{
+      const channels=matrixPixelChannels(c,index);
+      map[absolute(f.start,channels.a)]=pixel.a;
+      map[absolute(f.start,channels.b)]=pixel.b;
+      map[absolute(f.start,channels.c)]=pixel.c;
+    });
   }else{
     map[absolute(f.start,c.channel)]=val??0;
   }
@@ -531,6 +570,7 @@ function defaultValue(c){
   if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
   if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
   if(c.type==='rgb'||c.type==='cmy')return{a:0,b:0,c:0};
+  if(c.type==='matrixRgb')return matrixDefaultValue(c);
   return 0;
 }
 // ---- setup loading ----
@@ -539,19 +579,19 @@ let participating={};
 let activeStepValueKeys=null;
 function controlKey(f,c){return f.id+':'+c.id;}
 function fixtureProfile(f){return(setup.profiles||[]).find(p=>p.id===f.profileId);}
-function isChaserControlSupported(c){return c?.type!=='matrixRgb';}
+function isChaserControlSupported(c){return !!c;}
 
 async function loadSetup(){
   try{
     if(location.protocol==='http:'||location.protocol==='https:'){
       const r=await fetch('fixture_setup.php',{cache:'no-store'});
       const j=await r.json();
-      if(r.ok&&j.ok&&j.exists){setup=j.setup;baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded from server');return;}
+      if(r.ok&&j.ok&&j.exists){setup=j.setup;baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();renderChaserPixelMatrices();setStatus('Setup loaded from server');return;}
     }
   }catch(_){}
   try{
     const raw=localStorage.getItem('dmxFixtureController');
-    if(raw){setup=JSON.parse(raw);baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();setStatus('Setup loaded (browser cache)');return;}
+    if(raw){setup=JSON.parse(raw);baseUrlEl.value=localStorage.getItem('dmxPicoBaseUrl')||setup.baseUrl||'';rebuildParticipation();renderChaserPixelMatrices();setStatus('Setup loaded (browser cache)');return;}
   }catch(_){}
   setStatus('No setup found — open Fixture Controller first',true);
 }
@@ -680,16 +720,16 @@ function updateWheelRangeHost(host,option,value,attrs){
   DmxCommon.updateFixtureGroupEditWheelRangeHost(host,option,value,attrs,escAttr);
 }
 function findChaserGroupControl(f,key){
-  return(fixtureProfile(f)?.controls||[]).find(c=>isChaserControlSupported(c)&&chaserGroupKey(c)===key)||null;
+  return(fixtureProfile(f)?.controls||[]).find(c=>isChaserControlSupported(c)&&c.type!=='matrixRgb'&&chaserGroupKey(c)===key)||null;
 }
 function getChaserGroupCommonControls(){
   const fx=chaserGroupEditFixtures();
   if(!fx.length)return[];
   const first=(fixtureProfile(fx[0])?.controls||[]);
-  return first.filter(c=>isChaserControlSupported(c)&&fx.every(f=>!!findChaserGroupControl(f,chaserGroupKey(c))));
+  return first.filter(c=>isChaserControlSupported(c)&&c.type!=='matrixRgb'&&fx.every(f=>!!findChaserGroupControl(f,chaserGroupKey(c))));
 }
 function isChaserGroupControlParticipating(f,c){
-  if(!isChaserControlSupported(c))return false;
+  if(!isChaserControlSupported(c)||c.type==='matrixRgb')return false;
   if(!participating[controlKey(f,c)])return false;
   if(activeStepValueKeys instanceof Set&&!activeStepValueKeys.has(controlKey(f,c)))return false;
   return true;
@@ -701,7 +741,7 @@ function getChaserGroupEditableControls(){
   fx.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
-      if(!isChaserControlSupported(c))return;
+      if(!isChaserControlSupported(c)||c.type==='matrixRgb')return;
       if(!isChaserGroupControlParticipating(f,c))return;
       const key=chaserGroupKey(c);
       if(!controls.has(key))controls.set(key,{control:c,count:0});
@@ -933,7 +973,7 @@ function groupControlOptions(){
     if(!selectedFixtureIds.has(String(f.id)))return;
     const p=fixtureProfile(f);if(!p)return;
     p.controls.forEach(c=>{
-      if(!isChaserControlSupported(c))return;
+      if(!isChaserControlSupported(c)||c.type==='matrixRgb')return;
       const key=groupControlKey(c);
       if(!opts.has(key))opts.set(key,{key,label:c.label,type:c.type,count:0});
       opts.get(key).count++;
@@ -1955,6 +1995,13 @@ function updateStepDisplay(f,c,overrideValue){
     document.querySelectorAll(`input[data-fi="${fi}"][data-ci="${ci}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
     return;
   }
+  if(c.type==='matrixRgb'){
+    const matrix=normalizeMatrixValue(c,v);
+    document.querySelectorAll(`[data-matrix-readout="${fi}:${ci}"]`).forEach(el=>{
+      el.innerHTML=matrix.pixels.map((pixel,index)=>`<span class="pixel-matrix-cell" title="Pixel ${index+1}" style="display:block;min-height:28px;background:${rgbHex(pixel)}"></span>`).join('');
+    });
+    return;
+  }
   const sv=v??0;
   document.querySelectorAll(`input[data-fi="${fi}"][data-ci="${ci}"]:not([data-part]):not([data-byte-part])`).forEach(el=>{if(el.value!=sv)el.value=Math.round(sv);});
   document.querySelectorAll(`[data-readoutf="${fi}"][data-readoutc="${ci}"]`).forEach(el=>{el.textContent=c.type==='wheel'?'CH '+absolute(f.start,c.channel)+' · '+Math.round(sv):Math.round(sv);});
@@ -1986,6 +2033,7 @@ function controlSummaryHtml(f,c){
     const col=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     return `<span class="ctrl-chip">${c.label} <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${col};vertical-align:middle;border:1px solid var(--line)"></span></span>`;
   }
+  if(c.type==='matrixRgb')return `<span class="ctrl-chip">${c.label}: ${matrixPixelCount(c)} pixels</span>`;
   if(c.type==='wheel'){const wv=v??0;const opt=selectedWheelOption(c,wv);return `<span class="ctrl-chip">${c.label}: ${opt?escAttr(opt.name):wv}</span>`;}
   return `<span class="ctrl-chip">${c.label}: ${v??0}</span>`;
 }
@@ -2022,6 +2070,12 @@ function renderStepControl(f,c){
       <label>Color<input type="color" value="${color}" data-fi="${fi}" data-ci="${ci}" data-color-picker="1"></label>
       ${parts.map((pt,i)=>`<label>${names[i]} <span data-fi="${fi}" data-ci="${ci}" data-cv="${pt}">${Math.round(v[pt]??0)}</span><div class="value-row"><input type="range" min="0" max="255" value="${Math.round(v[pt]??0)}" data-fi="${fi}" data-ci="${ci}" data-part="${pt}"><input type="number" min="0" max="255" step="1" value="${Math.round(v[pt]??0)}" data-fi="${fi}" data-ci="${ci}" data-part="${pt}"></div></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-color="#ffffff" data-fi="${fi}" data-ci="${ci}"></button><button class="swatch" style="background:#f00" data-color="#ff0000" data-fi="${fi}" data-ci="${ci}"></button><button class="swatch" style="background:#0f0" data-color="#00ff00" data-fi="${fi}" data-ci="${ci}"></button><button class="swatch" style="background:#00f" data-color="#0000ff" data-fi="${fi}" data-ci="${ci}"></button></div></div>`;
+  }
+  if(c.type==='matrixRgb'){
+    const matrix=normalizeMatrixValue(c,v);
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${absolute(f.start,c.channel)}–${absolute(f.start,c.channel+matrixPixelCount(c)*3-1)}</span></div>
+      <div class="pixel-matrix-grid" data-matrix-readout="${fi}:${ci}" style="grid-template-columns:repeat(${matrixWidth(c)},minmax(24px,1fr))">${matrix.pixels.map((pixel,index)=>`<span class="pixel-matrix-cell" title="Pixel ${index+1}" style="display:block;min-height:28px;background:${rgbHex(pixel)}"></span>`).join('')}</div>
+      <div class="small">Recall a picture from the Pixel Matrices toolbox to change these values.</div></div>`;
   }
   if(c.type==='wheel'){
     const wv=v??0;
@@ -3186,6 +3240,108 @@ const chaserPaletteToolbox=DmxCommon.initFloatingToolbox({
   uiStateCollapsedKey:'chaserPaletteBoxCollapsed'
 });
 loadChaserPalettesServer();
+
+// ---- saved Pixel Matrices toolbox (recall pictures into chase steps) ----
+function chaserPixelMatrices(){
+  return DmxCommon.normalizePixelMatrices(setup.pixelMatrices||[]);
+}
+function pixelMatrixStepValue(control,hex){
+  if(control.type==='cmy')return rgbToCmy(hex);
+  if(control.type==='cmyk')return rgbToCmyk(hex);
+  const rgb=hexToRgb(hex);
+  if(control.type==='rgbw')return{...rgb,w:0};
+  if(control.type==='rgbwa')return{...rgb,w:0,amber:0};
+  return rgb;
+}
+function chaserPixelMatrixStepValues(matrix){
+  const normalized=DmxCommon.normalizePixelMatrix(matrix);
+  const values={};
+  normalized.mappings.forEach((mapping,index)=>{
+    if(!mapping)return;
+    const parts=String(mapping).split(':');
+    const fixture=(setup.fixtures||[]).find(item=>String(item.id)===parts[0]);
+    const control=fixture&&fixtureProfile(fixture)?.controls.find(item=>String(item.id)===parts[1]);
+    if(!fixture||!control)return;
+    const key=controlKey(fixture,control);
+    if(control.type==='matrixRgb'){
+      const pixelIndex=parseInt(parts[2],10);
+      if(!Number.isFinite(pixelIndex)||pixelIndex<0||pixelIndex>=matrixPixelCount(control))return;
+      if(!values[key])values[key]=matrixDefaultValue(control);
+      values[key].pixels[pixelIndex]=hexToRgb(normalized.pixels[index]);
+      return;
+    }
+    if(!['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type)||parts.length!==2)return;
+    values[key]=pixelMatrixStepValue(control,normalized.pixels[index]);
+  });
+  return values;
+}
+function renderChaserPixelMatrices(){
+  const grid=document.getElementById('chaserPixelMatrixGrid');
+  if(!grid)return;
+  const matrices=chaserPixelMatrices();
+  const cols=Math.max(1,Math.min(16,parseInt(setup.pixelMatrixCols,10)||4));
+  const required=matrices.reduce((max,matrix)=>Math.max(max,matrix.slot+1),0);
+  const configuredRows=Math.max(1,Math.min(16,parseInt(setup.pixelMatrixRows,10)||4));
+  const rows=Math.max(configuredRows,Math.ceil(required/cols));
+  grid.style.gridTemplateColumns='repeat('+cols+',minmax(54px,1fr))';
+  grid.innerHTML=Array.from({length:cols*rows},(_,slot)=>{
+    const matrix=matrices.find(item=>item.slot===slot);
+    if(!matrix)return'<div class="slot" data-chaser-pixel-matrix-slot="'+slot+'" title="Empty Pixel Matrix slot">'+(slot+1)+'</div>';
+    const mapped=matrix.mappings.filter(Boolean).length;
+    const color=/^#[0-9a-f]{6}$/i.test(matrix.pixels[0]||'')?matrix.pixels[0]:'#25323c';
+    return'<div class="slot filled" data-chaser-pixel-matrix-slot="'+slot+'" title="Recall '+DmxCommon.escapeHtml(matrix.name)+' into the selected chase step" style="background:'+color+';--slot-bg:'+color+'"><div class="palette-slot-content"><span class="palette-slot-name">'+DmxCommon.escapeHtml(matrix.name)+'</span><span class="small">'+matrix.width+'×'+matrix.height+' · '+mapped+'/'+(matrix.width*matrix.height)+'</span></div></div>';
+  }).join('');
+}
+async function recallChaserPixelMatrix(matrix){
+  const values=chaserPixelMatrixStepValues(matrix);
+  const keys=Object.keys(values);
+  if(!keys.length){setStatus('Pixel Matrix "'+(matrix?.name||'Picture')+'" has no compatible mappings in this setup',true);return false;}
+  stopPlaybackForManualEdit();
+  await stopPicoPlaybackForBrowserControl();
+  let step=steps[selectedStepIdx];
+  if(!step){
+    if(steps.length>=CHASER_MAX_STEPS){setStatus('Maximum '+CHASER_MAX_STEPS+' steps per chaser slot',true);return false;}
+    step=makeStep((matrix.name||'Picture')+' step',values);
+    steps.push(step);
+    selectedStepIdx=steps.length-1;
+  }else Object.assign(step.values,values);
+  applyChaserPaletteParticipatingKeys(keys);
+  if(chaserGroupsBox?.clearSelection)chaserGroupsBox.clearSelection();
+  else DmxCommon.saveSharedGroupSelection([]);
+  sourceFixtureId=firstFixtureIdFromKeys(keys)||firstStepFixtureId(step);
+  const batchMap={};
+  keys.forEach(key=>{
+    const parts=String(key).split(':');
+    const fixture=(setup.fixtures||[]).find(item=>String(item.id)===parts[0]);
+    const control=fixture&&fixtureProfile(fixture)?.controls.find(item=>String(item.id)===parts[1]);
+    if(fixture&&control)collectChannels(fixture,control,values[key],batchMap);
+  });
+  sendBatch(batchMap);
+  drawParticipation();
+  drawStepList();
+  drawStepEditor();
+  refreshChaserGroupActions();
+  refreshFanBasesFromStep();
+  setStatus('Recalled Pixel Matrix "'+(matrix.name||'Picture')+'" into step '+(selectedStepIdx+1)+' with '+keys.length+' mapped control'+(keys.length===1?'':'s'));
+  return true;
+}
+document.getElementById('chaserPixelMatrixGrid').addEventListener('click',event=>{
+  const tile=event.target.closest('[data-chaser-pixel-matrix-slot]');
+  if(!tile)return;
+  const matrix=chaserPixelMatrices().find(item=>item.slot===parseInt(tile.dataset.chaserPixelMatrixSlot,10));
+  if(matrix)recallChaserPixelMatrix(matrix);
+});
+const chaserPixelMatrixToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'chaserPixelMatrixBox',
+  headerId:'chaserPixelMatrixHdr',
+  toggleId:'chaserPixelMatrixBoxToggle',
+  posStorageKey:'chaserPixelMatrixBoxPos',
+  collapsedStorageKey:'chaserPixelMatrixBoxCollapsed',
+  uiStatePage:'chaser',
+  uiStatePosKey:'chaserPixelMatrixBoxPos',
+  uiStateCollapsedKey:'chaserPixelMatrixBoxCollapsed'
+});
+renderChaserPixelMatrices();
 
 // ---- saved room planes toolbox (recall calibrated pan/tilt into selected step) ----
 let chaserPlanes=[];

@@ -899,27 +899,64 @@ test.describe('Chaser established rules', () => {
     expect(result.panReadout).toContain('Pan 45678');
   });
 
-  test('Matrix controls are excluded from chaser participation until matrix step editing exists', async ({ page }) => {
-    const state = await page.evaluate(() => {
+  test('Pixel Matrix pictures can be recalled into separate chase steps and serialized for Pico playback', async ({ page }) => {
+    const state = await page.evaluate(async () => {
       setup.profiles.push({
         id: 90,
         name: 'Matrix Profile',
-        mode: '2x2',
-        channels: 12,
-        controls: [{ id: 91, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 2 }]
+        mode: '2x1',
+        channels: 6,
+        controls: [{ id: 91, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 1 }]
       });
       setup.fixtures.push({ id: 190, name: 'Matrix Fixture', profileId: 90, start: 101 });
+      setup.pixelMatrixCols = 2;
+      setup.pixelMatrixRows = 1;
+      setup.pixelMatrices = [
+        {
+          id: 'picture-a',
+          name: 'Picture A',
+          slot: 0,
+          width: 3,
+          height: 1,
+          mappings: ['102:22', '190:91:0', '190:91:1'],
+          pixels: ['#ff0000', '#00ff00', '#0000ff']
+        },
+        {
+          id: 'picture-b',
+          name: 'Picture B',
+          slot: 1,
+          width: 3,
+          height: 1,
+          mappings: ['102:22', '190:91:0', '190:91:1'],
+          pixels: ['#ffffff', '#112233', '#445566']
+        }
+      ];
       rebuildParticipation();
+      renderChaserPixelMatrices();
+      await recallChaserPixelMatrix(setup.pixelMatrices[0]);
+      selectedStepIdx = -1;
+      await recallChaserPixelMatrix(setup.pixelMatrices[1]);
       return {
-        hasMatrixParticipation: Object.keys(participating).some(key => key === '190:91'),
-        listedControls: getParticipatingList().map(({ f, c }) => f.id + ':' + c.type),
-        checkboxCount: document.querySelectorAll('#participationList input[data-key="190:91"]').length
+        tileNames: [...document.querySelectorAll('#chaserPixelMatrixGrid .palette-slot-name')].map(node => node.textContent),
+        steps: JSON.parse(JSON.stringify(steps)),
+        pico: serializeChaserForPico()
       };
     });
 
-    expect(state.hasMatrixParticipation).toBe(false);
-    expect(state.listedControls).not.toContain('190:matrixRgb');
-    expect(state.checkboxCount).toBe(0);
+    expect(state.tileNames).toEqual(['Picture A', 'Picture B']);
+    expect(state.steps).toHaveLength(2);
+    expect(state.steps[0].values['102:22']).toEqual({ a: 255, b: 0, c: 0 });
+    expect(state.steps[0].values['190:91'].pixels).toEqual([
+      { a: 0, b: 255, c: 0 },
+      { a: 0, b: 0, c: 255 }
+    ]);
+    expect(state.steps[1].values['102:22']).toEqual({ a: 255, b: 255, c: 255 });
+    expect(state.steps[1].values['190:91'].pixels).toEqual([
+      { a: 17, b: 34, c: 51 },
+      { a: 68, b: 85, c: 102 }
+    ]);
+    expect(state.pico).toContain('STEP 500 0\nCH 22 255\nCH 23 0\nCH 24 0\nCH 101 0\nCH 102 255\nCH 103 0\nCH 104 0\nCH 105 0\nCH 106 255');
+    expect(state.pico).toContain('STEP 500 0\nCH 22 255\nCH 23 255\nCH 24 255\nCH 101 17\nCH 102 34\nCH 103 51\nCH 104 68\nCH 105 85\nCH 106 102');
   });
 
   test('selecting a step rebuilds the edit scope from that step values', async ({ page }) => {
