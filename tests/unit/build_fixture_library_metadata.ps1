@@ -22,7 +22,7 @@ $fixture = $library.fixtures | Where-Object key -eq 'fun-generation/picospot-20-
 $metadataFixture = $metadataCatalog.fixtures | Where-Object key -eq 'fun-generation/picospot-20-led' | Select-Object -First 1
 
 if (-not $fixture) { throw 'Converted PicoSpot 20 LED fixture was not found.' }
-Assert-Equal $metadataCatalog.fixtureCount 622 'Metadata sidecar fixture count is incorrect.'
+Assert-Equal $metadataCatalog.fixtureCount 623 'Metadata sidecar fixture count is incorrect.'
 if ($capabilitiesCatalog.fixtureCount -lt 600) { throw "Capability sidecar fixture count is unexpectedly low: $($capabilitiesCatalog.fixtureCount)." }
 Assert-Equal $metadataFixture.metadata.source 'ofl' 'Metadata sidecar is missing the PicoSpot metadata.'
 Assert-Equal $fixture.metadata.source 'ofl' 'Metadata source is incorrect.'
@@ -40,6 +40,49 @@ Assert-Equal $fixture.metadata.physical.dmxConnector '3-pin' 'DMX connector is i
 Assert-Equal $fixture.metadata.physical.lightSource '12W white CREE LED' 'Light source is incorrect.'
 Assert-Equal $fixture.metadata.physical.beamAngleDegrees.min 13 'Minimum beam angle is incorrect.'
 Assert-Equal $fixture.metadata.physical.beamAngleDegrees.max 13 'Maximum beam angle is incorrect.'
+
+$hyK25 = $library.fixtures | Where-Object key -eq 'clay-paky/hy-b-eye-k25' | Select-Object -First 1
+if (-not $hyK25) { throw 'Curated Claypaky Hy B-Eye K25 fixture was not included in the library build.' }
+Assert-Equal @($hyK25.modes).Count 6 'Hy B-Eye K25 mode count is incorrect.'
+Assert-Equal (($hyK25.modes | ForEach-Object { "$($_.name):$($_.channels)" }) -join ', ') 'Standard:21, Standard + Frequency:22, Shape:35, Shape + Frequency:36, Pixel Engine RGB:111, Pixel Engine RGBW:148' 'Hy B-Eye K25 modes are incorrect.'
+Assert-Equal $hyK25.metadata.authors[0] 'Claypaky' 'Hy B-Eye K25 manufacturer metadata is incorrect.'
+Assert-Equal $hyK25.metadata.physical.dimensionsMm.width 329 'Hy B-Eye K25 width metadata is incorrect.'
+Assert-Equal $hyK25.metadata.physical.dimensionsMm.height 590 'Hy B-Eye K25 height metadata is incorrect.'
+Assert-Equal $hyK25.metadata.physical.dimensionsMm.depth 387 'Hy B-Eye K25 depth metadata is incorrect.'
+Assert-Equal $hyK25.metadata.physical.weightKg 27.5 'Hy B-Eye K25 weight metadata is incorrect.'
+Assert-Equal $hyK25.metadata.physical.powerVa 1250 'Hy B-Eye K25 power-consumption metadata is incorrect.'
+Assert-Equal $hyK25.metadata.physical.beamAngleDegrees.min 4 'Hy B-Eye K25 minimum beam angle is incorrect.'
+Assert-Equal $hyK25.metadata.physical.beamAngleDegrees.max 60 'Hy B-Eye K25 maximum beam angle is incorrect.'
+
+function Get-ProfileChannels($profile) {
+    $channels = [System.Collections.Generic.List[int]]::new()
+    foreach ($control in @($profile.controls)) {
+        foreach ($property in @('channel', 'fine', 'pan', 'panFine', 'tilt', 'tiltFine', 'a', 'b', 'c', 'w', 'amber', 'k')) {
+            $value = $control.PSObject.Properties[$property].Value
+            if ($null -ne $value) { $channels.Add([int]$value) }
+        }
+    }
+    return @($channels)
+}
+
+foreach ($mode in @($hyK25.modes)) {
+    $mappedChannels = @(Get-ProfileChannels $mode.profile)
+    Assert-Equal $mappedChannels.Count $mode.channels "Hy B-Eye K25 '$($mode.name)' does not map every DMX channel."
+    Assert-Equal @($mappedChannels | Sort-Object -Unique).Count $mode.channels "Hy B-Eye K25 '$($mode.name)' maps a DMX channel more than once."
+    Assert-Equal ($mappedChannels | Measure-Object -Maximum).Maximum $mode.channels "Hy B-Eye K25 '$($mode.name)' highest mapped channel is incorrect."
+}
+
+$hyStandard = $hyK25.modes | Where-Object name -eq 'Standard' | Select-Object -First 1
+$hyShapeFrequency = $hyK25.modes | Where-Object name -eq 'Shape + Frequency' | Select-Object -First 1
+$hyPixelRgbw = $hyK25.modes | Where-Object name -eq 'Pixel Engine RGBW' | Select-Object -First 1
+Assert-Equal ($hyStandard.profile.controls | Where-Object label -eq 'Dimmer').type 'slider16' 'Hy B-Eye K25 Dimmer is not a 16-bit control.'
+Assert-Equal ($hyStandard.profile.controls | Where-Object label -eq 'Pan / Tilt').tiltFine 17 'Hy B-Eye K25 Pan/Tilt mapping is incorrect.'
+$hyFunction = $hyStandard.profile.controls | Where-Object label -eq 'Function' | Select-Object -First 1
+Assert-Equal ($hyFunction.options | Where-Object name -eq 'Pixel Map Enabled' | Select-Object -First 1).value 104 'Hy B-Eye K25 Pixel Map Enabled range is incorrect.'
+Assert-Equal ($hyFunction.options | Where-Object name -eq 'Base Frequency 43700 Hz' | Select-Object -First 1).value 173 'Hy B-Eye K25 base-frequency options are missing.'
+Assert-Equal ($hyShapeFrequency.profile.controls | Where-Object label -eq 'Frequency Fine Adjustment').channel 36 'Hy B-Eye K25 Shape + Frequency mapping is incorrect.'
+Assert-Equal @($hyPixelRgbw.profile.controls).Count 37 'Hy B-Eye K25 RGBW pixel control count is incorrect.'
+Assert-Equal ($hyPixelRgbw.profile.controls | Where-Object label -eq 'LED 37').w 148 'Hy B-Eye K25 final RGBW pixel mapping is incorrect.'
 
 $inno = $library.fixtures | Where-Object key -eq 'american-dj/inno-pocket-spot' | Select-Object -First 1
 $innoMode = $inno.modes | Where-Object name -eq '11-channel' | Select-Object -First 1
@@ -207,5 +250,20 @@ Assert-Equal @($capabilityMergedControl.capabilities).Count 10 'Capabilities-onl
 Assert-Equal @($capabilityMergedControl.options).Count 10 'Capabilities-only merge lost generated options.'
 Assert-Equal $capabilityMergedMode.warnings[0] 'Keep capability warning' 'Capabilities-only merge removed a warning.'
 Assert-Equal ($capabilityMergedLibrary.fixtures | Where-Object key -eq 'custom/capability-keep').name 'Capability Keep' 'Capabilities-only merge removed a custom fixture.'
+
+$customOnlyOutputPath = Join-Path ([IO.Path]::GetTempPath()) 'pico-dmx-fixture-library-custom-only-test.json'
+$customOnlyLibrary = [ordered]@{
+    schemaVersion = 1
+    source = 'Curated custom-only test library'
+    generatedAt = '2026-01-01T00:00:00Z'
+    fixtureCount = 1
+    fixtures = @([ordered]@{ key = 'custom/keep-first'; manufacturerName = 'Custom'; name = 'Keep First'; categories = @('Other'); modes = @() })
+}
+[IO.File]::WriteAllText($customOnlyOutputPath, ($customOnlyLibrary | ConvertTo-Json -Depth 20) + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
+& (Join-Path $repoRoot 'scripts/build_fixture_library.ps1') -OutputPath $customOnlyOutputPath -CustomOnly
+$customOnlyMergedLibrary = Get-Content -LiteralPath $customOnlyOutputPath -Raw | ConvertFrom-Json
+Assert-Equal $customOnlyMergedLibrary.fixtureCount 2 'Custom-only merge fixture count is incorrect.'
+Assert-Equal $customOnlyMergedLibrary.fixtures[0].key 'custom/keep-first' 'Custom-only merge reordered an existing curated fixture.'
+Assert-Equal ($customOnlyMergedLibrary.fixtures | Where-Object key -eq 'clay-paky/hy-b-eye-k25').name 'Hy B-Eye K25' 'Custom-only merge did not add the Hy B-Eye K25 fixture.'
 
 Write-Host 'Fixture library metadata conversion test passed.'

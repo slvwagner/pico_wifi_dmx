@@ -1899,6 +1899,7 @@ function renderFixtureLibraryInformation(fixture){
   }
   addRow('Weight',fixtureInformationValue(physical.weightKg,'kg'));
   addRow('Power',fixtureInformationValue(physical.powerW,'W'));
+  addRow('Power consumption',fixtureInformationValue(physical.powerVa,'VA'));
   addRow('DMX connector',physical.dmxConnector);
   addRow('Light source',physical.lightSource);
   const beam=physical.beamAngleDegrees;

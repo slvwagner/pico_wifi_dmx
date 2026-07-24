@@ -4,9 +4,11 @@ param(
     [string]$MetadataOutputPath = "",
     [string]$CapabilitiesOutputPath = "",
     [string]$ResourcesOutputPath = "",
+    [string]$CustomFixturePath = "tools/fixture-library/custom",
     [switch]$MetadataOnly,
     [switch]$CapabilitiesOnly,
     [switch]$SidecarsOnly,
+    [switch]$CustomOnly,
     [ValidateRange(0, 64)][int]$ThrottleLimit = 0
 )
 
@@ -17,9 +19,11 @@ $outFile = if ([System.IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else
 $metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($MetadataOutputPath)) { $MetadataOutputPath } else { Join-Path $repoRoot $MetadataOutputPath }
 $capabilitiesOutFile = if (-not $CapabilitiesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($CapabilitiesOutputPath)) { $CapabilitiesOutputPath } else { Join-Path $repoRoot $CapabilitiesOutputPath }
 $resourcesOutFile = if (-not $ResourcesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($ResourcesOutputPath)) { $ResourcesOutputPath } else { Join-Path $repoRoot $ResourcesOutputPath }
+$customFixtureDirectory = if (-not $CustomFixturePath) { "" } elseif ([System.IO.Path]::IsPathRooted($CustomFixturePath)) { $CustomFixturePath } else { Join-Path $repoRoot $CustomFixturePath }
 $effectiveThrottleLimit = if ($ThrottleLimit -gt 0) { $ThrottleLimit } else { [Math]::Max(2, [Math]::Min([Environment]::ProcessorCount, 16)) }
 if ($SidecarsOnly -and ($MetadataOnly -or $CapabilitiesOnly)) { throw "SidecarsOnly cannot be combined with MetadataOnly or CapabilitiesOnly." }
 if ($SidecarsOnly -and -not $metadataOutFile -and -not $capabilitiesOutFile -and -not $resourcesOutFile) { throw "SidecarsOnly requires MetadataOutputPath, CapabilitiesOutputPath, or ResourcesOutputPath." }
+if ($CustomOnly -and ($MetadataOnly -or $CapabilitiesOnly -or $SidecarsOnly)) { throw "CustomOnly cannot be combined with enrichment-only options." }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -630,6 +634,53 @@ function Convert-FixtureDocument([string]$entryName, [string]$text, $manufacture
     }
 }
 
+function Get-CustomFixtures([string]$directory) {
+    if (-not $directory -or -not (Test-Path -LiteralPath $directory -PathType Container)) { return @() }
+    $fixtures = [System.Collections.Generic.List[object]]::new()
+    foreach ($file in @(Get-ChildItem -LiteralPath $directory -File -Filter "*.json" | Sort-Object Name)) {
+        try { $fixture = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json }
+        catch { throw "Invalid custom fixture JSON '$($file.FullName)': $($_.Exception.Message)" }
+        if (-not [string](Get-Prop $fixture "key") -or -not [string](Get-Prop $fixture "name") -or -not @(Get-Prop $fixture "modes").Count) {
+            throw "Custom fixture must contain key, name, and at least one mode: $($file.FullName)"
+        }
+        $fixtures.Add($fixture)
+    }
+    return @($fixtures)
+}
+
+function Merge-CustomFixtures($fixtures, $customFixtures) {
+    $customByKey = [ordered]@{}
+    foreach ($fixture in @($customFixtures)) { $customByKey[[string](Get-Prop $fixture "key")] = $fixture }
+    $result = [System.Collections.Generic.List[object]]::new()
+    foreach ($fixture in @($fixtures)) {
+        $key = [string](Get-Prop $fixture "key")
+        if ($customByKey.Contains($key)) {
+            $result.Add($customByKey[$key])
+            $customByKey.Remove($key)
+        } else {
+            $result.Add($fixture)
+        }
+    }
+    foreach ($key in @($customByKey.Keys | Sort-Object)) { $result.Add($customByKey[$key]) }
+    return @($result)
+}
+
+if ($CustomOnly) {
+    if (-not (Test-Path -LiteralPath $outFile -PathType Leaf)) { throw "CustomOnly requires an existing fixture library: $outFile" }
+    $customFixtures = @(Get-CustomFixtures $customFixtureDirectory)
+    if (-not $customFixtures.Count) { throw "No custom fixtures found in: $customFixtureDirectory" }
+    $existingLibrary = Get-Content -LiteralPath $outFile -Raw | ConvertFrom-Json
+    if ($null -eq $existingLibrary -or -not ($existingLibrary.PSObject.Properties.Name -contains "fixtures")) {
+        throw "Existing fixture library is invalid: $outFile"
+    }
+    $existingLibrary.fixtures = @(Merge-CustomFixtures @($existingLibrary.fixtures) $customFixtures)
+    $existingLibrary.fixtureCount = @($existingLibrary.fixtures).Count
+    $existingLibrary.generatedAt = (Get-Date).ToUniversalTime().ToString("s") + "Z"
+    $existingLibrary | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $outFile -Encoding UTF8
+    Write-Host "Merged $($customFixtures.Count) custom fixture(s) into $outFile"
+    return
+}
+
 if (-not (Test-Path -LiteralPath $zipFile)) { throw "Fixture library zip not found: $zipFile" }
 
 $extractRoot = ""
@@ -671,9 +722,7 @@ try {
             Convert-FixtureDocument $relative ([IO.File]::ReadAllText($_.FullName)) $manufacturers
         })
     }
-    $fixtures = @($convertedFixtures | Where-Object { $null -ne $_ } | Sort-Object {
-        if ($_ -is [System.Collections.IDictionary]) { [string]$_['key'] } else { [string]$_.key }
-    })
+    $fixtures = @(Merge-CustomFixtures @($convertedFixtures | Where-Object { $null -ne $_ }) @(Get-CustomFixtures $customFixtureDirectory))
     $resourceMap = [ordered]@{}
     $resourceFixturePatches = [System.Collections.Generic.List[object]]::new()
     foreach ($fixtureItem in $fixtures) {

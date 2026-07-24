@@ -1544,6 +1544,7 @@ test.describe('Fixture Controller established rules', () => {
               dimensionsMm: { width: 162, height: 242, depth: 174 },
               weightKg: 3,
               powerW: 35,
+              powerVa: 1250,
               dmxConnector: '3-pin',
               lightSource: '12W white CREE LED',
               beamAngleDegrees: { min: 13, max: 13 }
@@ -1573,6 +1574,7 @@ test.describe('Fixture Controller established rules', () => {
     await expect(information).toContainText('162 × 242 × 174 mm');
     await expect(information).toContainText('3 kg');
     await expect(information).toContainText('35 W');
+    await expect(information).toContainText('1250 VA');
     await expect(information).toContainText('3-pin');
     await expect(information).toContainText('12W white CREE LED');
     await expect(information).toContainText('13°');

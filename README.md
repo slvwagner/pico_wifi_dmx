@@ -909,6 +909,12 @@ To rebuild the bundled catalog directly from the stored Open Fixture Library exp
 
 Its default source is `tools/fixture-library/ofl_export_ofl.zip`; pass `-ZipPath` only when converting a different export. Conversion runs in parallel by default, using up to 16 logical processors. Pass `-ThrottleLimit 4` to choose another worker limit or `-ThrottleLimit 1` for serial conversion. Third-party hardware manuals, including the Launch Control XL programmer reference, are kept under `docs/references/` rather than in the repository root.
 
+Curated normalized fixtures under `tools/fixture-library/custom/` are merged over matching OFL keys and appended when no OFL fixture exists. This keeps manufacturer-manual additions such as the Claypaky Hy B-Eye K25 across full OFL rebuilds. To merge only these curated fixtures into the existing catalog without rebuilding or replacing its other entries, run:
+
+```powershell
+.\scripts\build_fixture_library.ps1 -CustomOnly
+```
+
 Use metadata-only mode to refresh fixture information without replacing curated controls or custom fixtures:
 
 ```powershell
