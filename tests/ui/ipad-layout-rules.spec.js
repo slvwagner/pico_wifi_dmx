@@ -545,18 +545,26 @@ test.describe('iPad layout rules', () => {
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const boxes = Array.from(rail.querySelectorAll('.scene-toolbox')).filter(box => getComputedStyle(box).display !== 'none');
         const last = boxes[boxes.length - 1];
+        if (last.classList.contains('collapsed')) {
+          last.querySelector('.scene-toolbox__toggle')?.click();
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        }
         const body = last.querySelector('.scene-toolbox__body');
         scrollHost.scrollTop = Math.max(0, last.offsetTop - 24);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const railRectAtTop = rail.getBoundingClientRect();
         const lastRectAtTop = last.getBoundingClientRect();
-        const firstChild = body?.firstElementChild;
+        const visibleChildren = Array.from(body?.children || []).filter(child => {
+          const rect = child.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        const firstChild = visibleChildren[0];
         const firstChildRect = firstChild?.getBoundingClientRect();
         scrollHost.scrollTop = scrollHost.scrollHeight;
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const railRect = rail.getBoundingClientRect();
         const lastRect = last.getBoundingClientRect();
-        const lastChild = body?.lastElementChild;
+        const lastChild = visibleChildren[visibleChildren.length - 1];
         const lastChildRect = lastChild?.getBoundingClientRect();
         return {
           label,
