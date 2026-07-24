@@ -45,7 +45,7 @@ Core features:
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
-- **Windows, macOS, and Ubuntu customer installers** — package the app, manual, persistent show storage, an automatically started web service, native/desktop application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
+- **Windows, macOS, and Ubuntu customer installers** — package the app, manual, persistent show storage, a managed web service, native/desktop application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
@@ -170,13 +170,15 @@ sudo apt install ./pico-dmx-controller_<VERSION>_amd64.deb
 
 The package installs the read-only application below
 `/opt/pico-dmx-controller`, stores mutable shows and fixture data below
-`/var/lib/pico-dmx-controller/data`, starts its systemd service automatically,
+`/var/lib/pico-dmx-controller/data`, manages its systemd service with the app,
 and adds **Pico DMX Controller** to the Applications menu. The self-contained
 application includes its own Chromium engine, dark frame, application and
 fullscreen controls, status bar, tray menu, and Web MIDI support. The installer
 also creates an executable shortcut on normal users' configured XDG desktops
 without replacing unrelated files. The service listens only on
-`127.0.0.1:8090` by default.
+`127.0.0.1:8090` by default. Launching the application starts that service;
+closing the application stops all Electron/Chromium processes and background
+PHP workers.
 
 To allow iPads and other operator devices on a trusted local network, run:
 
@@ -189,6 +191,11 @@ This changes the listener to all network interfaces and adds the packaged TCP
 `sudo pico-dmx-config --local`. Do not expose port 8090 to the public internet.
 Upgrades snapshot current show data, and removing the package preserves all
 data under `/var/lib/pico-dmx-controller`.
+
+Application-managed service lifetime is the default. Installations that must
+remain available to LAN operator devices after the desktop window closes can
+opt in with `sudo pico-dmx-config --always-on`; restore the default with
+`sudo pico-dmx-config --application-managed`.
 
 The package source, behavior, and build instructions are documented in
 [`installer/ubuntu/README.md`](installer/ubuntu/README.md).
