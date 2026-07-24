@@ -56,16 +56,16 @@ User-facing operating instructions are in [docs/user-manual.md](docs/user-manual
 
 The two XAMPP applications have different owners and must never be treated as interchangeable:
 
-- `http://192.168.0.12/dmx/` (`E:\Software\xampp\htdocs\dmx`) is the user's working environment. Its `data/*.json` files contain user-owned show data.
-- `http://192.168.0.12/dmx-test/` (`E:\Software\xampp\htdocs\dmx-test`) is the automated-test playground. Browser tests may overwrite its JSON data.
+- `http://<xampp-host>/dmx/` (`<xampp-htdocs>\dmx`) represents the user's working environment. Its `data/*.json` files contain user-owned show data.
+- `http://<xampp-host>/dmx-test/` (`<xampp-htdocs>\dmx-test`) represents the automated-test playground. Browser tests may overwrite its JSON data.
 
 These rules are mandatory for developers, scripts, and AI agents:
 
 1. **Never run Playwright, `npm`/`npx` test commands, browser automation, screenshot capture, manual generation, or test diagnostics against `/dmx/`.** Many UI tests intentionally save mock groups, palettes, chases, tile positions, and UI state through the PHP endpoints. A test can destroy live show data even when its assertions look read-only.
 2. **Never point `DMX_TEST_BASE_URL`, Playwright `baseURL`, `tests/pathconfig.local.json`, or a temporary test override at `/dmx/`.** The only XAMPP target allowed for automation is `/dmx-test/`. The repository-local PHP server with deterministic `docs/manual-data/` is preferred for manuals and screenshots.
-3. **Before starting any browser automation, verify that the target URL path is `/dmx-test/` or a repository-local development server. Stop immediately if it resolves to `/dmx/`.** Do not rely on hostname differences such as `localhost` versus `192.168.0.12`; the URL path determines the environment.
-4. **Deploy source changes to `/dmx/` only with `scripts/update_xampp_server.ps1`.** Do not directly copy, edit, delete, or replace files under `E:\Software\xampp\htdocs\dmx`. Use the script with `-AppFolder dmx -BaseUrl http://192.168.0.12/dmx/`, then verify the page manually or with read-only HTTP GET requests.
-5. **Use `/dmx-test/` for regression testing.** Synchronize it through `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://192.168.0.12/dmx-test/` before running tests. Test failures caused by test data must be resolved inside this isolated environment, never by switching the suite to `/dmx/`.
+3. **Before starting any browser automation, verify that the target URL path is `/dmx-test/` or a repository-local development server. Stop immediately if it resolves to `/dmx/`.** Do not rely on hostname differences such as `localhost` versus the XAMPP computer's LAN address; the URL path determines the environment.
+4. **Deploy source changes to `/dmx/` only with `scripts/update_xampp_server.ps1`.** Do not directly copy, edit, delete, or replace files under `<xampp-htdocs>\dmx`. Use the script with `-AppFolder dmx -BaseUrl http://<xampp-host>/dmx/`, then verify the page manually or with read-only HTTP GET requests.
+5. **Use `/dmx-test/` for regression testing.** Synchronize it through `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://<xampp-host>/dmx-test/` before running tests. Test failures caused by test data must be resolved inside this isolated environment, never by switching the suite to `/dmx/`.
 6. **Generate manuals and screenshots outside the user's environment.** Use `scripts/update_user_manual.ps1 -LocalOnly` and the repository's deterministic manual data, or an explicitly isolated test app. Never capture them from `/dmx/`.
 7. **Treat XAMPP `data/*.json` as irreplaceable user data.** Do not write, restore, migrate, or import it without explicit user authorization. Before an authorized recovery, snapshot the current files and restore only the files the user approved.
 8. **For bug fixes, add and run a failing regression test in the isolated environment before changing implementation code.** After the fix, rerun the focused browser tests there. Run real hardware tests only for firmware changes or when the user explicitly requests them.
@@ -95,7 +95,7 @@ Edit `config/local-paths.json` so it matches your XAMPP installation, app folder
 
 ```json
 {
-  "xamppHtdocs": "E:/Software/xampp/htdocs",
+  "xamppHtdocs": "C:/xampp/htdocs",
   "appFolder": "dmx",
   "baseUrl": "http://localhost/dmx/",
   "chromePath": "C:/Program Files/Google/Chrome/Application/chrome.exe"
@@ -105,7 +105,7 @@ Edit `config/local-paths.json` so it matches your XAMPP installation, app folder
 These values mean the web app will be copied to:
 
 ```text
-E:\Software\xampp\htdocs\dmx\
+C:\xampp\htdocs\dmx\
 ```
 
 `config/local-paths.json` is ignored by Git. Keep your real machine paths there. The sync, manual screenshot/PDF, README screenshot, and release helper scripts read this file automatically. If you pass path parameters directly to a script, those command-line values override the config file for that run.
@@ -1250,7 +1250,7 @@ The controller's **Export Show** action reads these same endpoints and writes a 
 For a timestamped command-line backup, use the read-only backup script:
 
 ```powershell
-.\scripts\backup_show.ps1 -BaseUrl http://192.168.0.12/dmx/ -AllowProtectedEnvironment
+.\scripts\backup_show.ps1 -BaseUrl http://<xampp-host>/dmx/ -AllowProtectedEnvironment
 ```
 
 The script performs HTTP `GET` requests only; it never posts data or directly accesses the XAMPP `data` directory. It creates a folder below `show-backups/` containing the importable show file, the complete fixture-library file, diagnostic endpoint-response snapshots, a short restore README, and a SHA-256 manifest. The default URL is the isolated `/dmx-test/` environment. The explicit `-AllowProtectedEnvironment` switch is required for `/dmx/` so an agent cannot accidentally read the user's working show when testing the script.
@@ -1263,7 +1263,7 @@ HTML files are developed locally and synced to XAMPP with:
 .\scripts\sync_fixture_controller_to_xampp.ps1
 ```
 
-Use `.\scripts\update_xampp_server.ps1` when you also want a quick HTTP verification after the sync. By default the scripts use the example XAMPP target `E:\Software\xampp\htdocs\dmx\`. To use another location, create `config/local-paths.json` from `config/local-paths.example.json` or pass `-XamppHtdocs`, `-AppFolder`, and `-BaseUrl` directly to the script.
+Use `.\scripts\update_xampp_server.ps1` when you also want a quick HTTP verification after the sync. The scripts use the configured XAMPP target `<xampp-htdocs>\dmx\`. Create `config/local-paths.json` from `config/local-paths.example.json`, or pass `-XamppHtdocs`, `-AppFolder`, and `-BaseUrl` directly to the script.
 
 ---
 
