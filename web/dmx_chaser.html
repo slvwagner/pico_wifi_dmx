@@ -3248,6 +3248,7 @@ const chaserPixelMatrixEditorTemplate=document.createElement('template');
 chaserPixelMatrixEditorTemplate.innerHTML=DmxCommon.pixelMatrixToolboxHtml();
 document.body.appendChild(chaserPixelMatrixEditorTemplate.content.querySelector('#pixelMatrixModal'));
 let editingChaserPixelMatrix=null;
+let chaserPixelMatrixEditor=null;
 let chaserPixelMatrixMoveMode=false;
 let chaserPixelMatrixMoveSelectedSlot=null;
 function chaserPixelMatrices(){
@@ -3303,27 +3304,7 @@ function syncChaserPixelMatrixFields(){
   return editingChaserPixelMatrix;
 }
 function renderChaserPixelMatrixEditor(){
-  if(!editingChaserPixelMatrix)return;
-  const matrix=editingChaserPixelMatrix;
-  document.getElementById('pixelMatrixName').value=matrix.name;
-  document.getElementById('pixelMatrixWidth').value=matrix.width;
-  document.getElementById('pixelMatrixHeight').value=matrix.height;
-  document.getElementById('pixelMatrixFit').value=matrix.fit;
-  document.getElementById('pixelMatrixBrightness').value=matrix.brightness;
-  const targets=chaserPixelMatrixTargets();
-  const targetSelect=document.getElementById('pixelMatrixTarget');
-  const previous=targetSelect.value;
-  targetSelect.innerHTML='<option value="">Unmapped</option>'+targets.map(target=>'<option value="'+DmxCommon.escapeHtml(target.key)+'">'+DmxCommon.escapeHtml(target.label)+'</option>').join('');
-  if(targets.some(target=>target.key===previous))targetSelect.value=previous;
-  const labels=new Map(targets.map(target=>[target.key,target.label]));
-  const grid=document.getElementById('pixelMatrixEditorGrid');
-  grid.style.gridTemplateColumns='repeat('+matrix.width+',minmax(24px,1fr))';
-  grid.innerHTML=matrix.pixels.map((color,index)=>{
-    const key=matrix.mappings[index];
-    return'<button type="button" class="pixel-matrix-cell'+(key?'':' unmapped')+'" data-pixel-matrix-cell="'+index+'" style="background:'+color+'" title="Pixel '+(index+1)+(key?' · '+DmxCommon.escapeHtml(labels.get(key)||key):' · unmapped')+'"><span>'+(index+1)+'</span></button>';
-  }).join('');
-  const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
-  document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
+  chaserPixelMatrixEditor?.render();
 }
 function openChaserPixelMatrixEditor(matrix=null,slot=null){
   const matrices=chaserPixelMatrices();
@@ -3335,19 +3316,8 @@ function openChaserPixelMatrixEditor(matrix=null,slot=null){
     width:8,
     height:8
   });
-  renderChaserPixelMatrixEditor();
+  chaserPixelMatrixEditor.reset();
   DmxCommon.showModal(document.getElementById('pixelMatrixModal'));
-}
-function nextUnusedChaserPixelMatrixTarget(currentKey){
-  if(!editingChaserPixelMatrix||!currentKey)return'';
-  const targets=chaserPixelMatrixTargets();
-  const currentIndex=targets.findIndex(target=>target.key===currentKey);
-  const mapped=new Set(editingChaserPixelMatrix.mappings.filter(Boolean));
-  for(let offset=1;offset<=targets.length;offset++){
-    const candidate=targets[(Math.max(currentIndex,0)+offset)%targets.length]?.key;
-    if(candidate&&!mapped.has(candidate))return candidate;
-  }
-  return'';
 }
 function pixelMatrixStepValue(control,hex){
   if(control.type==='cmy')return rgbToCmy(hex);
@@ -3548,69 +3518,13 @@ document.getElementById('chaserPixelMatrixRows').addEventListener('input',event=
   saveChaserPixelMatricesSetup().catch(error=>setStatus('Pixel Matrix layout save failed: '+error.message,true));
 });
 document.getElementById('moveChaserPixelMatricesBtn').onclick=toggleChaserPixelMatrixMoveMode;
-['pixelMatrixWidth','pixelMatrixHeight'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',()=>{
-    syncChaserPixelMatrixFields();
-    renderChaserPixelMatrixEditor();
-  });
-});
-['pixelMatrixFit','pixelMatrixBrightness'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',()=>{
-    syncChaserPixelMatrixFields();
-    renderChaserPixelMatrixEditor();
-  });
-});
-document.getElementById('pixelMatrixEditorGrid').addEventListener('click',event=>{
-  const cell=event.target.closest('[data-pixel-matrix-cell]');
-  if(!cell||!editingChaserPixelMatrix)return;
-  syncChaserPixelMatrixFields();
-  const index=clamp(cell.dataset.pixelMatrixCell,0,editingChaserPixelMatrix.mappings.length-1);
-  const targetKey=document.getElementById('pixelMatrixTarget').value;
-  if(targetKey)editingChaserPixelMatrix.mappings=editingChaserPixelMatrix.mappings.map(key=>key===targetKey?'':key);
-  editingChaserPixelMatrix.mappings[index]=targetKey;
-  const nextTargetKey=nextUnusedChaserPixelMatrixTarget(targetKey);
-  renderChaserPixelMatrixEditor();
-  document.getElementById('pixelMatrixTarget').value=nextTargetKey;
-});
-document.getElementById('pixelMatrixAutoMap').onclick=()=>{
-  if(!editingChaserPixelMatrix)return;
-  syncChaserPixelMatrixFields();
-  const targets=chaserPixelMatrixTargets();
-  editingChaserPixelMatrix.mappings=editingChaserPixelMatrix.mappings.map((_,index)=>targets[index]?.key||'');
-  renderChaserPixelMatrixEditor();
-};
-document.getElementById('pixelMatrixClearMap').onclick=()=>{
-  if(!editingChaserPixelMatrix)return;
-  editingChaserPixelMatrix.mappings.fill('');
-  renderChaserPixelMatrixEditor();
-};
-document.getElementById('pixelMatrixClearImage').onclick=()=>{
-  if(!editingChaserPixelMatrix)return;
-  editingChaserPixelMatrix.pixels.fill('#000000');
-  editingChaserPixelMatrix.imageName='';
-  document.getElementById('pixelMatrixImage').value='';
-  renderChaserPixelMatrixEditor();
-};
-document.getElementById('pixelMatrixImage').addEventListener('change',async event=>{
-  const file=event.target.files?.[0];
-  if(!file||!editingChaserPixelMatrix)return;
-  syncChaserPixelMatrixFields();
-  event.target.disabled=true;
-  try{
-    editingChaserPixelMatrix.pixels=await DmxCommon.pixelMatrixImageColors(
-      file,
-      editingChaserPixelMatrix.width,
-      editingChaserPixelMatrix.height,
-      {fit:editingChaserPixelMatrix.fit,brightness:editingChaserPixelMatrix.brightness}
-    );
-    editingChaserPixelMatrix.imageName=file.name;
-    renderChaserPixelMatrixEditor();
-    setStatus('Converted '+file.name+' to '+editingChaserPixelMatrix.width+'×'+editingChaserPixelMatrix.height+' pixels');
-  }catch(error){
-    setStatus('Image conversion failed: '+error.message,true);
-  }finally{
-    event.target.disabled=false;
-  }
+chaserPixelMatrixEditor=DmxCommon.initPixelMatrixEditor({
+  getMatrix:()=>editingChaserPixelMatrix,
+  sync:syncChaserPixelMatrixFields,
+  targets:chaserPixelMatrixTargets,
+  preview:matrix=>recallChaserPixelMatrix(matrix),
+  onImageConverted:(file,matrix)=>setStatus('Converted '+file.name+' to '+matrix.width+'×'+matrix.height+' pixels'),
+  onError:message=>setStatus(message,true)
 });
 document.getElementById('pixelMatrixSave').onclick=async()=>{
   if(!editingChaserPixelMatrix)return;
@@ -3628,27 +3542,6 @@ document.getElementById('pixelMatrixSave').onclick=async()=>{
   }catch(error){
     setStatus('Pixel Matrix save failed: '+error.message,true);
   }
-};
-document.getElementById('pixelMatrixApply').onclick=()=>{
-  if(!editingChaserPixelMatrix)return;
-  syncChaserPixelMatrixFields();
-  recallChaserPixelMatrix(editingChaserPixelMatrix);
-};
-document.getElementById('pixelMatrixDelete').onclick=()=>{
-  if(!editingChaserPixelMatrix)return;
-  const matrix=chaserPixelMatrices().find(item=>item.id===editingChaserPixelMatrix.id);
-  if(!matrix){
-    DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
-    setStatus('New pixel matrix discarded');
-    return;
-  }
-  if(!confirm('Delete pixel matrix "'+matrix.name+'"?'))return;
-  setup.pixelMatrices=chaserPixelMatrices().filter(item=>item.id!==matrix.id);
-  renderChaserPixelMatrices();
-  DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
-  saveChaserPixelMatricesSetup()
-    .then(()=>setStatus('Pixel matrix deleted'))
-    .catch(error=>setStatus('Pixel Matrix save failed: '+error.message,true));
 };
 ['pixelMatrixClose','pixelMatrixClose2'].forEach(id=>{
   document.getElementById(id).onclick=()=>DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));

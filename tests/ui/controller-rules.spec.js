@@ -280,6 +280,7 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#pixelMatrixWidth').press('Tab');
     await page.locator('#pixelMatrixHeight').fill('1');
     await page.locator('#pixelMatrixHeight').press('Tab');
+    await page.locator('#pixelMatrixEditMapping').click();
     await page.locator('#pixelMatrixAutoMap').click();
     await page.locator('#pixelMatrixSave').click();
 
@@ -294,6 +295,57 @@ test.describe('Fixture Controller established rules', () => {
         mappings: ['9310:9301', '9320:9301']
       })
     ]);
+  });
+
+  test('Pixel Matrix cells paint colors by default and map only in Edit Mapping mode', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 9350,
+        name: 'Paintable RGB pixels',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9351, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9360, name: 'Pixel 1', profileId: 9350, start: 1 },
+        { id: 9370, name: 'Pixel 2', profileId: 9350, start: 4 }
+      );
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
+    await page.locator('#pixelMatrixWidth').fill('2');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+
+    await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#pixelMatrixDelete')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixApply')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixColorTools')).toBeVisible();
+    await expect(page.locator('#pixelMatrixMappingTools')).toBeHidden();
+    await page.evaluate(() => {
+      window.pixelMatrixPreviewCalls = [];
+      applyControllerPixelMatrix = async matrix => {
+        window.pixelMatrixPreviewCalls.push(JSON.parse(JSON.stringify(matrix)));
+      };
+    });
+    await page.locator('#pixelMatrixColor').fill('#123456');
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    expect(await page.evaluate(() => editingPixelMatrix.pixels)).toEqual(['#123456', '#000000']);
+    expect(await page.evaluate(() => editingPixelMatrix.mappings)).toEqual(['', '']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(1);
+
+    await page.locator('#pixelMatrixEditMapping').click();
+    await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#pixelMatrixColorTools')).toBeHidden();
+    await expect(page.locator('#pixelMatrixMappingTools')).toBeVisible();
+    await page.locator('#pixelMatrixTarget').selectOption('9360:9351');
+    await page.locator('[data-pixel-matrix-cell="1"]').click();
+    expect(await page.evaluate(() => editingPixelMatrix.pixels)).toEqual(['#123456', '#000000']);
+    expect(await page.evaluate(() => editingPixelMatrix.mappings)).toEqual(['', '9360:9351']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(2);
   });
 
   test('Pixel Matrix manual mapping advances to the next unused fixture target', async ({ page }) => {
@@ -319,6 +371,7 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#pixelMatrixWidth').press('Tab');
     await page.locator('#pixelMatrixHeight').fill('1');
     await page.locator('#pixelMatrixHeight').press('Tab');
+    await page.locator('#pixelMatrixEditMapping').click();
     await page.locator('#pixelMatrixTarget').selectOption('9410:9401');
 
     await page.locator('[data-pixel-matrix-cell="0"]').click();

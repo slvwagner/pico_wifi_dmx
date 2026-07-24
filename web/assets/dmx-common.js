@@ -286,14 +286,16 @@
 </div>
 <div id="pixelMatrixModal" class="modal-overlay form-modal" style="display:none">
 <div class="modal-card wide-modal pixel-matrix-modal" role="dialog" aria-modal="true" aria-labelledby="pixelMatrixTitle">
-<div class="modal-head"><button id="pixelMatrixClose" type="button" aria-label="Close">x</button><div class="modal-title-stack"><h2 id="pixelMatrixTitle">Pixel Matrix</h2><div class="small">Map fixture color controls to pixels, convert an image, and send the result to all assigned DMX outputs.</div></div></div>
+<div class="modal-head"><button id="pixelMatrixClose" type="button" aria-label="Close">x</button><div class="modal-title-stack"><h2 id="pixelMatrixTitle">Pixel Matrix</h2><div class="small">Paint pixel colors, map fixture color controls, convert an image, and send the result to all assigned DMX outputs.</div></div></div>
 <div class="modal-body">
 <div class="toolbar"><label>Name<input id="pixelMatrixName" type="text" maxlength="80"></label><label>Width<input id="pixelMatrixWidth" type="number" min="1" max="64"></label><label>Height<input id="pixelMatrixHeight" type="number" min="1" max="64"></label><label>Fit<select id="pixelMatrixFit"><option value="contain">Contain</option><option value="cover">Cover</option><option value="stretch">Stretch</option></select></label><label>Brightness %<input id="pixelMatrixBrightness" type="number" min="1" max="100"></label></div>
-<div class="toolbar"><label>Image<input id="pixelMatrixImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><label>Mapping target<select id="pixelMatrixTarget"></select></label><button id="pixelMatrixAutoMap" type="button">Auto Map</button><button id="pixelMatrixClearMap" type="button">Clear Mapping</button><button id="pixelMatrixClearImage" type="button">Clear Image</button></div>
+<div class="toolbar"><label>Image<input id="pixelMatrixImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><button id="pixelMatrixClearImage" type="button">Clear Image</button></div>
+<div class="toolbar pixel-matrix-edit-toolbar"><button id="pixelMatrixEditMapping" class="pixel-matrix-mode-toggle" type="button" aria-pressed="false">Edit Mapping</button><div id="pixelMatrixColorTools" class="pixel-matrix-inline-tools"><label>Pixel color<input id="pixelMatrixColor" type="color" value="#ffffff"></label><span class="small">Choose a color, then click pixels to paint them.</span></div></div>
+<div id="pixelMatrixMappingTools" class="toolbar pixel-matrix-inline-tools" hidden><label>Mapping target<select id="pixelMatrixTarget"></select></label><button id="pixelMatrixAutoMap" type="button">Auto Map</button><button id="pixelMatrixClearMap" type="button">Clear Mapping</button><span class="small">Click pixels to assign the selected fixture target.</span></div>
 <div class="small" id="pixelMatrixSummary"></div>
 <div id="pixelMatrixEditorGrid" class="pixel-matrix-grid"></div>
 </div>
-<div class="modal-actions"><button id="pixelMatrixDelete" class="danger" type="button">Delete</button><button id="pixelMatrixApply" class="primary" type="button">Apply to DMX</button><button id="pixelMatrixSave" type="button">Save</button><button id="pixelMatrixClose2" type="button">Close</button></div>
+<div class="modal-actions"><button id="pixelMatrixSave" class="primary" type="button">Save</button><button id="pixelMatrixClose2" type="button">Close</button></div>
 </div></div>`;
   }
 
@@ -302,6 +304,158 @@
     if(!el)return null;
     el.outerHTML=pixelMatrixToolboxHtml();
     return document.getElementById('pixelMatrixToolbox');
+  }
+
+  function initPixelMatrixEditor(options={}){
+    const getMatrix=()=>options.getMatrix?.()||null;
+    const getTargets=()=>options.targets?.()||[];
+    let mappingMode=false;
+
+    function report(message,error){
+      if(options.onError)options.onError(message,error);
+      else console.error(message,error);
+    }
+    function preview(){
+      const matrix=getMatrix();
+      if(!matrix||!options.preview)return Promise.resolve(false);
+      return Promise.resolve()
+        .then(()=>options.preview(matrix))
+        .catch(error=>{
+          report('Pixel Matrix preview failed: '+(error?.message||error),error);
+          return false;
+        });
+    }
+    function sync(){
+      return options.sync?.()||getMatrix();
+    }
+    function nextUnusedTarget(currentKey,matrix,targets){
+      if(!currentKey)return'';
+      const currentIndex=targets.findIndex(target=>target.key===currentKey);
+      const mapped=new Set(matrix.mappings.filter(Boolean));
+      for(let offset=1;offset<=targets.length;offset++){
+        const candidate=targets[(currentIndex+offset)%targets.length]?.key||'';
+        if(candidate&&!mapped.has(candidate))return candidate;
+      }
+      return'';
+    }
+    function render(){
+      const matrix=getMatrix();
+      if(!matrix)return;
+      const mappingToggle=document.getElementById('pixelMatrixEditMapping');
+      mappingToggle.setAttribute('aria-pressed',String(mappingMode));
+      mappingToggle.classList.toggle('active',mappingMode);
+      document.getElementById('pixelMatrixColorTools').hidden=mappingMode;
+      document.getElementById('pixelMatrixMappingTools').hidden=!mappingMode;
+      document.getElementById('pixelMatrixName').value=matrix.name;
+      document.getElementById('pixelMatrixWidth').value=matrix.width;
+      document.getElementById('pixelMatrixHeight').value=matrix.height;
+      document.getElementById('pixelMatrixFit').value=matrix.fit;
+      document.getElementById('pixelMatrixBrightness').value=matrix.brightness;
+      const targets=getTargets();
+      const targetSelect=document.getElementById('pixelMatrixTarget');
+      const previous=targetSelect.value;
+      targetSelect.innerHTML='<option value="">Unmapped</option>'+targets.map(target=>`<option value="${escapeHtml(target.key)}">${escapeHtml(target.label)}</option>`).join('');
+      if(targets.some(target=>target.key===previous))targetSelect.value=previous;
+      const labels=new Map(targets.map(target=>[target.key,target.label]));
+      const grid=document.getElementById('pixelMatrixEditorGrid');
+      const paintColor=document.getElementById('pixelMatrixColor').value;
+      grid.style.gridTemplateColumns=`repeat(${matrix.width},minmax(24px,1fr))`;
+      grid.innerHTML=matrix.pixels.map((color,index)=>{
+        const key=matrix.mappings[index];
+        const detail=mappingMode?(key?' · '+escapeHtml(labels.get(key)||key):' · unmapped'):' · '+color+' · paint '+paintColor;
+        return `<button type="button" class="pixel-matrix-cell${mappingMode&&!key?' unmapped':''}" data-pixel-matrix-cell="${index}" style="background:${color}" title="Pixel ${index+1}${detail}"><span>${index+1}</span></button>`;
+      }).join('');
+      const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
+      document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
+    }
+    function reset(){
+      const matrix=getMatrix();
+      mappingMode=false;
+      document.getElementById('pixelMatrixColor').value=matrix?.pixels?.[0]||'#ffffff';
+      render();
+    }
+
+    ['pixelMatrixWidth','pixelMatrixHeight'].forEach(id=>{
+      document.getElementById(id).addEventListener('change',()=>{
+        if(!getMatrix())return;
+        sync();
+        render();
+        preview();
+      });
+    });
+    ['pixelMatrixFit','pixelMatrixBrightness'].forEach(id=>{
+      document.getElementById(id).addEventListener('change',()=>{
+        if(!getMatrix())return;
+        sync();
+        render();
+      });
+    });
+    document.getElementById('pixelMatrixEditorGrid').addEventListener('click',event=>{
+      const cell=event.target.closest('[data-pixel-matrix-cell]');
+      if(!cell||!getMatrix())return;
+      const matrix=sync();
+      const index=clampInt(cell.dataset.pixelMatrixCell,0,matrix.pixels.length-1);
+      if(!mappingMode){
+        matrix.pixels[index]=document.getElementById('pixelMatrixColor').value;
+        render();
+        preview();
+        return;
+      }
+      const targetKey=document.getElementById('pixelMatrixTarget').value;
+      if(targetKey)matrix.mappings=matrix.mappings.map(key=>key===targetKey?'':key);
+      matrix.mappings[index]=targetKey;
+      const nextTargetKey=nextUnusedTarget(targetKey,matrix,getTargets());
+      render();
+      document.getElementById('pixelMatrixTarget').value=nextTargetKey;
+      preview();
+    });
+    document.getElementById('pixelMatrixEditMapping').onclick=()=>{
+      mappingMode=!mappingMode;
+      render();
+    };
+    document.getElementById('pixelMatrixAutoMap').onclick=()=>{
+      if(!getMatrix())return;
+      const matrix=sync();
+      const targets=getTargets();
+      matrix.mappings=matrix.mappings.map((_,index)=>targets[index]?.key||'');
+      render();
+      preview();
+    };
+    document.getElementById('pixelMatrixClearMap').onclick=()=>{
+      if(!getMatrix())return;
+      const matrix=sync();
+      matrix.mappings.fill('');
+      render();
+      preview();
+    };
+    document.getElementById('pixelMatrixClearImage').onclick=()=>{
+      if(!getMatrix())return;
+      const matrix=sync();
+      matrix.pixels.fill('#000000');
+      matrix.imageName='';
+      document.getElementById('pixelMatrixImage').value='';
+      render();
+      preview();
+    };
+    document.getElementById('pixelMatrixImage').addEventListener('change',async event=>{
+      const file=event.target.files?.[0];
+      if(!file||!getMatrix())return;
+      const matrix=sync();
+      event.target.disabled=true;
+      try{
+        matrix.pixels=await pixelMatrixImageColors(file,matrix.width,matrix.height,{fit:matrix.fit,brightness:matrix.brightness});
+        matrix.imageName=file.name;
+        render();
+        await preview();
+        options.onImageConverted?.(file,matrix);
+      }catch(error){
+        report('Image conversion failed: '+(error?.message||error),error);
+      }finally{
+        event.target.disabled=false;
+      }
+    });
+
+    return {render,reset,preview,isMappingMode:()=>mappingMode};
   }
 
   function downloadJson(filename,data){
@@ -3508,6 +3662,7 @@
     pixelMatrixImageColors,
     pixelMatrixToolboxHtml,
     mountPixelMatrixToolbox,
+    initPixelMatrixEditor,
     downloadJson,
     zipJsonBytes,
     unzipJsonBytes,

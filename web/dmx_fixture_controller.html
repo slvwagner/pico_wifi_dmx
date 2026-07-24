@@ -959,6 +959,7 @@ async function sendFixtureDmxRows(entries){
 }
 
 let editingPixelMatrix=null;
+let pixelMatrixEditor=null;
 function controllerPixelMatrixTargets(){
   const supported=new Set(['rgb','rgbw','rgbwa','cmy','cmyk']);
   const targets=[];
@@ -1081,38 +1082,13 @@ function togglePixelMatrixMoveMode(){
   pixelMatrixMoveSelectedSlot=null;
   renderPixelMatrixList();
 }
-function resizeEditingPixelMatrix(){
-  if(!editingPixelMatrix)return;
-  syncEditingPixelMatrixFields();
-  renderPixelMatrixEditor();
-}
 function renderPixelMatrixEditor(){
-  if(!editingPixelMatrix)return;
-  const matrix=editingPixelMatrix;
-  document.getElementById('pixelMatrixName').value=matrix.name;
-  document.getElementById('pixelMatrixWidth').value=matrix.width;
-  document.getElementById('pixelMatrixHeight').value=matrix.height;
-  document.getElementById('pixelMatrixFit').value=matrix.fit;
-  document.getElementById('pixelMatrixBrightness').value=matrix.brightness;
-  const targets=controllerPixelMatrixTargets();
-  const targetSelect=document.getElementById('pixelMatrixTarget');
-  const previous=targetSelect.value;
-  targetSelect.innerHTML='<option value="">Unmapped</option>'+targets.map(target=>`<option value="${escHtml(target.key)}">${escHtml(target.label)}</option>`).join('');
-  if(targets.some(target=>target.key===previous))targetSelect.value=previous;
-  const labels=new Map(targets.map(target=>[target.key,target.fixture.name]));
-  const grid=document.getElementById('pixelMatrixEditorGrid');
-  grid.style.gridTemplateColumns=`repeat(${matrix.width},minmax(24px,1fr))`;
-  grid.innerHTML=matrix.pixels.map((color,index)=>{
-    const key=matrix.mappings[index];
-    return `<button type="button" class="pixel-matrix-cell${key?'':' unmapped'}" data-pixel-matrix-cell="${index}" style="background:${color}" title="Pixel ${index+1}${key?' · '+escHtml(labels.get(key)||key):' · unmapped'}"><span>${index+1}</span></button>`;
-  }).join('');
-  const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
-  document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
+  pixelMatrixEditor?.render();
 }
 function openPixelMatrix(matrix=null,slot=null){
   const nextSlot=slot===null?Math.max(0,...pixelMatrices.map(item=>item.slot+1)):slot;
   editingPixelMatrix=DmxCommon.normalizePixelMatrix(matrix||{id:'pixel-matrix-'+uid(),name:'Pixel Matrix '+(pixelMatrices.length+1),slot:nextSlot,width:8,height:8});
-  renderPixelMatrixEditor();
+  pixelMatrixEditor.reset();
   DmxCommon.showModal(document.getElementById('pixelMatrixModal'));
 }
 function saveEditingPixelMatrix(){
@@ -1138,18 +1114,6 @@ function syncEditingPixelMatrixFields(){
   });
   return editingPixelMatrix;
 }
-function nextUnusedPixelMatrixTarget(currentKey){
-  if(!editingPixelMatrix||!currentKey)return'';
-  const targets=controllerPixelMatrixTargets();
-  const currentIndex=targets.findIndex(target=>target.key===currentKey);
-  const mapped=new Set(editingPixelMatrix.mappings.filter(Boolean));
-  for(let offset=1;offset<=targets.length;offset++){
-    const target=targets[(Math.max(0,currentIndex)+offset)%targets.length];
-    if(target&&!mapped.has(target.key))return target.key;
-  }
-  return'';
-}
-
 function parseWheelOptions(text){
   return text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
     const parts=line.split('=');
@@ -6804,87 +6768,17 @@ document.getElementById('pixelMatrixGrid').addEventListener('click',event=>{
   }
   openPixelMatrix(null,slot);
 });
-['pixelMatrixWidth','pixelMatrixHeight'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',resizeEditingPixelMatrix);
-});
-['pixelMatrixFit','pixelMatrixBrightness'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',()=>{
-    syncEditingPixelMatrixFields();
-    renderPixelMatrixEditor();
-  });
-});
-document.getElementById('pixelMatrixEditorGrid').addEventListener('click',event=>{
-  const cell=event.target.closest('[data-pixel-matrix-cell]');
-  if(!cell||!editingPixelMatrix)return;
-  syncEditingPixelMatrixFields();
-  const index=clamp(cell.dataset.pixelMatrixCell,0,editingPixelMatrix.mappings.length-1);
-  const targetKey=document.getElementById('pixelMatrixTarget').value;
-  if(targetKey)editingPixelMatrix.mappings=editingPixelMatrix.mappings.map(key=>key===targetKey?'':key);
-  editingPixelMatrix.mappings[index]=targetKey;
-  const nextTargetKey=nextUnusedPixelMatrixTarget(targetKey);
-  renderPixelMatrixEditor();
-  document.getElementById('pixelMatrixTarget').value=nextTargetKey;
-});
-document.getElementById('pixelMatrixAutoMap').onclick=()=>{
-  if(!editingPixelMatrix)return;
-  syncEditingPixelMatrixFields();
-  const targets=controllerPixelMatrixTargets();
-  editingPixelMatrix.mappings=editingPixelMatrix.mappings.map((_,index)=>targets[index]?.key||'');
-  renderPixelMatrixEditor();
-};
-document.getElementById('pixelMatrixClearMap').onclick=()=>{
-  if(!editingPixelMatrix)return;
-  editingPixelMatrix.mappings.fill('');
-  renderPixelMatrixEditor();
-};
-document.getElementById('pixelMatrixClearImage').onclick=()=>{
-  if(!editingPixelMatrix)return;
-  editingPixelMatrix.pixels.fill('#000000');
-  editingPixelMatrix.imageName='';
-  document.getElementById('pixelMatrixImage').value='';
-  renderPixelMatrixEditor();
-};
-document.getElementById('pixelMatrixImage').addEventListener('change',async event=>{
-  const file=event.target.files?.[0];
-  if(!file||!editingPixelMatrix)return;
-  syncEditingPixelMatrixFields();
-  const input=event.target;
-  input.disabled=true;
-  try{
-    editingPixelMatrix.pixels=await DmxCommon.pixelMatrixImageColors(
-      file,
-      editingPixelMatrix.width,
-      editingPixelMatrix.height,
-      {fit:editingPixelMatrix.fit,brightness:editingPixelMatrix.brightness}
-    );
-    editingPixelMatrix.imageName=file.name;
-    renderPixelMatrixEditor();
-    setStatus('Converted '+file.name+' to '+editingPixelMatrix.width+'×'+editingPixelMatrix.height+' pixels');
-  }catch(error){
-    showError('Image conversion failed: '+error.message);
-  }finally{
-    input.disabled=false;
-  }
+pixelMatrixEditor=DmxCommon.initPixelMatrixEditor({
+  getMatrix:()=>editingPixelMatrix,
+  sync:syncEditingPixelMatrixFields,
+  targets:controllerPixelMatrixTargets,
+  preview:matrix=>applyControllerPixelMatrix(matrix),
+  onImageConverted:(file,matrix)=>setStatus('Converted '+file.name+' to '+matrix.width+'×'+matrix.height+' pixels'),
+  onError:message=>showError(message)
 });
 document.getElementById('pixelMatrixSave').onclick=()=>{
   saveEditingPixelMatrix();
   DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
-};
-document.getElementById('pixelMatrixApply').onclick=event=>{
-  syncEditingPixelMatrixFields();
-  DmxCommon.withButtonFeedback(event.currentTarget,{busy:'Applying...',success:'Applied',error:'Failed'},async()=>{
-    await applyControllerPixelMatrix(editingPixelMatrix);
-  }).catch(error=>showError(error.message||'Pixel matrix could not be applied'));
-};
-document.getElementById('pixelMatrixDelete').onclick=()=>{
-  if(!editingPixelMatrix)return;
-  const existing=pixelMatrices.some(matrix=>matrix.id===editingPixelMatrix.id);
-  if(existing&&!confirm('Delete pixel matrix "'+editingPixelMatrix.name+'"?'))return;
-  pixelMatrices=pixelMatrices.filter(matrix=>matrix.id!==editingPixelMatrix.id);
-  renderPixelMatrixList();
-  scheduleSetupAutosave();
-  DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
-  setStatus(existing?'Pixel matrix deleted':'New pixel matrix discarded');
 };
 ['pixelMatrixClose','pixelMatrixClose2'].forEach(id=>{
   document.getElementById(id).onclick=()=>DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));

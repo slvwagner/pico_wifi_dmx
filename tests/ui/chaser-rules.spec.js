@@ -1010,13 +1010,39 @@ test.describe('Chaser established rules', () => {
     await page.locator('[data-edit-chaser-pixel-matrix="picture-edit"]').click();
     await expect(page.locator('#pixelMatrixModal')).toBeVisible();
     await expect(page.locator('#pixelMatrixName')).toHaveValue('Picture Edit');
+    await expect(page.locator('#pixelMatrixDelete')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixApply')).toHaveCount(0);
+    await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'false');
+    await page.evaluate(() => {
+      window.pixelMatrixPreviewCalls = [];
+      recallChaserPixelMatrix = matrix => {
+        window.pixelMatrixPreviewCalls.push(JSON.parse(JSON.stringify(matrix)));
+        return true;
+      };
+    });
+    await page.locator('#pixelMatrixColor').fill('#123456');
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    expect(await page.evaluate(() => editingChaserPixelMatrix.pixels)).toEqual(['#123456', '#00ff00']);
+    expect(await page.evaluate(() => editingChaserPixelMatrix.mappings)).toEqual(['101:13', '102:22']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(1);
+    await page.locator('#pixelMatrixEditMapping').click();
+    await expect(page.locator('#pixelMatrixMappingTools')).toBeVisible();
+    await page.locator('#pixelMatrixTarget').selectOption('102:22');
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    expect(await page.evaluate(() => editingChaserPixelMatrix.pixels)).toEqual(['#123456', '#00ff00']);
+    expect(await page.evaluate(() => editingChaserPixelMatrix.mappings)).toEqual(['102:22', '']);
+    await expect.poll(() => page.evaluate(() => window.pixelMatrixPreviewCalls.length)).toBe(2);
     await page.locator('#pixelMatrixName').fill('Edited Picture');
     const editRequest = page.waitForRequest(request =>
       request.method() === 'POST' && /fixture_setup\.php(?:\?|$)/.test(request.url())
     );
     await page.locator('#pixelMatrixSave').click();
     const editPayload = (await editRequest).postDataJSON();
-    expect(editPayload.pixelMatrices.find(matrix => matrix.id === 'picture-edit')?.name).toBe('Edited Picture');
+    expect(editPayload.pixelMatrices.find(matrix => matrix.id === 'picture-edit')).toEqual(expect.objectContaining({
+      name: 'Edited Picture',
+      pixels: ['#123456', '#00ff00'],
+      mappings: ['102:22', '']
+    }));
     await expect(page.locator('#pixelMatrixModal')).toBeHidden();
     await expect(page.locator('#chaserPixelMatrixGrid')).toContainText('Edited Picture');
     await expect.poll(() => page.evaluate(() => setup.pixelMatrices.find(matrix => matrix.id === 'picture-edit')?.name)).toBe('Edited Picture');
