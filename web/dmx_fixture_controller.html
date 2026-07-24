@@ -12,8 +12,8 @@
 <link rel="icon" href="assets/favicon.ico?v=0.9.14">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.14">
 <link rel="manifest" href="assets/manifest.webmanifest?v=0.9.14">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-8">
-<script src="assets/dmx-common.js?v=0.9.14-8"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-9">
+<script src="assets/dmx-common.js?v=0.9.14-9"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -676,6 +676,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="pixelMatrixToolboxMount"></div>
 <div id="fanToolboxMount"></div>
 
 <aside id="fixtureToolboxRail" class="toolbox-rail" aria-label="Fixture controller toolboxes"></aside>
@@ -689,21 +690,23 @@ document.body.classList.add('toolbox-rail-layout');
   ['controllerPlaneLayoutControls',{colsId:'controllerPlaneCols',rowsId:'controllerPlaneRows',moveId:'moveControllerPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
 ].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group to fan fixtures.'});
+DmxCommon.mountPixelMatrixToolbox('pixelMatrixToolboxMount');
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
 fixtureToolboxRail.dataset.minMainWidth='360';
-DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'controllerPlanesBox',type:'planes'},{box:'fanToolbox',type:'fan'}]);
+DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'controllerPlanesBox',type:'planes'},{box:'pixelMatrixToolbox',type:'pixel-matrices'},{box:'fanToolbox',type:'fan'}]);
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
 let dmxOutputs=[];
 let discoveredPicos=[];
+let pixelMatrices=[];
 let showName='Untitled Show';
 let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
 const FULL_SETUP_TYPE='pico_wifi_dmx_full_setup';
 const SHOW_FIXTURE_LIBRARY_TYPE='pico_wifi_dmx_show_fixture_library';
-const FULL_SETUP_FORMAT_VERSION=4;
+const FULL_SETUP_FORMAT_VERSION=5;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
 const baseUrl=document.getElementById('baseUrl');
@@ -950,6 +953,148 @@ async function sendFixtureDmxRows(entries){
   const errors=results.filter(result=>result.status==='rejected').map(result=>result.reason?.message||String(result.reason));
   if(errors.length)throw new Error(errors.join(' · '));
   return [...batches.values()].reduce((count,batch)=>count+batch.pairs.length,0);
+}
+
+let editingPixelMatrix=null;
+function controllerPixelMatrixTargets(){
+  const supported=new Set(['rgb','rgbw','rgbwa','cmy','cmyk']);
+  const targets=[];
+  fixtures.forEach(fixture=>{
+    const profile=fixtureProfile(fixture);
+    (profile?.controls||[]).forEach(control=>{
+      if(control.type==='matrixRgb'){
+        for(let pixelIndex=0;pixelIndex<matrixPixelCount(control);pixelIndex++){
+          targets.push({
+            key:String(fixture.id)+':'+String(control.id)+':'+pixelIndex,
+            fixture,
+            control,
+            pixelIndex,
+            label:fixture.name+' · '+control.label+' Pixel '+(pixelIndex+1)+' · '+fixtureDmxOutput(fixture).name+' U'+fixtureDmxOutput(fixture).universe
+          });
+        }
+        return;
+      }
+      if(!supported.has(control.type))return;
+      targets.push({
+        key:String(fixture.id)+':'+String(control.id),
+        fixture,
+        control,
+        label:fixture.name+' · '+control.label+' · '+fixtureDmxOutput(fixture).name+' U'+fixtureDmxOutput(fixture).universe
+      });
+    });
+  });
+  return targets;
+}
+function pixelMatrixValue(control,hex){
+  if(control.type==='cmy')return rgbToCmy(hex);
+  if(control.type==='cmyk')return rgbToCmyk(hex);
+  const rgb=hexToRgb(hex);
+  if(control.type==='rgbw')return{...rgb,w:0};
+  if(control.type==='rgbwa')return{...rgb,w:0,amber:0};
+  return rgb;
+}
+async function applyControllerPixelMatrix(matrix){
+  const normalized=DmxCommon.normalizePixelMatrix(matrix);
+  const targets=new Map(controllerPixelMatrixTargets().map(target=>[target.key,target]));
+  const affectedControls=new Map();
+  let applied=0;
+  normalized.mappings.forEach((key,index)=>{
+    const target=targets.get(key);
+    if(!target)return;
+    if(target.control.type==='matrixRgb'){
+      const value=normalizeMatrixValue(target.control,getValue(target.fixture,target.control,matrixDefaultValue(target.control)));
+      value.pixels[target.pixelIndex]=hexToRgb(normalized.pixels[index]);
+      setValue(target.fixture,target.control,value);
+    }else{
+      setValue(target.fixture,target.control,pixelMatrixValue(target.control,normalized.pixels[index]));
+    }
+    affectedControls.set(controlKey(target.fixture,target.control),target);
+    applied++;
+  });
+  const entries=[];
+  affectedControls.forEach(target=>{
+    resolveDmxBytes(target.fixture,target.control).forEach(row=>entries.push({fixture:target.fixture,row}));
+  });
+  if(entries.length)await sendFixtureDmxRows(entries);
+  drawSurface();
+  writeLiveValues(true);
+  setStatus('Applied '+normalized.name+' to '+applied+' mapped pixel'+(applied===1?'':'s'));
+  return applied;
+}
+function renderPixelMatrixList(){
+  const host=document.getElementById('pixelMatrixList');
+  if(!host)return;
+  host.innerHTML=pixelMatrices.map(matrix=>{
+    const mapped=matrix.mappings.filter(Boolean).length;
+    return `<button type="button" class="pixel-matrix-list-item" data-open-pixel-matrix="${escHtml(matrix.id)}"><strong>${escHtml(matrix.name)}</strong><span class="small">${matrix.width}×${matrix.height} · ${mapped}/${matrix.width*matrix.height} mapped</span></button>`;
+  }).join('')||'<div class="small">No pixel matrices yet.</div>';
+}
+function resizeEditingPixelMatrix(){
+  if(!editingPixelMatrix)return;
+  syncEditingPixelMatrixFields();
+  renderPixelMatrixEditor();
+}
+function renderPixelMatrixEditor(){
+  if(!editingPixelMatrix)return;
+  const matrix=editingPixelMatrix;
+  document.getElementById('pixelMatrixName').value=matrix.name;
+  document.getElementById('pixelMatrixWidth').value=matrix.width;
+  document.getElementById('pixelMatrixHeight').value=matrix.height;
+  document.getElementById('pixelMatrixFit').value=matrix.fit;
+  document.getElementById('pixelMatrixBrightness').value=matrix.brightness;
+  const targets=controllerPixelMatrixTargets();
+  const targetSelect=document.getElementById('pixelMatrixTarget');
+  const previous=targetSelect.value;
+  targetSelect.innerHTML='<option value="">Unmapped</option>'+targets.map(target=>`<option value="${escHtml(target.key)}">${escHtml(target.label)}</option>`).join('');
+  if(targets.some(target=>target.key===previous))targetSelect.value=previous;
+  const labels=new Map(targets.map(target=>[target.key,target.fixture.name]));
+  const grid=document.getElementById('pixelMatrixGrid');
+  grid.style.gridTemplateColumns=`repeat(${matrix.width},minmax(24px,1fr))`;
+  grid.innerHTML=matrix.pixels.map((color,index)=>{
+    const key=matrix.mappings[index];
+    return `<button type="button" class="pixel-matrix-cell${key?'':' unmapped'}" data-pixel-matrix-cell="${index}" style="background:${color}" title="Pixel ${index+1}${key?' · '+escHtml(labels.get(key)||key):' · unmapped'}"><span>${index+1}</span></button>`;
+  }).join('');
+  const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
+  document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
+}
+function openPixelMatrix(matrix=null){
+  editingPixelMatrix=DmxCommon.normalizePixelMatrix(matrix||{id:'pixel-matrix-'+uid(),name:'Pixel Matrix '+(pixelMatrices.length+1),width:8,height:8});
+  renderPixelMatrixEditor();
+  DmxCommon.showModal(document.getElementById('pixelMatrixModal'));
+}
+function saveEditingPixelMatrix(){
+  if(!editingPixelMatrix)return;
+  syncEditingPixelMatrixFields();
+  const index=pixelMatrices.findIndex(matrix=>matrix.id===editingPixelMatrix.id);
+  if(index>=0)pixelMatrices[index]=editingPixelMatrix;
+  else pixelMatrices.push(editingPixelMatrix);
+  renderPixelMatrixList();
+  scheduleSetupAutosave();
+  setStatus('Saved pixel matrix: '+editingPixelMatrix.name);
+}
+
+function syncEditingPixelMatrixFields(){
+  if(!editingPixelMatrix)return null;
+  editingPixelMatrix=DmxCommon.normalizePixelMatrix({
+    ...editingPixelMatrix,
+    name:document.getElementById('pixelMatrixName').value,
+    width:document.getElementById('pixelMatrixWidth').value,
+    height:document.getElementById('pixelMatrixHeight').value,
+    fit:document.getElementById('pixelMatrixFit').value,
+    brightness:document.getElementById('pixelMatrixBrightness').value
+  });
+  return editingPixelMatrix;
+}
+function nextUnusedPixelMatrixTarget(currentKey){
+  if(!editingPixelMatrix||!currentKey)return'';
+  const targets=controllerPixelMatrixTargets();
+  const currentIndex=targets.findIndex(target=>target.key===currentKey);
+  const mapped=new Set(editingPixelMatrix.mappings.filter(Boolean));
+  for(let offset=1;offset<=targets.length;offset++){
+    const target=targets[(Math.max(0,currentIndex)+offset)%targets.length];
+    if(target&&!mapped.has(target.key))return target.key;
+  }
+  return'';
 }
 
 function parseWheelOptions(text){
@@ -2291,7 +2436,7 @@ function commitDmxOutputsEditor(){
   DmxCommon.hideModal(document.getElementById('dmxOutputsModal'));
   return true;
 }
-function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:primaryDmxOutput().baseUrl,dmxOutputs,profiles,fixtures});}
+function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:primaryDmxOutput().baseUrl,dmxOutputs,pixelMatrices,profiles,fixtures});}
 function applyData(data){
   showName=normalizeShowName(data?.showName);
   renderShowName();
@@ -2301,6 +2446,7 @@ function applyData(data){
   syncPrimaryBaseUrl();
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
+  pixelMatrices=DmxCommon.normalizePixelMatrices(data?.pixelMatrices);
   renderPatchOutputOptions();
   Object.keys(values).forEach(k=>delete values[k]);
   Object.assign(values,data?.values||{});
@@ -2310,6 +2456,7 @@ function applyData(data){
   }catch(_){}
   activeProfileId=profiles[0]?.id||0;
   if(!profiles.length)addDefaultProfile();
+  renderPixelMatrixList();
   draw();
 }
 async function syncLiveValuesSnapshot(options={}){
@@ -3329,6 +3476,15 @@ function migrateFullSetupToV4(setup){
   migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
   return migrated;
 }
+function migrateFullSetupToV5(setup){
+  const migrated={...setup};
+  const fixture=migrated.fixture&&typeof migrated.fixture==='object'?{...migrated.fixture}:{};
+  fixture.pixelMatrices=DmxCommon.normalizePixelMatrices(fixture.pixelMatrices);
+  migrated.fixture=fixture;
+  migrated.setupFormatVersion=5;
+  migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
+  return migrated;
+}
 function migrateFullSetupPayload(setup){
   let migrated=JSON.parse(JSON.stringify(setup||{}));
   let version=fullSetupFormatVersion(migrated);
@@ -3345,6 +3501,9 @@ function migrateFullSetupPayload(setup){
     }else if(version===3){
       migrated=migrateFullSetupToV4(migrated);
       version=4;
+    }else if(version===4){
+      migrated=migrateFullSetupToV5(migrated);
+      version=5;
     }else{
       throw new Error('No migration path from setup file format '+version+' to '+FULL_SETUP_FORMAT_VERSION+'.');
     }
@@ -3608,6 +3767,7 @@ function resetShowLocalState(){
   clearTimeout(_writeLiveValuesTimer);
   profiles=[];
   fixtures=[];
+  pixelMatrices=[];
   Object.keys(values).forEach(k=>delete values[k]);
   activeProfileId=0;
   editingControlId=0;
@@ -3648,6 +3808,7 @@ function resetShowLocalState(){
   renderSavedGroupsList();
   renderSlotMatrix();
   renderPaletteMatrix();
+  renderPixelMatrixList();
   renderFanToolbox();
   draw();
 }
@@ -3677,6 +3838,7 @@ async function startNewShow(){
       groupsBoxCollapsed:false,
       sceneBoxCollapsed:false,
       paletteBoxCollapsed:false,
+      pixelMatrixToolboxCollapsed:false,
       fanToolboxCollapsed:false
     },
     toolboxes:{selectedGroupIds:[],groupsBoxCols:2,groupsBoxRows:4},
@@ -6509,6 +6671,110 @@ const controllerPlanesToolbox=DmxCommon.initFloatingToolbox({
 });
 loadControllerPlanesServer();
 // ── End saved room planes ─────────────────────────────────────────────
+
+const pixelMatrixToolbox=DmxCommon.initFloatingToolbox({
+  boxId:'pixelMatrixToolbox',
+  headerId:'pixelMatrixToolboxHdr',
+  toggleId:'pixelMatrixToolboxToggle',
+  posStorageKey:'pixelMatrixToolboxPos',
+  collapsedStorageKey:'pixelMatrixToolboxCollapsed',
+  uiStatePage:'fixture',
+  uiStatePosKey:'pixelMatrixToolboxPos',
+  uiStateCollapsedKey:'pixelMatrixToolboxCollapsed'
+});
+document.getElementById('pixelMatrixNew').onclick=()=>openPixelMatrix();
+document.getElementById('pixelMatrixList').addEventListener('click',event=>{
+  const button=event.target.closest('[data-open-pixel-matrix]');
+  if(!button)return;
+  const matrix=pixelMatrices.find(item=>item.id===button.dataset.openPixelMatrix);
+  if(matrix)openPixelMatrix(JSON.parse(JSON.stringify(matrix)));
+});
+['pixelMatrixWidth','pixelMatrixHeight'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',resizeEditingPixelMatrix);
+});
+['pixelMatrixFit','pixelMatrixBrightness'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{
+    syncEditingPixelMatrixFields();
+    renderPixelMatrixEditor();
+  });
+});
+document.getElementById('pixelMatrixGrid').addEventListener('click',event=>{
+  const cell=event.target.closest('[data-pixel-matrix-cell]');
+  if(!cell||!editingPixelMatrix)return;
+  syncEditingPixelMatrixFields();
+  const index=clamp(cell.dataset.pixelMatrixCell,0,editingPixelMatrix.mappings.length-1);
+  const targetKey=document.getElementById('pixelMatrixTarget').value;
+  if(targetKey)editingPixelMatrix.mappings=editingPixelMatrix.mappings.map(key=>key===targetKey?'':key);
+  editingPixelMatrix.mappings[index]=targetKey;
+  const nextTargetKey=nextUnusedPixelMatrixTarget(targetKey);
+  renderPixelMatrixEditor();
+  document.getElementById('pixelMatrixTarget').value=nextTargetKey;
+});
+document.getElementById('pixelMatrixAutoMap').onclick=()=>{
+  if(!editingPixelMatrix)return;
+  syncEditingPixelMatrixFields();
+  const targets=controllerPixelMatrixTargets();
+  editingPixelMatrix.mappings=editingPixelMatrix.mappings.map((_,index)=>targets[index]?.key||'');
+  renderPixelMatrixEditor();
+};
+document.getElementById('pixelMatrixClearMap').onclick=()=>{
+  if(!editingPixelMatrix)return;
+  editingPixelMatrix.mappings.fill('');
+  renderPixelMatrixEditor();
+};
+document.getElementById('pixelMatrixClearImage').onclick=()=>{
+  if(!editingPixelMatrix)return;
+  editingPixelMatrix.pixels.fill('#000000');
+  editingPixelMatrix.imageName='';
+  document.getElementById('pixelMatrixImage').value='';
+  renderPixelMatrixEditor();
+};
+document.getElementById('pixelMatrixImage').addEventListener('change',async event=>{
+  const file=event.target.files?.[0];
+  if(!file||!editingPixelMatrix)return;
+  syncEditingPixelMatrixFields();
+  const input=event.target;
+  input.disabled=true;
+  try{
+    editingPixelMatrix.pixels=await DmxCommon.pixelMatrixImageColors(
+      file,
+      editingPixelMatrix.width,
+      editingPixelMatrix.height,
+      {fit:editingPixelMatrix.fit,brightness:editingPixelMatrix.brightness}
+    );
+    editingPixelMatrix.imageName=file.name;
+    renderPixelMatrixEditor();
+    setStatus('Converted '+file.name+' to '+editingPixelMatrix.width+'×'+editingPixelMatrix.height+' pixels');
+  }catch(error){
+    showError('Image conversion failed: '+error.message);
+  }finally{
+    input.disabled=false;
+  }
+});
+document.getElementById('pixelMatrixSave').onclick=()=>{
+  saveEditingPixelMatrix();
+  DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
+};
+document.getElementById('pixelMatrixApply').onclick=event=>{
+  syncEditingPixelMatrixFields();
+  DmxCommon.withButtonFeedback(event.currentTarget,{busy:'Applying...',success:'Applied',error:'Failed'},async()=>{
+    await applyControllerPixelMatrix(editingPixelMatrix);
+  }).catch(error=>showError(error.message||'Pixel matrix could not be applied'));
+};
+document.getElementById('pixelMatrixDelete').onclick=()=>{
+  if(!editingPixelMatrix)return;
+  const existing=pixelMatrices.some(matrix=>matrix.id===editingPixelMatrix.id);
+  if(existing&&!confirm('Delete pixel matrix "'+editingPixelMatrix.name+'"?'))return;
+  pixelMatrices=pixelMatrices.filter(matrix=>matrix.id!==editingPixelMatrix.id);
+  renderPixelMatrixList();
+  scheduleSetupAutosave();
+  DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
+  setStatus(existing?'Pixel matrix deleted':'New pixel matrix discarded');
+};
+['pixelMatrixClose','pixelMatrixClose2'].forEach(id=>{
+  document.getElementById(id).onclick=()=>DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
+});
+renderPixelMatrixList();
 
 const fanToolbox=DmxCommon.initFloatingToolbox({
   boxId:'fanToolbox',

@@ -161,6 +161,193 @@ test.describe('Fixture Controller established rules', () => {
     ]);
   });
 
+  test('Pixel Matrix normalizes mappings and applies mapped colors across DMX outputs', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    const result = await page.evaluate(async () => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      profiles.splice(0, profiles.length, {
+        id: 9100,
+        name: 'RGB pixel',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9101, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9110, name: 'Pixel A', profileId: 9100, start: 1, outputId: 'front' },
+        { id: 9120, name: 'Pixel B', profileId: 9100, start: 1, outputId: 'rear' }
+      );
+      const targets = controllerPixelMatrixTargets();
+      const matrix = DmxCommon.normalizePixelMatrix({
+        id: 'matrix-test',
+        name: 'Test matrix',
+        width: 2,
+        height: 1,
+        mappings: targets.map(target => target.key),
+        pixels: ['#ff0000', '#0000ff']
+      });
+      await applyControllerPixelMatrix(matrix);
+      return {
+        matrix,
+        targetCount: targets.length,
+        first: values['9110:9101'],
+        second: values['9120:9101']
+      };
+    });
+
+    expect(result.targetCount).toBe(2);
+    expect(result.matrix.mappings).toHaveLength(2);
+    expect(result.first).toEqual({ a: 255, b: 0, c: 0 });
+    expect(result.second).toEqual({ a: 0, b: 0, c: 255 });
+    await expect.poll(() => requests.some(item => item.url.endsWith('/dmx/b') && item.body === '1:255,2:0,3:0')).toBe(true);
+    await expect.poll(() => requests.some(item => item.url.endsWith('/dmx/b') && item.body === '1:0,2:0,3:255')).toBe(true);
+  });
+
+  test('Pixel Matrix maps individual native matrixRgb pixels and converts an image in the browser', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18993/**', async route => {
+      requests.push({ url: route.request().url(), body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    const result = await page.evaluate(async () => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'matrix-output', name: 'Matrix Pico', universe: 3, baseUrl: 'http://127.0.0.1:18993/' }
+      ]);
+      profiles.splice(0, profiles.length, {
+        id: 9200,
+        name: 'Native matrix',
+        mode: '2x1',
+        channels: 6,
+        controls: [{ id: 9201, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 1 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9210, name: 'Matrix fixture', profileId: 9200, start: 1, outputId: 'matrix-output' }
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = 1;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#ff0000';
+      context.fillRect(0, 0, 1, 1);
+      context.fillStyle = '#0000ff';
+      context.fillRect(1, 0, 1, 1);
+      const source = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const pixels = await DmxCommon.pixelMatrixImageColors(source, 2, 1, { fit: 'stretch' });
+      const targets = controllerPixelMatrixTargets();
+      await applyControllerPixelMatrix({
+        name: 'Native matrix test',
+        width: 2,
+        height: 1,
+        mappings: targets.map(target => target.key),
+        pixels
+      });
+      return {
+        targets: targets.map(target => ({ key: target.key, pixelIndex: target.pixelIndex })),
+        pixels,
+        value: values['9210:9201']
+      };
+    });
+
+    expect(result.targets).toEqual([
+      { key: '9210:9201:0', pixelIndex: 0 },
+      { key: '9210:9201:1', pixelIndex: 1 }
+    ]);
+    expect(result.pixels).toEqual(['#ff0000', '#0000ff']);
+    expect(result.value).toEqual({ pixels: [{ a: 255, b: 0, c: 0 }, { a: 0, b: 0, c: 255 }] });
+    await expect.poll(() => requests.some(item =>
+      item.url.endsWith('/dmx/b') && item.body === '1:255,2:0,3:0,4:0,5:0,6:255'
+    )).toBe(true);
+  });
+
+  test('Pixel Matrix toolbox creates a row-major mapping and stores it with the fixture setup', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 9300,
+        name: 'RGB pixels',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9301, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9310, name: 'Pixel 1', profileId: 9300, start: 1 },
+        { id: 9320, name: 'Pixel 2', profileId: 9300, start: 4 }
+      );
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixNew').click();
+    await expect(page.locator('#pixelMatrixModal')).toBeVisible();
+    await page.locator('#pixelMatrixName').fill('Front wall');
+    await page.locator('#pixelMatrixWidth').fill('2');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+    await page.locator('#pixelMatrixAutoMap').click();
+    await page.locator('#pixelMatrixSave').click();
+
+    await expect(page.locator('#pixelMatrixModal')).toBeHidden();
+    await expect(page.locator('#pixelMatrixList')).toContainText('Front wall');
+    const saved = await page.evaluate(() => saveData().pixelMatrices);
+    expect(saved).toEqual([
+      expect.objectContaining({
+        name: 'Front wall',
+        width: 2,
+        height: 1,
+        mappings: ['9310:9301', '9320:9301']
+      })
+    ]);
+  });
+
+  test('Pixel Matrix manual mapping advances to the next unused fixture target', async ({ page }) => {
+    await page.evaluate(() => {
+      profiles.splice(0, profiles.length, {
+        id: 9400,
+        name: 'Manual RGB pixels',
+        mode: '3ch',
+        channels: 3,
+        controls: [{ id: 9401, type: 'rgb', label: 'Color', a: 1, b: 2, c: 3 }]
+      });
+      fixtures.splice(0, fixtures.length,
+        { id: 9410, name: 'Pixel 1', profileId: 9400, start: 1 },
+        { id: 9420, name: 'Pixel 2', profileId: 9400, start: 4 },
+        { id: 9430, name: 'Pixel 3', profileId: 9400, start: 7 }
+      );
+      pixelMatrices = [];
+      renderPixelMatrixList();
+    });
+
+    await page.locator('#pixelMatrixNew').click();
+    await page.locator('#pixelMatrixWidth').fill('3');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+    await page.locator('#pixelMatrixTarget').selectOption('9410:9401');
+
+    await page.locator('[data-pixel-matrix-cell="0"]').click();
+    await expect(page.locator('#pixelMatrixTarget')).toHaveValue('9420:9401');
+
+    await page.locator('[data-pixel-matrix-cell="1"]').click();
+    await expect(page.locator('#pixelMatrixTarget')).toHaveValue('9430:9401');
+
+    await page.locator('[data-pixel-matrix-cell="2"]').click();
+    await expect(page.locator('#pixelMatrixTarget')).toHaveValue('');
+    const mappings = await page.evaluate(() => editingPixelMatrix.mappings);
+    expect(mappings).toEqual(['9410:9401', '9420:9401', '9430:9401']);
+  });
+
   test('fixture card Default and Blackout buttons recall their values to DMX', async ({ page }) => {
     const urls = [];
     await page.route('http://127.0.0.1:18991/**', async route => {

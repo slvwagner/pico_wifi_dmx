@@ -61,6 +61,16 @@
       "purpose": "controller fan out toolbox"
     },
     {
+      "file": "fixture-controller-toolbox-pixel-matrices.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "controller Pixel Matrices toolbox with a saved matrix"
+    },
+    {
+      "file": "fixture-controller-pixel-matrix-editor.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "Pixel Matrix editor with converted colors and sequential fixture mapping"
+    },
+    {
       "file": "toolbox-reorder-locked.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "shared Toolboxes header with reordering locked"

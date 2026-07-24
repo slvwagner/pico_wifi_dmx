@@ -79,9 +79,34 @@ Names, universe numbers, and URLs remain editable after discovery. Click **Add o
 
 Select the wanted **DMX output** while patching a fixture. Address conflicts are checked only inside that output, so Universe 1 channel 1 and Universe 2 channel 1 are independent and may both be used. Existing fixture cards in **Patch Fixtures** also have a DMX output dropdown. Reassigning a fixture is refused if its address range would overlap another fixture on the destination output.
 
-The Controller routes single controls, fixture Default/Blackout/Highlight recalls, Group Edit, scenes, palettes, Fan Out, room-plane targeting, and clear-all operations to their fixtures' assigned outputs. Multi-fixture batches are separated by output and sent to the involved Picos concurrently. **Patch CSV** includes the output name and universe for every channel. Complete show export/import preserves the output definitions and fixture assignments; the multi-output show format is version 4 so older controller software refuses it instead of sending every universe to one Pico.
+The Controller routes single controls, fixture Default/Blackout/Highlight recalls, Group Edit, scenes, palettes, Fan Out, room-plane targeting, and clear-all operations to their fixtures' assigned outputs. Multi-fixture batches are separated by output and sent to the involved Picos concurrently. **Patch CSV** includes the output name and universe for every channel. Complete show export/import preserves the output definitions and fixture assignments; the current show format is version 5 so older controller software refuses unsupported multi-output and pixel-matrix data instead of silently losing it.
 
 The other operating pages currently continue to use the first output as their single Primary Pico URL. Configure and verify multi-output fixtures on the Fixture Controller until those pages are migrated to the shared output routing.
+
+### Pixel Matrices
+
+![Saved Pixel Matrices toolbox](screenshots/fixture-controller-toolbox-pixel-matrices.png)
+
+Use the **Pixel Matrices** toolbox on the Controller page to convert a still image into fixture colors. The toolbox can drive separate RGB-type fixtures, individual pixels inside a native **RGB pixel matrix** fixture control, or a mixture spread across multiple DMX outputs.
+
+Before creating the visual matrix:
+
+1. Add or import fixture profiles with RGB, RGBW, RGBWA, CMY, CMYK, or native RGB matrix controls.
+2. Patch every physical fixture to the correct **DMX output**, universe, and address.
+3. Arrange the compatible fixture color controls in the intended row-major order if you want to use **Auto Map**.
+
+![Pixel Matrix editor with converted colors and fixture mapping](screenshots/fixture-controller-pixel-matrix-editor.png)
+
+To create and test a matrix:
+
+1. Open **Pixel Matrices** and click **New Matrix**.
+2. Enter a name and the logical **Width** and **Height**. Matrices may contain up to 64×64 pixels.
+3. Click **Auto Map** to assign the available compatible fixture controls from the top-left pixel across each row. If the physical order differs, select the first **Mapping target** and click its wanted pixel cell. The dropdown automatically advances to the next unused compatible fixture target, so continue clicking the physical pixel positions in sequence without reopening the dropdown each time. After the last available target it returns to **Unmapped**. Selecting the same target on another cell moves that target rather than duplicating it. Choose **Unmapped** and click a cell to clear only that assignment, or use **Clear Mapping** for the whole matrix.
+4. Choose **Contain**, **Cover**, or **Stretch**, set a brightness limit, and select a PNG, JPEG, WebP, or GIF image. Conversion happens locally in the browser; the saved show stores the resulting pixel colors and image filename, not the original image file.
+5. Click **Apply to DMX** to preview the converted image immediately. The Controller updates its live color values, separates the DMX bytes by assigned output, and sends the involved Pico batches concurrently.
+6. Click **Save** to add the definition to the toolbox and the normal 800 ms fixture-setup autosave. Saved matrices are included in **Export Show** and restored by **Import Show**.
+
+**Clear Image** makes every logical pixel black without changing its mapping. **Delete** removes the selected saved matrix. The first implementation handles one converted still frame; animation and video playback are not yet included.
 
 ### Fixture Library
 

@@ -306,6 +306,56 @@ try {
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
     }
 
+    function Save-ExactElementScreenshot {
+        param(
+            [string]$Selector,
+            [string]$Name
+        )
+        $selectorJson = $Selector | ConvertTo-Json -Compress
+        $rect = Invoke-PageScript @"
+(async()=>{
+  const selector=$selectorJson;
+  const el=document.querySelector(selector);
+  if(!el)throw new Error('Missing exact screenshot element: '+selector);
+  const rail=el.closest('.toolbox-rail');
+  if(rail){
+    const scrollHost=rail.querySelector('.toolbox-rail-scroll')||rail;
+    const firstBox=scrollHost.querySelector('.scene-toolbox');
+    if(firstBox&&firstBox!==el)scrollHost.insertBefore(el,firstBox);
+    scrollHost.scrollTop=0;
+    scrollHost.scrollLeft=0;
+  }else{
+    el.scrollIntoView({block:'start',inline:'nearest'});
+  }
+  await new Promise(resolve=>setTimeout(resolve,300));
+  const r=el.getBoundingClientRect();
+  const pad=8;
+  return JSON.stringify({
+    x:Math.max(0,Math.floor(r.left-pad)),
+    y:Math.max(0,Math.floor(r.top-pad)),
+    width:Math.ceil(r.width+pad*2),
+    height:Math.ceil(r.height+pad*2)
+  });
+})()
+"@
+        if ($rect -is [string]) { $rect = $rect | ConvertFrom-Json }
+        $result = Send-Cdp "Page.captureScreenshot" @{
+            format = "png"
+            fromSurface = $true
+            captureBeyondViewport = $true
+            clip = @{
+                x = [double]$rect.x
+                y = [double]$rect.y
+                width = [double]$rect.width
+                height = [double]$rect.height
+                scale = 1
+            }
+        }
+        if (-not $result.result.data) { throw "Chrome returned an empty exact screenshot for $Selector" }
+        $file = Join-Path $outPath $Name
+        Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+    }
+
     Send-Cdp "Page.enable" | Out-Null
     Send-Cdp "Runtime.enable" | Out-Null
     Start-Sleep -Seconds 2
@@ -561,6 +611,54 @@ try {
     Save-ElementScreenshot "#sceneBox" "fixture-controller-toolbox-scenes.png"
     Save-ElementScreenshot "#paletteBox" "fixture-controller-toolbox-palettes.png"
     Save-ElementScreenshot "#fanToolbox" "fixture-controller-toolbox-fanout.png"
+
+    Eval-Js @"
+(async()=>{
+  const targets=controllerPixelMatrixTargets().filter(target=>target.fixture.name.startsWith('RGB Spot')).slice(0,12);
+  const pixels=[
+    '#ff4938','#ff8f3d','#ffd54a','#fff1a6',
+    '#62d36f','#30c9b0','#3b8eea','#6559d9',
+    '#a85ad4','#df5ca8','#f06c76','#f2a3a3'
+  ];
+  pixelMatrices=[DmxCommon.normalizePixelMatrix({
+    id:'doc-stage-wall',
+    name:'Stage Pixel Wall',
+    width:4,
+    height:3,
+    fit:'cover',
+    brightness:80,
+    imageName:'stage-gradient.png',
+    mappings:targets.map(target=>target.key),
+    pixels
+  })];
+  renderPixelMatrixList();
+  const box=document.getElementById('pixelMatrixToolbox');
+  box.style.display='';
+  if(box.classList.contains('collapsed'))document.getElementById('pixelMatrixToolboxToggle')?.click();
+  docShots.setToolboxRail({collapsed:false});
+  await docShots.wait(400);
+})()
+"@
+    Save-ExactElementScreenshot "#pixelMatrixToolbox" "fixture-controller-toolbox-pixel-matrices.png"
+
+    Eval-Js @"
+(async()=>{
+  const targets=controllerPixelMatrixTargets().filter(target=>target.fixture.name.startsWith('RGB Spot')).slice(0,12);
+  const preview=JSON.parse(JSON.stringify(pixelMatrices[0]));
+  preview.mappings=targets.map((target,index)=>index<8?target.key:'');
+  openPixelMatrix(preview);
+  const target=document.getElementById('pixelMatrixTarget');
+  if(target&&targets[8])target.value=targets[8].key;
+  await docShots.wait(400);
+})()
+"@
+    Save-ElementScreenshot "#pixelMatrixModal .modal-card" "fixture-controller-pixel-matrix-editor.png"
+    Eval-Js @"
+(async()=>{
+  DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
+  await docShots.wait(100);
+})()
+"@
 
     Eval-Js @"
 (async()=>{

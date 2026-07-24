@@ -63,6 +63,100 @@
     return String(output?.baseUrl||'').trim().replace(/\/+$/,'');
   }
 
+  function normalizePixelMatrix(matrix,index=0){
+    const source=matrix&&typeof matrix==='object'?matrix:{};
+    const width=clampInt(source.width||8,1,64);
+    const height=clampInt(source.height||8,1,64);
+    const count=width*height;
+    const mappings=Array.isArray(source.mappings)?source.mappings.slice(0,count).map(value=>String(value||'')):[];
+    const pixels=Array.isArray(source.pixels)?source.pixels.slice(0,count).map(value=>/^#[0-9a-f]{6}$/i.test(String(value))?String(value).toLowerCase():'#000000'):[];
+    while(mappings.length<count)mappings.push('');
+    while(pixels.length<count)pixels.push('#000000');
+    return {
+      id:String(source.id||('pixel-matrix-'+(index+1))),
+      name:String(source.name||('Pixel Matrix '+(index+1))).trim().slice(0,80)||('Pixel Matrix '+(index+1)),
+      width,
+      height,
+      fit:['contain','cover','stretch'].includes(source.fit)?source.fit:'contain',
+      brightness:clampInt(source.brightness??100,1,100),
+      imageName:String(source.imageName||'').slice(0,160),
+      mappings,
+      pixels
+    };
+  }
+
+  function normalizePixelMatrices(matrices){
+    return (Array.isArray(matrices)?matrices:[]).map(normalizePixelMatrix);
+  }
+
+  async function imageSourceBitmap(source){
+    if(typeof createImageBitmap==='function')return createImageBitmap(source);
+    const url=typeof source==='string'?source:URL.createObjectURL(source);
+    try{
+      return await new Promise((resolve,reject)=>{
+        const image=new Image();
+        image.onload=()=>resolve(image);
+        image.onerror=()=>reject(new Error('Image could not be decoded'));
+        image.src=url;
+      });
+    }finally{
+      if(typeof source!=='string')URL.revokeObjectURL(url);
+    }
+  }
+
+  async function pixelMatrixImageColors(source,width,height,options={}){
+    const w=clampInt(width,1,64),h=clampInt(height,1,64);
+    const fit=['contain','cover','stretch'].includes(options.fit)?options.fit:'contain';
+    const brightness=clampInt(options.brightness??100,1,100)/100;
+    const bitmap=await imageSourceBitmap(source);
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    ctx.fillStyle=options.background||'#000000';
+    ctx.fillRect(0,0,w,h);
+    const sw=bitmap.width||bitmap.naturalWidth,sh=bitmap.height||bitmap.naturalHeight;
+    if(!sw||!sh)throw new Error('Image has no usable dimensions');
+    if(fit==='stretch')ctx.drawImage(bitmap,0,0,w,h);
+    else{
+      const scale=fit==='cover'?Math.max(w/sw,h/sh):Math.min(w/sw,h/sh);
+      const dw=sw*scale,dh=sh*scale;
+      ctx.drawImage(bitmap,(w-dw)/2,(h-dh)/2,dw,dh);
+    }
+    bitmap.close?.();
+    const data=ctx.getImageData(0,0,w,h).data;
+    const colors=[];
+    for(let i=0;i<w*h;i++){
+      const offset=i*4;
+      colors.push('#'+hexByte(data[offset]*brightness)+hexByte(data[offset+1]*brightness)+hexByte(data[offset+2]*brightness));
+    }
+    return colors;
+  }
+
+  function pixelMatrixToolboxHtml(){
+    return `<div id="pixelMatrixToolbox" class="scene-toolbox scene-toolbox--pixel-matrix">
+<div id="pixelMatrixToolboxHdr" class="scene-toolbox__header"><span style="font-weight:700;font-size:13px">Pixel Matrices</span><button id="pixelMatrixToolboxToggle" class="scene-toolbox__toggle">—</button></div>
+<div id="pixelMatrixToolboxBody" class="scene-toolbox__body"><div class="buttons"><button id="pixelMatrixNew" type="button">New Matrix</button></div><div id="pixelMatrixList" class="list"><div class="small">No pixel matrices yet.</div></div></div>
+</div>
+<div id="pixelMatrixModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card wide-modal pixel-matrix-modal" role="dialog" aria-modal="true" aria-labelledby="pixelMatrixTitle">
+<div class="modal-head"><button id="pixelMatrixClose" type="button" aria-label="Close">x</button><div class="modal-title-stack"><h2 id="pixelMatrixTitle">Pixel Matrix</h2><div class="small">Map fixture color controls to pixels, convert an image, and send the result to all assigned DMX outputs.</div></div></div>
+<div class="modal-body">
+<div class="toolbar"><label>Name<input id="pixelMatrixName" type="text" maxlength="80"></label><label>Width<input id="pixelMatrixWidth" type="number" min="1" max="64"></label><label>Height<input id="pixelMatrixHeight" type="number" min="1" max="64"></label><label>Fit<select id="pixelMatrixFit"><option value="contain">Contain</option><option value="cover">Cover</option><option value="stretch">Stretch</option></select></label><label>Brightness %<input id="pixelMatrixBrightness" type="number" min="1" max="100"></label></div>
+<div class="toolbar"><label>Image<input id="pixelMatrixImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><label>Mapping target<select id="pixelMatrixTarget"></select></label><button id="pixelMatrixAutoMap" type="button">Auto Map</button><button id="pixelMatrixClearMap" type="button">Clear Mapping</button><button id="pixelMatrixClearImage" type="button">Clear Image</button></div>
+<div class="small" id="pixelMatrixSummary"></div>
+<div id="pixelMatrixGrid" class="pixel-matrix-grid"></div>
+</div>
+<div class="modal-actions"><button id="pixelMatrixDelete" class="danger" type="button">Delete</button><button id="pixelMatrixApply" class="primary" type="button">Apply to DMX</button><button id="pixelMatrixSave" type="button">Save</button><button id="pixelMatrixClose2" type="button">Close</button></div>
+</div></div>`;
+  }
+
+  function mountPixelMatrixToolbox(target){
+    const el=typeof target==='string'?document.getElementById(target):target;
+    if(!el)return null;
+    el.outerHTML=pixelMatrixToolboxHtml();
+    return document.getElementById('pixelMatrixToolbox');
+  }
+
   function downloadJson(filename,data){
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a=document.createElement('a');
@@ -3257,6 +3351,11 @@
     normalizeDmxOutputs,
     dmxOutputForFixture,
     dmxOutputEndpoint,
+    normalizePixelMatrix,
+    normalizePixelMatrices,
+    pixelMatrixImageColors,
+    pixelMatrixToolboxHtml,
+    mountPixelMatrixToolbox,
     downloadJson,
     zipJsonBytes,
     unzipJsonBytes,
