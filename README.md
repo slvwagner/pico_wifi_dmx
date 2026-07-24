@@ -45,7 +45,7 @@ Core features:
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
-- **Windows customer installer** — package a minimal Apache/PHP Windows service with the app, manual, a native WebView2 application window, optional Private-network access, upgrade snapshots, persistent `ProgramData` storage, pinned runtime hashes, and optional Authenticode signing—without shipping MariaDB, phpMyAdmin, or the XAMPP developer control panel.
+- **Windows and Ubuntu customer installers** — package the app, manual, persistent show storage, an automatically started web service, desktop/application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
@@ -115,6 +115,43 @@ application**, so it never traps the operator in kiosk mode. Closing the GUI
 leaves the `PicoDmxController` service running for iPads and other operator
 devices; use Windows Services or uninstall the product when the server itself
 must be stopped.
+
+### Install the Ubuntu customer application
+
+Build the Ubuntu package on Ubuntu or Debian:
+
+```bash
+./installer/ubuntu/build_package.sh
+```
+
+Install the generated package from `release/v<VERSION>/` by double-clicking it
+in Ubuntu's App Center, or with APT:
+
+```bash
+sudo apt install ./pico-dmx-controller_<VERSION>_all.deb
+```
+
+The package installs the read-only application below
+`/opt/pico-dmx-controller`, stores mutable shows and fixture data below
+`/var/lib/pico-dmx-controller/data`, starts its systemd service automatically,
+and adds **Pico DMX Controller** to the Applications menu. Chromium/Chrome opens
+with a dedicated app profile and dark window frame, retaining browser features
+such as Web MIDI. The service listens only on `127.0.0.1:8090` by default.
+
+To allow iPads and other operator devices on a trusted local network, run:
+
+```bash
+sudo pico-dmx-config --lan
+```
+
+This changes the listener to all network interfaces and adds the packaged TCP
+8090 UFW rule when UFW is active. Return to local-only access with
+`sudo pico-dmx-config --local`. Do not expose port 8090 to the public internet.
+Upgrades snapshot current show data, and removing the package preserves all
+data under `/var/lib/pico-dmx-controller`.
+
+The package source, behavior, and build instructions are documented in
+[`installer/ubuntu/README.md`](installer/ubuntu/README.md).
 
 ### Run the developer XAMPP environment
 

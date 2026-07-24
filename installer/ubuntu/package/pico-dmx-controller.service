@@ -1,0 +1,31 @@
+[Unit]
+Description=Pico DMX Controller
+After=network.target
+
+[Service]
+Type=simple
+User=pico-dmx
+Group=pico-dmx
+EnvironmentFile=/etc/default/pico-dmx-controller
+Environment=PICO_DMX_DATA_DIR=/var/lib/pico-dmx-controller/data
+Environment=PHP_CLI_SERVER_WORKERS=4
+WorkingDirectory=/opt/pico-dmx-controller/app
+ExecStart=/usr/bin/php -d expose_php=0 -d display_errors=0 -d log_errors=1 -d error_log=/proc/self/fd/2 -S ${PICO_DMX_LISTEN_ADDRESS}:${PICO_DMX_PORT} /opt/pico-dmx-controller/support/router.php
+Restart=on-failure
+RestartSec=2s
+UMask=0007
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/pico-dmx-controller
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

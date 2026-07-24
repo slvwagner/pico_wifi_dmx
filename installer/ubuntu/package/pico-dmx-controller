@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file=/etc/default/pico-dmx-controller
+port=8090
+if [[ -r "$config_file" ]]; then
+    configured_port="$(sed -n 's/^PICO_DMX_PORT=\([0-9][0-9]*\)$/\1/p' "$config_file" | tail -n 1)"
+    if [[ -n "$configured_port" ]]; then
+        port="$configured_port"
+    fi
+fi
+url="http://127.0.0.1:$port/"
+profile_root="${XDG_DATA_HOME:-$HOME/.local/share}/pico-dmx-controller/chromium"
+
+for browser in google-chrome-stable google-chrome chromium chromium-browser microsoft-edge-stable
+do
+    if command -v "$browser" >/dev/null 2>&1; then
+        mkdir -p -- "$profile_root"
+        GTK_THEME=Adwaita:dark "$browser" \
+            --app="$url" \
+            --start-maximized \
+            --force-dark-mode \
+            --enable-features=WebUIDarkMode \
+            --user-data-dir="$profile_root" \
+            --no-first-run \
+            --disable-session-crashed-bubble \
+            >/dev/null 2>&1 &
+        exit 0
+    fi
+done
+
+exec xdg-open "$url"

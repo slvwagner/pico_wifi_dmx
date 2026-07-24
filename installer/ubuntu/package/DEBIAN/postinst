@@ -1,0 +1,24 @@
+#!/bin/sh
+set -e
+
+if ! getent group pico-dmx >/dev/null 2>&1; then
+    addgroup --system pico-dmx
+fi
+if ! getent passwd pico-dmx >/dev/null 2>&1; then
+    adduser --system --ingroup pico-dmx --home /var/lib/pico-dmx-controller \
+        --no-create-home --disabled-login --disabled-password pico-dmx
+fi
+
+install -d -o pico-dmx -g pico-dmx -m 0750 \
+    /var/lib/pico-dmx-controller \
+    /var/lib/pico-dmx-controller/data \
+    /var/lib/pico-dmx-controller/backups
+chown -R pico-dmx:pico-dmx /var/lib/pico-dmx-controller
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload
+    systemctl enable pico-dmx-controller.service >/dev/null
+    systemctl restart pico-dmx-controller.service
+fi
+
+exit 0

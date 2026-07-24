@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file=/etc/default/pico-dmx-controller
+service_name=pico-dmx-controller.service
+
+usage() {
+    cat <<'EOF'
+Usage:
+  sudo pico-dmx-config --local   Listen only on this computer (default)
+  sudo pico-dmx-config --lan     Allow trusted LAN devices on TCP port 8090
+  pico-dmx-config --status       Show the current access mode and service state
+EOF
+}
+
+read_address() {
+    sed -n 's/^PICO_DMX_LISTEN_ADDRESS=\(.*\)$/\1/p' "$config_file" |
+        tail -n 1
+}
+
+ufw_is_active() {
+    command -v ufw >/dev/null 2>&1 &&
+        ufw status 2>/dev/null | grep -q '^Status: active'
+}
+
+remove_ufw_rule() {
+    command -v ufw >/dev/null 2>&1 || return 0
+    ufw status 2>/dev/null | grep -Fq 'Pico DMX Controller' || return 0
+    ufw --force delete allow 'Pico DMX Controller' >/dev/null
+}
+
+write_mode() {
+    local address="$1"
+    local temp_file
+    temp_file="$(mktemp)"
+    trap 'rm -f -- "$temp_file"' EXIT
+    {
+        printf '%s\n' '# Managed by pico-dmx-config.'
+        printf 'PICO_DMX_LISTEN_ADDRESS=%s\n' "$address"
+        printf '%s\n' 'PICO_DMX_PORT=8090'
+    } > "$temp_file"
+    install -o root -g root -m 0644 "$temp_file" "$config_file"
+}
+
+case "${1:-}" in
+    --local)
+        [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
+            printf 'Run this command with sudo.\n' >&2
+            exit 1
+        }
+        write_mode 127.0.0.1
+        remove_ufw_rule
+        systemctl restart "$service_name"
+        printf 'Pico DMX Controller is available only on this computer.\n'
+        ;;
+    --lan)
+        [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
+            printf 'Run this command with sudo.\n' >&2
+            exit 1
+        }
+        write_mode 0.0.0.0
+        if ufw_is_active; then
+            ufw allow 'Pico DMX Controller'
+            printf 'Added the Pico DMX Controller rule to UFW.\n'
+        elif command -v ufw >/dev/null 2>&1; then
+            printf 'UFW is installed but inactive; no firewall rule was needed.\n'
+        else
+            printf 'UFW is not installed; verify any other firewall manually.\n'
+        fi
+        systemctl restart "$service_name"
+        printf 'Trusted LAN devices can connect at http://<this-computer-ip>:8090/\n'
+        ;;
+    --status)
+        address="$(read_address)"
+        if [[ "$address" == 0.0.0.0 ]]; then
+            printf 'Access mode: trusted LAN (TCP 8090)\n'
+        else
+            printf 'Access mode: local only (TCP 8090)\n'
+        fi
+        systemctl --no-pager --full status "$service_name"
+        ;;
+    *)
+        usage
+        exit 2
+        ;;
+esac

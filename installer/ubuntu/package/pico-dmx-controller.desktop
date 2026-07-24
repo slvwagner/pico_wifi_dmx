@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Pico DMX Controller
+Comment=Open the Pico DMX lighting controller
+Exec=pico-dmx-controller
+Icon=pico-dmx-controller
+Terminal=false
+Categories=AudioVideo;Utility;
+StartupNotify=true
