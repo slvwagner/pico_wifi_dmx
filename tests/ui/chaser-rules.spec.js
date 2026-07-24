@@ -12,6 +12,24 @@ function parseDmxBatch(body) {
 
 test.describe('Chaser established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/fixture_setup.php**', async route => {
+      if (route.request().method() === 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('**/ui_state.php**', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, exists: true, state: { toolboxes: { selectedGroupIds: [] } } })
+      });
+    });
     await page.route('**/scene_setup.php**', async route => {
       if (route.request().method() !== 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
@@ -957,6 +975,61 @@ test.describe('Chaser established rules', () => {
     ]);
     expect(state.pico).toContain('STEP 500 0\nCH 22 255\nCH 23 0\nCH 24 0\nCH 101 0\nCH 102 255\nCH 103 0\nCH 104 0\nCH 105 0\nCH 106 255');
     expect(state.pico).toContain('STEP 500 0\nCH 22 255\nCH 23 255\nCH 24 255\nCH 101 17\nCH 102 34\nCH 103 51\nCH 104 68\nCH 105 85\nCH 106 102');
+  });
+
+  test('Pixel Matrix tiles can be edited and deleted from the Chaser toolbox', async ({ page }) => {
+    await page.evaluate(() => {
+      setup.pixelMatrixCols = 2;
+      setup.pixelMatrixRows = 1;
+      setup.pixelMatrices = DmxCommon.normalizePixelMatrices([
+        {
+          id: 'picture-edit',
+          name: 'Picture Edit',
+          slot: 0,
+          width: 2,
+          height: 1,
+          mappings: ['101:13', '102:22'],
+          pixels: ['#ff0000', '#00ff00']
+        },
+        {
+          id: 'picture-delete',
+          name: 'Picture Delete',
+          slot: 1,
+          width: 1,
+          height: 1,
+          mappings: ['101:13'],
+          pixels: ['#0000ff']
+        }
+      ]);
+      renderChaserPixelMatrices();
+    });
+
+    await expect(page.locator('#chaserPixelMatrixGrid [data-edit-chaser-pixel-matrix]')).toHaveCount(2);
+    await expect(page.locator('#chaserPixelMatrixGrid [data-delete-chaser-pixel-matrix]')).toHaveCount(2);
+
+    await page.locator('[data-edit-chaser-pixel-matrix="picture-edit"]').click();
+    await expect(page.locator('#pixelMatrixModal')).toBeVisible();
+    await expect(page.locator('#pixelMatrixName')).toHaveValue('Picture Edit');
+    await page.locator('#pixelMatrixName').fill('Edited Picture');
+    const editRequest = page.waitForRequest(request =>
+      request.method() === 'POST' && /fixture_setup\.php(?:\?|$)/.test(request.url())
+    );
+    await page.locator('#pixelMatrixSave').click();
+    const editPayload = (await editRequest).postDataJSON();
+    expect(editPayload.pixelMatrices.find(matrix => matrix.id === 'picture-edit')?.name).toBe('Edited Picture');
+    await expect(page.locator('#pixelMatrixModal')).toBeHidden();
+    await expect(page.locator('#chaserPixelMatrixGrid')).toContainText('Edited Picture');
+    await expect.poll(() => page.evaluate(() => setup.pixelMatrices.find(matrix => matrix.id === 'picture-edit')?.name)).toBe('Edited Picture');
+
+    page.once('dialog', dialog => dialog.accept());
+    const deleteRequest = page.waitForRequest(request =>
+      request.method() === 'POST' && /fixture_setup\.php(?:\?|$)/.test(request.url())
+    );
+    await page.locator('[data-delete-chaser-pixel-matrix="picture-delete"]').click();
+    const deletePayload = (await deleteRequest).postDataJSON();
+    expect(deletePayload.pixelMatrices.map(matrix => matrix.id)).toEqual(['picture-edit']);
+    await expect(page.locator('#chaserPixelMatrixGrid .slot.filled')).toHaveCount(1);
+    expect(await page.evaluate(() => setup.pixelMatrices.map(matrix => matrix.id))).toEqual(['picture-edit']);
   });
 
   test('selecting a step rebuilds the edit scope from that step values', async ({ page }) => {
