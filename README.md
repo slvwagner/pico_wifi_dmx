@@ -13,24 +13,36 @@ The project combines firmware, a XAMPP-hosted web interface, JSON-based setup st
 
 Core features:
 
+### Show setup and data
+
 - **Fixture Controller** — define fixture profiles, patch one or many fixtures, edit live values, recall Default/Blackout values, create fixture groups, save scenes, and build reusable palettes.
 - **Fixture Library** — load fixture profiles from the converted Open Fixture Library catalog with defaults, fine channels, compatible RGB matrices, capability ranges, highlights, and wheel images; merge edited show profiles with reusable library modes in either direction; and export/import the complete catalog as a compressed ZIP.
-- **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Saved pictures can be painted pixel by pixel, styled as normal toolbox tiles, recalled directly to the fixtures across their assigned DMX outputs, captured as Chaser steps for animated picture sequences, and operated from the Controller, Chaser, and Show Run pages through shared tools.
-- **Show Run operator page** — arrange Groups, Fixtures, Scenes, Palettes, Pixel Matrices, Room Planes, Live Controls, masters, MIDI, and Pico playback in a configurable card matrix. Card and tile layouts are saved to the server, cards can be repeated for separate operator banks, and the adaptive sticky header keeps navigation visible beside wide toolboxes while reporting show-wide Pico output health.
-- **Shared Toolboxes sidebar** — scenes, groups, palettes, fan out, chases, chase steps, playback, effects, and room-plane tools live in a shared resizable sidebar. A common Edit mode enables touch-friendly toolbox and tile reordering plus Cols/Rows selectors, while width, order, collapse state, and group selection are restored consistently across pages.
+- **DMX Outputs** — configure multiple named Pico controllers and universes in one show, discover devices on the network, assign every fixture to an output, reuse DMX addresses across universes, and monitor show-wide Pico availability from the shared header.
+- **Portable show and library backups** — Fixture Controller provides separate **Export Show**, **Import Show**, **Export Library**, and **Import Library** actions. The show JSON embeds definitions used by its patched fixtures; the compressed library ZIP contains the complete reusable catalog.
+- **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
+
+### Programming and visualization
+
 - **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
 - **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
+- **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Saved pictures can be painted pixel by pixel, styled as normal toolbox tiles, recalled directly to the fixtures across their assigned DMX outputs, captured as Chaser steps for animated picture sequences, and operated from the Controller, Chaser, and Show Run pages through shared tools.
+- **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, barycentric target interpolation, and shared Scene/Palette recalls for checking the programmed look while positioning fixtures.
+
+### Playback and live operation
+
+- **Show Run operator page** — arrange Groups, Fixtures, Scenes, Palettes, Pixel Matrices, Room Planes, Live Controls, masters, MIDI, and Pico playback in a configurable card matrix. Card and tile layouts are saved to the server, cards can be repeated for separate operator banks, and the adaptive sticky header keeps navigation visible beside wide toolboxes while reporting show-wide Pico output health.
+- **Shared Toolboxes sidebar** — scenes, groups, palettes, fan out, chases, chase steps, playback, effects, and room-plane tools live in a shared resizable sidebar. A common Edit mode enables touch-friendly toolbox and tile reordering plus Cols/Rows selectors, while width, order, collapse state, and group selection are restored consistently across pages.
 - **Chaser** — create step-based chases, define participating controls, add/capture/duplicate/reorder steps, recall or edit saved Pixel Matrix pictures directly in the toolbox, preview recalled chases or individual steps on DMX, use browser playback with direction and ping-pong modes, and upload chases into Pico slots for standalone playback.
 - **Effects** — apply circle, figure-8, pan swing, tilt swing, sine, and pulse effects to compatible fixture controls. Effects are relative to the current base/scene value and can be saved as reusable recipes or uploaded to Pico effect slots.
 - **Pico Playback** — run chaser and effect slots directly on the Pico with play/stop, state-aware pause/resume, direction, loop and ping-pong modes, BPM/speed changes, and slot status readback. Browser, chaser, effect, and manual-recall handoffs stop conflicting playback engines before changing DMX output.
 - **MIDI control** — connect a Web MIDI controller or use the Launch Control XL emulator, learn mappings for scenes, live controls, masters, and Pico playback actions, and use soft takeover for continuous controls.
 - **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control; mappings autosave to XAMPP and can be explicitly pushed to or read from the Pico.
+
+### Firmware, diagnostics, and development
+
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time against a Pico.
-- **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, barycentric target interpolation, and shared Scene/Palette recalls for checking the programmed look while positioning fixtures.
-- **Portable show and library backups** — Fixture Controller provides separate **Export Show**, **Import Show**, **Export Library**, and **Import Library** actions. The show JSON embeds definitions used by its patched fixtures; the compressed library ZIP contains the complete reusable catalog.
-- **Server-side JSON data** — setup data is stored under XAMPP `data/*.json`; the complete setup export collects these stores into one portable backup file.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
 
