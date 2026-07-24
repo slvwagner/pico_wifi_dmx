@@ -41,3 +41,7 @@ installer/windows/signing/
 # Show backups may contain customer-owned fixtures, network addresses, and cues.
 # Existing tracked backups are intentionally unaffected by this ignore rule.
 show-backups/
+
+# Generated Windows customer installers are distribution artifacts, not source.
+release/v*/pico-dmx-controller-*-windows-*.exe
+release/v*/pico-dmx-controller-*-windows-*.exe.sha256

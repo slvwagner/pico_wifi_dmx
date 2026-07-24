@@ -95,7 +95,9 @@ test.describe('Code safety regression rules', () => {
       '*.private.pem',
       '.env',
       '.env.*',
-      'installer/windows/signing/'
+      'installer/windows/signing/',
+      'release/v*/pico-dmx-controller-*-windows-*.exe',
+      'release/v*/pico-dmx-controller-*-windows-*.exe.sha256'
     ]) {
       expect(ignore).toContain(pattern);
     }
