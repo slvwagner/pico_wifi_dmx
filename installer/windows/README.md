@@ -67,3 +67,11 @@ Private-profile Windows Firewall rule for the HTTP port selected during setup.
 The port defaults to `8090`, must be from `1024` to `65535`, and is checked for
 conflicts before installation. Upgrades preload the currently installed port.
 If LAN access is not selected, the service listens only on `127.0.0.1`.
+
+When the selected port belongs to an existing `PicoDmxController` service,
+setup identifies it as the installed product and asks permission to close the
+operator window and stop the service before continuing on the same port. For an
+unrelated desktop process, setup displays its process name and PID and asks
+before closing it. Setup never silently terminates a port owner and refuses to
+stop an unrelated Windows service; in that case the customer must stop the
+service manually or choose another port.

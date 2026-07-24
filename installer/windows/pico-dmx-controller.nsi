@@ -30,6 +30,9 @@ Var DataDir
 Var ProductPort
 Var ExistingPort
 Var PortInput
+Var PortOwnerPid
+Var PortOwnerName
+Var PortOwnerService
 
 !define MUI_ABORTWARNING
 !define MUI_ICON "${STAGE_DIR}\app\assets\favicon.ico"
@@ -103,15 +106,58 @@ Function PortPageLeave
     port_in_range:
         InitPluginsDir
         File /oname=$PLUGINSDIR\test_port.ps1 "${STAGE_DIR}\support\test_port.ps1"
-        ${If} $ProductPort == $ExistingPort
+        File /oname=$PLUGINSDIR\port_owner.ps1 "${STAGE_DIR}\support\port_owner.ps1"
+
+        nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\test_port.ps1" -Port $ProductPort'
+        Pop $0
+        Pop $1
+        ${If} $0 == 0
             Return
+        ${EndIf}
+
+        nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\port_owner.ps1" -Port $ProductPort -InfoPath "$PLUGINSDIR\port-owner.ini"'
+        Pop $0
+        Pop $1
+        ${If} $0 != 10
+            MessageBox MB_ICONEXCLAMATION "Port $ProductPort is in use, but setup could not identify its owner. Close the application manually or choose another port."
+            Abort
+        ${EndIf}
+
+        ReadINIStr $PortOwnerPid "$PLUGINSDIR\port-owner.ini" "Owner" "ProcessId"
+        ReadINIStr $PortOwnerName "$PLUGINSDIR\port-owner.ini" "Owner" "ProcessName"
+        ReadINIStr $PortOwnerService "$PLUGINSDIR\port-owner.ini" "Owner" "ServiceName"
+
+        ${If} $PortOwnerService == "${SERVICE_NAME}"
+            StrCpy $3 "Pico DMX Controller is already running on port $ProductPort.$\r$\n$\r$\nSetup must close its application window and stop its server before upgrading. Close it now and continue?"
+            StrCpy $4 "1"
+        ${ElseIf} $PortOwnerService != ""
+            MessageBox MB_ICONEXCLAMATION "Port $ProductPort is used by Windows service '$PortOwnerService' (process $PortOwnerName, PID $PortOwnerPid). Setup will not stop an unrelated Windows service. Stop it manually or choose another port."
+            Abort
+        ${Else}
+            StrCpy $3 "Port $ProductPort is used by $PortOwnerName (PID $PortOwnerPid).$\r$\n$\r$\nSave any work first. Close it now and continue?"
+            StrCpy $4 "0"
+        ${EndIf}
+
+        MessageBox MB_ICONQUESTION|MB_YESNO "$3" IDYES close_port_owner
+        Abort
+
+    close_port_owner:
+        ${If} $4 == "1"
+            nsExec::ExecToLog 'taskkill /IM "PicoDmxShell.exe" /T /F'
+        ${EndIf}
+        nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\port_owner.ps1" -Port $ProductPort -InfoPath "$PLUGINSDIR\port-owner.ini" -ExpectedProcessId $PortOwnerPid -Stop'
+        Pop $0
+        Pop $1
+        ${If} $0 != 0
+            MessageBox MB_ICONEXCLAMATION "Setup could not close $PortOwnerName or release port $ProductPort. Close it manually or choose another port."
+            Abort
         ${EndIf}
 
         nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\test_port.ps1" -Port $ProductPort'
         Pop $0
         Pop $1
         ${If} $0 != 0
-            MessageBox MB_ICONEXCLAMATION "Port $ProductPort is already in use. Close the other application or choose another port."
+            MessageBox MB_ICONEXCLAMATION "Port $ProductPort is still in use. Close the application manually or choose another port."
             Abort
         ${EndIf}
 FunctionEnd
@@ -123,6 +169,7 @@ SectionEnd
 Section "-Pico DMX Controller" SEC_CORE
     SetShellVarContext all
 
+    nsExec::ExecToLog 'taskkill /IM "PicoDmxShell.exe" /T /F'
     nsExec::ExecToLog '"$INSTDIR\runtime\apache\bin\httpd.exe" -k stop -n "${SERVICE_NAME}"'
     nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\test_port.ps1" -Port $ProductPort'
     Pop $0

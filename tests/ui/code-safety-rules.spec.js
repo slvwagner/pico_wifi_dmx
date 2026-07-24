@@ -132,6 +132,7 @@ test.describe('Code safety regression rules', () => {
     const installer = read('installer/windows/pico-dmx-controller.nsi');
     const builder = read('installer/windows/build_installer.ps1');
     const portCheck = read('installer/windows/scripts/test_port.ps1');
+    const portOwner = read('installer/windows/scripts/port_owner.ps1');
 
     expect(installer).toContain('Function PortPageCreate');
     expect(installer).toContain('Function PortPageLeave');
@@ -142,7 +143,15 @@ test.describe('Code safety regression rules', () => {
     expect(installer).toContain('http://localhost:$ProductPort/');
     expect(installer).not.toContain('${PRODUCT_PORT}');
     expect(builder).toContain('scripts\\test_port.ps1');
+    expect(builder).toContain('scripts\\port_owner.ps1');
     expect(portCheck).toContain('[System.Net.Sockets.TcpListener]');
+    expect(portOwner).toContain('Get-NetTCPConnection');
+    expect(portOwner).toContain('PicoDmxController');
+    expect(portOwner).toContain('ExpectedProcessId');
+    expect(installer).toContain('Pico DMX Controller is already running on port $ProductPort');
+    expect(installer).toContain('Close it now and continue?');
+    expect(installer).toContain('-ExpectedProcessId $PortOwnerPid -Stop');
+    expect(installer).toContain('PicoDmxShell.exe');
   });
 
   test('macOS customer package keeps app code separate from persistent user data', () => {

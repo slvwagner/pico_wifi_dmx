@@ -91,6 +91,8 @@ XAMPP development stack. The installer:
   application window, with the default browser as fallback;
 - lets the customer choose an available HTTP port, defaulting to 8090, and
   remembers that choice during upgrades;
+- identifies an already running Pico DMX installation on that port and asks to
+  close its window/service so upgrades can retain the same address;
 - optionally enables the selected TCP port on the Windows **Private** firewall
   profile so iPads and other trusted LAN devices can connect;
 - snapshots existing data before an upgrade and preserves all `ProgramData`
