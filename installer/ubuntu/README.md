@@ -5,10 +5,12 @@ Windows installer:
 
 - read-only application files under `/opt/pico-dmx-controller`;
 - mutable show and fixture data under `/var/lib/pico-dmx-controller/data`;
-- an automatically started `pico-dmx-controller.service`;
+- a `pico-dmx-controller.service` started and stopped with the application;
 - a self-contained desktop application with its own embedded Chromium engine,
   dark frame, application controls, fullscreen bar, status bar, and tray menu;
 - Applications-menu and executable desktop launchers for normal desktop users;
+- application-managed service startup and shutdown by default, so closing the
+  desktop application also stops every background PHP worker;
 - safe localhost-only access by default and an explicit trusted-LAN option;
 - a data snapshot before every package upgrade; and
 - removal that deliberately preserves shows and upgrade snapshots.
@@ -57,8 +59,22 @@ Package removal deletes only shortcuts carrying the package's ownership marker.
 The application window provides Controller, Reload, Full screen, and
 Open in browser actions. F11 toggles fullscreen, Escape restores the window,
 and fullscreen retains visible **Exit full screen** and **Close application**
-buttons. Closing the desktop application leaves the system service running for
-other operator devices.
+buttons. Closing the desktop application exits its Electron/Chromium processes
+and gracefully stops the complete Pico DMX background service.
+
+The default application-managed lifecycle means the web interface is available
+only while the desktop application is open. To keep serving iPads or other
+operator devices after the window closes, explicitly enable always-on mode:
+
+```bash
+sudo pico-dmx-config --always-on
+```
+
+Return to the default behavior with:
+
+```bash
+sudo pico-dmx-config --application-managed
+```
 
 To let iPads and other operator devices on a trusted local network connect:
 

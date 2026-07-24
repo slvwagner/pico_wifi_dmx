@@ -2,3 +2,5 @@
 # operator devices on the trusted local network.
 PICO_DMX_LISTEN_ADDRESS=127.0.0.1
 PICO_DMX_PORT=8090
+# The desktop application starts and stops the service unless this is 1.
+PICO_DMX_ALWAYS_ON=0

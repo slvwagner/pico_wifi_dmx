@@ -71,8 +71,17 @@ install_desktop_shortcuts
 
 if command -v systemctl >/dev/null 2>&1; then
     systemctl daemon-reload
-    systemctl enable pico-dmx-controller.service >/dev/null
-    systemctl restart pico-dmx-controller.service
+    always_on="$(
+        sed -n 's/^PICO_DMX_ALWAYS_ON=\\([01]\\)$/\\1/p' \
+            /etc/default/pico-dmx-controller | tail -n 1
+    )"
+    if [ "$always_on" = 1 ]; then
+        systemctl enable pico-dmx-controller.service >/dev/null
+        systemctl restart pico-dmx-controller.service
+    else
+        systemctl disable pico-dmx-controller.service >/dev/null 2>&1 || true
+        systemctl stop pico-dmx-controller.service >/dev/null 2>&1 || true
+    fi
 fi
 
 exit 0
