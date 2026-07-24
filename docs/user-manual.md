@@ -87,7 +87,9 @@ The other operating pages currently continue to use the first output as their si
 
 ![Saved Pixel Matrices toolbox](screenshots/fixture-controller-toolbox-pixel-matrices.png)
 
-Use the **Pixel Matrices** toolbox on the Controller page to convert a still image into fixture colors. The toolbox can drive separate RGB-type fixtures, individual pixels inside a native **RGB pixel matrix** fixture control, or a mixture spread across multiple DMX outputs.
+Use the **Pixel Matrices** toolbox on the Controller page to convert a still image into fixture colors. The toolbox can drive separate RGB-type fixtures, individual pixels inside a native **RGB pixel matrix** fixture control, or a mixture spread across multiple DMX outputs. Saved matrices use the same tile layout as Scenes and Palettes: click a filled tile to apply it to DMX, use its pencil to edit it, or use its `x` to delete it. Click an empty `+` tile to create a matrix in that position.
+
+Enable Toolboxes **Edit** to reveal the Pixel Matrices **Cols** and **Rows** dropdowns and automatically enable tile movement. Drag a filled matrix to another slot on desktop, or tap its source and destination slots on a touch screen. Moving onto a filled slot swaps the two matrices; moving onto an empty slot leaves the other matrices unchanged. The layout and matrix positions autosave with the fixture setup.
 
 Before creating the visual matrix:
 
@@ -99,14 +101,14 @@ Before creating the visual matrix:
 
 To create and test a matrix:
 
-1. Open **Pixel Matrices** and click **New Matrix**.
+1. Open **Pixel Matrices** and click an empty `+` tile.
 2. Enter a name and the logical **Width** and **Height**. Matrices may contain up to 64×64 pixels.
 3. Click **Auto Map** to assign the available compatible fixture controls from the top-left pixel across each row. If the physical order differs, select the first **Mapping target** and click its wanted pixel cell. The dropdown automatically advances to the next unused compatible fixture target, so continue clicking the physical pixel positions in sequence without reopening the dropdown each time. After the last available target it returns to **Unmapped**. Selecting the same target on another cell moves that target rather than duplicating it. Choose **Unmapped** and click a cell to clear only that assignment, or use **Clear Mapping** for the whole matrix.
 4. Choose **Contain**, **Cover**, or **Stretch**, set a brightness limit, and select a PNG, JPEG, WebP, or GIF image. Conversion happens locally in the browser; the saved show stores the resulting pixel colors and image filename, not the original image file.
 5. Click **Apply to DMX** to preview the converted image immediately. The Controller updates its live color values, separates the DMX bytes by assigned output, and sends the involved Pico batches concurrently.
 6. Click **Save** to add the definition to the toolbox and the normal 800 ms fixture-setup autosave. Saved matrices are included in **Export Show** and restored by **Import Show**.
 
-**Clear Image** makes every logical pixel black without changing its mapping. **Delete** removes the selected saved matrix. The first implementation handles one converted still frame; animation and video playback are not yet included.
+**Clear Image** makes every logical pixel black without changing its mapping. **Delete** in the editor and the tile’s `x` both remove the selected saved matrix. The first implementation handles one converted still frame; animation and video playback are not yet included.
 
 ### Fixture Library
 

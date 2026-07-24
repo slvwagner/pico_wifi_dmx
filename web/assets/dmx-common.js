@@ -75,6 +75,7 @@
     return {
       id:String(source.id||('pixel-matrix-'+(index+1))),
       name:String(source.name||('Pixel Matrix '+(index+1))).trim().slice(0,80)||('Pixel Matrix '+(index+1)),
+      slot:Math.max(0,parseInt(source.slot,10)>=0?parseInt(source.slot,10):index),
       width,
       height,
       fit:['contain','cover','stretch'].includes(source.fit)?source.fit:'contain',
@@ -86,7 +87,13 @@
   }
 
   function normalizePixelMatrices(matrices){
-    return (Array.isArray(matrices)?matrices:[]).map(normalizePixelMatrix);
+    const used=new Set();
+    return (Array.isArray(matrices)?matrices:[]).map((matrix,index)=>{
+      const normalized=normalizePixelMatrix(matrix,index);
+      while(used.has(normalized.slot))normalized.slot++;
+      used.add(normalized.slot);
+      return normalized;
+    }).sort((a,b)=>a.slot-b.slot);
   }
 
   async function imageSourceBitmap(source){
@@ -135,7 +142,7 @@
   function pixelMatrixToolboxHtml(){
     return `<div id="pixelMatrixToolbox" class="scene-toolbox scene-toolbox--pixel-matrix">
 <div id="pixelMatrixToolboxHdr" class="scene-toolbox__header"><span style="font-weight:700;font-size:13px">Pixel Matrices</span><button id="pixelMatrixToolboxToggle" class="scene-toolbox__toggle">—</button></div>
-<div id="pixelMatrixToolboxBody" class="scene-toolbox__body"><div class="buttons"><button id="pixelMatrixNew" type="button">New Matrix</button></div><div id="pixelMatrixList" class="list"><div class="small">No pixel matrices yet.</div></div></div>
+<div id="pixelMatrixToolboxBody" class="scene-toolbox__body"><div id="pixelMatrixLayoutControls" class="tile-layout-controls"></div><div id="pixelMatrixGrid" class="scene-slot-matrix"></div></div>
 </div>
 <div id="pixelMatrixModal" class="modal-overlay form-modal" style="display:none">
 <div class="modal-card wide-modal pixel-matrix-modal" role="dialog" aria-modal="true" aria-labelledby="pixelMatrixTitle">
@@ -144,7 +151,7 @@
 <div class="toolbar"><label>Name<input id="pixelMatrixName" type="text" maxlength="80"></label><label>Width<input id="pixelMatrixWidth" type="number" min="1" max="64"></label><label>Height<input id="pixelMatrixHeight" type="number" min="1" max="64"></label><label>Fit<select id="pixelMatrixFit"><option value="contain">Contain</option><option value="cover">Cover</option><option value="stretch">Stretch</option></select></label><label>Brightness %<input id="pixelMatrixBrightness" type="number" min="1" max="100"></label></div>
 <div class="toolbar"><label>Image<input id="pixelMatrixImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><label>Mapping target<select id="pixelMatrixTarget"></select></label><button id="pixelMatrixAutoMap" type="button">Auto Map</button><button id="pixelMatrixClearMap" type="button">Clear Mapping</button><button id="pixelMatrixClearImage" type="button">Clear Image</button></div>
 <div class="small" id="pixelMatrixSummary"></div>
-<div id="pixelMatrixGrid" class="pixel-matrix-grid"></div>
+<div id="pixelMatrixEditorGrid" class="pixel-matrix-grid"></div>
 </div>
 <div class="modal-actions"><button id="pixelMatrixDelete" class="danger" type="button">Delete</button><button id="pixelMatrixApply" class="primary" type="button">Apply to DMX</button><button id="pixelMatrixSave" type="button">Save</button><button id="pixelMatrixClose2" type="button">Close</button></div>
 </div></div>`;

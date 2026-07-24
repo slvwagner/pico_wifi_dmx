@@ -12,8 +12,8 @@
 <link rel="icon" href="assets/favicon.ico?v=0.9.14">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.14">
 <link rel="manifest" href="assets/manifest.webmanifest?v=0.9.14">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-10">
-<script src="assets/dmx-common.js?v=0.9.14-10"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-11">
+<script src="assets/dmx-common.js?v=0.9.14-11"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -683,14 +683,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 <script>
 document.body.classList.add('toolbox-rail-layout');
+DmxCommon.mountPixelMatrixToolbox('pixelMatrixToolboxMount');
 [
   ['controllerGroupLayoutControls',{colsId:'groupCols',rowsId:'groupRows',moveId:'moveGroupsBtn',cols:2,rows:4,maxCols:8,maxRows:12,moveTitle:'Move group tiles by dragging them to another position'}],
   ['controllerSceneLayoutControls',{colsId:'slotCols',rowsId:'slotRows',moveId:'moveScenesBtn',cols:4,rows:4,moveTitle:'Move scene tiles by dragging them to another slot'}],
   ['controllerPaletteLayoutControls',{colsId:'paletteCols',rowsId:'paletteRows',moveId:'movePaletteBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
-  ['controllerPlaneLayoutControls',{colsId:'controllerPlaneCols',rowsId:'controllerPlaneRows',moveId:'moveControllerPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
+  ['controllerPlaneLayoutControls',{colsId:'controllerPlaneCols',rowsId:'controllerPlaneRows',moveId:'moveControllerPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}],
+  ['pixelMatrixLayoutControls',{colsId:'pixelMatrixCols',rowsId:'pixelMatrixRows',moveId:'movePixelMatricesBtn',cols:2,rows:4,maxCols:16,maxRows:16,moveTitle:'Move Pixel Matrix tiles by dragging them to another slot'}]
 ].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group to fan fixtures.'});
-DmxCommon.mountPixelMatrixToolbox('pixelMatrixToolboxMount');
 const fixtureToolboxRail=document.getElementById('fixtureToolboxRail');
 fixtureToolboxRail.dataset.minMainWidth='360';
 DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{box:'sceneBox',type:'scenes'},{box:'paletteBox',type:'palettes'},{box:'controllerPlanesBox',type:'planes'},{box:'pixelMatrixToolbox',type:'pixel-matrices'},{box:'fanToolbox',type:'fan'}]);
@@ -700,6 +701,8 @@ let fixtures=[];
 let dmxOutputs=[];
 let discoveredPicos=[];
 let pixelMatrices=[];
+let pixelMatrixCols=2,pixelMatrixRows=4;
+let pixelMatrixMoveMode=false,pixelMatrixMoveSelectedSlot=null;
 let showName='Untitled Show';
 let activeProfileId=0;
 let editingControlId=0;
@@ -1022,12 +1025,61 @@ async function applyControllerPixelMatrix(matrix){
   return applied;
 }
 function renderPixelMatrixList(){
-  const host=document.getElementById('pixelMatrixList');
-  if(!host)return;
-  host.innerHTML=pixelMatrices.map(matrix=>{
+  const grid=document.getElementById('pixelMatrixGrid');
+  if(!grid)return;
+  normalizePixelMatrixGrid('cols');
+  const total=pixelMatrixCols*pixelMatrixRows;
+  grid.style.gridTemplateColumns=`repeat(${pixelMatrixCols},minmax(54px,1fr))`;
+  grid.classList.toggle('tile-move-mode',pixelMatrixMoveMode);
+  grid.innerHTML=Array.from({length:total},(_,slot)=>{
+    const matrix=pixelMatrices.find(item=>item.slot===slot);
+    if(!matrix)return `<div class="slot" data-pixel-matrix-slot="${slot}" title="${pixelMatrixMoveMode?'Move a saved matrix here':'Create a Pixel Matrix here'}">+</div>`;
     const mapped=matrix.mappings.filter(Boolean).length;
-    return `<button type="button" class="pixel-matrix-list-item" data-open-pixel-matrix="${escHtml(matrix.id)}"><strong>${escHtml(matrix.name)}</strong><span class="small">${matrix.width}×${matrix.height} · ${mapped}/${matrix.width*matrix.height} mapped</span></button>`;
-  }).join('')||'<div class="small">No pixel matrices yet.</div>';
+    const color=/^#[0-9a-f]{6}$/i.test(matrix.pixels[0]||'')?matrix.pixels[0]:'#25323c';
+    return `<div class="${DmxCommon.savedTileClass('slot filled',pixelMatrixMoveSelectedSlot===slot)}" data-pixel-matrix-slot="${slot}" title="${pixelMatrixMoveMode?'Drag to move, or tap this matrix and then a target slot':'Apply '+escHtml(matrix.name)+' to DMX'}" style="background:${color};--slot-bg:${color}">${DmxCommon.slotVisualButtonHtml('data-edit-pixel-matrix',matrix.id,'Edit Pixel Matrix')}<button class="slot-del" data-delete-pixel-matrix="${escHtml(matrix.id)}" title="Delete Pixel Matrix">×</button><div class="palette-slot-content"><span class="palette-slot-name">${escHtml(matrix.name)}</span><span class="small">${matrix.width}×${matrix.height} · ${mapped}/${matrix.width*matrix.height}</span></div></div>`;
+  }).join('');
+  DmxCommon.initTileMoveGrid({
+    grid,
+    button:'movePixelMatricesBtn',
+    active:pixelMatrixMoveMode,
+    itemSelector:'[data-pixel-matrix-slot]',
+    getIndex:element=>parseInt(element.dataset.pixelMatrixSlot,10),
+    canDrag:slot=>pixelMatrices.some(matrix=>matrix.slot===slot),
+    onMove:movePixelMatrixSlot
+  });
+}
+function requiredPixelMatrixSlots(){return pixelMatrices.reduce((max,matrix)=>Math.max(max,(parseInt(matrix.slot,10)||0)+1),0);}
+function normalizePixelMatrixGrid(priority='cols'){
+  const needed=requiredPixelMatrixSlots();
+  pixelMatrixCols=clamp(pixelMatrixCols,1,16);
+  pixelMatrixRows=clamp(pixelMatrixRows,1,16);
+  if(needed&&pixelMatrixCols*pixelMatrixRows<needed){
+    if(priority==='rows')pixelMatrixCols=Math.min(16,Math.max(pixelMatrixCols,Math.ceil(needed/pixelMatrixRows)));
+    else pixelMatrixRows=Math.min(16,Math.max(pixelMatrixRows,Math.ceil(needed/pixelMatrixCols)));
+  }
+  const cols=document.getElementById('pixelMatrixCols'),rows=document.getElementById('pixelMatrixRows');
+  if(cols){cols.min=Math.max(1,Math.ceil(needed/pixelMatrixRows));cols.value=pixelMatrixCols;}
+  if(rows){rows.min=Math.max(1,Math.ceil(needed/pixelMatrixCols));rows.value=pixelMatrixRows;}
+}
+function movePixelMatrixSlot(fromSlot,toSlot){
+  fromSlot=parseInt(fromSlot,10);toSlot=parseInt(toSlot,10);
+  if(!Number.isFinite(fromSlot)||!Number.isFinite(toSlot)||fromSlot===toSlot)return false;
+  const moving=pixelMatrices.find(matrix=>matrix.slot===fromSlot);
+  if(!moving)return false;
+  const target=pixelMatrices.find(matrix=>matrix.slot===toSlot);
+  moving.slot=toSlot;
+  if(target)target.slot=fromSlot;
+  pixelMatrices.sort((a,b)=>a.slot-b.slot);
+  pixelMatrixMoveSelectedSlot=null;
+  renderPixelMatrixList();
+  scheduleSetupAutosave();
+  setStatus(target?'Swapped Pixel Matrices '+(fromSlot+1)+' and '+(toSlot+1):'Moved Pixel Matrix to slot '+(toSlot+1));
+  return true;
+}
+function togglePixelMatrixMoveMode(){
+  pixelMatrixMoveMode=!pixelMatrixMoveMode;
+  pixelMatrixMoveSelectedSlot=null;
+  renderPixelMatrixList();
 }
 function resizeEditingPixelMatrix(){
   if(!editingPixelMatrix)return;
@@ -1048,7 +1100,7 @@ function renderPixelMatrixEditor(){
   targetSelect.innerHTML='<option value="">Unmapped</option>'+targets.map(target=>`<option value="${escHtml(target.key)}">${escHtml(target.label)}</option>`).join('');
   if(targets.some(target=>target.key===previous))targetSelect.value=previous;
   const labels=new Map(targets.map(target=>[target.key,target.fixture.name]));
-  const grid=document.getElementById('pixelMatrixGrid');
+  const grid=document.getElementById('pixelMatrixEditorGrid');
   grid.style.gridTemplateColumns=`repeat(${matrix.width},minmax(24px,1fr))`;
   grid.innerHTML=matrix.pixels.map((color,index)=>{
     const key=matrix.mappings[index];
@@ -1057,8 +1109,9 @@ function renderPixelMatrixEditor(){
   const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
   document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
 }
-function openPixelMatrix(matrix=null){
-  editingPixelMatrix=DmxCommon.normalizePixelMatrix(matrix||{id:'pixel-matrix-'+uid(),name:'Pixel Matrix '+(pixelMatrices.length+1),width:8,height:8});
+function openPixelMatrix(matrix=null,slot=null){
+  const nextSlot=slot===null?Math.max(0,...pixelMatrices.map(item=>item.slot+1)):slot;
+  editingPixelMatrix=DmxCommon.normalizePixelMatrix(matrix||{id:'pixel-matrix-'+uid(),name:'Pixel Matrix '+(pixelMatrices.length+1),slot:nextSlot,width:8,height:8});
   renderPixelMatrixEditor();
   DmxCommon.showModal(document.getElementById('pixelMatrixModal'));
 }
@@ -2436,7 +2489,7 @@ function commitDmxOutputsEditor(){
   DmxCommon.hideModal(document.getElementById('dmxOutputsModal'));
   return true;
 }
-function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:primaryDmxOutput().baseUrl,dmxOutputs,pixelMatrices,profiles,fixtures});}
+function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:primaryDmxOutput().baseUrl,dmxOutputs,pixelMatrices,pixelMatrixCols,pixelMatrixRows,profiles,fixtures});}
 function applyData(data){
   showName=normalizeShowName(data?.showName);
   renderShowName();
@@ -2447,6 +2500,8 @@ function applyData(data){
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
   pixelMatrices=DmxCommon.normalizePixelMatrices(data?.pixelMatrices);
+  pixelMatrixCols=clamp(data?.pixelMatrixCols||localStorage.getItem('pixelMatrixCols')||2,1,16);
+  pixelMatrixRows=clamp(data?.pixelMatrixRows||localStorage.getItem('pixelMatrixRows')||4,1,16);
   renderPatchOutputOptions();
   Object.keys(values).forEach(k=>delete values[k]);
   Object.assign(values,data?.values||{});
@@ -3768,6 +3823,8 @@ function resetShowLocalState(){
   profiles=[];
   fixtures=[];
   pixelMatrices=[];
+  pixelMatrixCols=2;pixelMatrixRows=4;
+  pixelMatrixMoveMode=false;pixelMatrixMoveSelectedSlot=null;
   Object.keys(values).forEach(k=>delete values[k]);
   activeProfileId=0;
   editingControlId=0;
@@ -3794,7 +3851,7 @@ function resetShowLocalState(){
   paletteCols=4;paletteRows=4;
   groupCols=2;groupRows=4;
   collapsedFixtureIds.clear();
-  ['dmxFixtureController','dmxFCLiveValues','selectedGroupIds','fixtureCardCollapsed','groupsBoxCols','groupsBoxRows','sceneSlotCols','sceneSlotRows','paletteSlotCols','paletteSlotRows'].forEach(key=>localStorage.removeItem(key));
+  ['dmxFixtureController','dmxFCLiveValues','selectedGroupIds','fixtureCardCollapsed','groupsBoxCols','groupsBoxRows','sceneSlotCols','sceneSlotRows','paletteSlotCols','paletteSlotRows','pixelMatrixCols','pixelMatrixRows'].forEach(key=>localStorage.removeItem(key));
   Object.keys(localStorage).filter(key=>key.startsWith('dmxShowRun.')).forEach(key=>localStorage.removeItem(key));
   DmxCommon.saveSharedGroupSelection([]);
   addDefaultProfile();
@@ -6682,12 +6739,66 @@ const pixelMatrixToolbox=DmxCommon.initFloatingToolbox({
   uiStatePosKey:'pixelMatrixToolboxPos',
   uiStateCollapsedKey:'pixelMatrixToolboxCollapsed'
 });
-document.getElementById('pixelMatrixNew').onclick=()=>openPixelMatrix();
-document.getElementById('pixelMatrixList').addEventListener('click',event=>{
-  const button=event.target.closest('[data-open-pixel-matrix]');
-  if(!button)return;
-  const matrix=pixelMatrices.find(item=>item.id===button.dataset.openPixelMatrix);
-  if(matrix)openPixelMatrix(JSON.parse(JSON.stringify(matrix)));
+document.getElementById('pixelMatrixCols').addEventListener('input',event=>{
+  pixelMatrixCols=event.target.value;
+  normalizePixelMatrixGrid('cols');
+  localStorage.setItem('pixelMatrixCols',pixelMatrixCols);
+  localStorage.setItem('pixelMatrixRows',pixelMatrixRows);
+  renderPixelMatrixList();
+  scheduleSetupAutosave();
+});
+document.getElementById('pixelMatrixRows').addEventListener('input',event=>{
+  pixelMatrixRows=event.target.value;
+  normalizePixelMatrixGrid('rows');
+  localStorage.setItem('pixelMatrixCols',pixelMatrixCols);
+  localStorage.setItem('pixelMatrixRows',pixelMatrixRows);
+  renderPixelMatrixList();
+  scheduleSetupAutosave();
+});
+document.getElementById('movePixelMatricesBtn').onclick=togglePixelMatrixMoveMode;
+document.getElementById('pixelMatrixGrid').addEventListener('click',event=>{
+  const edit=event.target.closest('[data-edit-pixel-matrix]');
+  if(edit){
+    event.stopPropagation();
+    const matrix=pixelMatrices.find(item=>item.id===edit.dataset.editPixelMatrix);
+    if(matrix)openPixelMatrix(JSON.parse(JSON.stringify(matrix)));
+    return;
+  }
+  const remove=event.target.closest('[data-delete-pixel-matrix]');
+  if(remove){
+    event.stopPropagation();
+    const matrix=pixelMatrices.find(item=>item.id===remove.dataset.deletePixelMatrix);
+    if(!matrix||!confirm('Delete pixel matrix "'+matrix.name+'"?'))return;
+    pixelMatrices=pixelMatrices.filter(item=>item.id!==matrix.id);
+    renderPixelMatrixList();
+    scheduleSetupAutosave();
+    setStatus('Pixel matrix deleted');
+    return;
+  }
+  const tile=event.target.closest('[data-pixel-matrix-slot]');
+  if(!tile)return;
+  const slot=parseInt(tile.dataset.pixelMatrixSlot,10);
+  const matrix=pixelMatrices.find(item=>item.slot===slot);
+  if(pixelMatrixMoveMode){
+    if(pixelMatrixMoveSelectedSlot===null){
+      if(!matrix){setStatus('Pixel Matrix move mode: select a filled tile first');return;}
+      pixelMatrixMoveSelectedSlot=slot;
+      renderPixelMatrixList();
+      return;
+    }
+    if(pixelMatrixMoveSelectedSlot===slot){
+      pixelMatrixMoveSelectedSlot=null;
+      renderPixelMatrixList();
+      return;
+    }
+    movePixelMatrixSlot(pixelMatrixMoveSelectedSlot,slot);
+    return;
+  }
+  if(matrix){
+    applyControllerPixelMatrix(matrix).catch(error=>showError(error.message||'Pixel Matrix could not be applied'));
+    return;
+  }
+  openPixelMatrix(null,slot);
 });
 ['pixelMatrixWidth','pixelMatrixHeight'].forEach(id=>{
   document.getElementById(id).addEventListener('change',resizeEditingPixelMatrix);
@@ -6698,7 +6809,7 @@ document.getElementById('pixelMatrixList').addEventListener('click',event=>{
     renderPixelMatrixEditor();
   });
 });
-document.getElementById('pixelMatrixGrid').addEventListener('click',event=>{
+document.getElementById('pixelMatrixEditorGrid').addEventListener('click',event=>{
   const cell=event.target.closest('[data-pixel-matrix-cell]');
   if(!cell||!editingPixelMatrix)return;
   syncEditingPixelMatrixFields();

@@ -174,7 +174,8 @@ strong { color: #ffffff; }
 <p>The other operating pages currently continue to use the first output as their single Primary Pico URL. Configure and verify multi-output fixtures on the Fixture Controller until those pages are migrated to the shared output routing.</p>
 <h3 id="pixel-matrices">Pixel Matrices</h3>
 <p><img src="screenshots/fixture-controller-toolbox-pixel-matrices.png" alt="Saved Pixel Matrices toolbox"></p>
-<p>Use the <strong>Pixel Matrices</strong> toolbox on the Controller page to convert a still image into fixture colors. The toolbox can drive separate RGB-type fixtures, individual pixels inside a native <strong>RGB pixel matrix</strong> fixture control, or a mixture spread across multiple DMX outputs.</p>
+<p>Use the <strong>Pixel Matrices</strong> toolbox on the Controller page to convert a still image into fixture colors. The toolbox can drive separate RGB-type fixtures, individual pixels inside a native <strong>RGB pixel matrix</strong> fixture control, or a mixture spread across multiple DMX outputs. Saved matrices use the same tile layout as Scenes and Palettes: click a filled tile to apply it to DMX, use its pencil to edit it, or use its <code>x</code> to delete it. Click an empty <code>+</code> tile to create a matrix in that position.</p>
+<p>Enable Toolboxes <strong>Edit</strong> to reveal the Pixel Matrices <strong>Cols</strong> and <strong>Rows</strong> dropdowns and automatically enable tile movement. Drag a filled matrix to another slot on desktop, or tap its source and destination slots on a touch screen. Moving onto a filled slot swaps the two matrices; moving onto an empty slot leaves the other matrices unchanged. The layout and matrix positions autosave with the fixture setup.</p>
 <p>Before creating the visual matrix:</p>
 <ol>
 <li>Add or import fixture profiles with RGB, RGBW, RGBWA, CMY, CMYK, or native RGB matrix controls.</li>
@@ -184,14 +185,14 @@ strong { color: #ffffff; }
 <p><img src="screenshots/fixture-controller-pixel-matrix-editor.png" alt="Pixel Matrix editor with converted colors and fixture mapping"></p>
 <p>To create and test a matrix:</p>
 <ol>
-<li>Open <strong>Pixel Matrices</strong> and click <strong>New Matrix</strong>.</li>
+<li>Open <strong>Pixel Matrices</strong> and click an empty <code>+</code> tile.</li>
 <li>Enter a name and the logical <strong>Width</strong> and <strong>Height</strong>. Matrices may contain up to 64&#215;64 pixels.</li>
 <li>Click <strong>Auto Map</strong> to assign the available compatible fixture controls from the top-left pixel across each row. If the physical order differs, select the first <strong>Mapping target</strong> and click its wanted pixel cell. The dropdown automatically advances to the next unused compatible fixture target, so continue clicking the physical pixel positions in sequence without reopening the dropdown each time. After the last available target it returns to <strong>Unmapped</strong>. Selecting the same target on another cell moves that target rather than duplicating it. Choose <strong>Unmapped</strong> and click a cell to clear only that assignment, or use <strong>Clear Mapping</strong> for the whole matrix.</li>
 <li>Choose <strong>Contain</strong>, <strong>Cover</strong>, or <strong>Stretch</strong>, set a brightness limit, and select a PNG, JPEG, WebP, or GIF image. Conversion happens locally in the browser; the saved show stores the resulting pixel colors and image filename, not the original image file.</li>
 <li>Click <strong>Apply to DMX</strong> to preview the converted image immediately. The Controller updates its live color values, separates the DMX bytes by assigned output, and sends the involved Pico batches concurrently.</li>
 <li>Click <strong>Save</strong> to add the definition to the toolbox and the normal 800 ms fixture-setup autosave. Saved matrices are included in <strong>Export Show</strong> and restored by <strong>Import Show</strong>.</li>
 </ol>
-<p><strong>Clear Image</strong> makes every logical pixel black without changing its mapping. <strong>Delete</strong> removes the selected saved matrix. The first implementation handles one converted still frame; animation and video playback are not yet included.</p>
+<p><strong>Clear Image</strong> makes every logical pixel black without changing its mapping. <strong>Delete</strong> in the editor and the tile’s <code>x</code> both remove the selected saved matrix. The first implementation handles one converted still frame; animation and video playback are not yet included.</p>
 <h3 id="fixture-library">Fixture Library</h3>
 <p><img src="screenshots/fixture-controller-fixture-library.png" alt="Fixture Library search and mode preview"></p>
 <p>The <strong>Fixture Library</strong> panel imports fixture profiles from an export of the original <a href="https://open-fixture-library.org/">Open Fixture Library</a> project. Use it when you want to start from an existing fixture definition instead of building every channel by hand. Selecting a fixture shows <strong>Fixture Information</strong> when OFL provides it: authors, creation/update dates, dimensions, weight, power, DMX connector, light source, beam angle, and links to the OFL entry, manual, product page, or video. External information links open in a new tab and only HTTP/HTTPS links are accepted.</p>

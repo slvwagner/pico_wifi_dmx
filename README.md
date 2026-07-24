@@ -607,7 +607,7 @@ All application-facing version sources must agree:
 - Page and manual query strings use the application version for browser cache invalidation.
 - `CHANGELOG.md` records user-visible changes under the matching version.
 
-An asset suffix such as `?v=0.9.14-10` is a browser-cache revision within application version `0.9.14`; `-10` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
+An asset suffix such as `?v=0.9.14-11` is a browser-cache revision within application version `0.9.14`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
 
 Application versions are independent from data-format versions. `schemaVersion` and `setupFormatVersion` change only when a stored JSON format requires a migration or compatibility decision.
 

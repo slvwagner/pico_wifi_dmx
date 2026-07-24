@@ -288,7 +288,7 @@ test.describe('Fixture Controller established rules', () => {
       renderPixelMatrixList();
     });
 
-    await page.locator('#pixelMatrixNew').click();
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
     await expect(page.locator('#pixelMatrixModal')).toBeVisible();
     await page.locator('#pixelMatrixName').fill('Front wall');
     await page.locator('#pixelMatrixWidth').fill('2');
@@ -299,7 +299,7 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#pixelMatrixSave').click();
 
     await expect(page.locator('#pixelMatrixModal')).toBeHidden();
-    await expect(page.locator('#pixelMatrixList')).toContainText('Front wall');
+    await expect(page.locator('#pixelMatrixGrid')).toContainText('Front wall');
     const saved = await page.evaluate(() => saveData().pixelMatrices);
     expect(saved).toEqual([
       expect.objectContaining({
@@ -329,7 +329,7 @@ test.describe('Fixture Controller established rules', () => {
       renderPixelMatrixList();
     });
 
-    await page.locator('#pixelMatrixNew').click();
+    await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
     await page.locator('#pixelMatrixWidth').fill('3');
     await page.locator('#pixelMatrixWidth').press('Tab');
     await page.locator('#pixelMatrixHeight').fill('1');
@@ -346,6 +346,71 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#pixelMatrixTarget')).toHaveValue('');
     const mappings = await page.evaluate(() => editingPixelMatrix.mappings);
     expect(mappings).toEqual(['9410:9401', '9420:9401', '9430:9401']);
+  });
+
+  test('Pixel Matrix toolbox uses the shared tile layout with edit, delete, and persisted dimensions', async ({ page }) => {
+    await page.evaluate(() => {
+      pixelMatrixCols = 2;
+      pixelMatrixRows = 2;
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-a', name: 'Matrix A', slot: 0, width: 2, height: 1, pixels: ['#ff0000', '#00ff00'] },
+        { id: 'matrix-b', name: 'Matrix B', slot: 1, width: 1, height: 1, pixels: ['#0000ff'] }
+      ]);
+      renderPixelMatrixList();
+    });
+
+    await expect(page.locator('#pixelMatrixGrid [data-pixel-matrix-slot]')).toHaveCount(4);
+    await expect(page.locator('#pixelMatrixGrid .slot.filled')).toHaveCount(2);
+    await expect(page.locator('#pixelMatrixGrid [data-edit-pixel-matrix]')).toHaveCount(2);
+    await expect(page.locator('#pixelMatrixGrid [data-delete-pixel-matrix]')).toHaveCount(2);
+    await expect(page.locator('#pixelMatrixGrid .slot:not(.filled)').first()).toContainText('+');
+
+    await page.locator('.toolbox-rail-edit').click();
+    await expect(page.locator('#pixelMatrixLayoutControls')).toBeVisible();
+    await page.locator('#pixelMatrixCols').selectOption('3');
+    await page.locator('#pixelMatrixRows').selectOption('2');
+    await expect(page.locator('#pixelMatrixGrid [data-pixel-matrix-slot]')).toHaveCount(6);
+
+    const dimensions = await page.evaluate(() => {
+      const data = saveData();
+      return { cols: data.pixelMatrixCols, rows: data.pixelMatrixRows };
+    });
+    expect(dimensions).toEqual({ cols: 3, rows: 2 });
+
+    await page.locator('[data-edit-pixel-matrix="matrix-a"]').click();
+    await expect(page.locator('#pixelMatrixModal')).toBeVisible();
+    await expect(page.locator('#pixelMatrixName')).toHaveValue('Matrix A');
+    await page.locator('#pixelMatrixClose2').click();
+
+    await page.evaluate(() => { window.confirm = () => true; });
+    await page.locator('[data-delete-pixel-matrix="matrix-b"]').click();
+    await expect(page.locator('#pixelMatrixGrid .slot.filled')).toHaveCount(1);
+    expect(await page.evaluate(() => pixelMatrices.map(matrix => matrix.id))).toEqual(['matrix-a']);
+  });
+
+  test('Pixel Matrix tiles apply normally and swap slots while Toolboxes Edit is active', async ({ page }) => {
+    await page.evaluate(() => {
+      pixelMatrixCols = 2;
+      pixelMatrixRows = 1;
+      pixelMatrices = DmxCommon.normalizePixelMatrices([
+        { id: 'matrix-left', name: 'Left', slot: 0, width: 1, height: 1, pixels: ['#ff0000'] },
+        { id: 'matrix-right', name: 'Right', slot: 1, width: 1, height: 1, pixels: ['#0000ff'] }
+      ]);
+      window.__appliedMatrix = '';
+      window.applyControllerPixelMatrix = async matrix => { window.__appliedMatrix = matrix.id; return 1; };
+      renderPixelMatrixList();
+    });
+
+    await page.locator('[data-pixel-matrix-slot="0"]').click();
+    await expect.poll(() => page.evaluate(() => window.__appliedMatrix)).toBe('matrix-left');
+
+    await page.locator('.toolbox-rail-edit').click();
+    await page.locator('[data-pixel-matrix-slot="0"]').click();
+    await page.locator('[data-pixel-matrix-slot="1"]').click();
+    expect(await page.evaluate(() => pixelMatrices.map(matrix => ({ id: matrix.id, slot: matrix.slot })))).toEqual([
+      { id: 'matrix-right', slot: 0 },
+      { id: 'matrix-left', slot: 1 }
+    ]);
   });
 
   test('fixture card Default and Blackout buttons recall their values to DMX', async ({ page }) => {
