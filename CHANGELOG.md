@@ -9,6 +9,8 @@ Changed:
 - Reorganized the README core-feature overview into setup/data, programming/visualization, live operation, and firmware/diagnostics sections, with multi-Pico DMX Outputs documented explicitly.
 - Replaced machine-specific XAMPP URLs and filesystem paths in the public README with generic host/path placeholders and a conventional `C:\xampp` configuration example.
 - Documented the checked-in Visual Studio Code/Pico development environment, pinned SDK and tool versions, exact recommended Marketplace extension IDs, and the supplied build, flash, reset, serial, and Cortex-Debug workflows.
+- Extended **Pico Performance Test** to load every configured DMX Output, measure one selected Pico or the complete fleet sequentially, and label Timing History plus Write History with the Pico name and universe. Full Test repeats status/telemetry, buffer readback, DMX write, MIDI latency, and final telemetry for every selected output; the individual checks and Playback + Palette Stress can also run across all outputs.
+- Extended **GPIO Control** with a DMX Output selector and independent enabled state, digital mappings, and ADC mappings for every configured Pico/universe. Autosave persists the complete per-output map through XAMPP, legacy single-Pico files migrate to the first output, and push, pull, status, and chaser-slot readback target the selected Pico.
 
 ## 0.9.14 - 2026-07-24
 

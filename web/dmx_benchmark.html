@@ -45,6 +45,10 @@ th{color:var(--muted);font-weight:600}
 .midi-latency-status.ready{border-color:#2b8f73;color:var(--accent)}
 .midi-latency-status.busy{border-color:#9f7134;color:var(--warn)}
 .midi-latency-status.bad{border-color:#9b4747;color:var(--bad)}
+.pico-target-panel{display:grid;grid-template-columns:minmax(240px,420px) 1fr;gap:16px;align-items:end}
+.pico-target-panel label{display:grid;gap:6px}
+.pico-target-panel select{width:100%}
+@media(max-width:720px){.pico-target-panel{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -67,6 +71,18 @@ th{color:var(--muted);font-weight:600}
     <a class="nav" href="../user-manual.html?v=0.9.15#8-pico-performance-test" target="_blank">Manual</a>
   </div>
 </header>
+
+<section class="panel pico-target-panel" id="picoTargetsPanel">
+  <label>Measurement target
+    <select id="picoTarget" aria-label="Pico measurement target">
+      <option value="">Loading show DMX Outputs…</option>
+    </select>
+  </label>
+  <div>
+    <strong id="picoTargetTitle">Loading configured Picos…</strong>
+    <div class="small" id="picoTargetDetail">Targets are read from the show’s DMX Outputs configuration.</div>
+  </div>
+</section>
 
 <section class="panel" id="connectionTimingPanel">
   <div class="section-head">
@@ -98,7 +114,7 @@ th{color:var(--muted);font-weight:600}
     <button id="btnClearTimingHistory">Clear</button>
   </div>
   <table>
-    <thead><tr><th>Run</th><th>Time</th><th>Status</th><th>Memory</th><th>100 Hz left</th><th>Core1 left</th><th>Core0 late</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th><th>MIDI</th></tr></thead>
+    <thead><tr><th>Run</th><th>Pico / universe</th><th>Time</th><th>Status</th><th>Memory</th><th>100 Hz left</th><th>Core1 left</th><th>Core0 late</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th><th>MIDI</th></tr></thead>
     <tbody id="timingHistoryBody"></tbody>
   </table>
 </section>
@@ -238,7 +254,7 @@ th{color:var(--muted);font-weight:600}
     <button id="btnClearHistory">Clear</button>
   </div>
   <table>
-    <thead><tr><th>Run</th><th>Mode</th><th>Req</th><th>Ch/req</th><th>Median</th><th>p95</th><th>p99</th><th>Errors</th></tr></thead>
+    <thead><tr><th>Run</th><th>Pico / universe</th><th>Mode</th><th>Req</th><th>Ch/req</th><th>Median</th><th>p95</th><th>p99</th><th>Errors</th></tr></thead>
     <tbody id="historyBody"></tbody>
   </table>
 </section>
@@ -249,11 +265,83 @@ const baseUrlEl=document.getElementById('baseUrl');
 let benchmarkFallbackUrl='';
 try{const d=JSON.parse(localStorage.getItem('dmxFixtureController')||'{}');benchmarkFallbackUrl=d.baseUrl||'';}catch(_){}
 DmxCommon.bindBaseUrl(baseUrlEl,{fallback:benchmarkFallbackUrl});
+const picoTargetEl=document.getElementById('picoTarget');
+let performanceOutputs=[];
+let activePerformanceOutput=null;
 
 function setStatus(t,bad=false){const el=document.getElementById('status');el.textContent=t;el.className=bad?'status bad':'status';}
 
 function picoRoot(){
-  return baseUrlEl.value.replace(/\/+$/,'');
+  return String(activePerformanceOutput?.baseUrl||baseUrlEl.value||'').replace(/\/+$/,'');
+}
+
+function performanceTargetLabel(output=activePerformanceOutput){
+  return output?(output.name+' · Universe '+output.universe):'Pico';
+}
+
+function setActivePerformanceOutput(output){
+  activePerformanceOutput=output||performanceOutputs[0]||null;
+  if(activePerformanceOutput?.baseUrl)baseUrlEl.value=activePerformanceOutput.baseUrl;
+  document.getElementById('picoTargetTitle').textContent=performanceTargetLabel(activePerformanceOutput);
+  document.getElementById('picoTargetDetail').textContent=activePerformanceOutput
+    ? activePerformanceOutput.baseUrl
+    : 'No configured Pico URL is available.';
+}
+
+function selectedPerformanceOutputs(){
+  if(picoTargetEl.value==='__all__')return performanceOutputs.filter(output=>output.baseUrl);
+  const selected=performanceOutputs.find(output=>output.id===picoTargetEl.value);
+  return selected?[selected]:(activePerformanceOutput?[activePerformanceOutput]:[]);
+}
+
+function renderPerformanceTargets(){
+  const usable=performanceOutputs.filter(output=>output.baseUrl);
+  picoTargetEl.innerHTML=[
+    ...(usable.length>1?[`<option value="__all__">All configured Picos (${usable.length})</option>`]:[]),
+    ...usable.map(output=>`<option value="${DmxCommon.escapeHtml(output.id)}">${DmxCommon.escapeHtml(performanceTargetLabel(output))}</option>`)
+  ].join('');
+  if(!usable.length){
+    picoTargetEl.innerHTML='<option value="">No configured Pico URL</option>';
+    setActivePerformanceOutput(null);
+    return;
+  }
+  picoTargetEl.value=usable.length>1?'__all__':usable[0].id;
+  setActivePerformanceOutput(usable[0]);
+  if(usable.length>1){
+    document.getElementById('picoTargetTitle').textContent='All configured Picos ('+usable.length+')';
+    document.getElementById('picoTargetDetail').textContent='Batch actions run every measurement sequentially for each Pico. Result histories identify the output and universe.';
+  }
+}
+
+async function loadPerformanceTargets(){
+  try{
+    const response=await fetch('../fixture_setup.php',{cache:'no-store'});
+    if(!response.ok)throw new Error('fixture_setup.php HTTP '+response.status);
+    const payload=await response.json();
+    const setup=payload?.setup||payload||{};
+    performanceOutputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl).filter(output=>output.baseUrl);
+  }catch(error){
+    const fallback=baseUrlEl.value||benchmarkFallbackUrl;
+    performanceOutputs=fallback?[{id:'fallback-pico',name:'Pico',universe:1,baseUrl:fallback}]:[];
+    document.getElementById('picoTargetDetail').textContent='Could not load show DMX Outputs: '+error.message;
+  }
+  renderPerformanceTargets();
+}
+
+async function runForSelectedPicos(action,activity){
+  const targets=selectedPerformanceOutputs();
+  if(!targets.length){setStatus('Configure at least one DMX Output with a Pico URL first.',true);return[];}
+  const results=[];
+  for(let index=0;index<targets.length;index++){
+    setActivePerformanceOutput(targets[index]);
+    if(targets.length>1)setStatus((activity||'Running measurement')+' on '+performanceTargetLabel()+' ('+(index+1)+'/'+targets.length+')…');
+    results.push(await action(targets[index],index,targets.length));
+  }
+  if(picoTargetEl.value==='__all__'){
+    document.getElementById('picoTargetTitle').textContent='All configured Picos ('+targets.length+')';
+    document.getElementById('picoTargetDetail').textContent='Last displayed cards: '+performanceTargetLabel()+'. Histories contain results for every Pico.';
+  }
+  return results;
 }
 
 function setCheck(id,state,title,detail){
@@ -315,6 +403,7 @@ function renderTimingHistory(){
   body.innerHTML=timingHistory.map((r,i)=>`
     <tr>
       <td>${i+1}</td>
+      <td>${DmxCommon.escapeHtml(r.targetLabel||'Pico')}</td>
       <td>${r.time}</td>
       <td>${timingStateLabel(r.statusState)}</td>
       <td>${r.memory}</td>
@@ -479,6 +568,7 @@ function overallTimingState(row){
 
 async function checkPico(options={}){
   const record=options.record!==false;
+  const targetLabel=performanceTargetLabel();
   try{
     setStatus('Checking Pico status and performance telemetry...');
     const status=await fetchPicoJson('/status.json');
@@ -510,6 +600,7 @@ async function checkPico(options={}){
       }
     }
     historyRow.time=new Date().toLocaleTimeString();
+    historyRow.targetLabel=targetLabel;
     historyRow.statusState='pass';
     historyRow.status=statusDetail;
     historyRow.bufferState=lastBufferSnapshot.state;
@@ -526,6 +617,7 @@ async function checkPico(options={}){
     setCheck('checkStatus','bad','Pico status',e.message);
     if(record)addTimingHistory({
       time:new Date().toLocaleTimeString(),
+      targetLabel,
       statusState:'bad',
       status:e.message,
       memoryState:'idle',
@@ -1101,7 +1193,7 @@ function applyPreset(name){
 function renderHistory(){
   const body=document.getElementById('historyBody');
   body.innerHTML=history.map((r,i)=>
-    `<tr><td>${i+1}</td><td>${r.mode}</td><td>${r.n}</td><td>${r.chPerReq}</td><td>${r.median.toFixed(1)}</td><td>${r.p95.toFixed(1)}</td><td>${r.p99.toFixed(1)}</td><td>${r.errors}</td></tr>`
+    `<tr><td>${i+1}</td><td>${DmxCommon.escapeHtml(r.targetLabel||'Pico')}</td><td>${r.mode}</td><td>${r.n}</td><td>${r.chPerReq}</td><td>${r.median.toFixed(1)}</td><td>${r.p95.toFixed(1)}</td><td>${r.p99.toFixed(1)}</td><td>${r.errors}</td></tr>`
   ).join('');
 }
 
@@ -1153,7 +1245,7 @@ async function runTest(){
   updateStats(total);
   const s=summarize();
   if(s){
-    lastRun={...s,mode:n===1?'single':'batch',chPerReq:n,latencies:[...latencies],errorMarks:[...errorMarks]};
+    lastRun={...s,targetLabel:performanceTargetLabel(),mode:n===1?'single':'batch',chPerReq:n,latencies:[...latencies],errorMarks:[...errorMarks]};
     history.push(lastRun);
     if(history.length>12)history.shift();
     renderHistory();
@@ -1168,7 +1260,7 @@ async function runTest(){
   }
 }
 
-async function runFullPerformanceTest(){
+async function runFullPerformanceTestForActivePico(){
   document.getElementById('btnRunFull').disabled=true;
   let embeddedEmulator=null;
   if(!midiLatencyInput&&!midiLatencyEmulatorAvailable()){
@@ -1201,6 +1293,20 @@ async function runFullPerformanceTest(){
     await checkPico();
   }finally{
     document.getElementById('btnRunFull').disabled=false;
+  }
+}
+
+async function runFullPerformanceTest(){
+  const btn=document.getElementById('btnRunFull');
+  btn.disabled=true;
+  try{
+    await runForSelectedPicos(async()=>{
+      lastBufferSnapshot={state:'idle',detail:'not run'};
+      lastMidiLatencySnapshot={state:'idle',detail:'not run',shortDetail:'not run'};
+      await runFullPerformanceTestForActivePico();
+    },'Running full test');
+  }finally{
+    btn.disabled=false;
   }
 }
 
@@ -1378,7 +1484,7 @@ async function runPlaybackPaletteStress(){
     updateStats(paletteCount);
     const s=summarize();
     if(s){
-      lastRun={...s,mode:'playback+palette',chPerReq:512,latencies:[...latencies],errorMarks:[...errorMarks]};
+      lastRun={...s,targetLabel:performanceTargetLabel(),mode:'playback+palette',chPerReq:512,latencies:[...latencies],errorMarks:[...errorMarks]};
       history.push(lastRun);
       if(history.length>12)history.shift();
       renderHistory();
@@ -1391,6 +1497,7 @@ async function runPlaybackPaletteStress(){
     const statusDetail='DMX '+(status.dmx&&status.dmx.running?'running':'available')+', '+((status.dmx&&status.dmx.channels)||'?')+' channels, frame '+((status.dmx&&status.dmx.frame_count)||'?');
     setCheck('checkStatus','pass','Pico status',statusDetail);
     historyRow.time=new Date().toLocaleTimeString();
+    historyRow.targetLabel=performanceTargetLabel();
     historyRow.statusState='pass';
     historyRow.status=statusDetail;
     historyRow.bufferState=lastBufferSnapshot.state;
@@ -1420,20 +1527,35 @@ async function runPlaybackPaletteStress(){
 initMidiLatencyEmulator();
 document.getElementById('preset').onchange=e=>applyPreset(e.target.value);
 ['channel','value','chPerReq','reqCount','durationSec'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{document.getElementById('preset').value='custom';updateModeHint();}));
-document.getElementById('btnStart').onclick=runTest;
+document.getElementById('btnStart').onclick=()=>runForSelectedPicos(runTest,'Running DMX write test');
 document.getElementById('btnStop').onclick=()=>{running=false;};
 document.getElementById('btnExport').onclick=exportCsv;
 document.getElementById('btnClearHistory').onclick=()=>{history=[];renderHistory();};
 document.getElementById('btnClearTimingHistory').onclick=()=>{timingHistory=[];renderTimingHistory();};
-document.getElementById('btnCheckPico').onclick=checkPico;
-document.getElementById('btnBufferReadback').onclick=runBufferReadback;
+document.getElementById('btnCheckPico').onclick=()=>runForSelectedPicos(()=>checkPico(),'Checking');
+document.getElementById('btnBufferReadback').onclick=()=>runForSelectedPicos(runBufferReadback,'Running buffer readback');
 document.getElementById('midiLatencyInput').onchange=e=>{selectMidiLatencyInput(e.target.value);renderMidiLatencyInputs();};
 document.getElementById('btnMidiLatencyConnect').onclick=()=>connectMidiLatencyInput().catch(e=>midiLatencySetStatus(e.message,'bad'));
-document.getElementById('btnMidiLatencyStart').onclick=startMidiLatencyTest;
+document.getElementById('btnMidiLatencyStart').onclick=()=>{
+  if(picoTargetEl.value!=='__all__')return startMidiLatencyTest();
+  return runForSelectedPicos(
+    ()=>startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()}),
+    'Running MIDI latency test'
+  );
+};
 document.getElementById('btnMidiLatencyStop').onclick=()=>finishMidiLatencyTest({cancelled:true});
 document.getElementById('midiLatencyMode').onchange=e=>{document.getElementById('midiLatencyRate').textContent=e.target.value==='continuous'?'33.3':'43.0';};
 document.getElementById('btnRunFull').onclick=runFullPerformanceTest;
-document.getElementById('btnRunPlaybackPaletteStress').onclick=runPlaybackPaletteStress;
+document.getElementById('btnRunPlaybackPaletteStress').onclick=()=>runForSelectedPicos(runPlaybackPaletteStress,'Running playback + palette stress');
+picoTargetEl.onchange=()=>{
+  if(picoTargetEl.value==='__all__'){
+    const targets=selectedPerformanceOutputs();
+    setActivePerformanceOutput(targets[0]);
+    document.getElementById('picoTargetTitle').textContent='All configured Picos ('+targets.length+')';
+    document.getElementById('picoTargetDetail').textContent='Batch actions run every measurement sequentially for each Pico. Result histories identify the output and universe.';
+  }else setActivePerformanceOutput(selectedPerformanceOutputs()[0]);
+};
+loadPerformanceTargets();
 window.addEventListener('resize',()=>{if(latencies.length)drawChart();});
 </script>
 </body>

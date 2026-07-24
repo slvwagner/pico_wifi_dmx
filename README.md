@@ -37,12 +37,12 @@ Core features:
 - **Effects** — apply circle, figure-8, pan swing, tilt swing, sine, and pulse effects to compatible fixture controls. Effects are relative to the current base/scene value and can be saved as reusable recipes or uploaded to Pico effect slots.
 - **Pico Playback** — run chaser and effect slots directly on the Pico with play/stop, state-aware pause/resume, direction, loop and ping-pong modes, BPM/speed changes, and slot status readback. Browser, chaser, effect, and manual-recall handoffs stop conflicting playback engines before changing DMX output.
 - **MIDI control** — connect a Web MIDI controller or use the Launch Control XL emulator, learn mappings for scenes, live controls, masters, and Pico playback actions, and use soft takeover for continuous controls.
-- **GPIO Control** — map Pico GPIO inputs to actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control; mappings autosave to XAMPP and can be explicitly pushed to or read from the Pico.
+- **GPIO Control** — choose a configured DMX Output and keep independent Pico GPIO mappings per universe for actions such as chase/effect play, stop, pause, resume, speed, BPM, and tap tempo. ADC-capable pins support smoothed analog speed/BPM control; the complete per-output setup autosaves to XAMPP and the selected mapping can be pushed to or read from its Pico.
 
 ### Firmware, diagnostics, and development
 
 - **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
-- **Pico Performance Test** — check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time against a Pico.
+- **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
 
@@ -1028,9 +1028,9 @@ The **Planes** card opens saved room planes from the Plane page. Its recall moda
 
 ![GPIO Control page](docs/screenshots/gpio-control.png)
 
-The GPIO Control page maps physical Pico inputs to lighting actions. Digital GPIO pins can trigger actions such as DMX clear, output-only clear, chaser play/stop/toggle, pause/resume, effect start/stop/toggle, and tap tempo. ADC pins can be mapped to continuous values such as chaser speed multiplier or Effects BPM.
+The GPIO Control page maps physical Pico inputs to lighting actions. Select a named **DMX Output** / universe before editing; every configured Pico keeps its own enabled state, digital mappings, and ADC mappings in the shared XAMPP setup. Digital GPIO pins can trigger actions such as DMX clear, output-only clear, chaser play/stop/toggle, pause/resume, effect start/stop/toggle, and tap tempo. ADC pins can be mapped to continuous values such as chaser speed multiplier or Effects BPM.
 
-The page protects reserved hardware pins and already-used pins, then sends the mapping to the Pico with `POST /gpio/config` when a Pico base URL is set. Once uploaded, the Pico polls the inputs on Core 0 and runs the actions directly, so the browser does not need to stay open during operation.
+The page protects reserved hardware pins and already-used pins, then sends the current output's mapping to that Pico with `POST /gpio/config`. **Read from Pico**, status polling, and chaser-slot details follow the same selection. Once uploaded, the Pico polls the inputs on Core 0 and runs the actions directly, so the browser does not need to stay open during operation.
 
 **DMX Buffer Monitor**
 
@@ -1041,6 +1041,8 @@ The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selec
 **Pico Performance Test**
 
 ![Pico Performance Test page](docs/screenshots/benchmark.png)
+
+Choose one named DMX Output for an individual run or **All configured Picos** to repeat the complete measurement sequentially across the fleet. Timing History and Write History identify each result by Pico name and universe.
 
 The Pico Performance Test page checks the whole browser-to-Pico path. Current firmware exposes `/perf/status.json`, which reports free RAM, Core0 100 Hz playback-loop work/slack/late counts, Core1 service-loop headroom, HTTP callback timing, and DMX frame counters. Older firmware still falls back to `/logs.txt` parsing. The page verifies that a known DMX batch can be read back from both `/dmx/output.json` and `/dmx/base`, and keeps the former frame-rate benchmark as the DMX Write Test. Its **MIDI-to-DMX Latency** test accepts either a real Web MIDI input or the Launch Control XL Emulator. The primary timing is MIDI event to the start of the browser's `/dmx/b` request, including Show Run's intentional 30 ms fader/knob coalescing or immediate button handling. Fader/knob p95 is PASS at no more than 35 ms and button p95 at no more than 5 ms; slower results are WARN up to 50 ms or 15 ms respectively, then FAIL. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and confirmed-following-frame time are shown separately as diagnostics. The test restores the selected DMX channel afterward. The Connection & Core Timing summary has a dedicated MIDI result, and Timing History records the MIDI-to-POST median and p95 beside memory, headroom, HTTP, DMX, and buffer results. **Run Full Test** invisibly loads the emulator inside the Performance page when no input is connected and generates every configured sample automatically without opening or focusing another tab. If a physical USB MIDI input is already connected, the test instead waits for manual controller movement. The write result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
 
@@ -1068,7 +1070,7 @@ The Plane page calibrates moving lights against measured room points A/B/C. Each
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
-Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show and keeps the first output internally available to one-device tools such as Pico slot playback, GPIO, Monitor, and Performance; the editable single-URL header field is no longer shown.
+Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show. Controller fixture output, GPIO configuration, and Performance measurements are multi-output aware. Show Run, Chaser, Effects, Room Plane, and Monitor still keep the first output internally available for direct Pico operations; those pages require further routing work before their live/playback paths are fully multi-output. The editable single-URL header field is no longer shown.
 
 ### Chaser / Effects — Saved Chases, Presets and Pico Slots
 

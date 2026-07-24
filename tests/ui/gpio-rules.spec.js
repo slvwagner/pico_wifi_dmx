@@ -1,7 +1,15 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
+const fs = require('fs');
+const path = require('path');
 
 test.describe('GPIO established rules', () => {
+  test('server storage preserves the per-output GPIO configuration schema', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../../api/gpio_setup.php'), 'utf8');
+    expect(source).toContain("'selectedOutputId' => $data['selectedOutputId'] ?? null");
+    expect(source).toContain("'outputConfigs' => $data['outputConfigs'] ?? null");
+  });
+
   test.beforeEach(async ({ page }) => {
     await openDmxPage(page, 'dmx_gpio.html');
   });
@@ -11,6 +19,81 @@ test.describe('GPIO established rules', () => {
     await expect(page.locator('#clearLocal')).toHaveCount(0);
     await expect(page.locator('#pushConfig')).toHaveText('Push to Pico');
     await expect(page.locator('#pullConfig')).toHaveText('Read from Pico');
+  });
+
+  test('keeps separate GPIO mappings for each configured DMX Output and pushes to the selected Pico', async ({ page }) => {
+    let saved = {
+      ok: true,
+      exists: true,
+      selectedOutputId: 'front',
+      outputConfigs: {
+        front: {
+          enabled: true,
+          mappings: [{ pin: 16, pull: 'pullup', trigger: 'falling', action: 'dmx_clear', slot: 0, debounce_ms: 30 }],
+          adcMappings: []
+        },
+        rear: {
+          enabled: true,
+          mappings: [{ pin: 18, pull: 'pullup', trigger: 'falling', action: 'chaser_toggle', slot: 2, debounce_ms: 30 }],
+          adcMappings: []
+        }
+      }
+    };
+    const pushes = [];
+    await page.route('**/fixture_setup.php**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          dmxOutputs: [
+            { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+            { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+          ],
+          fixtures: []
+        }
+      })
+    }));
+    await page.route('**/gpio_setup.php**', async route => {
+      if (route.request().method() === 'POST') {
+        saved = { ok: true, exists: true, ...route.request().postDataJSON() };
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      }
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) });
+    });
+    for (const root of ['http://127.0.0.1:18991', 'http://127.0.0.1:18992']) {
+      await page.route(root + '/gpio/config', route => {
+        if (route.request().method() === 'POST') pushes.push({ url: route.request().url(), body: route.request().postData() });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"enabled":true,"mappings":[],"adc_mappings":[]}' });
+      });
+      await page.route(root + '/gpio/status', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"ok":true,"enabled":true,"mapping_count":0,"event_count":0,"last_pin":0,"last_action":"none","last_event_ms":0}'
+      }));
+      await page.route(root + '/chaser/slots', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"slots":[]}' }));
+    }
+
+    await page.addInitScript(() => localStorage.removeItem('dmxGPIOConfig'));
+    await openDmxPage(page, 'dmx_gpio.html');
+    await expect(page.locator('#gpioOutput option')).toHaveText([
+      'Front Pico · Universe 1',
+      'Rear Pico · Universe 2'
+    ]);
+    await expect(page.locator('#gpioOutput')).toHaveValue('front');
+    await expect(page.locator('[data-field="pin"]')).toHaveValue('16');
+
+    await page.locator('#gpioOutput').selectOption('rear');
+    await expect(page.locator('[data-field="pin"]')).toHaveValue('18');
+    await page.locator('#addMapping').click();
+    await expect.poll(() => saved.outputConfigs.rear.mappings.length).toBe(2);
+    expect(saved.outputConfigs.front.mappings.map(mapping => mapping.pin)).toEqual([16]);
+
+    await page.locator('#pushConfig').click();
+    await expect.poll(() => pushes.length).toBe(1);
+    expect(pushes[0].url).toBe('http://127.0.0.1:18992/gpio/config');
+    expect(pushes[0].body).toContain('MAP 18 pullup falling chaser_toggle 2 30');
   });
 
   test('ADC mapping only offers Pico ADC-capable GPIO pins', async ({ page }) => {
