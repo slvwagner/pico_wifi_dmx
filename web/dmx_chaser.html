@@ -367,6 +367,7 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
 </div>
 <div id="chaserPixelMatrixBoxBody" class="scene-toolbox__body">
 <div class="small" style="color:var(--muted)">Recall a saved picture into the selected step. Select another step to build a chase from multiple pictures.</div>
+<div id="chaserPixelMatrixLayoutControls" class="tile-layout-controls"></div>
 <div id="chaserPixelMatrixGrid" class="scene-slot-matrix"></div>
 </div>
 </div>
@@ -433,6 +434,7 @@ document.body.classList.add('toolbox-rail-layout','chaser-rail-layout');
   ['chaserChaseLayoutControls',{colsId:'chaseSlotCols',rowsId:'chaseSlotRows',moveId:'moveChaseSlotsBtn',cols:4,rows:4,moveTitle:'Move chase tiles by dragging them to another slot'}],
   ['chaserSceneLayoutControls',{colsId:'chaserSceneCols',rowsId:'chaserSceneRows',moveId:'moveChaserScenesBtn',cols:4,rows:4,moveTitle:'Move scene tiles by dragging them to another slot'}],
   ['chaserPaletteLayoutControls',{colsId:'chaserPaletteCols',rowsId:'chaserPaletteRows',moveId:'moveChaserPalettesBtn',cols:4,rows:4,moveTitle:'Move palette tiles by dragging them to another slot'}],
+  ['chaserPixelMatrixLayoutControls',{colsId:'chaserPixelMatrixCols',rowsId:'chaserPixelMatrixRows',moveId:'moveChaserPixelMatricesBtn',cols:4,rows:4,maxCols:16,maxRows:16,moveTitle:'Move Pixel Matrix tiles by dragging them to another slot'}],
   ['chaserPlaneLayoutControls',{colsId:'chaserPlaneCols',rowsId:'chaserPlaneRows',moveId:'moveChaserPlanesBtn',cols:3,rows:3,maxCols:16,maxRows:16,moveTitle:'Move plane tiles by dragging them to another slot'}]
 ].forEach(([host,options])=>DmxCommon.mountTileLayoutControls(host,options));
 DmxCommon.mountFanOutToolbox('fanToolboxMount',{hint:'Select a group or participating fixtures.'});
@@ -3246,6 +3248,8 @@ const chaserPixelMatrixEditorTemplate=document.createElement('template');
 chaserPixelMatrixEditorTemplate.innerHTML=DmxCommon.pixelMatrixToolboxHtml();
 document.body.appendChild(chaserPixelMatrixEditorTemplate.content.querySelector('#pixelMatrixModal'));
 let editingChaserPixelMatrix=null;
+let chaserPixelMatrixMoveMode=false;
+let chaserPixelMatrixMoveSelectedSlot=null;
 function chaserPixelMatrices(){
   return DmxCommon.normalizePixelMatrices(setup.pixelMatrices||[]);
 }
@@ -3321,8 +3325,16 @@ function renderChaserPixelMatrixEditor(){
   const mapped=matrix.mappings.filter(key=>labels.has(key)).length;
   document.getElementById('pixelMatrixSummary').textContent=matrix.width+'×'+matrix.height+' = '+(matrix.width*matrix.height)+' pixels · '+mapped+' mapped · '+targets.length+' compatible fixture color controls available'+(matrix.imageName?' · '+matrix.imageName:'');
 }
-function openChaserPixelMatrixEditor(matrix){
-  editingChaserPixelMatrix=DmxCommon.normalizePixelMatrix(JSON.parse(JSON.stringify(matrix)));
+function openChaserPixelMatrixEditor(matrix=null,slot=null){
+  const matrices=chaserPixelMatrices();
+  const nextSlot=slot===null?Math.max(0,...matrices.map(item=>item.slot+1)):slot;
+  editingChaserPixelMatrix=DmxCommon.normalizePixelMatrix(matrix?JSON.parse(JSON.stringify(matrix)):{
+    id:'pixel-matrix-'+uid(),
+    name:'Pixel Matrix '+(matrices.length+1),
+    slot:nextSlot,
+    width:8,
+    height:8
+  });
   renderChaserPixelMatrixEditor();
   DmxCommon.showModal(document.getElementById('pixelMatrixModal'));
 }
@@ -3367,22 +3379,83 @@ function chaserPixelMatrixStepValues(matrix){
   });
   return values;
 }
+function requiredChaserPixelMatrixSlots(){
+  return chaserPixelMatrices().reduce((max,matrix)=>Math.max(max,matrix.slot+1),0);
+}
+function normalizeChaserPixelMatrixGrid(priority='cols'){
+  const needed=requiredChaserPixelMatrixSlots();
+  let cols=Math.max(1,Math.min(16,parseInt(setup.pixelMatrixCols,10)||4));
+  let rows=Math.max(1,Math.min(16,parseInt(setup.pixelMatrixRows,10)||4));
+  if(needed&&cols*rows<needed){
+    if(priority==='rows')cols=Math.min(16,Math.max(cols,Math.ceil(needed/rows)));
+    else rows=Math.min(16,Math.max(rows,Math.ceil(needed/cols)));
+  }
+  setup.pixelMatrixCols=cols;
+  setup.pixelMatrixRows=rows;
+  const colsSelect=document.getElementById('chaserPixelMatrixCols');
+  const rowsSelect=document.getElementById('chaserPixelMatrixRows');
+  if(colsSelect){
+    colsSelect.min=Math.max(1,Math.ceil(needed/rows));
+    colsSelect.value=String(cols);
+  }
+  if(rowsSelect){
+    rowsSelect.min=Math.max(1,Math.ceil(needed/cols));
+    rowsSelect.value=String(rows);
+  }
+}
+function moveChaserPixelMatrixSlot(fromSlot,toSlot){
+  fromSlot=parseInt(fromSlot,10);
+  toSlot=parseInt(toSlot,10);
+  if(!Number.isFinite(fromSlot)||!Number.isFinite(toSlot)||fromSlot===toSlot)return false;
+  const matrices=chaserPixelMatrices();
+  const moving=matrices.find(matrix=>matrix.slot===fromSlot);
+  if(!moving)return false;
+  const target=matrices.find(matrix=>matrix.slot===toSlot);
+  moving.slot=toSlot;
+  if(target)target.slot=fromSlot;
+  setup.pixelMatrices=matrices;
+  chaserPixelMatrixMoveSelectedSlot=null;
+  renderChaserPixelMatrices();
+  saveChaserPixelMatricesSetup()
+    .then(()=>setStatus(target?'Swapped Pixel Matrices '+(fromSlot+1)+' and '+(toSlot+1):'Moved Pixel Matrix to slot '+(toSlot+1)))
+    .catch(error=>setStatus('Pixel Matrix save failed: '+error.message,true));
+  return true;
+}
+function toggleChaserPixelMatrixMoveMode(){
+  chaserPixelMatrixMoveMode=!chaserPixelMatrixMoveMode;
+  chaserPixelMatrixMoveSelectedSlot=null;
+  renderChaserPixelMatrices();
+}
 function renderChaserPixelMatrices(){
   const grid=document.getElementById('chaserPixelMatrixGrid');
   if(!grid)return;
+  normalizeChaserPixelMatrixGrid('cols');
   const matrices=chaserPixelMatrices();
-  const cols=Math.max(1,Math.min(16,parseInt(setup.pixelMatrixCols,10)||4));
-  const required=matrices.reduce((max,matrix)=>Math.max(max,matrix.slot+1),0);
-  const configuredRows=Math.max(1,Math.min(16,parseInt(setup.pixelMatrixRows,10)||4));
-  const rows=Math.max(configuredRows,Math.ceil(required/cols));
+  const cols=setup.pixelMatrixCols;
+  const rows=setup.pixelMatrixRows;
+  const moveButton=document.getElementById('moveChaserPixelMatricesBtn');
+  if(moveButton){
+    moveButton.classList.toggle('active',chaserPixelMatrixMoveMode);
+    moveButton.setAttribute('aria-pressed',chaserPixelMatrixMoveMode?'true':'false');
+  }
+  grid.classList.toggle('tile-move-mode',chaserPixelMatrixMoveMode);
   grid.style.gridTemplateColumns='repeat('+cols+',minmax(54px,1fr))';
   grid.innerHTML=Array.from({length:cols*rows},(_,slot)=>{
     const matrix=matrices.find(item=>item.slot===slot);
-    if(!matrix)return'<div class="slot" data-chaser-pixel-matrix-slot="'+slot+'" title="Empty Pixel Matrix slot">'+(slot+1)+'</div>';
+    if(!matrix)return'<div class="slot" data-chaser-pixel-matrix-slot="'+slot+'" title="'+(chaserPixelMatrixMoveMode?'Move a saved matrix here':'Create a Pixel Matrix here')+'">+</div>';
     const mapped=matrix.mappings.filter(Boolean).length;
     const color=/^#[0-9a-f]{6}$/i.test(matrix.pixels[0]||'')?matrix.pixels[0]:'#25323c';
-    return'<div class="slot filled" data-chaser-pixel-matrix-slot="'+slot+'" title="Recall '+DmxCommon.escapeHtml(matrix.name)+' into the selected chase step" style="background:'+color+';--slot-bg:'+color+'">'+DmxCommon.slotVisualButtonHtml('data-edit-chaser-pixel-matrix',matrix.id,'Edit Pixel Matrix')+'<button class="slot-del" data-delete-chaser-pixel-matrix="'+DmxCommon.escapeHtml(matrix.id)+'" title="Delete Pixel Matrix">×</button><div class="palette-slot-content"><span class="palette-slot-name">'+DmxCommon.escapeHtml(matrix.name)+'</span><span class="small">'+matrix.width+'×'+matrix.height+' · '+mapped+'/'+(matrix.width*matrix.height)+'</span></div></div>';
+    return'<div class="'+DmxCommon.savedTileClass('slot filled',chaserPixelMatrixMoveSelectedSlot===slot)+'" data-chaser-pixel-matrix-slot="'+slot+'" title="'+(chaserPixelMatrixMoveMode?'Move '+DmxCommon.escapeHtml(matrix.name):'Recall '+DmxCommon.escapeHtml(matrix.name)+' into the selected chase step')+'" style="background:'+color+';--slot-bg:'+color+'">'+DmxCommon.slotVisualButtonHtml('data-edit-chaser-pixel-matrix',matrix.id,'Edit Pixel Matrix')+'<button class="slot-del" data-delete-chaser-pixel-matrix="'+DmxCommon.escapeHtml(matrix.id)+'" title="Delete Pixel Matrix">×</button><div class="palette-slot-content"><span class="palette-slot-name">'+DmxCommon.escapeHtml(matrix.name)+'</span><span class="small">'+matrix.width+'×'+matrix.height+' · '+mapped+'/'+(matrix.width*matrix.height)+'</span></div></div>';
   }).join('');
+  DmxCommon.initTileMoveGrid({
+    grid,
+    button:'moveChaserPixelMatricesBtn',
+    active:chaserPixelMatrixMoveMode,
+    itemSelector:'[data-chaser-pixel-matrix-slot]',
+    getIndex:element=>parseInt(element.dataset.chaserPixelMatrixSlot,10),
+    canDrag:slot=>matrices.some(matrix=>matrix.slot===slot),
+    onMove:moveChaserPixelMatrixSlot
+  });
 }
 async function recallChaserPixelMatrix(matrix){
   const values=chaserPixelMatrixStepValues(matrix);
@@ -3439,9 +3512,42 @@ document.getElementById('chaserPixelMatrixGrid').addEventListener('click',event=
   }
   const tile=event.target.closest('[data-chaser-pixel-matrix-slot]');
   if(!tile)return;
-  const matrix=chaserPixelMatrices().find(item=>item.slot===parseInt(tile.dataset.chaserPixelMatrixSlot,10));
-  if(matrix)recallChaserPixelMatrix(matrix);
+  const slot=parseInt(tile.dataset.chaserPixelMatrixSlot,10);
+  const matrix=chaserPixelMatrices().find(item=>item.slot===slot);
+  if(chaserPixelMatrixMoveMode){
+    if(chaserPixelMatrixMoveSelectedSlot===null){
+      if(!matrix){setStatus('Pixel Matrix move mode: select a filled tile first');return;}
+      chaserPixelMatrixMoveSelectedSlot=slot;
+      renderChaserPixelMatrices();
+      return;
+    }
+    if(chaserPixelMatrixMoveSelectedSlot===slot){
+      chaserPixelMatrixMoveSelectedSlot=null;
+      renderChaserPixelMatrices();
+      return;
+    }
+    moveChaserPixelMatrixSlot(chaserPixelMatrixMoveSelectedSlot,slot);
+    return;
+  }
+  if(matrix){
+    recallChaserPixelMatrix(matrix);
+    return;
+  }
+  openChaserPixelMatrixEditor(null,slot);
 });
+document.getElementById('chaserPixelMatrixCols').addEventListener('input',event=>{
+  setup.pixelMatrixCols=event.target.value;
+  normalizeChaserPixelMatrixGrid('cols');
+  renderChaserPixelMatrices();
+  saveChaserPixelMatricesSetup().catch(error=>setStatus('Pixel Matrix layout save failed: '+error.message,true));
+});
+document.getElementById('chaserPixelMatrixRows').addEventListener('input',event=>{
+  setup.pixelMatrixRows=event.target.value;
+  normalizeChaserPixelMatrixGrid('rows');
+  renderChaserPixelMatrices();
+  saveChaserPixelMatricesSetup().catch(error=>setStatus('Pixel Matrix layout save failed: '+error.message,true));
+});
+document.getElementById('moveChaserPixelMatricesBtn').onclick=toggleChaserPixelMatrixMoveMode;
 ['pixelMatrixWidth','pixelMatrixHeight'].forEach(id=>{
   document.getElementById(id).addEventListener('change',()=>{
     syncChaserPixelMatrixFields();
@@ -3531,7 +3637,12 @@ document.getElementById('pixelMatrixApply').onclick=()=>{
 document.getElementById('pixelMatrixDelete').onclick=()=>{
   if(!editingChaserPixelMatrix)return;
   const matrix=chaserPixelMatrices().find(item=>item.id===editingChaserPixelMatrix.id);
-  if(!matrix||!confirm('Delete pixel matrix "'+matrix.name+'"?'))return;
+  if(!matrix){
+    DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
+    setStatus('New pixel matrix discarded');
+    return;
+  }
+  if(!confirm('Delete pixel matrix "'+matrix.name+'"?'))return;
   setup.pixelMatrices=chaserPixelMatrices().filter(item=>item.id!==matrix.id);
   renderChaserPixelMatrices();
   DmxCommon.hideModal(document.getElementById('pixelMatrixModal'));
