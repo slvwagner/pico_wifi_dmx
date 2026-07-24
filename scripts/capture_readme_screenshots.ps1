@@ -417,6 +417,48 @@ try {
 
     Eval-Js @"
 (async()=>{
+  dmxOutputs=DmxCommon.normalizeDmxOutputs([{id:'dmx-output-1',name:'Pico 1',universe:1,baseUrl:''}]);
+  discoveredPicos=[
+    {id:'DOC-PICO-FRONT',name:'Front truss Pico',version:'0.9.14',ip:'192.168.0.21',http:80,url:'http://192.168.0.21/'},
+    {id:'DOC-PICO-PIXELS',name:'Pixel matrix Pico',version:'0.9.14',ip:'192.168.0.22',http:80,url:'http://192.168.0.22/'}
+  ];
+  renderDmxOutputsEditor();
+  renderDiscoveredPicos();
+  const status=document.getElementById('dmxDiscoveryStatus');
+  if(status)status.textContent='Found 2 Pico controllers.';
+  DmxCommon.showModal(document.getElementById('dmxOutputsModal'));
+  await docShots.wait(350);
+})()
+"@
+    Save-ElementScreenshot "#dmxOutputsModal .modal-card" "fixture-controller-dmx-output-discovery.png"
+
+    Eval-Js @"
+(async()=>{
+  dmxOutputs=DmxCommon.normalizeDmxOutputs([
+    {id:'dmx-output-1',deviceId:'DOC-PICO-FRONT',name:'Front truss Pico',universe:1,baseUrl:'http://192.168.0.21/'},
+    {id:'dmx-output-2',deviceId:'DOC-PICO-PIXELS',name:'Pixel matrix Pico',universe:2,baseUrl:'http://192.168.0.22/'}
+  ]);
+  renderDmxOutputsEditor();
+  renderDiscoveredPicos();
+  const status=document.getElementById('dmxDiscoveryStatus');
+  if(status)status.textContent='Found 2 Pico controllers. Both are assigned.';
+  await docShots.wait(250);
+})()
+"@
+    Save-ElementScreenshot "#dmxOutputsModal .modal-card" "fixture-controller-dmx-outputs.png"
+
+    Eval-Js @"
+(async()=>{
+  DmxCommon.hideModal(document.getElementById('dmxOutputsModal'));
+  discoveredPicos=[];
+  dmxOutputs=DmxCommon.normalizeDmxOutputs([],baseUrl.value);
+  renderPatchOutputOptions();
+  await docShots.wait(150);
+})()
+"@
+
+    Eval-Js @"
+(async()=>{
   docShots.setSetupSections({profiles:false,patch:true});
   docShots.setToolboxRail({collapsed:true});
   docShots.setSceneBox({visible:false});

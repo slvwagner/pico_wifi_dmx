@@ -5,6 +5,8 @@
 Changed:
 
 - Started the 0.9.14 development branch.
+- Added shared, universe-aware **DMX Outputs** data to the Fixture Controller. A show can now store multiple named Pico base URLs, assign every patched fixture to an output, reuse the same DMX address on different outputs, change an existing fixture's output, and route individual controls plus grouped scene, palette, Fan Out, and room-plane batches to the correct Pico concurrently. Legacy single-URL setups migrate to the first output, Patch CSV includes output and universe columns, and the complete show format advances to version 4 so older software cannot silently collapse a multi-output show onto one Pico.
+- Expanded Pico discovery from the original first-device shortcut into an all-device **Find Picos** workflow inside the DMX Outputs modal. Every discovery beacon is listed with device name and IP address, each controller can be added independently with the next free universe, stable device IDs prevent duplicates, and manually entered URLs that match a discovered device are recognized as already assigned.
 
 ## 0.9.13 - 2026-07-24
 

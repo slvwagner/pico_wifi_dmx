@@ -11,6 +11,16 @@
       "purpose": "controller expanded reference"
     },
     {
+      "file": "fixture-controller-dmx-output-discovery.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "DMX Outputs modal listing all discovered Pico controllers"
+    },
+    {
+      "file": "fixture-controller-dmx-outputs.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "DMX Outputs modal with two configured Pico universes"
+    },
+    {
       "file": "fixture-controller-profile-controls.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "fixture profiles and add/edit control"

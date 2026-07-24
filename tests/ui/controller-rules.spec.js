@@ -36,6 +36,131 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#baseUrl')).toHaveValue('http://192.0.2.55/');
   });
 
+  test('legacy Pico base URL migrates to the first shared DMX output', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const migrated = DmxCommon.normalizeDmxOutputs([], 'http://192.0.2.40/');
+      return {
+        outputs: migrated,
+        selected: DmxCommon.dmxOutputForFixture({ id: 101 }, migrated)
+      };
+    });
+
+    expect(state.outputs).toHaveLength(1);
+    expect(state.outputs[0]).toMatchObject({
+      name: 'Pico 1',
+      universe: 1,
+      baseUrl: 'http://192.0.2.40/'
+    });
+    expect(state.selected.id).toBe(state.outputs[0].id);
+  });
+
+  test('fixtures on different DMX outputs may use the same address and send to their assigned Pico', async ({ page }) => {
+    const requests = [];
+    await page.route('http://127.0.0.1:18991/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/**', async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      fixtures.splice(0, fixtures.length,
+        { id: 8101, name: 'Front fixture', profileId: 1, start: 1, outputId: 'front' },
+        { id: 8102, name: 'Rear fixture', profileId: 1, start: 1, outputId: 'rear' }
+      );
+      values['8101:11'] = 71;
+      values['8102:11'] = 72;
+    });
+
+    const result = await page.evaluate(async () => {
+      const front = fixtures.find(fixture => fixture.id === 8101);
+      const rear = fixtures.find(fixture => fixture.id === 8102);
+      const control = profiles.find(profile => profile.id === 1).controls.find(item => item.id === 11);
+      const conflict = fixtureAddressConflictInList(1, 8, fixtures, 8101, 'front');
+      await sendControl(front, control, true);
+      await sendControl(rear, control, true);
+      return { conflict: !!conflict };
+    });
+
+    expect(result.conflict).toBe(false);
+    await expect.poll(() => requests.some(url => url.startsWith('http://127.0.0.1:18991/dmx/set/1/71'))).toBe(true);
+    await expect.poll(() => requests.some(url => url.startsWith('http://127.0.0.1:18992/dmx/set/1/72'))).toBe(true);
+
+    requests.length = 0;
+    await page.evaluate(async () => {
+      await sendFixtureDmxRows([
+        { fixture: fixtures.find(item => item.id === 8101), row: { ch: 2, val: 81 } },
+        { fixture: fixtures.find(item => item.id === 8102), row: { ch: 2, val: 82 } }
+      ]);
+    });
+    await expect.poll(() => requests).toContain('http://127.0.0.1:18991/dmx/b');
+    await expect.poll(() => requests).toContain('http://127.0.0.1:18992/dmx/b');
+  });
+
+  test('DMX Outputs editor adds another universe and exposes it in fixture patching', async ({ page }) => {
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+    await expect(page.locator('#dmxOutputsModal')).toBeVisible();
+    await page.getByRole('button', { name: 'Add output' }).click();
+
+    await expect(page.locator('[data-dmx-output-row]')).toHaveCount(2);
+    await page.locator('[data-dmx-output-name]').nth(1).fill('Pixel Pico 2');
+    await page.locator('[data-dmx-output-url]').nth(1).fill('http://192.0.2.42/');
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    await expect(page.locator('#patchOutput')).toContainText('Pixel Pico 2');
+    const saved = await page.evaluate(() => saveData().dmxOutputs);
+    expect(saved).toHaveLength(2);
+    expect(saved[1]).toMatchObject({
+      name: 'Pixel Pico 2',
+      universe: 2,
+      baseUrl: 'http://192.0.2.42/'
+    });
+  });
+
+  test('DMX Outputs discovery lists every Pico and adds each device only once', async ({ page }) => {
+    await page.route('**/pico_discovery.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          devices: [
+            { id: 'pico-front', name: 'Front Pico', ip: '192.0.2.51', http: 80, url: 'http://192.0.2.51/' },
+            { id: 'pico-rear', name: 'Rear Pico', ip: '192.0.2.52', http: 80, url: 'http://192.0.2.52/' }
+          ]
+        })
+      });
+    });
+
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+    await page.getByRole('button', { name: 'Find Picos' }).click();
+
+    await expect(page.locator('[data-discovered-pico]')).toHaveCount(2);
+    await expect(page.locator('[data-discovered-pico="pico-front"]')).toContainText('Front Pico');
+    await expect(page.locator('[data-discovered-pico="pico-front"]')).toContainText('192.0.2.51');
+    await expect(page.locator('[data-discovered-pico="pico-rear"]')).toContainText('Rear Pico');
+
+    await page.locator('[data-add-discovered-pico="pico-front"]').click();
+    await page.locator('[data-add-discovered-pico="pico-rear"]').click();
+
+    await expect(page.locator('[data-dmx-output-row]')).toHaveCount(2);
+    await expect(page.locator('[data-add-discovered-pico="pico-front"]')).toBeDisabled();
+    await expect(page.locator('[data-add-discovered-pico="pico-rear"]')).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Done' }).click();
+    const saved = await page.evaluate(() => saveData().dmxOutputs);
+    expect(saved).toEqual([
+      expect.objectContaining({ deviceId: 'pico-front', name: 'Front Pico', universe: 1, baseUrl: 'http://192.0.2.51/' }),
+      expect.objectContaining({ deviceId: 'pico-rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://192.0.2.52/' })
+    ]);
+  });
+
   test('fixture card Default and Blackout buttons recall their values to DMX', async ({ page }) => {
     const urls = [];
     await page.route('http://127.0.0.1:18991/**', async route => {

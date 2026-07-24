@@ -173,7 +173,7 @@ test.describe('Project versioning rules', () => {
       type: 'pico_wifi_dmx_full_setup',
       appVersion: '0.9.4',
       schemaVersion: 1,
-      setupFormatVersion: 3,
+      setupFormatVersion: 4,
       minimumAppVersion: '0.9.4',
       roomPlane: {
         points: [{ id: 'A', x: 0, y: 0, z: 0 }, { id: 'B', x: 5, y: 0, z: 0 }, { id: 'C', x: 0, y: 3, z: 0 }],
@@ -363,7 +363,7 @@ test.describe('Project versioning rules', () => {
     expect(result.filenames).toEqual(['pico_dmx_visual-tour_show.json']);
     expect(result.showName).toBe('Visual Tour');
     expect(result.fixtureShowName).toBe('Visual Tour');
-    expect(result.setupFormatVersion).toBe(3);
+    expect(result.setupFormatVersion).toBe(4);
     expect(result.setupProfiles).toEqual(['Profile A', 'Unused Profile']);
     expect(result.setupFixtureLibrary).toMatchObject({
       type: 'pico_wifi_dmx_show_fixture_library',

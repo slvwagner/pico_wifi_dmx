@@ -120,10 +120,10 @@ strong { color: #ffffff; }
 <p>Modal editors and dialogs require an explicit action to close. Clicking the dark area outside a modal does not dismiss it, which prevents accidental loss of edits. Use the modal&#39;s <strong>Close</strong>, <strong>Cancel</strong>, save, or other action button when you are finished.</p>
 <p>The Pico itself is controlled over the network with its base URL, for example:</p>
 <pre><code>http://192.168.0.24/</code></pre>
-<p>Enter the Pico base URL once in any page. The browser stores it and shares it with the other pages. Across the UI, live Pico updates only happen while a Pico base URL is set; clearing the URL puts the page into browser-only editing. The Pico base URL is separate from the XAMPP URL: XAMPP serves the controller pages, while the Pico base URL is the lighting controller hardware API.</p>
+<p>The Fixture Controller can store multiple Pico base URLs as named <strong>DMX Outputs</strong>, with one DMX universe per Pico. Its first output remains the <strong>Primary Pico URL</strong> used by pages that currently support one Pico. Across the UI, live Pico updates only happen while the applicable Pico base URL is set; clearing the URL puts that output into browser-only editing. Pico base URLs are separate from the XAMPP URL: XAMPP serves the controller pages and stores the show, while each Pico URL identifies one lighting-controller hardware API.</p>
 <p>This applies to every page that can talk to the Pico:</p>
 <ul>
-<li><strong>Fixture Controller</strong> edits values locally, and only sends DMX changes when the Pico base URL is set.</li>
+<li><strong>Fixture Controller</strong> can route fixtures across multiple configured Pico outputs. A fixture sends only when its assigned output has a Pico base URL.</li>
 <li><strong>Chaser</strong> can edit steps locally without a URL; live step preview, Chase Playback, and Pico slot actions need a Pico base URL.</li>
 <li><strong>Effects</strong> can edit effect recipes locally without a URL; browser preview, scene-to-Pico center updates, and Pico slot actions need a Pico base URL.</li>
 <li><strong>GPIO Control</strong> can edit and save mappings locally without a URL; upload, readback, and status polling need a Pico base URL.</li>
@@ -148,7 +148,7 @@ strong { color: #ffffff; }
 <h2 id="1-fixture-controller">1. Fixture Controller</h2>
 <p><img src="screenshots/fixture-controller.png" alt="Fixture Controller"></p>
 <p>The Fixture Controller is the central page. Use it first when setting up a new show or fixture set.</p>
-<h3 id="set-the-pico-base-url">Set the Pico Base URL</h3>
+<h3 id="set-the-primary-pico-base-url">Set the Primary Pico Base URL</h3>
 <ol>
 <li>Open the XAMPP controller URL, for example <code>http://localhost/dmx/</code> on the XAMPP computer or <code>http://192.168.0.50/dmx/</code> from another device on the LAN.</li>
 <li>Enter the Pico base URL, for example <code>http://192.168.0.24/</code>.</li>
@@ -157,6 +157,21 @@ strong { color: #ffffff; }
 <li>Control changes are sent to the Pico when a Pico base URL is set. If the field is empty, the page edits locally only and does not send live DMX updates.</li>
 <li>Fixture setup changes are autosaved to the XAMPP server. Use <strong>Export Show</strong> before large changes when you want an extra backup of the complete show setup.</li>
 </ol>
+<h3 id="dmx-outputs-and-multiple-picos">DMX Outputs and Multiple Picos</h3>
+<p><img src="screenshots/fixture-controller-dmx-output-discovery.png" alt="Discovered Pico controllers in the DMX Outputs modal"></p>
+<p>Open <strong>DMX Outputs</strong> in the Controller header when the show needs more than one 512-channel DMX universe. Each output has:</p>
+<ul>
+<li>A descriptive name, such as <code>Front truss Pico</code> or <code>Pixel matrix Pico</code></li>
+<li>A unique universe number</li>
+<li>One Pico base URL</li>
+<li>A stable discovered-device ID when it was added through network discovery</li>
+</ul>
+<p>Click <strong>Find Picos</strong> to listen for every Pico WiFi DMX discovery beacon on the LAN. The result list shows every discovered controller with its advertised name and IP address. Click <strong>Add</strong> beside each Pico that belongs to the show. The first discovered Pico fills an unused empty output; additional devices receive the next free universe number. A Pico whose device ID or normalized URL already belongs to an output is marked <strong>Added</strong> and cannot be added again.</p>
+<p><img src="screenshots/fixture-controller-dmx-outputs.png" alt="Two configured Pico DMX outputs"></p>
+<p>Names, universe numbers, and URLs remain editable after discovery. Click <strong>Add output</strong> for a controller that must be entered manually. Every output must have a unique universe number. Click <strong>Done</strong> to validate the list, update the Primary Pico URL from the first output, and autosave the show.</p>
+<p>Select the wanted <strong>DMX output</strong> while patching a fixture. Address conflicts are checked only inside that output, so Universe 1 channel 1 and Universe 2 channel 1 are independent and may both be used. Existing fixture cards in <strong>Patch Fixtures</strong> also have a DMX output dropdown. Reassigning a fixture is refused if its address range would overlap another fixture on the destination output.</p>
+<p>The Controller routes single controls, fixture Default/Blackout/Highlight recalls, Group Edit, scenes, palettes, Fan Out, room-plane targeting, and clear-all operations to their fixtures&#39; assigned outputs. Multi-fixture batches are separated by output and sent to the involved Picos concurrently. <strong>Patch CSV</strong> includes the output name and universe for every channel. Complete show export/import preserves the output definitions and fixture assignments; the multi-output show format is version 4 so older controller software refuses it instead of sending every universe to one Pico.</p>
+<p>The other operating pages currently continue to use the first output as their single Primary Pico URL. Configure and verify multi-output fixtures on the Fixture Controller until those pages are migrated to the shared output routing.</p>
 <h3 id="fixture-library">Fixture Library</h3>
 <p><img src="screenshots/fixture-controller-fixture-library.png" alt="Fixture Library search and mode preview"></p>
 <p>The <strong>Fixture Library</strong> panel imports fixture profiles from an export of the original <a href="https://open-fixture-library.org/">Open Fixture Library</a> project. Use it when you want to start from an existing fixture definition instead of building every channel by hand. Selecting a fixture shows <strong>Fixture Information</strong> when OFL provides it: authors, creation/update dates, dimensions, weight, power, DMX connector, light source, beam angle, and links to the OFL entry, manual, product page, or video. External information links open in a new tab and only HTTP/HTTPS links are accepted.</p>
@@ -240,14 +255,15 @@ strong { color: #ffffff; }
 <li>Open <strong>Patch Fixtures</strong>.</li>
 <li>Enter a fixture name.</li>
 <li>Select the fixture profile.</li>
-<li>Enter the DMX start address.</li>
+<li>Select the <strong>DMX output</strong> that physically drives the fixture.</li>
+<li>Enter the DMX start address within that output&#39;s 512-channel universe.</li>
 <li>Set <strong>Count</strong> to the number of fixtures you want to patch.</li>
 <li>Click <strong>Patch fixture</strong>.</li>
 </ol>
-<p>Use <strong>Next free</strong> to find the next available address after already patched fixtures.</p>
+<p>Use <strong>Next free</strong> to find the next available address on the selected output. The same address can be used on another output.</p>
 <p>When <strong>Count</strong> is greater than 1, the controller creates a numbered run of fixtures. For example, name <code>RGB Spot</code> with count <code>10</code> creates <code>RGB Spot 1</code> through <code>RGB Spot 10</code>. The first fixture uses the start address you entered. The following fixtures are spaced by the channel count of the selected fixture profile.</p>
 <p>After a multi-fixture patch, the controller asks whether to create a Saved Group for the newly patched fixtures. The suggested group name is the patch name. Press <strong>Cancel</strong> to skip group creation, or enter a name to save the new fixtures as a group.</p>
-<p>The patched fixture list is shown as rows of compact cards. Each row represents one consecutive run of the same fixture profile, so two separate MAC runs remain visually separate even when they use the same profile.</p>
+<p>The patched fixture list is shown as rows of compact cards. Each card shows its output, universe, profile, and channel range and provides a <strong>DMX output</strong> dropdown for repatching the fixture to another Pico. The controller checks the destination universe for an overlapping address range before accepting the move. Each row represents one consecutive run of the same fixture profile, so separate patch runs remain visually separate even when they use the same profile.</p>
 <h3 id="live-fixture-control">Live Fixture Control</h3>
 <p><img src="screenshots/fixture-controller-live-controls.png" alt="Fixture live control cards"></p>
 <p>The <strong>Control Surface</strong> shows one card per patched fixture.</p>

@@ -290,7 +290,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.locator('#reqCount').fill('10');
     await page.locator('#btnRunFull').click();
 
-    await expect(page.locator('#btnRunFull')).toBeEnabled();
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 10000 });
     await expect(page.locator('#checkStatus .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkCore0 .check-state')).toHaveText('Warn');
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Warn');

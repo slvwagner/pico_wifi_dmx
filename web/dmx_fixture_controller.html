@@ -177,6 +177,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #groupBar .group-bar-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0}
 #groupBar .group-bar-actions{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
 .fixture-card .control{cursor:auto;user-select:auto}.sel-btn{padding:5px 10px;font-size:12px;line-height:1.2}
+.dmx-output-list{display:grid;gap:10px}
+.dmx-output-row{display:grid;grid-template-columns:minmax(130px,1fr) minmax(90px,.45fr) minmax(240px,2fr) auto;gap:10px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:8px;background:#10161b}
+.dmx-output-row label{min-width:0}.dmx-output-row input{width:100%}
+.discovered-pico-list{display:grid;gap:8px}.discovered-pico-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:1px solid var(--line);border-radius:8px}.discovered-pico-row .small{overflow-wrap:anywhere}
+@media(max-width:760px){.dmx-output-row{grid-template-columns:1fr 1fr}.dmx-output-row label:nth-child(3){grid-column:1/-1}.dmx-output-row button{align-self:end}}
 </style>
 </head>
 <body>
@@ -187,7 +192,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="status" id="status">Ready</div>
 </div>
 <div class="toolbar">
-<label>Pico base URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+<label>Primary Pico URL<input id="baseUrl" type="url" placeholder="http://192.168.1.50"></label>
+<button id="openDmxOutputs" type="button">DMX Outputs</button>
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
@@ -357,6 +363,22 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 </div>
 
+<div id="dmxOutputsModal" class="modal-overlay form-modal" style="display:none">
+<div class="modal-card wide-modal" role="dialog" aria-modal="true" aria-labelledby="dmxOutputsTitle">
+<div class="modal-head">
+<button id="closeDmxOutputs" type="button" aria-label="Close">x</button>
+<div class="modal-title-stack"><h2 id="dmxOutputsTitle">DMX Outputs</h2><div class="small">Each output represents one Pico base URL and one DMX universe. Fixtures can reuse addresses when assigned to different outputs.</div></div>
+</div>
+<div class="modal-body">
+<div class="buttons"><button id="findAllPicos" type="button">Find Picos</button><span id="dmxDiscoveryStatus" class="small">Search the network for Pico WiFi DMX controllers.</span></div>
+<div id="discoveredPicosList" class="discovered-pico-list"></div>
+<div id="dmxOutputsList" class="dmx-output-list"></div>
+<div class="buttons"><button id="addDmxOutput" type="button">Add output</button></div>
+</div>
+<div class="modal-actions"><button id="doneDmxOutputs" class="primary" type="button">Done</button></div>
+</div>
+</div>
+
 <section class="panel" id="patchSection">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
 <h2>Patch Fixtures</h2>
@@ -366,6 +388,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="toolbar">
 <label>Name<input id="fixtureName" type="text" value="Fixture"></label>
 <label>Profile<select id="patchProfile"></select></label>
+<label>DMX output<select id="patchOutput"></select></label>
 <label>Start address<input id="fixtureStart" type="number" min="1" max="512" value="1"></label>
 <label>Count<input id="fixtureCount" type="number" min="1" max="512" value="1"></label>
 <button id="nextFreeAddr">Next free</button>
@@ -672,20 +695,24 @@ DmxCommon.initToolboxRail(fixtureToolboxRail,[{box:'groupsBox',type:'groups'},{b
 const maxDmx=512;
 let profiles=[];
 let fixtures=[];
+let dmxOutputs=[];
+let discoveredPicos=[];
 let showName='Untitled Show';
 let activeProfileId=0;
 let editingControlId=0;
 let fixtureLibraryState={data:null,filtered:[],selectedKey:'',selectedModeIndex:0};
 const FULL_SETUP_TYPE='pico_wifi_dmx_full_setup';
 const SHOW_FIXTURE_LIBRARY_TYPE='pico_wifi_dmx_show_fixture_library';
-const FULL_SETUP_FORMAT_VERSION=3;
+const FULL_SETUP_FORMAT_VERSION=4;
 const PROJECT_ID='pico_wifi_dmx';
 const values={};
 const baseUrl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrl,{discovery:true});
+dmxOutputs=DmxCommon.normalizeDmxOutputs([],baseUrl.value);
 const statusEl=document.getElementById('status');
 const profilesEl=document.getElementById('profiles');
 const patchProfile=document.getElementById('patchProfile');
+const patchOutput=document.getElementById('patchOutput');
 const patchedEl=document.getElementById('patched');
 const surfaceEl=document.getElementById('surface');
 const surfaceColsSelect=document.getElementById('surfaceColsSelect');
@@ -770,8 +797,15 @@ function normalizeMatrixValue(c,value){
 const rgbToCmy=DmxCommon.rgbToCmy;
 const rgbToCmyk=DmxCommon.rgbToCmyk;
 function absolute(start,rel){return start+rel-1;}
-function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
-function autoSendEnabled(){return !!endpoint();}
+function primaryDmxOutput(){return DmxCommon.dmxOutputForFixture(null,dmxOutputs);}
+function fixtureDmxOutput(fixture){
+  const output=DmxCommon.dmxOutputForFixture(fixture,dmxOutputs);
+  const primary=primaryDmxOutput();
+  if(!fixture?.outputId&&output.id===primary.id&&baseUrl.value!==output.baseUrl)return{...output,baseUrl:baseUrl.value};
+  return output;
+}
+function endpoint(fixture=null){return DmxCommon.dmxOutputEndpoint(fixtureDmxOutput(fixture));}
+function autoSendEnabled(){return !!baseUrl.value.trim()||dmxOutputs.some(output=>!!DmxCommon.dmxOutputEndpoint(output));}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);if(values[key]===undefined)values[key]=def;return values[key];}
 function setValue(f,c,v){values[controlKey(f,c)]=v;}
@@ -841,9 +875,10 @@ let fanSpreadStep=1;
 let fanOutStateTimer=null;
 function controlClass(f,c){return 'control'+(fanAffectedKeys.has(controlKey(f,c))?' fan-affected':'');}
 
-async function sendChannel(ch,value){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
+async function sendChannel(ch,value,fixture=null){
+  const output=fixtureDmxOutput(fixture);
+  const root=DmxCommon.dmxOutputEndpoint(output);
+  if(!root)throw new Error('Set the Pico URL for '+output.name);
   const url=root+'/dmx/set/'+ch+'/'+clamp(value,0,255);
   if(root!==location.origin){
     await new Promise(resolve=>{
@@ -862,39 +897,59 @@ async function sendControl(f,c,silent=false){
   if(c.type==='panTilt16'){
     const v=getValue(f,c,{pan:32768,tilt:32768});
     if(!channelOk(f,c.pan,2)||!channelOk(f,c.tilt,2))throw new Error('Pan/Tilt channels out of range');
-    for(const row of DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val);
+    for(const row of DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val,f);
   }else if(c.type==='panTilt8'){
     const v=getValue(f,c,{pan:128,tilt:128});
     if(!channelOk(f,c.pan)||!channelOk(f,c.tilt))throw new Error('Pan/Tilt channels out of range');
-    for(const row of DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val);
+    for(const row of DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)))await sendChannel(row.ch,row.val,f);
   }else if(c.type==='slider16'){
     const v=bytes16(getValue(f,c,0));
     if(!channelOk(f,c.channel)||!channelOk(f,c.fine??c.channel+1))throw new Error(c.label+' channels out of range');
-    await sendChannel(absolute(f.start,c.channel),v.coarse);
-    await sendChannel(absolute(f.start,c.fine??c.channel+1),v.fine);
+    await sendChannel(absolute(f.start,c.channel),v.coarse,f);
+    await sendChannel(absolute(f.start,c.fine??c.channel+1),v.fine,f);
   }else if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
     const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0})));
     if(!channelOk(f,c.a)||!channelOk(f,c.b)||!channelOk(f,c.c)||((c.type==='rgbw'||c.type==='rgbwa')&&!channelOk(f,c.w))||(c.type==='rgbwa'&&!channelOk(f,c.amber))||(c.type==='cmyk'&&!channelOk(f,c.k)))throw new Error(c.label+' channels out of range');
-    await sendChannel(absolute(f.start,c.a),v.a);
-    await sendChannel(absolute(f.start,c.b),v.b);
-    await sendChannel(absolute(f.start,c.c),v.c);
-    if(c.type==='rgbw'||c.type==='rgbwa')await sendChannel(absolute(f.start,c.w),v.w);
-    if(c.type==='rgbwa')await sendChannel(absolute(f.start,c.amber),v.amber);
-    if(c.type==='cmyk')await sendChannel(absolute(f.start,c.k),v.k);
+    await sendChannel(absolute(f.start,c.a),v.a,f);
+    await sendChannel(absolute(f.start,c.b),v.b,f);
+    await sendChannel(absolute(f.start,c.c),v.c,f);
+    if(c.type==='rgbw'||c.type==='rgbwa')await sendChannel(absolute(f.start,c.w),v.w,f);
+    if(c.type==='rgbwa')await sendChannel(absolute(f.start,c.amber),v.amber,f);
+    if(c.type==='cmyk')await sendChannel(absolute(f.start,c.k),v.k,f);
   }else if(c.type==='matrixRgb'){
     const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
     for(let i=0;i<matrixPixelCount(c);i++){
       const ch=matrixPixelChannels(c,i);
       if(!channelOk(f,ch.a)||!channelOk(f,ch.b)||!channelOk(f,ch.c))throw new Error(c.label+' pixel channels out of range');
-      await sendChannel(absolute(f.start,ch.a),v.pixels[i].a);
-      await sendChannel(absolute(f.start,ch.b),v.pixels[i].b);
-      await sendChannel(absolute(f.start,ch.c),v.pixels[i].c);
+      await sendChannel(absolute(f.start,ch.a),v.pixels[i].a,f);
+      await sendChannel(absolute(f.start,ch.b),v.pixels[i].b,f);
+      await sendChannel(absolute(f.start,ch.c),v.pixels[i].c,f);
     }
   }else{
     if(!channelOk(f,c.channel))throw new Error(c.label+' channel out of range');
-    await sendChannel(absolute(f.start,c.channel),getValue(f,c,0));
+    await sendChannel(absolute(f.start,c.channel),getValue(f,c,0),f);
   }
   if(!silent)setStatus('Sent '+f.name+' '+c.label);
+}
+
+async function sendFixtureDmxRows(entries){
+  const batches=new Map();
+  (entries||[]).forEach(entry=>{
+    if(!entry?.fixture||!entry?.row)return;
+    const output=fixtureDmxOutput(entry.fixture);
+    const root=DmxCommon.dmxOutputEndpoint(output);
+    if(!root)return;
+    if(!batches.has(output.id))batches.set(output.id,{output,root,pairs:[]});
+    batches.get(output.id).pairs.push(Math.round(entry.row.ch)+':'+clamp(entry.row.val,0,255));
+  });
+  if(!batches.size)return 0;
+  const results=await Promise.allSettled([...batches.values()].map(batch=>
+    fetch(batch.root+'/dmx/b',{method:'POST',body:batch.pairs.join(','),cache:'no-store'})
+      .then(response=>{if(!response.ok)throw new Error(batch.output.name+': HTTP '+response.status);})
+  ));
+  const errors=results.filter(result=>result.status==='rejected').map(result=>result.reason?.message||String(result.reason));
+  if(errors.length)throw new Error(errors.join(' · '));
+  return [...batches.values()].reduce((count,batch)=>count+batch.pairs.length,0);
 }
 
 function parseWheelOptions(text){
@@ -2044,30 +2099,31 @@ function addControl(){
   scheduleSetupAutosave();
 }
 
-function fixtureAddressConflict(start,channels,excludeId){
-  return fixtureAddressConflictInList(start,channels,fixtures,excludeId);
+function fixtureAddressConflict(start,channels,excludeId,outputId=patchOutput.value){
+  return fixtureAddressConflictInList(start,channels,fixtures,excludeId,outputId);
 }
-function fixtureAddressConflictInList(start,channels,list,excludeId){
+function fixtureAddressConflictInList(start,channels,list,excludeId,outputId=primaryDmxOutput().id){
   const end=start+channels-1;
   return list.find(f=>{
     if(f.id===excludeId)return false;
+    if(fixtureDmxOutput(f).id!==String(outputId||primaryDmxOutput().id))return false;
     const p=fixtureProfile(f);
     if(!p)return false;
     return start<=f.start+p.channels-1&&end>=f.start;
   });
 }
-function nextFreePatchAddress(channels){
+function nextFreePatchAddress(channels,outputId=patchOutput.value){
   for(let start=1;start+channels-1<=maxDmx;start++){
-    if(!fixtureAddressConflict(start,channels))return start;
+    if(!fixtureAddressConflict(start,channels,null,outputId))return start;
   }
   return 1;
 }
-function nextFreePatchBlockAddress(channels,count){
+function nextFreePatchBlockAddress(channels,count,outputId=patchOutput.value){
   const total=channels*count;
   for(let start=1;start+total-1<=maxDmx;start++){
     let conflict=false;
     for(let i=0;i<count;i++){
-      if(fixtureAddressConflict(start+(i*channels),channels)){conflict=true;break;}
+      if(fixtureAddressConflict(start+(i*channels),channels,null,outputId)){conflict=true;break;}
     }
     if(!conflict)return start;
   }
@@ -2077,16 +2133,18 @@ function patchFixture(){
   const profileId=parseInt(patchProfile.value,10);
   const profile=profiles.find(p=>p.id===profileId);
   if(!profile){showError('Add a profile first');return;}
+  const outputId=patchOutput.value||primaryDmxOutput().id;
+  const output=dmxOutputs.find(item=>item.id===outputId)||primaryDmxOutput();
   const count=clamp(document.getElementById('fixtureCount').value,1,Math.floor(maxDmx/profile.channels));
   let start=clamp(document.getElementById('fixtureStart').value,1,512);
   const totalChannels=profile.channels*count;
   if(start+totalChannels-1>maxDmx){showError(count+' fixture'+(count===1?'':'s')+' exceed DMX channel 512');return;}
   let hasConflict=false;
   for(let i=0;i<count;i++){
-    if(fixtureAddressConflict(start+(i*profile.channels),profile.channels)){hasConflict=true;break;}
+    if(fixtureAddressConflict(start+(i*profile.channels),profile.channels,null,outputId)){hasConflict=true;break;}
   }
   if(hasConflict){
-    const free=nextFreePatchBlockAddress(profile.channels,count);
+    const free=nextFreePatchBlockAddress(profile.channels,count,outputId);
     if(free+totalChannels-1>maxDmx){showError('No free address range for '+count+' fixture'+(count===1?'':'s')+' using '+profile.channels+' channels each');return;}
     document.getElementById('fixtureStart').value=free;
     start=free;
@@ -2094,14 +2152,14 @@ function patchFixture(){
   const baseName=(document.getElementById('fixtureName').value||profile.name).trim();
   const patchedIds=[];
   for(let i=0;i<count;i++){
-    const fixture={id:uid(),name:count>1?baseName+' '+(i+1):baseName,profileId,start:start+(i*profile.channels)};
+    const fixture={id:uid(),name:count>1?baseName+' '+(i+1):baseName,profileId,start:start+(i*profile.channels),outputId};
     fixtures.push(fixture);
     patchedIds.push(fixture.id);
   }
-  setStatus('Patched '+count+' fixture'+(count===1?'':'s')+' from channel '+start);
+  setStatus('Patched '+count+' fixture'+(count===1?'':'s')+' on '+output.name+' from channel '+start);
   draw();
   if(count>1)askCreateGroupForPatchedFixtures(baseName,patchedIds);
-  document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
+  document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels,outputId);
   scheduleSetupAutosave();
 }
 
@@ -2115,13 +2173,135 @@ function showExportFilename(value){
     .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'untitled-show';
   return 'pico_dmx_'+slug+'_show.json';
 }
-function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:baseUrl.value,profiles,fixtures});}
+function renderPatchOutputOptions(){
+  if(!patchOutput)return;
+  const selected=patchOutput.value;
+  patchOutput.innerHTML=dmxOutputs.map(output=>`<option value="${escHtml(output.id)}">${escHtml(output.name)} · Universe ${output.universe}</option>`).join('');
+  patchOutput.value=dmxOutputs.some(output=>output.id===selected)?selected:primaryDmxOutput().id;
+}
+function renderDmxOutputsEditor(){
+  const host=document.getElementById('dmxOutputsList');
+  host.innerHTML=dmxOutputs.map((output,index)=>`<div class="dmx-output-row" data-dmx-output-row="${escHtml(output.id)}">
+    <label>Name<input data-dmx-output-name="${escHtml(output.id)}" maxlength="80" value="${escHtml(output.name)}"></label>
+    <label>Universe<input data-dmx-output-universe="${escHtml(output.id)}" type="number" min="1" max="9999" value="${output.universe}"></label>
+    <label>Pico base URL<input data-dmx-output-url="${escHtml(output.id)}" type="url" placeholder="http://192.168.1.50" value="${escHtml(output.baseUrl)}"></label>
+    <button type="button" class="warn" data-remove-dmx-output="${escHtml(output.id)}"${dmxOutputs.length===1?' disabled':''}>Remove</button>
+  </div>`).join('');
+}
+function discoveredPicoId(device){return String(device?.id||device?.url||device?.ip||'');}
+function discoveredPicoUrl(device){
+  return String(device?.url||((device?.ip)?('http://'+device.ip+(device.http&&Number(device.http)!==80?':'+device.http:'')+'/'):'')).trim();
+}
+function normalizedOutputUrl(value){
+  try{return new URL(String(value||'').trim(),location.href).href.replace(/\/+$/,'');}
+  catch(_){return String(value||'').trim().replace(/\/+$/,'');}
+}
+function outputForDiscoveredPico(device){
+  const id=discoveredPicoId(device);
+  const url=normalizedOutputUrl(discoveredPicoUrl(device));
+  return dmxOutputs.find(output=>(output.deviceId&&output.deviceId===id)||(url&&normalizedOutputUrl(output.baseUrl)===url))||null;
+}
+function renderDiscoveredPicos(){
+  const host=document.getElementById('discoveredPicosList');
+  host.innerHTML=discoveredPicos.map(device=>{
+    const id=discoveredPicoId(device);
+    const added=!!outputForDiscoveredPico(device);
+    const address=device.ip||discoveredPicoUrl(device)||'Unknown address';
+    return `<div class="discovered-pico-row" data-discovered-pico="${escHtml(id)}"><div><strong>${escHtml(device.name||'Pico WiFi DMX')}</strong><div class="small">${escHtml(address)}${device.http&&Number(device.http)!==80?' · HTTP '+device.http:''} · Discovered</div></div><button type="button" data-add-discovered-pico="${escHtml(id)}"${added?' disabled':''}>${added?'Added':'Add'}</button></div>`;
+  }).join('');
+}
+async function findAllPicos(){
+  const button=document.getElementById('findAllPicos');
+  const status=document.getElementById('dmxDiscoveryStatus');
+  button.disabled=true;
+  button.textContent='Finding...';
+  status.textContent='Listening for Pico discovery beacons...';
+  try{
+    discoveredPicos=await DmxCommon.discoverPicoDevices();
+    discoveredPicos.forEach(device=>{
+      const matching=outputForDiscoveredPico(device);
+      if(matching&&!matching.deviceId)matching.deviceId=discoveredPicoId(device);
+    });
+    renderDmxOutputsEditor();
+    renderDiscoveredPicos();
+    status.textContent='Found '+discoveredPicos.length+' Pico controller'+(discoveredPicos.length===1?'':'s')+'.';
+  }catch(error){
+    discoveredPicos=[];
+    renderDiscoveredPicos();
+    status.textContent='Discovery failed: '+error.message;
+  }finally{
+    button.disabled=false;
+    button.textContent='Find Picos';
+  }
+}
+function addDiscoveredPico(deviceId){
+  const device=discoveredPicos.find(item=>discoveredPicoId(item)===String(deviceId));
+  if(!device||outputForDiscoveredPico(device))return;
+  const empty=dmxOutputs.find(output=>!output.deviceId&&!String(output.baseUrl||'').trim());
+  if(empty){
+    empty.deviceId=discoveredPicoId(device);
+    empty.name=String(device.name||empty.name||'Pico').trim().slice(0,80);
+    empty.baseUrl=discoveredPicoUrl(device);
+  }else{
+    const universes=new Set(dmxOutputs.map(output=>output.universe));
+    let universe=1;
+    while(universes.has(universe))universe++;
+    dmxOutputs.push(DmxCommon.normalizeDmxOutput({
+      id:'dmx-output-'+uid(),
+      deviceId:discoveredPicoId(device),
+      name:device.name||('Pico '+(dmxOutputs.length+1)),
+      universe,
+      baseUrl:discoveredPicoUrl(device)
+    },dmxOutputs.length));
+  }
+  renderDmxOutputsEditor();
+  renderDiscoveredPicos();
+}
+function syncPrimaryBaseUrl(){
+  const primary=primaryDmxOutput();
+  if(baseUrl.value!==primary.baseUrl)baseUrl.value=primary.baseUrl;
+  localStorage.setItem('dmxPicoBaseUrl',primary.baseUrl);
+}
+function addDmxOutput(){
+  const universes=new Set(dmxOutputs.map(output=>output.universe));
+  let universe=1;
+  while(universes.has(universe))universe++;
+  dmxOutputs.push(DmxCommon.normalizeDmxOutput({
+    id:'dmx-output-'+uid(),
+    name:'Pico '+(dmxOutputs.length+1),
+    universe,
+    baseUrl:''
+  },dmxOutputs.length));
+  renderDmxOutputsEditor();
+}
+function commitDmxOutputsEditor(){
+  dmxOutputs=DmxCommon.normalizeDmxOutputs(dmxOutputs,baseUrl.value);
+  const universes=dmxOutputs.map(output=>output.universe);
+  if(new Set(universes).size!==universes.length){
+    showError('Each DMX output needs a unique universe number');
+    return false;
+  }
+  fixtures.forEach(fixture=>{
+    if(fixture.outputId&&!dmxOutputs.some(output=>output.id===fixture.outputId))fixture.outputId=primaryDmxOutput().id;
+  });
+  syncPrimaryBaseUrl();
+  renderPatchOutputOptions();
+  draw();
+  scheduleSetupAutosave();
+  DmxCommon.hideModal(document.getElementById('dmxOutputsModal'));
+  return true;
+}
+function saveData(){return DmxCommon.versionedPayload({showName:normalizeShowName(showName),baseUrl:primaryDmxOutput().baseUrl,dmxOutputs,profiles,fixtures});}
 function applyData(data){
   showName=normalizeShowName(data?.showName);
   renderShowName();
-  baseUrl.value=localStorage.getItem('dmxPicoBaseUrl')||data?.baseUrl||'';
+  const storedBaseUrl=localStorage.getItem('dmxPicoBaseUrl')||'';
+  dmxOutputs=DmxCommon.normalizeDmxOutputs(data?.dmxOutputs,storedBaseUrl||data?.baseUrl||'');
+  if(!Array.isArray(data?.dmxOutputs)&&storedBaseUrl)dmxOutputs[0].baseUrl=storedBaseUrl;
+  syncPrimaryBaseUrl();
   profiles=Array.isArray(data?.profiles)?data.profiles:[];
   fixtures=Array.isArray(data?.fixtures)?data.fixtures:[];
+  renderPatchOutputOptions();
   Object.keys(values).forEach(k=>delete values[k]);
   Object.assign(values,data?.values||{});
   try{
@@ -2211,9 +2391,11 @@ function drawPatched(){
     const grid=document.createElement('div');grid.className='patched-row-grid';
     row.fixtures.forEach(f=>{
       const fp=fixtureProfile(f);
+      const output=fixtureDmxOutput(f);
       const item=document.createElement('div');item.className='item';
       item.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>${escHtml(f.name)}</strong><span class="small">start ${f.start}</span></div>
-        <div class="small">${escHtml(fp?.name||'Missing profile')} · channels ${f.start}-${f.start+(fp?.channels||1)-1}</div>
+        <div class="small">${escHtml(output.name)} · Universe ${output.universe} · ${escHtml(fp?.name||'Missing profile')} · channels ${f.start}-${f.start+(fp?.channels||1)-1}</div>
+        <label class="small">DMX output<select data-fixture-output="${f.id}">${dmxOutputs.map(candidate=>`<option value="${escHtml(candidate.id)}"${candidate.id===output.id?' selected':''}>${escHtml(candidate.name)} · Universe ${candidate.universe}</option>`).join('')}</select></label>
         <div class="patch-actions-grid"><button class="minor warn" data-remove-fixture="${f.id}">Remove</button></div>`;
       grid.appendChild(item);
     });
@@ -2456,8 +2638,8 @@ function updateControlDisplay(f,c){
   }
 }
 
-async function stopPicoPlaybackForFixtureRecall(){
-  const root=endpoint();
+async function stopPicoPlaybackForFixtureRecall(fixture){
+  const root=endpoint(fixture);
   if(!root)return;
   await Promise.allSettled([
     fetch(root+'/chaser/stop',{cache:'no-store'}),
@@ -2470,7 +2652,7 @@ async function recallFixtureValues(fixtureId,which){
   if(!f)return;
   const p=fixtureProfile(f);
   if(!p)return;
-  await stopPicoPlaybackForFixtureRecall();
+  await stopPicoPlaybackForFixtureRecall(f);
   const errors=[];
   for(const c of p.controls){
     const v=c[which];
@@ -2493,7 +2675,7 @@ async function toggleFixtureHighlight(fixtureId){
   const f=fixtures.find(fx=>fx.id===fixtureId);
   const p=f&&fixtureProfile(f);
   if(!f||!p)return;
-  await stopPicoPlaybackForFixtureRecall();
+  await stopPicoPlaybackForFixtureRecall(f);
   const restoring=fixtureHighlightSnapshots.has(fixtureId);
   const snapshot=restoring?fixtureHighlightSnapshots.get(fixtureId):new Map();
   const errors=[];
@@ -2515,7 +2697,7 @@ async function toggleFixtureHighlight(fixtureId){
   if(errors.length)setStatus(errors.join(', '),true);
   else setStatus(f.name+(restoring?' restored':' highlighted'));
 }
-function draw(){drawProfiles();drawPatched();drawSurface();}
+function draw(){renderPatchOutputOptions();drawProfiles();drawPatched();drawSurface();}
 
 function fanFixtureOrder(){
   const ids=[];
@@ -2602,15 +2784,12 @@ function applyFanToController(options={}){
   drawSurface();
   writeLiveValues(true);
   if(autoSendEnabled()){
-    const root=endpoint();
-    if(root){
-      const pairs=[];
-      fanComputedValues().forEach(({fixture})=>{
-        const c=findFanControl(fixture,controlId,axis);if(!c)return;
-        resolveDmxBytes(fixture,c).forEach(({ch,val})=>pairs.push(ch+':'+val));
-      });
-      if(pairs.length)fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'}).catch(err=>setStatus(err.message,true));
-    }
+    const entries=[];
+    fanComputedValues().forEach(({fixture})=>{
+      const c=findFanControl(fixture,controlId,axis);if(!c)return;
+      resolveDmxBytes(fixture,c).forEach(row=>entries.push({fixture,row}));
+    });
+    sendFixtureDmxRows(entries).catch(err=>setStatus(err.message,true));
   }
   if(!options.silent)setStatus('Fan Out applied to '+ordered.length+' fixture'+(ordered.length===1?'':'s'));
 }
@@ -2783,6 +2962,23 @@ profilesEl.onclick=e=>{
   draw();
 };
 patchedEl.onclick=e=>{if(e.target.dataset.removeFixture){fixtures=fixtures.filter(f=>f.id!==parseInt(e.target.dataset.removeFixture,10));draw();scheduleSetupAutosave();}};
+patchedEl.onchange=e=>{
+  const fixtureId=parseInt(e.target.dataset.fixtureOutput,10);
+  if(!fixtureId)return;
+  const fixture=fixtures.find(item=>item.id===fixtureId);
+  const profile=fixture&&fixtureProfile(fixture);
+  if(!fixture||!profile)return;
+  const outputId=e.target.value;
+  const conflict=fixtureAddressConflictInList(fixture.start,profile.channels,fixtures,fixture.id,outputId);
+  if(conflict){
+    e.target.value=fixtureDmxOutput(fixture).id;
+    showError('That address overlaps '+conflict.name+' on the selected DMX output');
+    return;
+  }
+  fixture.outputId=outputId;
+  draw();
+  scheduleSetupAutosave();
+};
 
 surfaceEl.oninput=e=>{
   const f=fixtures.find(x=>x.id===parseInt(e.target.dataset.fixture,10));
@@ -2978,12 +3174,13 @@ function resolveDmxBytes(f,c){
   return out;
 }
 function exportCsv(){
-  const rows=['Channel,Value,Fixture,Profile,Control,Parameter'];
+  const rows=['Output,Universe,Channel,Value,Fixture,Profile,Control,Parameter'];
   fixtures.forEach(f=>{
     const p=fixtureProfile(f);if(!p)return;
+    const output=fixtureDmxOutput(f);
     p.controls.forEach(c=>{
       resolveDmxBytes(f,c).forEach(({ch,val,param})=>{
-        rows.push([ch,val,csvEsc(f.name),csvEsc(p.name+' '+p.mode),csvEsc(c.label),csvEsc(param)].join(','));
+        rows.push([csvEsc(output.name),output.universe,ch,val,csvEsc(f.name),csvEsc(p.name+' '+p.mode),csvEsc(c.label),csvEsc(param)].join(','));
       });
     });
   });
@@ -3005,7 +3202,45 @@ patchProfile.onchange=()=>{
   const profile=profiles.find(p=>p.id===profileId);
   if(profile)document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels);
 };
-baseUrl.addEventListener('input',scheduleSetupAutosave);
+baseUrl.addEventListener('input',()=>{
+  if(!dmxOutputs.length)dmxOutputs=DmxCommon.normalizeDmxOutputs([],baseUrl.value);
+  dmxOutputs[0].baseUrl=baseUrl.value;
+  scheduleSetupAutosave();
+});
+document.getElementById('openDmxOutputs').onclick=()=>{
+  renderDmxOutputsEditor();
+  renderDiscoveredPicos();
+  DmxCommon.showModal(document.getElementById('dmxOutputsModal'));
+};
+document.getElementById('closeDmxOutputs').onclick=commitDmxOutputsEditor;
+document.getElementById('doneDmxOutputs').onclick=commitDmxOutputsEditor;
+document.getElementById('addDmxOutput').onclick=addDmxOutput;
+document.getElementById('findAllPicos').onclick=()=>findAllPicos();
+document.getElementById('discoveredPicosList').onclick=event=>{
+  const id=event.target.dataset.addDiscoveredPico;
+  if(id)addDiscoveredPico(id);
+};
+document.getElementById('dmxOutputsList').addEventListener('input',event=>{
+  const input=event.target;
+  const id=input.dataset.dmxOutputName||input.dataset.dmxOutputUniverse||input.dataset.dmxOutputUrl;
+  const output=dmxOutputs.find(item=>item.id===id);
+  if(!output)return;
+  if(input.dataset.dmxOutputName)output.name=input.value;
+  else if(input.dataset.dmxOutputUniverse)output.universe=parseInt(input.value,10)||1;
+  else output.baseUrl=input.value;
+  renderDiscoveredPicos();
+});
+document.getElementById('dmxOutputsList').addEventListener('click',event=>{
+  const id=event.target.dataset.removeDmxOutput;
+  if(!id||dmxOutputs.length===1)return;
+  dmxOutputs=dmxOutputs.filter(output=>output.id!==id);
+  renderDmxOutputsEditor();
+  renderDiscoveredPicos();
+});
+patchOutput.addEventListener('change',()=>{
+  const profile=profiles.find(item=>item.id===parseInt(patchProfile.value,10));
+  if(profile)document.getElementById('fixtureStart').value=nextFreePatchAddress(profile.channels,patchOutput.value);
+});
 document.getElementById('showNameInput').addEventListener('input',event=>{
   showName=String(event.target.value||'').slice(0,80);
   scheduleSetupAutosave();
@@ -3084,6 +3319,16 @@ function migrateFullSetupToV3(setup){
   migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
   return migrated;
 }
+function migrateFullSetupToV4(setup){
+  const migrated={...setup};
+  const fixture=migrated.fixture&&typeof migrated.fixture==='object'?{...migrated.fixture}:{};
+  fixture.dmxOutputs=DmxCommon.normalizeDmxOutputs(fixture.dmxOutputs,fixture.baseUrl||migrated.groups?.baseUrl||'');
+  fixture.baseUrl=fixture.dmxOutputs[0]?.baseUrl||fixture.baseUrl||'';
+  migrated.fixture=fixture;
+  migrated.setupFormatVersion=4;
+  migrated.minimumAppVersion=migrated.minimumAppVersion||migrated.appVersion||DmxCommon.appVersion();
+  return migrated;
+}
 function migrateFullSetupPayload(setup){
   let migrated=JSON.parse(JSON.stringify(setup||{}));
   let version=fullSetupFormatVersion(migrated);
@@ -3097,6 +3342,9 @@ function migrateFullSetupPayload(setup){
     }else if(version===2){
       migrated=migrateFullSetupToV3(migrated);
       version=3;
+    }else if(version===3){
+      migrated=migrateFullSetupToV4(migrated);
+      version=4;
     }else{
       throw new Error('No migration path from setup file format '+version+' to '+FULL_SETUP_FORMAT_VERSION+'.');
     }
@@ -3909,17 +4157,16 @@ function syncGroupValuesFromFirstSelected(common=getGroupCommonControls()){
   });
 }
 async function sendGroupControl(c){
-  const root=endpoint();if(!root)throw new Error('Set Pico base URL first');
-  const pairs=[];
+  const entries=[];
   [...selectedFixtureIds].forEach(id=>{
     const f=fixtures.find(fx=>fx.id===id);if(!f)return;
     const fc=findMatchingControl(f,groupKey(c));if(!fc)return;
     if(!isGroupControlInScope(f,fc))return;
-    resolveDmxBytes(f,fc).forEach(({ch,val})=>pairs.push(ch+':'+val));
+    resolveDmxBytes(f,fc).forEach(row=>entries.push({fixture:f,row}));
   });
-  if(!pairs.length)return;
-  await fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'});
-  setStatus('Group: sent '+pairs.length+' ch to '+selectedFixtureIds.size+' fixtures');
+  if(!entries.length)return;
+  const sent=await sendFixtureDmxRows(entries);
+  setStatus('Group: sent '+sent+' ch to '+selectedFixtureIds.size+' fixtures');
 }
 function updateGroupBar(){
   const bar=document.getElementById('groupBar');
@@ -5028,12 +5275,9 @@ function recallScene(s){
   drawSurface();
   writeLiveValues(true);
   if(autoSendEnabled()){
-    const root=endpoint();
-    if(root){
-      const pairs=[];
-      fixtures.forEach(f=>{const p=fixtureProfile(f);if(!p)return;p.controls.forEach(c=>resolveDmxBytes(f,c).forEach(({ch,val})=>pairs.push(ch+':'+val)));});
-      if(pairs.length)fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'}).catch(err=>setStatus(err.message,true));
-    }
+    const entries=[];
+    fixtures.forEach(f=>{const p=fixtureProfile(f);if(!p)return;p.controls.forEach(c=>resolveDmxBytes(f,c).forEach(row=>entries.push({fixture:f,row})));});
+    sendFixtureDmxRows(entries).catch(err=>setStatus(err.message,true));
   }
   setStatus('Recalled scene: "'+s.name+'"');
 }
@@ -5056,15 +5300,16 @@ async function clearAllChannels(){
   });
   drawSurface();
   writeLiveValues(true);
-  const root=endpoint();
-  if(!root){
-    setStatus('Local controller values cleared; set Pico base URL to clear hardware');
+  const roots=[...new Set(dmxOutputs.map(DmxCommon.dmxOutputEndpoint).filter(Boolean))];
+  if(!roots.length){
+    setStatus('Local controller values cleared; set a Pico URL to clear hardware');
     return;
   }
   try{
-    const r=await fetch(root+'/dmx/clear',{cache:'no-store'});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    setStatus('All DMX channels cleared');
+    const responses=await Promise.all(roots.map(root=>fetch(root+'/dmx/clear',{cache:'no-store'})));
+    const failed=responses.find(response=>!response.ok);
+    if(failed)throw new Error('HTTP '+failed.status);
+    setStatus('All configured DMX outputs cleared');
   }catch(err){
     setStatus('Local values cleared; Pico clear failed: '+err.message,true);
   }
@@ -5436,17 +5681,14 @@ function recallPalette(p){
   drawSurface();
   writeLiveValues(true);
   if(autoSendEnabled()){
-    const root=endpoint();
-    if(root){
-      const pairs=[];
-      Object.keys(paletteValues).forEach(key=>{
-        const parts=String(key).split(':');
-        const f=fixtures.find(fx=>String(fx.id)===parts[0]);
-        const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
-        if(f&&c)resolveDmxBytes(f,c).forEach(({ch,val})=>pairs.push(ch+':'+val));
-      });
-      if(pairs.length)fetch(root+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'}).catch(err=>setStatus(err.message,true));
-    }
+    const entries=[];
+    Object.keys(paletteValues).forEach(key=>{
+      const parts=String(key).split(':');
+      const f=fixtures.find(fx=>String(fx.id)===parts[0]);
+      const c=f&&fixtureProfile(f)?.controls.find(ctrl=>String(ctrl.id)===parts[1]);
+      if(f&&c)resolveDmxBytes(f,c).forEach(row=>entries.push({fixture:f,row}));
+    });
+    sendFixtureDmxRows(entries).catch(err=>setStatus(err.message,true));
   }
   setStatus('Recalled palette: "'+p.name+'"');
 }
@@ -6121,7 +6363,7 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
   }
   const errors=[];
   let applied=0;
-  const pairs=[];
+  const entries=[];
   for(const currentFixture of fixtures.filter(f=>selected.has(String(f.id)))){
     const planeFixture=plane.fixtures.find(f=>String(f.id)===String(currentFixture.id));
     const control=controllerPanTiltControl(currentFixture);
@@ -6132,12 +6374,12 @@ async function sendControllerPlaneLiveTarget({manual=false}={}){
     const max=control.type==='panTilt8'?255:65535;
     setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
     updateControlDisplay(currentFixture,control);
-    resolveDmxBytes(currentFixture,control).forEach(row=>pairs.push(row.ch+':'+clamp(row.val,0,255)));
+    resolveDmxBytes(currentFixture,control).forEach(row=>entries.push({fixture:currentFixture,row}));
     applied++;
   }
-  if(applied&&autoSendEnabled()&&pairs.length){
+  if(applied&&autoSendEnabled()&&entries.length){
     try{
-      await fetch(endpoint()+'/dmx/b',{method:'POST',body:pairs.join(','),cache:'no-store'});
+      await sendFixtureDmxRows(entries);
     }catch(error){
       errors.push(error.message||'Could not send plane live output');
     }

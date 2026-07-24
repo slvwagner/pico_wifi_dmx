@@ -25,6 +25,44 @@
     };
   }
 
+  function normalizeDmxOutput(output,index=0){
+    const source=output&&typeof output==='object'?output:{};
+    const fallbackNumber=index+1;
+    const universe=Math.max(1,Math.min(9999,parseInt(source.universe,10)||fallbackNumber));
+    return {
+      id:String(source.id||('dmx-output-'+fallbackNumber)),
+      ...(source.deviceId?{deviceId:String(source.deviceId)}:{}),
+      name:String(source.name||('Pico '+fallbackNumber)).trim().slice(0,80)||('Pico '+fallbackNumber),
+      universe,
+      baseUrl:String(source.baseUrl||source.url||'').trim()
+    };
+  }
+
+  function normalizeDmxOutputs(outputs,legacyBaseUrl=''){
+    const source=Array.isArray(outputs)?outputs.filter(output=>output&&typeof output==='object'):[];
+    const normalized=(source.length?source:[{baseUrl:legacyBaseUrl}]).map(normalizeDmxOutput);
+    const ids=new Set();
+    normalized.forEach((output,index)=>{
+      let id=output.id;
+      let suffix=2;
+      while(ids.has(id))id=output.id+'-'+suffix++;
+      output.id=id;
+      ids.add(id);
+      if(index===0&&legacyBaseUrl&&!output.baseUrl)output.baseUrl=String(legacyBaseUrl).trim();
+    });
+    return normalized;
+  }
+
+  function dmxOutputForFixture(fixture,outputs){
+    const list=normalizeDmxOutputs(outputs);
+    const requested=String(fixture?.outputId||'');
+    return list.find(output=>output.id===requested)||list[0];
+  }
+
+  function dmxOutputEndpoint(output){
+    return String(output?.baseUrl||'').trim().replace(/\/+$/,'');
+  }
+
   function downloadJson(filename,data){
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a=document.createElement('a');
@@ -847,11 +885,7 @@
       button.textContent='Finding...';
     }
     try{
-      const r=await fetch('pico_discovery.php?timeoutMs=3200',{cache:'no-store'});
-      const j=await r.json();
-      if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
-      const devices=Array.isArray(j.devices)?j.devices:[];
-      if(!devices.length)throw new Error('No Pico beacon received');
+      const devices=await discoverPicoDevices();
       const device=devices[0];
       const url=String(device.url||('http://'+device.ip+'/'));
       input.value=url;
@@ -869,6 +903,16 @@
         button.textContent=button.dataset.originalText||'Find Pico';
       }
     }
+  }
+
+  async function discoverPicoDevices(options={}){
+    const timeoutMs=Math.max(250,Math.min(10000,parseInt(options.timeoutMs,10)||3200));
+    const r=await fetch('pico_discovery.php?timeoutMs='+timeoutMs,{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+    const devices=Array.isArray(j.devices)?j.devices.filter(device=>device&&typeof device==='object'):[];
+    if(!devices.length)throw new Error('No Pico beacon received');
+    return devices;
   }
 
   function attachPicoDiscoveryButton(input){
@@ -3209,6 +3253,10 @@
     escapeHtml,
     appVersion,
     versionedPayload,
+    normalizeDmxOutput,
+    normalizeDmxOutputs,
+    dmxOutputForFixture,
+    dmxOutputEndpoint,
     downloadJson,
     zipJsonBytes,
     unzipJsonBytes,
@@ -3251,6 +3299,7 @@
     applyBaseUrl,
     bindBaseUrl,
     discoverPicoBaseUrl,
+    discoverPicoDevices,
     preferStoredBaseUrl,
     saveUiState,
     loadUiState,
