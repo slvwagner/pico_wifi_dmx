@@ -11,6 +11,7 @@ Changed:
 - Documented the checked-in Visual Studio Code/Pico development environment, pinned SDK and tool versions, exact recommended Marketplace extension IDs, and the supplied build, flash, reset, serial, and Cortex-Debug workflows.
 - Extended **Pico Performance Test** to load every configured DMX Output, measure one selected Pico or the complete fleet sequentially, and label Timing History plus Write History with the Pico name and universe. Full Test repeats status/telemetry, buffer readback, DMX write, MIDI latency, and final telemetry for every selected output; the individual checks and Playback + Palette Stress can also run across all outputs.
 - Extended **GPIO Control** with a DMX Output selector and independent enabled state, digital mappings, and ADC mappings for every configured Pico/universe. Autosave persists the complete per-output map through XAMPP, legacy single-Pico files migrate to the first output, and push, pull, status, and chaser-slot readback target the selected Pico.
+- Extended **DMX Buffer Monitor** with a named DMX Output/universe selector. Output/base reads, frame information, change highlighting, auto refresh, and **Clear all** now follow the selected Pico instead of always using the show's first output.
 
 ## 0.9.14 - 2026-07-24
 

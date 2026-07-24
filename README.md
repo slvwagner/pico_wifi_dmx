@@ -41,7 +41,7 @@ Core features:
 
 ### Firmware, diagnostics, and development
 
-- **DMX Buffer Monitor** — read and display the current output buffer or base buffer for all 512 DMX channels.
+- **DMX Buffer Monitor** — select a named DMX Output/universe, then read and display its current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
@@ -1036,7 +1036,7 @@ The page protects reserved hardware pins and already-used pins, then sends the c
 
 ![DMX Buffer Monitor page](docs/screenshots/dmx-monitor.png)
 
-The DMX Buffer Monitor shows all 512 DMX channels as tiles. Use the buffer selector to switch between the actual live output frame and the base/position buffer used as the Effects center. Use **Refresh ms** or **Refresh Hz** to choose how often the selected buffer is read; both fields stay synchronized. **Clear all** clears both Pico buffers and refreshes the displayed values.
+The DMX Buffer Monitor shows all 512 DMX channels as tiles. Choose a named **DMX Output** / universe, then use the buffer selector to switch between that Pico's actual live output frame and the base/position buffer used as the Effects center. Use **Refresh ms** or **Refresh Hz** to choose how often the selected buffer is read; both fields stay synchronized. **Clear all** clears both buffers only on the selected Pico and refreshes the displayed values.
 
 **Pico Performance Test**
 
@@ -1070,7 +1070,7 @@ The Plane page calibrates moving lights against measured room points A/B/C. Each
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
-Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show. Controller fixture output, GPIO configuration, and Performance measurements are multi-output aware. Show Run, Chaser, Effects, Room Plane, and Monitor still keep the first output internally available for direct Pico operations; those pages require further routing work before their live/playback paths are fully multi-output. The editable single-URL header field is no longer shown.
+Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show. Controller fixture output, GPIO configuration, Performance measurements, and DMX Buffer Monitor selection are multi-output aware. Show Run, Chaser, Effects, and Room Plane still keep the first output internally available for direct Pico operations; those pages require further routing work before their live/playback paths are fully multi-output. The editable single-URL header field is no longer shown.
 
 ### Chaser / Effects — Saved Chases, Presets and Pico Slots
 

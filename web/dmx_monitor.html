@@ -43,6 +43,9 @@ main{max-width:none;width:100%;margin:0;padding:20px;display:grid;gap:16px}
 <section class="panel">
   <div class="monitor-toolbar">
     <button class="primary" id="refreshBtn">Refresh</button>
+    <label>DMX Output
+      <select id="monitorOutput" aria-label="Monitor DMX Output"><option value="">Loading outputs…</option></select>
+    </label>
     <label>Buffer
       <select id="bufferMode">
         <option value="output">DMX output</option>
@@ -80,17 +83,56 @@ const autoRefreshEl=document.getElementById('autoRefresh');
 const refreshMsEl=document.getElementById('refreshMs');
 const refreshHzEl=document.getElementById('refreshHz');
 const bufferModeEl=document.getElementById('bufferMode');
+const monitorOutputEl=document.getElementById('monitorOutput');
 let values=Array(512).fill(0);
 let previous=null;
 let timer=null;
 let refreshBusy=false;
 let clearBusy=false;
 let monitorGeneration=0;
+let monitorOutputs=[];
+let activeMonitorOutputId='';
 
 DmxCommon.bindBaseUrl(baseUrlEl,statusEl);
 
 function rootUrl(){
-  return baseUrlEl.value.trim().replace(/\/+$/,'');
+  const output=monitorOutputs.find(item=>item.id===activeMonitorOutputId);
+  return String(output?.baseUrl||baseUrlEl.value||'').trim().replace(/\/+$/,'');
+}
+
+function activeMonitorOutput(){
+  return monitorOutputs.find(item=>item.id===activeMonitorOutputId)||null;
+}
+
+function monitorOutputLabel(output){
+  return output.name+' · Universe '+output.universe;
+}
+
+function renderMonitorOutputs(){
+  if(!monitorOutputs.length){
+    monitorOutputEl.innerHTML='<option value="">Legacy Pico URL</option>';
+    monitorOutputEl.value='';
+    return;
+  }
+  monitorOutputEl.innerHTML=monitorOutputs.map(output=>
+    `<option value="${DmxCommon.escapeHtml(output.id)}">${DmxCommon.escapeHtml(monitorOutputLabel(output))}</option>`
+  ).join('');
+  monitorOutputEl.value=activeMonitorOutputId;
+}
+
+async function loadMonitorOutputs(){
+  try{
+    const response=await fetch('fixture_setup.php',{cache:'no-store'});
+    if(!response.ok)throw new Error('fixture_setup.php HTTP '+response.status);
+    const payload=await response.json();
+    const setup=payload?.setup||payload||{};
+    monitorOutputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl).filter(output=>output.baseUrl);
+  }catch(_){
+    monitorOutputs=[];
+  }
+  activeMonitorOutputId=monitorOutputs[0]?.id||'';
+  if(monitorOutputs[0]?.baseUrl)baseUrlEl.value=monitorOutputs[0].baseUrl;
+  renderMonitorOutputs();
 }
 
 function render(nextValues,changedSet=new Set()){
@@ -131,11 +173,12 @@ async function refreshMonitor(){
     frameCountEl.textContent=mode==='output'?(data.frame_count??'—'):'base';
     changedCountEl.textContent=changed.size;
     lastUpdateEl.textContent=new Date().toLocaleTimeString();
-    statusEl.textContent=(mode==='base'?'Base / position buffer':'DMX output frame')+' read from Pico';
+    statusEl.textContent=(mode==='base'?'Base / position buffer':'DMX output frame')+' read from '+(activeMonitorOutput()?monitorOutputLabel(activeMonitorOutput()):'Pico');
   }catch(err){
     statusEl.textContent='Monitor failed: '+err.message;
   }finally{
     refreshBusy=false;
+    if(generation!==monitorGeneration)setTimeout(refreshMonitor,0);
   }
 }
 
@@ -154,7 +197,7 @@ async function clearAllBuffers(){
     changedCountEl.textContent='0';
     frameCountEl.textContent='—';
     lastUpdateEl.textContent=new Date().toLocaleTimeString();
-    statusEl.textContent='DMX output and base buffers cleared';
+    statusEl.textContent='DMX output and base buffers cleared on '+(activeMonitorOutput()?monitorOutputLabel(activeMonitorOutput()):'Pico');
   }catch(err){
     statusEl.textContent='Clear failed: '+err.message;
   }finally{
@@ -198,11 +241,25 @@ refreshMsEl.onchange=()=>{syncRefreshFromMs();restartTimer();};
 refreshHzEl.onchange=()=>{syncRefreshFromHz();restartTimer();};
 bufferModeEl.onchange=()=>{previous=null;changedCountEl.textContent='—';refreshMonitor();};
 baseUrlEl.addEventListener('change',()=>{refreshMonitor();restartTimer();});
+monitorOutputEl.onchange=()=>{
+  activeMonitorOutputId=monitorOutputEl.value;
+  const output=activeMonitorOutput();
+  if(output?.baseUrl)baseUrlEl.value=output.baseUrl;
+  monitorGeneration++;
+  previous=null;
+  changedCountEl.textContent='—';
+  frameCountEl.textContent='—';
+  statusEl.textContent='Monitoring '+(output?monitorOutputLabel(output):'Pico');
+  refreshMonitor();
+  restartTimer();
+};
 
 render(values);
 syncRefreshFromMs();
-refreshMonitor();
-restartTimer();
+loadMonitorOutputs().then(()=>{
+  refreshMonitor();
+  restartTimer();
+});
 </script>
 </body>
 </html>
