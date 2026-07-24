@@ -2,6 +2,19 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Toolbox visual tile rules', () => {
+  test('Pixel Matrices has a dedicated header color distinct from Scenes', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    const colors = await page.evaluate(() => ({
+      scenes: getComputedStyle(document.querySelector('#sceneBox .scene-toolbox__header')).backgroundColor,
+      pixelMatrices: getComputedStyle(document.querySelector('#pixelMatrixToolbox .scene-toolbox__header')).backgroundColor
+    }));
+
+    expect(colors.scenes).toBe('rgb(70, 15, 73)');
+    expect(colors.pixelMatrices).toBe('rgb(106, 72, 13)');
+    expect(colors.pixelMatrices).not.toBe(colors.scenes);
+  });
+
   test('Controller, Chaser, Effects, and Room Plane share Cols and Rows controls', async ({ page }) => {
     const pages = [
       { path: '', host: '#controllerSceneLayoutControls' },

@@ -153,6 +153,7 @@ a.nav:hover{color:var(--text);border-color:var(--text)}
 .scene-toolbox--fan .scene-toolbox__header{background:#5a171a}
 .scene-toolbox--effects .scene-toolbox__header{background:#17425a}
 .scene-toolbox--planes .scene-toolbox__header{background:#0b2f4f}
+.scene-toolbox--pixel-matrix .scene-toolbox__header{background:#6a480d}
 .scene-toolbox--fan input[type=range]{width:100%;min-width:0}
 .scene-toolbox--fan label{min-width:0}
 .fan-nudge-control{display:grid;grid-template-columns:auto minmax(72px,100px) auto;gap:6px;align-items:end}
