@@ -1,0 +1,2765 @@
+{
+  "ok": true,
+  "exists": true,
+  "setup": {
+    "appVersion": "0.9.13",
+    "schemaVersion": 1,
+    "showName": "Xampp Test Show",
+    "baseUrl": "http://192.168.0.14/",
+    "profiles": [
+      {
+        "name": "Fun Generation PicoSpot 20 LED",
+        "mode": "11-channel",
+        "channels": 11,
+        "controls": [
+          {
+            "id": 1784485657780,
+            "type": "panTilt16",
+            "label": "Pan/Tilt",
+            "tilt": 2,
+            "panFine": 3,
+            "tiltFine": 4,
+            "pan": 1,
+            "panReverse": false,
+            "tiltReverse": false,
+            "panTiltSwap": false,
+            "defaultValue": null,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784485658162,
+            "type": "slider8",
+            "label": "Pan/Tilt Speed",
+            "channel": 5,
+            "defaultValue": 0,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784485657562,
+            "type": "wheel",
+            "label": "Color Wheel",
+            "channel": 6,
+            "options": [
+              {
+                "name": "White",
+                "value": 5,
+                "range": [
+                  0,
+                  10
+                ],
+                "color": "#ffffff",
+                "kind": "WheelSlot",
+                "slotNumber": 1
+              },
+              {
+                "name": "Red",
+                "value": 16,
+                "range": [
+                  11,
+                  21
+                ],
+                "color": "#ff0000",
+                "kind": "WheelSlot",
+                "slotNumber": 2
+              },
+              {
+                "name": "Orange",
+                "value": 27,
+                "range": [
+                  22,
+                  32
+                ],
+                "color": "#ff9900",
+                "kind": "WheelSlot",
+                "slotNumber": 3
+              },
+              {
+                "name": "Yellow",
+                "value": 38,
+                "range": [
+                  33,
+                  43
+                ],
+                "color": "#ffff00",
+                "kind": "WheelSlot",
+                "slotNumber": 4
+              },
+              {
+                "name": "Green",
+                "value": 49,
+                "range": [
+                  44,
+                  54
+                ],
+                "color": "#00ff00",
+                "kind": "WheelSlot",
+                "slotNumber": 5
+              },
+              {
+                "name": "Blue",
+                "value": 60,
+                "range": [
+                  55,
+                  65
+                ],
+                "color": "#0000ff",
+                "kind": "WheelSlot",
+                "slotNumber": 6
+              },
+              {
+                "name": "Cyan",
+                "value": 71,
+                "range": [
+                  66,
+                  76
+                ],
+                "color": "#00ffff",
+                "kind": "WheelSlot",
+                "slotNumber": 7
+              },
+              {
+                "name": "Purple",
+                "value": 82,
+                "range": [
+                  77,
+                  87
+                ],
+                "color": "#ff00ff",
+                "kind": "WheelSlot",
+                "slotNumber": 8
+              },
+              {
+                "name": "White / Red",
+                "value": 93,
+                "range": [
+                  88,
+                  98
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 1,
+                "slotNumberEnd": 2
+              },
+              {
+                "name": "Red / Orange",
+                "value": 104,
+                "range": [
+                  99,
+                  109
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 2,
+                "slotNumberEnd": 3
+              },
+              {
+                "name": "Orange / Yellow",
+                "value": 115,
+                "range": [
+                  110,
+                  120
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 3,
+                "slotNumberEnd": 4
+              },
+              {
+                "name": "Yellow / Green",
+                "value": 126,
+                "range": [
+                  121,
+                  131
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 4,
+                "slotNumberEnd": 5
+              },
+              {
+                "name": "Green / Blue",
+                "value": 137,
+                "range": [
+                  132,
+                  142
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 5,
+                "slotNumberEnd": 6
+              },
+              {
+                "name": "Blue / Cyan",
+                "value": 148,
+                "range": [
+                  143,
+                  153
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 6,
+                "slotNumberEnd": 7
+              },
+              {
+                "name": "Cyan / Purple",
+                "value": 159,
+                "range": [
+                  154,
+                  164
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 7,
+                "slotNumberEnd": 8
+              },
+              {
+                "name": "Purple / White",
+                "value": 170,
+                "range": [
+                  165,
+                  175
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 8,
+                "slotNumberEnd": 9
+              },
+              {
+                "name": "Color rotation slow to fast",
+                "value": 216,
+                "range": [
+                  176,
+                  255
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "slow",
+                "speedEnd": "fast"
+              }
+            ],
+            "defaultValue": 0,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784485658044,
+            "type": "wheel",
+            "label": "Gobo Wheel",
+            "channel": 7,
+            "options": [
+              {
+                "name": "Open",
+                "value": 8,
+                "range": [
+                  0,
+                  15
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 1
+              },
+              {
+                "name": "Gobo 2",
+                "value": 24,
+                "range": [
+                  16,
+                  31
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 2,
+                "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAYAAAA5ZDbSAAANrElEQVR4Aeyda6wkRRXH56rAskEiJkjwEXxLDHwAE/yCicYoaFhDCBgU3SUrUdwFYSEosCwE0AUERXEBiQKCCEYkPkAjqIEP+gEjmBgfMUZdJCpE44PFZXlefv++03N7ZupUd0/VzHT3rZtzbnWfep1z/lPV1dXV1S/opb9OeyAB3Gl4e70EcAK44x7ouHmpBSeAO+6BjpuXWnACuOMe6Lh5K7UFdxzWZfMSwMu+6ORRAriTsC4blQBe9kUnjxLAnYR12agE8LIvOnmUAO4krMtGJYCXfdHJowRwJ2FdNmoE4OWIdNQNDySAu4GjaUUC2HRNNyISwN3A0bQiAWy6phsRCeARHBcXF1fDB4yIW3vaCYABZD28Aw4mkPw/vJ2CdsLbOG41tRpgADgAvh4ExHsRxqQ9KWwj5e+C74bXwYchaxW1EmAcvRXegae3w+vhQPJm34PYd8Nfg++n3ifgb3HcCmoVwDh2G/wUnj0Hjt1iKbISrSLVcdIDvonjRlPjAcaJx8P/gRfx5EZ4N7gJJD3WoteTcGOv1Y0FGKdpNPtlkLwNfgncVNodxXStRuWMNDi7EFkjqJEA4ya1CI1mP1bTS7tIv2kh8I8yboRVFkFt0uDsfGx4V+2cU8jQOIBxzBHYqa6YoBL9l1RXw68B1z3hL3AcRJSxHhZQb6WgE+F74KfhOvQjbLkKnus9deMAxoPXwFXocRJdAhD7wKfAGlEjikeU+Qv4JvgIWF3xVyhdgzyCUpJvTyWV7ql1nf48x5WIH8WFsLp6goz+xP+jKmUeSSQlRkTzO8UItd7XlmjwZ+IPx+Evhs/leGZEfR+Fddt0M5U+CVcl/Tg2Yd9TsHobMx/x6trPJ4F6EIKM5JM7iXtDdlbjX6MARm8Nqgi8dDJO/rk3xZQjqX8drNslTbDUAVoj7w0A9X2Xisg/jvyHsEVHWxGW3A+wlSuyXIbBGlS92lO0usaLcOyPPWlmGoUuJ8EC+rM1K16Dveq2t+b5OL+CY12eXkQYjeYOcMGw1R6rjsSRe8AXeNLMLQq9PkXlH4HrjLzVbZ+D/QL6SvKeCZfRd8sSjMbPFWCMezsKlRn2KA68m3SNJnS8AdYofgFFBZh6HA5LSUCfXpqq17uW8v9YId1QkrkBDLiabrx3SBv3ycVucXOlAHEGrMGYLjmysyrYLqPUK1xKeRtckWWyKAAD1lGwhvIETtITmcHsDik0GhxcfwwlNTV5HYZ5R51G3kaI0f0h+FKUeRN8J1yXriG/egX9SOrmzdIHA9wHS8prKJ8V6vinX7Nmd64g/SXE/x720deJ3AvjTiZsPWHHdvh9GKIfuX64HJaSZuTqTPg4CwwGmFLrDN11vT2bPC+ELZJha3HITitBG+X8sL+E3p+EdY0m8NIW7A+ekVMNMQBWObH4D7EMi6VQSDmAqhkpjZLVak+hrOLkBadO2oUPPu2MmUAYA+DaQ3ePnl/0xM0uKkJNgJvPSGmUXKfEVeT9UJ0MvrTBAPNr09B9DZVoCpFgInqOXBopXkvYFTotwBB15QHZl7MGA6yiAPku+HXwgJBfBAs4glJ6hIwTjxRLS59Pgrott6jlQbTiurNjxfyD4ygAD0orHACYZp2OLIh8hy/HoPN8CVoY9yuPzrq31ZoyK4kGYmfhE00EWWkqyacGcL/2OuVfjEG6P+5nbX3wVcOC2/nxa7D1ayO+KNbDh+J57eM6ANQunAxamUFQmercclUudB4JATEfm+Qt+bfosQb5+wlFVZ6IHcuPfqIZLFUgnhrAKKYH1K9XJSuVAVNjk0MJRQfx766CL6wWXkiS7QZ8Nb7Uk6aivPLxVABGIT3X1exWZUX6CWPecvWLbGYA2KMt3Kfomfh0okFXdIBRRNNrvsVy/8MSjbCfIMxJt1jqvmR0Lut8CMhZC8fQKt3wRIOuWgCjSBXaUpLoYQy7AF4N56RbrGL3VVJEt6Jxgu7/L8Mqja4JTPoJDUjz2WaC0YioAFO51lTtN1rJyLlWLYyI0ikgnw1rdP0Zjzc0h6+HNk/j60pARwUYxS6HLdKvs2uzVZatE8sBWfMBvywpQMt6BLSmQ71JowHML+pz1HQw7CI9Lgt6rukqtMOyRyvaVjr7FwVgwNUExRkepTrxXNdjX+yoqg9d3lxWcRSAqcT3eEuPABu/pgobGkN001o5qjuNsiW5+9K4jvcpHgtg38N53Tb5dEhxDg8Asu40tCRXQFuvzQg/3y1pNlPiKL62yBo5P4CiP61dWsow8AD+E9B6MvW7gXD44NDh0+Ez/QKGJTXP6CJ0oX+Pke1hQ94qcUOUtVrq3mBgLhAIApiCNbjyrY4MWS7aEL82Qw1a8s/Q5O+wiz7gEkoWBDAF+AZXRPc0Q6MwcRwPFKd3iyW+pXhSPA4FWDfcxfKKx5fzq7uvKEjHwR541ihhP3pT5+KAUID3NSrUrVG0dUVGHStR/KDH6LNccaEAW/n/5aosyYI9cJ2nBI2HxqItgMYSGgJNjruiLLkrbZJV9ED/kmc1HqfPQwF+qaGbJTeSJ3END1izW1qoN1ZMKMB6Y32sUASWnKhEgR6wZrWc8hCAA/VM2Sf0gHXn8pirvASwyysNlXErdCyqvRJ2kRP4UICd3QK1W3KiEgV4QLvvWNmdD3xCAdYqDVeF/3YJkyzYA9ZDHRWsNV0KhzgUYL0WOVRg/2ReO8H2q+9soMeHLuMe4xbq266IUICtye83cr2osrGIS6ckc3gAf+r6u7cjSiJrjjr4ebCzW1CN8JUoNdFibfImGveAtr4Yly5J/rkUjP8PasF0C1pacv94sQPJRIu1B7nTQeYBGorA9b0GZC6hDQI4q73X29wPraD2Ym2roIbIZ6oG4GpXee1rYtX7Dxqa8/qrDMEAU7iW5PjWQ+eLtfUymupMXNEDfXDXliT/hC8+GGAVDsh6NPiAjj2s3VLrvk7qKa7bUYCr7RHLwN2K783WKw9FAVgFwY/AZaSt7/V6S1m6FR0PuFp/pQ3UfH7Qqy5ll8fgUXRRgaqLtTVgKOZLxwUPAK5egtfrtwXp2OHNtFzfHcwgQ7QWTIUaUWsNr/U4K6/0EIxQl56fp3DYA2Uv5wncdcNZ7LNoAKsKQNYaXs22lO3Efhkga3t8ZUuMB/CH9scSuPtzapFe3qsMrgqJCrAKFAO0umHtn/yMzg0+CaPeacStKDF+uBWDNX/v23RFO91rDTpJq9NUAFb1gHwDYdk2Svdg3LQ/TYcazSPsPhDWhuBqBFrX7Fxy09dc+4j51mP1k40HEQEeLxyQy+6RVf/1GHrHeO5uSrB1M6zPF2jHXb00oHmCMmN9Ex3evHKwN0FoJCBrQKVvD/mKOgaj9db64b5Es4hDD+19/SChSGGUCRoK0zVW2yTrZQHf5wuKZqp1b8aHms0qyisfTx1gadJXMN8vSiIXa0XCvTjC+zqkK2MsGXVr6al2BzqkX6ZCTdBI3hfVDyhXt5Da2c58h8hR6i3I9OkgtXIOJ6OZANxXrcoAQSDfgkP0abl+tpkGugd1VWjJXWkHMuzYAmsCSNOJsm0Q5zlQqz2PRvFh2FpQ4ck+HDUzgFFWL4Fre35rkUCuma5JJ+IYddn6uEUun0X4KqMSS+5Mju66zgoozQv4VmEU8wvM7+Cn3WDfRizFPKXHMwNYmqC4NsXWao/jOC+bENEv/nScVSSBPs1Rt7pkVBsjSz6WEGU1zajrrH6oY/EjAnXbVyHLv7t4DMdRaaYAS3NA3glrgvxAzp3v0yC3SKBr1I0fF7WTemywrT0v9rEUyuUolO3uznnZNCNJMtKbly/DF6fB0b+7mNXAv5kDTJ0ZyShYezC+LRPU/6e33gX2HThXn6+pX0IhB2VoIGW9kfFQIWmPtHrpOnuTgONvwFrRqBWP0qmY1HWsFae6xm7AfnXLrjTRZHMDOLcAI/Vis0Au67LzLKOhurW/4GR9Wz/kmu3LeyPl60vkPyDU+idtx/gcx4u9Xu+DKOSbpCA6Iw22zsXe3eFo19isZM+/uQMs3TBYIOdd9qRAaw589Jq9AxDUwqq08MOki4M1KLwd+W3we2HVQ1CLtmHj/rCmcGtlDE3cCIBlBMZrszR12QJan5R5XPJA1oBOLUwtHKxtoh7rXeesKyZ+UtqIbadOmjk0X2MAzg3BGQJa307STT6nC3KwHlzEADyvZlbhrQsLC3pCNKv6xuppHMBjGiLASfrwYwY4p5qYn/rghHpCSJcZfQr3hJBCYuRtBcBFQwH7m7AGNe9Arq7c2reC6JmRdhNSa0W1jFbxXx8lmZkCVkWtAzg3BAfeB2/iXOuFBfS0u3A9Afoe9akHeQV1F0nfNp57a0W3MWotwLkleHnsmo1M1221cD1IV+vKk9cN9d0n/XgOpkx9LPNoQvUg1is7dcufevrWA2x5CCDUwk8gVOsisIkyrJmkv5JLA77fkKaVND2A2+WOvxnqWnIjefPECeAlTKxvGFnypVwt+J8AXgLJ+oaRJV/K1YL/CWBA4jqrz/noC6r5qhOFnfjMTwIYgEWAnH3DiFCkr5V14jM/CWCh22FOAHcYXJmWAJYXOswJ4NjgNqy8BHDDAImtTgI4tkcbVl4CuGGAxFYnARzbow0rLwHcMEBiq5MAju3RhpWXAG4YILHVSQDH9mjDypsZwA2ze8Wo8zwAAAD//3gYmCQAAAAGSURBVAMAa5ApLabPYAIAAAAASUVORK5CYII="
+              },
+              {
+                "name": "Gobo 3",
+                "value": 39,
+                "range": [
+                  32,
+                  46
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 3,
+                "image": "data:image/png;base64,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"
+              },
+              {
+                "name": "Gobo 4",
+                "value": 55,
+                "range": [
+                  47,
+                  62
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 4,
+                "image": "data:image/png;base64,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"
+              },
+              {
+                "name": "Gobo 5",
+                "value": 71,
+                "range": [
+                  63,
+                  78
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 5,
+                "image": "data:image/png;base64,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"
+              },
+              {
+                "name": "Gobo 6",
+                "value": 86,
+                "range": [
+                  79,
+                  93
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 6,
+                "image": "data:image/png;base64,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"
+              },
+              {
+                "name": "Gobo 7",
+                "value": 102,
+                "range": [
+                  94,
+                  109
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 7,
+                "image": "data:image/png;base64,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"
+              },
+              {
+                "name": "Gobo 8",
+                "value": 117,
+                "range": [
+                  110,
+                  124
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 8,
+                "image": "data:image/png;base64,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"
+              },
+              {
+                "name": "Gobo 2 shake",
+                "value": 133,
+                "range": [
+                  125,
+                  140
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 2,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Gobo 3 shake",
+                "value": 149,
+                "range": [
+                  141,
+                  156
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 3,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Gobo 4 shake",
+                "value": 164,
+                "range": [
+                  157,
+                  171
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 4,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Gobo 5 shake",
+                "value": 180,
+                "range": [
+                  172,
+                  187
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 5,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Gobo 6 shake",
+                "value": 196,
+                "range": [
+                  188,
+                  203
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 6,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Gobo 7 shake",
+                "value": 211,
+                "range": [
+                  204,
+                  218
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 7,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Gobo 8 shake",
+                "value": 234,
+                "range": [
+                  219,
+                  249
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 8,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Rotation slow CW to fast CW",
+                "value": 253,
+                "range": [
+                  250,
+                  255
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "slow CW",
+                "speedEnd": "fast CW"
+              }
+            ],
+            "defaultValue": 0,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784485657919,
+            "type": "slider8",
+            "label": "Dimmer",
+            "channel": 8,
+            "defaultValue": 255,
+            "blackoutValue": 0
+          },
+          {
+            "id": 1784485658268,
+            "type": "wheel",
+            "label": "Shutter / Strobe",
+            "channel": 9,
+            "options": [
+              {
+                "name": "Open",
+                "value": 5,
+                "range": [
+                  0,
+                  9
+                ],
+                "color": "#ffffff",
+                "kind": "WheelSlot",
+                "slotNumber": 1
+              },
+              {
+                "name": "Strobe slow to fast",
+                "value": 133,
+                "range": [
+                  10,
+                  255
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "slow",
+                "speedEnd": "fast"
+              }
+            ],
+            "defaultValue": 0,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784485657968,
+            "type": "slider8",
+            "label": "Program",
+            "channel": 10,
+            "defaultValue": 0,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784485658424,
+            "type": "slider8",
+            "label": "Program Speed",
+            "channel": 11,
+            "defaultValue": 0,
+            "blackoutValue": null
+          }
+        ],
+        "id": 1784485657723,
+        "libraryFixtureKey": "fun-generation/picospot-20-led",
+        "libraryModeName": "11-channel"
+      },
+      {
+        "id": 1784485672598,
+        "name": "SmokeFactory",
+        "mode": "2-channel",
+        "channels": 2,
+        "controls": [
+          {
+            "id": 1784485697365,
+            "type": "slider8",
+            "label": "8-bit slider",
+            "channel": 1,
+            "defaultValue": 0,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784485902641,
+            "type": "slider8",
+            "label": "8-bit slider",
+            "channel": 2,
+            "defaultValue": 0,
+            "blackoutValue": null
+          }
+        ]
+      },
+      {
+        "name": "Martin Mac 250 Krypton",
+        "mode": "16-Bit Extended",
+        "channels": 17,
+        "controls": [
+          {
+            "id": 1784486403429,
+            "type": "panTilt16",
+            "label": "Pan/Tilt",
+            "tilt": 14,
+            "panFine": 13,
+            "tiltFine": 15,
+            "pan": 12
+          },
+          {
+            "id": 1784486402857,
+            "type": "wheel",
+            "label": "Shutter / Maintenance",
+            "channel": 1,
+            "capabilities": [
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  0,
+                  19
+                ],
+                "shutterEffect": "Closed"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  20,
+                  49
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  50,
+                  72
+                ],
+                "shutterEffect": "Strobe",
+                "speedStart": "0.1Hz",
+                "speedEnd": "20Hz"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  73,
+                  79
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  80,
+                  99
+                ],
+                "shutterEffect": "RampUp",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  100,
+                  119
+                ],
+                "shutterEffect": "RampDown",
+                "speedStart": "slow",
+                "speedEnd": "fast"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  120,
+                  127
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  128,
+                  187
+                ],
+                "shutterEffect": "Strobe",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  188,
+                  190
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  191,
+                  196
+                ],
+                "shutterEffect": "RampUp",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  197,
+                  202
+                ],
+                "shutterEffect": "RampDown",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  203,
+                  207
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "Maintenance",
+                "dmxRange": [
+                  208,
+                  217
+                ],
+                "comment": "Reset"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  218,
+                  227
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "Maintenance",
+                "dmxRange": [
+                  228,
+                  237
+                ],
+                "comment": "Lamp on"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  238,
+                  247
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "Maintenance",
+                "dmxRange": [
+                  248,
+                  255
+                ],
+                "comment": "Lamp off"
+              }
+            ],
+            "options": [
+              {
+                "name": "Closed",
+                "value": 10,
+                "range": [
+                  0,
+                  19
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Closed"
+              },
+              {
+                "name": "Open",
+                "value": 35,
+                "range": [
+                  20,
+                  49
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "Strobe",
+                "value": 61,
+                "range": [
+                  50,
+                  72
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "0.1Hz",
+                "speedEnd": "20Hz",
+                "shutterEffect": "Strobe"
+              },
+              {
+                "name": "Open",
+                "value": 76,
+                "range": [
+                  73,
+                  79
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "RampUp",
+                "value": 90,
+                "range": [
+                  80,
+                  99
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "fast",
+                "speedEnd": "slow",
+                "shutterEffect": "RampUp"
+              },
+              {
+                "name": "RampDown",
+                "value": 110,
+                "range": [
+                  100,
+                  119
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "slow",
+                "speedEnd": "fast",
+                "shutterEffect": "RampDown"
+              },
+              {
+                "name": "Open",
+                "value": 124,
+                "range": [
+                  120,
+                  127
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "Strobe",
+                "value": 158,
+                "range": [
+                  128,
+                  187
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "fast",
+                "speedEnd": "slow",
+                "shutterEffect": "Strobe"
+              },
+              {
+                "name": "Open",
+                "value": 189,
+                "range": [
+                  188,
+                  190
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "RampUp",
+                "value": 194,
+                "range": [
+                  191,
+                  196
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "fast",
+                "speedEnd": "slow",
+                "shutterEffect": "RampUp"
+              },
+              {
+                "name": "RampDown",
+                "value": 200,
+                "range": [
+                  197,
+                  202
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "fast",
+                "speedEnd": "slow",
+                "shutterEffect": "RampDown"
+              },
+              {
+                "name": "Open",
+                "value": 205,
+                "range": [
+                  203,
+                  207
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "Reset",
+                "value": 213,
+                "range": [
+                  208,
+                  217
+                ],
+                "kind": "Maintenance",
+                "comment": "Reset"
+              },
+              {
+                "name": "Open",
+                "value": 223,
+                "range": [
+                  218,
+                  227
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "Lamp on",
+                "value": 233,
+                "range": [
+                  228,
+                  237
+                ],
+                "kind": "Maintenance",
+                "comment": "Lamp on"
+              },
+              {
+                "name": "Open",
+                "value": 243,
+                "range": [
+                  238,
+                  247
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "Lamp off",
+                "value": 252,
+                "range": [
+                  248,
+                  255
+                ],
+                "kind": "Maintenance",
+                "comment": "Lamp off"
+              }
+            ]
+          },
+          {
+            "id": 1784486402857,
+            "type": "slider16",
+            "label": "Dimmer",
+            "channel": 2,
+            "fine": 3,
+            "defaultValue": null,
+            "blackoutValue": null,
+            "capabilities": [
+              {
+                "type": "Intensity"
+              }
+            ]
+          },
+          {
+            "id": 1784486403233,
+            "type": "wheel",
+            "label": "Color Wheel",
+            "options": [
+              {
+                "name": "Open / Color 2",
+                "value": 5,
+                "range": [
+                  0,
+                  10
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 1,
+                "slotNumberEnd": 2
+              },
+              {
+                "name": "Color 2 / Yellow 603",
+                "value": 16,
+                "range": [
+                  11,
+                  21
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 2,
+                "slotNumberEnd": 3
+              },
+              {
+                "name": "Yellow 603 / Blue 104",
+                "value": 27,
+                "range": [
+                  22,
+                  32
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 3,
+                "slotNumberEnd": 4
+              },
+              {
+                "name": "Blue 104 / Pink 312",
+                "value": 38,
+                "range": [
+                  33,
+                  43
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 4,
+                "slotNumberEnd": 5
+              },
+              {
+                "name": "Pink 312 / Green 206",
+                "value": 49,
+                "range": [
+                  44,
+                  54
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 5,
+                "slotNumberEnd": 6
+              },
+              {
+                "name": "Green 206 / Blue 108",
+                "value": 60,
+                "range": [
+                  55,
+                  65
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 6,
+                "slotNumberEnd": 7
+              },
+              {
+                "name": "Blue 108 / Red 301",
+                "value": 71,
+                "range": [
+                  66,
+                  76
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 7,
+                "slotNumberEnd": 8
+              },
+              {
+                "name": "Red 301 / Magenta 507",
+                "value": 82,
+                "range": [
+                  77,
+                  87
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 8,
+                "slotNumberEnd": 9
+              },
+              {
+                "name": "Magenta 507 / Blue 101",
+                "value": 93,
+                "range": [
+                  88,
+                  98
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 9,
+                "slotNumberEnd": 10
+              },
+              {
+                "name": "Blue 101 / Orange 306",
+                "value": 104,
+                "range": [
+                  99,
+                  109
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 10,
+                "slotNumberEnd": 11
+              },
+              {
+                "name": "Orange 306 / Darkgreen",
+                "value": 115,
+                "range": [
+                  110,
+                  120
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 11,
+                "slotNumberEnd": 12
+              },
+              {
+                "name": "Darkgreen / Purple 502",
+                "value": 126,
+                "range": [
+                  121,
+                  131
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 12,
+                "slotNumberEnd": 13
+              },
+              {
+                "name": "Purple 502 / Open",
+                "value": 137,
+                "range": [
+                  132,
+                  142
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 13,
+                "slotNumberEnd": 14
+              },
+              {
+                "name": "Open",
+                "value": 151,
+                "range": [
+                  143,
+                  159
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 1
+              },
+              {
+                "name": "Color 2",
+                "value": 162,
+                "range": [
+                  160,
+                  163
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 2
+              },
+              {
+                "name": "Yellow 603",
+                "value": 166,
+                "range": [
+                  164,
+                  167
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 3,
+                "color": "#ede04b"
+              },
+              {
+                "name": "Blue 104",
+                "value": 170,
+                "range": [
+                  168,
+                  171
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 4,
+                "color": "#1e4f6f"
+              },
+              {
+                "name": "Pink 312",
+                "value": 174,
+                "range": [
+                  172,
+                  175
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 5,
+                "color": "#ffc0cb"
+              },
+              {
+                "name": "Green 206",
+                "value": 178,
+                "range": [
+                  176,
+                  179
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 6,
+                "color": "#97cda9"
+              },
+              {
+                "name": "Blue 108",
+                "value": 182,
+                "range": [
+                  180,
+                  183
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 7,
+                "color": "#3b4875"
+              },
+              {
+                "name": "Red 301",
+                "value": 186,
+                "range": [
+                  184,
+                  187
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 8,
+                "color": "#cb301e"
+              },
+              {
+                "name": "Magenta 507",
+                "value": 190,
+                "range": [
+                  188,
+                  191
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 9,
+                "color": "#8e507e"
+              },
+              {
+                "name": "Blue 101",
+                "value": 194,
+                "range": [
+                  192,
+                  195
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 10,
+                "color": "#385287"
+              },
+              {
+                "name": "Orange 306",
+                "value": 198,
+                "range": [
+                  196,
+                  199
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 11,
+                "color": "#ffa500"
+              },
+              {
+                "name": "Darkgreen",
+                "value": 202,
+                "range": [
+                  200,
+                  203
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 12,
+                "color": "#006400"
+              },
+              {
+                "name": "Purple 502",
+                "value": 206,
+                "range": [
+                  204,
+                  207
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 13,
+                "color": "#a666ea"
+              },
+              {
+                "name": "Rotation slow CW to fast CW",
+                "value": 217,
+                "range": [
+                  208,
+                  226
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "slow CW",
+                "speedEnd": "fast CW"
+              },
+              {
+                "name": "Rotation slow CCW to fast CCW",
+                "value": 236,
+                "range": [
+                  227,
+                  245
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "slow CCW",
+                "speedEnd": "fast CCW"
+              },
+              {
+                "name": "Random color",
+                "value": 251,
+                "range": [
+                  246,
+                  255
+                ],
+                "kind": "Effect",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              }
+            ],
+            "channel": 4
+          },
+          {
+            "id": 1784486402906,
+            "type": "wheel",
+            "label": "Color Wheel fine",
+            "options": [
+              {
+                "name": "Open",
+                "value": 0
+              }
+            ],
+            "channel": 5
+          },
+          {
+            "id": 1784486403281,
+            "type": "wheel",
+            "label": "Gobo Wheel",
+            "options": [
+              {
+                "name": "indexing",
+                "value": 2,
+                "range": [
+                  0,
+                  4
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 1
+              },
+              {
+                "name": "indexing",
+                "value": 8,
+                "range": [
+                  5,
+                  10
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 2
+              },
+              {
+                "name": "indexing",
+                "value": 13,
+                "range": [
+                  11,
+                  15
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 3
+              },
+              {
+                "name": "indexing",
+                "value": 18,
+                "range": [
+                  16,
+                  20
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 4
+              },
+              {
+                "name": "indexing",
+                "value": 23,
+                "range": [
+                  21,
+                  25
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 5
+              },
+              {
+                "name": "indexing",
+                "value": 28,
+                "range": [
+                  26,
+                  30
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 6
+              },
+              {
+                "name": "indexing",
+                "value": 33,
+                "range": [
+                  31,
+                  35
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 7
+              },
+              {
+                "name": "indexing",
+                "value": 39,
+                "range": [
+                  36,
+                  42
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 8
+              },
+              {
+                "name": "rotating",
+                "value": 47,
+                "range": [
+                  43,
+                  50
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 1
+              },
+              {
+                "name": "rotating",
+                "value": 55,
+                "range": [
+                  51,
+                  58
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 2
+              },
+              {
+                "name": "rotating",
+                "value": 62,
+                "range": [
+                  59,
+                  65
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 3
+              },
+              {
+                "name": "rotating",
+                "value": 70,
+                "range": [
+                  66,
+                  73
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 4
+              },
+              {
+                "name": "rotating",
+                "value": 78,
+                "range": [
+                  74,
+                  81
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 5
+              },
+              {
+                "name": "rotating",
+                "value": 86,
+                "range": [
+                  82,
+                  89
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 6
+              },
+              {
+                "name": "rotating",
+                "value": 93,
+                "range": [
+                  90,
+                  96
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 7
+              },
+              {
+                "name": "rotating",
+                "value": 101,
+                "range": [
+                  97,
+                  104
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 8
+              },
+              {
+                "name": "Affobet shake",
+                "value": 112,
+                "range": [
+                  105,
+                  119
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 8,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Splash shake",
+                "value": 127,
+                "range": [
+                  120,
+                  134
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 7,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Twisted triangle shake",
+                "value": 142,
+                "range": [
+                  135,
+                  149
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 6,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Happy Yins shake",
+                "value": 157,
+                "range": [
+                  150,
+                  164
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 5,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Fan shake",
+                "value": 172,
+                "range": [
+                  165,
+                  179
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 4,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Fat bar shake",
+                "value": 187,
+                "range": [
+                  180,
+                  194
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 3,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Eclipse shake",
+                "value": 202,
+                "range": [
+                  195,
+                  209
+                ],
+                "kind": "WheelShake",
+                "slotNumber": 2,
+                "shakeSpeedStart": "slow",
+                "shakeSpeedEnd": "fast"
+              },
+              {
+                "name": "Rotation slow CW to fast CW",
+                "value": 221,
+                "range": [
+                  210,
+                  232
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "slow CW",
+                "speedEnd": "fast CW"
+              },
+              {
+                "name": "Rotation fast CCW to slow CCW",
+                "value": 244,
+                "range": [
+                  233,
+                  255
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "fast CCW",
+                "speedEnd": "slow CCW"
+              }
+            ],
+            "channel": 6
+          },
+          {
+            "id": 1784486403099,
+            "type": "slider16",
+            "label": "Gobo Rotation",
+            "channel": 7,
+            "fine": 8,
+            "defaultValue": null,
+            "blackoutValue": null
+          },
+          {
+            "id": 1784486403093,
+            "type": "slider16",
+            "label": "Focus",
+            "channel": 9,
+            "fine": 10,
+            "defaultValue": null,
+            "blackoutValue": null,
+            "capabilities": [
+              {
+                "type": "Focus",
+                "distanceStart": "20m",
+                "distanceEnd": "2m"
+              }
+            ]
+          },
+          {
+            "id": 1784486402584,
+            "type": "wheel",
+            "label": "Prism / Macros",
+            "channel": 11,
+            "capabilities": [
+              {
+                "type": "NoFunction",
+                "dmxRange": [
+                  0,
+                  19
+                ],
+                "comment": "No prism"
+              },
+              {
+                "type": "Prism",
+                "dmxRange": [
+                  20,
+                  79
+                ],
+                "speedStart": "fast CCW",
+                "speedEnd": "slow CCW"
+              },
+              {
+                "type": "Prism",
+                "dmxRange": [
+                  80,
+                  89
+                ]
+              },
+              {
+                "type": "Prism",
+                "dmxRange": [
+                  90,
+                  149
+                ],
+                "speedStart": "slow CW",
+                "speedEnd": "fast CW"
+              },
+              {
+                "type": "NoFunction",
+                "dmxRange": [
+                  150,
+                  215
+                ],
+                "comment": "No prism"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  216,
+                  220
+                ],
+                "effectName": "Prism/Gobo macro 1"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  221,
+                  225
+                ],
+                "effectName": "Prism/Gobo macro 2"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  226,
+                  230
+                ],
+                "effectName": "Prism/Gobo macro 3"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  231,
+                  235
+                ],
+                "effectName": "Prism/Gobo macro 4"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  236,
+                  240
+                ],
+                "effectName": "Prism/Gobo macro 5"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  241,
+                  245
+                ],
+                "effectName": "Prism/Gobo macro 6"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  246,
+                  250
+                ],
+                "effectName": "Prism/Gobo macro 7"
+              },
+              {
+                "type": "Effect",
+                "dmxRange": [
+                  251,
+                  255
+                ],
+                "effectName": "Prism/Gobo macro 8"
+              }
+            ],
+            "options": [
+              {
+                "name": "No prism",
+                "value": 10,
+                "range": [
+                  0,
+                  19
+                ],
+                "kind": "NoFunction",
+                "comment": "No prism"
+              },
+              {
+                "name": "Prism",
+                "value": 50,
+                "range": [
+                  20,
+                  79
+                ],
+                "kind": "Prism",
+                "speedStart": "fast CCW",
+                "speedEnd": "slow CCW"
+              },
+              {
+                "name": "Prism",
+                "value": 85,
+                "range": [
+                  80,
+                  89
+                ],
+                "kind": "Prism"
+              },
+              {
+                "name": "Prism",
+                "value": 120,
+                "range": [
+                  90,
+                  149
+                ],
+                "kind": "Prism",
+                "speedStart": "slow CW",
+                "speedEnd": "fast CW"
+              },
+              {
+                "name": "No prism",
+                "value": 183,
+                "range": [
+                  150,
+                  215
+                ],
+                "kind": "NoFunction",
+                "comment": "No prism"
+              },
+              {
+                "name": "Prism/Gobo macro 1",
+                "value": 218,
+                "range": [
+                  216,
+                  220
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 1"
+              },
+              {
+                "name": "Prism/Gobo macro 2",
+                "value": 223,
+                "range": [
+                  221,
+                  225
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 2"
+              },
+              {
+                "name": "Prism/Gobo macro 3",
+                "value": 228,
+                "range": [
+                  226,
+                  230
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 3"
+              },
+              {
+                "name": "Prism/Gobo macro 4",
+                "value": 233,
+                "range": [
+                  231,
+                  235
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 4"
+              },
+              {
+                "name": "Prism/Gobo macro 5",
+                "value": 238,
+                "range": [
+                  236,
+                  240
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 5"
+              },
+              {
+                "name": "Prism/Gobo macro 6",
+                "value": 243,
+                "range": [
+                  241,
+                  245
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 6"
+              },
+              {
+                "name": "Prism/Gobo macro 7",
+                "value": 248,
+                "range": [
+                  246,
+                  250
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 7"
+              },
+              {
+                "name": "Prism/Gobo macro 8",
+                "value": 253,
+                "range": [
+                  251,
+                  255
+                ],
+                "kind": "Effect",
+                "effectName": "Prism/Gobo macro 8"
+              }
+            ]
+          },
+          {
+            "id": 1784486402887,
+            "type": "wheel",
+            "label": "Pan/Tilt Speed",
+            "channel": 16,
+            "capabilities": [
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  0,
+                  2
+                ]
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  3,
+                  242
+                ],
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  243,
+                  245
+                ],
+                "comment": "Override menu setting PTSP=SLOW"
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  246,
+                  248
+                ],
+                "comment": "Override menu setting PTSP=NORM"
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  249,
+                  251
+                ],
+                "comment": "Override menu setting PTSP=FAST"
+              },
+              {
+                "type": "Maintenance",
+                "dmxRange": [
+                  252,
+                  255
+                ],
+                "comment": "Blackout while moving"
+              }
+            ],
+            "options": [
+              {
+                "name": "PanTiltSpeed",
+                "value": 1,
+                "range": [
+                  0,
+                  2
+                ],
+                "kind": "PanTiltSpeed"
+              },
+              {
+                "name": "PanTiltSpeed",
+                "value": 123,
+                "range": [
+                  3,
+                  242
+                ],
+                "kind": "PanTiltSpeed",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "name": "Override menu setting PTSP=SLOW",
+                "value": 244,
+                "range": [
+                  243,
+                  245
+                ],
+                "kind": "PanTiltSpeed",
+                "comment": "Override menu setting PTSP=SLOW"
+              },
+              {
+                "name": "Override menu setting PTSP=NORM",
+                "value": 247,
+                "range": [
+                  246,
+                  248
+                ],
+                "kind": "PanTiltSpeed",
+                "comment": "Override menu setting PTSP=NORM"
+              },
+              {
+                "name": "Override menu setting PTSP=FAST",
+                "value": 250,
+                "range": [
+                  249,
+                  251
+                ],
+                "kind": "PanTiltSpeed",
+                "comment": "Override menu setting PTSP=FAST"
+              },
+              {
+                "name": "Blackout while moving",
+                "value": 254,
+                "range": [
+                  252,
+                  255
+                ],
+                "kind": "Maintenance",
+                "comment": "Blackout while moving"
+              }
+            ]
+          },
+          {
+            "id": 1784486403241,
+            "type": "wheel",
+            "label": "Dimmer/Focus/Color/Gobo/Prism Speed",
+            "options": [
+              {
+                "name": "Speed",
+                "value": 1,
+                "range": [
+                  0,
+                  2
+                ],
+                "kind": "Speed"
+              },
+              {
+                "name": "Speed",
+                "value": 124,
+                "range": [
+                  3,
+                  245
+                ],
+                "kind": "Speed",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "name": "Override menu setting SCUT=OFF",
+                "value": 247,
+                "range": [
+                  246,
+                  248
+                ],
+                "kind": "Speed"
+              },
+              {
+                "name": "Override menu setting SCUT=ON",
+                "value": 250,
+                "range": [
+                  249,
+                  251
+                ],
+                "kind": "Speed"
+              },
+              {
+                "name": "Blackout while moving",
+                "value": 254,
+                "range": [
+                  252,
+                  255
+                ],
+                "kind": "Speed"
+              }
+            ],
+            "channel": 17
+          }
+        ],
+        "id": 1784486403454,
+        "libraryFixtureKey": "martin/mac-250-krypton",
+        "libraryModeName": "16-Bit Extended"
+      },
+      {
+        "name": "Martin MAC 600",
+        "mode": "DMX4 (14-channel)",
+        "channels": 14,
+        "controls": [
+          {
+            "id": 1784529867144,
+            "type": "panTilt16",
+            "label": "Pan/Tilt",
+            "tilt": 11,
+            "panFine": 10,
+            "tiltFine": 12,
+            "pan": 9
+          },
+          {
+            "id": 1784529866475,
+            "type": "wheel",
+            "label": "Shutter / Strobe / Reset / Lamp",
+            "channel": 1,
+            "capabilities": [
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  0,
+                  19
+                ],
+                "shutterEffect": "Closed"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  20,
+                  49
+                ],
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  50,
+                  112
+                ],
+                "shutterEffect": "Strobe",
+                "speedStart": "8Hz",
+                "speedEnd": "0Hz"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  113,
+                  115
+                ],
+                "shutterEffect": "Closed"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  116,
+                  122
+                ],
+                "comment": "Reduced lamp power (MAC 600 E)",
+                "shutterEffect": "Open"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  123,
+                  127
+                ],
+                "shutterEffect": "Closed"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  128,
+                  147
+                ],
+                "shutterEffect": "Strobe"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  148,
+                  167
+                ],
+                "shutterEffect": "Strobe"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  168,
+                  207
+                ],
+                "shutterEffect": "Strobe"
+              },
+              {
+                "type": "Maintenance",
+                "dmxRange": [
+                  208,
+                  217
+                ],
+                "comment": "Reset fixture"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  218,
+                  227
+                ],
+                "shutterEffect": "Closed"
+              },
+              {
+                "type": "Maintenance",
+                "dmxRange": [
+                  228,
+                  237
+                ],
+                "comment": "Lamp power on"
+              },
+              {
+                "type": "ShutterStrobe",
+                "dmxRange": [
+                  238,
+                  247
+                ],
+                "shutterEffect": "Closed"
+              },
+              {
+                "type": "Maintenance",
+                "dmxRange": [
+                  248,
+                  255
+                ],
+                "comment": "Lamp power off"
+              }
+            ],
+            "options": [
+              {
+                "name": "Closed",
+                "value": 10,
+                "range": [
+                  0,
+                  19
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Closed"
+              },
+              {
+                "name": "Open",
+                "value": 35,
+                "range": [
+                  20,
+                  49
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "Strobe",
+                "value": 81,
+                "range": [
+                  50,
+                  112
+                ],
+                "kind": "ShutterStrobe",
+                "speedStart": "8Hz",
+                "speedEnd": "0Hz",
+                "shutterEffect": "Strobe"
+              },
+              {
+                "name": "Closed",
+                "value": 114,
+                "range": [
+                  113,
+                  115
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Closed"
+              },
+              {
+                "name": "Reduced lamp power (MAC 600 E)",
+                "value": 119,
+                "range": [
+                  116,
+                  122
+                ],
+                "kind": "ShutterStrobe",
+                "comment": "Reduced lamp power (MAC 600 E)",
+                "shutterEffect": "Open"
+              },
+              {
+                "name": "Closed",
+                "value": 125,
+                "range": [
+                  123,
+                  127
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Closed"
+              },
+              {
+                "name": "Strobe",
+                "value": 138,
+                "range": [
+                  128,
+                  147
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Strobe"
+              },
+              {
+                "name": "Strobe",
+                "value": 158,
+                "range": [
+                  148,
+                  167
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Strobe"
+              },
+              {
+                "name": "Strobe",
+                "value": 188,
+                "range": [
+                  168,
+                  207
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Strobe"
+              },
+              {
+                "name": "Reset fixture",
+                "value": 213,
+                "range": [
+                  208,
+                  217
+                ],
+                "kind": "Maintenance",
+                "comment": "Reset fixture"
+              },
+              {
+                "name": "Closed",
+                "value": 223,
+                "range": [
+                  218,
+                  227
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Closed"
+              },
+              {
+                "name": "Lamp power on",
+                "value": 233,
+                "range": [
+                  228,
+                  237
+                ],
+                "kind": "Maintenance",
+                "comment": "Lamp power on"
+              },
+              {
+                "name": "Closed",
+                "value": 243,
+                "range": [
+                  238,
+                  247
+                ],
+                "kind": "ShutterStrobe",
+                "shutterEffect": "Closed"
+              },
+              {
+                "name": "Lamp power off",
+                "value": 252,
+                "range": [
+                  248,
+                  255
+                ],
+                "kind": "Maintenance",
+                "comment": "Lamp power off"
+              }
+            ]
+          },
+          {
+            "id": 1784529866439,
+            "type": "slider8",
+            "label": "Intensity",
+            "channel": 2,
+            "capabilities": [
+              {
+                "type": "Intensity"
+              }
+            ]
+          },
+          {
+            "id": 1784529867192,
+            "type": "slider8",
+            "label": "Cyan",
+            "channel": 3,
+            "capabilities": [
+              {
+                "type": "ColorIntensity",
+                "color": "Cyan"
+              }
+            ]
+          },
+          {
+            "id": 1784529867178,
+            "type": "slider8",
+            "label": "Magenta",
+            "channel": 4,
+            "capabilities": [
+              {
+                "type": "ColorIntensity",
+                "color": "Magenta"
+              }
+            ]
+          },
+          {
+            "id": 1784529866369,
+            "type": "slider8",
+            "label": "Yellow",
+            "channel": 5,
+            "capabilities": [
+              {
+                "type": "ColorIntensity",
+                "color": "Yellow"
+              }
+            ]
+          },
+          {
+            "id": 1784529866608,
+            "type": "wheel",
+            "label": "Color Wheel",
+            "options": [
+              {
+                "name": "Open / Color 2",
+                "value": 20,
+                "range": [
+                  0,
+                  40
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 1,
+                "slotNumberEnd": 2
+              },
+              {
+                "name": "Color 2 / Color 3",
+                "value": 61,
+                "range": [
+                  41,
+                  80
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 2,
+                "slotNumberEnd": 3
+              },
+              {
+                "name": "Color 3 / Color 4",
+                "value": 101,
+                "range": [
+                  81,
+                  120
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 3,
+                "slotNumberEnd": 4
+              },
+              {
+                "name": "Color 4 / Color 5",
+                "value": 141,
+                "range": [
+                  121,
+                  160
+                ],
+                "kind": "WheelSlot",
+                "slotNumberStart": 4,
+                "slotNumberEnd": 5
+              },
+              {
+                "name": "Color 5",
+                "value": 163,
+                "range": [
+                  161,
+                  165
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 5
+              },
+              {
+                "name": "Color 4",
+                "value": 168,
+                "range": [
+                  166,
+                  170
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 4
+              },
+              {
+                "name": "Color 3",
+                "value": 173,
+                "range": [
+                  171,
+                  175
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 3
+              },
+              {
+                "name": "Color 2",
+                "value": 178,
+                "range": [
+                  176,
+                  180
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 2
+              },
+              {
+                "name": "Open",
+                "value": 183,
+                "range": [
+                  181,
+                  185
+                ],
+                "kind": "WheelSlot",
+                "slotNumber": 1
+              },
+              {
+                "name": "Rotation fast CW to slow CW",
+                "value": 200,
+                "range": [
+                  186,
+                  214
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "fast CW",
+                "speedEnd": "slow CW"
+              },
+              {
+                "name": "Rotation slow CCW to fast CCW",
+                "value": 229,
+                "range": [
+                  215,
+                  243
+                ],
+                "kind": "WheelRotation",
+                "speedStart": "slow CCW",
+                "speedEnd": "fast CCW"
+              },
+              {
+                "name": "Effect",
+                "value": 246,
+                "range": [
+                  244,
+                  247
+                ],
+                "kind": "Effect"
+              },
+              {
+                "name": "Effect",
+                "value": 250,
+                "range": [
+                  248,
+                  251
+                ],
+                "kind": "Effect"
+              },
+              {
+                "name": "Effect",
+                "value": 254,
+                "range": [
+                  252,
+                  255
+                ],
+                "kind": "Effect"
+              }
+            ],
+            "channel": 6
+          },
+          {
+            "id": 1784529866546,
+            "type": "wheel",
+            "label": "Beam Shaper 1",
+            "channel": 7,
+            "capabilities": [
+              {
+                "type": "NoFunction",
+                "dmxRange": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": "BladeInsertion",
+                "dmxRange": [
+                  1,
+                  255
+                ],
+                "comment": "Beam shaper left…right"
+              }
+            ],
+            "options": [
+              {
+                "name": "NoFunction",
+                "value": 0,
+                "range": [
+                  0,
+                  0
+                ],
+                "kind": "NoFunction"
+              },
+              {
+                "name": "Beam shaper left…right",
+                "value": 128,
+                "range": [
+                  1,
+                  255
+                ],
+                "kind": "BladeInsertion",
+                "comment": "Beam shaper left…right"
+              }
+            ]
+          },
+          {
+            "id": 1784529866849,
+            "type": "wheel",
+            "label": "Beam Shaper 2",
+            "channel": 8,
+            "capabilities": [
+              {
+                "type": "NoFunction",
+                "dmxRange": [
+                  0,
+                  2
+                ]
+              },
+              {
+                "type": "BladeInsertion",
+                "dmxRange": [
+                  3,
+                  170
+                ],
+                "comment": "Beam shaper left…right"
+              },
+              {
+                "type": "Frost",
+                "dmxRange": [
+                  171,
+                  255
+                ]
+              }
+            ],
+            "options": [
+              {
+                "name": "NoFunction",
+                "value": 1,
+                "range": [
+                  0,
+                  2
+                ],
+                "kind": "NoFunction"
+              },
+              {
+                "name": "Beam shaper left…right",
+                "value": 87,
+                "range": [
+                  3,
+                  170
+                ],
+                "kind": "BladeInsertion",
+                "comment": "Beam shaper left…right"
+              },
+              {
+                "name": "Frost",
+                "value": 213,
+                "range": [
+                  171,
+                  255
+                ],
+                "kind": "Frost"
+              }
+            ]
+          },
+          {
+            "id": 1784529866644,
+            "type": "wheel",
+            "label": "Pan/Tilt Speed",
+            "channel": 13,
+            "capabilities": [
+              {
+                "type": "NoFunction",
+                "dmxRange": [
+                  0,
+                  2
+                ],
+                "comment": "Tracking (default speed)"
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  3,
+                  245
+                ],
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  246,
+                  248
+                ],
+                "comment": "Tracking"
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  249,
+                  251
+                ],
+                "comment": "Tracking"
+              },
+              {
+                "type": "PanTiltSpeed",
+                "dmxRange": [
+                  252,
+                  255
+                ],
+                "comment": "Blackout while moving"
+              }
+            ],
+            "options": [
+              {
+                "name": "Tracking (default speed)",
+                "value": 1,
+                "range": [
+                  0,
+                  2
+                ],
+                "kind": "NoFunction",
+                "comment": "Tracking (default speed)"
+              },
+              {
+                "name": "PanTiltSpeed",
+                "value": 124,
+                "range": [
+                  3,
+                  245
+                ],
+                "kind": "PanTiltSpeed",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "name": "Tracking",
+                "value": 247,
+                "range": [
+                  246,
+                  248
+                ],
+                "kind": "PanTiltSpeed",
+                "comment": "Tracking"
+              },
+              {
+                "name": "Tracking",
+                "value": 250,
+                "range": [
+                  249,
+                  251
+                ],
+                "kind": "PanTiltSpeed",
+                "comment": "Tracking"
+              },
+              {
+                "name": "Blackout while moving",
+                "value": 254,
+                "range": [
+                  252,
+                  255
+                ],
+                "kind": "PanTiltSpeed",
+                "comment": "Blackout while moving"
+              }
+            ]
+          },
+          {
+            "id": 1784529866323,
+            "type": "wheel",
+            "label": "Dimmer / CMY / Color Wheel / Beam Shaper speed",
+            "options": [
+              {
+                "name": "Tracking (default speed)",
+                "value": 1,
+                "range": [
+                  0,
+                  2
+                ],
+                "kind": "NoFunction"
+              },
+              {
+                "name": "Speed",
+                "value": 121,
+                "range": [
+                  3,
+                  239
+                ],
+                "kind": "Speed",
+                "speedStart": "fast",
+                "speedEnd": "slow"
+              },
+              {
+                "name": "Tracking, studio mode off",
+                "value": 241,
+                "range": [
+                  240,
+                  242
+                ],
+                "kind": "Maintenance"
+              },
+              {
+                "name": "Tracking, studio mode on",
+                "value": 244,
+                "range": [
+                  243,
+                  245
+                ],
+                "kind": "Maintenance"
+              },
+              {
+                "name": "Tracking, shortcuts off",
+                "value": 247,
+                "range": [
+                  246,
+                  248
+                ],
+                "kind": "Maintenance"
+              },
+              {
+                "name": "Tracking, shortcuts on",
+                "value": 250,
+                "range": [
+                  249,
+                  251
+                ],
+                "kind": "Maintenance"
+              },
+              {
+                "name": "Blackout while moving",
+                "value": 254,
+                "range": [
+                  252,
+                  255
+                ],
+                "kind": "Speed"
+              }
+            ],
+            "channel": 14
+          }
+        ],
+        "library": {
+          "source": "ofl",
+          "manufacturer": "Martin"
+        },
+        "id": 1784529867070,
+        "libraryFixtureKey": "martin/mac-600",
+        "libraryModeName": "DMX4 (14-channel)"
+      }
+    ],
+    "fixtures": [
+      {
+        "id": 1784486007141,
+        "name": "Fixture 1",
+        "profileId": 1784485657723,
+        "start": 1
+      },
+      {
+        "id": 1784486007846,
+        "name": "Fixture 2",
+        "profileId": 1784485657723,
+        "start": 12
+      },
+      {
+        "id": 1784486024848,
+        "name": "Fixture",
+        "profileId": 1784485672598,
+        "start": 23
+      },
+      {
+        "id": 1784486424982,
+        "name": "MAC250 1",
+        "profileId": 1784485657723,
+        "start": 25
+      },
+      {
+        "id": 1784486424640,
+        "name": "MAC250 2",
+        "profileId": 1784485657723,
+        "start": 36
+      },
+      {
+        "id": 1784486424445,
+        "name": "MAC250 3",
+        "profileId": 1784485657723,
+        "start": 47
+      },
+      {
+        "id": 1784486424664,
+        "name": "MAC250 4",
+        "profileId": 1784485657723,
+        "start": 58
+      },
+      {
+        "id": 1784530222266,
+        "name": "Fixture 1",
+        "profileId": 1784486403454,
+        "start": 109
+      },
+      {
+        "id": 1784530222393,
+        "name": "Fixture 2",
+        "profileId": 1784486403454,
+        "start": 126
+      }
+    ]
+  }
+}
