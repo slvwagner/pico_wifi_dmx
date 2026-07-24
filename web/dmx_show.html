@@ -336,6 +336,20 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
       <div id="paletteGrid" class="grid"></div>
     </section>
 
+    <section class="panel" id="cardMatrix" data-show-card="matrix">
+      <div class="panel-head">
+        <div>
+          <h2>Pixel Matrices</h2>
+          <div class="small">Recall saved pictures to their mapped fixtures and native matrix pixels.</div>
+        </div>
+        <div class="panel-tools">
+          <div id="matrixSummary" class="small"></div>
+          <div id="showMatrixLayoutControls" class="matrix-tools layout-tools" aria-label="Pixel Matrix card layout"></div>
+        </div>
+      </div>
+      <div id="matrixGrid" class="grid"></div>
+    </section>
+
     <section class="panel" id="cardPlane" data-show-card="plane">
       <div class="panel-head">
         <div>
@@ -580,6 +594,7 @@ DmxCommon.mountTileLayoutControls('showGroupLayoutControls',{colsId:'groupCols',
 DmxCommon.mountTileLayoutControls('showFixtureLayoutControls',{colsId:'fixtureCols',rowsId:'fixtureRows',cols:4,rows:4,maxCols:32,maxRows:32});
 DmxCommon.mountTileLayoutControls('showSceneLayoutControls',{colsId:'sceneCols',rowsId:'sceneRows',cols:4,rows:4,maxCols:32,maxRows:32});
 DmxCommon.mountTileLayoutControls('showPaletteLayoutControls',{colsId:'paletteCols',rowsId:'paletteRows',cols:4,rows:4,maxCols:32,maxRows:32});
+DmxCommon.mountTileLayoutControls('showMatrixLayoutControls',{colsId:'matrixCols',rowsId:'matrixRows',cols:4,rows:4,maxCols:32,maxRows:32});
 DmxCommon.mountTileLayoutControls('showPlaneLayoutControls',{colsId:'planeCols',rowsId:'planeRows',cols:3,rows:3,maxCols:32,maxRows:32});
 DmxCommon.mountTileLayoutControls('showChaserLayoutControls',{colsId:'chaserCols',rowsId:'chaserRows',cols:4,rows:4,maxCols:32,maxRows:32});
 DmxCommon.mountTileLayoutControls('showMotionLayoutControls',{colsId:'motionCols',rowsId:'motionRows',cols:4,rows:4,maxCols:32,maxRows:32});
@@ -588,9 +603,9 @@ const baseUrlEl=document.getElementById('baseUrl');
 DmxCommon.bindBaseUrl(baseUrlEl);
 const statusEl=document.getElementById('status');
 const values={};
-let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],planes=[];
+let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],pixelMatrices=[],planes=[];
 let roomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
-let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
+let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,matrixCols=4,matrixRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
 let cardCols=2,cardRows=5;
 let chaserSlots=[],motionSlots=[];
 let chaserSelectedSlot=0;
@@ -608,12 +623,12 @@ const showGroupRelativeStepStore=DmxCommon.createGroupEditRelativeStepStore({
   stateKey:SHOW_GROUP_RELATIVE_STEPS_KEY,
   localStorageKey:layoutKey(SHOW_GROUP_RELATIVE_STEPS_KEY)
 });
-const displayOrders={group:[],fixture:[],scene:[],palette:[],plane:[],chaser:[],motion:[]};
+const displayOrders={group:[],fixture:[],scene:[],palette:[],matrix:[],plane:[],chaser:[],motion:[]};
 let cardLayouts={};
-const moveSelected={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
-const moveSelectedLayout={group:null,fixture:null,scene:null,palette:null,plane:null,chaser:null,motion:null};
-const cardIds=['group','scene','palette','plane','chaser','motion','live','midi','fixture','master'];
-const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Controller'};
+const moveSelected={group:null,fixture:null,scene:null,palette:null,matrix:null,plane:null,chaser:null,motion:null};
+const moveSelectedLayout={group:null,fixture:null,scene:null,palette:null,matrix:null,plane:null,chaser:null,motion:null};
+const cardIds=['group','scene','palette','plane','chaser','motion','live','midi','fixture','master','matrix'];
+const cardLabels={master:'Master',group:'Groups',fixture:'Fixtures',scene:'Scenes',palette:'Palettes',matrix:'Pixel Matrices',plane:'Planes',chaser:'Pico Chaser Playback',motion:'Pico Effects Playback',live:'Live Controls',midi:'MIDI Controller'};
 const repeatableCardIds=cardIds.slice();
 let cardOrder=[];
 let cardMoveMode=false;
@@ -933,6 +948,8 @@ function applySavedLayout(){
   sceneRows=savedNumber('sceneRows',sceneRows,1,32);
   paletteCols=savedNumber('paletteCols',paletteCols,1,32);
   paletteRows=savedNumber('paletteRows',paletteRows,1,32);
+  matrixCols=savedNumber('matrixCols',matrixCols,1,32);
+  matrixRows=savedNumber('matrixRows',matrixRows,1,32);
   planeCols=savedNumber('planeCols',planeCols,1,32);
   planeRows=savedNumber('planeRows',planeRows,1,32);
   chaserCols=savedNumber('chaserCols',chaserCols,1,32);
@@ -973,7 +990,7 @@ function addCardButtonLabel(type){
   return type==='live'?'Add Live Controls':'Add '+(cardLabels[type]||'Card')+' Card';
 }
 function defaultCardIds(){
-  return planes.length?cardIds:cardIds.filter(id=>id!=='plane');
+  return cardIds.filter(id=>(id!=='plane'||planes.length)&&id!=='matrix');
 }
 function loadLiveControls(){
   const source=savedValue('liveControls');
@@ -1216,7 +1233,7 @@ function deleteCardAt(index){
   }
   cardOrder[index]=null;
   saveCardLayout();
-  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   setStatus('Removed '+(cardLabels[type]||'card')+' card');
 }
 function addShowCard(){
@@ -1235,7 +1252,7 @@ function addShowCard(){
     cardOrder[index]=entry;
   }
   saveCardLayout();
-  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   setStatus('Added '+(cardLabels[type]||type)+' at position '+(index+1));
   closeAddCardModal();
 }
@@ -1323,6 +1340,10 @@ function renderRepeatedCards(){
       const layout=ensureCardLayout(layoutId,'palette');
       renderSlots(grid,summary,palettes,layout.cols,layout.rows,'palette',layoutId);
       bindPaletteGridRecall(grid,layoutId);
+    }else if(type==='matrix'){
+      bindRepeatedMatrixInputs(card,'matrix',layoutId,()=>renderPixelMatrices(),32,32);
+      const layout=ensureCardLayout(layoutId,'matrix');
+      renderPixelMatrixGrid(grid,layoutId,layout.cols,layout.rows);
     }else if(type==='plane'){
       bindRepeatedMatrixInputs(card,'plane',layoutId,()=>renderPlanes(),32,32);
       const layout=ensureCardLayout(layoutId,'plane');
@@ -1413,9 +1434,9 @@ function setLayoutEditing(enabled){
     cardMoveMode=false;
     Object.keys(moveSelected).forEach(kind=>{moveSelected[kind]=null;});
     Object.keys(moveSelectedLayout).forEach(kind=>{moveSelectedLayout[kind]=null;});
-    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }else{
-    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+    renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   }
 }
 function itemSlotIndex(item,index){
@@ -1472,6 +1493,11 @@ function normalizePaletteGrid(priority='cols'){
   paletteCols=next.cols;paletteRows=next.rows;
   syncMatrixInputs('palette',paletteCols,paletteRows,requiredSlots(palettes),32,32);
 }
+function normalizePixelMatrixGrid(priority='cols'){
+  const next=normalizeMatrix(matrixCols,matrixRows,requiredSlots(pixelMatrices),32,32,priority);
+  matrixCols=next.cols;matrixRows=next.rows;
+  syncMatrixInputs('matrix',matrixCols,matrixRows,requiredSlots(pixelMatrices),32,32);
+}
 function normalizePlaneGrid(priority='cols'){
   const next=normalizeMatrix(planeCols,planeRows,planes.length,32,32,priority);
   planeCols=next.cols;planeRows=next.rows;
@@ -1498,6 +1524,7 @@ function defaultMatrixForKind(kind){
   if(kind==='fixture')return{cols:fixtureCols,rows:fixtureRows,maxCols:32,maxRows:32,needed:fixtures.length};
   if(kind==='scene')return{cols:sceneCols,rows:sceneRows,maxCols:32,maxRows:32,needed:requiredSlots(scenes)};
   if(kind==='palette')return{cols:paletteCols,rows:paletteRows,maxCols:32,maxRows:32,needed:requiredSlots(palettes)};
+  if(kind==='matrix')return{cols:matrixCols,rows:matrixRows,maxCols:32,maxRows:32,needed:requiredSlots(pixelMatrices)};
   if(kind==='plane')return{cols:planeCols,rows:planeRows,maxCols:32,maxRows:32,needed:planes.length};
   if(kind==='chaser')return{cols:chaserCols,rows:chaserRows,maxCols:32,maxRows:32,needed:requiredPayloadSlots(chaserSlots)};
   if(kind==='motion')return{cols:motionCols,rows:motionRows,maxCols:32,maxRows:32,needed:requiredPayloadSlots(motionSlots)};
@@ -1555,6 +1582,7 @@ function sourceEntries(kind){
   if(kind==='fixture')return fixtures.map((item,index)=>({key:String(item.id),item,index}));
   if(kind==='scene')return scenes.map((item,index)=>({key:String(item.id||item.slot||index),item,index}));
   if(kind==='palette')return palettes.map((item,index)=>({key:String(item.id||item.slot||index),item,index}));
+  if(kind==='matrix')return pixelMatrices.map((item,index)=>({key:String(item.id||item.slot||index),item,index}));
   if(kind==='plane')return planes.map((item,index)=>({key:String(item.id||index),item,index}));
   if(kind==='chaser')return (chaserSlots||[]).map((slot,index)=>slot&&slot.loaded?{key:String(index),item:slot,index}:null).filter(Boolean);
   if(kind==='motion')return (motionSlots||[]).map((slot,index)=>slot&&slot.loaded?{key:String(index),item:slot,index}:null).filter(Boolean);
@@ -1578,7 +1606,7 @@ function reconcileDisplayOrder(kind,total,layoutId=kind){
   sourceEntries(kind).forEach(entry=>{
     if(hidden.has(entry.key))return;
     if(used.has(entry.key))return;
-    const preferred=kind==='scene'||kind==='palette'?itemSlotIndex(entry.item,entry.index):(['group','fixture','plane'].includes(kind)?entry.index:-1);
+    const preferred=['scene','palette','matrix'].includes(kind)?itemSlotIndex(entry.item,entry.index):(['group','fixture','plane'].includes(kind)?entry.index:-1);
     if(preferred>=0&&!previous[preferred])previous[preferred]=entry.key;
     else previous.push(entry.key);
     used.add(entry.key);
@@ -1617,7 +1645,7 @@ function visibleTotal(kind){
   return Math.max(1,(parseInt(matrix.cols,10)||1)*(parseInt(matrix.rows,10)||1));
 }
 function hiddenTileEntries(kind){
-  if(!['group','scene','palette','plane','chaser','motion'].includes(kind))return [];
+  if(!['group','scene','palette','matrix','plane','chaser','motion'].includes(kind))return [];
   const total=visibleTotal(kind);
   reconcileDisplayOrder(kind,total);
   return (displayOrders[kind]||[])
@@ -1640,6 +1668,7 @@ function expandMatrixForHiddenKind(kind){
   if(kind==='group'){groupCols=next.cols;groupRows=next.rows;saveMatrix(kind,groupCols,groupRows);}
   else if(kind==='scene'){sceneCols=next.cols;sceneRows=next.rows;saveMatrix(kind,sceneCols,sceneRows);}
   else if(kind==='palette'){paletteCols=next.cols;paletteRows=next.rows;saveMatrix(kind,paletteCols,paletteRows);}
+  else if(kind==='matrix'){matrixCols=next.cols;matrixRows=next.rows;saveMatrix(kind,matrixCols,matrixRows);}
   else if(kind==='plane'){planeCols=next.cols;planeRows=next.rows;saveMatrix(kind,planeCols,planeRows);}
   else if(kind==='chaser'){chaserCols=next.cols;chaserRows=next.rows;saveMatrix(kind,chaserCols,chaserRows);}
   else if(kind==='motion'){motionCols=next.cols;motionRows=next.rows;saveMatrix(kind,motionCols,motionRows);}
@@ -1666,6 +1695,7 @@ function hiddenKindLabel(kind){
   if(kind==='fixture')return 'Fixtures';
   if(kind==='scene')return 'Scenes';
   if(kind==='palette')return 'Palettes';
+  if(kind==='matrix')return 'Pixel Matrices';
   if(kind==='plane')return 'Planes';
   if(kind==='chaser')return 'Pico Chaser Playback';
   return 'Pico Effects Playback';
@@ -1682,7 +1712,7 @@ function hiddenItemText(row){
   return hiddenItemLabel(row)+' is saved at hidden position '+(row.index+1)+'.';
 }
 function allHiddenTileRows(){
-  return ['group','scene','palette','plane','chaser','motion'].flatMap(kind=>hiddenTileEntries(kind).map(row=>({...row,kind})));
+  return ['group','scene','palette','matrix','plane','chaser','motion'].flatMap(kind=>hiddenTileEntries(kind).map(row=>({...row,kind})));
 }
 function openHiddenTileModal(rows){
   const list=document.getElementById('hiddenTileList');
@@ -1742,6 +1772,7 @@ function renderKind(kind){
   if(kind==='fixture')renderFixtures();
   else if(kind==='scene')renderScenes();
   else if(kind==='palette')renderPalettes();
+  else if(kind==='matrix')renderPixelMatrices();
   else if(kind==='plane')renderPlanes();
   else if(kind==='chaser')renderChaserPlayback();
   else if(kind==='motion')renderMotionPlayback();
@@ -1769,6 +1800,7 @@ function currentMatrix(kind,layoutId=kind){
   if(kind==='fixture')return{cols:fixtureCols,rows:fixtureRows};
   if(kind==='scene')return{cols:sceneCols,rows:sceneRows};
   if(kind==='palette')return{cols:paletteCols,rows:paletteRows};
+  if(kind==='matrix')return{cols:matrixCols,rows:matrixRows};
   if(kind==='plane')return{cols:planeCols,rows:planeRows};
   if(kind==='chaser')return{cols:chaserCols,rows:chaserRows};
   if(kind==='motion')return{cols:motionCols,rows:motionRows};
@@ -1797,6 +1829,7 @@ function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
     else if(kind==='fixture')fixtureCols=value;
     else if(kind==='scene')sceneCols=value;
     else if(kind==='palette')paletteCols=value;
+    else if(kind==='matrix')matrixCols=value;
     else if(kind==='plane')planeCols=value;
     else if(kind==='chaser')chaserCols=value;
     else if(kind==='motion')motionCols=value;
@@ -1810,6 +1843,7 @@ function bindMatrixInputs(kind,normalize,render,maxCols=32,maxRows=32){
     else if(kind==='fixture')fixtureRows=value;
     else if(kind==='scene')sceneRows=value;
     else if(kind==='palette')paletteRows=value;
+    else if(kind==='matrix')matrixRows=value;
     else if(kind==='plane')planeRows=value;
     else if(kind==='chaser')chaserRows=value;
     else if(kind==='motion')motionRows=value;
@@ -4080,7 +4114,7 @@ async function loadShow(options={}){
   const liveMotionSlots=await loadLivePicoMotionSlots(savedUrl||baseUrlEl.value);
   chaserSlots=mergePicoChaserSlots(Array.isArray(chaserData.pico_slots)?chaserData.pico_slots:[],liveChaserSlots);
   motionSlots=mergePicoMotionSlots(Array.isArray(motionData.pico_slots)?motionData.pico_slots:[],liveMotionSlots);
-  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
+  renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
   loadMidiStatus({silent:true});

@@ -53,7 +53,10 @@ async function routeShowSetup(page, calls) {
           baseUrl: 'http://pico.test',
           profiles: calls.profiles || profiles,
           fixtures: calls.fixtures || fixtures,
-          values: calls.setupValues || {}
+          values: calls.setupValues || {},
+          pixelMatrices: calls.pixelMatrices || [],
+          pixelMatrixCols: calls.pixelMatrixCols || 4,
+          pixelMatrixRows: calls.pixelMatrixRows || 4
         }
       })
     });
@@ -347,6 +350,66 @@ test.describe('Show Run page', () => {
     await expect(page.locator('#status')).toContainText('Scene "Both On" recalled');
     expect(calls.liveValues.at(-1)).toEqual({ '102:11': 200 });
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
+    expect(calls.setupWrites).toBe(0);
+  });
+
+  test('Pixel Matrices card recalls regular and native matrix pixels to live DMX', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      profiles: [
+        ...profiles,
+        {
+          id: 90,
+          name: 'Native Matrix',
+          mode: '2x1',
+          channels: 6,
+          controls: [{ id: 91, type: 'matrixRgb', label: 'Pixels', channel: 1, width: 2, height: 1 }]
+        }
+      ],
+      fixtures: [
+        ...fixtures,
+        { id: 190, name: 'Matrix 1', profileId: 90, start: 21 }
+      ],
+      pixelMatrixCols: 2,
+      pixelMatrixRows: 1,
+      pixelMatrices: [{
+        id: 'picture-show',
+        name: 'Show Picture',
+        slot: 0,
+        width: 3,
+        height: 1,
+        mappings: ['101:12', '190:91:0', '190:91:1'],
+        pixels: ['#ff0000', '#00ff00', '#0000ff']
+      }],
+      showRunState: {
+        cardCols: 2,
+        cardRows: 5,
+        cardOrder: ['matrix', 'group', 'fixture', 'scene', 'palette', 'plane', 'chaser', 'motion', 'live', 'midi']
+      }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#cardMatrix h2')).toHaveText('Pixel Matrices');
+    await expect(page.locator('#matrixGrid .slot-name')).toHaveText('Show Picture');
+    await page.locator('#matrixGrid [data-matrix-key="picture-show"]').click();
+
+    await expect(page.locator('#status')).toContainText('Pixel Matrix "Show Picture" recalled');
+    expect(calls.liveValues.at(-1)).toEqual({
+      '101:12': { a: 255, b: 0, c: 0 },
+      '190:91': {
+        pixels: [
+          { a: 0, b: 255, c: 0 },
+          { a: 0, b: 0, c: 255 }
+        ]
+      }
+    });
+    expect(calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b'
+      && call.body === '2:255,3:0,4:0,21:0,22:255,23:0,24:0,25:0,26:255'
+    )).toBe(true);
     expect(calls.setupWrites).toBe(0);
   });
 
