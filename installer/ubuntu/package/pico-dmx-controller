@@ -10,23 +10,13 @@ if [[ -r "$config_file" ]]; then
     fi
 fi
 url="http://127.0.0.1:$port/"
-profile_root="${XDG_DATA_HOME:-$HOME/.local/share}/pico-dmx-controller/chromium"
+shell_binary=/opt/pico-dmx-controller/shell/pico-dmx-controller-shell
 
-for browser in google-chrome-stable google-chrome chromium chromium-browser microsoft-edge-stable
-do
-    if command -v "$browser" >/dev/null 2>&1; then
-        mkdir -p -- "$profile_root"
-        GTK_THEME=Adwaita:dark "$browser" \
-            --app="$url" \
-            --start-maximized \
-            --force-dark-mode \
-            --enable-features=WebUIDarkMode \
-            --user-data-dir="$profile_root" \
-            --no-first-run \
-            --disable-session-crashed-bubble \
-            >/dev/null 2>&1 &
+if [[ -x "$shell_binary" ]]; then
+    unset ELECTRON_RUN_AS_NODE
+    if "$shell_binary" --url "$url"; then
         exit 0
     fi
-done
+fi
 
 exec xdg-open "$url"

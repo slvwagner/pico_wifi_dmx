@@ -157,15 +157,18 @@ Install the generated package from `release/v<VERSION>/` by double-clicking it
 in Ubuntu's App Center, or with APT:
 
 ```bash
-sudo apt install ./pico-dmx-controller_<VERSION>_all.deb
+sudo apt install ./pico-dmx-controller_<VERSION>_amd64.deb
 ```
 
 The package installs the read-only application below
 `/opt/pico-dmx-controller`, stores mutable shows and fixture data below
 `/var/lib/pico-dmx-controller/data`, starts its systemd service automatically,
-and adds **Pico DMX Controller** to the Applications menu. Chromium/Chrome opens
-with a dedicated app profile and dark window frame, retaining browser features
-such as Web MIDI. The service listens only on `127.0.0.1:8090` by default.
+and adds **Pico DMX Controller** to the Applications menu. The self-contained
+application includes its own Chromium engine, dark frame, application and
+fullscreen controls, status bar, tray menu, and Web MIDI support. The installer
+also creates an executable shortcut on normal users' configured XDG desktops
+without replacing unrelated files. The service listens only on
+`127.0.0.1:8090` by default.
 
 To allow iPads and other operator devices on a trusted local network, run:
 

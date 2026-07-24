@@ -6,15 +6,16 @@ Windows installer:
 - read-only application files under `/opt/pico-dmx-controller`;
 - mutable show and fixture data under `/var/lib/pico-dmx-controller/data`;
 - an automatically started `pico-dmx-controller.service`;
-- an Applications-menu launcher that uses a dedicated Chromium/Chrome app
-  profile with a dark native frame when available and otherwise opens the
-  default browser;
+- a self-contained desktop application with its own embedded Chromium engine,
+  dark frame, application controls, fullscreen bar, status bar, and tray menu;
+- Applications-menu and executable desktop launchers for normal desktop users;
 - safe localhost-only access by default and an explicit trusted-LAN option;
 - a data snapshot before every package upgrade; and
 - removal that deliberately preserves shows and upgrade snapshots.
 
-The package uses Ubuntu's PHP runtime rather than bundling XAMPP, Apache,
-MariaDB, or development tools.
+The package bundles its Chromium desktop runtime and uses Ubuntu's PHP runtime
+for the background service. It does not install XAMPP, Apache, MariaDB, or
+development tools.
 
 ## Build
 
@@ -24,7 +25,13 @@ On Ubuntu or Debian, run:
 ./installer/ubuntu/build_package.sh
 ```
 
-The `.deb` package and its SHA-256 file are written to `release/v<VERSION>/`.
+The build host needs `dpkg-deb`, `curl`, and `unzip`. Node.js and npm are not
+required because the official Electron runtime archive is downloaded directly.
+
+The architecture-specific `.deb` package and its SHA-256 file are written to
+`release/v<VERSION>/`. The first build downloads the official Electron archive
+pinned in `shell/electron-runtime.env` and refuses it if its SHA-256 differs;
+later builds reuse the verified download.
 Pass a different output directory as the first argument when needed:
 
 ```bash
@@ -37,11 +44,21 @@ Double-click the `.deb` file in Ubuntu's App Center, or use APT so dependencies
 are installed automatically:
 
 ```bash
-sudo apt install ./pico-dmx-controller_<VERSION>_all.deb
+sudo apt install ./pico-dmx-controller_<VERSION>_amd64.deb
 ```
 
 Open **Pico DMX Controller** from the Applications menu. The controller is
 available locally at `http://127.0.0.1:8090/`.
+
+The installer also creates **Pico DMX Controller** on each normal user's
+configured XDG desktop. It never replaces an unrelated file with the same name.
+Package removal deletes only shortcuts carrying the package's ownership marker.
+
+The application window provides Controller, Reload, Full screen, and
+Open in browser actions. F11 toggles fullscreen, Escape restores the window,
+and fullscreen retains visible **Exit full screen** and **Close application**
+buttons. Closing the desktop application leaves the system service running for
+other operator devices.
 
 To let iPads and other operator devices on a trusted local network connect:
 
