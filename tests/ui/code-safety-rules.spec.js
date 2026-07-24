@@ -120,6 +120,9 @@ test.describe('Code safety regression rules', () => {
     expect(form).toContain('NotifyIcon');
     expect(form).toContain('Exit application');
     expect(form).toContain('Environment.SpecialFolder.LocalApplicationData');
+    expect(form).toContain('DwmSetWindowAttribute');
+    expect(form).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
+    expect(form).toContain('DarkColorTable');
     expect(form).not.toMatch(/ServiceController\s*\.\s*Stop|Stop-Service|PicoDmxController.*(?:stop|Stop)/);
     expect(builder).toContain('dotnet publish');
     expect(installer).toContain('PicoDmxShell.exe');

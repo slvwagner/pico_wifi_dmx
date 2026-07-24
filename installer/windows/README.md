@@ -15,10 +15,13 @@ upgrade.
 
 The desktop and Start Menu shortcuts open `PicoDmxShell.exe`. It supplies
 normal window controls, F11 fullscreen, Escape restore, a fullscreen exit/close
-bar, and a tray menu. Closing the shell does not stop the Windows service, so
-LAN operator devices remain connected. If the installed Microsoft Edge
-WebView2 Runtime cannot initialize, the shell opens the controller in the
-default browser and explains the fallback.
+bar, and a tray menu. The supported Windows DWM dark-frame attribute and custom
+WinForms color table keep the title bar, menu/dropdowns, status bar, tray menu,
+and fullscreen controls aligned with the web application's dark theme. Closing
+the shell does not stop the Windows service, so LAN operator devices remain
+connected. If the installed Microsoft Edge WebView2 Runtime cannot initialize,
+the shell opens the controller in the default browser and explains the
+fallback.
 
 ## Build
 

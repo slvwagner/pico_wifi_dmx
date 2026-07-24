@@ -18,6 +18,7 @@ Changed:
 - Added reproducible Windows packaging scripts with pinned SHA-256-verified Apache 2.4.68, PHP 8.5.8 Thread Safe x64, and Microsoft Visual C++ runtime inputs; warning-free NSIS compilation; installer checksums; and optional Authenticode signing and timestamp verification for customer releases.
 - Protected Windows signing certificates, private keys, local environment/credential files, IDE state, and future customer show backups with repository ignore rules. Signing uses the protected Windows certificate store or CI service and passes only a non-secret certificate thumbprint to the build script.
 - Replaced the browser-only Windows shortcut with a self-contained native WebView2 application shell. It waits for the local service, opens the controller in a dedicated resizable window, supports F11 fullscreen and Escape restore, keeps visible **Exit full screen** and **Close application** controls in fullscreen, exposes Open/fullscreen/exit actions through a tray icon, and falls back to the default browser if WebView2 cannot initialize. Closing the GUI deliberately leaves the automatic web service available to iPads and other operator devices.
+- Matched the Windows shell to the controller's dark visual language. Supported Windows versions receive an immersive dark title bar and frame, while the native menu bar, dropdowns, status bar, tray menu, and fullscreen buttons use coordinated dark surfaces, light text, hover states, and a distinct close action.
 
 ## 0.9.14 - 2026-07-24
 

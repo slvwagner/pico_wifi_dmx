@@ -106,11 +106,13 @@ Windows SmartScreen warning.
 
 The native application window provides normal minimize/maximize/close controls,
 F11 fullscreen, Escape to leave fullscreen, and Open/fullscreen/exit actions
-from its tray icon. Fullscreen retains a small bar with **Exit full screen** and
-**Close application**, so it never traps the operator in kiosk mode. Closing
-the GUI leaves the `PicoDmxController` service running for iPads and other
-operator devices; use Windows Services or uninstall the product when the server
-itself must be stopped.
+from its tray icon. Its Windows title bar/frame, menu and dropdown surfaces,
+status bar, tray menu, and fullscreen controls use a matching dark theme.
+Fullscreen retains a small bar with **Exit full screen** and **Close
+application**, so it never traps the operator in kiosk mode. Closing the GUI
+leaves the `PicoDmxController` service running for iPads and other operator
+devices; use Windows Services or uninstall the product when the server itself
+must be stopped.
 
 ### Run the developer XAMPP environment
 

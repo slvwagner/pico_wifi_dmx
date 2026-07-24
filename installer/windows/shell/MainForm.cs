@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -7,6 +8,15 @@ namespace PicoDmxShell;
 
 internal sealed class MainForm : Form
 {
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+    private static readonly Color ShellBackground = Color.FromArgb(18, 22, 29);
+    private static readonly Color SurfaceBackground = Color.FromArgb(28, 33, 42);
+    private static readonly Color HoverBackground = Color.FromArgb(48, 58, 72);
+    private static readonly Color ShellForeground = Color.FromArgb(230, 235, 242);
+    private static readonly ToolStripProfessionalRenderer DarkRenderer =
+        new ToolStripProfessionalRenderer(new DarkColorTable());
+
     private readonly Uri controllerUri;
     private readonly EventWaitHandle activateEvent;
     private readonly CancellationTokenSource activationCancellation = new();
@@ -31,6 +41,8 @@ internal sealed class MainForm : Form
         Width = 1440;
         Height = 960;
         KeyPreview = true;
+        BackColor = ShellBackground;
+        ForeColor = ShellForeground;
 
         var icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         if (icon is not null)
@@ -59,6 +71,49 @@ internal sealed class MainForm : Form
         StartActivationListener();
     }
 
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr windowHandle,
+        int attribute,
+        ref int attributeValue,
+        int attributeSize);
+
+    protected override void OnHandleCreated(EventArgs eventArgs)
+    {
+        base.OnHandleCreated(eventArgs);
+        ApplyDarkWindowFrame();
+    }
+
+    private void ApplyDarkWindowFrame()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var enabled = 1;
+        try
+        {
+            var result = DwmSetWindowAttribute(
+                Handle,
+                DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ref enabled,
+                sizeof(int));
+            if (result != 0)
+            {
+                DwmSetWindowAttribute(
+                    Handle,
+                    DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1,
+                    ref enabled,
+                    sizeof(int));
+            }
+        }
+        catch (DllNotFoundException)
+        {
+            // Very old Windows versions keep their system-default title bar.
+        }
+    }
+
     private void BuildMenu()
     {
         var application = new ToolStripMenuItem("&Application");
@@ -73,13 +128,35 @@ internal sealed class MainForm : Form
         menu.Items.Add(application);
         menu.Items.Add(view);
         menu.Dock = DockStyle.Top;
+        menu.Renderer = DarkRenderer;
+        menu.BackColor = SurfaceBackground;
+        menu.ForeColor = ShellForeground;
+        StyleMenuItem(application);
+        StyleMenuItem(view);
+    }
+
+    private static void StyleMenuItem(ToolStripMenuItem menuItem)
+    {
+        menuItem.BackColor = SurfaceBackground;
+        menuItem.ForeColor = ShellForeground;
+        menuItem.DropDown.BackColor = SurfaceBackground;
+        menuItem.DropDown.ForeColor = ShellForeground;
+        foreach (ToolStripItem child in menuItem.DropDownItems)
+        {
+            child.BackColor = SurfaceBackground;
+            child.ForeColor = ShellForeground;
+            if (child is ToolStripMenuItem childMenu)
+            {
+                StyleMenuItem(childMenu);
+            }
+        }
     }
 
     private void BuildFullscreenBar()
     {
         fullscreenBar.Dock = DockStyle.Top;
         fullscreenBar.Height = 44;
-        fullscreenBar.BackColor = Color.FromArgb(24, 28, 36);
+        fullscreenBar.BackColor = SurfaceBackground;
         fullscreenBar.Visible = false;
 
         var exitFullscreen = new Button
@@ -88,8 +165,12 @@ internal sealed class MainForm : Form
             AutoSize = true,
             Height = 32,
             Left = 10,
-            Top = 6
+            Top = 6,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = HoverBackground,
+            ForeColor = ShellForeground
         };
+        exitFullscreen.FlatAppearance.BorderColor = HoverBackground;
         exitFullscreen.Click += (_, _) => ToggleFullscreen();
 
         var close = new Button
@@ -98,8 +179,12 @@ internal sealed class MainForm : Form
             AutoSize = true,
             Height = 32,
             Top = 6,
-            Anchor = AnchorStyles.Top | AnchorStyles.Right
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(116, 42, 49),
+            ForeColor = ShellForeground
         };
+        close.FlatAppearance.BorderColor = Color.FromArgb(145, 54, 62);
         close.Left = fullscreenBar.Width - close.Width - 10;
         fullscreenBar.Resize += (_, _) => close.Left = fullscreenBar.Width - close.Width - 10;
         close.Click += (_, _) => ExitApplication();
@@ -111,7 +196,11 @@ internal sealed class MainForm : Form
     private void BuildStatusBar()
     {
         var status = new StatusStrip();
+        status.Renderer = DarkRenderer;
+        status.BackColor = SurfaceBackground;
+        status.ForeColor = ShellForeground;
         statusLabel.Text = "Waiting for the Pico DMX server…";
+        statusLabel.ForeColor = ShellForeground;
         status.Items.Add(statusLabel);
         Controls.Add(status);
     }
@@ -119,6 +208,9 @@ internal sealed class MainForm : Form
     private NotifyIcon BuildTrayIcon(Icon icon)
     {
         var context = new ContextMenuStrip();
+        context.Renderer = DarkRenderer;
+        context.BackColor = SurfaceBackground;
+        context.ForeColor = ShellForeground;
         context.Items.Add("Open", null, (_, _) => RestoreWindow());
         context.Items.Add("Toggle full screen", null, (_, _) =>
         {
@@ -137,6 +229,29 @@ internal sealed class MainForm : Form
         };
         notifyIcon.DoubleClick += (_, _) => RestoreWindow();
         return notifyIcon;
+    }
+
+    private sealed class DarkColorTable : ProfessionalColorTable
+    {
+        public override Color MenuStripGradientBegin => SurfaceBackground;
+        public override Color MenuStripGradientEnd => SurfaceBackground;
+        public override Color ToolStripGradientBegin => SurfaceBackground;
+        public override Color ToolStripGradientMiddle => SurfaceBackground;
+        public override Color ToolStripGradientEnd => SurfaceBackground;
+        public override Color ToolStripDropDownBackground => SurfaceBackground;
+        public override Color ImageMarginGradientBegin => SurfaceBackground;
+        public override Color ImageMarginGradientMiddle => SurfaceBackground;
+        public override Color ImageMarginGradientEnd => SurfaceBackground;
+        public override Color MenuItemSelected => HoverBackground;
+        public override Color MenuItemSelectedGradientBegin => HoverBackground;
+        public override Color MenuItemSelectedGradientEnd => HoverBackground;
+        public override Color MenuItemPressedGradientBegin => HoverBackground;
+        public override Color MenuItemPressedGradientMiddle => HoverBackground;
+        public override Color MenuItemPressedGradientEnd => HoverBackground;
+        public override Color MenuItemBorder => Color.FromArgb(74, 88, 106);
+        public override Color MenuBorder => Color.FromArgb(74, 88, 106);
+        public override Color SeparatorDark => Color.FromArgb(74, 88, 106);
+        public override Color SeparatorLight => SurfaceBackground;
     }
 
     private async Task InitializeBrowserAsync()
