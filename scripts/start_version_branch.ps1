@@ -117,7 +117,6 @@ $requiredVersionFiles = @(
     "VERSION",
     "docs/manual-data/room_plane_setup.json",
     "tests/ui/page-link-rules.spec.js",
-    "tests/ui/pico-performance-rules.spec.js",
     "web/assets/dmx-common.js"
 )
 $htmlFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot "web") -Filter "*.html" -File -Recurse |
