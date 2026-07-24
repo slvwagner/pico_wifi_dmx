@@ -306,7 +306,7 @@
 <section id="pixelMatrixTileAppearance" class="slot-visual-editor pixel-matrix-tile-appearance" aria-labelledby="pixelMatrixTileAppearanceTitle">
 <h3 id="pixelMatrixTileAppearanceTitle">Tile appearance</h3>
 <div class="toolbar"><label>Background color<input id="pixelMatrixTileColor" type="color" value="#25323c"></label><button id="pixelMatrixTileResetColor" type="button">Default background</button><label>Upload icon<input id="pixelMatrixTileImage" type="file" accept="image/*"></label></div>
-<div class="toolbar"><canvas id="pixelMatrixTileCanvas" class="gobo-canvas" width="120" height="120" aria-label="Draw Pixel Matrix tile icon"></canvas><button id="pixelMatrixTileClearIcon" type="button">No icon</button></div>
+<div class="toolbar"><canvas id="pixelMatrixTileCanvas" class="gobo-canvas" width="120" height="120" aria-label="Draw Pixel Matrix tile icon"></canvas><button id="pixelMatrixTileClearIcon" type="button">No icon</button><button id="pixelMatrixTileToMatrix" type="button" disabled>Use icon as matrix</button></div>
 <div class="small">Choose the saved toolbox tile background and optionally draw or upload an icon. This appearance is separate from the matrix pixel colors.</div>
 </section>
 <div class="small" id="pixelMatrixSummary"></div>
@@ -331,6 +331,7 @@
     const tileImageInput=document.getElementById('pixelMatrixTileImage');
     const tileCanvas=document.getElementById('pixelMatrixTileCanvas');
     const tileContext=tileCanvas.getContext('2d');
+    const tileToMatrixButton=document.getElementById('pixelMatrixTileToMatrix');
     let tileIcon='';
     let tileDrawing=false;
 
@@ -351,13 +352,22 @@
     }
     function drawTileIcon(image){
       clearTileCanvas();
-      if(!image)return;
+      tileToMatrixButton.disabled=true;
+      if(!image)return Promise.resolve(false);
       const icon=new Image();
-      icon.onload=()=>{
-        clearTileCanvas();
-        tileContext.drawImage(icon,0,0,tileCanvas.width,tileCanvas.height);
-      };
-      icon.src=image;
+      return new Promise(resolve=>{
+        icon.onload=()=>{
+          clearTileCanvas();
+          tileContext.drawImage(icon,0,0,tileCanvas.width,tileCanvas.height);
+          tileToMatrixButton.disabled=false;
+          resolve(true);
+        };
+        icon.onerror=()=>{
+          report('Tile icon could not be decoded');
+          resolve(false);
+        };
+        icon.src=image;
+      });
     }
     function syncTileVisual(){
       const matrix=getMatrix();
@@ -551,6 +561,7 @@
       tileIcon='';
       tileImageInput.value='';
       clearTileCanvas();
+      tileToMatrixButton.disabled=true;
       syncTileVisual();
     };
     tileCanvas.addEventListener('pointerdown',event=>{
@@ -558,6 +569,7 @@
       event.preventDefault();
       const point=tilePointerPosition(event);
       tileCanvas.setPointerCapture?.(event.pointerId);
+      tileToMatrixButton.disabled=true;
       prepareTileBrush();
       tileContext.beginPath();
       tileContext.moveTo(point.x,point.y);
@@ -577,9 +589,33 @@
       tileCanvas.releasePointerCapture?.(event.pointerId);
       tileIcon=tileCanvas.toDataURL('image/png');
       syncTileVisual();
+      tileToMatrixButton.disabled=false;
     };
     tileCanvas.addEventListener('pointerup',finishTileDrawing);
     tileCanvas.addEventListener('pointercancel',finishTileDrawing);
+    tileToMatrixButton.onclick=async()=>{
+      if(!tileIcon||!getMatrix())return;
+      const matrix=sync();
+      const composite=document.createElement('canvas');
+      composite.width=tileCanvas.width;
+      composite.height=tileCanvas.height;
+      const context=composite.getContext('2d');
+      context.fillStyle=tileColorInput.value||defaultTileColor(matrix);
+      context.fillRect(0,0,composite.width,composite.height);
+      context.drawImage(tileCanvas,0,0);
+      tileToMatrixButton.disabled=true;
+      try{
+        matrix.pixels=await pixelMatrixImageColors(composite,matrix.width,matrix.height,{fit:matrix.fit,brightness:matrix.brightness});
+        matrix.imageName='Tile icon';
+        render();
+        await preview();
+        options.onTileIconConverted?.(matrix);
+      }catch(error){
+        report('Tile icon conversion failed: '+(error?.message||error),error);
+      }finally{
+        tileToMatrixButton.disabled=!tileIcon;
+      }
+    };
 
     return {render,reset,preview,isMappingMode:()=>mappingMode};
   }

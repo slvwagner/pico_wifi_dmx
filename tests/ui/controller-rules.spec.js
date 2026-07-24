@@ -357,20 +357,28 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#pixelMatrixGrid [data-pixel-matrix-slot="0"]').click();
     await expect(page.locator('#pixelMatrixTileAppearance')).toBeVisible();
     await page.locator('#pixelMatrixName').fill('Visual Matrix');
+    await page.locator('#pixelMatrixWidth').fill('2');
+    await page.locator('#pixelMatrixWidth').press('Tab');
+    await page.locator('#pixelMatrixHeight').fill('1');
+    await page.locator('#pixelMatrixHeight').press('Tab');
+    await page.locator('#pixelMatrixFit').selectOption('stretch');
     await page.locator('#pixelMatrixTileColor').fill('#345678');
     await page.locator('#pixelMatrixTileImage').setInputFiles({
-      name: 'matrix-icon.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+      name: 'matrix-icon.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#ff0000"/></svg>')
     });
-    await expect.poll(() => page.evaluate(() => editingPixelMatrix.visual?.image?.startsWith('data:image/png'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => editingPixelMatrix.visual?.image?.startsWith('data:image/'))).toBe(true);
+    await expect(page.locator('#pixelMatrixTileToMatrix')).toBeEnabled();
+    await page.locator('#pixelMatrixTileToMatrix').click();
+    await expect.poll(() => page.evaluate(() => editingPixelMatrix.pixels)).toEqual(['#ff0000', '#ff0000']);
     await page.locator('#pixelMatrixSave').click();
 
     const saved = await page.evaluate(() => saveData().pixelMatrices[0]);
     expect(saved.visual).toEqual(expect.objectContaining({
       type: 'visual',
       color: '#345678',
-      image: expect.stringMatching(/^data:image\/png/)
+      image: expect.stringMatching(/^data:image\//)
     }));
     const tile = page.locator('#pixelMatrixGrid .slot.filled').first();
     await expect(tile).toHaveAttribute('style', /background:#345678/i);

@@ -1047,6 +1047,7 @@ test.describe('Chaser established rules', () => {
     await expect(page.locator('#pixelMatrixApply')).toHaveCount(0);
     await expect(page.locator('#pixelMatrixEditMapping')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('#pixelMatrixTileAppearance')).toBeVisible();
+    await expect(page.locator('#pixelMatrixTileToMatrix')).toBeVisible();
     await page.locator('#pixelMatrixTileColor').fill('#456789');
     await page.evaluate(() => {
       window.pixelMatrixPreviewCalls = [];
