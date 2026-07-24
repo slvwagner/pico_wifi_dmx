@@ -107,7 +107,7 @@ test.describe('Code safety regression rules', () => {
     expect(builder).toContain('SigningCertificateThumbprint');
   });
 
-  test('Windows customer app uses a closeable WebView2 shell without stopping the server', () => {
+  test('Windows customer app uses a closeable WebView2 shell and stops its server on exit', () => {
     const project = read('installer/windows/shell/PicoDmxShell.csproj');
     const form = read('installer/windows/shell/MainForm.cs');
     const builder = read('installer/windows/build_installer.ps1');
@@ -118,12 +118,19 @@ test.describe('Code safety regression rules', () => {
     expect(form).toContain('Keys.F11');
     expect(form).toContain('Keys.Escape');
     expect(form).toContain('NotifyIcon');
-    expect(form).toContain('Exit application');
+    expect(form).toContain('Exit and stop server');
     expect(form).toContain('Environment.SpecialFolder.LocalApplicationData');
     expect(form).toContain('DwmSetWindowAttribute');
     expect(form).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
     expect(form).toContain('DarkColorTable');
-    expect(form).not.toMatch(/ServiceController\s*\.\s*Stop|Stop-Service|PicoDmxController.*(?:stop|Stop)/);
+    expect(form).toContain('Stop Pico DMX Controller and exit?');
+    expect(form).toContain('PicoDmxController');
+    expect(form).toContain('sc.exe');
+    expect(form).toContain('Arguments = "start PicoDmxController"');
+    expect(form).toContain('Starting the controller server requires Windows administrator approval.');
+    expect(form).toContain('Verb = "runas"');
+    expect(form).toContain('eventArgs.Cancel = true');
+    expect(form).toContain('Stopping the server disconnects iPads and other operator devices.');
     expect(builder).toContain('dotnet publish');
     expect(installer).toContain('PicoDmxShell.exe');
   });

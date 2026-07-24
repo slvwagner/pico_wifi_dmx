@@ -8,6 +8,15 @@ namespace PicoDmxShell;
 
 internal sealed class MainForm : Form
 {
+    private enum ControllerServiceState
+    {
+        Unknown,
+        Missing,
+        Stopped,
+        Running,
+        Other
+    }
+
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
     private static readonly Color ShellBackground = Color.FromArgb(18, 22, 29);
@@ -29,6 +38,7 @@ internal sealed class MainForm : Form
     private FormWindowState previousWindowState;
     private bool fullscreen;
     private bool exiting;
+    private bool closeInProgress;
 
     public MainForm(string url, EventWaitHandle activateEvent)
     {
@@ -120,7 +130,7 @@ internal sealed class MainForm : Form
         application.DropDownItems.Add("Open controller", null, (_, _) => NavigateHome());
         application.DropDownItems.Add("Reload", null, (_, _) => webView.Reload());
         application.DropDownItems.Add(new ToolStripSeparator());
-        application.DropDownItems.Add("Exit application", null, (_, _) => ExitApplication());
+        application.DropDownItems.Add("Exit and stop server", null, (_, _) => ExitApplication());
 
         var view = new ToolStripMenuItem("&View");
         view.DropDownItems.Add("Toggle full screen", null, (_, _) => ToggleFullscreen());
@@ -175,7 +185,7 @@ internal sealed class MainForm : Form
 
         var close = new Button
         {
-            Text = "Close application",
+            Text = "Stop server and close",
             AutoSize = true,
             Height = 32,
             Top = 6,
@@ -218,7 +228,7 @@ internal sealed class MainForm : Form
             ToggleFullscreen();
         });
         context.Items.Add(new ToolStripSeparator());
-        context.Items.Add("Exit application", null, (_, _) => ExitApplication());
+        context.Items.Add("Exit and stop server", null, (_, _) => ExitApplication());
 
         var notifyIcon = new NotifyIcon
         {
@@ -257,6 +267,12 @@ internal sealed class MainForm : Form
     private async Task InitializeBrowserAsync()
     {
         statusLabel.Text = "Starting Pico DMX Controller…";
+        if (!await EnsureControllerServiceRunningAsync())
+        {
+            statusLabel.Text = "The Pico DMX server is stopped.";
+            return;
+        }
+
         if (!await WaitForServerAsync(controllerUri, TimeSpan.FromSeconds(20)))
         {
             statusLabel.Text = "The local server did not answer. Retrying in the browser…";
@@ -279,7 +295,7 @@ internal sealed class MainForm : Form
                 statusLabel.Text = "Loading…";
             webView.CoreWebView2.NavigationCompleted += (_, eventArgs) =>
                 statusLabel.Text = eventArgs.IsSuccess
-                    ? "Ready — closing this window leaves the Pico DMX server running."
+                    ? "Ready — closing this window also stops the Pico DMX server."
                     : $"Page load failed: {eventArgs.WebErrorStatus}";
             NavigateHome();
         }
@@ -294,8 +310,79 @@ internal sealed class MainForm : Form
                 "Pico DMX Controller",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
-            ExitApplication();
         }
+    }
+
+    private async Task<bool> EnsureControllerServiceRunningAsync()
+    {
+        var state = await QueryControllerServiceStateAsync();
+        if (state == ControllerServiceState.Running)
+        {
+            return true;
+        }
+
+        if (state == ControllerServiceState.Missing)
+        {
+            MessageBox.Show(
+                this,
+                "The Pico DMX Controller service is not installed. Repair or reinstall the application.",
+                "Pico DMX Controller",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return false;
+        }
+
+        var answer = MessageBox.Show(
+            this,
+            "The Pico DMX server is stopped.\r\n\r\n" +
+            "Starting the controller server requires Windows administrator approval.",
+            "Pico DMX Controller",
+            MessageBoxButtons.OKCancel,
+            MessageBoxIcon.Information);
+        if (answer != DialogResult.OK)
+        {
+            return false;
+        }
+
+        statusLabel.Text = "Starting the Pico DMX server…";
+        try
+        {
+            using var startProcess = Process.Start(new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = "start PicoDmxController",
+                UseShellExecute = true,
+                Verb = "runas",
+                WindowStyle = ProcessWindowStyle.Hidden
+            });
+            if (startProcess is null)
+            {
+                return false;
+            }
+            await startProcess.WaitForExitAsync();
+        }
+        catch
+        {
+            return false;
+        }
+
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(12);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await QueryControllerServiceStateAsync() == ControllerServiceState.Running)
+            {
+                return true;
+            }
+            await Task.Delay(250);
+        }
+
+        MessageBox.Show(
+            this,
+            "The Pico DMX server could not be started, or administrator approval was cancelled.",
+            "Pico DMX Controller",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
+        return false;
     }
 
     private void NavigateHome()
@@ -421,13 +508,152 @@ internal sealed class MainForm : Form
 
     private void ExitApplication()
     {
+        Close();
+    }
+
+    private async void HandleFormClosing(object? sender, FormClosingEventArgs eventArgs)
+    {
+        if (exiting)
+        {
+            CompleteExit();
+            return;
+        }
+
+        eventArgs.Cancel = true;
+        if (closeInProgress)
+        {
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            this,
+            "Stopping the server disconnects iPads and other operator devices.\r\n\r\n" +
+            "Stop Pico DMX Controller and exit?",
+            "Pico DMX Controller",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes)
+        {
+            return;
+        }
+
+        closeInProgress = true;
+        Enabled = false;
+        statusLabel.Text = "Stopping the Pico DMX server…";
+        var stopped = await StopControllerServiceAsync();
+        if (!stopped)
+        {
+            closeInProgress = false;
+            Enabled = true;
+            statusLabel.Text = "The server is still running.";
+            MessageBox.Show(
+                this,
+                "The Pico DMX server could not be stopped, or administrator approval was cancelled.\r\n\r\n" +
+                "The application will remain open.",
+                "Pico DMX Controller",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
         exiting = true;
         Close();
     }
 
-    private void HandleFormClosing(object? sender, FormClosingEventArgs eventArgs)
+    private static async Task<bool> StopControllerServiceAsync()
     {
-        exiting = true;
+        var initialState = await QueryControllerServiceStateAsync();
+        if (initialState is ControllerServiceState.Stopped or ControllerServiceState.Missing)
+        {
+            return true;
+        }
+
+        try
+        {
+            using var stopProcess = Process.Start(new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = "stop PicoDmxController",
+                UseShellExecute = true,
+                Verb = "runas",
+                WindowStyle = ProcessWindowStyle.Hidden
+            });
+            if (stopProcess is null)
+            {
+                return false;
+            }
+            await stopProcess.WaitForExitAsync();
+        }
+        catch
+        {
+            return false;
+        }
+
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(12);
+        while (DateTime.UtcNow < deadline)
+        {
+            var state = await QueryControllerServiceStateAsync();
+            if (state is ControllerServiceState.Stopped or ControllerServiceState.Missing)
+            {
+                return true;
+            }
+            await Task.Delay(250);
+        }
+        return false;
+    }
+
+    private static async Task<ControllerServiceState> QueryControllerServiceStateAsync()
+    {
+        try
+        {
+            using var queryProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "sc.exe",
+                    Arguments = "query PicoDmxController",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            queryProcess.Start();
+            var output = await queryProcess.StandardOutput.ReadToEndAsync();
+            await queryProcess.WaitForExitAsync();
+            if (queryProcess.ExitCode != 0)
+            {
+                return ControllerServiceState.Missing;
+            }
+
+            var matches = System.Text.RegularExpressions.Regex.Matches(
+                output,
+                @"(?m)^\s*[\p{L}_]+\s*:\s*(\d+)\s");
+            foreach (System.Text.RegularExpressions.Match match in matches)
+            {
+                if (!int.TryParse(match.Groups[1].Value, out var value) || value is < 1 or > 7)
+                {
+                    continue;
+                }
+
+                return value switch
+                {
+                    1 => ControllerServiceState.Stopped,
+                    4 => ControllerServiceState.Running,
+                    _ => ControllerServiceState.Other
+                };
+            }
+            return ControllerServiceState.Unknown;
+        }
+        catch
+        {
+            return ControllerServiceState.Unknown;
+        }
+    }
+
+    private void CompleteExit()
+    {
         activationCancellation.Cancel();
         activateEvent.Set();
         trayIcon.Visible = false;

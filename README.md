@@ -112,11 +112,15 @@ The native application window provides normal minimize/maximize/close controls,
 F11 fullscreen, Escape to leave fullscreen, and Open/fullscreen/exit actions
 from its tray icon. Its Windows title bar/frame, menu and dropdown surfaces,
 status bar, tray menu, and fullscreen controls use a matching dark theme.
-Fullscreen retains a small bar with **Exit full screen** and **Close
-application**, so it never traps the operator in kiosk mode. Closing the GUI
-leaves the `PicoDmxController` service running for iPads and other operator
-devices; use Windows Services or uninstall the product when the server itself
-must be stopped.
+Fullscreen retains a small bar with **Exit full screen** and **Stop server and
+close**, so it never traps the operator in kiosk mode. Closing the GUI confirms
+that iPads and other operator devices will disconnect, requests Windows
+administrator approval, stops the `PicoDmxController` service, and then exits.
+Cancelling either confirmation leaves the application and server running.
+When the shortcut is opened after such a shutdown, the shell explains that
+administrator approval is required, starts the stopped service, and then loads
+the controller. No approval prompt is shown when the service is already
+running.
 
 ### Install the macOS customer application
 
