@@ -278,6 +278,17 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('Authenticode signed:');
   });
 
+  test('generated user manuals include the canonical project changelog', () => {
+    const manual = read('docs/user-manual.md');
+    const builder = read('scripts/build_user_manual_pdf.ps1');
+
+    expect(manual).toContain('## Change Log');
+    expect(manual).toContain('<!-- PICO_DMX_CHANGELOG -->');
+    expect(builder).toContain('Join-Path $repoRoot "CHANGELOG.md"');
+    expect(builder).toContain('$manualMarkdown.Replace(');
+    expect(builder).toContain("'(?m)^##\\s+', '### '");
+  });
+
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {
     const cmake = read('CMakeLists.txt');
     const releaseScript = read('scripts/prepare_release.ps1');

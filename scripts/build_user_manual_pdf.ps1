@@ -143,7 +143,22 @@ function New-HeadingId {
     return $slug
 }
 
-$lines = Get-Content -LiteralPath $mdFull
+$manualMarkdown = Get-Content -LiteralPath $mdFull -Raw
+$changelogMarker = "<!-- PICO_DMX_CHANGELOG -->"
+if ($manualMarkdown.Contains($changelogMarker)) {
+    $changelogPath = Join-Path $repoRoot "CHANGELOG.md"
+    if (-not (Test-Path -LiteralPath $changelogPath)) {
+        throw "Changelog file not found: $changelogPath"
+    }
+    $changelogMarkdown = Get-Content -LiteralPath $changelogPath -Raw
+    $changelogMarkdown = [regex]::Replace($changelogMarkdown, '^\s*#\s+Changelog\s*\r?\n+', '')
+    $changelogMarkdown = [regex]::Replace($changelogMarkdown, '(?m)^##\s+', '### ')
+    $manualMarkdown = $manualMarkdown.Replace(
+        $changelogMarker,
+        $changelogMarkdown.Trim()
+    )
+}
+$lines = $manualMarkdown -split '\r?\n'
 $body = [System.Collections.Generic.List[string]]::new()
 $headingIds = @{}
 $inCode = $false
