@@ -296,6 +296,7 @@ internal sealed class MainForm : Form
                 browserExecutableFolder: null,
                 userDataFolder: userDataFolder);
             await webView.EnsureCoreWebView2Async(environment);
+            await webView.CoreWebView2.Profile.ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.DiskCache);
             webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             webView.CoreWebView2.NavigationStarting += (_, _) =>

@@ -85,6 +85,17 @@ test.describe('Code safety regression rules', () => {
     expect(apache).toContain('Options -Indexes');
   });
 
+  test('Windows app revalidates browser UI assets after an installer update', () => {
+    const apache = read('installer/windows/runtime/httpd.conf.template');
+    const form = read('installer/windows/shell/MainForm.cs');
+
+    expect(apache).toContain('<FilesMatch "\\.(?:html|css|js)$">');
+    expect(apache).toContain('Header always set Cache-Control "no-cache, must-revalidate"');
+    expect(form).toContain(
+      'ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.DiskCache)'
+    );
+  });
+
   test('Windows signing credentials and local secrets cannot be committed', () => {
     const ignore = read('.gitignore');
     const builder = read('installer/windows/build_installer.ps1');
