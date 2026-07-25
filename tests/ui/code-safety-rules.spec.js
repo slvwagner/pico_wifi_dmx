@@ -267,6 +267,17 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
   });
 
+  test('Windows release preparation builds and records the customer installer', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+
+    expect(releaseScript).toContain('[switch]$SkipWindowsInstaller');
+    expect(releaseScript).toContain('[string]$WindowsSigningCertificateThumbprint');
+    expect(releaseScript).toContain('Build Windows customer installer');
+    expect(releaseScript).toContain('installer\\windows\\build_installer.ps1');
+    expect(releaseScript).toContain('windowsInstaller = $windowsInstaller');
+    expect(releaseScript).toContain('Authenticode signed:');
+  });
+
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {
     const cmake = read('CMakeLists.txt');
     const releaseScript = read('scripts/prepare_release.ps1');

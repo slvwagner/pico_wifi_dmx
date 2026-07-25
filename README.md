@@ -557,6 +557,20 @@ Prepare a release package after versions, tests, and changelog are ready:
 .\scripts\prepare_release.ps1 -Build
 ```
 
+On Windows, the same command also builds
+`release\v<VERSION>\wifi-pico-dmx-<VERSION>-windows-x64.exe`, writes its
+SHA-256 file, and records the installer in `release-manifest.json`. The
+installer is unsigned unless a protected certificate-store thumbprint is
+supplied:
+
+```powershell
+.\scripts\prepare_release.ps1 -Build `
+  -WindowsSigningCertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT
+```
+
+Use `-SkipWindowsInstaller` only for an intentional firmware-only Windows
+package. Non-Windows release runs skip the Windows installer automatically.
+
 Before running Playwright, the release script syncs the current source into the isolated XAMPP test app at `http://localhost/dmx-test/` so the regression suite does not accidentally exercise stale files. Use `-TestAppFolder`, `-TestBaseUrl`, or `-SkipTestAppSync` only when your test target is intentionally different.
 
 To include the real Pico hardware tests in the release run, use:
@@ -826,11 +840,23 @@ npm run test:ui
 npm run test:pico
 ```
 
-7. Create the release package. This regenerates the manual, PDF, and deterministic screenshots before packaging:
+7. Create the release package. This regenerates the manual, PDF, and deterministic screenshots before packaging. On Windows it also builds the Windows x64 customer installer:
 
 ```powershell
 .\scripts\prepare_release.ps1 -Build
 ```
+
+For a signed Windows customer release, pass the non-secret certificate-store
+thumbprint:
+
+```powershell
+.\scripts\prepare_release.ps1 -Build `
+  -WindowsSigningCertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT
+```
+
+Use `-SkipWindowsInstaller` only when intentionally preparing a firmware-only
+package on Windows. Linux and macOS release runs skip Windows installer
+creation automatically.
 
 On Ubuntu with XAMPP, pass the local XAMPP and Chrome paths explicitly:
 
@@ -905,9 +931,17 @@ The script packages the application, regular Wi-Fi firmware, and try-before-you-
 release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
 release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2
 release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2
+release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe  # Windows host
 ```
 
-It writes a SHA256 checksum for every UF2 and records all three artifacts in `release-manifest.json`, together with the version, branch, and commit. The `release/` directory is intentionally not ignored so the firmware package can be committed if you want it in Git. For public distribution, a GitHub Release asset is usually cleaner than committing every binary artifact forever; this repository supports either workflow.
+It writes a SHA256 checksum for every UF2 and for the Windows installer when
+created. `release-manifest.json` records all three firmware artifacts and the
+optional Windows installer—including its size, SHA-256, and whether the build
+was Authenticode-signed—together with the version, branch, and commit. Windows
+installer executables and checksum files remain ignored so large local builds
+and signing outputs are not accidentally committed. The remaining `release/`
+content can be committed if desired, although public binary distribution is
+usually cleaner through a GitHub Release.
 
 The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
 
