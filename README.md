@@ -433,6 +433,24 @@ Shield/GND -> DMX XLR pin 1
 
 Do not connect Pico GPIO2 directly to a DMX cable. DMX uses an RS-485 differential line, so the Pico output must go through a suitable RS-485/DMX line driver. GPIO3 is only the optional frame-trigger/debug pin, not a DMX data output. GPIO5 is reserved by default as the DIN/TRS MIDI receive input (`MIDI_RX_PIN=5`, `MIDI_UART_ID=1`). Feed GPIO5 only from a proper MIDI input receiver/opto-isolation circuit; do not wire a MIDI connector directly to the Pico GPIO.
 
+### Rev. A Fusion schematic
+
+The preliminary Rev. A carrier schematic is generated as an EAGLE XML
+`.sch` file rather than being manually drawn in Fusion. Run:
+
+```powershell
+node scripts/generate_fusion_schematic.mjs
+```
+
+The script defines the symbols, preliminary footprints, component/pad
+mappings, named signals and connections once, then generates the Fusion/EAGLE
+schematic plus CSV and Markdown physical-pin net lists. This keeps the three
+outputs consistent. The generated visual arrangement and footprints are a
+starting point only and require manual rework and manufacturer land-pattern
+verification before PCB fabrication. See
+[`hardware/fusion/README.md`](hardware/fusion/README.md) for the complete
+method, outputs and review requirements.
+
 DMX signal generation and timing:
 
 | Signal part | Value |
@@ -693,6 +711,8 @@ pico_wifi_dmx/
 │  ├─ references/            Third-party hardware reference manuals
 │  │  └─ launch-control-xl-programmer-s-reference-guide.pdf
 │  └─ screenshots/           Generated manual/README screenshots
+├─ hardware/
+│  └─ fusion/                Generated Rev. A schematic and physical-pin net lists
 ├─ tools/                    Source material used by repository tooling
 │  └─ fixture-library/       Open Fixture Library export used by the converter
 │     └─ ofl_export_ofl.zip
