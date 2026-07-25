@@ -21,6 +21,31 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.getByRole('button', { name: 'Find Picos' })).toBeVisible();
   });
 
+  test('DMX Outputs shows the host computer URL for opening the controller on an iPad', async ({ page }) => {
+    await page.route('**/host_access.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          hostname: 'lighting-desk',
+          addresses: ['192.0.2.12'],
+          urls: ['http://192.0.2.12:8090/dmx-test/'],
+          port: 8090,
+          basePath: '/dmx-test/'
+        })
+      });
+    });
+
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+
+    await expect(page.locator('#dmxHostAccess')).toContainText('Open this controller on an iPad');
+    await expect(page.locator('#dmxHostAccessStatus')).toContainText('lighting-desk');
+    const accessLink = page.locator('#dmxHostAccessLinks a');
+    await expect(accessLink).toHaveText('http://192.0.2.12:8090/dmx-test/');
+    await expect(accessLink).toHaveAttribute('href', 'http://192.0.2.12:8090/dmx-test/');
+  });
+
   test('legacy Pico base URL migrates to the first shared DMX output', async ({ page }) => {
     const state = await page.evaluate(() => {
       const migrated = DmxCommon.normalizeDmxOutputs([], 'http://192.0.2.40/');

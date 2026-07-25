@@ -180,6 +180,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .dmx-output-list{display:grid;gap:10px}
 .dmx-output-row{display:grid;grid-template-columns:minmax(130px,1fr) minmax(90px,.45fr) minmax(240px,2fr) auto;gap:10px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:8px;background:#10161b}
 .dmx-output-row label{min-width:0}.dmx-output-row input{width:100%}
+.dmx-host-access{display:grid;gap:7px;padding:12px;border:1px solid var(--line);border-radius:8px;background:#0a0d10}
+.dmx-host-access-title{font-weight:700}
+.dmx-host-access-links{display:flex;gap:8px;flex-wrap:wrap}
+.dmx-host-access-link{display:inline-flex;align-items:center;padding:7px 10px;border:1px solid var(--accent);border-radius:7px;color:var(--accent);background:#071a18;text-decoration:none;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
 .discovered-pico-list{display:grid;gap:8px}.discovered-pico-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:1px solid var(--line);border-radius:8px}.discovered-pico-row .small{overflow-wrap:anywhere}
 @media(max-width:760px){.dmx-output-row{grid-template-columns:1fr 1fr}.dmx-output-row label:nth-child(3){grid-column:1/-1}.dmx-output-row button{align-self:end}}
 </style>
@@ -370,6 +374,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="modal-title-stack"><h2 id="dmxOutputsTitle">DMX Outputs</h2><div class="small">Each output represents one Pico base URL and one DMX universe. Fixtures can reuse addresses when assigned to different outputs.</div></div>
 </div>
 <div class="modal-body">
+<div id="dmxHostAccess" class="dmx-host-access">
+<div class="dmx-host-access-title">Open this controller on an iPad</div>
+<div id="dmxHostAccessStatus" class="small">Loading this computer's network address…</div>
+<div id="dmxHostAccessLinks" class="dmx-host-access-links"></div>
+</div>
 <div class="buttons"><button id="findAllPicos" type="button">Find Picos</button><span id="dmxDiscoveryStatus" class="small">Search the network for Pico WiFi DMX controllers.</span></div>
 <div id="discoveredPicosList" class="discovered-pico-list"></div>
 <div id="dmxOutputsList" class="dmx-output-list"></div>
@@ -2401,6 +2410,27 @@ function renderDmxOutputsEditor(){
     <button type="button" class="warn" data-remove-dmx-output="${escHtml(output.id)}"${dmxOutputs.length===1?' disabled':''}>Remove</button>
   </div>`).join('');
 }
+async function loadHostAccessInfo(){
+  const status=document.getElementById('dmxHostAccessStatus');
+  const links=document.getElementById('dmxHostAccessLinks');
+  status.textContent="Loading this computer's network address…";
+  links.innerHTML='';
+  try{
+    const response=await fetch('host_access.php',{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||!data?.ok)throw new Error(data?.error||('HTTP '+response.status));
+    const urls=Array.isArray(data.urls)?data.urls.filter(Boolean):[];
+    const host=String(data.hostname||'').trim();
+    if(!urls.length){
+      status.textContent='No LAN IPv4 address was detected. Check that this computer is connected to the same network as the iPad.';
+      return;
+    }
+    status.textContent=(host?host+' · ':'')+'Open one of these addresses on an iPad connected to the same network:';
+    links.innerHTML=urls.map(url=>`<a class="dmx-host-access-link" href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`).join('');
+  }catch(error){
+    status.textContent="Could not determine this computer's LAN address: "+(error?.message||String(error));
+  }
+}
 function discoveredPicoId(device){return String(device?.id||device?.url||device?.ip||'');}
 function discoveredPicoUrl(device){
   return String(device?.url||((device?.ip)?('http://'+device.ip+(device.http&&Number(device.http)!==80?':'+device.http:'')+'/'):'')).trim();
@@ -3438,6 +3468,7 @@ document.getElementById('openDmxOutputs').onclick=()=>{
   if(modal.parentElement!==document.body)document.body.appendChild(modal);
   renderDmxOutputsEditor();
   renderDiscoveredPicos();
+  loadHostAccessInfo();
   DmxCommon.showModal(modal);
 };
 document.getElementById('closeDmxOutputs').onclick=commitDmxOutputsEditor;
