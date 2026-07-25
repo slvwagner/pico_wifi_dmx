@@ -33,6 +33,12 @@ UAC prompt. If the
 installed Microsoft Edge WebView2 Runtime cannot initialize, the shell opens
 the controller in the default browser and explains the fallback.
 
+At startup, the native shell clears only WebView2's disk cache before
+navigating to the controller. The packaged Apache configuration also marks
+HTML, CSS, and JavaScript for revalidation. An upgrade therefore cannot keep
+rendering an outdated cached layout, while show data, WebView2 local storage,
+and cookies remain intact.
+
 ## Build
 
 The pinned dependency helper downloads Apache, official x64 Thread Safe PHP,

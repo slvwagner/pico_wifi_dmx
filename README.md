@@ -124,7 +124,11 @@ and server running.
 When the shortcut is opened after such a shutdown, the shell explains that
 administrator approval is required, starts the stopped service, and then loads
 the controller. No approval prompt is shown when the service is already
-running.
+running. Before loading the interface, the native application clears only its
+WebView2 disk cache and the packaged server requires changed HTML, CSS, and
+JavaScript to be revalidated. This prevents an upgraded installation from
+showing an older layout while preserving show data, browser-local settings,
+and cookies.
 
 ### Install the macOS customer application
 
