@@ -202,9 +202,9 @@ MIDI panel wiring:
 
 | Pad label | Eagle net | Panel connector |
 |---|---|---|
-| `MIDI 1` | `MIDI_DIN_PIN1_NC` | DIN pin 1 |
+| `MIDI 1` | `MIDI_DIN_PIN1_SPARE` | DIN pin 1 |
 | `MIDI 2` | `MIDI_DIN_PIN2_SHIELD` | DIN pin 2; treatment remains configurable |
-| `MIDI 3` | `MIDI_DIN_PIN3_NC` | DIN pin 3 |
+| `MIDI 3` | `MIDI_DIN_PIN3_SPARE` | DIN pin 3 |
 | `MIDI 4` | `MIDI_DIN_PIN4` | DIN pin 4 |
 | `MIDI 5` | `MIDI_DIN_PIN5` | DIN pin 5 |
 
@@ -228,9 +228,9 @@ Provide one pad for each currently free, externally available Pico GPIO:
 
 | Silkscreen | Eagle net |
 |---|---|
-| `GP0` | `GPIO0_FREE` |
-| `GP1` | `GPIO1_FREE` |
-| `GP8` through `GP22` | `GPIO8_FREE` through `GPIO22_FREE` |
+| `GP0` | `GPIO0_EXP` |
+| `GP1` | `GPIO1_EXP` |
+| `GP8` through `GP22` | `GPIO8_EXP` through `GPIO22_EXP` |
 
 Do not label reserved pins as free:
 
@@ -262,18 +262,18 @@ DMX pair, Wi-Fi antenna, and digital return-current paths.
 
 Provide clearly distinct pads for:
 
-- `3V3_LOGIC`;
+- `VCC_3V3_LOGIC`;
 - `GND_LOGIC` (at least two pads in the expansion area);
-- `5V_VBUS_RAW` (diagnostic pad only);
-- `5V_DMX_FUSED`;
+- `VBUS_5V_USB` (diagnostic pad only);
+- `VDD_5V_ISOW_FUSED`;
 - `GND_DMX_ISO`;
-- `5V_DMX_ISO`;
+- `VCC_5V_DMX_ISO`;
 - `DMX_DATA_PLUS`;
 - `DMX_DATA_MINUS`.
 
 Power, logic ground, and isolated ground pads must use different silkscreen
 names. Never use a generic `GND` label for both isolation domains.
-Do not power later accessories from `5V_DMX_FUSED`; that branch is dedicated
+Do not power later accessories from `VDD_5V_ISOW_FUSED`; that branch is dedicated
 to the ISOW1412. A later external 5 V connector requires its own fuse and
 power-budget review.
 
@@ -294,7 +294,7 @@ Rev. A includes a dedicated SMD Reset pushbutton:
 
 - normally-open momentary SMD switch;
 - connects Pico `RUN` to `GND_LOGIC` only while pressed;
-- net names `PICO_RUN` and `GND_LOGIC`;
+- net names `PICO_RUN_N` and `GND_LOGIC`;
 - located where it remains accessible after the Pico and XLR are fitted;
 - protected from accidental operation by placement or a recessed enclosure
   opening in the later mechanical design.
@@ -309,7 +309,7 @@ remote programming access.
 
 Rev. A includes two carrier-board SMD indicators:
 
-- `PWR`: low-current SMD LED from `3V3_LOGIC` through its own series resistor
+- `PWR`: low-current SMD LED from `VCC_3V3_LOGIC` through its own series resistor
   to `GND_LOGIC`;
 - `DMX`: low-current SMD LED controlled by Pico GPIO7 through its own series
   resistor.

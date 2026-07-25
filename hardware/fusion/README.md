@@ -4,6 +4,12 @@
 can be uploaded to Autodesk Fusion Electronics. Its component library and
 preliminary SMD footprints are embedded in the schematic.
 
+For redrawing or independently reviewing the circuit:
+
+- `WiFiPicoDMX_RevA_netlist.csv` contains one row per physical connection;
+- `WiFiPicoDMX_RevA_netlist.md` groups the same physical endpoints by net and
+  includes the reference/value table and critical review notes.
+
 Regenerate the file from the repository root with:
 
 ```powershell

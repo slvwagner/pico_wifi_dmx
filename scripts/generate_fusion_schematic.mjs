@@ -2,6 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const outputPath = resolve("hardware/fusion/WiFiPicoDMX_RevA.sch");
+const netlistCsvPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.csv");
+const netlistMarkdownPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.md");
 
 const esc = (value) => String(value)
   .replaceAll("&", "&amp;")
@@ -445,16 +447,16 @@ connectMany("GND_LOGIC", [
   ["U2", "GNDIO"], ["U2", "GND1"], ["R2", "2"], ["C1", "2"], ["C2", "2"],
   ["C3", "2"], ["U3", "GND"], ["R7", "2"], ["C7", "2"],
 ]);
-connectMany("3V3_LOGIC", [
+connectMany("VCC_3V3_LOGIC", [
   ["U1", "3V3"], ["J6", "P1"], ["R8", "1"], ["U2", "VIO"], ["R1", "1"],
   ["R3", "1"], ["C1", "1"], ["R6", "1"],
 ]);
-connectMany("5V_VBUS_RAW", [["U1", "VBUS"], ["F1", "1"], ["J6", "P3"], ["U3", "VCC"], ["C7", "1"]]);
-connectMany("5V_DMX_FUSED", [["F1", "2"], ["J6", "P4"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"]]);
-connectMany("PICO_RUN", [["U1", "RUN"], ["SW1", "1"]]);
-connectMany("PWR_LED_DRIVE", [["R8", "2"], ["D3", "A"]]);
+connectMany("VBUS_5V_USB", [["U1", "VBUS"], ["F1", "1"], ["J6", "P3"], ["U3", "VCC"], ["C7", "1"]]);
+connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["J6", "P4"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"]]);
+connectMany("PICO_RUN_N", [["U1", "RUN"], ["SW1", "1"]]);
+connectMany("PWR_LED_ANODE", [["R8", "2"], ["D3", "A"]]);
 connectMany("DMX_ACTIVITY_GPIO7", [["U1", "GP7"], ["R9", "1"], ["J5", "P6"]]);
-connectMany("DMX_LED_DRIVE", [["R9", "2"], ["D4", "A"]]);
+connectMany("DMX_LED_ANODE", [["R9", "2"], ["D4", "A"]]);
 connectMany("DMX_TX_GPIO2", [["U1", "GP2"], ["U2", "D"], ["R1", "2"], ["J5", "P1"]]);
 connectMany("DMX_TRIGGER_GPIO3", [["U1", "GP3"], ["J5", "P2"]]);
 connectMany("DMX_DIR_GPIO4", [["U1", "GP4"], ["U2", "DE"], ["U2", "RE_N"], ["R2", "1"], ["J5", "P3"]]);
@@ -466,38 +468,38 @@ connectMany("ADC1_GPIO27", [["U1", "GP27_ADC1"], ["J4", "P2"]]);
 connectMany("ADC2_GPIO28", [["U1", "GP28_ADC2"], ["J4", "P3"]]);
 connectMany("ADC_VREF", [["U1", "ADC_VREF"], ["J4", "P4"]]);
 connectMany("AGND", [["U1", "AGND"], ["J4", "P5"]]);
-connectMany("PICO_3V3_EN", [["U1", "3V3_EN"]]);
+connectMany("PICO_SMPS_EN", [["U1", "3V3_EN"]]);
 connectMany("PICO_VSYS", [["U1", "VSYS"]]);
 
 const freeGpios = [0, 1, ...Array.from({ length: 15 }, (_, index) => index + 8)];
-freeGpios.forEach((gpio, index) => connectMany(`GPIO${gpio}_FREE`, [["U1", `GP${gpio}`], ["J3", `P${index + 1}`]]));
+freeGpios.forEach((gpio, index) => connectMany(`GPIO${gpio}_EXP`, [["U1", `GP${gpio}`], ["J3", `P${index + 1}`]]));
 
 // Isolated side and DMX connector
-connectMany("5V_DMX_ISO_RAW", [["U2", "VISOOUT"], ["U2", "MODE"], ["FB1", "1"], ["C4", "1"], ["C5", "1"]]);
-connectMany("GND_DMX_ISO_RAW", [["U2", "GND2"], ["FB2", "1"], ["C4", "2"], ["C5", "2"]]);
-connectMany("5V_DMX_ISO", [["FB1", "2"], ["U2", "VISOIN"], ["C6", "1"], ["J6", "P5"]]);
+connectMany("VISO_5V_CONVERTER", [["U2", "VISOOUT"], ["U2", "MODE"], ["FB1", "1"], ["C4", "1"], ["C5", "1"]]);
+connectMany("GND_DMX_CONVERTER", [["U2", "GND2"], ["FB2", "1"], ["C4", "2"], ["C5", "2"]]);
+connectMany("VCC_5V_DMX_ISO", [["FB1", "2"], ["U2", "VISOIN"], ["C6", "1"], ["J6", "P5"]]);
 connectMany("GND_DMX_ISO", [
   ["FB2", "2"], ["U2", "GISOIN"], ["C6", "2"], ["D1", "GND"], ["J1", "P1"], ["J6", "P6"],
 ]);
-connectMany("DMX_TRANSCEIVER_PLUS", [["U2", "Y"], ["U2", "A"], ["L1", "A1"], ["R10", "1"]]);
-connectMany("DMX_TRANSCEIVER_MINUS", [["U2", "Z"], ["U2", "B"], ["L1", "B1"], ["R11", "1"]]);
+connectMany("DMX_TRX_PLUS", [["U2", "Y"], ["U2", "A"], ["L1", "A1"], ["R10", "1"]]);
+connectMany("DMX_TRX_MINUS", [["U2", "Z"], ["U2", "B"], ["L1", "B1"], ["R11", "1"]]);
 connectMany("DMX_DATA_PLUS", [["L1", "A2"], ["R10", "2"], ["D1", "IO1"], ["J1", "P3"], ["J6", "P7"]]);
 connectMany("DMX_DATA_MINUS", [["L1", "B2"], ["R11", "2"], ["D1", "IO2"], ["J1", "P2"], ["J6", "P8"]]);
 connectMany("XLR_SHELL", [["J1", "P4"]]);
-connectMany("ISOW_OUT_NC", [["U2", "OUT"]]);
-connectMany("ISOW_IN_NC", [["U2", "IN"]]);
+connectMany("NC_U2_PIN7_OUT", [["U2", "OUT"]]);
+connectMany("NC_U2_PIN14_IN", [["U2", "IN"]]);
 
 // MIDI input
-connectMany("MIDI_DIN_PIN1_NC", [["J2", "P1"]]);
+connectMany("MIDI_DIN_PIN1_SPARE", [["J2", "P1"]]);
 connectMany("MIDI_DIN_PIN2_SHIELD", [["J2", "P2"]]);
-connectMany("MIDI_DIN_PIN3_NC", [["J2", "P3"]]);
+connectMany("MIDI_DIN_PIN3_SPARE", [["J2", "P3"]]);
 connectMany("MIDI_DIN_PIN4", [["J2", "P4"], ["R4", "1"]]);
-connectMany("MIDI_LED_ANODE", [["R4", "2"], ["U3", "A"], ["D2", "K"]]);
-connectMany("MIDI_LED_CATHODE", [["U3", "K"], ["D2", "A"], ["R5", "1"]]);
+connectMany("MIDI_OPTO_LED_ANODE", [["R4", "2"], ["U3", "A"], ["D2", "K"]]);
+connectMany("MIDI_OPTO_LED_CATHODE", [["U3", "K"], ["D2", "A"], ["R5", "1"]]);
 connectMany("MIDI_DIN_PIN5", [["R5", "2"], ["J2", "P5"]]);
 connectMany("MIDI_OPTO_BASE", [["U3", "VB"], ["R7", "1"]]);
-connectMany("U3_NC1", [["U3", "NC1"]]);
-connectMany("U3_NC4", [["U3", "NC4"]]);
+connectMany("NC_U3_PIN1", [["U3", "NC1"]]);
+connectMany("NC_U3_PIN4", [["U3", "NC4"]]);
 
 addNote(1, 20.32, 187.96, "WiFiPicoDMX Rev. A — Controller, power, controls and expansion", 2.54, 15);
 addNote(1, 20.32, 15.24, "Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.");
@@ -705,7 +707,102 @@ ${lines([sheetXml(1), sheetXml(2), sheetXml(3)], "        ")}
 </eagle>
 `;
 
+function physicalPad(partName, pinName) {
+  const part = partMap.get(partName);
+  const device = deviceSets.get(part.deviceSet);
+  const pad = device.connects[pinName];
+  if (pad === undefined) {
+    throw new Error(`No physical package pad for ${partName}.${pinName}`);
+  }
+  return String(pad);
+}
+
+function csvCell(value) {
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+const sortedConnections = [...connections.entries()]
+  .sort(([left], [right]) => left.localeCompare(right));
+
+const csvRows = [
+  ["net", "reference", "symbol_pin", "physical_pad", "value"],
+];
+for (const [netName, refs] of sortedConnections) {
+  for (const ref of [...refs].sort((left, right) =>
+    left.part.localeCompare(right.part, undefined, { numeric: true })
+      || left.pin.localeCompare(right.pin, undefined, { numeric: true }))) {
+    csvRows.push([
+      netName,
+      ref.part,
+      ref.pin,
+      physicalPad(ref.part, ref.pin),
+      partMap.get(ref.part).value,
+    ]);
+  }
+}
+const netlistCsv = `${csvRows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+
+const markdownRows = sortedConnections.map(([netName, refs]) => {
+  const endpoints = [...refs]
+    .sort((left, right) =>
+      left.part.localeCompare(right.part, undefined, { numeric: true })
+        || left.pin.localeCompare(right.pin, undefined, { numeric: true }))
+    .map((ref) => `${ref.part}.${physicalPad(ref.part, ref.pin)} (${ref.pin})`)
+    .join("<br>");
+  return `| \`${netName}\` | ${endpoints} |`;
+});
+
+const referenceRows = [...parts]
+  .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true }))
+  .map((part) => {
+    const device = deviceSets.get(part.deviceSet);
+    return `| ${part.name} | ${part.value.replaceAll("|", "\\|")} | ${device.packageName} |`;
+  });
+
+const netlistMarkdown = `# WiFiPicoDMX Rev. A net list
+
+This is the human-readable electrical handoff for redrawing the Rev. A
+schematic in Autodesk Fusion Electronics. The CSV beside this file contains
+one row per physical endpoint.
+
+Endpoint notation is \`reference.physical-pad (symbol-pin)\`. For example,
+\`U1.40 (VBUS)\` means physical Pico pad 40, whose symbol name is \`VBUS\`.
+
+## Mandatory review before PCB manufacture
+
+- Verify every IC and protection-device physical pin number against the
+  current manufacturer datasheet.
+- Verify the panel connector harness numbering at both ends. The carrier pads
+  are not the panel connector footprints.
+- Keep \`GND_LOGIC\`, \`GND_DMX_ISO\`, \`XLR_SHELL\`, and
+  \`MIDI_DIN_PIN2_SHIELD\` distinct unless the enclosure design explicitly
+  requires an approved connection.
+- Fit R10 and R11 as the default 0 ohm DMX paths. L1 is an unselected,
+  normally-DNP common-mode-choke option; never populate L1 and the two bypass
+  resistors simultaneously.
+- The BOOTSEL/TP6 signal is not available on the Pico's 40 castellated pads.
+  Preserve physical access to the Pico BOOTSEL button.
+- The preliminary footprints are not released for fabrication.
+
+## References
+
+| Reference | Value / function | Preliminary package |
+|---|---|---|
+${referenceRows.join("\n")}
+
+## Nets
+
+| Net | Physical endpoints |
+|---|---|
+${markdownRows.join("\n")}
+`;
+
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, schematic, "utf8");
+writeFileSync(netlistCsvPath, netlistCsv, "utf8");
+writeFileSync(netlistMarkdownPath, netlistMarkdown, "utf8");
 console.log(`Generated ${outputPath}`);
+console.log(`Generated ${netlistCsvPath}`);
+console.log(`Generated ${netlistMarkdownPath}`);
 console.log(`${parts.length} parts, ${connections.size} named nets, 3 sheets`);
