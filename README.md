@@ -687,6 +687,7 @@ pico_wifi_dmx/
 │  └─ local-paths.example.json
 ├─ docs/                     User manual, generated PDF, screenshots
 │  ├─ hardware/
+│  │  ├─ SCHEMATIC_DESIGN.md Rev. A Eagle schematic design specification
 │  │  └─ datasheets/         WiFiPicoDMX Rev. A component datasheet index
 │  ├─ manual-data/           Deterministic JSON baseline for screenshots
 │  ├─ references/            Third-party hardware reference manuals
