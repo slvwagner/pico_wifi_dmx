@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file=/etc/default/pico-dmx-controller
+EXIT_KEEP_SERVER=20
+EXIT_STOP_SERVER=21
+port=8090
+always_on=0
+keep_server=0
+force_stop=0
+if [[ -r "$config_file" ]]; then
+    configured_port="$(sed -n 's/^PICO_DMX_PORT=\([0-9][0-9]*\)$/\1/p' "$config_file" | tail -n 1)"
+    if [[ -n "$configured_port" ]]; then
+        port="$configured_port"
+    fi
+    configured_always_on="$(
+        sed -n 's/^PICO_DMX_ALWAYS_ON=\\([01]\\)$/\\1/p' "$config_file" |
+            tail -n 1
+    )"
+    if [[ -n "$configured_always_on" ]]; then
+        always_on="$configured_always_on"
+    fi
+fi
+url="http://127.0.0.1:$port/"
+shell_binary=/opt/pico-dmx-controller/shell/pico-dmx-controller-shell
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+lock_file="$runtime_dir/pico-dmx-controller-service.lock"
+
+if [[ ! -d "$runtime_dir" ]]; then
+    printf 'Runtime directory is unavailable: %s\n' "$runtime_dir" >&2
+    exit 1
+fi
+
+exec 9>"$lock_file"
+flock --shared 9
+if ! systemctl start pico-dmx-controller.service; then
+    printf 'Could not start the WiFiPicoDMX service.\n' >&2
+    exit 1
+fi
+
+cleanup_service() {
+    local application_result=$?
+    trap - EXIT
+    case "$application_result" in
+        "$EXIT_KEEP_SERVER")
+            keep_server=1
+            application_result=0
+            ;;
+        "$EXIT_STOP_SERVER")
+            force_stop=1
+            application_result=0
+            ;;
+    esac
+    flock --unlock 9
+    if flock --exclusive --nonblock 9; then
+        if [[ "$force_stop" == 1 ]] ||
+            { [[ "$always_on" != 1 ]] && [[ "$keep_server" != 1 ]]; }
+        then
+            systemctl stop pico-dmx-controller.service || true
+        fi
+    fi
+    exit "$application_result"
+}
+trap cleanup_service EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if [[ -x "$shell_binary" ]]; then
+    unset ELECTRON_RUN_AS_NODE
+    "$shell_binary" --url "$url"
+    exit $?
+fi
+
+if [[ "$always_on" == 1 ]]; then
+    xdg-open "$url"
+    exit $?
+fi
+
+printf 'The Pico DMX application executable is missing: %s\n' "$shell_binary" >&2
+printf '%s\n' 'Reinstall the package before starting the controller.' >&2
+exit 1

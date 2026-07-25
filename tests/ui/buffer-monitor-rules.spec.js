@@ -2,6 +2,62 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('DMX Buffer Monitor established rules', () => {
+  test('reads and clears the selected DMX Output instead of always using the first Pico', async ({ page }) => {
+    const requests = [];
+    await page.route('**/fixture_setup.php**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          dmxOutputs: [
+            { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://192.0.2.31/' },
+            { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://192.0.2.32/' }
+          ],
+          fixtures: []
+        }
+      })
+    }));
+    for (const [root, value] of [['http://192.0.2.31', 11], ['http://192.0.2.32', 22]]) {
+      await page.route(root + '/dmx/output.json', route => {
+        requests.push(route.request().url());
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, channels: 512, frame_count: value, values: [value, ...Array(511).fill(0)] })
+        });
+      });
+      await page.route(root + '/dmx/base.json', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([value, ...Array(511).fill(0)])
+      }));
+      await page.route(root + '/dmx/clear', route => {
+        requests.push(route.request().url());
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      });
+    }
+
+    await openDmxPage(page, 'dmx_monitor.html');
+    await page.locator('#autoRefresh').uncheck();
+    await expect(page.locator('#monitorOutput option')).toHaveText([
+      'Front Pico · Universe 1',
+      'Rear Pico · Universe 2'
+    ]);
+    await expect(page.locator('#monitorOutput')).toHaveValue('front');
+
+    await page.locator('#monitorOutput').selectOption('rear');
+    await page.locator('#refreshBtn').click();
+    await expect(page.locator('.dmx-val').first()).toHaveText('22');
+    await expect(page.locator('#frameCount')).toHaveText('22');
+    await page.locator('#clearAllBtn').click();
+
+    expect(requests).toContain('http://192.0.2.32/dmx/output.json');
+    expect(requests).toContain('http://192.0.2.32/dmx/clear');
+    expect(requests).not.toContain('http://192.0.2.31/dmx/clear');
+  });
+
   test('Refresh ms and Refresh Hz stay synchronized both ways', async ({ page }) => {
     await openDmxPage(page, 'dmx_monitor.html');
 

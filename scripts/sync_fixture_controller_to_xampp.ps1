@@ -38,8 +38,10 @@ $gpioApiSource    = Join-Path $apiDir "gpio_setup.php"
 $roomPlaneApiSource = Join-Path $apiDir "room_plane_setup.php"
 $fixtureLibraryApiSource = Join-Path $apiDir "fixture_library.php"
 $uiStateSource   = Join-Path $apiDir "ui_state.php"
+$appPathsSource  = Join-Path $apiDir "app_paths.php"
 $jsonStoreSource = Join-Path $apiDir "json_store.php"
 $picoDiscoveryApiSource = Join-Path $apiDir "pico_discovery.php"
+$hostAccessApiSource = Join-Path $apiDir "host_access.php"
 $manualSource    = Join-Path $docsDir "user-manual.html"
 $manualPdfSource = Join-Path $docsDir "user-manual.pdf"
 $manualScreenshotsSource = Join-Path $docsDir "screenshots"
@@ -66,8 +68,10 @@ $gpioApiTarget    = Join-Path $targetDir "gpio_setup.php"
 $roomPlaneApiTarget = Join-Path $targetDir "room_plane_setup.php"
 $fixtureLibraryApiTarget = Join-Path $targetDir "fixture_library.php"
 $uiStateTarget   = Join-Path $targetDir "ui_state.php"
+$appPathsTarget  = Join-Path $targetDir "app_paths.php"
 $jsonStoreTarget = Join-Path $targetDir "json_store.php"
 $picoDiscoveryApiTarget = Join-Path $targetDir "pico_discovery.php"
+$hostAccessApiTarget = Join-Path $targetDir "host_access.php"
 $manualTarget    = Join-Path $targetDir "user-manual.html"
 $manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
 $manualScreenshotsTarget = Join-Path $targetDir "screenshots"
@@ -159,6 +163,10 @@ if (Test-Path -LiteralPath $uiStateSource) {
     Copy-Item -LiteralPath $uiStateSource -Destination $uiStateTarget -Force
     Write-Host "Copied UI state API to $uiStateTarget"
 }
+if (Test-Path -LiteralPath $appPathsSource) {
+    Copy-Item -LiteralPath $appPathsSource -Destination $appPathsTarget -Force
+    Write-Host "Copied application paths helper to $appPathsTarget"
+}
 if (Test-Path -LiteralPath $jsonStoreSource) {
     Copy-Item -LiteralPath $jsonStoreSource -Destination $jsonStoreTarget -Force
     Write-Host "Copied atomic JSON store helper to $jsonStoreTarget"
@@ -166,6 +174,10 @@ if (Test-Path -LiteralPath $jsonStoreSource) {
 if (Test-Path -LiteralPath $picoDiscoveryApiSource) {
     Copy-Item -LiteralPath $picoDiscoveryApiSource -Destination $picoDiscoveryApiTarget -Force
     Write-Host "Copied Pico discovery API to $picoDiscoveryApiTarget"
+}
+if (Test-Path -LiteralPath $hostAccessApiSource) {
+    Copy-Item -LiteralPath $hostAccessApiSource -Destination $hostAccessApiTarget -Force
+    Write-Host "Copied host access API to $hostAccessApiTarget"
 }
 if (Test-Path -LiteralPath $manualSource) {
     Copy-Item -LiteralPath $manualSource -Destination $manualTarget -Force

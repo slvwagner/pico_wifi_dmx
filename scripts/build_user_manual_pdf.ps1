@@ -16,6 +16,7 @@ if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 $mdFull = Join-Path $repoRoot $MarkdownPath
 $htmlFull = Join-Path $repoRoot $HtmlPath
 $pdfFull = Join-Path $repoRoot $PdfPath
+$manualScreenshotReferenceWidth = 1440
 
 if (-not (Test-Path -LiteralPath $mdFull)) {
     throw "Markdown file not found: $mdFull"
@@ -26,6 +27,30 @@ function Escape-Html {
     return [System.Net.WebUtility]::HtmlEncode($Text)
 }
 
+function Get-PngWidth {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) { return 0 }
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $header = New-Object byte[] 24
+        if ($stream.Read($header, 0, $header.Length) -ne $header.Length) { return 0 }
+        $pngSignature = @(137, 80, 78, 71, 13, 10, 26, 10)
+        for ($index = 0; $index -lt $pngSignature.Length; $index++) {
+            if ($header[$index] -ne $pngSignature[$index]) { return 0 }
+        }
+        return [int](
+            ([uint32]$header[16] * 16777216) +
+            ([uint32]$header[17] * 65536) +
+            ([uint32]$header[18] * 256) +
+            [uint32]$header[19]
+        )
+    } finally {
+        $stream.Dispose()
+    }
+}
+
 function Convert-InlineMarkdown {
     param([string]$Text)
     $html = Escape-Html $Text
@@ -33,6 +58,20 @@ function Convert-InlineMarkdown {
         param($m)
         $alt = $m.Groups[1].Value
         $src = $m.Groups[2].Value
+        $decodedSrc = [System.Net.WebUtility]::HtmlDecode($src)
+        $imagePath = Join-Path (Split-Path -Parent $mdFull) $decodedSrc
+        $nativeWidth = Get-PngWidth -Path $imagePath
+        if ($nativeWidth -gt 0) {
+            $displayPercentValue = [Math]::Min(
+                [double]100.0,
+                ([double]$nativeWidth / [double]$manualScreenshotReferenceWidth) * [double]100.0
+            )
+            $displayPercent = $displayPercentValue.ToString(
+                "0.####",
+                [System.Globalization.CultureInfo]::InvariantCulture
+            )
+            return "<img src=`"$src`" alt=`"$alt`" style=`"--manual-image-width: $displayPercent%`" data-native-width=`"$nativeWidth`">"
+        }
         "<img src=`"$src`" alt=`"$alt`">"
     })
     $html = [regex]::Replace($html, '\[([^\]]+)\]\(([^)]+)\)', {
@@ -104,7 +143,22 @@ function New-HeadingId {
     return $slug
 }
 
-$lines = Get-Content -LiteralPath $mdFull
+$manualMarkdown = Get-Content -LiteralPath $mdFull -Raw
+$changelogMarker = "<!-- PICO_DMX_CHANGELOG -->"
+if ($manualMarkdown.Contains($changelogMarker)) {
+    $changelogPath = Join-Path $repoRoot "CHANGELOG.md"
+    if (-not (Test-Path -LiteralPath $changelogPath)) {
+        throw "Changelog file not found: $changelogPath"
+    }
+    $changelogMarkdown = Get-Content -LiteralPath $changelogPath -Raw
+    $changelogMarkdown = [regex]::Replace($changelogMarkdown, '^\s*#\s+Changelog\s*\r?\n+', '')
+    $changelogMarkdown = [regex]::Replace($changelogMarkdown, '(?m)^##\s+', '### ')
+    $manualMarkdown = $manualMarkdown.Replace(
+        $changelogMarker,
+        $changelogMarkdown.Trim()
+    )
+}
+$lines = $manualMarkdown -split '\r?\n'
 $body = [System.Collections.Generic.List[string]]::new()
 $headingIds = @{}
 $inCode = $false
@@ -310,9 +364,10 @@ th {
 td { background: #101820; }
 img {
   display: block;
-  width: 100%;
+  width: var(--manual-image-width, 100%);
   max-width: 100%;
   height: auto;
+  box-sizing: border-box;
   margin: 16px 0 18px;
   border: 1px solid var(--line);
   border-radius: 8px;

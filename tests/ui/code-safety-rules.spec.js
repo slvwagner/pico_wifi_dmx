@@ -39,6 +39,209 @@ test.describe('Code safety regression rules', () => {
     expect(unlock).toBeGreaterThan(truncate);
   });
 
+  test('customer data endpoints support an installer-owned external data directory', () => {
+    const paths = read('api/app_paths.php');
+    expect(paths).toContain("getenv('PICO_DMX_DATA_DIR')");
+    expect(paths).toContain("$_SERVER['PICO_DMX_DATA_DIR']");
+
+    for (const endpoint of [
+      'api/fixture_setup.php',
+      'api/fixture_library.php',
+      'api/group_setup.php',
+      'api/scene_setup.php',
+      'api/palette_setup.php',
+      'api/chaser_setup.php',
+      'api/motion_setup.php',
+      'api/gpio_setup.php',
+      'api/room_plane_setup.php',
+      'api/ui_state.php'
+    ]) {
+      const source = read(endpoint);
+      expect(source, endpoint).toContain("require_once __DIR__ . DIRECTORY_SEPARATOR . 'app_paths.php'");
+      expect(source, endpoint).toContain('pico_dmx_data_dir()');
+      expect(source, endpoint).not.toMatch(/__DIR__\s*\.\s*(?:DIRECTORY_SEPARATOR\s*\.\s*)?['"](?:\/)?data['"]/);
+    }
+
+    const deployment = read('scripts/sync_fixture_controller_to_xampp.ps1');
+    expect(deployment).toContain('$appPathsSource');
+    expect(deployment).toContain('$appPathsTarget');
+  });
+
+  test('Windows customer installer separates program files from persistent show data', () => {
+    const installer = read('installer/windows/pico-dmx-controller.nsi');
+    const builder = read('installer/windows/build_installer.ps1');
+    const apache = read('installer/windows/runtime/httpd.conf.template');
+
+    expect(installer).toContain('SetShellVarContext all');
+    expect(installer).toContain('!define PRODUCT_NAME "WiFiPicoDMX"');
+    expect(installer).toContain('!define LEGACY_PRODUCT_NAME "Pico DMX Controller"');
+    expect(installer).toContain('$APPDATA\\${LEGACY_PRODUCT_NAME}\\data');
+    expect(installer).toContain('$APPDATA\\${LEGACY_PRODUCT_NAME}\\backups');
+    expect(installer).toContain('PicoDmxController');
+    expect(installer).not.toMatch(/RMDir\s+\/r\s+["']?\$PROGRAMDATA/i);
+    expect(builder).not.toContain('api\\data');
+    expect(builder).not.toContain('mysql');
+    expect(apache).toContain('SetEnv PICO_DMX_DATA_DIR');
+    expect(apache).toContain('Options -Indexes');
+  });
+
+  test('Windows app revalidates browser UI assets after an installer update', () => {
+    const apache = read('installer/windows/runtime/httpd.conf.template');
+    const form = read('installer/windows/shell/MainForm.cs');
+
+    expect(apache).toContain('<FilesMatch "\\.(?:html|css|js)$">');
+    expect(apache).toContain('Header always set Cache-Control "no-cache, must-revalidate"');
+    expect(form).toContain(
+      'ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.DiskCache)'
+    );
+  });
+
+  test('Windows signing credentials and local secrets cannot be committed', () => {
+    const ignore = read('.gitignore');
+    const builder = read('installer/windows/build_installer.ps1');
+
+    for (const pattern of [
+      '*.pfx',
+      '*.p12',
+      '*.pvk',
+      '*.snk',
+      '*.private.pem',
+      '.env',
+      '.env.*',
+      'installer/windows/signing/',
+      '**/bin/',
+      '**/obj/',
+      'release/v*/wifi-pico-dmx-*-windows-*.exe',
+      'release/v*/wifi-pico-dmx-*-windows-*.exe.sha256'
+    ]) {
+      expect(ignore).toContain(pattern);
+    }
+    expect(builder).not.toMatch(/CertificatePassword|PfxPassword|SecureString/);
+    expect(builder).toContain('SigningCertificateThumbprint');
+  });
+
+  test('Windows customer app lets the operator exit with or without stopping its server', () => {
+    const project = read('installer/windows/shell/PicoDmxShell.csproj');
+    const form = read('installer/windows/shell/MainForm.cs');
+    const builder = read('installer/windows/build_installer.ps1');
+    const installer = read('installer/windows/pico-dmx-controller.nsi');
+
+    expect(project).toContain('Microsoft.Web.WebView2');
+    expect(form).toContain('new WebView2');
+    expect(form).toContain('Keys.F11');
+    expect(form).toContain('Keys.Escape');
+    expect(form).toContain('NotifyIcon');
+    expect(form).toContain('Exit and stop server');
+    expect(form).toContain('Exit only');
+    expect(form).toContain('Keep the server running for iPads and other operator devices.');
+    expect(form).toContain('Environment.SpecialFolder.LocalApplicationData');
+    expect(form).toContain('DwmSetWindowAttribute');
+    expect(form).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
+    expect(form).toContain('DarkColorTable');
+    expect(form).toContain('Stop WiFiPicoDMX and exit?');
+    expect(form).toContain('PicoDmxController');
+    expect(form).toContain('sc.exe');
+    expect(form).toContain('Arguments = "start PicoDmxController"');
+    expect(form).toContain('Starting the controller server requires Windows administrator approval.');
+    expect(form).toContain('Verb = "runas"');
+    expect(form).toContain('eventArgs.Cancel = true');
+    expect(form).toContain('Stopping the server disconnects iPads and other operator devices.');
+    expect(builder).toContain('dotnet publish');
+    expect(installer).toContain('PicoDmxShell.exe');
+  });
+
+  test('Windows installer supports a validated persistent customer HTTP port', () => {
+    const installer = read('installer/windows/pico-dmx-controller.nsi');
+    const builder = read('installer/windows/build_installer.ps1');
+    const portCheck = read('installer/windows/scripts/test_port.ps1');
+    const portOwner = read('installer/windows/scripts/port_owner.ps1');
+
+    expect(installer).toContain('Function PortPageCreate');
+    expect(installer).toContain('Function PortPageLeave');
+    expect(installer).toContain('ReadRegStr $0 HKLM "Software\\PicoDmxController" "Port"');
+    expect(installer).toContain('WriteRegStr HKLM "Software\\PicoDmxController" "Port" "$ProductPort"');
+    expect(installer).toContain('-Port $ProductPort');
+    expect(installer).toContain('localport=$ProductPort');
+    expect(installer).toContain('http://localhost:$ProductPort/');
+    expect(installer).not.toContain('${PRODUCT_PORT}');
+    expect(builder).toContain('scripts\\test_port.ps1');
+    expect(builder).toContain('scripts\\port_owner.ps1');
+    expect(portCheck).toContain('[System.Net.Sockets.TcpListener]');
+    expect(portOwner).toContain('Get-NetTCPConnection');
+    expect(portOwner).toContain('PicoDmxController');
+    expect(portOwner).toContain('ExpectedProcessId');
+    expect(installer).toContain('WiFiPicoDMX is already running on port $ProductPort');
+    expect(installer).toContain('Close it now and continue?');
+    expect(installer).toContain('-ExpectedProcessId $PortOwnerPid -Stop');
+    expect(installer).toContain('PicoDmxShell.exe');
+  });
+
+  test('macOS customer package keeps app code separate from persistent user data', () => {
+    const builder = read('installer/macos/build_package.sh');
+    const app = read('installer/macos/app/PicoDmxController.swift');
+    const router = read('installer/macos/support/router.php');
+
+    expect(builder).toContain('Pico DMX Controller.app');
+    expect(builder).toContain('pkgbuild');
+    expect(builder).toContain('productsign');
+    expect(builder).toContain('notarytool');
+    expect(builder).toContain('stapler staple');
+    expect(builder).toContain('codesign');
+    expect(builder).toContain('sha256');
+    expect(builder).not.toMatch(/rm\s+-rf[^\n]*(?:Application Support|pico-dmx-controller\/data)/i);
+    expect(app).toContain('Library/Application Support/Pico DMX Controller');
+    expect(app).toContain('Library/LaunchAgents');
+    expect(app).toContain('com.picodmx.controller.server');
+    expect(app).toContain('backups');
+    expect(router).toContain("getenv('PICO_DMX_APP_DIR')");
+  });
+
+  test('macOS app provides native configurable port, LAN access, and closeable web shell', () => {
+    const app = read('installer/macos/app/PicoDmxController.swift');
+    const runtimeBuilder = read('installer/macos/build_php_runtime.sh');
+    const ignore = read('.gitignore');
+
+    expect(app).toContain('import WebKit');
+    expect(app).toContain('WKWebView');
+    expect(app).toContain('Controller Settings');
+    expect(app).toContain('1024...65535');
+    expect(app).toContain('127.0.0.1');
+    expect(app).toContain('0.0.0.0');
+    expect(app).toContain('launchctl');
+    expect(app).toContain('toggleFullScreen');
+    expect(app).toContain('private let productName = "WiFiPicoDMX"');
+    expect(app).toContain('applicationShouldTerminate');
+    expect(app).toContain('Exit only');
+    expect(app).toContain('Exit and stop server');
+    expect(app).toContain('stopLaunchAgent');
+    expect(runtimeBuilder).toContain('static-php-cli');
+    expect(runtimeBuilder).toContain('sha256');
+    expect(ignore).toContain('release/v*/wifi-pico-dmx-*-macos-*.pkg');
+    expect(ignore).toContain('installer/macos/signing/');
+  });
+
+  test('Ubuntu app uses WiFiPicoDMX branding and an explicit server exit choice', () => {
+    const main = read('installer/ubuntu/shell/main.js');
+    const shellPage = read('installer/ubuntu/shell/shell.html');
+    const launcher = read('installer/ubuntu/package/pico-dmx-controller');
+    const desktop = read('installer/ubuntu/package/pico-dmx-controller.desktop');
+    const builder = read('installer/ubuntu/build_package.sh');
+    const ignore = read('.gitignore');
+
+    expect(main).toContain("app.setName('WiFiPicoDMX')");
+    expect(main).toContain("'Exit only'");
+    expect(main).toContain("'Exit and stop server'");
+    expect(main).toContain('app.exit(EXIT_KEEP_SERVER)');
+    expect(main).toContain('app.exit(EXIT_STOP_SERVER)');
+    expect(shellPage).toContain('<title>WiFiPicoDMX</title>');
+    expect(launcher).toContain('EXIT_KEEP_SERVER=20');
+    expect(launcher).toContain('EXIT_STOP_SERVER=21');
+    expect(launcher).toContain('systemctl stop pico-dmx-controller.service');
+    expect(desktop).toContain('Name=WiFiPicoDMX');
+    expect(builder).toContain('wifi-pico-dmx_${version}_${architecture}.deb');
+    expect(ignore).toContain('release/v*/wifi-pico-dmx_*_amd64.deb');
+  });
+
   test('motion slot response exposes target count without a duplicate fixture count', () => {
     const main = read('firmware/main.cpp');
     const slotFormat = main.match(/static void build_motion_slots_response\(\)[\s\S]*?static void build_playback_ok_response/);
@@ -62,6 +265,28 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "false"');
     expect(releaseScript).toContain('if ($RunHardwareTests -and -not $SkipTests)');
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
+  });
+
+  test('Windows release preparation builds and records the customer installer', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+
+    expect(releaseScript).toContain('[switch]$SkipWindowsInstaller');
+    expect(releaseScript).toContain('[string]$WindowsSigningCertificateThumbprint');
+    expect(releaseScript).toContain('Build Windows customer installer');
+    expect(releaseScript).toContain('installer\\windows\\build_installer.ps1');
+    expect(releaseScript).toContain('windowsInstaller = $windowsInstaller');
+    expect(releaseScript).toContain('Authenticode signed:');
+  });
+
+  test('generated user manuals include the canonical project changelog', () => {
+    const manual = read('docs/user-manual.md');
+    const builder = read('scripts/build_user_manual_pdf.ps1');
+
+    expect(manual).toContain('## Change Log');
+    expect(manual).toContain('<!-- PICO_DMX_CHANGELOG -->');
+    expect(builder).toContain('Join-Path $repoRoot "CHANGELOG.md"');
+    expect(builder).toContain('$manualMarkdown.Replace(');
+    expect(builder).toContain("'(?m)^##\\s+', '### '");
   });
 
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {

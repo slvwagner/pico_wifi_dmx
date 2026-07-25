@@ -1,0 +1,4 @@
+[Pico DMX Controller]
+title=Pico DMX Controller
+description=Browser controller for trusted local-network operator devices
+ports=8090/tcp

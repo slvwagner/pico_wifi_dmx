@@ -1,0 +1,8 @@
+{
+  "name": "pico-dmx-controller-shell",
+  "version": "0.0.0",
+  "description": "Native Ubuntu application shell for WiFiPicoDMX",
+  "main": "main.js",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE"
+}

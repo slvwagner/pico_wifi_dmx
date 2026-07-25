@@ -1,0 +1,103 @@
+#!/bin/sh
+set -e
+
+if ! getent group pico-dmx >/dev/null 2>&1; then
+    addgroup --system pico-dmx
+fi
+if ! getent passwd pico-dmx >/dev/null 2>&1; then
+    adduser --system --ingroup pico-dmx --home /var/lib/pico-dmx-controller \
+        --no-create-home --disabled-login --disabled-password pico-dmx
+fi
+
+install -d -o pico-dmx -g pico-dmx -m 0750 \
+    /var/lib/pico-dmx-controller \
+    /var/lib/pico-dmx-controller/data \
+    /var/lib/pico-dmx-controller/backups
+chown -R pico-dmx:pico-dmx /var/lib/pico-dmx-controller
+
+install_desktop_shortcuts() {
+    launcher=/usr/share/applications/pico-dmx-controller.desktop
+    [ -f "$launcher" ] || return 0
+
+    getent passwd | while IFS=: read -r account _ uid _ _ home_dir login_shell
+    do
+        [ "$uid" -ge 1000 ] 2>/dev/null || continue
+        [ "$uid" -lt 60000 ] 2>/dev/null || continue
+        case "$home_dir:$login_shell" in
+            /home/*:*/nologin|/home/*:*/false) continue ;;
+            /home/*:*) ;;
+            *) continue ;;
+        esac
+
+        desktop_dir="$home_dir/Desktop"
+        user_dirs_file="$home_dir/.config/user-dirs.dirs"
+        if runuser -u "$account" -- test -r "$user_dirs_file"; then
+            configured_desktop="$(
+                runuser -u "$account" -- \
+                    sed -n 's/^XDG_DESKTOP_DIR="\\(.*\\)"$/\\1/p' \
+                    "$user_dirs_file" | head -n 1
+            )"
+            case "$configured_desktop" in
+                "\$HOME/"*) desktop_dir="$home_dir/${configured_desktop#\$HOME/}" ;;
+                "$home_dir/"*) desktop_dir="$configured_desktop" ;;
+            esac
+        fi
+
+        legacy_shortcut="$desktop_dir/Pico DMX Controller.desktop"
+        if runuser -u "$account" -- \
+            grep -Fqx 'X-PicoDmx-PackagedShortcut=true' "$legacy_shortcut" \
+            2>/dev/null
+        then
+            runuser -u "$account" -- rm -f -- "$legacy_shortcut"
+        fi
+
+        shortcut="$desktop_dir/WiFiPicoDMX.desktop"
+        if [ -e "$shortcut" ] &&
+            ! runuser -u "$account" -- \
+                grep -Fqx 'X-PicoDmx-PackagedShortcut=true' "$shortcut" \
+                2>/dev/null
+        then
+            echo "Preserving existing desktop file: $shortcut" >&2
+            continue
+        fi
+
+        runuser -u "$account" -- install -d -m 0755 "$desktop_dir"
+        runuser -u "$account" -- install -m 0755 "$launcher" "$shortcut"
+
+        runtime_dir="/run/user/$uid"
+        if command -v gio >/dev/null 2>&1 && [ -S "$runtime_dir/bus" ]; then
+            trust_attempt=1
+            while [ "$trust_attempt" -le 5 ]; do
+                if runuser -u "$account" -- env \
+                    XDG_RUNTIME_DIR="$runtime_dir" \
+                    DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_dir/bus" \
+                    gio set "$shortcut" metadata::trusted true \
+                    >/dev/null 2>&1
+                then
+                    break
+                fi
+                trust_attempt=$((trust_attempt + 1))
+                sleep 1
+            done
+        fi
+    done
+}
+
+install_desktop_shortcuts
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload
+    always_on="$(
+        sed -n 's/^PICO_DMX_ALWAYS_ON=\\([01]\\)$/\\1/p' \
+            /etc/default/pico-dmx-controller | tail -n 1
+    )"
+    if [ "$always_on" = 1 ]; then
+        systemctl enable pico-dmx-controller.service >/dev/null
+        systemctl restart pico-dmx-controller.service
+    else
+        systemctl disable pico-dmx-controller.service >/dev/null 2>&1 || true
+        systemctl stop pico-dmx-controller.service >/dev/null 2>&1 || true
+    fi
+fi
+
+exit 0

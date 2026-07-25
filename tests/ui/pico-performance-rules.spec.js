@@ -94,6 +94,86 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
   });
 
+  test('runs the complete performance measurement for every configured Pico', async ({ page }) => {
+    const requests = new Map([
+      ['http://127.0.0.1:18992/', []],
+      ['http://127.0.0.1:18993/', []]
+    ]);
+    await page.route('**/fixture_setup.php**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          dmxOutputs: [
+            { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18992/' },
+            { id: 'pixels', name: 'Pixel Pico', universe: 2, baseUrl: 'http://127.0.0.1:18993/' }
+          ],
+          profiles: [],
+          fixtures: []
+        }
+      })
+    }));
+    for (const root of requests.keys()) {
+      const values = Array.from({ length: 512 }, () => 73);
+      let frame = root.includes('18993') ? 2200 : 1200;
+      await page.route(root + '**', route => {
+        const url = new URL(route.request().url());
+        requests.get(root).push(url.pathname);
+        const json = body => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+        if (url.pathname === '/status.json') return json({ ok: true, dmx: { running: true, channels: 512, refresh_rate: 43, frame_count: ++frame } });
+        if (url.pathname === '/perf/status.json') return json({
+          ok: true,
+          memory: { free_ram_bytes: 98304 },
+          core0: { valid: true, period_us: 10000, target_hz: 100, samples: 200, work_us: { mean: 109, peak: 271 }, slack_us: { mean: 9890, min: 9729 }, late: { count: 0, peak_us: 0 }, headroom_percent: 97 },
+          core1: { valid: true, period_us: 2000000, samples: 1, work_us: { mean: 1203, peak: 1203 }, slack_us: { mean: 1997463, min: 1997463 }, late: { count: 0, peak_us: 0 } },
+          http: { valid: true, calls: 2, work_us: { mean: 130, peak: 138 } },
+          dmx: { running: true, channels: 512, refresh_rate: 40, frame_count: frame, skipped_callbacks: 1, prime_timeouts: 0, frame_timeouts: 1, auto_resyncs: 1 }
+        });
+        if (url.pathname === '/dmx/output.json') return json({ ok: true, channels: 512, frame_count: frame, values });
+        if (url.pathname === '/dmx/base') return json(values);
+        if (url.pathname === '/dmx/b') {
+          (route.request().postData() || '').split(',').forEach(pair => {
+            const match = pair.match(/^(\d+):(\d+)$/);
+            if (match) values[Number(match[1]) - 1] = Number(match[2]);
+          });
+          return json({ ok: true });
+        }
+        if (url.pathname.startsWith('/dmx/set/')) return json({ ok: true });
+        return json({ ok: true });
+      });
+    }
+
+    await openDmxPage(page, 'test/');
+    await expect(page.locator('#picoTarget option')).toHaveText([
+      'All configured Picos (2)',
+      'Front Pico · Universe 1',
+      'Pixel Pico · Universe 2'
+    ]);
+    await expect(page.locator('#picoTarget')).toHaveValue('__all__');
+    await page.locator('#chPerReq').fill('16');
+    await page.locator('#reqCount').fill('1');
+    await page.locator('#midiLatencySamples').fill('1');
+    await page.locator('#btnRunFull').click();
+
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 15000 });
+    await expect(page.locator('#timingHistoryBody tr')).toHaveCount(2);
+    await expect(page.locator('#timingHistoryBody tr').nth(0)).toContainText('Front Pico');
+    await expect(page.locator('#timingHistoryBody tr').nth(0)).toContainText('Universe 1');
+    await expect(page.locator('#timingHistoryBody tr').nth(1)).toContainText('Pixel Pico');
+    await expect(page.locator('#timingHistoryBody tr').nth(1)).toContainText('Universe 2');
+    await expect(page.locator('#historyBody tr')).toHaveCount(2);
+    await expect(page.locator('#historyBody tr').nth(0)).toContainText('Front Pico');
+    await expect(page.locator('#historyBody tr').nth(1)).toContainText('Pixel Pico');
+    for (const paths of requests.values()) {
+      expect(paths).toContain('/perf/status.json');
+      expect(paths).toContain('/dmx/output.json');
+      expect(paths).toContain('/dmx/base');
+      expect(paths).toContain('/dmx/b');
+    }
+  });
+
   test('uses the show Pico and measures USB or emulated MIDI through a confirmed DMX frame', async ({ page, context }) => {
     await page.addInitScript(() => {
       const input = {

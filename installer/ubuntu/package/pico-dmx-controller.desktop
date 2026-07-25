@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=WiFiPicoDMX
+Comment=Open the WiFiPicoDMX lighting controller
+Exec=pico-dmx-controller
+Icon=pico-dmx-controller
+Terminal=false
+Categories=AudioVideo;
+StartupNotify=true
+StartupWMClass=pico-dmx-controller
+X-PicoDmx-PackagedShortcut=true

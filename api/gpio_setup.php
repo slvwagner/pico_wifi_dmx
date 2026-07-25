@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'app_paths.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-$dataDir = __DIR__ . DIRECTORY_SEPARATOR . 'data';
+$dataDir = pico_dmx_data_dir();
 if (!is_dir($dataDir)) {
     mkdir($dataDir, 0775, true);
 }
@@ -12,7 +13,14 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($method === 'GET') {
     if (!is_file($dataFile)) {
-        echo json_encode(['ok' => true, 'exists' => false, 'mappings' => [], 'adcMappings' => []]);
+        echo json_encode([
+            'ok' => true,
+            'exists' => false,
+            'mappings' => [],
+            'adcMappings' => [],
+            'selectedOutputId' => null,
+            'outputConfigs' => null,
+        ]);
         exit;
     }
 
@@ -31,6 +39,8 @@ if ($method === 'GET') {
         'enabled' => $data['enabled'] ?? true,
         'mappings' => $data['mappings'] ?? [],
         'adcMappings' => $data['adcMappings'] ?? [],
+        'selectedOutputId' => $data['selectedOutputId'] ?? null,
+        'outputConfigs' => $data['outputConfigs'] ?? null,
         'appVersion' => $data['appVersion'] ?? null,
         'schemaVersion' => $data['schemaVersion'] ?? null,
     ]);
@@ -48,6 +58,11 @@ if ($method === 'POST') {
     if (isset($data['adcMappings']) && !is_array($data['adcMappings'])) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => '"adcMappings" must be an array']);
+        exit;
+    }
+    if (isset($data['outputConfigs']) && !is_array($data['outputConfigs'])) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => '"outputConfigs" must be an object']);
         exit;
     }
 

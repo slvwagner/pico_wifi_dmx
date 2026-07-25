@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0f12">
 <title>DMX Controller</title>
-<link rel="icon" href="assets/favicon.ico?v=0.9.14">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.14">
-<link rel="manifest" href="assets/manifest.webmanifest?v=0.9.14">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-13">
-<script src="assets/dmx-common.js?v=0.9.14-13"></script>
+<link rel="icon" href="assets/favicon.ico?v=0.9.15">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.15">
+<link rel="manifest" href="assets/manifest.webmanifest?v=0.9.15">
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.15-14">
+<script src="assets/dmx-common.js?v=0.9.15-13"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -180,6 +180,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .dmx-output-list{display:grid;gap:10px}
 .dmx-output-row{display:grid;grid-template-columns:minmax(130px,1fr) minmax(90px,.45fr) minmax(240px,2fr) auto;gap:10px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:8px;background:#10161b}
 .dmx-output-row label{min-width:0}.dmx-output-row input{width:100%}
+.dmx-host-access{display:grid;gap:7px;padding:12px;border:1px solid var(--line);border-radius:8px;background:#0a0d10}
+.dmx-host-access-title{font-weight:700}
+.dmx-host-access-links{display:flex;gap:8px;flex-wrap:wrap}
+.dmx-host-access-link{display:inline-flex;align-items:center;padding:7px 10px;border:1px solid var(--accent);border-radius:7px;color:var(--accent);background:#071a18;text-decoration:none;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
 .discovered-pico-list{display:grid;gap:8px}.discovered-pico-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:1px solid var(--line);border-radius:8px}.discovered-pico-row .small{overflow-wrap:anywhere}
 @media(max-width:760px){.dmx-output-row{grid-template-columns:1fr 1fr}.dmx-output-row label:nth-child(3){grid-column:1/-1}.dmx-output-row button{align-self:end}}
 </style>
@@ -197,9 +201,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.14">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=0.9.15">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=0.9.14#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=0.9.15#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -370,6 +374,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div class="modal-title-stack"><h2 id="dmxOutputsTitle">DMX Outputs</h2><div class="small">Each output represents one Pico base URL and one DMX universe. Fixtures can reuse addresses when assigned to different outputs.</div></div>
 </div>
 <div class="modal-body">
+<div id="dmxHostAccess" class="dmx-host-access">
+<div class="dmx-host-access-title">Open this controller on an iPad</div>
+<div id="dmxHostAccessStatus" class="small">Loading this computer's network address…</div>
+<div id="dmxHostAccessLinks" class="dmx-host-access-links"></div>
+</div>
 <div class="buttons"><button id="findAllPicos" type="button">Find Picos</button><span id="dmxDiscoveryStatus" class="small">Search the network for Pico WiFi DMX controllers.</span></div>
 <div id="discoveredPicosList" class="discovered-pico-list"></div>
 <div id="dmxOutputsList" class="dmx-output-list"></div>
@@ -2401,6 +2410,27 @@ function renderDmxOutputsEditor(){
     <button type="button" class="warn" data-remove-dmx-output="${escHtml(output.id)}"${dmxOutputs.length===1?' disabled':''}>Remove</button>
   </div>`).join('');
 }
+async function loadHostAccessInfo(){
+  const status=document.getElementById('dmxHostAccessStatus');
+  const links=document.getElementById('dmxHostAccessLinks');
+  status.textContent="Loading this computer's network address…";
+  links.innerHTML='';
+  try{
+    const response=await fetch('host_access.php',{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||!data?.ok)throw new Error(data?.error||('HTTP '+response.status));
+    const urls=Array.isArray(data.urls)?data.urls.filter(Boolean):[];
+    const host=String(data.hostname||'').trim();
+    if(!urls.length){
+      status.textContent='No LAN IPv4 address was detected. Check that this computer is connected to the same network as the iPad.';
+      return;
+    }
+    status.textContent=(host?host+' · ':'')+'Open one of these addresses on an iPad connected to the same network:';
+    links.innerHTML=urls.map(url=>`<a class="dmx-host-access-link" href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`).join('');
+  }catch(error){
+    status.textContent="Could not determine this computer's LAN address: "+(error?.message||String(error));
+  }
+}
 function discoveredPicoId(device){return String(device?.id||device?.url||device?.ip||'');}
 function discoveredPicoUrl(device){
   return String(device?.url||((device?.ip)?('http://'+device.ip+(device.http&&Number(device.http)!==80?':'+device.http:'')+'/'):'')).trim();
@@ -3438,6 +3468,7 @@ document.getElementById('openDmxOutputs').onclick=()=>{
   if(modal.parentElement!==document.body)document.body.appendChild(modal);
   renderDmxOutputsEditor();
   renderDiscoveredPicos();
+  loadHostAccessInfo();
   DmxCommon.showModal(modal);
 };
 document.getElementById('closeDmxOutputs').onclick=commitDmxOutputsEditor;
@@ -3937,7 +3968,15 @@ async function startNewShow(){
   await postSetupPayload('chaser_setup.php',{baseUrl:showBaseUrl,chases:[],chaseSlotCols:4,chaseSlotRows:4});
   await clearPicoSlots('chaser_setup.php',32);
   await postSetupPayload('motion_setup.php?reset_show',{baseUrl:showBaseUrl,effects:[],effectCols:4,effectRows:4,pico_slots:Array(64).fill(null)});
-  await postSetupPayload('gpio_setup.php',{baseUrl:showBaseUrl,enabled:true,mappings:[],adcMappings:[]});
+  const emptyGpioOutputConfigs=Object.fromEntries(dmxOutputs.map(output=>[output.id,{enabled:true,mappings:[],adcMappings:[]}]));
+  await postSetupPayload('gpio_setup.php',{
+    baseUrl:showBaseUrl,
+    selectedOutputId:dmxOutputs[0]?.id||'',
+    enabled:true,
+    mappings:[],
+    adcMappings:[],
+    outputConfigs:emptyGpioOutputConfigs
+  });
   await postSetupPayload('room_plane_setup.php',defaultRoomPlaneSetup(showBaseUrl));
   for(const [page,state] of Object.entries(emptyUiState))await postSetupPayload('ui_state.php',{page,state});
   setStatus('New show started: '+showName);
@@ -3970,7 +4009,17 @@ async function importFullSetup(data){
   if(migrated.palettes)await postSetupPayload('palette_setup.php',{baseUrl:migrated.palettes.baseUrl||migrated.fixture?.baseUrl||'',palettes:Array.isArray(migrated.palettes.palettes)?migrated.palettes.palettes:[],paletteCols:migrated.palettes.paletteCols||4,paletteRows:migrated.palettes.paletteRows||4});
   if(migrated.chaser&&typeof migrated.chaser==='object')await postSetupPayload('chaser_setup.php',migrated.chaser);
   if(migrated.motion&&typeof migrated.motion==='object')await postSetupPayload('motion_setup.php',migrated.motion);
-  if(migrated.gpio)await postSetupPayload('gpio_setup.php',{baseUrl:migrated.gpio.baseUrl||migrated.fixture?.baseUrl||'',enabled:migrated.gpio.enabled!==false,mappings:Array.isArray(migrated.gpio.mappings)?migrated.gpio.mappings:[],adcMappings:Array.isArray(migrated.gpio.adcMappings)?migrated.gpio.adcMappings:[]});
+  if(migrated.gpio){
+    const {ok,exists,error,...gpioSetup}=migrated.gpio;
+    await postSetupPayload('gpio_setup.php',{
+      ...gpioSetup,
+      baseUrl:gpioSetup.baseUrl||migrated.fixture?.baseUrl||'',
+      enabled:gpioSetup.enabled!==false,
+      mappings:Array.isArray(gpioSetup.mappings)?gpioSetup.mappings:[],
+      adcMappings:Array.isArray(gpioSetup.adcMappings)?gpioSetup.adcMappings:[],
+      ...(gpioSetup.outputConfigs&&typeof gpioSetup.outputConfigs==='object'?{outputConfigs:gpioSetup.outputConfigs}:{})
+    });
+  }
   if(migrated.roomPlane&&typeof migrated.roomPlane==='object')await postSetupPayload('room_plane_setup.php',migrated.roomPlane);
   if(fixtureLibraryResolution?.libraryChanged){
     await saveFixtureLibraryToServer(fixtureLibraryResolution.library);

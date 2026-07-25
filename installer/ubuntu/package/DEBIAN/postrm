@@ -1,0 +1,59 @@
+#!/bin/sh
+set -e
+
+remove_ufw_rule() {
+    command -v ufw >/dev/null 2>&1 || return 0
+    ufw status 2>/dev/null | grep -Fq 'Pico DMX Controller' || return 0
+    ufw --force delete allow 'Pico DMX Controller' >/dev/null 2>&1 || true
+}
+
+remove_desktop_shortcuts() {
+    getent passwd | while IFS=: read -r account _ uid _ _ home_dir login_shell
+    do
+        [ "$uid" -ge 1000 ] 2>/dev/null || continue
+        [ "$uid" -lt 60000 ] 2>/dev/null || continue
+        case "$home_dir:$login_shell" in
+            /home/*:*/nologin|/home/*:*/false) continue ;;
+            /home/*:*) ;;
+            *) continue ;;
+        esac
+
+        desktop_dir="$home_dir/Desktop"
+        user_dirs_file="$home_dir/.config/user-dirs.dirs"
+        if runuser -u "$account" -- test -r "$user_dirs_file"; then
+            configured_desktop="$(
+                runuser -u "$account" -- \
+                    sed -n 's/^XDG_DESKTOP_DIR="\\(.*\\)"$/\\1/p' \
+                    "$user_dirs_file" | head -n 1
+            )"
+            case "$configured_desktop" in
+                "\$HOME/"*) desktop_dir="$home_dir/${configured_desktop#\$HOME/}" ;;
+                "$home_dir/"*) desktop_dir="$configured_desktop" ;;
+            esac
+        fi
+
+        for shortcut_name in "WiFiPicoDMX.desktop" "Pico DMX Controller.desktop"
+        do
+            shortcut="$desktop_dir/$shortcut_name"
+            if runuser -u "$account" -- \
+                grep -Fqx 'X-PicoDmx-PackagedShortcut=true' "$shortcut" \
+                2>/dev/null
+            then
+                runuser -u "$account" -- rm -f -- "$shortcut"
+            fi
+        done
+    done
+}
+
+if [ "$1" = remove ] || [ "$1" = purge ]; then
+    remove_ufw_rule
+    remove_desktop_shortcuts
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload >/dev/null 2>&1 || true
+fi
+
+# /var/lib/pico-dmx-controller deliberately remains in place. It contains
+# customer-owned shows and the snapshots made before package upgrades.
+exit 0

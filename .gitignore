@@ -1,4 +1,6 @@
 build
+**/bin/
+**/obj/
 data/
 node_modules/
 test-results/
@@ -7,3 +9,64 @@ tests/pathconfig.local.json
 config/local-paths.json
 debug.log
 !.vscode/*
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.secrets.json
+*.credentials.json
+
+# Code-signing certificates and private keys must stay outside Git.
+installer/windows/signing/
+*.pfx
+*.p12
+*.pvk
+*.snk
+*.key
+*.pem
+*.private.pem
+*-private.pem
+*.cer
+*.crt
+*.p7b
+*.p7c
+*.csr
+
+# Machine-local IDE state
+.vs/
+*.suo
+*.user
+*.userprefs
+
+# Show backups may contain customer-owned fixtures, network addresses, and cues.
+# Existing tracked backups are intentionally unaffected by this ignore rule.
+show-backups/
+
+# Generated Windows customer installers are distribution artifacts, not source.
+release/v*/pico-dmx-controller-*-windows-*.exe
+release/v*/pico-dmx-controller-*-windows-*.exe.sha256
+release/v*/wifi-pico-dmx-*-windows-*.exe
+release/v*/wifi-pico-dmx-*-windows-*.exe.sha256
+
+# Generated Ubuntu customer packages are distribution artifacts, not source.
+release/v*/pico-dmx-controller_*_all.deb
+release/v*/pico-dmx-controller_*_all.deb.sha256
+release/v*/pico-dmx-controller_*_amd64.deb
+release/v*/pico-dmx-controller_*_amd64.deb.sha256
+release/v*/pico-dmx-controller_*_arm64.deb
+release/v*/pico-dmx-controller_*_arm64.deb.sha256
+release/v*/wifi-pico-dmx_*_all.deb
+release/v*/wifi-pico-dmx_*_all.deb.sha256
+release/v*/wifi-pico-dmx_*_amd64.deb
+release/v*/wifi-pico-dmx_*_amd64.deb.sha256
+release/v*/wifi-pico-dmx_*_arm64.deb
+release/v*/wifi-pico-dmx_*_arm64.deb.sha256
+
+# Generated macOS customer packages and protected signing material.
+release/v*/pico-dmx-controller-*-macos-*.pkg
+release/v*/pico-dmx-controller-*-macos-*.pkg.sha256
+release/v*/wifi-pico-dmx-*-macos-*.pkg
+release/v*/wifi-pico-dmx-*-macos-*.pkg.sha256
+installer/macos/signing/

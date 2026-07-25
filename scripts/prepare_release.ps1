@@ -15,7 +15,10 @@ param(
     [string]$ScreenshotBaseUrl = "",
     [string]$TestAppFolder = "dmx-test",
     [string]$TestBaseUrl = "http://localhost/dmx-test/",
-    [switch]$SkipTestAppSync
+    [switch]$SkipTestAppSync,
+    [switch]$SkipWindowsInstaller,
+    [string]$WindowsSigningCertificateThumbprint = "",
+    [string]$WindowsSignToolPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,6 +50,18 @@ function ConvertTo-ComparableFirmwareEntry($Entry) {
         file = [string]$Entry.file
         sizeBytes = [int64]$Entry.sizeBytes
         sha256 = [string]$Entry.sha256
+    }
+}
+
+function ConvertTo-ComparableInstallerEntry($Entry) {
+    if (-not $Entry) {
+        return $null
+    }
+    return [ordered]@{
+        file = [string]$Entry.file
+        sizeBytes = [int64]$Entry.sizeBytes
+        sha256 = [string]$Entry.sha256
+        signed = [bool]$Entry.signed
     }
 }
 
@@ -93,6 +108,7 @@ function ConvertTo-ComparableReleaseManifest($ManifestObject) {
         firmware = ConvertTo-ComparableFirmwareEntry $ManifestObject.firmware
         wifiFirmware = ConvertTo-ComparableFirmwareEntry $ManifestObject.wifiFirmware
         wifiFirmwareTbyb = ConvertTo-ComparableFirmwareEntry $ManifestObject.wifiFirmwareTbyb
+        windowsInstaller = ConvertTo-ComparableInstallerEntry $ManifestObject.windowsInstaller
         docs = $docs
     } | ConvertTo-Json -Depth 6 -Compress
 }
@@ -246,6 +262,40 @@ if (-not (Test-Path -LiteralPath $releaseDir)) {
     New-Item -ItemType Directory -Path $releaseDir | Out-Null
 }
 
+$windowsInstaller = $null
+$isWindowsHost = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
+if ($isWindowsHost -and -not $SkipWindowsInstaller) {
+    Invoke-Step "Build Windows customer installer" {
+        $installerArgs = @{
+            OutputDir = $releaseDir
+        }
+        if ($WindowsSigningCertificateThumbprint) {
+            $installerArgs.SigningCertificateThumbprint = $WindowsSigningCertificateThumbprint
+        }
+        if ($WindowsSignToolPath) {
+            $installerArgs.SignToolPath = $WindowsSignToolPath
+        }
+        & (Join-Path $repoRoot "installer\windows\build_installer.ps1") @installerArgs
+    }
+
+    $installerName = "wifi-pico-dmx-$Version-windows-x64.exe"
+    $installerPath = Join-Path $releaseDir $installerName
+    if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
+        throw "Windows installer build completed without producing '$installerPath'."
+    }
+    $installerSha256 = Get-FileSha256 $installerPath
+    $windowsInstaller = [ordered]@{
+        file = $installerName
+        sizeBytes = (Get-Item -LiteralPath $installerPath).Length
+        sha256 = $installerSha256
+        signed = [bool]$WindowsSigningCertificateThumbprint
+    }
+} elseif ($isWindowsHost) {
+    Write-Host "Skipping Windows installer because -SkipWindowsInstaller was supplied."
+} else {
+    Write-Host "Skipping Windows installer because this release is running on a non-Windows host."
+}
+
 $releaseArtifacts = [ordered]@{}
 foreach ($artifact in $artifactSpecs) {
     $artifactOut = Join-Path $releaseDir $artifact.releaseName
@@ -275,6 +325,7 @@ $manifest = [ordered]@{
     firmware = $releaseArtifacts.firmware
     wifiFirmware = $releaseArtifacts.wifiFirmware
     wifiFirmwareTbyb = $releaseArtifacts.wifiFirmwareTbyb
+    windowsInstaller = $windowsInstaller
     docs = [ordered]@{}
 }
 
@@ -347,4 +398,9 @@ Write-Host "  $releaseDir"
 foreach ($artifact in $artifactSpecs) {
     Write-Host "  $($artifact.outPath)"
     Write-Host "  SHA256 $($artifact.sha256)"
+}
+if ($windowsInstaller) {
+    Write-Host "  $(Join-Path $releaseDir $windowsInstaller.file)"
+    Write-Host "  SHA256 $($windowsInstaller.sha256)"
+    Write-Host "  Authenticode signed: $($windowsInstaller.signed)"
 }

@@ -35,6 +35,7 @@ $apiRoutes = [
     '/fixture_library.php' => "$root/api/fixture_library.php",
     '/ui_state.php' => "$root/api/ui_state.php",
     '/pico_discovery.php' => "$root/api/pico_discovery.php",
+    '/host_access.php' => "$root/api/host_access.php",
 ];
 
 if (isset($apiRoutes[$path])) {

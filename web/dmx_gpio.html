@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX GPIO Control</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.14-13">
-<script src="assets/dmx-common.js?v=0.9.14-13"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.15-14">
+<script src="assets/dmx-common.js?v=0.9.15-13"></script>
 <style>
-main{max-width:1160px;width:100%;margin:0 auto;padding:20px;display:grid;gap:16px;overflow-x:hidden}
+main{overflow-x:hidden}
 h2{font-size:16px}
 input[type=number]{width:86px}input[type=url]{min-width:220px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:12px;min-width:0}
@@ -42,7 +42,7 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
     <a class="nav" href="dmx_motion.html">Effects</a>
     <a class="nav" href="dmx_monitor.html">Monitor</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.14#7-gpio-control" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=0.9.15#7-gpio-control" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -52,6 +52,7 @@ pre{margin:0;background:#0a0d10;border:1px solid var(--line);border-radius:8px;p
     <span class="pill"><span class="dot" id="onlineDot"></span><span id="onlineText">not connected</span></span>
   </div>
   <div class="toolbar">
+    <label>DMX Output<select id="gpioOutput" aria-label="GPIO DMX Output"><option value="">Loading outputs…</option></select></label>
     <label><input id="gpioEnabled" type="checkbox" checked> GPIO polling enabled</label>
     <button id="addMapping" class="primary">Add mapping</button>
     <button id="addAdcMapping" class="primary">Add ADC speed/BPM</button>
@@ -90,11 +91,17 @@ let mappings=[];
 let adcMappings=[];
 let saveTimer=null;
 let chaserSlotInfo=[];
+let dmxOutputs=[];
+let activeOutputId='';
+let outputConfigs={};
 const baseUrl=document.getElementById('baseUrl');
+const gpioOutput=document.getElementById('gpioOutput');
 const statusEl=document.getElementById('status');
 
 function setStatus(msg,bad=false){statusEl.textContent=msg;statusEl.className=bad?'status bad':'status';}
-function endpoint(){return baseUrl.value.replace(/\/+$/,'');}
+function activeOutput(){return dmxOutputs.find(output=>output.id===activeOutputId)||null;}
+function outputLabel(output){return output.name+' · Universe '+output.universe;}
+function endpoint(){return String(activeOutput()?.baseUrl||baseUrl.value||'').replace(/\/+$/,'');}
 function esc(s){return DmxCommon.escapeHtml(s);}
 function clamp(v,lo,hi){return DmxCommon.clampInt(v,lo,hi);}
 function actionNeedsSlot(a){return a.startsWith('chaser_')||a.startsWith('motion_');}
@@ -201,6 +208,65 @@ function validatePins(){
   if(msg){setStatus(msg,true);return false;}
   return true;
 }
+function snapshotCurrentConfig(){
+  return {
+    enabled:document.getElementById('gpioEnabled').checked,
+    mappings:mappings.map(normalize),
+    adcMappings:adcMappings.map(normalizeAdc)
+  };
+}
+function defaultGPIOConfig(){
+  return {
+    enabled:true,
+    mappings:DEFAULT_MAPPINGS.map(normalize),
+    adcMappings:DEFAULT_ADC_MAPPINGS.map(normalizeAdc)
+  };
+}
+function applyConfigSnapshot(config){
+  const source=config&&typeof config==='object'?config:defaultGPIOConfig();
+  document.getElementById('gpioEnabled').checked=source.enabled!==false;
+  mappings=Array.isArray(source.mappings)?source.mappings.map(normalize):DEFAULT_MAPPINGS.map(normalize);
+  adcMappings=Array.isArray(source.adcMappings)?source.adcMappings.map(normalizeAdc):[];
+}
+function storeCurrentOutputConfig(){
+  if(activeOutputId)outputConfigs[activeOutputId]=snapshotCurrentConfig();
+}
+function renderOutputSelector(){
+  if(!dmxOutputs.length){
+    gpioOutput.innerHTML='<option value="">Legacy Pico URL</option>';
+    gpioOutput.value='';
+    return;
+  }
+  gpioOutput.innerHTML=dmxOutputs.map(output=>`<option value="${esc(output.id)}">${esc(outputLabel(output))}</option>`).join('');
+  gpioOutput.value=activeOutputId||dmxOutputs[0].id;
+}
+function selectGPIOOutput(outputId,{store=true}={}){
+  if(store)storeCurrentOutputConfig();
+  const next=dmxOutputs.find(output=>output.id===outputId)||dmxOutputs[0]||null;
+  activeOutputId=next?.id||'';
+  if(next?.baseUrl)baseUrl.value=next.baseUrl;
+  if(activeOutputId)applyConfigSnapshot(outputConfigs[activeOutputId]||defaultGPIOConfig());
+  renderOutputSelector();
+  chaserSlotInfo=[];
+  document.getElementById('onlineDot').classList.remove('on');
+  document.getElementById('onlineText').textContent=next?'checking '+outputLabel(next):'not connected';
+  render();
+  pollStatus();
+  pollChaserSlots();
+}
+async function loadDmxOutputs(){
+  try{
+    const response=await fetch('fixture_setup.php',{cache:'no-store'});
+    if(!response.ok)throw new Error('fixture_setup.php HTTP '+response.status);
+    const payload=await response.json();
+    const setup=payload?.setup||payload||{};
+    dmxOutputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl).filter(output=>output.baseUrl);
+  }catch(_){
+    dmxOutputs=[];
+  }
+  if(!activeOutputId)activeOutputId=dmxOutputs[0]?.id||'';
+  renderOutputSelector();
+}
 function loadLocal(){
   try{
     const raw=localStorage.getItem('dmxGPIOConfig');
@@ -256,16 +322,18 @@ function autosaveSetup(){
   },250);
 }
 function gpioData(){
+  storeCurrentOutputConfig();
+  const current=snapshotCurrentConfig();
   return DmxCommon.versionedPayload({
     baseUrl:baseUrl.value,
-    enabled:document.getElementById('gpioEnabled').checked,
-    mappings:mappings.map(normalize),
-    adcMappings:adcMappings.map(normalizeAdc)
+    selectedOutputId:activeOutputId,
+    outputConfigs,
+    ...current
   });
 }
 function applyGPIOData(data){
   const src=Array.isArray(data)?{mappings:data}:data;
-  if(!src||!Array.isArray(src.mappings))throw new Error('Invalid GPIO JSON');
+  if(!src||(!Array.isArray(src.mappings)&&!(src.outputConfigs&&typeof src.outputConfigs==='object')))throw new Error('Invalid GPIO JSON');
   const storedBaseUrl=(localStorage.getItem(DmxCommon.BASE_URL_KEY)||'').trim();
   if(storedBaseUrl){
     baseUrl.value=storedBaseUrl;
@@ -273,9 +341,26 @@ function applyGPIOData(data){
     baseUrl.value=src.baseUrl;
     localStorage.setItem(DmxCommon.BASE_URL_KEY,baseUrl.value);
   }
-  document.getElementById('gpioEnabled').checked=src.enabled!==false;
-  mappings=src.mappings.map(normalize);
-  adcMappings=Array.isArray(src.adcMappings)?src.adcMappings.map(normalizeAdc):[];
+  outputConfigs=src.outputConfigs&&typeof src.outputConfigs==='object'
+    ? Object.fromEntries(Object.entries(src.outputConfigs).map(([id,config])=>[id,{
+      enabled:config?.enabled!==false,
+      mappings:Array.isArray(config?.mappings)?config.mappings.map(normalize):[],
+      adcMappings:Array.isArray(config?.adcMappings)?config.adcMappings.map(normalizeAdc):[]
+    }]))
+    : {};
+  const requested=String(src.selectedOutputId||activeOutputId||'');
+  activeOutputId=dmxOutputs.some(output=>output.id===requested)?requested:(dmxOutputs[0]?.id||'');
+  if(activeOutputId&&!outputConfigs[activeOutputId]){
+    outputConfigs[activeOutputId]={
+      enabled:src.enabled!==false,
+      mappings:Array.isArray(src.mappings)?src.mappings.map(normalize):DEFAULT_MAPPINGS.map(normalize),
+      adcMappings:Array.isArray(src.adcMappings)?src.adcMappings.map(normalizeAdc):[]
+    };
+  }
+  applyConfigSnapshot(activeOutputId?outputConfigs[activeOutputId]:src);
+  const selected=activeOutput();
+  if(selected?.baseUrl)baseUrl.value=selected.baseUrl;
+  renderOutputSelector();
 }
 function exportGPIOConfig(){
   if(!validatePins())return;
@@ -364,7 +449,7 @@ async function pushConfig(){
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||'GPIO config failed');
     if(!saveLocal())return;
-    setStatus('GPIO config pushed to Pico');
+    setStatus('GPIO config pushed to '+(activeOutput()?outputLabel(activeOutput()):'Pico'));
     pollStatus();
   }catch(e){setStatus(e.message,true);}
 }
@@ -379,7 +464,7 @@ async function pullConfig(){
     adcMappings=(j.adc_mappings||[]).map(m=>normalizeAdc({pin:m.pin,action:m.action,slot:m.slot,min_x100:m.min_x100,max_x100:m.max_x100}));
     if(!saveLocal())return;
     render();
-    setStatus('GPIO config read from Pico');
+    setStatus('GPIO config read from '+(activeOutput()?outputLabel(activeOutput()):'Pico'));
   }catch(e){setStatus(e.message,true);}
 }
 async function pollStatus(){
@@ -425,6 +510,10 @@ async function pollChaserSlots(){
 }
 
 DmxCommon.bindBaseUrl(baseUrl,{fallback:baseUrl.value,onInput:()=>autosaveSetup(),debounceMs:800});
+gpioOutput.addEventListener('change',()=>{
+  selectGPIOOutput(gpioOutput.value);
+  autosaveSetup();
+});
 document.getElementById('addMapping').onclick=()=>{
   const used=new Set(mappings.map(m=>normalize(m).pin).concat(adcMappings.map(m=>normalizeAdc(m).pin),RESERVED_PINS));
   const pin=Array.from({length:29},(_,i)=>i).find(p=>!used.has(p))??14;
@@ -486,7 +575,14 @@ document.getElementById('mappingList').addEventListener('click',e=>{
   render();
   autosaveSetup();
 });
-loadSavedConfig().then(render);
+loadDmxOutputs().then(loadSavedConfig).then(()=>{
+  if(activeOutputId){
+    const selected=activeOutput();
+    if(selected?.baseUrl)baseUrl.value=selected.baseUrl;
+  }
+  renderOutputSelector();
+  render();
+});
 setInterval(pollStatus,1000);
 setInterval(pollChaserSlots,1000);
 pollStatus();

@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file=/etc/default/pico-dmx-controller
+service_name=pico-dmx-controller.service
+
+usage() {
+    cat <<'EOF'
+Usage:
+  sudo pico-dmx-config --local   Listen only on this computer (default)
+  sudo pico-dmx-config --lan     Allow trusted LAN devices on TCP port 8090
+  sudo pico-dmx-config --always-on
+                                 Keep serving after the application closes
+  sudo pico-dmx-config --application-managed
+                                 Stop serving when the application closes
+  pico-dmx-config --status       Show the current access mode and service state
+EOF
+}
+
+read_setting() {
+    local name="$1"
+    sed -n "s/^${name}=\\(.*\\)$/\\1/p" "$config_file" |
+        tail -n 1
+}
+
+ufw_is_active() {
+    command -v ufw >/dev/null 2>&1 &&
+        ufw status 2>/dev/null | grep -q '^Status: active'
+}
+
+remove_ufw_rule() {
+    command -v ufw >/dev/null 2>&1 || return 0
+    ufw status 2>/dev/null | grep -Fq 'Pico DMX Controller' || return 0
+    ufw --force delete allow 'Pico DMX Controller' >/dev/null
+}
+
+write_config() {
+    local address="$1"
+    local always_on="$2"
+    local temp_file
+    temp_file="$(mktemp)"
+    trap 'rm -f -- "$temp_file"' EXIT
+    {
+        printf '%s\n' '# Managed by pico-dmx-config.'
+        printf 'PICO_DMX_LISTEN_ADDRESS=%s\n' "$address"
+        printf '%s\n' 'PICO_DMX_PORT=8090'
+        printf 'PICO_DMX_ALWAYS_ON=%s\n' "$always_on"
+    } > "$temp_file"
+    install -o root -g root -m 0644 "$temp_file" "$config_file"
+}
+
+case "${1:-}" in
+    --local)
+        [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
+            printf 'Run this command with sudo.\n' >&2
+            exit 1
+        }
+        always_on="$(read_setting PICO_DMX_ALWAYS_ON)"
+        [[ "$always_on" == 1 ]] || always_on=0
+        write_config 127.0.0.1 "$always_on"
+        remove_ufw_rule
+        if systemctl is-active --quiet "$service_name"; then
+            systemctl restart "$service_name"
+        fi
+        printf 'WiFiPicoDMX is available only on this computer.\n'
+        ;;
+    --lan)
+        [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
+            printf 'Run this command with sudo.\n' >&2
+            exit 1
+        }
+        always_on="$(read_setting PICO_DMX_ALWAYS_ON)"
+        [[ "$always_on" == 1 ]] || always_on=0
+        write_config 0.0.0.0 "$always_on"
+        if ufw_is_active; then
+            ufw allow 'Pico DMX Controller'
+            printf 'Added the WiFiPicoDMX rule to UFW.\n'
+        elif command -v ufw >/dev/null 2>&1; then
+            printf 'UFW is installed but inactive; no firewall rule was needed.\n'
+        else
+            printf 'UFW is not installed; verify any other firewall manually.\n'
+        fi
+        if systemctl is-active --quiet "$service_name"; then
+            systemctl restart "$service_name"
+        fi
+        printf 'Trusted LAN devices can connect at http://<this-computer-ip>:8090/\n'
+        ;;
+    --always-on)
+        [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
+            printf 'Run this command with sudo.\n' >&2
+            exit 1
+        }
+        address="$(read_setting PICO_DMX_LISTEN_ADDRESS)"
+        [[ -n "$address" ]] || address=127.0.0.1
+        write_config "$address" 1
+        systemctl enable "$service_name"
+        systemctl restart "$service_name"
+        printf 'The Pico DMX service will remain available after the application closes.\n'
+        ;;
+    --application-managed)
+        [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
+            printf 'Run this command with sudo.\n' >&2
+            exit 1
+        }
+        address="$(read_setting PICO_DMX_LISTEN_ADDRESS)"
+        [[ -n "$address" ]] || address=127.0.0.1
+        write_config "$address" 0
+        systemctl disable "$service_name" >/dev/null 2>&1 || true
+        systemctl stop "$service_name"
+        printf 'The service will now run only while the desktop application is open.\n'
+        ;;
+    --status)
+        address="$(read_setting PICO_DMX_LISTEN_ADDRESS)"
+        if [[ "$address" == 0.0.0.0 ]]; then
+            printf 'Access mode: trusted LAN (TCP 8090)\n'
+        else
+            printf 'Access mode: local only (TCP 8090)\n'
+        fi
+        always_on="$(read_setting PICO_DMX_ALWAYS_ON)"
+        if [[ "$always_on" == 1 ]]; then
+            printf 'Service lifecycle: always on\n'
+        else
+            printf 'Service lifecycle: managed by the desktop application\n'
+        fi
+        systemctl --no-pager --full status "$service_name"
+        ;;
+    *)
+        usage
+        exit 2
+        ;;
+esac
