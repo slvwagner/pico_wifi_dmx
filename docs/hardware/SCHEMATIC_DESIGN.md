@@ -79,10 +79,14 @@ sees a defined Mark level while the Pico pin is high-impedance.
 Use the following power-network components and place them exactly as the TI
 layout guidance requires:
 
-- 10 nF 0402 ceramic within 1 mm of both `VDD` and `VISOOUT`;
-- 100 nF 0402 ceramic at `VIO` and `VISOIN`;
-- at least 10 µF X7R bulk capacitance at `VDD` and `VISOOUT`;
-- optional 1 µF X7R capacitors matching the TI application layout;
+- 10 nF, 50 V, ±10%, X7R 0402 `0402B103K500CT` within 1 mm of
+  both `VDD` and `VISOOUT`;
+- 100 nF, 16 V, ±10%, X7R 0402 `CL05B104KO5NNNC` at `VIO` and
+  `VISOIN`;
+- 10 µF, 35 V, ±10%, X5R 0805 `GRM21BR6YA106KE43L` bulk
+  capacitance at `VDD` and `VISOOUT`;
+- 1 µF, 50 V, ±10%, X5R 0603 `CL10A105KB8NNNC` at both `VDD` and
+  `VISOOUT`, placed in the TI-recommended 2 mm to 4 mm zone;
 - two `BLM15EX331SN1D` 0402 ferrite beads on the isolated supply and return.
 
 Higher bulk capacitance may be fitted after checking inrush and the actual
@@ -162,7 +166,6 @@ connected to the Pico 2 W Micro-USB connector.
 | Isolated DMX and power | `ISOW1412DFMR` | DFM/SOIC-20 SMD | Selected |
 | DMX TVS | `SM712.TCT` | SOT-23 SMD | Selected |
 | Resettable fuse | `1206L050YR` | 1206 SMD, 0.5 A hold / 1.0 A trip | Selected |
-| Reverse-polarity/power diode | `SS34` | SMB SMD | Selected; confirm exact ordering code |
 | MIDI optocoupler | `HCPL-0700-500E` | Genuine SOIC-8 SMD, tape and reel | Selected |
 | MIDI protection diode | `1N4148WS-E3-08` | SOD-323 SMD | Selected |
 | Isolated-supply ferrites | `BLM15EX331SN1D` | 0402 SMD | Selected |
@@ -173,6 +176,9 @@ connected to the Pico 2 W Micro-USB connector.
 
 The earlier `SN74LVC1G04`, `ISO1410DW`, `MEJ2S0505SC`, axial `1N4148`, and
 through-hole 6N138 are not production BOM choices.
+
+Exact passive manufacturer ordering codes and population rules are frozen in
+[`PASSIVE_BOM.md`](PASSIVE_BOM.md).
 
 The maintained Fusion/EAGLE library is stored at
 `hardware/fusion/libraries/WiFiPicoDMX.lbr`. The generated schematic imports
@@ -309,7 +315,7 @@ pushbutton:
 
 - normally-open momentary, top-actuated SMD switch;
 - 4.2 mm × 3.2 mm body, 2.5 mm height, and 1.6 N nominal operating force;
-- four physical pads, with pads 1/3 forming one contact and pads 2/4 the
+- four physical pads, with pads 1/2 forming one contact and pads 3/4 the
   other;
 - connects Pico `RUN` to `GND_LOGIC` only while pressed;
 - net names `PICO_RUN_N` and `GND_LOGIC`;
@@ -317,11 +323,12 @@ pushbutton:
 - protected from accidental operation by placement or a recessed enclosure
   opening in the later mechanical design.
 
-The Pico's existing BOOTSEL button remains the programming control. Maintain a
-component and finger-access keep-out above it; do not place the carrier PCB,
-XLR body, or another tall component where it prevents operation. Also expose
-the Pico `TP6/BOOTSEL` signal as a labelled diagnostic pad for optional future
-remote programming access.
+The Pico 2 W development board's onboard `BOOTSEL` button remains the
+programming control. Raspberry Pi locates it below the USB connector and to
+the left side of the board. Maintain a component and finger/tool-access
+keep-out above it; do not place the carrier PCB, XLR body, or another tall
+component where it prevents operation. No second BOOTSEL switch or carrier
+connection is required for Rev. A.
 
 ## Status indicators
 

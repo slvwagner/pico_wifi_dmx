@@ -483,13 +483,14 @@ definePackage("PADBANK5", padBankPackage(5));
   "RESC1005X40",
   "RESC1608X60",
   "CAPC1005X60",
+  "CAPC1608X85",
   "CAPC2012X110",
   "INDC1006X60N",
   "LEDC1608X55N_FLAT-B",
-  "DFM20_PRELIMINARY",
-  "SOT23_",
-  "SOIC127P600X317-8N",
-  "SOD323-1.15H",
+  "DFM0020A_TI",
+  "SM712_SOT23",
+  "HCPL0700_SO8",
+  "SOD323_VISHAY",
   "ACT45B_4P5X3P2",
   "PADBANK8",
   "PADBANK17",
@@ -499,20 +500,21 @@ definePackage("PADBANK5", padBankPackage(5));
 defineDeviceSet("RES0402", "R", "RESISTOR", "RESC1005X40", { 1: "1", 2: "2" }, "0402 resistor using project-library land pattern");
 defineDeviceSet("RES0603", "R", "RESISTOR", "RESC1608X60", { 1: "1", 2: "2" }, "0603 resistor using project-library land pattern");
 defineDeviceSet("CAP0402", "C", "CAPACITOR", "CAPC1005X60", { 1: "1", 2: "2" }, "0402 capacitor using project-library land pattern");
+defineDeviceSet("CAP0603", "C", "CAPACITOR", "CAPC1608X85", { 1: "1", 2: "2" }, "0603 capacitor using project-library land pattern");
 defineDeviceSet("CAP0805", "C", "CAPACITOR", "CAPC2012X110", { 1: "1", 2: "2" }, "0805 capacitor using project-library land pattern");
 defineDeviceSet("PPTC1206", "F", "FUSE", "PPTC1206_1206L050YR", { 1: "1", 2: "2" }, "Littelfuse 1206L050YR using project-library land pattern");
 defineDeviceSet("FERRITE0402", "FB", "FERRITE", "INDC1006X60N", { 1: "1", 2: "2" }, "Murata BLM15EX331SN1D using project-library land pattern");
 defineDeviceSet("LED0603", "D", "LED", "LEDC1608X55N_FLAT-B", { A: "A", K: "C" }, "0603 indicator LED using project-library land pattern");
-defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323-1.15H", { A: "A", K: "C" }, "Vishay 1N4148WS-E3-08 using project-library land pattern");
+defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323_VISHAY", { A: "A", K: "C" }, "Vishay 1N4148WS-E3-08 using manufacturer-recommended project-library land pattern");
 defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_J_LEAD", {
   "P$1": "1",
   "P$2": "2",
   "P$3": "3",
   "P$4": "4",
 }, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS using project-library land pattern");
-defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23_", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS using project-library land pattern");
+defineDeviceSet("SM712", "D", "TVS_SM712", "SM712_SOT23", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS using manufacturer-recommended project-library land pattern");
 defineDeviceSet("CMC_OPTION", "L", "CMC", "ACT45B_4P5X3P2", { A1: "1", A2: "2", B1: "4", B2: "3" }, "TDK ACT45B-510-2P-TL003 two-line common-mode choke using project-library land pattern; normally DNP pending EMC and signal-integrity testing");
-defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
+defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM0020A_TI", {
   VIO: "1", D: "2", DE: "3", R: "4", RE_N: "5", GNDIO: "6", OUT: "7",
   EN_FLT: "8", VDD: "9", GND1: "10", GND2: "11", VISOOUT: "12",
   MODE: "13", IN: "14", GISOIN: "15", VISOIN: "16", Y: "17", Z: "18",
@@ -521,7 +523,7 @@ defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
 defineDeviceSet("PICO2W", "U", "PICO2W", "PICO_2_W_DEVELOPMENT_BOARD",
   Object.fromEntries(picoPins.map((pin) => [pin.name, String(pin.pad)])),
   "Raspberry Pi Pico 2 W development board using project-library through-hole header land pattern");
-defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "SOIC127P600X317-8N", {
+defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "HCPL0700_SO8", {
   NC1: "1", A: "2", K: "3", NC4: "4", GND: "5", VO: "6", VB: "7", VCC: "8",
 }, "Broadcom HCPL-0700-500E SOIC-8 optocoupler using project-library land pattern");
 defineDeviceSet(
@@ -585,10 +587,10 @@ addPart("FRAME3", "FRAME_A3", "", 3, 0, 0);
 addPart("U1", "PICO2W", "Raspberry Pi Pico 2 W", 1, 76.2, 101.6);
 addPart("F1", "PPTC1206", "1206L050YR 0.5A HOLD", 1, 137.16, 172.72);
 addPart("SW1", "SWITCH_SMD", "PTS810SJM250SMTR LFS RESET (NO)", 1, 137.16, 157.48);
-addPart("R8", "RES0603", "1k", 1, 132.08, 139.7);
-addPart("D3", "LED0603", "PWR GREEN", 1, 208.28, 139.7);
-addPart("R9", "RES0603", "1k", 1, 182.88, 124.46);
-addPart("D4", "LED0603", "DMX ACTIVITY", 1, 254, 124.46);
+addPart("R8", "RES0603", "1k 1% 0.1W 0603 Yageo RC0603FR-071KL", 1, 132.08, 139.7);
+addPart("D3", "LED0603", "PWR GREEN Lite-On LTST-C190KGKT", 1, 208.28, 139.7);
+addPart("R9", "RES0603", "1k 1% 0.1W 0603 Yageo RC0603FR-071KL", 1, 182.88, 124.46);
+addPart("D4", "LED0603", "DMX YELLOW Lite-On LTST-C190KSKT", 1, 254, 124.46);
 addPart("J3", "PADBANK17", "FREE GPIO PADS", 1, 320.04, 134.62);
 addPart("J4", "PADBANK5", "ANALOG PADS", 1, 213.36, 71.12);
 addPart("J5", "PADBANK7", "RESERVED SIGNAL TEST PADS", 1, 213.36, 33.02);
@@ -596,32 +598,34 @@ addPart("J6", "PADBANK8", "POWER/DMX TEST PADS", 1, 152.4, 53.34);
 
 // Sheet 2, isolated DMX/RDM
 addPart("U2", "ISOW1412DFMR", "ISOW1412DFMR", 2, 111.76, 101.6);
-addPart("R1", "RES0402", "100k D PULLUP", 2, 50.8, 157.48);
-addPart("R2", "RES0402", "10k DIR PULLDOWN", 2, 50.8, 142.24);
-addPart("R3", "RES0402", "10k EN/FLT PULLUP", 2, 50.8, 127);
-addPart("C1", "CAP0402", "100n VIO", 2, 50.8, 111.76);
-addPart("C2", "CAP0402", "10n VDD <=1mm", 2, 50.8, 96.52);
-addPart("C3", "CAP0805", "10u X7R VDD", 2, 50.8, 81.28);
+addPart("R1", "RES0402", "100k 1% 0.063W 0402 Yageo RC0402FR-07100KL", 2, 50.8, 157.48);
+addPart("R2", "RES0402", "10k 1% 0.063W 0402 Yageo RC0402FR-0710KL", 2, 50.8, 142.24);
+addPart("R3", "RES0402", "10k 1% 0.063W 0402 Yageo RC0402FR-0710KL", 2, 50.8, 127);
+addPart("C1", "CAP0402", "100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO", 2, 50.8, 111.76);
+addPart("C2", "CAP0402", "10nF 50V 10% X7R 0402 0402B103K500CT VDD <1mm", 2, 50.8, 96.52);
+addPart("C3", "CAP0805", "10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD", 2, 50.8, 81.28);
+addPart("C8", "CAP0603", "1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm", 2, 50.8, 66.04);
 addPart("FB1", "FERRITE0402", "BLM15EX331SN1D", 2, 172.72, 149.86);
 addPart("FB2", "FERRITE0402", "BLM15EX331SN1D", 2, 172.72, 134.62);
-addPart("C4", "CAP0402", "10n VISOOUT <=1mm", 2, 264.16, 149.86);
-addPart("C5", "CAP0805", "10u X7R VISOOUT", 2, 264.16, 134.62);
-addPart("C6", "CAP0402", "100n VISOIN", 2, 264.16, 119.38);
+addPart("C4", "CAP0402", "10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT <1mm", 2, 264.16, 149.86);
+addPart("C5", "CAP0805", "10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT", 2, 264.16, 134.62);
+addPart("C6", "CAP0402", "100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN", 2, 264.16, 119.38);
+addPart("C9", "CAP0603", "1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm", 2, 264.16, 104.14);
 addPart("L1", "CMC_OPTION", "ACT45B-510-2P-TL003 - DNP", 2, 223.52, 91.44);
-addPart("R10", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 76.2);
-addPart("R11", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 60.96);
+addPart("R10", "RES0603", "0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT", 2, 172.72, 76.2);
+addPart("R11", "RES0603", "0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT", 2, 172.72, 60.96);
 addPart("D1", "SM712", "SM712.TCT", 2, 314.96, 91.44);
 addPart("J1", "PANEL_DMX4", "PANEL XLR-5: COM,-,+,SHELL", 2, 381, 91.44);
 
 // Sheet 3, MIDI input
 addPart("J2", "PANEL_MIDI5", "PANEL DIN-5 MIDI IN", 3, 45.72, 101.6);
-addPart("R4", "RES0603", "220R", 3, 83.82, 116.84);
-addPart("R5", "RES0603", "220R", 3, 83.82, 86.36);
+addPart("R4", "RES0603", "220R 1% 0.1W 0603 Yageo RC0603FR-07220RL", 3, 83.82, 116.84);
+addPart("R5", "RES0603", "220R 1% 0.1W 0603 Yageo RC0603FR-07220RL", 3, 83.82, 86.36);
 addPart("D2", "DIODE_SOD323", "1N4148WS-E3-08", 3, 111.76, 101.6);
 addPart("U3", "HCPL_0700_500E", "HCPL-0700-500E", 3, 157.48, 101.6);
-addPart("R6", "RES0603", "4.7k OUTPUT PULLUP", 3, 203.2, 119.38);
-addPart("R7", "RES0603", "47k BASE SPEEDUP", 3, 203.2, 101.6);
-addPart("C7", "CAP0402", "100n VCC", 3, 203.2, 83.82);
+addPart("R6", "RES0603", "4.7k 1% 0.1W 0603 Yageo RC0603FR-074K7L", 3, 203.2, 119.38);
+addPart("R7", "RES0603", "47k 1% 0.1W 0603 Yageo RC0603FR-0747KL", 3, 203.2, 101.6);
+addPart("C7", "CAP0402", "100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC", 3, 203.2, 83.82);
 
 // Controller and expansion connectivity
 connectMany("GND_LOGIC", [
@@ -630,14 +634,14 @@ connectMany("GND_LOGIC", [
   ["SW1", "P$3"], ["SW1", "P$4"],
   ["D3", "K"], ["D4", "K"], ["J6", "P2"],
   ["U2", "GNDIO"], ["U2", "GND1"], ["R2", "2"], ["C1", "2"], ["C2", "2"],
-  ["C3", "2"], ["U3", "GND"], ["R7", "2"], ["C7", "2"],
+  ["C3", "2"], ["C8", "2"], ["U3", "GND"], ["R7", "2"], ["C7", "2"],
 ]);
 connectMany("VCC_3V3_LOGIC", [
   ["U1", "3V3"], ["J6", "P1"], ["R8", "1"], ["U2", "VIO"], ["R1", "1"],
   ["R3", "1"], ["C1", "1"], ["R6", "1"],
 ]);
 connectMany("VBUS_5V_USB", [["U1", "VBUS"], ["F1", "1"], ["J6", "P3"], ["U3", "VCC"], ["C7", "1"]]);
-connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["J6", "P4"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"]]);
+connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["J6", "P4"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"], ["C8", "1"]]);
 connectMany("PICO_RUN_N", [
   ["U1", "RUN"], ["SW1", "P$1"], ["SW1", "P$2"],
 ]);
@@ -662,8 +666,8 @@ const freeGpios = [0, 1, ...Array.from({ length: 15 }, (_, index) => index + 8)]
 freeGpios.forEach((gpio, index) => connectMany(`GPIO${gpio}_EXP`, [["U1", `GP${gpio}`], ["J3", `P${index + 1}`]]));
 
 // Isolated side and DMX connector
-connectMany("VISO_5V_CONVERTER", [["U2", "VISOOUT"], ["U2", "MODE"], ["FB1", "1"], ["C4", "1"], ["C5", "1"]]);
-connectMany("GND_DMX_CONVERTER", [["U2", "GND2"], ["FB2", "1"], ["C4", "2"], ["C5", "2"]]);
+connectMany("VISO_5V_CONVERTER", [["U2", "VISOOUT"], ["U2", "MODE"], ["FB1", "1"], ["C4", "1"], ["C5", "1"], ["C9", "1"]]);
+connectMany("GND_DMX_CONVERTER", [["U2", "GND2"], ["FB2", "1"], ["C4", "2"], ["C5", "2"], ["C9", "2"]]);
 connectMany("VCC_5V_DMX_ISO", [["FB1", "2"], ["U2", "VISOIN"], ["C6", "1"], ["J6", "P5"]]);
 connectMany("GND_DMX_ISO", [
   ["FB2", "2"], ["U2", "GISOIN"], ["C6", "2"], ["D1", "GND"], ["J1", "P1"], ["J6", "P6"],
@@ -691,7 +695,7 @@ connectMany("NC_U3_PIN4", [["U3", "NC4"]]);
 addNote(1, 20.32, 187.96, "WiFiPicoDMX Rev. A — Controller, power, controls and expansion", 2.54, 15);
 addNote(1, 20.32, 15.24, "Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.");
 addNote(1, 20.32, 10.16, "Verify every project-library and generated land pattern against the selected manufacturer part before PCB release.");
-addNote(1, 20.32, 5.08, "TP6/BOOTSEL is not available on the two 20-pin header rows: preserve physical BOOTSEL access; do not assume an electrical carrier connection.");
+addNote(1, 20.32, 5.08, "Use the Pico 2 W development board's onboard BOOTSEL button below the USB connector; preserve finger/tool access in the PCB and enclosure.");
 
 addNote(2, 20.32, 187.96, "WiFiPicoDMX Rev. A — Reinforced-isolated DMX/RDM output", 2.54, 15);
 addNote(2, 20.32, 20.32, "Default: FIT R10/R11 (0R), DNP L1. L1 option is TDK ACT45B-510-2P-TL003; fit it only after EMC/signal-integrity testing.");
@@ -1048,13 +1052,14 @@ Endpoint notation is \`reference.physical-pad (symbol-pin)\`. For example,
   TDK ACT45B-510-2P-TL003 common-mode-choke option, normally DNP until EMC and
   signal-integrity tests justify fitting it. Never populate L1 and the two
   bypass resistors simultaneously.
-- The BOOTSEL/TP6 signal is not available on the Pico's two 20-pin header rows.
-  Preserve physical access to the Pico BOOTSEL button.
-- The preliminary footprints are not released for fabrication.
+- Use the Pico 2 W development board's onboard BOOTSEL button below its USB
+  connector. Preserve physical access in the PCB and enclosure.
+- Recheck every footprint against the current manufacturer drawing before
+  fabrication even where the library geometry has been verified.
 
 ## References
 
-| Reference | Value / function | Preliminary package |
+| Reference | Value / function | Package |
 |---|---|---|
 ${referenceRows.join("\n")}
 

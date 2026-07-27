@@ -20,25 +20,28 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
   TDK ACT45B-510-2P-TL003 common-mode-choke option, normally DNP until EMC and
   signal-integrity tests justify fitting it. Never populate L1 and the two
   bypass resistors simultaneously.
-- The BOOTSEL/TP6 signal is not available on the Pico's two 20-pin header rows.
-  Preserve physical access to the Pico BOOTSEL button.
-- The preliminary footprints are not released for fabrication.
+- Use the Pico 2 W development board's onboard BOOTSEL button below its USB
+  connector. Preserve physical access in the PCB and enclosure.
+- Recheck every footprint against the current manufacturer drawing before
+  fabrication even where the library geometry has been verified.
 
 ## References
 
-| Reference | Value / function | Preliminary package |
+| Reference | Value / function | Package |
 |---|---|---|
-| C1 | 100n VIO | CAPC1005X60 |
-| C2 | 10n VDD <=1mm | CAPC1005X60 |
-| C3 | 10u X7R VDD | CAPC2012X110 |
-| C4 | 10n VISOOUT <=1mm | CAPC1005X60 |
-| C5 | 10u X7R VISOOUT | CAPC2012X110 |
-| C6 | 100n VISOIN | CAPC1005X60 |
-| C7 | 100n VCC | CAPC1005X60 |
-| D1 | SM712.TCT | SOT23_ |
-| D2 | 1N4148WS-E3-08 | SOD323-1.15H |
-| D3 | PWR GREEN | LEDC1608X55N_FLAT-B |
-| D4 | DMX ACTIVITY | LEDC1608X55N_FLAT-B |
+| C1 | 100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO | CAPC1005X60 |
+| C2 | 10nF 50V 10% X7R 0402 0402B103K500CT VDD <1mm | CAPC1005X60 |
+| C3 | 10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD | CAPC2012X110 |
+| C4 | 10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT <1mm | CAPC1005X60 |
+| C5 | 10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT | CAPC2012X110 |
+| C6 | 100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN | CAPC1005X60 |
+| C7 | 100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC | CAPC1005X60 |
+| C8 | 1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm | CAPC1608X85 |
+| C9 | 1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm | CAPC1608X85 |
+| D1 | SM712.TCT | SM712_SOT23 |
+| D2 | 1N4148WS-E3-08 | SOD323_VISHAY |
+| D3 | PWR GREEN Lite-On LTST-C190KGKT | LEDC1608X55N_FLAT-B |
+| D4 | DMX YELLOW Lite-On LTST-C190KSKT | LEDC1608X55N_FLAT-B |
 | F1 | 1206L050YR 0.5A HOLD | PPTC1206_1206L050YR |
 | FB1 | BLM15EX331SN1D | INDC1006X60N |
 | FB2 | BLM15EX331SN1D | INDC1006X60N |
@@ -52,21 +55,21 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | J5 | RESERVED SIGNAL TEST PADS | PADBANK7 |
 | J6 | POWER/DMX TEST PADS | PADBANK8 |
 | L1 | ACT45B-510-2P-TL003 - DNP | ACT45B_4P5X3P2 |
-| R1 | 100k D PULLUP | RESC1005X40 |
-| R2 | 10k DIR PULLDOWN | RESC1005X40 |
-| R3 | 10k EN/FLT PULLUP | RESC1005X40 |
-| R4 | 220R | RESC1608X60 |
-| R5 | 220R | RESC1608X60 |
-| R6 | 4.7k OUTPUT PULLUP | RESC1608X60 |
-| R7 | 47k BASE SPEEDUP | RESC1608X60 |
-| R8 | 1k | RESC1608X60 |
-| R9 | 1k | RESC1608X60 |
-| R10 | 0R CMC BYPASS FIT | RESC1608X60 |
-| R11 | 0R CMC BYPASS FIT | RESC1608X60 |
+| R1 | 100k 1% 0.063W 0402 Yageo RC0402FR-07100KL | RESC1005X40 |
+| R2 | 10k 1% 0.063W 0402 Yageo RC0402FR-0710KL | RESC1005X40 |
+| R3 | 10k 1% 0.063W 0402 Yageo RC0402FR-0710KL | RESC1005X40 |
+| R4 | 220R 1% 0.1W 0603 Yageo RC0603FR-07220RL | RESC1608X60 |
+| R5 | 220R 1% 0.1W 0603 Yageo RC0603FR-07220RL | RESC1608X60 |
+| R6 | 4.7k 1% 0.1W 0603 Yageo RC0603FR-074K7L | RESC1608X60 |
+| R7 | 47k 1% 0.1W 0603 Yageo RC0603FR-0747KL | RESC1608X60 |
+| R8 | 1k 1% 0.1W 0603 Yageo RC0603FR-071KL | RESC1608X60 |
+| R9 | 1k 1% 0.1W 0603 Yageo RC0603FR-071KL | RESC1608X60 |
+| R10 | 0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT | RESC1608X60 |
+| R11 | 0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT | RESC1608X60 |
 | SW1 | PTS810SJM250SMTR LFS RESET (NO) | PTS810_J_LEAD |
 | U1 | Raspberry Pi Pico 2 W | PICO_2_W_DEVELOPMENT_BOARD |
-| U2 | ISOW1412DFMR | DFM20_PRELIMINARY |
-| U3 | HCPL-0700-500E | SOIC127P600X317-8N |
+| U2 | ISOW1412DFMR | DFM0020A_TI |
+| U3 | HCPL-0700-500E | HCPL0700_SO8 |
 
 ## Nets
 
@@ -87,9 +90,9 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `DMX_TRX_MINUS` | L1.4 (B1)<br>R11.1 (1)<br>U2.19 (B)<br>U2.18 (Z) |
 | `DMX_TRX_PLUS` | L1.1 (A1)<br>R10.1 (1)<br>U2.20 (A)<br>U2.17 (Y) |
 | `DMX_TX_GPIO2` | J5.1 (P1)<br>R1.2 (2)<br>U1.4 (GP2)<br>U2.2 (D) |
-| `GND_DMX_CONVERTER` | C4.2 (2)<br>C5.2 (2)<br>FB2.1 (1)<br>U2.11 (GND2) |
+| `GND_DMX_CONVERTER` | C4.2 (2)<br>C5.2 (2)<br>C9.2 (2)<br>FB2.1 (1)<br>U2.11 (GND2) |
 | `GND_DMX_ISO` | C6.2 (2)<br>D1.3 (GND)<br>FB2.2 (2)<br>J1.1 (P1)<br>J6.6 (P6)<br>U2.15 (GISOIN) |
-| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>D3.C (K)<br>D4.C (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.3 (P$3)<br>SW1.4 (P$4)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
+| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>C8.2 (2)<br>D3.C (K)<br>D4.C (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.3 (P$3)<br>SW1.4 (P$4)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
 | `GPIO0_EXP` | J3.1 (P1)<br>U1.1 (GP0) |
 | `GPIO1_EXP` | J3.2 (P2)<br>U1.2 (GP1) |
 | `GPIO10_EXP` | J3.5 (P5)<br>U1.14 (GP10) |
@@ -128,6 +131,6 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `VBUS_5V_USB` | C7.1 (1)<br>F1.1 (1)<br>J6.3 (P3)<br>U1.40 (VBUS)<br>U3.8 (VCC) |
 | `VCC_3V3_LOGIC` | C1.1 (1)<br>J6.1 (P1)<br>R1.1 (1)<br>R3.1 (1)<br>R6.1 (1)<br>R8.1 (1)<br>U1.36 (3V3)<br>U2.1 (VIO) |
 | `VCC_5V_DMX_ISO` | C6.1 (1)<br>FB1.2 (2)<br>J6.5 (P5)<br>U2.16 (VISOIN) |
-| `VDD_5V_ISOW_FUSED` | C2.1 (1)<br>C3.1 (1)<br>F1.2 (2)<br>J6.4 (P4)<br>U2.9 (VDD) |
-| `VISO_5V_CONVERTER` | C4.1 (1)<br>C5.1 (1)<br>FB1.1 (1)<br>U2.13 (MODE)<br>U2.12 (VISOOUT) |
+| `VDD_5V_ISOW_FUSED` | C2.1 (1)<br>C3.1 (1)<br>C8.1 (1)<br>F1.2 (2)<br>J6.4 (P4)<br>U2.9 (VDD) |
+| `VISO_5V_CONVERTER` | C4.1 (1)<br>C5.1 (1)<br>C9.1 (1)<br>FB1.1 (1)<br>U2.13 (MODE)<br>U2.12 (VISOOUT) |
 | `XLR_SHELL` | J1.4 (P4) |

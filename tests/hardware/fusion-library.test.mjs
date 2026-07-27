@@ -11,6 +11,14 @@ const generatedSchematic = readFileSync(
   resolve("hardware/fusion/WiFiPicoDMX_RevA.sch"),
   "utf8",
 );
+const schematicDesign = readFileSync(
+  resolve("docs/hardware/SCHEMATIC_DESIGN.md"),
+  "utf8",
+);
+const datasheetIndex = readFileSync(
+  resolve("docs/hardware/datasheets/README.md"),
+  "utf8",
+);
 
 function escaped(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -40,6 +48,158 @@ function symbolBody(xml, name) {
   assert.ok(match, `symbol ${name} is missing`);
   return match[1].trim().replace(/>\s+</g, "><");
 }
+
+function packageBody(xml, name) {
+  const match = xml.match(
+    new RegExp(
+      `<package\\b[^>]*\\bname="${escaped(name)}"[^>]*>`
+      + `([\\s\\S]*?)<\\/package>`,
+    ),
+  );
+  assert.ok(match, `package ${name} is missing`);
+  return match[1];
+}
+
+function packagePads(xml, name) {
+  return [...packageBody(xml, name).matchAll(/<smd\b([^>]*)\/>/g)]
+    .map((match) => tagAttributes(match[1]))
+    .sort((left, right) => Number(left.name) - Number(right.name));
+}
+
+function numericPad(pad) {
+  return Object.fromEntries(
+    Object.entries(pad).map(([key, value]) => [
+      key,
+      key === "name" || key === "layer" ? value : Number(value),
+    ]),
+  );
+}
+
+test("critical manufacturer land patterns use verified dimensions", () => {
+  const isowPads = packagePads(sourceLibrary, "DFM0020A_TI")
+    .map(numericPad);
+  assert.equal(isowPads.length, 20);
+  assert.deepEqual(
+    isowPads.slice(0, 10).map(({ x, y, dx, dy }) => ({ x, y, dx, dy })),
+    Array.from({ length: 10 }, (_, index) => ({
+      x: -4.85,
+      y: Number((5.715 - index * 1.27).toFixed(3)),
+      dx: 2.1,
+      dy: 0.6,
+    })),
+  );
+  assert.deepEqual(
+    isowPads.slice(10).map(({ x, y, dx, dy }) => ({ x, y, dx, dy })),
+    Array.from({ length: 10 }, (_, index) => ({
+      x: 4.85,
+      y: Number((-5.715 + index * 1.27).toFixed(3)),
+      dx: 2.1,
+      dy: 0.6,
+    })),
+  );
+
+  const optoPads = packagePads(sourceLibrary, "HCPL0700_SO8")
+    .map(numericPad);
+  assert.equal(optoPads.length, 8);
+  assert.deepEqual(
+    optoPads.map(({ x, y, dx, dy }) => ({ x, y, dx, dy })),
+    [
+      { x: -3.745, y: 1.905, dx: 1.9, dy: 0.64 },
+      { x: -3.745, y: 0.635, dx: 1.9, dy: 0.64 },
+      { x: -3.745, y: -0.635, dx: 1.9, dy: 0.64 },
+      { x: -3.745, y: -1.905, dx: 1.9, dy: 0.64 },
+      { x: 3.745, y: -1.905, dx: 1.9, dy: 0.64 },
+      { x: 3.745, y: -0.635, dx: 1.9, dy: 0.64 },
+      { x: 3.745, y: 0.635, dx: 1.9, dy: 0.64 },
+      { x: 3.745, y: 1.905, dx: 1.9, dy: 0.64 },
+    ],
+  );
+
+  const sm712Pads = packagePads(sourceLibrary, "SM712_SOT23")
+    .map(numericPad);
+  assert.deepEqual(
+    sm712Pads.map(({ x, y, dx, dy }) => ({ x, y, dx, dy })),
+    [
+      { x: -1.1, y: 0.475, dx: 1.4, dy: 1 },
+      { x: -1.1, y: -0.475, dx: 1.4, dy: 1 },
+      { x: 1.1, y: 0, dx: 1.4, dy: 1 },
+    ],
+  );
+
+  const diodePads = packagePads(sourceLibrary, "SOD323_VISHAY")
+    .map(numericPad);
+  assert.deepEqual(
+    diodePads.map(({ x, y, dx, dy }) => ({ x, y, dx, dy })),
+    [
+      { x: -0.8, y: 0, dx: 0.8, dy: 0.8 },
+      { x: 0.8, y: 0, dx: 0.8, dy: 0.8 },
+    ],
+  );
+});
+
+test("ISOW1412 uses the TI reference decoupling network and BOM values", () => {
+  const expectedValues = [
+    "100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO",
+    "10nF 50V 10% X7R 0402 0402B103K500CT VDD &lt;1mm",
+    "10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD",
+    "1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm",
+    "10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT &lt;1mm",
+    "10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT",
+    "1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm",
+    "100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN",
+  ];
+  for (const value of expectedValues) {
+    assert.match(
+      generatedSchematic,
+      new RegExp(`\\bvalue="${escaped(value)}"`),
+      `missing TI-recommended capacitor ${value}`,
+    );
+  }
+});
+
+test("passives and status LEDs use frozen ordering codes", () => {
+  const expectedValues = [
+    "100k 1% 0.063W 0402 Yageo RC0402FR-07100KL",
+    "10k 1% 0.063W 0402 Yageo RC0402FR-0710KL",
+    "220R 1% 0.1W 0603 Yageo RC0603FR-07220RL",
+    "4.7k 1% 0.1W 0603 Yageo RC0603FR-074K7L",
+    "47k 1% 0.1W 0603 Yageo RC0603FR-0747KL",
+    "1k 1% 0.1W 0603 Yageo RC0603FR-071KL",
+    "0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT",
+    "1206L050YR 0.5A HOLD",
+    "BLM15EX331SN1D",
+    "ACT45B-510-2P-TL003 - DNP",
+    "PWR GREEN Lite-On LTST-C190KGKT",
+    "DMX YELLOW Lite-On LTST-C190KSKT",
+  ];
+  for (const value of expectedValues) {
+    assert.match(
+      generatedSchematic,
+      new RegExp(`\\bvalue="${escaped(value)}"`),
+      `missing frozen passive ${value}`,
+    );
+  }
+});
+
+test("USB-powered Pico design omits SS34 and uses the onboard BOOTSEL", () => {
+  assert.doesNotMatch(generatedSchematic, /\bSS34\b/);
+  assert.doesNotMatch(
+    schematicDesign,
+    /\|\s*Reverse-polarity\/power diode\s*\|\s*`SS34`/,
+  );
+  assert.doesNotMatch(
+    datasheetIndex,
+    /^\|\s*D1\s*\|\s*SS34\s*\|/m,
+  );
+  assert.match(
+    schematicDesign,
+    /Pico 2 W development board's onboard `BOOTSEL` button/,
+  );
+  assert.doesNotMatch(
+    schematicDesign,
+    /expose the Pico `TP6\/BOOTSEL` signal/,
+  );
+});
 
 function tagAttributes(tag) {
   return Object.fromEntries(

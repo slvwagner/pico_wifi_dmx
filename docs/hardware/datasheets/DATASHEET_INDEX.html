@@ -65,16 +65,11 @@
       </tr>
       <tr>
         <td>D1</td>
-        <td>SS34</td>
-        <td><a href="pdfs/D1_SS34.pdf">Vishay SS32–SS36 datasheet PDF</a></td>
-      </tr>
-      <tr>
-        <td>D2</td>
         <td>SM712.TCT</td>
         <td><a href="pdfs/D2_SM712.pdf">Semtech datasheet PDF</a></td>
       </tr>
       <tr>
-        <td>D3</td>
+        <td>D2</td>
         <td>1N4148WS-E3-08</td>
         <td><a href="pdfs/D3_1N4148WS.pdf">Vishay datasheet PDF</a></td>
       </tr>
@@ -102,14 +97,13 @@
   </table>
   <p>
     <strong>Not yet fixed:</strong> the exact DIN-5 MIDI connector, terminal
-    block, headers, and generic mechanical/passive parts. The selected L1
+    block, and headers. The selected L1
     common-mode choke remains DNP by default until prototype EMC and
     signal-integrity measurements justify fitting it.
   </p>
   <p>
-    U3 is fixed as HCPL-0700-500E. Its generated genuine SOIC-8 footprint
-    remains preliminary and must be verified against the manufacturer's
-    land-pattern dimensions before PCB production.
+    U3 is fixed as HCPL-0700-500E. Its SOIC-8 land pattern follows Broadcom's
+    7.49 mm row-spacing and 1.90 × 0.64 mm pad recommendation.
   </p>
   <p>
     Source URLs and SHA-256 checksums are listed in
@@ -119,6 +113,7 @@
   <h2>Superseded design references</h2>
   <ul>
     <li><a href="pdfs/U2_SN74LVC1G04.pdf">SN74LVC1G04</a> – inverter removed</li>
+    <li><a href="pdfs/D1_SS34.pdf">SS34</a> – unnecessary for the USB-only Rev. A power input</li>
     <li><a href="pdfs/U3_ISO1410.pdf">ISO1410</a> – replaced by ISOW1412</li>
     <li><a href="pdfs/U4_MEJ2S0505SC_MEJ2_Series.pdf">MEJ2S0505SC</a> – isolated power integrated into ISOW1412</li>
     <li><a href="pdfs/U5_6N138.pdf">Through-hole 6N138</a></li>

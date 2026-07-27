@@ -38,34 +38,6 @@
         <library name="WiFiPicoDMX_RevA_embedded">
           <description>Self-contained WiFiPicoDMX Rev. A schematic library derived from hardware/fusion/libraries/WiFiPicoDMX.lbr plus documented project-specific land patterns. Verify every footprint before PCB manufacture.</description>
           <packages>
-            <package name="DFM20_PRELIMINARY">
-            <smd name="1" x="-5.18" y="5.715" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="20" x="5.18" y="5.715" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="2" x="-5.18" y="4.445" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="19" x="5.18" y="4.445" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="3" x="-5.18" y="3.175" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="18" x="5.18" y="3.175" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="4" x="-5.18" y="1.905" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="17" x="5.18" y="1.905" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="5" x="-5.18" y="0.635" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="16" x="5.18" y="0.635" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="6" x="-5.18" y="-0.635" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="15" x="5.18" y="-0.635" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="7" x="-5.18" y="-1.905" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="14" x="5.18" y="-1.905" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="8" x="-5.18" y="-3.175" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="13" x="5.18" y="-3.175" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="9" x="-5.18" y="-4.445" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="12" x="5.18" y="-4.445" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="10" x="-5.18" y="-5.715" dx="2.2" dy="0.6" layer="1"/>
-            <smd name="11" x="5.18" y="-5.715" dx="2.2" dy="0.6" layer="1"/>
-            <wire x1="-3.93" y1="-6.5" x2="3.93" y2="-6.5" width="0.1524" layer="21"/>
-            <wire x1="3.93" y1="-6.5" x2="3.93" y2="6.5" width="0.1524" layer="21"/>
-            <wire x1="3.93" y1="6.5" x2="-3.93" y2="6.5" width="0.1524" layer="21"/>
-            <wire x1="-3.93" y1="6.5" x2="-3.93" y2="-6.5" width="0.1524" layer="21"/>
-            <circle x="-3.23" y="5.5" radius="0.35" width="0" layer="21"/>
-            <text x="-5.2" y="7.1" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
             <package name="PANEL4_WIRE_PADS">
                       <smd name="1" x="0" y="-3.81" dx="2.2" dy="1.6" layer="1"/>
                       <smd name="2" x="0" y="-1.27" dx="2.2" dy="1.6" layer="1"/>
@@ -271,6 +243,20 @@
             <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
             <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
                         </package>
+            <package name="CAPC1608X85">
+            <description>Chip, 1.60 X 0.80 X 0.85 mm body
+            &lt;p&gt;Chip package with body size 1.60 X 0.80 X 0.85 mm&lt;/p&gt;</description>
+            <wire x1="0.875" y1="0.7991" x2="-0.875" y2="0.7991" width="0.127" layer="21"/>
+            <wire x1="0.875" y1="-0.7991" x2="-0.875" y2="-0.7991" width="0.127" layer="21"/>
+            <wire x1="0.875" y1="-0.475" x2="-0.875" y2="-0.475" width="0.12" layer="51"/>
+            <wire x1="-0.875" y1="-0.475" x2="-0.875" y2="0.475" width="0.12" layer="51"/>
+            <wire x1="-0.875" y1="0.475" x2="0.875" y2="0.475" width="0.12" layer="51"/>
+            <wire x1="0.875" y1="0.475" x2="0.875" y2="-0.475" width="0.12" layer="51"/>
+            <smd name="1" x="-0.7746" y="0" dx="0.9209" dy="0.9702" layer="1"/>
+            <smd name="2" x="0.7746" y="0" dx="0.9209" dy="0.9702" layer="1"/>
+            <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
+            <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
+                        </package>
             <package name="CAPC2012X110">
             <description>Chip, 2.00 X 1.25 X 1.10 mm body
             &lt;p&gt;Chip package with body size 2.00 X 1.25 X 1.10 mm&lt;/p&gt;</description>
@@ -319,12 +305,40 @@
             <vertex x="-1.4238" y="0.9238"/>
             </polygon>
                         </package>
-            <package name="SOT23_">
-            <description>3-SOT23, 0.95 mm pitch, 2.40 mm span, 2.90 X 1.30 X 1.10 mm body
-             &lt;p&gt;3-pin SOT23 package with 0.95 mm pitch, 2.40 mm span with body size 2.90 X 1.30 X 1.10 mm&lt;/p&gt;</description>
-            <smd name="1" x="-1.0247" y="0.95" dx="1.1821" dy="0.6122" layer="1"/>
-            <smd name="2" x="-1.0247" y="-0.95" dx="1.1821" dy="0.6122" layer="1"/>
-            <smd name="3" x="1.0247" y="0" dx="1.1821" dy="0.6122" layer="1"/>
+            <package name="DFM0020A_TI">
+            <description>Texas Instruments DFM0020A SOIC-20 land pattern: 1.27 mm pitch, 9.70 mm row-centre spacing, 2.10 X 0.60 mm pads.</description>
+            <smd name="1" x="-4.85" y="5.715" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="20" x="4.85" y="5.715" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="2" x="-4.85" y="4.445" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="19" x="4.85" y="4.445" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="3" x="-4.85" y="3.175" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="18" x="4.85" y="3.175" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="4" x="-4.85" y="1.905" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="17" x="4.85" y="1.905" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="5" x="-4.85" y="0.635" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="16" x="4.85" y="0.635" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="6" x="-4.85" y="-0.635" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="15" x="4.85" y="-0.635" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="7" x="-4.85" y="-1.905" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="14" x="4.85" y="-1.905" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="8" x="-4.85" y="-3.175" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="13" x="4.85" y="-3.175" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="9" x="-4.85" y="-4.445" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="12" x="4.85" y="-4.445" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="10" x="-4.85" y="-5.715" dx="2.1" dy="0.6" layer="1"/>
+            <smd name="11" x="4.85" y="-5.715" dx="2.1" dy="0.6" layer="1"/>
+            <wire x1="-3.93" y1="-6.5" x2="3.93" y2="-6.5" width="0.1524" layer="21"/>
+            <wire x1="3.93" y1="-6.5" x2="3.93" y2="6.5" width="0.1524" layer="21"/>
+            <wire x1="3.93" y1="6.5" x2="-3.93" y2="6.5" width="0.1524" layer="21"/>
+            <wire x1="-3.93" y1="6.5" x2="-3.93" y2="-6.5" width="0.1524" layer="21"/>
+            <circle x="-3.23" y="5.5" radius="0.35" width="0" layer="21"/>
+            <text x="-5.2" y="7.1" size="1.016" layer="25">&gt;NAME</text>
+                        </package>
+            <package name="SM712_SOT23">
+            <description>Semtech SM712 SOT-23 reference land pattern: 2.20 mm row spacing, 0.95 mm lead pitch and 1.40 X 1.00 mm pads.</description>
+            <smd name="1" x="-1.1" y="0.475" dx="1.4" dy="1" layer="1"/>
+            <smd name="2" x="-1.1" y="-0.475" dx="1.4" dy="1" layer="1"/>
+            <smd name="3" x="1.1" y="0" dx="1.4" dy="1" layer="1"/>
             <circle x="-1.204" y="1.7601" radius="0.25" width="0" layer="21"/>
             <wire x1="-0.7" y1="1.5701" x2="0.7" y2="1.5701" width="0.12" layer="21"/>
             <wire x1="0.7" y1="1.5701" x2="0.7" y2="0.5601" width="0.12" layer="21"/>
@@ -337,17 +351,16 @@
             <text x="0" y="2.6451" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
             <text x="0" y="-2.2051" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
                         </package>
-            <package name="SOIC127P600X317-8N">
-            <description>8-SOIC, 1.27 mm pitch, 6.00 mm span, 5.05 X 4.00 X 3.17 mm body
-             &lt;p&gt;8-pin SOIC package with 1.27 mm pitch, 6.00 mm span with body size 5.05 X 4.00 X 3.17 mm&lt;/p&gt;</description>
-            <smd name="1" x="-2.4582" y="1.905" dx="1.9151" dy="0.6045" layer="1"/>
-            <smd name="2" x="-2.4582" y="0.635" dx="1.9151" dy="0.6045" layer="1"/>
-            <smd name="3" x="-2.4582" y="-0.635" dx="1.9151" dy="0.6045" layer="1"/>
-            <smd name="4" x="-2.4582" y="-1.905" dx="1.9151" dy="0.6045" layer="1"/>
-            <smd name="5" x="2.4582" y="-1.905" dx="1.9151" dy="0.6045" layer="1"/>
-            <smd name="6" x="2.4582" y="-0.635" dx="1.9151" dy="0.6045" layer="1"/>
-            <smd name="7" x="2.4582" y="0.635" dx="1.9151" dy="0.6045" layer="1"/>
-            <smd name="8" x="2.4582" y="1.905" dx="1.9151" dy="0.6045" layer="1"/>
+            <package name="HCPL0700_SO8">
+            <description>Broadcom HCPL-0700 SO-8 manufacturer land pattern: 1.27 mm pitch, 7.49 mm row-centre spacing, 1.90 X 0.64 mm pads.</description>
+            <smd name="1" x="-3.745" y="1.905" dx="1.9" dy="0.64" layer="1"/>
+            <smd name="2" x="-3.745" y="0.635" dx="1.9" dy="0.64" layer="1"/>
+            <smd name="3" x="-3.745" y="-0.635" dx="1.9" dy="0.64" layer="1"/>
+            <smd name="4" x="-3.745" y="-1.905" dx="1.9" dy="0.64" layer="1"/>
+            <smd name="5" x="3.745" y="-1.905" dx="1.9" dy="0.64" layer="1"/>
+            <smd name="6" x="3.745" y="-0.635" dx="1.9" dy="0.64" layer="1"/>
+            <smd name="7" x="3.745" y="0.635" dx="1.9" dy="0.64" layer="1"/>
+            <smd name="8" x="3.745" y="1.905" dx="1.9" dy="0.64" layer="1"/>
             <circle x="-2.7079" y="2.7112" radius="0.25" width="0" layer="21"/>
             <wire x1="-2" y1="2.4612" x2="-2" y2="2.55" width="0.12" layer="21"/>
             <wire x1="-2" y1="2.55" x2="2" y2="2.55" width="0.12" layer="21"/>
@@ -362,11 +375,10 @@
             <text x="0" y="3.5962" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
             <text x="0" y="-3.185" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
                         </package>
-            <package name="SOD323-1.15H">
-            <description>SOD, 2.67 mm span, 1.78 X 1.45 X 1.15 mm body
-             &lt;p&gt;SOD package with 2.67 mm span with body size 1.78 X 1.45 X 1.15 mm&lt;/p&gt;</description>
-            <smd name="C" x="-1.2935" y="0" dx="0.982" dy="0.4915" layer="1"/>
-            <smd name="A" x="1.2935" y="0" dx="0.982" dy="0.4915" layer="1"/>
+            <package name="SOD323_VISHAY">
+            <description>Vishay SOD-323 manufacturer footprint for 1N4148WS-E3-08: 1.60 mm pad-centre spacing and 0.80 X 0.80 mm pads.</description>
+            <smd name="C" x="-0.8" y="0" dx="0.8" dy="0.8" layer="1"/>
+            <smd name="A" x="0.8" y="0" dx="0.8" dy="0.8" layer="1"/>
             <text x="0" y="1.385" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
             <text x="0" y="-1.385" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
             <wire x1="-0.508" y1="0.762" x2="0.762" y2="0.762" width="0.127" layer="21"/>
@@ -412,6 +424,13 @@
             &lt;p&gt;Chip package with body size 1.00 X 0.50 X 0.60 mm&lt;/p&gt;</description>
             <packageinstances>
             <packageinstance name="CAPC1005X60"/>
+            </packageinstances>
+            </package3d>
+            <package3d name="CAPC1608X85" urn="urn:adsk.eagle:package:16290898/7" type="model">
+            <description>Chip, 1.60 X 0.80 X 0.85 mm body
+            &lt;p&gt;Chip package with body size 1.60 X 0.80 X 0.85 mm&lt;/p&gt;</description>
+            <packageinstances>
+            <packageinstance name="CAPC1608X85"/>
             </packageinstances>
             </package3d>
             <package3d name="CAPC2012X110" urn="urn:adsk.eagle:package:16290897/7" type="model">
@@ -918,6 +937,26 @@
                             </device>
                           </devices>
                         </deviceset>
+            <deviceset name="CAP0603" prefix="C">
+                          <description>0603 capacitor using project-library land pattern</description>
+                          <gates>
+                            <gate name="G$1" symbol="CAPACITOR" x="0" y="0"/>
+                          </gates>
+                          <devices>
+                            <device name="" package="CAPC1608X85">
+                              <connects>
+                                <connect gate="G$1" pin="1" pad="1"/>
+                                <connect gate="G$1" pin="2" pad="2"/>
+                              </connects>
+                              <package3dinstances>
+                                <package3dinstance package3d_urn="urn:adsk.eagle:package:16290898/7"/>
+                              </package3dinstances>
+                              <technologies>
+                                <technology name=""/>
+                              </technologies>
+                            </device>
+                          </devices>
+                        </deviceset>
             <deviceset name="CAP0805" prefix="C">
                           <description>0805 capacitor using project-library land pattern</description>
                           <gates>
@@ -996,12 +1035,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="DIODE_SOD323" prefix="D">
-                          <description>Vishay 1N4148WS-E3-08 using project-library land pattern</description>
+                          <description>Vishay 1N4148WS-E3-08 using manufacturer-recommended project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="DIODE" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="SOD323-1.15H">
+                            <device name="" package="SOD323_VISHAY">
                               <connects>
                                 <connect gate="G$1" pin="A" pad="A"/>
                                 <connect gate="G$1" pin="K" pad="C"/>
@@ -1032,12 +1071,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="SM712" prefix="D">
-                          <description>Semtech SM712.TCT RS-485 TVS using project-library land pattern</description>
+                          <description>Semtech SM712.TCT RS-485 TVS using manufacturer-recommended project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="TVS_SM712" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="SOT23_">
+                            <device name="" package="SM712_SOT23">
                               <connects>
                                 <connect gate="G$1" pin="IO1" pad="1"/>
                                 <connect gate="G$1" pin="IO2" pad="2"/>
@@ -1074,7 +1113,7 @@
                             <gate name="G$1" symbol="ISOW1412" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="DFM20_PRELIMINARY">
+                            <device name="" package="DFM0020A_TI">
                               <connects>
                                 <connect gate="G$1" pin="VIO" pad="1"/>
                                 <connect gate="G$1" pin="D" pad="2"/>
@@ -1164,7 +1203,7 @@
                             <gate name="G$1" symbol="OPTO_HCPL0700" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="SOIC127P600X317-8N">
+                            <device name="" package="HCPL0700_SO8">
                               <connects>
                                 <connect gate="G$1" pin="NC1" pad="1"/>
                                 <connect gate="G$1" pin="A" pad="2"/>
@@ -1345,39 +1384,41 @@
         <part name="U1" library="WiFiPicoDMX_RevA_embedded" deviceset="PICO2W" device="" value="Raspberry Pi Pico 2 W"/>
         <part name="F1" library="WiFiPicoDMX_RevA_embedded" deviceset="PPTC1206" device="" value="1206L050YR 0.5A HOLD"/>
         <part name="SW1" library="WiFiPicoDMX_RevA_embedded" deviceset="SWITCH_SMD" device="" value="PTS810SJM250SMTR LFS RESET (NO)"/>
-        <part name="R8" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="1k"/>
-        <part name="D3" library="WiFiPicoDMX_RevA_embedded" deviceset="LED0603" device="" value="PWR GREEN"/>
-        <part name="R9" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="1k"/>
-        <part name="D4" library="WiFiPicoDMX_RevA_embedded" deviceset="LED0603" device="" value="DMX ACTIVITY"/>
+        <part name="R8" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="1k 1% 0.1W 0603 Yageo RC0603FR-071KL"/>
+        <part name="D3" library="WiFiPicoDMX_RevA_embedded" deviceset="LED0603" device="" value="PWR GREEN Lite-On LTST-C190KGKT"/>
+        <part name="R9" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="1k 1% 0.1W 0603 Yageo RC0603FR-071KL"/>
+        <part name="D4" library="WiFiPicoDMX_RevA_embedded" deviceset="LED0603" device="" value="DMX YELLOW Lite-On LTST-C190KSKT"/>
         <part name="J3" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK17" device="" value="FREE GPIO PADS"/>
         <part name="J4" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK5" device="" value="ANALOG PADS"/>
         <part name="J5" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK7" device="" value="RESERVED SIGNAL TEST PADS"/>
         <part name="J6" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK8" device="" value="POWER/DMX TEST PADS"/>
         <part name="U2" library="WiFiPicoDMX_RevA_embedded" deviceset="ISOW1412DFMR" device="" value="ISOW1412DFMR"/>
-        <part name="R1" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="100k D PULLUP"/>
-        <part name="R2" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="10k DIR PULLDOWN"/>
-        <part name="R3" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="10k EN/FLT PULLUP"/>
-        <part name="C1" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100n VIO"/>
-        <part name="C2" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="10n VDD &lt;=1mm"/>
-        <part name="C3" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0805" device="" value="10u X7R VDD"/>
+        <part name="R1" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="100k 1% 0.063W 0402 Yageo RC0402FR-07100KL"/>
+        <part name="R2" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL"/>
+        <part name="R3" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL"/>
+        <part name="C1" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO"/>
+        <part name="C2" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="10nF 50V 10% X7R 0402 0402B103K500CT VDD &lt;1mm"/>
+        <part name="C3" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0805" device="" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD"/>
+        <part name="C8" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0603" device="" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm"/>
         <part name="FB1" library="WiFiPicoDMX_RevA_embedded" deviceset="FERRITE0402" device="" value="BLM15EX331SN1D"/>
         <part name="FB2" library="WiFiPicoDMX_RevA_embedded" deviceset="FERRITE0402" device="" value="BLM15EX331SN1D"/>
-        <part name="C4" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="10n VISOOUT &lt;=1mm"/>
-        <part name="C5" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0805" device="" value="10u X7R VISOOUT"/>
-        <part name="C6" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100n VISOIN"/>
+        <part name="C4" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT &lt;1mm"/>
+        <part name="C5" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0805" device="" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT"/>
+        <part name="C6" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN"/>
+        <part name="C9" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0603" device="" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm"/>
         <part name="L1" library="WiFiPicoDMX_RevA_embedded" deviceset="CMC_OPTION" device="" value="ACT45B-510-2P-TL003 - DNP"/>
-        <part name="R10" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="0R CMC BYPASS FIT"/>
-        <part name="R11" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="0R CMC BYPASS FIT"/>
+        <part name="R10" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT"/>
+        <part name="R11" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT"/>
         <part name="D1" library="WiFiPicoDMX_RevA_embedded" deviceset="SM712" device="" value="SM712.TCT"/>
         <part name="J1" library="WiFiPicoDMX_RevA_embedded" deviceset="PANEL_DMX4" device="" value="PANEL XLR-5: COM,-,+,SHELL"/>
         <part name="J2" library="WiFiPicoDMX_RevA_embedded" deviceset="PANEL_MIDI5" device="" value="PANEL DIN-5 MIDI IN"/>
-        <part name="R4" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="220R"/>
-        <part name="R5" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="220R"/>
+        <part name="R4" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="220R 1% 0.1W 0603 Yageo RC0603FR-07220RL"/>
+        <part name="R5" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="220R 1% 0.1W 0603 Yageo RC0603FR-07220RL"/>
         <part name="D2" library="WiFiPicoDMX_RevA_embedded" deviceset="DIODE_SOD323" device="" value="1N4148WS-E3-08"/>
         <part name="U3" library="WiFiPicoDMX_RevA_embedded" deviceset="HCPL_0700_500E" device="" value="HCPL-0700-500E"/>
-        <part name="R6" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="4.7k OUTPUT PULLUP"/>
-        <part name="R7" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="47k BASE SPEEDUP"/>
-        <part name="C7" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100n VCC"/>
+        <part name="R6" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="4.7k 1% 0.1W 0603 Yageo RC0603FR-074K7L"/>
+        <part name="R7" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="47k 1% 0.1W 0603 Yageo RC0603FR-0747KL"/>
+        <part name="C7" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC"/>
       </parts>
       <sheets>
         <sheet>
@@ -1385,7 +1426,7 @@
                     <text x="20.32" y="187.96" size="2.54" layer="91" ratio="15">WiFiPicoDMX Rev. A — Controller, power, controls and expansion</text>
                     <text x="20.32" y="15.24" size="1.778" layer="91" ratio="12">Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.</text>
                     <text x="20.32" y="10.16" size="1.778" layer="91" ratio="12">Verify every project-library and generated land pattern against the selected manufacturer part before PCB release.</text>
-                    <text x="20.32" y="5.08" size="1.778" layer="91" ratio="12">TP6/BOOTSEL is not available on the two 20-pin header rows: preserve physical BOOTSEL access; do not assume an electrical carrier connection.</text>
+                    <text x="20.32" y="5.08" size="1.778" layer="91" ratio="12">Use the Pico 2 W development board's onboard BOOTSEL button below the USB connector; preserve finger/tool access in the PCB and enclosure.</text>
                   </plain>
                   <instances>
                     <instance part="FRAME1" gate="G$1" x="0" y="0" rot="R0" smashed="no"/>
@@ -1961,11 +2002,13 @@
                     <instance part="C1" gate="G$1" x="50.8" y="111.76" rot="R0" smashed="no"/>
                     <instance part="C2" gate="G$1" x="50.8" y="96.52" rot="R0" smashed="no"/>
                     <instance part="C3" gate="G$1" x="50.8" y="81.28" rot="R0" smashed="no"/>
+                    <instance part="C8" gate="G$1" x="50.8" y="66.04" rot="R0" smashed="no"/>
                     <instance part="FB1" gate="G$1" x="172.72" y="149.86" rot="R0" smashed="no"/>
                     <instance part="FB2" gate="G$1" x="172.72" y="134.62" rot="R0" smashed="no"/>
                     <instance part="C4" gate="G$1" x="264.16" y="149.86" rot="R0" smashed="no"/>
                     <instance part="C5" gate="G$1" x="264.16" y="134.62" rot="R0" smashed="no"/>
                     <instance part="C6" gate="G$1" x="264.16" y="119.38" rot="R0" smashed="no"/>
+                    <instance part="C9" gate="G$1" x="264.16" y="104.14" rot="R0" smashed="no"/>
                     <instance part="L1" gate="G$1" x="223.52" y="91.44" rot="R0" smashed="no"/>
                     <instance part="R10" gate="G$1" x="172.72" y="76.2" rot="R0" smashed="no"/>
                     <instance part="R11" gate="G$1" x="172.72" y="60.96" rot="R0" smashed="no"/>
@@ -2119,6 +2162,11 @@
                                                     <wire x1="266.70000000000005" y1="134.62" x2="271.78000000000003" y2="134.62" width="0.1524" layer="91"/>
                                                     <label x="271.78000000000003" y="134.62" size="1.27" layer="95" xref="yes"/>
                                                   </segment>
+                                  <segment>
+                                                    <pinref part="C9" gate="G$1" pin="2"/>
+                                                    <wire x1="266.70000000000005" y1="104.14" x2="271.78000000000003" y2="104.14" width="0.1524" layer="91"/>
+                                                    <label x="271.78000000000003" y="104.14" size="1.27" layer="95" xref="yes"/>
+                                                  </segment>
                                 </net>
                     <net name="GND_DMX_ISO" class="0">
                                   <segment>
@@ -2177,6 +2225,11 @@
                                                     <pinref part="C3" gate="G$1" pin="2"/>
                                                     <wire x1="53.339999999999996" y1="81.28" x2="58.419999999999995" y2="81.28" width="0.1524" layer="91"/>
                                                     <label x="58.419999999999995" y="81.28" size="1.27" layer="95" xref="yes"/>
+                                                  </segment>
+                                  <segment>
+                                                    <pinref part="C8" gate="G$1" pin="2"/>
+                                                    <wire x1="53.339999999999996" y1="66.04" x2="58.419999999999995" y2="66.04" width="0.1524" layer="91"/>
+                                                    <label x="58.419999999999995" y="66.04" size="1.27" layer="95" xref="yes"/>
                                                   </segment>
                                 </net>
                     <net name="ISOW_EN_FLT" class="0">
@@ -2260,6 +2313,11 @@
                                                     <wire x1="48.26" y1="81.28" x2="43.18" y2="81.28" width="0.1524" layer="91"/>
                                                     <label x="43.18" y="81.28" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
+                                  <segment>
+                                                    <pinref part="C8" gate="G$1" pin="1"/>
+                                                    <wire x1="48.26" y1="66.04" x2="43.18" y2="66.04" width="0.1524" layer="91"/>
+                                                    <label x="43.18" y="66.04" size="1.27" layer="95" xref="yes" rot="R180"/>
+                                                  </segment>
                                 </net>
                     <net name="VISO_5V_CONVERTER" class="0">
                                   <segment>
@@ -2286,6 +2344,11 @@
                                                     <pinref part="C5" gate="G$1" pin="1"/>
                                                     <wire x1="261.62" y1="134.62" x2="256.54" y2="134.62" width="0.1524" layer="91"/>
                                                     <label x="256.54" y="134.62" size="1.27" layer="95" xref="yes" rot="R180"/>
+                                                  </segment>
+                                  <segment>
+                                                    <pinref part="C9" gate="G$1" pin="1"/>
+                                                    <wire x1="261.62" y1="104.14" x2="256.54" y2="104.14" width="0.1524" layer="91"/>
+                                                    <label x="256.54" y="104.14" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
                                 </net>
                     <net name="XLR_SHELL" class="0">

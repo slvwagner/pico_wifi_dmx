@@ -83,11 +83,10 @@ Gerbers or ordering a PCB:
 
 1. run Fusion's ERC and resolve every result;
 2. verify every package against the latest manufacturer land-pattern drawing;
-3. verify the imported `PTS810_J_LEAD`,
-   `PPTC1206_1206L050YR`, `ACT45B_4P5X3P2`, and
-   `SOIC127P600X317-8N` land patterns against the current
-   `PTS810SJM250SMTR LFS`, `1206L050YR`, `ACT45B-510-2P-TL003`, and
-   `HCPL-0700-500E` manufacturer drawings;
+3. independently recheck the imported `PTS810_J_LEAD`,
+   `PPTC1206_1206L050YR`, `ACT45B_4P5X3P2`, `DFM0020A_TI`,
+   `SM712_SOT23`, `SOD323_VISHAY`, and `HCPL0700_SO8` land patterns
+   against the current manufacturer drawings before fabrication;
 4. confirm the Pico 2 W orientation, antenna keep-out and BOOTSEL access
    against the physical module;
 5. review the isolation keep-out and creepage in the PCB layout;
