@@ -33,8 +33,8 @@ panel-mounted XLR and DIN connectors.
 The supplied library was corrected before use, except for its Pico
 development-board mounting, which is intentionally retained:
 
-- the Pico uses the original 40 through-hole pads in two 20-pin header rows;
-  an antenna copper-keepout outline is retained beneath the module;
+- the Pico uses the original 40 through-hole pads in two 20-pin header rows,
+  without an added carrier-board antenna keepout;
 - the 1206L050 device now uses the `1206L050YR` ordering code, correct
   electrical metadata, and a 1206 pad layout instead of an 1812 footprint;
 - the PTS810 is represented as a two-terminal normally-open switch with pads

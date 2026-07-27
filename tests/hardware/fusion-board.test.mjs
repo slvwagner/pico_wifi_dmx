@@ -175,13 +175,9 @@ test("generated Fusion pair avoids independently imported custom net classes", (
   assert.doesNotMatch(board, /<signal\b[^>]*\bclass="[12]"/);
 });
 
-test("board outline provides the official 14 by 9 mm edge antenna cutout", () => {
+test("carrier has a simple rectangular outline without a Pico cutout", () => {
   const expectedOutline = [
-    { x1: 0, y1: 0, x2: 11, y2: 0 },
-    { x1: 11, y1: 0, x2: 11, y2: 9 },
-    { x1: 11, y1: 9, x2: 25, y2: 9 },
-    { x1: 25, y1: 9, x2: 25, y2: 0 },
-    { x1: 25, y1: 0, x2: 150, y2: 0 },
+    { x1: 0, y1: 0, x2: 150, y2: 0 },
     { x1: 150, y1: 0, x2: 150, y2: 100 },
     { x1: 150, y1: 100, x2: 0, y2: 100 },
     { x1: 0, y1: 100, x2: 0, y2: 0 },
@@ -197,18 +193,20 @@ test("board outline provides the official 14 by 9 mm edge antenna cutout", () =>
   assert.deepEqual(outline, expectedOutline);
 });
 
-test("Pico placement aligns its antenna with the cutout and protects access", () => {
+test("Pico uses the supplied through-hole footprint without carrier keepouts", () => {
   assert.match(
     board,
     /<element\b[^>]*\bname="U1"[^>]*\bpackage="PICO_2_W_DEVELOPMENT_BOARD"[^>]*\bx="18"[^>]*\by="25\.5"/,
   );
-  assert.match(
+  assert.doesNotMatch(board, /Pico USB, BOOTSEL and RESET access zone/);
+  assert.doesNotMatch(
     board,
-    /<rectangle x1="5" y1="51" x2="31" y2="65" layer="39"\/>/,
+    /<rectangle x1="11" y1="0" x2="25" y2="10\.5" layer="4[123]"\/>/,
   );
-  assert.match(
-    board,
-    /Pico USB, BOOTSEL and RESET access zone/,
+  assert.doesNotMatch(
+    packageBody("PICO_2_W_DEVELOPMENT_BOARD"),
+    /\blayer="39"/,
+    "the supplied Pico header footprint must not add a carrier keepout",
   );
 });
 

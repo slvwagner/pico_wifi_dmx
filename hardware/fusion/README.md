@@ -83,10 +83,11 @@ node scripts/generate_fusion_board.mjs
 The starter layout provides:
 
 - all 38 physical components and all 55 named airwire nets;
-- a 150 mm × 100 mm board outline with four 3.2 mm carrier mounting holes;
-- the official 14 mm × 9 mm Pico 2 W antenna cutout opening at the board
-  edge;
-- a component-free Pico USB and button-access area;
+- a plain rectangular 150 mm × 100 mm board outline with four 3.2 mm carrier
+  mounting holes;
+- the complete Pico 2 W development board mounted through the two 20-pin
+  header rows from the supplied library footprint, without a carrier cutout
+  or Pico-specific keepout/access zone;
 - separate logic and isolated-DMX placement zones;
 - a full-height top, bottom, and via restrict corridor beneath the ISOW1412
   isolation barrier;

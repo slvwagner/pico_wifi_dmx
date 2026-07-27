@@ -31,16 +31,14 @@ specification in
 - two 20-pin rows on a 2.54 mm pitch with 17.78 mm row spacing and 1 mm
   module holes;
 - Micro-USB connector overhanging the top edge;
-- wireless antenna at the opposite, bottom edge;
-- 14 mm × 9 mm carrier-board cutout below the antenna.
+- wireless antenna at the opposite, bottom edge.
 
-The basic carrier places the Pico antenna cutout directly at the carrier edge.
-No PCB material, copper, component, cable, mounting hardware, or metal
-enclosure may enter the antenna volume. Keep the USB approach and onboard
-BOOTSEL area free of carrier components. The four 2.1 mm holes on the Pico
-module are not duplicated as carrier mounting holes in this first layout;
-the prototype uses the two through-hole header rows, and any later standoffs
-must be coordinated with the enclosure.
+The prototype mounts the complete Pico 2 W development board to the carrier
+through the two 20-pin through-hole header rows represented by the supplied
+Fusion library footprint. The carrier therefore uses a plain rectangular PCB
+outline without an antenna cutout or Pico-specific carrier keepout/access
+zones. The four 2.1 mm holes on the Pico module are not duplicated as carrier
+mounting holes in this first layout.
 
 ## Isolated DMX output
 

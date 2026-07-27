@@ -191,11 +191,7 @@ for (const line of netlist.trim().split(/\r?\n/).slice(1)) {
 }
 
 const outline = [
-  [0, 0, 11, 0],
-  [11, 0, 11, 9],
-  [11, 9, 25, 9],
-  [25, 9, 25, 0],
-  [25, 0, 150, 0],
+  [0, 0, 150, 0],
   [150, 0, 150, 100],
   [150, 100, 0, 100],
   [0, 100, 0, 0],
@@ -249,9 +245,6 @@ ${outline}
         <hole x="146" y="4" drill="3.2"/>
         <hole x="4" y="96" drill="3.2"/>
         <hole x="146" y="96" drill="3.2"/>
-        <rectangle x1="11" y1="0" x2="25" y2="10.5" layer="41"/>
-        <rectangle x1="11" y1="0" x2="25" y2="10.5" layer="42"/>
-        <rectangle x1="11" y1="0" x2="25" y2="10.5" layer="43"/>
         <rectangle x1="38" y1="0" x2="40" y2="24" layer="41"/>
         <rectangle x1="38" y1="0" x2="40" y2="24" layer="42"/>
         <rectangle x1="38" y1="0" x2="40" y2="24" layer="43"/>
@@ -265,12 +258,6 @@ ${outline}
         <wire x1="40" y1="22" x2="65.5" y2="22" width="0.2" layer="51"/>
         <wire x1="65.5" y1="22" x2="65.5" y2="0" width="0.2" layer="51"/>
         <text x="41" y="20.5" size="1.016" layer="51">MIDI ISOLATED INPUT - NO LOGIC COPPER</text>
-        <rectangle x1="5" y1="51" x2="31" y2="65" layer="39"/>
-        <wire x1="5" y1="51" x2="31" y2="51" width="0.2" layer="51"/>
-        <wire x1="31" y1="51" x2="31" y2="65" width="0.2" layer="51"/>
-        <wire x1="31" y1="65" x2="5" y2="65" width="0.2" layer="51"/>
-        <wire x1="5" y1="65" x2="5" y2="51" width="0.2" layer="51"/>
-        <text x="6" y="63" size="1.27" layer="51">Pico USB, BOOTSEL and RESET access zone</text>
         <rectangle x1="84.5" y1="0" x2="91.5" y2="100" layer="41"/>
         <rectangle x1="84.5" y1="0" x2="91.5" y2="100" layer="42"/>
         <rectangle x1="84.5" y1="0" x2="91.5" y2="100" layer="43"/>

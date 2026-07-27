@@ -96,7 +96,8 @@
                       <text x="-1.5" y="7.619999999999999" size="1.016" layer="25" rot="R90">&gt;NAME</text>
                         </package>
             <package name="PICO_2_W_DEVELOPMENT_BOARD">
-            <description>Raspberry Pi Pico 2 W development board mounted through two 20-pin, 2.54 mm-pitch header rows with 17.78 mm row spacing. Verify the module orientation and antenna keepout before PCB release.</description>
+            <description>40-DIP Socket, 2.54 mm (0.10 in) pitch, 17.78 mm (0.70 in) horizontal pin pitch, 51.00 X 21.00 X 5.08 mm body
+             &lt;p&gt;40-pin DIP Socket package with 2.54 mm (0.10 in) pitch, 17.78 mm (0.70 in) horizontal pin pitch with body size 51.00 X 21.00 X 5.08 mm&lt;/p&gt;</description>
             <pad name="1" x="-8.89" y="24.13" drill="1.0485" diameter="1.6485"/>
             <pad name="2" x="-8.89" y="21.59" drill="1.0485" diameter="1.6485"/>
             <pad name="3" x="-8.89" y="19.05" drill="1.0485" diameter="1.6485"/>
@@ -148,10 +149,6 @@
             <wire x1="-10.5" y1="25.5" x2="10.5" y2="25.5" width="0.12" layer="51"/>
             <wire x1="10.5" y1="25.5" x2="10.5" y2="-25.5" width="0.12" layer="51"/>
             <wire x1="10.5" y1="-25.5" x2="-10.5" y2="-25.5" width="0.12" layer="51"/>
-            <wire x1="-10.5" y1="-25.5" x2="10.5" y2="-25.5" width="0.254" layer="39"/>
-            <wire x1="10.5" y1="-25.5" x2="10.5" y2="-15" width="0.254" layer="39"/>
-            <wire x1="10.5" y1="-15" x2="-10.5" y2="-15" width="0.254" layer="39"/>
-            <wire x1="-10.5" y1="-15" x2="-10.5" y2="-25.5" width="0.254" layer="39"/>
             <text x="0" y="26.135" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
             <text x="0" y="-26.135" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
                         </package>
