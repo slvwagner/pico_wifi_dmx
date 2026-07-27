@@ -49,22 +49,6 @@
                       <wire x1="-1.5" y1="-9.120000000000001" x2="1.5" y2="-9.120000000000001" width="0.1524" layer="21"/>
                       <text x="-1.5" y="10.16" size="1.016" layer="25" rot="R90">&gt;NAME</text>
                         </package>
-            <package name="PADBANK8">
-            <description>Power and DMX diagnostic pads split into logic-side pads 1-4 and isolated-side pads 5-8. The 12 mm row-centre spacing preserves an 8 mm minimum copper-edge gap.</description>
-            <smd name="1" x="-6" y="-3.81" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="2" x="-6" y="-1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="3" x="-6" y="1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="4" x="-6" y="3.81" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="5" x="6" y="3.81" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="6" x="6" y="1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="7" x="6" y="-1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="8" x="6" y="-3.81" dx="2.2" dy="1.6" layer="1"/>
-            <wire x1="-7.4" y1="-5.1" x2="-4.6" y2="-5.1" width="0.1524" layer="21"/>
-            <wire x1="4.6" y1="-5.1" x2="7.4" y2="-5.1" width="0.1524" layer="21"/>
-            <text x="-6" y="5.3" size="1.016" layer="21" align="bottom-center">LOGIC</text>
-            <text x="6" y="5.3" size="1.016" layer="21" align="bottom-center">ISOLATED</text>
-            <text x="0" y="6.8" size="1.016" layer="25" align="bottom-center">&gt;NAME</text>
-                        </package>
             <package name="PADBANK17">
             <smd name="1" x="0" y="-20.32" dx="2.2" dy="1.6" layer="1"/>
             <smd name="2" x="0" y="-17.78" dx="2.2" dy="1.6" layer="1"/>
@@ -1313,29 +1297,6 @@
                             </device>
                           </devices>
                         </deviceset>
-            <deviceset name="PADBANK8" prefix="J">
-                          <description>Power and isolated-side diagnostic SMD pad bank</description>
-                          <gates>
-                            <gate name="G$1" symbol="CONN8" x="0" y="0"/>
-                          </gates>
-                          <devices>
-                            <device name="" package="PADBANK8">
-                              <connects>
-                                <connect gate="G$1" pin="P1" pad="1"/>
-                                <connect gate="G$1" pin="P2" pad="2"/>
-                                <connect gate="G$1" pin="P3" pad="3"/>
-                                <connect gate="G$1" pin="P4" pad="4"/>
-                                <connect gate="G$1" pin="P5" pad="5"/>
-                                <connect gate="G$1" pin="P6" pad="6"/>
-                                <connect gate="G$1" pin="P7" pad="7"/>
-                                <connect gate="G$1" pin="P8" pad="8"/>
-                              </connects>
-                              <technologies>
-                                <technology name=""/>
-                              </technologies>
-                            </device>
-                          </devices>
-                        </deviceset>
             <deviceset name="PADBANK17" prefix="J">
                           <description>Free GPIO SMD pad bank</description>
                           <gates>
@@ -1412,7 +1373,6 @@
         <part name="J3" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK17" device="" value="FREE GPIO PADS"/>
         <part name="J4" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK5" device="" value="ANALOG PADS"/>
         <part name="J5" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK7" device="" value="RESERVED SIGNAL TEST PADS"/>
-        <part name="J6" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK8" device="" value="POWER/DMX TEST PADS"/>
         <part name="U2" library="WiFiPicoDMX_RevA_embedded" deviceset="ISOW1412DFMR" device="" value="ISOW1412DFMR"/>
         <part name="R1" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="100k 1% 0.063W 0402 Yageo RC0402FR-07100KL"/>
         <part name="R2" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL"/>
@@ -1461,7 +1421,6 @@
                     <instance part="J3" gate="G$1" x="320.04" y="134.62" rot="R0" smashed="no"/>
                     <instance part="J4" gate="G$1" x="213.36" y="71.12" rot="R0" smashed="no"/>
                     <instance part="J5" gate="G$1" x="213.36" y="33.02" rot="R0" smashed="no"/>
-                    <instance part="J6" gate="G$1" x="152.4" y="53.34" rot="R0" smashed="no"/>
                   </instances>
                   <busses/>
                   <nets>
@@ -1542,20 +1501,6 @@
                                                     <label x="203.2" y="22.860000000000007" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
                                 </net>
-                    <net name="DMX_DATA_MINUS" class="0">
-                                  <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P8"/>
-                                                    <wire x1="147.32" y1="35.56" x2="142.23999999999998" y2="35.56" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="35.56" size="1.27" layer="95" xref="yes" rot="R180"/>
-                                                  </segment>
-                                </net>
-                    <net name="DMX_DATA_PLUS" class="0">
-                                  <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P7"/>
-                                                    <wire x1="147.32" y1="40.64" x2="142.23999999999998" y2="40.64" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="40.64" size="1.27" layer="95" xref="yes" rot="R180"/>
-                                                  </segment>
-                                </net>
                     <net name="DMX_DIR_GPIO4" class="0">
                                   <segment>
                                                     <pinref part="U1" gate="G$1" pin="GP4"/>
@@ -1616,13 +1561,6 @@
                                                     <label x="203.2" y="48.260000000000005" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
                                 </net>
-                    <net name="GND_DMX_ISO" class="0">
-                                  <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P6"/>
-                                                    <wire x1="147.32" y1="45.720000000000006" x2="142.23999999999998" y2="45.720000000000006" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="45.720000000000006" size="1.27" layer="95" xref="yes" rot="R180"/>
-                                                  </segment>
-                                </net>
                     <net name="GND_LOGIC" class="0">
                                   <segment>
                                                     <pinref part="U1" gate="G$1" pin="GND3"/>
@@ -1678,11 +1616,6 @@
                                                     <pinref part="D4" gate="G$1" pin="K"/>
                                                     <wire x1="256.54" y1="124.46" x2="261.62" y2="124.46" width="0.1524" layer="91"/>
                                                     <label x="261.62" y="124.46" size="1.27" layer="95" xref="yes"/>
-                                                  </segment>
-                                  <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P2"/>
-                                                    <wire x1="147.32" y1="66.04" x2="142.23999999999998" y2="66.04" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="66.04" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
                                 </net>
                     <net name="GPIO0_EXP" class="0">
@@ -1962,11 +1895,6 @@
                                                     <wire x1="132.07999999999998" y1="172.72" x2="126.99999999999999" y2="172.72" width="0.1524" layer="91"/>
                                                     <label x="126.99999999999999" y="172.72" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
-                                  <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P3"/>
-                                                    <wire x1="147.32" y1="60.96" x2="142.23999999999998" y2="60.96" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="60.96" size="1.27" layer="95" xref="yes" rot="R180"/>
-                                                  </segment>
                                 </net>
                     <net name="VCC_3V3_LOGIC" class="0">
                                   <segment>
@@ -1975,21 +1903,9 @@
                                                     <label x="121.92" y="116.83999999999999" size="1.27" layer="95" xref="yes"/>
                                                   </segment>
                                   <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P1"/>
-                                                    <wire x1="147.32" y1="71.12" x2="142.23999999999998" y2="71.12" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="71.12" size="1.27" layer="95" xref="yes" rot="R180"/>
-                                                  </segment>
-                                  <segment>
                                                     <pinref part="R8" gate="G$1" pin="1"/>
                                                     <wire x1="127.00000000000001" y1="139.7" x2="121.92000000000002" y2="139.7" width="0.1524" layer="91"/>
                                                     <label x="121.92000000000002" y="139.7" size="1.27" layer="95" xref="yes" rot="R180"/>
-                                                  </segment>
-                                </net>
-                    <net name="VCC_5V_DMX_ISO" class="0">
-                                  <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P5"/>
-                                                    <wire x1="147.32" y1="50.800000000000004" x2="142.23999999999998" y2="50.800000000000004" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="50.800000000000004" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
                                 </net>
                     <net name="VDD_5V_ISOW_FUSED" class="0">
@@ -1997,11 +1913,6 @@
                                                     <pinref part="F1" gate="G$1" pin="2"/>
                                                     <wire x1="142.24" y1="172.72" x2="147.32000000000002" y2="172.72" width="0.1524" layer="91"/>
                                                     <label x="147.32000000000002" y="172.72" size="1.27" layer="95" xref="yes"/>
-                                                  </segment>
-                                  <segment>
-                                                    <pinref part="J6" gate="G$1" pin="P4"/>
-                                                    <wire x1="147.32" y1="55.88" x2="142.23999999999998" y2="55.88" width="0.1524" layer="91"/>
-                                                    <label x="142.23999999999998" y="55.88" size="1.27" layer="95" xref="yes" rot="R180"/>
                                                   </segment>
                                 </net>
                   </nets>

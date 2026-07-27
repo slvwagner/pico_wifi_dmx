@@ -54,43 +54,42 @@ function csvFields(line) {
 }
 
 const placements = {
-  C1: [90, 83, "R90"],
-  C2: [90, 73, "R90"],
-  C3: [86, 73, "R90"],
-  C4: [108, 70, "R90"],
-  C5: [112, 70, "R90"],
-  C6: [110, 76, "R90"],
+  C1: [55.25, 76.5, "R90"],
+  C2: [55.25, 65, "R90"],
+  C3: [51, 64.75, "R90"],
+  C4: [76.2, 54.25, "R270"],
+  C5: [85.5, 53.95, "R270"],
+  C6: [78.3, 59.35, "R270"],
   C7: [57, 12, "R90"],
-  C8: [88, 69, "R90"],
-  C9: [110, 66, "R90"],
-  D1: [130, 78, "R0"],
-  D2: [32, 11, "R0"],
-  D3: [48, 62, "R0"],
-  D4: [48, 56, "R0"],
-  F1: [48, 88, "R0"],
-  FB1: [114, 80, "R0"],
-  FB2: [114, 76, "R0"],
-  J1: [138, 78, "R0"],
-  J2: [12, 10, "R0"],
-  J3: [10, 55, "R0"],
-  J4: [18, 86, "R0"],
-  J5: [27, 86, "R0"],
-  J6: [100, 92, "R0"],
-  L1: [122, 78, "R0"],
-  R1: [90, 90, "R0"],
-  R2: [86, 87, "R0"],
-  R3: [86, 83, "R0"],
-  R4: [25, 15, "R0"],
+  C8: [50.75, 60.25, "R90"],
+  C9: [81.6, 54.05, "R270"],
+  D1: [83.25, 69.2, "R0"],
+  D2: [33, 11, "R270"],
+  D3: [59.5, 39.5, "R0"],
+  D4: [59.5, 33.5, "R0"],
+  F1: [48.25, 33.5, "R0"],
+  FB1: [81.55, 59.4, "R90"],
+  FB2: [78.35, 57, "R90"],
+  J1: [88.8, 65.45, "R90"],
+  J2: [13, 10, "R270"],
+  J3: [5.5, 45.5, "R0"],
+  J4: [14, 79.25, "R0"],
+  J5: [5.5, 79.5, "R0"],
+  L1: [77.3, 69.15, "R0"],
+  R1: [51.25, 68, "R0"],
+  R2: [51.25, 76.25, "R0"],
+  R3: [51.25, 72.25, "R0"],
+  R4: [25, 12, "R0"],
   R5: [25, 7, "R0"],
-  R6: [52, 15, "R0"],
-  R7: [52, 9, "R0"],
-  R8: [42, 62, "R0"],
-  R9: [42, 56, "R0"],
-  R10: [120, 72, "R0"],
-  R11: [120, 68, "R0"],
-  SW1: [45, 30, "R0"],
-  U1: [65, 50, "R0"],
-  U2: [100, 78, "R0"],
+  R6: [52.2, 28.5, "R0"],
+  R7: [50.4, 9.5, "R0"],
+  R8: [55.5, 39, "R0"],
+  R9: [55.5, 33.5, "R0"],
+  R10: [77.25, 72.15, "R0"],
+  R11: [77.35, 66.1, "R0"],
+  SW1: [49.75, 43.25, "R0"],
+  U1: [31.5, 53.5, "R0"],
+  U2: [65.5, 64.75, "R0"],
   U3: [42, 11, "R0"],
 };
 
@@ -191,9 +190,9 @@ for (const line of netlist.trim().split(/\r?\n/).slice(1)) {
 }
 
 const outline = [
-  [0, 0, 150, 0],
-  [150, 0, 150, 100],
-  [150, 100, 0, 100],
+  [0, 0, 95, 0],
+  [95, 0, 95, 100],
+  [95, 100, 0, 100],
   [0, 100, 0, 0],
 ].map(([x1, y1, x2, y2]) => (
   `          <wire x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" width="0" layer="20"/>`
@@ -241,10 +240,6 @@ const board = `<?xml version="1.0" encoding="utf-8"?>
       <description>WiFiPicoDMX Rev. A basic two-layer placement. Unrouted engineering starting point: run DRC, review isolation, and complete routing manually before manufacture.</description>
       <plain>
 ${outline}
-        <hole x="4" y="4" drill="3.2"/>
-        <hole x="146" y="4" drill="3.2"/>
-        <hole x="4" y="96" drill="3.2"/>
-        <hole x="146" y="96" drill="3.2"/>
         <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="41"/>
         <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="42"/>
         <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="43"/>
@@ -254,15 +249,15 @@ ${outline}
         <wire x1="0" y1="20" x2="39.5" y2="20" width="0.2" layer="51"/>
         <wire x1="39.5" y1="20" x2="39.5" y2="0" width="0.2" layer="51"/>
         <text x="2" y="18.5" size="1.016" layer="51">MIDI ISOLATED INPUT - NO LOGIC COPPER</text>
-        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="41"/>
-        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="42"/>
-        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="43"/>
-        <wire x1="100" y1="55" x2="100" y2="100" width="0.2" layer="51"/>
-        <text x="98.5" y="57" size="1.27" layer="51" rot="R90">DMX ISOLATION - NO COPPER OR VIAS</text>
+        <rectangle x1="62" y1="43.75" x2="69" y2="88.75" layer="41"/>
+        <rectangle x1="62" y1="43.75" x2="69" y2="88.75" layer="42"/>
+        <rectangle x1="62" y1="43.75" x2="69" y2="88.75" layer="43"/>
+        <wire x1="65.5" y1="43.75" x2="65.5" y2="88.75" width="0.2" layer="51"/>
+        <text x="64" y="45.75" size="1.27" layer="51" rot="R90">DMX ISOLATION - NO COPPER OR VIAS</text>
         <text x="2" y="98" size="1.778" layer="21">WiFiPicoDMX Rev. A - BASIC UNROUTED LAYOUT</text>
         <text x="2" y="94.5" size="1.27" layer="21">GPIO / analog inputs</text>
-        <text x="56" y="78" size="1.27" layer="21">Pico 2 W</text>
-        <text x="106" y="97" size="1.27" layer="21">Isolated DMX output</text>
+        <text x="23" y="82" size="1.27" layer="21">Pico 2 W</text>
+        <text x="70" y="97" size="1.27" layer="21">Isolated DMX output</text>
         <text x="46" y="3" size="1.27" layer="21">MIDI logic output to Pico</text>
       </plain>
       <libraries>${libraries}
@@ -315,4 +310,4 @@ ${signalXml}
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, board, "utf8");
 console.log(`Generated ${outputPath}`);
-console.log(`${physicalParts.length} placed parts, ${signals.size} named airwire nets, 150 x 100 mm`);
+console.log(`${physicalParts.length} placed parts, ${signals.size} named airwire nets, 95 x 100 mm`);

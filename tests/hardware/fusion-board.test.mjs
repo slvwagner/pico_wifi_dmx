@@ -11,6 +11,10 @@ const schematic = readFileSync(
   resolve("hardware/fusion/WiFiPicoDMX_RevA.sch"),
   "utf8",
 );
+const netlist = readFileSync(
+  resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.csv"),
+  "utf8",
+);
 const library = readFileSync(
   resolve("hardware/fusion/libraries/WiFiPicoDMX.lbr"),
   "utf8",
@@ -74,8 +78,8 @@ function packageBounds(name) {
 test("basic board contains every physical schematic part and named net", () => {
   const elements = [...board.matchAll(/<element\b[^>]*\bname="([^"]+)"/g)]
     .map((match) => match[1]);
-  assert.equal(elements.length, 38);
-  assert.equal(new Set(elements).size, 38);
+  assert.equal(elements.length, 37);
+  assert.equal(new Set(elements).size, 37);
   assert.doesNotMatch(board, /<element\b[^>]*\bname="FRAME/);
 
   const signals = [...board.matchAll(/<signal\b[^>]*\bname="([^"]+)"/g)]
@@ -85,11 +89,17 @@ test("basic board contains every physical schematic part and named net", () => {
   assert.doesNotMatch(board, /name="NC_U[23]_PIN/);
 });
 
+test("removed J6 diagnostic pad bank is absent from the design", () => {
+  assert.doesNotMatch(schematic, /<part\b[^>]*\bname="J6"/);
+  assert.doesNotMatch(board, /<element\b[^>]*\bname="J6"/);
+  assert.doesNotMatch(netlist, /(?:^|,)J6,/m);
+});
+
 test("every generated board element has an explicit reference designator", () => {
   const elements = [...board.matchAll(
     /<element\b([^>]*)>([\s\S]*?)<\/element>/g,
   )];
-  assert.equal(elements.length, 38);
+  assert.equal(elements.length, 37);
 
   for (const [, rawAttributes, body] of elements) {
     const element = attributes(rawAttributes);
@@ -177,9 +187,9 @@ test("generated Fusion pair avoids independently imported custom net classes", (
 
 test("carrier has a simple rectangular outline without a Pico cutout", () => {
   const expectedOutline = [
-    { x1: 0, y1: 0, x2: 150, y2: 0 },
-    { x1: 150, y1: 0, x2: 150, y2: 100 },
-    { x1: 150, y1: 100, x2: 0, y2: 100 },
+    { x1: 0, y1: 0, x2: 95, y2: 0 },
+    { x1: 95, y1: 0, x2: 95, y2: 100 },
+    { x1: 95, y1: 100, x2: 0, y2: 100 },
     { x1: 0, y1: 100, x2: 0, y2: 0 },
   ];
   const outline = [...board.matchAll(/<wire\b[^>]*\blayer="20"[^>]*\/>/g)]
@@ -196,7 +206,7 @@ test("carrier has a simple rectangular outline without a Pico cutout", () => {
 test("Pico uses the supplied through-hole footprint without carrier keepouts", () => {
   assert.match(
     board,
-    /<element\b[^>]*\bname="U1"[^>]*\bpackage="PICO_2_W_DEVELOPMENT_BOARD"[^>]*\bx="65"[^>]*\by="50"/,
+    /<element\b[^>]*\bname="U1"[^>]*\bpackage="PICO_2_W_DEVELOPMENT_BOARD"[^>]*\bx="31\.5"[^>]*\by="53\.5"/,
   );
   assert.doesNotMatch(board, /Pico USB, BOOTSEL and RESET access zone/);
   assert.doesNotMatch(
@@ -213,15 +223,15 @@ test("Pico uses the supplied through-hole footprint without carrier keepouts", (
 test("upper DMX section has a local isolation corridor", () => {
   assert.match(
     board,
-    /<rectangle x1="96\.5" y1="55" x2="103\.5" y2="100" layer="41"\/>/,
+    /<rectangle x1="62" y1="43\.75" x2="69" y2="88\.75" layer="41"\/>/,
   );
   assert.match(
     board,
-    /<rectangle x1="96\.5" y1="55" x2="103\.5" y2="100" layer="42"\/>/,
+    /<rectangle x1="62" y1="43\.75" x2="69" y2="88\.75" layer="42"\/>/,
   );
   assert.match(
     board,
-    /<rectangle x1="96\.5" y1="55" x2="103\.5" y2="100" layer="43"\/>/,
+    /<rectangle x1="62" y1="43\.75" x2="69" y2="88\.75" layer="43"\/>/,
   );
 });
 
@@ -244,10 +254,10 @@ test("MIDI DIN input is enclosed at the bottom edge by a via-restrict moat", () 
   assert.match(board, /MIDI ISOLATED INPUT - NO LOGIC COPPER/);
 
   const inputPlacements = {
-    J2: [12, 10],
-    R4: [25, 15],
+    J2: [13, 10],
+    R4: [25, 12],
     R5: [25, 7],
-    D2: [32, 11],
+    D2: [33, 11],
   };
   for (const [name, [x, y]] of Object.entries(inputPlacements)) {
     assert.match(
@@ -276,7 +286,7 @@ test("MIDI DIN input is enclosed at the bottom edge by a via-restrict moat", () 
   }
 });
 
-test("component placement follows left-to-right signal flow", () => {
+test("component placement preserves functional zones and DMX signal flow", () => {
   const placements = Object.fromEntries(
     [...board.matchAll(/<element\b([^>]*)>/g)]
       .map((match) => attributes(match[1]))
@@ -297,10 +307,44 @@ test("component placement follows left-to-right signal flow", () => {
 
   assert.ok(placements.J2.x < placements.D2.x, "MIDI connector must feed right");
   assert.ok(placements.D2.x < placements.U3.x, "MIDI input network must precede optocoupler");
-  assert.ok(placements.U3.x < placements.U1.x, "MIDI optocoupler must feed the Pico");
-  for (const name of ["J2", "R4", "R5", "D2", "U3", "R6", "R7", "C7"]) {
+  assert.ok(placements.U3.y < placements.U1.y, "MIDI optocoupler must remain below Pico");
+  for (const name of ["J2", "R4", "R5", "D2", "U3", "R7", "C7"]) {
     assert.ok(placements[name].y <= 20, `${name} must be in the lower MIDI section`);
   }
+  assert.ok(placements.R6.y < placements.U1.y, "MIDI pull-up must remain below Pico");
+});
+
+test("generated component positions match the manually arranged Fusion layout", () => {
+  const expected = {
+    C1: [55.25, 76.5, "R90"], C2: [55.25, 65, "R90"],
+    C3: [51, 64.75, "R90"], C4: [76.2, 54.25, "R270"],
+    C5: [85.5, 53.95, "R270"], C6: [78.3, 59.35, "R270"],
+    C7: [57, 12, "R90"], C8: [50.75, 60.25, "R90"],
+    C9: [81.6, 54.05, "R270"], D1: [83.25, 69.2, "R0"],
+    D2: [33, 11, "R270"], D3: [59.5, 39.5, "R0"],
+    D4: [59.5, 33.5, "R0"], F1: [48.25, 33.5, "R0"],
+    FB1: [81.55, 59.4, "R90"], FB2: [78.35, 57, "R90"],
+    J1: [88.8, 65.45, "R90"], J2: [13, 10, "R270"],
+    J3: [5.5, 45.5, "R0"], J4: [14, 79.25, "R0"],
+    J5: [5.5, 79.5, "R0"], L1: [77.3, 69.15, "R0"],
+    R1: [51.25, 68, "R0"], R2: [51.25, 76.25, "R0"],
+    R3: [51.25, 72.25, "R0"], R4: [25, 12, "R0"],
+    R5: [25, 7, "R0"], R6: [52.2, 28.5, "R0"],
+    R7: [50.4, 9.5, "R0"], R8: [55.5, 39, "R0"],
+    R9: [55.5, 33.5, "R0"], R10: [77.25, 72.15, "R0"],
+    R11: [77.35, 66.1, "R0"], SW1: [49.75, 43.25, "R0"],
+    U1: [31.5, 53.5, "R0"], U2: [65.5, 64.75, "R0"],
+    U3: [42, 11, "R0"],
+  };
+  const actual = Object.fromEntries(
+    [...board.matchAll(/<element\b([^>]*)>/g)]
+      .map((match) => attributes(match[1]))
+      .map(({ name, x, y, rot }) => [
+        name,
+        [Number(x), Number(y), rot ?? "R0"],
+      ]),
+  );
+  assert.deepEqual(actual, expected);
 });
 
 test("panel harnesses use the selected JST XH board connectors", () => {

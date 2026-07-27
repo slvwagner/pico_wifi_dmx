@@ -76,14 +76,10 @@
     <board>
       <description>WiFiPicoDMX Rev. A basic two-layer placement. Unrouted engineering starting point: run DRC, review isolation, and complete routing manually before manufacture.</description>
       <plain>
-          <wire x1="0" y1="0" x2="150" y2="0" width="0" layer="20"/>
-          <wire x1="150" y1="0" x2="150" y2="100" width="0" layer="20"/>
-          <wire x1="150" y1="100" x2="0" y2="100" width="0" layer="20"/>
+          <wire x1="0" y1="0" x2="95" y2="0" width="0" layer="20"/>
+          <wire x1="95" y1="0" x2="95" y2="100" width="0" layer="20"/>
+          <wire x1="95" y1="100" x2="0" y2="100" width="0" layer="20"/>
           <wire x1="0" y1="100" x2="0" y2="0" width="0" layer="20"/>
-        <hole x="4" y="4" drill="3.2"/>
-        <hole x="146" y="4" drill="3.2"/>
-        <hole x="4" y="96" drill="3.2"/>
-        <hole x="146" y="96" drill="3.2"/>
         <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="41"/>
         <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="42"/>
         <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="43"/>
@@ -93,15 +89,15 @@
         <wire x1="0" y1="20" x2="39.5" y2="20" width="0.2" layer="51"/>
         <wire x1="39.5" y1="20" x2="39.5" y2="0" width="0.2" layer="51"/>
         <text x="2" y="18.5" size="1.016" layer="51">MIDI ISOLATED INPUT - NO LOGIC COPPER</text>
-        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="41"/>
-        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="42"/>
-        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="43"/>
-        <wire x1="100" y1="55" x2="100" y2="100" width="0.2" layer="51"/>
-        <text x="98.5" y="57" size="1.27" layer="51" rot="R90">DMX ISOLATION - NO COPPER OR VIAS</text>
+        <rectangle x1="62" y1="43.75" x2="69" y2="88.75" layer="41"/>
+        <rectangle x1="62" y1="43.75" x2="69" y2="88.75" layer="42"/>
+        <rectangle x1="62" y1="43.75" x2="69" y2="88.75" layer="43"/>
+        <wire x1="65.5" y1="43.75" x2="65.5" y2="88.75" width="0.2" layer="51"/>
+        <text x="64" y="45.75" size="1.27" layer="51" rot="R90">DMX ISOLATION - NO COPPER OR VIAS</text>
         <text x="2" y="98" size="1.778" layer="21">WiFiPicoDMX Rev. A - BASIC UNROUTED LAYOUT</text>
         <text x="2" y="94.5" size="1.27" layer="21">GPIO / analog inputs</text>
-        <text x="56" y="78" size="1.27" layer="21">Pico 2 W</text>
-        <text x="106" y="97" size="1.27" layer="21">Isolated DMX output</text>
+        <text x="23" y="82" size="1.27" layer="21">Pico 2 W</text>
+        <text x="70" y="97" size="1.27" layer="21">Isolated DMX output</text>
         <text x="46" y="3" size="1.27" layer="21">MIDI logic output to Pico</text>
       </plain>
       <libraries>
@@ -118,22 +114,6 @@
                       <smd name="7" x="0" y="7.62" dx="2.2" dy="1.6" layer="1"/>
                       <wire x1="-1.5" y1="-9.120000000000001" x2="1.5" y2="-9.120000000000001" width="0.1524" layer="21"/>
                       <text x="-1.5" y="10.16" size="1.016" layer="25" rot="R90">&gt;NAME</text>
-                        </package>
-            <package name="PADBANK8">
-            <description>Power and DMX diagnostic pads split into logic-side pads 1-4 and isolated-side pads 5-8. The 12 mm row-centre spacing preserves an 8 mm minimum copper-edge gap.</description>
-            <smd name="1" x="-6" y="-3.81" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="2" x="-6" y="-1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="3" x="-6" y="1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="4" x="-6" y="3.81" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="5" x="6" y="3.81" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="6" x="6" y="1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="7" x="6" y="-1.27" dx="2.2" dy="1.6" layer="1"/>
-            <smd name="8" x="6" y="-3.81" dx="2.2" dy="1.6" layer="1"/>
-            <wire x1="-7.4" y1="-5.1" x2="-4.6" y2="-5.1" width="0.1524" layer="21"/>
-            <wire x1="4.6" y1="-5.1" x2="7.4" y2="-5.1" width="0.1524" layer="21"/>
-            <text x="-6" y="5.3" size="1.016" layer="21" align="bottom-center">LOGIC</text>
-            <text x="6" y="5.3" size="1.016" layer="21" align="bottom-center">ISOLATED</text>
-            <text x="0" y="6.8" size="1.016" layer="25" align="bottom-center">&gt;NAME</text>
                         </package>
             <package name="PADBANK17">
             <smd name="1" x="0" y="-20.32" dx="2.2" dy="1.6" layer="1"/>
@@ -1383,29 +1363,6 @@
                             </device>
                           </devices>
                         </deviceset>
-            <deviceset name="PADBANK8" prefix="J">
-                          <description>Power and isolated-side diagnostic SMD pad bank</description>
-                          <gates>
-                            <gate name="G$1" symbol="CONN8" x="0" y="0"/>
-                          </gates>
-                          <devices>
-                            <device name="" package="PADBANK8">
-                              <connects>
-                                <connect gate="G$1" pin="P1" pad="1"/>
-                                <connect gate="G$1" pin="P2" pad="2"/>
-                                <connect gate="G$1" pin="P3" pad="3"/>
-                                <connect gate="G$1" pin="P4" pad="4"/>
-                                <connect gate="G$1" pin="P5" pad="5"/>
-                                <connect gate="G$1" pin="P6" pad="6"/>
-                                <connect gate="G$1" pin="P7" pad="7"/>
-                                <connect gate="G$1" pin="P8" pad="8"/>
-                              </connects>
-                              <technologies>
-                                <technology name=""/>
-                              </technologies>
-                            </device>
-                          </devices>
-                        </deviceset>
             <deviceset name="PADBANK17" prefix="J">
                           <description>Free GPIO SMD pad bank</description>
                           <gates>
@@ -1496,153 +1453,149 @@
         </pass>
       </autorouter>
       <elements>
-          <element name="U1" library="WiFiPicoDMX_RevA_embedded" package="PICO_2_W_DEVELOPMENT_BOARD" value="Raspberry Pi Pico 2 W" x="65" y="50" smashed="yes" rot="R0">
-            <attribute name="NAME" x="65" y="76.135" size="1.27" layer="25" align="bottom-center" />
-            <attribute name="VALUE" x="65" y="23.865" size="1.27" layer="27" align="top-center" />
+          <element name="U1" library="WiFiPicoDMX_RevA_embedded" package="PICO_2_W_DEVELOPMENT_BOARD" value="Raspberry Pi Pico 2 W" x="31.5" y="53.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="31.5" y="79.635" size="1.27" layer="25" align="bottom-center" />
+            <attribute name="VALUE" x="31.5" y="27.365" size="1.27" layer="27" align="top-center" />
           </element>
-          <element name="F1" library="WiFiPicoDMX_RevA_embedded" package="PPTC1206_1206L050YR" value="1206L050YR 0.5A HOLD" x="48" y="88" smashed="yes" rot="R0">
-            <attribute name="NAME" x="48" y="90.2" size="1.27" layer="25" align="bottom-center" />
-            <attribute name="VALUE" x="48" y="85.8" size="1.27" layer="27" align="top-center" />
+          <element name="F1" library="WiFiPicoDMX_RevA_embedded" package="PPTC1206_1206L050YR" value="1206L050YR 0.5A HOLD" x="48.25" y="33.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="48.25" y="35.7" size="1.27" layer="25" align="bottom-center" />
+            <attribute name="VALUE" x="48.25" y="31.3" size="1.27" layer="27" align="top-center" />
           </element>
-          <element name="SW1" library="WiFiPicoDMX_RevA_embedded" package="PTS810_J_LEAD" value="PTS810SJM250SMTR LFS RESET (NO)" x="45" y="30" smashed="yes" rot="R0">
-            <attribute name="NAME" x="45" y="32.4073" size="1.27" layer="25" align="bottom-center" />
-            <attribute name="VALUE" x="45" y="27.5927" size="1.27" layer="27" align="top-center" />
+          <element name="SW1" library="WiFiPicoDMX_RevA_embedded" package="PTS810_J_LEAD" value="PTS810SJM250SMTR LFS RESET (NO)" x="49.75" y="43.25" smashed="yes" rot="R0">
+            <attribute name="NAME" x="49.75" y="45.6573" size="1.27" layer="25" align="bottom-center" />
+            <attribute name="VALUE" x="49.75" y="40.8427" size="1.27" layer="27" align="top-center" />
           </element>
-          <element name="R8" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL" x="42" y="62" smashed="yes" rot="R0">
-            <attribute name="NAME" x="42" y="64.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="42" y="59.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R8" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL" x="55.5" y="39" smashed="yes" rot="R0">
+            <attribute name="NAME" x="55.5" y="41.54" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="55.5" y="36.46" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="D3" library="WiFiPicoDMX_RevA_embedded" package="LEDC1608X55N_FLAT-B" value="PWR GREEN Lite-On LTST-C190KGKT" x="48" y="62" smashed="yes" rot="R0">
-            <attribute name="NAME" x="48" y="64.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="48" y="59.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="D3" library="WiFiPicoDMX_RevA_embedded" package="LEDC1608X55N_FLAT-B" value="PWR GREEN Lite-On LTST-C190KGKT" x="59.5" y="39.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="59.5" y="42.04" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="59.5" y="36.96" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="R9" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL" x="42" y="56" smashed="yes" rot="R0">
-            <attribute name="NAME" x="42" y="58.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="42" y="53.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R9" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL" x="55.5" y="33.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="55.5" y="36.04" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="55.5" y="30.96" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="D4" library="WiFiPicoDMX_RevA_embedded" package="LEDC1608X55N_FLAT-B" value="DMX YELLOW Lite-On LTST-C190KSKT" x="48" y="56" smashed="yes" rot="R0">
-            <attribute name="NAME" x="48" y="58.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="48" y="53.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="D4" library="WiFiPicoDMX_RevA_embedded" package="LEDC1608X55N_FLAT-B" value="DMX YELLOW Lite-On LTST-C190KSKT" x="59.5" y="33.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="59.5" y="36.04" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="59.5" y="30.96" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="J3" library="WiFiPicoDMX_RevA_embedded" package="PADBANK17" value="FREE GPIO PADS" x="10" y="55" smashed="yes" rot="R0">
-            <attribute name="NAME" x="8.5" y="77.86" size="1.016" layer="25" rot="R90" />
-            <attribute name="VALUE" x="10" y="52" size="1.27" layer="27" />
+          <element name="J3" library="WiFiPicoDMX_RevA_embedded" package="PADBANK17" value="FREE GPIO PADS" x="5.5" y="45.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="4" y="68.36" size="1.016" layer="25" rot="R90" />
+            <attribute name="VALUE" x="5.5" y="42.5" size="1.27" layer="27" />
           </element>
-          <element name="J4" library="WiFiPicoDMX_RevA_embedded" package="PADBANK5" value="ANALOG PADS" x="18" y="86" smashed="yes" rot="R0">
-            <attribute name="NAME" x="16.5" y="93.62" size="1.016" layer="25" rot="R90" />
-            <attribute name="VALUE" x="18" y="83" size="1.27" layer="27" />
+          <element name="J4" library="WiFiPicoDMX_RevA_embedded" package="PADBANK5" value="ANALOG PADS" x="14" y="79.25" smashed="yes" rot="R0">
+            <attribute name="NAME" x="12.5" y="86.87" size="1.016" layer="25" rot="R90" />
+            <attribute name="VALUE" x="14" y="76.25" size="1.27" layer="27" />
           </element>
-          <element name="J5" library="WiFiPicoDMX_RevA_embedded" package="PADBANK7" value="RESERVED SIGNAL TEST PADS" x="27" y="86" smashed="yes" rot="R0">
-            <attribute name="NAME" x="25.5" y="96.16" size="1.016" layer="25" rot="R90" />
-            <attribute name="VALUE" x="27" y="83" size="1.27" layer="27" />
+          <element name="J5" library="WiFiPicoDMX_RevA_embedded" package="PADBANK7" value="RESERVED SIGNAL TEST PADS" x="5.5" y="79.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="4" y="89.66" size="1.016" layer="25" rot="R90" />
+            <attribute name="VALUE" x="5.5" y="76.5" size="1.27" layer="27" />
           </element>
-          <element name="J6" library="WiFiPicoDMX_RevA_embedded" package="PADBANK8" value="POWER/DMX TEST PADS" x="100" y="92" smashed="yes" rot="R0">
-            <attribute name="NAME" x="100" y="98.8" size="1.016" layer="25" align="bottom-center" />
-            <attribute name="VALUE" x="100" y="89" size="1.27" layer="27" />
+          <element name="U2" library="WiFiPicoDMX_RevA_embedded" package="DFM0020A_TI" value="ISOW1412DFMR" x="65.5" y="64.75" smashed="yes" rot="R0">
+            <attribute name="NAME" x="60.3" y="71.85" size="1.016" layer="25" />
+            <attribute name="VALUE" x="65.5" y="61.75" size="1.27" layer="27" />
           </element>
-          <element name="U2" library="WiFiPicoDMX_RevA_embedded" package="DFM0020A_TI" value="ISOW1412DFMR" x="100" y="78" smashed="yes" rot="R0">
-            <attribute name="NAME" x="94.8" y="85.1" size="1.016" layer="25" />
-            <attribute name="VALUE" x="100" y="75" size="1.27" layer="27" />
+          <element name="R1" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="100k 1% 0.063W 0402 Yageo RC0402FR-07100KL" x="51.25" y="68" smashed="yes" rot="R0">
+            <attribute name="NAME" x="51.25" y="70.54" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="51.25" y="65.46" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="R1" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="100k 1% 0.063W 0402 Yageo RC0402FR-07100KL" x="90" y="90" smashed="yes" rot="R0">
-            <attribute name="NAME" x="90" y="92.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="90" y="87.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R2" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL" x="51.25" y="76.25" smashed="yes" rot="R0">
+            <attribute name="NAME" x="51.25" y="78.79" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="51.25" y="73.71" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="R2" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL" x="86" y="87" smashed="yes" rot="R0">
-            <attribute name="NAME" x="86" y="89.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="86" y="84.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R3" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL" x="51.25" y="72.25" smashed="yes" rot="R0">
+            <attribute name="NAME" x="51.25" y="74.79" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="51.25" y="69.71" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="R3" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL" x="86" y="83" smashed="yes" rot="R0">
-            <attribute name="NAME" x="86" y="85.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="86" y="80.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="C1" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO" x="55.25" y="76.5" smashed="yes" rot="R90">
+            <attribute name="NAME" x="52.71" y="76.5" size="1.27" layer="25" align="top-center" rot="R90" />
+            <attribute name="VALUE" x="57.79" y="76.5" size="1.27" layer="27" align="bottom-center" rot="R90" />
           </element>
-          <element name="C1" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO" x="90" y="83" smashed="yes" rot="R90">
-            <attribute name="NAME" x="87.46" y="83" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="92.54" y="83" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="C2" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="10nF 50V 10% X7R 0402 0402B103K500CT VDD &lt;1mm" x="55.25" y="65" smashed="yes" rot="R90">
+            <attribute name="NAME" x="52.71" y="65" size="1.27" layer="25" align="top-center" rot="R90" />
+            <attribute name="VALUE" x="57.79" y="65" size="1.27" layer="27" align="bottom-center" rot="R90" />
           </element>
-          <element name="C2" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="10nF 50V 10% X7R 0402 0402B103K500CT VDD &lt;1mm" x="90" y="73" smashed="yes" rot="R90">
-            <attribute name="NAME" x="87.46" y="73" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="92.54" y="73" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="C3" library="WiFiPicoDMX_RevA_embedded" package="CAPC2012X110" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD" x="51" y="64.75" smashed="yes" rot="R90">
+            <attribute name="NAME" x="48.46" y="64.75" size="1.27" layer="25" align="top-center" rot="R90" />
+            <attribute name="VALUE" x="53.54" y="64.75" size="1.27" layer="27" align="bottom-center" rot="R90" />
           </element>
-          <element name="C3" library="WiFiPicoDMX_RevA_embedded" package="CAPC2012X110" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD" x="86" y="73" smashed="yes" rot="R90">
-            <attribute name="NAME" x="83.46" y="73" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="88.54" y="73" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="C8" library="WiFiPicoDMX_RevA_embedded" package="CAPC1608X85" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm" x="50.75" y="60.25" smashed="yes" rot="R90">
+            <attribute name="NAME" x="48.21" y="60.25" size="1.27" layer="25" align="top-center" rot="R90" />
+            <attribute name="VALUE" x="53.29" y="60.25" size="1.27" layer="27" align="bottom-center" rot="R90" />
           </element>
-          <element name="C8" library="WiFiPicoDMX_RevA_embedded" package="CAPC1608X85" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm" x="88" y="69" smashed="yes" rot="R90">
-            <attribute name="NAME" x="85.46" y="69" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="90.54" y="69" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="FB1" library="WiFiPicoDMX_RevA_embedded" package="INDC1006X60N" value="BLM15EX331SN1D" x="81.55" y="59.4" smashed="yes" rot="R90">
+            <attribute name="NAME" x="79.01" y="59.4" size="1.27" layer="25" align="top-center" rot="R90" />
+            <attribute name="VALUE" x="84.09" y="59.4" size="1.27" layer="27" align="bottom-center" rot="R90" />
           </element>
-          <element name="FB1" library="WiFiPicoDMX_RevA_embedded" package="INDC1006X60N" value="BLM15EX331SN1D" x="114" y="80" smashed="yes" rot="R0">
-            <attribute name="NAME" x="114" y="82.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="114" y="77.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="FB2" library="WiFiPicoDMX_RevA_embedded" package="INDC1006X60N" value="BLM15EX331SN1D" x="78.35" y="57" smashed="yes" rot="R90">
+            <attribute name="NAME" x="75.81" y="57" size="1.27" layer="25" align="top-center" rot="R90" />
+            <attribute name="VALUE" x="80.89" y="57" size="1.27" layer="27" align="bottom-center" rot="R90" />
           </element>
-          <element name="FB2" library="WiFiPicoDMX_RevA_embedded" package="INDC1006X60N" value="BLM15EX331SN1D" x="114" y="76" smashed="yes" rot="R0">
-            <attribute name="NAME" x="114" y="78.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="114" y="73.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="C4" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT &lt;1mm" x="76.2" y="54.25" smashed="yes" rot="R270">
+            <attribute name="NAME" x="78.74" y="54.25" size="1.27" layer="25" align="top-center" rot="R270" />
+            <attribute name="VALUE" x="73.66" y="54.25" size="1.27" layer="27" align="bottom-center" rot="R270" />
           </element>
-          <element name="C4" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT &lt;1mm" x="108" y="70" smashed="yes" rot="R90">
-            <attribute name="NAME" x="105.46" y="70" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="110.54" y="70" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="C5" library="WiFiPicoDMX_RevA_embedded" package="CAPC2012X110" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT" x="85.5" y="53.95" smashed="yes" rot="R270">
+            <attribute name="NAME" x="88.04" y="53.95" size="1.27" layer="25" align="top-center" rot="R270" />
+            <attribute name="VALUE" x="82.96" y="53.95" size="1.27" layer="27" align="bottom-center" rot="R270" />
           </element>
-          <element name="C5" library="WiFiPicoDMX_RevA_embedded" package="CAPC2012X110" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT" x="112" y="70" smashed="yes" rot="R90">
-            <attribute name="NAME" x="109.46" y="70" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="114.54" y="70" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="C6" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN" x="78.3" y="59.35" smashed="yes" rot="R270">
+            <attribute name="NAME" x="80.84" y="59.35" size="1.27" layer="25" align="top-center" rot="R270" />
+            <attribute name="VALUE" x="75.76" y="59.35" size="1.27" layer="27" align="bottom-center" rot="R270" />
           </element>
-          <element name="C6" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN" x="110" y="76" smashed="yes" rot="R90">
-            <attribute name="NAME" x="107.46" y="76" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="112.54" y="76" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="C9" library="WiFiPicoDMX_RevA_embedded" package="CAPC1608X85" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm" x="81.6" y="54.05" smashed="yes" rot="R270">
+            <attribute name="NAME" x="84.14" y="54.05" size="1.27" layer="25" align="top-center" rot="R270" />
+            <attribute name="VALUE" x="79.06" y="54.05" size="1.27" layer="27" align="bottom-center" rot="R270" />
           </element>
-          <element name="C9" library="WiFiPicoDMX_RevA_embedded" package="CAPC1608X85" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm" x="110" y="66" smashed="yes" rot="R90">
-            <attribute name="NAME" x="107.46" y="66" size="1.27" layer="25" align="top-center" rot="R90" />
-            <attribute name="VALUE" x="112.54" y="66" size="1.27" layer="27" align="bottom-center" rot="R90" />
+          <element name="L1" library="WiFiPicoDMX_RevA_embedded" package="ACT45B_4P5X3P2" value="ACT45B-510-2P-TL003 - DNP" x="77.3" y="69.15" smashed="yes" rot="R0">
+            <attribute name="NAME" x="77.3" y="71.55" size="1.27" layer="25" align="bottom-center" />
+            <attribute name="VALUE" x="77.3" y="66.75" size="1.27" layer="27" align="top-center" />
           </element>
-          <element name="L1" library="WiFiPicoDMX_RevA_embedded" package="ACT45B_4P5X3P2" value="ACT45B-510-2P-TL003 - DNP" x="122" y="78" smashed="yes" rot="R0">
-            <attribute name="NAME" x="122" y="80.4" size="1.27" layer="25" align="bottom-center" />
-            <attribute name="VALUE" x="122" y="75.6" size="1.27" layer="27" align="top-center" />
+          <element name="R10" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT" x="77.25" y="72.15" smashed="yes" rot="R0">
+            <attribute name="NAME" x="77.25" y="74.69" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="77.25" y="69.61" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="R10" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT" x="120" y="72" smashed="yes" rot="R0">
-            <attribute name="NAME" x="120" y="74.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="120" y="69.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R11" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT" x="77.35" y="66.1" smashed="yes" rot="R0">
+            <attribute name="NAME" x="77.35" y="68.64" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="77.35" y="63.56" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="R11" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT" x="120" y="68" smashed="yes" rot="R0">
-            <attribute name="NAME" x="120" y="70.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="120" y="65.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="D1" library="WiFiPicoDMX_RevA_embedded" package="SOT23_" value="SM712.TCT" x="83.25" y="69.2" smashed="yes" rot="R0">
+            <attribute name="NAME" x="83.25" y="71.8451" size="1.27" layer="25" align="bottom-center" />
+            <attribute name="VALUE" x="83.25" y="66.9949" size="1.27" layer="27" align="top-center" />
           </element>
-          <element name="D1" library="WiFiPicoDMX_RevA_embedded" package="SOT23_" value="SM712.TCT" x="130" y="78" smashed="yes" rot="R0">
-            <attribute name="NAME" x="130" y="80.6451" size="1.27" layer="25" align="bottom-center" />
-            <attribute name="VALUE" x="130" y="75.7949" size="1.27" layer="27" align="top-center" />
+          <element name="J1" library="WiFiPicoDMX_RevA_embedded" package="B4B-XH-A" value="JST XH B4B-XH-A DMX: COM,-,+,SHELL" x="88.8" y="65.45" smashed="yes" rot="R90">
+            <attribute name="NAME" x="83.72" y="69.26" size="1.27" layer="25" align="top-center" rot="R90" />
+            <attribute name="VALUE" x="92.61" y="69.26" size="1.27" layer="27" align="bottom-center" rot="R90" />
           </element>
-          <element name="J1" library="WiFiPicoDMX_RevA_embedded" package="B4B-XH-A" value="JST XH B4B-XH-A DMX: COM,-,+,SHELL" x="138" y="78" smashed="yes" rot="R0">
-            <attribute name="NAME" x="141.81" y="83.08" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="141.81" y="74.19" size="1.27" layer="27" align="bottom-center" />
+          <element name="J2" library="WiFiPicoDMX_RevA_embedded" package="B5B-XH-A" value="JST XH B5B-XH-A MIDI: 1,2,3,4,5" x="13" y="10" smashed="yes" rot="R270">
+            <attribute name="NAME" x="17.58" y="10.27" size="1.27" layer="25" align="center" rot="R270" />
+            <attribute name="VALUE" x="9.19" y="10.27" size="1.27" layer="27" align="bottom-center" rot="R270" />
           </element>
-          <element name="J2" library="WiFiPicoDMX_RevA_embedded" package="B5B-XH-A" value="JST XH B5B-XH-A MIDI: 1,2,3,4,5" x="12" y="10" smashed="yes" rot="R0">
-            <attribute name="NAME" x="11.73" y="14.58" size="1.27" layer="25" align="center" />
-            <attribute name="VALUE" x="11.73" y="6.19" size="1.27" layer="27" align="bottom-center" />
-          </element>
-          <element name="R4" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="220R 1% 0.063W 0402 Yageo RC0402FR-07220RL" x="25" y="15" smashed="yes" rot="R0">
-            <attribute name="NAME" x="25" y="17.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="25" y="12.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R4" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="220R 1% 0.063W 0402 Yageo RC0402FR-07220RL" x="25" y="12" smashed="yes" rot="R0">
+            <attribute name="NAME" x="25" y="14.54" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="25" y="9.46" size="1.27" layer="27" align="bottom-center" />
           </element>
           <element name="R5" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="220R 1% 0.063W 0402 Yageo RC0402FR-07220RL" x="25" y="7" smashed="yes" rot="R0">
             <attribute name="NAME" x="25" y="9.54" size="1.27" layer="25" align="top-center" />
             <attribute name="VALUE" x="25" y="4.46" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="D2" library="WiFiPicoDMX_RevA_embedded" package="SOD323_VISHAY" value="1N4148WS-E3-08" x="32" y="11" smashed="yes" rot="R0">
-            <attribute name="NAME" x="32" y="12.385" size="1.27" layer="25" align="bottom-center" />
-            <attribute name="VALUE" x="32" y="9.615" size="1.27" layer="27" align="top-center" />
+          <element name="D2" library="WiFiPicoDMX_RevA_embedded" package="SOD323_VISHAY" value="1N4148WS-E3-08" x="33" y="11" smashed="yes" rot="R270">
+            <attribute name="NAME" x="34.385" y="11" size="1.27" layer="25" align="bottom-center" rot="R270" />
+            <attribute name="VALUE" x="31.615" y="11" size="1.27" layer="27" align="top-center" rot="R270" />
           </element>
           <element name="U3" library="WiFiPicoDMX_RevA_embedded" package="HCPL0700_SO8" value="HCPL-0700-500E" x="42" y="11" smashed="yes" rot="R0">
             <attribute name="NAME" x="42" y="14.5962" size="1.27" layer="25" align="bottom-center" />
             <attribute name="VALUE" x="42" y="7.815" size="1.27" layer="27" align="top-center" />
           </element>
-          <element name="R6" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="4.7k 1% 0.063W 0402 Yageo RC0402FR-074K7L" x="52" y="15" smashed="yes" rot="R0">
-            <attribute name="NAME" x="52" y="17.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="52" y="12.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R6" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="4.7k 1% 0.063W 0402 Yageo RC0402FR-074K7L" x="52.2" y="28.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="52.2" y="31.04" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="52.2" y="25.96" size="1.27" layer="27" align="bottom-center" />
           </element>
-          <element name="R7" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="47k 1% 0.063W 0402 Yageo RC0402FR-0747KL" x="52" y="9" smashed="yes" rot="R0">
-            <attribute name="NAME" x="52" y="11.54" size="1.27" layer="25" align="top-center" />
-            <attribute name="VALUE" x="52" y="6.46" size="1.27" layer="27" align="bottom-center" />
+          <element name="R7" library="WiFiPicoDMX_RevA_embedded" package="RESC1005X40" value="47k 1% 0.063W 0402 Yageo RC0402FR-0747KL" x="50.4" y="9.5" smashed="yes" rot="R0">
+            <attribute name="NAME" x="50.4" y="12.04" size="1.27" layer="25" align="top-center" />
+            <attribute name="VALUE" x="50.4" y="6.96" size="1.27" layer="27" align="bottom-center" />
           </element>
           <element name="C7" library="WiFiPicoDMX_RevA_embedded" package="CAPC1005X60" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC" x="57" y="12" smashed="yes" rot="R90">
             <attribute name="NAME" x="54.46" y="12" size="1.27" layer="25" align="top-center" rot="R90" />
@@ -1678,14 +1631,12 @@
           <signal name="DMX_DATA_MINUS" class="0">
             <contactref element="D1" pad="2"/>
             <contactref element="J1" pad="2"/>
-            <contactref element="J6" pad="8"/>
             <contactref element="L1" pad="3"/>
             <contactref element="R11" pad="2"/>
           </signal>
           <signal name="DMX_DATA_PLUS" class="0">
             <contactref element="D1" pad="1"/>
             <contactref element="J1" pad="3"/>
-            <contactref element="J6" pad="7"/>
             <contactref element="L1" pad="2"/>
             <contactref element="R10" pad="2"/>
           </signal>
@@ -1739,7 +1690,6 @@
             <contactref element="D1" pad="3"/>
             <contactref element="FB2" pad="2"/>
             <contactref element="J1" pad="1"/>
-            <contactref element="J6" pad="6"/>
             <contactref element="U2" pad="15"/>
           </signal>
           <signal name="GND_LOGIC" class="0">
@@ -1750,7 +1700,6 @@
             <contactref element="C8" pad="2"/>
             <contactref element="D3" pad="C"/>
             <contactref element="D4" pad="C"/>
-            <contactref element="J6" pad="2"/>
             <contactref element="R2" pad="2"/>
             <contactref element="R7" pad="2"/>
             <contactref element="SW1" pad="3"/>
@@ -1894,13 +1843,11 @@
           <signal name="VBUS_5V_USB" class="0">
             <contactref element="C7" pad="1"/>
             <contactref element="F1" pad="1"/>
-            <contactref element="J6" pad="3"/>
             <contactref element="U1" pad="40"/>
             <contactref element="U3" pad="8"/>
           </signal>
           <signal name="VCC_3V3_LOGIC" class="0">
             <contactref element="C1" pad="1"/>
-            <contactref element="J6" pad="1"/>
             <contactref element="R1" pad="1"/>
             <contactref element="R3" pad="1"/>
             <contactref element="R6" pad="1"/>
@@ -1911,7 +1858,6 @@
           <signal name="VCC_5V_DMX_ISO" class="0">
             <contactref element="C6" pad="1"/>
             <contactref element="FB1" pad="2"/>
-            <contactref element="J6" pad="5"/>
             <contactref element="U2" pad="16"/>
           </signal>
           <signal name="VDD_5V_ISOW_FUSED" class="0">
@@ -1919,7 +1865,6 @@
             <contactref element="C3" pad="1"/>
             <contactref element="C8" pad="1"/>
             <contactref element="F1" pad="2"/>
-            <contactref element="J6" pad="4"/>
             <contactref element="U2" pad="9"/>
           </signal>
           <signal name="VISO_5V_CONVERTER" class="0">

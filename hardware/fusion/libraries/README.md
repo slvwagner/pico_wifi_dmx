@@ -24,7 +24,7 @@ definitions:
 | L1 | `ACT45B_4P5X3P2` |
 | J1 | `B4B-XH-A` |
 | J2 | `B5B-XH-A` |
-| J3, J6 | `PADBANK17`, `PADBANK8` |
+| J3 | `PADBANK17` |
 
 The `B7B-XH-A` library entry remains intentionally unselected. Rev. A uses
 `B4B-XH-A` and `B5B-XH-A` as board-mounted harness headers for the
@@ -46,8 +46,6 @@ development-board mounting, which is intentionally retained:
   1.90 × 0.64 mm SO-8 pads;
 - the SM712 uses the user-supplied Fusion `SOT23_` footprint and 3D
   association; the 1N4148WS uses Vishay's SOD-323 recommended land pattern;
-- the J6 diagnostic footprint places logic-side pads 1-4 and isolated-side
-  pads 5-8 in separate rows with a 9.8 mm copper-edge gap;
 - component prefixes and HCPL-0700 naming were normalized.
 
 Panel wiring pads and the pad-bank sizes missing from the library continue to

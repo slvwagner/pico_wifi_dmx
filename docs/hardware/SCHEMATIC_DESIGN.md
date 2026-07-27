@@ -331,10 +331,6 @@ Provide clearly distinct pads for:
 
 Power, logic ground, and isolated ground pads must use different silkscreen
 names. Never use a generic `GND` label for both isolation domains.
-The J6 diagnostic footprint must keep pads 1-4 on the logic side and pads
-5-8 on the isolated side. Its selected geometry uses 12 mm row-centre spacing
-and a 9.8 mm copper-edge gap so the test pads do not bypass the PCB isolation
-corridor.
 Do not power later accessories from `VDD_5V_ISOW_FUSED`; that branch is dedicated
 to the ISOW1412. A later external 5 V connector requires its own fuse and
 power-budget review.

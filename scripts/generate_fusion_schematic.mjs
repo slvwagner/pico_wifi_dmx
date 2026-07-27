@@ -480,7 +480,6 @@ picoPackage.push(element("text", { x: -9.5, y: -23.5, size: 1.0, layer: 21 }, "A
 definePackage("PICO2W_CASTELLATED_PRELIMINARY", lines(picoPackage, "          "));
 
 definePackage("PADBANK7", padBankPackage(7));
-definePackage("PADBANK8", padBankPackage(8));
 definePackage("PADBANK17", padBankPackage(17));
 definePackage("PADBANK5", padBankPackage(5));
 
@@ -505,7 +504,6 @@ definePackage("PADBANK5", padBankPackage(5));
   "ACT45B_4P5X3P2",
   "B4B-XH-A",
   "B5B-XH-A",
-  "PADBANK8",
   "PADBANK17",
 ].forEach(importProjectLibraryPackage);
 
@@ -556,7 +554,6 @@ function defineConnector(count, name, packageName, description) {
 defineConnector(4, "PANEL_DMX4", "B4B-XH-A", "JST XH B4B-XH-A board header for the panel XLR harness");
 defineConnector(5, "PANEL_MIDI5", "B5B-XH-A", "JST XH B5B-XH-A board header for the panel DIN-5 harness");
 defineConnector(7, "PADBANK7", "PADBANK7", "Diagnostic SMD pad bank");
-defineConnector(8, "PADBANK8", "PADBANK8", "Power and isolated-side diagnostic SMD pad bank");
 defineConnector(17, "PADBANK17", "PADBANK17", "Free GPIO SMD pad bank");
 defineConnector(5, "PADBANK5", "PADBANK5", "Analog SMD pad bank");
 
@@ -607,7 +604,6 @@ addPart("D4", "LED0603", "DMX YELLOW Lite-On LTST-C190KSKT", 1, 254, 124.46);
 addPart("J3", "PADBANK17", "FREE GPIO PADS", 1, 320.04, 134.62);
 addPart("J4", "PADBANK5", "ANALOG PADS", 1, 213.36, 71.12);
 addPart("J5", "PADBANK7", "RESERVED SIGNAL TEST PADS", 1, 213.36, 33.02);
-addPart("J6", "PADBANK8", "POWER/DMX TEST PADS", 1, 152.4, 53.34);
 
 // Sheet 2, isolated DMX/RDM
 addPart("U2", "ISOW1412DFMR", "ISOW1412DFMR", 2, 111.76, 101.6);
@@ -645,16 +641,16 @@ connectMany("GND_LOGIC", [
   ["U1", "GND3"], ["U1", "GND8"], ["U1", "GND13"], ["U1", "GND18"],
   ["U1", "GND23"], ["U1", "GND28"], ["U1", "GND38"],
   ["SW1", "P$3"], ["SW1", "P$4"],
-  ["D3", "K"], ["D4", "K"], ["J6", "P2"],
+  ["D3", "K"], ["D4", "K"],
   ["U2", "GNDIO"], ["U2", "GND1"], ["R2", "2"], ["C1", "2"], ["C2", "2"],
   ["C3", "2"], ["C8", "2"], ["U3", "GND"], ["R7", "2"], ["C7", "2"],
 ]);
 connectMany("VCC_3V3_LOGIC", [
-  ["U1", "3V3"], ["J6", "P1"], ["R8", "1"], ["U2", "VIO"], ["R1", "1"],
+  ["U1", "3V3"], ["R8", "1"], ["U2", "VIO"], ["R1", "1"],
   ["R3", "1"], ["C1", "1"], ["R6", "1"],
 ]);
-connectMany("VBUS_5V_USB", [["U1", "VBUS"], ["F1", "1"], ["J6", "P3"], ["U3", "VCC"], ["C7", "1"]]);
-connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["J6", "P4"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"], ["C8", "1"]]);
+connectMany("VBUS_5V_USB", [["U1", "VBUS"], ["F1", "1"], ["U3", "VCC"], ["C7", "1"]]);
+connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"], ["C8", "1"]]);
 connectMany("PICO_RUN_N", [
   ["U1", "RUN"], ["SW1", "P$1"], ["SW1", "P$2"],
 ]);
@@ -681,14 +677,14 @@ freeGpios.forEach((gpio, index) => connectMany(`GPIO${gpio}_EXP`, [["U1", `GP${g
 // Isolated side and DMX connector
 connectMany("VISO_5V_CONVERTER", [["U2", "VISOOUT"], ["U2", "MODE"], ["FB1", "1"], ["C4", "1"], ["C5", "1"], ["C9", "1"]]);
 connectMany("GND_DMX_CONVERTER", [["U2", "GND2"], ["FB2", "1"], ["C4", "2"], ["C5", "2"], ["C9", "2"]]);
-connectMany("VCC_5V_DMX_ISO", [["FB1", "2"], ["U2", "VISOIN"], ["C6", "1"], ["J6", "P5"]]);
+connectMany("VCC_5V_DMX_ISO", [["FB1", "2"], ["U2", "VISOIN"], ["C6", "1"]]);
 connectMany("GND_DMX_ISO", [
-  ["FB2", "2"], ["U2", "GISOIN"], ["C6", "2"], ["D1", "GND"], ["J1", "P1"], ["J6", "P6"],
+  ["FB2", "2"], ["U2", "GISOIN"], ["C6", "2"], ["D1", "GND"], ["J1", "P1"],
 ]);
 connectMany("DMX_TRX_PLUS", [["U2", "Y"], ["U2", "A"], ["L1", "A1"], ["R10", "1"]]);
 connectMany("DMX_TRX_MINUS", [["U2", "Z"], ["U2", "B"], ["L1", "B1"], ["R11", "1"]]);
-connectMany("DMX_DATA_PLUS", [["L1", "A2"], ["R10", "2"], ["D1", "IO1"], ["J1", "P3"], ["J6", "P7"]]);
-connectMany("DMX_DATA_MINUS", [["L1", "B2"], ["R11", "2"], ["D1", "IO2"], ["J1", "P2"], ["J6", "P8"]]);
+connectMany("DMX_DATA_PLUS", [["L1", "A2"], ["R10", "2"], ["D1", "IO1"], ["J1", "P3"]]);
+connectMany("DMX_DATA_MINUS", [["L1", "B2"], ["R11", "2"], ["D1", "IO2"], ["J1", "P2"]]);
 connectMany("XLR_SHELL", [["J1", "P4"]]);
 
 // MIDI input

@@ -82,9 +82,9 @@ node scripts/generate_fusion_board.mjs
 
 The starter layout provides:
 
-- all 38 physical components and all 55 named airwire nets;
-- a plain rectangular 150 mm × 100 mm board outline with four 3.2 mm carrier
-  mounting holes;
+- all 37 physical components and all 55 named airwire nets;
+- a plain rectangular 95 mm × 100 mm board outline matching the first
+  manually arranged Fusion layout, without enclosure-specific mounting holes;
 - the complete Pico 2 W development board mounted through the two 20-pin
   header rows from the supplied library footprint, without a carrier cutout
   or Pico-specific keepout/access zone;
@@ -97,7 +97,6 @@ The starter layout provides:
   connector and protected input network, through the HCPL-0700, to the Pico;
 - a board-edge MIDI input island enclosed by the carrier edges and top,
   bottom, and via-restrict moats, with the HCPL-0700 straddling its boundary;
-- separated J6 logic and isolated diagnostic pad groups;
 - one shared conservative default net class for clean Fusion
   schematic/board import consistency.
 

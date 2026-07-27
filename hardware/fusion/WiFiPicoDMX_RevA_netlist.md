@@ -53,7 +53,6 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | J3 | FREE GPIO PADS | PADBANK17 |
 | J4 | ANALOG PADS | PADBANK5 |
 | J5 | RESERVED SIGNAL TEST PADS | PADBANK7 |
-| J6 | POWER/DMX TEST PADS | PADBANK8 |
 | L1 | ACT45B-510-2P-TL003 - DNP | ACT45B_4P5X3P2 |
 | R1 | 100k 1% 0.063W 0402 Yageo RC0402FR-07100KL | RESC1005X40 |
 | R2 | 10k 1% 0.063W 0402 Yageo RC0402FR-0710KL | RESC1005X40 |
@@ -81,8 +80,8 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `ADC2_GPIO28` | J4.3 (P3)<br>U1.34 (GP28_ADC2) |
 | `AGND` | J4.5 (P5)<br>U1.33 (AGND) |
 | `DMX_ACTIVITY_GPIO7` | J5.6 (P6)<br>R9.1 (1)<br>U1.10 (GP7) |
-| `DMX_DATA_MINUS` | D1.2 (IO2)<br>J1.2 (P2)<br>J6.8 (P8)<br>L1.3 (B2)<br>R11.2 (2) |
-| `DMX_DATA_PLUS` | D1.1 (IO1)<br>J1.3 (P3)<br>J6.7 (P7)<br>L1.2 (A2)<br>R10.2 (2) |
+| `DMX_DATA_MINUS` | D1.2 (IO2)<br>J1.2 (P2)<br>L1.3 (B2)<br>R11.2 (2) |
+| `DMX_DATA_PLUS` | D1.1 (IO1)<br>J1.3 (P3)<br>L1.2 (A2)<br>R10.2 (2) |
 | `DMX_DIR_GPIO4` | J5.3 (P3)<br>R2.1 (1)<br>U1.6 (GP4)<br>U2.3 (DE)<br>U2.5 (RE_N) |
 | `DMX_LED_ANODE` | D4.A (A)<br>R9.2 (2) |
 | `DMX_RX_GPIO6` | J5.5 (P5)<br>U1.9 (GP6)<br>U2.4 (R) |
@@ -91,8 +90,8 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `DMX_TRX_PLUS` | L1.1 (A1)<br>R10.1 (1)<br>U2.20 (A)<br>U2.17 (Y) |
 | `DMX_TX_GPIO2` | J5.1 (P1)<br>R1.2 (2)<br>U1.4 (GP2)<br>U2.2 (D) |
 | `GND_DMX_CONVERTER` | C4.2 (2)<br>C5.2 (2)<br>C9.2 (2)<br>FB2.1 (1)<br>U2.11 (GND2) |
-| `GND_DMX_ISO` | C6.2 (2)<br>D1.3 (GND)<br>FB2.2 (2)<br>J1.1 (P1)<br>J6.6 (P6)<br>U2.15 (GISOIN) |
-| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>C8.2 (2)<br>D3.C (K)<br>D4.C (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.3 (P$3)<br>SW1.4 (P$4)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
+| `GND_DMX_ISO` | C6.2 (2)<br>D1.3 (GND)<br>FB2.2 (2)<br>J1.1 (P1)<br>U2.15 (GISOIN) |
+| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>C8.2 (2)<br>D3.C (K)<br>D4.C (K)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.3 (P$3)<br>SW1.4 (P$4)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
 | `GPIO0_EXP` | J3.1 (P1)<br>U1.1 (GP0) |
 | `GPIO1_EXP` | J3.2 (P2)<br>U1.2 (GP1) |
 | `GPIO10_EXP` | J3.5 (P5)<br>U1.14 (GP10) |
@@ -124,9 +123,9 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `PICO_SMPS_EN` | U1.37 (3V3_EN) |
 | `PICO_VSYS` | U1.39 (VSYS) |
 | `PWR_LED_ANODE` | D3.A (A)<br>R8.2 (2) |
-| `VBUS_5V_USB` | C7.1 (1)<br>F1.1 (1)<br>J6.3 (P3)<br>U1.40 (VBUS)<br>U3.8 (VCC) |
-| `VCC_3V3_LOGIC` | C1.1 (1)<br>J6.1 (P1)<br>R1.1 (1)<br>R3.1 (1)<br>R6.1 (1)<br>R8.1 (1)<br>U1.36 (3V3)<br>U2.1 (VIO) |
-| `VCC_5V_DMX_ISO` | C6.1 (1)<br>FB1.2 (2)<br>J6.5 (P5)<br>U2.16 (VISOIN) |
-| `VDD_5V_ISOW_FUSED` | C2.1 (1)<br>C3.1 (1)<br>C8.1 (1)<br>F1.2 (2)<br>J6.4 (P4)<br>U2.9 (VDD) |
+| `VBUS_5V_USB` | C7.1 (1)<br>F1.1 (1)<br>U1.40 (VBUS)<br>U3.8 (VCC) |
+| `VCC_3V3_LOGIC` | C1.1 (1)<br>R1.1 (1)<br>R3.1 (1)<br>R6.1 (1)<br>R8.1 (1)<br>U1.36 (3V3)<br>U2.1 (VIO) |
+| `VCC_5V_DMX_ISO` | C6.1 (1)<br>FB1.2 (2)<br>U2.16 (VISOIN) |
+| `VDD_5V_ISOW_FUSED` | C2.1 (1)<br>C3.1 (1)<br>C8.1 (1)<br>F1.2 (2)<br>U2.9 (VDD) |
 | `VISO_5V_CONVERTER` | C4.1 (1)<br>C5.1 (1)<br>C9.1 (1)<br>FB1.1 (1)<br>U2.13 (MODE)<br>U2.12 (VISOOUT) |
 | `XLR_SHELL` | J1.4 (P4) |
