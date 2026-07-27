@@ -75,7 +75,7 @@ function numericPad(pad) {
   );
 }
 
-test("critical manufacturer land patterns use verified dimensions", () => {
+test("critical selected land patterns use frozen dimensions", () => {
   const isowPads = packagePads(sourceLibrary, "DFM0020A_TI")
     .map(numericPad);
   assert.equal(isowPads.length, 20);
@@ -115,15 +115,23 @@ test("critical manufacturer land patterns use verified dimensions", () => {
     ],
   );
 
-  const sm712Pads = packagePads(sourceLibrary, "SM712_SOT23")
+  const sm712Pads = packagePads(sourceLibrary, "SOT23_")
     .map(numericPad);
   assert.deepEqual(
     sm712Pads.map(({ x, y, dx, dy }) => ({ x, y, dx, dy })),
     [
-      { x: -1.1, y: 0.475, dx: 1.4, dy: 1 },
-      { x: -1.1, y: -0.475, dx: 1.4, dy: 1 },
-      { x: 1.1, y: 0, dx: 1.4, dy: 1 },
+      { x: -1.0247, y: 0.95, dx: 1.1821, dy: 0.6122 },
+      { x: -1.0247, y: -0.95, dx: 1.1821, dy: 0.6122 },
+      { x: 1.0247, y: 0, dx: 1.1821, dy: 0.6122 },
     ],
+  );
+  assert.match(
+    sourceLibrary,
+    /<package3d name="SOT23"[^>]*\bwip_urn="urn:adsk\.wipprod:fs\.file:vf\.4AAFcqkXTp2xL-Mh3nvH5A\?version=1"[\s\S]*?<packageinstance name="SOT23_"\/>/,
+  );
+  assert.match(
+    sourceLibrary,
+    /<deviceset name="SM712"[\s\S]*?<device name="" package="SOT23_">[\s\S]*?<package3dinstance package3d_urn="urn:adsk\.wipprod:fs\.file:vf\.4AAFcqkXTp2xL-Mh3nvH5A\?version=1"\/>/,
   );
 
   const diodePads = packagePads(sourceLibrary, "SOD323_VISHAY")
@@ -414,8 +422,16 @@ test("generated schematic uses maintained symbols for library-backed parts", () 
     },
     { generatedName: "TVS_SM712", libraryName: "TVS_SM712" },
     { generatedName: "CMC", libraryName: "CMC" },
-    { generatedName: "ISOW1412", libraryName: "ISOW1412" },
-    { generatedName: "OPTO_HCPL0700", libraryName: "OPTO_HCPL0700" },
+    {
+      generatedName: "ISOW1412",
+      libraryName: "ISOW1412",
+      excludedPins: ["IN", "OUT"],
+    },
+    {
+      generatedName: "OPTO_HCPL0700",
+      libraryName: "OPTO_HCPL0700",
+      excludedPins: ["NC1", "NC4"],
+    },
     { generatedName: "CONN8", libraryName: "CONN8" },
     { generatedName: "CONN17", libraryName: "CONN17" },
     {
@@ -444,6 +460,7 @@ test("generated schematic uses maintained symbols for library-backed parts", () 
     generatedName,
     libraryName,
     pins = {},
+    excludedPins = [],
   } of expectedSymbols) {
     let expectedBody = symbolBody(sourceLibrary, libraryName);
     for (const [libraryPin, generatedPin] of Object.entries(pins)) {
@@ -453,6 +470,15 @@ test("generated schematic uses maintained symbols for library-backed parts", () 
           "g",
         ),
         `$1${generatedPin}$2`,
+      );
+    }
+    for (const excludedPin of excludedPins) {
+      expectedBody = expectedBody.replace(
+        new RegExp(
+          `[ \\t]*<pin\\b[^>]*\\bname="${escaped(excludedPin)}"[^>]*/>\\r?\\n?`,
+          "g",
+        ),
+        "",
       );
     }
     assert.equal(

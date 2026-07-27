@@ -69,6 +69,67 @@ Expected output:
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.csv`;
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.md`.
 
+## Basic carrier-board layout
+
+`WiFiPicoDMX_RevA.brd` is a basic, deliberately unrouted two-layer carrier
+layout generated from the schematic and physical net list. Regenerate it
+after regenerating the schematic:
+
+```powershell
+node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_board.mjs
+```
+
+The starter layout provides:
+
+- all 38 physical components and all 55 named airwire nets;
+- a 150 mm × 100 mm board outline with four 3.2 mm carrier mounting holes;
+- the official 14 mm × 9 mm Pico 2 W antenna cutout opening at the board
+  edge;
+- a component-free Pico USB and button-access area;
+- separate logic and isolated-DMX placement zones;
+- a full-height top, bottom, and via restrict corridor beneath the ISOW1412
+  isolation barrier;
+- a board-edge MIDI input island enclosed by top, bottom, and via-restrict
+  moats, with the HCPL-0700 straddling its boundary;
+- separated J6 logic and isolated diagnostic pad groups;
+- one shared conservative default net class for clean Fusion
+  schematic/board import consistency.
+
+The generated placement is an engineering starting point, not an autorouted
+or production-ready PCB. Fusion must still be used to review the mechanical
+fit, set the fabricator-specific design rules, route the board, add suitable
+planes, inspect return paths, and run DRC. Do not remove or bridge the
+isolation corridor with copper, vias, silkscreen conductive material, test
+fixtures, or mounting hardware.
+
+### Fusion ERC consistency
+
+The generated schematic and board deliberately use only Fusion's shared
+`default` routing class. Independently importing a generated `.sch` and `.brd`
+can cause Fusion to discard custom schematic-class metadata while retaining
+the board classes, producing code 303 consistency errors. Define final
+signal-specific routing rules inside Fusion after import and keep them
+synchronized there.
+
+The unused ISOW1412 general-purpose `IN`/`OUT` isolation channel and the two
+HCPL-0700 NC pads remain present in their physical packages but are omitted
+from the schematic symbols and device pin mappings. This prevents Fusion from
+synthesizing named one-pin nets: an input-only named net produces error 209,
+and connecting NC pins produces warning 103.
+
+Fusion may still report reviewed warnings for:
+
+- supply pins connected to the project's explicit domain names such as
+  `GND_LOGIC`, `VCC_3V3_LOGIC`, and `GND_DMX_ISO`;
+- deliberately open panel pins (`MIDI_DIN_PIN1_SPARE`,
+  `MIDI_DIN_PIN2_SHIELD`, `MIDI_DIN_PIN3_SPARE`, and `XLR_SHELL`);
+- intentionally unused Pico header pins such as `PICO_VSYS` and
+  `PICO_SMPS_EN`.
+
+Those warnings document deliberate design decisions. Recheck them after any
+connectivity change rather than globally suppressing the warning codes.
+
 The connectivity and physical pin mappings were deliberately specified from
 the design decisions and component datasheets. The schematic's automatic
 visual arrangement is only a starting point for manual redrawing. Importing a
@@ -81,11 +142,12 @@ The circuit is based on
 It is an engineering prototype, not a manufacturing release. Before creating
 Gerbers or ordering a PCB:
 
-1. run Fusion's ERC and resolve every result;
+1. run Fusion's ERC and resolve every result (the current Rev. A schematic
+   was checked without errors, but repeat ERC after later edits);
 2. verify every package against the latest manufacturer land-pattern drawing;
 3. independently recheck the imported `PTS810_J_LEAD`,
    `PPTC1206_1206L050YR`, `ACT45B_4P5X3P2`, `DFM0020A_TI`,
-   `SM712_SOT23`, `SOD323_VISHAY`, and `HCPL0700_SO8` land patterns
+   `SOT23_`, `SOD323_VISHAY`, and `HCPL0700_SO8` land patterns
    against the current manufacturer drawings before fabrication;
 4. confirm the Pico 2 W orientation, antenna keep-out and BOOTSEL access
    against the physical module;
@@ -93,6 +155,6 @@ Gerbers or ordering a PCB:
 6. independently review the DMX polarity, TVS pin mapping, MIDI input current
    and connector harness pin numbering.
 
-Panel-mounted XLR and MIDI connectors use labelled carrier-board solder pads
-with strain-relief holes. They are not represented as PCB-mounted connector
-bodies.
+Panel-mounted XLR and MIDI connectors connect to carrier-board JST XH headers:
+J1 is `B4B-XH-A` for DMX common, Data−, Data+, and shell; J2 is `B5B-XH-A`
+for DIN pins 1-5. The panel connector bodies are not mounted on the PCB.

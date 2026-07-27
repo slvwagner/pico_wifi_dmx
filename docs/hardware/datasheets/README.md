@@ -13,14 +13,16 @@ WiFiPicoDMX Rev. A controller hardware. The local copies are stored in
 | D2 | 1N4148WS-E3-08 | [Datasheet](pdfs/D3_1N4148WS.pdf) | [Vishay datasheet](https://www.vishay.com/docs/86455/1n4148ws.pdf) |
 | F1 | 1206L050YR (0.5 A hold / 1.0 A trip) | [1206L series datasheet](pdfs/F1_1206L_PTC_Series.pdf) | [Littelfuse 1206L datasheet](https://www.littelfuse.com/assetdocs/littelfuse-ptc-1206l-datasheet?assetguid=2b6a1515-d4ee-4c83-8bd4-152b4901b8f5) |
 | L1 | TDK ACT45B-510-2P-TL003 | [ACT45B datasheet](pdfs/L1_TDK_ACT45B.pdf) | [TDK datasheet](https://www.tdk-electronics.tdk.com/inf/30/ds/act45b.pdf) |
-| J2 | Neutrik NC5FAH | [Mechanical drawing](pdfs/J2_Neutrik_NC5FAH-3.pdf) | [Neutrik drawing](https://www.neutrik.com/media/8323/download/nc5fah-3.pdf?v=1) |
+| J1 | JST B4B-XH-A, DMX harness header | — | [JST XH series datasheet](https://www.jst-mfg.com/product/pdf/eng/eXH.pdf) |
+| J2 | JST B5B-XH-A, MIDI harness header | — | [JST XH series datasheet](https://www.jst-mfg.com/product/pdf/eng/eXH.pdf) |
+| Panel XLR | Neutrik NC5FAH | [Mechanical drawing](pdfs/J2_Neutrik_NC5FAH-3.pdf) | [Neutrik drawing](https://www.neutrik.com/media/8323/download/nc5fah-3.pdf?v=1) |
 | SW1 | C&K/Littelfuse PTS810SJM250SMTR LFS | [PTS810 datasheet](pdfs/SW1_PTS810.pdf) | [Littelfuse datasheet](https://www.littelfuse.com/assetdocs/littelfuse-c-k-tactile-pts810-series-datasheet?assetguid=f1e4bc97-66e9-4beb-99c6-eaef0bd3bff4) |
 
-The exact DIN-5 MIDI connector, terminal block, headers, and generic
-mechanical/passive parts still depend on mechanical design. `L1` now has a
-final manufacturer part number, but remains DNP by default until EMC and
-signal-integrity testing confirms that it should replace the two zero-ohm
-bypasses.
+The exact panel-mounted DIN-5 MIDI connector and generic mechanical parts
+still depend on the enclosure design. The carrier harness headers are fixed
+as J1 `B4B-XH-A` and J2 `B5B-XH-A`. `L1` has a final manufacturer part
+number, but remains DNP by default until EMC and signal-integrity testing
+confirms that it should replace the two zero-ohm bypasses.
 
 Broadcom publishes the `HCPL-0700` in a combined family datasheet. U3 is fixed
 as `HCPL-0700-500E`; its generated SOIC-8 footprint remains preliminary and

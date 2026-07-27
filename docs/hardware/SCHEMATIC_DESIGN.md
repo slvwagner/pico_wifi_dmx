@@ -21,6 +21,27 @@ measurements and the applicable conformity testing.
 - Do not use the SN74LVC1G04 inverter. DMX polarity is generated correctly in
   firmware and GPIO2 drives the isolated transceiver directly.
 
+## Pico 2 W carrier mechanics
+
+The carrier layout follows the official Raspberry Pi Pico 2 W mechanical
+specification in
+[`U1_Pico_2_W_Datasheet.pdf`](datasheets/pdfs/U1_Pico_2_W_Datasheet.pdf):
+
+- module PCB: 51 mm × 21 mm × 1 mm;
+- two 20-pin rows on a 2.54 mm pitch with 17.78 mm row spacing and 1 mm
+  module holes;
+- Micro-USB connector overhanging the top edge;
+- wireless antenna at the opposite, bottom edge;
+- 14 mm × 9 mm carrier-board cutout below the antenna.
+
+The basic carrier places the Pico antenna cutout directly at the carrier edge.
+No PCB material, copper, component, cable, mounting hardware, or metal
+enclosure may enter the antenna volume. Keep the USB approach and onboard
+BOOTSEL area free of carrier components. The four 2.1 mm holes on the Pico
+module are not duplicated as carrier mounting holes in this first layout;
+the prototype uses the two through-hole header rows, and any later standoffs
+must be coordinated with the enclosure.
+
 ## Isolated DMX output
 
 ### Preferred transceiver and isolated supply
@@ -55,6 +76,7 @@ listed for July/August 2026. Confirm stock before ordering a production run.
 | `DE`, `/RE` | Short together and connect to Pico `GPIO4` (`DMX_DIR_PIN`) with a hardware pull-down |
 | `R` | Pico `GPIO6` (`DMX_RX_PIN`) for future RDM reception |
 | `EN/FLT` | 10 kΩ pull-up to `VIO`, plus a test point |
+| `OUT` | Leave unconnected; unused general-purpose isolation-channel output |
 
 `GPIO4` is the half-duplex direction control. Low disables the driver and
 enables the receiver; high enables the driver and disables the receiver. Its
@@ -75,6 +97,7 @@ sees a defined Mark level while the Pico pin is high-impedance.
 | `GND2` to `GISOIN` | Through `BLM15EX331SN1D` ferrite bead |
 | `Y`, `A` | Short together: DMX Data+ path to XLR pin 3 |
 | `Z`, `B` | Short together: DMX Data− path to XLR pin 2 |
+| `IN` | Leave unconnected; unused general-purpose isolation-channel input |
 
 Use the following power-network components and place them exactly as the TI
 layout guidance requires:
@@ -171,6 +194,8 @@ connected to the Pico 2 W Micro-USB connector.
 | Isolated-supply ferrites | `BLM15EX331SN1D` | 0402 SMD | Selected |
 | Optional DMX common-mode choke | `ACT45B-510-2P-TL003` | TDK ACT45B, 4.5 × 3.2 mm SMD | Selected; DNP by default pending EMC/signal-integrity tests |
 | Reset pushbutton | `PTS810SJM250SMTR LFS` | 4.2 × 3.2 mm, 2.5 mm high, four-pad J-lead SMD | Selected |
+| DMX harness header | JST `B4B-XH-A` | 4-position, 2.50 mm pitch, vertical through-hole | Selected |
+| MIDI harness header | JST `B5B-XH-A` | 5-position, 2.50 mm pitch, vertical through-hole | Selected |
 | DMX connector | Neutrik 5-pin female XLR | Panel mounted and wired | Exception |
 | MIDI connector | 5-pin DIN MIDI IN | Panel mounted and wired | Included; select exact part by enclosure |
 
@@ -184,8 +209,8 @@ The maintained Fusion/EAGLE library is stored at
 `hardware/fusion/libraries/WiFiPicoDMX.lbr`. The generated schematic imports
 its matching SMD land patterns for the Pico, passives, status LEDs, reset
 switch, PPTC fuse, ISOW1412, SM712, ACT45B, HCPL-0700, MIDI protection diode,
-and available diagnostic pad banks. The panel wiring pads and pad-bank sizes
-not present in the library retain project-specific definitions.
+JST XH harness headers, and available diagnostic pad banks. Pad-bank sizes not
+present in the library retain project-specific definitions.
 
 ## MIDI input
 
@@ -200,14 +225,16 @@ Rev. A includes a standard 5-pin DIN MIDI IN port for future use:
 - MIDI hardware may remain unused by the initial application, but it is fitted
   so enabling it later does not require a PCB revision.
 
-The exact connector manufacturer and footprint remain part of the enclosure
-and mechanical-layout decision.
+The exact panel-mounted DIN connector remains part of the enclosure decision.
+Its carrier-board harness terminates at JST `B5B-XH-A`.
 
 ### Panel-connector wiring
 
 The prototype's XLR and MIDI connector bodies do not mount on the carrier PCB.
-Provide labelled plated solder pads and nearby non-plated strain-relief holes
-for their wire harnesses.
+Their harnesses terminate at vertical through-hole JST XH headers: `B4B-XH-A`
+for DMX and `B5B-XH-A` for MIDI. Use keyed mating housings, preserve the pin
+order below at both harness ends, and add external harness strain relief in
+the enclosure.
 
 DMX panel wiring:
 
@@ -232,6 +259,19 @@ Bring all five DIN pins to distinct pads even though the initial MIDI current
 loop uses pins 4 and 5. Do not merge MIDI pin 2, XLR shell, logic ground, or
 isolated DMX ground implicitly. Use explicit configurable links where a later
 enclosure decision may require a connection.
+
+The PCB must preserve the optocoupler's galvanic isolation:
+
+- place J2, R4, R5, D2, and the HCPL-0700 LED-side pads inside a dedicated
+  board-edge MIDI input island;
+- place the HCPL-0700 across the island boundary, with its VCC, GND, output,
+  and base-side parts outside on the Pico logic side;
+- surround the input island on its three internal sides with top-copper,
+  bottom-copper, and via-restrict moats; the carrier-board edge forms the
+  fourth side;
+- never pour `GND_LOGIC`, route another logic net, or place a via through the
+  MIDI isolation moat;
+- keep `MIDI_DIN_PIN2_SHIELD` separate from `GND_LOGIC`.
 
 Use large, clearly separated pads suitable for manually soldered stranded
 wire. Add adjacent tie-down holes so cable movement is not transferred to the
@@ -293,6 +333,10 @@ Provide clearly distinct pads for:
 
 Power, logic ground, and isolated ground pads must use different silkscreen
 names. Never use a generic `GND` label for both isolation domains.
+The J6 diagnostic footprint must keep pads 1-4 on the logic side and pads
+5-8 on the isolated side. Its selected geometry uses 12 mm row-centre spacing
+and a 9.8 mm copper-edge gap so the test pads do not bypass the PCB isolation
+corridor.
 Do not power later accessories from `VDD_5V_ISOW_FUSED`; that branch is dedicated
 to the ISOW1412. A later external 5 V connector requires its own fuse and
 power-budget review.

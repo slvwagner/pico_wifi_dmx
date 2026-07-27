@@ -38,7 +38,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | C7 | 100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC | CAPC1005X60 |
 | C8 | 1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm | CAPC1608X85 |
 | C9 | 1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm | CAPC1608X85 |
-| D1 | SM712.TCT | SM712_SOT23 |
+| D1 | SM712.TCT | SOT23_ |
 | D2 | 1N4148WS-E3-08 | SOD323_VISHAY |
 | D3 | PWR GREEN Lite-On LTST-C190KGKT | LEDC1608X55N_FLAT-B |
 | D4 | DMX YELLOW Lite-On LTST-C190KSKT | LEDC1608X55N_FLAT-B |
@@ -48,8 +48,8 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | FRAME1 |  | undefined |
 | FRAME2 |  | undefined |
 | FRAME3 |  | undefined |
-| J1 | PANEL XLR-5: COM,-,+,SHELL | PANEL4_WIRE_PADS |
-| J2 | PANEL DIN-5 MIDI IN | PANEL5_WIRE_PADS |
+| J1 | JST XH B4B-XH-A DMX: COM,-,+,SHELL | B4B-XH-A |
+| J2 | JST XH B5B-XH-A MIDI: 1,2,3,4,5 | B5B-XH-A |
 | J3 | FREE GPIO PADS | PADBANK17 |
 | J4 | ANALOG PADS | PADBANK5 |
 | J5 | RESERVED SIGNAL TEST PADS | PADBANK7 |
@@ -120,10 +120,6 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `MIDI_OPTO_LED_ANODE` | D2.C (K)<br>R4.2 (2)<br>U3.2 (A) |
 | `MIDI_OPTO_LED_CATHODE` | D2.A (A)<br>R5.1 (1)<br>U3.3 (K) |
 | `MIDI_RX_GPIO5` | J5.4 (P4)<br>R6.2 (2)<br>U1.7 (GP5)<br>U3.6 (VO) |
-| `NC_U2_PIN14_IN` | U2.14 (IN) |
-| `NC_U2_PIN7_OUT` | U2.7 (OUT) |
-| `NC_U3_PIN1` | U3.1 (NC1) |
-| `NC_U3_PIN4` | U3.4 (NC4) |
 | `PICO_RUN_N` | SW1.1 (P$1)<br>SW1.2 (P$2)<br>U1.30 (RUN) |
 | `PICO_SMPS_EN` | U1.37 (3V3_EN) |
 | `PICO_VSYS` | U1.39 (VSYS) |

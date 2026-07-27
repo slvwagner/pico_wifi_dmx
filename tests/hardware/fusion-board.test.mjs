@@ -1,0 +1,393 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { resolve } from "node:path";
+
+const board = readFileSync(
+  resolve("hardware/fusion/WiFiPicoDMX_RevA.brd"),
+  "utf8",
+);
+const schematic = readFileSync(
+  resolve("hardware/fusion/WiFiPicoDMX_RevA.sch"),
+  "utf8",
+);
+const library = readFileSync(
+  resolve("hardware/fusion/libraries/WiFiPicoDMX.lbr"),
+  "utf8",
+);
+
+function attributes(tag) {
+  return Object.fromEntries(
+    [...tag.matchAll(/(\w+)="([^"]*)"/g)]
+      .map((match) => [match[1], match[2]]),
+  );
+}
+
+function packageBody(name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = board.match(
+    new RegExp(
+      `<package\\b[^>]*\\bname="${escapedName}"[^>]*>`
+      + `([\\s\\S]*?)<\\/package>`,
+    ),
+  );
+  assert.ok(match, `package ${name} is missing from board`);
+  return match[1];
+}
+
+function packageBounds(name) {
+  const points = [];
+  const add = (x, y) => {
+    if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y });
+  };
+  const body = packageBody(name);
+  for (const match of body.matchAll(/<(?:smd|pad)\b([^>]*)\/>/g)) {
+    const item = attributes(match[1]);
+    const x = Number(item.x);
+    const y = Number(item.y);
+    const dx = Number(item.dx ?? item.diameter ?? 1.7);
+    const dy = Number(item.dy ?? item.diameter ?? 1.7);
+    add(x - dx / 2, y - dy / 2);
+    add(x + dx / 2, y + dy / 2);
+  }
+  for (const match of body.matchAll(/<wire\b([^>]*)\/>/g)) {
+    const item = attributes(match[1]);
+    if (!["21", "51"].includes(item.layer)) continue;
+    add(Number(item.x1), Number(item.y1));
+    add(Number(item.x2), Number(item.y2));
+  }
+  for (const match of body.matchAll(/<(?:hole|circle)\b([^>]*)\/>/g)) {
+    const item = attributes(match[1]);
+    const radius = Number(item.radius ?? item.drill) / 2;
+    add(Number(item.x) - radius, Number(item.y) - radius);
+    add(Number(item.x) + radius, Number(item.y) + radius);
+  }
+  assert.ok(points.length > 0, `package ${name} has no measurable geometry`);
+  return {
+    minX: Math.min(...points.map(({ x }) => x)),
+    minY: Math.min(...points.map(({ y }) => y)),
+    maxX: Math.max(...points.map(({ x }) => x)),
+    maxY: Math.max(...points.map(({ y }) => y)),
+  };
+}
+
+test("basic board contains every physical schematic part and named net", () => {
+  const elements = [...board.matchAll(/<element\b[^>]*\bname="([^"]+)"/g)]
+    .map((match) => match[1]);
+  assert.equal(elements.length, 38);
+  assert.equal(new Set(elements).size, 38);
+  assert.doesNotMatch(board, /<element\b[^>]*\bname="FRAME/);
+
+  const signals = [...board.matchAll(/<signal\b[^>]*\bname="([^"]+)"/g)]
+    .map((match) => match[1]);
+  assert.equal(signals.length, 55);
+  assert.equal(new Set(signals).size, 55);
+  assert.doesNotMatch(board, /name="NC_U[23]_PIN/);
+});
+
+test("every generated board element has an explicit reference designator", () => {
+  const elements = [...board.matchAll(
+    /<element\b([^>]*)>([\s\S]*?)<\/element>/g,
+  )];
+  assert.equal(elements.length, 38);
+
+  for (const [, rawAttributes, body] of elements) {
+    const element = attributes(rawAttributes);
+    assert.equal(element.smashed, "yes", `${element.name} is not smashed`);
+    assert.match(
+      body,
+      /<attribute\b[^>]*\bname="NAME"[^>]*\/>/,
+      `${element.name} has no explicit NAME attribute`,
+    );
+  }
+});
+
+test("schematic and board use identical routing classes", () => {
+  function classes(xml) {
+    const body = xml.match(/<classes>([\s\S]*?)<\/classes>/)?.[1];
+    assert.ok(body, "routing classes are missing");
+    return [...body.matchAll(/<class\b([^>]*)>/g)]
+      .map((match) => attributes(match[1]))
+      .map(({ number, name, width, drill }) => ({
+        number: Number(number),
+        name,
+        width,
+        drill,
+      }));
+  }
+  assert.deepEqual(classes(board), classes(schematic));
+
+  for (const match of board.matchAll(
+    /<signal\b[^>]*\bname="([^"]+)"[^>]*\bclass="([^"]+)"/g,
+  )) {
+    const [, name, routingClass] = match;
+    assert.match(
+      schematic,
+      new RegExp(
+        `<net\\b[^>]*\\bname="${name}"[^>]*\\bclass="${routingClass}"`,
+      ),
+      `schematic net class differs for ${name}`,
+    );
+  }
+});
+
+test("Fusion import does not synthesize nets for intentionally unused IC pads", () => {
+  function deviceSetBody(name) {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = schematic.match(
+      new RegExp(
+        `<deviceset\\b[^>]*\\bname="${escapedName}"[^>]*>`
+        + `([\\s\\S]*?)<\\/deviceset>`,
+      ),
+    );
+    assert.ok(match, `deviceset ${name} is missing`);
+    return match[1];
+  }
+
+  const isow = deviceSetBody("ISOW1412DFMR");
+  assert.doesNotMatch(
+    isow,
+    /<connect\b[^>]*\bpin="(?:IN|OUT)"/,
+    "unused ISOW1412 IN/OUT pads must not be mapped to schematic pins",
+  );
+
+  const optocoupler = deviceSetBody("HCPL_0700_500E");
+  assert.doesNotMatch(
+    optocoupler,
+    /<connect\b[^>]*\bpin="(?:NC1|NC4)"/,
+    "HCPL-0700 NC pads must not be mapped to schematic pins",
+  );
+});
+
+test("generated Fusion pair avoids independently imported custom net classes", () => {
+  for (const [kind, xml] of [["schematic", schematic], ["board", board]]) {
+    const body = xml.match(/<classes>([\s\S]*?)<\/classes>/)?.[1];
+    assert.ok(body, `${kind} routing classes are missing`);
+    const classes = [...body.matchAll(/<class\b([^>]*)>/g)]
+      .map((match) => attributes(match[1]));
+    assert.deepEqual(
+      classes.map(({ number, name }) => ({ number, name })),
+      [{ number: "0", name: "default" }],
+      `${kind} must use only Fusion's shared default class`,
+    );
+  }
+  assert.doesNotMatch(schematic, /<net\b[^>]*\bclass="[12]"/);
+  assert.doesNotMatch(board, /<signal\b[^>]*\bclass="[12]"/);
+});
+
+test("board outline provides the official 14 by 9 mm edge antenna cutout", () => {
+  const expectedOutline = [
+    { x1: 0, y1: 0, x2: 11, y2: 0 },
+    { x1: 11, y1: 0, x2: 11, y2: 9 },
+    { x1: 11, y1: 9, x2: 25, y2: 9 },
+    { x1: 25, y1: 9, x2: 25, y2: 0 },
+    { x1: 25, y1: 0, x2: 150, y2: 0 },
+    { x1: 150, y1: 0, x2: 150, y2: 100 },
+    { x1: 150, y1: 100, x2: 0, y2: 100 },
+    { x1: 0, y1: 100, x2: 0, y2: 0 },
+  ];
+  const outline = [...board.matchAll(/<wire\b[^>]*\blayer="20"[^>]*\/>/g)]
+    .map((match) => attributes(match[0]))
+    .map(({ x1, y1, x2, y2 }) => ({
+      x1: Number(x1),
+      y1: Number(y1),
+      x2: Number(x2),
+      y2: Number(y2),
+    }));
+  assert.deepEqual(outline, expectedOutline);
+});
+
+test("Pico placement aligns its antenna with the cutout and protects access", () => {
+  assert.match(
+    board,
+    /<element\b[^>]*\bname="U1"[^>]*\bpackage="PICO_2_W_DEVELOPMENT_BOARD"[^>]*\bx="18"[^>]*\by="25\.5"/,
+  );
+  assert.match(
+    board,
+    /<rectangle x1="5" y1="51" x2="31" y2="65" layer="39"\/>/,
+  );
+  assert.match(
+    board,
+    /Pico USB, BOOTSEL and RESET access zone/,
+  );
+});
+
+test("logic and isolated copper are separated except through isolation parts", () => {
+  assert.match(
+    board,
+    /<rectangle x1="84\.5" y1="0" x2="91\.5" y2="100" layer="41"\/>/,
+  );
+  assert.match(
+    board,
+    /<rectangle x1="84\.5" y1="0" x2="91\.5" y2="100" layer="42"\/>/,
+  );
+  assert.match(
+    board,
+    /<rectangle x1="84\.5" y1="0" x2="91\.5" y2="100" layer="43"\/>/,
+  );
+});
+
+test("MIDI DIN input is enclosed by a top bottom and via-restrict moat", () => {
+  const moatRectangles = [
+    [38, 0, 40, 24],
+    [38, 22, 65.5, 24],
+    [65.5, 0, 70.5, 24],
+  ];
+  for (const layer of [41, 42, 43]) {
+    for (const [x1, y1, x2, y2] of moatRectangles) {
+      assert.match(
+        board,
+        new RegExp(
+          `<rectangle x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" layer="${layer}"\\/>`,
+        ),
+        `missing MIDI isolation moat on layer ${layer}`,
+      );
+    }
+  }
+  assert.match(board, /MIDI ISOLATED INPUT - NO LOGIC COPPER/);
+
+  const inputPlacements = {
+    J2: [48, 12],
+    R4: [58, 17],
+    R5: [58, 7],
+    D2: [61, 13],
+  };
+  for (const [name, [x, y]] of Object.entries(inputPlacements)) {
+    assert.match(
+      board,
+      new RegExp(
+        `<element\\b[^>]*\\bname="${name}"[^>]*\\bx="${x}"[^>]*\\by="${y}"`,
+      ),
+      `${name} is not inside the MIDI input island`,
+    );
+  }
+  assert.match(
+    board,
+    /<element\b[^>]*\bname="U3"[^>]*\bx="68"[^>]*\by="13"/,
+  );
+
+  const logicGround = board.match(
+    /<signal\b[^>]*\bname="GND_LOGIC"[^>]*>([\s\S]*?)<\/signal>/,
+  )?.[1];
+  assert.ok(logicGround, "GND_LOGIC signal is missing");
+  for (const name of Object.keys(inputPlacements)) {
+    assert.doesNotMatch(
+      logicGround,
+      new RegExp(`<contactref\\b[^>]*\\belement="${name}"`),
+      `${name} must not connect to logic ground`,
+    );
+  }
+});
+
+test("logic-side components keep copper clear of the MIDI isolation moat", () => {
+  const switchElement = board.match(
+    /<element\b([^>]*)\bname="SW1"([^>]*)>/,
+  );
+  assert.ok(switchElement, "SW1 placement is missing");
+  const placement = attributes(`${switchElement[1]} ${switchElement[2]}`);
+  assert.equal(placement.package, "PTS810_J_LEAD");
+
+  const pads = [...packageBody(placement.package).matchAll(
+    /<smd\b([^>]*)\/>/g,
+  )].map((match) => attributes(match[1]));
+  const rightmostCopper = Number(placement.x) + Math.max(
+    ...pads.map(({ x, dx }) => Number(x) + Number(dx) / 2),
+  );
+
+  assert.ok(
+    rightmostCopper <= 37,
+    `SW1 copper reaches x=${rightmostCopper} mm; keep at least 1 mm from the x=38 mm MIDI restrict`,
+  );
+});
+
+test("panel harnesses use the selected JST XH board connectors", () => {
+  assert.match(
+    board,
+    /<element\b[^>]*\bname="J1"[^>]*\bpackage="B4B-XH-A"[^>]*\bvalue="JST XH B4B-XH-A DMX: COM,-,\+,SHELL"/,
+  );
+  assert.match(
+    board,
+    /<element\b[^>]*\bname="J2"[^>]*\bpackage="B5B-XH-A"[^>]*\bvalue="JST XH B5B-XH-A MIDI: 1,2,3,4,5"/,
+  );
+
+  const expectedContacts = [
+    ["GND_DMX_ISO", "J1", "1"],
+    ["DMX_DATA_MINUS", "J1", "2"],
+    ["DMX_DATA_PLUS", "J1", "3"],
+    ["XLR_SHELL", "J1", "4"],
+    ["MIDI_DIN_PIN1_SPARE", "J2", "1"],
+    ["MIDI_DIN_PIN2_SHIELD", "J2", "2"],
+    ["MIDI_DIN_PIN3_SPARE", "J2", "3"],
+    ["MIDI_DIN_PIN4", "J2", "4"],
+    ["MIDI_DIN_PIN5", "J2", "5"],
+  ];
+  for (const [signal, element, pad] of expectedContacts) {
+    const signalBody = board.match(
+      new RegExp(
+        `<signal\\b[^>]*\\bname="${signal}"[^>]*>([\\s\\S]*?)<\\/signal>`,
+      ),
+    )?.[1];
+    assert.ok(signalBody, `signal ${signal} is missing`);
+    assert.match(
+      signalBody,
+      new RegExp(`<contactref element="${element}" pad="${pad}"\\/>`),
+      `${element}.${pad} is not connected to ${signal}`,
+    );
+  }
+});
+
+test("diagnostic pads keep logic and isolated groups physically separated", () => {
+  const packageBody = library.match(
+    /<package name="PADBANK8">([\s\S]*?)<\/package>/,
+  )?.[1];
+  assert.ok(packageBody, "PADBANK8 package is missing");
+  const pads = [...packageBody.matchAll(/<smd\b([^>]*)\/>/g)]
+    .map((match) => attributes(match[1]));
+  assert.equal(pads.length, 8);
+
+  const logic = pads.filter(({ name }) => Number(name) <= 4);
+  const isolated = pads.filter(({ name }) => Number(name) >= 5);
+  assert.ok(logic.every(({ x }) => Number(x) === -6));
+  assert.ok(isolated.every(({ x }) => Number(x) === 6));
+
+  const edgeGap = 12 - Number(logic[0].dx) / 2 - Number(isolated[0].dx) / 2;
+  assert.ok(edgeGap >= 8, `diagnostic-domain copper gap is only ${edgeGap} mm`);
+});
+
+test("starter placement keeps physical package bodies from overlapping", () => {
+  const elements = [...board.matchAll(/<element\b([^>]*)>/g)]
+    .map((match) => attributes(match[1]))
+    .map((element) => {
+      const local = packageBounds(element.package);
+      const x = Number(element.x);
+      const y = Number(element.y);
+      const rotation = element.rot ?? "R0";
+      const rotated = rotation === "R90"
+        ? {
+          minX: -local.maxY,
+          minY: local.minX,
+          maxX: -local.minY,
+          maxY: local.maxX,
+        }
+        : local;
+      return {
+        name: element.name,
+        minX: x + rotated.minX,
+        minY: y + rotated.minY,
+        maxX: x + rotated.maxX,
+        maxY: y + rotated.maxY,
+      };
+    });
+
+  for (let leftIndex = 0; leftIndex < elements.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < elements.length; rightIndex += 1) {
+      const left = elements[leftIndex];
+      const right = elements[rightIndex];
+      const overlaps = left.minX < right.maxX
+        && left.maxX > right.minX
+        && left.minY < right.maxY
+        && left.maxY > right.minY;
+      assert.ok(!overlaps, `${left.name} overlaps ${right.name}`);
+    }
+  }
+});

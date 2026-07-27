@@ -51,7 +51,8 @@ const notes = new Map();
 for (const match of projectLibraryXml.matchAll(
   /<package3d\b([^>]*)>([\s\S]*?)<\/package3d>/g,
 )) {
-  const urn = match[1].match(/\burn="([^"]+)"/)?.[1];
+  const urn = match[1].match(/\burn="([^"]+)"/)?.[1]
+    || match[1].match(/\bwip_urn="([^"]+)"/)?.[1];
   if (!urn) continue;
   for (const packageMatch of match[2].matchAll(
     /<packageinstance\b[^>]*\bname="([^"]+)"/g,
@@ -86,6 +87,7 @@ function importProjectLibrarySymbol(
   sourceName,
   generatedName = sourceName,
   pinNameMap = {},
+  excludedPins = [],
 ) {
   const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = projectLibraryXml.match(
@@ -101,6 +103,16 @@ function importProjectLibrarySymbol(
     rawXml = rawXml.replace(
       new RegExp(`(<pin\\b[^>]*\\bname=")${escapedPin}(")`, "g"),
       `$1${generatedPin}$2`,
+    );
+  }
+  for (const excludedPin of excludedPins) {
+    const escapedPin = excludedPin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    rawXml = rawXml.replace(
+      new RegExp(
+        `[ \\t]*<pin\\b[^>]*\\bname="${escapedPin}"[^>]*/>\\r?\\n?`,
+        "g",
+      ),
+      "",
     );
   }
   const pins = [...rawXml.matchAll(/<pin\b([^>]*)\/>/g)].map((pinMatch) => {
@@ -348,8 +360,13 @@ importProjectLibrarySymbol("LED", "LED", { C: "K" });
 importProjectLibrarySymbol("DIODE", "DIODE", { "A$1": "A", "K$2": "K" });
 importProjectLibrarySymbol("TVS_SM712");
 importProjectLibrarySymbol("CMC");
-importProjectLibrarySymbol("ISOW1412");
-importProjectLibrarySymbol("OPTO_HCPL0700");
+importProjectLibrarySymbol("ISOW1412", "ISOW1412", {}, ["IN", "OUT"]);
+importProjectLibrarySymbol(
+  "OPTO_HCPL0700",
+  "OPTO_HCPL0700",
+  {},
+  ["NC1", "NC4"],
+);
 importProjectLibrarySymbol("CONN8");
 importProjectLibrarySymbol("CONN17");
 importProjectLibrarySymbol("A3");
@@ -462,12 +479,6 @@ picoPackage.push(element("text", { x: -9.5, y: 26.0, size: 1.27, layer: 25 }, "&
 picoPackage.push(element("text", { x: -9.5, y: -23.5, size: 1.0, layer: 21 }, "ANTENNA / COPPER KEEPOUT"));
 definePackage("PICO2W_CASTELLATED_PRELIMINARY", lines(picoPackage, "          "));
 
-definePackage("PANEL4_WIRE_PADS", `${padBankPackage(4)}
-          ${element("hole", { x: 4, y: -5, drill: 3.2 })}
-          ${element("hole", { x: 4, y: 5, drill: 3.2 })}`);
-definePackage("PANEL5_WIRE_PADS", `${padBankPackage(5)}
-          ${element("hole", { x: 4, y: -6.5, drill: 3.2 })}
-          ${element("hole", { x: 4, y: 6.5, drill: 3.2 })}`);
 definePackage("PADBANK7", padBankPackage(7));
 definePackage("PADBANK8", padBankPackage(8));
 definePackage("PADBANK17", padBankPackage(17));
@@ -488,10 +499,12 @@ definePackage("PADBANK5", padBankPackage(5));
   "INDC1006X60N",
   "LEDC1608X55N_FLAT-B",
   "DFM0020A_TI",
-  "SM712_SOT23",
+  "SOT23_",
   "HCPL0700_SO8",
   "SOD323_VISHAY",
   "ACT45B_4P5X3P2",
+  "B4B-XH-A",
+  "B5B-XH-A",
   "PADBANK8",
   "PADBANK17",
 ].forEach(importProjectLibraryPackage);
@@ -512,19 +525,19 @@ defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_J_LEAD", {
   "P$3": "3",
   "P$4": "4",
 }, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS using project-library land pattern");
-defineDeviceSet("SM712", "D", "TVS_SM712", "SM712_SOT23", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS using manufacturer-recommended project-library land pattern");
+defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23_", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS using the user-supplied project-library SOT-23 package");
 defineDeviceSet("CMC_OPTION", "L", "CMC", "ACT45B_4P5X3P2", { A1: "1", A2: "2", B1: "4", B2: "3" }, "TDK ACT45B-510-2P-TL003 two-line common-mode choke using project-library land pattern; normally DNP pending EMC and signal-integrity testing");
 defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM0020A_TI", {
-  VIO: "1", D: "2", DE: "3", R: "4", RE_N: "5", GNDIO: "6", OUT: "7",
+  VIO: "1", D: "2", DE: "3", R: "4", RE_N: "5", GNDIO: "6",
   EN_FLT: "8", VDD: "9", GND1: "10", GND2: "11", VISOOUT: "12",
-  MODE: "13", IN: "14", GISOIN: "15", VISOIN: "16", Y: "17", Z: "18",
+  MODE: "13", GISOIN: "15", VISOIN: "16", Y: "17", Z: "18",
   B: "19", A: "20",
 }, "TI reinforced isolated RS-485/RDM transceiver with integrated isolated DC/DC");
 defineDeviceSet("PICO2W", "U", "PICO2W", "PICO_2_W_DEVELOPMENT_BOARD",
   Object.fromEntries(picoPins.map((pin) => [pin.name, String(pin.pad)])),
   "Raspberry Pi Pico 2 W development board using project-library through-hole header land pattern");
 defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "HCPL0700_SO8", {
-  NC1: "1", A: "2", K: "3", NC4: "4", GND: "5", VO: "6", VB: "7", VCC: "8",
+  A: "2", K: "3", GND: "5", VO: "6", VB: "7", VCC: "8",
 }, "Broadcom HCPL-0700-500E SOIC-8 optocoupler using project-library land pattern");
 defineDeviceSet(
   "FRAME_A3",
@@ -540,8 +553,8 @@ function defineConnector(count, name, packageName, description) {
     Object.fromEntries(Array.from({ length: count }, (_, index) => [`P${index + 1}`, String(index + 1)])),
     description);
 }
-defineConnector(4, "PANEL_DMX4", "PANEL4_WIRE_PADS", "Panel XLR wiring pads plus strain relief");
-defineConnector(5, "PANEL_MIDI5", "PANEL5_WIRE_PADS", "Panel DIN-5 wiring pads plus strain relief");
+defineConnector(4, "PANEL_DMX4", "B4B-XH-A", "JST XH B4B-XH-A board header for the panel XLR harness");
+defineConnector(5, "PANEL_MIDI5", "B5B-XH-A", "JST XH B5B-XH-A board header for the panel DIN-5 harness");
 defineConnector(7, "PADBANK7", "PADBANK7", "Diagnostic SMD pad bank");
 defineConnector(8, "PADBANK8", "PADBANK8", "Power and isolated-side diagnostic SMD pad bank");
 defineConnector(17, "PADBANK17", "PADBANK17", "Free GPIO SMD pad bank");
@@ -615,10 +628,10 @@ addPart("L1", "CMC_OPTION", "ACT45B-510-2P-TL003 - DNP", 2, 223.52, 91.44);
 addPart("R10", "RES0402", "0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT", 2, 172.72, 76.2);
 addPart("R11", "RES0402", "0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT", 2, 172.72, 60.96);
 addPart("D1", "SM712", "SM712.TCT", 2, 314.96, 91.44);
-addPart("J1", "PANEL_DMX4", "PANEL XLR-5: COM,-,+,SHELL", 2, 381, 91.44);
+addPart("J1", "PANEL_DMX4", "JST XH B4B-XH-A DMX: COM,-,+,SHELL", 2, 381, 91.44);
 
 // Sheet 3, MIDI input
-addPart("J2", "PANEL_MIDI5", "PANEL DIN-5 MIDI IN", 3, 45.72, 101.6);
+addPart("J2", "PANEL_MIDI5", "JST XH B5B-XH-A MIDI: 1,2,3,4,5", 3, 45.72, 101.6);
 addPart("R4", "RES0402", "220R 1% 0.063W 0402 Yageo RC0402FR-07220RL", 3, 83.82, 116.84);
 addPart("R5", "RES0402", "220R 1% 0.063W 0402 Yageo RC0402FR-07220RL", 3, 83.82, 86.36);
 addPart("D2", "DIODE_SOD323", "1N4148WS-E3-08", 3, 111.76, 101.6);
@@ -677,8 +690,6 @@ connectMany("DMX_TRX_MINUS", [["U2", "Z"], ["U2", "B"], ["L1", "B1"], ["R11", "1
 connectMany("DMX_DATA_PLUS", [["L1", "A2"], ["R10", "2"], ["D1", "IO1"], ["J1", "P3"], ["J6", "P7"]]);
 connectMany("DMX_DATA_MINUS", [["L1", "B2"], ["R11", "2"], ["D1", "IO2"], ["J1", "P2"], ["J6", "P8"]]);
 connectMany("XLR_SHELL", [["J1", "P4"]]);
-connectMany("NC_U2_PIN7_OUT", [["U2", "OUT"]]);
-connectMany("NC_U2_PIN14_IN", [["U2", "IN"]]);
 
 // MIDI input
 connectMany("MIDI_DIN_PIN1_SPARE", [["J2", "P1"]]);
@@ -689,8 +700,6 @@ connectMany("MIDI_OPTO_LED_ANODE", [["R4", "2"], ["U3", "A"], ["D2", "K"]]);
 connectMany("MIDI_OPTO_LED_CATHODE", [["U3", "K"], ["D2", "A"], ["R5", "1"]]);
 connectMany("MIDI_DIN_PIN5", [["R5", "2"], ["J2", "P5"]]);
 connectMany("MIDI_OPTO_BASE", [["U3", "VB"], ["R7", "1"]]);
-connectMany("NC_U3_PIN1", [["U3", "NC1"]]);
-connectMany("NC_U3_PIN4", [["U3", "NC4"]]);
 
 addNote(1, 20.32, 187.96, "WiFiPicoDMX Rev. A — Controller, power, controls and expansion", 2.54, 15);
 addNote(1, 20.32, 15.24, "Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.");
@@ -963,7 +972,9 @@ ${lines(layerDefinitions, "      ")}
       <attributes/>
       <variantdefs/>
       <classes>
-        <class number="0" name="default" width="0" drill="0"/>
+        <class number="0" name="default" width="0.25" drill="0.3">
+          <clearance class="0" value="0.2"/>
+        </class>
       </classes>
       <parts>
 ${lines(partsXml, "        ")}

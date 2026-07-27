@@ -18,17 +18,17 @@ definitions:
 | SW1 | `PTS810_J_LEAD` (pads 1/2 and 3/4 are paired contacts) |
 | F1 | `PPTC1206_1206L050YR` |
 | U2 | `DFM0020A_TI` |
-| D1 | `SM712_SOT23` |
+| D1 | `SOT23_` |
 | D2 | `SOD323_VISHAY` |
 | U3 | `HCPL0700_SO8` |
 | L1 | `ACT45B_4P5X3P2` |
+| J1 | `B4B-XH-A` |
+| J2 | `B5B-XH-A` |
 | J3, J6 | `PADBANK17`, `PADBANK8` |
 
-The following library entries remain intentionally unselected:
-
-- `B4B-XH-A`, `B5B-XH-A`, and `B7B-XH-A` are board-mounted XH connectors;
-  Rev. A uses labelled carrier-board wiring pads for the panel-mounted XLR and
-  DIN connectors and separate diagnostic pad banks.
+The `B7B-XH-A` library entry remains intentionally unselected. Rev. A uses
+`B4B-XH-A` and `B5B-XH-A` as board-mounted harness headers for the
+panel-mounted XLR and DIN connectors.
 
 The supplied library was corrected before use, except for its Pico
 development-board mounting, which is intentionally retained:
@@ -44,8 +44,10 @@ development-board mounting, which is intentionally retained:
   spacing, and 2.10 × 0.60 mm land pattern;
 - the HCPL-0700 uses Broadcom's 7.49 mm row-centre spacing and
   1.90 × 0.64 mm SO-8 pads;
-- the SM712 and 1N4148WS use their manufacturers' SOT-23 and SOD-323
-  recommended land patterns;
+- the SM712 uses the user-supplied Fusion `SOT23_` footprint and 3D
+  association; the 1N4148WS uses Vishay's SOD-323 recommended land pattern;
+- the J6 diagnostic footprint places logic-side pads 1-4 and isolated-side
+  pads 5-8 in separate rows with a 9.8 mm copper-edge gap;
 - component prefixes and HCPL-0700 naming were normalized.
 
 Panel wiring pads and the pad-bank sizes missing from the library continue to
@@ -56,9 +58,9 @@ checked against the latest manufacturer drawing before PCB manufacture.
 ## 3D models
 
 The library retains its existing Autodesk-managed 3D package records. The
-schematic generator copies the models and associations for the six
-model-backed package families currently used by Rev. A: the two resistor
-sizes, three capacitor sizes, 0402 ferrite, and 0603 LED.
+schematic generator copies the available models and associations for packages
+currently used by Rev. A, including the B4B-XH-A model. B5B-XH-A currently
+has no valid 3D association in the source library.
 
 The old `FUSC4532X125` 1812 fuse model was removed deliberately because it
 does not represent the selected 1206L050YR. The corrected Pico, PTS810,
