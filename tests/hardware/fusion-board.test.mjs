@@ -196,7 +196,7 @@ test("carrier has a simple rectangular outline without a Pico cutout", () => {
 test("Pico uses the supplied through-hole footprint without carrier keepouts", () => {
   assert.match(
     board,
-    /<element\b[^>]*\bname="U1"[^>]*\bpackage="PICO_2_W_DEVELOPMENT_BOARD"[^>]*\bx="18"[^>]*\by="25\.5"/,
+    /<element\b[^>]*\bname="U1"[^>]*\bpackage="PICO_2_W_DEVELOPMENT_BOARD"[^>]*\bx="65"[^>]*\by="50"/,
   );
   assert.doesNotMatch(board, /Pico USB, BOOTSEL and RESET access zone/);
   assert.doesNotMatch(
@@ -210,26 +210,25 @@ test("Pico uses the supplied through-hole footprint without carrier keepouts", (
   );
 });
 
-test("logic and isolated copper are separated except through isolation parts", () => {
+test("upper DMX section has a local isolation corridor", () => {
   assert.match(
     board,
-    /<rectangle x1="84\.5" y1="0" x2="91\.5" y2="100" layer="41"\/>/,
+    /<rectangle x1="96\.5" y1="55" x2="103\.5" y2="100" layer="41"\/>/,
   );
   assert.match(
     board,
-    /<rectangle x1="84\.5" y1="0" x2="91\.5" y2="100" layer="42"\/>/,
+    /<rectangle x1="96\.5" y1="55" x2="103\.5" y2="100" layer="42"\/>/,
   );
   assert.match(
     board,
-    /<rectangle x1="84\.5" y1="0" x2="91\.5" y2="100" layer="43"\/>/,
+    /<rectangle x1="96\.5" y1="55" x2="103\.5" y2="100" layer="43"\/>/,
   );
 });
 
-test("MIDI DIN input is enclosed by a top bottom and via-restrict moat", () => {
+test("MIDI DIN input is enclosed at the bottom edge by a via-restrict moat", () => {
   const moatRectangles = [
-    [38, 0, 40, 24],
-    [38, 22, 65.5, 24],
-    [65.5, 0, 70.5, 24],
+    [0, 20, 39.5, 22],
+    [39.5, 0, 44.5, 22],
   ];
   for (const layer of [41, 42, 43]) {
     for (const [x1, y1, x2, y2] of moatRectangles) {
@@ -245,10 +244,10 @@ test("MIDI DIN input is enclosed by a top bottom and via-restrict moat", () => {
   assert.match(board, /MIDI ISOLATED INPUT - NO LOGIC COPPER/);
 
   const inputPlacements = {
-    J2: [48, 12],
-    R4: [58, 17],
-    R5: [58, 7],
-    D2: [61, 13],
+    J2: [12, 10],
+    R4: [25, 15],
+    R5: [25, 7],
+    D2: [32, 11],
   };
   for (const [name, [x, y]] of Object.entries(inputPlacements)) {
     assert.match(
@@ -261,7 +260,7 @@ test("MIDI DIN input is enclosed by a top bottom and via-restrict moat", () => {
   }
   assert.match(
     board,
-    /<element\b[^>]*\bname="U3"[^>]*\bx="68"[^>]*\by="13"/,
+    /<element\b[^>]*\bname="U3"[^>]*\bx="42"[^>]*\by="11"/,
   );
 
   const logicGround = board.match(
@@ -277,25 +276,31 @@ test("MIDI DIN input is enclosed by a top bottom and via-restrict moat", () => {
   }
 });
 
-test("logic-side components keep copper clear of the MIDI isolation moat", () => {
-  const switchElement = board.match(
-    /<element\b([^>]*)\bname="SW1"([^>]*)>/,
-  );
-  assert.ok(switchElement, "SW1 placement is missing");
-  const placement = attributes(`${switchElement[1]} ${switchElement[2]}`);
-  assert.equal(placement.package, "PTS810_J_LEAD");
-
-  const pads = [...packageBody(placement.package).matchAll(
-    /<smd\b([^>]*)\/>/g,
-  )].map((match) => attributes(match[1]));
-  const rightmostCopper = Number(placement.x) + Math.max(
-    ...pads.map(({ x, dx }) => Number(x) + Number(dx) / 2),
+test("component placement follows left-to-right signal flow", () => {
+  const placements = Object.fromEntries(
+    [...board.matchAll(/<element\b([^>]*)>/g)]
+      .map((match) => attributes(match[1]))
+      .map((element) => [
+        element.name,
+        { x: Number(element.x), y: Number(element.y) },
+      ]),
   );
 
-  assert.ok(
-    rightmostCopper <= 37,
-    `SW1 copper reaches x=${rightmostCopper} mm; keep at least 1 mm from the x=38 mm MIDI restrict`,
-  );
+  assert.ok(placements.J3.x < placements.U1.x, "GPIO bank must be left of Pico");
+  assert.ok(placements.J4.x < placements.U1.x, "analog bank must be left of Pico");
+
+  assert.ok(placements.U2.x > placements.U1.x, "DMX isolator must be right of Pico");
+  assert.ok(placements.J1.x > placements.U2.x, "DMX connector must be right of isolator");
+  for (const name of ["U2", "L1", "D1", "J1"]) {
+    assert.ok(placements[name].y >= 55, `${name} must be in the upper DMX section`);
+  }
+
+  assert.ok(placements.J2.x < placements.D2.x, "MIDI connector must feed right");
+  assert.ok(placements.D2.x < placements.U3.x, "MIDI input network must precede optocoupler");
+  assert.ok(placements.U3.x < placements.U1.x, "MIDI optocoupler must feed the Pico");
+  for (const name of ["J2", "R4", "R5", "D2", "U3", "R6", "R7", "C7"]) {
+    assert.ok(placements[name].y <= 20, `${name} must be in the lower MIDI section`);
+  }
 });
 
 test("panel harnesses use the selected JST XH board connectors", () => {

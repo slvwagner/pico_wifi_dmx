@@ -54,44 +54,44 @@ function csvFields(line) {
 }
 
 const placements = {
-  C1: [80, 66.5, "R90"],
-  C2: [80.5, 59, "R90"],
-  C3: [75.5, 59, "R90"],
-  C4: [95.5, 59, "R90"],
-  C5: [100.5, 59, "R90"],
-  C6: [99, 65.5, "R90"],
-  C7: [77, 8, "R90"],
-  C8: [78, 59, "R90"],
-  C9: [98, 59, "R90"],
-  D1: [124, 64, "R0"],
-  D2: [61, 13, "R0"],
-  D3: [43, 40, "R0"],
-  D4: [43, 34, "R0"],
-  F1: [36, 49, "R0"],
-  FB1: [96, 68, "R0"],
-  FB2: [96, 65, "R0"],
-  J1: [140, 64, "R0"],
-  J2: [48, 12, "R0"],
-  J3: [52, 75, "R0"],
-  J4: [62, 91, "R0"],
-  J5: [70, 90, "R0"],
-  J6: [88, 90, "R0"],
-  L1: [111, 64, "R0"],
-  R1: [79, 71, "R0"],
-  R2: [79, 68, "R0"],
-  R3: [79, 64, "R0"],
-  R4: [58, 17, "R0"],
-  R5: [58, 7, "R0"],
-  R6: [77, 16, "R0"],
-  R7: [77, 12, "R0"],
-  R8: [36, 40, "R0"],
-  R9: [36, 34, "R0"],
-  R10: [108, 61, "R0"],
-  R11: [108, 58, "R0"],
-  SW1: [34, 24, "R0"],
-  U1: [18, 25.5, "R0"],
-  U2: [88, 64, "R0"],
-  U3: [68, 13, "R0"],
+  C1: [90, 83, "R90"],
+  C2: [90, 73, "R90"],
+  C3: [86, 73, "R90"],
+  C4: [108, 70, "R90"],
+  C5: [112, 70, "R90"],
+  C6: [110, 76, "R90"],
+  C7: [57, 12, "R90"],
+  C8: [88, 69, "R90"],
+  C9: [110, 66, "R90"],
+  D1: [130, 78, "R0"],
+  D2: [32, 11, "R0"],
+  D3: [48, 62, "R0"],
+  D4: [48, 56, "R0"],
+  F1: [48, 88, "R0"],
+  FB1: [114, 80, "R0"],
+  FB2: [114, 76, "R0"],
+  J1: [138, 78, "R0"],
+  J2: [12, 10, "R0"],
+  J3: [10, 55, "R0"],
+  J4: [18, 86, "R0"],
+  J5: [27, 86, "R0"],
+  J6: [100, 92, "R0"],
+  L1: [122, 78, "R0"],
+  R1: [90, 90, "R0"],
+  R2: [86, 87, "R0"],
+  R3: [86, 83, "R0"],
+  R4: [25, 15, "R0"],
+  R5: [25, 7, "R0"],
+  R6: [52, 15, "R0"],
+  R7: [52, 9, "R0"],
+  R8: [42, 62, "R0"],
+  R9: [42, 56, "R0"],
+  R10: [120, 72, "R0"],
+  R11: [120, 68, "R0"],
+  SW1: [45, 30, "R0"],
+  U1: [65, 50, "R0"],
+  U2: [100, 78, "R0"],
+  U3: [42, 11, "R0"],
 };
 
 const layers = library.match(/<layers>([\s\S]*?)<\/layers>/)?.[1];
@@ -245,27 +245,25 @@ ${outline}
         <hole x="146" y="4" drill="3.2"/>
         <hole x="4" y="96" drill="3.2"/>
         <hole x="146" y="96" drill="3.2"/>
-        <rectangle x1="38" y1="0" x2="40" y2="24" layer="41"/>
-        <rectangle x1="38" y1="0" x2="40" y2="24" layer="42"/>
-        <rectangle x1="38" y1="0" x2="40" y2="24" layer="43"/>
-        <rectangle x1="38" y1="22" x2="65.5" y2="24" layer="41"/>
-        <rectangle x1="38" y1="22" x2="65.5" y2="24" layer="42"/>
-        <rectangle x1="38" y1="22" x2="65.5" y2="24" layer="43"/>
-        <rectangle x1="65.5" y1="0" x2="70.5" y2="24" layer="41"/>
-        <rectangle x1="65.5" y1="0" x2="70.5" y2="24" layer="42"/>
-        <rectangle x1="65.5" y1="0" x2="70.5" y2="24" layer="43"/>
-        <wire x1="40" y1="0" x2="40" y2="22" width="0.2" layer="51"/>
-        <wire x1="40" y1="22" x2="65.5" y2="22" width="0.2" layer="51"/>
-        <wire x1="65.5" y1="22" x2="65.5" y2="0" width="0.2" layer="51"/>
-        <text x="41" y="20.5" size="1.016" layer="51">MIDI ISOLATED INPUT - NO LOGIC COPPER</text>
-        <rectangle x1="84.5" y1="0" x2="91.5" y2="100" layer="41"/>
-        <rectangle x1="84.5" y1="0" x2="91.5" y2="100" layer="42"/>
-        <rectangle x1="84.5" y1="0" x2="91.5" y2="100" layer="43"/>
-        <wire x1="88" y1="0" x2="88" y2="100" width="0.2" layer="51"/>
-        <text x="86.5" y="2" size="1.27" layer="51" rot="R90">ISOLATION CORRIDOR - NO COPPER OR VIAS</text>
+        <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="41"/>
+        <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="42"/>
+        <rectangle x1="0" y1="20" x2="39.5" y2="22" layer="43"/>
+        <rectangle x1="39.5" y1="0" x2="44.5" y2="22" layer="41"/>
+        <rectangle x1="39.5" y1="0" x2="44.5" y2="22" layer="42"/>
+        <rectangle x1="39.5" y1="0" x2="44.5" y2="22" layer="43"/>
+        <wire x1="0" y1="20" x2="39.5" y2="20" width="0.2" layer="51"/>
+        <wire x1="39.5" y1="20" x2="39.5" y2="0" width="0.2" layer="51"/>
+        <text x="2" y="18.5" size="1.016" layer="51">MIDI ISOLATED INPUT - NO LOGIC COPPER</text>
+        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="41"/>
+        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="42"/>
+        <rectangle x1="96.5" y1="55" x2="103.5" y2="100" layer="43"/>
+        <wire x1="100" y1="55" x2="100" y2="100" width="0.2" layer="51"/>
+        <text x="98.5" y="57" size="1.27" layer="51" rot="R90">DMX ISOLATION - NO COPPER OR VIAS</text>
         <text x="2" y="98" size="1.778" layer="21">WiFiPicoDMX Rev. A - BASIC UNROUTED LAYOUT</text>
-        <text x="2" y="94.5" size="1.27" layer="21">Logic / Pico</text>
-        <text x="94" y="94.5" size="1.27" layer="21">Isolated DMX</text>
+        <text x="2" y="94.5" size="1.27" layer="21">GPIO / analog inputs</text>
+        <text x="56" y="78" size="1.27" layer="21">Pico 2 W</text>
+        <text x="106" y="97" size="1.27" layer="21">Isolated DMX output</text>
+        <text x="46" y="3" size="1.27" layer="21">MIDI logic output to Pico</text>
       </plain>
       <libraries>${libraries}
       </libraries>

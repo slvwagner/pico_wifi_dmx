@@ -88,11 +88,15 @@ The starter layout provides:
 - the complete Pico 2 W development board mounted through the two 20-pin
   header rows from the supplied library footprint, without a carrier cutout
   or Pico-specific keepout/access zone;
-- separate logic and isolated-DMX placement zones;
-- a full-height top, bottom, and via restrict corridor beneath the ISOW1412
+- free GPIO and analog pad banks to the left of the centrally placed Pico;
+- an upper DMX signal path running left to right from the Pico, through the
+  ISOW1412 and line protection, to the panel-harness connector;
+- a local top, bottom, and via restrict corridor beneath the upper ISOW1412
   isolation barrier;
-- a board-edge MIDI input island enclosed by top, bottom, and via-restrict
-  moats, with the HCPL-0700 straddling its boundary;
+- a lower MIDI signal path running left to right from the panel-harness
+  connector and protected input network, through the HCPL-0700, to the Pico;
+- a board-edge MIDI input island enclosed by the carrier edges and top,
+  bottom, and via-restrict moats, with the HCPL-0700 straddling its boundary;
 - separated J6 logic and isolated diagnostic pad groups;
 - one shared conservative default net class for clean Fusion
   schematic/board import consistency.
