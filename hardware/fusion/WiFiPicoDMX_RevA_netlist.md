@@ -42,6 +42,9 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | F1 | 1206L050YR 0.5A HOLD | PPTC1206_1206L050YR |
 | FB1 | BLM15EX331SN1D | INDC1006X60N |
 | FB2 | BLM15EX331SN1D | INDC1006X60N |
+| FRAME1 |  | undefined |
+| FRAME2 |  | undefined |
+| FRAME3 |  | undefined |
 | J1 | PANEL XLR-5: COM,-,+,SHELL | PANEL4_WIRE_PADS |
 | J2 | PANEL DIN-5 MIDI IN | PANEL5_WIRE_PADS |
 | J3 | FREE GPIO PADS | PADBANK17 |
@@ -86,7 +89,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `DMX_TX_GPIO2` | J5.1 (P1)<br>R1.2 (2)<br>U1.4 (GP2)<br>U2.2 (D) |
 | `GND_DMX_CONVERTER` | C4.2 (2)<br>C5.2 (2)<br>FB2.1 (1)<br>U2.11 (GND2) |
 | `GND_DMX_ISO` | C6.2 (2)<br>D1.3 (GND)<br>FB2.2 (2)<br>J1.1 (P1)<br>J6.6 (P6)<br>U2.15 (GISOIN) |
-| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>D3.C (K)<br>D4.C (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.3 4 (2)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
+| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>D3.C (K)<br>D4.C (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.3 (P$3)<br>SW1.4 (P$4)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
 | `GPIO0_EXP` | J3.1 (P1)<br>U1.1 (GP0) |
 | `GPIO1_EXP` | J3.2 (P2)<br>U1.2 (GP1) |
 | `GPIO10_EXP` | J3.5 (P5)<br>U1.14 (GP10) |
@@ -118,7 +121,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `NC_U2_PIN7_OUT` | U2.7 (OUT) |
 | `NC_U3_PIN1` | U3.1 (NC1) |
 | `NC_U3_PIN4` | U3.4 (NC4) |
-| `PICO_RUN_N` | SW1.1 2 (1)<br>U1.30 (RUN) |
+| `PICO_RUN_N` | SW1.1 (P$1)<br>SW1.2 (P$2)<br>U1.30 (RUN) |
 | `PICO_SMPS_EN` | U1.37 (3V3_EN) |
 | `PICO_VSYS` | U1.39 (VSYS) |
 | `PWR_LED_ANODE` | D3.A (A)<br>R8.2 (2) |

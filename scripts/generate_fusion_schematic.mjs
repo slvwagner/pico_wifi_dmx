@@ -82,6 +82,46 @@ function importProjectLibraryPackage(name) {
   definePackage(name, match[1].trim());
 }
 
+function importProjectLibrarySymbol(
+  sourceName,
+  generatedName = sourceName,
+  pinNameMap = {},
+) {
+  const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = projectLibraryXml.match(
+    new RegExp(`<symbol\\s+name="${escapedName}"[^>]*>([\\s\\S]*?)<\\/symbol>`),
+  );
+  if (!match) {
+    throw new Error(`Symbol ${sourceName} is missing from ${projectLibraryPath}`);
+  }
+
+  let rawXml = match[1].trim();
+  for (const [sourcePin, generatedPin] of Object.entries(pinNameMap)) {
+    const escapedPin = sourcePin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    rawXml = rawXml.replace(
+      new RegExp(`(<pin\\b[^>]*\\bname=")${escapedPin}(")`, "g"),
+      `$1${generatedPin}$2`,
+    );
+  }
+  const pins = [...rawXml.matchAll(/<pin\b([^>]*)\/>/g)].map((pinMatch) => {
+    const attribute = (name) => pinMatch[1].match(
+      new RegExp(`\\b${name}="([^"]+)"`),
+    )?.[1];
+    return {
+      name: attribute("name"),
+      x: Number(attribute("x")),
+      y: Number(attribute("y")),
+      rot: attribute("rot") ?? "R0",
+      direction: attribute("direction") ?? "pas",
+    };
+  });
+  if (pins.some((pin) => !pin.name || !Number.isFinite(pin.x) || !Number.isFinite(pin.y))) {
+    throw new Error(`Symbol ${sourceName} has an unsupported pin definition`);
+  }
+
+  defineSymbol(generatedName, pins, { rawXml });
+}
+
 function defineDeviceSet(name, prefix, symbol, packageName, connects, description) {
   deviceSets.set(name, {
     name,
@@ -90,7 +130,9 @@ function defineDeviceSet(name, prefix, symbol, packageName, connects, descriptio
     packageName,
     connects,
     description,
-    package3dUrn: projectLibrary3dByPackage.get(packageName)?.urn,
+    package3dUrn: packageName
+      ? projectLibrary3dByPackage.get(packageName)?.urn
+      : undefined,
   });
 }
 
@@ -212,10 +254,10 @@ function padBankPackage(pinCount, pitch = 2.54) {
 }
 
 // Symbols
-twoPinSymbol("RESISTOR", "R");
-twoPinSymbol("CAPACITOR", "C");
+importProjectLibrarySymbol("R", "RESISTOR");
+importProjectLibrarySymbol("C", "CAPACITOR");
 twoPinSymbol("FUSE", "F");
-twoPinSymbol("FERRITE", "FB");
+importProjectLibrarySymbol("L", "FERRITE");
 twoPinSymbol("SWITCH", "SW");
 defineSymbol("DIODE", [
   { name: "A", x: -7.62, y: 0, rot: "R0", direction: "passive" },
@@ -296,6 +338,37 @@ defineSymbol("CMC", [
 ], { x1: -2.54, y1: -5.08, x2: 2.54, y2: 5.08, label: "CMC" });
 
 [4, 5, 7, 8, 17].forEach((count) => connectorSymbol(`CONN${count}`, count));
+
+// For every library-backed component, the maintained Fusion symbol is the
+// canonical drawing. Pin aliases retain the schematic's descriptive netlist
+// names where the source library uses physical or generic pin labels.
+importProjectLibrarySymbol("FUSE-1", "FUSE");
+importProjectLibrarySymbol("SWITCH_1", "SWITCH");
+importProjectLibrarySymbol("LED", "LED", { C: "K" });
+importProjectLibrarySymbol("DIODE", "DIODE", { "A$1": "A", "K$2": "K" });
+importProjectLibrarySymbol("TVS_SM712");
+importProjectLibrarySymbol("CMC");
+importProjectLibrarySymbol("ISOW1412");
+importProjectLibrarySymbol("OPTO_HCPL0700");
+importProjectLibrarySymbol("CONN8");
+importProjectLibrarySymbol("CONN17");
+importProjectLibrarySymbol("A3");
+importProjectLibrarySymbol("RPI-PICO2W", "PICO2W", {
+  "GND@1": "GND3",
+  "GND@2": "GND8",
+  "GND@3": "GND13",
+  "GND@4": "GND18",
+  "GND@5": "GND23",
+  "GND@6": "GND28",
+  GP26: "GP26_ADC0",
+  GP27: "GP27_ADC1",
+  "GND@7": "AGND",
+  GP28: "GP28_ADC2",
+  "3.3V_OUT": "3V3",
+  "3.3V_EN": "3V3_EN",
+  "GND@8": "GND38",
+  VBUS_USB: "VBUS",
+});
 
 // Packages. Footprints are embedded so Fusion can create a PCB, but the
 // prototype must not be manufactured until every land pattern is checked
@@ -431,7 +504,12 @@ defineDeviceSet("PPTC1206", "F", "FUSE", "PPTC1206_1206L050YR", { 1: "1", 2: "2"
 defineDeviceSet("FERRITE0402", "FB", "FERRITE", "INDC1006X60N", { 1: "1", 2: "2" }, "Murata BLM15EX331SN1D using project-library land pattern");
 defineDeviceSet("LED0603", "D", "LED", "LEDC1608X55N_FLAT-B", { A: "A", K: "C" }, "0603 indicator LED using project-library land pattern");
 defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323-1.15H", { A: "A", K: "C" }, "Vishay 1N4148WS-E3-08 using project-library land pattern");
-defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_J_LEAD", { 1: "1 2", 2: "3 4" }, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS using project-library land pattern");
+defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_J_LEAD", {
+  "P$1": "1",
+  "P$2": "2",
+  "P$3": "3",
+  "P$4": "4",
+}, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS using project-library land pattern");
 defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23_", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS using project-library land pattern");
 defineDeviceSet("CMC_OPTION", "L", "CMC", "ACT45B_4P5X3P2", { A1: "1", A2: "2", B1: "4", B2: "3" }, "TDK ACT45B-510-2P-TL003 two-line common-mode choke using project-library land pattern; normally DNP pending EMC and signal-integrity testing");
 defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
@@ -446,6 +524,14 @@ defineDeviceSet("PICO2W", "U", "PICO2W", "PICO_2_W_DEVELOPMENT_BOARD",
 defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "SOIC127P600X317-8N", {
   NC1: "1", A: "2", K: "3", NC4: "4", GND: "5", VO: "6", VB: "7", VCC: "8",
 }, "Broadcom HCPL-0700-500E SOIC-8 optocoupler using project-library land pattern");
+defineDeviceSet(
+  "FRAME_A3",
+  "FRAME",
+  "A3",
+  undefined,
+  {},
+  "wagnius GmbH A3 schematic template from the maintained project library",
+);
 
 function defineConnector(count, name, packageName, description) {
   defineDeviceSet(name, "J", `CONN${count}`, packageName,
@@ -469,6 +555,7 @@ function packagePadNames(packageXml) {
 }
 
 for (const device of deviceSets.values()) {
+  if (!device.packageName) continue;
   const packageXml = packages.get(device.packageName);
   if (!packageXml) {
     throw new Error(
@@ -488,17 +575,23 @@ for (const device of deviceSets.values()) {
   }
 }
 
+// The maintained A3 frame is a schematic-only component and must appear once
+// per sheet. It intentionally has no PCB package.
+addPart("FRAME1", "FRAME_A3", "", 1, 0, 0);
+addPart("FRAME2", "FRAME_A3", "", 2, 0, 0);
+addPart("FRAME3", "FRAME_A3", "", 3, 0, 0);
+
 // Parts and placement: sheet 1, controller/power/status/expansion
 addPart("U1", "PICO2W", "Raspberry Pi Pico 2 W", 1, 76.2, 101.6);
 addPart("F1", "PPTC1206", "1206L050YR 0.5A HOLD", 1, 137.16, 172.72);
 addPart("SW1", "SWITCH_SMD", "PTS810SJM250SMTR LFS RESET (NO)", 1, 137.16, 157.48);
 addPart("R8", "RES0603", "1k", 1, 132.08, 139.7);
-addPart("D3", "LED0603", "PWR GREEN", 1, 157.48, 139.7);
-addPart("R9", "RES0603", "1k", 1, 132.08, 124.46);
-addPart("D4", "LED0603", "DMX ACTIVITY", 1, 157.48, 124.46);
-addPart("J3", "PADBANK17", "FREE GPIO PADS", 1, 213.36, 132.08);
+addPart("D3", "LED0603", "PWR GREEN", 1, 208.28, 139.7);
+addPart("R9", "RES0603", "1k", 1, 182.88, 124.46);
+addPart("D4", "LED0603", "DMX ACTIVITY", 1, 254, 124.46);
+addPart("J3", "PADBANK17", "FREE GPIO PADS", 1, 320.04, 134.62);
 addPart("J4", "PADBANK5", "ANALOG PADS", 1, 213.36, 71.12);
-addPart("J5", "PADBANK7", "RESERVED SIGNAL TEST PADS", 1, 213.36, 35.56);
+addPart("J5", "PADBANK7", "RESERVED SIGNAL TEST PADS", 1, 213.36, 33.02);
 addPart("J6", "PADBANK8", "POWER/DMX TEST PADS", 1, 152.4, 53.34);
 
 // Sheet 2, isolated DMX/RDM
@@ -511,14 +604,14 @@ addPart("C2", "CAP0402", "10n VDD <=1mm", 2, 50.8, 96.52);
 addPart("C3", "CAP0805", "10u X7R VDD", 2, 50.8, 81.28);
 addPart("FB1", "FERRITE0402", "BLM15EX331SN1D", 2, 172.72, 149.86);
 addPart("FB2", "FERRITE0402", "BLM15EX331SN1D", 2, 172.72, 134.62);
-addPart("C4", "CAP0402", "10n VISOOUT <=1mm", 2, 210.82, 149.86);
-addPart("C5", "CAP0805", "10u X7R VISOOUT", 2, 210.82, 134.62);
-addPart("C6", "CAP0402", "100n VISOIN", 2, 210.82, 119.38);
-addPart("L1", "CMC_OPTION", "ACT45B-510-2P-TL003 - DNP", 2, 172.72, 91.44);
+addPart("C4", "CAP0402", "10n VISOOUT <=1mm", 2, 264.16, 149.86);
+addPart("C5", "CAP0805", "10u X7R VISOOUT", 2, 264.16, 134.62);
+addPart("C6", "CAP0402", "100n VISOIN", 2, 264.16, 119.38);
+addPart("L1", "CMC_OPTION", "ACT45B-510-2P-TL003 - DNP", 2, 223.52, 91.44);
 addPart("R10", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 76.2);
 addPart("R11", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 60.96);
-addPart("D1", "SM712", "SM712.TCT", 2, 210.82, 91.44);
-addPart("J1", "PANEL_DMX4", "PANEL XLR-5: COM,-,+,SHELL", 2, 254, 91.44);
+addPart("D1", "SM712", "SM712.TCT", 2, 314.96, 91.44);
+addPart("J1", "PANEL_DMX4", "PANEL XLR-5: COM,-,+,SHELL", 2, 381, 91.44);
 
 // Sheet 3, MIDI input
 addPart("J2", "PANEL_MIDI5", "PANEL DIN-5 MIDI IN", 3, 45.72, 101.6);
@@ -533,7 +626,8 @@ addPart("C7", "CAP0402", "100n VCC", 3, 203.2, 83.82);
 // Controller and expansion connectivity
 connectMany("GND_LOGIC", [
   ["U1", "GND3"], ["U1", "GND8"], ["U1", "GND13"], ["U1", "GND18"],
-  ["U1", "GND23"], ["U1", "GND28"], ["U1", "GND38"], ["SW1", "2"],
+  ["U1", "GND23"], ["U1", "GND28"], ["U1", "GND38"],
+  ["SW1", "P$3"], ["SW1", "P$4"],
   ["D3", "K"], ["D4", "K"], ["J6", "P2"],
   ["U2", "GNDIO"], ["U2", "GND1"], ["R2", "2"], ["C1", "2"], ["C2", "2"],
   ["C3", "2"], ["U3", "GND"], ["R7", "2"], ["C7", "2"],
@@ -544,7 +638,9 @@ connectMany("VCC_3V3_LOGIC", [
 ]);
 connectMany("VBUS_5V_USB", [["U1", "VBUS"], ["F1", "1"], ["J6", "P3"], ["U3", "VCC"], ["C7", "1"]]);
 connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["J6", "P4"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"]]);
-connectMany("PICO_RUN_N", [["U1", "RUN"], ["SW1", "1"]]);
+connectMany("PICO_RUN_N", [
+  ["U1", "RUN"], ["SW1", "P$1"], ["SW1", "P$2"],
+]);
 connectMany("PWR_LED_ANODE", [["R8", "2"], ["D3", "A"]]);
 connectMany("DMX_ACTIVITY_GPIO7", [["U1", "GP7"], ["R9", "1"], ["J5", "P6"]]);
 connectMany("DMX_LED_ANODE", [["R9", "2"], ["D4", "A"]]);
@@ -610,6 +706,13 @@ addNote(3, 20.32, 10.16, "The DIN input current loop remains galvanically isolat
 
 function symbolXml(symbol) {
   const body = symbol.body;
+  if (body.rawXml) {
+    return element(
+      "symbol",
+      { name: symbol.name },
+      `\n${lines([body.rawXml], "              ")}\n            `,
+    );
+  }
   const shape = [];
   if (body.x1 !== undefined) {
     shape.push(element("wire", { x1: body.x1, y1: body.y1, x2: body.x2, y2: body.y1, width: 0.254, layer: 94 }));
@@ -637,23 +740,28 @@ function symbolXml(symbol) {
 function deviceSetXml(device) {
   const connectXml = Object.entries(device.connects).map(([pin, pad]) =>
     element("connect", { gate: "G$1", pin, pad }));
+  const connectsBlock = connectXml.length > 0
+    ? `                  <connects>
+${lines(connectXml, "                    ")}
+                  </connects>
+`
+    : "";
   const package3dXml = device.package3dUrn
     ? `                  <package3dinstances>
                     ${element("package3dinstance", { package3d_urn: device.package3dUrn })}
                   </package3dinstances>
 `
     : "";
+  const deviceAttributes = { name: "" };
+  if (device.packageName) deviceAttributes.package = device.packageName;
   return element("deviceset", { name: device.name, prefix: device.prefix }, `
               ${element("description", {}, device.description)}
               <gates>
                 ${element("gate", { name: "G$1", symbol: device.symbol, x: 0, y: 0 })}
               </gates>
               <devices>
-                <device name="" package="${esc(device.packageName)}">
-                  <connects>
-${lines(connectXml, "                    ")}
-                  </connects>
-${package3dXml}                  <technologies>
+                <device ${attrs(deviceAttributes)}>
+${connectsBlock}${package3dXml}                  <technologies>
                     <technology name=""/>
                   </technologies>
                 </device>
@@ -678,11 +786,47 @@ function endpointFor(partName, pinName) {
   const y = instance.y + pin.y;
   let x2 = x;
   let y2 = y;
-  if (pin.rot === "R0") x2 -= 5.08;
-  if (pin.rot === "R180") x2 += 5.08;
-  if (pin.rot === "R90") y2 -= 5.08;
-  if (pin.rot === "R270") y2 += 5.08;
-  return { x, y, x2, y2 };
+  let labelRotation = "R0";
+
+  const pinXs = symbol.pins.map((candidate) => candidate.x);
+  const minPinX = Math.min(...pinXs);
+  const maxPinX = Math.max(...pinXs);
+  const tolerance = 0.001;
+  let side;
+  if (maxPinX - minPinX > tolerance) {
+    if (Math.abs(pin.x - minPinX) <= tolerance) side = "left";
+    if (Math.abs(pin.x - maxPinX) <= tolerance) side = "right";
+  } else if (pin.x < -tolerance) {
+    side = "left";
+  } else if (pin.x > tolerance) {
+    side = "right";
+  }
+
+  if (!side) {
+    if (pin.rot === "R0") side = "left";
+    if (pin.rot === "R180") side = "right";
+    if (pin.rot === "R90") side = "bottom";
+    if (pin.rot === "R270") side = "top";
+  }
+
+  if (side === "left") {
+    x2 -= 5.08;
+    labelRotation = "R180";
+  }
+  if (side === "right") {
+    x2 += 5.08;
+  }
+  if (side === "bottom") {
+    y2 -= 5.08;
+    labelRotation = "R270";
+  }
+  if (side === "top") {
+    y2 += 5.08;
+    labelRotation = "R90";
+  }
+  if (!side) throw new Error(`Cannot determine symbol side for ${partName}.${pinName}`);
+
+  return { x, y, x2, y2, labelRotation };
 }
 
 function sheetXml(sheetNumber) {
@@ -712,7 +856,16 @@ function sheetXml(sheetNumber) {
       return `<segment>
                   ${element("pinref", { part: ref.part, gate: "G$1", pin: ref.pin })}
                   ${element("wire", { x1: endpoint.x, y1: endpoint.y, x2: endpoint.x2, y2: endpoint.y2, width: 0.1524, layer: 91 })}
-                  ${element("label", { x: endpoint.x2, y: endpoint.y2, size: 1.27, layer: 95, xref: "yes" })}
+                  ${element("label", {
+                    x: endpoint.x2,
+                    y: endpoint.y2,
+                    size: 1.27,
+                    layer: 95,
+                    xref: "yes",
+                    rot: endpoint.labelRotation === "R0"
+                      ? undefined
+                      : endpoint.labelRotation,
+                  })}
                 </segment>`;
     });
     netXml.push(`<net name="${esc(netName)}" class="0">
@@ -735,7 +888,9 @@ ${lines(netXml, "            ")}
 }
 
 const usedPackageNames = new Set(
-  [...deviceSets.values()].map((device) => device.packageName),
+  [...deviceSets.values()]
+    .map((device) => device.packageName)
+    .filter(Boolean),
 );
 const usedPackage3dModels = new Map();
 for (const packageName of usedPackageNames) {
