@@ -17,6 +17,7 @@ SetCompressor /SOLID lzma
 !endif
 
 !define PRODUCT_NAME "WiFiPicoDMX"
+!define PRODUCT_PUBLISHER "wagnius GmbH"
 !define LEGACY_PRODUCT_NAME "Pico DMX Controller"
 !define SERVICE_NAME "PicoDmxController"
 !define DEFAULT_PORT "8090"
@@ -242,7 +243,7 @@ Section "-WiFiPicoDMX" SEC_CORE
     WriteRegStr HKLM "Software\PicoDmxController" "Port" "$ProductPort"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "DisplayVersion" "${PRODUCT_VERSION}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "Publisher" "Pico DMX"
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "Publisher" "${PRODUCT_PUBLISHER}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "InstallLocation" "$INSTDIR"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "UninstallString" '"$INSTDIR\Uninstall.exe"'
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicoDmxController" "NoModify" 1
