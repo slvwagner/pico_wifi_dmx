@@ -9,8 +9,7 @@ definitions:
 | Schematic parts | Imported package |
 |---|---|
 | U1 | `PICO_2_W_DEVELOPMENT_BOARD` (two through-hole header rows) |
-| R1-R3 | `RESC1005X40` |
-| R4-R11 | `RESC1608X60` |
+| R1-R11 | `RESC1005X40` |
 | C1, C2, C4, C6, C7 | `CAPC1005X60` |
 | C8, C9 | `CAPC1608X85` |
 | C3, C5 | `CAPC2012X110` |

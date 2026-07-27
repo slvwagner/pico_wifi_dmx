@@ -12,11 +12,11 @@ range, availability, and—especially for capacitors—DC-bias performance.
 |---|---:|---|---|---|---|---|
 | R1 | 1 | ISOW1412 D-input pull-up | 100 kΩ, ±1%, 0.063 W | Yageo | `RC0402FR-07100KL` | 0402 |
 | R2, R3 | 2 | Direction pull-down and EN/FLT pull-up | 10 kΩ, ±1%, 0.063 W | Yageo | `RC0402FR-0710KL` | 0402 |
-| R4, R5 | 2 | MIDI input current limiting | 220 Ω, ±1%, 0.1 W | Yageo | `RC0603FR-07220RL` | 0603 |
-| R6 | 1 | MIDI output pull-up | 4.7 kΩ, ±1%, 0.1 W | Yageo | `RC0603FR-074K7L` | 0603 |
-| R7 | 1 | HCPL-0700 base speed-up | 47 kΩ, ±1%, 0.1 W | Yageo | `RC0603FR-0747KL` | 0603 |
-| R8, R9 | 2 | Power and DMX LED current limiting | 1 kΩ, ±1%, 0.1 W | Yageo | `RC0603FR-071KL` | 0603 |
-| R10, R11 | 2 | Default DMX common-mode-choke bypass | 0 Ω, ±5%, 0.1 W | Yageo | `RC0603JR-070RL` | 0603 |
+| R4, R5 | 2 | MIDI input current limiting | 220 Ω, ±1%, 0.063 W | Yageo | `RC0402FR-07220RL` | 0402 |
+| R6 | 1 | MIDI output pull-up | 4.7 kΩ, ±1%, 0.063 W | Yageo | `RC0402FR-074K7L` | 0402 |
+| R7 | 1 | HCPL-0700 base speed-up | 47 kΩ, ±1%, 0.063 W | Yageo | `RC0402FR-0747KL` | 0402 |
+| R8, R9 | 2 | Power and DMX LED current limiting | 1 kΩ, ±1%, 0.063 W | Yageo | `RC0402FR-071KL` | 0402 |
+| R10, R11 | 2 | Default DMX common-mode-choke bypass | 0 Ω, ±5%, 0.063 W | Yageo | `RC0402JR-070RL` | 0402 |
 
 ## Capacitors
 
@@ -31,6 +31,11 @@ The capacitor set follows the TI ISOW1412 application circuit and EVM BOM.
 The original TI EVM used Murata `GRM188R61H105KAALD` for 1 µF, but that
 ordering code is obsolete. The active Samsung part above keeps the same
 capacitance, voltage, tolerance, dielectric, and 0603 package.
+
+C1, C2, C4, C6, and C7 are already 0402. C8 and C9 remain 0603, and C3
+and C5 remain 0805, because the frozen design follows TI's 50 V 1 µF and
+35 V 10 µF EVM selections. Reducing those packages without qualifying
+effective capacitance under 5 V DC bias would weaken the supply network.
 
 ## Magnetics, protection, and indicators
 

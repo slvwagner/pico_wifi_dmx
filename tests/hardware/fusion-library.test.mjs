@@ -161,11 +161,11 @@ test("passives and status LEDs use frozen ordering codes", () => {
   const expectedValues = [
     "100k 1% 0.063W 0402 Yageo RC0402FR-07100KL",
     "10k 1% 0.063W 0402 Yageo RC0402FR-0710KL",
-    "220R 1% 0.1W 0603 Yageo RC0603FR-07220RL",
-    "4.7k 1% 0.1W 0603 Yageo RC0603FR-074K7L",
-    "47k 1% 0.1W 0603 Yageo RC0603FR-0747KL",
-    "1k 1% 0.1W 0603 Yageo RC0603FR-071KL",
-    "0R 5% 0.1W 0603 Yageo RC0603JR-070RL CMC BYPASS FIT",
+    "220R 1% 0.063W 0402 Yageo RC0402FR-07220RL",
+    "4.7k 1% 0.063W 0402 Yageo RC0402FR-074K7L",
+    "47k 1% 0.063W 0402 Yageo RC0402FR-0747KL",
+    "1k 1% 0.063W 0402 Yageo RC0402FR-071KL",
+    "0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT",
     "1206L050YR 0.5A HOLD",
     "BLM15EX331SN1D",
     "ACT45B-510-2P-TL003 - DNP",
@@ -177,6 +177,13 @@ test("passives and status LEDs use frozen ordering codes", () => {
       generatedSchematic,
       new RegExp(`\\bvalue="${escaped(value)}"`),
       `missing frozen passive ${value}`,
+    );
+  }
+  for (let resistor = 1; resistor <= 11; resistor += 1) {
+    assert.match(
+      generatedSchematic,
+      new RegExp(`<part name="R${resistor}"[^>]*deviceset="RES0402"`),
+      `R${resistor} must use the 0402 resistor footprint`,
     );
   }
 });
