@@ -32,6 +32,13 @@ The project library is the source for the imported land-pattern geometry.
 See [`libraries/README.md`](libraries/README.md) for the import list and the
 footprints deliberately retained as project-specific definitions.
 
+The generator also copies every available `packages3d` model and
+device-to-model association for packages actually used by the schematic.
+Unused library models are intentionally omitted from the self-contained
+schematic. A corrected custom footprint is left without a 3D model when the
+library contains no dimensionally correct model for it; the generator never
+reuses a model belonging to the former, incorrect package.
+
 For example, one `connectMany()` declaration connects the Pico DMX output,
 ISOW1412 data input, pull-up resistor and diagnostic pad to the named
 `DMX_TX_GPIO2` signal. The generator translates that declaration into EAGLE

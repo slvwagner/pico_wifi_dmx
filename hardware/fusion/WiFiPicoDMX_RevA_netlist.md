@@ -20,7 +20,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
   TDK ACT45B-510-2P-TL003 common-mode-choke option, normally DNP until EMC and
   signal-integrity tests justify fitting it. Never populate L1 and the two
   bypass resistors simultaneously.
-- The BOOTSEL/TP6 signal is not available on the Pico's 40 castellated pads.
+- The BOOTSEL/TP6 signal is not available on the Pico's two 20-pin header rows.
   Preserve physical access to the Pico BOOTSEL button.
 - The preliminary footprints are not released for fabrication.
 

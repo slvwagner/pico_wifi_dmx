@@ -141,47 +141,47 @@
                       <text x="-1.5" y="7.619999999999999" size="1.016" layer="25" rot="R90">&gt;NAME</text>
                         </package>
             <package name="PICO_2_W_DEVELOPMENT_BOARD">
-            <description>Raspberry Pi Pico 2 W castellated SMD module, 51.00 X 21.00 mm body. Verify pad geometry and antenna keepout against the current Raspberry Pi hardware design files before PCB release.</description>
-            <smd name="1" x="-10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="2" x="-10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="3" x="-10.5" y="19.05" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="4" x="-10.5" y="16.51" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="5" x="-10.5" y="13.97" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="6" x="-10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="7" x="-10.5" y="8.89" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="8" x="-10.5" y="6.35" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="9" x="-10.5" y="3.81" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="10" x="-10.5" y="1.27" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="11" x="-10.5" y="-1.27" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="12" x="-10.5" y="-3.81" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="13" x="-10.5" y="-6.35" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="14" x="-10.5" y="-8.89" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="15" x="-10.5" y="-11.43" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="16" x="-10.5" y="-13.97" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="17" x="-10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="18" x="-10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="19" x="-10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="20" x="-10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="21" x="10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="22" x="10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="23" x="10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="24" x="10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="25" x="10.5" y="-13.97" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="26" x="10.5" y="-11.43" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="27" x="10.5" y="-8.89" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="28" x="10.5" y="-6.35" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="29" x="10.5" y="-3.81" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="30" x="10.5" y="-1.27" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="31" x="10.5" y="1.27" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="32" x="10.5" y="3.81" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="33" x="10.5" y="6.35" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="34" x="10.5" y="8.89" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="35" x="10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="36" x="10.5" y="13.97" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="37" x="10.5" y="16.51" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="38" x="10.5" y="19.05" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="39" x="10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
-            <smd name="40" x="10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
+            <description>Raspberry Pi Pico 2 W development board mounted through two 20-pin, 2.54 mm-pitch header rows with 17.78 mm row spacing. Verify the module orientation and antenna keepout before PCB release.</description>
+            <pad name="1" x="-8.89" y="24.13" drill="1.0485" diameter="1.6485"/>
+            <pad name="2" x="-8.89" y="21.59" drill="1.0485" diameter="1.6485"/>
+            <pad name="3" x="-8.89" y="19.05" drill="1.0485" diameter="1.6485"/>
+            <pad name="4" x="-8.89" y="16.51" drill="1.0485" diameter="1.6485"/>
+            <pad name="5" x="-8.89" y="13.97" drill="1.0485" diameter="1.6485"/>
+            <pad name="6" x="-8.89" y="11.43" drill="1.0485" diameter="1.6485"/>
+            <pad name="7" x="-8.89" y="8.89" drill="1.0485" diameter="1.6485"/>
+            <pad name="8" x="-8.89" y="6.35" drill="1.0485" diameter="1.6485"/>
+            <pad name="9" x="-8.89" y="3.81" drill="1.0485" diameter="1.6485"/>
+            <pad name="10" x="-8.89" y="1.27" drill="1.0485" diameter="1.6485"/>
+            <pad name="11" x="-8.89" y="-1.27" drill="1.0485" diameter="1.6485"/>
+            <pad name="12" x="-8.89" y="-3.81" drill="1.0485" diameter="1.6485"/>
+            <pad name="13" x="-8.89" y="-6.35" drill="1.0485" diameter="1.6485"/>
+            <pad name="14" x="-8.89" y="-8.89" drill="1.0485" diameter="1.6485"/>
+            <pad name="15" x="-8.89" y="-11.43" drill="1.0485" diameter="1.6485"/>
+            <pad name="16" x="-8.89" y="-13.97" drill="1.0485" diameter="1.6485"/>
+            <pad name="17" x="-8.89" y="-16.51" drill="1.0485" diameter="1.6485"/>
+            <pad name="18" x="-8.89" y="-19.05" drill="1.0485" diameter="1.6485"/>
+            <pad name="19" x="-8.89" y="-21.59" drill="1.0485" diameter="1.6485"/>
+            <pad name="20" x="-8.89" y="-24.13" drill="1.0485" diameter="1.6485"/>
+            <pad name="21" x="8.89" y="-24.13" drill="1.0485" diameter="1.6485"/>
+            <pad name="22" x="8.89" y="-21.59" drill="1.0485" diameter="1.6485"/>
+            <pad name="23" x="8.89" y="-19.05" drill="1.0485" diameter="1.6485"/>
+            <pad name="24" x="8.89" y="-16.51" drill="1.0485" diameter="1.6485"/>
+            <pad name="25" x="8.89" y="-13.97" drill="1.0485" diameter="1.6485"/>
+            <pad name="26" x="8.89" y="-11.43" drill="1.0485" diameter="1.6485"/>
+            <pad name="27" x="8.89" y="-8.89" drill="1.0485" diameter="1.6485"/>
+            <pad name="28" x="8.89" y="-6.35" drill="1.0485" diameter="1.6485"/>
+            <pad name="29" x="8.89" y="-3.81" drill="1.0485" diameter="1.6485"/>
+            <pad name="30" x="8.89" y="-1.27" drill="1.0485" diameter="1.6485"/>
+            <pad name="31" x="8.89" y="1.27" drill="1.0485" diameter="1.6485"/>
+            <pad name="32" x="8.89" y="3.81" drill="1.0485" diameter="1.6485"/>
+            <pad name="33" x="8.89" y="6.35" drill="1.0485" diameter="1.6485"/>
+            <pad name="34" x="8.89" y="8.89" drill="1.0485" diameter="1.6485"/>
+            <pad name="35" x="8.89" y="11.43" drill="1.0485" diameter="1.6485"/>
+            <pad name="36" x="8.89" y="13.97" drill="1.0485" diameter="1.6485"/>
+            <pad name="37" x="8.89" y="16.51" drill="1.0485" diameter="1.6485"/>
+            <pad name="38" x="8.89" y="19.05" drill="1.0485" diameter="1.6485"/>
+            <pad name="39" x="8.89" y="21.59" drill="1.0485" diameter="1.6485"/>
+            <pad name="40" x="8.89" y="24.13" drill="1.0485" diameter="1.6485"/>
             <circle x="-11.004" y="24.13" radius="0.25" width="0" layer="21"/>
             <wire x1="-10.5" y1="25.2083" x2="-10.5" y2="25.5" width="0.12" layer="21"/>
             <wire x1="-10.5" y1="25.5" x2="10.5" y2="25.5" width="0.12" layer="21"/>
@@ -392,6 +392,49 @@
             <text x="0" y="-2.4" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
                         </package>
           </packages>
+          <packages3d>
+            <package3d name="RESC1005X40" urn="urn:adsk.eagle:package:16378568/8" type="model">
+            <description>Chip, 1.05 X 0.54 X 0.40 mm body
+            &lt;p&gt;Chip package with body size 1.05 X 0.54 X 0.40 mm&lt;/p&gt;</description>
+            <packageinstances>
+            <packageinstance name="RESC1005X40"/>
+            </packageinstances>
+            </package3d>
+            <package3d name="RESC1608X60" urn="urn:adsk.eagle:package:16378565/8" type="model">
+            <description>Chip, 1.60 X 0.82 X 0.60 mm body
+            &lt;p&gt;Chip package with body size 1.60 X 0.82 X 0.60 mm&lt;/p&gt;</description>
+            <packageinstances>
+            <packageinstance name="RESC1608X60"/>
+            </packageinstances>
+            </package3d>
+            <package3d name="CAPC1005X60" urn="urn:adsk.eagle:package:16290895/7" type="model">
+            <description>Chip, 1.00 X 0.50 X 0.60 mm body
+            &lt;p&gt;Chip package with body size 1.00 X 0.50 X 0.60 mm&lt;/p&gt;</description>
+            <packageinstances>
+            <packageinstance name="CAPC1005X60"/>
+            </packageinstances>
+            </package3d>
+            <package3d name="CAPC2012X110" urn="urn:adsk.eagle:package:16290897/7" type="model">
+            <description>Chip, 2.00 X 1.25 X 1.10 mm body
+            &lt;p&gt;Chip package with body size 2.00 X 1.25 X 1.10 mm&lt;/p&gt;</description>
+            <packageinstances>
+            <packageinstance name="CAPC2012X110"/>
+            </packageinstances>
+            </package3d>
+            <package3d name="INDC1006X60N" urn="urn:adsk.eagle:package:16378468/4" type="model">
+            <description>Chip, 1.00 X 0.60 X 0.60 mm body
+            &lt;p&gt;Chip package with body size 1.00 X 0.60 X 0.60 mm&lt;/p&gt;</description>
+            <packageinstances>
+            <packageinstance name="INDC1006X60N"/>
+            </packageinstances>
+            </package3d>
+            <package3d name="LEDC1608X55N_FLAT-B" urn="urn:adsk.eagle:package:24294782/6" type="model">
+            <description>Chip LED package with body size 1.60 X 0.80 X 0.55 mm</description>
+            <packageinstances>
+            <packageinstance name="LEDC1608X55N_FLAT-B"/>
+            </packageinstances>
+            </package3d>
+          </packages3d>
           <symbols>
             <symbol name="RESISTOR">
                           <wire x1="-2.54" y1="-2.54" x2="2.54" y2="-2.54" width="0.254" layer="94"/>
@@ -681,6 +724,9 @@
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
                               </connects>
+                              <package3dinstances>
+                                <package3dinstance package3d_urn="urn:adsk.eagle:package:16378568/8"/>
+                              </package3dinstances>
                               <technologies>
                                 <technology name=""/>
                               </technologies>
@@ -698,6 +744,9 @@
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
                               </connects>
+                              <package3dinstances>
+                                <package3dinstance package3d_urn="urn:adsk.eagle:package:16378565/8"/>
+                              </package3dinstances>
                               <technologies>
                                 <technology name=""/>
                               </technologies>
@@ -715,6 +764,9 @@
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
                               </connects>
+                              <package3dinstances>
+                                <package3dinstance package3d_urn="urn:adsk.eagle:package:16290895/7"/>
+                              </package3dinstances>
                               <technologies>
                                 <technology name=""/>
                               </technologies>
@@ -732,6 +784,9 @@
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
                               </connects>
+                              <package3dinstances>
+                                <package3dinstance package3d_urn="urn:adsk.eagle:package:16290897/7"/>
+                              </package3dinstances>
                               <technologies>
                                 <technology name=""/>
                               </technologies>
@@ -766,6 +821,9 @@
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
                               </connects>
+                              <package3dinstances>
+                                <package3dinstance package3d_urn="urn:adsk.eagle:package:16378468/4"/>
+                              </package3dinstances>
                               <technologies>
                                 <technology name=""/>
                               </technologies>
@@ -783,6 +841,9 @@
                                 <connect gate="G$1" pin="A" pad="A"/>
                                 <connect gate="G$1" pin="K" pad="C"/>
                               </connects>
+                              <package3dinstances>
+                                <package3dinstance package3d_urn="urn:adsk.eagle:package:24294782/6"/>
+                              </package3dinstances>
                               <technologies>
                                 <technology name=""/>
                               </technologies>
@@ -896,7 +957,7 @@
                           </devices>
                         </deviceset>
             <deviceset name="PICO2W" prefix="U">
-                          <description>Raspberry Pi Pico 2 W castellated module using project-library land pattern</description>
+                          <description>Raspberry Pi Pico 2 W development board using project-library through-hole header land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="PICO2W" x="0" y="0"/>
                           </gates>
@@ -1161,7 +1222,7 @@
                     <text x="20.32" y="187.96" size="2.54" layer="91" ratio="15">WiFiPicoDMX Rev. A — Controller, power, controls and expansion</text>
                     <text x="20.32" y="15.24" size="1.778" layer="91" ratio="12">Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.</text>
                     <text x="20.32" y="10.16" size="1.778" layer="91" ratio="12">Verify every project-library and generated land pattern against the selected manufacturer part before PCB release.</text>
-                    <text x="20.32" y="5.08" size="1.778" layer="91" ratio="12">TP6/BOOTSEL is not available on the 40 castellated pins: preserve physical BOOTSEL access; do not assume an electrical carrier connection.</text>
+                    <text x="20.32" y="5.08" size="1.778" layer="91" ratio="12">TP6/BOOTSEL is not available on the two 20-pin header rows: preserve physical BOOTSEL access; do not assume an electrical carrier connection.</text>
                   </plain>
                   <instances>
                     <instance part="U1" gate="G$1" x="76.2" y="101.6" rot="R0" smashed="no"/>

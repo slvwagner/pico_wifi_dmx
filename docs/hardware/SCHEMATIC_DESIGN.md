@@ -9,8 +9,9 @@ measurements and the applicable conformity testing.
 
 - Use SMD parts for all semiconductors, protection devices, resistors, and
   capacitors.
-- Solder the Raspberry Pi Pico 2 W directly through its castellated pads. Do
-  not fit socket headers in the production design.
+- Mount the Raspberry Pi Pico 2 W development board through two 20-pin,
+  2.54 mm-pitch header rows. The Pico module is an explicit through-hole
+  exception to the SMD preference.
 - Use through-hole or mechanically reinforced footprints for connectors that
   experience cable insertion force. The XLR connector is explicitly exempt
   from the SMD requirement.
@@ -157,7 +158,7 @@ connected to the Pico 2 W Micro-USB connector.
 
 | Function | Preferred part | Package / mounting | Status |
 |---|---|---|---|
-| Controller | Raspberry Pi Pico 2 W | Castellated SMD module | Selected |
+| Controller | Raspberry Pi Pico 2 W development board | Two 20-pin, 2.54 mm-pitch through-hole header rows | Selected |
 | Isolated DMX and power | `ISOW1412DFMR` | DFM/SOIC-20 SMD | Selected |
 | DMX TVS | `SM712.TCT` | SOT-23 SMD | Selected |
 | Resettable fuse | `1206L050YR` | 1206 SMD, 0.5 A hold / 1.0 A trip | Selected |

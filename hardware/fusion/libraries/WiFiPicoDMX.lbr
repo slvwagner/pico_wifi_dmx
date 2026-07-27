@@ -75,47 +75,47 @@
 <library>
 <packages>
 <package name="PICO_2_W_DEVELOPMENT_BOARD" library_version="83">
-<description>Raspberry Pi Pico 2 W castellated SMD module, 51.00 X 21.00 mm body. Verify pad geometry and antenna keepout against the current Raspberry Pi hardware design files before PCB release.</description>
-<smd name="1" x="-10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
-<smd name="2" x="-10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
-<smd name="3" x="-10.5" y="19.05" dx="2.2" dy="1.7" layer="1"/>
-<smd name="4" x="-10.5" y="16.51" dx="2.2" dy="1.7" layer="1"/>
-<smd name="5" x="-10.5" y="13.97" dx="2.2" dy="1.7" layer="1"/>
-<smd name="6" x="-10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
-<smd name="7" x="-10.5" y="8.89" dx="2.2" dy="1.7" layer="1"/>
-<smd name="8" x="-10.5" y="6.35" dx="2.2" dy="1.7" layer="1"/>
-<smd name="9" x="-10.5" y="3.81" dx="2.2" dy="1.7" layer="1"/>
-<smd name="10" x="-10.5" y="1.27" dx="2.2" dy="1.7" layer="1"/>
-<smd name="11" x="-10.5" y="-1.27" dx="2.2" dy="1.7" layer="1"/>
-<smd name="12" x="-10.5" y="-3.81" dx="2.2" dy="1.7" layer="1"/>
-<smd name="13" x="-10.5" y="-6.35" dx="2.2" dy="1.7" layer="1"/>
-<smd name="14" x="-10.5" y="-8.89" dx="2.2" dy="1.7" layer="1"/>
-<smd name="15" x="-10.5" y="-11.43" dx="2.2" dy="1.7" layer="1"/>
-<smd name="16" x="-10.5" y="-13.97" dx="2.2" dy="1.7" layer="1"/>
-<smd name="17" x="-10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
-<smd name="18" x="-10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
-<smd name="19" x="-10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
-<smd name="20" x="-10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
-<smd name="21" x="10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
-<smd name="22" x="10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
-<smd name="23" x="10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
-<smd name="24" x="10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
-<smd name="25" x="10.5" y="-13.97" dx="2.2" dy="1.7" layer="1"/>
-<smd name="26" x="10.5" y="-11.43" dx="2.2" dy="1.7" layer="1"/>
-<smd name="27" x="10.5" y="-8.89" dx="2.2" dy="1.7" layer="1"/>
-<smd name="28" x="10.5" y="-6.35" dx="2.2" dy="1.7" layer="1"/>
-<smd name="29" x="10.5" y="-3.81" dx="2.2" dy="1.7" layer="1"/>
-<smd name="30" x="10.5" y="-1.27" dx="2.2" dy="1.7" layer="1"/>
-<smd name="31" x="10.5" y="1.27" dx="2.2" dy="1.7" layer="1"/>
-<smd name="32" x="10.5" y="3.81" dx="2.2" dy="1.7" layer="1"/>
-<smd name="33" x="10.5" y="6.35" dx="2.2" dy="1.7" layer="1"/>
-<smd name="34" x="10.5" y="8.89" dx="2.2" dy="1.7" layer="1"/>
-<smd name="35" x="10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
-<smd name="36" x="10.5" y="13.97" dx="2.2" dy="1.7" layer="1"/>
-<smd name="37" x="10.5" y="16.51" dx="2.2" dy="1.7" layer="1"/>
-<smd name="38" x="10.5" y="19.05" dx="2.2" dy="1.7" layer="1"/>
-<smd name="39" x="10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
-<smd name="40" x="10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
+<description>Raspberry Pi Pico 2 W development board mounted through two 20-pin, 2.54 mm-pitch header rows with 17.78 mm row spacing. Verify the module orientation and antenna keepout before PCB release.</description>
+<pad name="1" x="-8.89" y="24.13" drill="1.0485" diameter="1.6485"/>
+<pad name="2" x="-8.89" y="21.59" drill="1.0485" diameter="1.6485"/>
+<pad name="3" x="-8.89" y="19.05" drill="1.0485" diameter="1.6485"/>
+<pad name="4" x="-8.89" y="16.51" drill="1.0485" diameter="1.6485"/>
+<pad name="5" x="-8.89" y="13.97" drill="1.0485" diameter="1.6485"/>
+<pad name="6" x="-8.89" y="11.43" drill="1.0485" diameter="1.6485"/>
+<pad name="7" x="-8.89" y="8.89" drill="1.0485" diameter="1.6485"/>
+<pad name="8" x="-8.89" y="6.35" drill="1.0485" diameter="1.6485"/>
+<pad name="9" x="-8.89" y="3.81" drill="1.0485" diameter="1.6485"/>
+<pad name="10" x="-8.89" y="1.27" drill="1.0485" diameter="1.6485"/>
+<pad name="11" x="-8.89" y="-1.27" drill="1.0485" diameter="1.6485"/>
+<pad name="12" x="-8.89" y="-3.81" drill="1.0485" diameter="1.6485"/>
+<pad name="13" x="-8.89" y="-6.35" drill="1.0485" diameter="1.6485"/>
+<pad name="14" x="-8.89" y="-8.89" drill="1.0485" diameter="1.6485"/>
+<pad name="15" x="-8.89" y="-11.43" drill="1.0485" diameter="1.6485"/>
+<pad name="16" x="-8.89" y="-13.97" drill="1.0485" diameter="1.6485"/>
+<pad name="17" x="-8.89" y="-16.51" drill="1.0485" diameter="1.6485"/>
+<pad name="18" x="-8.89" y="-19.05" drill="1.0485" diameter="1.6485"/>
+<pad name="19" x="-8.89" y="-21.59" drill="1.0485" diameter="1.6485"/>
+<pad name="20" x="-8.89" y="-24.13" drill="1.0485" diameter="1.6485"/>
+<pad name="21" x="8.89" y="-24.13" drill="1.0485" diameter="1.6485"/>
+<pad name="22" x="8.89" y="-21.59" drill="1.0485" diameter="1.6485"/>
+<pad name="23" x="8.89" y="-19.05" drill="1.0485" diameter="1.6485"/>
+<pad name="24" x="8.89" y="-16.51" drill="1.0485" diameter="1.6485"/>
+<pad name="25" x="8.89" y="-13.97" drill="1.0485" diameter="1.6485"/>
+<pad name="26" x="8.89" y="-11.43" drill="1.0485" diameter="1.6485"/>
+<pad name="27" x="8.89" y="-8.89" drill="1.0485" diameter="1.6485"/>
+<pad name="28" x="8.89" y="-6.35" drill="1.0485" diameter="1.6485"/>
+<pad name="29" x="8.89" y="-3.81" drill="1.0485" diameter="1.6485"/>
+<pad name="30" x="8.89" y="-1.27" drill="1.0485" diameter="1.6485"/>
+<pad name="31" x="8.89" y="1.27" drill="1.0485" diameter="1.6485"/>
+<pad name="32" x="8.89" y="3.81" drill="1.0485" diameter="1.6485"/>
+<pad name="33" x="8.89" y="6.35" drill="1.0485" diameter="1.6485"/>
+<pad name="34" x="8.89" y="8.89" drill="1.0485" diameter="1.6485"/>
+<pad name="35" x="8.89" y="11.43" drill="1.0485" diameter="1.6485"/>
+<pad name="36" x="8.89" y="13.97" drill="1.0485" diameter="1.6485"/>
+<pad name="37" x="8.89" y="16.51" drill="1.0485" diameter="1.6485"/>
+<pad name="38" x="8.89" y="19.05" drill="1.0485" diameter="1.6485"/>
+<pad name="39" x="8.89" y="21.59" drill="1.0485" diameter="1.6485"/>
+<pad name="40" x="8.89" y="24.13" drill="1.0485" diameter="1.6485"/>
 <circle x="-11.004" y="24.13" radius="0.25" width="0" layer="21"/>
 <wire x1="-10.5" y1="25.2083" x2="-10.5" y2="25.5" width="0.12" layer="21"/>
 <wire x1="-10.5" y1="25.5" x2="10.5" y2="25.5" width="0.12" layer="21"/>
@@ -1830,7 +1830,7 @@
 </symbols>
 <devicesets>
 <deviceset name="PICO2W_DEVELOP_PCB" prefix="U">
-<description>Raspberry Pi Pico 2 W castellated module</description>
+<description>Raspberry Pi Pico 2 W development board mounted through two 20-pin header rows</description>
 <gates>
 <gate name="G$1" symbol="RPI-PICO2W" x="0" y="0"/>
 </gates>

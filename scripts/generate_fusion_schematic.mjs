@@ -42,10 +42,26 @@ const libraries = new Map();
 const symbols = new Map();
 const packages = new Map();
 const deviceSets = new Map();
+const projectLibrary3dByPackage = new Map();
 const parts = [];
 const instances = [];
 const connections = new Map();
 const notes = new Map();
+
+for (const match of projectLibraryXml.matchAll(
+  /<package3d\b([^>]*)>([\s\S]*?)<\/package3d>/g,
+)) {
+  const urn = match[1].match(/\burn="([^"]+)"/)?.[1];
+  if (!urn) continue;
+  for (const packageMatch of match[2].matchAll(
+    /<packageinstance\b[^>]*\bname="([^"]+)"/g,
+  )) {
+    projectLibrary3dByPackage.set(packageMatch[1], {
+      urn,
+      xml: match[0],
+    });
+  }
+}
 
 function defineSymbol(name, pins, body = {}) {
   symbols.set(name, { name, pins, body });
@@ -74,6 +90,7 @@ function defineDeviceSet(name, prefix, symbol, packageName, connects, descriptio
     packageName,
     connects,
     description,
+    package3dUrn: projectLibrary3dByPackage.get(packageName)?.urn,
   });
 }
 
@@ -425,7 +442,7 @@ defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
 }, "TI reinforced isolated RS-485/RDM transceiver with integrated isolated DC/DC");
 defineDeviceSet("PICO2W", "U", "PICO2W", "PICO_2_W_DEVELOPMENT_BOARD",
   Object.fromEntries(picoPins.map((pin) => [pin.name, String(pin.pad)])),
-  "Raspberry Pi Pico 2 W castellated module using project-library land pattern");
+  "Raspberry Pi Pico 2 W development board using project-library through-hole header land pattern");
 defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "SOIC127P600X317-8N", {
   NC1: "1", A: "2", K: "3", NC4: "4", GND: "5", VO: "6", VB: "7", VCC: "8",
 }, "Broadcom HCPL-0700-500E SOIC-8 optocoupler using project-library land pattern");
@@ -578,7 +595,7 @@ connectMany("NC_U3_PIN4", [["U3", "NC4"]]);
 addNote(1, 20.32, 187.96, "WiFiPicoDMX Rev. A — Controller, power, controls and expansion", 2.54, 15);
 addNote(1, 20.32, 15.24, "Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.");
 addNote(1, 20.32, 10.16, "Verify every project-library and generated land pattern against the selected manufacturer part before PCB release.");
-addNote(1, 20.32, 5.08, "TP6/BOOTSEL is not available on the 40 castellated pins: preserve physical BOOTSEL access; do not assume an electrical carrier connection.");
+addNote(1, 20.32, 5.08, "TP6/BOOTSEL is not available on the two 20-pin header rows: preserve physical BOOTSEL access; do not assume an electrical carrier connection.");
 
 addNote(2, 20.32, 187.96, "WiFiPicoDMX Rev. A — Reinforced-isolated DMX/RDM output", 2.54, 15);
 addNote(2, 20.32, 20.32, "Default: FIT R10/R11 (0R), DNP L1. L1 option is TDK ACT45B-510-2P-TL003; fit it only after EMC/signal-integrity testing.");
@@ -620,6 +637,12 @@ function symbolXml(symbol) {
 function deviceSetXml(device) {
   const connectXml = Object.entries(device.connects).map(([pin, pad]) =>
     element("connect", { gate: "G$1", pin, pad }));
+  const package3dXml = device.package3dUrn
+    ? `                  <package3dinstances>
+                    ${element("package3dinstance", { package3d_urn: device.package3dUrn })}
+                  </package3dinstances>
+`
+    : "";
   return element("deviceset", { name: device.name, prefix: device.prefix }, `
               ${element("description", {}, device.description)}
               <gates>
@@ -630,7 +653,7 @@ function deviceSetXml(device) {
                   <connects>
 ${lines(connectXml, "                    ")}
                   </connects>
-                  <technologies>
+${package3dXml}                  <technologies>
                     <technology name=""/>
                   </technologies>
                 </device>
@@ -714,6 +737,11 @@ ${lines(netXml, "            ")}
 const usedPackageNames = new Set(
   [...deviceSets.values()].map((device) => device.packageName),
 );
+const usedPackage3dModels = new Map();
+for (const packageName of usedPackageNames) {
+  const model = projectLibrary3dByPackage.get(packageName);
+  if (model) usedPackage3dModels.set(model.urn, model.xml);
+}
 
 const libraryXml = `<library name="WiFiPicoDMX_RevA_embedded">
           <description>Self-contained WiFiPicoDMX Rev. A schematic library derived from hardware/fusion/libraries/WiFiPicoDMX.lbr plus documented project-specific land patterns. Verify every footprint before PCB manufacture.</description>
@@ -724,6 +752,9 @@ ${lines([...packages.entries()]
 ${content}
             </package>`), "            ")}
           </packages>
+          <packages3d>
+${lines([...usedPackage3dModels.values()], "            ")}
+          </packages3d>
           <symbols>
 ${lines([...symbols.values()].map(symbolXml), "            ")}
           </symbols>
@@ -862,7 +893,7 @@ Endpoint notation is \`reference.physical-pad (symbol-pin)\`. For example,
   TDK ACT45B-510-2P-TL003 common-mode-choke option, normally DNP until EMC and
   signal-integrity tests justify fitting it. Never populate L1 and the two
   bypass resistors simultaneously.
-- The BOOTSEL/TP6 signal is not available on the Pico's 40 castellated pads.
+- The BOOTSEL/TP6 signal is not available on the Pico's two 20-pin header rows.
   Preserve physical access to the Pico BOOTSEL button.
 - The preliminary footprints are not released for fabrication.
 
