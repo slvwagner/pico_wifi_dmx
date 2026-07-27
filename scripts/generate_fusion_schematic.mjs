@@ -240,7 +240,7 @@ const isowRight = [
 ];
 boxSymbol("ISOW1412", isowLeft, isowRight, 30.48, 5.08);
 
-boxSymbol("OPTO_6N138", [
+boxSymbol("OPTO_HCPL0700", [
   { name: "NC1", direction: "nc" },
   { name: "A", direction: "input" },
   { name: "K", direction: "input" },
@@ -277,7 +277,17 @@ definePackage("C0805", smdTwoPadPackage("C0805", 1.4, 1.3, 2.2));
 definePackage("PPTC1206", smdTwoPadPackage("PPTC1206", 1.6, 1.8, 2.8));
 definePackage("LED0603", smdTwoPadPackage("LED0603", 1.1, 1.0, 1.8));
 definePackage("SOD323", smdTwoPadPackage("SOD323", 0.8, 0.8, 2.4));
-definePackage("SWITCH_SMD_2PAD", smdTwoPadPackage("SWITCH_SMD_2PAD", 1.8, 1.8, 4.5));
+definePackage("PTS810_PRELIMINARY", lines([
+  element("smd", { name: "1", x: -2.0, y: 0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("smd", { name: "3", x: -2.0, y: -0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("smd", { name: "2", x: 2.0, y: 0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("smd", { name: "4", x: 2.0, y: -0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("wire", { x1: -2.1, y1: -1.6, x2: 2.1, y2: -1.6, width: 0.1524, layer: 21 }),
+  element("wire", { x1: 2.1, y1: -1.6, x2: 2.1, y2: 1.6, width: 0.1524, layer: 21 }),
+  element("wire", { x1: 2.1, y1: 1.6, x2: -2.1, y2: 1.6, width: 0.1524, layer: 21 }),
+  element("wire", { x1: -2.1, y1: 1.6, x2: -2.1, y2: -1.6, width: 0.1524, layer: 21 }),
+  element("text", { x: -2.1, y: 2.0, size: 1.016, layer: 25 }, "&gt;NAME"),
+], "          "));
 
 definePackage("SOT23", lines([
   element("smd", { name: "1", x: -0.95, y: -1.1, dx: 1.0, dy: 1.1, layer: 1 }),
@@ -291,11 +301,11 @@ definePackage("SOT23", lines([
   element("text", { x: -1.5, y: 1.8, size: 1.016, layer: 25 }, "&gt;NAME"),
 ], "          "));
 
-definePackage("CMC4_PLACEHOLDER", lines([
+definePackage("TDK_ACT45B_PRELIMINARY", lines([
   element("smd", { name: "1", x: -2.2, y: 1.1, dx: 1.2, dy: 1.0, layer: 1 }),
   element("smd", { name: "2", x: 2.2, y: 1.1, dx: 1.2, dy: 1.0, layer: 1 }),
-  element("smd", { name: "3", x: -2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
-  element("smd", { name: "4", x: 2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
+  element("smd", { name: "4", x: -2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
+  element("smd", { name: "3", x: 2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
   element("wire", { x1: -1.6, y1: -1.8, x2: 1.6, y2: -1.8, width: 0.1524, layer: 21 }),
   element("wire", { x1: 1.6, y1: -1.8, x2: 1.6, y2: 1.8, width: 0.1524, layer: 21 }),
   element("wire", { x1: 1.6, y1: 1.8, x2: -1.6, y2: 1.8, width: 0.1524, layer: 21 }),
@@ -318,18 +328,18 @@ isowPads.push(element("text", { x: -5.2, y: 7.1, size: 1.016, layer: 25 }, "&gt;
 definePackage("DFM20_PRELIMINARY", lines(isowPads, "          "));
 
 const optoPads = [];
-const optoY = [3.81, 1.27, -1.27, -3.81];
+const optoY = [1.905, 0.635, -0.635, -1.905];
 for (let index = 0; index < 4; index += 1) {
-  optoPads.push(element("smd", { name: index + 1, x: -5.08, y: optoY[index], dx: 2.2, dy: 1.1, layer: 1 }));
-  optoPads.push(element("smd", { name: 8 - index, x: 5.08, y: optoY[index], dx: 2.2, dy: 1.1, layer: 1 }));
+  optoPads.push(element("smd", { name: index + 1, x: -2.9, y: optoY[index], dx: 1.6, dy: 0.6, layer: 1 }));
+  optoPads.push(element("smd", { name: 8 - index, x: 2.9, y: optoY[index], dx: 1.6, dy: 0.6, layer: 1 }));
 }
-optoPads.push(element("wire", { x1: -3.8, y1: -5.0, x2: 3.8, y2: -5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("wire", { x1: 3.8, y1: -5.0, x2: 3.8, y2: 5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("wire", { x1: 3.8, y1: 5.0, x2: -3.8, y2: 5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("wire", { x1: -3.8, y1: 5.0, x2: -3.8, y2: -5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("circle", { x: -3.1, y: 4.2, radius: 0.35, width: 0, layer: 21 }));
-optoPads.push(element("text", { x: -3.8, y: 5.5, size: 1.016, layer: 25 }, "&gt;NAME"));
-definePackage("DIP8_GULLWING_PRELIMINARY", lines(optoPads, "          "));
+optoPads.push(element("wire", { x1: -2.0, y1: -2.6, x2: 2.0, y2: -2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("wire", { x1: 2.0, y1: -2.6, x2: 2.0, y2: 2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("wire", { x1: 2.0, y1: 2.6, x2: -2.0, y2: 2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("wire", { x1: -2.0, y1: 2.6, x2: -2.0, y2: -2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("circle", { x: -1.5, y: 2.05, radius: 0.25, width: 0, layer: 21 }));
+optoPads.push(element("text", { x: -2.0, y: 3.1, size: 1.016, layer: 25 }, "&gt;NAME"));
+definePackage("SOIC8_HCPL0700_PRELIMINARY", lines(optoPads, "          "));
 
 const picoPackage = [];
 for (let index = 0; index < 20; index += 1) {
@@ -369,9 +379,9 @@ defineDeviceSet("PPTC1206", "F", "FUSE", "PPTC1206", { 1: "1", 2: "2" }, "Littel
 defineDeviceSet("FERRITE0402", "FB", "FERRITE", "R0402", { 1: "1", 2: "2" }, "Murata BLM15EX331SN1D");
 defineDeviceSet("LED0603", "D", "LED", "LED0603", { A: "1", K: "2" }, "0603 indicator LED");
 defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323", { A: "1", K: "2" }, "Vishay 1N4148WS-E3-08");
-defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "SWITCH_SMD_2PAD", { 1: "1", 2: "2" }, "Normally-open SMD reset switch; final footprint TBD");
+defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_PRELIMINARY", { 1: "1 3", 2: "2 4" }, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS normally-open SMD reset switch");
 defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS");
-defineDeviceSet("CMC_OPTION", "L", "CMC", "CMC4_PLACEHOLDER", { A1: "1", A2: "2", B1: "3", B2: "4" }, "Optional two-line common-mode choke; DNP until selected");
+defineDeviceSet("CMC_OPTION", "L", "CMC", "TDK_ACT45B_PRELIMINARY", { A1: "1", A2: "2", B1: "4", B2: "3" }, "TDK ACT45B-510-2P-TL003 two-line common-mode choke; normally DNP pending EMC and signal-integrity testing");
 defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
   VIO: "1", D: "2", DE: "3", R: "4", RE_N: "5", GNDIO: "6", OUT: "7",
   EN_FLT: "8", VDD: "9", GND1: "10", GND2: "11", VISOOUT: "12",
@@ -381,9 +391,9 @@ defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
 defineDeviceSet("PICO2W", "U", "PICO2W", "PICO2W_CASTELLATED_PRELIMINARY",
   Object.fromEntries(picoPins.map((pin) => [pin.name, String(pin.pad)])),
   "Raspberry Pi Pico 2 W castellated module");
-defineDeviceSet("6N138_500E", "U", "OPTO_6N138", "DIP8_GULLWING_PRELIMINARY", {
+defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "SOIC8_HCPL0700_PRELIMINARY", {
   NC1: "1", A: "2", K: "3", NC4: "4", GND: "5", VO: "6", VB: "7", VCC: "8",
-}, "Broadcom 6N138-500E gull-wing SMD optocoupler");
+}, "Broadcom HCPL-0700-500E SOIC-8 optocoupler");
 
 function defineConnector(count, name, packageName, description) {
   defineDeviceSet(name, "J", `CONN${count}`, packageName,
@@ -400,7 +410,7 @@ defineConnector(5, "PADBANK5", "PADBANK5", "Analog SMD pad bank");
 // Parts and placement: sheet 1, controller/power/status/expansion
 addPart("U1", "PICO2W", "Raspberry Pi Pico 2 W", 1, 76.2, 101.6);
 addPart("F1", "PPTC1206", "1206L050YR 0.5A HOLD", 1, 137.16, 172.72);
-addPart("SW1", "SWITCH_SMD", "RESET (NO)", 1, 137.16, 157.48);
+addPart("SW1", "SWITCH_SMD", "PTS810SJM250SMTR LFS RESET (NO)", 1, 137.16, 157.48);
 addPart("R8", "RES0603", "1k", 1, 132.08, 139.7);
 addPart("D3", "LED0603", "PWR GREEN", 1, 157.48, 139.7);
 addPart("R9", "RES0603", "1k", 1, 132.08, 124.46);
@@ -423,7 +433,7 @@ addPart("FB2", "FERRITE0402", "BLM15EX331SN1D", 2, 172.72, 134.62);
 addPart("C4", "CAP0402", "10n VISOOUT <=1mm", 2, 210.82, 149.86);
 addPart("C5", "CAP0805", "10u X7R VISOOUT", 2, 210.82, 134.62);
 addPart("C6", "CAP0402", "100n VISOIN", 2, 210.82, 119.38);
-addPart("L1", "CMC_OPTION", "OPTIONAL CMC - DNP", 2, 172.72, 91.44);
+addPart("L1", "CMC_OPTION", "ACT45B-510-2P-TL003 - DNP", 2, 172.72, 91.44);
 addPart("R10", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 76.2);
 addPart("R11", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 60.96);
 addPart("D1", "SM712", "SM712.TCT", 2, 210.82, 91.44);
@@ -434,7 +444,7 @@ addPart("J2", "PANEL_MIDI5", "PANEL DIN-5 MIDI IN", 3, 45.72, 101.6);
 addPart("R4", "RES0603", "220R", 3, 83.82, 116.84);
 addPart("R5", "RES0603", "220R", 3, 83.82, 86.36);
 addPart("D2", "DIODE_SOD323", "1N4148WS-E3-08", 3, 111.76, 101.6);
-addPart("U3", "6N138_500E", "6N138-500E", 3, 157.48, 101.6);
+addPart("U3", "HCPL_0700_500E", "HCPL-0700-500E", 3, 157.48, 101.6);
 addPart("R6", "RES0603", "4.7k OUTPUT PULLUP", 3, 203.2, 119.38);
 addPart("R7", "RES0603", "47k BASE SPEEDUP", 3, 203.2, 101.6);
 addPart("C7", "CAP0402", "100n VCC", 3, 203.2, 83.82);
@@ -507,14 +517,14 @@ addNote(1, 20.32, 10.16, "Pico and all land patterns marked PRELIMINARY require 
 addNote(1, 20.32, 5.08, "TP6/BOOTSEL is not available on the 40 castellated pins: preserve physical BOOTSEL access; do not assume an electrical carrier connection.");
 
 addNote(2, 20.32, 187.96, "WiFiPicoDMX Rev. A — Reinforced-isolated DMX/RDM output", 2.54, 15);
-addNote(2, 20.32, 20.32, "FIT R10/R11 (0R) and DNP L1 until a common-mode choke is selected by EMC/signal-integrity testing.");
+addNote(2, 20.32, 20.32, "Default: FIT R10/R11 (0R), DNP L1. L1 option is TDK ACT45B-510-2P-TL003; fit it only after EMC/signal-integrity testing.");
 addNote(2, 20.32, 15.24, "No permanent 120R termination: terminate only at the far end of the DMX cable.");
 addNote(2, 20.32, 10.16, "Keep GND_LOGIC and GND_DMX_ISO separate. Preserve TI isolation keep-outs and place bypass parts per TI layout.");
 addNote(2, 20.32, 5.08, "J1 pad order: P1 DMX COM/XLR1, P2 DMX-/XLR2, P3 DMX+/XLR3, P4 shell. Panel connector is wired, not PCB-mounted.");
 
 addNote(3, 20.32, 187.96, "WiFiPicoDMX Rev. A — Isolated MIDI IN", 2.54, 15);
 addNote(3, 20.32, 20.32, "J2 exposes all five panel DIN pins. Pins 1/3 are NC; pin 2 shield treatment remains configurable.");
-addNote(3, 20.32, 15.24, "6N138 output side uses 5V VCC with a 3.3V output pull-up. Verify timing/CTR on the assembled prototype.");
+addNote(3, 20.32, 15.24, "HCPL-0700 output side uses 5V VCC with a 3.3V output pull-up. Verify timing/CTR on the assembled prototype.");
 addNote(3, 20.32, 10.16, "The DIN input current loop remains galvanically isolated from GND_LOGIC.");
 
 function symbolXml(symbol) {
@@ -778,9 +788,10 @@ Endpoint notation is \`reference.physical-pad (symbol-pin)\`. For example,
 - Keep \`GND_LOGIC\`, \`GND_DMX_ISO\`, \`XLR_SHELL\`, and
   \`MIDI_DIN_PIN2_SHIELD\` distinct unless the enclosure design explicitly
   requires an approved connection.
-- Fit R10 and R11 as the default 0 ohm DMX paths. L1 is an unselected,
-  normally-DNP common-mode-choke option; never populate L1 and the two bypass
-  resistors simultaneously.
+- Fit R10 and R11 as the default 0 ohm DMX paths. L1 is the selected
+  TDK ACT45B-510-2P-TL003 common-mode-choke option, normally DNP until EMC and
+  signal-integrity tests justify fitting it. Never populate L1 and the two
+  bypass resistors simultaneously.
 - The BOOTSEL/TP6 signal is not available on the Pico's 40 castellated pads.
   Preserve physical access to the Pico BOOTSEL button.
 - The preliminary footprints are not released for fabrication.

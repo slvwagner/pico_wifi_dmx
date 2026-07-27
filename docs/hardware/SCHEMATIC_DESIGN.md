@@ -101,9 +101,13 @@ remains adequate after DC-bias derating.
   possible discharge path to the isolated/chassis reference selected above.
 - Do not fit a permanent 120 Ω termination in the controller. Termination
   belongs at the far end of the DMX cable.
-- Reserve footprints for an optional two-line common-mode choke and optional
-  zero-ohm bypasses. Populate only after signal-integrity and EMC measurements
-  establish the preferred configuration.
+- Reserve the manufacturer land pattern for a TDK
+  `ACT45B-510-2P-TL003` two-line common-mode choke plus zero-ohm bypasses.
+  The choke is rated for 200 mA and 50 V DC, with 51 µH typical common-mode
+  inductance, 0.15 µH typical stray inductance, and 1 Ω maximum DC resistance
+  per line. For the initial prototype, leave `L1` unpopulated and fit the two
+  zero-ohm bypasses. Populate the choke only after signal-integrity and EMC
+  measurements establish that it improves the assembled controller.
 
 The Y/Z pair must be routed together over its isolated reference plane with no
 stubs. Keep the transceiver, protection, and XLR close together.
@@ -158,9 +162,11 @@ connected to the Pico 2 W Micro-USB connector.
 | DMX TVS | `SM712.TCT` | SOT-23 SMD | Selected |
 | Resettable fuse | `1206L050YR` | 1206 SMD, 0.5 A hold / 1.0 A trip | Selected |
 | Reverse-polarity/power diode | `SS34` | SMB SMD | Selected; confirm exact ordering code |
-| MIDI optocoupler | `6N138-500E` | Gull-wing SMD, tape and reel | Selected |
+| MIDI optocoupler | `HCPL-0700-500E` | Genuine SOIC-8 SMD, tape and reel | Selected |
 | MIDI protection diode | `1N4148WS-E3-08` | SOD-323 SMD | Selected |
 | Isolated-supply ferrites | `BLM15EX331SN1D` | 0402 SMD | Selected |
+| Optional DMX common-mode choke | `ACT45B-510-2P-TL003` | TDK ACT45B, 4.5 × 3.2 mm SMD | Selected; DNP by default pending EMC/signal-integrity tests |
+| Reset pushbutton | `PTS810SJM250SMTR LFS` | 4.2 × 3.2 mm, 2.5 mm high, four-pad J-lead SMD | Selected |
 | DMX connector | Neutrik 5-pin female XLR | Panel mounted and wired | Exception |
 | MIDI connector | 5-pin DIN MIDI IN | Panel mounted and wired | Included; select exact part by enclosure |
 
@@ -172,7 +178,7 @@ through-hole 6N138 are not production BOM choices.
 Rev. A includes a standard 5-pin DIN MIDI IN port for future use:
 
 - panel-mounted DIN connector wired to the carrier;
-- `6N138-500E` gull-wing SMD optocoupler;
+- `HCPL-0700-500E` genuine SOIC-8 SMD optocoupler;
 - `1N4148WS-E3-08` SOD-323 input protection diode;
 - optocoupler output routed to Pico `GPIO5` / UART1 RX;
 - input current-limiting, bias, pull-up, and decoupling components implemented
@@ -290,9 +296,13 @@ strain relief.
 
 ## Local controls
 
-Rev. A includes a dedicated SMD Reset pushbutton:
+Rev. A includes a dedicated C&K/Littelfuse `PTS810SJM250SMTR LFS` Reset
+pushbutton:
 
-- normally-open momentary SMD switch;
+- normally-open momentary, top-actuated SMD switch;
+- 4.2 mm × 3.2 mm body, 2.5 mm height, and 1.6 N nominal operating force;
+- four physical pads, with pads 1/3 forming one contact and pads 2/4 the
+  other;
 - connects Pico `RUN` to `GND_LOGIC` only while pressed;
 - net names `PICO_RUN_N` and `GND_LOGIC`;
 - located where it remains accessible after the Pico and XLR are fitted;

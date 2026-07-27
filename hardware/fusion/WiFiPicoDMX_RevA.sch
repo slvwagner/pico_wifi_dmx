@@ -101,14 +101,16 @@
                       <wire x1="-1.2" y1="-0.8" x2="-1.2" y2="0.8" width="0.1524" layer="21"/>
                       <text x="-1.2" y="1.6" size="1.016" layer="25">&gt;NAME</text>
                         </package>
-            <package name="SWITCH_SMD_2PAD">
-                      <smd name="1" x="-2.25" y="0" dx="1.8" dy="1.8" layer="1"/>
-                      <smd name="2" x="2.25" y="0" dx="1.8" dy="1.8" layer="1"/>
-                      <wire x1="-2.25" y1="1.8" x2="2.25" y2="1.8" width="0.1524" layer="21"/>
-                      <wire x1="2.25" y1="1.8" x2="2.25" y2="-1.8" width="0.1524" layer="21"/>
-                      <wire x1="2.25" y1="-1.8" x2="-2.25" y2="-1.8" width="0.1524" layer="21"/>
-                      <wire x1="-2.25" y1="-1.8" x2="-2.25" y2="1.8" width="0.1524" layer="21"/>
-                      <text x="-2.25" y="2.6" size="1.016" layer="25">&gt;NAME</text>
+            <package name="PTS810_PRELIMINARY">
+                      <smd name="1" x="-2" y="0.8" dx="1.2" dy="1.5" layer="1"/>
+                      <smd name="3" x="-2" y="-0.8" dx="1.2" dy="1.5" layer="1"/>
+                      <smd name="2" x="2" y="0.8" dx="1.2" dy="1.5" layer="1"/>
+                      <smd name="4" x="2" y="-0.8" dx="1.2" dy="1.5" layer="1"/>
+                      <wire x1="-2.1" y1="-1.6" x2="2.1" y2="-1.6" width="0.1524" layer="21"/>
+                      <wire x1="2.1" y1="-1.6" x2="2.1" y2="1.6" width="0.1524" layer="21"/>
+                      <wire x1="2.1" y1="1.6" x2="-2.1" y2="1.6" width="0.1524" layer="21"/>
+                      <wire x1="-2.1" y1="1.6" x2="-2.1" y2="-1.6" width="0.1524" layer="21"/>
+                      <text x="-2.1" y="2" size="1.016" layer="25">&gt;NAME</text>
                         </package>
             <package name="SOT23">
                       <smd name="1" x="-0.95" y="-1.1" dx="1" dy="1.1" layer="1"/>
@@ -121,11 +123,11 @@
                       <circle x="-0.8" y="-0.3" radius="0.2" width="0" layer="21"/>
                       <text x="-1.5" y="1.8" size="1.016" layer="25">&gt;NAME</text>
                         </package>
-            <package name="CMC4_PLACEHOLDER">
+            <package name="TDK_ACT45B_PRELIMINARY">
                       <smd name="1" x="-2.2" y="1.1" dx="1.2" dy="1" layer="1"/>
                       <smd name="2" x="2.2" y="1.1" dx="1.2" dy="1" layer="1"/>
-                      <smd name="3" x="-2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
-                      <smd name="4" x="2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
+                      <smd name="4" x="-2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
+                      <smd name="3" x="2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
                       <wire x1="-1.6" y1="-1.8" x2="1.6" y2="-1.8" width="0.1524" layer="21"/>
                       <wire x1="1.6" y1="-1.8" x2="1.6" y2="1.8" width="0.1524" layer="21"/>
                       <wire x1="1.6" y1="1.8" x2="-1.6" y2="1.8" width="0.1524" layer="21"/>
@@ -160,21 +162,21 @@
                       <circle x="-4.5" y="5.5" radius="0.35" width="0" layer="21"/>
                       <text x="-5.2" y="7.1" size="1.016" layer="25">&gt;NAME</text>
                         </package>
-            <package name="DIP8_GULLWING_PRELIMINARY">
-                      <smd name="1" x="-5.08" y="3.81" dx="2.2" dy="1.1" layer="1"/>
-                      <smd name="8" x="5.08" y="3.81" dx="2.2" dy="1.1" layer="1"/>
-                      <smd name="2" x="-5.08" y="1.27" dx="2.2" dy="1.1" layer="1"/>
-                      <smd name="7" x="5.08" y="1.27" dx="2.2" dy="1.1" layer="1"/>
-                      <smd name="3" x="-5.08" y="-1.27" dx="2.2" dy="1.1" layer="1"/>
-                      <smd name="6" x="5.08" y="-1.27" dx="2.2" dy="1.1" layer="1"/>
-                      <smd name="4" x="-5.08" y="-3.81" dx="2.2" dy="1.1" layer="1"/>
-                      <smd name="5" x="5.08" y="-3.81" dx="2.2" dy="1.1" layer="1"/>
-                      <wire x1="-3.8" y1="-5" x2="3.8" y2="-5" width="0.1524" layer="21"/>
-                      <wire x1="3.8" y1="-5" x2="3.8" y2="5" width="0.1524" layer="21"/>
-                      <wire x1="3.8" y1="5" x2="-3.8" y2="5" width="0.1524" layer="21"/>
-                      <wire x1="-3.8" y1="5" x2="-3.8" y2="-5" width="0.1524" layer="21"/>
-                      <circle x="-3.1" y="4.2" radius="0.35" width="0" layer="21"/>
-                      <text x="-3.8" y="5.5" size="1.016" layer="25">&gt;NAME</text>
+            <package name="SOIC8_HCPL0700_PRELIMINARY">
+                      <smd name="1" x="-2.9" y="1.905" dx="1.6" dy="0.6" layer="1"/>
+                      <smd name="8" x="2.9" y="1.905" dx="1.6" dy="0.6" layer="1"/>
+                      <smd name="2" x="-2.9" y="0.635" dx="1.6" dy="0.6" layer="1"/>
+                      <smd name="7" x="2.9" y="0.635" dx="1.6" dy="0.6" layer="1"/>
+                      <smd name="3" x="-2.9" y="-0.635" dx="1.6" dy="0.6" layer="1"/>
+                      <smd name="6" x="2.9" y="-0.635" dx="1.6" dy="0.6" layer="1"/>
+                      <smd name="4" x="-2.9" y="-1.905" dx="1.6" dy="0.6" layer="1"/>
+                      <smd name="5" x="2.9" y="-1.905" dx="1.6" dy="0.6" layer="1"/>
+                      <wire x1="-2" y1="-2.6" x2="2" y2="-2.6" width="0.1524" layer="21"/>
+                      <wire x1="2" y1="-2.6" x2="2" y2="2.6" width="0.1524" layer="21"/>
+                      <wire x1="2" y1="2.6" x2="-2" y2="2.6" width="0.1524" layer="21"/>
+                      <wire x1="-2" y1="2.6" x2="-2" y2="-2.6" width="0.1524" layer="21"/>
+                      <circle x="-1.5" y="2.05" radius="0.25" width="0" layer="21"/>
+                      <text x="-2" y="3.1" size="1.016" layer="25">&gt;NAME</text>
                         </package>
             <package name="PICO2W_CASTELLATED_PRELIMINARY">
                       <smd name="1" x="-10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
@@ -457,7 +459,7 @@
                           <pin name="VISOOUT" x="20.32" y="-17.78" visible="pin" length="middle" direction="pwr" rot="R180"/>
                           <pin name="GND2" x="20.32" y="-22.86" visible="pin" length="middle" direction="pwr" rot="R180"/>
                         </symbol>
-            <symbol name="OPTO_6N138">
+            <symbol name="OPTO_HCPL0700">
                           <wire x1="-10.16" y1="-15.24" x2="10.16" y2="-15.24" width="0.254" layer="94"/>
                           <wire x1="10.16" y1="-15.24" x2="10.16" y2="15.24" width="0.254" layer="94"/>
                           <wire x1="10.16" y1="15.24" x2="-10.16" y2="15.24" width="0.254" layer="94"/>
@@ -718,15 +720,15 @@
                           </devices>
                         </deviceset>
             <deviceset name="SWITCH_SMD" prefix="SW">
-                          <description>Normally-open SMD reset switch; final footprint TBD</description>
+                          <description>C&amp;K/Littelfuse PTS810SJM250SMTR LFS normally-open SMD reset switch</description>
                           <gates>
                             <gate name="G$1" symbol="SWITCH" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="SWITCH_SMD_2PAD">
+                            <device name="" package="PTS810_PRELIMINARY">
                               <connects>
-                                <connect gate="G$1" pin="1" pad="1"/>
-                                <connect gate="G$1" pin="2" pad="2"/>
+                                <connect gate="G$1" pin="1" pad="1 3"/>
+                                <connect gate="G$1" pin="2" pad="2 4"/>
                               </connects>
                               <technologies>
                                 <technology name=""/>
@@ -753,17 +755,17 @@
                           </devices>
                         </deviceset>
             <deviceset name="CMC_OPTION" prefix="L">
-                          <description>Optional two-line common-mode choke; DNP until selected</description>
+                          <description>TDK ACT45B-510-2P-TL003 two-line common-mode choke; normally DNP pending EMC and signal-integrity testing</description>
                           <gates>
                             <gate name="G$1" symbol="CMC" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="CMC4_PLACEHOLDER">
+                            <device name="" package="TDK_ACT45B_PRELIMINARY">
                               <connects>
                                 <connect gate="G$1" pin="A1" pad="1"/>
                                 <connect gate="G$1" pin="A2" pad="2"/>
-                                <connect gate="G$1" pin="B1" pad="3"/>
-                                <connect gate="G$1" pin="B2" pad="4"/>
+                                <connect gate="G$1" pin="B1" pad="4"/>
+                                <connect gate="G$1" pin="B2" pad="3"/>
                               </connects>
                               <technologies>
                                 <technology name=""/>
@@ -861,13 +863,13 @@
                             </device>
                           </devices>
                         </deviceset>
-            <deviceset name="6N138_500E" prefix="U">
-                          <description>Broadcom 6N138-500E gull-wing SMD optocoupler</description>
+            <deviceset name="HCPL_0700_500E" prefix="U">
+                          <description>Broadcom HCPL-0700-500E SOIC-8 optocoupler</description>
                           <gates>
-                            <gate name="G$1" symbol="OPTO_6N138" x="0" y="0"/>
+                            <gate name="G$1" symbol="OPTO_HCPL0700" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="DIP8_GULLWING_PRELIMINARY">
+                            <device name="" package="SOIC8_HCPL0700_PRELIMINARY">
                               <connects>
                                 <connect gate="G$1" pin="NC1" pad="1"/>
                                 <connect gate="G$1" pin="A" pad="2"/>
@@ -1031,7 +1033,7 @@
       <parts>
         <part name="U1" library="WiFiPicoDMX_RevA_embedded" deviceset="PICO2W" device="" value="Raspberry Pi Pico 2 W"/>
         <part name="F1" library="WiFiPicoDMX_RevA_embedded" deviceset="PPTC1206" device="" value="1206L050YR 0.5A HOLD"/>
-        <part name="SW1" library="WiFiPicoDMX_RevA_embedded" deviceset="SWITCH_SMD" device="" value="RESET (NO)"/>
+        <part name="SW1" library="WiFiPicoDMX_RevA_embedded" deviceset="SWITCH_SMD" device="" value="PTS810SJM250SMTR LFS RESET (NO)"/>
         <part name="R8" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="1k"/>
         <part name="D3" library="WiFiPicoDMX_RevA_embedded" deviceset="LED0603" device="" value="PWR GREEN"/>
         <part name="R9" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="1k"/>
@@ -1052,7 +1054,7 @@
         <part name="C4" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="10n VISOOUT &lt;=1mm"/>
         <part name="C5" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0805" device="" value="10u X7R VISOOUT"/>
         <part name="C6" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100n VISOIN"/>
-        <part name="L1" library="WiFiPicoDMX_RevA_embedded" deviceset="CMC_OPTION" device="" value="OPTIONAL CMC - DNP"/>
+        <part name="L1" library="WiFiPicoDMX_RevA_embedded" deviceset="CMC_OPTION" device="" value="ACT45B-510-2P-TL003 - DNP"/>
         <part name="R10" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="0R CMC BYPASS FIT"/>
         <part name="R11" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="0R CMC BYPASS FIT"/>
         <part name="D1" library="WiFiPicoDMX_RevA_embedded" deviceset="SM712" device="" value="SM712.TCT"/>
@@ -1061,7 +1063,7 @@
         <part name="R4" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="220R"/>
         <part name="R5" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="220R"/>
         <part name="D2" library="WiFiPicoDMX_RevA_embedded" deviceset="DIODE_SOD323" device="" value="1N4148WS-E3-08"/>
-        <part name="U3" library="WiFiPicoDMX_RevA_embedded" deviceset="6N138_500E" device="" value="6N138-500E"/>
+        <part name="U3" library="WiFiPicoDMX_RevA_embedded" deviceset="HCPL_0700_500E" device="" value="HCPL-0700-500E"/>
         <part name="R6" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="4.7k OUTPUT PULLUP"/>
         <part name="R7" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0603" device="" value="47k BASE SPEEDUP"/>
         <part name="C7" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100n VCC"/>
@@ -1623,7 +1625,7 @@
         <sheet>
                   <plain>
                     <text x="20.32" y="187.96" size="2.54" layer="91" ratio="15">WiFiPicoDMX Rev. A — Reinforced-isolated DMX/RDM output</text>
-                    <text x="20.32" y="20.32" size="1.778" layer="91" ratio="12">FIT R10/R11 (0R) and DNP L1 until a common-mode choke is selected by EMC/signal-integrity testing.</text>
+                    <text x="20.32" y="20.32" size="1.778" layer="91" ratio="12">Default: FIT R10/R11 (0R), DNP L1. L1 option is TDK ACT45B-510-2P-TL003; fit it only after EMC/signal-integrity testing.</text>
                     <text x="20.32" y="15.24" size="1.778" layer="91" ratio="12">No permanent 120R termination: terminate only at the far end of the DMX cable.</text>
                     <text x="20.32" y="10.16" size="1.778" layer="91" ratio="12">Keep GND_LOGIC and GND_DMX_ISO separate. Preserve TI isolation keep-outs and place bypass parts per TI layout.</text>
                     <text x="20.32" y="5.08" size="1.778" layer="91" ratio="12">J1 pad order: P1 DMX COM/XLR1, P2 DMX-/XLR2, P3 DMX+/XLR3, P4 shell. Panel connector is wired, not PCB-mounted.</text>
@@ -1976,7 +1978,7 @@
                   <plain>
                     <text x="20.32" y="187.96" size="2.54" layer="91" ratio="15">WiFiPicoDMX Rev. A — Isolated MIDI IN</text>
                     <text x="20.32" y="20.32" size="1.778" layer="91" ratio="12">J2 exposes all five panel DIN pins. Pins 1/3 are NC; pin 2 shield treatment remains configurable.</text>
-                    <text x="20.32" y="15.24" size="1.778" layer="91" ratio="12">6N138 output side uses 5V VCC with a 3.3V output pull-up. Verify timing/CTR on the assembled prototype.</text>
+                    <text x="20.32" y="15.24" size="1.778" layer="91" ratio="12">HCPL-0700 output side uses 5V VCC with a 3.3V output pull-up. Verify timing/CTR on the assembled prototype.</text>
                     <text x="20.32" y="10.16" size="1.778" layer="91" ratio="12">The DIN input current loop remains galvanically isolated from GND_LOGIC.</text>
                   </plain>
                   <instances>

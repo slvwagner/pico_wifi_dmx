@@ -16,9 +16,10 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 - Keep `GND_LOGIC`, `GND_DMX_ISO`, `XLR_SHELL`, and
   `MIDI_DIN_PIN2_SHIELD` distinct unless the enclosure design explicitly
   requires an approved connection.
-- Fit R10 and R11 as the default 0 ohm DMX paths. L1 is an unselected,
-  normally-DNP common-mode-choke option; never populate L1 and the two bypass
-  resistors simultaneously.
+- Fit R10 and R11 as the default 0 ohm DMX paths. L1 is the selected
+  TDK ACT45B-510-2P-TL003 common-mode-choke option, normally DNP until EMC and
+  signal-integrity tests justify fitting it. Never populate L1 and the two
+  bypass resistors simultaneously.
 - The BOOTSEL/TP6 signal is not available on the Pico's 40 castellated pads.
   Preserve physical access to the Pico BOOTSEL button.
 - The preliminary footprints are not released for fabrication.
@@ -47,7 +48,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | J4 | ANALOG PADS | PADBANK5 |
 | J5 | RESERVED SIGNAL TEST PADS | PADBANK7 |
 | J6 | POWER/DMX TEST PADS | PADBANK8 |
-| L1 | OPTIONAL CMC - DNP | CMC4_PLACEHOLDER |
+| L1 | ACT45B-510-2P-TL003 - DNP | TDK_ACT45B_PRELIMINARY |
 | R1 | 100k D PULLUP | R0402 |
 | R2 | 10k DIR PULLDOWN | R0402 |
 | R3 | 10k EN/FLT PULLUP | R0402 |
@@ -59,10 +60,10 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | R9 | 1k | R0603 |
 | R10 | 0R CMC BYPASS FIT | R0603 |
 | R11 | 0R CMC BYPASS FIT | R0603 |
-| SW1 | RESET (NO) | SWITCH_SMD_2PAD |
+| SW1 | PTS810SJM250SMTR LFS RESET (NO) | PTS810_PRELIMINARY |
 | U1 | Raspberry Pi Pico 2 W | PICO2W_CASTELLATED_PRELIMINARY |
 | U2 | ISOW1412DFMR | DFM20_PRELIMINARY |
-| U3 | 6N138-500E | DIP8_GULLWING_PRELIMINARY |
+| U3 | HCPL-0700-500E | SOIC8_HCPL0700_PRELIMINARY |
 
 ## Nets
 
@@ -74,18 +75,18 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `ADC2_GPIO28` | J4.3 (P3)<br>U1.34 (GP28_ADC2) |
 | `AGND` | J4.5 (P5)<br>U1.33 (AGND) |
 | `DMX_ACTIVITY_GPIO7` | J5.6 (P6)<br>R9.1 (1)<br>U1.10 (GP7) |
-| `DMX_DATA_MINUS` | D1.2 (IO2)<br>J1.2 (P2)<br>J6.8 (P8)<br>L1.4 (B2)<br>R11.2 (2) |
+| `DMX_DATA_MINUS` | D1.2 (IO2)<br>J1.2 (P2)<br>J6.8 (P8)<br>L1.3 (B2)<br>R11.2 (2) |
 | `DMX_DATA_PLUS` | D1.1 (IO1)<br>J1.3 (P3)<br>J6.7 (P7)<br>L1.2 (A2)<br>R10.2 (2) |
 | `DMX_DIR_GPIO4` | J5.3 (P3)<br>R2.1 (1)<br>U1.6 (GP4)<br>U2.3 (DE)<br>U2.5 (RE_N) |
 | `DMX_LED_ANODE` | D4.1 (A)<br>R9.2 (2) |
 | `DMX_RX_GPIO6` | J5.5 (P5)<br>U1.9 (GP6)<br>U2.4 (R) |
 | `DMX_TRIGGER_GPIO3` | J5.2 (P2)<br>U1.5 (GP3) |
-| `DMX_TRX_MINUS` | L1.3 (B1)<br>R11.1 (1)<br>U2.19 (B)<br>U2.18 (Z) |
+| `DMX_TRX_MINUS` | L1.4 (B1)<br>R11.1 (1)<br>U2.19 (B)<br>U2.18 (Z) |
 | `DMX_TRX_PLUS` | L1.1 (A1)<br>R10.1 (1)<br>U2.20 (A)<br>U2.17 (Y) |
 | `DMX_TX_GPIO2` | J5.1 (P1)<br>R1.2 (2)<br>U1.4 (GP2)<br>U2.2 (D) |
 | `GND_DMX_CONVERTER` | C4.2 (2)<br>C5.2 (2)<br>FB2.1 (1)<br>U2.11 (GND2) |
 | `GND_DMX_ISO` | C6.2 (2)<br>D1.3 (GND)<br>FB2.2 (2)<br>J1.1 (P1)<br>J6.6 (P6)<br>U2.15 (GISOIN) |
-| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>D3.2 (K)<br>D4.2 (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.2 (2)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
+| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>D3.2 (K)<br>D4.2 (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.2 4 (2)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
 | `GPIO0_EXP` | J3.1 (P1)<br>U1.1 (GP0) |
 | `GPIO1_EXP` | J3.2 (P2)<br>U1.2 (GP1) |
 | `GPIO10_EXP` | J3.5 (P5)<br>U1.14 (GP10) |
@@ -117,7 +118,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `NC_U2_PIN7_OUT` | U2.7 (OUT) |
 | `NC_U3_PIN1` | U3.1 (NC1) |
 | `NC_U3_PIN4` | U3.4 (NC4) |
-| `PICO_RUN_N` | SW1.1 (1)<br>U1.30 (RUN) |
+| `PICO_RUN_N` | SW1.1 3 (1)<br>U1.30 (RUN) |
 | `PICO_SMPS_EN` | U1.37 (3V3_EN) |
 | `PICO_VSYS` | U1.39 (VSYS) |
 | `PWR_LED_ANODE` | D3.1 (A)<br>R8.2 (2) |

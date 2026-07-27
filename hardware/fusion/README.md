@@ -63,8 +63,11 @@ Gerbers or ordering a PCB:
 
 1. run Fusion's ERC and resolve every result;
 2. verify every package against the latest manufacturer land-pattern drawing;
-3. select final footprints for the reset switch and optional common-mode
-   choke;
+3. verify the generated `PTS810_PRELIMINARY` and
+   `TDK_ACT45B_PRELIMINARY` land patterns, plus the generated
+   `SOIC8_HCPL0700_PRELIMINARY` land pattern, against the current
+   `PTS810SJM250SMTR LFS`, `ACT45B-510-2P-TL003`, and `HCPL-0700-500E`
+   manufacturer drawings;
 4. confirm the Pico 2 W orientation, antenna keep-out and BOOTSEL access
    against the physical module;
 5. review the isolation keep-out and creepage in the PCB layout;
