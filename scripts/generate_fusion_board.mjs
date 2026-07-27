@@ -189,6 +189,39 @@ for (const line of netlist.trim().split(/\r?\n/).slice(1)) {
   signals.get(net).push({ reference, physicalPad });
 }
 
+const groundPours = new Map([
+  ["GND_LOGIC", [
+    {
+      layer: 1,
+      vertices: [
+        [-2, 103], [62, 103], [62, -2],
+        [44.5, -2], [44.5, 22], [-2, 22],
+      ],
+    },
+    {
+      layer: 16,
+      vertices: [
+        [-1, 99.6], [62, 99.6], [62, -1.6],
+        [44.6, -1.6], [44.6, 22], [-1, 22],
+      ],
+    },
+  ]],
+  ["GND_DMX_ISO", [
+    {
+      layer: 1,
+      vertices: [
+        [68.3, 103], [68.3, 63.4], [111, 63.4], [111, 103],
+      ],
+    },
+    {
+      layer: 16,
+      vertices: [
+        [68.3, 101.5], [107.6, 101.5], [107.6, 63.4], [68.3, 63.4],
+      ],
+    },
+  ]],
+]);
+
 const outline = [
   [0, 0, 95, 0],
   [95, 0, 95, 100],
@@ -219,8 +252,18 @@ const signalXml = [...signals.entries()]
         `            <contactref element="${esc(reference)}" pad="${esc(physicalPad)}"/>`
       ))
       .join("\n");
+    const polygonXml = (groundPours.get(name) ?? [])
+      .map(({ layer, vertices }) => (
+        `\n            <polygon width="0.1524" layer="${layer}" `
+        + `isolate="0.3" orphans="no" thermals="yes" rank="1">\n`
+        + vertices
+          .map(([x, y]) => `              <vertex x="${x}" y="${y}"/>`)
+          .join("\n")
+        + "\n            </polygon>"
+      ))
+      .join("");
     return `          <signal name="${esc(name)}" class="0">\n`
-      + `${contactXml}\n`
+      + `${contactXml}${polygonXml}\n`
       + "          </signal>";
   })
   .join("\n");

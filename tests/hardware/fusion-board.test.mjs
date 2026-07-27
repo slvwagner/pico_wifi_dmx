@@ -185,6 +185,32 @@ test("generated Fusion pair avoids independently imported custom net classes", (
   assert.doesNotMatch(board, /<signal\b[^>]*\bclass="[12]"/);
 });
 
+test("logic and isolated DMX grounds use top and bottom polygon pours", () => {
+  for (const signalName of ["GND_LOGIC", "GND_DMX_ISO"]) {
+    const signalBody = board.match(
+      new RegExp(
+        `<signal\\b[^>]*\\bname="${signalName}"[^>]*>`
+        + `([\\s\\S]*?)<\\/signal>`,
+      ),
+    )?.[1];
+    assert.ok(signalBody, `${signalName} signal is missing`);
+    const layers = [...signalBody.matchAll(
+      /<polygon\b[^>]*\blayer="([^"]+)"[^>]*>/g,
+    )].map((match) => Number(match[1])).sort((left, right) => left - right);
+    assert.deepEqual(layers, [1, 16], `${signalName} needs top and bottom pours`);
+  }
+
+  const converterGround = board.match(
+    /<signal\b[^>]*\bname="GND_DMX_CONVERTER"[^>]*>([\s\S]*?)<\/signal>/,
+  )?.[1];
+  assert.ok(converterGround, "GND_DMX_CONVERTER signal is missing");
+  assert.doesNotMatch(
+    converterGround,
+    /<polygon\b/,
+    "converter ground must remain locally routed without a plane",
+  );
+});
+
 test("carrier has a simple rectangular outline without a Pico cutout", () => {
   const expectedOutline = [
     { x1: 0, y1: 0, x2: 95, y2: 0 },

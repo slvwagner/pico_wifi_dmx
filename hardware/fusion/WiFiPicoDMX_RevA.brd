@@ -1691,6 +1691,18 @@
             <contactref element="FB2" pad="2"/>
             <contactref element="J1" pad="1"/>
             <contactref element="U2" pad="15"/>
+            <polygon width="0.1524" layer="1" isolate="0.3" orphans="no" thermals="yes" rank="1">
+              <vertex x="68.3" y="103"/>
+              <vertex x="68.3" y="63.4"/>
+              <vertex x="111" y="63.4"/>
+              <vertex x="111" y="103"/>
+            </polygon>
+            <polygon width="0.1524" layer="16" isolate="0.3" orphans="no" thermals="yes" rank="1">
+              <vertex x="68.3" y="101.5"/>
+              <vertex x="107.6" y="101.5"/>
+              <vertex x="107.6" y="63.4"/>
+              <vertex x="68.3" y="63.4"/>
+            </polygon>
           </signal>
           <signal name="GND_LOGIC" class="0">
             <contactref element="C1" pad="2"/>
@@ -1714,6 +1726,22 @@
             <contactref element="U2" pad="10"/>
             <contactref element="U2" pad="6"/>
             <contactref element="U3" pad="5"/>
+            <polygon width="0.1524" layer="1" isolate="0.3" orphans="no" thermals="yes" rank="1">
+              <vertex x="-2" y="103"/>
+              <vertex x="62" y="103"/>
+              <vertex x="62" y="-2"/>
+              <vertex x="44.5" y="-2"/>
+              <vertex x="44.5" y="22"/>
+              <vertex x="-2" y="22"/>
+            </polygon>
+            <polygon width="0.1524" layer="16" isolate="0.3" orphans="no" thermals="yes" rank="1">
+              <vertex x="-1" y="99.6"/>
+              <vertex x="62" y="99.6"/>
+              <vertex x="62" y="-1.6"/>
+              <vertex x="44.6" y="-1.6"/>
+              <vertex x="44.6" y="22"/>
+              <vertex x="-1" y="22"/>
+            </polygon>
           </signal>
           <signal name="GPIO0_EXP" class="0">
             <contactref element="J3" pad="1"/>

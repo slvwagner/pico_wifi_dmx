@@ -97,6 +97,10 @@ The starter layout provides:
   connector and protected input network, through the HCPL-0700, to the Pico;
 - a board-edge MIDI input island enclosed by the carrier edges and top,
   bottom, and via-restrict moats, with the HCPL-0700 straddling its boundary;
+- top- and bottom-layer polygon pours for `GND_LOGIC` and `GND_DMX_ISO`,
+  matching the manually arranged Fusion layout;
+- a locally routed `GND_DMX_CONVERTER` return without a polygon so the FB2
+  high-frequency filtering boundary remains effective;
 - one shared conservative default net class for clean Fusion
   schematic/board import consistency.
 
@@ -106,6 +110,10 @@ fit, set the fabricator-specific design rules, route the board, add suitable
 planes, inspect return paths, and run DRC. Do not remove or bridge the
 isolation corridor with copper, vias, silkscreen conductive material, test
 fixtures, or mounting hardware.
+
+Run `RATSNEST *;` after opening the board in Fusion to calculate and display
+the four ground pours. Inspect their thermal connections, isolated islands,
+clearances, and separation around FB2 before fabrication.
 
 ### Fusion ERC consistency
 

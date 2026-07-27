@@ -3,6 +3,20 @@
 `WiFiPicoDMX.lbr` is the maintained Autodesk Fusion Electronics/EAGLE source
 library supplied for the carrier-board schematic.
 
+`../WiFiPicoDMX_RevA_used.lbr` is the generated, design-specific library. It
+is placed beside the matching `.sch` and `.brd` files and contains exactly the
+device sets used by the current Rev. A schematic, including their symbols,
+packages, available 3D associations, and the A3 schematic frame. Generate or
+refresh it after regenerating the schematic:
+
+```powershell
+node scripts/generate_fusion_used_library.mjs
+```
+
+Use the generated library when you want to import or share only the components
+that are actually present in this design. Continue to edit
+`WiFiPicoDMX.lbr`; the generated subset is replaced by the command above.
+
 The schematic generator reads the library directly and imports these package
 definitions:
 
