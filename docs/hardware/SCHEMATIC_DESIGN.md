@@ -173,6 +173,13 @@ connected to the Pico 2 W Micro-USB connector.
 The earlier `SN74LVC1G04`, `ISO1410DW`, `MEJ2S0505SC`, axial `1N4148`, and
 through-hole 6N138 are not production BOM choices.
 
+The maintained Fusion/EAGLE library is stored at
+`hardware/fusion/libraries/WiFiPicoDMX.lbr`. The generated schematic imports
+its matching SMD land patterns for the Pico, passives, status LEDs, reset
+switch, PPTC fuse, ISOW1412, SM712, ACT45B, HCPL-0700, MIDI protection diode,
+and available diagnostic pad banks. The panel wiring pads and pad-bank sizes
+not present in the library retain project-specific definitions.
+
 ## MIDI input
 
 Rev. A includes a standard 5-pin DIN MIDI IN port for future use:

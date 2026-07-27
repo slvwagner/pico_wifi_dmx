@@ -1,9 +1,11 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const outputPath = resolve("hardware/fusion/WiFiPicoDMX_RevA.sch");
 const netlistCsvPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.csv");
 const netlistMarkdownPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.md");
+const projectLibraryPath = resolve("hardware/fusion/libraries/WiFiPicoDMX.lbr");
+const projectLibraryXml = readFileSync(projectLibraryPath, "utf8");
 
 const esc = (value) => String(value)
   .replaceAll("&", "&amp;")
@@ -51,6 +53,17 @@ function defineSymbol(name, pins, body = {}) {
 
 function definePackage(name, xml) {
   packages.set(name, xml);
+}
+
+function importProjectLibraryPackage(name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = projectLibraryXml.match(
+    new RegExp(`<package\\s+name="${escapedName}"[^>]*>([\\s\\S]*?)<\\/package>`),
+  );
+  if (!match) {
+    throw new Error(`Package ${name} is missing from ${projectLibraryPath}`);
+  }
+  definePackage(name, match[1].trim());
 }
 
 function defineDeviceSet(name, prefix, symbol, packageName, connects, description) {
@@ -370,30 +383,52 @@ definePackage("PADBANK8", padBankPackage(8));
 definePackage("PADBANK17", padBankPackage(17));
 definePackage("PADBANK5", padBankPackage(5));
 
+// Import the matching Fusion-created land patterns from the maintained project
+// library. Project-specific generated footprints remain in use where the
+// library entry does not match the selected physical part or mounting method.
+[
+  "PICO_2_W_DEVELOPMENT_BOARD",
+  "PTS810_J_LEAD",
+  "PPTC1206_1206L050YR",
+  "RESC1005X40",
+  "RESC1608X60",
+  "CAPC1005X60",
+  "CAPC2012X110",
+  "INDC1006X60N",
+  "LEDC1608X55N_FLAT-B",
+  "DFM20_PRELIMINARY",
+  "SOT23_",
+  "SOIC127P600X317-8N",
+  "SOD323-1.15H",
+  "ACT45B_4P5X3P2",
+  "PADBANK8",
+  "PADBANK17",
+].forEach(importProjectLibraryPackage);
+
 // Devices
-defineDeviceSet("RES0402", "R", "RESISTOR", "R0402", { 1: "1", 2: "2" }, "0402 resistor");
-defineDeviceSet("RES0603", "R", "RESISTOR", "R0603", { 1: "1", 2: "2" }, "0603 resistor");
-defineDeviceSet("CAP0402", "C", "CAPACITOR", "C0402", { 1: "1", 2: "2" }, "0402 capacitor");
-defineDeviceSet("CAP0805", "C", "CAPACITOR", "C0805", { 1: "1", 2: "2" }, "0805 capacitor");
-defineDeviceSet("PPTC1206", "F", "FUSE", "PPTC1206", { 1: "1", 2: "2" }, "Littelfuse 1206L050YR");
-defineDeviceSet("FERRITE0402", "FB", "FERRITE", "R0402", { 1: "1", 2: "2" }, "Murata BLM15EX331SN1D");
-defineDeviceSet("LED0603", "D", "LED", "LED0603", { A: "1", K: "2" }, "0603 indicator LED");
-defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323", { A: "1", K: "2" }, "Vishay 1N4148WS-E3-08");
-defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_PRELIMINARY", { 1: "1 3", 2: "2 4" }, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS normally-open SMD reset switch");
-defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS");
-defineDeviceSet("CMC_OPTION", "L", "CMC", "TDK_ACT45B_PRELIMINARY", { A1: "1", A2: "2", B1: "4", B2: "3" }, "TDK ACT45B-510-2P-TL003 two-line common-mode choke; normally DNP pending EMC and signal-integrity testing");
+defineDeviceSet("RES0402", "R", "RESISTOR", "RESC1005X40", { 1: "1", 2: "2" }, "0402 resistor using project-library land pattern");
+defineDeviceSet("RES0603", "R", "RESISTOR", "RESC1608X60", { 1: "1", 2: "2" }, "0603 resistor using project-library land pattern");
+defineDeviceSet("CAP0402", "C", "CAPACITOR", "CAPC1005X60", { 1: "1", 2: "2" }, "0402 capacitor using project-library land pattern");
+defineDeviceSet("CAP0805", "C", "CAPACITOR", "CAPC2012X110", { 1: "1", 2: "2" }, "0805 capacitor using project-library land pattern");
+defineDeviceSet("PPTC1206", "F", "FUSE", "PPTC1206_1206L050YR", { 1: "1", 2: "2" }, "Littelfuse 1206L050YR using project-library land pattern");
+defineDeviceSet("FERRITE0402", "FB", "FERRITE", "INDC1006X60N", { 1: "1", 2: "2" }, "Murata BLM15EX331SN1D using project-library land pattern");
+defineDeviceSet("LED0603", "D", "LED", "LEDC1608X55N_FLAT-B", { A: "A", K: "C" }, "0603 indicator LED using project-library land pattern");
+defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323-1.15H", { A: "A", K: "C" }, "Vishay 1N4148WS-E3-08 using project-library land pattern");
+defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_J_LEAD", { 1: "1 2", 2: "3 4" }, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS using project-library land pattern");
+defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23_", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS using project-library land pattern");
+defineDeviceSet("CMC_OPTION", "L", "CMC", "ACT45B_4P5X3P2", { A1: "1", A2: "2", B1: "4", B2: "3" }, "TDK ACT45B-510-2P-TL003 two-line common-mode choke using project-library land pattern; normally DNP pending EMC and signal-integrity testing");
 defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
   VIO: "1", D: "2", DE: "3", R: "4", RE_N: "5", GNDIO: "6", OUT: "7",
   EN_FLT: "8", VDD: "9", GND1: "10", GND2: "11", VISOOUT: "12",
   MODE: "13", IN: "14", GISOIN: "15", VISOIN: "16", Y: "17", Z: "18",
   B: "19", A: "20",
 }, "TI reinforced isolated RS-485/RDM transceiver with integrated isolated DC/DC");
-defineDeviceSet("PICO2W", "U", "PICO2W", "PICO2W_CASTELLATED_PRELIMINARY",
+defineDeviceSet("PICO2W", "U", "PICO2W", "PICO_2_W_DEVELOPMENT_BOARD",
   Object.fromEntries(picoPins.map((pin) => [pin.name, String(pin.pad)])),
-  "Raspberry Pi Pico 2 W castellated module");
-defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "SOIC8_HCPL0700_PRELIMINARY", {
+  "Raspberry Pi Pico 2 W castellated module using project-library land pattern");
+defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "SOIC127P600X317-8N", {
   NC1: "1", A: "2", K: "3", NC4: "4", GND: "5", VO: "6", VB: "7", VCC: "8",
-}, "Broadcom HCPL-0700-500E SOIC-8 optocoupler");
+}, "Broadcom HCPL-0700-500E SOIC-8 optocoupler using project-library land pattern");
 
 function defineConnector(count, name, packageName, description) {
   defineDeviceSet(name, "J", `CONN${count}`, packageName,
@@ -406,6 +441,35 @@ defineConnector(7, "PADBANK7", "PADBANK7", "Diagnostic SMD pad bank");
 defineConnector(8, "PADBANK8", "PADBANK8", "Power and isolated-side diagnostic SMD pad bank");
 defineConnector(17, "PADBANK17", "PADBANK17", "Free GPIO SMD pad bank");
 defineConnector(5, "PADBANK5", "PADBANK5", "Analog SMD pad bank");
+
+function packagePadNames(packageXml) {
+  const padNames = new Set();
+  for (const match of packageXml.matchAll(/<(?:smd|pad)\b[^>]*>/g)) {
+    const name = match[0].match(/\bname="([^"]+)"/)?.[1];
+    if (name) padNames.add(name);
+  }
+  return padNames;
+}
+
+for (const device of deviceSets.values()) {
+  const packageXml = packages.get(device.packageName);
+  if (!packageXml) {
+    throw new Error(
+      `Device set ${device.name} references missing package ${device.packageName}`,
+    );
+  }
+  const padNames = packagePadNames(packageXml);
+  for (const [pin, mappedPads] of Object.entries(device.connects)) {
+    for (const pad of String(mappedPads).split(/\s+/).filter(Boolean)) {
+      if (!padNames.has(pad)) {
+        throw new Error(
+          `Device set ${device.name} maps pin ${pin} to missing `
+          + `package pad ${device.packageName}.${pad}`,
+        );
+      }
+    }
+  }
+}
 
 // Parts and placement: sheet 1, controller/power/status/expansion
 addPart("U1", "PICO2W", "Raspberry Pi Pico 2 W", 1, 76.2, 101.6);
@@ -513,7 +577,7 @@ connectMany("NC_U3_PIN4", [["U3", "NC4"]]);
 
 addNote(1, 20.32, 187.96, "WiFiPicoDMX Rev. A — Controller, power, controls and expansion", 2.54, 15);
 addNote(1, 20.32, 15.24, "Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.");
-addNote(1, 20.32, 10.16, "Pico and all land patterns marked PRELIMINARY require manufacturer-footprint verification before PCB release.");
+addNote(1, 20.32, 10.16, "Verify every project-library and generated land pattern against the selected manufacturer part before PCB release.");
 addNote(1, 20.32, 5.08, "TP6/BOOTSEL is not available on the 40 castellated pins: preserve physical BOOTSEL access; do not assume an electrical carrier connection.");
 
 addNote(2, 20.32, 187.96, "WiFiPicoDMX Rev. A — Reinforced-isolated DMX/RDM output", 2.54, 15);
@@ -647,10 +711,16 @@ ${lines(netXml, "            ")}
         </sheet>`;
 }
 
+const usedPackageNames = new Set(
+  [...deviceSets.values()].map((device) => device.packageName),
+);
+
 const libraryXml = `<library name="WiFiPicoDMX_RevA_embedded">
-          <description>Self-contained preliminary WiFiPicoDMX Rev. A schematic library. Verify every footprint before PCB manufacture.</description>
+          <description>Self-contained WiFiPicoDMX Rev. A schematic library derived from hardware/fusion/libraries/WiFiPicoDMX.lbr plus documented project-specific land patterns. Verify every footprint before PCB manufacture.</description>
           <packages>
-${lines([...packages.entries()].map(([name, content]) => `<package name="${esc(name)}">
+${lines([...packages.entries()]
+    .filter(([name]) => usedPackageNames.has(name))
+    .map(([name, content]) => `<package name="${esc(name)}">
 ${content}
             </package>`), "            ")}
           </packages>

@@ -1,8 +1,16 @@
 # Fusion Electronics files
 
 `WiFiPicoDMX_RevA.sch` is a self-contained Autodesk EAGLE XML schematic that
-can be uploaded to Autodesk Fusion Electronics. Its component library and
-preliminary SMD footprints are embedded in the schematic.
+can be uploaded to Autodesk Fusion Electronics. Its component definitions and
+land patterns are embedded in the schematic.
+
+The maintained Fusion/EAGLE source library is
+[`libraries/WiFiPicoDMX.lbr`](libraries/WiFiPicoDMX.lbr). The generator reads
+that file directly and imports the matching land patterns for the Pico 2 W,
+resistors, capacitors, ferrites, LEDs, reset switch, PPTC fuse, ISOW1412,
+SM712, ACT45B, HCPL-0700, 1N4148WS, and the available diagnostic pad banks. If
+the library file is missing or one of those package names is removed,
+generation stops instead of silently falling back to another footprint.
 
 ## How the schematic is created
 
@@ -14,11 +22,15 @@ builds the file programmatically.
 The generator is the single source for:
 
 - schematic symbols and symbolic pin names;
-- preliminary package footprints and physical pad numbers;
+- the selection of package footprints and physical pad numbers;
 - component references, values and sheet positions;
 - physical pin-to-pad mappings;
 - named signals and their connected endpoints;
 - the EAGLE XML schematic and both net-list formats.
+
+The project library is the source for the imported land-pattern geometry.
+See [`libraries/README.md`](libraries/README.md) for the import list and the
+footprints deliberately retained as project-specific definitions.
 
 For example, one `connectMany()` declaration connects the Pico DMX output,
 ISOW1412 data input, pull-up resistor and diagnostic pad to the named
@@ -52,9 +64,10 @@ Expected output:
 
 The connectivity and physical pin mappings were deliberately specified from
 the design decisions and component datasheets. The schematic's automatic
-visual arrangement is only a starting point for manual redrawing. Generic and
-custom-generated footprints are explicitly preliminary; they were not taken
-from a verified Autodesk managed library.
+visual arrangement is only a starting point for manual redrawing. Importing a
+land pattern from the project library does not by itself certify it for
+manufacturing; every package still requires comparison with the selected
+manufacturer part.
 
 The circuit is based on
 [`docs/hardware/SCHEMATIC_DESIGN.md`](../../docs/hardware/SCHEMATIC_DESIGN.md).
@@ -63,11 +76,11 @@ Gerbers or ordering a PCB:
 
 1. run Fusion's ERC and resolve every result;
 2. verify every package against the latest manufacturer land-pattern drawing;
-3. verify the generated `PTS810_PRELIMINARY` and
-   `TDK_ACT45B_PRELIMINARY` land patterns, plus the generated
-   `SOIC8_HCPL0700_PRELIMINARY` land pattern, against the current
-   `PTS810SJM250SMTR LFS`, `ACT45B-510-2P-TL003`, and `HCPL-0700-500E`
-   manufacturer drawings;
+3. verify the imported `PTS810_J_LEAD`,
+   `PPTC1206_1206L050YR`, `ACT45B_4P5X3P2`, and
+   `SOIC127P600X317-8N` land patterns against the current
+   `PTS810SJM250SMTR LFS`, `1206L050YR`, `ACT45B-510-2P-TL003`, and
+   `HCPL-0700-500E` manufacturer drawings;
 4. confirm the Pico 2 W orientation, antenna keep-out and BOOTSEL access
    against the physical module;
 5. review the isolation keep-out and creepage in the PCB layout;

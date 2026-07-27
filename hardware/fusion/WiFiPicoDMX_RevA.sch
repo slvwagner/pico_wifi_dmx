@@ -36,199 +36,35 @@
       <description>WiFiPicoDMX Rev. A preliminary Fusion/EAGLE schematic. Generated from docs/hardware/SCHEMATIC_DESIGN.md. Electrical review and manufacturer footprint verification are mandatory before PCB release.</description>
       <libraries>
         <library name="WiFiPicoDMX_RevA_embedded">
-          <description>Self-contained preliminary WiFiPicoDMX Rev. A schematic library. Verify every footprint before PCB manufacture.</description>
+          <description>Self-contained WiFiPicoDMX Rev. A schematic library derived from hardware/fusion/libraries/WiFiPicoDMX.lbr plus documented project-specific land patterns. Verify every footprint before PCB manufacture.</description>
           <packages>
-            <package name="R0402">
-                      <smd name="1" x="-0.6" y="0" dx="1" dy="0.9" layer="1"/>
-                      <smd name="2" x="0.6" y="0" dx="1" dy="0.9" layer="1"/>
-                      <wire x1="-0.6" y1="0.9" x2="0.6" y2="0.9" width="0.1524" layer="21"/>
-                      <wire x1="0.6" y1="0.9" x2="0.6" y2="-0.9" width="0.1524" layer="21"/>
-                      <wire x1="0.6" y1="-0.9" x2="-0.6" y2="-0.9" width="0.1524" layer="21"/>
-                      <wire x1="-0.6" y1="-0.9" x2="-0.6" y2="0.9" width="0.1524" layer="21"/>
-                      <text x="-0.6" y="1.7000000000000002" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="R0603">
-                      <smd name="1" x="-0.9" y="0" dx="1.1" dy="1" layer="1"/>
-                      <smd name="2" x="0.9" y="0" dx="1.1" dy="1" layer="1"/>
-                      <wire x1="-0.9" y1="1" x2="0.9" y2="1" width="0.1524" layer="21"/>
-                      <wire x1="0.9" y1="1" x2="0.9" y2="-1" width="0.1524" layer="21"/>
-                      <wire x1="0.9" y1="-1" x2="-0.9" y2="-1" width="0.1524" layer="21"/>
-                      <wire x1="-0.9" y1="-1" x2="-0.9" y2="1" width="0.1524" layer="21"/>
-                      <text x="-0.9" y="1.8" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="C0402">
-                      <smd name="1" x="-0.6" y="0" dx="1" dy="0.9" layer="1"/>
-                      <smd name="2" x="0.6" y="0" dx="1" dy="0.9" layer="1"/>
-                      <wire x1="-0.6" y1="0.9" x2="0.6" y2="0.9" width="0.1524" layer="21"/>
-                      <wire x1="0.6" y1="0.9" x2="0.6" y2="-0.9" width="0.1524" layer="21"/>
-                      <wire x1="0.6" y1="-0.9" x2="-0.6" y2="-0.9" width="0.1524" layer="21"/>
-                      <wire x1="-0.6" y1="-0.9" x2="-0.6" y2="0.9" width="0.1524" layer="21"/>
-                      <text x="-0.6" y="1.7000000000000002" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="C0805">
-                      <smd name="1" x="-1.1" y="0" dx="1.4" dy="1.3" layer="1"/>
-                      <smd name="2" x="1.1" y="0" dx="1.4" dy="1.3" layer="1"/>
-                      <wire x1="-1.1" y1="1.3" x2="1.1" y2="1.3" width="0.1524" layer="21"/>
-                      <wire x1="1.1" y1="1.3" x2="1.1" y2="-1.3" width="0.1524" layer="21"/>
-                      <wire x1="1.1" y1="-1.3" x2="-1.1" y2="-1.3" width="0.1524" layer="21"/>
-                      <wire x1="-1.1" y1="-1.3" x2="-1.1" y2="1.3" width="0.1524" layer="21"/>
-                      <text x="-1.1" y="2.1" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="PPTC1206">
-                      <smd name="1" x="-1.4" y="0" dx="1.6" dy="1.8" layer="1"/>
-                      <smd name="2" x="1.4" y="0" dx="1.6" dy="1.8" layer="1"/>
-                      <wire x1="-1.4" y1="1.8" x2="1.4" y2="1.8" width="0.1524" layer="21"/>
-                      <wire x1="1.4" y1="1.8" x2="1.4" y2="-1.8" width="0.1524" layer="21"/>
-                      <wire x1="1.4" y1="-1.8" x2="-1.4" y2="-1.8" width="0.1524" layer="21"/>
-                      <wire x1="-1.4" y1="-1.8" x2="-1.4" y2="1.8" width="0.1524" layer="21"/>
-                      <text x="-1.4" y="2.6" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="LED0603">
-                      <smd name="1" x="-0.9" y="0" dx="1.1" dy="1" layer="1"/>
-                      <smd name="2" x="0.9" y="0" dx="1.1" dy="1" layer="1"/>
-                      <wire x1="-0.9" y1="1" x2="0.9" y2="1" width="0.1524" layer="21"/>
-                      <wire x1="0.9" y1="1" x2="0.9" y2="-1" width="0.1524" layer="21"/>
-                      <wire x1="0.9" y1="-1" x2="-0.9" y2="-1" width="0.1524" layer="21"/>
-                      <wire x1="-0.9" y1="-1" x2="-0.9" y2="1" width="0.1524" layer="21"/>
-                      <text x="-0.9" y="1.8" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="SOD323">
-                      <smd name="1" x="-1.2" y="0" dx="0.8" dy="0.8" layer="1"/>
-                      <smd name="2" x="1.2" y="0" dx="0.8" dy="0.8" layer="1"/>
-                      <wire x1="-1.2" y1="0.8" x2="1.2" y2="0.8" width="0.1524" layer="21"/>
-                      <wire x1="1.2" y1="0.8" x2="1.2" y2="-0.8" width="0.1524" layer="21"/>
-                      <wire x1="1.2" y1="-0.8" x2="-1.2" y2="-0.8" width="0.1524" layer="21"/>
-                      <wire x1="-1.2" y1="-0.8" x2="-1.2" y2="0.8" width="0.1524" layer="21"/>
-                      <text x="-1.2" y="1.6" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="PTS810_PRELIMINARY">
-                      <smd name="1" x="-2" y="0.8" dx="1.2" dy="1.5" layer="1"/>
-                      <smd name="3" x="-2" y="-0.8" dx="1.2" dy="1.5" layer="1"/>
-                      <smd name="2" x="2" y="0.8" dx="1.2" dy="1.5" layer="1"/>
-                      <smd name="4" x="2" y="-0.8" dx="1.2" dy="1.5" layer="1"/>
-                      <wire x1="-2.1" y1="-1.6" x2="2.1" y2="-1.6" width="0.1524" layer="21"/>
-                      <wire x1="2.1" y1="-1.6" x2="2.1" y2="1.6" width="0.1524" layer="21"/>
-                      <wire x1="2.1" y1="1.6" x2="-2.1" y2="1.6" width="0.1524" layer="21"/>
-                      <wire x1="-2.1" y1="1.6" x2="-2.1" y2="-1.6" width="0.1524" layer="21"/>
-                      <text x="-2.1" y="2" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="SOT23">
-                      <smd name="1" x="-0.95" y="-1.1" dx="1" dy="1.1" layer="1"/>
-                      <smd name="2" x="0.95" y="-1.1" dx="1" dy="1.1" layer="1"/>
-                      <smd name="3" x="0" y="1.1" dx="1" dy="1.1" layer="1"/>
-                      <wire x1="-1.5" y1="-0.7" x2="1.5" y2="-0.7" width="0.1524" layer="21"/>
-                      <wire x1="1.5" y1="-0.7" x2="1.5" y2="0.7" width="0.1524" layer="21"/>
-                      <wire x1="1.5" y1="0.7" x2="-1.5" y2="0.7" width="0.1524" layer="21"/>
-                      <wire x1="-1.5" y1="0.7" x2="-1.5" y2="-0.7" width="0.1524" layer="21"/>
-                      <circle x="-0.8" y="-0.3" radius="0.2" width="0" layer="21"/>
-                      <text x="-1.5" y="1.8" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="TDK_ACT45B_PRELIMINARY">
-                      <smd name="1" x="-2.2" y="1.1" dx="1.2" dy="1" layer="1"/>
-                      <smd name="2" x="2.2" y="1.1" dx="1.2" dy="1" layer="1"/>
-                      <smd name="4" x="-2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
-                      <smd name="3" x="2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
-                      <wire x1="-1.6" y1="-1.8" x2="1.6" y2="-1.8" width="0.1524" layer="21"/>
-                      <wire x1="1.6" y1="-1.8" x2="1.6" y2="1.8" width="0.1524" layer="21"/>
-                      <wire x1="1.6" y1="1.8" x2="-1.6" y2="1.8" width="0.1524" layer="21"/>
-                      <wire x1="-1.6" y1="1.8" x2="-1.6" y2="-1.8" width="0.1524" layer="21"/>
-                      <text x="-1.6" y="2.2" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
             <package name="DFM20_PRELIMINARY">
-                      <smd name="1" x="-6.45" y="5.715" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="20" x="6.45" y="5.715" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="2" x="-6.45" y="4.445" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="19" x="6.45" y="4.445" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="3" x="-6.45" y="3.175" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="18" x="6.45" y="3.175" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="4" x="-6.45" y="1.9049999999999998" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="17" x="6.45" y="1.9049999999999998" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="5" x="-6.45" y="0.6349999999999998" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="16" x="6.45" y="0.6349999999999998" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="6" x="-6.45" y="-0.6349999999999998" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="15" x="6.45" y="-0.6349999999999998" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="7" x="-6.45" y="-1.9050000000000002" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="14" x="6.45" y="-1.9050000000000002" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="8" x="-6.45" y="-3.1750000000000007" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="13" x="6.45" y="-3.1750000000000007" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="9" x="-6.45" y="-4.445" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="12" x="6.45" y="-4.445" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="10" x="-6.45" y="-5.715" dx="2.2" dy="0.6" layer="1"/>
-                      <smd name="11" x="6.45" y="-5.715" dx="2.2" dy="0.6" layer="1"/>
-                      <wire x1="-5.2" y1="-6.5" x2="5.2" y2="-6.5" width="0.1524" layer="21"/>
-                      <wire x1="5.2" y1="-6.5" x2="5.2" y2="6.5" width="0.1524" layer="21"/>
-                      <wire x1="5.2" y1="6.5" x2="-5.2" y2="6.5" width="0.1524" layer="21"/>
-                      <wire x1="-5.2" y1="6.5" x2="-5.2" y2="-6.5" width="0.1524" layer="21"/>
-                      <circle x="-4.5" y="5.5" radius="0.35" width="0" layer="21"/>
-                      <text x="-5.2" y="7.1" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="SOIC8_HCPL0700_PRELIMINARY">
-                      <smd name="1" x="-2.9" y="1.905" dx="1.6" dy="0.6" layer="1"/>
-                      <smd name="8" x="2.9" y="1.905" dx="1.6" dy="0.6" layer="1"/>
-                      <smd name="2" x="-2.9" y="0.635" dx="1.6" dy="0.6" layer="1"/>
-                      <smd name="7" x="2.9" y="0.635" dx="1.6" dy="0.6" layer="1"/>
-                      <smd name="3" x="-2.9" y="-0.635" dx="1.6" dy="0.6" layer="1"/>
-                      <smd name="6" x="2.9" y="-0.635" dx="1.6" dy="0.6" layer="1"/>
-                      <smd name="4" x="-2.9" y="-1.905" dx="1.6" dy="0.6" layer="1"/>
-                      <smd name="5" x="2.9" y="-1.905" dx="1.6" dy="0.6" layer="1"/>
-                      <wire x1="-2" y1="-2.6" x2="2" y2="-2.6" width="0.1524" layer="21"/>
-                      <wire x1="2" y1="-2.6" x2="2" y2="2.6" width="0.1524" layer="21"/>
-                      <wire x1="2" y1="2.6" x2="-2" y2="2.6" width="0.1524" layer="21"/>
-                      <wire x1="-2" y1="2.6" x2="-2" y2="-2.6" width="0.1524" layer="21"/>
-                      <circle x="-1.5" y="2.05" radius="0.25" width="0" layer="21"/>
-                      <text x="-2" y="3.1" size="1.016" layer="25">&gt;NAME</text>
-                        </package>
-            <package name="PICO2W_CASTELLATED_PRELIMINARY">
-                      <smd name="1" x="-10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="40" x="10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="2" x="-10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="39" x="10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="3" x="-10.5" y="19.049999999999997" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="38" x="10.5" y="19.049999999999997" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="4" x="-10.5" y="16.509999999999998" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="37" x="10.5" y="16.509999999999998" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="5" x="-10.5" y="13.969999999999999" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="36" x="10.5" y="13.969999999999999" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="6" x="-10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="35" x="10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="7" x="-10.5" y="8.889999999999999" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="34" x="10.5" y="8.889999999999999" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="8" x="-10.5" y="6.349999999999998" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="33" x="10.5" y="6.349999999999998" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="9" x="-10.5" y="3.8099999999999987" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="32" x="10.5" y="3.8099999999999987" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="10" x="-10.5" y="1.2699999999999996" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="31" x="10.5" y="1.2699999999999996" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="11" x="-10.5" y="-1.2699999999999996" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="30" x="10.5" y="-1.2699999999999996" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="12" x="-10.5" y="-3.8100000000000023" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="29" x="10.5" y="-3.8100000000000023" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="13" x="-10.5" y="-6.350000000000001" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="28" x="10.5" y="-6.350000000000001" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="14" x="-10.5" y="-8.890000000000004" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="27" x="10.5" y="-8.890000000000004" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="15" x="-10.5" y="-11.430000000000003" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="26" x="10.5" y="-11.430000000000003" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="16" x="-10.5" y="-13.970000000000002" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="25" x="10.5" y="-13.970000000000002" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="17" x="-10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="24" x="10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="18" x="-10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="23" x="10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="19" x="-10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="22" x="10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="20" x="-10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
-                      <smd name="21" x="10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
-                      <wire x1="-10.5" y1="-25.5" x2="10.5" y2="-25.5" width="0.254" layer="21"/>
-                      <wire x1="10.5" y1="-25.5" x2="10.5" y2="25.5" width="0.254" layer="21"/>
-                      <wire x1="10.5" y1="25.5" x2="-10.5" y2="25.5" width="0.254" layer="21"/>
-                      <wire x1="-10.5" y1="25.5" x2="-10.5" y2="-25.5" width="0.254" layer="21"/>
-                      <wire x1="-10.5" y1="-25.5" x2="10.5" y2="-25.5" width="0.254" layer="39"/>
-                      <wire x1="10.5" y1="-25.5" x2="10.5" y2="-15" width="0.254" layer="39"/>
-                      <wire x1="10.5" y1="-15" x2="-10.5" y2="-15" width="0.254" layer="39"/>
-                      <wire x1="-10.5" y1="-15" x2="-10.5" y2="-25.5" width="0.254" layer="39"/>
-                      <text x="-9.5" y="26" size="1.27" layer="25">&gt;NAME</text>
-                      <text x="-9.5" y="-23.5" size="1" layer="21">ANTENNA / COPPER KEEPOUT</text>
+            <smd name="1" x="-5.18" y="5.715" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="20" x="5.18" y="5.715" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="2" x="-5.18" y="4.445" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="19" x="5.18" y="4.445" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="3" x="-5.18" y="3.175" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="18" x="5.18" y="3.175" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="4" x="-5.18" y="1.905" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="17" x="5.18" y="1.905" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="5" x="-5.18" y="0.635" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="16" x="5.18" y="0.635" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="6" x="-5.18" y="-0.635" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="15" x="5.18" y="-0.635" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="7" x="-5.18" y="-1.905" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="14" x="5.18" y="-1.905" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="8" x="-5.18" y="-3.175" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="13" x="5.18" y="-3.175" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="9" x="-5.18" y="-4.445" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="12" x="5.18" y="-4.445" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="10" x="-5.18" y="-5.715" dx="2.2" dy="0.6" layer="1"/>
+            <smd name="11" x="5.18" y="-5.715" dx="2.2" dy="0.6" layer="1"/>
+            <wire x1="-3.93" y1="-6.5" x2="3.93" y2="-6.5" width="0.1524" layer="21"/>
+            <wire x1="3.93" y1="-6.5" x2="3.93" y2="6.5" width="0.1524" layer="21"/>
+            <wire x1="3.93" y1="6.5" x2="-3.93" y2="6.5" width="0.1524" layer="21"/>
+            <wire x1="-3.93" y1="6.5" x2="-3.93" y2="-6.5" width="0.1524" layer="21"/>
+            <circle x="-3.23" y="5.5" radius="0.35" width="0" layer="21"/>
+            <text x="-5.2" y="7.1" size="1.016" layer="25">&gt;NAME</text>
                         </package>
             <package name="PANEL4_WIRE_PADS">
                       <smd name="1" x="0" y="-3.81" dx="2.2" dy="1.6" layer="1"/>
@@ -263,37 +99,37 @@
                       <text x="-1.5" y="10.16" size="1.016" layer="25" rot="R90">&gt;NAME</text>
                         </package>
             <package name="PADBANK8">
-                      <smd name="1" x="0" y="-8.89" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="2" x="0" y="-6.3500000000000005" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="3" x="0" y="-3.8100000000000005" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="4" x="0" y="-1.2700000000000005" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="5" x="0" y="1.2699999999999996" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="6" x="0" y="3.8099999999999987" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="7" x="0" y="6.35" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="8" x="0" y="8.89" dx="2.2" dy="1.6" layer="1"/>
-                      <wire x1="-1.5" y1="-10.39" x2="1.5" y2="-10.39" width="0.1524" layer="21"/>
-                      <text x="-1.5" y="11.43" size="1.016" layer="25" rot="R90">&gt;NAME</text>
+            <smd name="1" x="0" y="-8.89" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="2" x="0" y="-6.35" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="3" x="0" y="-3.81" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="4" x="0" y="-1.27" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="5" x="0" y="1.27" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="6" x="0" y="3.81" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="7" x="0" y="6.35" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="8" x="0" y="8.89" dx="2.2" dy="1.6" layer="1"/>
+            <wire x1="-1.5" y1="-10.39" x2="1.5" y2="-10.39" width="0.1524" layer="21"/>
+            <text x="-1.5" y="11.43" size="1.016" layer="25" rot="R90">&gt;NAME</text>
                         </package>
             <package name="PADBANK17">
-                      <smd name="1" x="0" y="-20.32" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="2" x="0" y="-17.78" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="3" x="0" y="-15.24" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="4" x="0" y="-12.7" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="5" x="0" y="-10.16" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="6" x="0" y="-7.620000000000001" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="7" x="0" y="-5.08" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="8" x="0" y="-2.539999999999999" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="9" x="0" y="0" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="10" x="0" y="2.539999999999999" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="11" x="0" y="5.079999999999998" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="12" x="0" y="7.620000000000001" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="13" x="0" y="10.16" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="14" x="0" y="12.700000000000003" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="15" x="0" y="15.240000000000002" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="16" x="0" y="17.78" dx="2.2" dy="1.6" layer="1"/>
-                      <smd name="17" x="0" y="20.32" dx="2.2" dy="1.6" layer="1"/>
-                      <wire x1="-1.5" y1="-21.82" x2="1.5" y2="-21.82" width="0.1524" layer="21"/>
-                      <text x="-1.5" y="22.86" size="1.016" layer="25" rot="R90">&gt;NAME</text>
+            <smd name="1" x="0" y="-20.32" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="2" x="0" y="-17.78" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="3" x="0" y="-15.24" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="4" x="0" y="-12.7" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="5" x="0" y="-10.16" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="6" x="0" y="-7.62" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="7" x="0" y="-5.08" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="8" x="0" y="-2.54" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="9" x="0" y="0" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="10" x="0" y="2.54" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="11" x="0" y="5.08" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="12" x="0" y="7.62" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="13" x="0" y="10.16" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="14" x="0" y="12.7" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="15" x="0" y="15.24" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="16" x="0" y="17.78" dx="2.2" dy="1.6" layer="1"/>
+            <smd name="17" x="0" y="20.32" dx="2.2" dy="1.6" layer="1"/>
+            <wire x1="-1.5" y1="-21.82" x2="1.5" y2="-21.82" width="0.1524" layer="21"/>
+            <text x="-1.5" y="22.86" size="1.016" layer="25" rot="R90">&gt;NAME</text>
                         </package>
             <package name="PADBANK5">
                       <smd name="1" x="0" y="-5.08" dx="2.2" dy="1.6" layer="1"/>
@@ -303,6 +139,257 @@
                       <smd name="5" x="0" y="5.08" dx="2.2" dy="1.6" layer="1"/>
                       <wire x1="-1.5" y1="-6.58" x2="1.5" y2="-6.58" width="0.1524" layer="21"/>
                       <text x="-1.5" y="7.619999999999999" size="1.016" layer="25" rot="R90">&gt;NAME</text>
+                        </package>
+            <package name="PICO_2_W_DEVELOPMENT_BOARD">
+            <description>Raspberry Pi Pico 2 W castellated SMD module, 51.00 X 21.00 mm body. Verify pad geometry and antenna keepout against the current Raspberry Pi hardware design files before PCB release.</description>
+            <smd name="1" x="-10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="2" x="-10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="3" x="-10.5" y="19.05" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="4" x="-10.5" y="16.51" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="5" x="-10.5" y="13.97" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="6" x="-10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="7" x="-10.5" y="8.89" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="8" x="-10.5" y="6.35" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="9" x="-10.5" y="3.81" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="10" x="-10.5" y="1.27" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="11" x="-10.5" y="-1.27" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="12" x="-10.5" y="-3.81" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="13" x="-10.5" y="-6.35" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="14" x="-10.5" y="-8.89" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="15" x="-10.5" y="-11.43" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="16" x="-10.5" y="-13.97" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="17" x="-10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="18" x="-10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="19" x="-10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="20" x="-10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="21" x="10.5" y="-24.13" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="22" x="10.5" y="-21.59" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="23" x="10.5" y="-19.05" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="24" x="10.5" y="-16.51" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="25" x="10.5" y="-13.97" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="26" x="10.5" y="-11.43" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="27" x="10.5" y="-8.89" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="28" x="10.5" y="-6.35" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="29" x="10.5" y="-3.81" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="30" x="10.5" y="-1.27" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="31" x="10.5" y="1.27" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="32" x="10.5" y="3.81" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="33" x="10.5" y="6.35" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="34" x="10.5" y="8.89" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="35" x="10.5" y="11.43" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="36" x="10.5" y="13.97" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="37" x="10.5" y="16.51" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="38" x="10.5" y="19.05" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="39" x="10.5" y="21.59" dx="2.2" dy="1.7" layer="1"/>
+            <smd name="40" x="10.5" y="24.13" dx="2.2" dy="1.7" layer="1"/>
+            <circle x="-11.004" y="24.13" radius="0.25" width="0" layer="21"/>
+            <wire x1="-10.5" y1="25.2083" x2="-10.5" y2="25.5" width="0.12" layer="21"/>
+            <wire x1="-10.5" y1="25.5" x2="10.5" y2="25.5" width="0.12" layer="21"/>
+            <wire x1="10.5" y1="25.5" x2="10.5" y2="25.2083" width="0.12" layer="21"/>
+            <wire x1="-10.5" y1="-25.2083" x2="-10.5" y2="-25.5" width="0.12" layer="21"/>
+            <wire x1="-10.5" y1="-25.5" x2="10.5" y2="-25.5" width="0.12" layer="21"/>
+            <wire x1="10.5" y1="-25.5" x2="10.5" y2="-25.2083" width="0.12" layer="21"/>
+            <wire x1="-10.5" y1="-25.5" x2="-10.5" y2="25.5" width="0.12" layer="51"/>
+            <wire x1="-10.5" y1="25.5" x2="10.5" y2="25.5" width="0.12" layer="51"/>
+            <wire x1="10.5" y1="25.5" x2="10.5" y2="-25.5" width="0.12" layer="51"/>
+            <wire x1="10.5" y1="-25.5" x2="-10.5" y2="-25.5" width="0.12" layer="51"/>
+            <wire x1="-10.5" y1="-25.5" x2="10.5" y2="-25.5" width="0.254" layer="39"/>
+            <wire x1="10.5" y1="-25.5" x2="10.5" y2="-15" width="0.254" layer="39"/>
+            <wire x1="10.5" y1="-15" x2="-10.5" y2="-15" width="0.254" layer="39"/>
+            <wire x1="-10.5" y1="-15" x2="-10.5" y2="-25.5" width="0.254" layer="39"/>
+            <text x="0" y="26.135" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+            <text x="0" y="-26.135" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
+                        </package>
+            <package name="PTS810_J_LEAD">
+            <description>C&amp;K/Littelfuse PTS810 J-lead SMT tactile switch, 4.20 X 3.20 X 2.50 mm body. Pad numbering follows the manufacturer drawing.</description>
+            <smd name="1" x="-2.0954" y="1.075" dx="1.1629" dy="0.7666" layer="1"/>
+            <smd name="2" x="-2.0954" y="-1.075" dx="1.1629" dy="0.7666" layer="1"/>
+            <smd name="3" x="2.0954" y="-1.075" dx="1.1629" dy="0.7666" layer="1"/>
+            <smd name="4" x="2.0954" y="1.075" dx="1.1629" dy="0.7666" layer="1"/>
+            <wire x1="-2.1" y1="1.7723" x2="2.1" y2="1.7723" width="0.12" layer="21"/>
+            <wire x1="2.1" y1="-1.7723" x2="-2.1" y2="-1.7723" width="0.12" layer="21"/>
+            <wire x1="-2.1" y1="-1.65" x2="-2.1" y2="1.65" width="0.12" layer="51"/>
+            <wire x1="-2.1" y1="1.65" x2="2.1" y2="1.65" width="0.12" layer="51"/>
+            <wire x1="2.1" y1="1.65" x2="2.1" y2="-1.65" width="0.12" layer="51"/>
+            <wire x1="2.1" y1="-1.65" x2="-2.1" y2="-1.65" width="0.12" layer="51"/>
+            <circle x="-3.1808" y="1.075" radius="0.25" width="0" layer="21"/>
+            <text x="0" y="2.4073" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+            <text x="0" y="-2.4073" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
+                        </package>
+            <package name="PPTC1206_1206L050YR">
+            <description>Littelfuse 1206L050YR resettable PPTC. Manufacturer recommended pad layout: two 1.80 X 1.80 mm pads with a 1.00 mm gap.</description>
+            <smd name="1" x="-1.4" y="0" dx="1.8" dy="1.8" layer="1"/>
+            <smd name="2" x="1.4" y="0" dx="1.8" dy="1.8" layer="1"/>
+            <wire x1="-1.7" y1="1" x2="1.7" y2="1" width="0.12" layer="21"/>
+            <wire x1="1.7" y1="-1" x2="-1.7" y2="-1" width="0.12" layer="21"/>
+            <wire x1="-1.7" y1="-0.9" x2="-1.7" y2="0.9" width="0.12" layer="51"/>
+            <wire x1="-1.7" y1="0.9" x2="1.7" y2="0.9" width="0.12" layer="51"/>
+            <wire x1="1.7" y1="0.9" x2="1.7" y2="-0.9" width="0.12" layer="51"/>
+            <wire x1="1.7" y1="-0.9" x2="-1.7" y2="-0.9" width="0.12" layer="51"/>
+            <text x="0" y="2.2" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+            <text x="0" y="-2.2" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
+                        </package>
+            <package name="RESC1005X40">
+            <description>Chip, 1.05 X 0.54 X 0.40 mm body
+            &lt;p&gt;Chip package with body size 1.05 X 0.54 X 0.40 mm&lt;/p&gt;</description>
+            <wire x1="0.55" y1="0.636" x2="-0.55" y2="0.636" width="0.127" layer="21"/>
+            <wire x1="0.55" y1="-0.636" x2="-0.55" y2="-0.636" width="0.127" layer="21"/>
+            <wire x1="0.55" y1="-0.3" x2="-0.55" y2="-0.3" width="0.12" layer="51"/>
+            <wire x1="-0.55" y1="-0.3" x2="-0.55" y2="0.3" width="0.12" layer="51"/>
+            <wire x1="-0.55" y1="0.3" x2="0.55" y2="0.3" width="0.12" layer="51"/>
+            <wire x1="0.55" y1="0.3" x2="0.55" y2="-0.3" width="0.12" layer="51"/>
+            <smd name="1" x="-0.5075" y="0" dx="0.5351" dy="0.644" layer="1"/>
+            <smd name="2" x="0.5075" y="0" dx="0.5351" dy="0.644" layer="1"/>
+            <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
+            <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
+                        </package>
+            <package name="RESC1608X60">
+            <description>Chip, 1.60 X 0.82 X 0.60 mm body
+            &lt;p&gt;Chip package with body size 1.60 X 0.82 X 0.60 mm&lt;/p&gt;</description>
+            <wire x1="0.85" y1="0.8009" x2="-0.85" y2="0.8009" width="0.127" layer="21"/>
+            <wire x1="0.85" y1="-0.8009" x2="-0.85" y2="-0.8009" width="0.127" layer="21"/>
+            <wire x1="0.85" y1="-0.475" x2="-0.85" y2="-0.475" width="0.12" layer="51"/>
+            <wire x1="-0.85" y1="-0.475" x2="-0.85" y2="0.475" width="0.12" layer="51"/>
+            <wire x1="-0.85" y1="0.475" x2="0.85" y2="0.475" width="0.12" layer="51"/>
+            <wire x1="0.85" y1="0.475" x2="0.85" y2="-0.475" width="0.12" layer="51"/>
+            <smd name="1" x="-0.8152" y="0" dx="0.7987" dy="0.9739" layer="1"/>
+            <smd name="2" x="0.8152" y="0" dx="0.7987" dy="0.9739" layer="1"/>
+            <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
+            <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
+                        </package>
+            <package name="CAPC1005X60">
+            <description>Chip, 1.00 X 0.50 X 0.60 mm body
+            &lt;p&gt;Chip package with body size 1.00 X 0.50 X 0.60 mm&lt;/p&gt;</description>
+            <wire x1="0.55" y1="0.6286" x2="-0.55" y2="0.6286" width="0.127" layer="21"/>
+            <wire x1="0.55" y1="-0.6286" x2="-0.55" y2="-0.6286" width="0.127" layer="21"/>
+            <wire x1="0.55" y1="-0.3" x2="-0.55" y2="-0.3" width="0.12" layer="51"/>
+            <wire x1="-0.55" y1="-0.3" x2="-0.55" y2="0.3" width="0.12" layer="51"/>
+            <wire x1="-0.55" y1="0.3" x2="0.55" y2="0.3" width="0.12" layer="51"/>
+            <wire x1="0.55" y1="0.3" x2="0.55" y2="-0.3" width="0.12" layer="51"/>
+            <smd name="1" x="-0.4846" y="0" dx="0.56" dy="0.6291" layer="1"/>
+            <smd name="2" x="0.4846" y="0" dx="0.56" dy="0.6291" layer="1"/>
+            <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
+            <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
+                        </package>
+            <package name="CAPC2012X110">
+            <description>Chip, 2.00 X 1.25 X 1.10 mm body
+            &lt;p&gt;Chip package with body size 2.00 X 1.25 X 1.10 mm&lt;/p&gt;</description>
+            <wire x1="1.1" y1="1.0467" x2="-1.1" y2="1.0467" width="0.127" layer="21"/>
+            <wire x1="1.1" y1="-1.0467" x2="-1.1" y2="-1.0467" width="0.127" layer="21"/>
+            <wire x1="1.1" y1="-0.725" x2="-1.1" y2="-0.725" width="0.12" layer="51"/>
+            <wire x1="-1.1" y1="-0.725" x2="-1.1" y2="0.725" width="0.12" layer="51"/>
+            <wire x1="-1.1" y1="0.725" x2="1.1" y2="0.725" width="0.12" layer="51"/>
+            <wire x1="1.1" y1="0.725" x2="1.1" y2="-0.725" width="0.12" layer="51"/>
+            <smd name="1" x="-0.8754" y="0" dx="1.1646" dy="1.4653" layer="1"/>
+            <smd name="2" x="0.8754" y="0" dx="1.1646" dy="1.4653" layer="1"/>
+            <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
+            <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
+                        </package>
+            <package name="INDC1006X60N">
+            <description>Chip, 1.00 X 0.60 X 0.60 mm body
+            &lt;p&gt;Chip package with body size 1.00 X 0.60 X 0.60 mm&lt;/p&gt;</description>
+            <wire x1="0.55" y1="0.6786" x2="-0.55" y2="0.6786" width="0.12" layer="21"/>
+            <wire x1="0.55" y1="-0.6786" x2="-0.55" y2="-0.6786" width="0.12" layer="21"/>
+            <wire x1="0.55" y1="-0.35" x2="-0.55" y2="-0.35" width="0.12" layer="51"/>
+            <wire x1="-0.55" y1="-0.35" x2="-0.55" y2="0.35" width="0.12" layer="51"/>
+            <wire x1="-0.55" y1="0.35" x2="0.55" y2="0.35" width="0.12" layer="51"/>
+            <wire x1="0.55" y1="0.35" x2="0.55" y2="-0.35" width="0.12" layer="51"/>
+            <smd name="1" x="-0.4846" y="0" dx="0.56" dy="0.7291" layer="1"/>
+            <smd name="2" x="0.4846" y="0" dx="0.56" dy="0.7291" layer="1"/>
+            <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
+            <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
+                        </package>
+            <package name="LEDC1608X55N_FLAT-B">
+            <description>Chip LED package with body size 1.60 X 0.80 X 0.55 mm</description>
+            <smd name="C" x="-0.75" y="0" dx="0.6118" dy="0.9118" layer="1"/>
+            <smd name="A" x="0.75" y="0" dx="0.6118" dy="0.9118" layer="1"/>
+            <wire x1="-1.3099" y1="0.7699" x2="0.8" y2="0.7699" width="0.2" layer="21"/>
+            <wire x1="-1.3099" y1="0.7699" x2="-1.3099" y2="-0.7699" width="0.2" layer="21"/>
+            <wire x1="-1.3099" y1="-0.7699" x2="0.8" y2="-0.7699" width="0.2" layer="21"/>
+            <wire x1="-0.8" y1="-0.4" x2="-0.8" y2="0.4" width="0.1" layer="51"/>
+            <wire x1="-0.8" y1="0.4" x2="0.8" y2="0.4" width="0.1" layer="51"/>
+            <wire x1="0.8" y1="0.4" x2="0.8" y2="-0.4" width="0.1" layer="51"/>
+            <wire x1="0.8" y1="-0.4" x2="-0.8" y2="-0.4" width="0.1" layer="51"/>
+            <text x="0" y="2.54" size="1.27" layer="25" align="top-center">&gt;NAME</text>
+            <text x="0" y="-2.54" size="1.27" layer="27" align="bottom-center">&gt;VALUE</text>
+            <polygon width="0.1524" layer="39" pour="solid">
+            <vertex x="-1.4238" y="-0.9238"/>
+            <vertex x="1.2238" y="-0.9238"/>
+            <vertex x="1.2238" y="0.9238"/>
+            <vertex x="-1.4238" y="0.9238"/>
+            </polygon>
+                        </package>
+            <package name="SOT23_">
+            <description>3-SOT23, 0.95 mm pitch, 2.40 mm span, 2.90 X 1.30 X 1.10 mm body
+             &lt;p&gt;3-pin SOT23 package with 0.95 mm pitch, 2.40 mm span with body size 2.90 X 1.30 X 1.10 mm&lt;/p&gt;</description>
+            <smd name="1" x="-1.0247" y="0.95" dx="1.1821" dy="0.6122" layer="1"/>
+            <smd name="2" x="-1.0247" y="-0.95" dx="1.1821" dy="0.6122" layer="1"/>
+            <smd name="3" x="1.0247" y="0" dx="1.1821" dy="0.6122" layer="1"/>
+            <circle x="-1.204" y="1.7601" radius="0.25" width="0" layer="21"/>
+            <wire x1="-0.7" y1="1.5701" x2="0.7" y2="1.5701" width="0.12" layer="21"/>
+            <wire x1="0.7" y1="1.5701" x2="0.7" y2="0.5601" width="0.12" layer="21"/>
+            <wire x1="-0.7" y1="-1.5701" x2="0.7" y2="-1.5701" width="0.12" layer="21"/>
+            <wire x1="0.7" y1="-1.5701" x2="0.7" y2="-0.5601" width="0.12" layer="21"/>
+            <wire x1="-0.7" y1="-1.5" x2="-0.7" y2="1.5" width="0.12" layer="51"/>
+            <wire x1="-0.7" y1="1.5" x2="0.7" y2="1.5" width="0.12" layer="51"/>
+            <wire x1="0.7" y1="1.5" x2="0.7" y2="-1.5" width="0.12" layer="51"/>
+            <wire x1="0.7" y1="-1.5" x2="-0.7" y2="-1.5" width="0.12" layer="51"/>
+            <text x="0" y="2.6451" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+            <text x="0" y="-2.2051" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
+                        </package>
+            <package name="SOIC127P600X317-8N">
+            <description>8-SOIC, 1.27 mm pitch, 6.00 mm span, 5.05 X 4.00 X 3.17 mm body
+             &lt;p&gt;8-pin SOIC package with 1.27 mm pitch, 6.00 mm span with body size 5.05 X 4.00 X 3.17 mm&lt;/p&gt;</description>
+            <smd name="1" x="-2.4582" y="1.905" dx="1.9151" dy="0.6045" layer="1"/>
+            <smd name="2" x="-2.4582" y="0.635" dx="1.9151" dy="0.6045" layer="1"/>
+            <smd name="3" x="-2.4582" y="-0.635" dx="1.9151" dy="0.6045" layer="1"/>
+            <smd name="4" x="-2.4582" y="-1.905" dx="1.9151" dy="0.6045" layer="1"/>
+            <smd name="5" x="2.4582" y="-1.905" dx="1.9151" dy="0.6045" layer="1"/>
+            <smd name="6" x="2.4582" y="-0.635" dx="1.9151" dy="0.6045" layer="1"/>
+            <smd name="7" x="2.4582" y="0.635" dx="1.9151" dy="0.6045" layer="1"/>
+            <smd name="8" x="2.4582" y="1.905" dx="1.9151" dy="0.6045" layer="1"/>
+            <circle x="-2.7079" y="2.7112" radius="0.25" width="0" layer="21"/>
+            <wire x1="-2" y1="2.4612" x2="-2" y2="2.55" width="0.12" layer="21"/>
+            <wire x1="-2" y1="2.55" x2="2" y2="2.55" width="0.12" layer="21"/>
+            <wire x1="2" y1="2.55" x2="2" y2="2.4612" width="0.12" layer="21"/>
+            <wire x1="-2" y1="-2.4612" x2="-2" y2="-2.55" width="0.12" layer="21"/>
+            <wire x1="-2" y1="-2.55" x2="2" y2="-2.55" width="0.12" layer="21"/>
+            <wire x1="2" y1="-2.55" x2="2" y2="-2.4612" width="0.12" layer="21"/>
+            <wire x1="-2" y1="-2.55" x2="-2" y2="2.55" width="0.12" layer="51"/>
+            <wire x1="-2" y1="2.55" x2="2" y2="2.55" width="0.12" layer="51"/>
+            <wire x1="2" y1="2.55" x2="2" y2="-2.55" width="0.12" layer="51"/>
+            <wire x1="2" y1="-2.55" x2="-2" y2="-2.55" width="0.12" layer="51"/>
+            <text x="0" y="3.5962" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+            <text x="0" y="-3.185" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
+                        </package>
+            <package name="SOD323-1.15H">
+            <description>SOD, 2.67 mm span, 1.78 X 1.45 X 1.15 mm body
+             &lt;p&gt;SOD package with 2.67 mm span with body size 1.78 X 1.45 X 1.15 mm&lt;/p&gt;</description>
+            <smd name="C" x="-1.2935" y="0" dx="0.982" dy="0.4915" layer="1"/>
+            <smd name="A" x="1.2935" y="0" dx="0.982" dy="0.4915" layer="1"/>
+            <text x="0" y="1.385" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+            <text x="0" y="-1.385" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
+            <wire x1="-0.508" y1="0.762" x2="0.762" y2="0.762" width="0.127" layer="21"/>
+            <wire x1="0.762" y1="0.762" x2="0.762" y2="-0.762" width="0.127" layer="21"/>
+            <wire x1="0.762" y1="-0.762" x2="-0.508" y2="-0.762" width="0.127" layer="21"/>
+            <wire x1="-0.508" y1="-0.762" x2="-0.762" y2="-0.762" width="0.127" layer="21"/>
+            <wire x1="-0.762" y1="-0.762" x2="-0.762" y2="0.762" width="0.127" layer="21"/>
+            <wire x1="-0.762" y1="0.762" x2="-0.508" y2="0.762" width="0.127" layer="21"/>
+            <wire x1="-0.508" y1="0.762" x2="-0.508" y2="-0.762" width="0.127" layer="21"/>
+                        </package>
+            <package name="ACT45B_4P5X3P2">
+            <description>TDK ACT45B-510-2P-TL003, 4.5 X 3.2 mm four-terminal common-mode choke. Verify against the current TDK layout recommendation before PCB release.</description>
+            <smd name="1" x="-2.2" y="1.1" dx="1.2" dy="1" layer="1"/>
+            <smd name="2" x="2.2" y="1.1" dx="1.2" dy="1" layer="1"/>
+            <smd name="4" x="-2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
+            <smd name="3" x="2.2" y="-1.1" dx="1.2" dy="1" layer="1"/>
+            <wire x1="-1.6" y1="-1.8" x2="1.6" y2="-1.8" width="0.12" layer="21"/>
+            <wire x1="1.6" y1="-1.8" x2="1.6" y2="1.8" width="0.12" layer="21"/>
+            <wire x1="1.6" y1="1.8" x2="-1.6" y2="1.8" width="0.12" layer="21"/>
+            <wire x1="-1.6" y1="1.8" x2="-1.6" y2="-1.8" width="0.12" layer="21"/>
+            <circle x="-1.3" y="1.35" radius="0.2" width="0" layer="21"/>
+            <text x="0" y="2.4" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+            <text x="0" y="-2.4" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
                         </package>
           </packages>
           <symbols>
@@ -584,12 +671,12 @@
           </symbols>
           <devicesets>
             <deviceset name="RES0402" prefix="R">
-                          <description>0402 resistor</description>
+                          <description>0402 resistor using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="RESISTOR" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="R0402">
+                            <device name="" package="RESC1005X40">
                               <connects>
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
@@ -601,12 +688,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="RES0603" prefix="R">
-                          <description>0603 resistor</description>
+                          <description>0603 resistor using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="RESISTOR" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="R0603">
+                            <device name="" package="RESC1608X60">
                               <connects>
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
@@ -618,12 +705,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="CAP0402" prefix="C">
-                          <description>0402 capacitor</description>
+                          <description>0402 capacitor using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="CAPACITOR" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="C0402">
+                            <device name="" package="CAPC1005X60">
                               <connects>
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
@@ -635,12 +722,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="CAP0805" prefix="C">
-                          <description>0805 capacitor</description>
+                          <description>0805 capacitor using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="CAPACITOR" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="C0805">
+                            <device name="" package="CAPC2012X110">
                               <connects>
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
@@ -652,12 +739,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="PPTC1206" prefix="F">
-                          <description>Littelfuse 1206L050YR</description>
+                          <description>Littelfuse 1206L050YR using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="FUSE" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="PPTC1206">
+                            <device name="" package="PPTC1206_1206L050YR">
                               <connects>
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
@@ -669,12 +756,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="FERRITE0402" prefix="FB">
-                          <description>Murata BLM15EX331SN1D</description>
+                          <description>Murata BLM15EX331SN1D using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="FERRITE" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="R0402">
+                            <device name="" package="INDC1006X60N">
                               <connects>
                                 <connect gate="G$1" pin="1" pad="1"/>
                                 <connect gate="G$1" pin="2" pad="2"/>
@@ -686,15 +773,15 @@
                           </devices>
                         </deviceset>
             <deviceset name="LED0603" prefix="D">
-                          <description>0603 indicator LED</description>
+                          <description>0603 indicator LED using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="LED" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="LED0603">
+                            <device name="" package="LEDC1608X55N_FLAT-B">
                               <connects>
-                                <connect gate="G$1" pin="A" pad="1"/>
-                                <connect gate="G$1" pin="K" pad="2"/>
+                                <connect gate="G$1" pin="A" pad="A"/>
+                                <connect gate="G$1" pin="K" pad="C"/>
                               </connects>
                               <technologies>
                                 <technology name=""/>
@@ -703,15 +790,15 @@
                           </devices>
                         </deviceset>
             <deviceset name="DIODE_SOD323" prefix="D">
-                          <description>Vishay 1N4148WS-E3-08</description>
+                          <description>Vishay 1N4148WS-E3-08 using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="DIODE" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="SOD323">
+                            <device name="" package="SOD323-1.15H">
                               <connects>
-                                <connect gate="G$1" pin="A" pad="1"/>
-                                <connect gate="G$1" pin="K" pad="2"/>
+                                <connect gate="G$1" pin="A" pad="A"/>
+                                <connect gate="G$1" pin="K" pad="C"/>
                               </connects>
                               <technologies>
                                 <technology name=""/>
@@ -720,15 +807,15 @@
                           </devices>
                         </deviceset>
             <deviceset name="SWITCH_SMD" prefix="SW">
-                          <description>C&amp;K/Littelfuse PTS810SJM250SMTR LFS normally-open SMD reset switch</description>
+                          <description>C&amp;K/Littelfuse PTS810SJM250SMTR LFS using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="SWITCH" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="PTS810_PRELIMINARY">
+                            <device name="" package="PTS810_J_LEAD">
                               <connects>
-                                <connect gate="G$1" pin="1" pad="1 3"/>
-                                <connect gate="G$1" pin="2" pad="2 4"/>
+                                <connect gate="G$1" pin="1" pad="1 2"/>
+                                <connect gate="G$1" pin="2" pad="3 4"/>
                               </connects>
                               <technologies>
                                 <technology name=""/>
@@ -737,12 +824,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="SM712" prefix="D">
-                          <description>Semtech SM712.TCT RS-485 TVS</description>
+                          <description>Semtech SM712.TCT RS-485 TVS using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="TVS_SM712" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="SOT23">
+                            <device name="" package="SOT23_">
                               <connects>
                                 <connect gate="G$1" pin="IO1" pad="1"/>
                                 <connect gate="G$1" pin="IO2" pad="2"/>
@@ -755,12 +842,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="CMC_OPTION" prefix="L">
-                          <description>TDK ACT45B-510-2P-TL003 two-line common-mode choke; normally DNP pending EMC and signal-integrity testing</description>
+                          <description>TDK ACT45B-510-2P-TL003 two-line common-mode choke using project-library land pattern; normally DNP pending EMC and signal-integrity testing</description>
                           <gates>
                             <gate name="G$1" symbol="CMC" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="TDK_ACT45B_PRELIMINARY">
+                            <device name="" package="ACT45B_4P5X3P2">
                               <connects>
                                 <connect gate="G$1" pin="A1" pad="1"/>
                                 <connect gate="G$1" pin="A2" pad="2"/>
@@ -809,12 +896,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="PICO2W" prefix="U">
-                          <description>Raspberry Pi Pico 2 W castellated module</description>
+                          <description>Raspberry Pi Pico 2 W castellated module using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="PICO2W" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="PICO2W_CASTELLATED_PRELIMINARY">
+                            <device name="" package="PICO_2_W_DEVELOPMENT_BOARD">
                               <connects>
                                 <connect gate="G$1" pin="GP0" pad="1"/>
                                 <connect gate="G$1" pin="GP1" pad="2"/>
@@ -864,12 +951,12 @@
                           </devices>
                         </deviceset>
             <deviceset name="HCPL_0700_500E" prefix="U">
-                          <description>Broadcom HCPL-0700-500E SOIC-8 optocoupler</description>
+                          <description>Broadcom HCPL-0700-500E SOIC-8 optocoupler using project-library land pattern</description>
                           <gates>
                             <gate name="G$1" symbol="OPTO_HCPL0700" x="0" y="0"/>
                           </gates>
                           <devices>
-                            <device name="" package="SOIC8_HCPL0700_PRELIMINARY">
+                            <device name="" package="SOIC127P600X317-8N">
                               <connects>
                                 <connect gate="G$1" pin="NC1" pad="1"/>
                                 <connect gate="G$1" pin="A" pad="2"/>
@@ -1073,7 +1160,7 @@
                   <plain>
                     <text x="20.32" y="187.96" size="2.54" layer="91" ratio="15">WiFiPicoDMX Rev. A — Controller, power, controls and expansion</text>
                     <text x="20.32" y="15.24" size="1.778" layer="91" ratio="12">Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.</text>
-                    <text x="20.32" y="10.16" size="1.778" layer="91" ratio="12">Pico and all land patterns marked PRELIMINARY require manufacturer-footprint verification before PCB release.</text>
+                    <text x="20.32" y="10.16" size="1.778" layer="91" ratio="12">Verify every project-library and generated land pattern against the selected manufacturer part before PCB release.</text>
                     <text x="20.32" y="5.08" size="1.778" layer="91" ratio="12">TP6/BOOTSEL is not available on the 40 castellated pins: preserve physical BOOTSEL access; do not assume an electrical carrier connection.</text>
                   </plain>
                   <instances>

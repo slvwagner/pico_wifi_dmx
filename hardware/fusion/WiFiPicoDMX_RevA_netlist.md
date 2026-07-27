@@ -28,42 +28,42 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 
 | Reference | Value / function | Preliminary package |
 |---|---|---|
-| C1 | 100n VIO | C0402 |
-| C2 | 10n VDD <=1mm | C0402 |
-| C3 | 10u X7R VDD | C0805 |
-| C4 | 10n VISOOUT <=1mm | C0402 |
-| C5 | 10u X7R VISOOUT | C0805 |
-| C6 | 100n VISOIN | C0402 |
-| C7 | 100n VCC | C0402 |
-| D1 | SM712.TCT | SOT23 |
-| D2 | 1N4148WS-E3-08 | SOD323 |
-| D3 | PWR GREEN | LED0603 |
-| D4 | DMX ACTIVITY | LED0603 |
-| F1 | 1206L050YR 0.5A HOLD | PPTC1206 |
-| FB1 | BLM15EX331SN1D | R0402 |
-| FB2 | BLM15EX331SN1D | R0402 |
+| C1 | 100n VIO | CAPC1005X60 |
+| C2 | 10n VDD <=1mm | CAPC1005X60 |
+| C3 | 10u X7R VDD | CAPC2012X110 |
+| C4 | 10n VISOOUT <=1mm | CAPC1005X60 |
+| C5 | 10u X7R VISOOUT | CAPC2012X110 |
+| C6 | 100n VISOIN | CAPC1005X60 |
+| C7 | 100n VCC | CAPC1005X60 |
+| D1 | SM712.TCT | SOT23_ |
+| D2 | 1N4148WS-E3-08 | SOD323-1.15H |
+| D3 | PWR GREEN | LEDC1608X55N_FLAT-B |
+| D4 | DMX ACTIVITY | LEDC1608X55N_FLAT-B |
+| F1 | 1206L050YR 0.5A HOLD | PPTC1206_1206L050YR |
+| FB1 | BLM15EX331SN1D | INDC1006X60N |
+| FB2 | BLM15EX331SN1D | INDC1006X60N |
 | J1 | PANEL XLR-5: COM,-,+,SHELL | PANEL4_WIRE_PADS |
 | J2 | PANEL DIN-5 MIDI IN | PANEL5_WIRE_PADS |
 | J3 | FREE GPIO PADS | PADBANK17 |
 | J4 | ANALOG PADS | PADBANK5 |
 | J5 | RESERVED SIGNAL TEST PADS | PADBANK7 |
 | J6 | POWER/DMX TEST PADS | PADBANK8 |
-| L1 | ACT45B-510-2P-TL003 - DNP | TDK_ACT45B_PRELIMINARY |
-| R1 | 100k D PULLUP | R0402 |
-| R2 | 10k DIR PULLDOWN | R0402 |
-| R3 | 10k EN/FLT PULLUP | R0402 |
-| R4 | 220R | R0603 |
-| R5 | 220R | R0603 |
-| R6 | 4.7k OUTPUT PULLUP | R0603 |
-| R7 | 47k BASE SPEEDUP | R0603 |
-| R8 | 1k | R0603 |
-| R9 | 1k | R0603 |
-| R10 | 0R CMC BYPASS FIT | R0603 |
-| R11 | 0R CMC BYPASS FIT | R0603 |
-| SW1 | PTS810SJM250SMTR LFS RESET (NO) | PTS810_PRELIMINARY |
-| U1 | Raspberry Pi Pico 2 W | PICO2W_CASTELLATED_PRELIMINARY |
+| L1 | ACT45B-510-2P-TL003 - DNP | ACT45B_4P5X3P2 |
+| R1 | 100k D PULLUP | RESC1005X40 |
+| R2 | 10k DIR PULLDOWN | RESC1005X40 |
+| R3 | 10k EN/FLT PULLUP | RESC1005X40 |
+| R4 | 220R | RESC1608X60 |
+| R5 | 220R | RESC1608X60 |
+| R6 | 4.7k OUTPUT PULLUP | RESC1608X60 |
+| R7 | 47k BASE SPEEDUP | RESC1608X60 |
+| R8 | 1k | RESC1608X60 |
+| R9 | 1k | RESC1608X60 |
+| R10 | 0R CMC BYPASS FIT | RESC1608X60 |
+| R11 | 0R CMC BYPASS FIT | RESC1608X60 |
+| SW1 | PTS810SJM250SMTR LFS RESET (NO) | PTS810_J_LEAD |
+| U1 | Raspberry Pi Pico 2 W | PICO_2_W_DEVELOPMENT_BOARD |
 | U2 | ISOW1412DFMR | DFM20_PRELIMINARY |
-| U3 | HCPL-0700-500E | SOIC8_HCPL0700_PRELIMINARY |
+| U3 | HCPL-0700-500E | SOIC127P600X317-8N |
 
 ## Nets
 
@@ -78,7 +78,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `DMX_DATA_MINUS` | D1.2 (IO2)<br>J1.2 (P2)<br>J6.8 (P8)<br>L1.3 (B2)<br>R11.2 (2) |
 | `DMX_DATA_PLUS` | D1.1 (IO1)<br>J1.3 (P3)<br>J6.7 (P7)<br>L1.2 (A2)<br>R10.2 (2) |
 | `DMX_DIR_GPIO4` | J5.3 (P3)<br>R2.1 (1)<br>U1.6 (GP4)<br>U2.3 (DE)<br>U2.5 (RE_N) |
-| `DMX_LED_ANODE` | D4.1 (A)<br>R9.2 (2) |
+| `DMX_LED_ANODE` | D4.A (A)<br>R9.2 (2) |
 | `DMX_RX_GPIO6` | J5.5 (P5)<br>U1.9 (GP6)<br>U2.4 (R) |
 | `DMX_TRIGGER_GPIO3` | J5.2 (P2)<br>U1.5 (GP3) |
 | `DMX_TRX_MINUS` | L1.4 (B1)<br>R11.1 (1)<br>U2.19 (B)<br>U2.18 (Z) |
@@ -86,7 +86,7 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `DMX_TX_GPIO2` | J5.1 (P1)<br>R1.2 (2)<br>U1.4 (GP2)<br>U2.2 (D) |
 | `GND_DMX_CONVERTER` | C4.2 (2)<br>C5.2 (2)<br>FB2.1 (1)<br>U2.11 (GND2) |
 | `GND_DMX_ISO` | C6.2 (2)<br>D1.3 (GND)<br>FB2.2 (2)<br>J1.1 (P1)<br>J6.6 (P6)<br>U2.15 (GISOIN) |
-| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>D3.2 (K)<br>D4.2 (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.2 4 (2)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
+| `GND_LOGIC` | C1.2 (2)<br>C2.2 (2)<br>C3.2 (2)<br>C7.2 (2)<br>D3.C (K)<br>D4.C (K)<br>J6.2 (P2)<br>R2.2 (2)<br>R7.2 (2)<br>SW1.3 4 (2)<br>U1.3 (GND3)<br>U1.8 (GND8)<br>U1.13 (GND13)<br>U1.18 (GND18)<br>U1.23 (GND23)<br>U1.28 (GND28)<br>U1.38 (GND38)<br>U2.10 (GND1)<br>U2.6 (GNDIO)<br>U3.5 (GND) |
 | `GPIO0_EXP` | J3.1 (P1)<br>U1.1 (GP0) |
 | `GPIO1_EXP` | J3.2 (P2)<br>U1.2 (GP1) |
 | `GPIO10_EXP` | J3.5 (P5)<br>U1.14 (GP10) |
@@ -111,17 +111,17 @@ Endpoint notation is `reference.physical-pad (symbol-pin)`. For example,
 | `MIDI_DIN_PIN4` | J2.4 (P4)<br>R4.1 (1) |
 | `MIDI_DIN_PIN5` | J2.5 (P5)<br>R5.2 (2) |
 | `MIDI_OPTO_BASE` | R7.1 (1)<br>U3.7 (VB) |
-| `MIDI_OPTO_LED_ANODE` | D2.2 (K)<br>R4.2 (2)<br>U3.2 (A) |
-| `MIDI_OPTO_LED_CATHODE` | D2.1 (A)<br>R5.1 (1)<br>U3.3 (K) |
+| `MIDI_OPTO_LED_ANODE` | D2.C (K)<br>R4.2 (2)<br>U3.2 (A) |
+| `MIDI_OPTO_LED_CATHODE` | D2.A (A)<br>R5.1 (1)<br>U3.3 (K) |
 | `MIDI_RX_GPIO5` | J5.4 (P4)<br>R6.2 (2)<br>U1.7 (GP5)<br>U3.6 (VO) |
 | `NC_U2_PIN14_IN` | U2.14 (IN) |
 | `NC_U2_PIN7_OUT` | U2.7 (OUT) |
 | `NC_U3_PIN1` | U3.1 (NC1) |
 | `NC_U3_PIN4` | U3.4 (NC4) |
-| `PICO_RUN_N` | SW1.1 3 (1)<br>U1.30 (RUN) |
+| `PICO_RUN_N` | SW1.1 2 (1)<br>U1.30 (RUN) |
 | `PICO_SMPS_EN` | U1.37 (3V3_EN) |
 | `PICO_VSYS` | U1.39 (VSYS) |
-| `PWR_LED_ANODE` | D3.1 (A)<br>R8.2 (2) |
+| `PWR_LED_ANODE` | D3.A (A)<br>R8.2 (2) |
 | `VBUS_5V_USB` | C7.1 (1)<br>F1.1 (1)<br>J6.3 (P3)<br>U1.40 (VBUS)<br>U3.8 (VCC) |
 | `VCC_3V3_LOGIC` | C1.1 (1)<br>J6.1 (P1)<br>R1.1 (1)<br>R3.1 (1)<br>R6.1 (1)<br>R8.1 (1)<br>U1.36 (3V3)<br>U2.1 (VIO) |
 | `VCC_5V_DMX_ISO` | C6.1 (1)<br>FB1.2 (2)<br>J6.5 (P5)<br>U2.16 (VISOIN) |
