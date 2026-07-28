@@ -97,6 +97,9 @@ XAMPP development stack. The installer:
   close its window/service so upgrades can retain the same address;
 - optionally enables the selected TCP port on the Windows **Private** firewall
   profile so iPads and other trusted LAN devices can connect;
+- asks whether to open the guided Pico firmware installer after setup and
+  bundles the matching application UF2, Wi-Fi UF2, checksum manifest, and
+  Raspberry Pi `picotool`;
 - snapshots existing data before an upgrade and preserves all `ProgramData`
   when the software is uninstalled.
 
@@ -109,6 +112,13 @@ The installer source and reproducible build instructions are in
 [`installer/windows/README.md`](installer/windows/README.md). Customer release
 builds should be Authenticode-signed; unsigned development builds can trigger a
 Windows SmartScreen warning.
+
+Firmware flashing is opt-in and occurs only in the WiFiPicoDMX guide after
+installation. The guide explains how to connect exactly one Pico 2 W in
+BOOTSEL mode, validates the bundled files and target, asks again before
+writing, prevents closing during the flash, and reports recovery steps. It can
+also be opened later through **Application > Firmware update…** or the Start
+Menu **Firmware Update** shortcut.
 
 The native **WiFiPicoDMX** application window provides normal minimize/maximize/close controls,
 F11 fullscreen, Escape to leave fullscreen, and Open/fullscreen/exit actions
@@ -317,24 +327,24 @@ Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller >
 
 ### Install the firmware
 
-The latest committed firmware release is stored in:
+Committed firmware releases are stored in:
 
 ```text
-release/v0.9.14/pico_wifi_dmx-v0.9.14.uf2
+release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
 ```
 
 Use that application UF2 when the separate Wi-Fi firmware partition has already been provisioned and you do not need to build from source. To update it:
 
 1. Hold the Pico 2 W **BOOTSEL** button while plugging it into USB.
 2. Wait for the `RPI-RP2` drive to appear.
-3. Copy `release/v0.9.14/pico_wifi_dmx-v0.9.14.uf2` to that drive.
+3. Copy `release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2` to that drive.
 4. The Pico reboots automatically.
 5. Open the serial log and note the printed Pico URL.
 
 The matching checksum is stored beside it in:
 
 ```text
-release/v0.9.14/pico_wifi_dmx-v0.9.14.uf2.sha256
+release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2.sha256
 ```
 
 Release 0.9.10 is the final single-UF2 release. Starting with 0.9.11, the CYW43 Wi-Fi firmware is stored in its own RP2350 flash partition. A new device, or a device upgrading from 0.9.10 or older, must receive both of these files once:
@@ -348,12 +358,15 @@ Flash the application UF2 first so it installs the partition table, enter USB bo
 
 ```powershell
 $Picotool = "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe"
-& $Picotool load release/v0.9.14/pico_wifi_dmx-v0.9.14.uf2
+& $Picotool load release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
 & $Picotool reboot -u
-& $Picotool load -ux release/v0.9.14/pico_wifi_dmx-wifi-firmware-v0.9.14.uf2
+& $Picotool load -ux release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2
 ```
 
 After that one-time provisioning, normal application updates require only `pico_wifi_dmx-v<VERSION>.uf2`. Reflash the separate Wi-Fi firmware only when a release explicitly says that its CYW43 firmware changed. The release also contains a `-tbyb` Wi-Fi UF2 for advanced RP2350 try-before-you-buy updates; it is not needed for a normal initial installation. If no prebuilt UF2 is available, build it from source with the developer steps below.
+
+Windows customer installations can perform the complete two-file procedure
+through **Application > Firmware update…** without installing developer tools.
 
 ### Build the firmware from source
 

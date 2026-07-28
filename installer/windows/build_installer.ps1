@@ -7,6 +7,9 @@ param(
     [string]$SignToolPath = "",
     [string]$SigningCertificateThumbprint = "",
     [string]$TimestampUrl = "http://timestamp.digicert.com",
+    [string]$ApplicationUf2 = "",
+    [string]$WifiFirmwareUf2 = "",
+    [string]$PicotoolPath = "",
     [switch]$PrepareOnly
 )
 
@@ -38,6 +41,20 @@ if (-not $VcRedistPath) {
         $VcRedistPath = $defaultVcRedist
     }
 }
+if (-not $ApplicationUf2) {
+    $ApplicationUf2 = Join-Path $repoRoot "build\pico_wifi_dmx.uf2"
+}
+if (-not $WifiFirmwareUf2) {
+    $WifiFirmwareUf2 = Join-Path $repoRoot "build\pico_wifi_dmx_wifi_firmware.uf2"
+}
+if (-not $PicotoolPath) {
+    $picotoolCommand = Get-Command picotool -ErrorAction SilentlyContinue
+    if ($picotoolCommand) {
+        $PicotoolPath = $picotoolCommand.Source
+    } else {
+        $PicotoolPath = Join-Path $env:USERPROFILE ".pico-sdk\picotool\2.3.0\picotool\picotool.exe"
+    }
+}
 
 function Assert-File {
     param([Parameter(Mandatory = $true)][string]$Path, [string]$Label)
@@ -64,6 +81,25 @@ $ApacheArchive = Assert-File $ApacheArchive "Apache archive"
 $PhpArchive = Assert-File $PhpArchive "PHP archive"
 if ($VcRedistPath) {
     $VcRedistPath = Assert-File $VcRedistPath "Visual C++ Redistributable"
+}
+$ApplicationUf2 = Assert-File $ApplicationUf2 "Application UF2"
+$WifiFirmwareUf2 = Assert-File $WifiFirmwareUf2 "Wi-Fi firmware UF2"
+$PicotoolPath = Assert-File $PicotoolPath "picotool"
+
+$applicationInfo = & $PicotoolPath info -a $ApplicationUf2 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0 -or
+    $applicationInfo -notmatch "target chip:\s+RP2350" -or
+    $applicationInfo -notmatch "block type:\s+partition table" -or
+    $applicationInfo -notmatch '"Wi-Fi\s+Firmware"' -or
+    $applicationInfo -notmatch "version:\s+$([regex]::Escape($version))") {
+    throw "Application UF2 is not the expected WiFiPicoDMX $version RP2350 image. Build the current firmware before creating the installer."
+}
+$wifiInfo = & $PicotoolPath info -a $WifiFirmwareUf2 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0 -or
+    $wifiInfo -notmatch "family\s+ID\s+'cyw43-firmware'" -or
+    $wifiInfo -notmatch "target chip:\s+RP2350" -or
+    $wifiInfo -notmatch "hash:\s+verified") {
+    throw "Wi-Fi firmware UF2 is not a verified RP2350 CYW43 firmware image."
 }
 
 Reset-BuildDirectory $stageDir
@@ -105,7 +141,9 @@ $stageApp = Join-Path $stageDir "app"
 $stageRuntime = Join-Path $stageDir "runtime"
 $stageSupport = Join-Path $stageDir "support"
 $stageShell = Join-Path $stageDir "shell"
-New-Item -ItemType Directory -Path $stageApp, $stageRuntime, $stageSupport, $stageShell -Force | Out-Null
+$stageFirmware = Join-Path $stageDir "firmware"
+$stagePicotool = Join-Path $stageDir "tools\picotool"
+New-Item -ItemType Directory -Path $stageApp, $stageRuntime, $stageSupport, $stageShell, $stageFirmware, $stagePicotool -Force | Out-Null
 
 Copy-Item -LiteralPath $apacheRoot -Destination (Join-Path $stageRuntime "apache") -Recurse -Force
 Copy-Item -LiteralPath $phpRoot -Destination (Join-Path $stageRuntime "php") -Recurse -Force
@@ -153,7 +191,27 @@ Copy-Item -LiteralPath (Join-Path $installerDir "scripts\configure_install.ps1")
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\open_controller.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\test_port.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\port_owner.ps1") -Destination $stageSupport
+Copy-Item -LiteralPath (Join-Path $installerDir "scripts\flash_firmware.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $shellPublishDir "WiFiPicoDMX.exe") -Destination $stageShell
+Copy-Item -LiteralPath $ApplicationUf2 -Destination (Join-Path $stageFirmware "pico_wifi_dmx.uf2")
+Copy-Item -LiteralPath $WifiFirmwareUf2 -Destination (Join-Path $stageFirmware "pico_wifi_dmx_wifi_firmware.uf2")
+Copy-Item -LiteralPath $PicotoolPath -Destination (Join-Path $stagePicotool "picotool.exe")
+Copy-Item -LiteralPath (Join-Path $installerDir "third-party\picotool-LICENSE.txt") `
+    -Destination (Join-Path $stagePicotool "LICENSE.txt")
+
+$firmwareManifest = [ordered]@{
+    version = $version
+    application = [ordered]@{
+        file = "pico_wifi_dmx.uf2"
+        sha256 = (Get-FileHash -LiteralPath $ApplicationUf2 -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    wifiFirmware = [ordered]@{
+        file = "pico_wifi_dmx_wifi_firmware.uf2"
+        sha256 = (Get-FileHash -LiteralPath $WifiFirmwareUf2 -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+}
+$firmwareManifest | ConvertTo-Json -Depth 4 |
+    Set-Content -LiteralPath (Join-Path $stageFirmware "firmware-manifest.json") -Encoding UTF8
 
 $shellLicenseDir = Join-Path $stageShell "licenses"
 New-Item -ItemType Directory -Path $shellLicenseDir -Force | Out-Null

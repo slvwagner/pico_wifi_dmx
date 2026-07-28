@@ -9,6 +9,8 @@ Changed:
 - Added linked multi-Pico playback manifests for Chaser and Effects. Uploads are partitioned by fixture output, verify every involved Pico's slot table, reserve an empty peer slot, roll back partial uploads, show the linked universe/slot members, and operate all member slots together from Chaser, Effects, and Show Run.
 - Fixed Chaser Pico slot tiles so they show one canonical playback mode—Single, Loop, Loop N, or Ping Pong—instead of displaying separate Loop and Ping Pong on/off lines.
 - Added the saved step fade percentage to Chaser Pico slot tiles; slots with mixed fade values show their minimum–maximum range.
+- Added a Windows BOOTSEL firmware installer to WiFiPicoDMX. The software installer can open it after setup; it guides the customer through connecting one Pico, validates the bundled application and Wi-Fi UF2 files, requires confirmation before flashing, and reports recovery instructions.
+- Fixed bundled Wi-Fi UF2 validation when `picotool` wraps metadata across lines because of the installation path or console width.
 
 ## 0.9.16 - 2026-07-28
 

@@ -23,8 +23,9 @@ internal static class Program
         }
 
         var url = ReadArgument(args, "--url") ?? "http://localhost:8090/";
+        var openFirmware = HasArgument(args, "--firmware");
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm(url, activateEvent));
+        Application.Run(new MainForm(url, activateEvent, openFirmware));
     }
 
     private static string? ReadArgument(string[] args, string name)
@@ -37,5 +38,11 @@ internal static class Program
             }
         }
         return null;
+    }
+
+    private static bool HasArgument(string[] args, string name)
+    {
+        return args.Any(argument =>
+            string.Equals(argument, name, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -143,6 +143,10 @@ strong { color: #ffffff; }
 <li>Started the 0.9.17 development branch.</li>
 <li>Added shared fixture-aware DMX batching and extended Show Run plus Room Plane so live controls, scene/palette/Pixel Matrix recalls, calibrated plane targeting, and Show Run master scaling follow every fixture&#39;s configured DMX Output/universe.</li>
 <li>Added linked multi-Pico playback manifests for Chaser and Effects. Uploads are partitioned by fixture output, verify every involved Pico&#39;s slot table, reserve an empty peer slot, roll back partial uploads, show the linked universe/slot members, and operate all member slots together from Chaser, Effects, and Show Run.</li>
+<li>Fixed Chaser Pico slot tiles so they show one canonical playback mode—Single, Loop, Loop N, or Ping Pong—instead of displaying separate Loop and Ping Pong on/off lines.</li>
+<li>Added the saved step fade percentage to Chaser Pico slot tiles; slots with mixed fade values show their minimum–maximum range.</li>
+<li>Added a Windows BOOTSEL firmware installer to WiFiPicoDMX. The software installer can open it after setup; it guides the customer through connecting one Pico, validates the bundled application and Wi-Fi UF2 files, requires confirmation before flashing, and reports recovery instructions.</li>
+<li>Fixed bundled Wi-Fi UF2 validation when <code>picotool</code> wraps metadata across lines because of the installation path or console width.</li>
 </ul>
 <h3 id="0-9-16-2026-07-28">0.9.16 - 2026-07-28</h3>
 <p>Changed:</p>
@@ -568,10 +572,48 @@ strong { color: #ffffff; }
 <li>Keep the default installation folder unless company policy requires another location.</li>
 <li>On <strong>Controller port</strong>, keep the default <code>8090</code> or enter another port from <code>1024</code> to <code>65535</code>. An upgrade starts with the currently installed port so existing bookmarks continue to work. If the running Pico DMX installation owns that port, setup identifies it and asks to close the application window and server before continuing on the same port. If an unrelated desktop application owns it, setup shows its name and PID and asks before closing it; save that application&#39;s work first. Setup never automatically stops an unrelated Windows service, so stop such a service manually or choose another port.</li>
 <li>Enable <strong>Allow access from iPads and PCs on the private network</strong> only when another trusted device needs the controller. This creates a Windows Private-profile firewall rule for the selected TCP port. It does not expose the app through the router or public internet.</li>
-<li>Finish the installer and select <strong>Open WiFiPicoDMX</strong>, or use its desktop/Start Menu shortcut later. The shortcut opens the selected port in a dedicated application window rather than a normal browser tab.</li>
+<li>On <strong>Pico firmware</strong>, choose whether WiFiPicoDMX should open its guided BOOTSEL firmware installer after setup. Choosing <strong>No</strong> installs only the customer application and does not modify any Pico.</li>
+<li>Finish the installer and select <strong>Open WiFiPicoDMX</strong>, or use its desktop/Start Menu shortcut later. The shortcut opens the selected port in a dedicated application window rather than a normal browser tab. If firmware flashing was selected, the application opens the firmware guide after the controller starts.</li>
 <li>For an iPad on the same private Wi-Fi, open <code>http://&lt;controller-pc-address&gt;:&lt;selected-port&gt;/</code>, for example <code>http://192.168.0.50:8090/</code>. The PC and the Pico controllers must be reachable from that Wi-Fi.</li>
 <li>Configure the hardware in <strong>DMX Outputs</strong>, then use <strong>Export Show</strong> to keep a portable backup in addition to the server copy.</li>
 </ol>
+<h3 id="guided-windows-firmware-installation">Guided Windows Firmware Installation</h3>
+<p>The Windows customer installer contains the matching Pico 2 W application</p>
+<p>firmware, the separate CYW43 Wi-Fi firmware, a checksum manifest, and Raspberry</p>
+<p>Pi <code>picotool</code>. Customers therefore do not need Visual Studio Code or the Pico</p>
+<p>SDK to provision or recover a controller.</p>
+<p>Open the guide when setup offers it, choose <strong>Application &gt; Firmware update…</strong></p>
+<p>inside WiFiPicoDMX, or use <strong>Firmware Update</strong> in the WiFiPicoDMX Start Menu</p>
+<p>folder. Then:</p>
+<ol>
+<li>Disconnect every other Pico from the computer. Flash only one controller at</li>
+</ol>
+<p>   a time so the wrong unit cannot be selected.</p>
+<ol>
+<li>Unplug the target Pico&#39;s USB cable.</li>
+<li>Press and hold <strong>BOOTSEL</strong> on the Pico.</li>
+<li>While holding BOOTSEL, reconnect the USB cable to the Windows computer.</li>
+<li>Release BOOTSEL when Windows detects the Pico, normally as <code>RPI-RP2</code>.</li>
+<li>Confirm in the guide that all other Picos are disconnected, then click</li>
+</ol>
+<p>   <strong>Check for Pico</strong>.</p>
+<ol>
+<li>When the guide reports that one RP2350 Pico is ready, click **Flash</li>
+</ol>
+<p>   application + Wi-Fi firmware** and approve the final confirmation.</p>
+<ol>
+<li>Keep USB and power connected until the guide reports that application and</li>
+</ol>
+<p>   Wi-Fi firmware installation completed.</p>
+<p>Firmware setup is deliberately opt-in. The Windows software installer never</p>
+<p>writes a Pico itself, and the guide validates both bundled UF2 files before</p>
+<p>enabling the flash action. Flashing temporarily stops DMX output from the</p>
+<p>target controller. The guide cannot be closed while a write is running.</p>
+<p>If flashing is interrupted, reconnect the Pico while holding BOOTSEL and</p>
+<p>repeat the procedure. BOOTSEL recovery is held in the Pico&#39;s read-only ROM, so</p>
+<p>an incomplete application installation does not remove this recovery path.</p>
+<p>If the guide cannot find the Pico, check the data-capable USB cable, repeat the</p>
+<p>BOOTSEL connection steps, and ensure no other Pico is connected.</p>
 <p>The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. Press <strong>F11</strong> to enter fullscreen and <strong>Escape</strong> to leave it. Fullscreen also keeps an <strong>Exit full screen</strong> button and <strong>Close application</strong> button visible. The tray icon offers <strong>Open</strong>, <strong>Toggle full screen</strong>, and <strong>Exit…</strong>. Opening the shortcut again activates the existing window instead of creating another instance.</p>
 <p>Each time the native Windows application starts, it clears only its WebView2 disk cache before loading the controller. The packaged server also requires updated HTML, CSS, and JavaScript to be revalidated. This ensures that layout changes from an upgrade—including full-width utility pages such as <strong>GPIO Control</strong> and <strong>Pico Performance Test</strong>—appear immediately. Show data, browser-local settings, and cookies are preserved.</p>
 <p>Closing the application window presents three choices. <strong>Exit only</strong> closes the local WiFiPicoDMX window but keeps the server running, so iPads and other operator devices remain connected. <strong>Exit and stop server</strong> warns that those devices will disconnect, requests Windows administrator approval, stops only the internally stable <code>PicoDmxController</code> service, waits for it to stop, and then exits. <strong>Cancel</strong> leaves both the application and server running. Cancelling the Windows UAC prompt also keeps the application open and server running. To use the controller again after stopping the server, start <strong>WiFiPicoDMX</strong> from its shortcut. The application explains that administrator approval is required, requests that approval, starts the service, and then loads the controller; no approval prompt appears if the service is already running. The service is also configured to start when the application is installed or the computer starts. A new installation stores application binaries below <code>C:\Program Files\WiFiPicoDMX</code>; upgrades can retain the former program directory. Show data remains in the upgrade-compatible <code>C:\ProgramData\Pico DMX Controller\data</code> location. An upgrade snapshots existing data below the neighboring <code>backups</code> folder before replacing application files. Uninstall removes the app and service but preserves the <code>ProgramData</code> show data deliberately.</p>

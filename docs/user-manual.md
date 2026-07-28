@@ -47,9 +47,45 @@ The generated HTML and PDF manual include the complete project change log below,
 2. Keep the default installation folder unless company policy requires another location.
 3. On **Controller port**, keep the default `8090` or enter another port from `1024` to `65535`. An upgrade starts with the currently installed port so existing bookmarks continue to work. If the running Pico DMX installation owns that port, setup identifies it and asks to close the application window and server before continuing on the same port. If an unrelated desktop application owns it, setup shows its name and PID and asks before closing it; save that application's work first. Setup never automatically stops an unrelated Windows service, so stop such a service manually or choose another port.
 4. Enable **Allow access from iPads and PCs on the private network** only when another trusted device needs the controller. This creates a Windows Private-profile firewall rule for the selected TCP port. It does not expose the app through the router or public internet.
-5. Finish the installer and select **Open WiFiPicoDMX**, or use its desktop/Start Menu shortcut later. The shortcut opens the selected port in a dedicated application window rather than a normal browser tab.
-6. For an iPad on the same private Wi-Fi, open `http://<controller-pc-address>:<selected-port>/`, for example `http://192.168.0.50:8090/`. The PC and the Pico controllers must be reachable from that Wi-Fi.
-7. Configure the hardware in **DMX Outputs**, then use **Export Show** to keep a portable backup in addition to the server copy.
+5. On **Pico firmware**, choose whether WiFiPicoDMX should open its guided BOOTSEL firmware installer after setup. Choosing **No** installs only the customer application and does not modify any Pico.
+6. Finish the installer and select **Open WiFiPicoDMX**, or use its desktop/Start Menu shortcut later. The shortcut opens the selected port in a dedicated application window rather than a normal browser tab. If firmware flashing was selected, the application opens the firmware guide after the controller starts.
+7. For an iPad on the same private Wi-Fi, open `http://<controller-pc-address>:<selected-port>/`, for example `http://192.168.0.50:8090/`. The PC and the Pico controllers must be reachable from that Wi-Fi.
+8. Configure the hardware in **DMX Outputs**, then use **Export Show** to keep a portable backup in addition to the server copy.
+
+### Guided Windows Firmware Installation
+
+The Windows customer installer contains the matching Pico 2 W application
+firmware, the separate CYW43 Wi-Fi firmware, a checksum manifest, and Raspberry
+Pi `picotool`. Customers therefore do not need Visual Studio Code or the Pico
+SDK to provision or recover a controller.
+
+Open the guide when setup offers it, choose **Application > Firmware update…**
+inside WiFiPicoDMX, or use **Firmware Update** in the WiFiPicoDMX Start Menu
+folder. Then:
+
+1. Disconnect every other Pico from the computer. Flash only one controller at
+   a time so the wrong unit cannot be selected.
+2. Unplug the target Pico's USB cable.
+3. Press and hold **BOOTSEL** on the Pico.
+4. While holding BOOTSEL, reconnect the USB cable to the Windows computer.
+5. Release BOOTSEL when Windows detects the Pico, normally as `RPI-RP2`.
+6. Confirm in the guide that all other Picos are disconnected, then click
+   **Check for Pico**.
+7. When the guide reports that one RP2350 Pico is ready, click **Flash
+   application + Wi-Fi firmware** and approve the final confirmation.
+8. Keep USB and power connected until the guide reports that application and
+   Wi-Fi firmware installation completed.
+
+Firmware setup is deliberately opt-in. The Windows software installer never
+writes a Pico itself, and the guide validates both bundled UF2 files before
+enabling the flash action. Flashing temporarily stops DMX output from the
+target controller. The guide cannot be closed while a write is running.
+
+If flashing is interrupted, reconnect the Pico while holding BOOTSEL and
+repeat the procedure. BOOTSEL recovery is held in the Pico's read-only ROM, so
+an incomplete application installation does not remove this recovery path.
+If the guide cannot find the Pico, check the data-capable USB cable, repeat the
+BOOTSEL connection steps, and ensure no other Pico is connected.
 
 The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. Press **F11** to enter fullscreen and **Escape** to leave it. Fullscreen also keeps an **Exit full screen** button and **Close application** button visible. The tray icon offers **Open**, **Toggle full screen**, and **Exit…**. Opening the shortcut again activates the existing window instead of creating another instance.
 
