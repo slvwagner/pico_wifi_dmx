@@ -66,7 +66,7 @@ Core features:
 - **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
 - **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
-- **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Saved pictures can be painted pixel by pixel, styled as normal toolbox tiles, recalled directly to the fixtures across their assigned DMX outputs, captured as Chaser steps for animated picture sequences, and operated from the Controller, Chaser, and Show Run pages through shared tools.
+- **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Controller and Show Run recall pictures across the fixtures' assigned DMX Outputs. Chaser can capture pictures as animated steps, preview them on the primary output, and split an autonomous upload into linked Pico payloads.
 - **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, barycentric target interpolation, and shared Scene/Palette recalls for checking the programmed look while positioning fixtures.
 
 ### Playback and live operation
@@ -785,7 +785,7 @@ pico_wifi_dmx/
 │  ├─ dmx_benchmark.html           Pico performance test page
 │  ├─ dmx_room_plane.html          Room-plane calibration
 │  └─ assets/
-│     ├─ dmx-common.js       Shared toolbox, base URL, visual, fan helpers
+│     ├─ dmx-common.js       Shared DMX Output routing, toolbox, playback, visual, and fan helpers
 │     ├─ dmx-ui.css          Shared dark UI styling
 │     └─ fixture-library.json Built-in converted fixture catalog
 ├─ api/                      PHP JSON persistence endpoints for XAMPP
@@ -798,7 +798,7 @@ pico_wifi_dmx/
 │  ├─ motion_setup.php       Effects presets and mirrored Pico effect slots
 │  ├─ group_setup.php        Saved fixture groups
 │  ├─ gpio_setup.php         GPIO editor setup
-│  ├─ pico_discovery.php     UDP beacon listener for Find Pico
+│  ├─ pico_discovery.php     UDP beacon listener for Find Picos
 │  └─ ui_state.php           Shared toolbox/sidebar layout state
 ├─ config/                   Local machine path configuration templates
 │  └─ local-paths.example.json
@@ -839,7 +839,7 @@ pico_wifi_dmx/
 │  ├─ pathconfig.json        Tracked default test environment config
 │  └─ pathconfig.example.json Example local/XAMPP/Pico config
 ├─ release/                  Committed release packages, UF2 files, docs, checksums
-│  └─ v0.9.14/
+│  └─ v<VERSION>/
 ├─ package.json              Node/Playwright test scripts
 ├─ package-lock.json         Locked JavaScript test dependencies
 ├─ playwright.config.js      Playwright browser test configuration
@@ -860,7 +860,7 @@ pico_wifi_dmx/
 The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conventions:
 
 - `MAJOR` is reserved for incompatible public API, stored-show, or hardware workflow changes.
-- `MINOR` introduces a new compatible feature set. While the project remains below `1.0.0`, a minor release may still contain significant workflow changes that are called out in the changelog.
+- `MINOR` introduces a new backward-compatible feature set.
 - `PATCH` contains compatible fixes and smaller improvements.
 
 The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.0.1`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
@@ -868,8 +868,8 @@ The `main` branch represents the latest completed release. Development takes pla
 After merging a release into `main`, preview and create the next version branch with:
 
 ```powershell
-.\scripts\start_version_branch.ps1 -Version 0.9.14 -DryRun
-.\scripts\start_version_branch.ps1 -Version 0.9.14 -Commit
+.\scripts\start_version_branch.ps1 -Version 1.0.2 -DryRun
+.\scripts\start_version_branch.ps1 -Version 1.0.2 -Commit
 ```
 
 The script requires a clean `main` tree by default, refuses an existing or non-increasing version, creates the version-named branch, updates the synchronized sources and browser cache URLs, adds the new `Unreleased` changelog section, and optionally commits the result. It deliberately does not push the branch or deploy it to XAMPP. Use `-FromBranch <name>` only when intentionally starting from a branch other than `main`.
@@ -907,7 +907,7 @@ Release notes belong in `CHANGELOG.md` whenever the version changes.
 
 Before tagging or publishing a release:
 
-1. Decide the release version, for example `0.9.0`.
+1. Decide the release version, for example `1.0.1`.
 2. Update `VERSION`.
 3. Update `pico_set_program_version(...)` in `CMakeLists.txt` to the same value.
 4. Move the matching section in `CHANGELOG.md` from `Unreleased` to the release date.
@@ -1084,13 +1084,13 @@ The firmware HTTP layer also isolates overlapping network requests. Each POST up
 
 ## Playback Modes
 
-### Chase Playback
-The browser pages connect directly to the Pico's HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request (`/dmx/b/`). Two browser tabs can run simultaneously (e.g. chaser on dimmer channels + motion FX on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it doesn't own.
+### Browser Playback
+The Chaser and Effects browser playback engines connect directly to the show's primary Pico HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request. Two browser tabs can run simultaneously (for example, Chaser on dimmer channels and Effects on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it does not own. Browser playback and the Chaser/Effects live editor previews are currently primary-output workflows; use autonomous linked Pico playback when one chase or effect must span several DMX Outputs.
 
 ### Pico Autonomous Playback
-The chaser and motion FX configurations are uploaded to the Pico via HTTP POST. After that the Pico plays back entirely on Core 0 — no further network traffic is needed. This eliminates WiFi latency jitter from the DMX output completely.
+Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.
 
-Starting Chase Playback automatically stops any running Pico playback, and vice versa (mutual exclusion).
+Starting browser Chase Playback stops Chaser and Effects playback on the primary Pico before previewing there. Starting autonomous Pico playback stops the browser preview on that page. Linked member control is coordinated by the autonomous playback actions, not by the primary-output browser-preview handoff.
 
 Chase Playback is the source of truth for chaser playmode. Choose **Single**, **Loop**, **Loop N**, or **Ping Pong**, then choose forward or reverse direction. The **Loops** value is only used for **Loop N**; normal **Loop** means loop forever. Uploading to a Pico chaser slot uses those same Chase Playback mode, loop count, and direction settings, while Pico speed remains slot-specific.
 
@@ -1105,18 +1105,20 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
-| `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
+| `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set with channel:value pairs in the URL path. Data is path-encoded rather than query-string encoded because lwIP httpd strips query strings before calling `fs_open`. |
+| `/dmx/b` | POST | Batch set with comma-separated `channel:value` pairs in the request body; this is the form used by current browser playback and multi-channel UI writes. |
 | `/dmx/clear` | GET | Zero all channels and clear the scene base buffer |
 | `/dmx/output_clear` | GET | Zero live DMX output channels only; preserve the scene base buffer |
 | `/dmx/master` | POST | Set output master scale factors as `ch:scale` pairs, where scale is 0–255. This scales the transmitted DMX output without blocking chaser/effect writes. |
 | `/dmx/master/clear` | GET | Clear all output master scale factors |
 | `/dmx/output.json` | GET | Read the actual live DMX output frame as `{"ok":true,"channels":N,"frame_count":N,"values":[...]}` |
+| `/dmx/base.json` or `/dmx/base` | GET | Read the complete scene/base position buffer used as the center for autonomous effects |
 | `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
 | `/dmx/values.json` | GET | Read all channel values |
 
 ### Pico chaser
 
-Up to **32 independent chaser slots** can be loaded and played simultaneously. Each slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+Each Pico provides **32 physical chaser slots** that can be loaded and played simultaneously. Each physical slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 32 logical chaser slots; a linked multi-output chase reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -1155,7 +1157,7 @@ Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforc
 
 ### Pico Effects
 
-Up to **64 independent effect slots** can be loaded and played simultaneously. Each slot has its own effect type, BPM, target list and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple slots control the same DMX channel the **bigger-wins** rule applies (highest raw value written).
+Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 64 logical effect slots; a linked multi-output effect reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -1190,7 +1192,7 @@ The `TARGET` line contains DMX channel positions only. It does not store fixed c
 
 ## Web UI
 
-The UI is served from a separate web server (XAMPP in development). All pages talk to the Pico via cross-origin HTTP requests using `new Image().src` for fire-and-forget GET calls.
+The UI is served from a separate web server (XAMPP in development). Pages talk directly to Pico HTTP APIs with cross-origin `fetch()` requests for reads, POST batches, uploads, and commands. A few non-blocking GET writes use `new Image().src` where no response body is needed.
 
 Server-side Chaser, Effects, and UI-state updates hold an exclusive lock across the complete JSON read-modify-write operation. Multiple open browsers can therefore update different mirrored Pico slots or UI-state keys without a later request silently restoring an older copy of the file.
 
@@ -1199,190 +1201,14 @@ Server-side Chaser, Effects, and UI-state updates hold an exclusive lock across 
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
 | Show Run | `web/dmx_show.html` | Run a show from saved groups, fixtures, scenes, palettes, saved room planes, live fixture-control faders/knobs/buttons, and Pico chaser/effect playback slots without editing setup data |
 | MIDI Emulator | `web/dmx_midi_emulator.html` | Emulate Launch Control XL knobs, faders, and buttons in a second browser tab for Show Run MIDI Learn testing without hardware |
-| Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases in the Chases toolbox; upload the current chase to up to 32 independent Pico slots for autonomous playback; slot status strip shows live LIVE/READY/EMPTY state for all 32 slots |
-| Effects | `web/dmx_motion.html` | Configure generic oscillator effects for pan/tilt pairs or scalar controls; upload the current effect to up to 64 independent Pico slots; slot status strip shows live LIVE/READY/EMPTY state for all 64 slots |
-| GPIO Control | `web/dmx_gpio.html` | Prototype editor for mapping physical GPIO button inputs to Pico playback/DMX actions |
+| Chaser | `web/dmx_chaser.html` | Build and play step sequences with crossfade; save reusable chases; split multi-output chases into linked Pico payloads; manage 32 logical autonomous-playback slots |
+| Effects | `web/dmx_motion.html` | Configure generic oscillators for pan/tilt pairs or scalar controls; split multi-output effects into linked Pico payloads; manage 64 logical autonomous-playback slots |
+| GPIO Control | `web/dmx_gpio.html` | Store and push independent physical GPIO/ADC mappings for each configured DMX Output |
 | DMX Monitor | `web/dmx_monitor.html` | Tile monitor for all 512 channels with adjustable refresh interval and rate; toggles between the actual live Pico output frame (`/dmx/output.json`) and the base/position buffer (`/dmx/base.json`) |
 | Pico Performance Test | `web/dmx_benchmark.html` | Check Pico connectivity, read firmware `/perf/status.json` telemetry, verify DMX/base buffer readback, measure HTTP latency, and run all-slot playback plus palette-recall stress tests |
 | Room Plane | `web/dmx_room_plane.html` | Calibrated 2D room-plane mapper for moving-light pan/tilt targeting; saved calibration fixtures automatically bind by ID to the current Controller profile and DMX patch |
 
-### Screenshots
-
-The screenshots below show the main pages as served from XAMPP during development and explain how the software is used in practice.
-
-Run `scripts/update_user_manual.ps1 -LocalOnly` after UI or documentation changes when you only want to refresh the project files. This starts the repo-local PHP dev router, loads the deterministic data from `docs/manual-data/`, captures screenshots, and rebuilds the dark-mode HTML/PDF manual without depending on a local XAMPP installation or machine-specific URL.
-
-Run `scripts/update_user_manual.ps1` without `-LocalOnly` when you also want to sync the rebuilt web app, manual, PDF, and screenshots to the configured XAMPP `dmx` folder and verify the deployed manual URL.
-
-The controller screenshots are generated with deterministic per-shot setup states: each screenshot explicitly opens or collapses the relevant sections, collapses the shared toolbox sidebar for page-local topics, sets toolbox visibility for toolbox-specific topics, clears or selects group filters, and expands fixture cards as needed. This avoids stale browser collapse state leaking into the documentation images.
-
-**Fixture Controller**
-
-![Fixture Controller page](docs/screenshots/fixture-controller.png)
-
-The Fixture Controller is the main setup and live-control page. It defines fixture profiles, patches real fixtures to DMX start addresses, and renders the controls for each fixture card. Fixture profiles describe the channel layout, for example dimmer, pan/tilt, RGB, RGBW, RGBWA, wheels, sliders, and 16-bit channels.
-
-From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
-
-The **Show** card is the first Controller card and the user-facing project/setup point. Its show-name field is directly editable and uses the normal 800 ms server autosave. Its top action bar keeps **Export Show**, **Import Show**, **Export Library**, and **Import Library** visible together, followed by the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards. Collapsing Show hides all of that show-related setup together; expanding it restores the nested cards without changing their individual collapse states. **New Show** confirms the reset and asks for a required show name before clearing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, Show Run layout, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Show** downloads a self-contained show-name-specific backup, including the richer definitions used by its patched fixtures, and **Import Show** restores any valid show JSON regardless of its filename. **Export Library** downloads the complete catalog as `pico_dmx_fixture_library.zip`; **Import Library** accepts that ZIP or a legacy uncompressed JSON catalog. When an embedded show definition is missing from or differs from the current library, a mapping table appears before any data is written. Tap rows to highlight the fixtures that should use their mapped library versions; unselected rows keep the show versions, which are merged without removing unrelated catalog entries. **Patch CSV** remains separate for documenting the patched DMX channel table.
-
-The Fixture Library panel loads the built-in catalog converted from the original [Open Fixture Library](https://open-fixture-library.org/) project by default. Selecting a fixture shows **Fixture Information** with available authorship and update dates, dimensions, weight, power, DMX connector, light source, beam angle, and safe links to OFL, manuals, product pages, and videos. **Export Library** downloads the currently loaded catalog as the compressed `pico_dmx_fixture_library.zip`, which contains `pico_dmx_fixture_library.json`; **Import Library** accepts that ZIP or an older uncompressed JSON file and saves the converted catalog to the XAMPP server so it becomes the preferred library for all browsers. If that custom catalog does not yet contain metadata, normalized capability data, or wheel-resource links, the browser enriches matching fixtures from the built-in `web/assets/fixture-metadata.json`, `web/assets/fixture-capabilities.json`, and `web/assets/fixture-resources.json` sidecars without posting or changing the server catalog. The resource sidecar stores each offline OFL SVG/PNG once and maps it onto matching wheel slots in browser memory, avoiding repeated image data in catalogs and exports. If no custom catalog is saved, the page falls back to `web/assets/fixture-library.json`. During development, refresh that bundled fallback from the current XAMPP catalog with:
-
-```powershell
-.\scripts\sync_fixture_library_from_xampp.ps1
-```
-
-The script validates `schemaVersion`, `fixtureCount`, unique fixture keys, and the fixture/mode arrays before writing the project asset. If the XAMPP library differs from the bundled asset, it reviews added, removed, and changed fixtures one by one and asks whether to take the XAMPP version or keep the bundled version. Use `-AcceptAllChanges` for an intentional full refresh, `-KeepExistingChanges` to keep the current bundled fixture edits, or `-DryRun` to review without writing.
-
-To rebuild the bundled catalog directly from the stored Open Fixture Library export, run:
-
-```powershell
-.\scripts\build_fixture_library.ps1
-```
-
-Its default source is `tools/fixture-library/ofl_export_ofl.zip`; pass `-ZipPath` only when converting a different export. Conversion runs in parallel by default, using up to 16 logical processors. Pass `-ThrottleLimit 4` to choose another worker limit or `-ThrottleLimit 1` for serial conversion. Third-party hardware manuals, including the Launch Control XL programmer reference, are kept under `docs/references/` rather than in the repository root.
-
-Curated normalized fixtures under `tools/fixture-library/custom/` are merged over matching OFL keys and appended when no OFL fixture exists. This keeps manufacturer-manual additions such as the Claypaky Hy B-Eye K25 across full OFL rebuilds. To merge only these curated fixtures into the existing catalog without rebuilding or replacing its other entries, run:
-
-```powershell
-.\scripts\build_fixture_library.ps1 -CustomOnly
-```
-
-Use metadata-only mode to refresh fixture information without replacing curated controls or custom fixtures:
-
-```powershell
-.\scripts\build_fixture_library.ps1 -MetadataOnly -MetadataOutputPath web/assets/fixture-metadata.json
-```
-
-`-MetadataOnly` updates metadata only on matching existing fixture keys. It preserves the catalog source, fixture set, modes, controls, IDs, defaults, wheel details, warnings, and custom entries. `-MetadataOutputPath` also writes the compact sidecar used to enrich older custom catalogs in browser memory.
-
-To regenerate all enrichment sidecars without writing the curated fixture library, run:
-
-```powershell
-.\scripts\build_fixture_library.ps1 -SidecarsOnly -MetadataOutputPath web/assets/fixture-metadata.json -CapabilitiesOutputPath web/assets/fixture-capabilities.json -ResourcesOutputPath web/assets/fixture-resources.json
-```
-
-The capability sidecar keeps normalized OFL channel functions and ranges. Segmented channels can therefore appear as named option controls for shutter/strobe, programs, effects, prisms, and maintenance functions, while continuous functions retain range and speed metadata for bounded controls where applicable. The resource sidecar deduplicates embedded OFL SVG/PNG wheel images and includes fixture/control/slot mappings so older custom catalogs can receive those visuals without being modified on the server.
-
-Full conversion also combines supported coarse/fine scalar channels into 16-bit controls, scales explicit OFL defaults and highlights to the imported control resolution, and recognizes rectangular two-dimensional matrices that use sequential per-pixel RGB order. Other matrix arrangements remain uncollapsed so the converter does not claim a channel mapping that the current `matrixRgb` control cannot represent.
-
-Setup command buttons use shared direct feedback: while work is running the button shows a short busy label, then briefly switches to a success or failure label such as **Added**, **Updated**, **Imported**, or **Failed** before returning to its normal text.
-
-Patch Fixtures supports one fixture at a time or a numbered run. Set a base name such as `RGB Spot`, choose a profile, enter the first DMX start address, and set Count. The controller creates `RGB Spot 1`, `RGB Spot 2`, and so on, spacing each fixture by the selected profile's channel count. After a multi-fixture patch it offers to create a Saved Group using the same base name. The patched fixture matrix is split into rows by consecutive profile runs so separate fixture groups remain visually clear.
-
-The Controller also includes a Fan Out toolbox in the shared Toolboxes sidebar. Select one or more groups, choose a compatible control such as Dimmer, Pan, or Tilt, snapshot the current values as the base, and adjust a spread. Fan Out calculates from each fixture's base value plus an offset assigned by fixture position in the current Fan Out order. Saved groups use their stored fixture order; manual selections use the order fixtures were selected; in Symmetric spread mode, negative Spread runs the shape in the opposite direction. The controller surface updates continuously, affected controls are highlighted directly, and the resulting look can be saved with the Scene Toolbox. Fan Out presets can also be saved and recalled as UI tool settings.
-
-The Palettes toolbox stores reusable partial looks such as positions, colors, gobos, dimmer levels, or Fan Out overlays. The small pencil on a filled tile opens **Edit Tile**, where you can rename the tile and set a background color plus an optional drawn/uploaded visual. Palette visuals are independent from scope, draw on the selected background color, and automatically choose a high-contrast brush color. They can reset to the default background or clear the icon entirely. Palette names and visuals are saved inside `data/palette_setup.json` together with the palette values. **Merge** opens a palette matrix picker so the target palette is chosen visually from the saved tiles instead of by entering a slot number.
-
-Gobo palettes can use fixture-library wheel visuals automatically. When all selected fixtures resolve to the same gobo image or color, the saved palette tile uses that shared visual. If the selected fixtures are on different gobos, the Controller uses the source fixture's gobo visual. When no visual metadata is available, the palette falls back to the configured default visual.
-
-Palette scopes are based on common Open Fixture Library control names. Besides **Position**, **Color**, **Dimmer**, and **All controls**, the Controller offers focused scopes for **Shutter / Strobe**, **Gobo**, **Prism**, **Optics**, and **Programs / Effects**. Color matching includes individual library channels such as red, green, blue, cyan, magenta, yellow, UV, lime, CCT, CTO, hue, and saturation.
-
-![Edit Tile modal](docs/screenshots/fixture-controller-edit-tile.png)
-
-![Fixture profile and control editor](docs/screenshots/fixture-controller-profile-controls.png)
-
-The profile editor is where a fixture personality is described. **Fixture Profiles** is now one card containing the profile name, mode, channel count, Add profile button, saved profile list, and a compact **Add / Edit Control** box. The compact box only chooses the control type, label, and channel mapping. **Configure control** opens the control details modal for default/blackout values and type-specific settings. Simple sliders only need default and blackout values; pan/tilt controls add profile-level mapping options to reverse Pan DMX, reverse Tilt DMX, or swap the physical Pan/Tilt axes while the UI keeps logical Pan/Tilt values; wheel controls add the guided wheel editor for ranges, colors, icons, and OFL-style metadata. Clicking Edit on an existing control loads the compact fields and opens the details modal automatically. **Update Library** opens a comparison modal for the selected show profile and its linked reusable fixture mode. **Use show in library** updates or creates the reusable mode from the show; **Use library in show** refreshes the existing show profile without creating a duplicate. Imported profiles retain stable fixture-key and mode links so later comparisons do not depend on edited display names. Library-only fixture information, capabilities, warnings, other modes, and rich wheel metadata remain intact; show-only profile/control IDs and Pan/Tilt reverse/swap mounting corrections remain in the show. Collapsing Fixture Profiles also hides the compact Add / Edit Control box.
-
-Wheel options can be edited with the **Guided wheel editor** modal. Its row table is the normal place to edit option name, DMX range, function type, slot number, speed labels, background color, uploaded icon, or drawn icon, then it writes the compatible wheel-option text for the profile. A wheel option button can show a color swatch, an icon, or an icon on top of the chosen color. Advanced users can still edit the text directly with `Name=DMX` or `Name=start-end` lines plus metadata such as `Gobo 2 shake=125-140|kind=WheelShake|slot=2|shake=slow-fast`, `Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW`, or `Strobe slow to fast=11-255|kind=ShutterStrobe|speed=slow-fast`. The metadata lets manually edited wheels show bounded shake, rotation, and strobe sliders just like imported Open Fixture Library profiles. Control details, guided wheel editing, wheel icon drawing, palette merge, and tile visual editing use the same modal shell, so setup dialogs share the same header, scrollable body, and action footer behavior. Across all pages, clicking the dark backdrop does not close a modal; use its explicit Close, Cancel, save, or other action button.
-
-![Fixture live control cards](docs/screenshots/fixture-controller-live-controls.png)
-
-The live control surface shows patched fixtures as cards. Each card contains the controls created in the profile, such as dimmer sliders, pan/tilt XY pads, color controls, wheels, and 16-bit coarse/fine sliders. Wheel controls can be edited with their option buttons, the DMX value slider, or the direct numeric DMX value field. The Control Surface header has a **Cols** selector with Auto and 1–4 column preferences plus a compact collapse toggle for all currently visible fixture cards. Auto retains the spacious responsive layout; a fixed preference can show up to four cards across on wide screens and automatically falls back to fewer columns when the Toolboxes rail, viewport, or touch layout leaves too little usable card width. The column preference is stored in server UI state and therefore follows complete setup export/import. **Default** and **Blackout** recall stored values for one fixture. Imported fixtures with explicit OFL highlight values also show one **Highlight** button; it changes to **Restore** while the temporary focus look is active. Selecting the fixture card adds it to group editing.
-
-![Saved Groups matrix](docs/screenshots/fixture-controller-saved-groups.png)
-
-Saved Groups are shown in a compact matrix. Each filled group tile has a small pencil icon that opens **Edit Tile** for the group name, background color, and optional visual; the small `x` deletes the group, matching scene and palette tiles. Selecting a saved group filters the control surface to that group's fixtures. Multiple groups can be selected at the same time; the surface shows the union of all selected group fixtures, and Show all clears the filter.
-
-![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
-
-The Group Edit modal appears when compatible fixtures are selected or when a saved group is loaded. It shows matching controls for the selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. Controller, Show Run, Chaser, Effects, and Room Plane use the same rich fixture-control modal surface for shared controls: pan/tilt controls use the XY pad and relative nudge rows, color controls use the same color picker and swatches, wheel controls use option buttons, bounded range sliders where metadata exists, the DMX slider, and a direct numeric DMX value field. Relative step sizes, including separate Pan/Tilt coarse and fine steps, are autosaved in each page's XAMPP UI state and restored after the modal or page is reopened. The selected **Source** fixture supplies the values shown when the modal opens, but opening the modal does not overwrite other fixtures or send output. Values are applied only when the user edits a modal control; on pages with live output, those edits are sent to the Pico when a Pico base URL is set. The Controller modal can also recall **Default** or **Blackout** for the selected group.
-
-The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, or **Merge** the selected step values into an existing palette. Filled palette slots use the small top-left pencil icon to open **Edit Tile** for renaming and visual appearance. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
-
-![Fixture Controller scene toolbox](docs/screenshots/fixture-controller-scene-box.png)
-
-The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, and deleting looks. The row and column controls change the visible slot grid, filled slots recall scenes, empty slots save new scenes, and the red clear button clears all controller values and the Pico DMX output when a base URL is set. Scenes can also carry a custom tile name, background color, and optional drawn/uploaded visual as a label in the slot grid, with controls to reset the background or remove the icon.
-
-**Chaser**
-
-![Chaser page](docs/screenshots/chaser-readme.png)
-
-The Chaser page builds step-based sequences. A chase is made from multiple steps; each step stores DMX channel values plus timing and fade settings. The participating-controls panel decides which fixture controls are part of the chase, so editing a chase does not accidentally touch unrelated channels.
-
-Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
-
-The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, and use the header arrow to collapse or reopen the sidebar. The sticky application header measures the remaining workspace rather than the full browser viewport: its navigation links occupy a separate wrapping row and remain reachable even when Toolboxes uses two thirds of the screen. Toolbox reordering is locked by default: click **Edit** in the Toolboxes header, drag colored toolbox headers into place, and click **Done**. With Edit off, toolbox headers retain vertical touch scrolling, preventing accidental iPad rearrangement. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, Effects, and Room Plane. Filled scene, palette, chase, effect, and plane slots use a small top-left pencil icon to open **Edit Tile** where that tile type supports visuals; the small `x` remains the delete control. Chaser can recall complete shared Scenes, overlay shared Palettes, and recall saved Room Planes into the selected step. Its Scenes toolbox also saves a selected step into an empty shared Scene slot. All saved tile matrices use the same Cols, Rows, and Move behavior.
-
-**Effects**
-
-![Effects page](docs/screenshots/motion-fx.png)
-
-The Effects page creates continuous effects for one selected target type at a time. Pan/tilt targets can run circle, figure-8, pan swing, or tilt swing; scalar controls such as dimmer, zoom, iris, prism, or gobo can run sine or pulse effects. All effects are calculated relative to the current scene/base-buffer value instead of using a fixed stored center point.
-
-This means the normal workflow is: recall or set the base value first, then start the effect. The firmware reads the center from the scene base buffer and the effect oscillator moves around that value. Effects can also be uploaded into one of 64 Pico slots so multiple effects can run directly on the Pico without browser timing jitter. The Effects page can recall compatible shared palettes or saved Room Planes as effect centers, so position, dimmer, beam, or calibrated pan/tilt plane targets can seed the current target before upload. The Effects toolbox stores reusable effect recipes (target, participants, effect type, BPM, amplitudes, spread, and phase offsets) without storing center/base values. Recalling a tile is load-only while the browser preview shows **Start**; while it shows **Stop**, tile recall immediately restarts the preview with the selected saved recipe so effects can be auditioned quickly.
-
-**Show Run**
-
-![Show Run page](docs/screenshots/show-run.png)
-
-Show Run is the operator page. It recalls saved groups, fixture targets, scenes, palettes, room planes, Pico chaser slots, Pico effect slots, and Live Controls without exposing the full setup UI. Every card can be arranged in a matrix while **Edit** is active. The card and tile matrix **Cols** and **Rows** use native dropdowns with touch-friendly selection on iPad. Card positions, repeated card instances, tile rows/columns, tile order, Live Controls, and computer MIDI mappings are saved server-side in `data/ui_state.json`, so the same operator layout can be restored on another computer.
-
-The **Master** card contains the Grand Master plus optional Group Master faders. Group Masters can be added, assigned, cleared, and removed only while **Edit** is active. Each Group Master tile shows a small `x` in Edit mode for deletion; the Grand Master is protected and cannot be deleted. Group Masters can be assigned from selected groups or from an explicit fixture selection. Selecting a Show Run group mirrors its fixture ids into the Fixtures card so the operator can see what the group contains; manually changing the fixture selection clears the group selection. Show Run **Groups** also has a **Group Edit** button that opens the same rich Controller-style group edit modal for the current show target, including pan/tilt, color, wheel, range, and relative controls where the selected fixtures support them.
-
-![Show Run Planes card](docs/screenshots/show-run-card-planes.png)
-
-The **Planes** card opens saved room planes from the Plane page. Its recall modal contains the virtual room plot, zoom/pan/reset controls, a red target point, X/Y coarse and fine nudge buttons, and the fixtures that match the current Show target. Dragging or nudging the target sends calibrated pan/tilt values live to the Pico and updates the shared live-value snapshot.
-
-![Show Run Plane recall modal](docs/screenshots/show-run-plane-modal.png)
-
-**GPIO Control**
-
-![GPIO Control page](docs/screenshots/gpio-control.png)
-
-The GPIO Control page maps physical Pico inputs to lighting actions. Select a named **DMX Output** / universe before editing; every configured Pico keeps its own enabled state, digital mappings, and ADC mappings in the shared XAMPP setup. Digital GPIO pins can trigger actions such as DMX clear, output-only clear, chaser play/stop/toggle, pause/resume, effect start/stop/toggle, and tap tempo. ADC pins can be mapped to continuous values such as chaser speed multiplier or Effects BPM.
-
-The page protects reserved hardware pins and already-used pins, then sends the current output's mapping to that Pico with `POST /gpio/config`. **Read from Pico**, status polling, and chaser-slot details follow the same selection. Once uploaded, the Pico polls the inputs on Core 0 and runs the actions directly, so the browser does not need to stay open during operation.
-
-**DMX Buffer Monitor**
-
-![DMX Buffer Monitor page](docs/screenshots/dmx-monitor.png)
-
-The DMX Buffer Monitor shows all 512 DMX channels as tiles. Choose a named **DMX Output** / universe, then use the buffer selector to switch between that Pico's actual live output frame and the base/position buffer used as the Effects center. Use **Refresh ms** or **Refresh Hz** to choose how often the selected buffer is read; both fields stay synchronized. **Clear all** clears both buffers only on the selected Pico and refreshes the displayed values.
-
-**Pico Performance Test**
-
-![Pico Performance Test page](docs/screenshots/benchmark.png)
-
-Choose one named DMX Output for an individual run or **All configured Picos** to repeat the complete measurement sequentially across the fleet. Timing History and Write History identify each result by Pico name and universe.
-
-The Pico Performance Test page checks the whole browser-to-Pico path. Current firmware exposes `/perf/status.json`, which reports free RAM, Core0 100 Hz playback-loop work/slack/late counts, Core1 service-loop headroom, HTTP callback timing, and DMX frame counters. Older firmware still falls back to `/logs.txt` parsing. The page verifies that a known DMX batch can be read back from both `/dmx/output.json` and `/dmx/base`, and keeps the former frame-rate benchmark as the DMX Write Test. Its **MIDI-to-DMX Latency** test accepts either a real Web MIDI input or the Launch Control XL Emulator. The primary timing is MIDI event to the start of the browser's `/dmx/b` request, including Show Run's intentional 30 ms fader/knob coalescing or immediate button handling. Fader/knob p95 is PASS at no more than 35 ms and button p95 at no more than 5 ms; slower results are WARN up to 50 ms or 15 ms respectively, then FAIL. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and confirmed-following-frame time are shown separately as diagnostics. The test restores the selected DMX channel afterward. The Connection & Core Timing summary has a dedicated MIDI result, and Timing History records the MIDI-to-POST median and p95 beside memory, headroom, HTTP, DMX, and buffer results. **Run Full Test** invisibly loads the emulator inside the Performance page when no input is connected and generates every configured sample automatically without opening or focusing another tab. If a physical USB MIDI input is already connected, the test instead waits for manual controller movement. The write result panel shows throughput, effective DMX channel updates per second, average latency, median, p95/p99 latency, jitter, min/max latency, completed attempts, and errors.
-
-Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. Use **Playback + Palette Stress** to start already-loaded Pico chaser/effect slots, add temporary demo data only to empty Pico slots, store those temporary slot numbers in server UI state, send repeated full 512-channel palette-style `/dmx/b` recalls, and record the resulting Core0/Core1 headroom in Timing History. After the run, the temporary demo slots are cleared and the server marker is removed, so saved Pico chaser/effect slots are not overwritten. The CSV export makes it possible to compare write-test runs later.
-
-Show Run blackout is handled by the Master card faders. **Full** above a master sets that master to `100%`. **Blackout** below the Grand Master sets the Grand Master to `0%` for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. When any master is below `100%`, Show Run sends affected dimmer channels to the Pico `/dmx/master` output-scaling endpoint as `channel:scale` factors. The Pico keeps chaser and effect playback writing their normal raw values, then scales the transmitted DMX output, so a running dimmer sine effect remains visible but follows the Grand/Group Master level. The stored live values are not overwritten. When entering Show Run, saved Grand Master and Group Master factors are restored to the Pico scaling layer. When leaving Show Run, the browser clears the Pico master scale and restores dimmer output to the underlying live values without those multipliers.
-
-Show Run refreshes its XAMPP show data automatically when the page becomes active again, so changes made on the Controller, Chaser, or Effects page are picked up when the operator returns. Auto-refresh is skipped while **Edit** is active; **Refresh Show Data** remains as a manual fallback.
-
-Show Run also has a configurable **Live Controls** card. While **Edit** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds, current phase, remaining time, and a progress bar.
-
-Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, Live Controls cards and widgets, and MIDI mappings. Because it is server-side UI state, **Export Show** and **Import Show** can move the operator page to another computer instead of relying on one browser's local storage.
-
-The **MIDI Controller** card can connect a class-compliant USB MIDI controller, such as the Novation Launch Control XL, directly to Chrome or Edge on the XAMPP computer. Click **Connect MIDI** to grant browser access and select the input/output ports. While **Edit** is active, use the pencil on group, scene, palette, Pico chaser/effect, Grand Master, Group Master, or Live Control tiles and click **Learn**, then move the desired hardware control. Pico playback tiles also provide a **Playback action** selector: start/stop toggle, start, stop, pause/resume toggle, pause, or resume. Buttons trigger the mapped show action; faders and knobs scale MIDI values `0..127` to the target range and use soft takeover to avoid sudden jumps. The separate Pico UART MIDI status remains available in the same card for GPIO5 diagnostics.
-
-Use **Open MIDI Emulator** when the physical controller is unavailable. The separate emulator page reproduces 24 CC knobs, 8 CC faders, 16 channel buttons, and 8 utility buttons. Keep it open beside Show Run on the same browser origin; the pages exchange MIDI-like messages through `BroadcastChannel`, so no virtual MIDI driver is installed and no Pico firmware is involved. The main knob/fader/button assignments follow the common Launch Control XL CC/note layout and every assignment is printed on the emulator surface. Mappings learned from the emulator remain compatible with a real Launch Control XL device name.
-
-**Room Plane**
-
-![Room Plane page](docs/screenshots/room-plane.png)
-
-The Plane page calibrates moving lights against measured room points A/B/C. Each saved plane stores the room points, target, view, fixture list, fixture mount X/Y/Z values, and per-fixture A/B/C pan/tilt calibration. The **Planes** toolbox uses the shared saved-plane tile renderer also used by Controller, Chaser, and Effects: click a filled plane tile to recall it, click an empty tile to save the current plane, use **Move** to reorder tiles, use the pencil to edit tile name/color/icon, and use `x` to delete a saved plane. The recall-only **Scenes** and **Palettes** toolboxes load the shared saved tiles and send their stored fixture values to DMX, making it possible to preview complete or partial looks during room-plane work without overwriting an empty tile. The Room Plane **Groups > Group Edit** button opens the shared Controller-style rich fixture-control modal for selected patched fixtures; the fixture table **Edit** button remains the calibration editor for storing A/B/C points.
-
-![Room Plane Planes toolbox](docs/screenshots/room-plane-toolbox-saved-planes.png)
-
-Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
-
-Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show. Controller fixture output, Show Run fixture controls and masters, Room Plane targeting, GPIO configuration, Performance measurements, and DMX Buffer Monitor selection are multi-output aware. Fixture-aware batches are separated by assigned output and sent to the involved Picos concurrently. Autonomous Pico Chaser and Effects playback still targets the show's primary output; completing multi-Pico autonomous playback requires coordinated slot payloads on several controllers. The editable single-URL header field is no longer shown.
+For screenshots and complete operating instructions, see the [user manual](docs/user-manual.md) or the [PDF manual](docs/user-manual.pdf).
 
 ### Chaser / Effects — Saved Chases, Presets and Pico Slots
 
@@ -1391,11 +1217,11 @@ The playback pages separate browser editing from the autonomous Pico slot memory
 - **Chaser Chases toolbox** — stores reusable editable chases on the XAMPP server. Recalling a chase loads its steps, selects Step 1, rebuilds Participating Controls and Edit Step, and a newly opened Chaser page starts with no working steps until a chase is recalled or created.
 - **Effects Save Preset / Load Preset** — stores and restores the editable Effects page setup on the XAMPP server JSON file.
 - **Pico slot click upload** — click an empty Pico slot to send the current editable chase or Effects preset to that slot and mirror the payload on the XAMPP server. Click a loaded slot once to select it for playback controls; click the selected loaded slot again to replace it after confirmation.
-- **Play Slot / Start Slot** — starts the already-loaded slot on the Pico.
-- **Restore Saved Slots to Pico** — re-sends the saved server-side slot payloads to the Pico after reboot or firmware upload when a Pico base URL is set.
-- **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP slot payload and calls the Pico clear endpoint for that slot when the Pico base URL is set.
+- **Play Slot / Start Slot** — starts the already-loaded physical slot, or every physical member of a linked logical slot.
+- **Restore Saved Slots to Pico** — re-sends every mirrored payload after reboot or firmware upload. A linked logical slot restores its member payload to every involved Pico.
+- **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP payload and clears every physical Pico slot belonging to that logical slot.
 
-On the Chaser page, each uploaded Pico slot also stores its playback mode (`Single`, `Loop`, `Loop N`), loop count, direction, and speed. `Stop` resets the slot, while `Pause`/`Resume` keeps the current step and fade position.
+On the Chaser page, each uploaded logical slot also stores its playback mode (`Single`, `Loop`, `Loop N`, or `Ping Pong`), loop count, direction, speed, and fade-in percentage. `Stop` resets all linked members, while `Pause`/`Resume` keeps their current step and fade position. The logical capacity remains 32 chaser slots and 64 effect slots even when fewer Picos are involved; each linked member consumes one physical slot on its own Pico.
 
 ### Chaser — Participating Controls
 
@@ -1452,7 +1278,7 @@ The **Scene Toolbox** sits in the shared right-side Toolboxes sidebar.
 The Effects page has a read-only companion to the Scene Toolbox.
 
 - Loads the same scenes from `scene_setup.php`; renders them as a clickable slot grid.
-- Clicking a filled slot reads the pan/tilt channel values stored in that scene and stores them as `basePan`/`baseTilt` in the browser's effect fixture state. When a Pico base URL is set, it also sends those values to the Pico as a DMX batch, updating `dmx_base_frame`.
+- Clicking a filled slot reads the pan/tilt channel values stored in that scene and stores them as `basePan`/`baseTilt` in the browser's effect fixture state. The current Effects editor sends that center preview to the primary show output and updates that Pico's `dmx_base_frame`.
 - The effect then oscillates **relative to that position** rather than around any fixed stored center. Moving lights to a new position (via a scene) and starting an effect will always orbit where they are now.
 - The toolbox lives in the shared sidebar. Enable **Edit** in the Toolboxes header before dragging its colored header to reorder it, then click **Done**; use the sidebar resize line to adjust the shared toolbox width.
 - The scene toolbox on the Effects page is **read-only** — it does not save or delete scenes. Scene management (save, delete) is only available on the Fixture Controller.
@@ -1481,17 +1307,17 @@ Because motion FX never writes back to the base buffer, the oscillation center s
 
 **Practical workflow:**
 1. Position the fixture using the Fixture Controller, or recall a scene.
-2. On the Effects page, click that same scene in the Scene Toolbox — this updates the Effects center values. When a Pico base URL is set, it also sends the stored values to the Pico and updates `dmx_base_frame`.
+2. On the Effects page, click that same scene in the Scene Toolbox—this updates the Effects center values and previews them on the primary show output, updating that Pico's `dmx_base_frame`.
 3. Start motion (browser `▶ Start` or Pico `/motion/start`) — the effect orbits the position set in step 1/2.
 
-When browser motion starts, the page fetches `/dmx/values.json` from the Pico and seeds the browser-side base from the live channel values, so the browser and firmware bases are always in sync.
+When browser motion starts, the page fetches `/dmx/base.json` from the primary show output and seeds the browser-side base from that Pico's scene/base buffer.
 
-### GPIO Control Prototype (`web/dmx_gpio.html`)
+### GPIO Control (`web/dmx_gpio.html`)
 
-The GPIO prototype maps physical Pico GPIO inputs to common playback actions. It is intentionally input-only for the first version.
+GPIO Control maps physical Pico GPIO and ADC inputs to common playback and DMX actions. Because the pins belong to individual controllers, the page stores an independent configuration for every configured DMX Output.
 
 - The page loads and autosaves mappings on the XAMPP server through `gpio_setup.php` / `data/gpio_setup.json`, with browser `localStorage` only as a fallback. The active mapping set is pushed to the Pico with `POST /gpio/config`.
-- GPIO mappings are included in the complete **Export Show** / **Import Show** backup from the Fixture Controller, including Pico base URL, enabled state, digital mappings, and ADC mappings.
+- GPIO mappings are included in the complete **Export Show** / **Import Show** backup from the Fixture Controller, including the selected output and every output's enabled state, digital mappings, and ADC mappings.
 - Each GPIO pin can only be used by one mapping. The page highlights duplicate pin use, and the firmware rejects duplicate digital/ADC mappings as a final safety check.
 - Digital GPIO mapping pins are selected from a dropdown that excludes the configured hardware-reserved pins (`DMX_TX_PIN=2`, `DMX_TRIGGER_PIN=3`, `MIDI_RX_PIN=5` by default) and disables pins already used by another mapping.
 - The Pico polls GPIO inputs on Core 0 with debounce and executes actions without needing the browser to stay open.
@@ -1531,7 +1357,7 @@ Firmware endpoints:
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
 | `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
 
-This first prototype does not persist GPIO mappings on the Pico after reboot; save them in the web page server setup or use **Export Show** before flashing/restarting so the mapping set can be restored and pushed again. Pico-side persistence can be added later once the action model is proven.
+GPIO mappings do not persist on the Pico after reboot. They remain stored in the server-side show setup, and the configuration for each output can be pushed to its Pico again after flashing or restarting. Use **Export Show** before large changes to keep an additional portable backup.
 
 ### MIDI Control
 
@@ -1559,14 +1385,14 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 
 | PHP handler | JSON file | Contents |
 |-------------|-----------|----------|
-| `fixture_setup.php` | `data/fixture_setup.json` | Fixture profiles, patched fixtures, base URL |
+| `fixture_setup.php` | `data/fixture_setup.json` | Show name, DMX Outputs/universes/device identities, fixture profiles, patched fixtures, and Pixel Matrices |
 | `fixture_setup.php?livevalues` | `data/fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
 | `scene_setup.php` | `data/scene_setup.json` | Named scene snapshots, slot grid dimensions |
 | `palette_setup.php` | `data/palette_setup.json` | Reusable palette overlays and slot grid dimensions |
 | `group_setup.php` | `data/group_setup.json` | Fixture group definitions |
 | `chaser_setup.php` | `data/chaser_setup.json` | Saved chases, Chaser toolbox grid config, mirrored Pico slot payloads |
 | `motion_setup.php` | `data/motion_setup.json` | Effects browser setup, saved effect recipes, and saved Pico slot payloads |
-| `gpio_setup.php` | `data/gpio_setup.json` | GPIO/ADC editor mappings, enabled state, Pico base URL |
+| `gpio_setup.php` | `data/gpio_setup.json` | Selected DMX Output and independent GPIO/ADC mapping configuration for every output |
 | `room_plane_setup.php` | `data/room_plane_setup.json` | Room Plane A/B/C points, target/view state, saved planes, fixture mount positions, and fixture calibration |
 | `fixture_library.php` | `data/fixture_library.json` | Optional custom converted fixture library catalog |
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, toolbox collapse state, and Show Run card/tile/live-control/MIDI mapping configuration |
@@ -1605,7 +1431,7 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 | `firmware/dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, start-code encoding, DMA scheduling, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
 | `firmware/dmx_native.pio` | PIO program for 250 kbaud DMX framing: Break, Mark After Break, slot timing, and bit serialization |
 | `firmware/pico_chaser.cpp` / `.h` | Pico-side step sequencer with linear crossfade, 100 Hz tick, hardware spinlock |
-| `firmware/pico_motion.cpp` / `.h` | Pico-side generic FX oscillator — **64 independent slots**, pan/tilt and scalar targets, simultaneous playback with bigger-wins channel merge, target-aware axis writes, 100 Hz tick, hardware spinlock |
+| `firmware/pico_motion.cpp` / `.h` | Pico-side generic FX oscillator — **64 physical slots per Pico**, pan/tilt and scalar targets, simultaneous playback with bigger-wins channel merge, target-aware axis writes, 100 Hz tick, hardware spinlock |
 | `firmware/gpio_control.cpp` / `.h` | Pico-side GPIO input mapper for debounced physical triggers and playback/DMX actions |
 | `firmware/lwipopts.h` | lwIP configuration — enables `LWIP_HTTPD_SUPPORT_POST`, custom file serving, and per-file extension storage for owned responses |
 | `firmware/fsdata_custom.c` | lwIP custom filesystem stub (all responses are built dynamically) |
