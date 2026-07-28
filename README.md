@@ -1288,7 +1288,7 @@ The Plane page calibrates moving lights against measured room points A/B/C. Each
 
 Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
 
-Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show. Controller fixture output, GPIO configuration, Performance measurements, and DMX Buffer Monitor selection are multi-output aware. Show Run, Chaser, Effects, and Room Plane still keep the first output internally available for direct Pico operations; those pages require further routing work before their live/playback paths are fully multi-output. The editable single-URL header field is no longer shown.
+Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show. Controller fixture output, Show Run fixture controls and masters, Room Plane targeting, GPIO configuration, Performance measurements, and DMX Buffer Monitor selection are multi-output aware. Fixture-aware batches are separated by assigned output and sent to the involved Picos concurrently. Autonomous Pico Chaser and Effects playback still targets the show's primary output; completing multi-Pico autonomous playback requires coordinated slot payloads on several controllers. The editable single-URL header field is no longer shown.
 
 ### Chaser / Effects — Saved Chases, Presets and Pico Slots
 
@@ -1336,7 +1336,7 @@ Each control in a fixture profile can store optional **Default** and **Blackout*
 - **RGB / RGBW / RGBWA** — use a color picker for RGB. RGBW also stores a manual `W` channel; RGBWA stores manual `W` and `Amber` channels.
 - **CMY / CMYK** — use the color picker converted to CMY/CMYK. CMYK also stores a manual `K` channel.
 
-On each patched fixture card, **Default** and **Blackout** buttons are shown when at least one control in that fixture's profile has the corresponding value enabled. Clicking one recalls all enabled values for that fixture, updates the on-screen controls, writes the live-value snapshot used by Chaser capture, and sends the resulting DMX values to the Pico when a Pico base URL is set.
+On each patched fixture card, **Default** and **Blackout** buttons are shown when at least one control in that fixture's profile has the corresponding value enabled. Clicking one recalls all enabled values for that fixture, updates the on-screen controls, writes the live-value snapshot used by Chaser capture, and sends the resulting DMX values to that fixture's assigned DMX Output.
 
 OFL-imported profiles can also contain explicit highlight values supplied by the fixture definition. When present, the fixture card shows **Highlight**. Clicking it stops Pico Chaser and Motion playback, remembers the current values, applies only the controls with declared highlight values, and changes the same button to **Restore**. The temporary highlight is not autosaved. Click **Restore** to send the remembered values back and resume normal editing; the restored values are then written to the live-value snapshot.
 
@@ -1346,9 +1346,9 @@ The **Scene Toolbox** sits in the shared right-side Toolboxes sidebar.
 
 - The toolbox shows a configurable grid of slots (rows × columns adjustable with spinners).
 - **Save scene** — snapshots every channel value for every patched fixture into a named slot.
-- **Recall scene** — clears the active group/fixture selection, restores all stored controller values, updates the Chaser live-value snapshot, and sends the values to the Pico in one batch request when a Pico base URL is set.
+- **Recall scene** — clears the active group/fixture selection, restores all stored controller values, updates the Chaser live-value snapshot, and sends one batch request to each involved fixture output.
 - **Delete scene** — each filled slot has a small `×` button (top-right corner); click it to permanently remove that scene after confirmation.
-- **Clear all channels** — the red `×` icon asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on the Pico when a Pico base URL is set.
+- **Clear all channels** — the red `×` icon asks for confirmation, zeros every controller value, updates the live-value snapshot, and calls `/dmx/clear` on every configured output.
 - Slots are stored server-side in `data/scene_setup.json` via `scene_setup.php`; they survive page reloads and browser changes.
 - Sidebar width and toolbox order are shared across toolbox pages via `data/ui_state.json`; collapsed state is also persisted.
 - Whenever a control is moved or a scene is recalled, the current live values of all controls are written to `data/fixture_live_values.json` via `fixture_setup.php?livevalues`. This keeps the Chaser page's "Capture from FC" up to date even if the Chaser page was opened before the FC page.

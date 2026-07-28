@@ -604,6 +604,7 @@ DmxCommon.bindBaseUrl(baseUrlEl);
 const statusEl=document.getElementById('status');
 const values={};
 let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],pixelMatrices=[],planes=[];
+let dmxOutputs=[];
 let roomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
 let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,matrixCols=4,matrixRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
 let cardCols=2,cardRows=5;
@@ -685,6 +686,26 @@ function updateWheelRangeHost(host,option,value,attrs){
 }
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrlEl.value.replace(/\/+$/,'');}
+function fixtureDmxEntries(source,scaled=true){
+  const entries=[];
+  Object.keys(source||{}).forEach(key=>{
+    const [fixtureId,controlId]=String(key).split(':');
+    const fixture=fixtures.find(item=>String(item.id)===fixtureId);
+    const profile=fixture&&fixtureProfile(fixture);
+    const control=profile&&profile.controls.find(item=>String(item.id)===controlId);
+    if(!fixture||!control)return;
+    const rows=scaled?resolveDmxBytesForOutput(fixture,control):resolveDmxBytes(fixture,control);
+    rows.forEach(row=>entries.push({fixture,row}));
+  });
+  return entries;
+}
+function sendFixtureEntries(entries,path='/dmx/b',options={}){
+  return DmxCommon.sendFixtureDmxRows(entries,dmxOutputs,{
+    path,
+    keepalive:!!options.keepalive,
+    legacyBaseUrl:baseUrlEl.value
+  });
+}
 function fixtureProfile(f){return profiles.find(p=>String(p.id)===String(f.profileId));}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);return values[key]===undefined?def:values[key];}
@@ -3326,7 +3347,7 @@ async function sendShowPlaneLiveTarget(){
   }
   const selected=showPlaneTargetIds();
   const errors=[];
-  const pairs=[];
+  const entries=[];
   const patch={};
   let applied=0;
   for(const currentFixture of fixtures.filter(f=>selected.has(String(f.id)))){
@@ -3339,12 +3360,12 @@ async function sendShowPlaneLiveTarget(){
     const max=control.type==='panTilt8'?255:65535;
     setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
     patch[controlKey(currentFixture,control)]=cloneValue(getValue(currentFixture,control,defaultValueForControl(control)));
-    resolveDmxBytes(currentFixture,control).forEach(row=>pairs.push(row.ch+':'+clamp(row.val,0,255)));
+    resolveDmxBytes(currentFixture,control).forEach(row=>entries.push({fixture:currentFixture,row}));
     applied++;
   }
   if(applied){
     try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
-    try{await sendPairs(pairs);}
+    try{await sendFixtureEntries(entries);}
     catch(error){errors.push(error.message||'Could not send plane live output');}
   }
   const statusText=(applied?'Plane live '+plane.name+' -> '+applied+' fixture'+(applied===1?'':'s')+' @ X '+Number(plane.target.x).toFixed(2)+' / Y '+Number(plane.target.y).toFixed(2):'No fixtures updated')+(errors.length?' - '+errors.join(' - '):'');
@@ -3720,42 +3741,6 @@ function resolveDmxBytesForOutput(f,c){
     else values[controlKey(f,c)]=original;
   }
 }
-function valuePatchPairs(source){
-  const pairs=[];
-  Object.keys(source||{}).forEach(key=>{
-    const [fixtureId,controlId]=String(key).split(':');
-    const f=fixtures.find(item=>String(item.id)===fixtureId);
-    const p=f&&fixtureProfile(f);
-    const c=p&&p.controls.find(item=>String(item.id)===controlId);
-    if(f&&c)resolveDmxBytesForOutput(f,c).forEach(row=>pairs.push(row.ch+':'+row.val));
-  });
-  return pairs;
-}
-function valuePatchPairsUnscaled(source){
-  const pairs=[];
-  Object.keys(source||{}).forEach(key=>{
-    const [fixtureId,controlId]=String(key).split(':');
-    const f=fixtures.find(item=>String(item.id)===fixtureId);
-    const p=f&&fixtureProfile(f);
-    const c=p&&p.controls.find(item=>String(item.id)===controlId);
-    if(f&&c)resolveDmxBytes(f,c).forEach(row=>pairs.push(row.ch+':'+row.val));
-  });
-  return pairs;
-}
-function valuePatchPairsFromPatch(source){
-  const original={};
-  Object.keys(source||{}).forEach(key=>{
-    original[key]=Object.prototype.hasOwnProperty.call(values,key)?cloneValue(values[key]):undefined;
-    values[key]=cloneValue(source[key]);
-  });
-  try{return valuePatchPairs(source);}
-  finally{
-    Object.keys(source||{}).forEach(key=>{
-      if(original[key]===undefined)delete values[key];
-      else values[key]=original[key];
-    });
-  }
-}
 function isDimmerControl(control){
   const label=String(control?.label||control?.name||control?.scope||'').toLowerCase();
   return /\bdimmer\b|\bintensity\b/.test(label)&&scalarControlParts(control||{}).some(part=>part.part==='value');
@@ -3793,24 +3778,24 @@ async function applyDimmerMaster(value,scope='all'){
     patch[controlKey(row.fixture,row.control)]=cloneValue(getValue(row.fixture,row.control,defaultValueForControl(row.control)));
   });
   const scaled=await applyMasterDimmerScale({clearWhenEmpty:true});
-  if(!scaled)await sendPairs(valuePatchPairsUnscaled(patch));
+  if(!scaled)await sendFixtureEntries(fixtureDmxEntries(patch,false));
   setStatus((targetMaster?targetMaster.name:'Grand')+' master set '+targets.length+' dimmer control(s) to '+faderValue+'%');
 }
 function masterFactorsNeedRestore(){
   if(Math.abs((masterFactors.grand??1)-1)>0.0001)return true;
   return targetMasters.some(master=>Math.abs((master.factor??1)-1)>0.0001);
 }
-function dimmerMasterScalePairs(){
-  const scales=new Map();
+function dimmerMasterScaleEntries(){
+  const entries=[];
   dimmerTargets().forEach(row=>{
     const factor=masterFactorFor(row.fixture,row.control);
     if(Math.abs(factor-1)<=0.0001)return;
     const scale=clamp(Math.round(factor*255),0,255);
     resolveDmxBytes(row.fixture,row.control).forEach(byte=>{
-      scales.set(String(byte.ch),String(scale));
+      entries.push({fixture:row.fixture,row:{ch:byte.ch,val:scale}});
     });
   });
-  return [...scales.entries()].map(([ch,scale])=>ch+':'+scale);
+  return entries;
 }
 function dimmerRestorePatch(){
   const patch={};
@@ -3821,27 +3806,29 @@ function dimmerRestorePatch(){
   return patch;
 }
 async function clearMasterDimmerScale(options={}){
-  const root=endpoint();
-  if(!root)return false;
-  const r=await fetch(root+'/dmx/master/clear',{cache:'no-store',keepalive:!!options.keepalive});
-  if(!r.ok)throw new Error('Pico master scale clear failed: HTTP '+r.status);
-  return true;
+  const outputs=DmxCommon.dmxOutputsForFixtures(fixtures,dmxOutputs);
+  if(!outputs.length)return false;
+  await DmxCommon.requestDmxOutputs(outputs,'/dmx/master/clear',{
+    keepalive:!!options.keepalive,
+    legacyBaseUrl:baseUrlEl.value
+  });
+  return outputs.length>0;
 }
 async function applyMasterDimmerScale(options={}){
-  const pairs=dimmerMasterScalePairs();
-  if(!pairs.length){
+  const entries=dimmerMasterScaleEntries();
+  if(!entries.length){
     if(options.clearWhenEmpty)await clearMasterDimmerScale(options);
     return false;
   }
-  await sendPairs(pairs,'/dmx/master',options);
+  await sendFixtureEntries(entries,'/dmx/master',options);
   return true;
 }
 async function restoreDimmerMastersForExit(options={}){
   const patch=dimmerRestorePatch();
-  const pairs=valuePatchPairsUnscaled(patch);
-  if(!pairs.length)return false;
+  const entries=fixtureDmxEntries(patch,false);
+  if(!entries.length)return false;
   await clearMasterDimmerScale(options);
-  await sendPairs(pairs,'/dmx/b',options);
+  await sendFixtureEntries(entries,'/dmx/b',options);
   return true;
 }
 async function applyDimmerMastersForEntry(){
@@ -3978,17 +3965,8 @@ function bindMasterCard(){
     };
   });
 }
-async function sendPairs(pairs,path='/dmx/b',options={}){
-  const root=endpoint();
-  if(!root||!pairs.length)return;
-  const unique=new Map();
-  pairs.forEach(pair=>{const [ch,val]=pair.split(':');unique.set(String(ch),String(val));});
-  const body=[...unique.entries()].map(([ch,val])=>ch+':'+val).join(',');
-  const r=await fetch(root+path,{method:'POST',body,cache:'no-store',keepalive:!!options.keepalive});
-  if(!r.ok)throw new Error('Pico DMX send failed: HTTP '+r.status);
-}
 async function sendValuePatchWithMasterMask(patch){
-  await sendPairs(valuePatchPairsUnscaled(patch));
+  await sendFixtureEntries(fixtureDmxEntries(patch,false));
   if(masterFactorsNeedRestore())await applyMasterDimmerScale();
 }
 function recallSceneKey(key){
@@ -4153,6 +4131,7 @@ async function loadShow(options={}){
   const setup=fixtureData.setup||{};
   profiles=Array.isArray(setup.profiles)?setup.profiles:[];
   fixtures=Array.isArray(setup.fixtures)?setup.fixtures:[];
+  dmxOutputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
   Object.keys(values).forEach(key=>delete values[key]);
   Object.assign(values,setup.values||{},liveData.values||{});
   groups=Array.isArray(groupData.groups)?groupData.groups:[];
@@ -4173,7 +4152,7 @@ async function loadShow(options={}){
   loadLiveControls();
   loadTargetMasters();
   loadMidiMappings();
-  const savedUrl=localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
+  const savedUrl=dmxOutputs[0]?.baseUrl||localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
   if(savedUrl)baseUrlEl.value=savedUrl;
   const liveChaserSlots=await loadLivePicoChaserSlots(savedUrl||baseUrlEl.value);
   const liveMotionSlots=await loadLivePicoMotionSlots(savedUrl||baseUrlEl.value);

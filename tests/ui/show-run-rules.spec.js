@@ -51,6 +51,7 @@ async function routeShowSetup(page, calls) {
         exists: true,
         setup: {
           baseUrl: 'http://pico.test',
+          dmxOutputs: calls.dmxOutputs,
           profiles: calls.profiles || profiles,
           fixtures: calls.fixtures || fixtures,
           values: calls.setupValues || {},
@@ -251,6 +252,14 @@ async function routeShowSetup(page, calls) {
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
+  await page.route('http://rear-pico.test/**', async route => {
+    calls.pico.push({
+      url: route.request().url(),
+      method: route.request().method(),
+      body: route.request().postData() || ''
+    });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
 }
 
 async function installFakeComputerMidi(page) {
@@ -359,6 +368,48 @@ test.describe('Show Run page', () => {
     expect(calls.liveValues.at(-1)).toEqual({ '102:11': 200 });
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('routes fixture recalls and Grand Master scaling to each configured DMX output', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      dmxOutputs: [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ],
+      fixtures: [
+        { id: 101, name: 'Spot 1', profileId: 1, start: 1, outputId: 'front' },
+        { id: 102, name: 'Spot 2', profileId: 1, start: 11, outputId: 'rear' }
+      ],
+      setupValues: { '101:11': 100, '102:11': 200 }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    calls.pico.length = 0;
+
+    await page.getByRole('button', { name: /Both On/ }).click();
+
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b' && call.body === '1:100'
+    )).toBe(true);
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://rear-pico.test/dmx/b' && call.body === '11:200'
+    )).toBe(true);
+    expect(calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b' && call.body.includes('11:200')
+    )).toBe(false);
+
+    calls.pico.length = 0;
+    await page.locator('.grand-master-fader').fill('50');
+
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/master' && call.body === '1:128'
+    )).toBe(true);
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://rear-pico.test/dmx/master' && call.body === '11:128'
+    )).toBe(true);
   });
 
   test('Pixel Matrices card recalls regular and native matrix pixels to live DMX', async ({ page }) => {

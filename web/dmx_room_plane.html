@@ -323,6 +323,7 @@ let controllerMovingFixtures=[];
 let editingFixtureIndex=null;
 let selectedFixtureIds=new Set();
 let profiles=[];
+let dmxOutputs=[];
 let liveValues={};
 let roomPlaneLoaded=false;
 let roomPlaneAutosaveTimer=null;
@@ -469,6 +470,7 @@ function normalizeRoomFixture(f,index){
     id:f?.id,
     name:String(f?.name||('Spot '+(index+1))),
     profileId:f?.profileId,
+    outputId:f?.outputId,
     start:Number(f?.start)||1,
     live:!!f?.live,
     x:Number(f?.x)||0,
@@ -557,6 +559,7 @@ function bindPlaneFixturesToPatchedFixtures(savedFixtures,patchedFixtures=contro
       id:patched.id,
       name:patched.name,
       profileId:patched.profileId,
+      outputId:patched.outputId,
       start:patched.start,
       live:true,
       control:fixtureControlFromLive(patched)
@@ -773,6 +776,7 @@ async function loadControllerSetupForRoomPlane(){
   const data=await response.json();
   if(!response.ok||!data.ok||!data.exists||!data.setup)throw new Error('No saved fixture setup found');
   profiles=Array.isArray(data.setup.profiles)?data.setup.profiles:[];
+  dmxOutputs=DmxCommon.normalizeDmxOutputs(data.setup.dmxOutputs,data.setup.baseUrl||baseUrl.value);
   baseUrl.value=localStorage.getItem(DmxCommon.BASE_URL_KEY)||data.setup.baseUrl||baseUrl.value;
   try{liveValues=await DmxCommon.fetchFixtureLiveValues()||data.setup.values||{};}catch(_){liveValues=data.setup.values||{};}
   const patched=Array.isArray(data.setup.fixtures)?data.setup.fixtures:[];
@@ -940,17 +944,17 @@ function fixtureControlFromLive(f){
 }
 
 async function sendDmxBatch(rows){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
   const normalized=(rows||[]).map(row=>({
+    fixture:row.fixture,
     channel:Math.max(1,Math.round(Number(row.channel)||1)),
     value:Math.max(0,Math.min(255,Math.round(Number(row.value)||0))),
     param:row.param||''
   }));
   if(!normalized.length)return [];
-  const body=normalized.map(row=>row.channel+':'+row.value).join(',');
-  const response=await fetch(root+'/dmx/b',{method:'POST',body,cache:'no-store'});
-  if(!response.ok)throw new Error('HTTP '+response.status+' on DMX batch update');
+  await DmxCommon.sendFixtureDmxRows(normalized,dmxOutputs,{
+    path:'/dmx/b',
+    legacyBaseUrl:baseUrl.value
+  });
   return normalized.map(row=>({...row,confirmed:true}));
 }
 
@@ -977,7 +981,7 @@ function recalledControlDmxRows(f,c,value){
       add(absolute(f.start,start+i*3+2),pixel.c??0,c.label);
     }
   }else add(absolute(f.start,c.channel),value,c.label);
-  return rows;
+  return rows.map(row=>({...row,fixture:f}));
 }
 
 async function recallRoomFixtureValues(item,kind){
@@ -1083,7 +1087,7 @@ function liveFixtureDmxPatch(f,next){
     const value={pan:Math.max(0,Math.min(max,Math.round(next.pan))),tilt:Math.max(0,Math.min(max,Math.round(next.tilt)))};
     patch[controlKey(f,c)]=value;
     for(const row of DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel))){
-      rows.push({channel:row.ch,value:row.val,param:row.param});
+      rows.push({fixture:f,channel:row.ch,value:row.val,param:row.param});
     }
   }
   if(controls.dimmer){
@@ -1092,12 +1096,12 @@ function liveFixtureDmxPatch(f,next){
       const value=Math.max(0,Math.min(65535,Math.round((Number(next.dimmer)||0)*257)));
       patch[controlKey(f,c)]=value;
       const b=bytes16(value);
-      rows.push({channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
-      rows.push({channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
+      rows.push({fixture:f,channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
+      rows.push({fixture:f,channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
     }else{
       const value=Math.max(0,Math.min(255,Math.round(Number(next.dimmer)||0)));
       patch[controlKey(f,c)]=value;
-      rows.push({channel:absolute(f.start,c.channel),value,param:c.label});
+      rows.push({fixture:f,channel:absolute(f.start,c.channel),value,param:c.label});
     }
   }
   return {patch,rows};
@@ -1717,16 +1721,16 @@ function roomGroupDmxRows(f,c){
   const rows=[];
   const value=getValue(f,c,defaultValueForControl(c));
   if(c.type==='panTilt16'||c.type==='panTilt8'){
-    DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)).forEach(row=>rows.push({channel:row.ch,value:row.val,param:row.param}));
+    DmxCommon.panTiltDmxRows(c,value,rel=>absolute(f.start,rel)).forEach(row=>rows.push({fixture:f,channel:row.ch,value:row.val,param:row.param}));
   }else if(c.type==='slider16'){
     const b=bytes16(value);
-    rows.push({channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
-    rows.push({channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
+    rows.push({fixture:f,channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
+    rows.push({fixture:f,channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
   }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
     const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(part=>rows.push({channel:absolute(f.start,c[part]),value:Math.max(0,Math.min(255,Number(value?.[part])||0)),param:c.label+' '+part}));
+    parts.forEach(part=>rows.push({fixture:f,channel:absolute(f.start,c[part]),value:Math.max(0,Math.min(255,Number(value?.[part])||0)),param:c.label+' '+part}));
   }else{
-    rows.push({channel:absolute(f.start,c.channel),value:Math.max(0,Math.min(255,Number(value)||0)),param:c.label});
+    rows.push({fixture:f,channel:absolute(f.start,c.channel),value:Math.max(0,Math.min(255,Number(value)||0)),param:c.label});
   }
   return rows.filter(row=>row.channel>=1&&row.channel<=512);
 }

@@ -63,6 +63,64 @@
     return String(output?.baseUrl||'').trim().replace(/\/+$/,'');
   }
 
+  function dmxOutputsForFixtures(fixtures,outputs){
+    const list=normalizeDmxOutputs(outputs);
+    const selected=new Map();
+    (fixtures||[]).forEach(fixture=>{
+      const output=dmxOutputForFixture(fixture,list);
+      if(output?.id)selected.set(output.id,output);
+    });
+    return [...selected.values()];
+  }
+
+  async function sendFixtureDmxRows(entries,outputs,options={}){
+    const list=normalizeDmxOutputs(outputs,options.legacyBaseUrl||'');
+    const path=String(options.path||'/dmx/b');
+    const batches=new Map();
+    (entries||[]).forEach(entry=>{
+      const row=entry?.row||entry;
+      const channel=Math.round(Number(row?.ch??row?.channel));
+      const value=Math.max(0,Math.min(255,Math.round(Number(row?.val??row?.value))));
+      if(!Number.isFinite(channel)||channel<1||channel>512||!Number.isFinite(value))return;
+      const output=entry?.output||dmxOutputForFixture(entry?.fixture,list);
+      const root=dmxOutputEndpoint(output);
+      if(!root)throw new Error('Set the Pico URL for '+(output?.name||'DMX output'));
+      if(!batches.has(output.id))batches.set(output.id,{output,root,pairs:new Map()});
+      batches.get(output.id).pairs.set(String(channel),String(value));
+    });
+    if(!batches.size)return 0;
+    const results=await Promise.allSettled([...batches.values()].map(async batch=>{
+      const body=[...batch.pairs.entries()].map(([channel,value])=>channel+':'+value).join(',');
+      const response=await fetch(batch.root+path,{
+        method:'POST',
+        body,
+        cache:'no-store',
+        keepalive:!!options.keepalive
+      });
+      if(!response.ok)throw new Error(batch.output.name+': HTTP '+response.status);
+      return batch.pairs.size;
+    }));
+    const errors=results.filter(result=>result.status==='rejected').map(result=>result.reason?.message||String(result.reason));
+    if(errors.length)throw new Error(errors.join(' · '));
+    return results.reduce((count,result)=>count+(result.status==='fulfilled'?result.value:0),0);
+  }
+
+  async function requestDmxOutputs(outputs,path,options={}){
+    const unique=new Map();
+    normalizeDmxOutputs(outputs,options.legacyBaseUrl||'').forEach(output=>{
+      const root=dmxOutputEndpoint(output);
+      if(root)unique.set(output.id,{output,root});
+    });
+    if(!unique.size)return 0;
+    const results=await Promise.allSettled([...unique.values()].map(async item=>{
+      const response=await fetch(item.root+path,{cache:'no-store',keepalive:!!options.keepalive});
+      if(!response.ok)throw new Error(item.output.name+': HTTP '+response.status);
+    }));
+    const errors=results.filter(result=>result.status==='rejected').map(result=>result.reason?.message||String(result.reason));
+    if(errors.length)throw new Error(errors.join(' · '));
+    return unique.size;
+  }
+
   function fixtureSetupEndpoint(){
     return /\/test(?:\/|\/index\.html?)?$/i.test(location.pathname)?'../fixture_setup.php':'fixture_setup.php';
   }
@@ -3921,6 +3979,9 @@
     normalizeDmxOutputs,
     dmxOutputForFixture,
     dmxOutputEndpoint,
+    dmxOutputsForFixtures,
+    sendFixtureDmxRows,
+    requestDmxOutputs,
     showUsedDmxOutputs,
     checkPicoFleetOutput,
     refreshPicoFleetStatus,

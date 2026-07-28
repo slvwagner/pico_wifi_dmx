@@ -5,6 +5,7 @@
 Changed:
 
 - Started the 0.9.17 development branch.
+- Added shared fixture-aware DMX batching and extended Show Run plus Room Plane so live controls, scene/palette/Pixel Matrix recalls, calibrated plane targeting, and Show Run master scaling follow every fixture's configured DMX Output/universe. Autonomous Pico Chaser and Effects playback remains on the primary output for now.
 
 ## 0.9.16 - 2026-07-28
 

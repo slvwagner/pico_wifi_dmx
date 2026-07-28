@@ -948,23 +948,10 @@ async function sendControl(f,c,silent=false){
 }
 
 async function sendFixtureDmxRows(entries){
-  const batches=new Map();
-  (entries||[]).forEach(entry=>{
-    if(!entry?.fixture||!entry?.row)return;
-    const output=fixtureDmxOutput(entry.fixture);
-    const root=DmxCommon.dmxOutputEndpoint(output);
-    if(!root)return;
-    if(!batches.has(output.id))batches.set(output.id,{output,root,pairs:[]});
-    batches.get(output.id).pairs.push(Math.round(entry.row.ch)+':'+clamp(entry.row.val,0,255));
+  return DmxCommon.sendFixtureDmxRows(entries,dmxOutputs,{
+    path:'/dmx/b',
+    legacyBaseUrl:baseUrl.value
   });
-  if(!batches.size)return 0;
-  const results=await Promise.allSettled([...batches.values()].map(batch=>
-    fetch(batch.root+'/dmx/b',{method:'POST',body:batch.pairs.join(','),cache:'no-store'})
-      .then(response=>{if(!response.ok)throw new Error(batch.output.name+': HTTP '+response.status);})
-  ));
-  const errors=results.filter(result=>result.status==='rejected').map(result=>result.reason?.message||String(result.reason));
-  if(errors.length)throw new Error(errors.join(' · '));
-  return [...batches.values()].reduce((count,batch)=>count+batch.pairs.length,0);
 }
 
 let editingPixelMatrix=null;
