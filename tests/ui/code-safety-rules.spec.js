@@ -287,9 +287,12 @@ test.describe('Code safety regression rules', () => {
     expect(readme).toContain(
       `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/wifi-pico-dmx-${stableVersion}-windows-x64.exe`
     );
-    expect(readme).toContain('Update the README **Getting Started** installer label and direct URL');
+    expect(readme).toContain(
+      `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/user-manual.pdf`
+    );
+    expect(readme).toContain('Update the README **Getting Started** installer and PDF manual labels');
     expect(readme).toContain('gh release create v<VERSION>');
-    expect(readme).toContain('verify that it downloads the');
+    expect(readme).toContain('Open the README installer and PDF manual links');
   });
 
   test('generated user manuals include the canonical project changelog', () => {
