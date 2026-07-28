@@ -2,6 +2,10 @@
 .SYNOPSIS
 Creates a development branch and synchronizes the project's application version.
 
+.DESCRIPTION
+With -Commit, first records the new current development version in the source
+branch README, then creates and commits the complete new development branch.
+
 .EXAMPLE
 .\scripts\start_version_branch.ps1 -Version 0.9.14 -DryRun
 
@@ -163,6 +167,8 @@ $readmeReplacements = @(
         Replacement = "`${1}$Version`${2}"
     }
 )
+$currentDevelopmentPattern = $readmeReplacements[0].Pattern
+$currentDevelopmentReplacement = $readmeReplacements[0].Replacement
 $readme = Read-Text "README.md"
 foreach ($replacement in $readmeReplacements) {
     if (-not [regex]::IsMatch($readme, $replacement.Pattern)) {
@@ -181,6 +187,16 @@ $plannedFiles | ForEach-Object { Write-Host "  $_" }
 if ($DryRun) {
     Write-Host "Dry run complete. No branch or files were changed."
     exit 0
+}
+
+if ($Commit) {
+    Replace-RegexRequired `
+        -Path "README.md" `
+        -Pattern $currentDevelopmentPattern `
+        -Replacement $currentDevelopmentReplacement
+    Invoke-Git -Arguments @("add", "--", "README.md") | Write-Host
+    Invoke-Git -Arguments @("commit", "-m", "Point development to $Version") | Write-Host
+    Write-Host "Updated $FromBranch to identify $Version as the current development version."
 }
 
 Invoke-Git -Arguments @("checkout", "-b", $Version, $FromBranch) | Write-Host
@@ -220,6 +236,7 @@ if ($Commit) {
     Write-Host "Created and committed branch $Version."
 } else {
     Write-Host "Created branch $Version and updated version files. Review the changes, then commit them."
+    Write-Host "The source branch README is unchanged unless the script is run with -Commit."
 }
 
 Write-Host "The script does not push branches or deploy to XAMPP."
