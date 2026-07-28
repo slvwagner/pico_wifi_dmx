@@ -4052,24 +4052,28 @@ function ensureChaserSlotSupported(){
   return false;
 }
 
-function chaserSlotLoopLine(s){
+function chaserSlotModeLine(s){
   const mode=Number(s?.mode);
-  const loopOn=!!s?.loop||mode===1||mode===2||mode===3;
-  if(mode===2)return 'Loop '+(Number(s?.loop_count)||1)+'x';
-  return 'Loop '+(loopOn?'on':'off');
+  if(mode===0)return 'Mode Single';
+  if(mode===2)return 'Mode Loop N ('+(Number(s?.loop_count)||1)+'x)';
+  if(mode===3)return 'Mode Ping Pong';
+  return 'Mode Loop';
 }
 
 function chaserSlotDirectionLine(s){
   return Number(s?.direction)===1?'Reverse':'Forward';
 }
 
-function chaserSlotPingPongLine(s){
-  return 'Ping Pong '+(Number(s?.mode)===3?'on':'off');
+function chaserSlotFadeLine(s){
+  const min=Number(s?.fade_min);
+  const max=Number(s?.fade_max);
+  if(!Number.isFinite(min)||!Number.isFinite(max))return '';
+  return min===max?'Fade '+min+'%':'Fade '+min+'\u2013'+max+'%';
 }
 
 function parseChaserPicoSlotPayload(body,slot=0){
   if(!body)return null;
-  const info={slot,loaded:true,active:false,paused:false,loop:true,mode:1,direction:0,loop_count:1,current_step:0,step_count:0,speed_mult:1};
+  const info={slot,loaded:true,active:false,paused:false,loop:true,mode:1,direction:0,loop_count:1,current_step:0,step_count:0,speed_mult:1,fade_min:null,fade_max:null};
   String(body).split(/\r?\n/).forEach(line=>{
     const trimmed=line.trim();
     if(!trimmed)return;
@@ -4091,6 +4095,9 @@ function parseChaserPicoSlotPayload(body,slot=0){
       info.speed_mult=Math.max(0.1,Math.min(10,parseFloat(trimmed.slice(6))||1));
     }else if(trimmed.startsWith('STEP ')){
       info.step_count++;
+      const fade=Math.max(0,Math.min(100,parseInt(trimmed.split(/\s+/)[2],10)||0));
+      info.fade_min=info.fade_min===null?fade:Math.min(info.fade_min,fade);
+      info.fade_max=info.fade_max===null?fade:Math.max(info.fade_max,fade);
     }
   });
   return info.step_count>0?info:null;
@@ -4106,7 +4113,9 @@ function mergeSavedChaserSlotInfo(slot){
     direction:saved.direction,
     loop_count:saved.loop_count,
     speed_mult:saved.speed_mult||slot.speed_mult,
-    step_count:slot.step_count||saved.step_count
+    step_count:slot.step_count||saved.step_count,
+    fade_min:saved.fade_min,
+    fade_max:saved.fade_max
   });
 }
 
@@ -4135,9 +4144,9 @@ function renderChaserSlotStrip(slots, activeMask) {
       'transition:border-color .15s,box-shadow .15s','user-select:none'
     ].filter(Boolean).join(';');
     const stepsLabel = unsupported ? 'FW old' : loaded ? s.step_count + ' steps' : '\u2014';
-    const loopLine = chaserSlotLoopLine(s);
+    const modeLine = chaserSlotModeLine(s);
+    const fadeLine = chaserSlotFadeLine(s);
     const dirLine = chaserSlotDirectionLine(s);
-    const pingPongLine = chaserSlotPingPongLine(s);
     const linkedPlayback=linkedChaserPlaybackForSlot(s.slot);
     const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
       ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
@@ -4149,7 +4158,7 @@ function renderChaserSlotStrip(slots, activeMask) {
       deleteButton +
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
-      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + loopLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + dirLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + pingPongLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' + linkedLine : '') +
+      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + modeLine + '</div>' + (fadeLine?'<div style="font-size:10px;color:var(--muted);margin-top:2px">' + fadeLine + '</div>':'') + '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + dirLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' + linkedLine : '') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
       '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' +
         (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +

@@ -316,6 +316,56 @@ test.describe('Chaser established rules', () => {
     expect(urls).toContain('http://pico.test/chaser/resume/0');
   });
 
+  test('Pico slot tiles show exactly one playback mode label', async ({ page }) => {
+    await page.evaluate(() => {
+      savedPicoChaserSlotInfo = Array.from({ length: PICO_SLOT_COUNT }, () => null);
+      renderChaserSlotStrip([
+        { slot: 0, loaded: true, active: false, paused: false, mode: 0, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 },
+        { slot: 1, loaded: true, active: false, paused: false, mode: 1, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 },
+        { slot: 2, loaded: true, active: false, paused: false, mode: 2, direction: 0, loop_count: 3, step_count: 2, speed_mult: 1 },
+        { slot: 3, loaded: true, active: false, paused: false, mode: 3, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 }
+      ], 0);
+    });
+
+    const texts = await page.locator('#chaserSlotStrip > div').evaluateAll(tiles =>
+      tiles.slice(0, 4).map(tile => tile.innerText)
+    );
+    expect(texts[0]).toContain('Mode Single');
+    expect(texts[1]).toContain('Mode Loop');
+    expect(texts[2]).toContain('Mode Loop N (3x)');
+    expect(texts[3]).toContain('Mode Ping Pong');
+    for (const text of texts) {
+      expect((text.match(/Mode /g) || []).length).toBe(1);
+      expect(text).not.toContain('Ping Pong off');
+      expect(text).not.toContain('Loop on');
+      expect(text).not.toContain('Loop off');
+    }
+  });
+
+  test('Pico slot tiles describe the saved step fade percentage', async ({ page }) => {
+    await page.evaluate(() => {
+      savedPicoChaserSlotInfo = Array.from({ length: PICO_SLOT_COUNT }, () => null);
+      savedPicoChaserSlotInfo[0] = parseChaserPicoSlotPayload(
+        'MODE loop\nSTEP 500 35\nCH 1 10\nSTEP 500 35\nCH 1 20\nEND',
+        0
+      );
+      savedPicoChaserSlotInfo[1] = parseChaserPicoSlotPayload(
+        'MODE loop\nSTEP 500 10\nCH 1 10\nSTEP 500 60\nCH 1 20\nEND',
+        1
+      );
+      renderChaserSlotStrip([
+        { slot: 0, loaded: true, active: false, paused: false, mode: 1, direction: 0, step_count: 2, speed_mult: 1 },
+        { slot: 1, loaded: true, active: false, paused: false, mode: 1, direction: 0, step_count: 2, speed_mult: 1 }
+      ], 0);
+    });
+
+    const texts = await page.locator('#chaserSlotStrip > div').evaluateAll(tiles =>
+      tiles.slice(0, 2).map(tile => tile.innerText)
+    );
+    expect(texts[0]).toContain('Fade 35%');
+    expect(texts[1]).toContain('Fade 10–60%');
+  });
+
   test('uploads one linked chase payload per involved Pico and reserves an empty peer slot', async ({ page }) => {
     const picoCalls = [];
     let savedPlayback = null;
