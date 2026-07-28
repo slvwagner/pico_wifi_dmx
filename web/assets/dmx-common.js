@@ -121,6 +121,119 @@
     return unique.size;
   }
 
+  function linkedPlaybackMembersForFixtures(fixtures,outputs,payloadForOutput,options={}){
+    const list=normalizeDmxOutputs(outputs,options.legacyBaseUrl||'');
+    const involved=dmxOutputsForFixtures(fixtures,list);
+    const preferredRoot=String(options.preferredBaseUrl||'').trim().replace(/\/+$/,'');
+    if(preferredRoot){
+      involved.sort((a,b)=>{
+        const aPreferred=dmxOutputEndpoint(a)===preferredRoot?0:1;
+        const bPreferred=dmxOutputEndpoint(b)===preferredRoot?0:1;
+        return aPreferred-bPreferred;
+      });
+    }
+    return involved.map(output=>({
+      output,
+      payload:String(payloadForOutput(output)||'')
+    })).filter(member=>member.payload.trim()!=='');
+  }
+
+  async function uploadLinkedPicoPlayback(options){
+    const kind=options.kind==='motion'?'motion':'chaser';
+    const slotPath=kind==='motion'?'/motion/slots':'/chaser/slots';
+    const loadPath=kind==='motion'?'/motion/load/':'/chaser/load/';
+    const clearPath=kind==='motion'?'/motion/clear/':'/chaser/clear/';
+    const members=(options.members||[]).map(member=>({
+      output:member.output,
+      payload:String(member.payload||'')
+    })).filter(member=>member.output&&member.payload.trim()!=='');
+    if(!members.length)throw new Error('No configured DMX Outputs are involved in this playback');
+    const preferredSlot=Math.max(0,Math.round(Number(options.preferredSlot)||0));
+    const slotCount=Math.max(1,Math.round(Number(options.slotCount)||(kind==='motion'?64:32)));
+
+    const snapshots=await Promise.all(members.map(async(member,index)=>{
+      const root=dmxOutputEndpoint(member.output);
+      if(!root)throw new Error('Set the Pico URL for '+(member.output.name||'DMX output'));
+      const response=await fetch(root+slotPath,{cache:'no-store'});
+      if(!response.ok)throw new Error((member.output.name||'DMX output')+': slot check failed (HTTP '+response.status+')');
+      const data=await response.json();
+      if(!data?.ok||!Array.isArray(data.slots))throw new Error((member.output.name||'DMX output')+': invalid slot response');
+      const reportedCount=Math.min(slotCount,data.slots.length||slotCount);
+      let slot=-1;
+      if(index===0){
+        if(preferredSlot>=reportedCount)throw new Error((member.output.name||'DMX output')+' supports only '+reportedCount+' slots');
+        const occupied=!!data.slots[preferredSlot]?.loaded;
+        if(occupied&&!options.allowCoordinatorOverwrite){
+          throw new Error((member.output.name||'DMX output')+' slot '+preferredSlot+' is already occupied');
+        }
+        slot=preferredSlot;
+      }else{
+        for(let candidate=0;candidate<reportedCount;candidate++){
+          if(!data.slots[candidate]?.loaded){slot=candidate;break;}
+        }
+        if(slot<0)throw new Error('No empty '+kind+' slot is available on '+(member.output.name||'DMX output'));
+      }
+      return{...member,root,slot};
+    }));
+
+    const uploaded=[];
+    try{
+      for(const member of snapshots){
+        const response=await fetch(member.root+loadPath+member.slot,{
+          method:'POST',
+          body:member.payload,
+          headers:{'Content-Type':'text/plain'}
+        });
+        const data=await response.json().catch(()=>null);
+        if(!response.ok||!data?.ok)throw new Error((member.output.name||'DMX output')+': '+(data?.error||('upload failed (HTTP '+response.status+')')));
+        uploaded.push(member);
+      }
+      const playback={
+        id:options.id||('playback_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8)),
+        kind,
+        label:String(options.label||((kind==='motion'?'Effect':'Chase')+' slot '+preferredSlot)),
+        createdAt:new Date().toISOString(),
+        members:snapshots.map(member=>({
+          outputId:String(member.output.id),
+          outputName:String(member.output.name||member.output.id),
+          universe:Math.max(1,Math.round(Number(member.output.universe)||1)),
+          baseUrl:member.root+'/',
+          slot:member.slot,
+          payload:member.payload
+        }))
+      };
+      if(options.serverEndpoint){
+        const saved=await fetch(options.serverEndpoint+'?playback',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(playback)
+        });
+        const savedData=await saved.json().catch(()=>null);
+        if(!saved.ok||!savedData?.ok)throw new Error(savedData?.error||'Could not save linked playback manifest');
+      }
+      return playback;
+    }catch(error){
+      await Promise.allSettled(uploaded.map(member=>fetch(member.root+clearPath+member.slot,{cache:'no-store'})));
+      throw error;
+    }
+  }
+
+  async function commandLinkedPicoPlayback(playback,pathForMember,options={}){
+    const members=Array.isArray(playback?.members)?playback.members:[];
+    if(!members.length)throw new Error('Playback has no linked Pico slots');
+    const results=await Promise.allSettled(members.map(async member=>{
+      const root=String(member.baseUrl||'').trim().replace(/\/+$/,'');
+      if(!root)throw new Error((member.outputName||member.outputId||'DMX output')+': Pico URL is missing');
+      const path=pathForMember(member);
+      const response=await fetch(root+path,{cache:'no-store',keepalive:!!options.keepalive});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok||data?.ok===false)throw new Error((member.outputName||member.outputId||'DMX output')+': '+(data?.error||('HTTP '+response.status)));
+    }));
+    const errors=results.filter(result=>result.status==='rejected').map(result=>result.reason?.message||String(result.reason));
+    if(errors.length)throw new Error(errors.join(' · '));
+    return members.length;
+  }
+
   function fixtureSetupEndpoint(){
     return /\/test(?:\/|\/index\.html?)?$/i.test(location.pathname)?'../fixture_setup.php':'fixture_setup.php';
   }
@@ -3982,6 +4095,9 @@
     dmxOutputsForFixtures,
     sendFixtureDmxRows,
     requestDmxOutputs,
+    linkedPlaybackMembersForFixtures,
+    uploadLinkedPicoPlayback,
+    commandLinkedPicoPlayback,
     showUsedDmxOutputs,
     checkPicoFleetOutput,
     refreshPicoFleetStatus,

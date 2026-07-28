@@ -167,7 +167,7 @@ async function routeShowSetup(page, calls) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, pico_slots: calls.mirroredChaserSlots ?? ['{"name":"Chase One"}'], pico_url: 'http://pico.test' })
+      body: JSON.stringify({ ok: true, pico_slots: calls.mirroredChaserSlots ?? ['{"name":"Chase One"}'], pico_playbacks: calls.chaserPlaybacks || [], pico_url: 'http://pico.test' })
     });
   });
 
@@ -175,7 +175,7 @@ async function routeShowSetup(page, calls) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, pico_slots: ['{"name":"Circle"}'], pico_url: 'http://pico.test' })
+      body: JSON.stringify({ ok: true, pico_slots: calls.mirroredMotionSlots ?? ['{"name":"Circle"}'], pico_playbacks: calls.motionPlaybacks || [], pico_url: 'http://pico.test' })
     });
   });
 
@@ -410,6 +410,39 @@ test.describe('Show Run page', () => {
     await expect.poll(() => calls.pico.some(call =>
       call.url === 'http://rear-pico.test/dmx/master' && call.body === '11:128'
     )).toBe(true);
+  });
+
+  test('shows and operates a linked Pico chase across its physical member slots', async ({ page }) => {
+    const frontPayload = 'LOOP 1\nMODE loop\nSTEP 500 0\nCH 1 75\nEND';
+    const rearPayload = 'LOOP 1\nMODE loop\nSTEP 500 0\nCH 11 125\nEND';
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredChaserSlots: [frontPayload],
+      chaserPlaybacks: [{
+        id: 'linked_chase',
+        kind: 'chaser',
+        label: 'Two Universe Chase',
+        members: [
+          { outputId: 'front', outputName: 'Front Pico', universe: 1, baseUrl: 'http://pico.test/', slot: 0, payload: frontPayload },
+          { outputId: 'rear', outputName: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/', slot: 3, payload: rearPayload }
+        ]
+      }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#chaserSlots')).toContainText('linked U1/S0 + U2/S3');
+    calls.pico.length = 0;
+    await page.locator('#chaserSlots [data-chaser-toggle="0"]').click();
+
+    await expect.poll(() => calls.pico.map(call => call.url)).toEqual(expect.arrayContaining([
+      'http://pico.test/chaser/load/0',
+      'http://rear-pico.test/chaser/load/3',
+      'http://pico.test/chaser/play/0',
+      'http://rear-pico.test/chaser/play/3'
+    ]));
   });
 
   test('Pixel Matrices card recalls regular and native matrix pixels to live DMX', async ({ page }) => {

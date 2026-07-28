@@ -71,6 +71,70 @@ test.describe('Effects established rules', () => {
     await expect(page.locator('[data-panel-toggle="picoMotionPanel"]')).toHaveText('+');
   });
 
+  test('uploads one linked effect payload per involved Pico and reserves an empty peer slot', async ({ page }) => {
+    const picoCalls = [];
+    let savedPlayback = null;
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/motion/slots')) {
+        const slots = Array.from({ length: 64 }, (_, slot) => ({
+          slot,
+          loaded: outputId === 'rear' && slot === 0,
+          active: false,
+          paused: false
+        }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      picoCalls.push({ outputId, url, body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/motion_setup.php?playback', async route => {
+      savedPlayback = JSON.parse(route.request().postData() || '{}');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      setup.fixtures.find(f => f.id === 101).outputId = 'front';
+      setup.fixtures.find(f => f.id === 102).outputId = 'rear';
+      baseUrlEl.value = 'http://front-pico.test';
+      const dimmers = motionFixtures.filter(mf => mf.control.label === 'Dimmer');
+      selectedMotionTargetKey = motionControlKey(dimmers[0].control);
+      motionFixtures.forEach(mf => mf.enabled = dimmers.includes(mf));
+      document.getElementById('motionControlFilter').value = selectedMotionTargetKey;
+    });
+
+    await page.evaluate(() => uploadCurrentMotionToSlot(4, false));
+
+    expect(picoCalls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/motion/load/4' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/motion/load/1' })
+    ]));
+    const frontBody = picoCalls.find(call => call.url.endsWith('/motion/load/4')).body;
+    const rearBody = picoCalls.find(call => call.url.endsWith('/motion/load/1')).body;
+    expect(frontBody).toContain('TARGET scalar8 1 1 ');
+    expect(frontBody).not.toContain('TARGET scalar8 1 21 ');
+    expect(rearBody).toContain('TARGET scalar8 1 21 ');
+    expect(rearBody).not.toContain('TARGET scalar8 1 1 ');
+    expect(savedPlayback.members.map(member => ({ outputId: member.outputId, slot: member.slot }))).toEqual([
+      { outputId: 'front', slot: 4 },
+      { outputId: 'rear', slot: 1 }
+    ]);
+
+    picoCalls.length = 0;
+    await page.locator('#btnPicoMotionStartSlot').click();
+    await expect.poll(() => picoCalls.map(call => call.url)).toEqual(expect.arrayContaining([
+      'http://front-pico.test/motion/start/4',
+      'http://rear-pico.test/motion/start/1'
+    ]));
+  });
+
   test('recalling an Effect tile restores its preview parameters after changing target family', async ({ page }) => {
     const beforePreview = await page.evaluate(() => {
       const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');

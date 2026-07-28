@@ -3475,19 +3475,23 @@ function parseChaserPicoSlotPayload(body,slot=0){
   });
   return info.step_count>0?info:null;
 }
-function mergePicoChaserSlots(mirroredSlots,liveSlots){
+function mergePicoChaserSlots(mirroredSlots,liveSlots,playbacks=[]){
   const count=Math.max(32,mirroredSlots?.length||0,liveSlots?.length||0);
   return Array.from({length:count},(_,i)=>{
     const mirroredPayload=mirroredSlots?.[i]||'';
     const mirror=parseChaserPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',step_count:0,mode:1,direction:0,loop_count:1,speed_mult:1}:null);
     const live=liveSlots?.[i]&&liveSlots[i].loaded?{...liveSlots[i],slot:i,source:'pico'}:null;
-    if(!live&&!mirror)return null;
+    const playback=(playbacks||[]).find(item=>Number(item?.members?.[0]?.slot)===i)||null;
+    if(!live&&!mirror&&!playback)return null;
+    const coordinator=playback?.members?.[0]||null;
+    const playbackPayload=coordinator?.payload||mirroredPayload;
     return {
       slot:i,
-      payload:mirroredPayload,
+      payload:playbackPayload,
+      playback,
       loaded:true,
       liveOnly:!!live&&!mirror,
-      label:live?'Pico slot '+i:slotPayloadLabel(mirroredSlots?.[i],i,'Chaser'),
+      label:playback?.label||(live?'Pico slot '+i:slotPayloadLabel(playbackPayload,i,'Chaser')),
       step_count:live?.step_count||mirror?.step_count||0,
       active:!!live?.active,
       paused:!!live?.paused,
@@ -3507,19 +3511,23 @@ function parseMotionPicoSlotPayload(body,slot=0){
   });
   return info;
 }
-function mergePicoMotionSlots(mirroredSlots,liveSlots){
+function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
   const count=Math.max(64,mirroredSlots?.length||0,liveSlots?.length||0);
   return Array.from({length:count},(_,i)=>{
     const mirroredPayload=mirroredSlots?.[i]||'';
     const mirror=parseMotionPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',bpm:30,target_count:0,fixture_count:0}:null);
     const live=liveSlots?.[i]&&liveSlots[i].loaded?{...liveSlots[i],slot:i,source:'pico'}:null;
-    if(!live&&!mirror)return null;
+    const playback=(playbacks||[]).find(item=>Number(item?.members?.[0]?.slot)===i)||null;
+    if(!live&&!mirror&&!playback)return null;
+    const coordinator=playback?.members?.[0]||null;
+    const playbackPayload=coordinator?.payload||mirroredPayload;
     return {
       slot:i,
-      payload:mirroredPayload,
+      payload:playbackPayload,
+      playback,
       loaded:true,
       liveOnly:!!live&&!mirror,
-      label:live?'Pico effect '+i:slotPayloadLabel(mirroredSlots?.[i],i,'Effect'),
+      label:playback?.label||(live?'Pico effect '+i:slotPayloadLabel(playbackPayload,i,'Effect')),
       bpm:live?.bpm||mirror?.bpm||30,
       target_count:live?.target_count||mirror?.target_count||0,
       fixture_count:live?.fixture_count||mirror?.fixture_count||0,
@@ -3621,9 +3629,12 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     const payload=type==='chaser'?item?.loaded:item?.loaded;
     const sourceSlot=item?.slot;
     const label=type==='chaser'?(item?.label||('Pico slot '+sourceSlot)):(item?.label||('Pico effect '+sourceSlot));
+    const linkedMeta=item?.playback?.members?.length>1
+      ?' · linked '+item.playback.members.map(member=>'U'+member.universe+'/S'+member.slot).join(' + ')
+      :'';
     const meta=type==='chaser'&&item
-      ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}`
-      :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}`:'Pico slot '+sourceSlot;
+      ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`
+      :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`:'Pico slot '+sourceSlot;
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
     const running=!!(item?.active||item?.paused);
     const actionLabel=running?'Stop':'Start';
@@ -3978,10 +3989,17 @@ function recallPaletteKey(key){
   if(palette)DmxCommon.withButtonFeedback(document.querySelector(`[data-palette-key="${CSS.escape(String(key))}"]`),{busy:'Recall...',success:'Recalled',error:'Failed'},()=>applyValuePatch(palette.values||{},'Palette "'+(palette.name||key)+'"')).catch(err=>setStatus(err.message,true));
 }
 async function stopPico(type){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/'+type+'/stop',{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico '+type+' stop failed: HTTP '+r.status);
+  const roots=new Set();
+  playbackSlotsForType(type).forEach(slot=>(slot?.playback?.members||[]).forEach(member=>{
+    const root=String(member.baseUrl||'').replace(/\/+$/,'');
+    if(root)roots.add(root);
+  }));
+  const primary=endpoint();
+  if(primary)roots.add(primary);
+  if(!roots.size)throw new Error('No Pico URL is configured');
+  const results=await Promise.all([...roots].map(root=>fetch(root+'/'+type+'/stop',{cache:'no-store'})));
+  const failed=results.find(response=>!response.ok);
+  if(failed)throw new Error('Pico '+type+' stop failed: HTTP '+failed.status);
   playbackSlotsForType(type).forEach(slot=>{
     if(slot)Object.assign(slot,{active:false,paused:false});
   });
@@ -3989,45 +4007,42 @@ async function stopPico(type){
   if(type==='motion')updateMotionPauseResumeButton();
   drawPlaybackForType(type);
 }
-async function stopPicoSlot(type,slot){
+async function commandShowPlaybackSlot(type,slot,action,suffix=''){
+  const slotData=playbackSlotsForType(type)[slot]||null;
+  if(slotData?.playback){
+    await DmxCommon.commandLinkedPicoPlayback(slotData.playback,member=>'/'+type+'/'+action+'/'+member.slot+suffix);
+    return slotData.playback.members.length;
+  }
   const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/'+type+'/stop/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico '+type+' slot stop failed: HTTP '+r.status);
+  if(!root)throw new Error('No Pico URL is configured');
+  const response=await fetch(root+'/'+type+'/'+action+'/'+slot+suffix,{cache:'no-store'});
+  if(!response.ok)throw new Error('Pico '+type+' command failed: HTTP '+response.status);
+  return 1;
+}
+async function stopPicoSlot(type,slot){
+  const count=await commandShowPlaybackSlot(type,slot,'stop');
   updatePlaybackSlotState(type,slot,{active:false,paused:false});
-  setStatus(type+' slot '+slot+' stopped');
+  setStatus(type+' slot '+slot+' stopped'+(count>1?' on '+count+' linked Picos':''));
 }
 async function pauseChaserSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/chaser/pause/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico chaser pause failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('chaser',slot,'pause');
   updatePlaybackSlotState('chaser',slot,{active:false,paused:true});
-  setStatus('chaser slot '+slot+' paused');
+  setStatus('chaser slot '+slot+' paused'+(count>1?' on '+count+' linked Picos':''));
 }
 async function resumeChaserSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/chaser/resume/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico chaser resume failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('chaser',slot,'resume');
   updatePlaybackSlotState('chaser',slot,{active:true,paused:false});
-  setStatus('chaser slot '+slot+' resumed');
+  setStatus('chaser slot '+slot+' resumed'+(count>1?' on '+count+' linked Picos':''));
 }
 async function pauseMotionSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/motion/pause/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico effect pause failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('motion',slot,'pause');
   updatePlaybackSlotState('motion',slot,{active:false,paused:true});
-  setStatus('effect slot '+slot+' paused');
+  setStatus('effect slot '+slot+' paused'+(count>1?' on '+count+' linked Picos':''));
 }
 async function resumeMotionSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/motion/resume/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico effect resume failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('motion',slot,'resume');
   updatePlaybackSlotState('motion',slot,{active:true,paused:false});
-  setStatus('effect slot '+slot+' resumed');
+  setStatus('effect slot '+slot+' resumed'+(count>1?' on '+count+' linked Picos':''));
 }
 async function toggleChaserPauseResume(){
   const slotData=chaserSlots[chaserSelectedSlot]||null;
@@ -4043,27 +4058,34 @@ async function togglePlaybackPauseResume(type,slot){
   return slotData?.paused?resumeMotionSlot(slot):pauseMotionSlot(slot);
 }
 async function setChaserSlotSpeed(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
   const speed=Math.max(0.1,Math.min(10,parseFloat(document.getElementById('chaserControlSpeed')?.value)||1));
   const rate=Math.round(speed*100);
-  const r=await fetch(root+'/chaser/speed/'+slot+'/'+rate,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico chaser speed failed: HTTP '+r.status);
-  setStatus('chaser slot '+slot+' speed set to '+speed.toFixed(1)+'x');
+  const count=await commandShowPlaybackSlot('chaser',slot,'speed','/'+rate);
+  setStatus('chaser slot '+slot+' speed set to '+speed.toFixed(1)+'x'+(count>1?' across '+count+' Picos':''));
 }
 async function setMotionSlotBpm(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
   const bpm=Math.max(1,Math.min(600,parseInt(document.getElementById('motionControlBpm')?.value,10)||30));
-  const r=await fetch(root+'/motion/bpm/'+slot+'/'+Math.round(bpm*10),{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico effect BPM failed: HTTP '+r.status);
-  setStatus('effect slot '+slot+' BPM set to '+bpm);
+  const count=await commandShowPlaybackSlot('motion',slot,'bpm','/'+Math.round(bpm*10));
+  setStatus('effect slot '+slot+' BPM set to '+bpm+(count>1?' across '+count+' Picos':''));
 }
 async function startPicoSlot(type,slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
   const slots=type==='chaser'?chaserSlots:motionSlots;
   const slotData=slots[slot];
+  if(slotData?.playback){
+    const loadAction=type==='chaser'?'play':'start';
+    await Promise.all(slotData.playback.members.map(async member=>{
+      const root=String(member.baseUrl||'').replace(/\/+$/,'');
+      const load=await fetch(root+'/'+type+'/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'},cache:'no-store'});
+      if(!load.ok)throw new Error((member.outputName||member.outputId)+': load failed (HTTP '+load.status+')');
+    }));
+    await DmxCommon.commandLinkedPicoPlayback(slotData.playback,member=>'/'+type+'/'+loadAction+'/'+member.slot);
+    if(masterFactorsNeedRestore())await applyMasterDimmerScale();
+    updatePlaybackSlotState(type,slot,{active:true,paused:false});
+    setStatus(type+' slot '+slot+' started on '+slotData.playback.members.length+' linked Picos');
+    return;
+  }
+  const root=endpoint();
+  if(!root)throw new Error('No Pico URL is configured');
   const payload=slotData?.payload;
   if(payload){
     const load=await fetch(root+'/'+type+'/load/'+slot,{method:'POST',body:payload,headers:{'Content-Type':'text/plain'},cache:'no-store'});
@@ -4156,8 +4178,8 @@ async function loadShow(options={}){
   if(savedUrl)baseUrlEl.value=savedUrl;
   const liveChaserSlots=await loadLivePicoChaserSlots(savedUrl||baseUrlEl.value);
   const liveMotionSlots=await loadLivePicoMotionSlots(savedUrl||baseUrlEl.value);
-  chaserSlots=mergePicoChaserSlots(Array.isArray(chaserData.pico_slots)?chaserData.pico_slots:[],liveChaserSlots);
-  motionSlots=mergePicoMotionSlots(Array.isArray(motionData.pico_slots)?motionData.pico_slots:[],liveMotionSlots);
+  chaserSlots=mergePicoChaserSlots(Array.isArray(chaserData.pico_slots)?chaserData.pico_slots:[],liveChaserSlots,Array.isArray(chaserData.pico_playbacks)?chaserData.pico_playbacks:[]);
+  motionSlots=mergePicoMotionSlots(Array.isArray(motionData.pico_slots)?motionData.pico_slots:[],liveMotionSlots,Array.isArray(motionData.pico_playbacks)?motionData.pico_playbacks:[]);
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);
