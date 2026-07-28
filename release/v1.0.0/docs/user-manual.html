@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html class="manual-pdf-navigation" lang="en">
 <head>
 <meta charset="utf-8">
 <title>Pico WiFi DMX User Manual</title>
@@ -15,7 +15,7 @@
   --accent: #37c4a4;
   --warn: #ffbc6b;
 }
-@page { size: A4; margin: 0; }
+@page { size: A4 landscape; margin: 0; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -109,10 +109,335 @@ img {
   break-inside: avoid;
 }
 strong { color: #ffffff; }
+.manual-nav-toggle {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1002;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.manual-nav {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 1003;
+  width: min(86vw, 320px);
+  padding: 18px;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  transform: translateX(-105%);
+  transition: transform 180ms ease;
+  box-shadow: 12px 0 32px rgba(0, 0, 0, 0.42);
+}
+body.manual-nav-open {
+  overflow: hidden;
+}
+body.manual-nav-open .manual-nav {
+  transform: translateX(0);
+}
+.manual-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  border: 0;
+  background: rgba(0, 0, 0, 0.62);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+body.manual-nav-open .manual-nav-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+.manual-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.manual-nav-title {
+  color: #ffffff;
+  font-size: 18px;
+}
+.manual-nav-downloads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.manual-nav-downloads a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  text-align: center;
+  text-decoration: none;
+  font-size: 12px;
+}
+.manual-nav-downloads a:hover,
+.manual-nav-downloads a:focus-visible {
+  border-color: var(--accent);
+}
+.manual-nav-close {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d141a;
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.manual-nav-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.manual-nav-list li {
+  margin: 2px 0;
+}
+.manual-nav-list a {
+  display: block;
+  padding: 8px 10px;
+  border-left: 3px solid transparent;
+  border-radius: 5px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.manual-nav-list a:hover,
+.manual-nav-list a:focus-visible {
+  background: #1d2a34;
+  color: #ffffff;
+}
+.manual-nav-list a.is-active {
+  border-left-color: var(--accent);
+  background: #20332f;
+  color: #ffffff;
+  font-weight: 700;
+}
+.manual-back-to-contents {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1000;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.section-pager {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.section-pager a,
+.section-pager span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  text-align: center;
+}
+.section-pager a {
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+}
+.section-pager a:hover,
+.section-pager a:focus-visible {
+  border-color: var(--accent);
+}
+.section-pager span {
+  visibility: hidden;
+}
+@media (min-width: 1320px) and (hover: hover) and (pointer: fine) {
+  body {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 980px);
+    align-items: start;
+    justify-content: center;
+    gap: 24px;
+  }
+  main {
+    width: 100%;
+    margin: 0;
+  }
+  .manual-nav {
+    position: sticky;
+    inset: auto;
+    top: 28px;
+    z-index: 1;
+    width: 250px;
+    max-height: calc(100vh - 56px);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    transform: none;
+    box-shadow: none;
+  }
+  .manual-nav-toggle,
+  .manual-nav-close,
+  .manual-nav-backdrop {
+    display: none;
+  }
+  body.manual-nav-open {
+    overflow: auto;
+  }
+}
+@media (max-width: 700px) {
+  body {
+    padding: 72px 10px 18px;
+  }
+  main {
+    padding: 24px 18px;
+  }
+  .section-pager {
+    grid-template-columns: 1fr;
+  }
+  .section-pager span {
+    display: none;
+  }
+  .manual-back-to-contents {
+    right: 10px;
+    bottom: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manual-nav,
+  .manual-nav-backdrop {
+    transition: none;
+  }
+}
+@media print {
+  body {
+    display: block;
+    padding: 28px;
+  }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+  .manual-nav,
+  .manual-nav-toggle,
+  .manual-nav-backdrop,
+  .manual-back-to-contents,
+  .section-pager {
+    display: none !important;
+  }
+  html.manual-pdf-navigation body {
+    display: block;
+    padding: 20px 20px 20px 250px;
+  }
+  html.manual-pdf-navigation main {
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px;
+  }
+  html.manual-pdf-navigation .manual-nav {
+    display: block !important;
+    position: fixed;
+    inset: 20px auto 20px 20px;
+    width: 210px;
+    max-height: none;
+    padding: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    transform: none;
+    box-shadow: none;
+  }
+  html.manual-pdf-navigation .manual-nav-header {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+  html.manual-pdf-navigation .manual-nav-title {
+    font-size: 14px;
+  }
+  html.manual-pdf-navigation .manual-nav-close,
+  html.manual-pdf-navigation .manual-nav-downloads {
+    display: none !important;
+  }
+  html.manual-pdf-navigation .manual-nav-list li {
+    margin: 0;
+  }
+  html.manual-pdf-navigation .manual-nav-list a {
+    padding: 2px 5px;
+    border-left-width: 2px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+  html.manual-pdf-navigation .manual-nav-list a.is-active {
+    border-left-color: transparent;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 400;
+  }
+}
 </style>
 </head>
 <body>
-<main>
+<button class="manual-nav-toggle" type="button" aria-controls="manual-nav" aria-expanded="false">☰ Contents</button>
+<button class="manual-nav-backdrop" type="button" aria-label="Close contents"></button>
+<aside class="manual-nav" id="manual-nav" aria-label="Manual contents">
+  <div class="manual-nav-header">
+    <strong class="manual-nav-title">Contents</strong>
+    <button class="manual-nav-close" type="button" aria-label="Close contents">×</button>
+  </div>
+  <div class="manual-nav-downloads">
+    <a href="user-manual.pdf">Clean PDF</a>
+    <a href="user-manual-navigation.pdf">PDF with navigation</a>
+  </div>
+  <ul class="manual-nav-list">
+    <li><a href="#table-of-contents">Full table of contents</a></li>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#windows-customer-installation">Windows Customer Installation</a></li>
+<li><a href="#macos-customer-installation">macOS Customer Installation</a></li>
+<li><a href="#ubuntu-customer-installation">Ubuntu Customer Installation</a></li>
+<li><a href="#main-pages">Main Pages</a></li>
+<li><a href="#1-fixture-controller">1. Fixture Controller</a></li>
+<li><a href="#2-scenes-and-palettes">2. Scenes And Palettes</a></li>
+<li><a href="#3-groups">3. Groups</a></li>
+<li><a href="#4-show-run">4. Show Run</a></li>
+<li><a href="#5-chaser">5. Chaser</a></li>
+<li><a href="#6-effects">6. Effects</a></li>
+<li><a href="#7-gpio-control">7. GPIO Control</a></li>
+<li><a href="#8-pico-performance-test">8. Pico Performance Test</a></li>
+<li><a href="#9-dmx-buffer-monitor">9. DMX Buffer Monitor</a></li>
+<li><a href="#10-room-plane">10. Room Plane</a></li>
+<li><a href="#11-backup-and-import">11. Backup and Import</a></li>
+<li><a href="#12-clear-functions">12. Clear Functions</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+<li><a href="#change-log">Change Log</a></li>
+  </ul>
+</aside>
+<main id="manual-content">
 <h1 id="pico-wifi-dmx-user-manual">Pico WiFi DMX User Manual</h1>
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
@@ -139,6 +464,7 @@ strong { color: #ffffff; }
 <h2 id="introduction">Introduction</h2>
 <p>This manual explains how to use the browser-based DMX controller with the Pico firmware. It is written for daily operation: creating fixtures, controlling lights, saving scenes, building chasers, creating effects, and using GPIO buttons or ADC inputs.</p>
 <p>The web interface can be installed with the Pico DMX Windows, macOS, or Ubuntu customer package, or hosted from the project&#39;s XAMPP development setup.</p>
+<p>The HTML manual provides responsive navigation and direct downloads for two PDF variants. <strong>Clean PDF</strong> is an A4 portrait document without browser navigation controls. <strong>PDF with navigation</strong> is an A4 landscape document with a persistent, clickable contents sidebar. Both contain the same operating instructions.</p>
 <p>With a Windows, macOS, or Ubuntu customer installer, open <strong>WiFiPicoDMX</strong> from the desktop, Start Menu, or Applications folder. With the default installer port, the local address is:</p>
 <pre><code>http://localhost:8090/</code></pre>
 <p>With XAMPP, the address on the same computer is often:</p>
@@ -1353,6 +1679,9 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <h3 id="1-0-0-2026-07-28">1.0.0 - 2026-07-28</h3>
 <p>Changed:</p>
 <ul>
+<li>Added responsive user-manual navigation with a sticky desktop contents sidebar, an iPad/mobile contents drawer, active-section highlighting, persistent and per-section contents links, and previous/next section controls.</li>
+<li>Fixed the desktop manual contents sidebar disappearing while scrolling by preserving its sticky top offset, with a regression test covering long-page scrolling.</li>
+<li>Added two generated and packaged PDF manuals: a clean A4 portrait version and an A4 landscape version with a persistent clickable contents sidebar. Both variants are deployed to XAMPP and included by the Windows, macOS, Ubuntu, and release-package workflows.</li>
 <li>Promoted the customer-ready application, bundled Windows server, guided Pico firmware installer, and multi-universe show workflow to the first stable <code>1.0.0</code> release.</li>
 <li>Added prominent README Getting Started downloads for the latest Windows customer installer and matching PDF user manual, and made updating and verifying both links required GitHub Release steps.</li>
 <li>Restructured the user manual to begin with a linked table of contents and place the complete project changelog at the end.</li>
@@ -1368,6 +1697,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Hardened customer release packaging so firmware is explicitly configured as a Release build, the selected build directory feeds the Windows installer, and Debug UF2 images are rejected.</li>
 <li>Fixed <strong>Exit and stop server</strong> falsely reporting failure when Apache completed shutdown after the original 12-second wait. WiFiPicoDMX now waits up to 45 seconds, performs a final service-state check, and keeps a non-dismissible animated progress window visible throughout shutdown.</li>
 <li>Corrected and completed the user documentation against every current application page, including multi-output routing, linked Pico playback, fixture/profile controls, Fan Out, Pixel Matrices, MIDI, GPIO, performance testing, DMX monitoring, and Room Plane operation; removed the duplicate README screenshot walkthrough in favor of the complete user manual.</li>
+<li>Added the standalone HTML user manual to the public GitHub Release assets and made publishing and verifying both HTML and PDF manuals part of the release checklist.</li>
 </ul>
 <h3 id="0-9-16-2026-07-28">0.9.16 - 2026-07-28</h3>
 <p>Changed:</p>
@@ -1788,5 +2118,97 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Added DMX Buffer Monitor page and GPIO/chaser/motion workflow refinements.</li>
 </ul>
 </main>
+<a class="manual-back-to-contents" href="#table-of-contents">↑ Contents</a>
+<script>
+(function () {
+  const body = document.body;
+  const toggle = document.querySelector('.manual-nav-toggle');
+  const closeButton = document.querySelector('.manual-nav-close');
+  const backdrop = document.querySelector('.manual-nav-backdrop');
+  const nav = document.querySelector('.manual-nav');
+  const main = document.getElementById('manual-content');
+  const navLinks = Array.from(nav.querySelectorAll('a[href^="#"]'));
+  const sectionHeadings = Array.from(main.querySelectorAll(':scope > h2[id]'))
+    .filter(function (heading) { return heading.id !== 'table-of-contents'; });
+
+  function setDrawerOpen(open) {
+    body.classList.toggle('manual-nav-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  toggle.addEventListener('click', function () {
+    setDrawerOpen(!body.classList.contains('manual-nav-open'));
+  });
+  closeButton.addEventListener('click', function () { setDrawerOpen(false); });
+  backdrop.addEventListener('click', function () { setDrawerOpen(false); });
+  navLinks.forEach(function (link) {
+    link.addEventListener('click', function () { setDrawerOpen(false); });
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { setDrawerOpen(false); }
+  });
+
+  sectionHeadings.forEach(function (heading, index) {
+    const pager = document.createElement('nav');
+    pager.className = 'section-pager';
+    pager.setAttribute('aria-label', 'Section navigation');
+
+    const previous = sectionHeadings[index - 1];
+    const next = sectionHeadings[index + 1];
+    const previousControl = document.createElement(previous ? 'a' : 'span');
+    const contentsControl = document.createElement('a');
+    const nextControl = document.createElement(next ? 'a' : 'span');
+
+    if (previous) {
+      previousControl.href = '#' + previous.id;
+      previousControl.textContent = '← ' + previous.textContent;
+    }
+    contentsControl.href = '#table-of-contents';
+    contentsControl.textContent = '↑ Contents';
+    if (next) {
+      nextControl.href = '#' + next.id;
+      nextControl.textContent = next.textContent + ' →';
+    }
+
+    pager.append(previousControl, contentsControl, nextControl);
+    if (next) {
+      main.insertBefore(pager, next);
+    } else {
+      main.appendChild(pager);
+    }
+  });
+
+  function activateSection(id) {
+    navLinks.forEach(function (link) {
+      const active = link.getAttribute('href') === '#' + id;
+      link.classList.toggle('is-active', active);
+      if (active) {
+        link.setAttribute('aria-current', 'location');
+      } else {
+        link.removeAttribute('aria-current');
+      }
+    });
+  }
+
+  let updateQueued = false;
+  function updateActiveSection() {
+    updateQueued = false;
+    let current = sectionHeadings[0];
+    sectionHeadings.forEach(function (heading) {
+      if (heading.getBoundingClientRect().top <= 150) { current = heading; }
+    });
+    if (current) { activateSection(current.id); }
+  }
+  function queueActiveSectionUpdate() {
+    if (updateQueued) { return; }
+    updateQueued = true;
+    window.requestAnimationFrame(updateActiveSection);
+  }
+
+  window.addEventListener('scroll', queueActiveSectionUpdate, { passive: true });
+  window.addEventListener('hashchange', queueActiveSectionUpdate);
+  updateActiveSection();
+})();
+</script>
 </body>
 </html>

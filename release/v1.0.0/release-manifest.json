@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
   "branch": "main",
-  "commit": "fad702b",
-  "createdAt": "2026-07-28T12:34:10Z",
+  "commit": "5d3a746",
+  "createdAt": "2026-07-28T13:18:31Z",
   "tests": {
     "hardware": false
   },
@@ -24,26 +24,30 @@
   },
   "windowsInstaller": {
     "file": "wifi-pico-dmx-1.0.0-windows-x64.exe",
-    "sizeBytes": 111231243,
-    "sha256": "bd53b9ffcc4371972cf1490ac52f82275e329d296a88cbb494882c71b0bc93a6",
+    "sizeBytes": 112322811,
+    "sha256": "171ac44b2eb870897f18906a585617d03ed124bb08c2b1cf9321f879e9754ed7",
     "signed": false
   },
   "docs": {
     "user-manual.md": {
-      "sizeBytes": 172581,
-      "sha256": "82327333bac7f05cfbc339884a3214b7348ae0f49addbacdad4fc0fdb25de08b"
+      "sizeBytes": 172897,
+      "sha256": "395f830c51e63f5be0e3cfa1b3d3fb60fca154d8a85334f6c5ea0785d05548a8"
     },
     "user-manual.html": {
-      "sizeBytes": 281070,
-      "sha256": "94126ae3a7bf979b191ca7ffe523116781e8078d6864940b04c76f7eb00180e0"
+      "sizeBytes": 293988,
+      "sha256": "4dcfc2d6b99cff1e7233695bf544c2a0f5130633e885d46443878ab75dc9c92e"
     },
     "user-manual-print.html": {
-      "sizeBytes": 281070,
-      "sha256": "94126ae3a7bf979b191ca7ffe523116781e8078d6864940b04c76f7eb00180e0"
+      "sizeBytes": 293948,
+      "sha256": "4a0b10dde81a459595bf25d75ec49c43c301cc2a4f43c02fffc1068cbe50d96c"
     },
     "user-manual.pdf": {
-      "sizeBytes": 4573746,
-        "sha256": "e17cd2906a46e62f36c9cdfa75d287cccd723670f6da2a59c4c47d75fce92c40"
+      "sizeBytes": 4578012,
+      "sha256": "8207fbd06938ef52122038b35ef4f75a1398a425dca9fe03852d3aaf3c4a1310"
+    },
+    "user-manual-navigation.pdf": {
+      "sizeBytes": 5780109,
+      "sha256": "7f5dbcb96c5687b8007cc5222ad1a4ba4424fcf5d66f867304e4b5db428e08c0"
     },
     "screenshots": {
       "count": 75

@@ -371,6 +371,7 @@ test.describe('Code safety regression rules', () => {
     expect(updater).toContain('-PdfPath "docs/user-manual.pdf"');
     expect(sync).toContain('user-manual-navigation.pdf');
     expect(release).toContain('"user-manual-navigation.pdf"');
+    expect(release).toContain('$ManifestObject.docs -is [System.Collections.IDictionary]');
     expect(windowsInstaller).toContain('docs\\user-manual-navigation.pdf');
     expect(macosInstaller).toContain('docs/user-manual-navigation.pdf');
     expect(ubuntuInstaller).toContain('docs/user-manual-navigation.pdf');

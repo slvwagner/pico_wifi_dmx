@@ -86,7 +86,10 @@ function ConvertTo-ComparableReleaseManifest($ManifestObject) {
                         sha256 = [string]$entry.sha256
                     }
                 }
-            } elseif ($ManifestObject.docs.Contains($name)) {
+            } elseif (
+                $ManifestObject.docs -is [System.Collections.IDictionary] -and
+                $ManifestObject.docs.Contains($name)
+            ) {
                 $entry = $ManifestObject.docs[$name]
                 if ($name -eq "screenshots") {
                     $docs[$name] = [ordered]@{ count = [int]$entry.count }
