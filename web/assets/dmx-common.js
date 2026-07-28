@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='1.0.1';
+  const APP_VERSION='1.0.0';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
