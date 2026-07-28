@@ -1,16 +1,16 @@
 {
   "version": "1.0.0",
-  "branch": "1.0.0",
-  "commit": "389be95",
-  "createdAt": "2026-07-28T09:58:02Z",
+  "branch": "main",
+  "commit": "f42761e",
+  "createdAt": "2026-07-28T11:07:08Z",
   "tests": {
     "hardware": false
   },
   "docsGenerated": false,
   "firmware": {
     "file": "pico_wifi_dmx-v1.0.0.uf2",
-    "sizeBytes": 453632,
-    "sha256": "8aa9494109e6c5029abb555b45098fede63309ff33c9631d8d132b9b72188b55"
+    "sizeBytes": 482304,
+    "sha256": "1a41bc206cc124241f914bc107e3eeee829965ed8b29d6751ccdcbebae1eabdd"
   },
   "wifiFirmware": {
     "file": "pico_wifi_dmx-wifi-firmware-v1.0.0.uf2",
@@ -24,26 +24,26 @@
   },
   "windowsInstaller": {
     "file": "wifi-pico-dmx-1.0.0-windows-x64.exe",
-    "sizeBytes": 111088787,
-    "sha256": "62a007ef4ae1ecae566659b61cbfb365c45284da4aefa6a9bc8d7dd69462193f",
+    "sizeBytes": 111204249,
+    "sha256": "809c2e69a43bdd6447c3b7e13bd90dd824a9be28f1b6e75f4ae9a096772d063e",
     "signed": false
   },
   "docs": {
     "user-manual.md": {
-      "sizeBytes": 160623,
-      "sha256": "fc3b6fc37a1e7bd88979aaf0424c80e5d10d7bc8f7208a411e08331df1e45cf9"
+      "sizeBytes": 162551,
+      "sha256": "b907f99a2846f6522df273a774c4abf2a759913b0757b3ea76deaf58670000b0"
     },
     "user-manual.html": {
-      "sizeBytes": 265575,
-      "sha256": "2857ae974e7de0c99dad3572459d542816c78102407321881cbdd0c333c5a5e6"
+      "sizeBytes": 268922,
+      "sha256": "68f237468095801539dcb6be1cfd9fa35686644ea5881343ebd2c349da62f513"
     },
     "user-manual-print.html": {
-      "sizeBytes": 265575,
-      "sha256": "2857ae974e7de0c99dad3572459d542816c78102407321881cbdd0c333c5a5e6"
+      "sizeBytes": 268922,
+      "sha256": "68f237468095801539dcb6be1cfd9fa35686644ea5881343ebd2c349da62f513"
     },
     "user-manual.pdf": {
-      "sizeBytes": 4480748,
-      "sha256": "5536da1014d1a26ae0707b48921e1748b97dcf8233d905535ac3ce7eb6f9a103"
+      "sizeBytes": 4511607,
+      "sha256": "da32c2ab227fcebf2c30ccd673d9b3a01efc1139083127c30094b860501af342"
     },
     "screenshots": {
       "count": 75

@@ -5,6 +5,11 @@
 Changed:
 
 - Promoted the customer-ready application, bundled Windows server, guided Pico firmware installer, and multi-universe show workflow to the first stable `1.0.0` release.
+- Added prominent README Getting Started downloads for the latest Windows customer installer and matching PDF user manual, and made updating and verifying both links required GitHub Release steps.
+- Restructured the user manual to begin with a linked table of contents and place the complete project changelog at the end.
+- Updated the README introduction to explain multi-Pico DMX universes, linked Getting Started to the detailed Windows installation section, and added a linked README table of contents before the overview.
+- Replaced hard-coded `C:` Windows installation/data paths in public documentation with the generic `%ProgramFiles%` and `%ProgramData%` environment paths.
+- Added automatic, show-safe Pico address remapping for DHCP changes. **Find Picos** compares each Pico's stable unique-board ID with the saved DMX Output identity and automatically replaces a changed URL while preserving output IDs, universes, names, fixture assignments, and show programming.
 - Added shared fixture-aware DMX batching and extended Show Run plus Room Plane so live controls, scene/palette/Pixel Matrix recalls, calibrated plane targeting, and Show Run master scaling follow every fixture's configured DMX Output/universe.
 - Added linked multi-Pico playback manifests for Chaser and Effects. Uploads are partitioned by fixture output, verify every involved Pico's slot table, reserve an empty peer slot, roll back partial uploads, show the linked universe/slot members, and operate all member slots together from Chaser, Effects, and Show Run.
 - Fixed Chaser Pico slot tiles so they show one canonical playback mode—Single, Loop, Loop N, or Ping Pong—instead of displaying separate Loop and Ping Pong on/off lines.

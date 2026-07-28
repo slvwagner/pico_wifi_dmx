@@ -1,11 +1,51 @@
 # pico_wifi_dmx
 
-WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). One Pico drives one full 512-channel DMX universe. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the Pico so show playback does not depend on browser timing or WiFi latency.
+WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). Each Pico drives one full 512-channel DMX universe, and one show can combine multiple named Picos as separate DMX outputs/universes. Fixtures are assigned to their output, so the same DMX address can be reused in different universes. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the involved Picos so show playback does not depend on browser timing or WiFi latency.
 
-- **Latest stable release:** `0.9.16`
-- **Current development version:** `1.0.0`
+- **Latest stable release:** `1.0.0`
+- **Current development version:** `1.0.1`
 
 See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
+
+## Getting Started
+
+For a customer PC running 64-bit Windows, download and run the current
+**[WiFiPicoDMX 1.0.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.0/wifi-pico-dmx-1.0.0-windows-x64.exe)**.
+The installer includes the customer application, local web server, manual, and
+guided Pico firmware updater. Because the current installer is unsigned,
+Windows can display a SmartScreen publisher warning.
+
+Read the matching
+**[WiFiPicoDMX 1.0.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.0/user-manual.pdf)**
+for installation, firmware flashing, show setup, and operation instructions.
+
+The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
+also provides the installer checksum, Pico firmware images, release manifest,
+and PDF user manual.
+
+Continue with [Install the Windows customer application](#install-the-windows-customer-application)
+for the complete installation, network-access, firmware-update, and startup
+instructions.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Critical XAMPP environment safety](#critical-xampp-environment-safety)
+- [Customer installation details](#customer-installation-details)
+- [Automated Tests](#automated-tests)
+- [Project Structure](#project-structure)
+- [Versioning](#versioning)
+- [Architecture](#architecture)
+- [Playback Modes](#playback-modes)
+- [HTTP API](#http-api)
+- [Web UI](#web-ui)
+- [Detailed Source Reference](#detailed-source-reference)
+- [Requirements](#requirements)
+- [Configure](#configure)
+- [Build](#build)
+- [Flash](#flash)
+- [Resource Usage](#resource-usage)
+- [Notes](#notes)
 
 ## Overview
 
@@ -75,7 +115,7 @@ The deployment wrapper copies application source and verifies HTTP availability;
 
 ---
 
-## Getting Started
+## Customer installation details
 
 ### Install the Windows customer application
 
@@ -84,10 +124,10 @@ For a customer PC, use the generated
 XAMPP development stack. The installer:
 
 - installs the customer-facing **WiFiPicoDMX** application below
-  `C:\Program Files\WiFiPicoDMX` on a new installation (an upgrade can retain
+  `%ProgramFiles%\WiFiPicoDMX` on a new installation (an upgrade can retain
   the earlier program directory);
 - stores mutable shows and fixture data in the upgrade-compatible location
-  `C:\ProgramData\Pico DMX Controller\data`;
+  `%ProgramData%\Pico DMX Controller\data`;
 - starts the `PicoDmxController` Windows service automatically;
 - creates Start Menu and desktop shortcuts that open a dedicated native
   application window, with the default browser as fallback;
@@ -238,7 +278,7 @@ Edit `config/local-paths.json` so it matches your XAMPP installation, app folder
 
 ```json
 {
-  "xamppHtdocs": "C:/xampp/htdocs",
+  "xamppHtdocs": "C:/path/to/xampp/htdocs",
   "appFolder": "dmx",
   "baseUrl": "http://localhost/dmx/",
   "chromePath": "C:/Program Files/Google/Chrome/Application/chrome.exe"
@@ -248,7 +288,7 @@ Edit `config/local-paths.json` so it matches your XAMPP installation, app folder
 These values mean the web app will be copied to:
 
 ```text
-C:\xampp\htdocs\dmx\
+<XAMPP installation directory>\htdocs\<app folder>\
 ```
 
 `config/local-paths.json` is ignored by Git. Keep your real machine paths there. The sync, manual screenshot/PDF, README screenshot, and release helper scripts read this file automatically. If you pass path parameters directly to a script, those command-line values override the config file for that run.
@@ -316,12 +356,12 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/update_xampp_server.ps1
 
 Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device. The XAMPP URL is only the address of the web interface and server-side show storage; it is independent from the Pico URLs assigned to the show's DMX Outputs.
 
-Configure hardware from **Fixture Controller → DMX Outputs**. Use **Find Picos** to receive every Pico discovery beacon on UDP port `64540`, then add the wanted devices and assign their universes. URLs can also be entered manually in that modal. The sticky header on every page checks the outputs used by patched fixtures and shows **online/total Picos online**; click the pill to refresh immediately. Green means every used output answered, amber means only some answered, and red means none answered.
+Configure hardware from **Fixture Controller → DMX Outputs**. Use **Find Picos** to receive every Pico discovery beacon on UDP port `64540`, then add the wanted devices and assign their universes. Each beacon includes the Pico SDK unique-board ID, which the show stores as the output's stable device identity independently of its DHCP address. If the same Pico later advertises a different IP address, **Find Picos** automatically updates only its saved URL. The output ID, universe, name, fixture assignments, and all show programming stay unchanged; click **Done** to autosave the refreshed address. URLs can also be entered manually in that modal. The sticky header on every page checks the outputs used by patched fixtures and shows **online/total Picos online**; click the pill to refresh immediately. Green means every used output answered, amber means only some answered, and red means none answered.
 
 Changing IP numbers are handled in two places:
 
 - **XAMPP/server URL**: configure scripts and tests with `config/local-paths.json`, `tests/pathconfig.local.json`, or `DMX_TEST_BASE_URL`. The browser app itself uses relative URLs for setup files, so once a page is opened from the right XAMPP address it continues to talk to the same server.
-- **Pico URLs**: configure show hardware with Controller → **DMX Outputs**. Hardware tests may still override their target with `DMX_PICO_BASE_URL`.
+- **Pico URLs**: configure show hardware with Controller → **DMX Outputs**. Run **Find Picos** after a DHCP change; a Pico whose saved unique-board ID is recognized receives its current URL automatically. Hardware tests may still override their target with `DMX_PICO_BASE_URL`.
 
 Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Show** before large changes when you want an extra backup of the complete show setup, including named DMX Outputs/universes, fixture output assignments, and every Pico's GPIO/ADC mappings.
 
@@ -820,7 +860,7 @@ The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conv
 - `MINOR` introduces a new compatible feature set. While the project remains below `1.0.0`, a minor release may still contain significant workflow changes that are called out in the changelog.
 - `PATCH` contains compatible fixes and smaller improvements.
 
-The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.0.0`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
+The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.0.1`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
 
 After merging a release into `main`, preview and create the next version branch with:
 
@@ -839,7 +879,7 @@ All application-facing version sources must agree:
 - Page and manual query strings use the application version for browser cache invalidation.
 - `CHANGELOG.md` records user-visible changes under the matching version.
 
-An asset suffix such as `?v=1.0.0-11` is a browser-cache revision within application version `1.0.0`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
+An asset suffix such as `?v=1.0.1-11` is a browser-cache revision within application version `1.0.1`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
 
 Application versions are independent from data-format versions. `schemaVersion` and `setupFormatVersion` change only when a stored JSON format requires a migration or compatibility decision.
 
@@ -847,7 +887,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "1.0.0",
+  "appVersion": "1.0.1",
   "schemaVersion": 1
 }
 ```
@@ -989,7 +1029,40 @@ and signing outputs are not accidentally committed. The remaining `release/`
 content can be committed if desired, although public binary distribution is
 usually cleaner through a GitHub Release.
 
-The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. The HTML/PDF manuals automatically embed the canonical `CHANGELOG.md` immediately after their introduction so customers can review new features and fixes offline. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
+The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. The manual opens with a linked table of contents and automatically embeds the canonical `CHANGELOG.md` as its final section so customers can navigate operating instructions first and still review new features and fixes offline. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
+
+After the package passes validation, complete these publication steps:
+
+8. Commit the generated release package, merge the completed version branch
+   into `main`, and mark the released version as the latest stable release.
+9. Update the README **Getting Started** installer and PDF manual labels and
+   direct URLs so they contain the released version and exact GitHub Release
+   asset names.
+10. Create and push the annotated `v<VERSION>` tag from the final `main`
+    release commit.
+11. Create the public GitHub Release and attach the Windows installer, its
+    checksum, all three UF2/checksum pairs, `release-manifest.json`, and the PDF
+    user manual. For example:
+
+```powershell
+gh release create v<VERSION> `
+  --title "WiFiPicoDMX <VERSION>" `
+  --generate-notes --latest `
+  release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe `
+  release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe.sha256 `
+  release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2 `
+  release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2.sha256 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2.sha256 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2.sha256 `
+  release/v<VERSION>/release-manifest.json `
+  release/v<VERSION>/docs/user-manual.pdf
+```
+
+12. Open the README installer and PDF manual links from GitHub and verify that
+    they download the published assets without requiring repository knowledge
+    or authentication.
 
 ---
 
