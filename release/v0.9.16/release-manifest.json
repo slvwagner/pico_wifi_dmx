@@ -1,12 +1,12 @@
 {
   "version": "0.9.16",
   "branch": "0.9.16",
-  "commit": "394bc17",
-  "createdAt": "2026-07-28T07:25:59Z",
+  "commit": "32e1e6b",
+  "createdAt": "2026-07-28T07:37:21Z",
   "tests": {
     "hardware": false
   },
-  "docsGenerated": false,
+  "docsGenerated": true,
   "firmware": {
     "file": "pico_wifi_dmx-v0.9.16.uf2",
     "sizeBytes": 453632,
@@ -24,8 +24,8 @@
   },
   "windowsInstaller": {
     "file": "wifi-pico-dmx-0.9.16-windows-x64.exe",
-    "sizeBytes": 109498634,
-    "sha256": "c7a3c1bb57741532a3c294282fb0aae9e8dbd330b260dbd2f592a054972e3446",
+    "sizeBytes": 109517885,
+    "sha256": "83af89ccfacc9a9a0280eaaa16cb3e57ea5965b3b1614fc043d3a740280a0f51",
     "signed": false
   },
   "docs": {
@@ -42,8 +42,8 @@
       "sha256": "6aed47eb41e95616306119022a8725670f5e6bb2a771b748ae0e45c9e38e41ab"
     },
     "user-manual.pdf": {
-      "sizeBytes": 4431180,
-      "sha256": "2d45bf70cfe0e1b508f8ce40a586ded250e89cc9324fcae86dc20fee28efc9f0"
+      "sizeBytes": 4431343,
+      "sha256": "d67269bf2410d3b5ea542ce93be9b1ee16ad1842202050baf1feaca26feb67ec"
     },
     "screenshots": {
       "count": 75
