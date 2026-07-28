@@ -14,6 +14,23 @@ SM712, ACT45B, HCPL-0700, 1N4148WS, and the available diagnostic pad banks. If
 the library file is missing or one of those package names is removed,
 generation stops instead of silently falling back to another footprint.
 
+## Design bundle and file ownership
+
+| File | Role | Edit policy |
+|---|---|---|
+| `WiFiPicoDMX_RevA.sch` | Three-sheet schematic with embedded used-component records | Generated; edit `scripts/generate_fusion_schematic.mjs` |
+| `WiFiPicoDMX_RevA.brd` | 95 mm × 100 mm PCB starting layout with placement, restrictions, and ground polygons | Generated; edit `scripts/generate_fusion_board.mjs` |
+| `WiFiPicoDMX_RevA_used.lbr` | Exact standalone library subset used by the design | Generated; edit the maintained library/generator inputs |
+| `WiFiPicoDMX_RevA_netlist.csv` | One row per physical electrical connection | Generated with the schematic |
+| `WiFiPicoDMX_RevA_netlist.md` | Human-readable nets, references, values, and review notes | Generated with the schematic |
+| `libraries/WiFiPicoDMX.lbr` | Maintained source footprint/symbol library | Source file; do not replace it with the generated subset |
+
+The schematic contains 40 part records: 37 physical components and three A3
+sheet frames. The board contains the same 37 physical components and 55 named
+nets. The generated used library currently contains 20 device sets, 17
+symbols, 19 packages, and eight available 3D associations. These counts are
+asserted by the hardware tests and must be reviewed if the design changes.
+
 ## How the schematic is created
 
 The schematic was not drawn manually in Fusion. EAGLE `.sch` files use an XML
@@ -72,6 +89,31 @@ Expected output:
 - `hardware/fusion/WiFiPicoDMX_RevA_used.lbr`;
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.csv`;
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.md`.
+
+## Importing the bundle into Fusion
+
+Keep the `.sch`, `.brd`, and `.lbr` together when uploading or archiving the
+design:
+
+1. upload `WiFiPicoDMX_RevA.sch` and `WiFiPicoDMX_RevA.brd` as the matching
+   schematic/board pair;
+2. upload `WiFiPicoDMX_RevA_used.lbr` to the same Fusion project when the
+   components should also be available for reuse;
+3. open the design pair and confirm that all parts/elements identify
+   `WiFiPicoDMX_RevA_used`;
+4. if a managed Fusion library relationship is required, import the `.lbr`,
+   mark it **In Use**, and deliberately use **Swap Library** after verifying
+   that every device and variant matches;
+5. run ERC, calculate the board with `RATSNEST *;`, and run DRC before making
+   any manufacturing output.
+
+The `<libraries>` sections inside `.sch` and `.brd` are expected. EAGLE stores
+the used component definitions inside each drawing for portability. Their
+presence does not mean that the standalone library is ignored: the embedded
+records and every part/element reference now share the external library's
+`WiFiPicoDMX_RevA_used` base name. Fusion may assign a hub URN when converting
+the local `.lbr`; use **Swap Library** rather than editing XML identifiers by
+hand.
 
 ## Basic carrier-board layout
 
@@ -175,3 +217,25 @@ Gerbers or ordering a PCB:
 Panel-mounted XLR and MIDI connectors connect to carrier-board JST XH headers:
 J1 is `B4B-XH-A` for DMX common, Data−, Data+, and shell; J2 is `B5B-XH-A`
 for DIN pins 1-5. The panel connector bodies are not mounted on the PCB.
+
+## Regeneration and verification
+
+Run the complete deterministic sequence from the repository root:
+
+```powershell
+node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_used_library.mjs
+node scripts/generate_fusion_board.mjs
+node --test tests/hardware/*.test.mjs
+```
+
+The order matters: the used library is filtered from the generated schematic,
+and the board imports the schematic's matching embedded library and physical
+net list. The tests verify package dimensions, component/pad mappings,
+schematic placement and labels, board/reference consistency, functional
+placement zones, isolation restrictions, ground polygons, exact
+schematic/library device coverage, and the shared library identity.
+
+Also parse or open all three XML files after regeneration. Passing the
+structural tests does not replace Fusion ERC/DRC, manufacturer footprint
+checks, signal-integrity review, isolation review, or prototype validation.

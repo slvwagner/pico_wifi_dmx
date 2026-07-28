@@ -5,6 +5,14 @@
 Changed:
 
 - Started the 0.9.16 development branch.
+- Added a reproducible three-sheet Fusion/EAGLE Rev. A schematic generated from the maintained project library, with frozen component values, explicit physical pin mappings, readable net labels, an A3 frame on every sheet, matching CSV/Markdown net lists, and regression coverage for connectivity, symbol placement, and Fusion ERC consistency.
+- Froze the Rev. A passive BOM around 0402 resistors and high-frequency capacitors, qualified 0603/0805 ISOW1412 supply capacitors, 0402 ferrites, 0603 status LEDs, the 1206 resettable fuse, and exact manufacturer ordering codes plus placement/population rules.
+- Corrected the selected Fusion symbols and footprints for the through-hole Pico 2 W development board, four-pad PTS810 reset switch, ISOW1412 DFM-20, HCPL-0700 SOIC-8, SM712 SOT-23, 1N4148WS SOD-323, ACT45B common-mode choke, JST B4B/B5B XH harness headers, and diagnostic pad banks while preserving every valid available 3D-package association.
+- Added a generated 95 mm × 100 mm Rev. A carrier-board starting layout with 37 physical components and 55 named nets. GPIO/analog expansion is placed left of the Pico, isolated DMX flows left-to-right across the upper section, and the isolated MIDI input occupies a protected lower board-edge island.
+- Added top, bottom, and via-restrict isolation corridors for the ISOW1412 and MIDI optocoupler boundaries, plus separate top/bottom polygon pours for `GND_LOGIC` and `GND_DMX_ISO`. `GND_DMX_CONVERTER` remains locally routed so its FB2 high-frequency filtering boundary is not bypassed.
+- Removed the obsolete J6 diagnostic pad bank, Pico carrier cutout, and Pico-specific carrier keepout. The complete Pico development board now mounts through its two 20-pin header rows using the supplied footprint.
+- Added `WiFiPicoDMX_RevA_used.lbr`, a reproducibly generated Fusion/EAGLE library containing exactly the 20 device sets, 17 symbols, 19 packages, and eight currently available 3D associations used by Rev. A, including the A3 frame and project-specific pad banks.
+- Unified the schematic, board, and standalone used-component library under the `WiFiPicoDMX_RevA_used` identity. The `.sch` and `.brd` retain EAGLE's required embedded component records for portability while matching the separately uploadable `.lbr` for library import and later managed-library swapping.
 
 ## 0.9.15 - 2026-07-25
 

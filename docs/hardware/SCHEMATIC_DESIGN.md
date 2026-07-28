@@ -179,6 +179,27 @@ connected to the Pico 2 W Micro-USB connector.
   safety-rated stitching capacitor requires a separate EMC and insulation
   review.
 
+The generated Rev. A prototype layout is currently a two-layer, 95 mm ×
+100 mm engineering starting point. Its placement keeps the expansion pads and
+Pico logic on the left/centre, the isolated DMX path in the upper section, and
+the isolated MIDI input at the lower board edge. The generated restrictions
+and copper policy are:
+
+- top, bottom, and via-restrict corridors across the ISOW1412 isolation
+  boundary;
+- a top/bottom/via-restrict moat around the MIDI connector-side island, with
+  the board edge forming its fourth boundary;
+- separate top- and bottom-layer polygons for `GND_LOGIC` and
+  `GND_DMX_ISO`;
+- no polygon for `GND_DMX_CONVERTER`, which must return locally without
+  bypassing FB2;
+- no Pico carrier cutout or carrier keepout because the complete Pico 2 W
+  development board is fitted through two 20-pin through-hole header rows.
+
+Run `RATSNEST *;` in Fusion after import and inspect all four pours. No copper
+island, route, via, mounting feature, or conductive enclosure part may bridge
+either isolation boundary.
+
 ## SMD component choices
 
 | Function | Preferred part | Package / mounting | Status |
@@ -203,12 +224,19 @@ through-hole 6N138 are not production BOM choices.
 Exact passive manufacturer ordering codes and population rules are frozen in
 [`PASSIVE_BOM.md`](PASSIVE_BOM.md).
 
-The maintained Fusion/EAGLE library is stored at
-`hardware/fusion/libraries/WiFiPicoDMX.lbr`. The generated schematic imports
-its matching SMD land patterns for the Pico, passives, status LEDs, reset
-switch, PPTC fuse, ISOW1412, SM712, ACT45B, HCPL-0700, MIDI protection diode,
-JST XH harness headers, and available diagnostic pad banks. Pad-bank sizes not
-present in the library retain project-specific definitions.
+The maintained Fusion/EAGLE source library is stored at
+`hardware/fusion/libraries/WiFiPicoDMX.lbr`. The generated
+`hardware/fusion/WiFiPicoDMX_RevA_used.lbr` contains exactly the device sets
+used by Rev. A, including their symbols, packages, available 3D associations,
+the A3 schematic frame, and the project-specific pad banks. The matching
+schematic and board use the `WiFiPicoDMX_RevA_used` library identity while
+retaining EAGLE's embedded component records for portable import.
+
+The used library covers the Pico, passives, status LEDs, reset switch, PPTC
+fuse, ISOW1412, SM712, ACT45B, HCPL-0700, MIDI protection diode, JST XH
+harness headers, and diagnostic pad banks. It is generated output; make
+footprint corrections in the maintained source library or the schematic
+generator as appropriate, then regenerate the complete design bundle.
 
 ## MIDI input
 

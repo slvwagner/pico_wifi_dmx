@@ -437,23 +437,48 @@ Shield/GND -> DMX XLR pin 1
 
 Do not connect Pico GPIO2 directly to a DMX cable. DMX uses an RS-485 differential line, so the Pico output must go through a suitable RS-485/DMX line driver. GPIO3 is only the optional frame-trigger/debug pin, not a DMX data output. GPIO5 is reserved by default as the DIN/TRS MIDI receive input (`MIDI_RX_PIN=5`, `MIDI_UART_ID=1`). Feed GPIO5 only from a proper MIDI input receiver/opto-isolation circuit; do not wire a MIDI connector directly to the Pico GPIO.
 
-### Rev. A Fusion schematic
+### Rev. A Fusion hardware design
 
-The preliminary Rev. A carrier schematic is generated as an EAGLE XML
-`.sch` file rather than being manually drawn in Fusion. Run:
+The Rev. A carrier schematic, PCB starting layout, physical net lists, and
+design-specific component library are generated as compatible EAGLE XML files
+for Fusion Electronics. Regenerate the complete bundle in dependency order:
 
 ```powershell
 node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_used_library.mjs
+node scripts/generate_fusion_board.mjs
 ```
 
-The script defines the symbols, preliminary footprints, component/pad
-mappings, named signals and connections once, then generates the Fusion/EAGLE
-schematic plus CSV and Markdown physical-pin net lists. This keeps the three
-outputs consistent. The generated visual arrangement and footprints are a
-starting point only and require manual rework and manufacturer land-pattern
-verification before PCB fabrication. See
+The bundle places these uploadable design files together:
+
+- `hardware/fusion/WiFiPicoDMX_RevA.sch`;
+- `hardware/fusion/WiFiPicoDMX_RevA.brd`;
+- `hardware/fusion/WiFiPicoDMX_RevA_used.lbr`.
+
+The schematic generator defines component/pad mappings, named signals and
+connections once. The board generator preserves the reviewed 95 mm × 100 mm
+functional placement, four ground pours, and DMX/MIDI isolation restrictions.
+The used-library generator filters the schematic to the exact symbols,
+packages, device sets, and available 3D associations present in Rev. A.
+
+The schematic and board use the same `WiFiPicoDMX_RevA_used` library identity
+as the standalone `.lbr`. EAGLE/Fusion still embeds the used definitions in
+each design file so the pair remains portable; uploading the `.lbr` separately
+makes the same components reusable and permits a deliberate **Swap Library**
+to a managed Fusion library.
+
+Run the structural hardware regression suite after regeneration:
+
+```powershell
+node --test tests/hardware/*.test.mjs
+```
+
+The generated design is an engineering prototype and still requires Fusion
+ERC/DRC, `RATSNEST` review, manufacturer land-pattern verification, isolation
+review, routing, and mechanical checking before PCB fabrication. See
 [`hardware/fusion/README.md`](hardware/fusion/README.md) for the complete
-method, outputs and review requirements.
+generation/import workflow, output ownership, expected counts, and review
+requirements.
 
 DMX signal generation and timing:
 
@@ -730,7 +755,7 @@ pico_wifi_dmx/
 │  │  └─ launch-control-xl-programmer-s-reference-guide.pdf
 │  └─ screenshots/           Generated manual/README screenshots
 ├─ hardware/
-│  └─ fusion/                Generated Rev. A schematic and physical-pin net lists
+│  └─ fusion/                Generated Rev. A schematic, PCB, used library, and net lists
 ├─ tools/                    Source material used by repository tooling
 │  └─ fixture-library/       Open Fixture Library export used by the converter
 │     └─ ofl_export_ofl.zip
@@ -742,6 +767,9 @@ pico_wifi_dmx/
 │  ├─ build_fixture_library.ps1
 │  ├─ sync_fixture_library_from_xampp.ps1
 │  ├─ flash_firmware.ps1
+│  ├─ generate_fusion_schematic.mjs
+│  ├─ generate_fusion_used_library.mjs
+│  ├─ generate_fusion_board.mjs
 │  ├─ start_version_branch.ps1
 │  ├─ prepare_release.ps1
 │  ├─ dev-router.php         PHP built-in-server router for local development
