@@ -351,6 +351,33 @@ test.describe('Code safety regression rules', () => {
     expect(builder).toContain('display: none !important');
   });
 
+  test('manual generation, deployment, installers, and releases keep clean and navigable PDF variants', () => {
+    const builder = read('scripts/build_user_manual_pdf.ps1');
+    const updater = read('scripts/update_user_manual.ps1');
+    const sync = read('scripts/sync_fixture_controller_to_xampp.ps1');
+    const release = read('scripts/prepare_release.ps1');
+    const windowsInstaller = read('installer/windows/build_installer.ps1');
+    const macosInstaller = read('installer/macos/build_package.sh');
+    const ubuntuInstaller = read('installer/ubuntu/build_package.sh');
+    const navigationHtml = read('docs/user-manual.html');
+    const printHtml = read('docs/user-manual-print.html');
+
+    expect(builder).toContain('[switch]$PdfWithNavigation');
+    expect(builder).toContain('"A4 landscape"');
+    expect(builder).toContain('class="manual-pdf-navigation"');
+    expect(builder).toContain('html.manual-pdf-navigation .manual-nav');
+    expect(updater).toContain('-PdfPath "docs/user-manual-navigation.pdf"');
+    expect(updater).toContain('-PdfWithNavigation');
+    expect(updater).toContain('-PdfPath "docs/user-manual.pdf"');
+    expect(sync).toContain('user-manual-navigation.pdf');
+    expect(release).toContain('"user-manual-navigation.pdf"');
+    expect(windowsInstaller).toContain('docs\\user-manual-navigation.pdf');
+    expect(macosInstaller).toContain('docs/user-manual-navigation.pdf');
+    expect(ubuntuInstaller).toContain('docs/user-manual-navigation.pdf');
+    expect(navigationHtml).toContain('<html class="manual-pdf-navigation" lang="en">');
+    expect(printHtml).toContain('<html lang="en">');
+  });
+
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {
     const cmake = read('CMakeLists.txt');
     const releaseScript = read('scripts/prepare_release.ps1');

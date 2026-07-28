@@ -164,6 +164,7 @@ find "$repo_root/api" -maxdepth 1 -type f -name '*.php' -exec \
     install -m 0644 '{}' "$app_root/" \;
 install -m 0644 "$repo_root/docs/user-manual.html" "$app_root/user-manual.html"
 install -m 0644 "$repo_root/docs/user-manual.pdf" "$app_root/user-manual.pdf"
+install -m 0644 "$repo_root/docs/user-manual-navigation.pdf" "$app_root/user-manual-navigation.pdf"
 cp -a "$repo_root/docs/screenshots/." "$app_root/screenshots/"
 install -m 0644 "$repo_root/LICENSE" "$package_root/opt/pico-dmx-controller/LICENSE"
 install -m 0644 "$repo_root/VERSION" "$package_root/opt/pico-dmx-controller/VERSION"

@@ -21,6 +21,7 @@ $routes = [
     '/test/index.html' => "$root/web/dmx_benchmark.html",
     '/user-manual.html' => "$root/docs/user-manual.html",
     '/user-manual.pdf' => "$root/docs/user-manual.pdf",
+    '/user-manual-navigation.pdf' => "$root/docs/user-manual-navigation.pdf",
     '/VERSION' => "$root/VERSION",
 ];
 

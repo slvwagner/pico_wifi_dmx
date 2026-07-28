@@ -182,6 +182,7 @@ Get-ChildItem -LiteralPath (Join-Path $repoRoot "api") -Filter "*.php" -File |
 
 Copy-Item -LiteralPath (Join-Path $repoRoot "docs\user-manual.html") -Destination (Join-Path $stageApp "user-manual.html")
 Copy-Item -LiteralPath (Join-Path $repoRoot "docs\user-manual.pdf") -Destination (Join-Path $stageApp "user-manual.pdf")
+Copy-Item -LiteralPath (Join-Path $repoRoot "docs\user-manual-navigation.pdf") -Destination (Join-Path $stageApp "user-manual-navigation.pdf")
 if (Test-Path -LiteralPath (Join-Path $repoRoot "docs\screenshots")) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "docs\screenshots") -Destination (Join-Path $stageApp "screenshots") -Recurse
 }

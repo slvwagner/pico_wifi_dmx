@@ -75,7 +75,7 @@ function ConvertTo-ManifestTimestampString($Value) {
 function ConvertTo-ComparableReleaseManifest($ManifestObject) {
     $docs = [ordered]@{}
     if ($ManifestObject.docs) {
-        foreach ($name in @("user-manual.md", "user-manual.html", "user-manual-print.html", "user-manual.pdf", "screenshots")) {
+        foreach ($name in @("user-manual.md", "user-manual.html", "user-manual-print.html", "user-manual.pdf", "user-manual-navigation.pdf", "screenshots")) {
             if ($ManifestObject.docs.PSObject.Properties.Name -contains $name) {
                 $entry = $ManifestObject.docs.$name
                 if ($name -eq "screenshots") {
@@ -354,7 +354,8 @@ $manualFiles = @(
     "user-manual.md",
     "user-manual.html",
     "user-manual-print.html",
-    "user-manual.pdf"
+    "user-manual.pdf",
+    "user-manual-navigation.pdf"
 )
 foreach ($name in $manualFiles) {
     $src = Join-Path (Join-Path $repoRoot "docs") $name

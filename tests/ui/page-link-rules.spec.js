@@ -99,7 +99,7 @@ test.describe('Page link rules', () => {
     }
   });
 
-  test('manual provides responsive section navigation without affecting print output', async ({ page }) => {
+  test('manual keeps its desktop sidebar sticky and provides responsive section navigation', async ({ page }) => {
     await page.goto(`user-manual.html?test=${Date.now()}`);
     const sidebar = page.locator('#manual-nav');
     const toggle = page.locator('.manual-nav-toggle');
@@ -108,6 +108,9 @@ test.describe('Page link rules', () => {
     await expect(sidebar).toBeVisible();
     await expect(sidebar.getByRole('link', { name: '5. Chaser', exact: true })).toHaveAttribute('href', '#5-chaser');
     await expect(page.locator('.section-pager')).toHaveCount(await sectionHeadings.count());
+    await page.evaluate(() => window.scrollTo(0, 1800));
+    await expect.poll(async () => Math.round((await sidebar.boundingBox())?.y ?? -1)).toBe(28);
+    await page.evaluate(() => window.scrollTo(0, 0));
 
     await page.setViewportSize({ width: 900, height: 1100 });
     await expect(toggle).toBeVisible();
@@ -139,6 +142,7 @@ test.describe('Page link rules', () => {
     await expect(toggle).toBeHidden();
     await expect(page.locator('.manual-back-to-contents')).toBeHidden();
     await expect(page.locator('.section-pager').first()).toBeHidden();
+    await expect(sidebar).toBeVisible();
   });
 
   test('each page Manual button targets an existing manual anchor', async ({ page }) => {

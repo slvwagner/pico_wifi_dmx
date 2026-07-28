@@ -3,7 +3,8 @@ param(
     [string]$HtmlPath = "docs/user-manual.html",
     [string]$PdfPath = "docs/user-manual.pdf",
     [string]$ChromePath = "",
-    [int]$Port = 9230
+    [int]$Port = 9230,
+    [switch]$PdfWithNavigation
 )
 
 $ErrorActionPreference = "Stop"
@@ -272,10 +273,12 @@ Close-Lists
 $manualNavItems = @($manualSections | ForEach-Object {
     "<li><a href=`"#$($_.Id)`">$($_.TitleHtml)</a></li>"
 }) -join "`n"
+$htmlClass = if ($PdfWithNavigation) { ' class="manual-pdf-navigation"' } else { "" }
+$pdfPageSize = if ($PdfWithNavigation) { "A4 landscape" } else { "A4" }
 
 $html = @"
 <!doctype html>
-<html lang="en">
+<html$htmlClass lang="en">
 <head>
 <meta charset="utf-8">
 <title>Pico WiFi DMX User Manual</title>
@@ -291,7 +294,7 @@ $html = @"
   --accent: #37c4a4;
   --warn: #ffbc6b;
 }
-@page { size: A4; margin: 0; }
+@page { size: $pdfPageSize; margin: 0; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -447,6 +450,29 @@ body.manual-nav-open .manual-nav-backdrop {
   color: #ffffff;
   font-size: 18px;
 }
+.manual-nav-downloads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.manual-nav-downloads a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  text-align: center;
+  text-decoration: none;
+  font-size: 12px;
+}
+.manual-nav-downloads a:hover,
+.manual-nav-downloads a:focus-visible {
+  border-color: var(--accent);
+}
 .manual-nav-close {
   width: 44px;
   height: 44px;
@@ -545,8 +571,8 @@ body.manual-nav-open .manual-nav-backdrop {
   }
   .manual-nav {
     position: sticky;
-    top: 28px;
     inset: auto;
+    top: 28px;
     z-index: 1;
     width: 250px;
     max-height: calc(100vh - 56px);
@@ -604,6 +630,54 @@ body.manual-nav-open .manual-nav-backdrop {
   .section-pager {
     display: none !important;
   }
+  html.manual-pdf-navigation body {
+    display: block;
+    padding: 20px 20px 20px 250px;
+  }
+  html.manual-pdf-navigation main {
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px;
+  }
+  html.manual-pdf-navigation .manual-nav {
+    display: block !important;
+    position: fixed;
+    inset: 20px auto 20px 20px;
+    width: 210px;
+    max-height: none;
+    padding: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    transform: none;
+    box-shadow: none;
+  }
+  html.manual-pdf-navigation .manual-nav-header {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+  html.manual-pdf-navigation .manual-nav-title {
+    font-size: 14px;
+  }
+  html.manual-pdf-navigation .manual-nav-close,
+  html.manual-pdf-navigation .manual-nav-downloads {
+    display: none !important;
+  }
+  html.manual-pdf-navigation .manual-nav-list li {
+    margin: 0;
+  }
+  html.manual-pdf-navigation .manual-nav-list a {
+    padding: 2px 5px;
+    border-left-width: 2px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+  html.manual-pdf-navigation .manual-nav-list a.is-active {
+    border-left-color: transparent;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 400;
+  }
 }
 </style>
 </head>
@@ -614,6 +688,10 @@ body.manual-nav-open .manual-nav-backdrop {
   <div class="manual-nav-header">
     <strong class="manual-nav-title">Contents</strong>
     <button class="manual-nav-close" type="button" aria-label="Close contents">×</button>
+  </div>
+  <div class="manual-nav-downloads">
+    <a href="user-manual.pdf">Clean PDF</a>
+    <a href="user-manual-navigation.pdf">PDF with navigation</a>
   </div>
   <ul class="manual-nav-list">
     <li><a href="#table-of-contents">Full table of contents</a></li>
