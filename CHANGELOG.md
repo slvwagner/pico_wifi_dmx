@@ -11,6 +11,7 @@ Changed:
 - Added the saved step fade percentage to Chaser Pico slot tiles; slots with mixed fade values show their minimum–maximum range.
 - Added a Windows BOOTSEL firmware installer to WiFiPicoDMX. The software installer can open it after setup; it guides the customer through connecting one Pico, validates the bundled application and Wi-Fi UF2 files, requires confirmation before flashing, and reports recovery instructions.
 - Fixed bundled Wi-Fi UF2 validation when `picotool` wraps metadata across lines because of the installation path or console width.
+- Hardened customer release packaging so firmware is explicitly configured as a Release build, the selected build directory feeds the Windows installer, and Debug UF2 images are rejected.
 
 ## 0.9.16 - 2026-07-28
 

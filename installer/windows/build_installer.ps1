@@ -91,8 +91,9 @@ if ($LASTEXITCODE -ne 0 -or
     $applicationInfo -notmatch "target chip:\s+RP2350" -or
     $applicationInfo -notmatch "block type:\s+partition table" -or
     $applicationInfo -notmatch '"Wi-Fi\s+Firmware"' -or
-    $applicationInfo -notmatch "version:\s+$([regex]::Escape($version))") {
-    throw "Application UF2 is not the expected WiFiPicoDMX $version RP2350 image. Build the current firmware before creating the installer."
+    $applicationInfo -notmatch "version:\s+$([regex]::Escape($version))" -or
+    $applicationInfo -notmatch "build attributes:\s+Release build") {
+    throw "Application UF2 is not the expected WiFiPicoDMX $version RP2350 Release image. Build the current Release firmware before creating the installer."
 }
 $wifiInfo = & $PicotoolPath info -a $WifiFirmwareUf2 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0 -or

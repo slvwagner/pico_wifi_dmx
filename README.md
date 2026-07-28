@@ -887,6 +887,11 @@ npm run test:pico
 .\scripts\prepare_release.ps1 -Build
 ```
 
+`-Build` explicitly configures `CMAKE_BUILD_TYPE=Release` before compiling.
+The Windows installer accepts only a matching RP2350 Release UF2 and receives
+the exact artifacts from the selected `-BuildDir`, preventing a stale Debug
+image from entering a customer package.
+
 For a signed Windows customer release, pass the non-secret certificate-store
 thumbprint:
 

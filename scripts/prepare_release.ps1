@@ -175,8 +175,15 @@ if (-not $AllowDirty) {
 }
 
 if ($Build) {
-    Invoke-Step "Build firmware" {
-        Invoke-Native "Firmware build" { & $cmakeExe --build $BuildDir }
+    Invoke-Step "Configure release firmware" {
+        Invoke-Native "Firmware release configuration" {
+            & $cmakeExe -S $repoRoot -B $BuildDir -DCMAKE_BUILD_TYPE=Release
+        }
+    }
+    Invoke-Step "Build release firmware" {
+        Invoke-Native "Firmware release build" {
+            & $cmakeExe --build $BuildDir --config Release
+        }
     }
 }
 
@@ -268,6 +275,8 @@ if ($isWindowsHost -and -not $SkipWindowsInstaller) {
     Invoke-Step "Build Windows customer installer" {
         $installerArgs = @{
             OutputDir = $releaseDir
+            ApplicationUf2 = (Join-Path $BuildDir "pico_wifi_dmx.uf2")
+            WifiFirmwareUf2 = (Join-Path $BuildDir "pico_wifi_dmx_wifi_firmware.uf2")
         }
         if ($WindowsSigningCertificateThumbprint) {
             $installerArgs.SigningCertificateThumbprint = $WindowsSigningCertificateThumbprint
