@@ -6,6 +6,7 @@ const netlistCsvPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.csv");
 const netlistMarkdownPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.md");
 const projectLibraryPath = resolve("hardware/fusion/libraries/WiFiPicoDMX.lbr");
 const projectLibraryXml = readFileSync(projectLibraryPath, "utf8");
+const designLibraryName = "WiFiPicoDMX_RevA_used";
 
 const esc = (value) => String(value)
   .replaceAll("&", "&amp;")
@@ -907,8 +908,8 @@ for (const packageName of usedPackageNames) {
   if (model) usedPackage3dModels.set(model.urn, model.xml);
 }
 
-const libraryXml = `<library name="WiFiPicoDMX_RevA_embedded">
-          <description>Self-contained WiFiPicoDMX Rev. A schematic library derived from hardware/fusion/libraries/WiFiPicoDMX.lbr plus documented project-specific land patterns. Verify every footprint before PCB manufacture.</description>
+const libraryXml = `<library name="${designLibraryName}">
+          <description>Embedded copy of the WiFiPicoDMX Rev. A used-component library. The matching standalone library is hardware/fusion/WiFiPicoDMX_RevA_used.lbr. Verify every footprint before PCB manufacture.</description>
           <packages>
 ${lines([...packages.entries()]
     .filter(([name]) => usedPackageNames.has(name))
@@ -942,7 +943,7 @@ const layerDefinitions = [
 
 const partsXml = parts.map((part) => element("part", {
   name: part.name,
-  library: "WiFiPicoDMX_RevA_embedded",
+  library: designLibraryName,
   deviceset: part.deviceSet,
   device: "",
   value: part.value,

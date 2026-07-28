@@ -14,8 +14,10 @@ node scripts/generate_fusion_used_library.mjs
 ```
 
 Use the generated library when you want to import or share only the components
-that are actually present in this design. Continue to edit
-`WiFiPicoDMX.lbr`; the generated subset is replaced by the command above.
+that are actually present in this design. The schematic and board identify
+their mandatory embedded component records with the same
+`WiFiPicoDMX_RevA_used` library name. Continue to edit `WiFiPicoDMX.lbr`; the
+generated subset is replaced by the command above.
 
 The schematic generator reads the library directly and imports these package
 definitions:

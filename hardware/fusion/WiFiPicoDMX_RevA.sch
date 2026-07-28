@@ -35,8 +35,8 @@
     <schematic xreflabel="%F%N/%S.%C%R" xrefpart="/%S.%C%R">
       <description>WiFiPicoDMX Rev. A preliminary Fusion/EAGLE schematic. Generated from docs/hardware/SCHEMATIC_DESIGN.md. Electrical review and manufacturer footprint verification are mandatory before PCB release.</description>
       <libraries>
-        <library name="WiFiPicoDMX_RevA_embedded">
-          <description>Self-contained WiFiPicoDMX Rev. A schematic library derived from hardware/fusion/libraries/WiFiPicoDMX.lbr plus documented project-specific land patterns. Verify every footprint before PCB manufacture.</description>
+        <library name="WiFiPicoDMX_RevA_used">
+          <description>Embedded copy of the WiFiPicoDMX Rev. A used-component library. The matching standalone library is hardware/fusion/WiFiPicoDMX_RevA_used.lbr. Verify every footprint before PCB manufacture.</description>
           <packages>
             <package name="PADBANK7">
                       <smd name="1" x="0" y="-7.62" dx="2.2" dy="1.6" layer="1"/>
@@ -1360,46 +1360,46 @@
         </class>
       </classes>
       <parts>
-        <part name="FRAME1" library="WiFiPicoDMX_RevA_embedded" deviceset="FRAME_A3" device="" value=""/>
-        <part name="FRAME2" library="WiFiPicoDMX_RevA_embedded" deviceset="FRAME_A3" device="" value=""/>
-        <part name="FRAME3" library="WiFiPicoDMX_RevA_embedded" deviceset="FRAME_A3" device="" value=""/>
-        <part name="U1" library="WiFiPicoDMX_RevA_embedded" deviceset="PICO2W" device="" value="Raspberry Pi Pico 2 W"/>
-        <part name="F1" library="WiFiPicoDMX_RevA_embedded" deviceset="PPTC1206" device="" value="1206L050YR 0.5A HOLD"/>
-        <part name="SW1" library="WiFiPicoDMX_RevA_embedded" deviceset="SWITCH_SMD" device="" value="PTS810SJM250SMTR LFS RESET (NO)"/>
-        <part name="R8" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL"/>
-        <part name="D3" library="WiFiPicoDMX_RevA_embedded" deviceset="LED0603" device="" value="PWR GREEN Lite-On LTST-C190KGKT"/>
-        <part name="R9" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL"/>
-        <part name="D4" library="WiFiPicoDMX_RevA_embedded" deviceset="LED0603" device="" value="DMX YELLOW Lite-On LTST-C190KSKT"/>
-        <part name="J3" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK17" device="" value="FREE GPIO PADS"/>
-        <part name="J4" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK5" device="" value="ANALOG PADS"/>
-        <part name="J5" library="WiFiPicoDMX_RevA_embedded" deviceset="PADBANK7" device="" value="RESERVED SIGNAL TEST PADS"/>
-        <part name="U2" library="WiFiPicoDMX_RevA_embedded" deviceset="ISOW1412DFMR" device="" value="ISOW1412DFMR"/>
-        <part name="R1" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="100k 1% 0.063W 0402 Yageo RC0402FR-07100KL"/>
-        <part name="R2" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL"/>
-        <part name="R3" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL"/>
-        <part name="C1" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO"/>
-        <part name="C2" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="10nF 50V 10% X7R 0402 0402B103K500CT VDD &lt;1mm"/>
-        <part name="C3" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0805" device="" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD"/>
-        <part name="C8" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0603" device="" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm"/>
-        <part name="FB1" library="WiFiPicoDMX_RevA_embedded" deviceset="FERRITE0402" device="" value="BLM15EX331SN1D"/>
-        <part name="FB2" library="WiFiPicoDMX_RevA_embedded" deviceset="FERRITE0402" device="" value="BLM15EX331SN1D"/>
-        <part name="C4" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT &lt;1mm"/>
-        <part name="C5" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0805" device="" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT"/>
-        <part name="C6" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN"/>
-        <part name="C9" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0603" device="" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm"/>
-        <part name="L1" library="WiFiPicoDMX_RevA_embedded" deviceset="CMC_OPTION" device="" value="ACT45B-510-2P-TL003 - DNP"/>
-        <part name="R10" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT"/>
-        <part name="R11" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT"/>
-        <part name="D1" library="WiFiPicoDMX_RevA_embedded" deviceset="SM712" device="" value="SM712.TCT"/>
-        <part name="J1" library="WiFiPicoDMX_RevA_embedded" deviceset="PANEL_DMX4" device="" value="JST XH B4B-XH-A DMX: COM,-,+,SHELL"/>
-        <part name="J2" library="WiFiPicoDMX_RevA_embedded" deviceset="PANEL_MIDI5" device="" value="JST XH B5B-XH-A MIDI: 1,2,3,4,5"/>
-        <part name="R4" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="220R 1% 0.063W 0402 Yageo RC0402FR-07220RL"/>
-        <part name="R5" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="220R 1% 0.063W 0402 Yageo RC0402FR-07220RL"/>
-        <part name="D2" library="WiFiPicoDMX_RevA_embedded" deviceset="DIODE_SOD323" device="" value="1N4148WS-E3-08"/>
-        <part name="U3" library="WiFiPicoDMX_RevA_embedded" deviceset="HCPL_0700_500E" device="" value="HCPL-0700-500E"/>
-        <part name="R6" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="4.7k 1% 0.063W 0402 Yageo RC0402FR-074K7L"/>
-        <part name="R7" library="WiFiPicoDMX_RevA_embedded" deviceset="RES0402" device="" value="47k 1% 0.063W 0402 Yageo RC0402FR-0747KL"/>
-        <part name="C7" library="WiFiPicoDMX_RevA_embedded" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC"/>
+        <part name="FRAME1" library="WiFiPicoDMX_RevA_used" deviceset="FRAME_A3" device="" value=""/>
+        <part name="FRAME2" library="WiFiPicoDMX_RevA_used" deviceset="FRAME_A3" device="" value=""/>
+        <part name="FRAME3" library="WiFiPicoDMX_RevA_used" deviceset="FRAME_A3" device="" value=""/>
+        <part name="U1" library="WiFiPicoDMX_RevA_used" deviceset="PICO2W" device="" value="Raspberry Pi Pico 2 W"/>
+        <part name="F1" library="WiFiPicoDMX_RevA_used" deviceset="PPTC1206" device="" value="1206L050YR 0.5A HOLD"/>
+        <part name="SW1" library="WiFiPicoDMX_RevA_used" deviceset="SWITCH_SMD" device="" value="PTS810SJM250SMTR LFS RESET (NO)"/>
+        <part name="R8" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL"/>
+        <part name="D3" library="WiFiPicoDMX_RevA_used" deviceset="LED0603" device="" value="PWR GREEN Lite-On LTST-C190KGKT"/>
+        <part name="R9" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="1k 1% 0.063W 0402 Yageo RC0402FR-071KL"/>
+        <part name="D4" library="WiFiPicoDMX_RevA_used" deviceset="LED0603" device="" value="DMX YELLOW Lite-On LTST-C190KSKT"/>
+        <part name="J3" library="WiFiPicoDMX_RevA_used" deviceset="PADBANK17" device="" value="FREE GPIO PADS"/>
+        <part name="J4" library="WiFiPicoDMX_RevA_used" deviceset="PADBANK5" device="" value="ANALOG PADS"/>
+        <part name="J5" library="WiFiPicoDMX_RevA_used" deviceset="PADBANK7" device="" value="RESERVED SIGNAL TEST PADS"/>
+        <part name="U2" library="WiFiPicoDMX_RevA_used" deviceset="ISOW1412DFMR" device="" value="ISOW1412DFMR"/>
+        <part name="R1" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="100k 1% 0.063W 0402 Yageo RC0402FR-07100KL"/>
+        <part name="R2" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL"/>
+        <part name="R3" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="10k 1% 0.063W 0402 Yageo RC0402FR-0710KL"/>
+        <part name="C1" library="WiFiPicoDMX_RevA_used" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO"/>
+        <part name="C2" library="WiFiPicoDMX_RevA_used" deviceset="CAP0402" device="" value="10nF 50V 10% X7R 0402 0402B103K500CT VDD &lt;1mm"/>
+        <part name="C3" library="WiFiPicoDMX_RevA_used" deviceset="CAP0805" device="" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD"/>
+        <part name="C8" library="WiFiPicoDMX_RevA_used" deviceset="CAP0603" device="" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm"/>
+        <part name="FB1" library="WiFiPicoDMX_RevA_used" deviceset="FERRITE0402" device="" value="BLM15EX331SN1D"/>
+        <part name="FB2" library="WiFiPicoDMX_RevA_used" deviceset="FERRITE0402" device="" value="BLM15EX331SN1D"/>
+        <part name="C4" library="WiFiPicoDMX_RevA_used" deviceset="CAP0402" device="" value="10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT &lt;1mm"/>
+        <part name="C5" library="WiFiPicoDMX_RevA_used" deviceset="CAP0805" device="" value="10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT"/>
+        <part name="C6" library="WiFiPicoDMX_RevA_used" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN"/>
+        <part name="C9" library="WiFiPicoDMX_RevA_used" deviceset="CAP0603" device="" value="1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm"/>
+        <part name="L1" library="WiFiPicoDMX_RevA_used" deviceset="CMC_OPTION" device="" value="ACT45B-510-2P-TL003 - DNP"/>
+        <part name="R10" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT"/>
+        <part name="R11" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT"/>
+        <part name="D1" library="WiFiPicoDMX_RevA_used" deviceset="SM712" device="" value="SM712.TCT"/>
+        <part name="J1" library="WiFiPicoDMX_RevA_used" deviceset="PANEL_DMX4" device="" value="JST XH B4B-XH-A DMX: COM,-,+,SHELL"/>
+        <part name="J2" library="WiFiPicoDMX_RevA_used" deviceset="PANEL_MIDI5" device="" value="JST XH B5B-XH-A MIDI: 1,2,3,4,5"/>
+        <part name="R4" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="220R 1% 0.063W 0402 Yageo RC0402FR-07220RL"/>
+        <part name="R5" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="220R 1% 0.063W 0402 Yageo RC0402FR-07220RL"/>
+        <part name="D2" library="WiFiPicoDMX_RevA_used" deviceset="DIODE_SOD323" device="" value="1N4148WS-E3-08"/>
+        <part name="U3" library="WiFiPicoDMX_RevA_used" deviceset="HCPL_0700_500E" device="" value="HCPL-0700-500E"/>
+        <part name="R6" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="4.7k 1% 0.063W 0402 Yageo RC0402FR-074K7L"/>
+        <part name="R7" library="WiFiPicoDMX_RevA_used" deviceset="RES0402" device="" value="47k 1% 0.063W 0402 Yageo RC0402FR-0747KL"/>
+        <part name="C7" library="WiFiPicoDMX_RevA_used" deviceset="CAP0402" device="" value="100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC"/>
       </parts>
       <sheets>
         <sheet>

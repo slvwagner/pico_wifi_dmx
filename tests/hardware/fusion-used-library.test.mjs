@@ -7,6 +7,10 @@ const schematic = readFileSync(
   resolve("hardware/fusion/WiFiPicoDMX_RevA.sch"),
   "utf8",
 );
+const board = readFileSync(
+  resolve("hardware/fusion/WiFiPicoDMX_RevA.brd"),
+  "utf8",
+);
 const usedLibrary = readFileSync(
   resolve("hardware/fusion/WiFiPicoDMX_RevA_used.lbr"),
   "utf8",
@@ -87,4 +91,29 @@ test("used-component library is a standalone Fusion/EAGLE library", () => {
   assert.match(usedLibrary, /<eagle version="9\.6\.2">/);
   assert.match(usedLibrary, /<drawing>[\s\S]*<library>/);
   assert.doesNotMatch(usedLibrary, /<schematic\b/);
+});
+
+test("schematic and board identify the standalone used-component library", () => {
+  for (const [documentName, document, referenceTag] of [
+    ["schematic", schematic, "part"],
+    ["board", board, "element"],
+  ]) {
+    assert.match(
+      document,
+      /<library\b[^>]*\bname="WiFiPicoDMX_RevA_used"/,
+      `${documentName} does not embed the standalone library identity`,
+    );
+    assert.doesNotMatch(document, /WiFiPicoDMX_RevA_embedded/);
+
+    const references = [
+      ...document.matchAll(
+        new RegExp(`<${referenceTag}\\b[^>]*\\blibrary="([^"]+)"`, "g"),
+      ),
+    ];
+    assert.ok(references.length > 0, `${documentName} has no library references`);
+    assert.deepEqual(
+      new Set(references.map((match) => match[1])),
+      new Set(["WiFiPicoDMX_RevA_used"]),
+    );
+  }
 });

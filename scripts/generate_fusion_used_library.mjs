@@ -50,7 +50,7 @@ if (!eagleVersion) throw new Error(`Missing EAGLE version in ${schematicPath}`);
 
 const embeddedLibrary = requiredMatch(
   schematic,
-  /<library\b[^>]*\bname="WiFiPicoDMX_RevA_embedded"[^>]*>[\s\S]*?<\/library>/,
+  /<library\b[^>]*\bname="WiFiPicoDMX_RevA_used"[^>]*>[\s\S]*?<\/library>/,
   "embedded Rev. A library",
 );
 const allDeviceSets = namedElements(embeddedLibrary, "deviceset");

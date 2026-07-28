@@ -1,8 +1,10 @@
 # Fusion Electronics files
 
 `WiFiPicoDMX_RevA.sch` is a self-contained Autodesk EAGLE XML schematic that
-can be uploaded to Autodesk Fusion Electronics. Its component definitions and
-land patterns are embedded in the schematic.
+can be uploaded to Autodesk Fusion Electronics. EAGLE stores the component
+definitions and land patterns used by a design inside its schematic and board
+files. Those embedded records use the `WiFiPicoDMX_RevA_used` library identity,
+matching the standalone `WiFiPicoDMX_RevA_used.lbr` supplied beside the design.
 
 The maintained Fusion/EAGLE source library is
 [`libraries/WiFiPicoDMX.lbr`](libraries/WiFiPicoDMX.lbr). The generator reads
@@ -61,11 +63,13 @@ Regenerate the schematic and both net lists from the repository root with:
 
 ```powershell
 node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_used_library.mjs
 ```
 
 Expected output:
 
 - `hardware/fusion/WiFiPicoDMX_RevA.sch`;
+- `hardware/fusion/WiFiPicoDMX_RevA_used.lbr`;
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.csv`;
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.md`.
 
@@ -77,6 +81,7 @@ after regenerating the schematic:
 
 ```powershell
 node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_used_library.mjs
 node scripts/generate_fusion_board.mjs
 ```
 
