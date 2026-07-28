@@ -17,6 +17,7 @@ Changed:
 - Added a Windows BOOTSEL firmware installer to WiFiPicoDMX. The software installer can open it after setup; it guides the customer through connecting one Pico, validates the bundled application and Wi-Fi UF2 files, requires confirmation before flashing, and reports recovery instructions.
 - Fixed bundled Wi-Fi UF2 validation when `picotool` wraps metadata across lines because of the installation path or console width.
 - Hardened customer release packaging so firmware is explicitly configured as a Release build, the selected build directory feeds the Windows installer, and Debug UF2 images are rejected.
+- Fixed **Exit and stop server** falsely reporting failure when Apache completed shutdown after the original 12-second wait. WiFiPicoDMX now waits up to 45 seconds, performs a final service-state check, and keeps a non-dismissible animated progress window visible throughout shutdown.
 
 ## 0.9.16 - 2026-07-28
 
