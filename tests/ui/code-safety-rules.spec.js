@@ -314,12 +314,17 @@ test.describe('Code safety regression rules', () => {
     expect(readme).toContain('Open the README installer and PDF manual links');
   });
 
-  test('generated user manuals include the canonical project changelog', () => {
+  test('generated user manuals start with linked contents and end with the canonical project changelog', () => {
     const manual = read('docs/user-manual.md');
     const builder = read('scripts/build_user_manual_pdf.ps1');
 
+    expect(manual.indexOf('## Table of Contents')).toBeLessThan(manual.indexOf('## Introduction'));
+    expect(manual).toContain('- [1. Fixture Controller](#1-fixture-controller)');
+    expect(manual).toContain('- [Change Log](#change-log)');
     expect(manual).toContain('## Change Log');
     expect(manual).toContain('<!-- PICO_DMX_CHANGELOG -->');
+    expect(manual.indexOf('## Change Log')).toBeGreaterThan(manual.indexOf('## Troubleshooting'));
+    expect(manual.trim().endsWith('<!-- PICO_DMX_CHANGELOG -->')).toBe(true);
     expect(builder).toContain('Join-Path $repoRoot "CHANGELOG.md"');
     expect(builder).toContain('$manualMarkdown.Replace(');
     expect(builder).toContain("'(?m)^##\\s+', '### '");

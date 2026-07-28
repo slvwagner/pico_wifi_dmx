@@ -201,6 +201,61 @@ test.describe('Fixture Controller established rules', () => {
     ]);
   });
 
+  test('DMX Outputs automatically updates a linked Pico address after DHCP changes it without changing show assignments', async ({ page }) => {
+    await page.route('**/pico_discovery.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          devices: [
+            { id: 'pico-front', name: 'Front Pico', ip: '192.0.2.91', http: 80, url: 'http://192.0.2.91/' }
+          ]
+        })
+      });
+    });
+    await page.evaluate(() => {
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        {
+          id: 'front-output',
+          deviceId: 'pico-front',
+          name: 'Front truss',
+          universe: 4,
+          baseUrl: 'http://192.0.2.51/'
+        }
+      ]);
+      fixtures.splice(0, fixtures.length, {
+        id: 8201,
+        name: 'Front fixture',
+        profileId: 1,
+        start: 1,
+        outputId: 'front-output'
+      });
+    });
+
+    await page.getByRole('button', { name: 'DMX Outputs' }).click();
+    await page.getByRole('button', { name: 'Find Picos' }).click();
+
+    await expect(page.locator('[data-dmx-output-url="front-output"]')).toHaveValue('http://192.0.2.91/');
+    await expect(page.locator('#dmxDiscoveryStatus')).toContainText('Automatically updated 1 saved Pico address');
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    const saved = await page.evaluate(() => ({
+      outputs: saveData().dmxOutputs,
+      fixtureOutputId: saveData().fixtures[0].outputId
+    }));
+    expect(saved.outputs).toEqual([
+      expect.objectContaining({
+        id: 'front-output',
+        deviceId: 'pico-front',
+        name: 'Front truss',
+        universe: 4,
+        baseUrl: 'http://192.0.2.91/'
+      })
+    ]);
+    expect(saved.fixtureOutputId).toBe('front-output');
+  });
+
   test('Pixel Matrix normalizes mappings and applies mapped colors across DMX outputs', async ({ page }) => {
     const requests = [];
     await page.route('http://127.0.0.1:18991/**', async route => {

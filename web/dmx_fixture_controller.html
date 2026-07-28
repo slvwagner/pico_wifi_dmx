@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0f12">
 <title>DMX Controller</title>
-<link rel="icon" href="assets/favicon.ico?v=1.0.0">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.0.0">
-<link rel="manifest" href="assets/manifest.webmanifest?v=1.0.0">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.0-14">
-<script src="assets/dmx-common.js?v=1.0.0-13"></script>
+<link rel="icon" href="assets/favicon.ico?v=1.0.1">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.0.1">
+<link rel="manifest" href="assets/manifest.webmanifest?v=1.0.1">
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.1-14">
+<script src="assets/dmx-common.js?v=1.0.1-13"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -201,9 +201,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=1.0.0">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=1.0.1">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=1.0.0#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=1.0.1#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -2435,9 +2435,9 @@ function renderDiscoveredPicos(){
   const host=document.getElementById('discoveredPicosList');
   host.innerHTML=discoveredPicos.map(device=>{
     const id=discoveredPicoId(device);
-    const added=!!outputForDiscoveredPico(device);
+    const matching=outputForDiscoveredPico(device);
     const address=device.ip||discoveredPicoUrl(device)||'Unknown address';
-    return `<div class="discovered-pico-row" data-discovered-pico="${escHtml(id)}"><div><strong>${escHtml(device.name||'Pico WiFi DMX')}</strong><div class="small">${escHtml(address)}${device.http&&Number(device.http)!==80?' · HTTP '+device.http:''} · Discovered</div></div><button type="button" data-add-discovered-pico="${escHtml(id)}"${added?' disabled':''}>${added?'Added':'Add'}</button></div>`;
+    return `<div class="discovered-pico-row" data-discovered-pico="${escHtml(id)}"><div><strong>${escHtml(device.name||'Pico WiFi DMX')}</strong><div class="small">${escHtml(address)}${device.http&&Number(device.http)!==80?' · HTTP '+device.http:''} · Discovered</div></div><button type="button" data-add-discovered-pico="${escHtml(id)}"${matching?' disabled':''}>${matching?'Added':'Add'}</button></div>`;
   }).join('');
 }
 async function findAllPicos(){
@@ -2448,13 +2448,24 @@ async function findAllPicos(){
   status.textContent='Listening for Pico discovery beacons...';
   try{
     discoveredPicos=await DmxCommon.discoverPicoDevices();
+    let updatedAddresses=0;
     discoveredPicos.forEach(device=>{
       const matching=outputForDiscoveredPico(device);
-      if(matching&&!matching.deviceId)matching.deviceId=discoveredPicoId(device);
+      const deviceId=discoveredPicoId(device);
+      if(matching&&!matching.deviceId){
+        matching.deviceId=deviceId;
+      }else if(matching&&String(matching.deviceId||'')===deviceId){
+        const nextUrl=discoveredPicoUrl(device);
+        if(nextUrl&&normalizedOutputUrl(matching.baseUrl)!==normalizedOutputUrl(nextUrl)){
+          matching.baseUrl=nextUrl;
+          updatedAddresses++;
+        }
+      }
     });
     renderDmxOutputsEditor();
     renderDiscoveredPicos();
-    status.textContent='Found '+discoveredPicos.length+' Pico controller'+(discoveredPicos.length===1?'':'s')+'.';
+    status.textContent='Found '+discoveredPicos.length+' Pico controller'+(discoveredPicos.length===1?'':'s')+'.'
+      +(updatedAddresses?' Automatically updated '+updatedAddresses+' saved Pico address'+(updatedAddresses===1?'':'es')+' from its stable device identity.':'');
   }catch(error){
     discoveredPicos=[];
     renderDiscoveredPicos();

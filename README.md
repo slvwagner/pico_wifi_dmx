@@ -356,12 +356,12 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/update_xampp_server.ps1
 
 Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device. The XAMPP URL is only the address of the web interface and server-side show storage; it is independent from the Pico URLs assigned to the show's DMX Outputs.
 
-Configure hardware from **Fixture Controller → DMX Outputs**. Use **Find Picos** to receive every Pico discovery beacon on UDP port `64540`, then add the wanted devices and assign their universes. URLs can also be entered manually in that modal. The sticky header on every page checks the outputs used by patched fixtures and shows **online/total Picos online**; click the pill to refresh immediately. Green means every used output answered, amber means only some answered, and red means none answered.
+Configure hardware from **Fixture Controller → DMX Outputs**. Use **Find Picos** to receive every Pico discovery beacon on UDP port `64540`, then add the wanted devices and assign their universes. Each beacon includes the Pico SDK unique-board ID, which the show stores as the output's stable device identity independently of its DHCP address. If the same Pico later advertises a different IP address, **Find Picos** automatically updates only its saved URL. The output ID, universe, name, fixture assignments, and all show programming stay unchanged; click **Done** to autosave the refreshed address. URLs can also be entered manually in that modal. The sticky header on every page checks the outputs used by patched fixtures and shows **online/total Picos online**; click the pill to refresh immediately. Green means every used output answered, amber means only some answered, and red means none answered.
 
 Changing IP numbers are handled in two places:
 
 - **XAMPP/server URL**: configure scripts and tests with `config/local-paths.json`, `tests/pathconfig.local.json`, or `DMX_TEST_BASE_URL`. The browser app itself uses relative URLs for setup files, so once a page is opened from the right XAMPP address it continues to talk to the same server.
-- **Pico URLs**: configure show hardware with Controller → **DMX Outputs**. Hardware tests may still override their target with `DMX_PICO_BASE_URL`.
+- **Pico URLs**: configure show hardware with Controller → **DMX Outputs**. Run **Find Picos** after a DHCP change; a Pico whose saved unique-board ID is recognized receives its current URL automatically. Hardware tests may still override their target with `DMX_PICO_BASE_URL`.
 
 Setup data is saved in XAMPP under `dmx/data/*.json`. Use **Fixture Controller > Show > Export Show** before large changes when you want an extra backup of the complete show setup, including named DMX Outputs/universes, fixture output assignments, and every Pico's GPIO/ADC mappings.
 
@@ -860,7 +860,7 @@ The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conv
 - `MINOR` introduces a new compatible feature set. While the project remains below `1.0.0`, a minor release may still contain significant workflow changes that are called out in the changelog.
 - `PATCH` contains compatible fixes and smaller improvements.
 
-The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.0.0`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
+The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.0.1`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
 
 After merging a release into `main`, preview and create the next version branch with:
 
@@ -879,7 +879,7 @@ All application-facing version sources must agree:
 - Page and manual query strings use the application version for browser cache invalidation.
 - `CHANGELOG.md` records user-visible changes under the matching version.
 
-An asset suffix such as `?v=1.0.0-11` is a browser-cache revision within application version `1.0.0`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
+An asset suffix such as `?v=1.0.1-11` is a browser-cache revision within application version `1.0.1`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
 
 Application versions are independent from data-format versions. `schemaVersion` and `setupFormatVersion` change only when a stored JSON format requires a migration or compatibility decision.
 
@@ -887,7 +887,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "1.0.0",
+  "appVersion": "1.0.1",
   "schemaVersion": 1
 }
 ```
@@ -1029,7 +1029,7 @@ and signing outputs are not accidentally committed. The remaining `release/`
 content can be committed if desired, although public binary distribution is
 usually cleaner through a GitHub Release.
 
-The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. The HTML/PDF manuals automatically embed the canonical `CHANGELOG.md` immediately after their introduction so customers can review new features and fixes offline. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
+The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. The manual opens with a linked table of contents and automatically embeds the canonical `CHANGELOG.md` as its final section so customers can navigate operating instructions first and still review new features and fixes offline. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
 
 After the package passes validation, complete these publication steps:
 
