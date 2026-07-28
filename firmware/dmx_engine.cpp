@@ -21,6 +21,7 @@
 #define IRQ_FRAME_DONE 2u
 #define IRQ_FRAME_START 0u
 #define DMA_PRIME_TIMEOUT_US 500u
+#define DMX_INTERVAL_LATE_TOLERANCE_US 1000u
 
 typedef struct sm_pair_t {
     uint8_t ctrl;
@@ -70,6 +71,15 @@ typedef struct dmx_engine_state_t {
     uint32_t prime_timeouts;
     uint32_t frame_timeouts;
     uint32_t auto_resyncs;
+    bool frame_start_seen;
+    uint32_t last_frame_start_us;
+    uint32_t frame_interval_last_us;
+    uint32_t frame_interval_min_us;
+    uint32_t frame_interval_max_us;
+    uint32_t frame_interval_samples;
+    uint32_t late_interval_count;
+    uint32_t late_interval_peak_us;
+    uint32_t doubled_interval_count;
     uint32_t data_version;
     uint32_t last_sent_version;
     uint8_t frame[DMX_ENGINE_FRAME_SLOTS];
@@ -115,6 +125,15 @@ static dmx_engine_state_t dmx_state = {
     .prime_timeouts = 0,
     .frame_timeouts = 0,
     .auto_resyncs = 0,
+    .frame_start_seen = false,
+    .last_frame_start_us = 0,
+    .frame_interval_last_us = 0,
+    .frame_interval_min_us = 0,
+    .frame_interval_max_us = 0,
+    .frame_interval_samples = 0,
+    .late_interval_count = 0,
+    .late_interval_peak_us = 0,
+    .doubled_interval_count = 0,
     .data_version = 0,
     .last_sent_version = 0,
     .blackout_channels = 0,
@@ -407,6 +426,37 @@ static bool service_frame_completion(void)
     return false;
 }
 
+static void record_frame_start(uint32_t now_us)
+{
+    if (dmx_state.frame_start_seen) {
+        uint32_t interval_us = now_us - dmx_state.last_frame_start_us;
+        dmx_state.frame_interval_last_us = interval_us;
+        if (dmx_state.frame_interval_samples == 0 || interval_us < dmx_state.frame_interval_min_us) {
+            dmx_state.frame_interval_min_us = interval_us;
+        }
+        if (interval_us > dmx_state.frame_interval_max_us) {
+            dmx_state.frame_interval_max_us = interval_us;
+        }
+        dmx_state.frame_interval_samples += 1;
+
+        uint32_t late_us = interval_us > dmx_state.frame_period_us
+            ? interval_us - dmx_state.frame_period_us
+            : 0;
+        if (late_us > dmx_state.late_interval_peak_us) {
+            dmx_state.late_interval_peak_us = late_us;
+        }
+        if (late_us > DMX_INTERVAL_LATE_TOLERANCE_US) {
+            dmx_state.late_interval_count += 1;
+        }
+        if ((uint64_t)interval_us * 2u >= (uint64_t)dmx_state.frame_period_us * 3u) {
+            dmx_state.doubled_interval_count += 1;
+        }
+    } else {
+        dmx_state.frame_start_seen = true;
+    }
+    dmx_state.last_frame_start_us = now_us;
+}
+
 static bool start_frame(void)
 {
     critical_section_enter_blocking(&dmx_state.lock);
@@ -431,6 +481,7 @@ static bool start_frame(void)
 
     pio_interrupt_clear(dmx_state.pio, IRQ_FRAME_DONE);
     force_frame_start_irq();
+    record_frame_start(time_us_32());
     dmx_state.frame_in_progress = true;
     dmx_state.frame_deadline = make_timeout_time_us(dmx_state.frame_time_us + 3000u);
     dmx_state.frame_count += 1;
@@ -508,6 +559,15 @@ bool dmx_engine_init(const dmx_engine_config_t *config)
     dmx_state.prime_timeouts = 0;
     dmx_state.frame_timeouts = 0;
     dmx_state.auto_resyncs = 0;
+    dmx_state.frame_start_seen = false;
+    dmx_state.last_frame_start_us = 0;
+    dmx_state.frame_interval_last_us = 0;
+    dmx_state.frame_interval_min_us = 0;
+    dmx_state.frame_interval_max_us = 0;
+    dmx_state.frame_interval_samples = 0;
+    dmx_state.late_interval_count = 0;
+    dmx_state.late_interval_peak_us = 0;
+    dmx_state.doubled_interval_count = 0;
     dmx_state.data_version = 0;
     dmx_state.last_sent_version = 0;
     dmx_state.next_frame_time = nil_time;
@@ -816,6 +876,15 @@ void dmx_engine_get_status(dmx_engine_status_t *status)
     status->prime_timeouts = dmx_state.prime_timeouts;
     status->frame_timeouts = dmx_state.frame_timeouts;
     status->auto_resyncs = dmx_state.auto_resyncs;
+    status->frame_interval_expected_us = dmx_state.frame_period_us;
+    status->frame_interval_last_us = dmx_state.frame_interval_last_us;
+    status->frame_interval_min_us = dmx_state.frame_interval_min_us;
+    status->frame_interval_max_us = dmx_state.frame_interval_max_us;
+    status->frame_interval_samples = dmx_state.frame_interval_samples;
+    status->late_interval_tolerance_us = DMX_INTERVAL_LATE_TOLERANCE_US;
+    status->late_interval_count = dmx_state.late_interval_count;
+    status->late_interval_peak_us = dmx_state.late_interval_peak_us;
+    status->doubled_interval_count = dmx_state.doubled_interval_count;
     status->blackout_channels = dmx_state.blackout_channels;
     status->master_channels = dmx_state.master_channels;
     restore_interrupts(irq_state);

@@ -41,7 +41,19 @@ test.describe('Pico Performance Test established rules', () => {
         core0: { valid: true, period_us: 10000, target_hz: 100, samples: 200, work_us: { mean: 109, peak: 271 }, slack_us: { mean: 9890, min: 9729 }, late: { count: 0, peak_us: 0 }, headroom_percent: 97 },
         core1: { valid: true, period_us: 2000000, samples: 1, work_us: { mean: 1203, peak: 1203 }, slack_us: { mean: 1997463, min: 1997463 }, late: { count: 0, peak_us: 0 } },
         http: { valid: true, calls: 2, work_us: { mean: 130, peak: 138 } },
-        dmx: { running: true, channels: 512, refresh_rate: 40, frame_count: 499, skipped_callbacks: 1, prime_timeouts: 0, frame_timeouts: 1, auto_resyncs: 1 }
+        dmx: {
+          running: true,
+          channels: 512,
+          refresh_rate: 43,
+          frame_count: 499,
+          skipped_callbacks: 1,
+          prime_timeouts: 0,
+          frame_timeouts: 1,
+          auto_resyncs: 1,
+          frame_interval_us: { expected: 23255, last: 23270, min: 23240, max: 23290, samples: 498 },
+          late_intervals: { tolerance_us: 1000, count: 0, peak_us: 35 },
+          doubled_intervals: 0
+        }
       })
     }));
     await page.route('http://127.0.0.1:18992/dmx/b**', route => route.fulfill({
@@ -83,6 +95,9 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#checkCore0 .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkCore1 .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkHttp .check-detail')).toContainText('peak 138us');
+    await expect(page.locator('#checkDmxInterval .check-state')).toHaveText('Pass');
+    await expect(page.locator('#checkDmxInterval .check-detail')).toContainText('max 23290us');
+    await expect(page.locator('#checkDmxInterval .check-detail')).toContainText('doubled 0');
     await expect(page.locator('#timingHistoryBody tr')).toHaveCount(1);
     await expect(page.locator('#timingHistoryBody tr').first()).toContainText('Minimum 9729us left before missing the 10ms update budget');
     await expect(page.locator('#timingHistoryBody tr').first()).toContainText('97% of 10ms left');
@@ -92,6 +107,39 @@ test.describe('Pico Performance Test established rules', () => {
     await page.locator('#btnBufferReadback').click();
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Pass');
     await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
+  });
+
+  test('fails the DMX interval check when firmware reports a doubled frame gap', async ({ page }) => {
+    await page.route('http://127.0.0.1:18992/perf/status.json', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        memory: { free_ram_bytes: 98304 },
+        core0: { valid: true, period_us: 10000, samples: 200, work_us: { mean: 109, peak: 271 }, slack_us: { mean: 9890, min: 9729 }, late: { count: 0, peak_us: 0 }, headroom_percent: 97 },
+        core1: { valid: true, period_us: 2000000, samples: 1, work_us: { mean: 1203, peak: 1203 }, slack_us: { mean: 1997463, min: 1997463 }, late: { count: 0, peak_us: 0 } },
+        http: { valid: true, calls: 2, work_us: { mean: 130, peak: 138 } },
+        dmx: {
+          running: true,
+          channels: 512,
+          refresh_rate: 43,
+          frame_count: 499,
+          skipped_callbacks: 1,
+          prime_timeouts: 0,
+          frame_timeouts: 0,
+          auto_resyncs: 0,
+          frame_interval_us: { expected: 23255, last: 46520, min: 23240, max: 46520, samples: 498 },
+          late_intervals: { tolerance_us: 1000, count: 1, peak_us: 23265 },
+          doubled_intervals: 1
+        }
+      })
+    }));
+
+    await openDmxPage(page, 'test/');
+    await page.locator('#btnCheckPico').click();
+    await expect(page.locator('#checkDmxInterval .check-state')).toHaveText('Fail');
+    await expect(page.locator('#checkDmxInterval .check-detail')).toContainText('max 46520us');
+    await expect(page.locator('#checkDmxInterval .check-detail')).toContainText('doubled 1');
   });
 
   test('runs the complete performance measurement for every configured Pico', async ({ page }) => {

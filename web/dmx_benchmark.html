@@ -101,6 +101,7 @@ th{color:var(--muted);font-weight:600}
     <div class="check" id="checkCore1"><div class="check-state">Idle</div><div class="check-title">Core1 service loop</div><div class="check-detail">No timing data yet.</div></div>
     <div class="check" id="checkHttp"><div class="check-state">Idle</div><div class="check-title">HTTP callbacks</div><div class="check-detail">No HTTP timing data yet.</div></div>
     <div class="check" id="checkDmx"><div class="check-state">Idle</div><div class="check-title">DMX frame counters</div><div class="check-detail">No frame counter data yet.</div></div>
+    <div class="check" id="checkDmxInterval"><div class="check-state">Idle</div><div class="check-title">DMX frame interval</div><div class="check-detail">No break-to-break timing data yet.</div></div>
     <div class="check" id="checkBuffer"><div class="check-state">Idle</div><div class="check-title">Buffer readback</div><div class="check-detail">No readback test run yet.</div></div>
     <div class="check" id="checkWrite"><div class="check-state">Idle</div><div class="check-title">DMX write load</div><div class="check-detail">No write benchmark run yet.</div></div>
     <div class="check" id="checkMidiLatency"><div class="check-state">Idle</div><div class="check-title">MIDI-to-Pico POST timing</div><div class="check-detail">No MIDI timing measurement run yet.</div></div>
@@ -473,7 +474,18 @@ function parsePerfStatus(j){
       skipped:Number(dmx.skipped_callbacks)||0,
       primeTimeouts:Number(dmx.prime_timeouts)||0,
       frameTimeouts:Number(dmx.frame_timeouts)||0,
-      resyncs:Number(dmx.auto_resyncs)||0
+      resyncs:Number(dmx.auto_resyncs)||0,
+      interval:dmx.frame_interval_us?{
+        expected:Number(dmx.frame_interval_us.expected)||0,
+        last:Number(dmx.frame_interval_us.last)||0,
+        min:Number(dmx.frame_interval_us.min)||0,
+        max:Number(dmx.frame_interval_us.max)||0,
+        samples:Number(dmx.frame_interval_us.samples)||0,
+        lateTolerance:Number(dmx.late_intervals?.tolerance_us)||0,
+        lateCount:Number(dmx.late_intervals?.count)||0,
+        latePeak:Number(dmx.late_intervals?.peak_us)||0,
+        doubled:Number(dmx.doubled_intervals)||0
+      }:null
     }:null
   };
 }
@@ -495,7 +507,9 @@ function renderCoreTiming(parsed){
     httpState:'warn',
     httpPeak:'no data',
     dmxState:'warn',
-    dmx:'no data'
+    dmx:'no data',
+    dmxIntervalState:'warn',
+    dmxInterval:'no data'
   };
   if(parsed.memory&&Number.isFinite(Number(parsed.memory.free_ram_bytes))){
     const free=Number(parsed.memory.free_ram_bytes);
@@ -555,13 +569,27 @@ function renderCoreTiming(parsed){
     row.dmxState=state;
     row.dmx='f '+d.frames+' / t '+d.frameTimeouts+' / r '+d.resyncs;
     setCheck('checkDmx',state,'DMX frame counters','frames '+d.frames+', skipped '+d.skipped+', timeouts '+d.frameTimeouts+', resyncs '+d.resyncs);
-  }else setCheck('checkDmx','warn','DMX frame counters','No Core0 dmx line found in /logs.txt.');
+    if(d.interval&&d.interval.samples>0){
+      const i=d.interval;
+      const intervalState=i.doubled>0?'bad':i.lateCount>0?'warn':'pass';
+      const detail='expected '+i.expected+'us, last '+i.last+'us, min '+i.min+'us, max '+i.max+'us, late >'+i.lateTolerance+'us '+i.lateCount+', peak late '+i.latePeak+'us, doubled '+i.doubled;
+      row.dmxIntervalState=intervalState;
+      row.dmxInterval=detail;
+      row.dmx+=' / max '+i.max+'us / doubled '+i.doubled;
+      setCheck('checkDmxInterval',intervalState,'DMX frame interval',detail);
+    }else{
+      setCheck('checkDmxInterval','warn','DMX frame interval','No frame-interval telemetry. Flash current firmware to measure long and doubled intervals.');
+    }
+  }else{
+    setCheck('checkDmx','warn','DMX frame counters','No Core0 dmx line found in /logs.txt.');
+    setCheck('checkDmxInterval','warn','DMX frame interval','No frame-interval telemetry found.');
+  }
   return row;
 }
 
 function overallTimingState(row){
-  return [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState,row.midiLatencyState].includes('bad')?'bad'
-    : [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.bufferState,row.midiLatencyState].includes('warn')?'warn'
+  return [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.dmxIntervalState,row.bufferState,row.midiLatencyState].includes('bad')?'bad'
+    : [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.dmxIntervalState,row.bufferState,row.midiLatencyState].includes('warn')?'warn'
     : 'pass';
 }
 
@@ -594,7 +622,8 @@ async function checkPico(options={}){
         setCheck('checkCore1','warn','Core1 service loop','/logs.txt could not be read: '+logError.message);
         setCheck('checkHttp','warn','HTTP callbacks','/logs.txt could not be read: '+logError.message);
         setCheck('checkDmx','warn','DMX frame counters','/logs.txt could not be read: '+logError.message);
-        historyRow={memoryState:'warn',memory:'no perf json',headroomState:'warn',headroom:'logs unavailable',core1HeadroomState:'warn',core1Headroom:'logs unavailable',core0State:'warn',core0Slack:'logs unavailable',core0Late:'logs unavailable',core1State:'warn',core1Slack:'logs unavailable',core1Late:'logs unavailable',httpState:'warn',httpPeak:'logs unavailable',dmxState:'warn',dmx:'logs unavailable'};
+        setCheck('checkDmxInterval','warn','DMX frame interval','/perf/status.json could not be read: '+perfError.message);
+        historyRow={memoryState:'warn',memory:'no perf json',headroomState:'warn',headroom:'logs unavailable',core1HeadroomState:'warn',core1Headroom:'logs unavailable',core0State:'warn',core0Slack:'logs unavailable',core0Late:'logs unavailable',core1State:'warn',core1Slack:'logs unavailable',core1Late:'logs unavailable',httpState:'warn',httpPeak:'logs unavailable',dmxState:'warn',dmx:'logs unavailable',dmxIntervalState:'warn',dmxInterval:'logs unavailable'};
         setStatus('Pico status OK; performance telemetry unavailable.');
       }
     }
@@ -635,6 +664,8 @@ async function checkPico(options={}){
       httpPeak:'not checked',
       dmxState:'idle',
       dmx:'not checked',
+      dmxIntervalState:'idle',
+      dmxInterval:'not checked',
       bufferState:lastBufferSnapshot.state,
       buffer:lastBufferSnapshot.detail,
       bufferLabel:shortBufferLabel(lastBufferSnapshot),
