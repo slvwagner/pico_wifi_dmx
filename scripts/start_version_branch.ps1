@@ -147,7 +147,7 @@ if ($changelog.Contains("## $Version")) {
 
 $readmeReplacements = @(
     @{
-        Pattern = '(?m)^- \*\*Current development version:\*\* `[^`]+`\r?$'
+        Pattern = '(?m)^- \*\*Current development version:\*\* (?:`[^`]+`|Not started)\r?$'
         Replacement = "- **Current development version:** ``$Version``"
     },
     @{
