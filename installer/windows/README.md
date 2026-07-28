@@ -11,10 +11,10 @@ This package installs only the components required by WiFiPicoDMX:
 
 It does not install MariaDB, phpMyAdmin, the XAMPP control panel, or development
 tools. A new installation places program files below
-`C:\Program Files\WiFiPicoDMX`; an upgrade can retain the former program
+`%ProgramFiles%\WiFiPicoDMX`; an upgrade can retain the former program
 directory so the existing registered installation remains serviceable.
 Mutable shows and fixture data are stored separately below
-`C:\ProgramData\Pico DMX Controller\data` and are preserved by uninstall and
+`%ProgramData%\Pico DMX Controller\data` and are preserved by uninstall and
 upgrade.
 
 The desktop and Start Menu shortcuts open `WiFiPicoDMX.exe`. It supplies
@@ -88,7 +88,7 @@ certificate:
 
 Unsigned builds are suitable for development but can trigger Windows
 SmartScreen warnings. Upgrades make a data snapshot below
-`C:\ProgramData\Pico DMX Controller\backups` before replacing program files.
+`%ProgramData%\Pico DMX Controller\backups` before replacing program files.
 
 Never place the signing certificate or private key in the repository. Import
 the certificate into the Windows certificate store or a protected CI signing

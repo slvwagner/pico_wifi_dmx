@@ -124,10 +124,10 @@ For a customer PC, use the generated
 XAMPP development stack. The installer:
 
 - installs the customer-facing **WiFiPicoDMX** application below
-  `C:\Program Files\WiFiPicoDMX` on a new installation (an upgrade can retain
+  `%ProgramFiles%\WiFiPicoDMX` on a new installation (an upgrade can retain
   the earlier program directory);
 - stores mutable shows and fixture data in the upgrade-compatible location
-  `C:\ProgramData\Pico DMX Controller\data`;
+  `%ProgramData%\Pico DMX Controller\data`;
 - starts the `PicoDmxController` Windows service automatically;
 - creates Start Menu and desktop shortcuts that open a dedicated native
   application window, with the default browser as fallback;
