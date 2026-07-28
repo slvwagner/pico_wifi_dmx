@@ -29,11 +29,13 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 6. Verify the user's environment only through manual browser use or read-only HTTP GET requests. Never use a test suite as deployment verification.
 7. Generate documentation and screenshots with `scripts/update_user_manual.ps1 -LocalOnly` and deterministic repository data, or another explicitly isolated playground.
 8. Run hardware tests only for firmware changes or when explicitly requested by the user.
+9. Create a commit for each feature and create a changlog entry 
 
 ### New feature
 1. Implement the featre 
 2. Synchronize the automation playground with `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://localhost//dmx-test/`.
 3. Deploy user-facing source changes only with `scripts/update_xampp_server.ps1 -AppFolder dmx -BaseUrl http://localhost/dmx/`.
 4. Only create manualls and screenshots if the user ask for it
+5. Create a commit for each feature and create a changlog entry 
 
 Before an authorized data recovery, make a recoverable snapshot and restore only the approved files. Deployment authorization does not imply authorization to modify user data.
