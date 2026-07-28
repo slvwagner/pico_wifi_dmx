@@ -1,6 +1,6 @@
 # pico_wifi_dmx
 
-WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). One Pico drives one full 512-channel DMX universe. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the Pico so show playback does not depend on browser timing or WiFi latency.
+WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). Each Pico drives one full 512-channel DMX universe, and one show can combine multiple named Picos as separate DMX outputs/universes. Fixtures are assigned to their output, so the same DMX address can be reused in different universes. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the involved Picos so show playback does not depend on browser timing or WiFi latency.
 
 - **Latest stable release:** `1.0.0`
 - **Current development version:** `1.0.1`
@@ -22,6 +22,30 @@ for installation, firmware flashing, show setup, and operation instructions.
 The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
 also provides the installer checksum, Pico firmware images, release manifest,
 and PDF user manual.
+
+Continue with [Install the Windows customer application](#install-the-windows-customer-application)
+for the complete installation, network-access, firmware-update, and startup
+instructions.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Critical XAMPP environment safety](#critical-xampp-environment-safety)
+- [Customer installation details](#customer-installation-details)
+- [Automated Tests](#automated-tests)
+- [Project Structure](#project-structure)
+- [Versioning](#versioning)
+- [Architecture](#architecture)
+- [Playback Modes](#playback-modes)
+- [HTTP API](#http-api)
+- [Web UI](#web-ui)
+- [Detailed Source Reference](#detailed-source-reference)
+- [Requirements](#requirements)
+- [Configure](#configure)
+- [Build](#build)
+- [Flash](#flash)
+- [Resource Usage](#resource-usage)
+- [Notes](#notes)
 
 ## Overview
 

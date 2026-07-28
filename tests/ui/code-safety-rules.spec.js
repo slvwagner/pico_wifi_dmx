@@ -283,7 +283,18 @@ test.describe('Code safety regression rules', () => {
     const stableVersion = readme.match(/\*\*Latest stable release:\*\* `([^`]+)`/)?.[1];
 
     expect(stableVersion).toBeTruthy();
-    expect(readme.indexOf('## Getting Started')).toBeLessThan(readme.indexOf('## Overview'));
+    const gettingStartedIndex = readme.indexOf('## Getting Started');
+    const contentsIndex = readme.indexOf('## Table of Contents');
+    const overviewIndex = readme.indexOf('## Overview');
+    expect(gettingStartedIndex).toBeLessThan(contentsIndex);
+    expect(contentsIndex).toBeLessThan(overviewIndex);
+    expect(readme).toContain('one show can combine multiple named Picos as separate DMX outputs/universes');
+    expect(readme).toContain(
+      '[Install the Windows customer application](#install-the-windows-customer-application)'
+    );
+    expect(readme).toContain('- [Overview](#overview)');
+    expect(readme).toContain('- [Versioning](#versioning)');
+    expect(readme).toContain('- [Flash](#flash)');
     expect(readme).toContain(
       `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/wifi-pico-dmx-${stableVersion}-windows-x64.exe`
     );
