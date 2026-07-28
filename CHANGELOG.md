@@ -8,6 +8,7 @@ Changed:
 - Added responsive user-manual navigation: a sticky desktop contents sidebar, an iPad/mobile contents drawer, active-section highlighting, persistent and per-section contents links, and previous/next section controls that are hidden from printed/PDF output.
 - Fixed the desktop manual contents sidebar disappearing while scrolling by preserving its sticky top offset, with a regression test covering long-page scrolling.
 - Added two generated and packaged PDF manuals: a clean A4 portrait version and an A4 landscape version with a persistent clickable contents sidebar. Both variants are deployed to XAMPP and included by the Windows, macOS, Ubuntu, and release-package workflows.
+- Fixed occasional doubled DMX frame intervals by servicing the PIO frame-done flag on every Core0 poll, preserving an overdue frame deadline until transmission completes, and preventing resynchronization from starting PIO before DMA is primed.
 
 ## 1.0.0 - 2026-07-28
 

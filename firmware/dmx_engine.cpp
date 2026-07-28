@@ -39,6 +39,7 @@ typedef struct dmx_engine_state_t {
     bool resources_allocated;
     bool timer_active;
     bool frame_in_progress;
+    bool schedule_miss_recorded;
     bool invert_data_bits;
     uint8_t tx_pin;
     uint8_t trigger_pin;
@@ -88,6 +89,7 @@ static dmx_engine_state_t dmx_state = {
     .resources_allocated = false,
     .timer_active = false,
     .frame_in_progress = false,
+    .schedule_miss_recorded = false,
     .invert_data_bits = true,
     .tx_pin = 2,
     .trigger_pin = 3,
@@ -383,27 +385,30 @@ static void resync(void)
     pio_sm_set_enabled(dmx_state.pio, dmx_state.ctrl_sm_local, true);
     sleep_us(200);
     pio_sm_put_blocking(dmx_state.pio, dmx_state.ctrl_sm_local, dmx_state.channels);
-    force_frame_start_irq();
     dmx_state.frame_in_progress = false;
 }
 
-static bool update_frame(void)
+static bool service_frame_completion(void)
 {
-    if (dmx_state.frame_in_progress) {
-        if (pio_interrupt_get(dmx_state.pio, IRQ_FRAME_DONE)) {
-            pio_interrupt_clear(dmx_state.pio, IRQ_FRAME_DONE);
-            dmx_state.frame_in_progress = false;
-            dmx_state.last_sent_version = dmx_state.data_version;
-        } else if (time_reached(dmx_state.frame_deadline)) {
-            dmx_state.frame_timeouts += 1;
-            dmx_state.frame_in_progress = false;
-            resync();
-        } else {
-            dmx_state.skipped_callbacks += 1;
-            return true;
-        }
+    if (!dmx_state.frame_in_progress) {
+        return true;
     }
+    if (pio_interrupt_get(dmx_state.pio, IRQ_FRAME_DONE)) {
+        pio_interrupt_clear(dmx_state.pio, IRQ_FRAME_DONE);
+        dmx_state.frame_in_progress = false;
+        dmx_state.last_sent_version = dmx_state.data_version;
+        return true;
+    }
+    if (time_reached(dmx_state.frame_deadline)) {
+        dmx_state.frame_timeouts += 1;
+        resync();
+        return true;
+    }
+    return false;
+}
 
+static bool start_frame(void)
+{
     critical_section_enter_blocking(&dmx_state.lock);
     apply_dirty_locked();
     critical_section_exit(&dmx_state.lock);
@@ -421,7 +426,7 @@ static bool update_frame(void)
         dmx_state.prime_timeouts += 1;
         dma_channel_abort((uint)dmx_state.dma_channel);
         resync();
-        return true;
+        return false;
     }
 
     pio_interrupt_clear(dmx_state.pio, IRQ_FRAME_DONE);
@@ -430,6 +435,13 @@ static bool update_frame(void)
     dmx_state.frame_deadline = make_timeout_time_us(dmx_state.frame_time_us + 3000u);
     dmx_state.frame_count += 1;
     return true;
+}
+
+static void advance_frame_schedule(void)
+{
+    do {
+        dmx_state.next_frame_time = delayed_by_us(dmx_state.next_frame_time, dmx_state.frame_period_us);
+    } while (time_reached(dmx_state.next_frame_time));
 }
 
 void dmx_engine_default_config(dmx_engine_config_t *config)
@@ -490,6 +502,7 @@ bool dmx_engine_init(const dmx_engine_config_t *config)
     dmx_state.initialized = true;
     dmx_state.running = false;
     dmx_state.frame_in_progress = false;
+    dmx_state.schedule_miss_recorded = false;
     dmx_state.frame_count = 0;
     dmx_state.skipped_callbacks = 0;
     dmx_state.prime_timeouts = 0;
@@ -530,7 +543,7 @@ bool dmx_engine_start(void)
     pio_sm_put_blocking(dmx_state.pio, dmx_state.ctrl_sm_local, dmx_state.channels);
 
     dmx_state.running = true;
-    if (!update_frame()) {
+    if (!start_frame()) {
         dmx_state.running = false;
         return false;
     }
@@ -540,12 +553,26 @@ bool dmx_engine_start(void)
 
 void dmx_engine_poll(void)
 {
-    if (!dmx_state.running || !time_reached(dmx_state.next_frame_time)) {
+    if (!dmx_state.running) {
         return;
     }
 
-    update_frame();
-    dmx_state.next_frame_time = make_timeout_time_us(dmx_state.frame_period_us);
+    if (!service_frame_completion()) {
+        if (time_reached(dmx_state.next_frame_time) && !dmx_state.schedule_miss_recorded) {
+            dmx_state.skipped_callbacks += 1;
+            dmx_state.schedule_miss_recorded = true;
+        }
+        return;
+    }
+    if (!time_reached(dmx_state.next_frame_time)) {
+        return;
+    }
+    if (!start_frame()) {
+        return;
+    }
+
+    dmx_state.schedule_miss_recorded = false;
+    advance_frame_schedule();
 }
 
 void dmx_engine_stop(void)
