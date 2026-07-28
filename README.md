@@ -278,7 +278,7 @@ Edit `config/local-paths.json` so it matches your XAMPP installation, app folder
 
 ```json
 {
-  "xamppHtdocs": "C:/xampp/htdocs",
+  "xamppHtdocs": "C:/path/to/xampp/htdocs",
   "appFolder": "dmx",
   "baseUrl": "http://localhost/dmx/",
   "chromePath": "C:/Program Files/Google/Chrome/Application/chrome.exe"
@@ -288,7 +288,7 @@ Edit `config/local-paths.json` so it matches your XAMPP installation, app folder
 These values mean the web app will be copied to:
 
 ```text
-C:\xampp\htdocs\dmx\
+<XAMPP installation directory>\htdocs\<app folder>\
 ```
 
 `config/local-paths.json` is ignored by Git. Keep your real machine paths there. The sync, manual screenshot/PDF, README screenshot, and release helper scripts read this file automatically. If you pass path parameters directly to a script, those command-line values override the config file for that run.

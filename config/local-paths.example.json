@@ -1,5 +1,5 @@
 {
-  "xamppHtdocs": "E:/Software/xampp/htdocs",
+  "xamppHtdocs": "C:/path/to/xampp/htdocs",
   "appFolder": "dmx",
   "baseUrl": "http://localhost/dmx/",
   "chromePath": "C:/Program Files/Google/Chrome/Application/chrome.exe"

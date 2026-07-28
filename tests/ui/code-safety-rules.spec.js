@@ -280,6 +280,7 @@ test.describe('Code safety regression rules', () => {
 
   test('README presents the stable Windows installer before the overview and requires release-link verification', () => {
     const readme = read('README.md');
+    const localPathsExample = read('config/local-paths.example.json');
     const stableVersion = readme.match(/\*\*Latest stable release:\*\* `([^`]+)`/)?.[1];
 
     expect(stableVersion).toBeTruthy();
@@ -298,6 +299,10 @@ test.describe('Code safety regression rules', () => {
     expect(readme).toContain('`%ProgramFiles%\\WiFiPicoDMX`');
     expect(readme).toContain('`%ProgramData%\\Pico DMX Controller\\data`');
     expect(readme).not.toContain('C:\\Program Files\\WiFiPicoDMX');
+    expect(readme).not.toContain('C:\\xampp\\htdocs\\dmx');
+    expect(readme).not.toContain('"xamppHtdocs": "C:/xampp/htdocs"');
+    expect(localPathsExample).toContain('"xamppHtdocs": "C:/path/to/xampp/htdocs"');
+    expect(localPathsExample).not.toContain('E:/Software/xampp/htdocs');
     expect(readme).toContain(
       `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/wifi-pico-dmx-${stableVersion}-windows-x64.exe`
     );
