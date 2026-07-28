@@ -24,26 +24,20 @@ function functionBody(name) {
   assert.fail(`unterminated body for ${name}()`);
 }
 
-test("DMX polling services a late frame-done IRQ without deferring a full period", () => {
+test("DMX polling services frame completion without owning the next deadline", () => {
   const poll = functionBody("dmx_engine_poll");
 
   const completionCheck = poll.indexOf("service_frame_completion()");
-  const scheduleCheck = poll.indexOf("time_reached(dmx_state.next_frame_time)");
 
   assert.notEqual(
     completionCheck,
     -1,
     "dmx_engine_poll() must service an active frame on every poll",
   );
-  assert.notEqual(scheduleCheck, -1, "dmx_engine_poll() must retain its frame deadline");
-  assert.ok(
-    completionCheck < scheduleCheck,
-    "frame completion must be serviced before the next-frame deadline gate",
-  );
   assert.doesNotMatch(
     poll,
-    /next_frame_time\s*=\s*make_timeout_time_us/,
-    "a busy frame must not move the pending deadline forward by a complete period",
+    /time_reached\s*\(\s*dmx_state\.next_frame_time|start_frame\s*\(/,
+    "foreground work must not control the next frame-start deadline",
   );
 });
 
@@ -81,5 +75,62 @@ test("DMX control startup consumes exactly one frame-start IRQ", () => {
     controlProgram,
     /\.wrap_target\s*\r?\n\s*wait\s+1\s+irq\s+0/,
     "each transmitted frame must consume one start IRQ at the wrap target",
+  );
+});
+
+test("DMX frame deadlines are serviced by a lock-free timer callback", () => {
+  const start = functionBody("dmx_engine_start");
+  const poll = functionBody("dmx_engine_poll");
+  const timer = functionBody("dmx_frame_timer_callback");
+
+  assert.match(
+    start,
+    /add_repeating_timer_us\s*\(/,
+    "frame timing must run from a hardware alarm instead of depending on foreground polling",
+  );
+  assert.match(
+    timer,
+    /start_frame\s*\(\s*false\s*\)/,
+    "the timer callback must be able to start the prepared frame without taking the data lock",
+  );
+  assert.doesNotMatch(
+    timer,
+    /critical_section_enter|apply_dirty_locked/,
+    "the timer callback must not deadlock by acquiring a lock held by interrupted foreground code",
+  );
+  assert.doesNotMatch(
+    poll,
+    /start_frame\s*\(/,
+    "foreground polling must not own the frame-start deadline",
+  );
+  assert.match(
+    source,
+    /mutex_t\s+lock\s*;/,
+    "cross-core DMX data contention must leave Core0 timer interrupts enabled",
+  );
+  assert.doesNotMatch(
+    source,
+    /critical_section_t\s+lock\s*;/,
+    "the DMX data lock must not disable Core0 interrupts while waiting on Core1",
+  );
+});
+
+test("a late timer callback cannot compress or discard the following frame", () => {
+  const timer = functionBody("dmx_frame_timer_callback");
+
+  assert.match(
+    timer,
+    /timer->delay_us\s*=\s*DMX_FRAME_RETRY_US/,
+    "an unfinished PIO frame must receive a short retry instead of losing a complete period",
+  );
+  assert.match(
+    timer,
+    /timer->delay_us\s*=\s*dmx_state\.timer_period_us/,
+    "a successful start must restore the normal frame delay",
+  );
+  assert.doesNotMatch(
+    source,
+    /timer_period_us\s*=\s*-\s*\(int64_t\)dmx_state\.frame_period_us/,
+    "the next deadline must be relative to the completed callback, not an absolute catch-up phase",
   );
 });

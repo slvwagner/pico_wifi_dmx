@@ -386,6 +386,44 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#checkMidiLatency .check-detail')).toContainText('Launch Control XL Emulator');
     await expect(page.locator('#checkMidiLatency .check-detail')).toContainText('3 samples');
     await expect(page.locator('#checkMidiLatency .check-detail')).not.toContainText('Web MIDI is unavailable');
+
+    await page.locator('#btnRunFull').click();
+    await expect(page.locator('#midiLatencyStatus')).toContainText('Complete: 3 samples measured', { timeout: 10000 });
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 10000 });
+    await expect(page.locator('#historyBody tr')).toHaveCount(2);
+  });
+
+  test('Full Test releases its button when the final Pico refresh stalls', async ({ page }) => {
+    await page.addInitScript(() => {
+      const appendChild = Element.prototype.appendChild;
+      Element.prototype.appendChild = function(child) {
+        if(child?.id === 'midiLatencyEmulatorFrame') return child;
+        return appendChild.call(this, child);
+      };
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        configurable: true,
+        value: undefined
+      });
+    });
+
+    await openDmxPage(page, 'test/');
+    await page.evaluate(() => {
+      const originalFetchPicoJson = window.fetchPicoJson;
+      window.__benchmarkStatusCalls = 0;
+      window.fetchPicoJson = path => {
+        if(path === '/status.json') {
+          window.__benchmarkStatusCalls++;
+          if(window.__benchmarkStatusCalls >= 2)return new Promise(() => {});
+        }
+        return originalFetchPicoJson(path);
+      };
+    });
+    await page.locator('#chPerReq').fill('16');
+    await page.locator('#reqCount').fill('1');
+    await page.locator('#btnRunFull').click();
+
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 12000 });
+    expect(await page.evaluate(() => window.__benchmarkStatusCalls)).toBe(2);
   });
 
   test('full test keeps write checks useful when old firmware blocks logs or base readback', async ({ page }) => {

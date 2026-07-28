@@ -552,6 +552,59 @@ DMX signal generation and timing:
 
 The DMX byte stream is encoded for the RS-485/DMX driver path used by this project. Channel values and the start-code slot are both encoded before DMA sends the frame to PIO. This keeps the logical DMX start code at `0x00` while matching the working wire-level signal used by the tested Zeitmessung Pico 2 W DMX implementation.
 
+#### DMX frame timer and PIO IRQ handshake
+
+DMX frame starts are owned by an RP2350 hardware-alarm repeating timer, not by
+the 100 Hz foreground polling loop. The first frame is started directly during
+`dmx_engine_start()`. After that, the timer callback schedules each following
+frame relative to the end of the last successful callback. This positive-period
+timer behavior deliberately avoids a burst of catch-up callbacks after a late
+interrupt.
+
+The word *IRQ* has two distinct meanings in this path:
+
+| Mechanism | Purpose | CPU interrupt handler? |
+| --- | --- | --- |
+| Hardware alarm / repeating timer | Calls `dmx_frame_timer_callback()` at the next frame deadline | Yes; this is the short timing-critical callback |
+| PIO IRQ 0 (`IRQ_FRAME_START`) | CPU-to-control-SM command that releases the next Break/MAB/frame | No; it is a PIO flag consumed by `wait 1 irq 0` |
+| PIO IRQ 4 | Control-SM request for the data SM to transmit one slot | No; it is an internal PIO state-machine handshake |
+| PIO IRQ 5 | Data-SM acknowledgement that the requested slot is complete | No; it is an internal PIO state-machine handshake |
+| PIO IRQ 2 (`IRQ_FRAME_DONE`) | Control-SM notification that all configured slots are complete | No; firmware reads and clears the sticky PIO flag |
+
+One frame uses this sequence:
+
+1. Foreground code accepts channel changes into the logical frame under a
+   cross-core mutex. While no frame is active, `dmx_engine_poll()` briefly
+   masks Core0 interrupts and copies dirty values into the stable DMA source
+   buffer. It acquires the mutex *before* masking interrupts, so waiting for a
+   Core1/network writer cannot block the frame timer.
+2. At the deadline, the timer callback checks PIO IRQ 2. If the previous frame
+   is complete, firmware clears the flag and marks the DMA source available.
+   The timer callback is lock-free and never waits for the channel-data mutex.
+3. Firmware configures DMA for the complete start-code-plus-channel buffer and
+   waits up to 500 us for DMA to place the first byte in the data-SM FIFO.
+   Only after that FIFO is primed does the CPU force PIO IRQ 0.
+4. The control SM consumes IRQ 0, emits Break and Mark After Break, then sets
+   IRQ 4 once per slot. The data SM consumes IRQ 4, shifts one DMA-fed byte at
+   250 kbaud, and sets IRQ 5. The control SM consumes IRQ 5 before requesting
+   the next slot.
+5. After the final slot, the control SM sets sticky IRQ 2. At the next timer
+   callback—or during an idle foreground snapshot—firmware clears it and
+   records the completed frame.
+
+If the timer fires before IRQ 2 appears, it does not overlap or abandon the
+active frame. It records a skipped callback and retries after 50 us. A
+successful retry restores the normal frame period, measured from that
+successful callback, so one short overrun does not become a doubled gap or a
+fixed-phase catch-up burst. If a frame exceeds its calculated wire time plus a
+3 ms guard, firmware aborts DMA, reinitializes both PIO state machines, and
+counts an automatic resynchronization.
+
+The Performance Test reads the corresponding counters and break-to-break
+telemetry from `/perf/status.json`: frame count, skipped/retry callbacks, DMA
+prime timeouts, frame timeouts, automatic resynchronizations, expected/last/
+minimum/maximum interval, late intervals, and doubled intervals.
+
 MIDI receive diagnostics:
 
 | Item | Value |

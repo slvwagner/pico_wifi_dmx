@@ -11,6 +11,9 @@ Changed:
 - Fixed occasional doubled DMX frame intervals by servicing the PIO frame-done flag on every Core0 poll, preserving an overdue frame deadline until transmission completes, and preventing resynchronization from starting PIO before DMA is primed.
 - Fixed the DMX control PIO startup sequence consuming the single frame-start IRQ before reaching its wrapped transmit loop, which caused continuous frame timeouts and resynchronization.
 - Added firmware DMX frame-interval telemetry and a Performance Test check that reports expected, last, minimum, and maximum break-to-break timing, late intervals, and doubled-frame gaps.
+- Fixed DMX frame starts being delayed by foreground polling and cross-core write contention by moving the deadline to a lock-free hardware-alarm callback, using an interrupt-friendly mutex for pending channel data, and retrying unfinished frames without timer catch-up or a full-period skip.
+- Fixed the Performance Test's **Run Full Test** button remaining disabled when its final Pico telemetry refresh stalls by timing out Pico requests and bounding the final refresh wait.
+- Documented the hardware-alarm frame scheduler and the CPU-to-PIO plus control-SM/data-SM IRQ handshake, including retry, timeout, and resynchronization behavior.
 
 ## 1.0.0 - 2026-07-28
 

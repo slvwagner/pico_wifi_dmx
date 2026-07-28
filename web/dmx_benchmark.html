@@ -354,10 +354,25 @@ function setCheck(id,state,title,detail){
   el.querySelector('.check-detail').textContent=detail||'';
 }
 
+const PICO_REQUEST_TIMEOUT_MS=5000;
+
+async function fetchPico(path,options={}){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),PICO_REQUEST_TIMEOUT_MS);
+  try{
+    return await fetch(path,{...options,signal:controller.signal});
+  }catch(error){
+    if(error?.name==='AbortError')throw new Error('Pico request timed out after '+PICO_REQUEST_TIMEOUT_MS+' ms');
+    throw error;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
 async function fetchPicoText(path){
   const root=picoRoot();
   if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+path,{cache:'no-store'});
+  const r=await fetchPico(root+path,{cache:'no-store'});
   if(!r.ok)throw new Error(path+' HTTP '+r.status);
   return r.text();
 }
@@ -1320,7 +1335,10 @@ async function runFullPerformanceTestForActivePico(){
       setStatus(midiLatencyEmulatorSelected()?'Automated checks complete. Generating '+samples+' MIDI emulator timing sample'+(samples===1?'':'s')+'...':'Automated checks complete. Move a MIDI control and pause for each of '+samples+' timing sample'+(samples===1?'':'s')+'.');
       await startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()});
     }
-    await checkPico();
+    await Promise.race([
+      checkPico(),
+      new Promise(resolve=>setTimeout(()=>resolve(false),PICO_REQUEST_TIMEOUT_MS))
+    ]);
   }finally{
     document.getElementById('btnRunFull').disabled=false;
   }
@@ -1343,7 +1361,7 @@ async function runFullPerformanceTest(){
 async function postPicoText(path,body){
   const root=picoRoot();
   if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+path,{method:'POST',body,cache:'no-store'});
+  const r=await fetchPico(root+path,{method:'POST',body,cache:'no-store'});
   if(!r.ok)throw new Error(path+' HTTP '+r.status);
   try{return await r.json();}catch(_){return {ok:true};}
 }
