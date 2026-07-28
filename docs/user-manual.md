@@ -190,6 +190,8 @@ If discovery recognizes a saved unique-board ID at a different URL, it automatic
 
 Names, universe numbers, and URLs remain editable after discovery. Click **Add output** for a controller that must be entered manually. Every output must have a unique universe number. Click **Done** to validate the list, refresh the shared header health immediately, and autosave the show.
 
+The top of the modal also shows **Open this controller on an iPad**. It asks the server for the host computer's LAN IPv4 addresses and builds clickable URLs with the current protocol, port, and application path. Open one of those addresses on an iPad connected to the same trusted network. If no address appears, check the host computer's network connection and the installer/firewall LAN-access setting.
+
 Select the wanted **DMX output** while patching a fixture. Address conflicts are checked only inside that output, so Universe 1 channel 1 and Universe 2 channel 1 are independent and may both be used. Existing fixture cards in **Patch Fixtures** also have a DMX output dropdown. Reassigning a fixture is refused if its address range would overlap another fixture on the destination output. After an accepted reassignment, the Controller immediately sends all current values for that fixture to its new Pico/universe; the status line confirms the number of sent channels or reports a connection error.
 
 The Controller routes single controls, fixture Default/Blackout/Highlight recalls, Group Edit, scenes, palettes, Fan Out, room-plane targeting, and clear-all operations to their fixtures' assigned outputs. Multi-fixture batches are separated by output and sent to the involved Picos concurrently. **Patch CSV** includes the output name and universe for every channel. Complete show export/import preserves the output definitions and fixture assignments; the current show format is version 5 so older controller software refuses unsupported multi-output and pixel-matrix data instead of silently losing it.
@@ -288,6 +290,8 @@ Each control stores its own DMX channel mapping. For example, a moving head can 
 
 Simple 8-bit and 16-bit sliders only need channel mapping plus optional **Default** and **Blackout** values in the modal. Color controls add a color picker and any extra white, amber, or key channels. Wheel / indexed controls add the wheel editor and guided wheel editor so DMX ranges, colors, icons, and OFL-style function metadata can be entered without writing the raw text by hand.
 
+In the Guided Wheel Editor, **Add option** appends a row; the row `x` removes it. Set its name, From/To range, function type, optional slot and speed labels, color, and icon. **Icon** uploads an image, while **Draw** opens the icon canvas; use **Clear drawing** and **Save icon** there. **Apply options** validates the rows and returns them to Control Details. The control itself is not stored until **Add control** or **Save control** is used. **Cancel edit** leaves the selected control unchanged and returns the compact editor to add mode.
+
 Pan/Tilt controls also have fixture-profile mapping options in the control details modal:
 
 - **Reverse Pan DMX** sends the logical Pan value as `max - value`.
@@ -356,8 +360,13 @@ Each fixture card contains the controls from its profile:
 - Color pickers and swatches for color controls
 - Wheel buttons, a DMX value slider, and a direct numeric DMX value field for indexed wheel values
 - Coarse/fine relative nudges for 16-bit channels
+- A pixel grid, **Paint color**, **Fill all**, and **Clear** for a native RGB pixel-matrix control
 
 For pan/tilt controls, drag inside the XY pad when you want to move directly to an absolute position. Use **Pan coarse relative**, **Pan fine relative**, **Tilt coarse relative**, and **Tilt fine relative** when you want to adjust from the current position without jumping to a new absolute value. The number field in each relative row sets how many DMX increments the next `-` or `+` click will move. The fine relative buttons move the combined 16-bit value by that many steps, including byte borrow and carry: for example `256 - 1` becomes coarse `0`, fine `255`, and `255 + 1` becomes coarse `1`, fine `0`. The value is clamped at the valid DMX range, so it cannot go below `0` or above `65535`. If the fixture profile reverses or swaps Pan/Tilt, the XY pad and relative controls still show logical Pan/Tilt movement while the DMX output is mapped for the physical fixture.
+
+**Center Pan/Tilt** writes the logical midpoint on both axes in one action. It follows the profile's reverse/swap mapping when the bytes are sent.
+
+For a native RGB pixel-matrix control, choose **Paint color** and click individual pixels, use **Fill all** to apply that color to the complete control, or use **Clear** to set every pixel to black. These are direct live controls for one patched fixture; the separate **Pixel Matrices** toolbox stores reusable pictures and mappings across fixtures.
 
 Wheel / indexed controls require unique DMX option values. If two wheel options use the same DMX value, the control details modal refuses to save the control. This prevents ambiguous wheel buttons where the UI could not know which option should be highlighted after recall or chase editing. On the Controller page and in Controller Group Edit, wheel controls can be changed with the option buttons, the DMX value slider, or the direct numeric DMX value field.
 
@@ -424,7 +433,7 @@ The Fixture Controller includes a **Fan Out** toolbox in the shared Toolboxes si
 
 In **Symmetric spread** mode, the **Spread** slider is centered at `0` and can move into positive or negative values. Positive Spread sends the fan in one direction through the selected fixture order; negative Spread sends it in the opposite direction. The **Spread step** field and the `-` / `+` buttons provide fine adjustment of the signed Spread value. Set the step size to the number of DMX increments you want to add or subtract, then click `-` or `+`. The buttons clamp at the valid signed range for the selected Fan Out control. **Start to end** mode hides the Spread nudge row because that mode is edited directly with the **From** and **To** number fields.
 
-The current Fan Out working state is autosaved to the XAMPP server UI-state file. This includes the selected Fan Out control, mode, signed Spread, From/To offsets, and Spread step size, so the toolbox can restore the last working shape after a reload. Saved Fan Out presets are separate: use **Save** when you want to keep a named Fan Out recipe for later recall.
+The current Fan Out working state is autosaved to the XAMPP server UI-state file. This includes the selected Fan Out control, mode, signed Spread, From/To offsets, and Spread step size, so the toolbox can restore the last working shape after a reload. Saved Fan Out presets are separate: **Save** stores a named recipe with its group/manual fixture scope, **Recall** asks which named recipe to load and immediately reapplies it, and saving another preset with the same name replaces the old recipe. **Snapshot** refreshes the base values, **Apply** explicitly reapplies the displayed calculation, and **Clear** resets the shaping controls to neutral without recalling the pre-fan DMX look.
 
 The Fan Out toolbox only shows controls that are available on every fixture in the selected set. For pan/tilt controls, Pan and Tilt appear as separate fan targets. Applying a fan writes the calculated values into the controller just like moving the controls by hand, separates them by fixture assignment, and sends them to every involved DMX Output.
 
@@ -770,7 +779,11 @@ The **MIDI Controller** card has two independent inputs:
 - **Computer USB MIDI** connects a class-compliant controller, such as the Novation Launch Control XL, to Chrome or Edge on the XAMPP computer. Click **Connect MIDI**, allow browser MIDI access, and select the input and optional output ports. The page prefers a connected Launch Control XL automatically when available.
 - **Pico UART diagnostics** keeps the original read-only Pico GPIO5/UART1 monitor. It shows the UART/baud configuration, byte and message counters, parse errors, and last decoded event. This Pico input is not used by the new Show mappings.
 
+Click **Check MIDI** to refresh the read-only Pico UART diagnostics from the current Pico. Click **Connect MIDI** to request browser MIDI permission and populate the computer **Input** and **Output** lists, then choose the intended input. The optional output selection is remembered and opened, but the current Show mappings do not send MIDI feedback. **Disconnect** releases the current Web MIDI connection without deleting learned mappings.
+
 Click **Open MIDI Emulator** to test without the physical controller. It opens `dmx_midi_emulator.html` in a separate tab with 24 knobs, 8 faders, 16 channel buttons, and 8 utility buttons. The controls show the CC or note number they send. Keep Show Run and the emulator on the same XAMPP address; the connection indicators turn green when both tabs can see each other.
+
+The emulator's **MIDI channel** selector chooses channel 1–16 for every generated CC and Note message and remembers that choice in the browser. **Reset controls** returns all emulated knobs and faders to zero and releases active buttons. The emulator communicates only with same-origin Show Run or Performance pages; it does not create a system MIDI device.
 
 ![Launch Control XL MIDI emulator](screenshots/midi-emulator.png)
 
@@ -893,7 +906,7 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Groups toolbox](screenshots/chaser-toolbox-groups.png)
 
-- **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase.
+- **Chases** stores complete editable chases in a slot matrix. Clicking an empty slot saves the current chase. Clicking a filled slot loads that chase. After loading one, **Update chase** in Chase Steps replaces that saved chase's step data and playback settings with the current working chase without creating a second tile.
 - The small top-left pencil icon on a filled **Chases** slot opens **Edit Tile** for the chase name, background color, and optional drawn/uploaded visual. **Default background** restores the standard slot color, and **No icon** removes the overlay image. This is only a label; loading a chase still uses the stored chase steps and playback settings.
 
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
@@ -917,16 +930,18 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Chase Steps toolbox](screenshots/chaser-toolbox-steps.png)
 
-- **Fan Out** is a live step-shaping tool. It works on the currently selected step and writes directly into **Edit Step** as soon as you change the Fan Out mode, spread, or range values. There is no separate Snapshot or Apply action on the Chaser page.
+- **Fan Out** is a live step-shaping tool. It works on the currently selected step and writes directly into **Edit Step** as soon as you change the Fan Out mode, spread, or range values. **Snapshot** refreshes the base values from that step, and **Apply** explicitly reapplies the currently displayed calculation; normal slider/field changes already apply automatically.
 - **Fan Out control selection** is filtered by the selected step. The control dropdown only shows compatible single-value controls that are actually part of the selected step's participating controls and exist on at least two fixtures. If one or more groups are selected, the same rule is applied inside the selected groups only.
 - **Fan Out order** comes from the current participating fixture/control list. If a group filter is active, only fixtures inside the selected groups participate, but the calculation still follows the participating order that is shown for the current step/scope. In Symmetric spread mode, negative Spread runs the shape from the opposite side of the fixture row.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
+- **Save** stores a named Chaser Fan Out recipe with its selected group scope. **Recall** asks for one of those recipes, restores its group and shaping fields, snapshots the selected step's current bases, and applies the recipe immediately. A preset with the same name is replaced.
 - Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** updates the selected step immediately and previews the changed values on the primary show output. Browser Chase Playback also uses that primary output. Upload the chase to a logical Pico slot when autonomous playback must be split across several DMX Outputs.
 
 ![Chaser Fan Out toolbox](screenshots/chaser-toolbox-fanout.png)
 
 - **Chase Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. **Mode** chooses **Single**, **Loop**, **Loop N**, or **Ping Pong**. **Direction** chooses whether playback starts at the first step and moves forward or starts at the last step and moves backward. **Loops** is only used by **Loop N**; normal **Loop** runs forever. **Ping Pong** reverses at the end of the chase instead of jumping back to the first or last step. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
+- **BPM** and **Beats/step** calculate the duration applied to all current steps and the default duration of a newly added step: `duration = 60000 / BPM × beats`. **Tap tempo** averages recent taps, updates BPM, and reapplies the calculated duration. **Prev** and **Next** manually recall the adjacent step, including its immediate DMX preview. **Update rate (Hz)** controls how often browser playback calculates and sends fade progress, from 5 to 50 updates per second; it does not change Pico-resident playback.
 - While Chase Playback runs, the currently playing step automatically becomes the selected step. This means **Edit Step** follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.
 - Selecting a step in **Chase Steps** stops browser Chase Playback and both playback engines on the primary Pico, then sends that step's programmed DMX values to the primary output immediately. This lets you verify positions, colors, and other programmed values without starting the chase. Manually changing controls in **Edit Step** also stops browser Chase Playback so playback cannot immediately overwrite the values you are editing.
 
@@ -1100,6 +1115,8 @@ Starting a Pico slot with **Play Slot** stops browser Chase Playback first, so o
 
 ![Chaser Pico Playback](screenshots/chaser-pico-playback.png)
 
+**Set Speed** changes the speed multiplier of the selected loaded slot without re-uploading its chase. **Stop Slot** stops only the selected logical slot, while **Stop All** stops Chaser playback on the relevant Pico playback target. Use the small `x` on a loaded tile to remove its saved mirror and clear its Pico slot; linked playbacks are cleared from every member Pico after confirmation. **Restore Saved Slots to Pico** reloads the server-mirrored payloads after a Pico was reflashed, reset, or lost its volatile slot data. For linked playbacks it restores every recorded physical member to its recorded Pico and slot.
+
 Supported playback options:
 
 - Single run
@@ -1131,7 +1148,9 @@ Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relati
 
 The **Participating Controls** panel uses an **Effect target** dropdown. The default target is **None**. With **None** selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.
 
-Hard reload, including Ctrl+F5, resets **Effect target** to **None** and clears playback participation. Normal navigation away from Effects and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use **Load**, import an Effects JSON file, or recall a saved **Effect** tile when you want to explicitly restore saved target and participant data.
+Hard reload, including Ctrl+F5, resets **Effect target** to **None** and clears playback participation. Normal navigation away from Effects and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use **Load** or recall a saved **Effect** tile when you want to explicitly restore saved target and participant data.
+
+**Save** in Participating Controls writes the complete current Effects working setup to the server: target, enabled fixtures, effect parameters, and saved effect recipes. **Load** explicitly replaces the current working setup with that server copy. Normal parameter changes also preserve the current tab's working state for navigation, but they do not automatically invoke the explicit server Load operation after a hard reload.
 
 One effect can only target one control type at a time: either pan/tilt, or one scalar control type. Choosing an effect target filters the fixture matrix to compatible fixtures, but it does not automatically enable those fixtures. This keeps target choice separate from fixture participation and prevents mixed targets such as dimmer plus gobo plus pan/tilt in one effect.
 
@@ -1151,6 +1170,8 @@ The fixture matrix is a selection and preview surface:
 Center values come from the current base buffer or from recalling a scene as the effect center. Phase spread, amplitude, BPM, and effect shape are set in the **Effect Parameters** toolbox. The amplitude controls are target-aware and effect-aware. Circle and Figure-8 show **Pan amp** and **Tilt amp**. Pan Swing shows only **Pan amp**. Tilt Swing shows only **Tilt amp**. Scalar effects show one **Amplitude** slider. Hidden axes are forced to zero for preview and Pico upload, but their last two-axis values are remembered when you return to Circle or Figure-8.
 
 The **Effect** dropdown is target-aware. It only shows effects that make sense for the selected **Effect target**.
+
+**BPM** controls the effect cycle speed. **Hz** is the browser preview update rate from 5 to 50 calculations/s; changing Hz affects browser smoothness and request load, not the autonomous Pico effect timing. **Start** begins browser preview and changes to **Stop** while it is running.
 
 The same target rules are used for Pico upload. Pan/tilt and scalar effects can be uploaded to one of the Pico effect slots, and the Pico reads the effect center from its base buffer while playing. Pan/Tilt profile mapping is included in the uploaded target: swapped axes use the swapped physical channels, and reversed axes invert the effect offset around the current base value.
 
@@ -1172,6 +1193,10 @@ The Pico effect slot upload uses the same selected **Effect target** as the brow
 - Click an empty Pico slot to upload the current effect to that slot.
 - Click a loaded slot once to select it for start, stop, or BPM changes.
 - Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
+- **Pause/Resume** changes state without discarding the loaded slot, and **Set BPM** changes the selected slot's tempo without re-uploading its targets.
+- **Stop Slot** stops only the selected logical effect; **Stop All** stops the relevant Pico Effects playback.
+- The small `x` clears the selected saved/Pico slot after confirmation. For a linked effect, deletion clears every physical member.
+- **Restore Saved Slots to Pico** reloads the server-mirrored effect payloads after reset, reflash, or lost volatile Pico slot data, including every member of a linked effect.
 - Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
 - The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
 - Up to 64 physical effect slots can be loaded on one Pico.
@@ -1240,6 +1265,8 @@ Use **DMX Output** to select the Pico/universe whose physical GPIO pins you want
 
 The GPIO editor loads all per-output mapping setups from the XAMPP server first, using `gpio_setup.php` and `data/gpio_setup.json`. Browser storage is only a fallback if the server file is not available. Adding, removing, or changing a mapping autosaves the complete multi-output setup back to the server, so a PC and iPad should show the same mappings after reload. Existing single-Pico GPIO files are migrated into the first configured output.
 
+**GPIO polling enabled** is stored independently for each output and becomes the Pico configuration's master enable flag when you click **Push to Pico**. Editing the server copy does not change the physical Pico until it is pushed. The live Status panel polls the selected Pico for pin state and event counters once per second.
+
 Chaser GPIO actions do not define their own playmode. They start, stop, pause, resume, toggle, or tap the selected Pico's physical chaser slot. The playmode belongs to that slot, so the button follows whatever was uploaded from the Chaser page: **Single**, **Loop**, **Loop N**, or **Ping Pong**, plus forward/reverse direction. For the selected DMX Output, the GPIO page reads the Pico's chaser slot status and shows the slot mode, direction, loop state, step count, and live/ready state beside chaser mappings and chaser speed ADC mappings.
 
 Digital GPIO pins can trigger:
@@ -1272,6 +1299,14 @@ Only GPIO26, GPIO27, and GPIO28 support ADC input on the Pico 2 W.
 
 The page disables reserved pins and pins already used by other mappings.
 
+For each digital mapping:
+
+- **Pull-up** is normally used for a dry-contact button wired from the protected input to ground; **Pull-down** expects the active contact toward the input's high level.
+- **Falling**, **Rising**, or **Both** chooses which electrical transition triggers the action.
+- **Slot** is enabled only for Chaser or Effects actions and addresses the physical slot on the selected Pico.
+- **Debounce ms** ignores additional transitions for 5–1000 ms after a trigger, preventing one mechanical press from producing several actions.
+- Tap-tempo actions additionally show **Beat**, which applies the selected beat divider to the measured tap interval.
+
 Editing the mapping saves the setup on the XAMPP server, but the Pico only receives it after **Push to Pico**. Use **Read from Pico** when the Pico already has the mapping you want to bring back into the editor.
 
 ### Add an ADC Mapping
@@ -1282,6 +1317,8 @@ Editing the mapping saves the setup on the XAMPP server, but the Pico only recei
 4. Set the target slot.
 5. Set the min and max value.
 6. Upload the config.
+
+The ADC **Min multiplier / Max multiplier** fields scale the full analog range to Chaser speed from `0.1×` to `10×`. For Effects, **Min BPM / Max BPM** scale it from 1 to 300 BPM. The page prevents a digital and ADC mapping from sharing the same GPIO and highlights duplicates before upload.
 
 ADC values are filtered on the firmware side with a short mean filter to reduce ripple.
 
@@ -1315,6 +1352,8 @@ The **Free memory** check shows the firmware heap/stack gap. The **100 Hz headro
 
 Use **Buffer Readback** to write a known batch with `/dmx/b`, then compare the tested channels from both `/dmx/output.json` and `/dmx/base.json`.
 
+Set its **Start channel**, number of **Channels**, and test **Value**, then click **Read Back**. The requested channel range is clipped to the 512-channel universe. Because the operation writes real output before reading it, use an unused range or disconnect fixtures when the test value must not be visible on stage.
+
 Use **MIDI-to-DMX Latency** to measure a controller event through the browser and the selected Pico output. Configure and verify the outputs in Controller → **DMX Outputs**, then click **Connect MIDI** for USB hardware or open the visible **MIDI Emulator** when you want to perform a standalone manual test. Select whether the Show Run target behaves as a **Fader / knob (30 ms)** or an immediate **Button**, choose an unused DMX test channel and sample count, then start the measurement. For a manual test, move one control and pause until **Move again** appears for each sample. USB and emulator events use the same measurement handler after ingestion; the emulator substitutes a same-origin `BroadcastChannel` hop for the physical USB/driver hop.
 
 The primary result is **MIDI → POST**: time from the MIDI event until the browser starts the `/dmx/b` request to the Pico. This intentionally includes the 30 ms coalescing queue for faders and knobs. Fader/knob p95 is PASS at no more than 35 ms, WARN through 50 ms, and FAIL above 50 ms. An immediate button is PASS at no more than 5 ms, WARN through 15 ms, and FAIL above 15 ms. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and conservative confirmed-following-frame time are reported separately as diagnostics and do not determine the primary MIDI status. The page restores the original base value of the test channel when the measurement completes or is stopped. Do not use a channel currently controlled by playback, blackout, or a master.
@@ -1327,6 +1366,8 @@ Use **DMX Write Test** to compare:
 - Scene-sized batch updates
 - Large batch updates
 - Longer soak tests
+
+The presets fill in the request shape: **Quick check** configures 500 requests of 512 channels, **Scene recall** configures 120 requests of 64 channels, **Stress** configures 500 requests of 128 channels, and **30s soak** configures up to 5000 requests of 32 channels for 30 seconds. **Custom** leaves **Start channel**, **Value**, **Channels / request**, **Request count**, and **Duration s** under direct control. One channel uses the single-channel endpoint; two or more channels use a consecutive `/dmx/b` batch. **Stop** ends an active run. The export button downloads the completed benchmark as CSV.
 
 The write-test result panel shows:
 
@@ -1344,6 +1385,8 @@ Use **Playback + Palette Stress** to stress playback without overwriting saved P
 
 The **Timing History** table records each Pico timing check. A manual **Check Pico** adds one row immediately. **Run Full Test** and **Playback + Palette Stress** record a final timing sample, so the row reflects Core0/Core1 slack after the selected checks have run. Full Test also records the latest MIDI-to-POST median and p95 in the MIDI column. The 100 Hz and Core1 columns use the same wording as the status cards, for example "Minimum 9419us left before missing the 10ms update budget".
 
+Timing History and Write History keep the latest results for the current page session. Their separate **Clear** buttons erase only the displayed history; they do not clear Pico data or DMX output.
+
 Use **Export CSV** to save results for later comparison.
 
 Pico Performance Test and GPIO Control link to the **DMX Buffer Monitor**.
@@ -1359,6 +1402,8 @@ Use **DMX output** to see the actual output frame currently held by the DMX engi
 Use **Base / position** to inspect the scene base buffer used as the center for Effects.
 
 Use **Refresh ms** to control the polling interval directly. Use **Refresh Hz** when you prefer rate instead. Both fields stay synchronized, so `500 ms` is shown as `2 Hz`. Longer intervals are calmer for observation; shorter intervals are useful when checking fast changes. **Auto refresh** starts or stops polling without changing the selected buffer.
+
+Each refresh compares the new frame with the immediately preceding read. Changed channel tiles receive the accent highlight, while **Changed** reports their count. **Clear highlights** accepts the currently displayed frame as the new comparison baseline without changing any DMX value. **Refresh** performs one immediate read even when Auto refresh is off. Switching output or buffer resets the comparison baseline.
 
 Use **Clear all** when you want to clear both buffers on the selected DMX Output. It calls that Pico's clear endpoint immediately, clears its DMX output buffer and base/position buffer, and then refreshes the displayed tiles.
 
@@ -1435,6 +1480,8 @@ These two toolboxes are recall-only on Room Plane: clicking an empty tile never 
 ![Room Plane Fixtures](screenshots/room-plane-toolbox-fixtures.png)
 
 The **Fixtures** toolbox stores the relationship between each moving light and the room plane.
+
+**Load patched moving lights** is the normal production workflow: it rebuilds the list from compatible patched fixture profiles while retaining matching saved calibration where possible. **Add fixture** appends a standalone demonstration/calibration row and opens its editor; it is not associated with a patched fixture and therefore cannot send to a physical DMX Output until replaced by patched data. **Remove last** removes only the final row and always leaves at least one fixture row.
 
 | Column | Meaning |
 |--------|---------|

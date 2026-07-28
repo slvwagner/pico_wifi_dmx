@@ -8,6 +8,7 @@ Changed:
 - Updated the README and generated user manual to describe linked multi-Pico Chaser/Effects playback, logical versus physical Pico slots, per-output GPIO configuration, and fixture-aware DMX Output routing consistently; refreshed obsolete version examples and removed machine-specific documentation addresses.
 - Corrected remaining documentation drift by distinguishing primary-output Chaser/Effects browser previews from linked multi-Pico autonomous playback, updating Pico slot tile details and DMX batch/base API descriptions, and removing machine-specific paths from developer documentation.
 - Audited the user manual against the current UI and corrected stale toolbox tile-movement, Saved Group selection, multi-output Scene/Group Edit routing, customer-install URL, and Show Run playback-control instructions.
+- Completed a page-by-page implementation coverage audit and documented previously omitted host-access links, profile/wheel controls, native matrix live controls, Fan Out preset/actions, Show Run MIDI connection/emulator actions, Chaser timing and slot recovery, Effects working-state and slot recovery, GPIO trigger/electrical fields, Performance Test configuration, DMX Monitor highlighting, and Room Plane fixture-list actions.
 
 ## 1.0.0 - 2026-07-28
 
