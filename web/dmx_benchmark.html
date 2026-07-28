@@ -94,6 +94,7 @@ th{color:var(--muted);font-weight:600}
   </div>
   <div class="check-grid">
     <div class="check" id="checkStatus"><div class="check-state">Idle</div><div class="check-title">Pico status</div><div class="check-detail">No check run yet.</div></div>
+    <div class="check" id="checkFirmwareVersion"><div class="check-state">Idle</div><div class="check-title">Firmware version</div><div class="check-detail">No version check run yet.</div></div>
     <div class="check" id="checkMemory"><div class="check-state">Idle</div><div class="check-title">Free memory</div><div class="check-detail">No memory data yet.</div></div>
     <div class="check" id="checkHeadroom"><div class="check-state">Idle</div><div class="check-title">100 Hz headroom</div><div class="check-detail">No 100 Hz timing data yet.</div></div>
     <div class="check" id="checkCore1Headroom"><div class="check-state">Idle</div><div class="check-title">Core1 headroom</div><div class="check-detail">No Core1 timing data yet.</div></div>
@@ -114,7 +115,7 @@ th{color:var(--muted);font-weight:600}
     <button id="btnClearTimingHistory">Clear</button>
   </div>
   <table>
-    <thead><tr><th>Run</th><th>Pico / universe</th><th>Time</th><th>Status</th><th>Memory</th><th>100 Hz left</th><th>Core1 left</th><th>Core0 late</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th><th>MIDI</th></tr></thead>
+    <thead><tr><th>Run</th><th>Pico / universe</th><th>Time</th><th>Status</th><th>Firmware</th><th>Memory</th><th>100 Hz left</th><th>Core1 left</th><th>Core0 late</th><th>HTTP peak</th><th>DMX</th><th>Buffer</th><th>MIDI</th></tr></thead>
     <tbody id="timingHistoryBody"></tbody>
   </table>
 </section>
@@ -355,14 +356,18 @@ function setCheck(id,state,title,detail){
 }
 
 const PICO_REQUEST_TIMEOUT_MS=5000;
+const PICO_PREFLIGHT_TIMEOUT_MS=2500;
+const PICO_WRITE_TIMEOUT_MS=2000;
+const PICO_WRITE_MAX_CONSECUTIVE_ERRORS=3;
+let expectedFirmwareVersionPromise=null;
 
-async function fetchPico(path,options={}){
+async function fetchPico(path,options={},timeoutMs=PICO_REQUEST_TIMEOUT_MS){
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),PICO_REQUEST_TIMEOUT_MS);
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
   try{
     return await fetch(path,{...options,signal:controller.signal});
   }catch(error){
-    if(error?.name==='AbortError')throw new Error('Pico request timed out after '+PICO_REQUEST_TIMEOUT_MS+' ms');
+    if(error?.name==='AbortError')throw new Error('Pico request timed out after '+timeoutMs+' ms');
     throw error;
   }finally{
     clearTimeout(timer);
@@ -379,6 +384,65 @@ async function fetchPicoText(path){
 
 async function fetchPicoJson(path){
   return JSON.parse(await fetchPicoText(path));
+}
+
+function expectedFirmwareVersion(){
+  if(!expectedFirmwareVersionPromise){
+    expectedFirmwareVersionPromise=fetch('../VERSION',{cache:'no-store'})
+      .then(response=>{
+        if(!response.ok)throw new Error('VERSION HTTP '+response.status);
+        return response.text();
+      })
+      .then(version=>{
+        const value=String(version||'').trim();
+        if(!value)throw new Error('VERSION is empty');
+        return value;
+      });
+  }
+  return expectedFirmwareVersionPromise;
+}
+
+async function checkFirmwareVersion(status){
+  const installed=String(status?.firmware_version||'').trim();
+  let expected='';
+  try{
+    expected=await expectedFirmwareVersion();
+  }catch(error){
+    const detail='Could not read the deployed application VERSION: '+error.message;
+    setCheck('checkFirmwareVersion','warn','Firmware version',detail);
+    return {state:'warn',detail,shortDetail:'expected version unavailable'};
+  }
+  if(!installed){
+    const detail='Firmware does not report a version; expected '+expected+'. Flash the current firmware.';
+    setCheck('checkFirmwareVersion','bad','Firmware version',detail);
+    return {state:'bad',detail,shortDetail:'Missing; expected '+expected};
+  }
+  if(installed!==expected){
+    const detail='Installed '+installed+'; expected '+expected+'. Flash the current firmware.';
+    setCheck('checkFirmwareVersion','bad','Firmware version',detail);
+    return {state:'bad',detail,shortDetail:'Installed '+installed+'; expected '+expected};
+  }
+  const detail='Installed '+installed+' matches the deployed application.';
+  setCheck('checkFirmwareVersion','pass','Firmware version',detail);
+  return {state:'pass',detail,shortDetail:installed};
+}
+
+async function checkPerformanceOutputAvailability(output){
+  const root=String(output?.baseUrl||'').replace(/\/+$/,'');
+  if(!root)return {output,available:false,reason:'No Pico base URL is configured.'};
+  try{
+    const response=await fetchPico(root+'/status.json',{cache:'no-store'},PICO_PREFLIGHT_TIMEOUT_MS);
+    if(!response.ok)throw new Error('/status.json HTTP '+response.status);
+    await response.json();
+    return {output,available:true,reason:''};
+  }catch(error){
+    return {output,available:false,reason:error.message||String(error)};
+  }
+}
+
+function unavailablePerformanceOutputDetail(result){
+  const output=result.output;
+  return performanceTargetLabel(output)+' ('+output.baseUrl+') — '+result.reason;
 }
 
 function latestMatch(text,re){
@@ -421,6 +485,7 @@ function renderTimingHistory(){
       <td>${DmxCommon.escapeHtml(r.targetLabel||'Pico')}</td>
       <td>${r.time}</td>
       <td>${timingStateLabel(r.statusState)}</td>
+      <td>${timingStateLabel(r.versionState)} ${DmxCommon.escapeHtml(r.version||'not checked')}</td>
       <td>${r.memory}</td>
       <td>${r.headroom}</td>
       <td>${r.core1Headroom}</td>
@@ -603,8 +668,8 @@ function renderCoreTiming(parsed){
 }
 
 function overallTimingState(row){
-  return [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.dmxIntervalState,row.bufferState,row.midiLatencyState].includes('bad')?'bad'
-    : [row.statusState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.dmxIntervalState,row.bufferState,row.midiLatencyState].includes('warn')?'warn'
+  return [row.statusState,row.versionState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.dmxIntervalState,row.bufferState,row.midiLatencyState].includes('bad')?'bad'
+    : [row.statusState,row.versionState,row.memoryState,row.headroomState,row.core1HeadroomState,row.core0State,row.core1State,row.httpState,row.dmxState,row.dmxIntervalState,row.bufferState,row.midiLatencyState].includes('warn')?'warn'
     : 'pass';
 }
 
@@ -616,6 +681,7 @@ async function checkPico(options={}){
     const status=await fetchPicoJson('/status.json');
     const statusDetail='DMX '+(status.dmx&&status.dmx.running?'running':'available')+', '+((status.dmx&&status.dmx.channels)||'?')+' channels, frame '+((status.dmx&&status.dmx.frame_count)||'?');
     setCheck('checkStatus','pass','Pico status',statusDetail);
+    const versionResult=await checkFirmwareVersion(status);
     let historyRow=null;
     try{
       const perf=await fetchPicoJson('/perf/status.json');
@@ -646,6 +712,9 @@ async function checkPico(options={}){
     historyRow.targetLabel=targetLabel;
     historyRow.statusState='pass';
     historyRow.status=statusDetail;
+    historyRow.versionState=versionResult.state;
+    historyRow.version=versionResult.shortDetail;
+    historyRow.versionDetail=versionResult.detail;
     historyRow.bufferState=lastBufferSnapshot.state;
     historyRow.buffer=lastBufferSnapshot.detail;
     historyRow.bufferLabel=shortBufferLabel(lastBufferSnapshot);
@@ -663,6 +732,8 @@ async function checkPico(options={}){
       targetLabel,
       statusState:'bad',
       status:e.message,
+      versionState:'idle',
+      version:'not checked',
       memoryState:'idle',
       memory:'not checked',
       headroomState:'idle',
@@ -1183,7 +1254,11 @@ async function runBufferReadback(){
   for(let i=0;i<safeCount;i++)pairs.push((ch+i)+':'+val);
   try{
     setStatus('Running buffer readback...');
-    const write=await fetch(root+'/dmx/b?t='+Date.now(),{method:'POST',body:pairs.join(','),cache:'no-store'});
+    const write=await fetchPico(
+      root+'/dmx/b?t='+Date.now(),
+      {method:'POST',body:pairs.join(','),cache:'no-store'},
+      PICO_WRITE_TIMEOUT_MS
+    );
     if(!write.ok)throw new Error('/dmx/b HTTP '+write.status);
     await new Promise(resolve=>setTimeout(resolve,60));
     const output=await fetchPicoJson('/dmx/output.json');
@@ -1274,14 +1349,29 @@ async function runTest(){
   resetStats();
   const modeLabel=n===1?'single GET /dmx/set':'batch ×'+n+' POST /dmx/b';
   setStatus('Running '+modeLabel+' — '+(durationSec>0?durationSec+'s soak':count+' requests')+'…');
+  let consecutiveErrors=0;
+  let stoppedAfterConsecutiveErrors=false;
   for(let i=0;running&&(durationSec>0?(performance.now()-testStart<durationSec*1000):i<count);i++){
     const t0=performance.now();
     try{
-      const r=await fetch(req.url+Date.now(),{cache:'no-store',method:req.method,body:req.body});
+      const r=await fetchPico(
+        req.url+Date.now(),
+        {cache:'no-store',method:req.method,body:req.body},
+        PICO_WRITE_TIMEOUT_MS
+      );
       if(!r.ok)throw new Error('HTTP '+r.status);
       latencies.push(performance.now()-t0);
       errorMarks.push(0);
-    }catch(e){errors++;errorMarks.push(1);}
+      consecutiveErrors=0;
+    }catch(e){
+      errors++;
+      consecutiveErrors++;
+      errorMarks.push(1);
+      if(consecutiveErrors>=PICO_WRITE_MAX_CONSECUTIVE_ERRORS){
+        stoppedAfterConsecutiveErrors=true;
+        running=false;
+      }
+    }
     if(i%10===0)updateStats(total);
   }
   running=false;
@@ -1295,8 +1385,9 @@ async function runTest(){
     if(history.length>12)history.shift();
     renderHistory();
     document.getElementById('btnExport').disabled=false;
-    setCheck('checkWrite',errors?'warn':'pass','DMX write load',s.n+' successful requests, '+errors+' errors, median '+s.median.toFixed(1)+'ms, p95 '+s.p95.toFixed(1)+'ms');
-    setStatus('Done ('+modeLabel+') — '+s.n+' req · median '+s.median.toFixed(1)+'ms · p95 '+s.p95.toFixed(1)+'ms · '+s.fps.toFixed(1)+' req/s · '+Math.round(s.chs)+' ch/s'+(errors?' · '+errors+' errors':''));
+    const stopDetail=stoppedAfterConsecutiveErrors?' · stopped after '+PICO_WRITE_MAX_CONSECUTIVE_ERRORS+' consecutive errors':'';
+    setCheck('checkWrite',errors?'warn':'pass','DMX write load',s.n+' successful requests, '+errors+' errors, median '+s.median.toFixed(1)+'ms, p95 '+s.p95.toFixed(1)+'ms'+stopDetail);
+    setStatus('Done ('+modeLabel+') — '+s.n+' req · median '+s.median.toFixed(1)+'ms · p95 '+s.p95.toFixed(1)+'ms · '+s.fps.toFixed(1)+' req/s · '+Math.round(s.chs)+' ch/s'+(errors?' · '+errors+' errors':'')+stopDetail);
     return s;
   }else{
     setCheck('checkWrite','bad','DMX write load','No successful requests'+(errors?' · '+errors+' errors':''));
@@ -1306,53 +1397,82 @@ async function runTest(){
 }
 
 async function runFullPerformanceTestForActivePico(){
-  document.getElementById('btnRunFull').disabled=true;
   let embeddedEmulator=null;
   if(!midiLatencyInput&&!midiLatencyEmulatorAvailable()){
     embeddedEmulator=ensureMidiLatencyEmulatorFrame();
   }
-  try{
-    if(!midiLatencyInput&&embeddedEmulator){
-      setStatus('Starting the MIDI Emulator...');
-      if(await waitForMidiLatencyEmulator(3500)){
-        selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
-        renderMidiLatencyInputs();
-      }
+  if(!midiLatencyInput&&embeddedEmulator){
+    setStatus('Starting the MIDI Emulator...');
+    if(await waitForMidiLatencyEmulator(3500)){
+      selectMidiLatencyInput(MIDI_LATENCY_EMULATOR_ID);
+      renderMidiLatencyInputs();
     }
-    if(!midiLatencyInput){
-      try{await connectMidiLatencyInput();}
-      catch(e){
-        const detail='MIDI phase skipped: '+e.message+(embeddedEmulator?' The embedded emulator did not connect.':'');
-        lastMidiLatencySnapshot={state:'warn',detail,shortDetail:'not connected'};
-        setCheck('checkMidiLatency','warn','MIDI-to-DMX timing',detail);
-      }
-    }
-    await checkPico({record:false});
-    await runBufferReadback();
-    await runTest();
-    if(midiLatencyInput){
-      const samples=Math.max(1,Math.min(50,Math.round(Number(document.getElementById('midiLatencySamples').value)||5)));
-      setStatus(midiLatencyEmulatorSelected()?'Automated checks complete. Generating '+samples+' MIDI emulator timing sample'+(samples===1?'':'s')+'...':'Automated checks complete. Move a MIDI control and pause for each of '+samples+' timing sample'+(samples===1?'':'s')+'.');
-      await startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()});
-    }
-    await Promise.race([
-      checkPico(),
-      new Promise(resolve=>setTimeout(()=>resolve(false),PICO_REQUEST_TIMEOUT_MS))
-    ]);
-  }finally{
-    document.getElementById('btnRunFull').disabled=false;
   }
+  if(!midiLatencyInput){
+    try{await connectMidiLatencyInput();}
+    catch(e){
+      const detail='MIDI phase skipped: '+e.message+(embeddedEmulator?' The embedded emulator did not connect.':'');
+      lastMidiLatencySnapshot={state:'warn',detail,shortDetail:'not connected'};
+      setCheck('checkMidiLatency','warn','MIDI-to-DMX timing',detail);
+    }
+  }
+  await checkPico({record:false});
+  await runBufferReadback();
+  await runTest();
+  if(midiLatencyInput){
+    const samples=Math.max(1,Math.min(50,Math.round(Number(document.getElementById('midiLatencySamples').value)||5)));
+    setStatus(midiLatencyEmulatorSelected()?'Automated checks complete. Generating '+samples+' MIDI emulator timing sample'+(samples===1?'':'s')+'...':'Automated checks complete. Move a MIDI control and pause for each of '+samples+' timing sample'+(samples===1?'':'s')+'.');
+    await startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()});
+  }
+  await Promise.race([
+    checkPico(),
+    new Promise(resolve=>setTimeout(()=>resolve(false),PICO_REQUEST_TIMEOUT_MS))
+  ]);
 }
 
 async function runFullPerformanceTest(){
   const btn=document.getElementById('btnRunFull');
   btn.disabled=true;
   try{
-    await runForSelectedPicos(async()=>{
+    const targets=selectedPerformanceOutputs();
+    if(!targets.length){
+      setStatus('Configure at least one DMX Output with a Pico URL first.',true);
+      return;
+    }
+
+    setStatus('Checking '+targets.length+' Pico connection'+(targets.length===1?'':'s')+' before the Full Test...');
+    const availability=await Promise.all(targets.map(checkPerformanceOutputAvailability));
+    const available=availability.filter(result=>result.available).map(result=>result.output);
+    const unavailable=availability.filter(result=>!result.available);
+    const scopeLabel=picoTargetEl.value==='__all__'?'configured':'selected';
+
+    if(!available.length){
+      const detail='No '+scopeLabel+' Pico is available. '+unavailable.map(unavailablePerformanceOutputDetail).join('; ');
+      setCheck('checkStatus','bad','Pico availability',detail);
+      setStatus(detail,true);
+      return;
+    }
+
+    for(let index=0;index<available.length;index++){
+      setActivePerformanceOutput(available[index]);
+      setStatus('Running full test on '+performanceTargetLabel()+' ('+(index+1)+'/'+available.length+' available)...');
       lastBufferSnapshot={state:'idle',detail:'not run'};
       lastMidiLatencySnapshot={state:'idle',detail:'not run',shortDetail:'not run'};
       await runFullPerformanceTestForActivePico();
-    },'Running full test');
+    }
+
+    if(picoTargetEl.value==='__all__'){
+      document.getElementById('picoTargetTitle').textContent='All configured Picos ('+targets.length+')';
+      document.getElementById('picoTargetDetail').textContent='Last displayed cards: '+performanceTargetLabel()+'. Histories contain results for every available Pico.';
+    }
+
+    if(unavailable.length){
+      const detail='Full test complete on '+available.length+' of '+targets.length+' '+scopeLabel+' Picos. Skipped unavailable: '+unavailable.map(unavailablePerformanceOutputDetail).join('; ');
+      setCheck('checkStatus','warn','Pico availability',detail);
+      setStatus(detail);
+    }else{
+      setStatus('Full test complete on '+available.length+' '+scopeLabel+' Pico'+(available.length===1?'':'s')+'.');
+    }
   }finally{
     btn.disabled=false;
   }

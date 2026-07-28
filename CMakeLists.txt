@@ -6,6 +6,12 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+file(READ "${CMAKE_CURRENT_LIST_DIR}/VERSION" PICO_DMX_VERSION)
+string(STRIP "${PICO_DMX_VERSION}" PICO_DMX_VERSION)
+if(PICO_DMX_VERSION STREQUAL "")
+    message(FATAL_ERROR "VERSION must contain the application and firmware version")
+endif()
+
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 
@@ -85,11 +91,11 @@ target_compile_definitions(pico_wifi_dmx PRIVATE
         MIDI_RX_PIN=${MIDI_RX_PIN}
         MIDI_UART_ID=${MIDI_UART_ID}
         MIDI_BAUD=${MIDI_BAUD}
-        PICO_DMX_VERSION="1.0.1"
+        PICO_DMX_VERSION="${PICO_DMX_VERSION}"
 )
 
 pico_set_program_name(pico_wifi_dmx "pico-wifi-dmx")
-pico_set_program_version(pico_wifi_dmx "1.0.1")
+pico_set_program_version(pico_wifi_dmx "${PICO_DMX_VERSION}")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(pico_wifi_dmx 0)

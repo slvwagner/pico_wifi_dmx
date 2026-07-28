@@ -3,6 +3,11 @@ const { openDmxPage } = require('./helpers/dmx-page');
 
 test.describe('Pico Performance Test established rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/VERSION', route => route.fulfill({
+      status: 200,
+      contentType: 'text/plain',
+      body: '1.0.1\n'
+    }));
     await page.route('**/fixture_setup.php**', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -20,7 +25,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.route('http://127.0.0.1:18992/status.json', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, dmx: { running: true, channels: 512, frame_count: 1234 } })
+      body: JSON.stringify({ ok: true, firmware_version: '1.0.1', dmx: { running: true, channels: 512, frame_count: 1234 } })
     }));
     await page.route('http://127.0.0.1:18992/logs.txt', route => route.fulfill({
       status: 200,
@@ -86,6 +91,8 @@ test.describe('Pico Performance Test established rules', () => {
 
     await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#btnCheckPico').click();
+    await expect(page.locator('#checkFirmwareVersion .check-state')).toHaveText('Pass');
+    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText('Installed 1.0.1');
     await expect(page.locator('#checkMemory .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkMemory .check-detail')).toContainText('96 KB');
     await expect(page.locator('#checkHeadroom .check-state')).toHaveText('Pass');
@@ -107,6 +114,27 @@ test.describe('Pico Performance Test established rules', () => {
     await page.locator('#btnBufferReadback').click();
     await expect(page.locator('#checkBuffer .check-state')).toHaveText('Pass');
     await expect(page.locator('#bufferResult')).toContainText('512 channels from 1');
+  });
+
+  test('fails clearly when the Pico firmware version does not match the deployed application', async ({ page }) => {
+    await page.unroute('http://127.0.0.1:18992/status.json');
+    await page.route('http://127.0.0.1:18992/status.json', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        firmware_version: '1.0.0',
+        dmx: { running: true, channels: 512, frame_count: 1234 }
+      })
+    }));
+
+    await openDmxPage(page, 'test/');
+    await page.locator('#btnCheckPico').click();
+
+    await expect(page.locator('#checkFirmwareVersion .check-state')).toHaveText('Fail');
+    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText('Installed 1.0.0');
+    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText('expected 1.0.1');
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('FAIL Installed 1.0.0; expected 1.0.1');
   });
 
   test('fails the DMX interval check when firmware reports a doubled frame gap', async ({ page }) => {
@@ -220,6 +248,66 @@ test.describe('Pico Performance Test established rules', () => {
       expect(paths).toContain('/dmx/base');
       expect(paths).toContain('/dmx/b');
     }
+  });
+
+  test('Full Test skips and identifies an unavailable configured Pico', async ({ page }) => {
+    await page.route('**/fixture_setup.php**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        exists: true,
+        setup: {
+          dmxOutputs: [
+            { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18992/' },
+            { id: 'pixels', name: 'Pixel Pico', universe: 2, baseUrl: 'http://127.0.0.1:18993/' }
+          ],
+          profiles: [],
+          fixtures: []
+        }
+      })
+    }));
+
+    let frame = 1200;
+    const values = Array.from({ length: 512 }, () => 73);
+    await page.route('http://127.0.0.1:18992/**', route => {
+      const url = new URL(route.request().url());
+      const json = body => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      if(url.pathname === '/status.json')return json({ ok: true, dmx: { running: true, channels: 512, refresh_rate: 43, frame_count: ++frame } });
+      if(url.pathname === '/perf/status.json')return json({
+        ok: true,
+        memory: { free_ram_bytes: 98304 },
+        core0: { valid: true, period_us: 10000, target_hz: 100, samples: 200, work_us: { mean: 109, peak: 271 }, slack_us: { mean: 9890, min: 9729 }, late: { count: 0, peak_us: 0 }, headroom_percent: 97 },
+        core1: { valid: true, period_us: 2000000, samples: 1, work_us: { mean: 1203, peak: 1203 }, slack_us: { mean: 1997463, min: 1997463 }, late: { count: 0, peak_us: 0 } },
+        http: { valid: true, calls: 2, work_us: { mean: 130, peak: 138 } },
+        dmx: { running: true, channels: 512, refresh_rate: 43, frame_count: frame, skipped_callbacks: 0, prime_timeouts: 0, frame_timeouts: 0, auto_resyncs: 0 }
+      });
+      if(url.pathname === '/dmx/output.json')return json({ ok: true, channels: 512, frame_count: frame, values });
+      if(url.pathname === '/dmx/base')return json(values);
+      if(url.pathname === '/dmx/b')return json({ ok: true });
+      if(url.pathname.startsWith('/dmx/set/'))return json({ ok: true });
+      return json({ ok: true });
+    });
+
+    const unavailablePaths = [];
+    await page.route('http://127.0.0.1:18993/**', route => {
+      unavailablePaths.push(new URL(route.request().url()).pathname);
+      return route.abort('failed');
+    });
+
+    await openDmxPage(page, 'test/');
+    await page.locator('#chPerReq').fill('16');
+    await page.locator('#reqCount').fill('1');
+    await page.locator('#midiLatencySamples').fill('1');
+    await page.locator('#btnRunFull').click();
+
+    await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 15000 });
+    await expect(page.locator('#status')).toContainText('Full test complete on 1 of 2 configured Picos');
+    await expect(page.locator('#status')).toContainText('Pixel Pico · Universe 2');
+    await expect(page.locator('#checkStatus .check-state')).toHaveText('Warn');
+    await expect(page.locator('#historyBody tr')).toHaveCount(1);
+    expect(unavailablePaths).not.toContain('/dmx/output.json');
+    expect(unavailablePaths).not.toContain('/dmx/b');
   });
 
   test('uses the show Pico and measures USB or emulated MIDI through a confirmed DMX frame', async ({ page, context }) => {

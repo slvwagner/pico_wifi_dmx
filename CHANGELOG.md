@@ -13,6 +13,8 @@ Changed:
 - Added firmware DMX frame-interval telemetry and a Performance Test check that reports expected, last, minimum, and maximum break-to-break timing, late intervals, and doubled-frame gaps.
 - Fixed DMX frame starts being delayed by foreground polling and cross-core write contention by moving the deadline to a lock-free hardware-alarm callback, using an interrupt-friendly mutex for pending channel data, and retrying unfinished frames without timer catch-up or a full-period skip.
 - Fixed the Performance Test's **Run Full Test** button remaining disabled when its final Pico telemetry refresh stalls by timing out Pico requests and bounding the final refresh wait.
+- Fixed multi-Pico **Run Full Test** runs hanging on an unavailable configured output by preflighting every selected Pico, skipping and naming unavailable outputs with their failure reason, bounding write requests, and stopping a write run after three consecutive errors.
+- Added exact firmware-version validation to the Pico Performance Test. The firmware build now takes its version directly from `VERSION` and reports it through `/status.json` and `/perf/status.json`; the test compares it with the deployed `VERSION`, records it in Timing History, and clearly fails old or mismatched firmware.
 - Documented the hardware-alarm frame scheduler and the CPU-to-PIO plus control-SM/data-SM IRQ handshake, including retry, timeout, and resynchronization behavior.
 
 ## 1.0.0 - 2026-07-28

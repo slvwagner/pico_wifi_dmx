@@ -82,7 +82,7 @@ Core features:
 ### Firmware, diagnostics, and development
 
 - **DMX Buffer Monitor** — select a named DMX Output/universe, then read and display its current output buffer or base buffer for all 512 DMX channels.
-- **Pico Performance Test** — select one DMX Output or all configured Picos, then check firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
+- **Pico Performance Test** — select one DMX Output or all configured Picos, then verify the installed firmware version, firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
 - **Windows, macOS, and Ubuntu customer installers** — package the app, manual, persistent show storage, a managed web service, native/desktop application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
@@ -605,6 +605,20 @@ telemetry from `/perf/status.json`: frame count, skipped/retry callbacks, DMA
 prime timeouts, frame timeouts, automatic resynchronizations, expected/last/
 minimum/maximum interval, late intervals, and doubled intervals.
 
+The firmware build reads its version from the repository `VERSION` file and
+publishes it as `firmware_version` in both `/status.json` and
+`/perf/status.json`. The Performance Test reads the deployed application's
+`VERSION` and requires an exact match for every tested Pico. Matching versions
+pass; a different or missing firmware version fails with the installed and
+expected values and a prompt to flash the current application firmware. The
+result is also stored in the per-Pico Timing History.
+
+When **Run Full Test** targets multiple configured Picos, it first performs a
+bounded `/status.json` availability check for each output. An unavailable Pico
+is skipped and reported by name, universe, URL, and failure reason; available
+Picos continue through the full test. Pico requests and repeated write errors
+are bounded so one offline output cannot leave the button disabled.
+
 MIDI receive diagnostics:
 
 | Item | Value |
@@ -724,7 +738,8 @@ Important developer checks:
 - Keep generated folders such as `build/`, `node_modules/`, and `test-results/` out of Git.
 - Add behavior rules to Playwright tests when a UI workflow is fixed or intentionally changed.
 - Update `CHANGELOG.md` whenever a user-visible bug fix or workflow change is made.
-- Update `VERSION` and the matching firmware version in `CMakeLists.txt` when preparing a release.
+- Update `VERSION` when preparing a release. CMake uses that file for both the
+  compiled `PICO_DMX_VERSION` and the Pico program metadata.
 
 ---
 
