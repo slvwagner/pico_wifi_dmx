@@ -250,7 +250,7 @@ strong { color: #ffffff; }
 <p>The Fixture Controller is the central page. Use it first when setting up a new show or fixture set.</p>
 <h3 id="configure-picos-and-read-header-status">Configure Picos and Read Header Status</h3>
 <ol>
-<li>Open the controller URL: normally <code>http://localhost:8090/</code> for a Windows or macOS customer installation using the default port, <code>http://localhost:&lt;selected-port&gt;/</code> when it was changed, or the configured XAMPP URL in a development environment.</li>
+<li>Open the controller URL: normally <code>http://localhost:8090/</code> for a Windows, macOS, or Ubuntu customer installation using the default port, <code>http://localhost:&lt;selected-port&gt;/</code> when it was changed, or the configured XAMPP URL in a development environment.</li>
 <li>Click <strong>DMX Outputs</strong>, then use <strong>Find Picos</strong> or enter each Pico URL manually. Discovery records the Pico&#39;s stable unique-board identity so a later DHCP address change does not require rebuilding the show.</li>
 <li>Give every output a descriptive name and unique universe, then click <strong>Done</strong>.</li>
 <li>Read the fleet pill in the sticky header. <strong>2/2 Picos online</strong> in green means all used outputs answered; amber means only some answered; red means none answered. Click the pill to refresh immediately.</li>
@@ -420,11 +420,11 @@ strong { color: #ffffff; }
 <p>The Fixture Controller uses the shared right-side <strong>Toolboxes</strong> sidebar.</p>
 <p><img src="screenshots/fixture-controller-toolbox-groups.png" alt="Controller Groups toolbox" style="--manual-image-width: 44.4444%" data-native-width="640"></p>
 <p><strong>Show</strong> is the first Controller card and the project-level home for show setup. Edit the <strong>Show name</strong> field directly; changes use the normal 800 ms server autosave. Its top action bar displays <strong>Export Show</strong>, <strong>Import Show</strong>, <strong>Export Library</strong>, and <strong>Import Library</strong> together; the nested <strong>Fixture Library</strong>, <strong>Fixture Profiles</strong>, and <strong>Patch Fixtures</strong> cards follow below. Collapse Show to hide all of those setup tools at once. When Show is expanded again, each nested card returns with its own previous expanded or collapsed state. <strong>New Show</strong> confirms the reset and then asks for the required show name before clearing fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. <strong>Export Show</strong> and <strong>Import Show</strong> handle the complete show backup, including every named DMX Output/universe, each fixture&#39;s output assignment, and the independent GPIO/ADC mapping for every Pico. <strong>Export Library</strong> and <strong>Import Library</strong> independently handle the complete reusable catalog. <strong>Patch CSV</strong> exports the patched channel table.</p>
-<p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small <code>x</code>, import/export group JSON, reorder group tiles with <strong>Move</strong>, and open <strong>Group Edit</strong> when the current scope supports it.</p>
+<p><strong>Groups</strong> stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small <code>x</code>, import/export group JSON, reorder group tiles while Toolboxes <strong>Edit</strong> is active, and open <strong>Group Edit</strong> when the current scope supports it.</p>
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Controller Scenes toolbox" style="--manual-image-width: 44.4444%" data-native-width="640"></p>
-<p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, <strong>Move</strong> reorders tiles, and the small top-left pencil icon opens <strong>Edit Tile</strong> for that slot&#39;s name, background, and optional drawing/upload.</p>
+<p><strong>Scenes</strong> stores complete looks for the current working scope. Empty slots save, filled slots recall, the small <code>x</code> deletes, Toolboxes <strong>Edit</strong> enables tile reordering, and the small top-left pencil icon opens <strong>Edit Tile</strong> for that slot&#39;s name, background, and optional drawing/upload.</p>
 <p><img src="screenshots/fixture-controller-toolbox-palettes.png" alt="Controller Palettes toolbox" style="--manual-image-width: 44.4444%" data-native-width="640"></p>
-<p><strong>Palettes</strong> stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched. <strong>Move</strong> reorders palette tiles without recalling them.</p>
+<p><strong>Palettes</strong> stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched. Toolboxes <strong>Edit</strong> reorders palette tiles without recalling them.</p>
 <p><strong>Planes</strong> recalls room planes saved on the Room Plane page. Clicking a filled Plane tile opens the virtual room target modal and immediately recalls the Plane&#39;s fixture scope: every fixture saved in the Plane that still exists in the current Controller patch becomes selected, while an unrelated saved-group selection is cleared. Fixtures saved in the Plane but no longer patched are ignored. The modal applies the saved target&#39;s calibrated Pan/Tilt values to that recalled selection and routes them live to the fixtures&#39; assigned DMX Outputs. Drag or click the red target, use the X/Y coarse and fine nudge controls, or pinch with two fingers to zoom the plot without moving the target. Closing the modal does not change the saved Plane definition.</p>
 <p>Toolboxes <strong>Edit</strong> automatically enables tile movement in Groups, Scenes, Palettes, and Planes while showing their <strong>Cols</strong> and <strong>Rows</strong> layout dropdowns. Tap either dropdown to choose the matrix size with the native iPad picker. Drag a filled tile to a new position. While dragging, the source tile gets the same accent outline used when moving toolboxes, and the target position shows an accent insertion line. On touch screens, tap the filled source tile and then tap the destination. Dropping onto an empty slot moves the tile there; dropping onto another filled tile swaps the two slots. Click <strong>Done</strong> to return the tiles to their normal recall/use behavior. Groups use the same tile-slot behavior as Scenes and Palettes; the fixture order stored inside a group is not changed by moving the group tile.</p>
 <p><img src="screenshots/fixture-controller-toolbox-fanout.png" alt="Controller Fan Out toolbox" style="--manual-image-width: 44.4444%" data-native-width="640"></p>
@@ -505,14 +505,14 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>If the current scope differs from the saved palette scope, the controller asks whether to change the saved palette to <strong>All controls</strong> and merge.</li>
 <li>If you cancel a merge prompt, the palette is not changed.</li>
 </ul>
-<p>Use <strong>Move</strong> when you want to reorder palette tiles. The same interaction is also available in the Groups and Scenes toolboxes:</p>
+<p>Use Toolboxes <strong>Edit</strong> when you want to reorder palette tiles. The same interaction is also available in the Groups and Scenes toolboxes:</p>
 <ul>
-<li>Click <strong>Move</strong> to enable palette move mode.</li>
+<li>Click <strong>Edit</strong> in the sticky Toolboxes header to enable tile movement.</li>
 <li>Drag a filled palette tile to an empty slot to move it there; the tile shows the same drag outline and insertion marker used for moving toolboxes.</li>
 <li>Drag a filled palette tile onto another filled palette tile to swap their positions.</li>
 <li>On touch screens, tap a filled tile to select it, then tap the destination slot.</li>
-<li>While Move is active, clicking a palette tile does not recall or save it.</li>
-<li>Click <strong>Move</strong> again when you are done organizing the palette grid.</li>
+<li>While Toolboxes Edit is active, clicking a palette tile does not recall or save it.</li>
+<li>Click <strong>Done</strong> in the Toolboxes header when you are done organizing the palette grid.</li>
 </ul>
 <h2 id="2-scenes-and-palettes">2. Scenes And Palettes</h2>
 <p><img src="screenshots/fixture-controller-toolbox-scenes.png" alt="Scene Toolbox" style="--manual-image-width: 44.4444%" data-native-width="640"></p>
@@ -540,7 +540,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>This means a scene is normally scoped to the fixtures you are actually working with. It does not silently save unrelated fixtures unless you explicitly confirm the all-fixtures fallback.</p>
 <h3 id="scene-recall-rules">Scene Recall Rules</h3>
 <p>Scene recall loads the stored values back into the Fixture Controller, redraws the fixture cards, and updates the live-value snapshot used by the Chaser page.</p>
-<p>When the applicable DMX Output is configured, scene recall also sends the recalled DMX values to the Pico in one batch. Disconnect or disable the hardware output before recalling looks that must remain browser-only.</p>
+<p>When the applicable DMX Outputs are configured, scene recall groups the recalled values by fixture assignment and sends one batch to every involved Pico. Disconnect or disable the hardware outputs before recalling looks that must remain browser-only.</p>
 <p>Recalling a scene clears the active group selection and shared group filter. It then selects the fixtures involved in the recalled scene and filters the Control Surface to only those fixtures. This makes the recalled scene visible without leaving an old group filter active, and without showing unrelated fixtures.</p>
 <p>If a saved scene was created before fixtures were repatched, the controller tries to remap old fixture IDs to the current patch by matching the same fixture profile in DMX start-address order. This lets older scenes continue to recall after a fixture run was recreated, as long as the fixture profiles and control IDs still match.</p>
 <p>The red <strong>Clear all DMX channels</strong> button clears controller values and calls <code>/dmx/clear</code> on every configured DMX Output. This clears both live DMX output and the motion base buffer on the involved Picos.</p>
@@ -557,10 +557,9 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 </ol>
 <h3 id="saved-group-selection">Saved Group Selection</h3>
 <p><img src="screenshots/fixture-controller-saved-groups.png" alt="Saved Groups matrix" style="--manual-image-width: 98.8889%" data-native-width="1424"></p>
-<p>The Saved Groups card shows groups in a compact matrix. Each group has four actions:</p>
+<p>The Saved Groups card shows groups in a compact matrix. Each group has three interactions:</p>
 <ul>
-<li><strong>Select</strong> adds the group to the active group filter.</li>
-<li><strong>Deselect</strong> removes only that group from the active filter.</li>
+<li>Click the group tile to add it to the active group filter; click the highlighted tile again to remove only that group.</li>
 <li>The small pencil on a group tile opens <strong>Edit Tile</strong> for that saved group&#39;s name, background color, and optional drawn/uploaded visual.</li>
 <li>The small <code>x</code> on a group tile removes that saved group after confirmation.</li>
 </ul>
@@ -577,7 +576,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>The Group Edit modal shows controls that exist in the current edit scope. It can be used for one fixture or many fixtures where the page supports single-fixture editing. Mixed fixture types are allowed; each control is applied only to fixtures that actually have a matching control, so incompatible fixtures are ignored for that control.</p>
 <p>The selected <strong>Source</strong> fixture is the template for the modal values. When you open Group Edit, the modal reads the Source fixture&#39;s current matching control values and shows those values in the sliders, wheel buttons, color controls, XY pads, and relative nudge controls. Opening the modal does not overwrite the other selected fixtures and does not send DMX by itself.</p>
 <p>The source selection is automatic. Loading a saved group makes the first fixture stored in that group the Source. With manual fixture selection, the clicked/selected fixture becomes the Source; if that fixture is removed from the selection, the page picks the next selected fixture that can provide the control.</p>
-<p>The values are applied when you actually edit a control in the modal. Moving a slider, typing a direct numeric DMX value, dragging an XY pad, choosing a wheel slot, changing a color, pressing Center, using relative nudges, or using Default/Blackout writes the change to every selected fixture that has the matching control. Absolute edits write the shown Source value to the matching fixtures. Relative nudges keep each selected fixture relative to its own current value, so a group pan/tilt nudge moves the selected fixtures together without forcing them all to the same absolute position. When the applicable DMX Output is configured, each Group Edit change is sent to the Pico immediately. Disconnect or disable the hardware output before edits that must remain browser-only.</p>
+<p>The values are applied when you actually edit a control in the modal. Moving a slider, typing a direct numeric DMX value, dragging an XY pad, choosing a wheel slot, changing a color, pressing Center, using relative nudges, or using Default/Blackout writes the change to every selected fixture that has the matching control. Absolute edits write the shown Source value to the matching fixtures. Relative nudges keep each selected fixture relative to its own current value, so a group pan/tilt nudge moves the selected fixtures together without forcing them all to the same absolute position. Each Group Edit change is grouped by fixture assignment and sent immediately to every involved DMX Output. Disconnect or disable the hardware outputs before edits that must remain browser-only.</p>
 <p>Group Edit remembers the relative step-size fields you set, for example <strong>Pan fine relative</strong> or <strong>Tilt fine relative</strong>. Controller, Show Run, Chaser, Effects, and Room Plane use the same autosave behavior. Each page stores its own step sizes in the XAMPP server UI-state file and restores them the next time Group Edit or the page opens, so your preferred nudge sizes survive reloads without forcing every workflow to use the same values.</p>
 <p>If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, <strong>Group Edit</strong> uses that scope. In that case it shows only controls that are part of the active scope and exist in the selected fixture scope. Editing a scoped control writes only to matching fixtures.</p>
 <p>Use <strong>Default</strong> or <strong>Blackout</strong> to recall the stored default or blackout values for every fixture in the selected group.</p>
@@ -668,7 +667,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p><img src="screenshots/show-run-card-planes.png" alt="Show Run Planes card" style="--manual-image-width: 33.0556%" data-native-width="476"></p>
 <p><img src="screenshots/show-run-plane-modal.png" alt="Show Run Plane recall modal" style="--manual-image-width: 65.2778%" data-native-width="940"></p>
 <h3 id="pico-playback-cards">Pico Playback Cards</h3>
-<p>The <strong>Pico Chaser Playback</strong> card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a logical slot, set speed, play, pause/resume, set speed, or stop.</p>
+<p>The <strong>Pico Chaser Playback</strong> card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a logical slot, set its speed, play it, pause or resume it, or stop it.</p>
 <p>For a linked chase, the selected logical slot identifies the coordinator member; the associated physical slot on another Pico may have a different number. For example, logical slot 1 can represent <code>U1 / Slot 1 + U2 / Slot 4</code>. The tile displays the linked universe/slot members. The card buttons operate the complete link, so <strong>Play Slot 1</strong> starts both physical members in this example. A slot without linked members operates only its single Pico.</p>
 <p>In <strong>Edit</strong> mode, each loaded chaser tile has a pencil that opens its MIDI mapping editor. Choose the button&#39;s <strong>Playback action</strong> before learning it: start/stop toggle, start, stop, pause/resume toggle, pause, or resume.</p>
 <p><img src="screenshots/show-run-midi-playback-mapping.png" alt="Pico playback MIDI action mapping" style="--manual-image-width: 54.1667%" data-native-width="780"></p>
@@ -1154,7 +1153,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <tr><td>Pencil</td><td>Opens <strong>Edit Plane Tile</strong> for the selected plane tile name, background color, uploaded icon, or drawn icon.</td></tr>
 <tr><td><code>x</code></td><td>Deletes the saved plane after confirmation.</td></tr>
 <tr><td>Cols / Rows</td><td>Shapes the Planes tile matrix.</td></tr>
-<tr><td>Move</td><td>Uses the same shared tile move behavior as the Controller, Chaser, Effects, and Show Run plane/toolbox matrices. Drag a filled plane tile to another slot, or tap a source tile and then a destination on touch screens.</td></tr>
+<tr><td>Move tiles (Toolboxes Edit)</td><td>Uses the same shared tile move behavior as the Controller, Chaser, Effects, and Show Run plane/toolbox matrices. Click <strong>Edit</strong> in the Toolboxes header, then drag a filled plane tile to another slot, or tap a source tile and then a destination on touch screens.</td></tr>
 </tbody>
 </table>
 <p><img src="screenshots/room-plane-edit-plane-tile.png" alt="Edit Plane Tile" style="--manual-image-width: 54.1667%" data-native-width="780"></p>
@@ -1326,6 +1325,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Started the 1.0.1 development branch.</li>
 <li>Updated the README and generated user manual to describe linked multi-Pico Chaser/Effects playback, logical versus physical Pico slots, per-output GPIO configuration, and fixture-aware DMX Output routing consistently; refreshed obsolete version examples and removed machine-specific documentation addresses.</li>
 <li>Corrected remaining documentation drift by distinguishing primary-output Chaser/Effects browser previews from linked multi-Pico autonomous playback, updating Pico slot tile details and DMX batch/base API descriptions, and removing machine-specific paths from developer documentation.</li>
+<li>Audited the user manual against the current UI and corrected stale toolbox tile-movement, Saved Group selection, multi-output Scene/Group Edit routing, customer-install URL, and Show Run playback-control instructions.</li>
 </ul>
 <h3 id="1-0-0-2026-07-28">1.0.0 - 2026-07-28</h3>
 <p>Changed:</p>

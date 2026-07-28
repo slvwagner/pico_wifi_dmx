@@ -161,7 +161,7 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 
 ### Configure Picos and Read Header Status
 
-1. Open the controller URL: normally `http://localhost:8090/` for a Windows or macOS customer installation using the default port, `http://localhost:<selected-port>/` when it was changed, or the configured XAMPP URL in a development environment.
+1. Open the controller URL: normally `http://localhost:8090/` for a Windows, macOS, or Ubuntu customer installation using the default port, `http://localhost:<selected-port>/` when it was changed, or the configured XAMPP URL in a development environment.
 2. Click **DMX Outputs**, then use **Find Picos** or enter each Pico URL manually. Discovery records the Pico's stable unique-board identity so a later DHCP address change does not require rebuilding the show.
 3. Give every output a descriptive name and unique universe, then click **Done**.
 4. Read the fleet pill in the sticky header. **2/2 Picos online** in green means all used outputs answered; amber means only some answered; red means none answered. Click the pill to refresh immediately.
@@ -391,15 +391,15 @@ The Fixture Controller uses the shared right-side **Toolboxes** sidebar.
 
 **Show** is the first Controller card and the project-level home for show setup. Edit the **Show name** field directly; changes use the normal 800 ms server autosave. Its top action bar displays **Export Show**, **Import Show**, **Export Library**, and **Import Library** together; the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards follow below. Collapse Show to hide all of those setup tools at once. When Show is expanded again, each nested card returns with its own previous expanded or collapsed state. **New Show** confirms the reset and then asks for the required show name before clearing fixtures, live values, groups, scenes, palettes, chases, effects, saved room planes, GPIO mappings, Pico playback slots, Show Run layout, and saved toolbox layout while keeping the reusable fixture library. **Export Show** and **Import Show** handle the complete show backup, including every named DMX Output/universe, each fixture's output assignment, and the independent GPIO/ADC mapping for every Pico. **Export Library** and **Import Library** independently handle the complete reusable catalog. **Patch CSV** exports the patched channel table.
 
-**Groups** stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small `x`, import/export group JSON, reorder group tiles with **Move**, and open **Group Edit** when the current scope supports it.
+**Groups** stores fixture groups and shares the selected group filter with other toolbox pages. Use it to select fixtures quickly, edit group tile names and visuals from the small pencil icon, delete groups from the small `x`, import/export group JSON, reorder group tiles while Toolboxes **Edit** is active, and open **Group Edit** when the current scope supports it.
 
 ![Controller Scenes toolbox](screenshots/fixture-controller-toolbox-scenes.png)
 
-**Scenes** stores complete looks for the current working scope. Empty slots save, filled slots recall, the small `x` deletes, **Move** reorders tiles, and the small top-left pencil icon opens **Edit Tile** for that slot's name, background, and optional drawing/upload.
+**Scenes** stores complete looks for the current working scope. Empty slots save, filled slots recall, the small `x` deletes, Toolboxes **Edit** enables tile reordering, and the small top-left pencil icon opens **Edit Tile** for that slot's name, background, and optional drawing/upload.
 
 ![Controller Palettes toolbox](screenshots/fixture-controller-toolbox-palettes.png)
 
-**Palettes** stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched. **Move** reorders palette tiles without recalling them.
+**Palettes** stores reusable value fragments such as positions, colors, gobos, dimmer looks, or Fan Out results. Palette recall applies only the stored controls and leaves unrelated values untouched. Toolboxes **Edit** reorders palette tiles without recalling them.
 
 **Planes** recalls room planes saved on the Room Plane page. Clicking a filled Plane tile opens the virtual room target modal and immediately recalls the Plane's fixture scope: every fixture saved in the Plane that still exists in the current Controller patch becomes selected, while an unrelated saved-group selection is cleared. Fixtures saved in the Plane but no longer patched are ignored. The modal applies the saved target's calibrated Pan/Tilt values to that recalled selection and routes them live to the fixtures' assigned DMX Outputs. Drag or click the red target, use the X/Y coarse and fine nudge controls, or pinch with two fingers to zoom the plot without moving the target. Closing the modal does not change the saved Plane definition.
 
@@ -507,14 +507,14 @@ Use **Merge** when you have a current fixture selection or active Fan Out result
 - If the current scope differs from the saved palette scope, the controller asks whether to change the saved palette to **All controls** and merge.
 - If you cancel a merge prompt, the palette is not changed.
 
-Use **Move** when you want to reorder palette tiles. The same interaction is also available in the Groups and Scenes toolboxes:
+Use Toolboxes **Edit** when you want to reorder palette tiles. The same interaction is also available in the Groups and Scenes toolboxes:
 
-- Click **Move** to enable palette move mode.
+- Click **Edit** in the sticky Toolboxes header to enable tile movement.
 - Drag a filled palette tile to an empty slot to move it there; the tile shows the same drag outline and insertion marker used for moving toolboxes.
 - Drag a filled palette tile onto another filled palette tile to swap their positions.
 - On touch screens, tap a filled tile to select it, then tap the destination slot.
-- While Move is active, clicking a palette tile does not recall or save it.
-- Click **Move** again when you are done organizing the palette grid.
+- While Toolboxes Edit is active, clicking a palette tile does not recall or save it.
+- Click **Done** in the Toolboxes header when you are done organizing the palette grid.
 
 ## 2. Scenes And Palettes
 
@@ -550,7 +550,7 @@ This means a scene is normally scoped to the fixtures you are actually working w
 
 Scene recall loads the stored values back into the Fixture Controller, redraws the fixture cards, and updates the live-value snapshot used by the Chaser page.
 
-When the applicable DMX Output is configured, scene recall also sends the recalled DMX values to the Pico in one batch. Disconnect or disable the hardware output before recalling looks that must remain browser-only.
+When the applicable DMX Outputs are configured, scene recall groups the recalled values by fixture assignment and sends one batch to every involved Pico. Disconnect or disable the hardware outputs before recalling looks that must remain browser-only.
 
 Recalling a scene clears the active group selection and shared group filter. It then selects the fixtures involved in the recalled scene and filters the Control Surface to only those fixtures. This makes the recalled scene visible without leaving an old group filter active, and without showing unrelated fixtures.
 
@@ -577,10 +577,9 @@ Groups let you control multiple fixtures at once.
 
 ![Saved Groups matrix](screenshots/fixture-controller-saved-groups.png)
 
-The Saved Groups card shows groups in a compact matrix. Each group has four actions:
+The Saved Groups card shows groups in a compact matrix. Each group has three interactions:
 
-- **Select** adds the group to the active group filter.
-- **Deselect** removes only that group from the active filter.
+- Click the group tile to add it to the active group filter; click the highlighted tile again to remove only that group.
 - The small pencil on a group tile opens **Edit Tile** for that saved group's name, background color, and optional drawn/uploaded visual.
 - The small `x` on a group tile removes that saved group after confirmation.
 
@@ -604,7 +603,7 @@ The selected **Source** fixture is the template for the modal values. When you o
 
 The source selection is automatic. Loading a saved group makes the first fixture stored in that group the Source. With manual fixture selection, the clicked/selected fixture becomes the Source; if that fixture is removed from the selection, the page picks the next selected fixture that can provide the control.
 
-The values are applied when you actually edit a control in the modal. Moving a slider, typing a direct numeric DMX value, dragging an XY pad, choosing a wheel slot, changing a color, pressing Center, using relative nudges, or using Default/Blackout writes the change to every selected fixture that has the matching control. Absolute edits write the shown Source value to the matching fixtures. Relative nudges keep each selected fixture relative to its own current value, so a group pan/tilt nudge moves the selected fixtures together without forcing them all to the same absolute position. When the applicable DMX Output is configured, each Group Edit change is sent to the Pico immediately. Disconnect or disable the hardware output before edits that must remain browser-only.
+The values are applied when you actually edit a control in the modal. Moving a slider, typing a direct numeric DMX value, dragging an XY pad, choosing a wheel slot, changing a color, pressing Center, using relative nudges, or using Default/Blackout writes the change to every selected fixture that has the matching control. Absolute edits write the shown Source value to the matching fixtures. Relative nudges keep each selected fixture relative to its own current value, so a group pan/tilt nudge moves the selected fixtures together without forcing them all to the same absolute position. Each Group Edit change is grouped by fixture assignment and sent immediately to every involved DMX Output. Disconnect or disable the hardware outputs before edits that must remain browser-only.
 
 Group Edit remembers the relative step-size fields you set, for example **Pan fine relative** or **Tilt fine relative**. Controller, Show Run, Chaser, Effects, and Room Plane use the same autosave behavior. Each page stores its own step sizes in the XAMPP server UI-state file and restores them the next time Group Edit or the page opens, so your preferred nudge sizes survive reloads without forcing every workflow to use the same values.
 
@@ -748,7 +747,7 @@ The modal uses the current Show target. Select Groups or Fixtures first when onl
 
 ### Pico Playback Cards
 
-The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a logical slot, set speed, play, pause/resume, set speed, or stop.
+The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a logical slot, set its speed, play it, pause or resume it, or stop it.
 
 For a linked chase, the selected logical slot identifies the coordinator member; the associated physical slot on another Pico may have a different number. For example, logical slot 1 can represent `U1 / Slot 1 + U2 / Slot 4`. The tile displays the linked universe/slot members. The card buttons operate the complete link, so **Play Slot 1** starts both physical members in this example. A slot without linked members operates only its single Pico.
 
@@ -1421,7 +1420,7 @@ The **Planes** toolbox stores complete plane definitions as tiles, using the sam
 | Pencil | Opens **Edit Plane Tile** for the selected plane tile name, background color, uploaded icon, or drawn icon. |
 | `x` | Deletes the saved plane after confirmation. |
 | Cols / Rows | Shapes the Planes tile matrix. |
-| Move | Uses the same shared tile move behavior as the Controller, Chaser, Effects, and Show Run plane/toolbox matrices. Drag a filled plane tile to another slot, or tap a source tile and then a destination on touch screens. |
+| Move tiles (Toolboxes Edit) | Uses the same shared tile move behavior as the Controller, Chaser, Effects, and Show Run plane/toolbox matrices. Click **Edit** in the Toolboxes header, then drag a filled plane tile to another slot, or tap a source tile and then a destination on touch screens. |
 
 ![Edit Plane Tile](screenshots/room-plane-edit-plane-tile.png)
 
