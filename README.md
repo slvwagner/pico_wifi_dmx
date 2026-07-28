@@ -944,7 +944,7 @@ The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conv
 - `MINOR` introduces a new backward-compatible feature set.
 - `PATCH` contains compatible fixes and smaller improvements.
 
-The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.0.1`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
+The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.1.0`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
 
 After merging a release into `main`, preview and create the next version branch with:
 
@@ -963,7 +963,7 @@ All application-facing version sources must agree:
 - Page and manual query strings use the application version for browser cache invalidation.
 - `CHANGELOG.md` records user-visible changes under the matching version.
 
-An asset suffix such as `?v=1.0.1-11` is a browser-cache revision within application version `1.0.1`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
+An asset suffix such as `?v=1.1.0-11` is a browser-cache revision within application version `1.1.0`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
 
 Application versions are independent from data-format versions. `schemaVersion` and `setupFormatVersion` change only when a stored JSON format requires a migration or compatibility decision.
 
@@ -971,7 +971,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "1.0.1",
+  "appVersion": "1.1.0",
   "schemaVersion": 1
 }
 ```
