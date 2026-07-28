@@ -323,9 +323,10 @@ test.describe('Code safety regression rules', () => {
     expect(readme).toContain(
       `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/user-manual.pdf`
     );
-    expect(readme).toContain('Update the README **Getting Started** installer and PDF manual labels');
+    expect(readme).toContain('Update the README **Getting Started** installer and user-manual labels');
     expect(readme).toContain('gh release create v<VERSION>');
-    expect(readme).toContain('Open the README installer and PDF manual links');
+    expect(readme).toContain('release/v<VERSION>/docs/user-manual.html');
+    expect(readme).toContain('Open the README installer and user-manual links');
   });
 
   test('generated user manuals start with linked contents and end with the canonical project changelog', () => {
@@ -342,6 +343,12 @@ test.describe('Code safety regression rules', () => {
     expect(builder).toContain('Join-Path $repoRoot "CHANGELOG.md"');
     expect(builder).toContain('$manualMarkdown.Replace(');
     expect(builder).toContain("'(?m)^##\\s+', '### '");
+    expect(builder).toContain('class="manual-nav"');
+    expect(builder).toContain('class="manual-nav-toggle"');
+    expect(builder).toContain('class="manual-back-to-contents"');
+    expect(builder).toContain("pager.className = 'section-pager'");
+    expect(builder).toContain('@media print');
+    expect(builder).toContain('display: none !important');
   });
 
   test('release packaging keeps partitioned CYW43 firmware with the application', () => {

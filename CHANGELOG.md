@@ -5,6 +5,7 @@
 Changed:
 
 - Started the 1.0.1 development branch from the complete 1.0.0 stable release.
+- Added responsive user-manual navigation: a sticky desktop contents sidebar, an iPad/mobile contents drawer, active-section highlighting, persistent and per-section contents links, and previous/next section controls that are hidden from printed/PDF output.
 
 ## 1.0.0 - 2026-07-28
 

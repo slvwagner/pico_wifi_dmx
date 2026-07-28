@@ -99,6 +99,48 @@ test.describe('Page link rules', () => {
     }
   });
 
+  test('manual provides responsive section navigation without affecting print output', async ({ page }) => {
+    await page.goto(`user-manual.html?test=${Date.now()}`);
+    const sidebar = page.locator('#manual-nav');
+    const toggle = page.locator('.manual-nav-toggle');
+    const sectionHeadings = page.locator('#manual-content > h2:not(#table-of-contents)');
+
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: '5. Chaser', exact: true })).toHaveAttribute('href', '#5-chaser');
+    await expect(page.locator('.section-pager')).toHaveCount(await sectionHeadings.count());
+
+    await page.setViewportSize({ width: 900, height: 1100 });
+    await expect(toggle).toBeVisible();
+    await expect.poll(async () => {
+      const box = await sidebar.boundingBox();
+      return box ? box.x + box.width : 0;
+    }).toBeLessThanOrEqual(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect.poll(async () => (await sidebar.boundingBox())?.x).toBeGreaterThanOrEqual(0);
+
+    await sidebar.getByRole('link', { name: '5. Chaser', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => location.hash)).toBe('#5-chaser');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect.poll(async () => {
+      const box = await sidebar.boundingBox();
+      return box ? box.x + box.width : 0;
+    }).toBeLessThanOrEqual(0);
+    await expect(sidebar.getByRole('link', { name: '5. Chaser', exact: true })).toHaveClass(/is-active/);
+
+    await toggle.click();
+    await page.keyboard.press('Escape');
+    await expect.poll(async () => {
+      const box = await sidebar.boundingBox();
+      return box ? box.x + box.width : 0;
+    }).toBeLessThanOrEqual(0);
+
+    await page.emulateMedia({ media: 'print' });
+    await expect(toggle).toBeHidden();
+    await expect(page.locator('.manual-back-to-contents')).toBeHidden();
+    await expect(page.locator('.section-pager').first()).toBeHidden();
+  });
+
   test('each page Manual button targets an existing manual anchor', async ({ page }) => {
     const manualPage = await page.context().newPage();
     await manualPage.goto(`user-manual.html?test=${Date.now()}`);
