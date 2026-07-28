@@ -278,6 +278,20 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('Authenticode signed:');
   });
 
+  test('README presents the stable Windows installer before the overview and requires release-link verification', () => {
+    const readme = read('README.md');
+    const stableVersion = readme.match(/\*\*Latest stable release:\*\* `([^`]+)`/)?.[1];
+
+    expect(stableVersion).toBeTruthy();
+    expect(readme.indexOf('## Getting Started')).toBeLessThan(readme.indexOf('## Overview'));
+    expect(readme).toContain(
+      `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/wifi-pico-dmx-${stableVersion}-windows-x64.exe`
+    );
+    expect(readme).toContain('Update the README **Getting Started** installer label and direct URL');
+    expect(readme).toContain('gh release create v<VERSION>');
+    expect(readme).toContain('verify that it downloads the');
+  });
+
   test('generated user manuals include the canonical project changelog', () => {
     const manual = read('docs/user-manual.md');
     const builder = read('scripts/build_user_manual_pdf.ps1');

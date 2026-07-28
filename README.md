@@ -7,6 +7,18 @@ WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi P
 
 See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
+## Getting Started
+
+For a customer PC running 64-bit Windows, download and run the current
+**[WiFiPicoDMX 1.0.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.0/wifi-pico-dmx-1.0.0-windows-x64.exe)**.
+The installer includes the customer application, local web server, manual, and
+guided Pico firmware updater. Because the current installer is unsigned,
+Windows can display a SmartScreen publisher warning.
+
+The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
+also provides the installer checksum, Pico firmware images, release manifest,
+and PDF user manual.
+
 ## Overview
 
 The project combines firmware, a XAMPP-hosted web interface, JSON-based setup storage, and automated tests/documentation for a complete small lighting-control workflow.
@@ -75,7 +87,7 @@ The deployment wrapper copies application source and verifies HTTP availability;
 
 ---
 
-## Getting Started
+## Customer installation details
 
 ### Install the Windows customer application
 
@@ -990,6 +1002,37 @@ content can be committed if desired, although public binary distribution is
 usually cleaner through a GitHub Release.
 
 The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. The HTML/PDF manuals automatically embed the canonical `CHANGELOG.md` immediately after their introduction so customers can review new features and fixes offline. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
+
+After the package passes validation, complete these publication steps:
+
+8. Commit the generated release package, merge the completed version branch
+   into `main`, and mark the released version as the latest stable release.
+9. Update the README **Getting Started** installer label and direct URL so both
+   contain the released version and exact versioned `.exe` asset name.
+10. Create and push the annotated `v<VERSION>` tag from the final `main`
+    release commit.
+11. Create the public GitHub Release and attach the Windows installer, its
+    checksum, all three UF2/checksum pairs, `release-manifest.json`, and the PDF
+    user manual. For example:
+
+```powershell
+gh release create v<VERSION> `
+  --title "WiFiPicoDMX <VERSION>" `
+  --generate-notes --latest `
+  release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe `
+  release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe.sha256 `
+  release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2 `
+  release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2.sha256 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2.sha256 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2 `
+  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2.sha256 `
+  release/v<VERSION>/release-manifest.json `
+  release/v<VERSION>/docs/user-manual.pdf
+```
+
+12. Open the README installer link from GitHub and verify that it downloads the
+    published `.exe` without requiring repository knowledge or authentication.
 
 ---
 
