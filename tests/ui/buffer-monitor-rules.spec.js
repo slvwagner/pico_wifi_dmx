@@ -96,7 +96,7 @@ test.describe('DMX Buffer Monitor established rules', () => {
     await page.route('http://192.0.2.24/status.json', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
+      body: JSON.stringify({ firmware_version: '1.0.1', dmx: { channels: 512, frame_count: 42 } })
     }));
     await page.route('http://192.0.2.24/dmx/output.json', route => route.fulfill({
       status: 200,

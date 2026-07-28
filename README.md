@@ -83,6 +83,7 @@ Core features:
 
 - **DMX Buffer Monitor** — select a named DMX Output/universe, then read and display its current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then verify the installed firmware version, firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
+- **Controller Pico validation** — the shared header checks every Pico used by the show, reports online coverage and firmware currency separately, and identifies unreachable, mismatched, or version-less firmware by output name and universe.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
 - **Windows, macOS, and Ubuntu customer installers** — package the app, manual, persistent show storage, a managed web service, native/desktop application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
@@ -612,6 +613,15 @@ publishes it as `firmware_version` in both `/status.json` and
 pass; a different or missing firmware version fails with the installed and
 expected values and a prompt to flash the current application firmware. The
 result is also stored in the per-Pico Timing History.
+
+The Controller and other operating pages use the same field in the shared Pico
+fleet indicator. The header shows both online coverage and whether every online
+Pico runs current firmware. Hover or focus the indicator for per-output details,
+including the output name, universe, installed version, expected version, or
+connection failure. Clicking it repeats the check. The Performance Test exposes
+the same validation as a dedicated **Firmware version** result and records it in
+Timing History, so both the everyday Controller view and the detailed diagnostic
+run enforce the same installed-versus-expected version contract.
 
 When **Run Full Test** targets multiple configured Picos, it first performs a
 bounded `/status.json` availability check for each output. An unavailable Pico

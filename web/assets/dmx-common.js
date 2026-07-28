@@ -260,7 +260,10 @@
       if(!response.ok)throw new Error('HTTP '+response.status);
       const status=await response.json();
       if(!status||!status.dmx)throw new Error('Unexpected status response');
-      return{output,online:true,status};
+      const installedFirmware=String(status.firmware_version||'').trim();
+      const expectedFirmware=appVersion();
+      const firmwareState=!installedFirmware?'missing':installedFirmware===expectedFirmware?'current':'mismatch';
+      return{output,online:true,status,installedFirmware,expectedFirmware,firmwareState};
     }catch(error){
       return{output,online:false,error:error?.name==='AbortError'?'timeout':(error?.message||String(error))};
     }finally{
@@ -307,17 +310,26 @@
         const results=await Promise.all(outputs.map(output=>checkPicoFleetOutput(output,options.timeoutMs)));
         const online=results.filter(result=>result.online).length;
         const total=results.length;
-        const state=online===total?'online':(online?'partial':'offline');
+        const firmwareCurrent=results.filter(result=>result.online&&result.firmwareState==='current').length;
+        const firmwareIssues=online-firmwareCurrent;
+        const state=online!==total?(online?'partial':'offline'):(firmwareIssues?'version':'online');
         const noun=total===1?'Pico':'Picos';
-        const details=results.map(result=>
-          result.output.name+' · U'+result.output.universe+': '+(result.online?'online':'offline'+(result.error?' ('+result.error+')':''))
-        ).join('\n');
+        const details=results.map(result=>{
+          const prefix=result.output.name+' · U'+result.output.universe+': ';
+          if(!result.online)return prefix+'offline'+(result.error?' ('+result.error+')':'');
+          if(result.firmwareState==='current')return prefix+'online · firmware '+result.installedFirmware+' current';
+          if(result.firmwareState==='missing')return prefix+'online · firmware version not reported, expected '+result.expectedFirmware;
+          return prefix+'online · firmware '+result.installedFirmware+', expected '+result.expectedFirmware;
+        }).join('\n');
         indicators.forEach(indicator=>{
           indicator.dataset.state=state;
-          indicator.textContent=online+'/'+total+' '+noun+' online';
+          const firmwareText=firmwareIssues
+            ? firmwareCurrent+'/'+online+' firmware current'
+            : 'firmware current';
+          indicator.textContent=online+'/'+total+' '+noun+' online'+(online?' · '+firmwareText:'');
           indicator.title=details+'\nClick to check again.';
         });
-        return{outputs,results,online,total};
+        return{outputs,results,online,total,firmwareCurrent,firmwareIssues};
       }catch(error){
         indicators.forEach(indicator=>{
           indicator.dataset.state='error';

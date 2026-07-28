@@ -36,7 +36,7 @@ async function routeMultiPicoShow(page) {
       status: 200,
       contentType: 'application/json',
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
+      body: JSON.stringify({ firmware_version: '1.0.1', dmx: { channels: 512, frame_count: 42 } })
     }));
   }
 }
@@ -50,13 +50,13 @@ for (const source of [
     await routeMultiPicoShow(page);
     await page.goto(`${source.path}?test=${Date.now()}`);
     await expect(page.locator('header h1')).toBeVisible();
-    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('2/2 Picos online');
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('2/2 Picos online · firmware current');
     await expect(page.locator('header #baseUrl')).toBeHidden();
     await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
 
     await page.getByRole('link', { name: 'GPIO' }).click();
     await expect(page.locator('header h1')).toContainText('GPIO Control');
-    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('2/2 Picos online');
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('2/2 Picos online · firmware current');
     await expect(page.locator('header #baseUrl')).toBeHidden();
   });
 }

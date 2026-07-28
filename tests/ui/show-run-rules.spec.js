@@ -246,7 +246,7 @@ async function routeShowSetup(page, calls) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ok: true, dmx: { channels: 512, frame_count: 42 } })
+        body: JSON.stringify({ ok: true, firmware_version: '1.0.1', dmx: { channels: 512, frame_count: 42 } })
       });
       return;
     }
@@ -1636,7 +1636,7 @@ test.describe('Show Run page', () => {
 
     await expect(page.locator('header #baseUrl')).toBeHidden();
     await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
-    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('1/1 Pico online');
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('1/1 Pico online · firmware current');
     await expect(page.locator('#baseUrl')).toHaveValue('http://pico.test');
   });
 
