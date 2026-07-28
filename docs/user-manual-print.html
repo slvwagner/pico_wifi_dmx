@@ -251,7 +251,7 @@ strong { color: #ffffff; }
 <h3 id="configure-picos-and-read-header-status">Configure Picos and Read Header Status</h3>
 <ol>
 <li>Open the controller URL: normally <code>http://localhost:8090/</code> for a Windows or macOS customer installation using the default port, <code>http://localhost:&lt;selected-port&gt;/</code> when it was changed, or the configured XAMPP URL in a development environment.</li>
-<li>Click <strong>DMX Outputs</strong>, then use <strong>Find Picos</strong> or enter each Pico URL manually.</li>
+<li>Click <strong>DMX Outputs</strong>, then use <strong>Find Picos</strong> or enter each Pico URL manually. Discovery records the Pico&#39;s stable unique-board identity so a later DHCP address change does not require rebuilding the show.</li>
 <li>Give every output a descriptive name and unique universe, then click <strong>Done</strong>.</li>
 <li>Read the fleet pill in the sticky header. <strong>2/2 Picos online</strong> in green means all used outputs answered; amber means only some answered; red means none answered. Click the pill to refresh immediately.</li>
 <li>The application checks again automatically. A tooltip lists every used output, its universe, and its online/offline result.</li>
@@ -267,7 +267,9 @@ strong { color: #ffffff; }
 <li>One Pico base URL</li>
 <li>A stable discovered-device ID when it was added through network discovery</li>
 </ul>
-<p>Click <strong>Find Picos</strong> to listen for every Pico WiFi DMX discovery beacon on the LAN. The result list shows every discovered controller with its advertised name and IP address. Click <strong>Add</strong> beside each Pico that belongs to the show. The first discovered Pico fills an unused empty output; additional devices receive the next free universe number. A Pico whose device ID or normalized URL already belongs to an output is marked <strong>Added</strong> and cannot be added again.</p>
+<p>Click <strong>Find Picos</strong> to listen for every Pico WiFi DMX discovery beacon on the LAN. The result list shows every discovered controller with its advertised name and IP address. The beacon also carries the stable unique-board ID obtained through the Pico SDK; the show stores it as the DMX Output&#39;s device identity. This identity remains the same when the DHCP server gives the Pico another IP address.</p>
+<p>Click <strong>Add</strong> beside each Pico that belongs to a new show. The first discovered Pico fills an unused empty output; additional devices receive the next free universe number. A Pico whose device ID or normalized URL already belongs to an output is marked <strong>Added</strong> and cannot be added again.</p>
+<p>If discovery recognizes a saved unique-board ID at a different URL, it automatically replaces the URL displayed on that existing output and reports how many saved Pico addresses were updated. Click <strong>Done</strong> to validate and autosave the refreshed addresses. Only the Pico URL changes: the output ID, descriptive name, universe, fixture assignments, GPIO configuration, chases, effects, and other show programming remain attached to the same logical output. An unknown Pico is never assigned automatically; it remains available through <strong>Add</strong> so a different physical controller cannot silently take over a programmed universe.</p>
 <p><img src="screenshots/fixture-controller-dmx-outputs.png" alt="Two configured Pico DMX outputs" style="--manual-image-width: 77.7778%" data-native-width="1120"></p>
 <p>Names, universe numbers, and URLs remain editable after discovery. Click <strong>Add output</strong> for a controller that must be entered manually. Every output must have a unique universe number. Click <strong>Done</strong> to validate the list, refresh the shared header health immediately, and autosave the show.</p>
 <p>Select the wanted <strong>DMX output</strong> while patching a fixture. Address conflicts are checked only inside that output, so Universe 1 channel 1 and Universe 2 channel 1 are independent and may both be used. Existing fixture cards in <strong>Patch Fixtures</strong> also have a DMX output dropdown. Reassigning a fixture is refused if its address range would overlap another fixture on the destination output. After an accepted reassignment, the Controller immediately sends all current values for that fixture to its new Pico/universe; the status line confirms the number of sent channels or reports a connection error.</p>
@@ -1326,6 +1328,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Restructured the user manual to begin with a linked table of contents and place the complete project changelog at the end.</li>
 <li>Updated the README introduction to explain multi-Pico DMX universes, linked Getting Started to the detailed Windows installation section, and added a linked README table of contents before the overview.</li>
 <li>Replaced hard-coded <code>C:</code> Windows installation/data paths in public documentation with the generic <code>%ProgramFiles%</code> and <code>%ProgramData%</code> environment paths.</li>
+<li>Added automatic, show-safe Pico address remapping for DHCP changes. <strong>Find Picos</strong> compares each Pico&#39;s stable unique-board ID with the saved DMX Output identity and automatically replaces a changed URL while preserving output IDs, universes, names, fixture assignments, and show programming.</li>
 </ul>
 <h3 id="1-0-0-2026-07-28">1.0.0 - 2026-07-28</h3>
 <p>Changed:</p>

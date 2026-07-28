@@ -162,7 +162,7 @@ The Fixture Controller is the central page. Use it first when setting up a new s
 ### Configure Picos and Read Header Status
 
 1. Open the controller URL: normally `http://localhost:8090/` for a Windows or macOS customer installation using the default port, `http://localhost:<selected-port>/` when it was changed, or the configured XAMPP URL in a development environment.
-2. Click **DMX Outputs**, then use **Find Picos** or enter each Pico URL manually.
+2. Click **DMX Outputs**, then use **Find Picos** or enter each Pico URL manually. Discovery records the Pico's stable unique-board identity so a later DHCP address change does not require rebuilding the show.
 3. Give every output a descriptive name and unique universe, then click **Done**.
 4. Read the fleet pill in the sticky header. **2/2 Picos online** in green means all used outputs answered; amber means only some answered; red means none answered. Click the pill to refresh immediately.
 5. The application checks again automatically. A tooltip lists every used output, its universe, and its online/offline result.
@@ -180,7 +180,11 @@ Open **DMX Outputs** in the Controller header when the show needs more than one 
 - One Pico base URL
 - A stable discovered-device ID when it was added through network discovery
 
-Click **Find Picos** to listen for every Pico WiFi DMX discovery beacon on the LAN. The result list shows every discovered controller with its advertised name and IP address. Click **Add** beside each Pico that belongs to the show. The first discovered Pico fills an unused empty output; additional devices receive the next free universe number. A Pico whose device ID or normalized URL already belongs to an output is marked **Added** and cannot be added again.
+Click **Find Picos** to listen for every Pico WiFi DMX discovery beacon on the LAN. The result list shows every discovered controller with its advertised name and IP address. The beacon also carries the stable unique-board ID obtained through the Pico SDK; the show stores it as the DMX Output's device identity. This identity remains the same when the DHCP server gives the Pico another IP address.
+
+Click **Add** beside each Pico that belongs to a new show. The first discovered Pico fills an unused empty output; additional devices receive the next free universe number. A Pico whose device ID or normalized URL already belongs to an output is marked **Added** and cannot be added again.
+
+If discovery recognizes a saved unique-board ID at a different URL, it automatically replaces the URL displayed on that existing output and reports how many saved Pico addresses were updated. Click **Done** to validate and autosave the refreshed addresses. Only the Pico URL changes: the output ID, descriptive name, universe, fixture assignments, GPIO configuration, chases, effects, and other show programming remain attached to the same logical output. An unknown Pico is never assigned automatically; it remains available through **Add** so a different physical controller cannot silently take over a programmed universe.
 
 ![Two configured Pico DMX outputs](screenshots/fixture-controller-dmx-outputs.png)
 

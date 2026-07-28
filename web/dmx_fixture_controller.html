@@ -2435,9 +2435,9 @@ function renderDiscoveredPicos(){
   const host=document.getElementById('discoveredPicosList');
   host.innerHTML=discoveredPicos.map(device=>{
     const id=discoveredPicoId(device);
-    const added=!!outputForDiscoveredPico(device);
+    const matching=outputForDiscoveredPico(device);
     const address=device.ip||discoveredPicoUrl(device)||'Unknown address';
-    return `<div class="discovered-pico-row" data-discovered-pico="${escHtml(id)}"><div><strong>${escHtml(device.name||'Pico WiFi DMX')}</strong><div class="small">${escHtml(address)}${device.http&&Number(device.http)!==80?' · HTTP '+device.http:''} · Discovered</div></div><button type="button" data-add-discovered-pico="${escHtml(id)}"${added?' disabled':''}>${added?'Added':'Add'}</button></div>`;
+    return `<div class="discovered-pico-row" data-discovered-pico="${escHtml(id)}"><div><strong>${escHtml(device.name||'Pico WiFi DMX')}</strong><div class="small">${escHtml(address)}${device.http&&Number(device.http)!==80?' · HTTP '+device.http:''} · Discovered</div></div><button type="button" data-add-discovered-pico="${escHtml(id)}"${matching?' disabled':''}>${matching?'Added':'Add'}</button></div>`;
   }).join('');
 }
 async function findAllPicos(){
@@ -2448,13 +2448,24 @@ async function findAllPicos(){
   status.textContent='Listening for Pico discovery beacons...';
   try{
     discoveredPicos=await DmxCommon.discoverPicoDevices();
+    let updatedAddresses=0;
     discoveredPicos.forEach(device=>{
       const matching=outputForDiscoveredPico(device);
-      if(matching&&!matching.deviceId)matching.deviceId=discoveredPicoId(device);
+      const deviceId=discoveredPicoId(device);
+      if(matching&&!matching.deviceId){
+        matching.deviceId=deviceId;
+      }else if(matching&&String(matching.deviceId||'')===deviceId){
+        const nextUrl=discoveredPicoUrl(device);
+        if(nextUrl&&normalizedOutputUrl(matching.baseUrl)!==normalizedOutputUrl(nextUrl)){
+          matching.baseUrl=nextUrl;
+          updatedAddresses++;
+        }
+      }
     });
     renderDmxOutputsEditor();
     renderDiscoveredPicos();
-    status.textContent='Found '+discoveredPicos.length+' Pico controller'+(discoveredPicos.length===1?'':'s')+'.';
+    status.textContent='Found '+discoveredPicos.length+' Pico controller'+(discoveredPicos.length===1?'':'s')+'.'
+      +(updatedAddresses?' Automatically updated '+updatedAddresses+' saved Pico address'+(updatedAddresses===1?'':'es')+' from its stable device identity.':'');
   }catch(error){
     discoveredPicos=[];
     renderDiscoveredPicos();
