@@ -27,8 +27,10 @@ only closes the local operator window while leaving the service available to
 iPads and other PCs. Exit and stop server explains that operator devices will
 be disconnected, requests Windows administrator approval to stop only the
 `PicoDmxController` service, and exits after Windows reports that service
-stopped. Cancelling the dialog or UAC keeps the application open. If the
-shortcut is opened while the service is stopped, the shell explains why
+stopped. A non-dismissible progress window with an animated bar remains visible
+while shutdown is pending, states that Windows can take up to 45 seconds, and
+closes only after the shell's final service-state check. Cancelling the dialog
+or UAC keeps the application open. If the shortcut is opened while the service is stopped, the shell explains why
 administrator approval is needed, starts `PicoDmxController`, waits for it to
 run, and then loads the controller. An already-running service does not cause a
 UAC prompt. If the

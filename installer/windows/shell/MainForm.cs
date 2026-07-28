@@ -26,6 +26,7 @@ internal sealed class MainForm : Form
 
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+    private static readonly TimeSpan ControllerServiceStopTimeout = TimeSpan.FromSeconds(45);
     private static readonly Color ShellBackground = Color.FromArgb(18, 22, 29);
     private static readonly Color SurfaceBackground = Color.FromArgb(28, 33, 42);
     private static readonly Color HoverBackground = Color.FromArgb(48, 58, 72);
@@ -564,9 +565,14 @@ internal sealed class MainForm : Form
         }
 
         closeInProgress = true;
-        Enabled = false;
         statusLabel.Text = "Stopping the Pico DMX server…";
+        using var shutdownProgress = CreateServerShutdownProgressDialog();
+        shutdownProgress.Show(this);
+        shutdownProgress.BringToFront();
+        shutdownProgress.Update();
+        Enabled = false;
         var stopped = await StopControllerServiceAsync();
+        shutdownProgress.Close();
         if (!stopped)
         {
             closeInProgress = false;
@@ -679,10 +685,59 @@ internal sealed class MainForm : Form
         return button;
     }
 
+    private Form CreateServerShutdownProgressDialog()
+    {
+        var dialog = new Form
+        {
+            Text = "Closing WiFiPicoDMX",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            ControlBox = false,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            ClientSize = new Size(440, 140),
+            BackColor = ShellBackground,
+            ForeColor = ShellForeground,
+            UseWaitCursor = true
+        };
+        dialog.Icon = Icon;
+
+        var heading = new Label
+        {
+            Text = "Stopping the Pico DMX server…",
+            AutoSize = true,
+            Font = new Font(Font, FontStyle.Bold),
+            Left = 24,
+            Top = 22
+        };
+        var explanation = new Label
+        {
+            Text = "Please wait while Windows shuts down the local server.\r\n" +
+                   "This can take up to 45 seconds.",
+            AutoSize = true,
+            Left = 24,
+            Top = 52
+        };
+        var progress = new ProgressBar
+        {
+            Style = ProgressBarStyle.Marquee,
+            MarqueeAnimationSpeed = 30,
+            Left = 24,
+            Top = 96,
+            Width = 392,
+            Height = 18
+        };
+
+        dialog.Controls.Add(heading);
+        dialog.Controls.Add(explanation);
+        dialog.Controls.Add(progress);
+        return dialog;
+    }
+
     private static async Task<bool> StopControllerServiceAsync()
     {
-        var initialState = await QueryControllerServiceStateAsync();
-        if (initialState is ControllerServiceState.Stopped or ControllerServiceState.Missing)
+        if (await IsControllerServiceStoppedAsync())
         {
             return true;
         }
@@ -708,17 +763,22 @@ internal sealed class MainForm : Form
             return false;
         }
 
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(12);
+        var deadline = DateTime.UtcNow + ControllerServiceStopTimeout;
         while (DateTime.UtcNow < deadline)
         {
-            var state = await QueryControllerServiceStateAsync();
-            if (state is ControllerServiceState.Stopped or ControllerServiceState.Missing)
+            if (await IsControllerServiceStoppedAsync())
             {
                 return true;
             }
             await Task.Delay(250);
         }
-        return false;
+        return await IsControllerServiceStoppedAsync();
+    }
+
+    private static async Task<bool> IsControllerServiceStoppedAsync()
+    {
+        var state = await QueryControllerServiceStateAsync();
+        return state is ControllerServiceState.Stopped or ControllerServiceState.Missing;
     }
 
     private static async Task<ControllerServiceState> QueryControllerServiceStateAsync()
