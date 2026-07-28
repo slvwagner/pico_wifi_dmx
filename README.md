@@ -15,6 +15,10 @@ The installer includes the customer application, local web server, manual, and
 guided Pico firmware updater. Because the current installer is unsigned,
 Windows can display a SmartScreen publisher warning.
 
+Read the matching
+**[WiFiPicoDMX 1.0.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.0/user-manual.pdf)**
+for installation, firmware flashing, show setup, and operation instructions.
+
 The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
 also provides the installer checksum, Pico firmware images, release manifest,
 and PDF user manual.
@@ -1007,8 +1011,9 @@ After the package passes validation, complete these publication steps:
 
 8. Commit the generated release package, merge the completed version branch
    into `main`, and mark the released version as the latest stable release.
-9. Update the README **Getting Started** installer label and direct URL so both
-   contain the released version and exact versioned `.exe` asset name.
+9. Update the README **Getting Started** installer and PDF manual labels and
+   direct URLs so they contain the released version and exact GitHub Release
+   asset names.
 10. Create and push the annotated `v<VERSION>` tag from the final `main`
     release commit.
 11. Create the public GitHub Release and attach the Windows installer, its
@@ -1031,8 +1036,9 @@ gh release create v<VERSION> `
   release/v<VERSION>/docs/user-manual.pdf
 ```
 
-12. Open the README installer link from GitHub and verify that it downloads the
-    published `.exe` without requiring repository knowledge or authentication.
+12. Open the README installer and PDF manual links from GitHub and verify that
+    they download the published assets without requiring repository knowledge
+    or authentication.
 
 ---
 
