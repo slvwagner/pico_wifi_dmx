@@ -150,6 +150,20 @@ test.describe('Code safety regression rules', () => {
     expect(installer).toContain('PicoDmxShell.exe');
   });
 
+  test('Windows app waits for a delayed Apache shutdown before reporting stop failure', () => {
+    const form = read('installer/windows/shell/MainForm.cs');
+
+    expect(form).toContain(
+      'ControllerServiceStopTimeout = TimeSpan.FromSeconds(45)'
+    );
+    expect(form).toContain('return await IsControllerServiceStoppedAsync();');
+    expect(form).toContain('CreateServerShutdownProgressDialog');
+    expect(form).toContain('Style = ProgressBarStyle.Marquee');
+    expect(form).toContain('Stopping the Pico DMX server…');
+    expect(form).toContain('This can take up to 45 seconds.');
+    expect(form).toContain('shutdownProgress.Show(this);');
+  });
+
   test('Windows installer supports a validated persistent customer HTTP port', () => {
     const installer = read('installer/windows/pico-dmx-controller.nsi');
     const builder = read('installer/windows/build_installer.ps1');

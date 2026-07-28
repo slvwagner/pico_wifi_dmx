@@ -169,8 +169,11 @@ application**, so it never traps the operator in kiosk mode. Closing the GUI
 offers **Exit only**, **Exit and stop server**, and **Cancel**. Exit only closes
 the local window while keeping the server available to iPads and other PCs.
 Exit and stop server requests Windows administrator approval, stops the
-`PicoDmxController` service, and then exits. Cancelling leaves the application
-and server running.
+`PicoDmxController` service, and then exits. While Windows completes the
+shutdown, a non-dismissible progress window remains visible and explains that
+the operation can take up to 45 seconds. The shell performs a final service
+state check before reporting a failure. Cancelling leaves the application and
+server running.
 When the shortcut is opened after such a shutdown, the shell explains that
 administrator approval is required, starts the stopped service, and then loads
 the controller. No approval prompt is shown when the service is already
