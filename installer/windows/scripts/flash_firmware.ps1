@@ -71,7 +71,7 @@ if ($applicationInfo -notmatch "target chip:\s+RP2350" -or
     $applicationInfo -notmatch "block type:\s+partition table" -or
     $applicationInfo -notmatch '"Wi-Fi\s+Firmware"' -or
     $applicationInfo -notmatch "version:\s+$([regex]::Escape([string]$manifest.version))" -or
-    $applicationInfo -notmatch "build attributes:\s+Release build") {
+    $applicationInfo -notmatch "build attributes:\s+Release(?: build)?") {
     throw "The application UF2 is not the expected WiFiPicoDMX $($manifest.version) RP2350 Release image."
 }
 
