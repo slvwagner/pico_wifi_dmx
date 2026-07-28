@@ -83,17 +83,23 @@ Open the guide when setup offers it, choose **Application > Firmware update…**
 inside WiFiPicoDMX, or use **Firmware Update** in the WiFiPicoDMX Start Menu
 folder. Then:
 
-1. Disconnect every other Pico from the computer. Flash only one controller at
+1. While the Picos are still running on the network, click **Check installed
+   firmware**. The guide reuses the Controller's Pico discovery service and
+   lists each detected Pico's address, installed version, bundled version, and
+   whether its firmware is current, needs an update, or does not report a
+   version.
+2. If an update is needed, identify the target Pico from that list. Disconnect
+   every other Pico from the computer. Flash only one controller at
    a time so the wrong unit cannot be selected.
-2. Unplug the target Pico's USB cable.
-3. Press and hold **BOOTSEL** on the Pico.
-4. While holding BOOTSEL, reconnect the USB cable to the Windows computer.
-5. Release BOOTSEL when Windows detects the Pico, normally as `RPI-RP2`.
-6. Confirm in the guide that all other Picos are disconnected, then click
+3. Unplug the target Pico's USB cable.
+4. Press and hold **BOOTSEL** on the Pico.
+5. While holding BOOTSEL, reconnect the USB cable to the Windows computer.
+6. Release BOOTSEL when Windows detects the Pico, normally as `RPI-RP2`.
+7. Confirm in the guide that all other Picos are disconnected, then click
    **Check for Pico**.
-7. When the guide reports that one RP2350 Pico is ready, click **Flash
+8. When the guide reports that one RP2350 Pico is ready, click **Flash
    application + Wi-Fi firmware** and approve the final confirmation.
-8. Keep USB and power connected until the guide reports that application and
+9. Keep USB and power connected until the guide reports that application and
    Wi-Fi firmware installation completed.
 
 Firmware setup is deliberately opt-in. The Windows software installer never
@@ -107,7 +113,7 @@ an incomplete application installation does not remove this recovery path.
 If the guide cannot find the Pico, check the data-capable USB cable, repeat the
 BOOTSEL connection steps, and ensure no other Pico is connected.
 
-The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. Press **F11** to enter fullscreen and **Escape** to leave it. Fullscreen also keeps an **Exit full screen** button and **Close application** button visible. The tray icon offers **Open**, **Toggle full screen**, and **Exit…**. Opening the shortcut again activates the existing window instead of creating another instance.
+The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. The firmware updater, exit-choice dialog, and server-shutdown progress window use the same dark title-bar treatment. Press **F11** to enter fullscreen and **Escape** to leave it. Fullscreen also keeps an **Exit full screen** button and **Close application** button visible. The tray icon offers **Open**, **Toggle full screen**, and **Exit…**. Opening the shortcut again activates the existing window instead of creating another instance.
 
 Each time the native Windows application starts, it clears only its WebView2 disk cache before loading the controller. The packaged server also requires updated HTML, CSS, and JavaScript to be revalidated. This ensures that layout changes from an upgrade—including full-width utility pages such as **GPIO Control** and **Pico Performance Test**—appear immediately. Show data, browser-local settings, and cookies are preserved.
 

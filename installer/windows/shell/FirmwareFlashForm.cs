@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 
 namespace PicoDmxShell;
 
@@ -15,15 +16,20 @@ internal sealed class FirmwareFlashForm : Form
     private readonly Label status = new();
     private readonly TextBox log = new();
     private readonly ProgressBar progress = new();
+    private readonly Button firmwareCheckButton = new();
     private readonly Button checkButton = new();
     private readonly Button flashButton = new();
     private readonly Button closeButton = new();
     private readonly CheckBox singlePicoConfirmation = new();
+    private readonly Uri controllerUri;
     private bool busy;
+    private bool bundleValidated;
     private bool picoDetected;
+    private string bundledFirmwareVersion = "";
 
-    public FirmwareFlashForm(Icon? icon)
+    public FirmwareFlashForm(Icon? icon, Uri controllerUri)
     {
+        this.controllerUri = controllerUri;
         Text = "WiFiPicoDMX Firmware";
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(760, 690);
@@ -31,6 +37,7 @@ internal sealed class FirmwareFlashForm : Form
         BackColor = Background;
         ForeColor = Foreground;
         Icon = icon;
+        WindowsTheme.ApplyDarkTitleBar(this);
 
         BuildContent();
         Shown += async (_, _) => await ValidateBundleAsync();
@@ -57,10 +64,11 @@ internal sealed class FirmwareFlashForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(24),
             ColumnCount = 1,
-            RowCount = 9,
+            RowCount = 10,
             AutoScroll = true
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -89,6 +97,31 @@ internal sealed class FirmwareFlashForm : Form
             ForeColor = Muted,
             Margin = new Padding(0, 0, 0, 14)
         };
+
+        var installedFirmware = CreateSurfacePanel();
+        var installedFirmwareContent = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            Margin = new Padding(0)
+        };
+        var installedFirmwareText = new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(700, 0),
+            ForeColor = Foreground,
+            Text = "Check Picos on the network before using BOOTSEL. WiFiPicoDMX reuses the Controller's " +
+                   "Pico discovery service and compares every reported version with the bundled firmware."
+        };
+        ConfigureButton(firmwareCheckButton, "Check installed firmware", Surface);
+        firmwareCheckButton.Enabled = false;
+        firmwareCheckButton.Margin = new Padding(0, 10, 0, 0);
+        firmwareCheckButton.Click += async (_, _) => await CheckInstalledFirmwareAsync();
+        installedFirmwareContent.Controls.Add(installedFirmwareText);
+        installedFirmwareContent.Controls.Add(firmwareCheckButton);
+        installedFirmware.Controls.Add(installedFirmwareContent);
 
         var instructions = CreateSurfacePanel();
         var instructionText = new Label
@@ -171,6 +204,7 @@ internal sealed class FirmwareFlashForm : Form
 
         page.Controls.Add(heading);
         page.Controls.Add(introduction);
+        page.Controls.Add(installedFirmware);
         page.Controls.Add(instructions);
         page.Controls.Add(singlePicoConfirmation);
         page.Controls.Add(actions);
@@ -211,11 +245,91 @@ internal sealed class FirmwareFlashForm : Form
         SetBusy(true, "Validating the bundled firmware files…");
         var result = await RunFirmwareHelperAsync("-ValidateOnly");
         AppendLog(result.Output);
-        SetBusy(false, result.ExitCode == 0
-            ? "Firmware bundle validated. Follow the BOOTSEL steps above."
+        bundleValidated = result.ExitCode == 0;
+        if (bundleValidated)
+        {
+            try
+            {
+                bundledFirmwareVersion = ReadBundledFirmwareVersion();
+            }
+            catch (Exception exception)
+            {
+                bundleValidated = false;
+                AppendLog($"Could not read the bundled firmware version: {exception.Message}");
+            }
+        }
+        SetBusy(false, bundleValidated
+            ? $"Firmware bundle {bundledFirmwareVersion} validated. Check installed firmware or follow the BOOTSEL steps."
             : "The firmware bundle could not be validated. Repair or reinstall WiFiPicoDMX.");
-        status.ForeColor = result.ExitCode == 0 ? Accent : Color.IndianRed;
-        singlePicoConfirmation.Enabled = result.ExitCode == 0;
+        status.ForeColor = bundleValidated ? Accent : Color.IndianRed;
+    }
+
+    private async Task CheckInstalledFirmwareAsync()
+    {
+        SetBusy(true, "Finding network Picos and checking their firmware…");
+        AppendLog($"Checking for firmware {bundledFirmwareVersion} with the Controller's Pico discovery service...");
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
+            var discoveryUri = new Uri(controllerUri, "pico_discovery.php?timeoutMs=3200");
+            using var response = await client.GetAsync(discoveryUri);
+            var payload = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"Discovery returned HTTP {(int)response.StatusCode}.");
+            }
+
+            var discovery = JsonSerializer.Deserialize<DiscoveryResponse>(
+                payload,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (discovery is null || !discovery.Ok)
+            {
+                throw new InvalidOperationException(discovery?.Error ?? "Discovery returned an invalid response.");
+            }
+            if (discovery.Devices.Count == 0)
+            {
+                SetBusy(false, "No running Pico was found. Check power and Wi-Fi, then try again.");
+                status.ForeColor = Warning;
+                AppendLog("No Pico discovery beacon was received.");
+                return;
+            }
+
+            var currentCount = 0;
+            foreach (var device in discovery.Devices)
+            {
+                var name = string.IsNullOrWhiteSpace(device.Name) ? "Pico" : device.Name.Trim();
+                var address = string.IsNullOrWhiteSpace(device.Ip) ? device.Url : device.Ip;
+                string result;
+                if (device.Version == bundledFirmwareVersion)
+                {
+                    currentCount++;
+                    result = "Firmware current";
+                }
+                else if (string.IsNullOrWhiteSpace(device.Version))
+                {
+                    result = "Version not reported";
+                }
+                else
+                {
+                    result = "Update needed";
+                }
+                var installed = string.IsNullOrWhiteSpace(device.Version) ? "not reported" : device.Version;
+                AppendLog($"{name} · {address} · installed {installed} · bundled {bundledFirmwareVersion} · {result}");
+            }
+
+            var total = discovery.Devices.Count;
+            var updateCount = total - currentCount;
+            SetBusy(false, updateCount == 0
+                ? $"Firmware current on all {total} discovered Pico{(total == 1 ? "" : "s")} ({bundledFirmwareVersion})."
+                : $"{updateCount} of {total} discovered Pico{(total == 1 ? "" : "s")} need attention. See the details below.");
+            status.ForeColor = updateCount == 0 ? Accent : Warning;
+        }
+        catch (Exception exception)
+        {
+            AppendLog($"Firmware check failed: {exception.Message}");
+            SetBusy(false, "Could not check installed firmware. Ensure the local server is running and try again.");
+            status.ForeColor = Color.IndianRed;
+        }
     }
 
     private async Task CheckForPicoAsync()
@@ -274,9 +388,10 @@ internal sealed class FirmwareFlashForm : Form
         busy = value;
         status.Text = message;
         progress.Visible = value;
+        firmwareCheckButton.Enabled = !value && bundleValidated;
         checkButton.Enabled = !value && singlePicoConfirmation.Checked;
         closeButton.Enabled = !value;
-        singlePicoConfirmation.Enabled = !value;
+        singlePicoConfirmation.Enabled = !value && bundleValidated;
         UpdateFlashButton();
     }
 
@@ -343,6 +458,37 @@ internal sealed class FirmwareFlashForm : Form
             output.AppendLine(error);
         }
         return new FirmwareHelperResult(process.ExitCode, output.ToString());
+    }
+
+    private static string ReadBundledFirmwareVersion()
+    {
+        var manifestPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "firmware",
+            "firmware-manifest.json"));
+        using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        var version = document.RootElement.GetProperty("version").GetString()?.Trim();
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            throw new InvalidOperationException("firmware-manifest.json does not contain a version.");
+        }
+        return version;
+    }
+
+    private sealed class DiscoveryResponse
+    {
+        public bool Ok { get; set; }
+        public string? Error { get; set; }
+        public List<DiscoveredPico> Devices { get; set; } = [];
+    }
+
+    private sealed class DiscoveredPico
+    {
+        public string Name { get; set; } = "";
+        public string Version { get; set; } = "";
+        public string Ip { get; set; } = "";
+        public string Url { get; set; } = "";
     }
 
     private sealed record FirmwareHelperResult(int ExitCode, string Output);

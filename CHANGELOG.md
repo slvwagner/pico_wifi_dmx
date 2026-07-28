@@ -18,6 +18,8 @@ Changed:
 - Added firmware-version validation to the Controller's shared Pico fleet indicator. It now reports online coverage and firmware currency separately and identifies mismatched, missing, and unreachable Pico firmware per output and universe.
 - Changed the shared Pico fleet indicator to display the exact expected firmware version instead of the vague `firmware current` label.
 - Hardened the version-branch and release scripts around `VERSION` as the canonical firmware version, including validation that CMake still derives both its compile-time and Pico program versions from that file.
+- Added **Check installed firmware** to the Windows Pico firmware installer. It reuses the Controller's network discovery service, compares every discovered Pico with the bundled firmware manifest, and identifies current, outdated, and version-less devices before BOOTSEL flashing.
+- Applied the shared Windows dark-title-bar treatment to the firmware updater, exit-choice dialog, and server-shutdown progress dialog as well as the main application window.
 - Documented the hardware-alarm frame scheduler and the CPU-to-PIO plus control-SM/data-SM IRQ handshake, including retry, timeout, and resynchronization behavior.
 
 ## 1.0.0 - 2026-07-28

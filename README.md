@@ -155,11 +155,14 @@ builds should be Authenticode-signed; unsigned development builds can trigger a
 Windows SmartScreen warning.
 
 Firmware flashing is opt-in and occurs only in the WiFiPicoDMX guide after
-installation. The guide explains how to connect exactly one Pico 2 W in
-BOOTSEL mode, validates the bundled files and target, asks again before
-writing, prevents closing during the flash, and reports recovery steps. It can
-also be opened later through **Application > Firmware update…** or the Start
-Menu **Firmware Update** shortcut.
+installation. Before BOOTSEL, **Check installed firmware** reuses the
+Controller's Pico discovery service to find every running Pico on the network
+and compare its reported version with the validated bundled firmware. The
+guide then explains how to connect exactly one Pico 2 W in BOOTSEL mode,
+validates the bundled files and target, asks again before writing, prevents
+closing during the flash, and reports recovery steps. It can also be opened
+later through **Application > Firmware update…** or the Start Menu **Firmware
+Update** shortcut.
 
 The native **WiFiPicoDMX** application window provides normal minimize/maximize/close controls,
 F11 fullscreen, Escape to leave fullscreen, and Open/fullscreen/exit actions

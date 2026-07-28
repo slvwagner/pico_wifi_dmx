@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Net;
-using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -24,8 +23,6 @@ internal sealed class MainForm : Form
         ExitAndStopServer
     }
 
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
     private static readonly TimeSpan ControllerServiceStopTimeout = TimeSpan.FromSeconds(45);
     private static readonly Color ShellBackground = Color.FromArgb(18, 22, 29);
     private static readonly Color SurfaceBackground = Color.FromArgb(28, 33, 42);
@@ -63,6 +60,7 @@ internal sealed class MainForm : Form
         KeyPreview = true;
         BackColor = ShellBackground;
         ForeColor = ShellForeground;
+        WindowsTheme.ApplyDarkTitleBar(this);
 
         var icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         if (icon is not null)
@@ -96,49 +94,6 @@ internal sealed class MainForm : Form
             : statusLabel.Text;
 
         StartActivationListener();
-    }
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(
-        IntPtr windowHandle,
-        int attribute,
-        ref int attributeValue,
-        int attributeSize);
-
-    protected override void OnHandleCreated(EventArgs eventArgs)
-    {
-        base.OnHandleCreated(eventArgs);
-        ApplyDarkWindowFrame();
-    }
-
-    private void ApplyDarkWindowFrame()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        var enabled = 1;
-        try
-        {
-            var result = DwmSetWindowAttribute(
-                Handle,
-                DWMWA_USE_IMMERSIVE_DARK_MODE,
-                ref enabled,
-                sizeof(int));
-            if (result != 0)
-            {
-                DwmSetWindowAttribute(
-                    Handle,
-                    DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1,
-                    ref enabled,
-                    sizeof(int));
-            }
-        }
-        catch (DllNotFoundException)
-        {
-            // Very old Windows versions keep their system-default title bar.
-        }
     }
 
     private void BuildMenu()
@@ -415,7 +370,7 @@ internal sealed class MainForm : Form
 
     private void OpenFirmwareUpdater()
     {
-        using var updater = new FirmwareFlashForm(Icon);
+        using var updater = new FirmwareFlashForm(Icon, controllerUri);
         updater.ShowDialog(this);
     }
 
@@ -608,6 +563,7 @@ internal sealed class MainForm : Form
             ForeColor = ShellForeground
         };
         dialog.Icon = Icon;
+        WindowsTheme.ApplyDarkTitleBar(dialog);
 
         var heading = new Label
         {
@@ -702,6 +658,7 @@ internal sealed class MainForm : Form
             UseWaitCursor = true
         };
         dialog.Icon = Icon;
+        WindowsTheme.ApplyDarkTitleBar(dialog);
 
         var heading = new Label
         {

@@ -504,8 +504,16 @@ body.manual-nav-open .manual-nav-backdrop {
 <p>inside WiFiPicoDMX, or use <strong>Firmware Update</strong> in the WiFiPicoDMX Start Menu</p>
 <p>folder. Then:</p>
 <ol>
-<li>Disconnect every other Pico from the computer. Flash only one controller at</li>
+<li>While the Picos are still running on the network, click **Check installed</li>
 </ol>
+<p>   firmware**. The guide reuses the Controller&#39;s Pico discovery service and</p>
+<p>   lists each detected Pico&#39;s address, installed version, bundled version, and</p>
+<p>   whether its firmware is current, needs an update, or does not report a</p>
+<p>   version.</p>
+<ol>
+<li>If an update is needed, identify the target Pico from that list. Disconnect</li>
+</ol>
+<p>   every other Pico from the computer. Flash only one controller at</p>
 <p>   a time so the wrong unit cannot be selected.</p>
 <ol>
 <li>Unplug the target Pico&#39;s USB cable.</li>
@@ -532,7 +540,7 @@ body.manual-nav-open .manual-nav-backdrop {
 <p>an incomplete application installation does not remove this recovery path.</p>
 <p>If the guide cannot find the Pico, check the data-capable USB cable, repeat the</p>
 <p>BOOTSEL connection steps, and ensure no other Pico is connected.</p>
-<p>The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. Press <strong>F11</strong> to enter fullscreen and <strong>Escape</strong> to leave it. Fullscreen also keeps an <strong>Exit full screen</strong> button and <strong>Close application</strong> button visible. The tray icon offers <strong>Open</strong>, <strong>Toggle full screen</strong>, and <strong>Exit…</strong>. Opening the shortcut again activates the existing window instead of creating another instance.</p>
+<p>The application window has normal minimize, maximize, and close controls. Its Windows title bar and frame, menu/dropdown surfaces, status bar, tray menu, and fullscreen buttons use a dark theme that matches the controller page. The firmware updater, exit-choice dialog, and server-shutdown progress window use the same dark title-bar treatment. Press <strong>F11</strong> to enter fullscreen and <strong>Escape</strong> to leave it. Fullscreen also keeps an <strong>Exit full screen</strong> button and <strong>Close application</strong> button visible. The tray icon offers <strong>Open</strong>, <strong>Toggle full screen</strong>, and <strong>Exit…</strong>. Opening the shortcut again activates the existing window instead of creating another instance.</p>
 <p>Each time the native Windows application starts, it clears only its WebView2 disk cache before loading the controller. The packaged server also requires updated HTML, CSS, and JavaScript to be revalidated. This ensures that layout changes from an upgrade—including full-width utility pages such as <strong>GPIO Control</strong> and <strong>Pico Performance Test</strong>—appear immediately. Show data, browser-local settings, and cookies are preserved.</p>
 <p>Closing the application window presents three choices. <strong>Exit only</strong> closes the local WiFiPicoDMX window but keeps the server running, so iPads and other operator devices remain connected. <strong>Exit and stop server</strong> warns that those devices will disconnect, requests Windows administrator approval, stops only the internally stable <code>PicoDmxController</code> service, waits for it to stop, and then exits. During that wait, a centered progress window displays <strong>Stopping the Pico DMX server…</strong>, an animated progress bar, and the notice that shutdown can take up to 45 seconds. The window cannot be dismissed while shutdown is in progress. The application checks the service once more at the timeout boundary before it reports that stopping failed. <strong>Cancel</strong> leaves both the application and server running. Cancelling the Windows UAC prompt also keeps the application open and server running. To use the controller again after stopping the server, start <strong>WiFiPicoDMX</strong> from its shortcut. The application explains that administrator approval is required, requests that approval, starts the service, and then loads the controller; no approval prompt appears if the service is already running. The service is also configured to start when the application is installed or the computer starts. A new installation stores application binaries below <code>%ProgramFiles%\WiFiPicoDMX</code>; upgrades can retain the former program directory. Show data remains in the upgrade-compatible <code>%ProgramData%\Pico DMX Controller\data</code> location. An upgrade snapshots existing data below the neighboring <code>backups</code> folder before replacing application files. Uninstall removes the app and service but preserves the <code>ProgramData</code> show data deliberately.</p>
 <p>Do not forward the selected controller port from the internet router. The LAN option is intended for a trusted private lighting network. An unsigned development installer can display a Windows SmartScreen warning; customer release installers should carry the supplier&#39;s Authenticode signature.</p>
@@ -1683,6 +1691,19 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Added responsive user-manual navigation: a sticky desktop contents sidebar, an iPad/mobile contents drawer, active-section highlighting, persistent and per-section contents links, and previous/next section controls that are hidden from printed/PDF output.</li>
 <li>Fixed the desktop manual contents sidebar disappearing while scrolling by preserving its sticky top offset, with a regression test covering long-page scrolling.</li>
 <li>Added two generated and packaged PDF manuals: a clean A4 portrait version and an A4 landscape version with a persistent clickable contents sidebar. Both variants are deployed to XAMPP and included by the Windows, macOS, Ubuntu, and release-package workflows.</li>
+<li>Fixed occasional doubled DMX frame intervals by servicing the PIO frame-done flag on every Core0 poll, preserving an overdue frame deadline until transmission completes, and preventing resynchronization from starting PIO before DMA is primed.</li>
+<li>Fixed the DMX control PIO startup sequence consuming the single frame-start IRQ before reaching its wrapped transmit loop, which caused continuous frame timeouts and resynchronization.</li>
+<li>Added firmware DMX frame-interval telemetry and a Performance Test check that reports expected, last, minimum, and maximum break-to-break timing, late intervals, and doubled-frame gaps.</li>
+<li>Fixed DMX frame starts being delayed by foreground polling and cross-core write contention by moving the deadline to a lock-free hardware-alarm callback, using an interrupt-friendly mutex for pending channel data, and retrying unfinished frames without timer catch-up or a full-period skip.</li>
+<li>Fixed the Performance Test&#39;s <strong>Run Full Test</strong> button remaining disabled when its final Pico telemetry refresh stalls by timing out Pico requests and bounding the final refresh wait.</li>
+<li>Fixed multi-Pico <strong>Run Full Test</strong> runs hanging on an unavailable configured output by preflighting every selected Pico, skipping and naming unavailable outputs with their failure reason, bounding write requests, and stopping a write run after three consecutive errors.</li>
+<li>Added exact firmware-version validation to the Pico Performance Test. The firmware build now takes its version directly from <code>VERSION</code> and reports it through <code>/status.json</code> and <code>/perf/status.json</code>; the test compares it with the deployed <code>VERSION</code>, records it in Timing History, and clearly fails old or mismatched firmware.</li>
+<li>Added firmware-version validation to the Controller&#39;s shared Pico fleet indicator. It now reports online coverage and firmware currency separately and identifies mismatched, missing, and unreachable Pico firmware per output and universe.</li>
+<li>Changed the shared Pico fleet indicator to display the exact expected firmware version instead of the vague <code>firmware current</code> label.</li>
+<li>Hardened the version-branch and release scripts around <code>VERSION</code> as the canonical firmware version, including validation that CMake still derives both its compile-time and Pico program versions from that file.</li>
+<li>Added <strong>Check installed firmware</strong> to the Windows Pico firmware installer. It reuses the Controller&#39;s network discovery service, compares every discovered Pico with the bundled firmware manifest, and identifies current, outdated, and version-less devices before BOOTSEL flashing.</li>
+<li>Applied the shared Windows dark-title-bar treatment to the firmware updater, exit-choice dialog, and server-shutdown progress dialog as well as the main application window.</li>
+<li>Documented the hardware-alarm frame scheduler and the CPU-to-PIO plus control-SM/data-SM IRQ handshake, including retry, timeout, and resynchronization behavior.</li>
 </ul>
 <h3 id="1-0-0-2026-07-28">1.0.0 - 2026-07-28</h3>
 <p>Changed:</p>
