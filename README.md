@@ -83,7 +83,7 @@ Core features:
 
 - **DMX Buffer Monitor** — select a named DMX Output/universe, then read and display its current output buffer or base buffer for all 512 DMX channels.
 - **Pico Performance Test** — select one DMX Output or all configured Picos, then verify the installed firmware version, firmware timing, DMX frame health, HTTP callback timing, buffer readback, write throughput, and USB or emulated MIDI-to-DMX response time with per-Pico/universe histories.
-- **Controller Pico validation** — the shared header checks every Pico used by the show, reports online coverage and firmware currency separately, and identifies unreachable, mismatched, or version-less firmware by output name and universe.
+- **Controller Pico validation** — the shared header checks every Pico used by the show, reports online coverage and the exact expected firmware version separately, and identifies unreachable, mismatched, or version-less firmware by output name and universe.
 - **Partitioned Pico firmware updates** — the application and CYW43 Wi-Fi firmware use separate RP2350 flash partitions, so routine application-only UF2 updates are smaller while release packages retain regular and try-before-you-buy Wi-Fi provisioning images.
 - **Release tooling** — scripts safely sync the app to XAMPP, regenerate the dark-mode manual/PDF/screenshots from deterministic data, run isolated UI and optional hardware tests, build firmware, flash the required UF2 files in order, and prepare checksummed release packages.
 - **Windows, macOS, and Ubuntu customer installers** — package the app, manual, persistent show storage, a managed web service, native/desktop application launchers, optional trusted-LAN access, upgrade snapshots, and data-preserving uninstall behavior—without shipping MariaDB, phpMyAdmin, or the XAMPP development stack.
@@ -955,7 +955,7 @@ The script requires a clean `main` tree by default, refuses an existing or non-i
 All application-facing version sources must agree:
 
 - `VERSION` is the canonical application version copied to XAMPP and included in release packages.
-- `CMakeLists.txt` supplies the matching firmware and Pico program versions.
+- `CMakeLists.txt` reads `VERSION` and supplies that value as the firmware compile-time and Pico program version.
 - `web/assets/dmx-common.js` reports the application version in stored/exported data and the UI.
 - Page and manual query strings use the application version for browser cache invalidation.
 - `CHANGELOG.md` records user-visible changes under the matching version.
@@ -973,7 +973,7 @@ Stored/exported JSON files include:
 }
 ```
 
-`appVersion` tells you which application wrote the file. `schemaVersion` is for future data-format migrations; current imports stay backward compatible with older JSON files that do not contain these fields. Firmware program version is kept in `CMakeLists.txt` with `pico_set_program_version(...)`.
+`appVersion` tells you which application wrote the file. `schemaVersion` is for future data-format migrations; current imports stay backward compatible with older JSON files that do not contain these fields. The firmware compile-time and Pico program versions are derived automatically from the canonical `VERSION` file by `CMakeLists.txt`.
 
 Fixture Controller **Export Show** downloads one show-name-specific file such as `pico_dmx_summer-gala_show.json`. It wraps the individual show-side JSON stores into one portable file with `type: "pico_wifi_dmx_full_setup"`, stores the show name, and embeds the richer fixture-library entries and modes referenced by patched fixtures. **Import Show** accepts any `.json` filename—including a renamed file such as `xampp setup.json`—and validates the JSON content rather than deriving identity from the filename. Its confirmation uses the stored name, for example **Import xyz_show?** Older unnamed backups are treated as **Untitled Show**. **Export Library** independently downloads `pico_dmx_fixture_library.zip`, containing the complete reusable catalog as `pico_dmx_fixture_library.json`. **Import Library** accepts that ZIP directly and also accepts legacy uncompressed library JSON files.
 
@@ -986,23 +986,22 @@ Release notes belong in `CHANGELOG.md` whenever the version changes.
 Before tagging or publishing a release:
 
 1. Decide the release version, for example `1.0.1`.
-2. Update `VERSION`.
-3. Update `pico_set_program_version(...)` in `CMakeLists.txt` to the same value.
-4. Move the matching section in `CHANGELOG.md` from `Unreleased` to the release date.
-5. Build and test the firmware/UI:
+2. Update `VERSION` (normally through `scripts/start_version_branch.ps1`); CMake reads this same value for the firmware automatically.
+3. Move the matching section in `CHANGELOG.md` from `Unreleased` to the release date.
+4. Build and test the firmware/UI:
 
 ```powershell
 cmake --build build
 npm run test:ui
 ```
 
-6. Optional, when a Pico is connected and safe test channels/slots are configured:
+5. Optional, when a Pico is connected and safe test channels/slots are configured:
 
 ```powershell
 npm run test:pico
 ```
 
-7. Create the release package. This regenerates the manual, PDF, and deterministic screenshots before packaging. On Windows it also builds the Windows x64 customer installer:
+6. Create the release package. This regenerates the manual, PDF, and deterministic screenshots before packaging. On Windows it also builds the Windows x64 customer installer:
 
 ```powershell
 .\scripts\prepare_release.ps1 -Build

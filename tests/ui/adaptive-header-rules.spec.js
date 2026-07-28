@@ -79,7 +79,7 @@ test.describe('Adaptive sticky application header', () => {
 
     await expect(page.locator('header #baseUrl')).toBeHidden();
     await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
-    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('1/2 Picos online · firmware current');
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText(`1/2 Picos online · firmware ${appVersion}`);
     await expect(page.locator('header [data-pico-fleet-status]')).toHaveAttribute('data-state', 'partial');
     await expect(page.locator('header [data-pico-fleet-status]')).toHaveAttribute('title', /Stage Right.*offline/i);
   });
@@ -103,7 +103,7 @@ test.describe('Adaptive sticky application header', () => {
     await openDmxPage(page, '');
 
     const fleet = page.locator('header [data-pico-fleet-status]');
-    await expect(fleet).toHaveText('2/2 Picos online · 1/2 firmware current');
+    await expect(fleet).toHaveText(`2/2 Picos online · 1/2 on firmware ${appVersion}`);
     await expect(fleet).toHaveAttribute('data-state', 'version');
     await expect(fleet).toHaveAttribute('title', new RegExp(`Stage Left.*firmware 1\\.0\\.0, expected ${appVersion.replaceAll('.', '\\.')}`, 'is'));
   });
@@ -127,7 +127,7 @@ test.describe('Adaptive sticky application header', () => {
     await openDmxPage(page, '');
 
     const fleet = page.locator('header [data-pico-fleet-status]');
-    await expect(fleet).toHaveText('2/2 Picos online · 1/2 firmware current');
+    await expect(fleet).toHaveText(`2/2 Picos online · 1/2 on firmware ${appVersion}`);
     await expect(fleet).toHaveAttribute('data-state', 'version');
     await expect(fleet).toHaveAttribute('title', new RegExp(`Stage Left.*firmware version not reported, expected ${appVersion.replaceAll('.', '\\.')}`, 'is'));
   });

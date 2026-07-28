@@ -16,6 +16,8 @@ Changed:
 - Fixed multi-Pico **Run Full Test** runs hanging on an unavailable configured output by preflighting every selected Pico, skipping and naming unavailable outputs with their failure reason, bounding write requests, and stopping a write run after three consecutive errors.
 - Added exact firmware-version validation to the Pico Performance Test. The firmware build now takes its version directly from `VERSION` and reports it through `/status.json` and `/perf/status.json`; the test compares it with the deployed `VERSION`, records it in Timing History, and clearly fails old or mismatched firmware.
 - Added firmware-version validation to the Controller's shared Pico fleet indicator. It now reports online coverage and firmware currency separately and identifies mismatched, missing, and unreachable Pico firmware per output and universe.
+- Changed the shared Pico fleet indicator to display the exact expected firmware version instead of the vague `firmware current` label.
+- Hardened the version-branch and release scripts around `VERSION` as the canonical firmware version, including validation that CMake still derives both its compile-time and Pico program versions from that file.
 - Documented the hardware-alarm frame scheduler and the CPU-to-PIO plus control-SM/data-SM IRQ handshake, including retry, timeout, and resynchronization behavior.
 
 ## 1.0.0 - 2026-07-28

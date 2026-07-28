@@ -312,6 +312,7 @@
         const total=results.length;
         const firmwareCurrent=results.filter(result=>result.online&&result.firmwareState==='current').length;
         const firmwareIssues=online-firmwareCurrent;
+        const expectedFirmware=results.find(result=>result.online)?.expectedFirmware||appVersion();
         const state=online!==total?(online?'partial':'offline'):(firmwareIssues?'version':'online');
         const noun=total===1?'Pico':'Picos';
         const details=results.map(result=>{
@@ -324,8 +325,8 @@
         indicators.forEach(indicator=>{
           indicator.dataset.state=state;
           const firmwareText=firmwareIssues
-            ? firmwareCurrent+'/'+online+' firmware current'
-            : 'firmware current';
+            ? firmwareCurrent+'/'+online+' on firmware '+expectedFirmware
+            : 'firmware '+expectedFirmware;
           indicator.textContent=online+'/'+total+' '+noun+' online'+(online?' · '+firmwareText:'');
           indicator.title=details+'\nClick to check again.';
         });

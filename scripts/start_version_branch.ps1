@@ -117,12 +117,18 @@ if ($dirty.Count -and -not $AllowDirty) {
 }
 
 $requiredVersionFiles = @(
-    "CMakeLists.txt",
     "VERSION",
     "docs/manual-data/room_plane_setup.json",
     "tests/ui/page-link-rules.spec.js",
     "web/assets/dmx-common.js"
 )
+$cmake = Read-Text "CMakeLists.txt"
+if ($cmake -notmatch 'file\s*\(\s*READ\s+"\$\{CMAKE_CURRENT_LIST_DIR\}/VERSION"\s+PICO_DMX_VERSION\s*\)') {
+    throw "CMakeLists.txt must read VERSION into PICO_DMX_VERSION."
+}
+if ($cmake -notmatch 'pico_set_program_version\s*\(\s*pico_wifi_dmx\s+"\$\{PICO_DMX_VERSION\}"\s*\)') {
+    throw "CMakeLists.txt must use PICO_DMX_VERSION as the Pico program version."
+}
 $htmlFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot "web") -Filter "*.html" -File -Recurse |
     ForEach-Object { [IO.Path]::GetRelativePath($repoRoot, $_.FullName) })
 $replaceFiles = @($requiredVersionFiles + $htmlFiles | Sort-Object -Unique)

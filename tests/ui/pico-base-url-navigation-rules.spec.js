@@ -1,4 +1,8 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+
+const appVersion = fs.readFileSync(path.join(__dirname, '..', '..', 'VERSION'), 'utf8').trim();
 
 const OUTPUTS = [
   { id: 'front-pico', name: 'Front truss', universe: 1, baseUrl: 'http://192.0.2.54/' },
@@ -36,7 +40,7 @@ async function routeMultiPicoShow(page) {
       status: 200,
       contentType: 'application/json',
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ firmware_version: '1.0.1', dmx: { channels: 512, frame_count: 42 } })
+      body: JSON.stringify({ firmware_version: appVersion, dmx: { channels: 512, frame_count: 42 } })
     }));
   }
 }
@@ -50,13 +54,13 @@ for (const source of [
     await routeMultiPicoShow(page);
     await page.goto(`${source.path}?test=${Date.now()}`);
     await expect(page.locator('header h1')).toBeVisible();
-    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('2/2 Picos online · firmware current');
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText(`2/2 Picos online · firmware ${appVersion}`);
     await expect(page.locator('header #baseUrl')).toBeHidden();
     await expect(page.locator('header .pico-discovery-btn')).toHaveCount(0);
 
     await page.getByRole('link', { name: 'GPIO' }).click();
     await expect(page.locator('header h1')).toContainText('GPIO Control');
-    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText('2/2 Picos online · firmware current');
+    await expect(page.locator('header [data-pico-fleet-status]')).toHaveText(`2/2 Picos online · firmware ${appVersion}`);
     await expect(page.locator('header #baseUrl')).toBeHidden();
   });
 }
