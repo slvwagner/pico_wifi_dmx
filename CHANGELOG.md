@@ -1,11 +1,5 @@
 # Changelog
 
-## 1.0.1 - Unreleased
-
-Changed:
-
-- Started the 1.0.1 development branch.
-
 ## 1.0.0 - 2026-07-28
 
 Changed:
