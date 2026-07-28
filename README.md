@@ -1005,7 +1005,7 @@ and signing outputs are not accidentally committed. The remaining `release/`
 content can be committed if desired, although public binary distribution is
 usually cleaner through a GitHub Release.
 
-The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. The HTML/PDF manuals automatically embed the canonical `CHANGELOG.md` immediately after their introduction so customers can review new features and fixes offline. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
+The release package also includes `docs/user-manual.md`, the generated manual HTML/PDF files, and `docs/screenshots/`. The manual opens with a linked table of contents and automatically embeds the canonical `CHANGELOG.md` as its final section so customers can navigate operating instructions first and still review new features and fixes offline. If the automatic manual step changes generated files, review and commit those assets before doing the final clean release run, or use `-AllowDirty` only for a local test package. The first Ubuntu run can legitimately refresh screenshot/PDF binaries because Linux Chrome font rendering differs from Windows; after committing those generated assets, the same Ubuntu release command should leave the tree clean.
 
 After the package passes validation, complete these publication steps:
 

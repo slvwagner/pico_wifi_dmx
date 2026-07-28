@@ -6,6 +6,7 @@ Changed:
 
 - Started the 1.0.1 development branch.
 - Added prominent README Getting Started downloads for the latest Windows customer installer and matching PDF user manual, and made updating and verifying both links required GitHub Release steps.
+- Restructured the user manual to begin with a linked table of contents and place the complete project changelog at the end.
 
 ## 1.0.0 - 2026-07-28
 
