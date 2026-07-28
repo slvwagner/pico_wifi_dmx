@@ -41,5 +41,9 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 6. Create a commit and changelog entry for each feature
 
 
+## Releas
+1. Document everything 
+2. run the releas scripts depending on the platfrom 
+3. Create a releas on git hub releases with the installer 
 
 Before an authorized data recovery, make a recoverable snapshot and restore only the approved files. Deployment authorization does not imply authorization to modify user data.
