@@ -30,7 +30,7 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 7. Generate documentation and screenshots with `scripts/update_user_manual.ps1 -LocalOnly` and deterministic repository data, or another explicitly isolated playground.
 8. Run hardware tests only for firmware changes or when explicitly requested by the user.
 9. Ask the user to confirm the next commit
-10. Create a commit and change log entry for each feature
+10. Create a commit and changelog entry for each feature
 
 ### New feature
 1. Implement the featre 
@@ -38,7 +38,7 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 3. Deploy user-facing source changes only with `scripts/update_xampp_server.ps1 -AppFolder dmx -BaseUrl http://localhost/dmx/`.
 4. Only create manualls and screenshots if the user ask for it
 5. Ask the user to confirm the next commit
-6. Create a commit and change log entry for each feature
+6. Create a commit and changelog entry for each feature
 
 
 
