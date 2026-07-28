@@ -51,7 +51,7 @@ Environment paths are configured in `tests/pathconfig.json`. For machine-specifi
 These tests require Node.js and `npm` on PATH. From the project root, install the test environment once:
 
 ```powershell
-cd D:\Projects\pico_wifi_dmx
+cd <path-to-your-checkout>\pico_wifi_dmx
 npm install
 npx playwright install chromium
 ```

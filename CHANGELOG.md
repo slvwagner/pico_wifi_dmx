@@ -6,6 +6,7 @@ Changed:
 
 - Started the 1.0.1 development branch.
 - Updated the README and generated user manual to describe linked multi-Pico Chaser/Effects playback, logical versus physical Pico slots, per-output GPIO configuration, and fixture-aware DMX Output routing consistently; refreshed obsolete version examples and removed machine-specific documentation addresses.
+- Corrected remaining documentation drift by distinguishing primary-output Chaser/Effects browser previews from linked multi-Pico autonomous playback, updating Pico slot tile details and DMX batch/base API descriptions, and removing machine-specific paths from developer documentation.
 
 ## 1.0.0 - 2026-07-28
 

@@ -624,7 +624,7 @@ Keep these rules as the contract:
 - The modal shows the matching fixture/profile scope for each control.
 - Opening the modal reads the Source fixture values into the modal but does not apply or send anything yet.
 - Editing a control writes only to fixtures that actually have the matching control.
-- The first edit in the modal is the moment the value is written to the group; pages with live output route that edit to every involved fixture's assigned DMX Output.
+- The first edit in the modal is the moment the value is written to the group. Controller, Show Run, and Room Plane route live edits to every involved fixture's assigned DMX Output. Chaser and Effects editor previews currently use the primary show output.
 - Incompatible fixtures remain selected but are ignored for that specific control.
 - Group selection is a filter. If groups are selected, Group Edit uses only compatible fixtures inside those groups.
 - Direct scope changes, such as Select All, Participating Controls All, or Effects All, clear the saved-group filter and make the page scope the source of truth.
@@ -899,17 +899,17 @@ The Chaser page uses several toolboxes:
 
 ![Chaser Chases toolbox](screenshots/chaser-toolbox-chases.png)
 
-- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and rebuilds **Participating Controls** from the palette's stored fixture/control keys. If no step is selected, Chaser creates a new selected step from the palette. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. The small top-left pencil icon opens **Edit Tile** for a saved palette slot's name and visual appearance. Recalled palette values are also routed to the affected fixtures' assigned DMX Outputs.
+- **Palettes** stores and recalls reusable step fragments. Clicking an empty palette slot saves the currently selected step's fixture/control values to the shared palette JSON. Clicking a filled palette slot recalls compatible values into the selected step and rebuilds **Participating Controls** from the palette's stored fixture/control keys. If no step is selected, Chaser creates a new selected step from the palette. **Merge** adds the selected step's values into an existing palette; if the palette scope differs, Chaser asks before changing it to **All controls**. The small top-left pencil icon opens **Edit Tile** for a saved palette slot's name and visual appearance. Recalled palette values are previewed on the primary show output.
 
 ![Chaser Edit Tile modal](screenshots/chaser-edit-tile.png)
 
 ![Chaser Palettes toolbox](screenshots/chaser-toolbox-palettes.png)
 
-- **Scenes** uses the same saved Scene tiles as the Fixture Controller. Clicking a filled tile replaces the selected chase step with the complete Scene, makes the Scene controls the participating controls, clears an unrelated Groups filter, and routes those values live to the affected fixtures' assigned DMX Outputs. Clicking an empty tile saves the selected step as a shared Scene. The pencil edits the shared Scene name/visual, `x` deletes it, and **Cols** and **Rows** update the shared Scene layout while Toolboxes Edit enables tile movement.
+- **Scenes** uses the same saved Scene tiles as the Fixture Controller. Clicking a filled tile replaces the selected chase step with the complete Scene, makes the Scene controls the participating controls, clears an unrelated Groups filter, and previews those values on the primary show output. Clicking an empty tile saves the selected step as a shared Scene. The pencil edits the shared Scene name/visual, `x` deletes it, and **Cols** and **Rows** update the shared Scene layout while Toolboxes Edit enables tile movement.
 - **Pixel Matrices** provides the same creation and editing workflow as the Fixture Controller. Click an empty `+` tile to create a picture in that position. The shared editor starts in color-paint mode: choose **Pixel color** and click cells to recolor them. Enable **Edit Mapping** only when cell clicks should assign fixture targets instead. Painting, mapping, resizing, image conversion, and clearing preview immediately in the selected chase step. The separate **Tile appearance** box changes the saved tile background and optional uploaded or drawn icon without changing pixel output unless **Use icon as matrix** is clicked; that action converts the tile artwork into pixel colors and previews them immediately. **Save** stores the definition. On a filled tile, use the pencil to reopen that editor or use `x` and confirm to delete the shared picture. Enable Toolboxes **Edit** to reveal the persisted **Cols** and **Rows** controls and tile movement: drag a filled tile on desktop, or tap its source and destination on a touch screen. Moving onto a filled slot swaps the pictures.
 
-  Click a filled picture tile outside Toolboxes Edit to recall all of its compatible mappings into the selected chase step. If no step is selected, Chaser creates and selects a new picture step. To create an animated sequence, recall the first picture, add or select the next step, recall the next picture, and repeat. The picture becomes normal chase data: browser Chase Playback can fade or switch between the steps, and uploading the chase to a Pico slot expands native matrix pixels into their RGB DMX channels for standalone playback. Recalling a picture stops active browser and Pico playback, clears the browser's last-output cache, and retransmits the complete selected picture as a live DMX preview even when its values match the previous browser output.
-- **Planes** recalls saved room planes into the selected chase step. Select a group first if only part of the rig should be affected. Chaser uses the plane target and calibrated fixtures to write pan/tilt values into the step, rebuilds the participating controls for those pan/tilt channels, and routes the changed step values to the fixtures' assigned DMX Outputs. The Planes tile matrix uses the same **Cols**, **Rows**, and Toolboxes Edit movement behavior as the other saved tile toolboxes.
+  Click a filled picture tile outside Toolboxes Edit to recall all of its compatible mappings into the selected chase step. If no step is selected, Chaser creates and selects a new picture step. To create an animated sequence, recall the first picture, add or select the next step, recall the next picture, and repeat. The picture becomes normal chase data: browser Chase Playback can fade or switch between the steps on the primary show output, while autonomous upload expands native matrix pixels into RGB DMX channels and splits a multi-output chase into linked Pico payloads. Recalling a picture stops browser playback and both playback engines on the primary Pico, clears the browser's last-output cache, and retransmits the complete selected picture to the primary output as a live preview even when its values match the previous browser output.
+- **Planes** recalls saved room planes into the selected chase step. Select a group first if only part of the rig should be affected. Chaser uses the plane target and calibrated fixtures to write pan/tilt values into the step, rebuilds the participating controls for those pan/tilt channels, and previews the changed step on the primary show output. The Planes tile matrix uses the same **Cols**, **Rows**, and Toolboxes Edit movement behavior as the other saved tile toolboxes.
 
 ![Chaser Planes toolbox](screenshots/chaser-toolbox-planes.png)
 
@@ -923,19 +923,19 @@ The Chaser page uses several toolboxes:
 - **Fan Out order** comes from the current participating fixture/control list. If a group filter is active, only fixtures inside the selected groups participate, but the calculation still follows the participating order that is shown for the current step/scope. In Symmetric spread mode, negative Spread runs the shape from the opposite side of the fixture row.
 - **Fan Out base values** come from the values currently displayed in **Edit Step**. Selecting another step, loading another chase, capturing values, or using **Group Edit** refreshes the Fan Out base from the step values now shown on screen. This keeps spread calculations from drifting away from the edited step.
 - **Clear** in the Chaser Fan Out toolbox resets the Fan Out shaping controls to neutral. It does not recall an older preset and it does not undo values that have already been written into the selected step.
-- Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** updates the selected step immediately. Those changed selected-step values are also separated by fixture assignment and sent to every involved DMX Output. Chase Playback routes the current chase continuously across the required outputs while it runs.
+- Editing **Edit Step**, using **Group Edit**, and changing **Fan Out** updates the selected step immediately and previews the changed values on the primary show output. Browser Chase Playback also uses that primary output. Upload the chase to a logical Pico slot when autonomous playback must be split across several DMX Outputs.
 
 ![Chaser Fan Out toolbox](screenshots/chaser-toolbox-fanout.png)
 
 - **Chase Playback** runs the current chase from the browser for checking timing and fades before uploading to the Pico. **Mode** chooses **Single**, **Loop**, **Loop N**, or **Ping Pong**. **Direction** chooses whether playback starts at the first step and moves forward or starts at the last step and moves backward. **Loops** is only used by **Loop N**; normal **Loop** runs forever. **Ping Pong** reverses at the end of the chase instead of jumping back to the first or last step. The **Fade % (all steps)** field applies one fade value to every step immediately. Use **Edit Step > Fade %** when one step needs its own fade value.
 - While Chase Playback runs, the currently playing step automatically becomes the selected step. This means **Edit Step** follows the chase visually and always shows the values of the last played step. Recalling a saved chase still selects Step 1 first, so playback starts from a predictable view.
-- Selecting a step in **Chase Steps** stops browser Chase Playback and both Pico playback engines, then sends that step's programmed DMX values immediately. This lets you verify positions, colors, and other programmed values without starting the chase. Manually changing controls in **Edit Step** also stops browser Chase Playback so playback cannot immediately overwrite the values you are editing.
+- Selecting a step in **Chase Steps** stops browser Chase Playback and both playback engines on the primary Pico, then sends that step's programmed DMX values to the primary output immediately. This lets you verify positions, colors, and other programmed values without starting the chase. Manually changing controls in **Edit Step** also stops browser Chase Playback so playback cannot immediately overwrite the values you are editing.
 
 ![Chaser Chase Playback toolbox](screenshots/chaser-toolbox-browser-playback.png)
 
-On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box stops Pico Chaser and Pico Motion playback, updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If browser Chase Playback was already running, the recalled chase begins playing immediately; otherwise, Step 1 is sent to DMX as a static preview. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
+On page load, the Chaser working area starts with no steps selected. Use the **Chases** toolbox to recall a saved chase. Loading a chase from the **Chases** box stops Chaser and Effects playback on the primary Pico, updates the step list, selects Step 1, and rebuilds participating controls and the currently edited step together. If browser Chase Playback was already running, the recalled chase begins playing immediately; otherwise, Step 1 is sent to the primary output as a static preview. If the chase contains steps, the participating controls are rebuilt from the values stored in the chase, so old fixture/group filters do not hide the controls used by that chase.
 
-Saved chases also recall the playback controls that were saved with them, including browser mode, Loop N count, Ping Pong, direction, BPM, and Pico speed. The Chases toolbox tiles still show only the chase name and visual so they stay consistent with the other toolboxes. Uploading to a Pico slot uses the current **Chase Playback** playmode, loop count, and direction, so the Pico slot behaves like the chase you previewed in the browser. Per-slot playback details are shown in the **Pico Playback** slot tiles after a chase has been uploaded to a Pico slot. Each loaded Pico slot shows compact lines for loop state, direction, and Ping Pong state.
+Saved chases also recall the playback controls that were saved with them, including browser mode, Loop N count, Ping Pong, direction, BPM, and Pico speed. The Chases toolbox tiles still show only the chase name and visual so they stay consistent with the other toolboxes. Uploading to a Pico slot uses the current **Chase Playback** playmode, loop count, and direction, so the Pico slot behaves like the chase you previewed in the browser. Each loaded **Pico Playback** tile shows one canonical mode—Single, Loop, Loop N, or Ping Pong—plus its fade percentage or fade range, direction, and speed. Linked tiles additionally show their Pico count and universe/physical-slot members.
 
 The collapse state, toolbox order, shared sidebar width, and the user-defined Chase Steps box height are stored by the server UI-state file, so the working layout survives reloads. Collapsing **Participating Controls** or **Edit Step** only hides that card body: the sticky page header keeps the same height, and the next card moves up to use the freed space.
 
@@ -973,7 +973,7 @@ The fixtures may use different profiles; the modal only shows matching controls 
 
 Group Edit uses the **Source** fixture from **Edit Step** as the reference value. Opening the modal reads the Source fixture's current selected-step values into the modal controls. It does not automatically overwrite the other fixtures, does not create a new step, and does not send output by itself.
 
-The values are written when you change a control in the modal. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edited value into that step. If a step is selected, the edit writes into that selected step. Changed selected-step values are also routed to the affected fixtures' assigned DMX Outputs.
+The values are written when you change a control in the modal. If no step is selected, the first Group Edit value change creates a new step from the current participating controls and writes the edited value into that step. If a step is selected, the edit writes into that selected step. Changed selected-step values are previewed on the primary show output.
 
 ### Chaser Selection Rules
 
@@ -1038,7 +1038,7 @@ To create a step manually:
 2. In the **Chase Steps** toolbox, click **Add step**.
 3. Click the new step in the **Chase Steps** list.
 4. In **Edit Step**, set **Label**, **Duration (ms)**, and **Fade %**.
-5. Adjust the controls shown in **Edit Step**. Those control values are written into the selected step immediately and routed to the affected fixtures' assigned DMX Outputs.
+5. Adjust the controls shown in **Edit Step**. Those control values are written into the selected step immediately and previewed on the primary show output.
 6. Click **Apply** after changing the label, duration, or fade.
 
 **Add step** starts from the stored default values of the selected participating controls. If a fixture profile has no custom default for a control, Chaser uses the control type fallback: centered pan/tilt, zero for sliders, wheels, and color channels.
@@ -1193,7 +1193,7 @@ The Effects page uses five toolboxes in the shared sidebar.
 
 The Effects fixture grid marks the current **Source** fixture with the same highlighted selection language used by the Controller. The Source fixture supplies the values shown in the Group Edit modal. Click another enabled fixture tile to make it the Source; click the current Source tile again when you want to remove that fixture from participation.
 
-Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY pad for absolute center placement and relative nudge rows for movement from the current values. The modal no longer exposes separate absolute Pan/Tilt sliders. Use **Pan coarse relative**, **Pan fine relative**, **Tilt coarse relative**, and **Tilt fine relative** for 16-bit moving lights when you want to move one fixture or a selected group without forcing every fixture to the same absolute value. Relative nudges keep each fixture offset from its own current center, then route the changed center values to the fixtures' assigned DMX Outputs.
+Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY pad for absolute center placement and relative nudge rows for movement from the current values. The modal no longer exposes separate absolute Pan/Tilt sliders. Use **Pan coarse relative**, **Pan fine relative**, **Tilt coarse relative**, and **Tilt fine relative** for 16-bit moving lights when you want to move one fixture or a selected group without forcing every fixture to the same absolute value. Relative nudges keep each fixture offset from its own current center, then preview the changed center values on the primary show output.
 
 ![Effects Parameters toolbox](screenshots/motion-toolbox-effect-parameters.png)
 
@@ -1205,7 +1205,7 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 
 ![Effects Scenes toolbox](screenshots/motion-toolbox-scenes.png)
 
-**Scenes** is read-only on Effects. Recalling a scene updates the effect center/base values used by effects and routes the stored values to the affected fixtures' assigned DMX Outputs.
+**Scenes** is read-only on Effects. Recalling a scene updates the effect center/base values used by Effects and previews the stored values on the primary show output.
 
 ![Effects Palettes toolbox](screenshots/motion-toolbox-palettes.png)
 
@@ -1227,7 +1227,7 @@ Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY
 8. Click an empty Pico slot to upload the effect, then start the slot when you want autonomous playback without browser timing jitter.
 9. Use browser playback from the **Effect Parameters** toolbox when you want quick live testing before uploading.
 
-The Effects page also has a read-only scene toolbox. Clicking a scene updates the effect center and routes the position to the affected fixtures' assigned DMX Outputs.
+The Effects page also has a read-only scene toolbox. Clicking a scene updates the effect center and previews the position on the primary show output.
 
 ## 7. GPIO Control
 

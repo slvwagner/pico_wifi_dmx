@@ -66,7 +66,7 @@ Core features:
 - **Groups and Group Edit** — select fixtures manually or through saved groups, then edit matching controls across mixed fixture types without touching unrelated channels.
 - **Scenes and Palettes** — scenes store complete saved looks for their scope; palettes store partial looks such as positions, colors, gobos, dimmer, beam, or fan-out results. Filled tiles can be renamed and styled with a background color plus an optional visual.
 - **Fan Out** — shape selected fixtures around snapshotted base values, including Pan/Tilt fan targets, with affected controls highlighted directly in the controller or chaser step editor.
-- **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Saved pictures can be painted pixel by pixel, styled as normal toolbox tiles, recalled directly to the fixtures across their assigned DMX outputs, captured as Chaser steps for animated picture sequences, and operated from the Controller, Chaser, and Show Run pages through shared tools.
+- **Pixel Matrices** — create logical displays up to 64×64 pixels, map each pixel manually or automatically to fixture RGB/RGBW/RGBWA/CMY/CMYK controls or native matrix pixels, and convert uploaded PNG/JPEG/WebP/GIF pictures in the browser with fit and brightness controls. Controller and Show Run recall pictures across the fixtures' assigned DMX Outputs. Chaser can capture pictures as animated steps, preview them on the primary output, and split an autonomous upload into linked Pico payloads.
 - **Room Plane** — calibrated room-plane coordinate mapping for moving-light pan/tilt targeting, with saved plane definitions, fixture calibration, group selection, barycentric target interpolation, and shared Scene/Palette recalls for checking the programmed look while positioning fixtures.
 
 ### Playback and live operation
@@ -1084,13 +1084,13 @@ The firmware HTTP layer also isolates overlapping network requests. Each POST up
 
 ## Playback Modes
 
-### Chase Playback
-The browser pages connect directly to the Pico's HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request (`/dmx/b/`). Two browser tabs can run simultaneously (e.g. chaser on dimmer channels + motion FX on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it doesn't own.
+### Browser Playback
+The Chaser and Effects browser playback engines connect directly to the show's primary Pico HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request. Two browser tabs can run simultaneously (for example, Chaser on dimmer channels and Effects on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it does not own. Browser playback and the Chaser/Effects live editor previews are currently primary-output workflows; use autonomous linked Pico playback when one chase or effect must span several DMX Outputs.
 
 ### Pico Autonomous Playback
-The chaser and motion FX configurations are uploaded to the Pico via HTTP POST. After that the Pico plays back entirely on Core 0 — no further network traffic is needed. This eliminates WiFi latency jitter from the DMX output completely.
+Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.
 
-Starting Chase Playback automatically stops any running Pico playback, and vice versa (mutual exclusion).
+Starting browser Chase Playback stops Chaser and Effects playback on the primary Pico before previewing there. Starting autonomous Pico playback stops the browser preview on that page. Linked member control is coordinated by the autonomous playback actions, not by the primary-output browser-preview handoff.
 
 Chase Playback is the source of truth for chaser playmode. Choose **Single**, **Loop**, **Loop N**, or **Ping Pong**, then choose forward or reverse direction. The **Loops** value is only used for **Loop N**; normal **Loop** means loop forever. Uploading to a Pico chaser slot uses those same Chase Playback mode, loop count, and direction settings, while Pico speed remains slot-specific.
 
@@ -1105,12 +1105,14 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
-| `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set — channel:value pairs in the URL path. Data is path-encoded (not query-string) because lwIP httpd strips query strings before calling `fs_open`. |
+| `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set with channel:value pairs in the URL path. Data is path-encoded rather than query-string encoded because lwIP httpd strips query strings before calling `fs_open`. |
+| `/dmx/b` | POST | Batch set with comma-separated `channel:value` pairs in the request body; this is the form used by current browser playback and multi-channel UI writes. |
 | `/dmx/clear` | GET | Zero all channels and clear the scene base buffer |
 | `/dmx/output_clear` | GET | Zero live DMX output channels only; preserve the scene base buffer |
 | `/dmx/master` | POST | Set output master scale factors as `ch:scale` pairs, where scale is 0–255. This scales the transmitted DMX output without blocking chaser/effect writes. |
 | `/dmx/master/clear` | GET | Clear all output master scale factors |
 | `/dmx/output.json` | GET | Read the actual live DMX output frame as `{"ok":true,"channels":N,"frame_count":N,"values":[...]}` |
+| `/dmx/base.json` or `/dmx/base` | GET | Read the complete scene/base position buffer used as the center for autonomous effects |
 | `/dmx/values/<start>/<count>` | GET | Read up to 64 channel values as JSON array |
 | `/dmx/values.json` | GET | Read all channel values |
 
@@ -1190,7 +1192,7 @@ The `TARGET` line contains DMX channel positions only. It does not store fixed c
 
 ## Web UI
 
-The UI is served from a separate web server (XAMPP in development). All pages talk to the Pico via cross-origin HTTP requests using `new Image().src` for fire-and-forget GET calls.
+The UI is served from a separate web server (XAMPP in development). Pages talk directly to Pico HTTP APIs with cross-origin `fetch()` requests for reads, POST batches, uploads, and commands. A few non-blocking GET writes use `new Image().src` where no response body is needed.
 
 Server-side Chaser, Effects, and UI-state updates hold an exclusive lock across the complete JSON read-modify-write operation. Multiple open browsers can therefore update different mirrored Pico slots or UI-state keys without a later request silently restoring an older copy of the file.
 
@@ -1222,7 +1224,7 @@ The controller screenshots are generated with deterministic per-shot setup state
 
 The Fixture Controller is the main setup and live-control page. It defines fixture profiles, patches real fixtures to DMX start addresses, and renders the controls for each fixture card. Fixture profiles describe the channel layout, for example dimmer, pan/tilt, RGB, RGBW, RGBWA, wheels, sliders, and 16-bit channels.
 
-From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall writes channel values back to the Pico and also updates the live-value snapshot used by the Chaser page.
+From this page you can move individual controls live, save and recall scenes, organize fixtures into groups, and recall default or blackout values per fixture or per group. Scene recall separates channel values by fixture assignment, writes them to every involved DMX Output, and also updates the live-value snapshot used by the Chaser page.
 
 The **Show** card is the first Controller card and the user-facing project/setup point. Its show-name field is directly editable and uses the normal 800 ms server autosave. Its top action bar keeps **Export Show**, **Import Show**, **Export Library**, and **Import Library** visible together, followed by the nested **Fixture Library**, **Fixture Profiles**, and **Patch Fixtures** cards. Collapsing Show hides all of that show-related setup together; expanding it restores the nested cards without changing their individual collapse states. **New Show** confirms the reset and asks for a required show name before clearing fixture setup, live values, groups, scenes, palettes, saved chases, effects, saved room planes, GPIO mappings, mirrored Pico slot payloads, Show Run layout, and saved toolbox/UI layout while keeping the reusable fixture library catalog. **Export Show** downloads a self-contained show-name-specific backup, including the richer definitions used by its patched fixtures, and **Import Show** restores any valid show JSON regardless of its filename. **Export Library** downloads the complete catalog as `pico_dmx_fixture_library.zip`; **Import Library** accepts that ZIP or a legacy uncompressed JSON catalog. When an embedded show definition is missing from or differs from the current library, a mapping table appears before any data is written. Tap rows to highlight the fixtures that should use their mapped library versions; unselected rows keep the show versions, which are merged without removing unrelated catalog entries. **Patch CSV** remains separate for documenting the patched DMX channel table.
 
@@ -1296,7 +1298,7 @@ Saved Groups are shown in a compact matrix. Each filled group tile has a small p
 
 ![Fixture group edit modal](docs/screenshots/fixture-controller-group-modal.png)
 
-The Group Edit modal appears when compatible fixtures are selected or when a saved group is loaded. It shows matching controls for the selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. Controller, Show Run, Chaser, Effects, and Room Plane use the same rich fixture-control modal surface for shared controls: pan/tilt controls use the XY pad and relative nudge rows, color controls use the same color picker and swatches, wheel controls use option buttons, bounded range sliders where metadata exists, the DMX slider, and a direct numeric DMX value field. Relative step sizes, including separate Pan/Tilt coarse and fine steps, are autosaved in each page's XAMPP UI state and restored after the modal or page is reopened. The selected **Source** fixture supplies the values shown when the modal opens, but opening the modal does not overwrite other fixtures or send output. Values are applied only when the user edits a modal control; pages with live output separate those edits by fixture assignment and send them to every involved DMX Output. The Controller modal can also recall **Default** or **Blackout** for the selected group.
+The Group Edit modal appears when compatible fixtures are selected or when a saved group is loaded. It shows matching controls for the selected fixtures; mixed fixture types are allowed, and each edit is applied only to fixtures that actually have that matching control. Controller, Show Run, Chaser, Effects, and Room Plane use the same rich fixture-control modal surface for shared controls: pan/tilt controls use the XY pad and relative nudge rows, color controls use the same color picker and swatches, wheel controls use option buttons, bounded range sliders where metadata exists, the DMX slider, and a direct numeric DMX value field. Relative step sizes, including separate Pan/Tilt coarse and fine steps, are autosaved in each page's XAMPP UI state and restored after the modal or page is reopened. The selected **Source** fixture supplies the values shown when the modal opens, but opening the modal does not overwrite other fixtures or send output. Values are applied only when the user edits a modal control. Controller, Show Run, and Room Plane separate live edits by fixture assignment and send them to every involved DMX Output; Chaser and Effects editor previews currently send to the primary show output. The Controller modal can also recall **Default** or **Blackout** for the selected group.
 
 The Chaser **Palettes** toolbox can save the selected step values into an empty palette slot, recall compatible palette values into the selected step, or **Merge** the selected step values into an existing palette. Filled palette slots use the small top-left pencil icon to open **Edit Tile** for renaming and visual appearance. If the existing palette has a different scope, Chaser asks before changing it to **All controls**.
 
@@ -1310,7 +1312,7 @@ The Scene Toolbox sits in the shared Toolboxes sidebar for saving, recalling, an
 
 The Chaser page builds step-based sequences. A chase is made from multiple steps; each step stores DMX channel values plus timing and fade settings. The participating-controls panel decides which fixture controls are part of the chase, so editing a chase does not accidentally touch unrelated channels.
 
-Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. A chase can run in the browser for editing, or it can be uploaded into one of the Pico's 32 chaser slots for autonomous playback. Pico playback supports single run, loop, loop N times, direction, pause/resume, and live speed changes.
+Chaser steps can be created manually, duplicated, edited, or captured from the current Fixture Controller live values. Browser Chase Playback previews the chase on the primary show output. Autonomous upload uses one of 32 logical slots: a single-output chase consumes one physical slot, while a multi-output chase is split into linked physical slots on the involved Picos. Pico playback supports single run, loop, loop N times, Ping Pong, direction, pause/resume, and live speed changes.
 
 The repeated page tools now live in a shared right-side Toolboxes sidebar on desktop screens. Drag the sidebar's left resize line to change the width, double-click it to reset, and use the header arrow to collapse or reopen the sidebar. The sticky application header measures the remaining workspace rather than the full browser viewport: its navigation links occupy a separate wrapping row and remain reachable even when Toolboxes uses two thirds of the screen. Toolbox reordering is locked by default: click **Edit** in the Toolboxes header, drag colored toolbox headers into place, and click **Done**. With Edit off, toolbox headers retain vertical touch scrolling, preventing accidental iPad rearrangement. Sidebar width, collapse state, and toolbox order are shared across Controller, Chaser, Effects, and Room Plane. Filled scene, palette, chase, effect, and plane slots use a small top-left pencil icon to open **Edit Tile** where that tile type supports visuals; the small `x` remains the delete control. Chaser can recall complete shared Scenes, overlay shared Palettes, and recall saved Room Planes into the selected step. Its Scenes toolbox also saves a selected step into an empty shared Scene slot. All saved tile matrices use the same Cols, Rows, and Move behavior.
 
@@ -1320,7 +1322,7 @@ The repeated page tools now live in a shared right-side Toolboxes sidebar on des
 
 The Effects page creates continuous effects for one selected target type at a time. Pan/tilt targets can run circle, figure-8, pan swing, or tilt swing; scalar controls such as dimmer, zoom, iris, prism, or gobo can run sine or pulse effects. All effects are calculated relative to the current scene/base-buffer value instead of using a fixed stored center point.
 
-This means the normal workflow is: recall or set the base value first, then start the effect. The firmware reads the center from the scene base buffer and the effect oscillator moves around that value. Effects can also be uploaded into one of 64 Pico slots so multiple effects can run directly on the Pico without browser timing jitter. The Effects page can recall compatible shared palettes or saved Room Planes as effect centers, so position, dimmer, beam, or calibrated pan/tilt plane targets can seed the current target before upload. The Effects toolbox stores reusable effect recipes (target, participants, effect type, BPM, amplitudes, spread, and phase offsets) without storing center/base values. Recalling a tile is load-only while the browser preview shows **Start**; while it shows **Stop**, tile recall immediately restarts the preview with the selected saved recipe so effects can be auditioned quickly.
+This means the normal workflow is: recall or set the base value first, then start the effect. The firmware reads the center from the scene base buffer and the effect oscillator moves around that value. Browser Effects preview currently uses the primary show output. Autonomous upload uses one of 64 logical slots and splits a multi-output effect into linked physical slots on the involved Picos, so the effect can run without browser timing jitter. The Effects page can recall compatible shared palettes or saved Room Planes as effect centers, so position, dimmer, beam, or calibrated pan/tilt plane targets can seed the current target before upload. The Effects toolbox stores reusable effect recipes (target, participants, effect type, BPM, amplitudes, spread, and phase offsets) without storing center/base values. Recalling a tile is load-only while the browser preview shows **Start**; while it shows **Stop**, tile recall immediately restarts the preview with the selected saved recipe so effects can be auditioned quickly.
 
 **Show Run**
 
@@ -1332,7 +1334,7 @@ The **Master** card contains the Grand Master plus optional Group Master faders.
 
 ![Show Run Planes card](docs/screenshots/show-run-card-planes.png)
 
-The **Planes** card opens saved room planes from the Plane page. Its recall modal contains the virtual room plot, zoom/pan/reset controls, a red target point, X/Y coarse and fine nudge buttons, and the fixtures that match the current Show target. Dragging or nudging the target sends calibrated pan/tilt values live to the Pico and updates the shared live-value snapshot.
+The **Planes** card opens saved room planes from the Plane page. Its recall modal contains the virtual room plot, zoom/pan/reset controls, a red target point, X/Y coarse and fine nudge buttons, and the fixtures that match the current Show target. Dragging or nudging the target separates calibrated pan/tilt values by fixture assignment, sends them to every involved DMX Output, and updates the shared live-value snapshot.
 
 ![Show Run Plane recall modal](docs/screenshots/show-run-plane-modal.png)
 
@@ -1360,11 +1362,11 @@ The Pico Performance Test page checks the whole browser-to-Pico path. Current fi
 
 Use **Run Full Test** after firmware or UI changes to catch Pico timing, HTTP, CORS, buffer, and write-performance regressions in one pass. Use **Playback + Palette Stress** to start already-loaded Pico chaser/effect slots, add temporary demo data only to empty Pico slots, store those temporary slot numbers in server UI state, send repeated full 512-channel palette-style `/dmx/b` recalls, and record the resulting Core0/Core1 headroom in Timing History. After the run, the temporary demo slots are cleared and the server marker is removed, so saved Pico chaser/effect slots are not overwritten. The CSV export makes it possible to compare write-test runs later.
 
-Show Run blackout is handled by the Master card faders. **Full** above a master sets that master to `100%`. **Blackout** below the Grand Master sets the Grand Master to `0%` for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. When any master is below `100%`, Show Run sends affected dimmer channels to the Pico `/dmx/master` output-scaling endpoint as `channel:scale` factors. The Pico keeps chaser and effect playback writing their normal raw values, then scales the transmitted DMX output, so a running dimmer sine effect remains visible but follows the Grand/Group Master level. The stored live values are not overwritten. When entering Show Run, saved Grand Master and Group Master factors are restored to the Pico scaling layer. When leaving Show Run, the browser clears the Pico master scale and restores dimmer output to the underlying live values without those multipliers.
+Show Run blackout is handled by the Master card faders. **Full** above a master sets that master to `100%`. **Blackout** below the Grand Master sets the Grand Master to `0%` for all dimmers. **Blackout** below a Group Master sets only that Group Master to `0%`. When any master is below `100%`, Show Run separates affected dimmer channels by fixture output and sends `channel:scale` factors to every involved Pico's `/dmx/master` endpoint. Each Pico keeps chaser and effect playback writing normal raw values, then scales its transmitted DMX output, so a running dimmer sine effect remains visible but follows the Grand/Group Master level. Stored live values are not overwritten. When entering Show Run, saved Grand Master and Group Master factors are restored across the involved outputs. When leaving Show Run, the browser clears those output-scaling factors and restores dimmer output to the underlying live values.
 
 Show Run refreshes its XAMPP show data automatically when the page becomes active again, so changes made on the Controller, Chaser, or Effects page are picked up when the operator returns. Auto-refresh is skipped while **Edit** is active; **Refresh Show Data** remains as a manual fallback.
 
-Show Run also has a configurable **Live Controls** card. While **Edit** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and send the resolved DMX bytes to the Pico, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds, current phase, remaining time, and a progress bar.
+Show Run also has a configurable **Live Controls** card. While **Edit** is active, add direct fixture-control widgets as vertical faders, knobs, or buttons. The widgets write to the live-value snapshot and route the resolved DMX bytes to each fixture's assigned DMX Output, so an operator can keep a few emergency dimmers, color parts, pan/tilt axes, or indexed controls on the run page without opening the full Controller. Button widgets can run as one-shot Apply buttons, momentary Hold buttons that restore the previous value on release, or fog/haze Timer buttons with configurable on/off seconds, current phase, remaining time, and a progress bar.
 
 Show Run layout is saved server-side in `data/ui_state.json` under the `showRun` page key. This includes card rows/columns, card order, card add/remove choices, tile rows/columns and tile order for groups/fixtures/scenes/palettes/planes/chaser/effects, Live Controls cards and widgets, and MIDI mappings. Because it is server-side UI state, **Export Show** and **Import Show** can move the operator page to another computer instead of relying on one browser's local storage.
 
@@ -1380,7 +1382,7 @@ The Plane page calibrates moving lights against measured room points A/B/C. Each
 
 ![Room Plane Planes toolbox](docs/screenshots/room-plane-toolbox-saved-planes.png)
 
-Both playback pages show a **Chase Playback** section and a **Pico Playback** section. Only one can be active at a time — activating one automatically stops the other.
+The Chaser and Effects pages each provide browser preview controls and autonomous **Pico Playback** controls. On a given page, activating one playback path stops the conflicting path before it writes DMX.
 
 Pico URLs are stored as named, universe-aware **DMX Outputs** in the complete show setup. Configure or discover them in the Controller's **DMX Outputs** modal. Every application header shows the connectivity of the outputs used by the show. Controller fixture output, Show Run fixture controls and masters, Room Plane targeting, GPIO configuration, Performance measurements, and DMX Buffer Monitor selection are multi-output aware. Fixture-aware batches are separated by assigned output and sent to the involved Picos concurrently. Autonomous Chaser and Effects uploads are also output-aware: the browser splits one logical playback into a linked payload for each involved Pico and coordinates its start, pause/resume, stop, restore, and deletion. The editable single-URL header field is no longer shown.
 
@@ -1391,7 +1393,7 @@ The playback pages separate browser editing from the autonomous Pico slot memory
 - **Chaser Chases toolbox** — stores reusable editable chases on the XAMPP server. Recalling a chase loads its steps, selects Step 1, rebuilds Participating Controls and Edit Step, and a newly opened Chaser page starts with no working steps until a chase is recalled or created.
 - **Effects Save Preset / Load Preset** — stores and restores the editable Effects page setup on the XAMPP server JSON file.
 - **Pico slot click upload** — click an empty Pico slot to send the current editable chase or Effects preset to that slot and mirror the payload on the XAMPP server. Click a loaded slot once to select it for playback controls; click the selected loaded slot again to replace it after confirmation.
-- **Play Slot / Start Slot** — starts the already-loaded slot on the Pico.
+- **Play Slot / Start Slot** — starts the already-loaded physical slot, or every physical member of a linked logical slot.
 - **Restore Saved Slots to Pico** — re-sends every mirrored payload after reboot or firmware upload. A linked logical slot restores its member payload to every involved Pico.
 - **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP payload and clears every physical Pico slot belonging to that logical slot.
 
@@ -1452,7 +1454,7 @@ The **Scene Toolbox** sits in the shared right-side Toolboxes sidebar.
 The Effects page has a read-only companion to the Scene Toolbox.
 
 - Loads the same scenes from `scene_setup.php`; renders them as a clickable slot grid.
-- Clicking a filled slot reads the pan/tilt channel values stored in that scene and stores them as `basePan`/`baseTilt` in the browser's effect fixture state. It separates the fixture values by assigned DMX Output and sends each batch to the corresponding Pico, updating each involved Pico's `dmx_base_frame`.
+- Clicking a filled slot reads the pan/tilt channel values stored in that scene and stores them as `basePan`/`baseTilt` in the browser's effect fixture state. The current Effects editor sends that center preview to the primary show output and updates that Pico's `dmx_base_frame`.
 - The effect then oscillates **relative to that position** rather than around any fixed stored center. Moving lights to a new position (via a scene) and starting an effect will always orbit where they are now.
 - The toolbox lives in the shared sidebar. Enable **Edit** in the Toolboxes header before dragging its colored header to reorder it, then click **Done**; use the sidebar resize line to adjust the shared toolbox width.
 - The scene toolbox on the Effects page is **read-only** — it does not save or delete scenes. Scene management (save, delete) is only available on the Fixture Controller.
@@ -1481,10 +1483,10 @@ Because motion FX never writes back to the base buffer, the oscillation center s
 
 **Practical workflow:**
 1. Position the fixture using the Fixture Controller, or recall a scene.
-2. On the Effects page, click that same scene in the Scene Toolbox — this updates the Effects center values and sends the stored fixture values to their assigned DMX Outputs, updating `dmx_base_frame` on every involved Pico.
+2. On the Effects page, click that same scene in the Scene Toolbox—this updates the Effects center values and previews them on the primary show output, updating that Pico's `dmx_base_frame`.
 3. Start motion (browser `▶ Start` or Pico `/motion/start`) — the effect orbits the position set in step 1/2.
 
-When browser motion starts, the page fetches `/dmx/values.json` from the Pico and seeds the browser-side base from the live channel values, so the browser and firmware bases are always in sync.
+When browser motion starts, the page fetches `/dmx/base.json` from the primary show output and seeds the browser-side base from that Pico's scene/base buffer.
 
 ### GPIO Control (`web/dmx_gpio.html`)
 
