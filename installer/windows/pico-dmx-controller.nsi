@@ -35,6 +35,9 @@ Var PortInput
 Var PortOwnerPid
 Var PortOwnerName
 Var PortOwnerService
+Var FirmwareFlashChoice
+Var FirmwareYesRadio
+Var FirmwareNoRadio
 
 !define MUI_ABORTWARNING
 !define MUI_ICON "${STAGE_DIR}\app\assets\favicon.ico"
@@ -45,6 +48,7 @@ Var PortOwnerService
 !insertmacro MUI_PAGE_DIRECTORY
 Page custom PortPageCreate PortPageLeave
 !insertmacro MUI_PAGE_COMPONENTS
+Page custom FirmwarePageCreate FirmwarePageLeave
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "Open WiFiPicoDMX"
@@ -63,10 +67,48 @@ Function .onInit
     StrCpy $DataDir "$APPDATA\${LEGACY_PRODUCT_NAME}\data"
     StrCpy $ProductPort "${DEFAULT_PORT}"
     StrCpy $ExistingPort ""
+    StrCpy $FirmwareFlashChoice "0"
     ReadRegStr $0 HKLM "Software\PicoDmxController" "Port"
     ${If} $0 != ""
         StrCpy $ProductPort $0
         StrCpy $ExistingPort $0
+    ${EndIf}
+FunctionEnd
+
+Function FirmwarePageCreate
+    !insertmacro MUI_HEADER_TEXT "Pico firmware" "Choose whether to open the guided firmware installer."
+    nsDialogs::Create 1018
+    Pop $0
+    ${If} $0 == error
+        Abort
+    ${EndIf}
+
+    ${NSD_CreateLabel} 0 4u 100% 36u "WiFiPicoDMX includes the matching application and Wi-Fi firmware for Pico 2 W. Would you like to flash a Pico after software installation?"
+    Pop $0
+
+    ${NSD_CreateRadioButton} 0 48u 100% 18u "Yes - open the guided BOOTSEL firmware installer after setup"
+    Pop $FirmwareYesRadio
+    ${NSD_CreateRadioButton} 0 72u 100% 18u "No - install the software only"
+    Pop $FirmwareNoRadio
+
+    ${If} $FirmwareFlashChoice == "1"
+        ${NSD_Check} $FirmwareYesRadio
+    ${Else}
+        ${NSD_Check} $FirmwareNoRadio
+    ${EndIf}
+
+    ${NSD_CreateLabel} 0 102u 100% 42u "Nothing is flashed during setup. If you choose Yes, WiFiPicoDMX will explain how to connect one Pico in BOOTSEL mode and will ask for confirmation again before writing firmware."
+    Pop $0
+
+    nsDialogs::Show
+FunctionEnd
+
+Function FirmwarePageLeave
+    ${NSD_GetState} $FirmwareYesRadio $0
+    ${If} $0 == ${BST_CHECKED}
+        StrCpy $FirmwareFlashChoice "1"
+    ${Else}
+        StrCpy $FirmwareFlashChoice "0"
     ${EndIf}
 FunctionEnd
 
@@ -197,6 +239,8 @@ Section "-WiFiPicoDMX" SEC_CORE
     File /r "${STAGE_DIR}\runtime"
     File /r "${STAGE_DIR}\shell"
     File /r "${STAGE_DIR}\support"
+    File /r "${STAGE_DIR}\firmware"
+    File /r "${STAGE_DIR}\tools"
     File "${STAGE_DIR}\LICENSE"
     File "${STAGE_DIR}\VERSION"
 
@@ -254,12 +298,17 @@ Section "-WiFiPicoDMX" SEC_CORE
     Delete "$DESKTOP\${LEGACY_PRODUCT_NAME}.lnk"
     RMDir /r "$SMPROGRAMS\${LEGACY_PRODUCT_NAME}"
     CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\WiFiPicoDMX.exe" '--url http://localhost:$ProductPort/' "$INSTDIR\shell\WiFiPicoDMX.exe"
+    CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\Firmware Update.lnk" "$INSTDIR\shell\WiFiPicoDMX.exe" '--url http://localhost:$ProductPort/ --firmware' "$INSTDIR\shell\WiFiPicoDMX.exe"
     CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
     CreateShortcut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\shell\WiFiPicoDMX.exe" '--url http://localhost:$ProductPort/' "$INSTDIR\shell\WiFiPicoDMX.exe"
 SectionEnd
 
 Function LaunchController
-    Exec '"$INSTDIR\shell\WiFiPicoDMX.exe" --url http://localhost:$ProductPort/'
+    ${If} $FirmwareFlashChoice == "1"
+        Exec '"$INSTDIR\shell\WiFiPicoDMX.exe" --url http://localhost:$ProductPort/ --firmware'
+    ${Else}
+        Exec '"$INSTDIR\shell\WiFiPicoDMX.exe" --url http://localhost:$ProductPort/'
+    ${EndIf}
 FunctionEnd
 
 Section "Uninstall"

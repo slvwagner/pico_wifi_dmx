@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "branch": "1.0.0",
+  "commit": "389be95",
+  "createdAt": "2026-07-28T09:58:02Z",
+  "tests": {
+    "hardware": false
+  },
+  "docsGenerated": false,
+  "firmware": {
+    "file": "pico_wifi_dmx-v1.0.0.uf2",
+    "sizeBytes": 453632,
+    "sha256": "8aa9494109e6c5029abb555b45098fede63309ff33c9631d8d132b9b72188b55"
+  },
+  "wifiFirmware": {
+    "file": "pico_wifi_dmx-wifi-firmware-v1.0.0.uf2",
+    "sizeBytes": 465920,
+    "sha256": "8c1d2387cd77a487b0858e1c87ac471df4d5ef8318856fba8764ac09070bda79"
+  },
+  "wifiFirmwareTbyb": {
+    "file": "pico_wifi_dmx-wifi-firmware-tbyb-v1.0.0.uf2",
+    "sizeBytes": 465920,
+    "sha256": "dbdccd8f1c5f9d763b362e8b789bd0438c4b7eaca7cf9b9aa814d1063564d42d"
+  },
+  "windowsInstaller": {
+    "file": "wifi-pico-dmx-1.0.0-windows-x64.exe",
+    "sizeBytes": 111088787,
+    "sha256": "62a007ef4ae1ecae566659b61cbfb365c45284da4aefa6a9bc8d7dd69462193f",
+    "signed": false
+  },
+  "docs": {
+    "user-manual.md": {
+      "sizeBytes": 160623,
+      "sha256": "fc3b6fc37a1e7bd88979aaf0424c80e5d10d7bc8f7208a411e08331df1e45cf9"
+    },
+    "user-manual.html": {
+      "sizeBytes": 265575,
+      "sha256": "2857ae974e7de0c99dad3572459d542816c78102407321881cbdd0c333c5a5e6"
+    },
+    "user-manual-print.html": {
+      "sizeBytes": 265575,
+      "sha256": "2857ae974e7de0c99dad3572459d542816c78102407321881cbdd0c333c5a5e6"
+    },
+    "user-manual.pdf": {
+      "sizeBytes": 4480748,
+      "sha256": "5536da1014d1a26ae0707b48921e1748b97dcf8233d905535ac3ce7eb6f9a103"
+    },
+    "screenshots": {
+      "count": 75
+    }
+  }
+}

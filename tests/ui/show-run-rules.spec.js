@@ -51,6 +51,7 @@ async function routeShowSetup(page, calls) {
         exists: true,
         setup: {
           baseUrl: 'http://pico.test',
+          dmxOutputs: calls.dmxOutputs,
           profiles: calls.profiles || profiles,
           fixtures: calls.fixtures || fixtures,
           values: calls.setupValues || {},
@@ -166,7 +167,7 @@ async function routeShowSetup(page, calls) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, pico_slots: calls.mirroredChaserSlots ?? ['{"name":"Chase One"}'], pico_url: 'http://pico.test' })
+      body: JSON.stringify({ ok: true, pico_slots: calls.mirroredChaserSlots ?? ['{"name":"Chase One"}'], pico_playbacks: calls.chaserPlaybacks || [], pico_url: 'http://pico.test' })
     });
   });
 
@@ -174,7 +175,7 @@ async function routeShowSetup(page, calls) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, pico_slots: ['{"name":"Circle"}'], pico_url: 'http://pico.test' })
+      body: JSON.stringify({ ok: true, pico_slots: calls.mirroredMotionSlots ?? ['{"name":"Circle"}'], pico_playbacks: calls.motionPlaybacks || [], pico_url: 'http://pico.test' })
     });
   });
 
@@ -249,6 +250,14 @@ async function routeShowSetup(page, calls) {
       });
       return;
     }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
+  await page.route('http://rear-pico.test/**', async route => {
+    calls.pico.push({
+      url: route.request().url(),
+      method: route.request().method(),
+      body: route.request().postData() || ''
+    });
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
   });
 }
@@ -359,6 +368,81 @@ test.describe('Show Run page', () => {
     expect(calls.liveValues.at(-1)).toEqual({ '102:11': 200 });
     expect(calls.pico.some(call => call.url === 'http://pico.test/dmx/b' && call.body === '11:200')).toBe(true);
     expect(calls.setupWrites).toBe(0);
+  });
+
+  test('routes fixture recalls and Grand Master scaling to each configured DMX output', async ({ page }) => {
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      dmxOutputs: [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ],
+      fixtures: [
+        { id: 101, name: 'Spot 1', profileId: 1, start: 1, outputId: 'front' },
+        { id: 102, name: 'Spot 2', profileId: 1, start: 11, outputId: 'rear' }
+      ],
+      setupValues: { '101:11': 100, '102:11': 200 }
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+    calls.pico.length = 0;
+
+    await page.getByRole('button', { name: /Both On/ }).click();
+
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b' && call.body === '1:100'
+    )).toBe(true);
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://rear-pico.test/dmx/b' && call.body === '11:200'
+    )).toBe(true);
+    expect(calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/b' && call.body.includes('11:200')
+    )).toBe(false);
+
+    calls.pico.length = 0;
+    await page.locator('.grand-master-fader').fill('50');
+
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://pico.test/dmx/master' && call.body === '1:128'
+    )).toBe(true);
+    await expect.poll(() => calls.pico.some(call =>
+      call.url === 'http://rear-pico.test/dmx/master' && call.body === '11:128'
+    )).toBe(true);
+  });
+
+  test('shows and operates a linked Pico chase across its physical member slots', async ({ page }) => {
+    const frontPayload = 'LOOP 1\nMODE loop\nSTEP 500 0\nCH 1 75\nEND';
+    const rearPayload = 'LOOP 1\nMODE loop\nSTEP 500 0\nCH 11 125\nEND';
+    const calls = {
+      pico: [],
+      liveValues: [],
+      setupWrites: 0,
+      mirroredChaserSlots: [frontPayload],
+      chaserPlaybacks: [{
+        id: 'linked_chase',
+        kind: 'chaser',
+        label: 'Two Universe Chase',
+        members: [
+          { outputId: 'front', outputName: 'Front Pico', universe: 1, baseUrl: 'http://pico.test/', slot: 0, payload: frontPayload },
+          { outputId: 'rear', outputName: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/', slot: 3, payload: rearPayload }
+        ]
+      }]
+    };
+    await routeShowSetup(page, calls);
+    await openDmxPage(page, 'dmx_show.html');
+
+    await expect(page.locator('#chaserSlots')).toContainText('linked U1/S0 + U2/S3');
+    calls.pico.length = 0;
+    await page.locator('#chaserSlots [data-chaser-toggle="0"]').click();
+
+    await expect.poll(() => calls.pico.map(call => call.url)).toEqual(expect.arrayContaining([
+      'http://pico.test/chaser/load/0',
+      'http://rear-pico.test/chaser/load/3',
+      'http://pico.test/chaser/play/0',
+      'http://rear-pico.test/chaser/play/3'
+    ]));
   });
 
   test('Pixel Matrices card recalls regular and native matrix pixels to live DMX', async ({ page }) => {

@@ -6,6 +6,8 @@ This package installs only the components required by WiFiPicoDMX:
 - x64 Thread Safe PHP for the PHP setup endpoints
 - the browser application and user manual
 - a self-contained native WebView2 operator window
+- version-matched Pico 2 W application and Wi-Fi firmware
+- Raspberry Pi `picotool` for guided USB BOOTSEL flashing
 
 It does not install MariaDB, phpMyAdmin, the XAMPP control panel, or development
 tools. A new installation places program files below
@@ -33,6 +35,17 @@ UAC prompt. If the
 installed Microsoft Edge WebView2 Runtime cannot initialize, the shell opens
 the controller in the default browser and explains the fallback.
 
+Setup asks whether the customer wants to open the guided firmware installer
+after software installation; no Pico is modified by setup itself. The same
+guide remains available from **Application > Firmware update…** and from the
+Start Menu. It validates the bundled UF2 checksums and RP2350 metadata, asks
+the customer to disconnect other Picos, explains the BOOTSEL connection steps,
+checks that a Pico 2 W is accessible, and asks for final confirmation before
+writing anything. Full provisioning writes the application/partition table,
+reboots back into BOOTSEL, writes the separate CYW43 Wi-Fi firmware partition,
+and verifies each `picotool` load. The window cannot be closed while a flash is
+running and explains how to recover by repeating the BOOTSEL procedure.
+
 At startup, the native shell clears only WebView2's disk cache before
 navigating to the controller. The packaged Apache configuration also marks
 HTML, CSS, and JavaScript for revalidation. An upgrade therefore cannot keep
@@ -55,6 +68,13 @@ The locked Microsoft WebView2 package is restored during the build:
 ```powershell
 .\installer\windows\build_installer.ps1
 ```
+
+The Windows build also requires current `build\pico_wifi_dmx.uf2` and
+`build\pico_wifi_dmx_wifi_firmware.uf2` artifacts plus Raspberry Pi
+`picotool` 2.3.0. The build refuses a stale application version, an unexpected
+target chip/partition table, an unverified Wi-Fi image, or missing tooling.
+Override their locations with `-ApplicationUf2`, `-WifiFirmwareUf2`, and
+`-PicotoolPath` when building outside the standard Pico SDK environment.
 
 Use `-PrepareOnly` to create and inspect the staging tree without compiling the
 installer. The resulting installer is written to `release\v<VERSION>\`.

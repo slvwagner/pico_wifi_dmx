@@ -91,6 +91,76 @@ test.describe('Room Plane rules', () => {
     await expect.poll(() => page.evaluate(() => liveValues['101:12'])).toEqual({ a: 10, b: 20, c: 30 });
   });
 
+  test('routes recalled fixture values to each fixture DMX output', async ({ page }) => {
+    const dmxCalls = [];
+    await page.route('**/fixture_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          setup: {
+            baseUrl: 'http://front-pico.test',
+            dmxOutputs: [
+              { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+              { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+            ],
+            values: {},
+            profiles: [{ id: 1, name: 'Wash', controls: [
+              { id: 11, type: 'slider8', label: 'Dimmer', channel: 1 }
+            ] }],
+            fixtures: [
+              { id: 101, name: 'Front Wash', profileId: 1, start: 1, outputId: 'front' },
+              { id: 102, name: 'Rear Wash', profileId: 1, start: 11, outputId: 'rear' }
+            ]
+          }
+        })
+      });
+    });
+    await page.route('**/scene_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          exists: true,
+          scenes: [{
+            id: 'scene_multi_output',
+            name: 'Two Universes',
+            slot: 0,
+            values: { '101:11': 75, '102:11': 125 }
+          }],
+          slotCols: 2,
+          slotRows: 2
+        })
+      });
+    });
+    await page.route('**/palette_setup.php**', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"ok":true,"exists":true,"palettes":[],"paletteCols":2,"paletteRows":2}'
+      });
+    });
+    for (const root of ['http://front-pico.test', 'http://rear-pico.test']) {
+      await page.route(root + '/dmx/b', async route => {
+        dmxCalls.push({ url: route.request().url(), body: route.request().postData() });
+        await route.fulfill({ status: 200, contentType: 'text/plain', body: 'ok' });
+      });
+    }
+
+    await openDmxPage(page, 'dmx_room_plane.html');
+    await page.locator('#roomSceneMatrix [data-room-scene-slot="0"]').click();
+
+    await expect.poll(() => dmxCalls.some(call =>
+      call.url === 'http://front-pico.test/dmx/b' && call.body === '1:75'
+    )).toBe(true);
+    await expect.poll(() => dmxCalls.some(call =>
+      call.url === 'http://rear-pico.test/dmx/b' && call.body === '11:125'
+    )).toBe(true);
+  });
+
   test('interpolates fixture pan and tilt from the calibrated plane points', async ({ page }) => {
     await openDmxPage(page, 'dmx_room_plane.html');
 

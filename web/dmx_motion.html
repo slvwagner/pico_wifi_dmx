@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Effects</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.16-14">
-<script src="assets/dmx-common.js?v=0.9.16-13"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.0-14">
+<script src="assets/dmx-common.js?v=1.0.0-13"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -59,9 +59,9 @@ main{max-width:none;width:100%;margin:0}
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.16">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.0.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.16#6-effects" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.0.0#6-effects" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -1360,7 +1360,7 @@ window.addEventListener('resize',drawPathPreview);
 
 // ---- Pico Effects ----
 const typeMapPico={circle:0,figure8:1,panSwing:2,tiltSwing:3,sine:4,pulse:5};
-function serializeMotionForPico(){
+function serializeMotionForPico(outputId=null){
   const type=document.getElementById('effectType').value;
   const bpm=parseFloat(document.getElementById('bpm').value);
   const mode=effectAxisMode();
@@ -1375,7 +1375,12 @@ function serializeMotionForPico(){
     'AMP2 '+amp2.toFixed(6),
     'SPREAD '+spread.toFixed(4),
   ];
-  motionFixtures.filter(mf=>mf.enabled&&motionControlKey(mf.control)===selectedMotionTargetKey).forEach(mf=>{
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  motionFixtures.filter(mf=>
+    mf.enabled&&
+    motionControlKey(mf.control)===selectedMotionTargetKey&&
+    (outputId===null||String(DmxCommon.dmxOutputForFixture(mf.fixture,outputs)?.id)===String(outputId))
+  ).forEach(mf=>{
     const c=mf.control,f=mf.fixture;
     if(mf.kind==='panTilt'){
       const is16=c.type==='panTilt16';
@@ -1398,6 +1403,16 @@ let _lastSlots=null; // cached for selection-highlight re-render
 let _lastActiveMask=0;
 let _lastPausedMask=0;
 let _lastMotionReportedSlotCount=PICO_SLOT_COUNT;
+let linkedMotionPlaybacks=[];
+
+function linkedMotionPlaybackForSlot(slot){
+  const preferredRoot=baseUrlEl.value.replace(/\/+$/,'');
+  return linkedMotionPlaybacks.find(playback=>{
+    const members=Array.isArray(playback?.members)?playback.members:[];
+    const coordinator=members.find(member=>String(member.baseUrl||'').replace(/\/+$/,'')===preferredRoot)||members[0];
+    return Number(coordinator?.slot)===Number(slot);
+  })||null;
+}
 
 function selectedMotionSlot(){
   return parseInt(document.getElementById('picoMotionSlot').value)||0;
@@ -1446,6 +1461,10 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
       'user-select:none'
     ].filter(Boolean).join(';');
     const typeName=unsupported?'FW old':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    const linkedPlayback=linkedMotionPlaybackForSlot(s.slot);
+    const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
+      ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
+      : '';
     const deleteButton=loaded&&!unsupported
       ? '<button type="button" data-delete-motion-slot="'+s.slot+'" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
       : '';
@@ -1454,7 +1473,7 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT '+s.slot+'</div>'+
       '<div style="font-size:12px;font-weight:500;color:'+(alive?'var(--accent)':paused?'var(--warn)':'var(--text)')+';line-height:1.25;min-height:1.5em">'+typeName+'</div>'+
       (loaded?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+s.bpm.toFixed(1)+' BPM</div>':'') +
-      (loaded?'<div style="font-size:11px;color:var(--muted)">'+(s.target_count??s.fixture_count??0)+' tgt</div>':'') +
+      (loaded?'<div style="font-size:11px;color:var(--muted)">'+(s.target_count??s.fixture_count??0)+' tgt</div>'+linkedLine:'') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
         '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
         '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':paused?'PAUSED':loaded?'READY':'EMPTY')+'</span>'+
@@ -1481,8 +1500,17 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
 }
 
 async function deleteMotionSlot(slot){
-  if(!confirm('Delete effect slot '+slot+'?'))return;
+  const linked=linkedMotionPlaybackForSlot(slot);
+  if(!confirm(linked?'Delete linked effect from all '+linked.members.length+' Picos?':'Delete effect slot '+slot+'?'))return;
   try{
+    if(linked){
+      await DmxCommon.commandLinkedPicoPlayback(linked,member=>'/motion/clear/'+member.slot);
+      const response=await fetch('motion_setup.php?delete_playback='+encodeURIComponent(linked.id),{method:'POST'});
+      const data=await response.json();
+      if(!response.ok||!data.ok)throw new Error(data.error||'Delete failed');
+      linkedMotionPlaybacks=linkedMotionPlaybacks.filter(playback=>playback.id!==linked.id);
+      setPicoMotionStatus('Deleted linked effect from '+linked.members.length+' Picos','var(--accent)');
+    }else{
     const r=await fetch('motion_setup.php?delete_slot='+slot,{method:'POST'});
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||'Delete failed');
@@ -1492,6 +1520,7 @@ async function deleteMotionSlot(slot){
       setPicoMotionStatus('Deleted slot '+slot,'var(--accent)');
     }else{
       setPicoMotionStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
+    }
     }
     if(_lastSlots){
       _lastSlots[slot]={slot:slot,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0};
@@ -1542,12 +1571,29 @@ async function saveMotionSlotToServer(slot, body){
 }
 async function restoreAllMotionSlots(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
   let j;
   try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setPicoMotionStatus('Restore error: '+e.message,'var(--bad)');return;}
   if(!j.ok){setPicoMotionStatus('Restore error','var(--bad)');return;}
   const slots=j.pico_slots||[];
+  linkedMotionPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
   let count=0;
+  if(linkedMotionPlaybacks.length){
+    for(const playback of linkedMotionPlaybacks){
+      for(const member of playback.members||[]){
+        const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
+        if(!memberRoot||!member.payload)continue;
+        try{
+          const response=await fetch(memberRoot+'/motion/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});
+          const data=await response.json();
+          if(data.ok)count++;
+        }catch(_){}
+      }
+    }
+    setPicoMotionStatus(count+' linked slot member(s) restored','var(--accent)');
+    pollPicoMotionStatus();
+    return;
+  }
+  if(!root){setPicoMotionStatus('No linked playbacks and no primary Pico URL configured','var(--warn)');return;}
   for(let i=0;i<slots.length;i++){
     if(!slots[i])continue;
     try{
@@ -1565,83 +1611,103 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
   document.getElementById('picoMotionSlot').value=slot;
   if(!ensureMotionSlotSupported())return;
   stopMotion(); // stop browser motion so it doesn't fight Pico
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
-  if(confirmOverwrite&&!confirm('Replace Pico effect slot '+slot+' with the current effect?'))return;
-  const body=serializeMotionForPico();
-  setPicoMotionStatus('Uploading to slot '+slot+'…','var(--warn)');
+  if(confirmOverwrite&&!confirm('Replace Pico effect slot '+slot+' and all linked Pico slots with the current effect?'))return;
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  const enabledFixtures=[...new Map(motionFixtures
+    .filter(mf=>mf.enabled&&motionControlKey(mf.control)===selectedMotionTargetKey)
+    .map(mf=>[String(mf.fixture.id),mf.fixture])).values()];
+  const members=DmxCommon.linkedPlaybackMembersForFixtures(
+    enabledFixtures,
+    outputs,
+    output=>serializeMotionForPico(output.id),
+    {legacyBaseUrl:setup.baseUrl||baseUrlEl.value,preferredBaseUrl:baseUrlEl.value}
+  );
+  setPicoMotionStatus('Checking empty slots on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
-    const r=await fetch(root+'/motion/load/'+slot,{method:'POST',body,headers:{'Content-Type':'text/plain'}});
-    const j=await r.json();
-    if(!j.ok){setPicoMotionStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
-    saveMotionSlotToServer(slot, body); // persist to server (fire-and-forget)
-    setPicoMotionStatus('Uploaded current preset to slot '+slot,'var(--accent)');
+    const playback=await DmxCommon.uploadLinkedPicoPlayback({
+      kind:'motion',
+      members,
+      preferredSlot:slot,
+      slotCount:PICO_SLOT_COUNT,
+      allowCoordinatorOverwrite:!!confirmOverwrite,
+      label:'Effect '+(document.getElementById('effectType')?.selectedOptions?.[0]?.textContent||('slot '+slot)),
+      serverEndpoint:'motion_setup.php'
+    });
+    linkedMotionPlaybacks=linkedMotionPlaybacks.filter(item=>item.id!==playback.id);
+    linkedMotionPlaybacks.push(playback);
+    const locations=playback.members.map(member=>'U'+member.universe+' S'+member.slot).join(' · ');
+    setPicoMotionStatus('Uploaded linked effect: '+locations,'var(--accent)');
     pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 }
 document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;
 
-document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
+async function commandSelectedMotionSlot(action,slot,suffix=''){
+  const playback=linkedMotionPlaybackForSlot(slot);
+  if(playback){
+    await DmxCommon.commandLinkedPicoPlayback(playback,member=>'/motion/'+action+'/'+member.slot+suffix);
+    return playback.members.length;
+  }
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!root)throw new Error('Set a Pico URL in DMX Outputs first');
+  const response=await fetch(root+'/motion/'+action+'/'+slot+suffix,{cache:'no-store'});
+  const data=await response.json().catch(()=>null);
+  if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+  return 1;
+}
+
+document.getElementById('btnPicoMotionStartSlot').onclick=async()=>{
   if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   try{
-    const r=await fetch(root+'/motion/start/'+slot);
-    const j=await r.json();
-    if(j.ok){stopMotion();setPicoMotionStatus('Running slot '+slot,'var(--accent)');startPicoMotionPoll();}
-    else{setPicoMotionStatus('Start error: '+(j.error||'?'),'var(--bad)');}
+    const count=await commandSelectedMotionSlot('start',slot);
+    stopMotion();
+    setPicoMotionStatus('Running slot '+slot+(count>1?' on '+count+' linked Picos':''),'var(--accent)');
+    startPicoMotionPoll();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoMotionPauseResume').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const current=(_lastSlots||[]).find(s=>Number(s.slot)===Number(slot));
   const action=current?.paused?'resume':'pause';
   try{
-    const r=await fetch(root+'/motion/'+action+'/'+slot);
-    const j=await r.json();
-    if(j.ok){setPicoMotionStatus((action==='pause'?'Paused':'Resumed')+' slot '+slot,action==='pause'?'var(--warn)':'var(--accent)');startPicoMotionPoll();}
-    else{setPicoMotionStatus((action==='pause'?'Pause':'Resume')+' error: '+(j.error||'?'),'var(--bad)');}
+    const count=await commandSelectedMotionSlot(action,slot);
+    setPicoMotionStatus((action==='pause'?'Paused':'Resumed')+' slot '+slot+(count>1?' on '+count+' linked Picos':''),action==='pause'?'var(--warn)':'var(--accent)');
+    startPicoMotionPoll();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoMotionSetBpm').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   const bpm=parseFloat(document.getElementById('picoMotionBpm').value)||30;
   const bpm_x10=Math.round(Math.max(1,Math.min(6000,bpm*10)));
   try{
-    const r=await fetch(root+'/motion/bpm/'+slot+'/'+bpm_x10);
-    const j=await r.json();
-    if(j.ok)setPicoMotionStatus('BPM set to '+(bpm_x10/10).toFixed(1)+' on slot '+slot,'var(--accent)');
-    else setPicoMotionStatus('BPM error','var(--bad)');
+    const count=await commandSelectedMotionSlot('bpm',slot,'/'+bpm_x10);
+    setPicoMotionStatus('BPM set to '+(bpm_x10/10).toFixed(1)+' on slot '+slot+(count>1?' across '+count+' Picos':''),'var(--accent)');
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoMotionStopSlot').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoMotionStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureMotionSlotSupported())return;
   const slot=parseInt(document.getElementById('picoMotionSlot').value)||0;
   try{
-    await fetch(root+'/motion/stop/'+slot);
-    setPicoMotionStatus('Slot '+slot+' stopped','var(--muted)');
+    const count=await commandSelectedMotionSlot('stop',slot);
+    setPicoMotionStatus('Slot '+slot+' stopped'+(count>1?' on '+count+' linked Picos':''),'var(--muted)');
     pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoMotionStop').onclick=async()=>{
   stopPicoMotionPoll();
-  const root=baseUrlEl.value.replace(/\/+$/,'');
   try{
-    await fetch(root+'/motion/stop');
-    setPicoMotionStatus('Stopped','var(--muted)');
+    const roots=new Set(linkedMotionPlaybacks.flatMap(playback=>(playback.members||[]).map(member=>String(member.baseUrl||'').replace(/\/+$/,''))).filter(Boolean));
+    const primary=baseUrlEl.value.replace(/\/+$/,'');
+    if(primary)roots.add(primary);
+    await Promise.all([...roots].map(root=>fetch(root+'/motion/stop',{cache:'no-store'})));
+    setPicoMotionStatus('Stopped on '+roots.size+' Pico'+(roots.size===1?'':'s'),'var(--muted)');
     pollPicoMotionStatus();
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 };
@@ -1783,7 +1849,7 @@ if(document.getElementById('btnExportMotionSlots'))document.getElementById('btnE
   let j;
   try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
   if(!j.ok){setStatus('Export slots error',true);return;}
-  const exportData=DmxCommon.versionedPayload({pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots});
+  const exportData=DmxCommon.versionedPayload({pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots,pico_playbacks:j.pico_playbacks||[]});
   DmxCommon.downloadJson('motion_slots.json',exportData);
   setStatus('motion_slots.json downloaded');
 };
@@ -2112,11 +2178,21 @@ if(!new URLSearchParams(location.search).has('docshot_overview')){
     if(!isHardPageReload())restoreMotionWorkingState();
     // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
     const root=baseUrlEl.value.replace(/\/+$/,'');
-    if(root){
-      try{
-        const r=await fetch('motion_setup.php?slots');
-        const j=await r.json();
-        if(j.ok){
+    try{
+      const r=await fetch('motion_setup.php?slots');
+      const j=await r.json();
+      if(j.ok){
+        linkedMotionPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
+        if(linkedMotionPlaybacks.length){
+          for(const playback of linkedMotionPlaybacks){
+            for(const member of playback.members||[]){
+              const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
+              if(!memberRoot||!member.payload)continue;
+              try{await fetch(memberRoot+'/motion/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});}catch(_){}
+            }
+          }
+          pollPicoMotionStatus();
+        }else if(root){
           const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
           if(!savedUrl||savedUrl===root){
             const slots=j.pico_slots||[];
@@ -2127,8 +2203,8 @@ if(!new URLSearchParams(location.search).has('docshot_overview')){
             pollPicoMotionStatus();
           }
         }
-      }catch(_){}
-    }
+      }
+    }catch(_){}
   });
 }
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────

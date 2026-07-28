@@ -223,7 +223,7 @@ test.describe('Browser playback established rules', () => {
     expect(loopNBody).toContain('DIR forward');
   });
 
-  test('Pico slot strip describes loop state, ping pong mode, and direction explicitly', async ({ page }) => {
+  test('Pico slot strip shows one canonical playback mode and the direction', async ({ page }) => {
     await openDmxPage(page, 'dmx_chaser.html');
     await injectChaserCompactSetup(page);
 
@@ -237,15 +237,16 @@ test.describe('Browser playback established rules', () => {
       return Array.from(document.querySelectorAll('#chaserSlotStrip > div')).slice(0, 3).map(el => el.innerText);
     });
 
-    expect(text[0]).toContain('Loop off');
+    expect(text[0]).toContain('Mode Single');
     expect(text[0]).toContain('Forward');
-    expect(text[0]).toContain('Ping Pong off');
-    expect(text[1]).toContain('Loop 3x');
+    expect(text[0]).not.toContain('Mode Loop');
+    expect(text[0]).not.toContain('Mode Ping Pong');
+    expect(text[1]).toContain('Mode Loop N (3x)');
     expect(text[1]).toContain('Reverse');
-    expect(text[1]).toContain('Ping Pong off');
-    expect(text[2]).toContain('Loop on');
+    expect(text[1]).not.toContain('Mode Ping Pong');
+    expect(text[2]).toContain('Mode Ping Pong');
     expect(text[2]).toContain('Reverse');
-    expect(text[2]).toContain('Ping Pong on');
+    expect(text[2]).not.toContain('Mode Loop');
     expect(text[2]).toContain('LIVE');
   });
 
@@ -316,10 +317,12 @@ test.describe('Browser playback established rules', () => {
   });
 
   test('Uploaded Pico slot tile uses the saved ping pong payload when live status is stale', async ({ page }) => {
-    const savedBodies = [];
+    const uploadedBodies = [];
+    let slotListRequests = 0;
     await page.route('http://127.0.0.1:18991/**', async route => {
       const url = route.request().url();
       if (url.includes('/chaser/load/4')) {
+        uploadedBodies.push(route.request().postData() || '');
         await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
         return;
       }
@@ -328,8 +331,11 @@ test.describe('Browser playback established rules', () => {
         return;
       }
       if (url.includes('/chaser/slots')) {
+        slotListRequests += 1;
         const slots = Array.from({ length: 32 }, (_, i) => ({ slot: i, loaded: false, active: false, paused: false, loop: false, mode: 0, direction: 0, loop_count: 1, step_count: 0, speed_mult: 1 }));
-        slots[4] = { slot: 4, loaded: true, active: false, paused: false, loop: true, mode: 1, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 };
+        if (slotListRequests > 1) {
+          slots[4] = { slot: 4, loaded: true, active: false, paused: false, loop: true, mode: 1, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 };
+        }
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
         return;
       }
@@ -339,8 +345,7 @@ test.describe('Browser playback established rules', () => {
       }
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
     });
-    await page.route('**/chaser_setup.php?slot=4**', async route => {
-      savedBodies.push(route.request().postData() || '');
+    await page.route('**/chaser_setup.php?playback', async route => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
     });
 
@@ -360,11 +365,11 @@ test.describe('Browser playback established rules', () => {
       return document.querySelectorAll('#chaserSlotStrip > div')[4]?.innerText || '';
     });
 
-    expect(savedBodies[0]).toContain('MODE ping_pong');
-    expect(savedBodies[0]).toContain('DIR reverse');
-    expect(state).toContain('Loop on');
+    expect(uploadedBodies[0]).toContain('MODE ping_pong');
+    expect(uploadedBodies[0]).toContain('DIR reverse');
+    expect(state).toContain('Mode Ping Pong');
     expect(state).toContain('Reverse');
-    expect(state).toContain('Ping Pong on');
+    expect(state).not.toContain('Mode Loop');
   });
 
   test('recalling another saved chase while browser playback is running continues with the recalled chase', async ({ page }) => {

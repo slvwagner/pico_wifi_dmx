@@ -316,6 +316,119 @@ test.describe('Chaser established rules', () => {
     expect(urls).toContain('http://pico.test/chaser/resume/0');
   });
 
+  test('Pico slot tiles show exactly one playback mode label', async ({ page }) => {
+    await page.evaluate(() => {
+      savedPicoChaserSlotInfo = Array.from({ length: PICO_SLOT_COUNT }, () => null);
+      renderChaserSlotStrip([
+        { slot: 0, loaded: true, active: false, paused: false, mode: 0, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 },
+        { slot: 1, loaded: true, active: false, paused: false, mode: 1, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 },
+        { slot: 2, loaded: true, active: false, paused: false, mode: 2, direction: 0, loop_count: 3, step_count: 2, speed_mult: 1 },
+        { slot: 3, loaded: true, active: false, paused: false, mode: 3, direction: 0, loop_count: 1, step_count: 2, speed_mult: 1 }
+      ], 0);
+    });
+
+    const texts = await page.locator('#chaserSlotStrip > div').evaluateAll(tiles =>
+      tiles.slice(0, 4).map(tile => tile.innerText)
+    );
+    expect(texts[0]).toContain('Mode Single');
+    expect(texts[1]).toContain('Mode Loop');
+    expect(texts[2]).toContain('Mode Loop N (3x)');
+    expect(texts[3]).toContain('Mode Ping Pong');
+    for (const text of texts) {
+      expect((text.match(/Mode /g) || []).length).toBe(1);
+      expect(text).not.toContain('Ping Pong off');
+      expect(text).not.toContain('Loop on');
+      expect(text).not.toContain('Loop off');
+    }
+  });
+
+  test('Pico slot tiles describe the saved step fade percentage', async ({ page }) => {
+    await page.evaluate(() => {
+      savedPicoChaserSlotInfo = Array.from({ length: PICO_SLOT_COUNT }, () => null);
+      savedPicoChaserSlotInfo[0] = parseChaserPicoSlotPayload(
+        'MODE loop\nSTEP 500 35\nCH 1 10\nSTEP 500 35\nCH 1 20\nEND',
+        0
+      );
+      savedPicoChaserSlotInfo[1] = parseChaserPicoSlotPayload(
+        'MODE loop\nSTEP 500 10\nCH 1 10\nSTEP 500 60\nCH 1 20\nEND',
+        1
+      );
+      renderChaserSlotStrip([
+        { slot: 0, loaded: true, active: false, paused: false, mode: 1, direction: 0, step_count: 2, speed_mult: 1 },
+        { slot: 1, loaded: true, active: false, paused: false, mode: 1, direction: 0, step_count: 2, speed_mult: 1 }
+      ], 0);
+    });
+
+    const texts = await page.locator('#chaserSlotStrip > div').evaluateAll(tiles =>
+      tiles.slice(0, 2).map(tile => tile.innerText)
+    );
+    expect(texts[0]).toContain('Fade 35%');
+    expect(texts[1]).toContain('Fade 10–60%');
+  });
+
+  test('uploads one linked chase payload per involved Pico and reserves an empty peer slot', async ({ page }) => {
+    const picoCalls = [];
+    let savedPlayback = null;
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/chaser/slots')) {
+        const slots = Array.from({ length: 32 }, (_, slot) => ({
+          slot,
+          loaded: outputId === 'rear' && slot === 0,
+          active: false,
+          paused: false
+        }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      picoCalls.push({ outputId, url, body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/chaser_setup.php?playback', async route => {
+      savedPlayback = JSON.parse(route.request().postData() || '{}');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      setup.fixtures.find(f => f.id === 101).outputId = 'front';
+      setup.fixtures.find(f => f.id === 102).outputId = 'rear';
+      baseUrlEl.value = 'http://front-pico.test';
+      steps = [makeStep('Both universes', { '101:11': 75, '102:21': 125 })];
+      participating = Object.fromEntries(Object.keys(participating).map(key => [key, key === '101:11' || key === '102:21']));
+      drawParticipation();
+    });
+
+    await page.evaluate(() => uploadCurrentChaseToSlot(3, false));
+
+    expect(picoCalls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/chaser/load/3' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/load/1' })
+    ]));
+    const frontBody = picoCalls.find(call => call.url.endsWith('/chaser/load/3')).body;
+    const rearBody = picoCalls.find(call => call.url.endsWith('/chaser/load/1')).body;
+    expect(frontBody).toContain('CH 1 75');
+    expect(frontBody).not.toContain('CH 21 125');
+    expect(rearBody).toContain('CH 21 125');
+    expect(rearBody).not.toContain('CH 1 75');
+    expect(savedPlayback.members.map(member => ({ outputId: member.outputId, slot: member.slot }))).toEqual([
+      { outputId: 'front', slot: 3 },
+      { outputId: 'rear', slot: 1 }
+    ]);
+
+    picoCalls.length = 0;
+    await page.locator('#btnPicoPlaySlot').click();
+    await expect.poll(() => picoCalls.map(call => call.url)).toEqual(expect.arrayContaining([
+      'http://front-pico.test/chaser/play/3',
+      'http://rear-pico.test/chaser/play/1'
+    ]));
+  });
+
   test('collapsing Participating Controls keeps the sticky header stable and moves Edit Step up', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 900 });
     await openDmxPage(page, 'dmx_chaser.html');

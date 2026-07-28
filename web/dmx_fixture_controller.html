@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0f12">
 <title>DMX Controller</title>
-<link rel="icon" href="assets/favicon.ico?v=0.9.16">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=0.9.16">
-<link rel="manifest" href="assets/manifest.webmanifest?v=0.9.16">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.16-14">
-<script src="assets/dmx-common.js?v=0.9.16-13"></script>
+<link rel="icon" href="assets/favicon.ico?v=1.0.0">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.0.0">
+<link rel="manifest" href="assets/manifest.webmanifest?v=1.0.0">
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.0-14">
+<script src="assets/dmx-common.js?v=1.0.0-13"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -201,9 +201,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=0.9.16">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=1.0.0">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=0.9.16#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=1.0.0#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -948,23 +948,10 @@ async function sendControl(f,c,silent=false){
 }
 
 async function sendFixtureDmxRows(entries){
-  const batches=new Map();
-  (entries||[]).forEach(entry=>{
-    if(!entry?.fixture||!entry?.row)return;
-    const output=fixtureDmxOutput(entry.fixture);
-    const root=DmxCommon.dmxOutputEndpoint(output);
-    if(!root)return;
-    if(!batches.has(output.id))batches.set(output.id,{output,root,pairs:[]});
-    batches.get(output.id).pairs.push(Math.round(entry.row.ch)+':'+clamp(entry.row.val,0,255));
+  return DmxCommon.sendFixtureDmxRows(entries,dmxOutputs,{
+    path:'/dmx/b',
+    legacyBaseUrl:baseUrl.value
   });
-  if(!batches.size)return 0;
-  const results=await Promise.allSettled([...batches.values()].map(batch=>
-    fetch(batch.root+'/dmx/b',{method:'POST',body:batch.pairs.join(','),cache:'no-store'})
-      .then(response=>{if(!response.ok)throw new Error(batch.output.name+': HTTP '+response.status);})
-  ));
-  const errors=results.filter(result=>result.status==='rejected').map(result=>result.reason?.message||String(result.reason));
-  if(errors.length)throw new Error(errors.join(' · '));
-  return [...batches.values()].reduce((count,batch)=>count+batch.pairs.length,0);
 }
 
 let editingPixelMatrix=null;

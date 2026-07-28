@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico WiFi DMX - Show Run</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.16-14">
-<script src="assets/dmx-common.js?v=0.9.16-13"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.0-14">
+<script src="assets/dmx-common.js?v=1.0.0-13"></script>
 <style>
 :root{--bg:#0d1115;--panel:#161c22;--panel2:#10161b;--line:#31404d;--text:#edf3f7;--muted:#9cafbf;--accent:#37c4a4;--warn:#ffbc6b;--bad:#ff7a7a}
 *{box-sizing:border-box}
@@ -199,9 +199,9 @@ body.layout-editing .card-delete.slot-del:hover{background:#5a2020;border-color:
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.16">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.0.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.16#4-show-run" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.0.0#4-show-run" target="_blank">Manual</a>
     <button id="fullscreenBtn" type="button" aria-pressed="false" hidden>Full Screen</button>
     <button id="editLayoutBtn" type="button">Edit</button>
   </div>
@@ -604,6 +604,7 @@ DmxCommon.bindBaseUrl(baseUrlEl);
 const statusEl=document.getElementById('status');
 const values={};
 let profiles=[],fixtures=[],groups=[],scenes=[],palettes=[],pixelMatrices=[],planes=[];
+let dmxOutputs=[];
 let roomPlaneSetup={points:[{id:'A',x:0,y:0,z:0},{id:'B',x:5,y:0,z:0},{id:'C',x:0,y:3,z:0}],target:{x:2.5,y:1.5,z:0},fixtures:[],planes:[],planeCols:3,planeRows:3,activePlaneId:null,view:{auto:true,centerX:0,centerY:0,zoom:1}};
 let groupCols=2,groupRows=4,fixtureCols=4,fixtureRows=4,sceneCols=4,sceneRows=4,paletteCols=4,paletteRows=4,matrixCols=4,matrixRows=4,planeCols=3,planeRows=3,chaserCols=4,chaserRows=4,motionCols=4,motionRows=4;
 let cardCols=2,cardRows=5;
@@ -685,6 +686,26 @@ function updateWheelRangeHost(host,option,value,attrs){
 }
 function absolute(start,rel){return start+rel-1;}
 function endpoint(){return baseUrlEl.value.replace(/\/+$/,'');}
+function fixtureDmxEntries(source,scaled=true){
+  const entries=[];
+  Object.keys(source||{}).forEach(key=>{
+    const [fixtureId,controlId]=String(key).split(':');
+    const fixture=fixtures.find(item=>String(item.id)===fixtureId);
+    const profile=fixture&&fixtureProfile(fixture);
+    const control=profile&&profile.controls.find(item=>String(item.id)===controlId);
+    if(!fixture||!control)return;
+    const rows=scaled?resolveDmxBytesForOutput(fixture,control):resolveDmxBytes(fixture,control);
+    rows.forEach(row=>entries.push({fixture,row}));
+  });
+  return entries;
+}
+function sendFixtureEntries(entries,path='/dmx/b',options={}){
+  return DmxCommon.sendFixtureDmxRows(entries,dmxOutputs,{
+    path,
+    keepalive:!!options.keepalive,
+    legacyBaseUrl:baseUrlEl.value
+  });
+}
 function fixtureProfile(f){return profiles.find(p=>String(p.id)===String(f.profileId));}
 function controlKey(f,c){return f.id+':'+c.id;}
 function getValue(f,c,def=0){const key=controlKey(f,c);return values[key]===undefined?def:values[key];}
@@ -3326,7 +3347,7 @@ async function sendShowPlaneLiveTarget(){
   }
   const selected=showPlaneTargetIds();
   const errors=[];
-  const pairs=[];
+  const entries=[];
   const patch={};
   let applied=0;
   for(const currentFixture of fixtures.filter(f=>selected.has(String(f.id)))){
@@ -3339,12 +3360,12 @@ async function sendShowPlaneLiveTarget(){
     const max=control.type==='panTilt8'?255:65535;
     setValue(currentFixture,control,{pan:clamp(Math.round(out.pan),0,max),tilt:clamp(Math.round(out.tilt),0,max)});
     patch[controlKey(currentFixture,control)]=cloneValue(getValue(currentFixture,control,defaultValueForControl(control)));
-    resolveDmxBytes(currentFixture,control).forEach(row=>pairs.push(row.ch+':'+clamp(row.val,0,255)));
+    resolveDmxBytes(currentFixture,control).forEach(row=>entries.push({fixture:currentFixture,row}));
     applied++;
   }
   if(applied){
     try{await DmxCommon.mergeFixtureLiveValues(patch);}catch(_){}
-    try{await sendPairs(pairs);}
+    try{await sendFixtureEntries(entries);}
     catch(error){errors.push(error.message||'Could not send plane live output');}
   }
   const statusText=(applied?'Plane live '+plane.name+' -> '+applied+' fixture'+(applied===1?'':'s')+' @ X '+Number(plane.target.x).toFixed(2)+' / Y '+Number(plane.target.y).toFixed(2):'No fixtures updated')+(errors.length?' - '+errors.join(' - '):'');
@@ -3454,19 +3475,23 @@ function parseChaserPicoSlotPayload(body,slot=0){
   });
   return info.step_count>0?info:null;
 }
-function mergePicoChaserSlots(mirroredSlots,liveSlots){
+function mergePicoChaserSlots(mirroredSlots,liveSlots,playbacks=[]){
   const count=Math.max(32,mirroredSlots?.length||0,liveSlots?.length||0);
   return Array.from({length:count},(_,i)=>{
     const mirroredPayload=mirroredSlots?.[i]||'';
     const mirror=parseChaserPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',step_count:0,mode:1,direction:0,loop_count:1,speed_mult:1}:null);
     const live=liveSlots?.[i]&&liveSlots[i].loaded?{...liveSlots[i],slot:i,source:'pico'}:null;
-    if(!live&&!mirror)return null;
+    const playback=(playbacks||[]).find(item=>Number(item?.members?.[0]?.slot)===i)||null;
+    if(!live&&!mirror&&!playback)return null;
+    const coordinator=playback?.members?.[0]||null;
+    const playbackPayload=coordinator?.payload||mirroredPayload;
     return {
       slot:i,
-      payload:mirroredPayload,
+      payload:playbackPayload,
+      playback,
       loaded:true,
       liveOnly:!!live&&!mirror,
-      label:live?'Pico slot '+i:slotPayloadLabel(mirroredSlots?.[i],i,'Chaser'),
+      label:playback?.label||(live?'Pico slot '+i:slotPayloadLabel(playbackPayload,i,'Chaser')),
       step_count:live?.step_count||mirror?.step_count||0,
       active:!!live?.active,
       paused:!!live?.paused,
@@ -3486,19 +3511,23 @@ function parseMotionPicoSlotPayload(body,slot=0){
   });
   return info;
 }
-function mergePicoMotionSlots(mirroredSlots,liveSlots){
+function mergePicoMotionSlots(mirroredSlots,liveSlots,playbacks=[]){
   const count=Math.max(64,mirroredSlots?.length||0,liveSlots?.length||0);
   return Array.from({length:count},(_,i)=>{
     const mirroredPayload=mirroredSlots?.[i]||'';
     const mirror=parseMotionPicoSlotPayload(mirroredPayload,i)||(mirroredPayload?{slot:i,loaded:true,source:'mirror',bpm:30,target_count:0,fixture_count:0}:null);
     const live=liveSlots?.[i]&&liveSlots[i].loaded?{...liveSlots[i],slot:i,source:'pico'}:null;
-    if(!live&&!mirror)return null;
+    const playback=(playbacks||[]).find(item=>Number(item?.members?.[0]?.slot)===i)||null;
+    if(!live&&!mirror&&!playback)return null;
+    const coordinator=playback?.members?.[0]||null;
+    const playbackPayload=coordinator?.payload||mirroredPayload;
     return {
       slot:i,
-      payload:mirroredPayload,
+      payload:playbackPayload,
+      playback,
       loaded:true,
       liveOnly:!!live&&!mirror,
-      label:live?'Pico effect '+i:slotPayloadLabel(mirroredSlots?.[i],i,'Effect'),
+      label:playback?.label||(live?'Pico effect '+i:slotPayloadLabel(playbackPayload,i,'Effect')),
       bpm:live?.bpm||mirror?.bpm||30,
       target_count:live?.target_count||mirror?.target_count||0,
       fixture_count:live?.fixture_count||mirror?.fixture_count||0,
@@ -3600,9 +3629,12 @@ function renderPlayback(containerRef,slots,type,layoutId=type,colsOverride=null,
     const payload=type==='chaser'?item?.loaded:item?.loaded;
     const sourceSlot=item?.slot;
     const label=type==='chaser'?(item?.label||('Pico slot '+sourceSlot)):(item?.label||('Pico effect '+sourceSlot));
+    const linkedMeta=item?.playback?.members?.length>1
+      ?' · linked '+item.playback.members.map(member=>'U'+member.universe+'/S'+member.slot).join(' + ')
+      :'';
     const meta=type==='chaser'&&item
-      ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}`
-      :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}`:'Pico slot '+sourceSlot;
+      ?`${item.step_count||0} steps${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`
+      :item?`${Math.round(Number(item.bpm)||30)} BPM${item.liveOnly?' · live Pico':' · mirrored'}${linkedMeta}`:'Pico slot '+sourceSlot;
     const selected=(type==='chaser'&&Number(sourceSlot)===Number(chaserSelectedSlot))||(type==='motion'&&Number(sourceSlot)===Number(motionSelectedSlot));
     const running=!!(item?.active||item?.paused);
     const actionLabel=running?'Stop':'Start';
@@ -3720,42 +3752,6 @@ function resolveDmxBytesForOutput(f,c){
     else values[controlKey(f,c)]=original;
   }
 }
-function valuePatchPairs(source){
-  const pairs=[];
-  Object.keys(source||{}).forEach(key=>{
-    const [fixtureId,controlId]=String(key).split(':');
-    const f=fixtures.find(item=>String(item.id)===fixtureId);
-    const p=f&&fixtureProfile(f);
-    const c=p&&p.controls.find(item=>String(item.id)===controlId);
-    if(f&&c)resolveDmxBytesForOutput(f,c).forEach(row=>pairs.push(row.ch+':'+row.val));
-  });
-  return pairs;
-}
-function valuePatchPairsUnscaled(source){
-  const pairs=[];
-  Object.keys(source||{}).forEach(key=>{
-    const [fixtureId,controlId]=String(key).split(':');
-    const f=fixtures.find(item=>String(item.id)===fixtureId);
-    const p=f&&fixtureProfile(f);
-    const c=p&&p.controls.find(item=>String(item.id)===controlId);
-    if(f&&c)resolveDmxBytes(f,c).forEach(row=>pairs.push(row.ch+':'+row.val));
-  });
-  return pairs;
-}
-function valuePatchPairsFromPatch(source){
-  const original={};
-  Object.keys(source||{}).forEach(key=>{
-    original[key]=Object.prototype.hasOwnProperty.call(values,key)?cloneValue(values[key]):undefined;
-    values[key]=cloneValue(source[key]);
-  });
-  try{return valuePatchPairs(source);}
-  finally{
-    Object.keys(source||{}).forEach(key=>{
-      if(original[key]===undefined)delete values[key];
-      else values[key]=original[key];
-    });
-  }
-}
 function isDimmerControl(control){
   const label=String(control?.label||control?.name||control?.scope||'').toLowerCase();
   return /\bdimmer\b|\bintensity\b/.test(label)&&scalarControlParts(control||{}).some(part=>part.part==='value');
@@ -3793,24 +3789,24 @@ async function applyDimmerMaster(value,scope='all'){
     patch[controlKey(row.fixture,row.control)]=cloneValue(getValue(row.fixture,row.control,defaultValueForControl(row.control)));
   });
   const scaled=await applyMasterDimmerScale({clearWhenEmpty:true});
-  if(!scaled)await sendPairs(valuePatchPairsUnscaled(patch));
+  if(!scaled)await sendFixtureEntries(fixtureDmxEntries(patch,false));
   setStatus((targetMaster?targetMaster.name:'Grand')+' master set '+targets.length+' dimmer control(s) to '+faderValue+'%');
 }
 function masterFactorsNeedRestore(){
   if(Math.abs((masterFactors.grand??1)-1)>0.0001)return true;
   return targetMasters.some(master=>Math.abs((master.factor??1)-1)>0.0001);
 }
-function dimmerMasterScalePairs(){
-  const scales=new Map();
+function dimmerMasterScaleEntries(){
+  const entries=[];
   dimmerTargets().forEach(row=>{
     const factor=masterFactorFor(row.fixture,row.control);
     if(Math.abs(factor-1)<=0.0001)return;
     const scale=clamp(Math.round(factor*255),0,255);
     resolveDmxBytes(row.fixture,row.control).forEach(byte=>{
-      scales.set(String(byte.ch),String(scale));
+      entries.push({fixture:row.fixture,row:{ch:byte.ch,val:scale}});
     });
   });
-  return [...scales.entries()].map(([ch,scale])=>ch+':'+scale);
+  return entries;
 }
 function dimmerRestorePatch(){
   const patch={};
@@ -3821,27 +3817,29 @@ function dimmerRestorePatch(){
   return patch;
 }
 async function clearMasterDimmerScale(options={}){
-  const root=endpoint();
-  if(!root)return false;
-  const r=await fetch(root+'/dmx/master/clear',{cache:'no-store',keepalive:!!options.keepalive});
-  if(!r.ok)throw new Error('Pico master scale clear failed: HTTP '+r.status);
-  return true;
+  const outputs=DmxCommon.dmxOutputsForFixtures(fixtures,dmxOutputs);
+  if(!outputs.length)return false;
+  await DmxCommon.requestDmxOutputs(outputs,'/dmx/master/clear',{
+    keepalive:!!options.keepalive,
+    legacyBaseUrl:baseUrlEl.value
+  });
+  return outputs.length>0;
 }
 async function applyMasterDimmerScale(options={}){
-  const pairs=dimmerMasterScalePairs();
-  if(!pairs.length){
+  const entries=dimmerMasterScaleEntries();
+  if(!entries.length){
     if(options.clearWhenEmpty)await clearMasterDimmerScale(options);
     return false;
   }
-  await sendPairs(pairs,'/dmx/master',options);
+  await sendFixtureEntries(entries,'/dmx/master',options);
   return true;
 }
 async function restoreDimmerMastersForExit(options={}){
   const patch=dimmerRestorePatch();
-  const pairs=valuePatchPairsUnscaled(patch);
-  if(!pairs.length)return false;
+  const entries=fixtureDmxEntries(patch,false);
+  if(!entries.length)return false;
   await clearMasterDimmerScale(options);
-  await sendPairs(pairs,'/dmx/b',options);
+  await sendFixtureEntries(entries,'/dmx/b',options);
   return true;
 }
 async function applyDimmerMastersForEntry(){
@@ -3978,17 +3976,8 @@ function bindMasterCard(){
     };
   });
 }
-async function sendPairs(pairs,path='/dmx/b',options={}){
-  const root=endpoint();
-  if(!root||!pairs.length)return;
-  const unique=new Map();
-  pairs.forEach(pair=>{const [ch,val]=pair.split(':');unique.set(String(ch),String(val));});
-  const body=[...unique.entries()].map(([ch,val])=>ch+':'+val).join(',');
-  const r=await fetch(root+path,{method:'POST',body,cache:'no-store',keepalive:!!options.keepalive});
-  if(!r.ok)throw new Error('Pico DMX send failed: HTTP '+r.status);
-}
 async function sendValuePatchWithMasterMask(patch){
-  await sendPairs(valuePatchPairsUnscaled(patch));
+  await sendFixtureEntries(fixtureDmxEntries(patch,false));
   if(masterFactorsNeedRestore())await applyMasterDimmerScale();
 }
 function recallSceneKey(key){
@@ -4000,10 +3989,17 @@ function recallPaletteKey(key){
   if(palette)DmxCommon.withButtonFeedback(document.querySelector(`[data-palette-key="${CSS.escape(String(key))}"]`),{busy:'Recall...',success:'Recalled',error:'Failed'},()=>applyValuePatch(palette.values||{},'Palette "'+(palette.name||key)+'"')).catch(err=>setStatus(err.message,true));
 }
 async function stopPico(type){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/'+type+'/stop',{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico '+type+' stop failed: HTTP '+r.status);
+  const roots=new Set();
+  playbackSlotsForType(type).forEach(slot=>(slot?.playback?.members||[]).forEach(member=>{
+    const root=String(member.baseUrl||'').replace(/\/+$/,'');
+    if(root)roots.add(root);
+  }));
+  const primary=endpoint();
+  if(primary)roots.add(primary);
+  if(!roots.size)throw new Error('No Pico URL is configured');
+  const results=await Promise.all([...roots].map(root=>fetch(root+'/'+type+'/stop',{cache:'no-store'})));
+  const failed=results.find(response=>!response.ok);
+  if(failed)throw new Error('Pico '+type+' stop failed: HTTP '+failed.status);
   playbackSlotsForType(type).forEach(slot=>{
     if(slot)Object.assign(slot,{active:false,paused:false});
   });
@@ -4011,45 +4007,42 @@ async function stopPico(type){
   if(type==='motion')updateMotionPauseResumeButton();
   drawPlaybackForType(type);
 }
-async function stopPicoSlot(type,slot){
+async function commandShowPlaybackSlot(type,slot,action,suffix=''){
+  const slotData=playbackSlotsForType(type)[slot]||null;
+  if(slotData?.playback){
+    await DmxCommon.commandLinkedPicoPlayback(slotData.playback,member=>'/'+type+'/'+action+'/'+member.slot+suffix);
+    return slotData.playback.members.length;
+  }
   const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/'+type+'/stop/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico '+type+' slot stop failed: HTTP '+r.status);
+  if(!root)throw new Error('No Pico URL is configured');
+  const response=await fetch(root+'/'+type+'/'+action+'/'+slot+suffix,{cache:'no-store'});
+  if(!response.ok)throw new Error('Pico '+type+' command failed: HTTP '+response.status);
+  return 1;
+}
+async function stopPicoSlot(type,slot){
+  const count=await commandShowPlaybackSlot(type,slot,'stop');
   updatePlaybackSlotState(type,slot,{active:false,paused:false});
-  setStatus(type+' slot '+slot+' stopped');
+  setStatus(type+' slot '+slot+' stopped'+(count>1?' on '+count+' linked Picos':''));
 }
 async function pauseChaserSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/chaser/pause/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico chaser pause failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('chaser',slot,'pause');
   updatePlaybackSlotState('chaser',slot,{active:false,paused:true});
-  setStatus('chaser slot '+slot+' paused');
+  setStatus('chaser slot '+slot+' paused'+(count>1?' on '+count+' linked Picos':''));
 }
 async function resumeChaserSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/chaser/resume/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico chaser resume failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('chaser',slot,'resume');
   updatePlaybackSlotState('chaser',slot,{active:true,paused:false});
-  setStatus('chaser slot '+slot+' resumed');
+  setStatus('chaser slot '+slot+' resumed'+(count>1?' on '+count+' linked Picos':''));
 }
 async function pauseMotionSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/motion/pause/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico effect pause failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('motion',slot,'pause');
   updatePlaybackSlotState('motion',slot,{active:false,paused:true});
-  setStatus('effect slot '+slot+' paused');
+  setStatus('effect slot '+slot+' paused'+(count>1?' on '+count+' linked Picos':''));
 }
 async function resumeMotionSlot(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
-  const r=await fetch(root+'/motion/resume/'+slot,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico effect resume failed: HTTP '+r.status);
+  const count=await commandShowPlaybackSlot('motion',slot,'resume');
   updatePlaybackSlotState('motion',slot,{active:true,paused:false});
-  setStatus('effect slot '+slot+' resumed');
+  setStatus('effect slot '+slot+' resumed'+(count>1?' on '+count+' linked Picos':''));
 }
 async function toggleChaserPauseResume(){
   const slotData=chaserSlots[chaserSelectedSlot]||null;
@@ -4065,27 +4058,34 @@ async function togglePlaybackPauseResume(type,slot){
   return slotData?.paused?resumeMotionSlot(slot):pauseMotionSlot(slot);
 }
 async function setChaserSlotSpeed(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
   const speed=Math.max(0.1,Math.min(10,parseFloat(document.getElementById('chaserControlSpeed')?.value)||1));
   const rate=Math.round(speed*100);
-  const r=await fetch(root+'/chaser/speed/'+slot+'/'+rate,{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico chaser speed failed: HTTP '+r.status);
-  setStatus('chaser slot '+slot+' speed set to '+speed.toFixed(1)+'x');
+  const count=await commandShowPlaybackSlot('chaser',slot,'speed','/'+rate);
+  setStatus('chaser slot '+slot+' speed set to '+speed.toFixed(1)+'x'+(count>1?' across '+count+' Picos':''));
 }
 async function setMotionSlotBpm(slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
   const bpm=Math.max(1,Math.min(600,parseInt(document.getElementById('motionControlBpm')?.value,10)||30));
-  const r=await fetch(root+'/motion/bpm/'+slot+'/'+Math.round(bpm*10),{cache:'no-store'});
-  if(!r.ok)throw new Error('Pico effect BPM failed: HTTP '+r.status);
-  setStatus('effect slot '+slot+' BPM set to '+bpm);
+  const count=await commandShowPlaybackSlot('motion',slot,'bpm','/'+Math.round(bpm*10));
+  setStatus('effect slot '+slot+' BPM set to '+bpm+(count>1?' across '+count+' Picos':''));
 }
 async function startPicoSlot(type,slot){
-  const root=endpoint();
-  if(!root)throw new Error('Set Pico base URL first');
   const slots=type==='chaser'?chaserSlots:motionSlots;
   const slotData=slots[slot];
+  if(slotData?.playback){
+    const loadAction=type==='chaser'?'play':'start';
+    await Promise.all(slotData.playback.members.map(async member=>{
+      const root=String(member.baseUrl||'').replace(/\/+$/,'');
+      const load=await fetch(root+'/'+type+'/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'},cache:'no-store'});
+      if(!load.ok)throw new Error((member.outputName||member.outputId)+': load failed (HTTP '+load.status+')');
+    }));
+    await DmxCommon.commandLinkedPicoPlayback(slotData.playback,member=>'/'+type+'/'+loadAction+'/'+member.slot);
+    if(masterFactorsNeedRestore())await applyMasterDimmerScale();
+    updatePlaybackSlotState(type,slot,{active:true,paused:false});
+    setStatus(type+' slot '+slot+' started on '+slotData.playback.members.length+' linked Picos');
+    return;
+  }
+  const root=endpoint();
+  if(!root)throw new Error('No Pico URL is configured');
   const payload=slotData?.payload;
   if(payload){
     const load=await fetch(root+'/'+type+'/load/'+slot,{method:'POST',body:payload,headers:{'Content-Type':'text/plain'},cache:'no-store'});
@@ -4153,6 +4153,7 @@ async function loadShow(options={}){
   const setup=fixtureData.setup||{};
   profiles=Array.isArray(setup.profiles)?setup.profiles:[];
   fixtures=Array.isArray(setup.fixtures)?setup.fixtures:[];
+  dmxOutputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
   Object.keys(values).forEach(key=>delete values[key]);
   Object.assign(values,setup.values||{},liveData.values||{});
   groups=Array.isArray(groupData.groups)?groupData.groups:[];
@@ -4173,12 +4174,12 @@ async function loadShow(options={}){
   loadLiveControls();
   loadTargetMasters();
   loadMidiMappings();
-  const savedUrl=localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
+  const savedUrl=dmxOutputs[0]?.baseUrl||localStorage.getItem(DmxCommon.BASE_URL_KEY)||setup.baseUrl||groupData.baseUrl||sceneData.baseUrl||paletteData.baseUrl||chaserData.pico_url||motionData.pico_url;
   if(savedUrl)baseUrlEl.value=savedUrl;
   const liveChaserSlots=await loadLivePicoChaserSlots(savedUrl||baseUrlEl.value);
   const liveMotionSlots=await loadLivePicoMotionSlots(savedUrl||baseUrlEl.value);
-  chaserSlots=mergePicoChaserSlots(Array.isArray(chaserData.pico_slots)?chaserData.pico_slots:[],liveChaserSlots);
-  motionSlots=mergePicoMotionSlots(Array.isArray(motionData.pico_slots)?motionData.pico_slots:[],liveMotionSlots);
+  chaserSlots=mergePicoChaserSlots(Array.isArray(chaserData.pico_slots)?chaserData.pico_slots:[],liveChaserSlots,Array.isArray(chaserData.pico_playbacks)?chaserData.pico_playbacks:[]);
+  motionSlots=mergePicoMotionSlots(Array.isArray(motionData.pico_slots)?motionData.pico_slots:[],liveMotionSlots,Array.isArray(motionData.pico_playbacks)?motionData.pico_playbacks:[]);
   renderGroups();renderFixtures();renderScenes();renderPalettes();renderPixelMatrices();renderPlanes();renderPlaybackSlots();renderLiveControls();renderCardGrid();
   selectChaserSlot(chaserSelectedSlot);
   selectMotionSlot(motionSelectedSlot);

@@ -28,6 +28,7 @@ if ($method === 'GET') {
         echo json_encode([
             'ok' => true,
             'pico_slots' => $slots,
+            'pico_playbacks' => isset($data['pico_playbacks']) && is_array($data['pico_playbacks']) ? array_values($data['pico_playbacks']) : [],
             'pico_url' => $url,
             'appVersion' => $data['appVersion'] ?? null,
             'schemaVersion' => $data['schemaVersion'] ?? null,
@@ -52,6 +53,75 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    if (isset($_GET['delete_playback'])) {
+        $playbackId = trim((string)$_GET['delete_playback']);
+        $deleted = null;
+        $saved = updateJsonFileAtomically($dataFile, function (array $existing) use ($playbackId, &$deleted): array {
+            $playbacks = isset($existing['pico_playbacks']) && is_array($existing['pico_playbacks']) ? $existing['pico_playbacks'] : [];
+            $kept = [];
+            foreach ($playbacks as $playback) {
+                if (is_array($playback) && (string)($playback['id'] ?? '') === $playbackId) {
+                    $deleted = $playback;
+                    continue;
+                }
+                $kept[] = $playback;
+            }
+            $existing['pico_playbacks'] = $kept;
+            if (is_array($deleted)) {
+                $coordinator = $deleted['members'][0] ?? null;
+                $slot = is_array($coordinator) ? (int)($coordinator['slot'] ?? -1) : -1;
+                if ($slot >= 0 && isset($existing['pico_slots'][$slot])) $existing['pico_slots'][$slot] = null;
+            }
+            return $existing;
+        }, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if (!$saved) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not delete linked chaser playback']);
+            exit;
+        }
+        echo json_encode(['ok' => true, 'playback' => $deleted]);
+        exit;
+    }
+
+    // ?playback — atomically add or replace a logical playback manifest whose
+    // members reference physical slots on one or more Pico outputs.
+    if (isset($_GET['playback'])) {
+        $raw = file_get_contents('php://input');
+        $playback = json_decode($raw === false ? '' : $raw, true);
+        if (!is_array($playback) || trim((string)($playback['id'] ?? '')) === '' || !isset($playback['members']) || !is_array($playback['members']) || $playback['members'] === []) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'Playback id and members are required']);
+            exit;
+        }
+        $playback['kind'] = 'chaser';
+        $saved = updateJsonFileAtomically($dataFile, function (array $existing) use ($playback): array {
+            $playbacks = isset($existing['pico_playbacks']) && is_array($existing['pico_playbacks']) ? $existing['pico_playbacks'] : [];
+            $playbacks = array_values(array_filter($playbacks, fn($item): bool => !is_array($item) || (string)($item['id'] ?? '') !== (string)$playback['id']));
+            $playbacks[] = $playback;
+            $existing['pico_playbacks'] = $playbacks;
+            $coordinator = $playback['members'][0] ?? null;
+            if (is_array($coordinator)) {
+                $slot = (int)($coordinator['slot'] ?? -1);
+                $payload = $coordinator['payload'] ?? null;
+                if ($slot >= 0 && $slot < PICO_SLOT_COUNT && is_string($payload) && $payload !== '') {
+                    $existing['pico_slots'] = isset($existing['pico_slots']) && is_array($existing['pico_slots'])
+                        ? array_pad($existing['pico_slots'], PICO_SLOT_COUNT, null)
+                        : array_fill(0, PICO_SLOT_COUNT, null);
+                    $existing['pico_slots'][$slot] = $payload;
+                    if (trim((string)($coordinator['baseUrl'] ?? '')) !== '') $existing['pico_url'] = trim((string)$coordinator['baseUrl']);
+                }
+            }
+            return $existing;
+        }, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if (!$saved) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not write linked chaser playback']);
+            exit;
+        }
+        echo json_encode(['ok' => true, 'playback' => $playback]);
+        exit;
+    }
+
     // ?delete_slot=N — delete a saved Pico slot payload
     if (isset($_GET['delete_slot'])) {
         $slotIdx = (int)$_GET['delete_slot'];
@@ -124,6 +194,7 @@ if ($method === 'POST') {
     $saved = updateJsonFileAtomically($dataFile, function (array $existing) use ($data): array {
         $updated = $data;
         if (isset($existing['pico_slots'])) $updated['pico_slots'] = $existing['pico_slots'];
+        if (isset($existing['pico_playbacks'])) $updated['pico_playbacks'] = $existing['pico_playbacks'];
         if (isset($updated['baseUrl']) && trim((string)$updated['baseUrl']) !== '') {
             $updated['pico_url'] = trim((string)$updated['baseUrl']);
         } elseif (isset($existing['pico_url'])) {

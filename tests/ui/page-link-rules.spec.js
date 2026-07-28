@@ -2,15 +2,15 @@ const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
 
 const APP_PAGES = [
-  { path: '', manualHref: 'user-manual.html?v=0.9.16#1-fixture-controller', manualText: 'Fixture Controller' },
-  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=0.9.16#4-show-run', manualText: 'Show Run' },
-  { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=0.9.16#midi-controller-card', manualText: 'MIDI Emulator' },
-  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=0.9.16#5-chaser', manualText: 'Chaser' },
-  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=0.9.16#6-effects', manualText: 'Effects' },
-  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=0.9.16#7-gpio-control', manualText: 'GPIO Control' },
-  { path: 'test/', manualHref: '../user-manual.html?v=0.9.16#8-pico-performance-test', manualText: 'Pico Performance Test' },
-  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=0.9.16#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
-  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=0.9.16#10-room-plane', manualText: 'Room Plane' }
+  { path: '', manualHref: 'user-manual.html?v=1.0.0#1-fixture-controller', manualText: 'Fixture Controller' },
+  { path: 'dmx_show.html', manualHref: 'user-manual.html?v=1.0.0#4-show-run', manualText: 'Show Run' },
+  { path: 'dmx_midi_emulator.html', manualHref: 'user-manual.html?v=1.0.0#midi-controller-card', manualText: 'MIDI Emulator' },
+  { path: 'dmx_chaser.html', manualHref: 'user-manual.html?v=1.0.0#5-chaser', manualText: 'Chaser' },
+  { path: 'dmx_motion.html', manualHref: 'user-manual.html?v=1.0.0#6-effects', manualText: 'Effects' },
+  { path: 'dmx_gpio.html', manualHref: 'user-manual.html?v=1.0.0#7-gpio-control', manualText: 'GPIO Control' },
+  { path: 'test/', manualHref: '../user-manual.html?v=1.0.0#8-pico-performance-test', manualText: 'Pico Performance Test' },
+  { path: 'dmx_monitor.html', manualHref: 'user-manual.html?v=1.0.0#9-dmx-buffer-monitor', manualText: 'DMX Buffer Monitor' },
+  { path: 'dmx_room_plane.html', manualHref: 'user-manual.html?v=1.0.0#10-room-plane', manualText: 'Room Plane' }
 ];
 
 test.describe('Page link rules', () => {
@@ -21,12 +21,12 @@ test.describe('Page link rules', () => {
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'DMX Controller');
     await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'DMX Controller');
     await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes');
-    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', 'assets/favicon.ico?v=0.9.16');
-    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', 'assets/app-icon-180.png?v=0.9.16');
-    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', 'assets/manifest.webmanifest?v=0.9.16');
+    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', 'assets/favicon.ico?v=1.0.0');
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', 'assets/app-icon-180.png?v=1.0.0');
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', 'assets/manifest.webmanifest?v=1.0.0');
 
     const manifest = await page.evaluate(async () => {
-      const response = await fetch('assets/manifest.webmanifest?v=0.9.16');
+      const response = await fetch('assets/manifest.webmanifest?v=1.0.0');
       return response.json();
     });
     expect(manifest).toMatchObject({
@@ -113,17 +113,26 @@ test.describe('Page link rules', () => {
 
   test('pressing each Manual button opens the matching manual section', async ({ page }) => {
     for (const appPage of APP_PAGES) {
-      await openDmxPage(page, appPage.path);
-      const [manualPage] = await Promise.all([
-        page.waitForEvent('popup'),
-        page.locator('header a.nav', { hasText: 'Manual' }).click()
-      ]);
-      await manualPage.waitForLoadState('domcontentloaded');
-      const expectedHash = new URL(appPage.manualHref, 'http://localhost/dmx/').hash;
-      await expect.poll(() => manualPage.evaluate(() => location.hash), `${appPage.path || 'index.html'} should open ${expectedHash}`)
-        .toBe(expectedHash);
-      await expect(manualPage.locator(`[id="${expectedHash.slice(1)}"]`)).toBeInViewport();
-      await manualPage.close();
+      await test.step(appPage.path || 'index.html', async () => {
+        await openDmxPage(page, appPage.path);
+        if (appPage.path === 'dmx_show.html') {
+          await page.waitForFunction(() => showLoadPromise === null);
+        }
+        const openDialog = page.locator('[role="dialog"]:visible');
+        if (await openDialog.count()) {
+          await openDialog.first().getByRole('button', { name: 'Close' }).first().click();
+        }
+        const [manualPage] = await Promise.all([
+          page.context().waitForEvent('page'),
+          page.locator('header a.nav', { hasText: 'Manual' }).click()
+        ]);
+        await manualPage.waitForLoadState('domcontentloaded');
+        const expectedHash = new URL(appPage.manualHref, 'http://localhost/dmx/').hash;
+        await expect.poll(() => manualPage.evaluate(() => location.hash), `${appPage.path || 'index.html'} should open ${expectedHash}`)
+          .toBe(expectedHash);
+        await expect(manualPage.locator(`[id="${expectedHash.slice(1)}"]`)).toBeInViewport();
+        await manualPage.close();
+      });
     }
   });
 });

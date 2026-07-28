@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=0.9.16-14">
-<script src="assets/dmx-common.js?v=0.9.16-13"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.0-14">
+<script src="assets/dmx-common.js?v=1.0.0-13"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -81,9 +81,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=0.9.16">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.0.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=0.9.16#5-chaser" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.0.0#5-chaser" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -3806,7 +3806,7 @@ if(document.getElementById('btnExportSlots'))document.getElementById('btnExportS
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setStatus('Export error: '+e.message,true);return;}
   if(!j.ok){setStatus('Export slots error',true);return;}
-  const exportData=DmxCommon.versionedPayload({pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots});
+  const exportData=DmxCommon.versionedPayload({pico_url:j.pico_url||baseUrlEl.value.trim(),pico_slots:j.pico_slots,pico_playbacks:j.pico_playbacks||[]});
   DmxCommon.downloadJson('chaser_slots.json',exportData);
   setStatus('chaser_slots.json downloaded');
 };
@@ -3992,7 +3992,7 @@ document.getElementById('btnGroupControlOnly').onclick=()=>applyGroupControlSele
 document.getElementById('btnGroupControlAdd').onclick=()=>applyGroupControlSelection('add');
 
 // ---- Pico realtime playback ----
-function serializeChaserForPico(){
+function serializeChaserForPico(outputId=null){
   const lines=[];
   const opts=picoPlaybackOptions();
   lines.push('LOOP '+(opts.mode==='single'?'0':'1'));
@@ -4000,7 +4000,8 @@ function serializeChaserForPico(){
   lines.push('LOOPS '+opts.loopCount);
   lines.push('DIR '+opts.direction);
   lines.push('SPEED '+opts.speed.toFixed(2));
-  const ptList=getParticipatingList();
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  const ptList=getParticipatingList().filter(({f})=>outputId===null||String(DmxCommon.dmxOutputForFixture(f,outputs)?.id)===String(outputId));
   steps.forEach(step=>{
     lines.push('STEP '+step.duration+' '+(step.fade??0));
     const map={};
@@ -4030,6 +4031,16 @@ function updatePicoChaserPauseResumeButton(){
   btn.dataset.action=paused?'resume':'pause';
 }
 let savedPicoChaserSlotInfo = Array.from({length:PICO_SLOT_COUNT},()=>null);
+let linkedChaserPlaybacks=[];
+
+function linkedChaserPlaybackForSlot(slot){
+  const preferredRoot=baseUrlEl.value.replace(/\/+$/,'');
+  return linkedChaserPlaybacks.find(playback=>{
+    const members=Array.isArray(playback?.members)?playback.members:[];
+    const coordinator=members.find(member=>String(member.baseUrl||'').replace(/\/+$/,'')===preferredRoot)||members[0];
+    return Number(coordinator?.slot)===Number(slot);
+  })||null;
+}
 
 function selectedChaserSlot(){
   return parseInt(document.getElementById('picoSlot').value)||0;
@@ -4041,24 +4052,28 @@ function ensureChaserSlotSupported(){
   return false;
 }
 
-function chaserSlotLoopLine(s){
+function chaserSlotModeLine(s){
   const mode=Number(s?.mode);
-  const loopOn=!!s?.loop||mode===1||mode===2||mode===3;
-  if(mode===2)return 'Loop '+(Number(s?.loop_count)||1)+'x';
-  return 'Loop '+(loopOn?'on':'off');
+  if(mode===0)return 'Mode Single';
+  if(mode===2)return 'Mode Loop N ('+(Number(s?.loop_count)||1)+'x)';
+  if(mode===3)return 'Mode Ping Pong';
+  return 'Mode Loop';
 }
 
 function chaserSlotDirectionLine(s){
   return Number(s?.direction)===1?'Reverse':'Forward';
 }
 
-function chaserSlotPingPongLine(s){
-  return 'Ping Pong '+(Number(s?.mode)===3?'on':'off');
+function chaserSlotFadeLine(s){
+  const min=Number(s?.fade_min);
+  const max=Number(s?.fade_max);
+  if(!Number.isFinite(min)||!Number.isFinite(max))return '';
+  return min===max?'Fade '+min+'%':'Fade '+min+'\u2013'+max+'%';
 }
 
 function parseChaserPicoSlotPayload(body,slot=0){
   if(!body)return null;
-  const info={slot,loaded:true,active:false,paused:false,loop:true,mode:1,direction:0,loop_count:1,current_step:0,step_count:0,speed_mult:1};
+  const info={slot,loaded:true,active:false,paused:false,loop:true,mode:1,direction:0,loop_count:1,current_step:0,step_count:0,speed_mult:1,fade_min:null,fade_max:null};
   String(body).split(/\r?\n/).forEach(line=>{
     const trimmed=line.trim();
     if(!trimmed)return;
@@ -4080,6 +4095,9 @@ function parseChaserPicoSlotPayload(body,slot=0){
       info.speed_mult=Math.max(0.1,Math.min(10,parseFloat(trimmed.slice(6))||1));
     }else if(trimmed.startsWith('STEP ')){
       info.step_count++;
+      const fade=Math.max(0,Math.min(100,parseInt(trimmed.split(/\s+/)[2],10)||0));
+      info.fade_min=info.fade_min===null?fade:Math.min(info.fade_min,fade);
+      info.fade_max=info.fade_max===null?fade:Math.max(info.fade_max,fade);
     }
   });
   return info.step_count>0?info:null;
@@ -4095,7 +4113,9 @@ function mergeSavedChaserSlotInfo(slot){
     direction:saved.direction,
     loop_count:saved.loop_count,
     speed_mult:saved.speed_mult||slot.speed_mult,
-    step_count:slot.step_count||saved.step_count
+    step_count:slot.step_count||saved.step_count,
+    fade_min:saved.fade_min,
+    fade_max:saved.fade_max
   });
 }
 
@@ -4124,9 +4144,13 @@ function renderChaserSlotStrip(slots, activeMask) {
       'transition:border-color .15s,box-shadow .15s','user-select:none'
     ].filter(Boolean).join(';');
     const stepsLabel = unsupported ? 'FW old' : loaded ? s.step_count + ' steps' : '\u2014';
-    const loopLine = chaserSlotLoopLine(s);
+    const modeLine = chaserSlotModeLine(s);
+    const fadeLine = chaserSlotFadeLine(s);
     const dirLine = chaserSlotDirectionLine(s);
-    const pingPongLine = chaserSlotPingPongLine(s);
+    const linkedPlayback=linkedChaserPlaybackForSlot(s.slot);
+    const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
+      ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
+      : '';
     const deleteButton = loaded && !unsupported
       ? '<button type="button" data-delete-chaser-slot="' + s.slot + '" title="Delete slot" style="position:absolute;top:2px;right:2px;width:15px;height:15px;font-size:10px;padding:0;border-radius:3px;line-height:1;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;color:#01ffe6;opacity:.65;cursor:pointer">×</button>'
       : '';
@@ -4134,7 +4158,7 @@ function renderChaserSlotStrip(slots, activeMask) {
       deleteButton +
       '<div style="font-size:10px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin-bottom:3px">SLOT ' + s.slot + '</div>' +
       '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.25;min-height:1.5em">' + stepsLabel + '</div>' +
-      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + loopLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + dirLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + pingPongLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' : '') +
+      (loaded ? '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + modeLine + '</div>' + (fadeLine?'<div style="font-size:10px;color:var(--muted);margin-top:2px">' + fadeLine + '</div>':'') + '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + dirLine + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + (+s.speed_mult).toFixed(2) + 'x</div>' + linkedLine : '') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">' +
       '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' +
         (unsupported ? 'var(--warn)' : alive ? 'var(--accent)' : paused ? 'var(--warn)' : loaded ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)') + '"></span>' +
@@ -4166,8 +4190,17 @@ function renderChaserSlotStrip(slots, activeMask) {
 }
 
 async function deleteChaserSlot(slot){
-  if(!confirm('Delete chaser slot '+slot+'?'))return;
+  const linked=linkedChaserPlaybackForSlot(slot);
+  if(!confirm(linked?'Delete linked chase from all '+linked.members.length+' Picos?':'Delete chaser slot '+slot+'?'))return;
   try{
+    if(linked){
+      await DmxCommon.commandLinkedPicoPlayback(linked,member=>'/chaser/clear/'+member.slot);
+      const response=await fetch('chaser_setup.php?delete_playback='+encodeURIComponent(linked.id),{method:'POST'});
+      const data=await response.json();
+      if(!response.ok||!data.ok)throw new Error(data.error||'Delete failed');
+      linkedChaserPlaybacks=linkedChaserPlaybacks.filter(playback=>playback.id!==linked.id);
+      setPicoStatus('Deleted linked chase from '+linked.members.length+' Picos','var(--accent)');
+    }else{
     const r=await fetch('chaser_setup.php?delete_slot='+slot,{method:'POST'});
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||'Delete failed');
@@ -4177,6 +4210,7 @@ async function deleteChaserSlot(slot){
       setPicoStatus('Deleted slot '+slot,'var(--accent)');
     }else{
       setPicoStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
+    }
     }
     if(_lastChaserSlots){
       _lastChaserSlots[slot]={slot:slot,loaded:false,active:false,paused:false,loop:false,mode:1,direction:0,step_count:0,speed_mult:1.0};
@@ -4231,19 +4265,37 @@ async function loadSavedChaserSlotInfo(){
     const j=await r.json();
     if(!j.ok)return;
     const slots=Array.isArray(j.pico_slots)?j.pico_slots:[];
+    linkedChaserPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
     savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
     if(_lastChaserSlots)renderChaserSlotStrip(_lastChaserSlots,_lastChaserActiveMask);
   }catch(_){}
 }
 async function restoreAllChaserSlots(){
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   let j;
   try{const r=await fetch('chaser_setup.php?slots');j=await r.json();}catch(e){setPicoStatus('Restore error: '+e.message,'var(--bad)');return;}
     if(!j.ok){setPicoStatus('Restore error','var(--bad)');return;}
     const slots=j.pico_slots||[];
+    linkedChaserPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
     savedPicoChaserSlotInfo=Array.from({length:PICO_SLOT_COUNT},(_,i)=>parseChaserPicoSlotPayload(slots[i],i));
     let count=0;
+  if(linkedChaserPlaybacks.length){
+    for(const playback of linkedChaserPlaybacks){
+      for(const member of playback.members||[]){
+        const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
+        if(!memberRoot||!member.payload)continue;
+        try{
+          const response=await fetch(memberRoot+'/chaser/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});
+          const data=await response.json();
+          if(data.ok)count++;
+        }catch(_){}
+      }
+    }
+    setPicoStatus(count+' linked slot member(s) restored','var(--accent)');
+    pollPicoStatus();
+    return;
+  }
+  if(!root){setPicoStatus('No linked playbacks and no primary Pico URL configured','var(--warn)');return;}
   for(let i=0;i<slots.length;i++){
     if(!slots[i])continue;
     try{
@@ -4262,90 +4314,106 @@ async function uploadCurrentChaseToSlot(slot,confirmOverwrite){
   document.getElementById('picoSlot').value=slot;
   if(!ensureChaserSlotSupported())return;
   stopPlayback(); // stop browser playback so it doesn't fight Pico
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
-  if(confirmOverwrite&&!confirm('Replace Pico chaser slot '+slot+' with the current chase?'))return;
-  const body=serializeChaserForPico();
-  setPicoStatus('Uploading to slot '+slot+'…','var(--warn)');
+  if(confirmOverwrite&&!confirm('Replace Pico chaser slot '+slot+' and all linked Pico slots with the current chase?'))return;
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  const participatingFixtures=[...new Map(getParticipatingList().map(({f})=>[String(f.id),f])).values()];
+  const members=DmxCommon.linkedPlaybackMembersForFixtures(
+    participatingFixtures,
+    outputs,
+    output=>serializeChaserForPico(output.id),
+    {legacyBaseUrl:setup.baseUrl||baseUrlEl.value,preferredBaseUrl:baseUrlEl.value}
+  );
+  setPicoStatus('Checking empty slots on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
-    const r=await fetch(root+'/chaser/load/'+slot,{method:'POST',body,headers:{'Content-Type':'text/plain'}});
-    const j=await r.json();
-    if(!j.ok){setPicoStatus('Load error: '+(j.error||'?'),'var(--bad)');return;}
-    await saveChaserSlotToServer(slot, body);
-    setPicoStatus('Uploaded current chase to slot '+slot,'var(--accent)');
+    const playback=await DmxCommon.uploadLinkedPicoPlayback({
+      kind:'chaser',
+      members,
+      preferredSlot:slot,
+      slotCount:PICO_SLOT_COUNT,
+      allowCoordinatorOverwrite:!!confirmOverwrite,
+      label:'Chase '+(document.getElementById('chaseName')?.value||('slot '+slot)),
+      serverEndpoint:'chaser_setup.php'
+    });
+    linkedChaserPlaybacks=linkedChaserPlaybacks.filter(item=>item.id!==playback.id);
+    linkedChaserPlaybacks.push(playback);
+    savedPicoChaserSlotInfo[slot]=parseChaserPicoSlotPayload(playback.members[0]?.payload,slot);
+    const locations=playback.members.map(member=>'U'+member.universe+' S'+member.slot).join(' · ');
+    setPicoStatus('Uploaded linked chase: '+locations,'var(--accent)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 }
 document.getElementById('btnPicoRestoreAll').onclick=restoreAllChaserSlots;
 
-document.getElementById('btnPicoPlaySlot').onclick=async()=>{
+async function commandSelectedChaserSlot(action,slot,suffix=''){
+  const playback=linkedChaserPlaybackForSlot(slot);
+  if(playback){
+    await DmxCommon.commandLinkedPicoPlayback(playback,member=>'/chaser/'+action+'/'+member.slot+suffix);
+    return playback.members.length;
+  }
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
+  if(!root)throw new Error('Set a Pico URL in DMX Outputs first');
+  const response=await fetch(root+'/chaser/'+action+'/'+slot+suffix,{cache:'no-store'});
+  const data=await response.json().catch(()=>null);
+  if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+  return 1;
+}
+
+document.getElementById('btnPicoPlaySlot').onclick=async()=>{
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   stopPlayback();
   try{
-    const r=await fetch(root+'/chaser/play/'+slot);
-    const j=await r.json();
-    if(j.ok){setPicoStatus('Playing slot '+slot,'var(--accent)');startPicoStatusPoll();}
-    else{setPicoStatus('Play error: '+(j.error||'?'),'var(--bad)');}
+    const count=await commandSelectedChaserSlot('play',slot);
+    setPicoStatus('Playing slot '+slot+(count>1?' on '+count+' linked Picos':''),'var(--accent)');
+    startPicoStatusPoll();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoPauseResumeSlot').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   const action=_lastChaserSlots?.[slot]?.paused?'resume':'pause';
   try{
-    const r=await fetch(root+'/chaser/'+action+'/'+slot);
-    const j=await r.json();
-    if(j.ok){
-      if(_lastChaserSlots?.[slot]){
-        Object.assign(_lastChaserSlots[slot],{active:action==='resume',paused:action==='pause'});
-        const activeMask=action==='resume'?(_lastChaserActiveMask|(1<<slot)):(_lastChaserActiveMask&~(1<<slot));
-        renderChaserSlotStrip(_lastChaserSlots,activeMask);
-      }
-      setPicoStatus((action==='pause'?'Paused':'Resumed')+' slot '+slot,action==='pause'?'var(--warn)':'var(--accent)');
-      if(action==='resume')startPicoStatusPoll(); else pollPicoStatus();
-    }else{setPicoStatus((action==='pause'?'Pause':'Resume')+' error: '+(j.error||'?'),'var(--bad)');}
+    const count=await commandSelectedChaserSlot(action,slot);
+    if(_lastChaserSlots?.[slot]){
+      Object.assign(_lastChaserSlots[slot],{active:action==='resume',paused:action==='pause'});
+      const activeMask=action==='resume'?(_lastChaserActiveMask|(1<<slot)):(_lastChaserActiveMask&~(1<<slot));
+      renderChaserSlotStrip(_lastChaserSlots,activeMask);
+    }
+    setPicoStatus((action==='pause'?'Paused':'Resumed')+' slot '+slot+(count>1?' on '+count+' linked Picos':''),action==='pause'?'var(--warn)':'var(--accent)');
+    if(action==='resume')startPicoStatusPoll(); else pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoSetSpeed').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   const mult=parseFloat(document.getElementById('picoSpeed').value)||1.0;
   const rate_x100=Math.round(Math.max(10,Math.min(1000,mult*100)));
   try{
-    const r=await fetch(root+'/chaser/speed/'+slot+'/'+rate_x100);
-    const j=await r.json();
-    if(j.ok)setPicoStatus('Speed set to '+(rate_x100/100).toFixed(2)+'x on slot '+slot,'var(--accent)');
-    else setPicoStatus('Speed error','var(--bad)');
+    const count=await commandSelectedChaserSlot('speed',slot,'/'+rate_x100);
+    setPicoStatus('Speed set to '+(rate_x100/100).toFixed(2)+'x on slot '+slot+(count>1?' across '+count+' Picos':''),'var(--accent)');
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');}
 };
 
 document.getElementById('btnPicoStop').onclick=async()=>{
   stopPicoStatusPoll();
-  const root=baseUrlEl.value.replace(/\/+$/,'');
   try{
-    await fetch(root+'/chaser/stop');
-    setPicoStatus('Stopped','var(--muted)');
+    const roots=new Set(linkedChaserPlaybacks.flatMap(playback=>(playback.members||[]).map(member=>String(member.baseUrl||'').replace(/\/+$/,''))).filter(Boolean));
+    const primary=baseUrlEl.value.replace(/\/+$/,'');
+    if(primary)roots.add(primary);
+    await Promise.all([...roots].map(root=>fetch(root+'/chaser/stop',{cache:'no-store'})));
+    setPicoStatus('Stopped on '+roots.size+' Pico'+(roots.size===1?'':'s'),'var(--muted)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');};
 };
 
 document.getElementById('btnPicoStopSlot').onclick=async()=>{
-  const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(!root){setPicoStatus('Set Pico base URL first','var(--warn)');return;}
   if(!ensureChaserSlotSupported())return;
   const slot=parseInt(document.getElementById('picoSlot').value)||0;
   try{
-    await fetch(root+'/chaser/stop/'+slot);
-    setPicoStatus('Slot '+slot+' stopped','var(--muted)');
+    const count=await commandSelectedChaserSlot('stop',slot);
+    setPicoStatus('Slot '+slot+' stopped'+(count>1?' on '+count+' linked Picos':''),'var(--muted)');
     pollPicoStatus();
   }catch(e){setPicoStatus('Error: '+e.message,'var(--bad)');};
 };
@@ -4363,11 +4431,21 @@ drawStepEditor();
 (async()=>{
   // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
   const root=baseUrlEl.value.replace(/\/+$/,'');
-  if(root){
-    try{
-      const r=await fetch('chaser_setup.php?slots');
-      const j=await r.json();
-      if(j.ok){
+  try{
+    const r=await fetch('chaser_setup.php?slots');
+    const j=await r.json();
+    if(j.ok){
+      linkedChaserPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
+      if(linkedChaserPlaybacks.length){
+        for(const playback of linkedChaserPlaybacks){
+          for(const member of playback.members||[]){
+            const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
+            if(!memberRoot||!member.payload)continue;
+            try{await fetch(memberRoot+'/chaser/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});}catch(_){}
+          }
+        }
+        pollPicoStatus();
+      }else if(root){
         const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
         if(!savedUrl||savedUrl===root){
           const slots=j.pico_slots||[];
@@ -4379,8 +4457,8 @@ drawStepEditor();
           pollPicoStatus();
         }
       }
-    }catch(_){}
-  }
+    }
+  }catch(_){}
 })();
 try{
   const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,loop:false,step_count:0,speed_mult:1.0}));

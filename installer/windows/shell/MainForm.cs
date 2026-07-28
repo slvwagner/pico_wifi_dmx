@@ -41,16 +41,18 @@ internal sealed class MainForm : Form
     private readonly MenuStrip menu = new();
     private readonly Panel fullscreenBar = new();
     private readonly NotifyIcon trayIcon;
+    private readonly bool openFirmwareOnStart;
     private FormBorderStyle previousBorderStyle;
     private FormWindowState previousWindowState;
     private bool fullscreen;
     private bool exiting;
     private bool closeInProgress;
 
-    public MainForm(string url, EventWaitHandle activateEvent)
+    public MainForm(string url, EventWaitHandle activateEvent, bool openFirmwareOnStart = false)
     {
         controllerUri = NormalizeControllerUri(url);
         this.activateEvent = activateEvent;
+        this.openFirmwareOnStart = openFirmwareOnStart;
 
         Text = "WiFiPicoDMX";
         StartPosition = FormStartPosition.CenterScreen;
@@ -78,7 +80,14 @@ internal sealed class MainForm : Form
 
         trayIcon = BuildTrayIcon(icon ?? SystemIcons.Application);
 
-        Shown += async (_, _) => await InitializeBrowserAsync();
+        Shown += async (_, _) =>
+        {
+            await InitializeBrowserAsync();
+            if (this.openFirmwareOnStart)
+            {
+                OpenFirmwareUpdater();
+            }
+        };
         KeyDown += HandleWindowKeyDown;
         FormClosing += HandleFormClosing;
         Resize += (_, _) => statusLabel.Text = WindowState == FormWindowState.Minimized
@@ -136,6 +145,8 @@ internal sealed class MainForm : Form
         var application = new ToolStripMenuItem("&Application");
         application.DropDownItems.Add("Open controller", null, (_, _) => NavigateHome());
         application.DropDownItems.Add("Reload", null, (_, _) => webView.Reload());
+        application.DropDownItems.Add(new ToolStripSeparator());
+        application.DropDownItems.Add("Firmware update…", null, (_, _) => OpenFirmwareUpdater());
         application.DropDownItems.Add(new ToolStripSeparator());
         application.DropDownItems.Add("Exit…", null, (_, _) => ExitApplication());
 
@@ -399,6 +410,12 @@ internal sealed class MainForm : Form
         {
             webView.CoreWebView2.Navigate(controllerUri.AbsoluteUri);
         }
+    }
+
+    private void OpenFirmwareUpdater()
+    {
+        using var updater = new FirmwareFlashForm(Icon);
+        updater.ShowDialog(this);
     }
 
     private static async Task<bool> WaitForServerAsync(Uri uri, TimeSpan timeout)
