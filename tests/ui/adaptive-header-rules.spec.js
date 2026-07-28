@@ -84,6 +84,32 @@ test.describe('Adaptive sticky application header', () => {
     await expect(page.locator('header [data-pico-fleet-status]')).toHaveAttribute('title', /Stage Right.*offline/i);
   });
 
+  test('keeps the Controller DMX Outputs button anchored at the right of the status row', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    const toolbar = page.locator('header .toolbar');
+    const outputsButton = page.locator('header #openDmxOutputs');
+
+    await expect(toolbar).toBeVisible();
+    expect(await outputsButton.evaluate(button => button.parentElement?.classList.contains('toolbar'))).toBe(true);
+    const positions = await page.locator('header').evaluate(header => {
+      const headerRect = header.getBoundingClientRect();
+      const outputsRect = header.querySelector('#openDmxOutputs').getBoundingClientRect();
+      const fleetRect = header.querySelector('[data-pico-fleet-status]').getBoundingClientRect();
+      return {
+        headerRight: headerRect.right,
+        outputsRight: outputsRect.right,
+        outputsCenter: outputsRect.top + outputsRect.height / 2,
+        fleetRight: fleetRect.right,
+        fleetCenter: fleetRect.top + fleetRect.height / 2
+      };
+    });
+
+    expect(Math.abs(positions.outputsRight - positions.headerRight)).toBeLessThanOrEqual(1);
+    expect(positions.fleetRight).toBeLessThan(positions.outputsRight);
+    expect(Math.abs(positions.fleetCenter - positions.outputsCenter)).toBeLessThanOrEqual(1);
+  });
+
   test('warns in the Controller header when an online Pico firmware version is not current', async ({ page }) => {
     await page.unroute('http://pico-one.invalid/status.json');
     await page.unroute('http://pico-two.invalid/status.json');

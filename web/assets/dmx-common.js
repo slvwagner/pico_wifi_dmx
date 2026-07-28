@@ -359,6 +359,9 @@
       links.forEach(link=>nav.appendChild(link));
       header.appendChild(nav);
     }
+    if(toolbar&&header.querySelector('#openDmxOutputs')){
+      toolbar.classList.add('controller-header-toolbar');
+    }
     const baseInput=header.querySelector('#baseUrl');
     if(baseInput){
       baseInput.closest('label')?.classList.add('pico-header-url-field');

@@ -2,7 +2,7 @@
 
 WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). Each Pico drives one full 512-channel DMX universe, and one show can combine multiple named Picos as separate DMX outputs/universes. Fixtures are assigned to their output, so the same DMX address can be reused in different universes. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the involved Picos so show playback does not depend on browser timing or WiFi latency.
 
-- **Latest stable release:** `1.0.0`
+- **Latest stable release:** `1.0.1`
 - **Current development version:** `1.0.1`
 
 See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
@@ -10,13 +10,13 @@ See [Versioning](#versioning) for the version-number and branch policy and [CHAN
 ## Getting Started
 
 For a customer PC running 64-bit Windows, download and run the current
-**[WiFiPicoDMX 1.0.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.0/wifi-pico-dmx-1.0.0-windows-x64.exe)**.
+**[WiFiPicoDMX 1.0.1 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.1/wifi-pico-dmx-1.0.1-windows-x64.exe)**.
 The installer includes the customer application, local web server, manual, and
 guided Pico firmware updater. Because the current installer is unsigned,
 Windows can display a SmartScreen publisher warning.
 
 Read the matching
-**[WiFiPicoDMX 1.0.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.0/user-manual.pdf)**
+**[WiFiPicoDMX 1.0.1 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.1/user-manual.pdf)**
 for installation, firmware flashing, show setup, and operation instructions.
 
 The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
@@ -363,7 +363,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/update_xampp_server.ps1
 
 Then open the matching URL from the Ubuntu machine, or replace `localhost` with the Ubuntu machine's LAN IP from another device. The XAMPP URL is only the address of the web interface and server-side show storage; it is independent from the Pico URLs assigned to the show's DMX Outputs.
 
-Configure hardware from **Fixture Controller → DMX Outputs**. Use **Find Picos** to receive every Pico discovery beacon on UDP port `64540`, then add the wanted devices and assign their universes. Each beacon includes the Pico SDK unique-board ID, which the show stores as the output's stable device identity independently of its DHCP address. If the same Pico later advertises a different IP address, **Find Picos** automatically updates only its saved URL. The output ID, universe, name, fixture assignments, and all show programming stay unchanged; click **Done** to autosave the refreshed address. URLs can also be entered manually in that modal. The sticky header on every page checks the outputs used by patched fixtures and shows **online/total Picos online**; click the pill to refresh immediately. Green means every used output answered, amber means only some answered, and red means none answered.
+Configure hardware from **Fixture Controller → DMX Outputs**. Use **Find Picos** to receive every Pico discovery beacon on UDP port `64540`, then add the wanted devices and assign their universes. Each beacon includes the Pico SDK unique-board ID, which the show stores as the output's stable device identity independently of its DHCP address. If the same Pico later advertises a different IP address, **Find Picos** automatically updates only its saved URL. The output ID, universe, name, fixture assignments, and all show programming stay unchanged; click **Done** to autosave the refreshed address. URLs can also be entered manually in that modal. The sticky header on every page checks the outputs used by patched fixtures and shows **online/total Picos online**; click the pill to refresh immediately. Green means every used output answered, amber means only some answered, and red means none answered. On the Fixture Controller, **DMX Outputs** remains anchored at the right edge of the status row while this text refreshes; when horizontal space is constrained, the fleet text is shortened with an ellipsis instead of wrapping or moving the button.
 
 Changing IP numbers are handled in two places:
 

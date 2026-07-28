@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.1 - Unreleased
+## 1.0.1 - 2026-07-28
 
 Changed:
 
@@ -21,6 +21,7 @@ Changed:
 - Added **Check installed firmware** to the Windows Pico firmware installer. It reuses the Controller's network discovery service, compares every discovered Pico with the bundled firmware manifest, and identifies current, outdated, and version-less devices before BOOTSEL flashing.
 - Applied the shared Windows dark-title-bar treatment to the firmware updater, exit-choice dialog, and server-shutdown progress dialog as well as the main application window.
 - Documented the hardware-alarm frame scheduler and the CPU-to-PIO plus control-SM/data-SM IRQ handshake, including retry, timeout, and resynchronization behavior.
+- Fixed the Controller header shifting the **DMX Outputs** button while Pico health text changed by anchoring its right edge and truncating the adjacent polled fleet-status label when space is constrained.
 
 ## 1.0.0 - 2026-07-28
 
