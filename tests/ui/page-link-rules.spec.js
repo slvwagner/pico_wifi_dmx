@@ -113,17 +113,26 @@ test.describe('Page link rules', () => {
 
   test('pressing each Manual button opens the matching manual section', async ({ page }) => {
     for (const appPage of APP_PAGES) {
-      await openDmxPage(page, appPage.path);
-      const [manualPage] = await Promise.all([
-        page.waitForEvent('popup'),
-        page.locator('header a.nav', { hasText: 'Manual' }).click()
-      ]);
-      await manualPage.waitForLoadState('domcontentloaded');
-      const expectedHash = new URL(appPage.manualHref, 'http://localhost/dmx/').hash;
-      await expect.poll(() => manualPage.evaluate(() => location.hash), `${appPage.path || 'index.html'} should open ${expectedHash}`)
-        .toBe(expectedHash);
-      await expect(manualPage.locator(`[id="${expectedHash.slice(1)}"]`)).toBeInViewport();
-      await manualPage.close();
+      await test.step(appPage.path || 'index.html', async () => {
+        await openDmxPage(page, appPage.path);
+        if (appPage.path === 'dmx_show.html') {
+          await page.waitForFunction(() => showLoadPromise === null);
+        }
+        const openDialog = page.locator('[role="dialog"]:visible');
+        if (await openDialog.count()) {
+          await openDialog.first().getByRole('button', { name: 'Close' }).first().click();
+        }
+        const [manualPage] = await Promise.all([
+          page.context().waitForEvent('page'),
+          page.locator('header a.nav', { hasText: 'Manual' }).click()
+        ]);
+        await manualPage.waitForLoadState('domcontentloaded');
+        const expectedHash = new URL(appPage.manualHref, 'http://localhost/dmx/').hash;
+        await expect.poll(() => manualPage.evaluate(() => location.hash), `${appPage.path || 'index.html'} should open ${expectedHash}`)
+          .toBe(expectedHash);
+        await expect(manualPage.locator(`[id="${expectedHash.slice(1)}"]`)).toBeInViewport();
+        await manualPage.close();
+      });
     }
   });
 });
