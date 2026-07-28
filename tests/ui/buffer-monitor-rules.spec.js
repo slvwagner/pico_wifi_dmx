@@ -1,5 +1,9 @@
 const { test, expect } = require('@playwright/test');
 const { openDmxPage } = require('./helpers/dmx-page');
+const fs = require('fs');
+const path = require('path');
+
+const appVersion = fs.readFileSync(path.join(__dirname, '..', '..', 'VERSION'), 'utf8').trim();
 
 test.describe('DMX Buffer Monitor established rules', () => {
   test('reads and clears the selected DMX Output instead of always using the first Pico', async ({ page }) => {
@@ -96,7 +100,7 @@ test.describe('DMX Buffer Monitor established rules', () => {
     await page.route('http://192.0.2.24/status.json', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ dmx: { channels: 512, frame_count: 42 } })
+      body: JSON.stringify({ firmware_version: appVersion, dmx: { channels: 512, frame_count: 42 } })
     }));
     await page.route('http://192.0.2.24/dmx/output.json', route => route.fulfill({
       status: 200,

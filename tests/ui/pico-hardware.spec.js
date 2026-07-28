@@ -51,6 +51,8 @@ async function readPerfStatus(request) {
   const perf = await getJson(request, '/perf/status.json');
   expect(perf.ok).toBe(true);
   expect(perf.core0?.valid, 'Core0 performance snapshot should be available').toBe(true);
+  expect(perf.dmx?.frame_interval_us?.samples, 'DMX frame interval telemetry should be available').toBeGreaterThan(0);
+  expect(perf.dmx?.doubled_intervals, 'DMX must not report doubled frame intervals').toBe(0);
   return perf;
 }
 

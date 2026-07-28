@@ -29,6 +29,15 @@ typedef struct dmx_engine_status_t {
     uint32_t prime_timeouts;
     uint32_t frame_timeouts;
     uint32_t auto_resyncs;
+    uint32_t frame_interval_expected_us;
+    uint32_t frame_interval_last_us;
+    uint32_t frame_interval_min_us;
+    uint32_t frame_interval_max_us;
+    uint32_t frame_interval_samples;
+    uint32_t late_interval_tolerance_us;
+    uint32_t late_interval_count;
+    uint32_t late_interval_peak_us;
+    uint32_t doubled_interval_count;
     uint16_t blackout_channels;
     uint16_t master_channels;
 } dmx_engine_status_t;

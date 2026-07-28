@@ -5,6 +5,7 @@
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
 #include "hardware/pio.h"
+#include "hardware/sync.h"
 #include "pico/sync.h"
 #include "pico/stdlib.h"
 #include "pico/time.h"
@@ -21,6 +22,8 @@
 #define IRQ_FRAME_DONE 2u
 #define IRQ_FRAME_START 0u
 #define DMA_PRIME_TIMEOUT_US 500u
+#define DMX_INTERVAL_LATE_TOLERANCE_US 1000u
+#define DMX_FRAME_RETRY_US 50u
 
 typedef struct sm_pair_t {
     uint8_t ctrl;
@@ -58,17 +61,25 @@ typedef struct dmx_engine_state_t {
     int dma_channel;
     dma_channel_config dma_cfg;
     repeating_timer_t timer;
-    critical_section_t lock;
+    mutex_t lock;
     uint32_t frame_time_us;
     uint32_t frame_period_us;
     int64_t timer_period_us;
-    absolute_time_t next_frame_time;
     absolute_time_t frame_deadline;
     uint32_t frame_count;
     uint32_t skipped_callbacks;
     uint32_t prime_timeouts;
     uint32_t frame_timeouts;
     uint32_t auto_resyncs;
+    bool frame_start_seen;
+    uint32_t last_frame_start_us;
+    uint32_t frame_interval_last_us;
+    uint32_t frame_interval_min_us;
+    uint32_t frame_interval_max_us;
+    uint32_t frame_interval_samples;
+    uint32_t late_interval_count;
+    uint32_t late_interval_peak_us;
+    uint32_t doubled_interval_count;
     uint32_t data_version;
     uint32_t last_sent_version;
     uint8_t frame[DMX_ENGINE_FRAME_SLOTS];
@@ -107,12 +118,21 @@ static dmx_engine_state_t dmx_state = {
     .dma_channel = -1,
     .frame_time_us = DMX_BREAK_US + DMX_MAB_US + (DMX_ENGINE_FRAME_SLOTS * DMX_SLOT_US),
     .frame_period_us = 22676,
-    .timer_period_us = -22676,
+    .timer_period_us = 22676,
     .frame_count = 0,
     .skipped_callbacks = 0,
     .prime_timeouts = 0,
     .frame_timeouts = 0,
     .auto_resyncs = 0,
+    .frame_start_seen = false,
+    .last_frame_start_us = 0,
+    .frame_interval_last_us = 0,
+    .frame_interval_min_us = 0,
+    .frame_interval_max_us = 0,
+    .frame_interval_samples = 0,
+    .late_interval_count = 0,
+    .late_interval_peak_us = 0,
+    .doubled_interval_count = 0,
     .data_version = 0,
     .last_sent_version = 0,
     .blackout_channels = 0,
@@ -383,30 +403,66 @@ static void resync(void)
     pio_sm_set_enabled(dmx_state.pio, dmx_state.ctrl_sm_local, true);
     sleep_us(200);
     pio_sm_put_blocking(dmx_state.pio, dmx_state.ctrl_sm_local, dmx_state.channels);
-    force_frame_start_irq();
     dmx_state.frame_in_progress = false;
 }
 
-static bool update_frame(void)
+static bool service_frame_completion(void)
 {
-    if (dmx_state.frame_in_progress) {
-        if (pio_interrupt_get(dmx_state.pio, IRQ_FRAME_DONE)) {
-            pio_interrupt_clear(dmx_state.pio, IRQ_FRAME_DONE);
-            dmx_state.frame_in_progress = false;
-            dmx_state.last_sent_version = dmx_state.data_version;
-        } else if (time_reached(dmx_state.frame_deadline)) {
-            dmx_state.frame_timeouts += 1;
-            dmx_state.frame_in_progress = false;
-            resync();
-        } else {
-            dmx_state.skipped_callbacks += 1;
-            return true;
-        }
+    if (!dmx_state.frame_in_progress) {
+        return true;
     }
+    if (pio_interrupt_get(dmx_state.pio, IRQ_FRAME_DONE)) {
+        pio_interrupt_clear(dmx_state.pio, IRQ_FRAME_DONE);
+        dmx_state.frame_in_progress = false;
+        dmx_state.last_sent_version = dmx_state.data_version;
+        return true;
+    }
+    if (time_reached(dmx_state.frame_deadline)) {
+        dmx_state.frame_timeouts += 1;
+        resync();
+        return true;
+    }
+    return false;
+}
 
-    critical_section_enter_blocking(&dmx_state.lock);
-    apply_dirty_locked();
-    critical_section_exit(&dmx_state.lock);
+static void record_frame_start(uint32_t now_us)
+{
+    if (dmx_state.frame_start_seen) {
+        uint32_t interval_us = now_us - dmx_state.last_frame_start_us;
+        dmx_state.frame_interval_last_us = interval_us;
+        if (dmx_state.frame_interval_samples == 0 || interval_us < dmx_state.frame_interval_min_us) {
+            dmx_state.frame_interval_min_us = interval_us;
+        }
+        if (interval_us > dmx_state.frame_interval_max_us) {
+            dmx_state.frame_interval_max_us = interval_us;
+        }
+        dmx_state.frame_interval_samples += 1;
+
+        uint32_t late_us = interval_us > dmx_state.frame_period_us
+            ? interval_us - dmx_state.frame_period_us
+            : 0;
+        if (late_us > dmx_state.late_interval_peak_us) {
+            dmx_state.late_interval_peak_us = late_us;
+        }
+        if (late_us > DMX_INTERVAL_LATE_TOLERANCE_US) {
+            dmx_state.late_interval_count += 1;
+        }
+        if ((uint64_t)interval_us * 2u >= (uint64_t)dmx_state.frame_period_us * 3u) {
+            dmx_state.doubled_interval_count += 1;
+        }
+    } else {
+        dmx_state.frame_start_seen = true;
+    }
+    dmx_state.last_frame_start_us = now_us;
+}
+
+static bool start_frame(bool apply_updates)
+{
+    if (apply_updates) {
+        mutex_enter_blocking(&dmx_state.lock);
+        apply_dirty_locked();
+        mutex_exit(&dmx_state.lock);
+    }
 
     dma_channel_abort((uint)dmx_state.dma_channel);
     dma_channel_configure(
@@ -421,14 +477,37 @@ static bool update_frame(void)
         dmx_state.prime_timeouts += 1;
         dma_channel_abort((uint)dmx_state.dma_channel);
         resync();
-        return true;
+        return false;
     }
 
     pio_interrupt_clear(dmx_state.pio, IRQ_FRAME_DONE);
     force_frame_start_irq();
+    record_frame_start(time_us_32());
     dmx_state.frame_in_progress = true;
     dmx_state.frame_deadline = make_timeout_time_us(dmx_state.frame_time_us + 3000u);
     dmx_state.frame_count += 1;
+    return true;
+}
+
+static bool dmx_frame_timer_callback(repeating_timer_t *timer)
+{
+    (void)timer;
+    if (!dmx_state.running) {
+        return false;
+    }
+
+    if (!service_frame_completion()) {
+        dmx_state.skipped_callbacks += 1;
+        timer->delay_us = DMX_FRAME_RETRY_US;
+        return true;
+    }
+
+    if (!start_frame(false)) {
+        timer->delay_us = DMX_FRAME_RETRY_US;
+        return true;
+    }
+
+    timer->delay_us = dmx_state.timer_period_us;
     return true;
 }
 
@@ -451,7 +530,7 @@ bool dmx_engine_init(const dmx_engine_config_t *config)
     }
 
     if (!dmx_state.initialized) {
-        critical_section_init(&dmx_state.lock);
+        mutex_init(&dmx_state.lock);
     }
 
     release_resources();
@@ -469,7 +548,7 @@ bool dmx_engine_init(const dmx_engine_config_t *config)
     int64_t requested_period_us = 1000000ll / (int64_t)dmx_state.refresh_rate;
     int64_t min_period_us = (int64_t)dmx_state.frame_time_us;
     dmx_state.frame_period_us = (uint32_t)(requested_period_us > min_period_us ? requested_period_us : min_period_us);
-    dmx_state.timer_period_us = -(int64_t)dmx_state.frame_period_us;
+    dmx_state.timer_period_us = (int64_t)dmx_state.frame_period_us;
 
     memset(dmx_state.frame, 0, sizeof(dmx_state.frame));
     memset(dmx_state.tx_frame, 0, sizeof(dmx_state.tx_frame));
@@ -495,9 +574,17 @@ bool dmx_engine_init(const dmx_engine_config_t *config)
     dmx_state.prime_timeouts = 0;
     dmx_state.frame_timeouts = 0;
     dmx_state.auto_resyncs = 0;
+    dmx_state.frame_start_seen = false;
+    dmx_state.last_frame_start_us = 0;
+    dmx_state.frame_interval_last_us = 0;
+    dmx_state.frame_interval_min_us = 0;
+    dmx_state.frame_interval_max_us = 0;
+    dmx_state.frame_interval_samples = 0;
+    dmx_state.late_interval_count = 0;
+    dmx_state.late_interval_peak_us = 0;
+    dmx_state.doubled_interval_count = 0;
     dmx_state.data_version = 0;
     dmx_state.last_sent_version = 0;
-    dmx_state.next_frame_time = nil_time;
 
     if (!allocate_resources()) {
         dmx_state.initialized = false;
@@ -530,22 +617,42 @@ bool dmx_engine_start(void)
     pio_sm_put_blocking(dmx_state.pio, dmx_state.ctrl_sm_local, dmx_state.channels);
 
     dmx_state.running = true;
-    if (!update_frame()) {
+    if (!start_frame(true)) {
         dmx_state.running = false;
         return false;
     }
-    dmx_state.next_frame_time = make_timeout_time_us(dmx_state.frame_period_us);
+    if (!add_repeating_timer_us(
+            dmx_state.timer_period_us,
+            dmx_frame_timer_callback,
+            NULL,
+            &dmx_state.timer)) {
+        dmx_state.running = false;
+        stop_hw();
+        return false;
+    }
+    dmx_state.timer_active = true;
     return true;
 }
 
 void dmx_engine_poll(void)
 {
-    if (!dmx_state.running || !time_reached(dmx_state.next_frame_time)) {
+    if (!dmx_state.running) {
         return;
     }
 
-    update_frame();
-    dmx_state.next_frame_time = make_timeout_time_us(dmx_state.frame_period_us);
+    /*
+     * The timer owns frame starts. Foreground polling only snapshots pending
+     * values into the DMA source while the previous frame is idle. Acquire the
+     * cross-core mutex before briefly masking Core0 IRQs so waiting for a busy
+     * network writer can never postpone the frame alarm.
+     */
+    mutex_enter_blocking(&dmx_state.lock);
+    uint32_t irq_state = save_and_disable_interrupts();
+    if (service_frame_completion() && !dmx_state.frame_in_progress) {
+        apply_dirty_locked();
+    }
+    restore_interrupts(irq_state);
+    mutex_exit(&dmx_state.lock);
 }
 
 void dmx_engine_stop(void)
@@ -561,9 +668,9 @@ bool dmx_engine_set_channel(uint16_t channel, uint8_t value)
     }
 
     uint8_t encoded = encode_value(value);
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     if (dmx_state.blackout_mask[channel]) {
-        critical_section_exit(&dmx_state.lock);
+        mutex_exit(&dmx_state.lock);
         return true;
     }
     if (dmx_state.frame[channel] != encoded) {
@@ -571,7 +678,7 @@ bool dmx_engine_set_channel(uint16_t channel, uint8_t value)
         mark_dirty(channel);
         dmx_state.data_version += 1;
     }
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return true;
 }
 
@@ -582,7 +689,7 @@ bool dmx_engine_set_blackout_channel(uint16_t channel, uint8_t value)
     }
 
     uint8_t encoded = encode_value(value);
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     if (!dmx_state.blackout_mask[channel]) {
         dmx_state.blackout_mask[channel] = 1;
         dmx_state.blackout_channels += 1;
@@ -592,7 +699,7 @@ bool dmx_engine_set_blackout_channel(uint16_t channel, uint8_t value)
         mark_dirty(channel);
         dmx_state.data_version += 1;
     }
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return true;
 }
 
@@ -602,10 +709,10 @@ void dmx_engine_clear_blackout(void)
         return;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     memset(dmx_state.blackout_mask, 0, sizeof(dmx_state.blackout_mask));
     dmx_state.blackout_channels = 0;
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
 }
 
 bool dmx_engine_channel_is_blackout_locked(uint16_t channel)
@@ -614,9 +721,9 @@ bool dmx_engine_channel_is_blackout_locked(uint16_t channel)
         return false;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     bool locked = dmx_state.blackout_mask[channel] != 0;
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return locked;
 }
 
@@ -626,9 +733,9 @@ uint16_t dmx_engine_blackout_channel_count(void)
         return 0;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     uint16_t count = dmx_state.blackout_channels;
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return count;
 }
 
@@ -638,7 +745,7 @@ bool dmx_engine_set_master_scale(uint16_t channel, uint8_t scale)
         return false;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     uint8_t previous = dmx_state.master_scale[channel];
     if (previous != scale) {
         if (previous >= 255u && scale < 255u) {
@@ -650,7 +757,7 @@ bool dmx_engine_set_master_scale(uint16_t channel, uint8_t scale)
         mark_dirty(channel);
         dmx_state.data_version += 1;
     }
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return true;
 }
 
@@ -660,7 +767,7 @@ void dmx_engine_clear_master_scale(void)
         return;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     if (dmx_state.master_channels > 0) {
         for (uint16_t ch = 1; ch <= dmx_state.channels; ++ch) {
             if (dmx_state.master_scale[ch] < 255u) {
@@ -671,7 +778,7 @@ void dmx_engine_clear_master_scale(void)
         dmx_state.master_channels = 0;
         dmx_state.data_version += 1;
     }
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
 }
 
 uint16_t dmx_engine_master_channel_count(void)
@@ -680,9 +787,9 @@ uint16_t dmx_engine_master_channel_count(void)
         return 0;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     uint16_t count = dmx_state.master_channels;
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return count;
 }
 
@@ -696,7 +803,7 @@ uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count)
     }
 
     bool changed = false;
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     for (uint16_t i = 0; i < count; ++i) {
         uint16_t idx = (uint16_t)(i + 1u);
         if (dmx_state.blackout_mask[idx]) {
@@ -712,7 +819,7 @@ uint16_t dmx_engine_set_channels(const uint8_t *values, uint16_t count)
     if (changed) {
         dmx_state.data_version += 1;
     }
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return count;
 }
 
@@ -722,9 +829,9 @@ uint8_t dmx_engine_get_output_channel(uint16_t channel)
         return 0;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     uint8_t value = encode_value(output_encoded_value(channel));
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
     return value;
 }
 
@@ -747,7 +854,7 @@ void dmx_engine_clear_output(void)
         return;
     }
 
-    critical_section_enter_blocking(&dmx_state.lock);
+    mutex_enter_blocking(&dmx_state.lock);
     memset(dmx_state.frame, encode_value(0), sizeof(dmx_state.frame));
     dmx_state.frame[0] = encode_value(dmx_state.start_code);
     memset(dmx_state.blackout_mask, 0, sizeof(dmx_state.blackout_mask));
@@ -758,7 +865,7 @@ void dmx_engine_clear_output(void)
     dmx_state.dirty_first = 0;
     dmx_state.dirty_last = dmx_state.channels;
     dmx_state.data_version += 1;
-    critical_section_exit(&dmx_state.lock);
+    mutex_exit(&dmx_state.lock);
 }
 
 void dmx_engine_clear(void)
@@ -789,6 +896,15 @@ void dmx_engine_get_status(dmx_engine_status_t *status)
     status->prime_timeouts = dmx_state.prime_timeouts;
     status->frame_timeouts = dmx_state.frame_timeouts;
     status->auto_resyncs = dmx_state.auto_resyncs;
+    status->frame_interval_expected_us = dmx_state.frame_period_us;
+    status->frame_interval_last_us = dmx_state.frame_interval_last_us;
+    status->frame_interval_min_us = dmx_state.frame_interval_min_us;
+    status->frame_interval_max_us = dmx_state.frame_interval_max_us;
+    status->frame_interval_samples = dmx_state.frame_interval_samples;
+    status->late_interval_tolerance_us = DMX_INTERVAL_LATE_TOLERANCE_US;
+    status->late_interval_count = dmx_state.late_interval_count;
+    status->late_interval_peak_us = dmx_state.late_interval_peak_us;
+    status->doubled_interval_count = dmx_state.doubled_interval_count;
     status->blackout_channels = dmx_state.blackout_channels;
     status->master_channels = dmx_state.master_channels;
     restore_interrupts(irq_state);

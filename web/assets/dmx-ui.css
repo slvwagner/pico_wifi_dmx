@@ -14,11 +14,14 @@ header.app-sticky-header{display:grid;grid-template-columns:minmax(0,1fr) auto;a
 header.app-sticky-header>.app-page-nav{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0;width:100%}
 header.app-sticky-header .app-page-nav a.nav{flex:0 0 auto;padding:7px 10px;white-space:nowrap}
 header.app-sticky-header .toolbar{min-width:0;justify-content:flex-end;flex-wrap:wrap}
+header.app-sticky-header .controller-header-toolbar{width:100%;align-items:center;flex-wrap:nowrap}
+header.app-sticky-header .controller-header-toolbar .pico-fleet-status{min-width:0;overflow:hidden;text-overflow:ellipsis}
+header.app-sticky-header .controller-header-toolbar #openDmxOutputs{flex:0 0 auto;margin-left:auto}
 header.app-sticky-header .pico-header-url-field{display:none!important}
 .pico-fleet-status{min-height:34px;padding:7px 10px;border-radius:999px;white-space:nowrap;font-size:12px;font-weight:700}
 .pico-fleet-status[data-state=checking]{color:var(--muted);border-color:#45606f;background:#17212a}
 .pico-fleet-status[data-state=online]{color:var(--accent);border-color:#238966;background:#08281e}
-.pico-fleet-status[data-state=partial]{color:var(--warn);border-color:#8b6131;background:#302313}
+.pico-fleet-status[data-state=partial],.pico-fleet-status[data-state=version]{color:var(--warn);border-color:#8b6131;background:#302313}
 .pico-fleet-status[data-state=offline],.pico-fleet-status[data-state=error]{color:var(--bad);border-color:#8c3535;background:#2b1010}
 .pico-fleet-status[data-state=empty]{color:var(--muted);border-color:var(--line);background:#182129}
 h1{font-size:22px;margin:0}

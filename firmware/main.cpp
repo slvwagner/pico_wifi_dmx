@@ -694,6 +694,7 @@ static void build_status_json()
         "Cache-Control: no-store\r\n"
         "\r\n"
         "{"
+        "\"firmware_version\":\"%s\","
         "\"dmx\":{"
         "\"initialized\":%s,"
         "\"running\":%s,"
@@ -729,6 +730,7 @@ static void build_status_json()
         "\"last_data2\":%u"
         "}"
         "}\n",
+        PICO_DMX_VERSION,
         dmx.initialized ? "true" : "false",
         dmx.running ? "true" : "false",
         dmx.tx_pin,
@@ -791,12 +793,16 @@ static void build_perf_status_json()
         "\r\n"
         "{"
         "\"ok\":true,"
+        "\"firmware_version\":\"%s\","
         "\"memory\":{\"free_ram_bytes\":%lu},"
         "\"core0\":{\"valid\":%s,\"period_us\":%lu,\"target_hz\":100,\"samples\":%lu,\"work_us\":{\"mean\":%lu,\"peak\":%lu},\"slack_us\":{\"mean\":%lu,\"min\":%lu},\"late\":{\"count\":%lu,\"peak_us\":%lu},\"headroom_percent\":%lu},"
         "\"core1\":{\"valid\":%s,\"period_us\":%lu,\"samples\":%lu,\"work_us\":{\"mean\":%lu,\"peak\":%lu},\"slack_us\":{\"mean\":%lu,\"min\":%lu},\"late\":{\"count\":%lu,\"peak_us\":%lu}},"
         "\"http\":{\"valid\":%s,\"calls\":%lu,\"work_us\":{\"mean\":%lu,\"peak\":%lu}},"
-        "\"dmx\":{\"running\":%s,\"channels\":%u,\"refresh_rate\":%u,\"frame_count\":%lu,\"skipped_callbacks\":%lu,\"prime_timeouts\":%lu,\"frame_timeouts\":%lu,\"auto_resyncs\":%lu}"
+        "\"dmx\":{\"running\":%s,\"channels\":%u,\"refresh_rate\":%u,\"frame_count\":%lu,\"skipped_callbacks\":%lu,\"prime_timeouts\":%lu,\"frame_timeouts\":%lu,\"auto_resyncs\":%lu,"
+        "\"frame_interval_us\":{\"expected\":%lu,\"last\":%lu,\"min\":%lu,\"max\":%lu,\"samples\":%lu},"
+        "\"late_intervals\":{\"tolerance_us\":%lu,\"count\":%lu,\"peak_us\":%lu},\"doubled_intervals\":%lu}"
         "}\n",
+        PICO_DMX_VERSION,
         (unsigned long)get_free_ram_bytes(),
         core0.valid ? "true" : "false",
         (unsigned long)core0.period_us,
@@ -828,7 +834,16 @@ static void build_perf_status_json()
         (unsigned long)dmx.skipped_callbacks,
         (unsigned long)dmx.prime_timeouts,
         (unsigned long)dmx.frame_timeouts,
-        (unsigned long)dmx.auto_resyncs);
+        (unsigned long)dmx.auto_resyncs,
+        (unsigned long)dmx.frame_interval_expected_us,
+        (unsigned long)dmx.frame_interval_last_us,
+        (unsigned long)dmx.frame_interval_min_us,
+        (unsigned long)dmx.frame_interval_max_us,
+        (unsigned long)dmx.frame_interval_samples,
+        (unsigned long)dmx.late_interval_tolerance_us,
+        (unsigned long)dmx.late_interval_count,
+        (unsigned long)dmx.late_interval_peak_us,
+        (unsigned long)dmx.doubled_interval_count);
 }
 
 static bool path_matches(const char *name, const char *path)

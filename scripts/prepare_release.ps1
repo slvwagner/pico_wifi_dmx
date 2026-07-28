@@ -136,12 +136,15 @@ $cmakeExe = Resolve-CommandPath "cmake" @(
     "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 )
 
+$versionFile = Join-Path $repoRoot "VERSION"
+if (-not (Test-Path -LiteralPath $versionFile)) {
+    throw "VERSION file not found. It is the canonical application and firmware version."
+}
+$repositoryVersion = (Get-Content -LiteralPath $versionFile -Raw).Trim()
 if (-not $Version) {
-    $versionFile = Join-Path $repoRoot "VERSION"
-    if (-not (Test-Path -LiteralPath $versionFile)) {
-        throw "VERSION file not found. Pass -Version or create VERSION."
-    }
-    $Version = (Get-Content -LiteralPath $versionFile -Raw).Trim()
+    $Version = $repositoryVersion
+} elseif ($Version -ne $repositoryVersion) {
+    throw "Version mismatch: -Version is '$Version' but VERSION contains '$repositoryVersion'."
 }
 
 if (-not ($Version -match '^\d+\.\d+\.\d+([-.][A-Za-z0-9.]+)?$')) {
@@ -150,12 +153,11 @@ if (-not ($Version -match '^\d+\.\d+\.\d+([-.][A-Za-z0-9.]+)?$')) {
 
 $cmakePath = Join-Path $repoRoot "CMakeLists.txt"
 $cmake = Get-Content -LiteralPath $cmakePath -Raw
-if ($cmake -notmatch 'pico_set_program_version\(pico_wifi_dmx\s+"([^"]+)"\)') {
-    throw "Could not find pico_set_program_version(...) in CMakeLists.txt."
+if ($cmake -notmatch 'file\s*\(\s*READ\s+"\$\{CMAKE_CURRENT_LIST_DIR\}/VERSION"\s+PICO_DMX_VERSION\s*\)') {
+    throw "CMakeLists.txt must read VERSION into PICO_DMX_VERSION."
 }
-$firmwareVersion = $Matches[1]
-if ($firmwareVersion -ne $Version) {
-    throw "Version mismatch: VERSION is '$Version' but CMake firmware version is '$firmwareVersion'. Update both before release."
+if ($cmake -notmatch 'pico_set_program_version\s*\(\s*pico_wifi_dmx\s+"\$\{PICO_DMX_VERSION\}"\s*\)') {
+    throw "CMakeLists.txt must use PICO_DMX_VERSION as the Pico program version."
 }
 
 if (-not $SkipManual) {

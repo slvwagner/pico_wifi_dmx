@@ -39,7 +39,15 @@ test("starting a committed version branch updates main development metadata", ()
 
   try {
     write(root, "VERSION", "0.9.16\n");
-    write(root, "CMakeLists.txt", 'set(PICO_DMX_VERSION "0.9.16")\n');
+    write(
+      root,
+      "CMakeLists.txt",
+      [
+        'file(READ "${CMAKE_CURRENT_LIST_DIR}/VERSION" PICO_DMX_VERSION)',
+        'pico_set_program_version(pico_wifi_dmx "${PICO_DMX_VERSION}")',
+        "",
+      ].join("\n"),
+    );
     write(root, "docs/manual-data/room_plane_setup.json", '{"appVersion":"0.9.16"}\n');
     write(root, "tests/ui/page-link-rules.spec.js", "const version = '0.9.16';\n");
     write(root, "web/assets/dmx-common.js", "const APP_VERSION = '0.9.16';\n");
@@ -86,6 +94,14 @@ test("starting a committed version branch updates main development metadata", ()
     assert.match(mainReadme, /Current development version:\*\* `0\.9\.17`/);
     assert.equal(run(root, "git", ["show", "main:VERSION"]), "0.9.16");
     assert.equal(run(root, "git", ["show", "0.9.17:VERSION"]), "0.9.17");
+    assert.match(
+      run(root, "git", ["show", "0.9.17:web/assets/dmx-common.js"]),
+      /APP_VERSION = '0\.9\.17'/,
+    );
+    assert.match(
+      run(root, "git", ["show", "0.9.17:CMakeLists.txt"]),
+      /pico_set_program_version\(pico_wifi_dmx "\$\{PICO_DMX_VERSION\}"\)/,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

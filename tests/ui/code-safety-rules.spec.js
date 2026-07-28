@@ -123,6 +123,7 @@ test.describe('Code safety regression rules', () => {
   test('Windows customer app lets the operator exit with or without stopping its server', () => {
     const project = read('installer/windows/shell/PicoDmxShell.csproj');
     const form = read('installer/windows/shell/MainForm.cs');
+    const theme = read('installer/windows/shell/WindowsTheme.cs');
     const builder = read('installer/windows/build_installer.ps1');
     const installer = read('installer/windows/pico-dmx-controller.nsi');
 
@@ -135,8 +136,8 @@ test.describe('Code safety regression rules', () => {
     expect(form).toContain('Exit only');
     expect(form).toContain('Keep the server running for iPads and other operator devices.');
     expect(form).toContain('Environment.SpecialFolder.LocalApplicationData');
-    expect(form).toContain('DwmSetWindowAttribute');
-    expect(form).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
+    expect(theme).toContain('DwmSetWindowAttribute');
+    expect(theme).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
     expect(form).toContain('DarkColorTable');
     expect(form).toContain('Stop WiFiPicoDMX and exit?');
     expect(form).toContain('PicoDmxController');
@@ -393,5 +394,30 @@ test.describe('Code safety regression rules', () => {
     expect(flashScript).toContain('block type:\\s+partition table');
     expect(flashScript).toContain('Invoke-Picotool (@("reboot", "-u")');
     expect(flashScript).toContain('Invoke-Picotool (@("load", "-u", "-v", "-x", $wifiFirmware)');
+  });
+
+  test('Windows firmware installer checks discovered Pico versions against its bundle', () => {
+    const form = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const mainForm = read('installer/windows/shell/MainForm.cs');
+
+    expect(mainForm).toContain('new FirmwareFlashForm(Icon, controllerUri)');
+    expect(form).toContain('Check installed firmware');
+    expect(form).toContain('pico_discovery.php?timeoutMs=');
+    expect(form).toContain('firmware-manifest.json');
+    expect(form).toContain('device.Version == bundledFirmwareVersion');
+    expect(form).toContain('Update needed');
+    expect(form).toContain('Firmware current');
+  });
+
+  test('every Windows application form receives the shared dark title bar', () => {
+    const theme = read('installer/windows/shell/WindowsTheme.cs');
+    const form = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const mainForm = read('installer/windows/shell/MainForm.cs');
+
+    expect(theme).toContain('DWMWA_USE_IMMERSIVE_DARK_MODE');
+    expect(theme).toContain('form.HandleCreated +=');
+    expect(mainForm).toContain('WindowsTheme.ApplyDarkTitleBar(this)');
+    expect(mainForm.match(/WindowsTheme\.ApplyDarkTitleBar\(dialog\)/g)).toHaveLength(2);
+    expect(form).toContain('WindowsTheme.ApplyDarkTitleBar(this)');
   });
 });
