@@ -5,6 +5,7 @@
 Changed:
 
 - Started the 1.0.1 development branch.
+- Added a prominent README Getting Started download for the latest Windows customer installer and made updating and verifying that link a required GitHub Release step.
 
 ## 1.0.0 - 2026-07-28
 
