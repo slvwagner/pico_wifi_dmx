@@ -136,7 +136,9 @@ Select the wanted **DMX output** while patching a fixture. Address conflicts are
 
 The Controller routes single controls, fixture Default/Blackout/Highlight recalls, Group Edit, scenes, palettes, Fan Out, room-plane targeting, and clear-all operations to their fixtures' assigned outputs. Multi-fixture batches are separated by output and sent to the involved Picos concurrently. **Patch CSV** includes the output name and universe for every channel. Complete show export/import preserves the output definitions and fixture assignments; the current show format is version 5 so older controller software refuses unsupported multi-output and pixel-matrix data instead of silently losing it.
 
-Show Run and Room Plane use shared fixture-aware batching. Show Run scenes, palettes, Pixel Matrices, Live Controls, room-plane targeting, and Grand/Group Masters follow each fixture's assigned output. Room Plane calibrated targeting, fixture editing, Group Edit, and scene/palette recalls do the same. When one action involves several outputs, the browser sends one channel batch to each involved Pico concurrently. GPIO Control, DMX Buffer Monitor, and Pico Performance Test provide their own output selectors. Autonomous Pico Chaser and Pico Effects playback remains on the primary output until coordinated multi-Pico slot playback is implemented.
+Show Run and Room Plane use shared fixture-aware batching. Show Run scenes, palettes, Pixel Matrices, Live Controls, room-plane targeting, and Grand/Group Masters follow each fixture's assigned output. Room Plane calibrated targeting, fixture editing, Group Edit, and scene/palette recalls do the same. When one action involves several outputs, the browser sends one channel batch to each involved Pico concurrently. GPIO Control, DMX Buffer Monitor, and Pico Performance Test provide their own output selectors.
+
+Pico Chaser and Pico Effects uploads are also output-aware. When the participating fixtures use several outputs, the page creates one logical playback, splits its channel payload by output, and loads one linked physical slot on every involved Pico. The physical slot numbers may differ. Play, pause, resume, speed/BPM, stop, restore, and delete operate all linked members together. Commands are dispatched concurrently over HTTP; this keeps normal playback starts close together but is not a firmware-level synchronized start guarantee.
 
 ### Pixel Matrices
 
@@ -688,7 +690,9 @@ The modal uses the current Show target. Select Groups or Fixtures first when onl
 
 ### Pico Playback Cards
 
-The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a slot, set speed, play, pause/resume, set speed, or stop.
+The **Pico Chaser Playback** card shows chaser slots uploaded from the Chaser page and mirrored to XAMPP. It also reads live Pico slot state, so a slot that is loaded on the Pico can still appear even when the XAMPP mirror is empty. Use the card controls to choose a logical slot, set speed, play, pause/resume, set speed, or stop.
+
+For a linked chase, the selected logical slot identifies the coordinator member; the associated physical slot on another Pico may have a different number. For example, logical slot 1 can represent `U1 / Slot 1 + U2 / Slot 4`. The tile displays the linked universe/slot members. The card buttons operate the complete link, so **Play Slot 1** starts both physical members in this example. A slot without linked members operates only its single Pico.
 
 In **Edit** mode, each loaded chaser tile has a pencil that opens its MIDI mapping editor. Choose the button's **Playback action** before learning it: start/stop toggle, start, stop, pause/resume toggle, pause, or resume.
 
@@ -696,7 +700,7 @@ In **Edit** mode, each loaded chaser tile has a pencil that opens its MIDI mappi
 
 ![Show Run Pico Chaser Playback card](screenshots/show-run-card-chaser.png)
 
-The **Pico Effects Playback** card shows effect slots uploaded from the Effects page. Choose a slot, set **BPM**, then start, set BPM, or stop the slot. Starting a mirrored slot reloads its payload before running it; starting a live-only Pico slot starts the already-loaded Pico slot without overwriting it.
+The **Pico Effects Playback** card shows effect slots uploaded from the Effects page. Choose a logical slot, set **BPM**, then start, set BPM, or stop the slot. Starting a mirrored slot reloads every linked member payload before running it; starting a live-only single-Pico slot starts the already-loaded Pico slot without overwriting it. Linked effect tiles use the same universe/physical-slot notation as linked chases.
 
 Loaded effect tiles have the same MIDI edit pencil and playback-action choices, including dedicated pause and resume buttons or one pause/resume toggle.
 
@@ -1019,7 +1023,21 @@ If Chaser reports that no Fixture Controller values are available, open the Fixt
 
 ### Pico Slot Playback
 
-Chasers can be uploaded to 32 Pico slots. Each slot can run on the Pico without the browser staying open. The Pico slot strip is the upload target: click an empty slot to upload the current chase. Click a loaded slot once to select it for play, pause, resume, speed, or stop. Click the selected loaded slot again if you want to replace it with the current chase; the page asks before overwriting.
+Chasers can be uploaded to 32 logical Pico slots. Each slot can run on the Pico without the browser staying open. The Pico slot strip is the upload target: click an empty slot to upload the current chase. Click a loaded slot once to select it for play, pause, resume, speed, or stop. Click the selected loaded slot again if you want to replace it with the current chase; the page asks before overwriting.
+
+If the participating fixtures belong to several DMX Outputs, Chaser splits the chase into one payload per output. It first reads the available slots on every involved Pico. The selected logical slot is used on the coordinator Pico, while an empty physical slot is selected automatically on every other involved Pico. The server stores these physical slots as one linked playback. A tile marked **LINKED · 2 PICOS**, for example, represents one logical chase even when its members are `U1 / Slot 1` and `U2 / Slot 4`. The Play, Pause/Resume, Speed, Stop, Restore, and Delete actions apply to every linked member.
+
+#### Linked Chaser Slot Capacity
+
+The current Chaser interface can address a maximum of **32 logical Pico playbacks**. A linked chase consumes one physical chaser slot on each Pico involved in that chase. Therefore:
+
+- A chase using one Pico consumes one slot on that Pico.
+- A chase using two Picos consumes one slot on each of those Picos.
+- If every chase uses the same two Picos, those Picos can hold at most 32 linked chases.
+- Physical slot numbers do not need to match between Picos.
+- Although separate Picos could theoretically hold additional unrelated playbacks, the current coordinator-based Chaser interface still exposes only 32 logical playback positions in total.
+
+This limit applies only to Pico-resident playback. Saved browser chase definitions remain separate from the physical slot allocation.
 
 Starting a Pico slot with **Play Slot** stops browser Chase Playback first, so only one chase engine controls the DMX output.
 
@@ -1089,7 +1107,7 @@ The **Effects** toolbox stores reusable effect recipes. Click an empty effect sl
 
 ### Pico Effects Slots
 
-The Pico effect slot upload uses the same selected **Effect target** as the browser page.
+The Pico effect slot upload uses the same selected **Effect target** as the browser page. When enabled target fixtures use several DMX Outputs, the effect is split into a linked payload for each involved Pico. The selected slot is used by the coordinator, other Picos receive an automatically selected empty physical slot, and all member slots are subsequently controlled together.
 
 - If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
 - If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses `AMP1` and zero `AMP2`; Tilt Swing uses zero `AMP1` and `AMP2`.
@@ -1099,7 +1117,11 @@ The Pico effect slot upload uses the same selected **Effect target** as the brow
 - Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
 - Slots store channel mappings, BPM, amplitude, spread, effect type, and target phase. They do not store fixed center values.
 - The center value is read from the Pico base buffer during playback. This means a scene recall or live controller change can define the center before the slot starts.
-- Up to 64 effect slots can be loaded on the Pico.
+- Up to 64 physical effect slots can be loaded on one Pico.
+
+#### Linked Effect Slot Capacity
+
+The current Effects interface can address a maximum of **64 logical Pico effect playbacks**. Each linked effect consumes one physical effect slot on every Pico used by its participating fixtures. If every effect uses the same Picos, the fleet can therefore hold at most 64 linked effects. Member slot numbers may differ between Picos, and the linked tile records their universe/slot mapping. As with Chaser, additional disjoint capacity on otherwise unused Picos is not exposed as extra logical positions by the current coordinator-based interface.
 
 For scalar targets, set the current value first, then upload/start the slot. For example, set a dimmer to its desired base brightness and use Sine if you want the Pico to pulse above and below that base value.
 
