@@ -19,6 +19,7 @@ Changed:
 - Hardened customer release packaging so firmware is explicitly configured as a Release build, the selected build directory feeds the Windows installer, and Debug UF2 images are rejected.
 - Fixed **Exit and stop server** falsely reporting failure when Apache completed shutdown after the original 12-second wait. WiFiPicoDMX now waits up to 45 seconds, performs a final service-state check, and keeps a non-dismissible animated progress window visible throughout shutdown.
 - Corrected and completed the user documentation against every current application page, including multi-output routing, linked Pico playback, fixture/profile controls, Fan Out, Pixel Matrices, MIDI, GPIO, performance testing, DMX monitoring, and Room Plane operation; removed the duplicate README screenshot walkthrough in favor of the complete user manual.
+- Added the standalone HTML user manual to the public GitHub Release assets and made publishing and verifying both HTML and PDF manuals part of the release checklist.
 
 ## 0.9.16 - 2026-07-28
 

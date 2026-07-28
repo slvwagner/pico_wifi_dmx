@@ -1038,14 +1038,14 @@ After the package passes validation, complete these publication steps:
 
 8. Commit the generated release package, merge the completed version branch
    into `main`, and mark the released version as the latest stable release.
-9. Update the README **Getting Started** installer and PDF manual labels and
+9. Update the README **Getting Started** installer and user-manual labels and
    direct URLs so they contain the released version and exact GitHub Release
    asset names.
 10. Create and push the annotated `v<VERSION>` tag from the final `main`
     release commit.
 11. Create the public GitHub Release and attach the Windows installer, its
-    checksum, all three UF2/checksum pairs, `release-manifest.json`, and the PDF
-    user manual. For example:
+    checksum, all three UF2/checksum pairs, `release-manifest.json`, and both
+    HTML and PDF user manuals. For example:
 
 ```powershell
 gh release create v<VERSION> `
@@ -1060,12 +1060,13 @@ gh release create v<VERSION> `
   release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2 `
   release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2.sha256 `
   release/v<VERSION>/release-manifest.json `
+  release/v<VERSION>/docs/user-manual.html `
   release/v<VERSION>/docs/user-manual.pdf
 ```
 
-12. Open the README installer and PDF manual links from GitHub and verify that
-    they download the published assets without requiring repository knowledge
-    or authentication.
+12. Open the README installer and user-manual links from GitHub and verify that
+    the installer plus HTML and PDF manuals download without requiring
+    repository knowledge or authentication.
 
 ---
 
