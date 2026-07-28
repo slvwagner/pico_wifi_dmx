@@ -92,7 +92,9 @@ test.describe('Page link rules', () => {
     await expect(page.locator('h1')).toBeVisible();
     for (const section of APP_PAGES) {
       const hash = new URL(section.manualHref, 'http://localhost/dmx/').hash;
-      await expect(page.locator(`a[href="${hash}"]`, { hasText: section.manualText })).toBeVisible();
+      const overviewLink = page.getByRole('link', { name: section.manualText, exact: true });
+      await expect(overviewLink).toHaveAttribute('href', hash);
+      await expect(overviewLink).toBeVisible();
       await expect(page.locator(`[id="${hash.slice(1)}"]`)).toBeVisible();
     }
   });
