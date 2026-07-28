@@ -44,6 +44,7 @@ $picoDiscoveryApiSource = Join-Path $apiDir "pico_discovery.php"
 $hostAccessApiSource = Join-Path $apiDir "host_access.php"
 $manualSource    = Join-Path $docsDir "user-manual.html"
 $manualPdfSource = Join-Path $docsDir "user-manual.pdf"
+$manualNavigationPdfSource = Join-Path $docsDir "user-manual-navigation.pdf"
 $manualScreenshotsSource = Join-Path $docsDir "screenshots"
 $targetDir = Join-Path $XamppHtdocs $AppFolder
 $assetsTargetDir = Join-Path $targetDir "assets"
@@ -74,6 +75,7 @@ $picoDiscoveryApiTarget = Join-Path $targetDir "pico_discovery.php"
 $hostAccessApiTarget = Join-Path $targetDir "host_access.php"
 $manualTarget    = Join-Path $targetDir "user-manual.html"
 $manualPdfTarget = Join-Path $targetDir "user-manual.pdf"
+$manualNavigationPdfTarget = Join-Path $targetDir "user-manual-navigation.pdf"
 $manualScreenshotsTarget = Join-Path $targetDir "screenshots"
 $versionTarget = Join-Path $targetDir "VERSION"
 
@@ -186,6 +188,10 @@ if (Test-Path -LiteralPath $manualSource) {
 if (Test-Path -LiteralPath $manualPdfSource) {
     Copy-Item -LiteralPath $manualPdfSource -Destination $manualPdfTarget -Force
     Write-Host "Copied user manual PDF to $manualPdfTarget"
+}
+if (Test-Path -LiteralPath $manualNavigationPdfSource) {
+    Copy-Item -LiteralPath $manualNavigationPdfSource -Destination $manualNavigationPdfTarget -Force
+    Write-Host "Copied navigable user manual PDF to $manualNavigationPdfTarget"
 }
 if (Test-Path -LiteralPath $manualScreenshotsSource) {
     New-Item -ItemType Directory -Force -Path $manualScreenshotsTarget | Out-Null

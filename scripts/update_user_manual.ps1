@@ -251,16 +251,17 @@ try {
         }
     }
 
-    Invoke-Step "Build dark-mode user manual HTML and PDF" {
-        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual.html" -PdfPath "docs/user-manual.pdf" -ChromePath $ChromePath
+    Invoke-Step "Build dark-mode user manual HTML and navigable PDF" {
+        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual.html" -PdfPath "docs/user-manual-navigation.pdf" -ChromePath $ChromePath -PdfWithNavigation
     }
 
-    Invoke-Step "Refresh companion manual HTML" {
+    Invoke-Step "Build companion print HTML and clean PDF" {
         & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual-print.html" -PdfPath "docs/user-manual.pdf" -ChromePath $ChromePath
     }
 
-    Invoke-Step "Wait for generated PDF to finish writing" {
+    Invoke-Step "Wait for generated PDFs to finish writing" {
         Wait-FileStable (Join-Path $repoRoot "docs\user-manual.pdf")
+        Wait-FileStable (Join-Path $repoRoot "docs\user-manual-navigation.pdf")
     }
 
     if (-not $SkipFinalSync) {
@@ -271,17 +272,22 @@ try {
         Invoke-Step "Verify deployed manual" {
             $manual = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + "/user-manual.html") -UseBasicParsing -TimeoutSec 10
             $pdf = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + "/user-manual.pdf") -UseBasicParsing -TimeoutSec 10
+            $navigationPdf = Invoke-WebRequest -Uri ($BaseUrl.TrimEnd('/') + "/user-manual-navigation.pdf") -UseBasicParsing -TimeoutSec 10
             Write-Host ("Manual HTML: {0}, {1} bytes" -f $manual.StatusCode, $manual.RawContentLength)
-            Write-Host ("Manual PDF:  {0}, {1} bytes" -f $pdf.StatusCode, $pdf.RawContentLength)
+            Write-Host ("Clean PDF:   {0}, {1} bytes" -f $pdf.StatusCode, $pdf.RawContentLength)
+            Write-Host ("Navigation PDF: {0}, {1} bytes" -f $navigationPdf.StatusCode, $navigationPdf.RawContentLength)
         }
     } else {
         Invoke-Step "Verify local manual files" {
             $manualPath = Join-Path $repoRoot "docs\user-manual.html"
             $pdfPath = Join-Path $repoRoot "docs\user-manual.pdf"
+            $navigationPdfPath = Join-Path $repoRoot "docs\user-manual-navigation.pdf"
             Wait-FileStable $manualPath
             Wait-FileStable $pdfPath
+            Wait-FileStable $navigationPdfPath
             Write-Host ("Manual HTML: {0} bytes" -f (Get-Item -LiteralPath $manualPath).Length)
-            Write-Host ("Manual PDF:  {0} bytes" -f (Get-Item -LiteralPath $pdfPath).Length)
+            Write-Host ("Clean PDF:   {0} bytes" -f (Get-Item -LiteralPath $pdfPath).Length)
+            Write-Host ("Navigation PDF: {0} bytes" -f (Get-Item -LiteralPath $navigationPdfPath).Length)
         }
     }
 

@@ -28,6 +28,8 @@ This manual explains how to use the browser-based DMX controller with the Pico f
 
 The web interface can be installed with the Pico DMX Windows, macOS, or Ubuntu customer package, or hosted from the project's XAMPP development setup.
 
+The HTML manual provides responsive navigation and direct downloads for two PDF variants. **Clean PDF** is an A4 portrait document without browser navigation controls. **PDF with navigation** is an A4 landscape document with a persistent, clickable contents sidebar. Both contain the same operating instructions.
+
 With a Windows, macOS, or Ubuntu customer installer, open **WiFiPicoDMX** from the desktop, Start Menu, or Applications folder. With the default installer port, the local address is:
 
 ```text

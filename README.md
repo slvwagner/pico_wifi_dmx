@@ -89,7 +89,7 @@ Core features:
 
 License: copying, modification, and sharing are allowed for non-commercial use only. Commercial use requires separate written permission. See [LICENSE](LICENSE).
 
-User-facing operating instructions are in [docs/user-manual.md](docs/user-manual.md). A dark-mode PDF version is available at [docs/user-manual.pdf](docs/user-manual.pdf).
+User-facing operating instructions are in [docs/user-manual.md](docs/user-manual.md). A clean portrait PDF is available at [docs/user-manual.pdf](docs/user-manual.pdf), and a landscape PDF with a persistent clickable contents sidebar is available at [docs/user-manual-navigation.pdf](docs/user-manual-navigation.pdf).
 
 ---
 
@@ -1044,8 +1044,8 @@ After the package passes validation, complete these publication steps:
 10. Create and push the annotated `v<VERSION>` tag from the final `main`
     release commit.
 11. Create the public GitHub Release and attach the Windows installer, its
-    checksum, all three UF2/checksum pairs, `release-manifest.json`, and both
-    HTML and PDF user manuals. For example:
+    checksum, all three UF2/checksum pairs, `release-manifest.json`, the HTML
+    manual, and both PDF user-manual variants. For example:
 
 ```powershell
 gh release create v<VERSION> `
@@ -1061,11 +1061,12 @@ gh release create v<VERSION> `
   release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2.sha256 `
   release/v<VERSION>/release-manifest.json `
   release/v<VERSION>/docs/user-manual.html `
-  release/v<VERSION>/docs/user-manual.pdf
+  release/v<VERSION>/docs/user-manual.pdf `
+  release/v<VERSION>/docs/user-manual-navigation.pdf
 ```
 
 12. Open the README installer and user-manual links from GitHub and verify that
-    the installer plus HTML and PDF manuals download without requiring
+    the installer plus HTML and both PDF manuals download without requiring
     repository knowledge or authentication.
 
 ---

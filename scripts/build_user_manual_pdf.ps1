@@ -3,7 +3,8 @@ param(
     [string]$HtmlPath = "docs/user-manual.html",
     [string]$PdfPath = "docs/user-manual.pdf",
     [string]$ChromePath = "",
-    [int]$Port = 9230
+    [int]$Port = 9230,
+    [switch]$PdfWithNavigation
 )
 
 $ErrorActionPreference = "Stop"
@@ -160,6 +161,7 @@ if ($manualMarkdown.Contains($changelogMarker)) {
 }
 $lines = $manualMarkdown -split '\r?\n'
 $body = [System.Collections.Generic.List[string]]::new()
+$manualSections = [System.Collections.Generic.List[object]]::new()
 $headingIds = @{}
 $inCode = $false
 $inUl = $false
@@ -231,6 +233,12 @@ foreach ($line in $lines) {
         $level = $matches[1].Length
         $id = New-HeadingId $matches[2]
         $text = Convert-InlineMarkdown $matches[2]
+        if ($level -eq 2 -and $id -ne "table-of-contents") {
+            $manualSections.Add([pscustomobject]@{
+                Id = $id
+                TitleHtml = $text
+            })
+        }
         $body.Add("<h$level id=`"$id`">$text</h$level>")
         continue
     }
@@ -262,9 +270,15 @@ foreach ($line in $lines) {
 Flush-Table
 Close-Lists
 
+$manualNavItems = @($manualSections | ForEach-Object {
+    "<li><a href=`"#$($_.Id)`">$($_.TitleHtml)</a></li>"
+}) -join "`n"
+$htmlClass = if ($PdfWithNavigation) { ' class="manual-pdf-navigation"' } else { "" }
+$pdfPageSize = if ($PdfWithNavigation) { "A4 landscape" } else { "A4" }
+
 $html = @"
 <!doctype html>
-<html lang="en">
+<html$htmlClass lang="en">
 <head>
 <meta charset="utf-8">
 <title>Pico WiFi DMX User Manual</title>
@@ -280,7 +294,7 @@ $html = @"
   --accent: #37c4a4;
   --warn: #ffbc6b;
 }
-@page { size: A4; margin: 0; }
+@page { size: $pdfPageSize; margin: 0; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -374,12 +388,411 @@ img {
   break-inside: avoid;
 }
 strong { color: #ffffff; }
+.manual-nav-toggle {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1002;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.manual-nav {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 1003;
+  width: min(86vw, 320px);
+  padding: 18px;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  transform: translateX(-105%);
+  transition: transform 180ms ease;
+  box-shadow: 12px 0 32px rgba(0, 0, 0, 0.42);
+}
+body.manual-nav-open {
+  overflow: hidden;
+}
+body.manual-nav-open .manual-nav {
+  transform: translateX(0);
+}
+.manual-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  border: 0;
+  background: rgba(0, 0, 0, 0.62);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+body.manual-nav-open .manual-nav-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+.manual-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.manual-nav-title {
+  color: #ffffff;
+  font-size: 18px;
+}
+.manual-nav-downloads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.manual-nav-downloads a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  text-align: center;
+  text-decoration: none;
+  font-size: 12px;
+}
+.manual-nav-downloads a:hover,
+.manual-nav-downloads a:focus-visible {
+  border-color: var(--accent);
+}
+.manual-nav-close {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d141a;
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.manual-nav-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.manual-nav-list li {
+  margin: 2px 0;
+}
+.manual-nav-list a {
+  display: block;
+  padding: 8px 10px;
+  border-left: 3px solid transparent;
+  border-radius: 5px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.manual-nav-list a:hover,
+.manual-nav-list a:focus-visible {
+  background: #1d2a34;
+  color: #ffffff;
+}
+.manual-nav-list a.is-active {
+  border-left-color: var(--accent);
+  background: #20332f;
+  color: #ffffff;
+  font-weight: 700;
+}
+.manual-back-to-contents {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1000;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.section-pager {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.section-pager a,
+.section-pager span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  text-align: center;
+}
+.section-pager a {
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+}
+.section-pager a:hover,
+.section-pager a:focus-visible {
+  border-color: var(--accent);
+}
+.section-pager span {
+  visibility: hidden;
+}
+@media (min-width: 1320px) and (hover: hover) and (pointer: fine) {
+  body {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 980px);
+    align-items: start;
+    justify-content: center;
+    gap: 24px;
+  }
+  main {
+    width: 100%;
+    margin: 0;
+  }
+  .manual-nav {
+    position: sticky;
+    inset: auto;
+    top: 28px;
+    z-index: 1;
+    width: 250px;
+    max-height: calc(100vh - 56px);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    transform: none;
+    box-shadow: none;
+  }
+  .manual-nav-toggle,
+  .manual-nav-close,
+  .manual-nav-backdrop {
+    display: none;
+  }
+  body.manual-nav-open {
+    overflow: auto;
+  }
+}
+@media (max-width: 700px) {
+  body {
+    padding: 72px 10px 18px;
+  }
+  main {
+    padding: 24px 18px;
+  }
+  .section-pager {
+    grid-template-columns: 1fr;
+  }
+  .section-pager span {
+    display: none;
+  }
+  .manual-back-to-contents {
+    right: 10px;
+    bottom: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manual-nav,
+  .manual-nav-backdrop {
+    transition: none;
+  }
+}
+@media print {
+  body {
+    display: block;
+    padding: 28px;
+  }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+  .manual-nav,
+  .manual-nav-toggle,
+  .manual-nav-backdrop,
+  .manual-back-to-contents,
+  .section-pager {
+    display: none !important;
+  }
+  html.manual-pdf-navigation body {
+    display: block;
+    padding: 20px 20px 20px 250px;
+  }
+  html.manual-pdf-navigation main {
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px;
+  }
+  html.manual-pdf-navigation .manual-nav {
+    display: block !important;
+    position: fixed;
+    inset: 20px auto 20px 20px;
+    width: 210px;
+    max-height: none;
+    padding: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    transform: none;
+    box-shadow: none;
+  }
+  html.manual-pdf-navigation .manual-nav-header {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+  html.manual-pdf-navigation .manual-nav-title {
+    font-size: 14px;
+  }
+  html.manual-pdf-navigation .manual-nav-close,
+  html.manual-pdf-navigation .manual-nav-downloads {
+    display: none !important;
+  }
+  html.manual-pdf-navigation .manual-nav-list li {
+    margin: 0;
+  }
+  html.manual-pdf-navigation .manual-nav-list a {
+    padding: 2px 5px;
+    border-left-width: 2px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+  html.manual-pdf-navigation .manual-nav-list a.is-active {
+    border-left-color: transparent;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 400;
+  }
+}
 </style>
 </head>
 <body>
-<main>
+<button class="manual-nav-toggle" type="button" aria-controls="manual-nav" aria-expanded="false">☰ Contents</button>
+<button class="manual-nav-backdrop" type="button" aria-label="Close contents"></button>
+<aside class="manual-nav" id="manual-nav" aria-label="Manual contents">
+  <div class="manual-nav-header">
+    <strong class="manual-nav-title">Contents</strong>
+    <button class="manual-nav-close" type="button" aria-label="Close contents">×</button>
+  </div>
+  <div class="manual-nav-downloads">
+    <a href="user-manual.pdf">Clean PDF</a>
+    <a href="user-manual-navigation.pdf">PDF with navigation</a>
+  </div>
+  <ul class="manual-nav-list">
+    <li><a href="#table-of-contents">Full table of contents</a></li>
+$manualNavItems
+  </ul>
+</aside>
+<main id="manual-content">
 $($body -join "`n")
 </main>
+<a class="manual-back-to-contents" href="#table-of-contents">↑ Contents</a>
+<script>
+(function () {
+  const body = document.body;
+  const toggle = document.querySelector('.manual-nav-toggle');
+  const closeButton = document.querySelector('.manual-nav-close');
+  const backdrop = document.querySelector('.manual-nav-backdrop');
+  const nav = document.querySelector('.manual-nav');
+  const main = document.getElementById('manual-content');
+  const navLinks = Array.from(nav.querySelectorAll('a[href^="#"]'));
+  const sectionHeadings = Array.from(main.querySelectorAll(':scope > h2[id]'))
+    .filter(function (heading) { return heading.id !== 'table-of-contents'; });
+
+  function setDrawerOpen(open) {
+    body.classList.toggle('manual-nav-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  toggle.addEventListener('click', function () {
+    setDrawerOpen(!body.classList.contains('manual-nav-open'));
+  });
+  closeButton.addEventListener('click', function () { setDrawerOpen(false); });
+  backdrop.addEventListener('click', function () { setDrawerOpen(false); });
+  navLinks.forEach(function (link) {
+    link.addEventListener('click', function () { setDrawerOpen(false); });
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { setDrawerOpen(false); }
+  });
+
+  sectionHeadings.forEach(function (heading, index) {
+    const pager = document.createElement('nav');
+    pager.className = 'section-pager';
+    pager.setAttribute('aria-label', 'Section navigation');
+
+    const previous = sectionHeadings[index - 1];
+    const next = sectionHeadings[index + 1];
+    const previousControl = document.createElement(previous ? 'a' : 'span');
+    const contentsControl = document.createElement('a');
+    const nextControl = document.createElement(next ? 'a' : 'span');
+
+    if (previous) {
+      previousControl.href = '#' + previous.id;
+      previousControl.textContent = '← ' + previous.textContent;
+    }
+    contentsControl.href = '#table-of-contents';
+    contentsControl.textContent = '↑ Contents';
+    if (next) {
+      nextControl.href = '#' + next.id;
+      nextControl.textContent = next.textContent + ' →';
+    }
+
+    pager.append(previousControl, contentsControl, nextControl);
+    if (next) {
+      main.insertBefore(pager, next);
+    } else {
+      main.appendChild(pager);
+    }
+  });
+
+  function activateSection(id) {
+    navLinks.forEach(function (link) {
+      const active = link.getAttribute('href') === '#' + id;
+      link.classList.toggle('is-active', active);
+      if (active) {
+        link.setAttribute('aria-current', 'location');
+      } else {
+        link.removeAttribute('aria-current');
+      }
+    });
+  }
+
+  let updateQueued = false;
+  function updateActiveSection() {
+    updateQueued = false;
+    let current = sectionHeadings[0];
+    sectionHeadings.forEach(function (heading) {
+      if (heading.getBoundingClientRect().top <= 150) { current = heading; }
+    });
+    if (current) { activateSection(current.id); }
+  }
+  function queueActiveSectionUpdate() {
+    if (updateQueued) { return; }
+    updateQueued = true;
+    window.requestAnimationFrame(updateActiveSection);
+  }
+
+  window.addEventListener('scroll', queueActiveSectionUpdate, { passive: true });
+  window.addEventListener('hashchange', queueActiveSectionUpdate);
+  updateActiveSection();
+})();
+</script>
 </body>
 </html>
 "@
