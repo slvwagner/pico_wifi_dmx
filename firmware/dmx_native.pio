@@ -4,7 +4,6 @@
 .define public BREAK 22
 .define public MAB 21
 
-    wait 1 irq 0
     pull block
     mov y, osr
 

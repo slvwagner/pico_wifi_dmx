@@ -9,6 +9,7 @@ Changed:
 - Fixed the desktop manual contents sidebar disappearing while scrolling by preserving its sticky top offset, with a regression test covering long-page scrolling.
 - Added two generated and packaged PDF manuals: a clean A4 portrait version and an A4 landscape version with a persistent clickable contents sidebar. Both variants are deployed to XAMPP and included by the Windows, macOS, Ubuntu, and release-package workflows.
 - Fixed occasional doubled DMX frame intervals by servicing the PIO frame-done flag on every Core0 poll, preserving an overdue frame deadline until transmission completes, and preventing resynchronization from starting PIO before DMA is primed.
+- Fixed the DMX control PIO startup sequence consuming the single frame-start IRQ before reaching its wrapped transmit loop, which caused continuous frame timeouts and resynchronization.
 
 ## 1.0.0 - 2026-07-28
 

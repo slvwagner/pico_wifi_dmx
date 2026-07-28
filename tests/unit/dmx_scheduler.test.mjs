@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync("firmware/dmx_engine.cpp", "utf8");
+const pioSource = readFileSync("firmware/dmx_native.pio", "utf8");
 
 function functionBody(name) {
   const signature = source.indexOf(`${name}(`);
@@ -61,4 +62,24 @@ test("DMX recovery primes DMA before raising the frame-start IRQ", () => {
   assert.notEqual(dmaPrime, -1, "start_frame() must wait for DMA data");
   assert.notEqual(frameStart, -1, "start_frame() must trigger the control state machine");
   assert.ok(dmaPrime < frameStart, "DMA must be primed before the PIO frame starts");
+});
+
+test("DMX control startup consumes exactly one frame-start IRQ", () => {
+  const controlProgram = pioSource.slice(
+    pioSource.indexOf(".program sm_dmx_control"),
+    pioSource.indexOf(".program sm_dmx_data"),
+  );
+  const preamble = controlProgram.slice(0, controlProgram.indexOf(".wrap_target"));
+
+  assert.doesNotMatch(
+    preamble,
+    /wait\s+1\s+irq\s+0/,
+    "the blocking channel-count pull is sufficient; an earlier wait consumes the only start IRQ",
+  );
+  assert.match(preamble, /pull\s+block\s*\r?\n\s*mov\s+y,\s*osr/);
+  assert.match(
+    controlProgram,
+    /\.wrap_target\s*\r?\n\s*wait\s+1\s+irq\s+0/,
+    "each transmitted frame must consume one start IRQ at the wrap target",
+  );
 });
