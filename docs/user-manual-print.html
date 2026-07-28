@@ -1324,16 +1324,16 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>Changed:</p>
 <ul>
 <li>Started the 1.0.1 development branch.</li>
-<li>Added prominent README Getting Started downloads for the latest Windows customer installer and matching PDF user manual, and made updating and verifying both links required GitHub Release steps.</li>
-<li>Restructured the user manual to begin with a linked table of contents and place the complete project changelog at the end.</li>
-<li>Updated the README introduction to explain multi-Pico DMX universes, linked Getting Started to the detailed Windows installation section, and added a linked README table of contents before the overview.</li>
-<li>Replaced hard-coded <code>C:</code> Windows installation/data paths in public documentation with the generic <code>%ProgramFiles%</code> and <code>%ProgramData%</code> environment paths.</li>
-<li>Added automatic, show-safe Pico address remapping for DHCP changes. <strong>Find Picos</strong> compares each Pico&#39;s stable unique-board ID with the saved DMX Output identity and automatically replaces a changed URL while preserving output IDs, universes, names, fixture assignments, and show programming.</li>
 </ul>
 <h3 id="1-0-0-2026-07-28">1.0.0 - 2026-07-28</h3>
 <p>Changed:</p>
 <ul>
 <li>Promoted the customer-ready application, bundled Windows server, guided Pico firmware installer, and multi-universe show workflow to the first stable <code>1.0.0</code> release.</li>
+<li>Added prominent README Getting Started downloads for the latest Windows customer installer and matching PDF user manual, and made updating and verifying both links required GitHub Release steps.</li>
+<li>Restructured the user manual to begin with a linked table of contents and place the complete project changelog at the end.</li>
+<li>Updated the README introduction to explain multi-Pico DMX universes, linked Getting Started to the detailed Windows installation section, and added a linked README table of contents before the overview.</li>
+<li>Replaced hard-coded <code>C:</code> Windows installation/data paths in public documentation with the generic <code>%ProgramFiles%</code> and <code>%ProgramData%</code> environment paths.</li>
+<li>Added automatic, show-safe Pico address remapping for DHCP changes. <strong>Find Picos</strong> compares each Pico&#39;s stable unique-board ID with the saved DMX Output identity and automatically replaces a changed URL while preserving output IDs, universes, names, fixture assignments, and show programming.</li>
 <li>Added shared fixture-aware DMX batching and extended Show Run plus Room Plane so live controls, scene/palette/Pixel Matrix recalls, calibrated plane targeting, and Show Run master scaling follow every fixture&#39;s configured DMX Output/universe.</li>
 <li>Added linked multi-Pico playback manifests for Chaser and Effects. Uploads are partitioned by fixture output, verify every involved Pico&#39;s slot table, reserve an empty peer slot, roll back partial uploads, show the linked universe/slot members, and operate all member slots together from Chaser, Effects, and Show Run.</li>
 <li>Fixed Chaser Pico slot tiles so they show one canonical playback mode—Single, Loop, Loop N, or Ping Pong—instead of displaying separate Loop and Ping Pong on/off lines.</li>
