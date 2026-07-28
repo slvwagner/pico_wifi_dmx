@@ -1,8 +1,35 @@
 # Fusion Electronics files
 
 `WiFiPicoDMX_RevA.sch` is a self-contained Autodesk EAGLE XML schematic that
-can be uploaded to Autodesk Fusion Electronics. Its component library and
-preliminary SMD footprints are embedded in the schematic.
+can be uploaded to Autodesk Fusion Electronics. EAGLE stores the component
+definitions and land patterns used by a design inside its schematic and board
+files. Those embedded records use the `WiFiPicoDMX_RevA_used` library identity,
+matching the standalone `WiFiPicoDMX_RevA_used.lbr` supplied beside the design.
+
+The maintained Fusion/EAGLE source library is
+[`libraries/WiFiPicoDMX.lbr`](libraries/WiFiPicoDMX.lbr). The generator reads
+that file directly and imports the matching land patterns for the Pico 2 W,
+resistors, capacitors, ferrites, LEDs, reset switch, PPTC fuse, ISOW1412,
+SM712, ACT45B, HCPL-0700, 1N4148WS, and the available diagnostic pad banks. If
+the library file is missing or one of those package names is removed,
+generation stops instead of silently falling back to another footprint.
+
+## Design bundle and file ownership
+
+| File | Role | Edit policy |
+|---|---|---|
+| `WiFiPicoDMX_RevA.sch` | Three-sheet schematic with embedded used-component records | Generated; edit `scripts/generate_fusion_schematic.mjs` |
+| `WiFiPicoDMX_RevA.brd` | 95 mm × 100 mm PCB starting layout with placement, restrictions, and ground polygons | Generated; edit `scripts/generate_fusion_board.mjs` |
+| `WiFiPicoDMX_RevA_used.lbr` | Exact standalone library subset used by the design | Generated; edit the maintained library/generator inputs |
+| `WiFiPicoDMX_RevA_netlist.csv` | One row per physical electrical connection | Generated with the schematic |
+| `WiFiPicoDMX_RevA_netlist.md` | Human-readable nets, references, values, and review notes | Generated with the schematic |
+| `libraries/WiFiPicoDMX.lbr` | Maintained source footprint/symbol library | Source file; do not replace it with the generated subset |
+
+The schematic contains 40 part records: 37 physical components and three A3
+sheet frames. The board contains the same 37 physical components and 55 named
+nets. The generated used library currently contains 20 device sets, 17
+symbols, 19 packages, and eight available 3D associations. These counts are
+asserted by the hardware tests and must be reviewed if the design changes.
 
 ## How the schematic is created
 
@@ -14,11 +41,22 @@ builds the file programmatically.
 The generator is the single source for:
 
 - schematic symbols and symbolic pin names;
-- preliminary package footprints and physical pad numbers;
+- the selection of package footprints and physical pad numbers;
 - component references, values and sheet positions;
 - physical pin-to-pad mappings;
 - named signals and their connected endpoints;
 - the EAGLE XML schematic and both net-list formats.
+
+The project library is the source for the imported land-pattern geometry.
+See [`libraries/README.md`](libraries/README.md) for the import list and the
+footprints deliberately retained as project-specific definitions.
+
+The generator also copies every available `packages3d` model and
+device-to-model association for packages actually used by the schematic.
+Unused library models are intentionally omitted from the self-contained
+schematic. A corrected custom footprint is left without a 3D model when the
+library contains no dimensionally correct model for it; the generator never
+reuses a model belonging to the former, incorrect package.
 
 For example, one `connectMany()` declaration connects the Pico DMX output,
 ISOW1412 data input, pull-up resistor and diagnostic pad to the named
@@ -42,35 +80,162 @@ Regenerate the schematic and both net lists from the repository root with:
 
 ```powershell
 node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_used_library.mjs
 ```
 
 Expected output:
 
 - `hardware/fusion/WiFiPicoDMX_RevA.sch`;
+- `hardware/fusion/WiFiPicoDMX_RevA_used.lbr`;
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.csv`;
 - `hardware/fusion/WiFiPicoDMX_RevA_netlist.md`.
 
+## Importing the bundle into Fusion
+
+Keep the `.sch`, `.brd`, and `.lbr` together when uploading or archiving the
+design:
+
+1. upload `WiFiPicoDMX_RevA.sch` and `WiFiPicoDMX_RevA.brd` as the matching
+   schematic/board pair;
+2. upload `WiFiPicoDMX_RevA_used.lbr` to the same Fusion project when the
+   components should also be available for reuse;
+3. open the design pair and confirm that all parts/elements identify
+   `WiFiPicoDMX_RevA_used`;
+4. if a managed Fusion library relationship is required, import the `.lbr`,
+   mark it **In Use**, and deliberately use **Swap Library** after verifying
+   that every device and variant matches;
+5. run ERC, calculate the board with `RATSNEST *;`, and run DRC before making
+   any manufacturing output.
+
+The `<libraries>` sections inside `.sch` and `.brd` are expected. EAGLE stores
+the used component definitions inside each drawing for portability. Their
+presence does not mean that the standalone library is ignored: the embedded
+records and every part/element reference now share the external library's
+`WiFiPicoDMX_RevA_used` base name. Fusion may assign a hub URN when converting
+the local `.lbr`; use **Swap Library** rather than editing XML identifiers by
+hand.
+
+## Basic carrier-board layout
+
+`WiFiPicoDMX_RevA.brd` is a basic, deliberately unrouted two-layer carrier
+layout generated from the schematic and physical net list. Regenerate it
+after regenerating the schematic:
+
+```powershell
+node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_used_library.mjs
+node scripts/generate_fusion_board.mjs
+```
+
+The starter layout provides:
+
+- all 37 physical components and all 55 named airwire nets;
+- a plain rectangular 95 mm × 100 mm board outline matching the first
+  manually arranged Fusion layout, without enclosure-specific mounting holes;
+- the complete Pico 2 W development board mounted through the two 20-pin
+  header rows from the supplied library footprint, without a carrier cutout
+  or Pico-specific keepout/access zone;
+- free GPIO and analog pad banks to the left of the centrally placed Pico;
+- an upper DMX signal path running left to right from the Pico, through the
+  ISOW1412 and line protection, to the panel-harness connector;
+- a local top, bottom, and via restrict corridor beneath the upper ISOW1412
+  isolation barrier;
+- a lower MIDI signal path running left to right from the panel-harness
+  connector and protected input network, through the HCPL-0700, to the Pico;
+- a board-edge MIDI input island enclosed by the carrier edges and top,
+  bottom, and via-restrict moats, with the HCPL-0700 straddling its boundary;
+- top- and bottom-layer polygon pours for `GND_LOGIC` and `GND_DMX_ISO`,
+  matching the manually arranged Fusion layout;
+- a locally routed `GND_DMX_CONVERTER` return without a polygon so the FB2
+  high-frequency filtering boundary remains effective;
+- one shared conservative default net class for clean Fusion
+  schematic/board import consistency.
+
+The generated placement is an engineering starting point, not an autorouted
+or production-ready PCB. Fusion must still be used to review the mechanical
+fit, set the fabricator-specific design rules, route the board, add suitable
+planes, inspect return paths, and run DRC. Do not remove or bridge the
+isolation corridor with copper, vias, silkscreen conductive material, test
+fixtures, or mounting hardware.
+
+Run `RATSNEST *;` after opening the board in Fusion to calculate and display
+the four ground pours. Inspect their thermal connections, isolated islands,
+clearances, and separation around FB2 before fabrication.
+
+### Fusion ERC consistency
+
+The generated schematic and board deliberately use only Fusion's shared
+`default` routing class. Independently importing a generated `.sch` and `.brd`
+can cause Fusion to discard custom schematic-class metadata while retaining
+the board classes, producing code 303 consistency errors. Define final
+signal-specific routing rules inside Fusion after import and keep them
+synchronized there.
+
+The unused ISOW1412 general-purpose `IN`/`OUT` isolation channel and the two
+HCPL-0700 NC pads remain present in their physical packages but are omitted
+from the schematic symbols and device pin mappings. This prevents Fusion from
+synthesizing named one-pin nets: an input-only named net produces error 209,
+and connecting NC pins produces warning 103.
+
+Fusion may still report reviewed warnings for:
+
+- supply pins connected to the project's explicit domain names such as
+  `GND_LOGIC`, `VCC_3V3_LOGIC`, and `GND_DMX_ISO`;
+- deliberately open panel pins (`MIDI_DIN_PIN1_SPARE`,
+  `MIDI_DIN_PIN2_SHIELD`, `MIDI_DIN_PIN3_SPARE`, and `XLR_SHELL`);
+- intentionally unused Pico header pins such as `PICO_VSYS` and
+  `PICO_SMPS_EN`.
+
+Those warnings document deliberate design decisions. Recheck them after any
+connectivity change rather than globally suppressing the warning codes.
+
 The connectivity and physical pin mappings were deliberately specified from
 the design decisions and component datasheets. The schematic's automatic
-visual arrangement is only a starting point for manual redrawing. Generic and
-custom-generated footprints are explicitly preliminary; they were not taken
-from a verified Autodesk managed library.
+visual arrangement is only a starting point for manual redrawing. Importing a
+land pattern from the project library does not by itself certify it for
+manufacturing; every package still requires comparison with the selected
+manufacturer part.
 
 The circuit is based on
 [`docs/hardware/SCHEMATIC_DESIGN.md`](../../docs/hardware/SCHEMATIC_DESIGN.md).
 It is an engineering prototype, not a manufacturing release. Before creating
 Gerbers or ordering a PCB:
 
-1. run Fusion's ERC and resolve every result;
+1. run Fusion's ERC and resolve every result (the current Rev. A schematic
+   was checked without errors, but repeat ERC after later edits);
 2. verify every package against the latest manufacturer land-pattern drawing;
-3. select final footprints for the reset switch and optional common-mode
-   choke;
+3. independently recheck the imported `PTS810_J_LEAD`,
+   `PPTC1206_1206L050YR`, `ACT45B_4P5X3P2`, `DFM0020A_TI`,
+   `SOT23_`, `SOD323_VISHAY`, and `HCPL0700_SO8` land patterns
+   against the current manufacturer drawings before fabrication;
 4. confirm the Pico 2 W orientation, antenna keep-out and BOOTSEL access
    against the physical module;
 5. review the isolation keep-out and creepage in the PCB layout;
 6. independently review the DMX polarity, TVS pin mapping, MIDI input current
    and connector harness pin numbering.
 
-Panel-mounted XLR and MIDI connectors use labelled carrier-board solder pads
-with strain-relief holes. They are not represented as PCB-mounted connector
-bodies.
+Panel-mounted XLR and MIDI connectors connect to carrier-board JST XH headers:
+J1 is `B4B-XH-A` for DMX common, Data−, Data+, and shell; J2 is `B5B-XH-A`
+for DIN pins 1-5. The panel connector bodies are not mounted on the PCB.
+
+## Regeneration and verification
+
+Run the complete deterministic sequence from the repository root:
+
+```powershell
+node scripts/generate_fusion_schematic.mjs
+node scripts/generate_fusion_used_library.mjs
+node scripts/generate_fusion_board.mjs
+node --test tests/hardware/*.test.mjs
+```
+
+The order matters: the used library is filtered from the generated schematic,
+and the board imports the schematic's matching embedded library and physical
+net list. The tests verify package dimensions, component/pad mappings,
+schematic placement and labels, board/reference consistency, functional
+placement zones, isolation restrictions, ground polygons, exact
+schematic/library device coverage, and the shared library identity.
+
+Also parse or open all three XML files after regeneration. Passing the
+structural tests does not replace Fusion ERC/DRC, manufacturer footprint
+checks, signal-integrity review, isolation review, or prototype validation.

@@ -1,9 +1,12 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const outputPath = resolve("hardware/fusion/WiFiPicoDMX_RevA.sch");
 const netlistCsvPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.csv");
 const netlistMarkdownPath = resolve("hardware/fusion/WiFiPicoDMX_RevA_netlist.md");
+const projectLibraryPath = resolve("hardware/fusion/libraries/WiFiPicoDMX.lbr");
+const projectLibraryXml = readFileSync(projectLibraryPath, "utf8");
+const designLibraryName = "WiFiPicoDMX_RevA_used";
 
 const esc = (value) => String(value)
   .replaceAll("&", "&amp;")
@@ -40,10 +43,27 @@ const libraries = new Map();
 const symbols = new Map();
 const packages = new Map();
 const deviceSets = new Map();
+const projectLibrary3dByPackage = new Map();
 const parts = [];
 const instances = [];
 const connections = new Map();
 const notes = new Map();
+
+for (const match of projectLibraryXml.matchAll(
+  /<package3d\b([^>]*)>([\s\S]*?)<\/package3d>/g,
+)) {
+  const urn = match[1].match(/\burn="([^"]+)"/)?.[1]
+    || match[1].match(/\bwip_urn="([^"]+)"/)?.[1];
+  if (!urn) continue;
+  for (const packageMatch of match[2].matchAll(
+    /<packageinstance\b[^>]*\bname="([^"]+)"/g,
+  )) {
+    projectLibrary3dByPackage.set(packageMatch[1], {
+      urn,
+      xml: match[0],
+    });
+  }
+}
 
 function defineSymbol(name, pins, body = {}) {
   symbols.set(name, { name, pins, body });
@@ -51,6 +71,68 @@ function defineSymbol(name, pins, body = {}) {
 
 function definePackage(name, xml) {
   packages.set(name, xml);
+}
+
+function importProjectLibraryPackage(name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = projectLibraryXml.match(
+    new RegExp(`<package\\s+name="${escapedName}"[^>]*>([\\s\\S]*?)<\\/package>`),
+  );
+  if (!match) {
+    throw new Error(`Package ${name} is missing from ${projectLibraryPath}`);
+  }
+  definePackage(name, match[1].trim());
+}
+
+function importProjectLibrarySymbol(
+  sourceName,
+  generatedName = sourceName,
+  pinNameMap = {},
+  excludedPins = [],
+) {
+  const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = projectLibraryXml.match(
+    new RegExp(`<symbol\\s+name="${escapedName}"[^>]*>([\\s\\S]*?)<\\/symbol>`),
+  );
+  if (!match) {
+    throw new Error(`Symbol ${sourceName} is missing from ${projectLibraryPath}`);
+  }
+
+  let rawXml = match[1].trim();
+  for (const [sourcePin, generatedPin] of Object.entries(pinNameMap)) {
+    const escapedPin = sourcePin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    rawXml = rawXml.replace(
+      new RegExp(`(<pin\\b[^>]*\\bname=")${escapedPin}(")`, "g"),
+      `$1${generatedPin}$2`,
+    );
+  }
+  for (const excludedPin of excludedPins) {
+    const escapedPin = excludedPin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    rawXml = rawXml.replace(
+      new RegExp(
+        `[ \\t]*<pin\\b[^>]*\\bname="${escapedPin}"[^>]*/>\\r?\\n?`,
+        "g",
+      ),
+      "",
+    );
+  }
+  const pins = [...rawXml.matchAll(/<pin\b([^>]*)\/>/g)].map((pinMatch) => {
+    const attribute = (name) => pinMatch[1].match(
+      new RegExp(`\\b${name}="([^"]+)"`),
+    )?.[1];
+    return {
+      name: attribute("name"),
+      x: Number(attribute("x")),
+      y: Number(attribute("y")),
+      rot: attribute("rot") ?? "R0",
+      direction: attribute("direction") ?? "pas",
+    };
+  });
+  if (pins.some((pin) => !pin.name || !Number.isFinite(pin.x) || !Number.isFinite(pin.y))) {
+    throw new Error(`Symbol ${sourceName} has an unsupported pin definition`);
+  }
+
+  defineSymbol(generatedName, pins, { rawXml });
 }
 
 function defineDeviceSet(name, prefix, symbol, packageName, connects, description) {
@@ -61,6 +143,9 @@ function defineDeviceSet(name, prefix, symbol, packageName, connects, descriptio
     packageName,
     connects,
     description,
+    package3dUrn: packageName
+      ? projectLibrary3dByPackage.get(packageName)?.urn
+      : undefined,
   });
 }
 
@@ -182,10 +267,10 @@ function padBankPackage(pinCount, pitch = 2.54) {
 }
 
 // Symbols
-twoPinSymbol("RESISTOR", "R");
-twoPinSymbol("CAPACITOR", "C");
+importProjectLibrarySymbol("R", "RESISTOR");
+importProjectLibrarySymbol("C", "CAPACITOR");
 twoPinSymbol("FUSE", "F");
-twoPinSymbol("FERRITE", "FB");
+importProjectLibrarySymbol("L", "FERRITE");
 twoPinSymbol("SWITCH", "SW");
 defineSymbol("DIODE", [
   { name: "A", x: -7.62, y: 0, rot: "R0", direction: "passive" },
@@ -240,7 +325,7 @@ const isowRight = [
 ];
 boxSymbol("ISOW1412", isowLeft, isowRight, 30.48, 5.08);
 
-boxSymbol("OPTO_6N138", [
+boxSymbol("OPTO_HCPL0700", [
   { name: "NC1", direction: "nc" },
   { name: "A", direction: "input" },
   { name: "K", direction: "input" },
@@ -267,6 +352,42 @@ defineSymbol("CMC", [
 
 [4, 5, 7, 8, 17].forEach((count) => connectorSymbol(`CONN${count}`, count));
 
+// For every library-backed component, the maintained Fusion symbol is the
+// canonical drawing. Pin aliases retain the schematic's descriptive netlist
+// names where the source library uses physical or generic pin labels.
+importProjectLibrarySymbol("FUSE-1", "FUSE");
+importProjectLibrarySymbol("SWITCH_1", "SWITCH");
+importProjectLibrarySymbol("LED", "LED", { C: "K" });
+importProjectLibrarySymbol("DIODE", "DIODE", { "A$1": "A", "K$2": "K" });
+importProjectLibrarySymbol("TVS_SM712");
+importProjectLibrarySymbol("CMC");
+importProjectLibrarySymbol("ISOW1412", "ISOW1412", {}, ["IN", "OUT"]);
+importProjectLibrarySymbol(
+  "OPTO_HCPL0700",
+  "OPTO_HCPL0700",
+  {},
+  ["NC1", "NC4"],
+);
+importProjectLibrarySymbol("CONN8");
+importProjectLibrarySymbol("CONN17");
+importProjectLibrarySymbol("A3");
+importProjectLibrarySymbol("RPI-PICO2W", "PICO2W", {
+  "GND@1": "GND3",
+  "GND@2": "GND8",
+  "GND@3": "GND13",
+  "GND@4": "GND18",
+  "GND@5": "GND23",
+  "GND@6": "GND28",
+  GP26: "GP26_ADC0",
+  GP27: "GP27_ADC1",
+  "GND@7": "AGND",
+  GP28: "GP28_ADC2",
+  "3.3V_OUT": "3V3",
+  "3.3V_EN": "3V3_EN",
+  "GND@8": "GND38",
+  VBUS_USB: "VBUS",
+});
+
 // Packages. Footprints are embedded so Fusion can create a PCB, but the
 // prototype must not be manufactured until every land pattern is checked
 // against the current manufacturer drawing and the chosen assembly process.
@@ -277,7 +398,17 @@ definePackage("C0805", smdTwoPadPackage("C0805", 1.4, 1.3, 2.2));
 definePackage("PPTC1206", smdTwoPadPackage("PPTC1206", 1.6, 1.8, 2.8));
 definePackage("LED0603", smdTwoPadPackage("LED0603", 1.1, 1.0, 1.8));
 definePackage("SOD323", smdTwoPadPackage("SOD323", 0.8, 0.8, 2.4));
-definePackage("SWITCH_SMD_2PAD", smdTwoPadPackage("SWITCH_SMD_2PAD", 1.8, 1.8, 4.5));
+definePackage("PTS810_PRELIMINARY", lines([
+  element("smd", { name: "1", x: -2.0, y: 0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("smd", { name: "3", x: -2.0, y: -0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("smd", { name: "2", x: 2.0, y: 0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("smd", { name: "4", x: 2.0, y: -0.8, dx: 1.2, dy: 1.5, layer: 1 }),
+  element("wire", { x1: -2.1, y1: -1.6, x2: 2.1, y2: -1.6, width: 0.1524, layer: 21 }),
+  element("wire", { x1: 2.1, y1: -1.6, x2: 2.1, y2: 1.6, width: 0.1524, layer: 21 }),
+  element("wire", { x1: 2.1, y1: 1.6, x2: -2.1, y2: 1.6, width: 0.1524, layer: 21 }),
+  element("wire", { x1: -2.1, y1: 1.6, x2: -2.1, y2: -1.6, width: 0.1524, layer: 21 }),
+  element("text", { x: -2.1, y: 2.0, size: 1.016, layer: 25 }, "&gt;NAME"),
+], "          "));
 
 definePackage("SOT23", lines([
   element("smd", { name: "1", x: -0.95, y: -1.1, dx: 1.0, dy: 1.1, layer: 1 }),
@@ -291,11 +422,11 @@ definePackage("SOT23", lines([
   element("text", { x: -1.5, y: 1.8, size: 1.016, layer: 25 }, "&gt;NAME"),
 ], "          "));
 
-definePackage("CMC4_PLACEHOLDER", lines([
+definePackage("TDK_ACT45B_PRELIMINARY", lines([
   element("smd", { name: "1", x: -2.2, y: 1.1, dx: 1.2, dy: 1.0, layer: 1 }),
   element("smd", { name: "2", x: 2.2, y: 1.1, dx: 1.2, dy: 1.0, layer: 1 }),
-  element("smd", { name: "3", x: -2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
-  element("smd", { name: "4", x: 2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
+  element("smd", { name: "4", x: -2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
+  element("smd", { name: "3", x: 2.2, y: -1.1, dx: 1.2, dy: 1.0, layer: 1 }),
   element("wire", { x1: -1.6, y1: -1.8, x2: 1.6, y2: -1.8, width: 0.1524, layer: 21 }),
   element("wire", { x1: 1.6, y1: -1.8, x2: 1.6, y2: 1.8, width: 0.1524, layer: 21 }),
   element("wire", { x1: 1.6, y1: 1.8, x2: -1.6, y2: 1.8, width: 0.1524, layer: 21 }),
@@ -318,18 +449,18 @@ isowPads.push(element("text", { x: -5.2, y: 7.1, size: 1.016, layer: 25 }, "&gt;
 definePackage("DFM20_PRELIMINARY", lines(isowPads, "          "));
 
 const optoPads = [];
-const optoY = [3.81, 1.27, -1.27, -3.81];
+const optoY = [1.905, 0.635, -0.635, -1.905];
 for (let index = 0; index < 4; index += 1) {
-  optoPads.push(element("smd", { name: index + 1, x: -5.08, y: optoY[index], dx: 2.2, dy: 1.1, layer: 1 }));
-  optoPads.push(element("smd", { name: 8 - index, x: 5.08, y: optoY[index], dx: 2.2, dy: 1.1, layer: 1 }));
+  optoPads.push(element("smd", { name: index + 1, x: -2.9, y: optoY[index], dx: 1.6, dy: 0.6, layer: 1 }));
+  optoPads.push(element("smd", { name: 8 - index, x: 2.9, y: optoY[index], dx: 1.6, dy: 0.6, layer: 1 }));
 }
-optoPads.push(element("wire", { x1: -3.8, y1: -5.0, x2: 3.8, y2: -5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("wire", { x1: 3.8, y1: -5.0, x2: 3.8, y2: 5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("wire", { x1: 3.8, y1: 5.0, x2: -3.8, y2: 5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("wire", { x1: -3.8, y1: 5.0, x2: -3.8, y2: -5.0, width: 0.1524, layer: 21 }));
-optoPads.push(element("circle", { x: -3.1, y: 4.2, radius: 0.35, width: 0, layer: 21 }));
-optoPads.push(element("text", { x: -3.8, y: 5.5, size: 1.016, layer: 25 }, "&gt;NAME"));
-definePackage("DIP8_GULLWING_PRELIMINARY", lines(optoPads, "          "));
+optoPads.push(element("wire", { x1: -2.0, y1: -2.6, x2: 2.0, y2: -2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("wire", { x1: 2.0, y1: -2.6, x2: 2.0, y2: 2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("wire", { x1: 2.0, y1: 2.6, x2: -2.0, y2: 2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("wire", { x1: -2.0, y1: 2.6, x2: -2.0, y2: -2.6, width: 0.1524, layer: 21 }));
+optoPads.push(element("circle", { x: -1.5, y: 2.05, radius: 0.25, width: 0, layer: 21 }));
+optoPads.push(element("text", { x: -2.0, y: 3.1, size: 1.016, layer: 25 }, "&gt;NAME"));
+definePackage("SOIC8_HCPL0700_PRELIMINARY", lines(optoPads, "          "));
 
 const picoPackage = [];
 for (let index = 0; index < 20; index += 1) {
@@ -349,111 +480,181 @@ picoPackage.push(element("text", { x: -9.5, y: 26.0, size: 1.27, layer: 25 }, "&
 picoPackage.push(element("text", { x: -9.5, y: -23.5, size: 1.0, layer: 21 }, "ANTENNA / COPPER KEEPOUT"));
 definePackage("PICO2W_CASTELLATED_PRELIMINARY", lines(picoPackage, "          "));
 
-definePackage("PANEL4_WIRE_PADS", `${padBankPackage(4)}
-          ${element("hole", { x: 4, y: -5, drill: 3.2 })}
-          ${element("hole", { x: 4, y: 5, drill: 3.2 })}`);
-definePackage("PANEL5_WIRE_PADS", `${padBankPackage(5)}
-          ${element("hole", { x: 4, y: -6.5, drill: 3.2 })}
-          ${element("hole", { x: 4, y: 6.5, drill: 3.2 })}`);
 definePackage("PADBANK7", padBankPackage(7));
-definePackage("PADBANK8", padBankPackage(8));
 definePackage("PADBANK17", padBankPackage(17));
 definePackage("PADBANK5", padBankPackage(5));
 
+// Import the matching Fusion-created land patterns from the maintained project
+// library. Project-specific generated footprints remain in use where the
+// library entry does not match the selected physical part or mounting method.
+[
+  "PICO_2_W_DEVELOPMENT_BOARD",
+  "PTS810_J_LEAD",
+  "PPTC1206_1206L050YR",
+  "RESC1005X40",
+  "RESC1608X60",
+  "CAPC1005X60",
+  "CAPC1608X85",
+  "CAPC2012X110",
+  "INDC1006X60N",
+  "LEDC1608X55N_FLAT-B",
+  "DFM0020A_TI",
+  "SOT23_",
+  "HCPL0700_SO8",
+  "SOD323_VISHAY",
+  "ACT45B_4P5X3P2",
+  "B4B-XH-A",
+  "B5B-XH-A",
+  "PADBANK17",
+].forEach(importProjectLibraryPackage);
+
 // Devices
-defineDeviceSet("RES0402", "R", "RESISTOR", "R0402", { 1: "1", 2: "2" }, "0402 resistor");
-defineDeviceSet("RES0603", "R", "RESISTOR", "R0603", { 1: "1", 2: "2" }, "0603 resistor");
-defineDeviceSet("CAP0402", "C", "CAPACITOR", "C0402", { 1: "1", 2: "2" }, "0402 capacitor");
-defineDeviceSet("CAP0805", "C", "CAPACITOR", "C0805", { 1: "1", 2: "2" }, "0805 capacitor");
-defineDeviceSet("PPTC1206", "F", "FUSE", "PPTC1206", { 1: "1", 2: "2" }, "Littelfuse 1206L050YR");
-defineDeviceSet("FERRITE0402", "FB", "FERRITE", "R0402", { 1: "1", 2: "2" }, "Murata BLM15EX331SN1D");
-defineDeviceSet("LED0603", "D", "LED", "LED0603", { A: "1", K: "2" }, "0603 indicator LED");
-defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323", { A: "1", K: "2" }, "Vishay 1N4148WS-E3-08");
-defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "SWITCH_SMD_2PAD", { 1: "1", 2: "2" }, "Normally-open SMD reset switch; final footprint TBD");
-defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS");
-defineDeviceSet("CMC_OPTION", "L", "CMC", "CMC4_PLACEHOLDER", { A1: "1", A2: "2", B1: "3", B2: "4" }, "Optional two-line common-mode choke; DNP until selected");
-defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM20_PRELIMINARY", {
-  VIO: "1", D: "2", DE: "3", R: "4", RE_N: "5", GNDIO: "6", OUT: "7",
+defineDeviceSet("RES0402", "R", "RESISTOR", "RESC1005X40", { 1: "1", 2: "2" }, "0402 resistor using project-library land pattern");
+defineDeviceSet("RES0603", "R", "RESISTOR", "RESC1608X60", { 1: "1", 2: "2" }, "0603 resistor using project-library land pattern");
+defineDeviceSet("CAP0402", "C", "CAPACITOR", "CAPC1005X60", { 1: "1", 2: "2" }, "0402 capacitor using project-library land pattern");
+defineDeviceSet("CAP0603", "C", "CAPACITOR", "CAPC1608X85", { 1: "1", 2: "2" }, "0603 capacitor using project-library land pattern");
+defineDeviceSet("CAP0805", "C", "CAPACITOR", "CAPC2012X110", { 1: "1", 2: "2" }, "0805 capacitor using project-library land pattern");
+defineDeviceSet("PPTC1206", "F", "FUSE", "PPTC1206_1206L050YR", { 1: "1", 2: "2" }, "Littelfuse 1206L050YR using project-library land pattern");
+defineDeviceSet("FERRITE0402", "FB", "FERRITE", "INDC1006X60N", { 1: "1", 2: "2" }, "Murata BLM15EX331SN1D using project-library land pattern");
+defineDeviceSet("LED0603", "D", "LED", "LEDC1608X55N_FLAT-B", { A: "A", K: "C" }, "0603 indicator LED using project-library land pattern");
+defineDeviceSet("DIODE_SOD323", "D", "DIODE", "SOD323_VISHAY", { A: "A", K: "C" }, "Vishay 1N4148WS-E3-08 using manufacturer-recommended project-library land pattern");
+defineDeviceSet("SWITCH_SMD", "SW", "SWITCH", "PTS810_J_LEAD", {
+  "P$1": "1",
+  "P$2": "2",
+  "P$3": "3",
+  "P$4": "4",
+}, "C&amp;K/Littelfuse PTS810SJM250SMTR LFS using project-library land pattern");
+defineDeviceSet("SM712", "D", "TVS_SM712", "SOT23_", { IO1: "1", IO2: "2", GND: "3" }, "Semtech SM712.TCT RS-485 TVS using the user-supplied project-library SOT-23 package");
+defineDeviceSet("CMC_OPTION", "L", "CMC", "ACT45B_4P5X3P2", { A1: "1", A2: "2", B1: "4", B2: "3" }, "TDK ACT45B-510-2P-TL003 two-line common-mode choke using project-library land pattern; normally DNP pending EMC and signal-integrity testing");
+defineDeviceSet("ISOW1412DFMR", "U", "ISOW1412", "DFM0020A_TI", {
+  VIO: "1", D: "2", DE: "3", R: "4", RE_N: "5", GNDIO: "6",
   EN_FLT: "8", VDD: "9", GND1: "10", GND2: "11", VISOOUT: "12",
-  MODE: "13", IN: "14", GISOIN: "15", VISOIN: "16", Y: "17", Z: "18",
+  MODE: "13", GISOIN: "15", VISOIN: "16", Y: "17", Z: "18",
   B: "19", A: "20",
 }, "TI reinforced isolated RS-485/RDM transceiver with integrated isolated DC/DC");
-defineDeviceSet("PICO2W", "U", "PICO2W", "PICO2W_CASTELLATED_PRELIMINARY",
+defineDeviceSet("PICO2W", "U", "PICO2W", "PICO_2_W_DEVELOPMENT_BOARD",
   Object.fromEntries(picoPins.map((pin) => [pin.name, String(pin.pad)])),
-  "Raspberry Pi Pico 2 W castellated module");
-defineDeviceSet("6N138_500E", "U", "OPTO_6N138", "DIP8_GULLWING_PRELIMINARY", {
-  NC1: "1", A: "2", K: "3", NC4: "4", GND: "5", VO: "6", VB: "7", VCC: "8",
-}, "Broadcom 6N138-500E gull-wing SMD optocoupler");
+  "Raspberry Pi Pico 2 W development board using project-library through-hole header land pattern");
+defineDeviceSet("HCPL_0700_500E", "U", "OPTO_HCPL0700", "HCPL0700_SO8", {
+  A: "2", K: "3", GND: "5", VO: "6", VB: "7", VCC: "8",
+}, "Broadcom HCPL-0700-500E SOIC-8 optocoupler using project-library land pattern");
+defineDeviceSet(
+  "FRAME_A3",
+  "FRAME",
+  "A3",
+  undefined,
+  {},
+  "wagnius GmbH A3 schematic template from the maintained project library",
+);
 
 function defineConnector(count, name, packageName, description) {
   defineDeviceSet(name, "J", `CONN${count}`, packageName,
     Object.fromEntries(Array.from({ length: count }, (_, index) => [`P${index + 1}`, String(index + 1)])),
     description);
 }
-defineConnector(4, "PANEL_DMX4", "PANEL4_WIRE_PADS", "Panel XLR wiring pads plus strain relief");
-defineConnector(5, "PANEL_MIDI5", "PANEL5_WIRE_PADS", "Panel DIN-5 wiring pads plus strain relief");
+defineConnector(4, "PANEL_DMX4", "B4B-XH-A", "JST XH B4B-XH-A board header for the panel XLR harness");
+defineConnector(5, "PANEL_MIDI5", "B5B-XH-A", "JST XH B5B-XH-A board header for the panel DIN-5 harness");
 defineConnector(7, "PADBANK7", "PADBANK7", "Diagnostic SMD pad bank");
-defineConnector(8, "PADBANK8", "PADBANK8", "Power and isolated-side diagnostic SMD pad bank");
 defineConnector(17, "PADBANK17", "PADBANK17", "Free GPIO SMD pad bank");
 defineConnector(5, "PADBANK5", "PADBANK5", "Analog SMD pad bank");
+
+function packagePadNames(packageXml) {
+  const padNames = new Set();
+  for (const match of packageXml.matchAll(/<(?:smd|pad)\b[^>]*>/g)) {
+    const name = match[0].match(/\bname="([^"]+)"/)?.[1];
+    if (name) padNames.add(name);
+  }
+  return padNames;
+}
+
+for (const device of deviceSets.values()) {
+  if (!device.packageName) continue;
+  const packageXml = packages.get(device.packageName);
+  if (!packageXml) {
+    throw new Error(
+      `Device set ${device.name} references missing package ${device.packageName}`,
+    );
+  }
+  const padNames = packagePadNames(packageXml);
+  for (const [pin, mappedPads] of Object.entries(device.connects)) {
+    for (const pad of String(mappedPads).split(/\s+/).filter(Boolean)) {
+      if (!padNames.has(pad)) {
+        throw new Error(
+          `Device set ${device.name} maps pin ${pin} to missing `
+          + `package pad ${device.packageName}.${pad}`,
+        );
+      }
+    }
+  }
+}
+
+// The maintained A3 frame is a schematic-only component and must appear once
+// per sheet. It intentionally has no PCB package.
+addPart("FRAME1", "FRAME_A3", "", 1, 0, 0);
+addPart("FRAME2", "FRAME_A3", "", 2, 0, 0);
+addPart("FRAME3", "FRAME_A3", "", 3, 0, 0);
 
 // Parts and placement: sheet 1, controller/power/status/expansion
 addPart("U1", "PICO2W", "Raspberry Pi Pico 2 W", 1, 76.2, 101.6);
 addPart("F1", "PPTC1206", "1206L050YR 0.5A HOLD", 1, 137.16, 172.72);
-addPart("SW1", "SWITCH_SMD", "RESET (NO)", 1, 137.16, 157.48);
-addPart("R8", "RES0603", "1k", 1, 132.08, 139.7);
-addPart("D3", "LED0603", "PWR GREEN", 1, 157.48, 139.7);
-addPart("R9", "RES0603", "1k", 1, 132.08, 124.46);
-addPart("D4", "LED0603", "DMX ACTIVITY", 1, 157.48, 124.46);
-addPart("J3", "PADBANK17", "FREE GPIO PADS", 1, 213.36, 132.08);
+addPart("SW1", "SWITCH_SMD", "PTS810SJM250SMTR LFS RESET (NO)", 1, 137.16, 157.48);
+addPart("R8", "RES0402", "1k 1% 0.063W 0402 Yageo RC0402FR-071KL", 1, 132.08, 139.7);
+addPart("D3", "LED0603", "PWR GREEN Lite-On LTST-C190KGKT", 1, 208.28, 139.7);
+addPart("R9", "RES0402", "1k 1% 0.063W 0402 Yageo RC0402FR-071KL", 1, 182.88, 124.46);
+addPart("D4", "LED0603", "DMX YELLOW Lite-On LTST-C190KSKT", 1, 254, 124.46);
+addPart("J3", "PADBANK17", "FREE GPIO PADS", 1, 320.04, 134.62);
 addPart("J4", "PADBANK5", "ANALOG PADS", 1, 213.36, 71.12);
-addPart("J5", "PADBANK7", "RESERVED SIGNAL TEST PADS", 1, 213.36, 35.56);
-addPart("J6", "PADBANK8", "POWER/DMX TEST PADS", 1, 152.4, 53.34);
+addPart("J5", "PADBANK7", "RESERVED SIGNAL TEST PADS", 1, 213.36, 33.02);
 
 // Sheet 2, isolated DMX/RDM
 addPart("U2", "ISOW1412DFMR", "ISOW1412DFMR", 2, 111.76, 101.6);
-addPart("R1", "RES0402", "100k D PULLUP", 2, 50.8, 157.48);
-addPart("R2", "RES0402", "10k DIR PULLDOWN", 2, 50.8, 142.24);
-addPart("R3", "RES0402", "10k EN/FLT PULLUP", 2, 50.8, 127);
-addPart("C1", "CAP0402", "100n VIO", 2, 50.8, 111.76);
-addPart("C2", "CAP0402", "10n VDD <=1mm", 2, 50.8, 96.52);
-addPart("C3", "CAP0805", "10u X7R VDD", 2, 50.8, 81.28);
+addPart("R1", "RES0402", "100k 1% 0.063W 0402 Yageo RC0402FR-07100KL", 2, 50.8, 157.48);
+addPart("R2", "RES0402", "10k 1% 0.063W 0402 Yageo RC0402FR-0710KL", 2, 50.8, 142.24);
+addPart("R3", "RES0402", "10k 1% 0.063W 0402 Yageo RC0402FR-0710KL", 2, 50.8, 127);
+addPart("C1", "CAP0402", "100nF 16V 10% X7R 0402 CL05B104KO5NNNC VIO", 2, 50.8, 111.76);
+addPart("C2", "CAP0402", "10nF 50V 10% X7R 0402 0402B103K500CT VDD <1mm", 2, 50.8, 96.52);
+addPart("C3", "CAP0805", "10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VDD", 2, 50.8, 81.28);
+addPart("C8", "CAP0603", "1uF 50V 10% X5R 0603 CL10A105KB8NNNC VDD 2-4mm", 2, 50.8, 66.04);
 addPart("FB1", "FERRITE0402", "BLM15EX331SN1D", 2, 172.72, 149.86);
 addPart("FB2", "FERRITE0402", "BLM15EX331SN1D", 2, 172.72, 134.62);
-addPart("C4", "CAP0402", "10n VISOOUT <=1mm", 2, 210.82, 149.86);
-addPart("C5", "CAP0805", "10u X7R VISOOUT", 2, 210.82, 134.62);
-addPart("C6", "CAP0402", "100n VISOIN", 2, 210.82, 119.38);
-addPart("L1", "CMC_OPTION", "OPTIONAL CMC - DNP", 2, 172.72, 91.44);
-addPart("R10", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 76.2);
-addPart("R11", "RES0603", "0R CMC BYPASS FIT", 2, 172.72, 60.96);
-addPart("D1", "SM712", "SM712.TCT", 2, 210.82, 91.44);
-addPart("J1", "PANEL_DMX4", "PANEL XLR-5: COM,-,+,SHELL", 2, 254, 91.44);
+addPart("C4", "CAP0402", "10nF 50V 10% X7R 0402 0402B103K500CT VISOOUT <1mm", 2, 264.16, 149.86);
+addPart("C5", "CAP0805", "10uF 35V 10% X5R 0805 GRM21BR6YA106KE43L VISOOUT", 2, 264.16, 134.62);
+addPart("C6", "CAP0402", "100nF 16V 10% X7R 0402 CL05B104KO5NNNC VISOIN", 2, 264.16, 119.38);
+addPart("C9", "CAP0603", "1uF 50V 10% X5R 0603 CL10A105KB8NNNC VISOOUT 2-4mm", 2, 264.16, 104.14);
+addPart("L1", "CMC_OPTION", "ACT45B-510-2P-TL003 - DNP", 2, 223.52, 91.44);
+addPart("R10", "RES0402", "0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT", 2, 172.72, 76.2);
+addPart("R11", "RES0402", "0R 5% 0.063W 0402 Yageo RC0402JR-070RL CMC BYPASS FIT", 2, 172.72, 60.96);
+addPart("D1", "SM712", "SM712.TCT", 2, 314.96, 91.44);
+addPart("J1", "PANEL_DMX4", "JST XH B4B-XH-A DMX: COM,-,+,SHELL", 2, 381, 91.44);
 
 // Sheet 3, MIDI input
-addPart("J2", "PANEL_MIDI5", "PANEL DIN-5 MIDI IN", 3, 45.72, 101.6);
-addPart("R4", "RES0603", "220R", 3, 83.82, 116.84);
-addPart("R5", "RES0603", "220R", 3, 83.82, 86.36);
+addPart("J2", "PANEL_MIDI5", "JST XH B5B-XH-A MIDI: 1,2,3,4,5", 3, 45.72, 101.6);
+addPart("R4", "RES0402", "220R 1% 0.063W 0402 Yageo RC0402FR-07220RL", 3, 83.82, 116.84);
+addPart("R5", "RES0402", "220R 1% 0.063W 0402 Yageo RC0402FR-07220RL", 3, 83.82, 86.36);
 addPart("D2", "DIODE_SOD323", "1N4148WS-E3-08", 3, 111.76, 101.6);
-addPart("U3", "6N138_500E", "6N138-500E", 3, 157.48, 101.6);
-addPart("R6", "RES0603", "4.7k OUTPUT PULLUP", 3, 203.2, 119.38);
-addPart("R7", "RES0603", "47k BASE SPEEDUP", 3, 203.2, 101.6);
-addPart("C7", "CAP0402", "100n VCC", 3, 203.2, 83.82);
+addPart("U3", "HCPL_0700_500E", "HCPL-0700-500E", 3, 157.48, 101.6);
+addPart("R6", "RES0402", "4.7k 1% 0.063W 0402 Yageo RC0402FR-074K7L", 3, 203.2, 119.38);
+addPart("R7", "RES0402", "47k 1% 0.063W 0402 Yageo RC0402FR-0747KL", 3, 203.2, 101.6);
+addPart("C7", "CAP0402", "100nF 16V 10% X7R 0402 CL05B104KO5NNNC MIDI VCC", 3, 203.2, 83.82);
 
 // Controller and expansion connectivity
 connectMany("GND_LOGIC", [
   ["U1", "GND3"], ["U1", "GND8"], ["U1", "GND13"], ["U1", "GND18"],
-  ["U1", "GND23"], ["U1", "GND28"], ["U1", "GND38"], ["SW1", "2"],
-  ["D3", "K"], ["D4", "K"], ["J6", "P2"],
+  ["U1", "GND23"], ["U1", "GND28"], ["U1", "GND38"],
+  ["SW1", "P$3"], ["SW1", "P$4"],
+  ["D3", "K"], ["D4", "K"],
   ["U2", "GNDIO"], ["U2", "GND1"], ["R2", "2"], ["C1", "2"], ["C2", "2"],
-  ["C3", "2"], ["U3", "GND"], ["R7", "2"], ["C7", "2"],
+  ["C3", "2"], ["C8", "2"], ["U3", "GND"], ["R7", "2"], ["C7", "2"],
 ]);
 connectMany("VCC_3V3_LOGIC", [
-  ["U1", "3V3"], ["J6", "P1"], ["R8", "1"], ["U2", "VIO"], ["R1", "1"],
+  ["U1", "3V3"], ["R8", "1"], ["U2", "VIO"], ["R1", "1"],
   ["R3", "1"], ["C1", "1"], ["R6", "1"],
 ]);
-connectMany("VBUS_5V_USB", [["U1", "VBUS"], ["F1", "1"], ["J6", "P3"], ["U3", "VCC"], ["C7", "1"]]);
-connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["J6", "P4"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"]]);
-connectMany("PICO_RUN_N", [["U1", "RUN"], ["SW1", "1"]]);
+connectMany("VBUS_5V_USB", [["U1", "VBUS"], ["F1", "1"], ["U3", "VCC"], ["C7", "1"]]);
+connectMany("VDD_5V_ISOW_FUSED", [["F1", "2"], ["U2", "VDD"], ["C2", "1"], ["C3", "1"], ["C8", "1"]]);
+connectMany("PICO_RUN_N", [
+  ["U1", "RUN"], ["SW1", "P$1"], ["SW1", "P$2"],
+]);
 connectMany("PWR_LED_ANODE", [["R8", "2"], ["D3", "A"]]);
 connectMany("DMX_ACTIVITY_GPIO7", [["U1", "GP7"], ["R9", "1"], ["J5", "P6"]]);
 connectMany("DMX_LED_ANODE", [["R9", "2"], ["D4", "A"]]);
@@ -475,19 +676,17 @@ const freeGpios = [0, 1, ...Array.from({ length: 15 }, (_, index) => index + 8)]
 freeGpios.forEach((gpio, index) => connectMany(`GPIO${gpio}_EXP`, [["U1", `GP${gpio}`], ["J3", `P${index + 1}`]]));
 
 // Isolated side and DMX connector
-connectMany("VISO_5V_CONVERTER", [["U2", "VISOOUT"], ["U2", "MODE"], ["FB1", "1"], ["C4", "1"], ["C5", "1"]]);
-connectMany("GND_DMX_CONVERTER", [["U2", "GND2"], ["FB2", "1"], ["C4", "2"], ["C5", "2"]]);
-connectMany("VCC_5V_DMX_ISO", [["FB1", "2"], ["U2", "VISOIN"], ["C6", "1"], ["J6", "P5"]]);
+connectMany("VISO_5V_CONVERTER", [["U2", "VISOOUT"], ["U2", "MODE"], ["FB1", "1"], ["C4", "1"], ["C5", "1"], ["C9", "1"]]);
+connectMany("GND_DMX_CONVERTER", [["U2", "GND2"], ["FB2", "1"], ["C4", "2"], ["C5", "2"], ["C9", "2"]]);
+connectMany("VCC_5V_DMX_ISO", [["FB1", "2"], ["U2", "VISOIN"], ["C6", "1"]]);
 connectMany("GND_DMX_ISO", [
-  ["FB2", "2"], ["U2", "GISOIN"], ["C6", "2"], ["D1", "GND"], ["J1", "P1"], ["J6", "P6"],
+  ["FB2", "2"], ["U2", "GISOIN"], ["C6", "2"], ["D1", "GND"], ["J1", "P1"],
 ]);
 connectMany("DMX_TRX_PLUS", [["U2", "Y"], ["U2", "A"], ["L1", "A1"], ["R10", "1"]]);
 connectMany("DMX_TRX_MINUS", [["U2", "Z"], ["U2", "B"], ["L1", "B1"], ["R11", "1"]]);
-connectMany("DMX_DATA_PLUS", [["L1", "A2"], ["R10", "2"], ["D1", "IO1"], ["J1", "P3"], ["J6", "P7"]]);
-connectMany("DMX_DATA_MINUS", [["L1", "B2"], ["R11", "2"], ["D1", "IO2"], ["J1", "P2"], ["J6", "P8"]]);
+connectMany("DMX_DATA_PLUS", [["L1", "A2"], ["R10", "2"], ["D1", "IO1"], ["J1", "P3"]]);
+connectMany("DMX_DATA_MINUS", [["L1", "B2"], ["R11", "2"], ["D1", "IO2"], ["J1", "P2"]]);
 connectMany("XLR_SHELL", [["J1", "P4"]]);
-connectMany("NC_U2_PIN7_OUT", [["U2", "OUT"]]);
-connectMany("NC_U2_PIN14_IN", [["U2", "IN"]]);
 
 // MIDI input
 connectMany("MIDI_DIN_PIN1_SPARE", [["J2", "P1"]]);
@@ -498,27 +697,32 @@ connectMany("MIDI_OPTO_LED_ANODE", [["R4", "2"], ["U3", "A"], ["D2", "K"]]);
 connectMany("MIDI_OPTO_LED_CATHODE", [["U3", "K"], ["D2", "A"], ["R5", "1"]]);
 connectMany("MIDI_DIN_PIN5", [["R5", "2"], ["J2", "P5"]]);
 connectMany("MIDI_OPTO_BASE", [["U3", "VB"], ["R7", "1"]]);
-connectMany("NC_U3_PIN1", [["U3", "NC1"]]);
-connectMany("NC_U3_PIN4", [["U3", "NC4"]]);
 
 addNote(1, 20.32, 187.96, "WiFiPicoDMX Rev. A — Controller, power, controls and expansion", 2.54, 15);
 addNote(1, 20.32, 15.24, "Power only through Pico Micro-USB. Do not feed VSYS/VBUS from the carrier.");
-addNote(1, 20.32, 10.16, "Pico and all land patterns marked PRELIMINARY require manufacturer-footprint verification before PCB release.");
-addNote(1, 20.32, 5.08, "TP6/BOOTSEL is not available on the 40 castellated pins: preserve physical BOOTSEL access; do not assume an electrical carrier connection.");
+addNote(1, 20.32, 10.16, "Verify every project-library and generated land pattern against the selected manufacturer part before PCB release.");
+addNote(1, 20.32, 5.08, "Use the Pico 2 W development board's onboard BOOTSEL button below the USB connector; preserve finger/tool access in the PCB and enclosure.");
 
 addNote(2, 20.32, 187.96, "WiFiPicoDMX Rev. A — Reinforced-isolated DMX/RDM output", 2.54, 15);
-addNote(2, 20.32, 20.32, "FIT R10/R11 (0R) and DNP L1 until a common-mode choke is selected by EMC/signal-integrity testing.");
+addNote(2, 20.32, 20.32, "Default: FIT R10/R11 (0R), DNP L1. L1 option is TDK ACT45B-510-2P-TL003; fit it only after EMC/signal-integrity testing.");
 addNote(2, 20.32, 15.24, "No permanent 120R termination: terminate only at the far end of the DMX cable.");
 addNote(2, 20.32, 10.16, "Keep GND_LOGIC and GND_DMX_ISO separate. Preserve TI isolation keep-outs and place bypass parts per TI layout.");
 addNote(2, 20.32, 5.08, "J1 pad order: P1 DMX COM/XLR1, P2 DMX-/XLR2, P3 DMX+/XLR3, P4 shell. Panel connector is wired, not PCB-mounted.");
 
 addNote(3, 20.32, 187.96, "WiFiPicoDMX Rev. A — Isolated MIDI IN", 2.54, 15);
 addNote(3, 20.32, 20.32, "J2 exposes all five panel DIN pins. Pins 1/3 are NC; pin 2 shield treatment remains configurable.");
-addNote(3, 20.32, 15.24, "6N138 output side uses 5V VCC with a 3.3V output pull-up. Verify timing/CTR on the assembled prototype.");
+addNote(3, 20.32, 15.24, "HCPL-0700 output side uses 5V VCC with a 3.3V output pull-up. Verify timing/CTR on the assembled prototype.");
 addNote(3, 20.32, 10.16, "The DIN input current loop remains galvanically isolated from GND_LOGIC.");
 
 function symbolXml(symbol) {
   const body = symbol.body;
+  if (body.rawXml) {
+    return element(
+      "symbol",
+      { name: symbol.name },
+      `\n${lines([body.rawXml], "              ")}\n            `,
+    );
+  }
   const shape = [];
   if (body.x1 !== undefined) {
     shape.push(element("wire", { x1: body.x1, y1: body.y1, x2: body.x2, y2: body.y1, width: 0.254, layer: 94 }));
@@ -546,17 +750,28 @@ function symbolXml(symbol) {
 function deviceSetXml(device) {
   const connectXml = Object.entries(device.connects).map(([pin, pad]) =>
     element("connect", { gate: "G$1", pin, pad }));
+  const connectsBlock = connectXml.length > 0
+    ? `                  <connects>
+${lines(connectXml, "                    ")}
+                  </connects>
+`
+    : "";
+  const package3dXml = device.package3dUrn
+    ? `                  <package3dinstances>
+                    ${element("package3dinstance", { package3d_urn: device.package3dUrn })}
+                  </package3dinstances>
+`
+    : "";
+  const deviceAttributes = { name: "" };
+  if (device.packageName) deviceAttributes.package = device.packageName;
   return element("deviceset", { name: device.name, prefix: device.prefix }, `
               ${element("description", {}, device.description)}
               <gates>
                 ${element("gate", { name: "G$1", symbol: device.symbol, x: 0, y: 0 })}
               </gates>
               <devices>
-                <device name="" package="${esc(device.packageName)}">
-                  <connects>
-${lines(connectXml, "                    ")}
-                  </connects>
-                  <technologies>
+                <device ${attrs(deviceAttributes)}>
+${connectsBlock}${package3dXml}                  <technologies>
                     <technology name=""/>
                   </technologies>
                 </device>
@@ -581,11 +796,47 @@ function endpointFor(partName, pinName) {
   const y = instance.y + pin.y;
   let x2 = x;
   let y2 = y;
-  if (pin.rot === "R0") x2 -= 5.08;
-  if (pin.rot === "R180") x2 += 5.08;
-  if (pin.rot === "R90") y2 -= 5.08;
-  if (pin.rot === "R270") y2 += 5.08;
-  return { x, y, x2, y2 };
+  let labelRotation = "R0";
+
+  const pinXs = symbol.pins.map((candidate) => candidate.x);
+  const minPinX = Math.min(...pinXs);
+  const maxPinX = Math.max(...pinXs);
+  const tolerance = 0.001;
+  let side;
+  if (maxPinX - minPinX > tolerance) {
+    if (Math.abs(pin.x - minPinX) <= tolerance) side = "left";
+    if (Math.abs(pin.x - maxPinX) <= tolerance) side = "right";
+  } else if (pin.x < -tolerance) {
+    side = "left";
+  } else if (pin.x > tolerance) {
+    side = "right";
+  }
+
+  if (!side) {
+    if (pin.rot === "R0") side = "left";
+    if (pin.rot === "R180") side = "right";
+    if (pin.rot === "R90") side = "bottom";
+    if (pin.rot === "R270") side = "top";
+  }
+
+  if (side === "left") {
+    x2 -= 5.08;
+    labelRotation = "R180";
+  }
+  if (side === "right") {
+    x2 += 5.08;
+  }
+  if (side === "bottom") {
+    y2 -= 5.08;
+    labelRotation = "R270";
+  }
+  if (side === "top") {
+    y2 += 5.08;
+    labelRotation = "R90";
+  }
+  if (!side) throw new Error(`Cannot determine symbol side for ${partName}.${pinName}`);
+
+  return { x, y, x2, y2, labelRotation };
 }
 
 function sheetXml(sheetNumber) {
@@ -615,7 +866,16 @@ function sheetXml(sheetNumber) {
       return `<segment>
                   ${element("pinref", { part: ref.part, gate: "G$1", pin: ref.pin })}
                   ${element("wire", { x1: endpoint.x, y1: endpoint.y, x2: endpoint.x2, y2: endpoint.y2, width: 0.1524, layer: 91 })}
-                  ${element("label", { x: endpoint.x2, y: endpoint.y2, size: 1.27, layer: 95, xref: "yes" })}
+                  ${element("label", {
+                    x: endpoint.x2,
+                    y: endpoint.y2,
+                    size: 1.27,
+                    layer: 95,
+                    xref: "yes",
+                    rot: endpoint.labelRotation === "R0"
+                      ? undefined
+                      : endpoint.labelRotation,
+                  })}
                 </segment>`;
     });
     netXml.push(`<net name="${esc(netName)}" class="0">
@@ -637,13 +897,29 @@ ${lines(netXml, "            ")}
         </sheet>`;
 }
 
-const libraryXml = `<library name="WiFiPicoDMX_RevA_embedded">
-          <description>Self-contained preliminary WiFiPicoDMX Rev. A schematic library. Verify every footprint before PCB manufacture.</description>
+const usedPackageNames = new Set(
+  [...deviceSets.values()]
+    .map((device) => device.packageName)
+    .filter(Boolean),
+);
+const usedPackage3dModels = new Map();
+for (const packageName of usedPackageNames) {
+  const model = projectLibrary3dByPackage.get(packageName);
+  if (model) usedPackage3dModels.set(model.urn, model.xml);
+}
+
+const libraryXml = `<library name="${designLibraryName}">
+          <description>Embedded copy of the WiFiPicoDMX Rev. A used-component library. The matching standalone library is hardware/fusion/WiFiPicoDMX_RevA_used.lbr. Verify every footprint before PCB manufacture.</description>
           <packages>
-${lines([...packages.entries()].map(([name, content]) => `<package name="${esc(name)}">
+${lines([...packages.entries()]
+    .filter(([name]) => usedPackageNames.has(name))
+    .map(([name, content]) => `<package name="${esc(name)}">
 ${content}
             </package>`), "            ")}
           </packages>
+          <packages3d>
+${lines([...usedPackage3dModels.values()], "            ")}
+          </packages3d>
           <symbols>
 ${lines([...symbols.values()].map(symbolXml), "            ")}
           </symbols>
@@ -667,7 +943,7 @@ const layerDefinitions = [
 
 const partsXml = parts.map((part) => element("part", {
   name: part.name,
-  library: "WiFiPicoDMX_RevA_embedded",
+  library: designLibraryName,
   deviceset: part.deviceSet,
   device: "",
   value: part.value,
@@ -693,7 +969,9 @@ ${lines(layerDefinitions, "      ")}
       <attributes/>
       <variantdefs/>
       <classes>
-        <class number="0" name="default" width="0" drill="0"/>
+        <class number="0" name="default" width="0.25" drill="0.3">
+          <clearance class="0" value="0.2"/>
+        </class>
       </classes>
       <parts>
 ${lines(partsXml, "        ")}
@@ -778,16 +1056,18 @@ Endpoint notation is \`reference.physical-pad (symbol-pin)\`. For example,
 - Keep \`GND_LOGIC\`, \`GND_DMX_ISO\`, \`XLR_SHELL\`, and
   \`MIDI_DIN_PIN2_SHIELD\` distinct unless the enclosure design explicitly
   requires an approved connection.
-- Fit R10 and R11 as the default 0 ohm DMX paths. L1 is an unselected,
-  normally-DNP common-mode-choke option; never populate L1 and the two bypass
-  resistors simultaneously.
-- The BOOTSEL/TP6 signal is not available on the Pico's 40 castellated pads.
-  Preserve physical access to the Pico BOOTSEL button.
-- The preliminary footprints are not released for fabrication.
+- Fit R10 and R11 as the default 0 ohm DMX paths. L1 is the selected
+  TDK ACT45B-510-2P-TL003 common-mode-choke option, normally DNP until EMC and
+  signal-integrity tests justify fitting it. Never populate L1 and the two
+  bypass resistors simultaneously.
+- Use the Pico 2 W development board's onboard BOOTSEL button below its USB
+  connector. Preserve physical access in the PCB and enclosure.
+- Recheck every footprint against the current manufacturer drawing before
+  fabrication even where the library geometry has been verified.
 
 ## References
 
-| Reference | Value / function | Preliminary package |
+| Reference | Value / function | Package |
 |---|---|---|
 ${referenceRows.join("\n")}
 

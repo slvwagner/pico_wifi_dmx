@@ -60,21 +60,16 @@
       </tr>
       <tr>
         <td>U3</td>
-        <td>6N138-500E</td>
-        <td><a href="pdfs/U3_6N138-500E.pdf">Broadcom datasheet PDF</a></td>
+        <td>HCPL-0700-500E, genuine SOIC-8</td>
+        <td><a href="pdfs/U3_HCPL-0700.pdf">Broadcom datasheet PDF</a></td>
       </tr>
       <tr>
         <td>D1</td>
-        <td>SS34</td>
-        <td><a href="pdfs/D1_SS34.pdf">Vishay SS32–SS36 datasheet PDF</a></td>
-      </tr>
-      <tr>
-        <td>D2</td>
         <td>SM712.TCT</td>
         <td><a href="pdfs/D2_SM712.pdf">Semtech datasheet PDF</a></td>
       </tr>
       <tr>
-        <td>D3</td>
+        <td>D2</td>
         <td>1N4148WS-E3-08</td>
         <td><a href="pdfs/D3_1N4148WS.pdf">Vishay datasheet PDF</a></td>
       </tr>
@@ -84,17 +79,42 @@
         <td><a href="pdfs/F1_1206L_PTC_Series.pdf">Littelfuse 1206L series datasheet PDF</a></td>
       </tr>
       <tr>
+        <td>L1</td>
+        <td>TDK ACT45B-510-2P-TL003</td>
+        <td><a href="pdfs/L1_TDK_ACT45B.pdf">TDK ACT45B datasheet PDF</a></td>
+      </tr>
+      <tr>
+        <td>J1</td>
+        <td>JST B4B-XH-A, DMX harness header</td>
+        <td><a href="https://www.jst-mfg.com/product/pdf/eng/eXH.pdf">JST XH series datasheet</a></td>
+      </tr>
+      <tr>
         <td>J2</td>
+        <td>JST B5B-XH-A, MIDI harness header</td>
+        <td><a href="https://www.jst-mfg.com/product/pdf/eng/eXH.pdf">JST XH series datasheet</a></td>
+      </tr>
+      <tr>
+        <td>Panel XLR</td>
         <td>Neutrik NC5FAH</td>
         <td><a href="pdfs/J2_Neutrik_NC5FAH-3.pdf">Mechanical datasheet/drawing PDF</a></td>
+      </tr>
+      <tr>
+        <td>SW1</td>
+        <td>C&amp;K/Littelfuse PTS810SJM250SMTR LFS</td>
+        <td><a href="pdfs/SW1_PTS810.pdf">PTS810 datasheet PDF</a></td>
       </tr>
     </tbody>
   </table>
   <p>
-    <strong>Not yet fixed:</strong> the exact DIN-5 MIDI connector, terminal
-    block, headers, reset switch, optional common-mode choke, and generic
-    mechanical/passive parts. Their datasheets depend on the final manufacturer
-    part numbers selected during mechanical and PCB design.
+    <strong>Not yet fixed:</strong> the exact panel-mounted DIN-5 MIDI
+    connector and enclosure-specific mechanical parts. The J1/J2 carrier
+    harness headers are fixed as JST B4B-XH-A and B5B-XH-A. The selected L1
+    common-mode choke remains DNP by default until prototype EMC and
+    signal-integrity measurements justify fitting it.
+  </p>
+  <p>
+    U3 is fixed as HCPL-0700-500E. Its SOIC-8 land pattern follows Broadcom's
+    7.49 mm row-spacing and 1.90 × 0.64 mm pad recommendation.
   </p>
   <p>
     Source URLs and SHA-256 checksums are listed in
@@ -104,6 +124,7 @@
   <h2>Superseded design references</h2>
   <ul>
     <li><a href="pdfs/U2_SN74LVC1G04.pdf">SN74LVC1G04</a> – inverter removed</li>
+    <li><a href="pdfs/D1_SS34.pdf">SS34</a> – unnecessary for the USB-only Rev. A power input</li>
     <li><a href="pdfs/U3_ISO1410.pdf">ISO1410</a> – replaced by ISOW1412</li>
     <li><a href="pdfs/U4_MEJ2S0505SC_MEJ2_Series.pdf">MEJ2S0505SC</a> – isolated power integrated into ISOW1412</li>
     <li><a href="pdfs/U5_6N138.pdf">Through-hole 6N138</a></li>

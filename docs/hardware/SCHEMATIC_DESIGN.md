@@ -9,8 +9,9 @@ measurements and the applicable conformity testing.
 
 - Use SMD parts for all semiconductors, protection devices, resistors, and
   capacitors.
-- Solder the Raspberry Pi Pico 2 W directly through its castellated pads. Do
-  not fit socket headers in the production design.
+- Mount the Raspberry Pi Pico 2 W development board through two 20-pin,
+  2.54 mm-pitch header rows. The Pico module is an explicit through-hole
+  exception to the SMD preference.
 - Use through-hole or mechanically reinforced footprints for connectors that
   experience cable insertion force. The XLR connector is explicitly exempt
   from the SMD requirement.
@@ -19,6 +20,25 @@ measurements and the applicable conformity testing.
   strength.
 - Do not use the SN74LVC1G04 inverter. DMX polarity is generated correctly in
   firmware and GPIO2 drives the isolated transceiver directly.
+
+## Pico 2 W carrier mechanics
+
+The carrier layout follows the official Raspberry Pi Pico 2 W mechanical
+specification in
+[`U1_Pico_2_W_Datasheet.pdf`](datasheets/pdfs/U1_Pico_2_W_Datasheet.pdf):
+
+- module PCB: 51 mm × 21 mm × 1 mm;
+- two 20-pin rows on a 2.54 mm pitch with 17.78 mm row spacing and 1 mm
+  module holes;
+- Micro-USB connector overhanging the top edge;
+- wireless antenna at the opposite, bottom edge.
+
+The prototype mounts the complete Pico 2 W development board to the carrier
+through the two 20-pin through-hole header rows represented by the supplied
+Fusion library footprint. The carrier therefore uses a plain rectangular PCB
+outline without an antenna cutout or Pico-specific carrier keepout/access
+zones. The four 2.1 mm holes on the Pico module are not duplicated as carrier
+mounting holes in this first layout.
 
 ## Isolated DMX output
 
@@ -54,6 +74,7 @@ listed for July/August 2026. Confirm stock before ordering a production run.
 | `DE`, `/RE` | Short together and connect to Pico `GPIO4` (`DMX_DIR_PIN`) with a hardware pull-down |
 | `R` | Pico `GPIO6` (`DMX_RX_PIN`) for future RDM reception |
 | `EN/FLT` | 10 kΩ pull-up to `VIO`, plus a test point |
+| `OUT` | Leave unconnected; unused general-purpose isolation-channel output |
 
 `GPIO4` is the half-duplex direction control. Low disables the driver and
 enables the receiver; high enables the driver and disables the receiver. Its
@@ -74,14 +95,19 @@ sees a defined Mark level while the Pico pin is high-impedance.
 | `GND2` to `GISOIN` | Through `BLM15EX331SN1D` ferrite bead |
 | `Y`, `A` | Short together: DMX Data+ path to XLR pin 3 |
 | `Z`, `B` | Short together: DMX Data− path to XLR pin 2 |
+| `IN` | Leave unconnected; unused general-purpose isolation-channel input |
 
 Use the following power-network components and place them exactly as the TI
 layout guidance requires:
 
-- 10 nF 0402 ceramic within 1 mm of both `VDD` and `VISOOUT`;
-- 100 nF 0402 ceramic at `VIO` and `VISOIN`;
-- at least 10 µF X7R bulk capacitance at `VDD` and `VISOOUT`;
-- optional 1 µF X7R capacitors matching the TI application layout;
+- 10 nF, 50 V, ±10%, X7R 0402 `0402B103K500CT` within 1 mm of
+  both `VDD` and `VISOOUT`;
+- 100 nF, 16 V, ±10%, X7R 0402 `CL05B104KO5NNNC` at `VIO` and
+  `VISOIN`;
+- 10 µF, 35 V, ±10%, X5R 0805 `GRM21BR6YA106KE43L` bulk
+  capacitance at `VDD` and `VISOOUT`;
+- 1 µF, 50 V, ±10%, X5R 0603 `CL10A105KB8NNNC` at both `VDD` and
+  `VISOOUT`, placed in the TI-recommended 2 mm to 4 mm zone;
 - two `BLM15EX331SN1D` 0402 ferrite beads on the isolated supply and return.
 
 Higher bulk capacitance may be fitted after checking inrush and the actual
@@ -101,9 +127,13 @@ remains adequate after DC-bias derating.
   possible discharge path to the isolated/chassis reference selected above.
 - Do not fit a permanent 120 Ω termination in the controller. Termination
   belongs at the far end of the DMX cable.
-- Reserve footprints for an optional two-line common-mode choke and optional
-  zero-ohm bypasses. Populate only after signal-integrity and EMC measurements
-  establish the preferred configuration.
+- Reserve the manufacturer land pattern for a TDK
+  `ACT45B-510-2P-TL003` two-line common-mode choke plus zero-ohm bypasses.
+  The choke is rated for 200 mA and 50 V DC, with 51 µH typical common-mode
+  inductance, 0.15 µH typical stray inductance, and 1 Ω maximum DC resistance
+  per line. For the initial prototype, leave `L1` unpopulated and fit the two
+  zero-ohm bypasses. Populate the choke only after signal-integrity and EMC
+  measurements establish that it improves the assembled controller.
 
 The Y/Z pair must be routed together over its isolated reference plane with no
 stubs. Keep the transceiver, protection, and XLR close together.
@@ -149,30 +179,71 @@ connected to the Pico 2 W Micro-USB connector.
   safety-rated stitching capacitor requires a separate EMC and insulation
   review.
 
+The generated Rev. A prototype layout is currently a two-layer, 95 mm ×
+100 mm engineering starting point. Its placement keeps the expansion pads and
+Pico logic on the left/centre, the isolated DMX path in the upper section, and
+the isolated MIDI input at the lower board edge. The generated restrictions
+and copper policy are:
+
+- top, bottom, and via-restrict corridors across the ISOW1412 isolation
+  boundary;
+- a top/bottom/via-restrict moat around the MIDI connector-side island, with
+  the board edge forming its fourth boundary;
+- separate top- and bottom-layer polygons for `GND_LOGIC` and
+  `GND_DMX_ISO`;
+- no polygon for `GND_DMX_CONVERTER`, which must return locally without
+  bypassing FB2;
+- no Pico carrier cutout or carrier keepout because the complete Pico 2 W
+  development board is fitted through two 20-pin through-hole header rows.
+
+Run `RATSNEST *;` in Fusion after import and inspect all four pours. No copper
+island, route, via, mounting feature, or conductive enclosure part may bridge
+either isolation boundary.
+
 ## SMD component choices
 
 | Function | Preferred part | Package / mounting | Status |
 |---|---|---|---|
-| Controller | Raspberry Pi Pico 2 W | Castellated SMD module | Selected |
+| Controller | Raspberry Pi Pico 2 W development board | Two 20-pin, 2.54 mm-pitch through-hole header rows | Selected |
 | Isolated DMX and power | `ISOW1412DFMR` | DFM/SOIC-20 SMD | Selected |
 | DMX TVS | `SM712.TCT` | SOT-23 SMD | Selected |
 | Resettable fuse | `1206L050YR` | 1206 SMD, 0.5 A hold / 1.0 A trip | Selected |
-| Reverse-polarity/power diode | `SS34` | SMB SMD | Selected; confirm exact ordering code |
-| MIDI optocoupler | `6N138-500E` | Gull-wing SMD, tape and reel | Selected |
+| MIDI optocoupler | `HCPL-0700-500E` | Genuine SOIC-8 SMD, tape and reel | Selected |
 | MIDI protection diode | `1N4148WS-E3-08` | SOD-323 SMD | Selected |
 | Isolated-supply ferrites | `BLM15EX331SN1D` | 0402 SMD | Selected |
+| Optional DMX common-mode choke | `ACT45B-510-2P-TL003` | TDK ACT45B, 4.5 × 3.2 mm SMD | Selected; DNP by default pending EMC/signal-integrity tests |
+| Reset pushbutton | `PTS810SJM250SMTR LFS` | 4.2 × 3.2 mm, 2.5 mm high, four-pad J-lead SMD | Selected |
+| DMX harness header | JST `B4B-XH-A` | 4-position, 2.50 mm pitch, vertical through-hole | Selected |
+| MIDI harness header | JST `B5B-XH-A` | 5-position, 2.50 mm pitch, vertical through-hole | Selected |
 | DMX connector | Neutrik 5-pin female XLR | Panel mounted and wired | Exception |
 | MIDI connector | 5-pin DIN MIDI IN | Panel mounted and wired | Included; select exact part by enclosure |
 
 The earlier `SN74LVC1G04`, `ISO1410DW`, `MEJ2S0505SC`, axial `1N4148`, and
 through-hole 6N138 are not production BOM choices.
 
+Exact passive manufacturer ordering codes and population rules are frozen in
+[`PASSIVE_BOM.md`](PASSIVE_BOM.md).
+
+The maintained Fusion/EAGLE source library is stored at
+`hardware/fusion/libraries/WiFiPicoDMX.lbr`. The generated
+`hardware/fusion/WiFiPicoDMX_RevA_used.lbr` contains exactly the device sets
+used by Rev. A, including their symbols, packages, available 3D associations,
+the A3 schematic frame, and the project-specific pad banks. The matching
+schematic and board use the `WiFiPicoDMX_RevA_used` library identity while
+retaining EAGLE's embedded component records for portable import.
+
+The used library covers the Pico, passives, status LEDs, reset switch, PPTC
+fuse, ISOW1412, SM712, ACT45B, HCPL-0700, MIDI protection diode, JST XH
+harness headers, and diagnostic pad banks. It is generated output; make
+footprint corrections in the maintained source library or the schematic
+generator as appropriate, then regenerate the complete design bundle.
+
 ## MIDI input
 
 Rev. A includes a standard 5-pin DIN MIDI IN port for future use:
 
 - panel-mounted DIN connector wired to the carrier;
-- `6N138-500E` gull-wing SMD optocoupler;
+- `HCPL-0700-500E` genuine SOIC-8 SMD optocoupler;
 - `1N4148WS-E3-08` SOD-323 input protection diode;
 - optocoupler output routed to Pico `GPIO5` / UART1 RX;
 - input current-limiting, bias, pull-up, and decoupling components implemented
@@ -180,14 +251,16 @@ Rev. A includes a standard 5-pin DIN MIDI IN port for future use:
 - MIDI hardware may remain unused by the initial application, but it is fitted
   so enabling it later does not require a PCB revision.
 
-The exact connector manufacturer and footprint remain part of the enclosure
-and mechanical-layout decision.
+The exact panel-mounted DIN connector remains part of the enclosure decision.
+Its carrier-board harness terminates at JST `B5B-XH-A`.
 
 ### Panel-connector wiring
 
 The prototype's XLR and MIDI connector bodies do not mount on the carrier PCB.
-Provide labelled plated solder pads and nearby non-plated strain-relief holes
-for their wire harnesses.
+Their harnesses terminate at vertical through-hole JST XH headers: `B4B-XH-A`
+for DMX and `B5B-XH-A` for MIDI. Use keyed mating housings, preserve the pin
+order below at both harness ends, and add external harness strain relief in
+the enclosure.
 
 DMX panel wiring:
 
@@ -212,6 +285,19 @@ Bring all five DIN pins to distinct pads even though the initial MIDI current
 loop uses pins 4 and 5. Do not merge MIDI pin 2, XLR shell, logic ground, or
 isolated DMX ground implicitly. Use explicit configurable links where a later
 enclosure decision may require a connection.
+
+The PCB must preserve the optocoupler's galvanic isolation:
+
+- place J2, R4, R5, D2, and the HCPL-0700 LED-side pads inside a dedicated
+  board-edge MIDI input island;
+- place the HCPL-0700 across the island boundary, with its VCC, GND, output,
+  and base-side parts outside on the Pico logic side;
+- surround the input island on its three internal sides with top-copper,
+  bottom-copper, and via-restrict moats; the carrier-board edge forms the
+  fourth side;
+- never pour `GND_LOGIC`, route another logic net, or place a via through the
+  MIDI isolation moat;
+- keep `MIDI_DIN_PIN2_SHIELD` separate from `GND_LOGIC`.
 
 Use large, clearly separated pads suitable for manually soldered stranded
 wire. Add adjacent tie-down holes so cable movement is not transferred to the
@@ -290,20 +376,25 @@ strain relief.
 
 ## Local controls
 
-Rev. A includes a dedicated SMD Reset pushbutton:
+Rev. A includes a dedicated C&K/Littelfuse `PTS810SJM250SMTR LFS` Reset
+pushbutton:
 
-- normally-open momentary SMD switch;
+- normally-open momentary, top-actuated SMD switch;
+- 4.2 mm × 3.2 mm body, 2.5 mm height, and 1.6 N nominal operating force;
+- four physical pads, with pads 1/2 forming one contact and pads 3/4 the
+  other;
 - connects Pico `RUN` to `GND_LOGIC` only while pressed;
 - net names `PICO_RUN_N` and `GND_LOGIC`;
 - located where it remains accessible after the Pico and XLR are fitted;
 - protected from accidental operation by placement or a recessed enclosure
   opening in the later mechanical design.
 
-The Pico's existing BOOTSEL button remains the programming control. Maintain a
-component and finger-access keep-out above it; do not place the carrier PCB,
-XLR body, or another tall component where it prevents operation. Also expose
-the Pico `TP6/BOOTSEL` signal as a labelled diagnostic pad for optional future
-remote programming access.
+The Pico 2 W development board's onboard `BOOTSEL` button remains the
+programming control. Raspberry Pi locates it below the USB connector and to
+the left side of the board. Maintain a component and finger/tool-access
+keep-out above it; do not place the carrier PCB, XLR body, or another tall
+component where it prevents operation. No second BOOTSEL switch or carrier
+connection is required for Rev. A.
 
 ## Status indicators
 

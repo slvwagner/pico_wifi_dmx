@@ -7,7 +7,11 @@
     <Nullable>enable</Nullable>
     <AssemblyName>WiFiPicoDMX</AssemblyName>
     <AssemblyTitle>WiFiPicoDMX</AssemblyTitle>
+    <Authors>wagnius GmbH</Authors>
+    <Company>wagnius GmbH</Company>
+    <Copyright>Copyright © 2026 wagnius GmbH</Copyright>
     <Product>WiFiPicoDMX</Product>
+    <RepositoryUrl>https://github.com/slvwagner/pico_wifi_dmx</RepositoryUrl>
     <RootNamespace>PicoDmxShell</RootNamespace>
     <ApplicationIcon>..\..\..\web\assets\favicon.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
