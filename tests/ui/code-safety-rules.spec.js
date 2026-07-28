@@ -295,6 +295,9 @@ test.describe('Code safety regression rules', () => {
     expect(readme).toContain('- [Overview](#overview)');
     expect(readme).toContain('- [Versioning](#versioning)');
     expect(readme).toContain('- [Flash](#flash)');
+    expect(readme).toContain('`%ProgramFiles%\\WiFiPicoDMX`');
+    expect(readme).toContain('`%ProgramData%\\Pico DMX Controller\\data`');
+    expect(readme).not.toContain('C:\\Program Files\\WiFiPicoDMX');
     expect(readme).toContain(
       `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/wifi-pico-dmx-${stableVersion}-windows-x64.exe`
     );
