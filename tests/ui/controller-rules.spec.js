@@ -2842,7 +2842,8 @@ test.describe('Fixture Controller established rules', () => {
     await page.locator('#importFixtureLibraryProfile').click();
 
     const state = await page.evaluate(() => {
-      const profile = profiles.find(p => p.name === 'Fun Generation PicoSpot 20 LED' && p.mode === '11-channel');
+      const profile = profiles.find(p => p.libraryFixtureKey === 'fun-generation/picospot-20-led' && p.mode === '11-channel');
+      if (!profile) throw new Error('Imported PicoSpot 20 LED 11-channel profile was not found');
       const gobo = profile.controls.find(c => c.label === 'Gobo Wheel');
       const shake = gobo.options.find(o => o.kind === 'WheelShake' && o.slotNumber === 2);
       fixtures.splice(0, fixtures.length, { id: 9902, name: 'PicoSpot 11ch', profileId: profile.id, start: 1 });
