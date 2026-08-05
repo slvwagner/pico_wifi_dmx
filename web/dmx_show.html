@@ -714,10 +714,7 @@ function cloneValue(v){return v&&typeof v==='object'?JSON.parse(JSON.stringify(v
 function defaultValueForControl(c){
   if(c.type==='panTilt16')return{pan:32768,tilt:32768};
   if(c.type==='panTilt8')return{pan:128,tilt:128};
-  if(c.type==='rgb'||c.type==='cmy')return{a:0,b:0,c:0};
-  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
-  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
-  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type))return DmxCommon.colorControlDefault(c);
   if(c.type==='matrixRgb')return matrixDefaultValue(c);
   return 0;
 }
@@ -725,10 +722,7 @@ function scalarControlParts(c){
   if(c.type==='panTilt16')return[{part:'pan',label:'Pan',max:65535},{part:'tilt',label:'Tilt',max:65535}];
   if(c.type==='panTilt8')return[{part:'pan',label:'Pan',max:255},{part:'tilt',label:'Tilt',max:255}];
   if(c.type==='slider16')return[{part:'value',label:'Value',max:65535}];
-  if(c.type==='rgb'||c.type==='cmy')return[{part:'a',label:c.type==='cmy'?'Cyan':'Red',max:255},{part:'b',label:c.type==='cmy'?'Magenta':'Green',max:255},{part:'c',label:c.type==='cmy'?'Yellow':'Blue',max:255}];
-  if(c.type==='rgbw')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255}];
-  if(c.type==='rgbwa')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255},{part:'amber',label:'Amber',max:255}];
-  if(c.type==='cmyk')return[{part:'a',label:'Cyan',max:255},{part:'b',label:'Magenta',max:255},{part:'c',label:'Yellow',max:255},{part:'k',label:'Key',max:255}];
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type))return DmxCommon.colorControlParts(c);
   if(c.type==='matrixRgb')return[];
   return[{part:'value',label:'Value',max:255}];
 }
@@ -763,10 +757,8 @@ function resolveDmxBytes(f,c){
   else if(c.type==='panTilt8'){const v=getValue(f,c,{pan:128,tilt:128});out.push(...DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)));}
   else if(c.type==='slider16'){const v=bytes16(getValue(f,c,0));out.push({ch:absolute(f.start,c.channel),val:v.coarse},{ch:absolute(f.start,c.fine??c.channel+1),val:v.fine});}
   else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const def=c.type==='cmyk'?{a:0,b:0,c:0,k:0}:c.type==='rgbw'?{a:0,b:0,c:0,w:0}:c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0};
-    const v=getValue(f,c,def);
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(part=>out.push({ch:absolute(f.start,c[part]),val:v[part]}));
+    const v=getValue(f,c,DmxCommon.colorControlDefault(c));
+    DmxCommon.colorControlParts(c).forEach(part=>out.push({ch:absolute(f.start,part.channel),val:v[part.part]??0}));
   }else if(c.type==='matrixRgb'){
     const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
     v.pixels.forEach((pixel,index)=>{const ch=matrixPixelChannels(c,index);out.push({ch:absolute(f.start,ch.a),val:pixel.a},{ch:absolute(f.start,ch.b),val:pixel.b},{ch:absolute(f.start,ch.c),val:pixel.c});});
@@ -2920,9 +2912,7 @@ function showPixelMatrixValue(control,hex){
   if(control.type==='cmy')return rgbToCmy(hex);
   if(control.type==='cmyk')return rgbToCmyk(hex);
   const rgb=hexToRgb(hex);
-  if(control.type==='rgbw')return{...rgb,w:0};
-  if(control.type==='rgbwa')return{...rgb,w:0,amber:0};
-  return rgb;
+  return{...DmxCommon.colorControlDefault(control),...rgb};
 }
 function showPixelMatrixValues(matrix){
   const normalized=DmxCommon.normalizePixelMatrix(matrix);

@@ -64,6 +64,35 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.selected.id).toBe(state.outputs[0].id);
   });
 
+  test('advanced color emitters and split wheel colors remain usable', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const control = {
+        type: 'rgbwa', a: 1, b: 2, c: 3, w: 4, amber: 5,
+        emitters: [
+          { key: 'a', label: 'Red', channel: 1, color: '#ff0000' },
+          { key: 'b', label: 'Green', channel: 2, color: '#00ff00' },
+          { key: 'c', label: 'Blue', channel: 3, color: '#0000ff' },
+          { key: 'w', label: 'White', channel: 4, color: '#ffffff' },
+          { key: 'amber', label: 'Amber', channel: 5, color: '#ffbf00' },
+          { key: 'uv', label: 'UV', channel: 6, color: '#7f00ff' },
+          { key: 'warmWhite', label: 'Warm White', channel: 7, color: '#ffd6a1' }
+        ]
+      };
+      return {
+        parts: DmxCommon.colorControlParts(control),
+        defaultValue: DmxCommon.colorControlDefault(control),
+        splitIcon: DmxCommon.wheelOptionIconHtml({ colors: ['#ff0000', '#0000ff'] })
+      };
+    });
+
+    expect(result.parts.map(part => [part.part, part.label, part.channel])).toEqual([
+      ['a', 'Red', 1], ['b', 'Green', 2], ['c', 'Blue', 3], ['w', 'White', 4],
+      ['amber', 'Amber', 5], ['uv', 'UV', 6], ['warmWhite', 'Warm White', 7]
+    ]);
+    expect(result.defaultValue).toEqual({ a: 0, b: 0, c: 0, w: 0, amber: 0, uv: 0, warmWhite: 0 });
+    expect(result.splitIcon).toContain('linear-gradient(90deg,#ff0000,#0000ff)');
+  });
+
   test('fixtures on different DMX outputs may use the same address and send to their assigned Pico', async ({ page }) => {
     const requests = [];
     await page.route('http://127.0.0.1:18991/**', async route => {

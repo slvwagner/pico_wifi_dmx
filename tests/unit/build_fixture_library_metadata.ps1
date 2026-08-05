@@ -57,9 +57,17 @@ Assert-Equal $hyK25.metadata.physical.beamAngleDegrees.max 60 'Hy B-Eye K25 maxi
 function Get-ProfileChannels($profile) {
     $channels = [System.Collections.Generic.List[int]]::new()
     foreach ($control in @($profile.controls)) {
-        foreach ($property in @('channel', 'fine', 'pan', 'panFine', 'tilt', 'tiltFine', 'a', 'b', 'c', 'w', 'amber', 'k')) {
+        foreach ($property in @('channel', 'fine', 'pan', 'panFine', 'tilt', 'tiltFine')) {
             $value = $control.PSObject.Properties[$property].Value
             if ($null -ne $value) { $channels.Add([int]$value) }
+        }
+        if ($null -ne $control.emitters -and @($control.emitters).Count) {
+            foreach ($emitter in @($control.emitters)) { $channels.Add([int]$emitter.channel) }
+        } else {
+            foreach ($property in @('a', 'b', 'c', 'w', 'amber', 'k')) {
+                $value = $control.PSObject.Properties[$property].Value
+                if ($null -ne $value) { $channels.Add([int]$value) }
+            }
         }
     }
     return @($channels)
@@ -104,6 +112,32 @@ Assert-Equal $programSpeed.type 'slider8' 'Continuous program speed should remai
 Assert-Equal $programSpeed.capabilities[0].type 'EffectSpeed' 'Continuous capability type is missing from the slider.'
 Assert-Equal $programSpeed.capabilities[0].speedStart 'slow' 'Continuous capability speed start is missing.'
 Assert-Equal $programSpeed.capabilities[0].speedEnd 'fast' 'Continuous capability speed end is missing.'
+
+$hexFixture = $library.fixtures | Where-Object key -eq 'american-dj/18p-hex-ip' | Select-Object -First 1
+$hexMode = $hexFixture.modes | Where-Object name -eq '13-channel' | Select-Object -First 1
+$hexColor = $hexMode.profile.controls | Where-Object type -eq 'rgbwa' | Select-Object -First 1
+Assert-Equal (@($hexColor.emitters | ForEach-Object key) -join ',') 'a,b,c,w,amber,uv' 'RGBWA+UV emitters were not combined into one advanced color control.'
+Assert-Equal ($hexColor.emitters | Where-Object key -eq 'uv' | Select-Object -First 1).channel 6 'The UV emitter channel is incorrect.'
+Assert-Equal @($hexMode.profile.controls | Where-Object label -eq 'UV').Count 0 'The UV emitter was also emitted as a separate slider.'
+
+$fogFixture = $library.fixtures | Where-Object key -eq 'american-dj/fog-fury-jett-pro' | Select-Object -First 1
+$fogSplitColor = @($fogFixture.modes.profile.controls.options | Where-Object { @($_.colors).Count -gt 1 }) | Select-Object -First 1
+if (-not $fogSplitColor) { throw 'A split-color OFL option was not retained.' }
+Assert-Equal $fogSplitColor.color $fogSplitColor.colors[0] 'The legacy wheel color does not match the first split color.'
+Assert-Equal @($fogSplitColor.colors).Count 2 'The split-color wheel option did not retain both colors.'
+
+$picoColorWheel = $picoMode.profile.controls | Where-Object label -eq 'Color Wheel' | Select-Object -First 1
+$picoSplitColors = @($picoColorWheel.options | Where-Object { $_.slotNumberStart -and $_.slotNumberEnd })
+Assert-Equal $picoSplitColors.Count 8 'PicoSpot wheel transitions were not converted to split-color options.'
+Assert-Equal ($picoSplitColors[0].colors -join ',') '#ffffff,#ff0000' 'The PicoSpot white/red split colors are incorrect.'
+Assert-Equal ($picoSplitColors[-1].colors -join ',') '#ff00ff,#ffffff' 'The PicoSpot purple/white wraparound split colors are incorrect.'
+
+$skyPanel = $library.fixtures | Where-Object key -eq 'arri/skypanel-s30c' | Select-Object -First 1
+$lee187 = @($skyPanel.modes.profile.controls.options | Where-Object { $_.filter.system -eq 'LEE' -and $_.filter.code -eq '187' }) | Select-Object -First 1
+if (-not $lee187) { throw 'The stored LEE 187 filter reference was not converted.' }
+Assert-Equal $lee187.color '#f5e4d7' 'The OFL LEE 187 preview color was not retained.'
+Assert-Equal $lee187.colors[0] '#f5e4d7' 'The LEE filter color list is incorrect.'
+Assert-Equal $lee187.filter.reference 'Lee 187' 'The original LEE filter reference was not retained.'
 
 $preserveSourcePath = Join-Path ([IO.Path]::GetTempPath()) ('pico-dmx-fixture-preserve-source-' + [Guid]::NewGuid().ToString('N') + '.json')
 $preserveOutputPath = Join-Path ([IO.Path]::GetTempPath()) ('pico-dmx-fixture-preserve-output-' + [Guid]::NewGuid().ToString('N') + '.json')
