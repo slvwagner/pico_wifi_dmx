@@ -1652,7 +1652,7 @@ Using OpenOCD + Picoprobe/CMSIS-DAP for subsequent application updates after the
 
 | Resource | Value |
 |----------|-------|
-| Free RAM (stable, measured at runtime) | **385 024 bytes** (~195 KB) |
+| Free RAM (stable, measured at runtime) | **180,224 bytes** (176 KB) |
 | Total SRAM (RP2350) | 520 KB |
 
 ## Notes
