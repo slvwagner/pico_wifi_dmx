@@ -560,7 +560,7 @@ body.manual-nav-open .manual-nav-backdrop {
 <ol>
 <li>Install <code>wifi-pico-dmx_&lt;VERSION&gt;_&lt;ARCHITECTURE&gt;.deb</code> through Ubuntu App Center or with <code>sudo apt install ./wifi-pico-dmx_&lt;VERSION&gt;_amd64.deb</code>.</li>
 <li>Start <strong>WiFiPicoDMX</strong> from Applications or its installer-owned desktop shortcut.</li>
-<li>Use <code>sudo pico-dmx-config --lan</code> only when trusted iPads or other PCs need access. The default remains local-only on port <code>8090</code>.</li>
+<li>Use <code>sudo pico-dmx-config --lan</code> only when trusted iPads or other PCs need access. The default remains local-only on port <code>8090</code>. The command detects and prints this computer&#39;s current DHCP-assigned controller URL; enter that URL in Safari on an iPad connected to the same trusted network. Run <code>pico-dmx-config --status</code> to detect and display the current URL again after any address change, or <code>sudo pico-dmx-config --local</code> to return to local-only access.</li>
 <li>Configure the hardware in <strong>DMX Outputs</strong>, then use <strong>Export Show</strong> to keep a portable backup.</li>
 </ol>
 <p>Closing WiFiPicoDMX offers <strong>Exit only</strong>, <strong>Exit and stop server</strong>, and <strong>Cancel</strong>. Exit only closes the Electron/Chromium application but leaves the <code>pico-dmx-controller.service</code> server available. Exit and stop server waits until no other local WiFiPicoDMX window is using the service, then stops it. Cancel returns to the application. Use <code>sudo pico-dmx-config --always-on</code> when the server must also start automatically at boot; use <code>sudo pico-dmx-config --application-managed</code> to restore application-managed startup.</p>

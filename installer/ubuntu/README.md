@@ -114,6 +114,11 @@ Show the current mode and service status with:
 pico-dmx-config --status
 ```
 
+Both `--lan` and LAN-mode `--status` detect and print the current DHCP-assigned
+IPv4 controller URL, ready to enter in Safari on an iPad connected to the same
+trusted network. Running `--status` again after an address change prints the
+new URL.
+
 Do not expose port 8090 to the public internet.
 
 ## Upgrade and remove

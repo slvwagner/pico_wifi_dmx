@@ -16,6 +16,8 @@ Changed:
 - Fixed the Ubuntu application appearing impossible to close because its controller `WebContentsView` covered the custom exit-choice dialog; the controller view is now hidden while the dialog is open and restored when closing is cancelled.
 - Fixed the Ubuntu Application/View dropdowns opening underneath the controller `WebContentsView`, which made **Firmware update…** and other menu actions inaccessible; opening a menu now temporarily yields the content area and restores it on selection or dismissal.
 - Fixed opening **Firmware update…** crashing Electron under Ubuntu/Wayland by presenting the guarded updater in the existing application window instead of creating a second GTK/Chromium window; closing the updater restores the live controller.
+- Fixed `pico-dmx-config --lan`, `--local`, and lifecycle commands reporting `temp_file: unbound variable` after successfully writing configuration by keeping temporary-file cleanup state valid for the script's full lifetime.
+- Changed Ubuntu `pico-dmx-config --lan` and LAN-mode `--status` to print the computer's concrete IPv4 controller URL instead of the unusable `this-computer-ip` placeholder, with an explicit message when no LAN address is available.
 
 ## 1.0.1 - 2026-07-28
 

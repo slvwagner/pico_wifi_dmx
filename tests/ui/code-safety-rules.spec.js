@@ -279,6 +279,10 @@ test.describe('Code safety regression rules', () => {
     expect(desktop).toContain('Name=WiFiPicoDMX');
     expect(builder).toContain('wifi-pico-dmx_${version}_${architecture}.deb');
     expect(builder).toContain('command -v wget');
+    expect(read('installer/ubuntu/package/pico-dmx-config')).toContain("config_temp_file=''");
+    expect(read('installer/ubuntu/package/pico-dmx-config')).not.toContain("trap 'rm -f -- \"$temp_file\"' EXIT");
+    expect(read('installer/ubuntu/package/pico-dmx-config')).toContain('hostname -I');
+    expect(read('installer/ubuntu/package/pico-dmx-config')).not.toContain('http://<this-computer-ip>:8090/');
     expect(ignore).toContain('release/v*/wifi-pico-dmx_*_amd64.deb');
   });
 
