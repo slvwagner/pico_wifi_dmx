@@ -8,6 +8,7 @@ Changed:
 - Added full Open Fixture Library regeneration with optional preservation of user-added inline wheel and gobo images from an existing fixture catalog. Preserved images are matched by fixture, mode, control, and DMX option identity, while current OFL names, ranges, metadata, defaults, capabilities, and other generated information remain authoritative.
 - Replaced the custom-over-built-in fixture-library layering with one active server catalog. The Controller can now refresh it directly from the bundled OFL catalog after creating a timestamped backup, preserving user wheel images, explicitly user-modified modes, and explicitly user-created fixtures while allowing obsolete unmarked custom entries to disappear.
 - Extended OFL color conversion to retain every color in split-color wheel slots, preserve LEE/Rosco filter references alongside their OFL hex previews, and combine RGB fixtures' additional UV, lime, indigo, cyan, magenta, yellow, and warm/cold-white emitters into one advanced color control used consistently by Controller, Chaser, Show Run, and Room Plane.
+- Fixed the guided wheel editor showing only the first color of split-color options. It now displays and edits every color, supports adding and removing split colors, updates the gradient preview without discarding the remaining colors, and visually separates every wheel-position row with a divider and additional spacing.
 
 ## 1.0.1 - 2026-07-28
 

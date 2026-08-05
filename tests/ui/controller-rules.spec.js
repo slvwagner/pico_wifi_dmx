@@ -2575,6 +2575,35 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.formattedRotation).toBe('Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW');
   });
 
+  test('guided wheel editor shows and edits every split color', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
+    await page.locator('#controlType').selectOption('wheel');
+    await page.locator('#openControlDetails').click();
+    await page.locator('#wheelOptions').fill('White / Red=88-98|#ffffff|colors=#ffffff,#ff0000|kind=WheelSlot');
+    await page.locator('#openWheelOptionsModal').click();
+
+    const row = page.locator('[data-wheel-option-row="0"]');
+    const colors = row.locator('[data-wheel-color]');
+    await expect(colors).toHaveCount(2);
+    await expect(colors.nth(0)).toHaveValue('#ffffff');
+    await expect(colors.nth(1)).toHaveValue('#ff0000');
+    await colors.nth(1).evaluate(input => {
+      input.value = '#00ff00';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await row.locator('[data-add-wheel-color]').click();
+    await expect(row.locator('[data-wheel-color]')).toHaveCount(3);
+    await row.locator('[data-wheel-color]').nth(2).evaluate(input => {
+      input.value = '#0000ff';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.locator('#applyWheelOptionsModal').click();
+
+    const option = await page.evaluate(() => parseWheelOptions(document.getElementById('wheelOptions').value)[0]);
+    expect(option.color).toBe('#ffffff');
+    expect(option.colors).toEqual(['#ffffff', '#00ff00', '#0000ff']);
+  });
+
   test('guided wheel editor modal writes rich wheel metadata', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
     await page.locator('#controlType').selectOption('wheel');
@@ -2589,6 +2618,17 @@ test.describe('Fixture Controller established rules', () => {
 
     const rows = page.locator('[data-wheel-option-row]');
     await expect(rows).toHaveCount(3);
+    const separator = await rows.nth(1).evaluate(row => {
+      const style = getComputedStyle(row);
+      return {
+        borderStyle: style.borderTopStyle,
+        borderWidth: parseFloat(style.borderTopWidth),
+        paddingTop: parseFloat(style.paddingTop)
+      };
+    });
+    expect(separator.borderStyle).toBe('solid');
+    expect(separator.borderWidth).toBeGreaterThanOrEqual(1);
+    expect(separator.paddingTop).toBeGreaterThanOrEqual(10);
     await rows.nth(1).locator('[data-wheel-field="name"]').fill('Gobo 3 shake');
     await rows.nth(1).locator('[data-wheel-field="start"]').fill('141');
     await rows.nth(1).locator('[data-wheel-field="end"]').fill('156');

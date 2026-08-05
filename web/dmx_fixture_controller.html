@@ -4054,6 +4054,9 @@ let wheelIconDrawing=false;
 let wheelIconTouched=false;
 function wheelOptionEditorRow(option={}){
   const range=wheelOptionRange(option)||[wheelOptionValue(option),wheelOptionValue(option)];
+  const color=/^#[0-9a-f]{6}$/i.test(String(option.color||''))?String(option.color):'';
+  const colors=Array.isArray(option.colors)?option.colors.map(String).filter(value=>/^#[0-9a-f]{6}$/i.test(value)):[];
+  if(!colors.length&&color)colors.push(color);
   return {
     name:option.name||'Value',
     start:range[0],
@@ -4062,8 +4065,8 @@ function wheelOptionEditorRow(option={}){
     slot:option.slotNumber??'',
     speedStart:option.shakeSpeedStart||option.speedStart||'',
     speedEnd:option.shakeSpeedEnd||option.speedEnd||'',
-    color:option.color||'',
-    colors:Array.isArray(option.colors)?option.colors.filter(color=>/^#[0-9a-f]{6}$/i.test(String(color))):[],
+    color:colors[0]||color,
+    colors,
     image:option.image||''
   };
 }
@@ -4073,6 +4076,17 @@ function wheelOptionPreviewStyle(row){
   if(row.colors?.length>1&&!row.image)style.push('background-image:linear-gradient(90deg,'+row.colors.map(escHtml).join(',')+')');
   if(row.image)style.push(`background-image:url('${String(row.image).replace(/'/g,'%27')}')`);
   return style.join(';');
+}
+function wheelOptionColorInputsHtml(row,rowIndex){
+  const colors=(Array.isArray(row.colors)?row.colors:[]).map(String).filter(color=>/^#[0-9a-f]{6}$/i.test(color));
+  const visibleColors=colors.length?colors:[''];
+  return `<div class="wheel-option-colors">
+    ${visibleColors.map((color,colorIndex)=>`<div class="wheel-option-color-field">
+      <label>Color ${colorIndex+1}<input type="color" value="${escHtml(color||'#ffffff')}" data-wheel-color="${rowIndex}" data-wheel-color-index="${colorIndex}"></label>
+      ${colorIndex>0?`<button type="button" data-remove-wheel-color="${rowIndex}" data-wheel-color-index="${colorIndex}" title="Remove split color">×</button>`:''}
+    </div>`).join('')}
+    <button type="button" data-add-wheel-color="${rowIndex}" title="Add another split color">Add split</button>
+  </div>`;
 }
 function renderWheelOptionsModal(){
   const body=document.getElementById('wheelOptionsModalBody');
@@ -4099,7 +4113,7 @@ function renderWheelOptionsModal(){
     <div class="wheel-option-visual">
       <span class="wheel-option-preview" data-wheel-preview="${index}" style="${wheelOptionPreviewStyle(row)}"></span>
       <div class="wheel-option-visual-fields">
-        <label>Color<input type="color" value="${escHtml(row.color||'#ffffff')}" data-wheel-color="${index}"></label>
+        ${wheelOptionColorInputsHtml(row,index)}
         <button type="button" data-clear-wheel-color="${index}" title="Clear background color">No color</button>
         <button type="button" data-wheel-upload="${index}" title="Upload icon">Icon</button>
         <button type="button" data-wheel-draw="${index}" title="Draw icon">Draw</button>
@@ -4199,9 +4213,9 @@ function wheelOptionFromEditorRow(row){
   const end=clamp(row.end,0,255);
   const option={name:String(row.name||'Value').trim()||'Value',value:Math.round((Math.min(start,end)+Math.max(start,end))/2)};
   if(start!==end)option.range=[Math.min(start,end),Math.max(start,end)];
-  if(row.color&&/^#[0-9a-f]{6}$/i.test(String(row.color).trim()))option.color=String(row.color).trim();
   const colors=(Array.isArray(row.colors)?row.colors:[]).map(String).filter(color=>/^#[0-9a-f]{6}$/i.test(color));
-  if(colors.length)option.colors=colors;
+  if(colors.length){option.color=colors[0];option.colors=colors;}
+  else if(row.color&&/^#[0-9a-f]{6}$/i.test(String(row.color).trim()))option.color=String(row.color).trim();
   if(row.image&&String(row.image).startsWith('data:image/'))option.image=String(row.image);
   if(row.kind)option.kind=row.kind;
   if(row.slot!=='')option.slotNumber=clamp(row.slot,0,999);
@@ -4236,7 +4250,15 @@ document.getElementById('wheelOptionsModalBody').addEventListener('input',e=>{
   const color=e.target.closest('[data-wheel-color]');
   if(color){
     const row=wheelOptionsModalRows[parseInt(color.dataset.wheelColor,10)];
-    if(row){row.color=color.value;row.colors=[color.value];}
+    const colorIndex=parseInt(color.dataset.wheelColorIndex,10)||0;
+    if(row){
+      if(!Array.isArray(row.colors))row.colors=[];
+      while(row.colors.length<=colorIndex)row.colors.push('#ffffff');
+      row.colors[colorIndex]=color.value;
+      row.color=row.colors[0]||'';
+      const preview=document.querySelector(`[data-wheel-preview="${color.dataset.wheelColor}"]`);
+      if(preview)preview.setAttribute('style',wheelOptionPreviewStyle(row));
+    }
     return;
   }
   syncWheelOptionsModalRows();
@@ -4266,6 +4288,29 @@ document.getElementById('wheelOptionsModalBody').addEventListener('click',e=>{
     syncWheelOptionsModalRows();
     const row=wheelOptionsModalRows[parseInt(clearColor.dataset.clearWheelColor,10)];
     if(row){row.color='';row.colors=[];}
+    renderWheelOptionsModal();
+    return;
+  }
+  const addColor=e.target.closest('[data-add-wheel-color]');
+  if(addColor){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(addColor.dataset.addWheelColor,10)];
+    if(row){
+      if(!Array.isArray(row.colors))row.colors=[];
+      if(!row.colors.length&&row.color)row.colors.push(row.color);
+      row.colors.push(row.colors[row.colors.length-1]||'#ffffff');
+      row.color=row.colors[0]||'';
+    }
+    renderWheelOptionsModal();
+    return;
+  }
+  const removeColor=e.target.closest('[data-remove-wheel-color]');
+  if(removeColor){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(removeColor.dataset.removeWheelColor,10)];
+    const colorIndex=parseInt(removeColor.dataset.wheelColorIndex,10);
+    if(row&&Array.isArray(row.colors)&&colorIndex>0)row.colors.splice(colorIndex,1);
+    if(row)row.color=row.colors?.[0]||'';
     renderWheelOptionsModal();
     return;
   }
