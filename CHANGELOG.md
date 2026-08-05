@@ -18,6 +18,7 @@ Changed:
 - Fixed opening **Firmware update…** crashing Electron under Ubuntu/Wayland by presenting the guarded updater in the existing application window instead of creating a second GTK/Chromium window; closing the updater restores the live controller.
 - Fixed `pico-dmx-config --lan`, `--local`, and lifecycle commands reporting `temp_file: unbound variable` after successfully writing configuration by keeping temporary-file cleanup state valid for the script's full lifetime.
 - Changed Ubuntu `pico-dmx-config --lan` and LAN-mode `--status` to print the computer's concrete IPv4 controller URL instead of the unusable `this-computer-ip` placeholder, with an explicit message when no LAN address is available.
+- Added WSL-based Debian packaging to the Windows release workflow. One release command can now build the native Windows installer and the Debian/Ubuntu package from the same checkout and firmware, record both checksums and architectures in the release manifest, select a WSL distribution, accept an explicit Linux picotool path, and stage Debian metadata on WSL's native filesystem so NTFS mount permissions cannot invalidate the package. The Ubuntu package guide now documents the verified WSL launch and trusted-LAN test workflow, including mirrored networking, narrowly scoped TCP 8090 firewall access, Windows `localhost` access, and the separate LAN URL used by other devices.
 
 ## 1.0.1 - 2026-07-28
 

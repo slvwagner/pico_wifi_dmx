@@ -2,10 +2,13 @@
 set -euo pipefail
 
 installer_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# Keep this script and Debian maintainer scripts LF-only via .gitattributes so
+# the package can be built directly from a Windows checkout mounted into WSL.
 repo_root="$(cd -- "$installer_dir/../.." && pwd)"
 version="$(tr -d '[:space:]' < "$repo_root/VERSION")"
 output_dir="${1:-$repo_root/release/v$version}"
-build_root="$repo_root/build/ubuntu-installer"
+default_build_root="$repo_root/build/ubuntu-installer"
+build_root="${PICO_DMX_UBUNTU_BUILD_ROOT:-$default_build_root}"
 package_root="$build_root/package"
 electron_build_root="$build_root/electron"
 download_root="$build_root/downloads"
@@ -105,7 +108,7 @@ case "$ELECTRON_VERSION:$electron_file:$electron_hash" in
 esac
 
 case "$build_root" in
-    "$repo_root"/build/ubuntu-installer) ;;
+    "$default_build_root"|"$HOME"/.cache/pico-dmx-controller/ubuntu-installer) ;;
     *)
         printf 'Refusing to reset unexpected build directory: %s\n' "$build_root" >&2
         exit 1
@@ -260,7 +263,10 @@ printf 'Installed-Size: %s\n' "$installed_size" >> "$package_root/DEBIAN/control
 mkdir -p -- "$output_dir"
 output_file="$output_dir/$package_name"
 dpkg-deb --root-owner-group --build "$package_root" "$output_file"
-sha256sum "$output_file" > "$output_file.sha256"
+(
+    cd -- "$output_dir"
+    sha256sum "$package_name" > "$package_name.sha256"
+)
 
 printf 'Built %s\n' "$output_file"
 printf 'SHA-256 %s\n' "$(awk '{print $1}' "$output_file.sha256")"

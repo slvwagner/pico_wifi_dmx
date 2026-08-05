@@ -259,8 +259,8 @@ test.describe('Code safety regression rules', () => {
     const ignore = read('.gitignore');
 
     expect(main).toContain("app.setName('WiFiPicoDMX')");
-    expect(main).toContain("'Exit only'");
-    expect(main).toContain("'Exit and stop server'");
+    expect(shellPage).toContain('Exit only');
+    expect(shellPage).toContain('Exit and stop server');
     expect(main).toContain('app.exit(EXIT_KEEP_SERVER)');
     expect(main).toContain('app.exit(EXIT_STOP_SERVER)');
     expect(main).toContain("controllerView.webContents.session.clearCache()");
@@ -354,6 +354,22 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('installer\\windows\\build_installer.ps1');
     expect(releaseScript).toContain('windowsInstaller = $windowsInstaller');
     expect(releaseScript).toContain('Authenticode signed:');
+  });
+
+  test('Windows release preparation can build and record the Debian installer through WSL', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+    const wslBuilder = read('installer/ubuntu/build_package_wsl.ps1');
+
+    expect(releaseScript).toContain('[switch]$SkipDebianInstaller');
+    expect(releaseScript).toContain('[string]$WslDistribution');
+    expect(releaseScript).toContain('Build Debian customer installer through WSL');
+    expect(releaseScript).toContain('installer\\ubuntu\\build_package_wsl.ps1');
+    expect(releaseScript).toContain('debianInstaller = $debianInstaller');
+    expect(wslBuilder).toContain('wsl.exe');
+    expect(wslBuilder).toContain('wslpath');
+    expect(wslBuilder).toContain('PICO_DMX_PICOTOOL');
+    expect(wslBuilder).toContain('PICO_DMX_UBUNTU_BUILD_ROOT');
+    expect(wslBuilder).toContain('build_package.sh');
   });
 
   test('README presents the stable Windows installer before the overview and requires release-link verification', () => {

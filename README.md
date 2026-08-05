@@ -226,6 +226,18 @@ Build the Ubuntu package on Ubuntu or Debian:
 ./installer/ubuntu/build_package.sh
 ```
 
+On Windows, the PowerShell wrapper runs the same package builder inside WSL 2,
+so the Windows and Debian installers can be produced from one checkout:
+
+```powershell
+.\installer\ubuntu\build_package_wsl.ps1 -Distribution Ubuntu-24.04
+```
+
+WSL must contain a Linux `picotool` 2.3.0 build because that executable is
+included in the Debian package. If it is outside the normal
+`~/.pico-sdk/picotool/2.3.0/picotool/picotool` location, pass its Linux path
+with `-WslPicotoolPath`.
+
 Install the generated package from `release/v<VERSION>/` by double-clicking it
 in Ubuntu's App Center, or with APT:
 
@@ -718,19 +730,22 @@ Prepare a release package after versions, tests, and changelog are ready:
 .\scripts\prepare_release.ps1 -Build
 ```
 
-On Windows, the same command also builds
-`release\v<VERSION>\wifi-pico-dmx-<VERSION>-windows-x64.exe`, writes its
-SHA-256 file, and records the installer in `release-manifest.json`. The
-installer is unsigned unless a protected certificate-store thumbprint is
-supplied:
+On Windows, the same command builds both the native Windows `.exe` and, through
+WSL 2, the Debian/Ubuntu `.deb`. Both installers are written under
+`release\v<VERSION>`, checksummed, and recorded in `release-manifest.json`.
+Use `-WslDistribution Ubuntu-24.04` to select a non-default distribution and
+`-WslPicotoolPath /path/to/picotool` when Linux picotool 2.3.0 is not in its
+normal Pico SDK location. The Windows installer is unsigned unless a protected
+certificate-store thumbprint is supplied:
 
 ```powershell
 .\scripts\prepare_release.ps1 -Build `
   -WindowsSigningCertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT
 ```
 
-Use `-SkipWindowsInstaller` only for an intentional firmware-only Windows
-package. Non-Windows release runs skip the Windows installer automatically.
+Use `-SkipWindowsInstaller` or `-SkipDebianInstaller` only when intentionally
+omitting that platform. Non-Windows release runs skip both Windows-native and
+WSL packaging; run `installer/ubuntu/build_package.sh` directly there.
 
 Before running Playwright, the release script syncs the current source into the isolated XAMPP test app at `http://localhost/dmx-test/` so the regression suite does not accidentally exercise stale files. Use `-TestAppFolder`, `-TestBaseUrl`, or `-SkipTestAppSync` only when your test target is intentionally different.
 

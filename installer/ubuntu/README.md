@@ -32,6 +32,58 @@ On Ubuntu or Debian, run:
 ./installer/ubuntu/build_package.sh
 ```
 
+On a Windows release workstation with WSL 2, run the same builder through the
+repository wrapper:
+
+```powershell
+.\installer\ubuntu\build_package_wsl.ps1 -Distribution Ubuntu-24.04
+```
+
+The wrapper converts the checkout, firmware, and output paths with `wslpath`
+and passes them as separate arguments to the Linux builder. It never attempts
+to package the Windows `picotool.exe`. WSL therefore needs a Linux picotool
+2.3.0 binary; the normal Pico SDK location is detected by `build_package.sh`,
+or a different Linux path can be supplied with `-WslPicotoolPath`.
+Temporary package staging and the Electron download cache stay in WSL's native
+Linux filesystem so Debian ownership and permission metadata are preserved;
+only the final package and checksum are written to the Windows release folder.
+
+The main Windows release command invokes this wrapper automatically and creates
+both the Windows `.exe` and Debian `.deb` in the same release directory. Use
+`-SkipDebianInstaller` only when deliberately omitting the Debian artifact.
+
+### Test the package in WSL
+
+Install and launch the package from Windows PowerShell:
+
+```powershell
+wsl -d Ubuntu-24.04
+sudo apt install /mnt/d/Projects/pico_wifi_dmx/release/v<VERSION>/wifi-pico-dmx_<VERSION>_amd64.deb
+pico-dmx-controller
+```
+
+The final two commands run inside Ubuntu. Keep the WiFiPicoDMX window open
+because the default application-managed lifecycle stops the PHP service after
+the final local application window exits. From the Windows host, open
+`http://localhost:8090/`; Windows may not route its own LAN address back into
+the mirrored WSL interface.
+
+For testing from an iPad or another trusted LAN device, enable LAN mode inside
+Ubuntu:
+
+```bash
+sudo pico-dmx-config --lan
+pico-dmx-config --status
+```
+
+On Windows 11, `%USERPROFILE%\.wslconfig` must contain
+`networkingMode=mirrored` under `[wsl2]`. After changing that file, run
+`wsl --shutdown` from PowerShell and relaunch the distribution. Permit only TCP
+8090 with a WSL Hyper-V firewall rule and a Windows Private-network inbound
+rule. Other devices then use the physical Windows adapter address printed by
+`pico-dmx-config --status`, for example `http://192.168.0.12:8090/`. A
+`172.x.x.x` address is WSL NAT space and is not the customer LAN URL.
+
 The build host needs `dpkg-deb`, `unzip`, and either `curl` or `wget`. Node.js and npm are not
 required because the official Electron runtime archive is downloaded directly.
 
