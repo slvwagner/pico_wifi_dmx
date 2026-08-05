@@ -19,6 +19,11 @@ The package bundles its Chromium desktop runtime and uses Ubuntu's PHP runtime
 for the background service. It does not install XAMPP, Apache, MariaDB, or
 development tools.
 
+The packaged PHP service is sized for the complete OFL fixture catalog:
+`memory_limit` is 512 MB, request processing is allowed 120 seconds, and fixture
+library request bodies can be up to 128 MB. These limits are local to
+WiFiPicoDMX and do not change the computer's global PHP configuration.
+
 ## Build
 
 On Ubuntu or Debian, run:
@@ -27,7 +32,7 @@ On Ubuntu or Debian, run:
 ./installer/ubuntu/build_package.sh
 ```
 
-The build host needs `dpkg-deb`, `curl`, and `unzip`. Node.js and npm are not
+The build host needs `dpkg-deb`, `unzip`, and either `curl` or `wget`. Node.js and npm are not
 required because the official Electron runtime archive is downloaded directly.
 
 The architecture-specific `.deb` package and its SHA-256 file are written to

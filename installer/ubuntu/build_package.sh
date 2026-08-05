@@ -23,13 +23,25 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
     printf 'dpkg-deb is required. Install it with: sudo apt install dpkg-dev\n' >&2
     exit 1
 fi
-for required_command in curl unzip; do
+for required_command in unzip; do
     if ! command -v "$required_command" >/dev/null 2>&1; then
         printf '%s is required to assemble the bundled application shell.\n' \
             "$required_command" >&2
         exit 1
     fi
 done
+if command -v curl >/dev/null 2>&1; then
+    download_file() {
+        curl --fail --location --retry 3 "$1" --output "$2"
+    }
+elif command -v wget >/dev/null 2>&1; then
+    download_file() {
+        wget --tries=3 --output-document="$2" "$1"
+    }
+else
+    printf 'curl or wget is required to download the bundled application shell.\n' >&2
+    exit 1
+fi
 case "$architecture" in
     amd64)
         electron_arch_file_variable=ELECTRON_AMD64_FILE
@@ -74,7 +86,7 @@ if [[ ! -f "$electron_archive" ]] ||
     ! printf '%s  %s\n' "$electron_hash" "$electron_archive" | sha256sum --check --status
 then
     partial_archive="$electron_archive.partial"
-    curl --fail --location --retry 3 "$electron_url" --output "$partial_archive"
+    download_file "$electron_url" "$partial_archive"
     printf '%s  %s\n' "$electron_hash" "$partial_archive" |
         sha256sum --check --status
     mv "$partial_archive" "$electron_archive"

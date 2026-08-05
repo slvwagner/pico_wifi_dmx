@@ -10,7 +10,7 @@ EnvironmentFile=/etc/default/pico-dmx-controller
 Environment=PICO_DMX_DATA_DIR=/var/lib/pico-dmx-controller/data
 Environment=PHP_CLI_SERVER_WORKERS=4
 WorkingDirectory=/opt/pico-dmx-controller/app
-ExecStart=/usr/bin/php -d expose_php=0 -d display_errors=0 -d log_errors=1 -d error_log=/proc/self/fd/2 -S ${PICO_DMX_LISTEN_ADDRESS}:${PICO_DMX_PORT} /opt/pico-dmx-controller/support/router.php
+ExecStart=/usr/bin/php -d expose_php=0 -d display_errors=0 -d log_errors=1 -d error_log=/proc/self/fd/2 -d memory_limit=512M -d max_execution_time=120 -d post_max_size=128M -d upload_max_filesize=128M -S ${PICO_DMX_LISTEN_ADDRESS}:${PICO_DMX_PORT} /opt/pico-dmx-controller/support/router.php
 Restart=on-failure
 RestartSec=2s
 UMask=0007

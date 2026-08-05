@@ -263,13 +263,28 @@ test.describe('Code safety regression rules', () => {
     expect(main).toContain("'Exit and stop server'");
     expect(main).toContain('app.exit(EXIT_KEEP_SERVER)');
     expect(main).toContain('app.exit(EXIT_STOP_SERVER)');
+    expect(main).toContain("controllerView.webContents.session.clearCache()");
+    expect(main).toContain("controllerView.webContents.on('context-menu'");
     expect(shellPage).toContain('<title>WiFiPicoDMX</title>');
+    expect(shellPage).toContain('id="application-menu"');
+    expect(shellPage).toContain('How should WiFiPicoDMX exit?');
+    expect(shellPage).toContain('Exit and stop server');
     expect(launcher).toContain('EXIT_KEEP_SERVER=20');
     expect(launcher).toContain('EXIT_STOP_SERVER=21');
     expect(launcher).toContain('systemctl stop pico-dmx-controller.service');
     expect(desktop).toContain('Name=WiFiPicoDMX');
     expect(builder).toContain('wifi-pico-dmx_${version}_${architecture}.deb');
+    expect(builder).toContain('command -v wget');
     expect(ignore).toContain('release/v*/wifi-pico-dmx_*_amd64.deb');
+  });
+
+  test('Ubuntu customer runtime can update and import the full OFL fixture library', () => {
+    const service = read('installer/ubuntu/package/pico-dmx-controller.service');
+
+    expect(service).toContain('-d memory_limit=512M');
+    expect(service).toContain('-d max_execution_time=120');
+    expect(service).toContain('-d post_max_size=128M');
+    expect(service).toContain('-d upload_max_filesize=128M');
   });
 
   test('motion slot response exposes target count without a duplicate fixture count', () => {

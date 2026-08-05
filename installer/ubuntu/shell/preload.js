@@ -9,8 +9,11 @@ contextBridge.exposeInMainWorld('picoShell', {
   openBrowser: () => ipcRenderer.send('shell:browser'),
   reload: () => ipcRenderer.send('shell:reload'),
   toggleFullscreen: () => ipcRenderer.send('shell:fullscreen'),
+  chooseExit: (choice) => ipcRenderer.send('shell:exit-choice', choice),
   onFullscreenState: (callback) =>
     ipcRenderer.on('shell:fullscreen-state', (_event, value) => callback(value)),
   onStatus: (callback) =>
     ipcRenderer.on('shell:status', (_event, value) => callback(value)),
+  onShowExitChoice: (callback) =>
+    ipcRenderer.on('shell:show-exit-choice', () => callback()),
 });

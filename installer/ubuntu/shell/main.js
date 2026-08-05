@@ -3,7 +3,6 @@
 const {
   app,
   BrowserWindow,
-  dialog,
   Menu,
   Tray,
   WebContentsView,
@@ -16,7 +15,7 @@ const {
 } = require('electron');
 const path = require('node:path');
 
-const SHELL_TOP_NORMAL = 80;
+const SHELL_TOP_NORMAL = 76;
 const SHELL_TOP_FULLSCREEN = 44;
 const SHELL_BOTTOM_NORMAL = 28;
 const CONTROLLER_FALLBACK = 'http://127.0.0.1:8090/';
@@ -31,6 +30,7 @@ let tray = null;
 let controllerUrl = normalizeControllerUrl(readArgument('--url'));
 let fullscreen = false;
 let exitChoiceOpen = false;
+let exitChoiceResolver = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -98,6 +98,9 @@ function createWindow() {
     },
   });
   mainWindow.contentView.addChildView(controllerView);
+  controllerView.webContents.session.clearCache().catch((error) => {
+    console.error(`Could not clear the controller disk cache: ${error.message}`);
+  });
   mainWindow.loadFile(path.join(__dirname, 'shell.html'));
   mainWindow.once('ready-to-show', () => mainWindow?.show());
   mainWindow.on('resize', layoutController);
@@ -153,6 +156,7 @@ function createWindow() {
     }
     return { action: 'deny' };
   });
+  controllerView.webContents.on('context-menu', (event) => event.preventDefault());
   controllerView.webContents.on('will-navigate', (event, url) => {
     if (isControllerUrl(url)) return;
     event.preventDefault();
@@ -189,6 +193,12 @@ function registerShellActions() {
   });
   ipcMain.on('shell:close', () => void requestExit());
   ipcMain.on('shell:browser', () => void shell.openExternal(controllerUrl));
+  ipcMain.on('shell:exit-choice', (_event, choice) => {
+    if (!exitChoiceResolver || !['keep', 'stop', 'cancel'].includes(choice)) return;
+    const resolve = exitChoiceResolver;
+    exitChoiceResolver = null;
+    resolve(choice);
+  });
 }
 
 async function openController() {
@@ -204,26 +214,24 @@ async function requestExit() {
   if (exitChoiceOpen) return;
   exitChoiceOpen = true;
   try {
-    const { response } = await dialog.showMessageBox(mainWindow, {
-      type: 'question',
-      title: 'Exit WiFiPicoDMX',
-      message: 'How should WiFiPicoDMX exit?',
-      detail:
-        'Exit only keeps the server running for iPads and other operator devices.\n\n' +
-        'Exit and stop server disconnects those devices.',
-      buttons: ['Exit only', 'Exit and stop server', 'Cancel'],
-      defaultId: 0,
-      cancelId: 2,
-      noLink: true,
-    });
-    if (response === 0) {
+    const choice = await showExitChoice();
+    if (choice === 'keep') {
       app.exit(EXIT_KEEP_SERVER);
-    } else if (response === 1) {
+    } else if (choice === 'stop') {
       app.exit(EXIT_STOP_SERVER);
     }
   } finally {
     exitChoiceOpen = false;
   }
+}
+
+function showExitChoice() {
+  if (!mainWindow || mainWindow.isDestroyed()) return Promise.resolve('cancel');
+  restoreWindow();
+  return new Promise((resolve) => {
+    exitChoiceResolver = resolve;
+    mainWindow.webContents.send('shell:show-exit-choice');
+  });
 }
 
 async function waitForServer(url, timeoutMs) {
