@@ -774,12 +774,23 @@ test.describe('Fixture Controller established rules', () => {
       });
       const resolved = library.fixtures[0].modes[0].profile.controls[0].options[0];
       const exported = fixtureLibraryForExport(library).fixtures[0].modes[0].profile.controls[0].options[0];
-      return { resolvedImage: resolved.image, exportedImage: exported.image, resourceKey: exported.resourceKey };
+      const userImage = 'data:image/png;base64,dXNlci1nb2Jv';
+      const userLibrary = { fixtures: [{ key: 'test/fixture', modes: [{ profile: { controls: [{ label: 'Gobo Wheel', options: [{ name: 'Gobo 1', slotNumber: 2, value: 10, image: userImage }] }] } }] }] };
+      mergeFixtureLibraryResources(userLibrary, {
+        resources: { 'gobos/test': { image: 'data:image/svg+xml;base64,PHN2Zy8+' } },
+        fixtures: [{ key: 'test/fixture', controls: [{ label: 'Gobo Wheel', options: [{ slotNumber: 2, value: 10, resourceKey: 'gobos/test' }] }] }]
+      });
+      const userOption = userLibrary.fixtures[0].modes[0].profile.controls[0].options[0];
+      const userExport = fixtureLibraryForExport(userLibrary).fixtures[0].modes[0].profile.controls[0].options[0];
+      return { resolvedImage: resolved.image, exportedImage: exported.image, resourceKey: exported.resourceKey, userImage: userOption.image, userResourceKey: userOption.resourceKey, exportedUserImage: userExport.image };
     });
 
     expect(result.resolvedImage).toBe('data:image/svg+xml;base64,PHN2Zy8+');
     expect(result.exportedImage).toBeUndefined();
     expect(result.resourceKey).toBe('gobos/test');
+    expect(result.userImage).toBe('data:image/png;base64,dXNlci1nb2Jv');
+    expect(result.userResourceKey).toBeUndefined();
+    expect(result.exportedUserImage).toBe('data:image/png;base64,dXNlci1nb2Jv');
   });
 
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {

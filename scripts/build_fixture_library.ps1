@@ -5,6 +5,7 @@ param(
     [string]$CapabilitiesOutputPath = "",
     [string]$ResourcesOutputPath = "",
     [string]$CustomFixturePath = "tools/fixture-library/custom",
+    [string]$PreserveWheelImagesFromPath = "",
     [switch]$MetadataOnly,
     [switch]$CapabilitiesOnly,
     [switch]$SidecarsOnly,
@@ -20,15 +21,18 @@ $metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]
 $capabilitiesOutFile = if (-not $CapabilitiesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($CapabilitiesOutputPath)) { $CapabilitiesOutputPath } else { Join-Path $repoRoot $CapabilitiesOutputPath }
 $resourcesOutFile = if (-not $ResourcesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($ResourcesOutputPath)) { $ResourcesOutputPath } else { Join-Path $repoRoot $ResourcesOutputPath }
 $customFixtureDirectory = if (-not $CustomFixturePath) { "" } elseif ([System.IO.Path]::IsPathRooted($CustomFixturePath)) { $CustomFixturePath } else { Join-Path $repoRoot $CustomFixturePath }
+$preserveWheelImagesFile = if (-not $PreserveWheelImagesFromPath) { "" } elseif ([System.IO.Path]::IsPathRooted($PreserveWheelImagesFromPath)) { $PreserveWheelImagesFromPath } else { Join-Path $repoRoot $PreserveWheelImagesFromPath }
 $effectiveThrottleLimit = if ($ThrottleLimit -gt 0) { $ThrottleLimit } else { [Math]::Max(2, [Math]::Min([Environment]::ProcessorCount, 16)) }
 if ($SidecarsOnly -and ($MetadataOnly -or $CapabilitiesOnly)) { throw "SidecarsOnly cannot be combined with MetadataOnly or CapabilitiesOnly." }
 if ($SidecarsOnly -and -not $metadataOutFile -and -not $capabilitiesOutFile -and -not $resourcesOutFile) { throw "SidecarsOnly requires MetadataOutputPath, CapabilitiesOutputPath, or ResourcesOutputPath." }
 if ($CustomOnly -and ($MetadataOnly -or $CapabilitiesOnly -or $SidecarsOnly)) { throw "CustomOnly cannot be combined with enrichment-only options." }
+if ($preserveWheelImagesFile -and ($MetadataOnly -or $CapabilitiesOnly -or $SidecarsOnly -or $CustomOnly)) { throw "PreserveWheelImagesFromPath can only be used with a full fixture-library build." }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Get-Prop($obj, [string]$name) {
     if ($null -eq $obj) { return $null }
+    if ($obj -is [System.Collections.IDictionary]) { return $obj[$name] }
     return $obj.PSObject.Properties[$name].Value
 }
 
@@ -665,6 +669,100 @@ function Merge-CustomFixtures($fixtures, $customFixtures) {
     return @($result)
 }
 
+function Get-WheelOptionMatchKeys($option) {
+    $keys = [System.Collections.Generic.List[string]]::new()
+    $range = @(Get-Prop $option "range")
+    if ($range.Count -ge 2) { $keys.Add("range:$($range[0])-$($range[1])") }
+    $value = Get-Prop $option "value"
+    if ($null -ne $value -and [string]$value -ne "") { $keys.Add("value:$value") }
+    $name = [string](Get-Prop $option "name")
+    if ($name) { $keys.Add("name:$($name.Trim().ToLowerInvariant())") }
+    $slotNumber = Get-Prop $option "slotNumber"
+    $kind = [string](Get-Prop $option "kind")
+    if ($null -ne $slotNumber -and [string]$slotNumber -ne "" -and $kind) {
+        $keys.Add("slot:$slotNumber|kind:$($kind.Trim().ToLowerInvariant())")
+    }
+    return @($keys)
+}
+
+function Set-ObjectProperty($object, [string]$name, $value) {
+    if ($object -is [System.Collections.IDictionary]) {
+        $object[$name] = $value
+    } else {
+        $object | Add-Member -NotePropertyName $name -NotePropertyValue $value -Force
+    }
+}
+
+function Remove-ObjectProperty($object, [string]$name) {
+    if ($object -is [System.Collections.IDictionary]) {
+        $object.Remove($name)
+    } elseif ($object.PSObject.Properties.Name -contains $name) {
+        $object.PSObject.Properties.Remove($name)
+    }
+}
+
+function Merge-PreservedWheelImages($fixtures, [string]$sourcePath) {
+    if (-not $sourcePath) { return 0 }
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { throw "Wheel-image preservation source not found: $sourcePath" }
+    try { $sourceLibrary = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json }
+    catch { throw "Invalid wheel-image preservation source '$sourcePath': $($_.Exception.Message)" }
+    if ($null -eq $sourceLibrary -or -not ($sourceLibrary.PSObject.Properties.Name -contains "fixtures")) {
+        throw "Wheel-image preservation source is not a fixture library: $sourcePath"
+    }
+
+    $sourceFixtures = @{}
+    foreach ($fixture in @($sourceLibrary.fixtures)) {
+        $key = [string](Get-Prop $fixture "key")
+        if ($key) { $sourceFixtures[$key] = $fixture }
+    }
+
+    $preservedCount = 0
+    foreach ($fixture in @($fixtures)) {
+        $fixtureKey = [string](Get-Prop $fixture "key")
+        if (-not $sourceFixtures.ContainsKey($fixtureKey)) { continue }
+        $sourceFixture = $sourceFixtures[$fixtureKey]
+        foreach ($mode in @(Get-Prop $fixture "modes")) {
+            $modeName = [string](Get-Prop $mode "name")
+            $sourceMode = @((Get-Prop $sourceFixture "modes") | Where-Object { [string](Get-Prop $_ "name") -eq $modeName } | Select-Object -First 1)
+            if (-not $sourceMode.Count) { continue }
+            foreach ($control in @(Get-Prop (Get-Prop $mode "profile") "controls")) {
+                if ([string](Get-Prop $control "type") -ne "wheel") { continue }
+                $label = [string](Get-Prop $control "label")
+                $channel = Get-Prop $control "channel"
+                $sourceControl = @((Get-Prop (Get-Prop $sourceMode[0] "profile") "controls") | Where-Object {
+                    [string](Get-Prop $_ "type") -eq "wheel" -and
+                    [string](Get-Prop $_ "label") -eq $label -and
+                    [string](Get-Prop $_ "channel") -eq [string]$channel
+                } | Select-Object -First 1)
+                if (-not $sourceControl.Count) { continue }
+                $sourceImages = @{}
+                foreach ($sourceOption in @(Get-Prop $sourceControl[0] "options")) {
+                    $image = [string](Get-Prop $sourceOption "image")
+                    if ($image -notmatch '^data:image/') { continue }
+                    foreach ($optionKey in @(Get-WheelOptionMatchKeys $sourceOption)) {
+                        $sourceImages[$optionKey] = $image
+                    }
+                }
+                if (-not $sourceImages.Count) { continue }
+                foreach ($option in @(Get-Prop $control "options")) {
+                    $matchedImage = ""
+                    foreach ($optionKey in @(Get-WheelOptionMatchKeys $option)) {
+                        if ($sourceImages.ContainsKey($optionKey)) {
+                            $matchedImage = $sourceImages[$optionKey]
+                            break
+                        }
+                    }
+                    if (-not $matchedImage) { continue }
+                    Set-ObjectProperty $option "image" $matchedImage
+                    Remove-ObjectProperty $option "resourceKey"
+                    $preservedCount++
+                }
+            }
+        }
+    }
+    return $preservedCount
+}
+
 if ($CustomOnly) {
     if (-not (Test-Path -LiteralPath $outFile -PathType Leaf)) { throw "CustomOnly requires an existing fixture library: $outFile" }
     $customFixtures = @(Get-CustomFixtures $customFixtureDirectory)
@@ -723,6 +821,10 @@ try {
         })
     }
     $fixtures = @(Merge-CustomFixtures @($convertedFixtures | Where-Object { $null -ne $_ }) @(Get-CustomFixtures $customFixtureDirectory))
+    $preservedWheelImageCount = Merge-PreservedWheelImages $fixtures $preserveWheelImagesFile
+    if ($preserveWheelImagesFile) {
+        Write-Host "Preserved $preservedWheelImageCount user wheel image(s) from $preserveWheelImagesFile"
+    }
     $resourceMap = [ordered]@{}
     $resourceFixturePatches = [System.Collections.Generic.List[object]]::new()
     foreach ($fixtureItem in $fixtures) {

@@ -5,6 +5,7 @@
 Changed:
 
 - Started the 1.1.0 development branch.
+- Added full Open Fixture Library regeneration with optional preservation of user-added inline wheel and gobo images from an existing fixture catalog. Preserved images are matched by fixture, mode, control, and DMX option identity, while current OFL names, ranges, metadata, defaults, capabilities, and other generated information remain authoritative.
 
 ## 1.0.1 - 2026-07-28
 

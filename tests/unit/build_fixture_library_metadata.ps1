@@ -105,6 +105,47 @@ Assert-Equal $programSpeed.capabilities[0].type 'EffectSpeed' 'Continuous capabi
 Assert-Equal $programSpeed.capabilities[0].speedStart 'slow' 'Continuous capability speed start is missing.'
 Assert-Equal $programSpeed.capabilities[0].speedEnd 'fast' 'Continuous capability speed end is missing.'
 
+$preserveSourcePath = Join-Path ([IO.Path]::GetTempPath()) ('pico-dmx-fixture-preserve-source-' + [Guid]::NewGuid().ToString('N') + '.json')
+$preserveOutputPath = Join-Path ([IO.Path]::GetTempPath()) ('pico-dmx-fixture-preserve-output-' + [Guid]::NewGuid().ToString('N') + '.json')
+$userGoboImage = 'data:image/png;base64,dXNlci1kcmF3bi1nb2Jv'
+$preserveSource = [ordered]@{
+    schemaVersion = 1
+    fixtureCount = 1
+    fixtures = @([ordered]@{
+        key = 'fun-generation/picospot-20-led'
+        name = 'PicoSpot 20 LED'
+        modes = @([ordered]@{
+            name = '11-channel'
+            profile = [ordered]@{
+                controls = @([ordered]@{
+                    id = 999999
+                    type = 'wheel'
+                    label = 'Gobo Wheel'
+                    channel = 7
+                    options = @(
+                        [ordered]@{ name = 'User renamed gobo'; value = 24; range = @(16, 31); image = $userGoboImage },
+                        [ordered]@{ name = 'Invalid external image'; value = 39; range = @(32, 46); image = 'https://example.invalid/gobo.png' }
+                    )
+                })
+            }
+        })
+    })
+}
+[IO.File]::WriteAllText($preserveSourcePath, ($preserveSource | ConvertTo-Json -Depth 20) + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
+& (Join-Path $repoRoot 'scripts/build_fixture_library.ps1') -OutputPath $preserveOutputPath -PreserveWheelImagesFromPath $preserveSourcePath
+$preservedLibrary = Get-Content -LiteralPath $preserveOutputPath -Raw | ConvertFrom-Json
+$preservedFixture = $preservedLibrary.fixtures | Where-Object key -eq 'fun-generation/picospot-20-led' | Select-Object -First 1
+$preservedElevenChannelGobo = ($preservedFixture.modes | Where-Object name -eq '11-channel').profile.controls | Where-Object label -eq 'Gobo Wheel' | Select-Object -First 1
+$preservedNineChannelGobo = ($preservedFixture.modes | Where-Object name -eq '9-channel').profile.controls | Where-Object label -eq 'Gobo Wheel' | Select-Object -First 1
+$preservedGoboTwo = $preservedElevenChannelGobo.options | Where-Object { ($_.range -join '-') -eq '16-31' } | Select-Object -First 1
+$invalidGoboThree = $preservedElevenChannelGobo.options | Where-Object { ($_.range -join '-') -eq '32-46' } | Select-Object -First 1
+Assert-Equal $preservedGoboTwo.name 'Gobo 2' 'Wheel-image preservation replaced current OFL option information.'
+Assert-Equal $preservedGoboTwo.image $userGoboImage 'The user-added PicoSpot gobo image was not preserved.'
+if ($preservedGoboTwo.resourceKey) { throw 'The preserved user gobo image retained an OFL resource key that would remove it during export.' }
+if ($invalidGoboThree.image) { throw 'An unsafe external wheel image was preserved.' }
+Assert-Equal @($preservedElevenChannelGobo.options | Where-Object { $_.image }).Count 1 'The preserved user gobo image leaked into shake or rotation options.'
+if (($preservedNineChannelGobo.options | Where-Object { $_.image }).Count) { throw 'A user gobo image leaked into another fixture mode.' }
+
 $encore = $library.fixtures | Where-Object key -eq 'american-dj/encore-lp12z-ip' | Select-Object -First 1
 $encoreMode = $encore.modes | Where-Object name -eq '9-channel' | Select-Object -First 1
 $encoreDimmer = $encoreMode.profile.controls | Where-Object label -eq 'Dimmer' | Select-Object -First 1

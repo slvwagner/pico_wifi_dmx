@@ -1483,6 +1483,15 @@ All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges parti
 
 The controller's **Export Show** action reads these same endpoints and writes a show-name-specific JSON file, embedding only the catalog entries and modes the show uses. Importing it restores the stored show name and posts each show subsystem back to its existing endpoint, so the pages continue to use the normal autosave files after restore. **Export Library** downloads the complete catalog as `pico_dmx_fixture_library.zip` with `pico_dmx_fixture_library.json` inside; **Import Library** accepts the ZIP and legacy uncompressed JSON catalogs.
 
+To rebuild the complete catalog from the bundled Open Fixture Library export while retaining user-drawn or uploaded wheel images from an existing catalog, pass that catalog explicitly as the preservation source:
+
+```powershell
+.\scripts\build_fixture_library.ps1 `
+  -PreserveWheelImagesFromPath E:\Software\xampp\htdocs\dmx\data\fixture_library.json
+```
+
+The converter keeps current OFL fixture information authoritative and overlays only valid inline `data:image/...` wheel images. Images are matched by fixture key, mode, wheel control, and DMX option identity; unrelated user edits are not copied. The preservation source is read-only, and the generated result is written to `web/assets/fixture-library.json` unless `-OutputPath` selects another destination.
+
 For a timestamped command-line backup, use the read-only backup script:
 
 ```powershell

@@ -2002,7 +2002,7 @@ function mergeFixtureLibraryResources(library,resourceCatalog){
       if(!controlPatch)return;
       (control.options||[]).forEach(option=>{
         const optionPatch=(controlPatch.options||[]).find(item=>item.slotNumber!=null&&option.slotNumber!=null?String(item.slotNumber)===String(option.slotNumber):String(item.value)===String(option.value));
-        if(optionPatch?.resourceKey&&!option.resourceKey)option.resourceKey=String(optionPatch.resourceKey);
+        if(optionPatch?.resourceKey&&!option.resourceKey&&!option.image)option.resourceKey=String(optionPatch.resourceKey);
       });
     }));
   });
