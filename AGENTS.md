@@ -19,6 +19,13 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 
 ## Required workflow
 
+### VS Code diagnostics
+
+1. Before completing any change, review the VS Code **Problems** diagnostics for the workspace, with particular attention to every modified file.
+2. Investigate and fix all errors and warnings introduced by the change. Do not silently ignore diagnostics on modified lines.
+3. If VS Code diagnostics are not directly available, run the equivalent repository command-line checks (for example the compiler, formatter, linter, or markdownlint) for the modified files.
+4. Report any remaining diagnostic that cannot be fixed safely, including whether it was pre-existing and why it remains.
+
 ### Bug fix
 
 1. For a bug fix, first add a regression test and confirm that it fails in the isolated environment.
@@ -33,13 +40,13 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 10. Create a commit and changelog entry for each feature
 
 ### New feature
-1. Implement the featre 
+
+1. Implement the feature.
 2. Synchronize the automation playground with `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://localhost//dmx-test/`.
 3. Deploy user-facing source changes only with `scripts/update_xampp_server.ps1 -AppFolder dmx -BaseUrl http://localhost/dmx/`.
-4. Only create manualls and screenshots if the user ask for it
-5. Ask the user to confirm the next commit
-6. Create a commit and changelog entry for each feature
-
+4. Only create manuals and screenshots if the user asks for them.
+5. Ask the user to confirm the next commit.
+6. Create a commit and changelog entry for each feature.
 
 ## Release
 

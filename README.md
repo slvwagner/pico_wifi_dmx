@@ -559,7 +559,7 @@ requirements.
 DMX signal generation and timing:
 
 | Signal part | Value |
-|-------------|-------|
+| --- | --- |
 | Output method | PIO control state machine + PIO data state machine + DMA |
 | Line rate | 250 kbaud DMX, 4 us per bit |
 | Break | about 92 us |
@@ -1012,22 +1012,22 @@ Before tagging or publishing a release:
 3. Move the matching section in `CHANGELOG.md` from `Unreleased` to the release date.
 4. Build and test the firmware/UI:
 
-```powershell
-cmake --build build
-npm run test:ui
-```
+   ```powershell
+   cmake --build build
+   npm run test:ui
+   ```
 
 5. Optional, when a Pico is connected and safe test channels/slots are configured:
 
-```powershell
-npm run test:pico
-```
+   ```powershell
+   npm run test:pico
+   ```
 
 6. Create the release package. This regenerates the manual, PDF, and deterministic screenshots before packaging. On Windows it also builds the Windows x64 customer installer:
 
-```powershell
-.\scripts\prepare_release.ps1 -Build
-```
+   ```powershell
+   .\scripts\prepare_release.ps1 -Build
+   ```
 
 `-Build` explicitly configures `CMAKE_BUILD_TYPE=Release` before compiling.
 The Windows installer accepts only a matching RP2350 Release UF2 and receives
@@ -1136,38 +1136,38 @@ The release package also includes `docs/user-manual.md`, the generated manual HT
 
 After the package passes validation, complete these publication steps:
 
-8. Commit the generated release package, merge the completed version branch
+1. Commit the generated release package, merge the completed version branch
    into `main`, and mark the released version as the latest stable release.
-9. Update the README **Getting Started** installer and user-manual labels and
+2. Update the README **Getting Started** installer and user-manual labels and
    direct URLs so they contain the released version and exact GitHub Release
    asset names.
-10. Preview the guarded GitHub publication step from the final, clean, and
-    pushed `main` release commit:
+3. Preview the guarded GitHub publication step from the final, clean, and
+   pushed `main` release commit:
 
-```powershell
-.\scripts\publish_github_release.ps1 `
-  -Version <VERSION> `
-  -AllowUnsignedWindowsInstaller `
-  -WhatIf
-```
+   ```powershell
+   .\scripts\publish_github_release.ps1 `
+     -Version <VERSION> `
+     -AllowUnsignedWindowsInstaller `
+     -WhatIf
+   ```
 
-11. Remove `-WhatIf` to create and push the annotated tag, create the public
-    latest GitHub Release, and upload both installers/checksums, all three
-    UF2/checksum pairs, `release-manifest.json`, the HTML manual, and both PDF
-    manuals. Omit `-AllowUnsignedWindowsInstaller` once signing is configured.
-    The script verifies every manifest checksum, requires `main` to be clean
-    and synchronized with `origin/main`, refuses mismatched existing assets,
-    and resumes an interrupted publication by uploading only missing assets.
-12. Open the README installer and user-manual links from GitHub and verify that
-    the installer plus HTML and both PDF manuals download without requiring
-    repository knowledge or authentication.
+4. Remove `-WhatIf` to create and push the annotated tag, create the public
+   latest GitHub Release, and upload both installers/checksums, all three
+   UF2/checksum pairs, `release-manifest.json`, the HTML manual, and both PDF
+   manuals. Omit `-AllowUnsignedWindowsInstaller` once signing is configured.
+   The script verifies every manifest checksum, requires `main` to be clean
+   and synchronized with `origin/main`, refuses mismatched existing assets,
+   and resumes an interrupted publication by uploading only missing assets.
+5. Open the README installer and user-manual links from GitHub and verify that
+   the installer plus HTML and both PDF manuals download without requiring
+   repository knowledge or authentication.
 
 ---
 
 ## Architecture
 
 | Core | Responsibility |
-|------|----------------|
+| --- | --- |
 | **Core 0** | DMX engine (continuous 250 kbaud frames), chaser sequencer tick, motion FX oscillator tick — runs at 100 Hz |
 | **Core 1** | WiFi (CYW43), lwIP TCP/IP stack, lwIP httpd (HTTP/1.0 API server) |
 
@@ -1180,9 +1180,11 @@ The firmware HTTP layer also isolates overlapping network requests. Each POST up
 ## Playback Modes
 
 ### Browser Playback
+
 The Chaser and Effects browser playback engines connect directly to the show's primary Pico HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request. Two browser tabs can run simultaneously (for example, Chaser on dimmer channels and Effects on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it does not own. Browser playback and the Chaser/Effects live editor previews are currently primary-output workflows; use autonomous linked Pico playback when one chase or effect must span several DMX Outputs.
 
 ### Pico Autonomous Playback
+
 Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.
 
 Starting browser Chase Playback stops Chaser and Effects playback on the primary Pico before previewing there. Starting autonomous Pico playback stops the browser preview on that page. Linked member control is coordinated by the autonomous playback actions, not by the primary-output browser-preview handoff.
@@ -1198,7 +1200,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 ### DMX channel control
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
 | `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set with channel:value pairs in the URL path. Data is path-encoded rather than query-string encoded because lwIP httpd strips query strings before calling `fs_open`. |
 | `/dmx/b` | POST | Batch set with comma-separated `channel:value` pairs in the request body; this is the form used by current browser playback and multi-channel UI writes. |
@@ -1216,7 +1218,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 Each Pico provides **32 physical chaser slots** that can be loaded and played simultaneously. Each physical slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 32 logical chaser slots; a linked multi-output chase reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/chaser/load/<N>` | POST | Upload chaser config to slot N (0–31) |
 | `/chaser/play/<N>` | GET | Start slot N from the beginning |
 | `/chaser/pause/<N>` | GET | Pause slot N at the current step/fade position |
@@ -1232,7 +1234,8 @@ Each Pico provides **32 physical chaser slots** that can be loaded and played si
 `active_mask` and `loaded_mask` are bitmasks — bit *i* set means slot *i* is active/loaded.
 
 Chaser text protocol (POST body):
-```
+
+```text
 LOOP 1
 MODE loop
 LOOPS 1
@@ -1255,7 +1258,7 @@ Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforc
 Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 64 logical effect slots; a linked multi-output effect reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/motion/load` | POST | Upload effect config to slot 0 |
 | `/motion/load/<N>` | POST | Upload effect config to slot N (0–63) |
 | `/motion/start` | GET | Start slot 0 |
@@ -1270,7 +1273,8 @@ Each Pico provides **64 physical effect slots** that can be loaded and played si
 `active_mask` and `loaded_mask` are bitmasks — bit *i* set means slot *i* is active/loaded.
 
 Effects text protocol (POST body):
-```
+
+```text
 FX 1
 TYPE <0=circle|1=figure8|2=panSwing|3=tiltSwing|4=sine|5=pulse>
 BPM <float>
@@ -1292,7 +1296,7 @@ The UI is served from a separate web server (XAMPP in development). Pages talk d
 Server-side Chaser, Effects, and UI-state updates hold an exclusive lock across the complete JSON read-modify-write operation. Multiple open browsers can therefore update different mirrored Pico slots or UI-state keys without a later request silently restoring an older copy of the file.
 
 | Page | File | Description |
-|------|------|-------------|
+| --- | --- | --- |
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
 | Show Run | `web/dmx_show.html` | Run a show from saved groups, fixtures, scenes, palettes, saved room planes, live fixture-control faders/knobs/buttons, and Pico chaser/effect playback slots without editing setup data |
 | MIDI Emulator | `web/dmx_midi_emulator.html` | Emulate Launch Control XL knobs, faders, and buttons in a second browser tab for Show Run MIDI Learn testing without hardware |
@@ -1392,7 +1396,7 @@ The firmware maintains a dedicated `dmx_base_frame[513]` buffer (indices 1–512
 **What writes to `dmx_base_frame`:**
 
 | Source | Updates base buffer? |
-|--------|----------------------|
+| --- | --- |
 | `/dmx/set/<ch>/<val>` GET | ✅ yes |
 | `/dmx/b/<ch>:<val>,…` GET or POST batch | ✅ yes |
 | Chaser tick output (Core 0) | ✅ yes |
@@ -1401,6 +1405,7 @@ The firmware maintains a dedicated `dmx_base_frame[513]` buffer (indices 1–512
 Because motion FX never writes back to the base buffer, the oscillation center stays fixed at whatever position was set last. There is no accumulation error even after hours of continuous playback.
 
 **Practical workflow:**
+
 1. Position the fixture using the Fixture Controller, or recall a scene.
 2. On the Effects page, click that same scene in the Scene Toolbox—this updates the Effects center values and previews them on the primary show output, updating that Pico's `dmx_base_frame`.
 3. Start motion (browser `▶ Start` or Pico `/motion/start`) — the effect orbits the position set in step 1/2.
@@ -1447,7 +1452,7 @@ Use `dmx_clear` when the button should clear both output and the effect base buf
 Firmware endpoints:
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/gpio/config` | GET | Return current volatile GPIO config as JSON |
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
 | `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
@@ -1469,7 +1474,7 @@ The Pico firmware can receive classic DIN/TRS MIDI through a UART input. The def
 The Pico UART implementation remains deliberately a diagnostics layer: it receives bytes, handles channel voice messages and running status, counts realtime bytes, and exposes the last parsed message. It is separate from the computer USB MIDI mapping path and does not trigger show actions yet.
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/midi/status.json` | GET | Return MIDI enable/init state, UART/pin settings, byte/message counters, parse errors, and the last parsed message |
 
 The MIDI status object is also included inside `/status.json` beside the DMX status. Use this endpoint first after wiring the receiver circuit: moving a fader or pressing a button on the MIDI controller should increase `byte_count` and usually `message_count`, with `last_channel`, `last_data1`, and `last_data2` showing the decoded control data.
@@ -1479,7 +1484,7 @@ The MIDI status object is also included inside `/status.json` beside the DMX sta
 All persistent data is stored as JSON files in the PHP web server's `data/` folder. No database is required. The sync script migrates existing root-level JSON files into `data/` and writes a `.htaccess` file that denies direct browser access to the folder.
 
 | PHP handler | JSON file | Contents |
-|-------------|-----------|----------|
+| --- | --- | --- |
 | `fixture_setup.php` | `data/fixture_setup.json` | Show name, DMX Outputs/universes/device identities, fixture profiles, patched fixtures, and Pixel Matrices |
 | `fixture_setup.php?livevalues` | `data/fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
 | `scene_setup.php` | `data/scene_setup.json` | Named scene snapshots, slot grid dimensions |
@@ -1538,7 +1543,7 @@ Use `.\scripts\update_xampp_server.ps1` when you also want a quick HTTP verifica
 The root `CMakeLists.txt` is the Pico build entry point and references sources under `firmware/`.
 
 | File | Description |
-|------|-------------|
+| --- | --- |
 | `firmware/main.cpp` | Core 0/1 entry points, HTTP endpoint handlers, custom lwIP fs callbacks, DMX UI lock, POST callbacks for chaser/motion upload |
 | `firmware/dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, start-code encoding, DMA scheduling, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
 | `firmware/dmx_native.pio` | PIO program for 250 kbaud DMX framing: Break, Mark After Break, slot timing, and bit serialization |
@@ -1651,7 +1656,7 @@ Using OpenOCD + Picoprobe/CMSIS-DAP for subsequent application updates after the
 ## Resource Usage
 
 | Resource | Value |
-|----------|-------|
+| --- | --- |
 | Free RAM (stable, measured at runtime) | **180,224 bytes** (176 KB) |
 | Total SRAM (RP2350) | 520 KB |
 
