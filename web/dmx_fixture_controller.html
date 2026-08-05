@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0f12">
 <title>DMX Controller</title>
-<link rel="icon" href="assets/favicon.ico?v=1.0.1">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.0.1">
-<link rel="manifest" href="assets/manifest.webmanifest?v=1.0.1">
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.1-15">
-<script src="assets/dmx-common.js?v=1.0.1-15"></script>
+<link rel="icon" href="assets/favicon.ico?v=1.1.0">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png?v=1.1.0">
+<link rel="manifest" href="assets/manifest.webmanifest?v=1.1.0">
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.1.0-15">
+<script src="assets/dmx-common.js?v=1.1.0-15"></script>
 <style>
 html{min-height:100%}body{min-height:100%;overflow-y:auto}
 main{max-width:none;width:100%;margin:0;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
@@ -201,9 +201,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <a class="nav" href="dmx_show.html">Show</a>
 <a class="nav" href="dmx_motion.html">Effects</a>
 <a class="nav" href="dmx_chaser.html">Chaser</a>
-<a class="nav" href="dmx_gpio.html?v=1.0.1">GPIO</a>
+<a class="nav" href="dmx_gpio.html?v=1.1.0">GPIO</a>
 <a class="nav" href="dmx_room_plane.html">Plane</a>
-<a class="nav" href="user-manual.html?v=1.0.1#1-fixture-controller" target="_blank">Manual</a>
+<a class="nav" href="user-manual.html?v=1.1.0#1-fixture-controller" target="_blank">Manual</a>
 </div>
 </header>
 
@@ -232,6 +232,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="fixtureLibraryBody">
 <div class="fixture-library-controls">
 <label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket" disabled></label>
+<button id="updateFixtureLibrary" title="Refresh the active library from the bundled Open Fixture Library catalog while preserving user-owned data">Update from OFL</button>
 <button id="retryFixtureLibrary" style="display:none">Retry</button>
 </div>
 <div class="small" id="fixtureLibraryStatus">Loading fixture library...</div>
@@ -837,10 +838,7 @@ function relativeControlHtml(attrs,max,step,label='Relative',value=null){
 function defaultValueForControl(c){
   if(c.type==='panTilt16')return{pan:32768,tilt:32768};
   if(c.type==='panTilt8')return{pan:128,tilt:128};
-  if(c.type==='rgb'||c.type==='cmy')return{a:0,b:0,c:0};
-  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
-  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
-  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type))return DmxCommon.colorControlDefault(c);
   if(c.type==='matrixRgb')return matrixDefaultValue(c);
   return 0;
 }
@@ -923,14 +921,10 @@ async function sendControl(f,c,silent=false){
     await sendChannel(absolute(f.start,c.channel),v.coarse,f);
     await sendChannel(absolute(f.start,c.fine??c.channel+1),v.fine,f);
   }else if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
-    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0})));
-    if(!channelOk(f,c.a)||!channelOk(f,c.b)||!channelOk(f,c.c)||((c.type==='rgbw'||c.type==='rgbwa')&&!channelOk(f,c.w))||(c.type==='rgbwa'&&!channelOk(f,c.amber))||(c.type==='cmyk'&&!channelOk(f,c.k)))throw new Error(c.label+' channels out of range');
-    await sendChannel(absolute(f.start,c.a),v.a,f);
-    await sendChannel(absolute(f.start,c.b),v.b,f);
-    await sendChannel(absolute(f.start,c.c),v.c,f);
-    if(c.type==='rgbw'||c.type==='rgbwa')await sendChannel(absolute(f.start,c.w),v.w,f);
-    if(c.type==='rgbwa')await sendChannel(absolute(f.start,c.amber),v.amber,f);
-    if(c.type==='cmyk')await sendChannel(absolute(f.start,c.k),v.k,f);
+    const parts=DmxCommon.colorControlParts(c);
+    const v=getValue(f,c,DmxCommon.colorControlDefault(c));
+    if(parts.some(part=>!channelOk(f,part.channel)))throw new Error(c.label+' channels out of range');
+    for(const part of parts)await sendChannel(absolute(f.start,part.channel),v[part.part]??0,f);
   }else if(c.type==='matrixRgb'){
     const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
     for(let i=0;i<matrixPixelCount(c);i++){
@@ -1188,6 +1182,10 @@ function applyWheelOptionMeta(option,item){
   const key=pair[1].trim().toLowerCase();
   const value=pair[2].trim();
   if(key==='color')option.color=value;
+  else if(key==='colors'){
+    option.colors=value.split(',').map(color=>color.trim()).filter(color=>/^#[0-9a-f]{6}$/i.test(color));
+    if(option.colors.length&&!option.color)option.color=option.colors[0];
+  }
   else if(key==='image')option.image=value;
   else if(key==='kind'||key==='type')option.kind=value;
   else if(key==='slot'||key==='slotnumber')option.slotNumber=clamp(value,0,999);
@@ -1213,6 +1211,7 @@ function wheelOptionsText(options){
     const value=range?range[0]+'-'+range[1]:clamp(o.value,0,255);
     const meta=[];
     if(o.color)meta.push(o.color);
+    if(Array.isArray(o.colors)&&o.colors.length>1)meta.push('colors='+o.colors.join(','));
     if(o.image)meta.push(o.image);
     if(o.kind)meta.push('kind='+o.kind);
     if(o.slotNumber!==undefined)meta.push('slot='+o.slotNumber);
@@ -1434,15 +1433,16 @@ function upsertProfileIntoFixtureLibrary(library,profile){
   let fixture=libraryFixtureAndModeForProfile(library,profile).fixture;
   if(!fixture){
     const key='custom/'+fixtureLibraryKeyFromName(fixtureName);
-    fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
+    fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],userFixture:true,modes:[]};
     library.fixtures.push(fixture);
   }
+  if(String(fixture.key||'').startsWith('custom/'))fixture.userFixture=true;
   cleanProfile.name=canonicalLibraryProfileName(fixture,cleanProfile.name);
   const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,profile));
   if(!Array.isArray(fixture.modes))fixture.modes=[];
   const existingMode=modeIndex>=0?fixture.modes[modeIndex]:null;
   const profileWithMetadata=mergeLibraryModeProfileMetadata(existingMode,cleanProfile);
-  const mode={...(existingMode||{}),name:cleanProfile.mode,channels:cleanProfile.channels,profile:profileWithMetadata,warnings:existingMode?.warnings||[]};
+  const mode={...(existingMode||{}),name:cleanProfile.mode,channels:cleanProfile.channels,profile:profileWithMetadata,warnings:existingMode?.warnings||[],userModified:true,modifiedAt:new Date().toISOString()};
   if(modeIndex>=0)fixture.modes[modeIndex]=mode;
   else fixture.modes.push(mode);
   fixture.modes.sort((a,b)=>(a.channels||0)-(b.channels||0)||String(a.name||'').localeCompare(String(b.name||'')));
@@ -1621,10 +1621,7 @@ function controlChannels(control){
   if(control.type==='panTilt16')return [control.pan,control.panFine??control.pan+1,control.tilt,control.tiltFine??control.tilt+1];
   if(control.type==='panTilt8')return [control.pan,control.tilt];
   if(control.type==='slider16')return [control.channel,control.fine??control.channel+1];
-  if(control.type==='rgb'||control.type==='cmy')return [control.a,control.b,control.c];
-  if(control.type==='rgbw')return [control.a,control.b,control.c,control.w];
-  if(control.type==='rgbwa')return [control.a,control.b,control.c,control.w,control.amber];
-  if(control.type==='cmyk')return [control.a,control.b,control.c,control.k];
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type))return DmxCommon.colorControlParts(control).map(part=>part.channel);
   if(control.type==='matrixRgb')return Array.from({length:matrixPixelCount(control)*3},(_,i)=>control.channel+i);
   return [control.channel];
 }
@@ -1633,11 +1630,7 @@ function controlChannelText(control){
   if(control.type==='panTilt16')return 'Pan '+control.pan+'/'+(control.panFine??control.pan+1)+', Tilt '+control.tilt+'/'+(control.tiltFine??control.tilt+1)+panTiltProfileFlagsText(control);
   if(control.type==='panTilt8')return 'Pan '+control.pan+', Tilt '+control.tilt+panTiltProfileFlagsText(control);
   if(control.type==='slider16')return (control.channel)+'/'+(control.fine??control.channel+1);
-  if(control.type==='rgb')return 'R '+control.a+', G '+control.b+', B '+control.c;
-  if(control.type==='rgbw')return 'R '+control.a+', G '+control.b+', B '+control.c+', W '+control.w;
-  if(control.type==='rgbwa')return 'R '+control.a+', G '+control.b+', B '+control.c+', W '+control.w+', A '+control.amber;
-  if(control.type==='cmy')return 'C '+control.a+', M '+control.b+', Y '+control.c;
-  if(control.type==='cmyk')return 'C '+control.a+', M '+control.b+', Y '+control.c+', K '+control.k;
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(control.type))return DmxCommon.colorControlParts(control).map(part=>part.label+' '+part.channel).join(', ');
   if(control.type==='matrixRgb')return matrixWidth(control)+'×'+matrixHeight(control)+' RGB from CH '+control.channel+' to '+(control.channel+matrixPixelCount(control)*3-1);
   return 'CH '+control.channel;
 }
@@ -2002,7 +1995,7 @@ function mergeFixtureLibraryResources(library,resourceCatalog){
       if(!controlPatch)return;
       (control.options||[]).forEach(option=>{
         const optionPatch=(controlPatch.options||[]).find(item=>item.slotNumber!=null&&option.slotNumber!=null?String(item.slotNumber)===String(option.slotNumber):String(item.value)===String(option.value));
-        if(optionPatch?.resourceKey&&!option.resourceKey)option.resourceKey=String(optionPatch.resourceKey);
+        if(optionPatch?.resourceKey&&!option.resourceKey&&!option.image)option.resourceKey=String(optionPatch.resourceKey);
       });
     }));
   });
@@ -2043,7 +2036,7 @@ async function loadFixtureLibrary(options={}){
   document.getElementById('fixtureLibraryResults').innerHTML='<div class="small">Loading fixture library...</div>';
   document.getElementById('fixtureLibraryPreview').innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
   try{
-    let loadedFrom='built-in';
+    let loadedFrom='active';
     let informationCount=0;
     let capabilityControlCount=0;
     let resourceImageCount=0;
@@ -2052,7 +2045,7 @@ async function loadFixtureLibrary(options={}){
       const serverJson=await serverResponse.json();
       if(serverResponse.ok&&serverJson.ok&&serverJson.exists&&serverJson.library?.fixtures?.length){
         fixtureLibraryState.data=normalizeFixtureLibrary(serverJson.library);
-        loadedFrom='custom';
+        loadedFrom='active';
         try{
           const metadataResponse=await fetch('assets/fixture-metadata.json',{cache:'no-store'});
           if(metadataResponse.ok){
@@ -2066,6 +2059,7 @@ async function loadFixtureLibrary(options={}){
       const r=await fetch('assets/fixture-library.json',{cache:'no-store'});
       if(!r.ok)throw new Error('HTTP '+r.status);
       fixtureLibraryState.data=normalizeFixtureLibrary(await r.json());
+      loadedFrom='offline fallback';
     }
     try{
       const capabilityResponse=await fetch('assets/fixture-capabilities.json',{cache:'no-store'});
@@ -2097,6 +2091,7 @@ async function loadFixtureLibrary(options={}){
 function normalizeFixtureLibrary(data){
   if(!data||typeof data!=='object'||!Array.isArray(data.fixtures))throw new Error('Expected fixture library JSON with a fixtures array');
   return {
+    ...data,
     schemaVersion:data.schemaVersion||1,
     source:data.source||'Imported fixture library',
     generatedAt:data.generatedAt||new Date().toISOString(),
@@ -2108,6 +2103,17 @@ async function saveFixtureLibraryToServer(library){
   const r=await fetch('fixture_library.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(library)});
   const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
   if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+}
+async function updateFixtureLibraryFromOfl(){
+  if(!confirm('Update the active fixture library from the bundled OFL catalog? A backup is created first. User-added wheel images, user-created fixtures, and modes saved from a show are preserved.'))return false;
+  const status=document.getElementById('fixtureLibraryStatus');
+  status.textContent='Updating active fixture library from OFL...';
+  const r=await fetch('fixture_library.php?action=update-standard',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
+  if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+  await loadFixtureLibrary({force:true});
+  setStatus('Fixture library updated from OFL. Preserved '+j.preservedImages+' wheel images, '+j.preservedModes+' user-modified modes, and '+j.preservedFixtures+' user-created fixtures. Backup: '+j.backup);
+  return true;
 }
 function openFixtureProfilesSection(){
   setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);
@@ -2672,20 +2678,13 @@ function renderControl(f,c){
       ${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="tilt"`,255,1,'Tilt relative')}</div>`;
   }
   if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
-    const v=getValue(f,c,c.type==='cmyk'?{a:0,b:0,c:0,k:0}:(c.type==='rgbw'?{a:0,b:0,c:0,w:0}:(c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0})));
-    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:(c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key']);
-    const parts=c.type==='cmyk'?['a','b','c','k']:(c.type==='rgbw'?['a','b','c','w']:(c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c']));
+    const definitions=DmxCommon.colorControlParts(c);
+    const v=getValue(f,c,DmxCommon.colorControlDefault(c));
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    const channels=c.type==='cmyk'
-      ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.k)}`
-      : c.type==='rgbw'
-      ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.w)}`
-      : c.type==='rgbwa'
-      ? `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)} / ${absolute(f.start,c.w)} / ${absolute(f.start,c.amber)}`
-      : `${absolute(f.start,c.a)} / ${absolute(f.start,c.b)} / ${absolute(f.start,c.c)}`;
+    const channels=definitions.map(part=>absolute(f.start,part.channel)).join(' / ');
     return `<div class="${controlClass(f,c)}"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${channels}</span></div>
       <label>Color picker<input type="color" value="${color}" data-fixture="${f.id}" data-control="${c.id}" data-color-picker="1"></label>
-      ${parts.map((part,i)=>`<label>${names[i]} <span data-color-value="${part}" data-fixture="${f.id}" data-control="${c.id}">${v[part]}</span><input type="range" min="0" max="255" value="${v[part]}" data-fixture="${f.id}" data-control="${c.id}" data-part="${part}"></label>${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="${part}"`,255,1,names[i]+' relative')}`).join('')}
+      ${definitions.map(part=>`<label>${escHtml(part.label)} <span data-color-value="${part.part}" data-fixture="${f.id}" data-control="${c.id}">${v[part.part]??0}</span><input type="range" min="0" max="255" value="${v[part.part]??0}" data-fixture="${f.id}" data-control="${c.id}" data-part="${part.part}"></label>${relativeControlHtml(`data-relative-fixture="${f.id}" data-relative-control="${c.id}" data-relative-part="${part.part}"`,255,1,part.label+' relative')}`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-color="#ffffff" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#f00" data-color="#ff0000" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#0f0" data-color="#00ff00" data-fixture="${f.id}" data-control="${c.id}"></button><button class="swatch" style="background:#00f" data-color="#0000ff" data-fixture="${f.id}" data-control="${c.id}"></button></div></div>`;
   }
   if(c.type==='wheel'){
@@ -2843,10 +2842,9 @@ function updateControlDisplay(f,c){
     return;
   }
   if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
-    const parts=c.type==='cmyk'?['a','b','c','k']:(c.type==='rgbw'?['a','b','c','w']:(c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c']));
-    parts.forEach(part=>{
-      document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-color-value="${part}"]`).forEach(el=>el.textContent=v[part]);
-      document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=v[part];});
+    DmxCommon.colorControlParts(c).forEach(part=>{
+      document.querySelectorAll(`[data-fixture="${f.id}"][data-control="${c.id}"][data-color-value="${part.part}"]`).forEach(el=>el.textContent=v[part.part]??0);
+      document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-part="${part.part}"]`).forEach(el=>{if(el.value!=(v[part.part]??0))el.value=v[part.part]??0;});
     });
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     document.querySelectorAll(`input[data-fixture="${f.id}"][data-control="${c.id}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
@@ -3373,6 +3371,7 @@ document.getElementById('openControlDetails').onclick=openControlDetailsModal;
 document.getElementById('closeControlDetailsModal').onclick=closeControlDetailsModal;
 document.getElementById('closeControlDetailsModal2').onclick=closeControlDetailsModal;
 document.getElementById('retryFixtureLibrary').onclick=()=>loadFixtureLibrary({force:true});
+document.getElementById('updateFixtureLibrary').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Updating...',success:'Updated',error:'Failed'},()=>updateFixtureLibraryFromOfl()).catch(err=>showError('Fixture library update failed: '+err.message));
 document.getElementById('exportFixtureLibrary').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Exporting...',success:'Exported',error:'Failed'},async()=>exportCurrentFixtureLibrary()).catch(err=>showError('Fixture library export failed: '+err.message));
 document.getElementById('importFixtureLibrary').onclick=()=>document.getElementById('importFixtureLibraryFile').click();
 document.getElementById('importFixtureLibraryFile').onchange=e=>{
@@ -3407,11 +3406,8 @@ function resolveDmxBytes(f,c){
   else if(c.type==='panTilt8'){const v=getValue(f,c,{pan:128,tilt:128});out.push(...DmxCommon.panTiltDmxRows(c,v,rel=>absolute(f.start,rel)));}
   else if(c.type==='slider16'){const v=bytes16(getValue(f,c,0));out.push({ch:absolute(f.start,c.channel),val:v.coarse,param:'Coarse'},{ch:absolute(f.start,c.fine??c.channel+1),val:v.fine,param:'Fine'});}
   else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const defVal=c.type==='cmyk'?{a:0,b:0,c:0,k:0}:c.type==='rgbw'?{a:0,b:0,c:0,w:0}:c.type==='rgbwa'?{a:0,b:0,c:0,w:0,amber:0}:{a:0,b:0,c:0};
-    const v=getValue(f,c,defVal);
-    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key'];
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach((p,i)=>out.push({ch:absolute(f.start,c[p]),val:v[p],param:names[i]}));
+    const v=getValue(f,c,DmxCommon.colorControlDefault(c));
+    DmxCommon.colorControlParts(c).forEach(part=>out.push({ch:absolute(f.start,part.channel),val:v[part.part]??0,param:part.label}));
   }
   else if(c.type==='matrixRgb'){
     const v=normalizeMatrixValue(c,getValue(f,c,matrixDefaultValue(c)));
@@ -4058,6 +4054,9 @@ let wheelIconDrawing=false;
 let wheelIconTouched=false;
 function wheelOptionEditorRow(option={}){
   const range=wheelOptionRange(option)||[wheelOptionValue(option),wheelOptionValue(option)];
+  const color=/^#[0-9a-f]{6}$/i.test(String(option.color||''))?String(option.color):'';
+  const colors=Array.isArray(option.colors)?option.colors.map(String).filter(value=>/^#[0-9a-f]{6}$/i.test(value)):[];
+  if(!colors.length&&color)colors.push(color);
   return {
     name:option.name||'Value',
     start:range[0],
@@ -4066,15 +4065,28 @@ function wheelOptionEditorRow(option={}){
     slot:option.slotNumber??'',
     speedStart:option.shakeSpeedStart||option.speedStart||'',
     speedEnd:option.shakeSpeedEnd||option.speedEnd||'',
-    color:option.color||'',
+    color:colors[0]||color,
+    colors,
     image:option.image||''
   };
 }
 function wheelOptionPreviewStyle(row){
   const style=[];
   if(row.color)style.push('background-color:'+escHtml(row.color));
+  if(row.colors?.length>1&&!row.image)style.push('background-image:linear-gradient(90deg,'+row.colors.map(escHtml).join(',')+')');
   if(row.image)style.push(`background-image:url('${String(row.image).replace(/'/g,'%27')}')`);
   return style.join(';');
+}
+function wheelOptionColorInputsHtml(row,rowIndex){
+  const colors=(Array.isArray(row.colors)?row.colors:[]).map(String).filter(color=>/^#[0-9a-f]{6}$/i.test(color));
+  const visibleColors=colors.length?colors:[''];
+  return `<div class="wheel-option-colors">
+    ${visibleColors.map((color,colorIndex)=>`<div class="wheel-option-color-field">
+      <label>Color ${colorIndex+1}<input type="color" value="${escHtml(color||'#ffffff')}" data-wheel-color="${rowIndex}" data-wheel-color-index="${colorIndex}"></label>
+      ${colorIndex>0?`<button type="button" data-remove-wheel-color="${rowIndex}" data-wheel-color-index="${colorIndex}" title="Remove split color">×</button>`:''}
+    </div>`).join('')}
+    <button type="button" data-add-wheel-color="${rowIndex}" title="Add another split color">Add split</button>
+  </div>`;
 }
 function renderWheelOptionsModal(){
   const body=document.getElementById('wheelOptionsModalBody');
@@ -4101,7 +4113,7 @@ function renderWheelOptionsModal(){
     <div class="wheel-option-visual">
       <span class="wheel-option-preview" data-wheel-preview="${index}" style="${wheelOptionPreviewStyle(row)}"></span>
       <div class="wheel-option-visual-fields">
-        <label>Color<input type="color" value="${escHtml(row.color||'#ffffff')}" data-wheel-color="${index}"></label>
+        ${wheelOptionColorInputsHtml(row,index)}
         <button type="button" data-clear-wheel-color="${index}" title="Clear background color">No color</button>
         <button type="button" data-wheel-upload="${index}" title="Upload icon">Icon</button>
         <button type="button" data-wheel-draw="${index}" title="Draw icon">Draw</button>
@@ -4201,7 +4213,9 @@ function wheelOptionFromEditorRow(row){
   const end=clamp(row.end,0,255);
   const option={name:String(row.name||'Value').trim()||'Value',value:Math.round((Math.min(start,end)+Math.max(start,end))/2)};
   if(start!==end)option.range=[Math.min(start,end),Math.max(start,end)];
-  if(row.color&&/^#[0-9a-f]{6}$/i.test(String(row.color).trim()))option.color=String(row.color).trim();
+  const colors=(Array.isArray(row.colors)?row.colors:[]).map(String).filter(color=>/^#[0-9a-f]{6}$/i.test(color));
+  if(colors.length){option.color=colors[0];option.colors=colors;}
+  else if(row.color&&/^#[0-9a-f]{6}$/i.test(String(row.color).trim()))option.color=String(row.color).trim();
   if(row.image&&String(row.image).startsWith('data:image/'))option.image=String(row.image);
   if(row.kind)option.kind=row.kind;
   if(row.slot!=='')option.slotNumber=clamp(row.slot,0,999);
@@ -4236,7 +4250,15 @@ document.getElementById('wheelOptionsModalBody').addEventListener('input',e=>{
   const color=e.target.closest('[data-wheel-color]');
   if(color){
     const row=wheelOptionsModalRows[parseInt(color.dataset.wheelColor,10)];
-    if(row)row.color=color.value;
+    const colorIndex=parseInt(color.dataset.wheelColorIndex,10)||0;
+    if(row){
+      if(!Array.isArray(row.colors))row.colors=[];
+      while(row.colors.length<=colorIndex)row.colors.push('#ffffff');
+      row.colors[colorIndex]=color.value;
+      row.color=row.colors[0]||'';
+      const preview=document.querySelector(`[data-wheel-preview="${color.dataset.wheelColor}"]`);
+      if(preview)preview.setAttribute('style',wheelOptionPreviewStyle(row));
+    }
     return;
   }
   syncWheelOptionsModalRows();
@@ -4265,7 +4287,30 @@ document.getElementById('wheelOptionsModalBody').addEventListener('click',e=>{
   if(clearColor){
     syncWheelOptionsModalRows();
     const row=wheelOptionsModalRows[parseInt(clearColor.dataset.clearWheelColor,10)];
-    if(row)row.color='';
+    if(row){row.color='';row.colors=[];}
+    renderWheelOptionsModal();
+    return;
+  }
+  const addColor=e.target.closest('[data-add-wheel-color]');
+  if(addColor){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(addColor.dataset.addWheelColor,10)];
+    if(row){
+      if(!Array.isArray(row.colors))row.colors=[];
+      if(!row.colors.length&&row.color)row.colors.push(row.color);
+      row.colors.push(row.colors[row.colors.length-1]||'#ffffff');
+      row.color=row.colors[0]||'';
+    }
+    renderWheelOptionsModal();
+    return;
+  }
+  const removeColor=e.target.closest('[data-remove-wheel-color]');
+  if(removeColor){
+    syncWheelOptionsModalRows();
+    const row=wheelOptionsModalRows[parseInt(removeColor.dataset.removeWheelColor,10)];
+    const colorIndex=parseInt(removeColor.dataset.wheelColorIndex,10);
+    if(row&&Array.isArray(row.colors)&&colorIndex>0)row.colors.splice(colorIndex,1);
+    if(row)row.color=row.colors?.[0]||'';
     renderWheelOptionsModal();
     return;
   }
@@ -4553,10 +4598,9 @@ function updateGroupControlDisplay(c){
     return;
   }
   if(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa'||c.type==='cmy'||c.type==='cmyk'){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(part=>{
-      document.querySelectorAll(`[data-gc-part="${key}"][data-part="${part}"]`).forEach(el=>el.textContent=v[part]);
-      document.querySelectorAll(`input[data-gc="${key}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=v[part];});
+    DmxCommon.colorControlParts(c).forEach(part=>{
+      document.querySelectorAll(`[data-gc-part="${key}"][data-part="${part.part}"]`).forEach(el=>el.textContent=v[part.part]??0);
+      document.querySelectorAll(`input[data-gc="${key}"][data-part="${part.part}"]`).forEach(el=>{if(el.value!=(v[part.part]??0))el.value=v[part.part]??0;});
     });
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     document.querySelectorAll(`input[data-gc="${key}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
@@ -5575,11 +5619,7 @@ function recallScene(s){
 }
 function zeroValueForControl(c){
   if(c.type==='panTilt16'||c.type==='panTilt8')return{pan:0,tilt:0};
-  if(c.type==='rgb')return{a:0,b:0,c:0};
-  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
-  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
-  if(c.type==='cmy')return{a:0,b:0,c:0};
-  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type))return DmxCommon.colorControlDefault(c);
   return 0;
 }
 async function clearAllChannels(){

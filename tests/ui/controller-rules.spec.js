@@ -64,6 +64,35 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.selected.id).toBe(state.outputs[0].id);
   });
 
+  test('advanced color emitters and split wheel colors remain usable', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const control = {
+        type: 'rgbwa', a: 1, b: 2, c: 3, w: 4, amber: 5,
+        emitters: [
+          { key: 'a', label: 'Red', channel: 1, color: '#ff0000' },
+          { key: 'b', label: 'Green', channel: 2, color: '#00ff00' },
+          { key: 'c', label: 'Blue', channel: 3, color: '#0000ff' },
+          { key: 'w', label: 'White', channel: 4, color: '#ffffff' },
+          { key: 'amber', label: 'Amber', channel: 5, color: '#ffbf00' },
+          { key: 'uv', label: 'UV', channel: 6, color: '#7f00ff' },
+          { key: 'warmWhite', label: 'Warm White', channel: 7, color: '#ffd6a1' }
+        ]
+      };
+      return {
+        parts: DmxCommon.colorControlParts(control),
+        defaultValue: DmxCommon.colorControlDefault(control),
+        splitIcon: DmxCommon.wheelOptionIconHtml({ colors: ['#ff0000', '#0000ff'] })
+      };
+    });
+
+    expect(result.parts.map(part => [part.part, part.label, part.channel])).toEqual([
+      ['a', 'Red', 1], ['b', 'Green', 2], ['c', 'Blue', 3], ['w', 'White', 4],
+      ['amber', 'Amber', 5], ['uv', 'UV', 6], ['warmWhite', 'Warm White', 7]
+    ]);
+    expect(result.defaultValue).toEqual({ a: 0, b: 0, c: 0, w: 0, amber: 0, uv: 0, warmWhite: 0 });
+    expect(result.splitIcon).toContain('linear-gradient(90deg,#ff0000,#0000ff)');
+  });
+
   test('fixtures on different DMX outputs may use the same address and send to their assigned Pico', async ({ page }) => {
     const requests = [];
     await page.route('http://127.0.0.1:18991/**', async route => {
@@ -774,12 +803,67 @@ test.describe('Fixture Controller established rules', () => {
       });
       const resolved = library.fixtures[0].modes[0].profile.controls[0].options[0];
       const exported = fixtureLibraryForExport(library).fixtures[0].modes[0].profile.controls[0].options[0];
-      return { resolvedImage: resolved.image, exportedImage: exported.image, resourceKey: exported.resourceKey };
+      const userImage = 'data:image/png;base64,dXNlci1nb2Jv';
+      const userLibrary = { fixtures: [{ key: 'test/fixture', modes: [{ profile: { controls: [{ label: 'Gobo Wheel', options: [{ name: 'Gobo 1', slotNumber: 2, value: 10, image: userImage }] }] } }] }] };
+      mergeFixtureLibraryResources(userLibrary, {
+        resources: { 'gobos/test': { image: 'data:image/svg+xml;base64,PHN2Zy8+' } },
+        fixtures: [{ key: 'test/fixture', controls: [{ label: 'Gobo Wheel', options: [{ slotNumber: 2, value: 10, resourceKey: 'gobos/test' }] }] }]
+      });
+      const userOption = userLibrary.fixtures[0].modes[0].profile.controls[0].options[0];
+      const userExport = fixtureLibraryForExport(userLibrary).fixtures[0].modes[0].profile.controls[0].options[0];
+      return { resolvedImage: resolved.image, exportedImage: exported.image, resourceKey: exported.resourceKey, userImage: userOption.image, userResourceKey: userOption.resourceKey, exportedUserImage: userExport.image };
     });
 
     expect(result.resolvedImage).toBe('data:image/svg+xml;base64,PHN2Zy8+');
     expect(result.exportedImage).toBeUndefined();
     expect(result.resourceKey).toBe('gobos/test');
+    expect(result.userImage).toBe('data:image/png;base64,dXNlci1nb2Jv');
+    expect(result.userResourceKey).toBeUndefined();
+    expect(result.exportedUserImage).toBe('data:image/png;base64,dXNlci1nb2Jv');
+  });
+
+  test('saving a show profile marks its library mode and new fixture as user-owned', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const library = { schemaVersion: 1, fixtures: [] };
+      const saved = upsertProfileIntoFixtureLibrary(library, {
+        name: 'My Spot', mode: '16-channel', channels: 16,
+        controls: [{ id: 1, type: 'slider8', label: 'Dimmer', channel: 1 }]
+      });
+      return {
+        fixtureKey: saved.fixture.key,
+        userFixture: saved.fixture.userFixture,
+        userModified: saved.mode.userModified,
+        modifiedAt: saved.mode.modifiedAt
+      };
+    });
+
+    expect(result.fixtureKey).toBe('custom/my-spot');
+    expect(result.userFixture).toBe(true);
+    expect(result.userModified).toBe(true);
+    expect(Number.isNaN(Date.parse(result.modifiedAt))).toBe(false);
+  });
+
+  test('updates the single active library through the server-side OFL refresh action', async ({ page }) => {
+    const requests = [];
+    await page.route('**/fixture_library.php**', async route => {
+      requests.push({ method: route.request().method(), url: route.request().url() });
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+          ok: true, fixtureCount: 623, preservedImages: 7, preservedModes: 1,
+          preservedFixtures: 1, backup: 'backups/fixture-library-test.json'
+        }) });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        ok: true, exists: true, library: { schemaVersion: 1, source: 'Active fixture library', fixtureCount: 1, fixtures: [{ key: 'test/fixture', name: 'Test fixture', modes: [] }] }
+      }) });
+    });
+    await page.evaluate(() => { window.confirm = () => true; });
+
+    await page.getByRole('button', { name: 'Update from OFL' }).click();
+
+    await expect.poll(() => requests.some(request => request.method === 'POST' && request.url.includes('action=update-standard'))).toBe(true);
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('active library fixture');
   });
 
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
@@ -2491,6 +2575,35 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.formattedRotation).toBe('Rotation slow CW to fast CW=250-255|kind=WheelRotation|speed=slow CW-fast CW');
   });
 
+  test('guided wheel editor shows and edits every split color', async ({ page }) => {
+    await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
+    await page.locator('#controlType').selectOption('wheel');
+    await page.locator('#openControlDetails').click();
+    await page.locator('#wheelOptions').fill('White / Red=88-98|#ffffff|colors=#ffffff,#ff0000|kind=WheelSlot');
+    await page.locator('#openWheelOptionsModal').click();
+
+    const row = page.locator('[data-wheel-option-row="0"]');
+    const colors = row.locator('[data-wheel-color]');
+    await expect(colors).toHaveCount(2);
+    await expect(colors.nth(0)).toHaveValue('#ffffff');
+    await expect(colors.nth(1)).toHaveValue('#ff0000');
+    await colors.nth(1).evaluate(input => {
+      input.value = '#00ff00';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await row.locator('[data-add-wheel-color]').click();
+    await expect(row.locator('[data-wheel-color]')).toHaveCount(3);
+    await row.locator('[data-wheel-color]').nth(2).evaluate(input => {
+      input.value = '#0000ff';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.locator('#applyWheelOptionsModal').click();
+
+    const option = await page.evaluate(() => parseWheelOptions(document.getElementById('wheelOptions').value)[0]);
+    expect(option.color).toBe('#ffffff');
+    expect(option.colors).toEqual(['#ffffff', '#00ff00', '#0000ff']);
+  });
+
   test('guided wheel editor modal writes rich wheel metadata', async ({ page }) => {
     await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
     await page.locator('#controlType').selectOption('wheel');
@@ -2505,6 +2618,17 @@ test.describe('Fixture Controller established rules', () => {
 
     const rows = page.locator('[data-wheel-option-row]');
     await expect(rows).toHaveCount(3);
+    const separator = await rows.nth(1).evaluate(row => {
+      const style = getComputedStyle(row);
+      return {
+        borderStyle: style.borderTopStyle,
+        borderWidth: parseFloat(style.borderTopWidth),
+        paddingTop: parseFloat(style.paddingTop)
+      };
+    });
+    expect(separator.borderStyle).toBe('solid');
+    expect(separator.borderWidth).toBeGreaterThanOrEqual(1);
+    expect(separator.paddingTop).toBeGreaterThanOrEqual(10);
     await rows.nth(1).locator('[data-wheel-field="name"]').fill('Gobo 3 shake');
     await rows.nth(1).locator('[data-wheel-field="start"]').fill('141');
     await rows.nth(1).locator('[data-wheel-field="end"]').fill('156');
@@ -2713,11 +2837,16 @@ test.describe('Fixture Controller established rules', () => {
     });
     await page.locator('#fixtureLibrarySearch').fill('fun generation picospot 20 led');
     await page.locator('[data-library-key="fun-generation/picospot-20-led"]').click();
-    await page.locator('#fixtureLibraryMode').selectOption('2');
-    await page.locator('#importFixtureLibraryProfile').click();
+    const picoSpotModeIndex = await page.locator('#fixtureLibraryMode option').evaluateAll(options => options.findIndex(option => option.textContent.startsWith('11-channel')));
+    await page.locator('#fixtureLibraryMode').selectOption(String(picoSpotModeIndex));
+    await page.evaluate(() => importSelectedLibraryProfile());
 
     const state = await page.evaluate(() => {
-      const profile = profiles.find(p => p.name === 'Fun Generation PicoSpot 20 LED' && p.mode === '11-channel');
+      const profile = profiles.find(p => p.id === activeProfileId);
+      if (!profile) throw new Error('Imported PicoSpot 20 LED 11-channel profile was not found');
+      if (profile.libraryFixtureKey !== 'fun-generation/picospot-20-led' || profile.mode !== '11-channel') {
+        throw new Error('The active profile is not the imported PicoSpot 20 LED 11-channel mode');
+      }
       const gobo = profile.controls.find(c => c.label === 'Gobo Wheel');
       const shake = gobo.options.find(o => o.kind === 'WheelShake' && o.slotNumber === 2);
       fixtures.splice(0, fixtures.length, { id: 9902, name: 'PicoSpot 11ch', profileId: profile.id, start: 1 });

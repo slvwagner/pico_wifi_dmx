@@ -17,6 +17,9 @@ param(
     [string]$TestBaseUrl = "http://localhost/dmx-test/",
     [switch]$SkipTestAppSync,
     [switch]$SkipWindowsInstaller,
+    [switch]$SkipDebianInstaller,
+    [string]$WslDistribution = "",
+    [string]$WslPicotoolPath = "",
     [string]$WindowsSigningCertificateThumbprint = "",
     [string]$WindowsSignToolPath = ""
 )
@@ -62,6 +65,18 @@ function ConvertTo-ComparableInstallerEntry($Entry) {
         sizeBytes = [int64]$Entry.sizeBytes
         sha256 = [string]$Entry.sha256
         signed = [bool]$Entry.signed
+    }
+}
+
+function ConvertTo-ComparablePackageEntry($Entry) {
+    if (-not $Entry) {
+        return $null
+    }
+    return [ordered]@{
+        file = [string]$Entry.file
+        architecture = [string]$Entry.architecture
+        sizeBytes = [int64]$Entry.sizeBytes
+        sha256 = [string]$Entry.sha256
     }
 }
 
@@ -112,6 +127,7 @@ function ConvertTo-ComparableReleaseManifest($ManifestObject) {
         wifiFirmware = ConvertTo-ComparableFirmwareEntry $ManifestObject.wifiFirmware
         wifiFirmwareTbyb = ConvertTo-ComparableFirmwareEntry $ManifestObject.wifiFirmwareTbyb
         windowsInstaller = ConvertTo-ComparableInstallerEntry $ManifestObject.windowsInstaller
+        debianInstaller = ConvertTo-ComparablePackageEntry $ManifestObject.debianInstaller
         docs = $docs
     } | ConvertTo-Json -Depth 6 -Compress
 }
@@ -162,7 +178,9 @@ if ($cmake -notmatch 'pico_set_program_version\s*\(\s*pico_wifi_dmx\s+"\$\{PICO_
 
 if (-not $SkipManual) {
     Invoke-Step "Regenerate manual, PDF, and screenshots" {
-        $manualArgs = @{}
+        # Release preparation must never deploy generated documentation or source
+        # files into the user's protected live XAMPP application.
+        $manualArgs = @{ LocalOnly = $true }
         if ($XamppHtdocs) { $manualArgs.XamppHtdocs = $XamppHtdocs }
         if ($AppFolder) { $manualArgs.AppFolder = $AppFolder }
         if ($BaseUrl) { $manualArgs.BaseUrl = $BaseUrl }
@@ -310,6 +328,43 @@ if ($isWindowsHost -and -not $SkipWindowsInstaller) {
     Write-Host "Skipping Windows installer because this release is running on a non-Windows host."
 }
 
+$debianInstaller = $null
+if ($isWindowsHost -and -not $SkipDebianInstaller) {
+    Invoke-Step "Build Debian customer installer through WSL" {
+        $debianArgs = @{
+            OutputDir = $releaseDir
+            ApplicationUf2 = (Join-Path $BuildDir "pico_wifi_dmx.uf2")
+            WifiFirmwareUf2 = (Join-Path $BuildDir "pico_wifi_dmx_wifi_firmware.uf2")
+        }
+        if ($WslDistribution) {
+            $debianArgs.Distribution = $WslDistribution
+        }
+        if ($WslPicotoolPath) {
+            $debianArgs.WslPicotoolPath = $WslPicotoolPath
+        }
+        & (Join-Path $repoRoot "installer\ubuntu\build_package_wsl.ps1") @debianArgs
+    }
+
+    $debianPackages = @(Get-ChildItem -LiteralPath $releaseDir -File -Filter "wifi-pico-dmx_${Version}_*.deb")
+    if ($debianPackages.Count -ne 1) {
+        throw "Expected one Debian installer matching wifi-pico-dmx_${Version}_*.deb, found $($debianPackages.Count)."
+    }
+    $debianPackage = $debianPackages[0]
+    if ($debianPackage.Name -notmatch '^wifi-pico-dmx_[^_]+_([^_]+)\.deb$') {
+        throw "Could not determine Debian architecture from '$($debianPackage.Name)'."
+    }
+    $debianInstaller = [ordered]@{
+        file = $debianPackage.Name
+        architecture = $Matches[1]
+        sizeBytes = $debianPackage.Length
+        sha256 = Get-FileSha256 $debianPackage.FullName
+    }
+} elseif ($isWindowsHost) {
+    Write-Host "Skipping Debian installer because -SkipDebianInstaller was supplied."
+} else {
+    Write-Host "Skipping WSL Debian installer because this release is running on a non-Windows host."
+}
+
 $releaseArtifacts = [ordered]@{}
 foreach ($artifact in $artifactSpecs) {
     $artifactOut = Join-Path $releaseDir $artifact.releaseName
@@ -340,6 +395,7 @@ $manifest = [ordered]@{
     wifiFirmware = $releaseArtifacts.wifiFirmware
     wifiFirmwareTbyb = $releaseArtifacts.wifiFirmwareTbyb
     windowsInstaller = $windowsInstaller
+    debianInstaller = $debianInstaller
     docs = [ordered]@{}
 }
 
@@ -418,4 +474,9 @@ if ($windowsInstaller) {
     Write-Host "  $(Join-Path $releaseDir $windowsInstaller.file)"
     Write-Host "  SHA256 $($windowsInstaller.sha256)"
     Write-Host "  Authenticode signed: $($windowsInstaller.signed)"
+}
+if ($debianInstaller) {
+    Write-Host "  $(Join-Path $releaseDir $debianInstaller.file)"
+    Write-Host "  SHA256 $($debianInstaller.sha256)"
+    Write-Host "  Debian architecture: $($debianInstaller.architecture)"
 }

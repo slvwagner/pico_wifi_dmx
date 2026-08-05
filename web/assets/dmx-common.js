@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='1.0.1';
+  const APP_VERSION='1.1.0';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -1429,12 +1429,34 @@
     };
   }
 
+  function colorControlParts(control){
+    if(Array.isArray(control?.emitters)&&control.emitters.length){
+      return control.emitters.filter(emitter=>emitter&&emitter.key&&Number.isFinite(Number(emitter.channel))).map(emitter=>({
+        part:String(emitter.key),label:String(emitter.label||emitter.key),max:255,
+        channel:Number(emitter.channel),color:String(emitter.color||'')
+      }));
+    }
+    const type=control?.type;
+    if(type==='rgb'||type==='cmy')return[{part:'a',label:type==='cmy'?'Cyan':'Red',max:255,channel:control.a},{part:'b',label:type==='cmy'?'Magenta':'Green',max:255,channel:control.b},{part:'c',label:type==='cmy'?'Yellow':'Blue',max:255,channel:control.c}];
+    if(type==='rgbw')return[{part:'a',label:'Red',max:255,channel:control.a},{part:'b',label:'Green',max:255,channel:control.b},{part:'c',label:'Blue',max:255,channel:control.c},{part:'w',label:'White',max:255,channel:control.w}];
+    if(type==='rgbwa')return[{part:'a',label:'Red',max:255,channel:control.a},{part:'b',label:'Green',max:255,channel:control.b},{part:'c',label:'Blue',max:255,channel:control.c},{part:'w',label:'White',max:255,channel:control.w},{part:'amber',label:'Amber',max:255,channel:control.amber}];
+    if(type==='cmyk')return[{part:'a',label:'Cyan',max:255,channel:control.a},{part:'b',label:'Magenta',max:255,channel:control.b},{part:'c',label:'Yellow',max:255,channel:control.c},{part:'k',label:'Key',max:255,channel:control.k}];
+    return[];
+  }
+
+  function colorControlDefault(control,value){
+    const source=value&&typeof value==='object'?value:{};
+    return Object.fromEntries(colorControlParts(control).map(part=>[part.part,clampInt(source[part.part],0,255)]));
+  }
+
   function wheelOptionIconHtml(option,escape=escapeHtml){
     if(!option)return '';
     const image=option.image||option.icon||option.resource;
-    const color=option.color||(Array.isArray(option.colors)?option.colors[0]:null);
+    const colors=(Array.isArray(option.colors)?option.colors:[option.color]).map(String).filter(color=>/^#[0-9a-f]{6}$/i.test(color));
+    const color=option.color||colors[0];
     const style=[];
     if(color)style.push('background-color:'+escape(color));
+    if(colors.length>1&&!image)style.push('background-image:linear-gradient(90deg,'+colors.map(escape).join(',')+')');
     if(image)style.push("background-image:url('"+escape(String(image).replace(/'/g,'%27'))+"')");
     return style.length?'<span class="option-icon" style="'+style.join(';')+'"></span>':'';
   }
@@ -1508,10 +1530,7 @@
     if(type==='panTilt16')return[{part:'pan',label:'Pan',max:65535},{part:'tilt',label:'Tilt',max:65535}];
     if(type==='panTilt8')return[{part:'pan',label:'Pan',max:255},{part:'tilt',label:'Tilt',max:255}];
     if(type==='slider16')return[{part:'value',label:'Value',max:65535}];
-    if(type==='rgb'||type==='cmy')return[{part:'a',label:type==='cmy'?'Cyan':'Red',max:255},{part:'b',label:type==='cmy'?'Magenta':'Green',max:255},{part:'c',label:type==='cmy'?'Yellow':'Blue',max:255}];
-    if(type==='rgbw')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255}];
-    if(type==='rgbwa')return[{part:'a',label:'Red',max:255},{part:'b',label:'Green',max:255},{part:'c',label:'Blue',max:255},{part:'w',label:'White',max:255},{part:'amber',label:'Amber',max:255}];
-    if(type==='cmyk')return[{part:'a',label:'Cyan',max:255},{part:'b',label:'Magenta',max:255},{part:'c',label:'Yellow',max:255},{part:'k',label:'Key',max:255}];
+    if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(type))return colorControlParts(control);
     return[{part:'value',label:'Value',max:255}];
   }
 
@@ -4151,6 +4170,8 @@
     hexToRgb,
     rgbToCmy,
     rgbToCmyk,
+    colorControlParts,
+    colorControlDefault,
     wheelOptionIconHtml,
     wheelOptionValue,
     wheelOptionMatches,

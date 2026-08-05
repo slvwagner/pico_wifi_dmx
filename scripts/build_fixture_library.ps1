@@ -5,6 +5,7 @@ param(
     [string]$CapabilitiesOutputPath = "",
     [string]$ResourcesOutputPath = "",
     [string]$CustomFixturePath = "tools/fixture-library/custom",
+    [string]$PreserveWheelImagesFromPath = "",
     [switch]$MetadataOnly,
     [switch]$CapabilitiesOnly,
     [switch]$SidecarsOnly,
@@ -20,15 +21,18 @@ $metadataOutFile = if (-not $MetadataOutputPath) { "" } elseif ([System.IO.Path]
 $capabilitiesOutFile = if (-not $CapabilitiesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($CapabilitiesOutputPath)) { $CapabilitiesOutputPath } else { Join-Path $repoRoot $CapabilitiesOutputPath }
 $resourcesOutFile = if (-not $ResourcesOutputPath) { "" } elseif ([System.IO.Path]::IsPathRooted($ResourcesOutputPath)) { $ResourcesOutputPath } else { Join-Path $repoRoot $ResourcesOutputPath }
 $customFixtureDirectory = if (-not $CustomFixturePath) { "" } elseif ([System.IO.Path]::IsPathRooted($CustomFixturePath)) { $CustomFixturePath } else { Join-Path $repoRoot $CustomFixturePath }
+$preserveWheelImagesFile = if (-not $PreserveWheelImagesFromPath) { "" } elseif ([System.IO.Path]::IsPathRooted($PreserveWheelImagesFromPath)) { $PreserveWheelImagesFromPath } else { Join-Path $repoRoot $PreserveWheelImagesFromPath }
 $effectiveThrottleLimit = if ($ThrottleLimit -gt 0) { $ThrottleLimit } else { [Math]::Max(2, [Math]::Min([Environment]::ProcessorCount, 16)) }
 if ($SidecarsOnly -and ($MetadataOnly -or $CapabilitiesOnly)) { throw "SidecarsOnly cannot be combined with MetadataOnly or CapabilitiesOnly." }
 if ($SidecarsOnly -and -not $metadataOutFile -and -not $capabilitiesOutFile -and -not $resourcesOutFile) { throw "SidecarsOnly requires MetadataOutputPath, CapabilitiesOutputPath, or ResourcesOutputPath." }
 if ($CustomOnly -and ($MetadataOnly -or $CapabilitiesOnly -or $SidecarsOnly)) { throw "CustomOnly cannot be combined with enrichment-only options." }
+if ($preserveWheelImagesFile -and ($MetadataOnly -or $CapabilitiesOnly -or $SidecarsOnly -or $CustomOnly)) { throw "PreserveWheelImagesFromPath can only be used with a full fixture-library build." }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Get-Prop($obj, [string]$name) {
     if ($null -eq $obj) { return $null }
+    if ($obj -is [System.Collections.IDictionary]) { return $obj[$name] }
     return $obj.PSObject.Properties[$name].Value
 }
 
@@ -51,6 +55,52 @@ function Get-CapColor($channel) {
     $cap = @(Get-Capabilities $channel | Select-Object -First 1)
     if ($cap.Count) { return [string](Get-Prop $cap[0] "color") }
     return ""
+}
+
+function Get-ColorEmitterKey([string]$color) {
+    switch ($color.Trim().ToLowerInvariant()) {
+        "red" { return "a" }
+        "green" { return "b" }
+        "blue" { return "c" }
+        "white" { return "w" }
+        "amber" { return "amber" }
+        "uv" { return "uv" }
+        "ultraviolet" { return "uv" }
+        "lime" { return "lime" }
+        "indigo" { return "indigo" }
+        "cyan" { return "cyan" }
+        "magenta" { return "magenta" }
+        "yellow" { return "yellow" }
+        "warm white" { return "warmWhite" }
+        "cold white" { return "coldWhite" }
+    }
+    $words = @($color.Trim() -split '[^a-zA-Z0-9]+' | Where-Object { $_ })
+    if (-not $words.Count) { return "emitter" }
+    $key = $words[0].ToLowerInvariant()
+    foreach ($word in $words | Select-Object -Skip 1) {
+        $key += $word.Substring(0, 1).ToUpperInvariant() + $word.Substring(1).ToLowerInvariant()
+    }
+    return $key
+}
+
+function Get-ColorEmitterHex([string]$color) {
+    switch ($color.Trim().ToLowerInvariant()) {
+        "red" { return "#ff0000" }
+        "green" { return "#00ff00" }
+        "blue" { return "#0000ff" }
+        "white" { return "#ffffff" }
+        "amber" { return "#ffbf00" }
+        "uv" { return "#7f00ff" }
+        "ultraviolet" { return "#7f00ff" }
+        "lime" { return "#bfff00" }
+        "indigo" { return "#4b0082" }
+        "cyan" { return "#00ffff" }
+        "magenta" { return "#ff00ff" }
+        "yellow" { return "#ffff00" }
+        "warm white" { return "#ffd6a1" }
+        "cold white" { return "#d9f0ff" }
+    }
+    return "#ffffff"
 }
 
 function New-NormalizedCapabilities($channel) {
@@ -309,11 +359,9 @@ function Get-WheelSlotLabel($fixture, [string]$wheelName, [int]$slotNumber) {
     return "Slot $slotNumber"
 }
 
-function Get-WheelSlotColor($fixture, [string]$wheelName, [int]$slotNumber) {
+function Get-WheelSlotColors($fixture, [string]$wheelName, [int]$slotNumber) {
     $slot = Get-WheelSlot $fixture $wheelName $slotNumber
-    $colors = @(Get-Prop $slot "colors")
-    if ($colors.Count) { return [string]$colors[0] }
-    return ""
+    return @((Get-Prop $slot "colors") | ForEach-Object { [string]$_ } | Where-Object { $_ })
 }
 
 function Get-WheelSlotImage($fixture, [string]$wheelName, [int]$slotNumber) {
@@ -381,7 +429,39 @@ function New-WheelOptionName($fixture, [string]$wheelName, $cap, [string]$capTyp
     return ""
 }
 
-function New-WheelOptions($fixture, $channel, [string]$wheelName) {
+function Get-ColorFilterReference($cap) {
+    $text = [string](Get-Prop $cap "comment")
+    if (-not $text) { $text = [string](Get-Prop $cap "effectName") }
+    if (-not $text) { $text = [string](Get-Prop $cap "name") }
+    $match = [regex]::Match($text, '(?i)\b(LEE|Rosco)\s*#?\s*(\d+[A-Za-z]?)\b')
+    if (-not $match.Success) { return $null }
+    $system = if ($match.Groups[1].Value -match '(?i)^lee$') { "LEE" } else { "Rosco" }
+    $filter = [ordered]@{
+        system = $system
+        code = $match.Groups[2].Value
+        reference = $match.Value.Trim()
+    }
+    $name = ($text.Substring($match.Index + $match.Length) -replace '^[\s\-–—:()]+|[\s()]+$', '').Trim()
+    if ($name) { $filter["name"] = $name }
+    return $filter
+}
+
+function Get-FixtureFilterColorMap($available) {
+    $map = @{}
+    foreach ($channel in $available.Values) {
+        foreach ($cap in Get-Capabilities $channel) {
+            $filter = Get-ColorFilterReference $cap
+            $colors = @((Get-Prop $cap "colors") | ForEach-Object { [string]$_ } | Where-Object { $_ })
+            if ($filter -and $colors.Count) {
+                $key = ($filter.system + "/" + $filter.code).ToLowerInvariant()
+                if (-not $map.ContainsKey($key)) { $map[$key] = @($colors) }
+            }
+        }
+    }
+    return $map
+}
+
+function New-WheelOptions($fixture, $channel, [string]$wheelName, $filterColors = @{}) {
     $options = [System.Collections.Generic.List[object]]::new()
     $seen = @{}
     foreach ($cap in Get-Capabilities $channel) {
@@ -407,11 +487,22 @@ function New-WheelOptions($fixture, $channel, [string]$wheelName) {
         if ($slotNumber) { $option["slotNumber"] = $slotNumber }
         if ($slotStart) { $option["slotNumberStart"] = $slotStart }
         if ($slotEnd) { $option["slotNumberEnd"] = $slotEnd }
-        $color = ""
-        $colors = @(Get-Prop $cap "colors")
-        if ($colors.Count) { $color = [string]$colors[0] }
-        if (-not $color -and $slotNumber) { $color = Get-WheelSlotColor $fixture $wheelName $slotNumber }
-        if ($color) { $option["color"] = $color }
+        $filter = Get-ColorFilterReference $cap
+        $colors = @((Get-Prop $cap "colors") | Where-Object { $_ })
+        if (-not $colors.Count -and $slotNumber) { $colors = @(Get-WheelSlotColors $fixture $wheelName $slotNumber) }
+        if (-not $colors.Count -and $slotStart -and $slotEnd) {
+            $colors = @(@(Get-WheelSlotColors $fixture $wheelName $slotStart) + @(Get-WheelSlotColors $fixture $wheelName $slotEnd))
+        }
+        if (-not $colors.Count -and $filter) {
+            $filterKey = ($filter.system + "/" + $filter.code).ToLowerInvariant()
+            if ($filterColors.ContainsKey($filterKey)) { $colors = @($filterColors[$filterKey]) }
+        }
+        $colors = @($colors | ForEach-Object { [string]$_ } | Where-Object { $_ } | Select-Object -Unique)
+        if ($colors.Count) {
+            $option["color"] = $colors[0]
+            $option["colors"] = @($colors)
+        }
+        if ($filter) { $option["filter"] = $filter }
         if ($slotNumber) {
             $image = Get-WheelSlotImage $fixture $wheelName $slotNumber
             $resourceKey = Get-WheelSlotResourceKey $fixture $wheelName $slotNumber
@@ -434,7 +525,7 @@ function New-WheelOptions($fixture, $channel, [string]$wheelName) {
     return @($options)
 }
 
-function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
+function Convert-Mode($fixture, $manufacturerName, $mode, $available, $filterColors = @{}) {
     $channels = @(Expand-ModeChannels $fixture $mode)
     $channelMap = Channel-Map $channels
     $used = @{}
@@ -512,38 +603,54 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
     }
 
     $colors = @{}
+    $colorEmitters = [System.Collections.Generic.List[object]]::new()
+    $emitterKeys = @{}
     foreach ($name in $channelNames) {
         if ($used[$name]) { continue }
         $channel = $available[$name]
         if ((Get-CapType $channel) -eq "ColorIntensity") {
-            $color = (Get-CapColor $channel).ToLowerInvariant()
-            if ($color) { $colors[$color] = $name }
+            $colorLabel = (Get-CapColor $channel).Trim()
+            $color = $colorLabel.ToLowerInvariant()
+            if ($color -and -not $colors.ContainsKey($color)) {
+                $colors[$color] = $name
+                $baseKey = Get-ColorEmitterKey $colorLabel
+                $key = $baseKey
+                $suffix = 2
+                while ($emitterKeys.ContainsKey($key)) { $key = $baseKey + $suffix; $suffix++ }
+                $emitterKeys[$key] = $true
+                $colorEmitters.Add([ordered]@{
+                    key = $key
+                    label = $colorLabel
+                    color = Get-ColorEmitterHex $colorLabel
+                    channel = $channelMap[$name]
+                    channelName = $name
+                })
+            }
         }
     }
-    if ($colors.ContainsKey("red") -and $colors.ContainsKey("green") -and $colors.ContainsKey("blue")) {
-        $props = @{
-            a = $channelMap[$colors["red"]]
-            b = $channelMap[$colors["green"]]
-            c = $channelMap[$colors["blue"]]
-        }
+    $isRgb = $colors.ContainsKey("red") -and $colors.ContainsKey("green") -and $colors.ContainsKey("blue")
+    if ($isRgb) {
+        $props = @{ emitters = @($colorEmitters) }
+        $props["a"] = $channelMap[$colors["red"]]
+        $props["b"] = $channelMap[$colors["green"]]
+        $props["c"] = $channelMap[$colors["blue"]]
         $type = "rgb"
         if ($colors.ContainsKey("white")) { $type = "rgbw"; $props["w"] = $channelMap[$colors["white"]] }
         if ($colors.ContainsKey("white") -and $colors.ContainsKey("amber")) { $type = "rgbwa"; $props["amber"] = $channelMap[$colors["amber"]] }
         $colorDefaults = [ordered]@{}
         $colorHighlights = [ordered]@{}
-        foreach ($component in @(@("red", "a"), @("green", "b"), @("blue", "c"), @("white", "w"), @("amber", "amber"))) {
-            if (-not $colors.ContainsKey($component[0])) { continue }
-            $colorChannel = $available[$colors[$component[0]]]
+        foreach ($emitter in $colorEmitters) {
+            $colorChannel = $available[$emitter.channelName]
             $componentDefault = Convert-DmxValue $colorChannel (Get-Prop $colorChannel "defaultValue") 1
-            if ($null -ne $componentDefault) { $colorDefaults[$component[1]] = $componentDefault }
+            if ($null -ne $componentDefault) { $colorDefaults[$emitter.key] = $componentDefault }
             $componentHighlight = Convert-DmxValue $colorChannel (Get-Prop $colorChannel "highlightValue") 1
-            if ($null -ne $componentHighlight) { $colorHighlights[$component[1]] = $componentHighlight }
+            if ($null -ne $componentHighlight) { $colorHighlights[$emitter.key] = $componentHighlight }
         }
         if ($colorDefaults.Count) { $props["defaultValue"] = $colorDefaults }
         if ($colorHighlights.Count) { $props["highlightValue"] = $colorHighlights }
         $controls.Add((New-Control $nextId $type "Color" $props))
         $nextId++
-        foreach ($key in @("red","green","blue","white","amber")) { if ($colors.ContainsKey($key)) { $used[$colors[$key]] = $true } }
+        foreach ($emitter in $colorEmitters) { $used[$emitter.channelName] = $true }
     }
 
     foreach ($name in $channelNames) {
@@ -570,7 +677,7 @@ function Convert-Mode($fixture, $manufacturerName, $mode, $available) {
         } elseif ($isOptionControl) {
             $props = @{
                 channel = $channelMap[$name]
-                options = @(New-WheelOptions $fixture $channel $label)
+                options = @(New-WheelOptions $fixture $channel $label $filterColors)
                 capabilities = $capabilities
             }
             $defaultValue = Convert-DmxValue $channel (Get-Prop $channel "defaultValue") 1
@@ -619,8 +726,9 @@ function Convert-FixtureDocument([string]$entryName, [string]$text, $manufacture
         foreach ($prop in $availableChannels.PSObject.Properties) { $available[$prop.Name] = $prop.Value }
     }
     $modes = [System.Collections.Generic.List[object]]::new()
+    $filterColors = Get-FixtureFilterColorMap $available
     foreach ($mode in @(Get-Prop $fixture "modes")) {
-        $modes.Add((Convert-Mode $fixture $manufacturerName $mode $available))
+        $modes.Add((Convert-Mode $fixture $manufacturerName $mode $available $filterColors))
     }
     if (-not $modes.Count) { return $null }
     return [ordered]@{
@@ -665,6 +773,100 @@ function Merge-CustomFixtures($fixtures, $customFixtures) {
     return @($result)
 }
 
+function Get-WheelOptionMatchKeys($option) {
+    $keys = [System.Collections.Generic.List[string]]::new()
+    $range = @(Get-Prop $option "range")
+    if ($range.Count -ge 2) { $keys.Add("range:$($range[0])-$($range[1])") }
+    $value = Get-Prop $option "value"
+    if ($null -ne $value -and [string]$value -ne "") { $keys.Add("value:$value") }
+    $name = [string](Get-Prop $option "name")
+    if ($name) { $keys.Add("name:$($name.Trim().ToLowerInvariant())") }
+    $slotNumber = Get-Prop $option "slotNumber"
+    $kind = [string](Get-Prop $option "kind")
+    if ($null -ne $slotNumber -and [string]$slotNumber -ne "" -and $kind) {
+        $keys.Add("slot:$slotNumber|kind:$($kind.Trim().ToLowerInvariant())")
+    }
+    return @($keys)
+}
+
+function Set-ObjectProperty($object, [string]$name, $value) {
+    if ($object -is [System.Collections.IDictionary]) {
+        $object[$name] = $value
+    } else {
+        $object | Add-Member -NotePropertyName $name -NotePropertyValue $value -Force
+    }
+}
+
+function Remove-ObjectProperty($object, [string]$name) {
+    if ($object -is [System.Collections.IDictionary]) {
+        $object.Remove($name)
+    } elseif ($object.PSObject.Properties.Name -contains $name) {
+        $object.PSObject.Properties.Remove($name)
+    }
+}
+
+function Merge-PreservedWheelImages($fixtures, [string]$sourcePath) {
+    if (-not $sourcePath) { return 0 }
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { throw "Wheel-image preservation source not found: $sourcePath" }
+    try { $sourceLibrary = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json }
+    catch { throw "Invalid wheel-image preservation source '$sourcePath': $($_.Exception.Message)" }
+    if ($null -eq $sourceLibrary -or -not ($sourceLibrary.PSObject.Properties.Name -contains "fixtures")) {
+        throw "Wheel-image preservation source is not a fixture library: $sourcePath"
+    }
+
+    $sourceFixtures = @{}
+    foreach ($fixture in @($sourceLibrary.fixtures)) {
+        $key = [string](Get-Prop $fixture "key")
+        if ($key) { $sourceFixtures[$key] = $fixture }
+    }
+
+    $preservedCount = 0
+    foreach ($fixture in @($fixtures)) {
+        $fixtureKey = [string](Get-Prop $fixture "key")
+        if (-not $sourceFixtures.ContainsKey($fixtureKey)) { continue }
+        $sourceFixture = $sourceFixtures[$fixtureKey]
+        foreach ($mode in @(Get-Prop $fixture "modes")) {
+            $modeName = [string](Get-Prop $mode "name")
+            $sourceMode = @((Get-Prop $sourceFixture "modes") | Where-Object { [string](Get-Prop $_ "name") -eq $modeName } | Select-Object -First 1)
+            if (-not $sourceMode.Count) { continue }
+            foreach ($control in @(Get-Prop (Get-Prop $mode "profile") "controls")) {
+                if ([string](Get-Prop $control "type") -ne "wheel") { continue }
+                $label = [string](Get-Prop $control "label")
+                $channel = Get-Prop $control "channel"
+                $sourceControl = @((Get-Prop (Get-Prop $sourceMode[0] "profile") "controls") | Where-Object {
+                    [string](Get-Prop $_ "type") -eq "wheel" -and
+                    [string](Get-Prop $_ "label") -eq $label -and
+                    [string](Get-Prop $_ "channel") -eq [string]$channel
+                } | Select-Object -First 1)
+                if (-not $sourceControl.Count) { continue }
+                $sourceImages = @{}
+                foreach ($sourceOption in @(Get-Prop $sourceControl[0] "options")) {
+                    $image = [string](Get-Prop $sourceOption "image")
+                    if ($image -notmatch '^data:image/') { continue }
+                    foreach ($optionKey in @(Get-WheelOptionMatchKeys $sourceOption)) {
+                        $sourceImages[$optionKey] = $image
+                    }
+                }
+                if (-not $sourceImages.Count) { continue }
+                foreach ($option in @(Get-Prop $control "options")) {
+                    $matchedImage = ""
+                    foreach ($optionKey in @(Get-WheelOptionMatchKeys $option)) {
+                        if ($sourceImages.ContainsKey($optionKey)) {
+                            $matchedImage = $sourceImages[$optionKey]
+                            break
+                        }
+                    }
+                    if (-not $matchedImage) { continue }
+                    Set-ObjectProperty $option "image" $matchedImage
+                    Remove-ObjectProperty $option "resourceKey"
+                    $preservedCount++
+                }
+            }
+        }
+    }
+    return $preservedCount
+}
+
 if ($CustomOnly) {
     if (-not (Test-Path -LiteralPath $outFile -PathType Leaf)) { throw "CustomOnly requires an existing fixture library: $outFile" }
     $customFixtures = @(Get-CustomFixtures $customFixtureDirectory)
@@ -701,11 +903,11 @@ try {
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zipFile, $extractRoot)
     $jsonFiles = @(Get-ChildItem -LiteralPath $extractRoot -Recurse -File -Filter "*.json" | Where-Object { $_.Name -ne "manufacturers.json" } | Sort-Object FullName)
     $functionNames = @(
-        "Get-Prop", "Get-Capabilities", "Get-CapType", "Get-CapColor", "New-NormalizedCapabilities",
+        "Get-Prop", "Get-Capabilities", "Get-CapType", "Get-CapColor", "Get-ColorEmitterKey", "Get-ColorEmitterHex", "New-NormalizedCapabilities",
         "New-FixtureMetadata", "Flatten-PixelKeys", "Get-PixelKeys", "Expand-ModeChannels", "Channel-Map",
         "Get-DmxValueByteResolution", "Convert-DmxValue", "Get-CompatibleMatrixRgb",
-        "New-Control", "Get-WheelSlot", "Get-WheelSlotLabel", "Get-WheelSlotColor", "New-WheelOptionName",
-        "Get-WheelSlotImage", "Get-WheelSlotResourceKey", "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
+        "New-Control", "Get-WheelSlot", "Get-WheelSlotLabel", "Get-WheelSlotColors", "New-WheelOptionName",
+        "Get-WheelSlotImage", "Get-WheelSlotResourceKey", "Get-ColorFilterReference", "Get-FixtureFilterColorMap", "New-WheelOptions", "Convert-Mode", "Convert-FixtureDocument"
     )
     $functionSource = ($functionNames | ForEach-Object { "function $_ {`n$((Get-Command $_ -CommandType Function).Definition)`n}" }) -join "`n"
     if ($PSVersionTable.PSVersion.Major -ge 7 -and $effectiveThrottleLimit -gt 1) {
@@ -723,6 +925,56 @@ try {
         })
     }
     $fixtures = @(Merge-CustomFixtures @($convertedFixtures | Where-Object { $null -ne $_ }) @(Get-CustomFixtures $customFixtureDirectory))
+    # Some OFL fixtures name a standard gel/filter but omit its preview color. Build a
+    # deterministic consensus from other OFL fixtures that provide colors for the same
+    # reference. Fixture-local matches have already been applied by Convert-Mode.
+    $filterColorCandidates = @{}
+    foreach ($fixtureItem in $fixtures) {
+        foreach ($modeItem in @($fixtureItem.modes)) {
+            foreach ($controlItem in @($modeItem.profile.controls)) {
+                foreach ($optionItem in @($controlItem.options)) {
+                    if (-not $optionItem.filter -or -not @($optionItem.colors).Count) { continue }
+                    $filterKey = (([string]$optionItem.filter.system) + "/" + ([string]$optionItem.filter.code)).ToLowerInvariant()
+                    $colorSignature = (@($optionItem.colors) -join ",").ToLowerInvariant()
+                    if (-not $filterColorCandidates.ContainsKey($filterKey)) { $filterColorCandidates[$filterKey] = @{} }
+                    if (-not $filterColorCandidates[$filterKey].ContainsKey($colorSignature)) {
+                        $filterColorCandidates[$filterKey][$colorSignature] = [ordered]@{ count = 0; colors = @($optionItem.colors) }
+                    }
+                    $filterColorCandidates[$filterKey][$colorSignature].count++
+                }
+            }
+        }
+    }
+    $filterColorFallbacks = @{}
+    foreach ($filterKey in $filterColorCandidates.Keys) {
+        $best = @($filterColorCandidates[$filterKey].GetEnumerator() | Sort-Object @{ Expression = { -[int]$_.Value.count } }, Name | Select-Object -First 1)
+        if ($best.Count) { $filterColorFallbacks[$filterKey] = @($best[0].Value.colors) }
+    }
+    $derivedFilterColorCount = 0
+    foreach ($fixtureItem in $fixtures) {
+        foreach ($modeItem in @($fixtureItem.modes)) {
+            foreach ($controlItem in @($modeItem.profile.controls)) {
+                foreach ($optionItem in @($controlItem.options)) {
+                    if (-not $optionItem.filter -or @($optionItem.colors).Count) { continue }
+                    $filterKey = (([string]$optionItem.filter.system) + "/" + ([string]$optionItem.filter.code)).ToLowerInvariant()
+                    if (-not $filterColorFallbacks.ContainsKey($filterKey)) { continue }
+                    $fallbackColors = @($filterColorFallbacks[$filterKey])
+                    $optionItem["color"] = $fallbackColors[0]
+                    $optionItem["colors"] = $fallbackColors
+                    $optionItem.filter["colorSource"] = "ofl-reference"
+                    $optionItem.filter["approximate"] = $true
+                    $derivedFilterColorCount++
+                }
+            }
+        }
+    }
+    if ($derivedFilterColorCount) {
+        Write-Host "Derived preview colors for $derivedFilterColorCount filter option(s) from matching OFL references."
+    }
+    $preservedWheelImageCount = Merge-PreservedWheelImages $fixtures $preserveWheelImagesFile
+    if ($preserveWheelImagesFile) {
+        Write-Host "Preserved $preservedWheelImageCount user wheel image(s) from $preserveWheelImagesFile"
+    }
     $resourceMap = [ordered]@{}
     $resourceFixturePatches = [System.Collections.Generic.List[object]]::new()
     foreach ($fixtureItem in $fixtures) {

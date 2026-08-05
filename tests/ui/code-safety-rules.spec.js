@@ -85,6 +85,21 @@ test.describe('Code safety regression rules', () => {
     expect(apache).toContain('Options -Indexes');
   });
 
+  test('Windows customer runtime can update and import the full OFL fixture library', () => {
+    const php = read('installer/windows/runtime/php.ini.template');
+    const setting = name => {
+      const match = php.match(new RegExp(`^${name}\\s*=\\s*(\\d+)([KMG]?)`, 'mi'));
+      expect(match, `${name} must be configured`).not.toBeNull();
+      const multiplier = { '': 1, K: 1024, M: 1024 ** 2, G: 1024 ** 3 }[match[2].toUpperCase()];
+      return Number(match[1]) * multiplier;
+    };
+
+    expect(setting('memory_limit')).toBeGreaterThanOrEqual(512 * 1024 ** 2);
+    expect(setting('max_execution_time')).toBeGreaterThanOrEqual(120);
+    expect(setting('post_max_size')).toBeGreaterThanOrEqual(128 * 1024 ** 2);
+    expect(setting('upload_max_filesize')).toBeGreaterThanOrEqual(128 * 1024 ** 2);
+  });
+
   test('Windows app revalidates browser UI assets after an installer update', () => {
     const apache = read('installer/windows/runtime/httpd.conf.template');
     const form = read('installer/windows/shell/MainForm.cs');
@@ -244,17 +259,65 @@ test.describe('Code safety regression rules', () => {
     const ignore = read('.gitignore');
 
     expect(main).toContain("app.setName('WiFiPicoDMX')");
-    expect(main).toContain("'Exit only'");
-    expect(main).toContain("'Exit and stop server'");
+    expect(shellPage).toContain('Exit only');
+    expect(shellPage).toContain('Exit and stop server');
     expect(main).toContain('app.exit(EXIT_KEEP_SERVER)');
     expect(main).toContain('app.exit(EXIT_STOP_SERVER)');
+    expect(main).toContain("controllerView.webContents.session.clearCache()");
+    expect(main).toContain("controllerView.webContents.on('context-menu'");
     expect(shellPage).toContain('<title>WiFiPicoDMX</title>');
+    expect(shellPage).toContain('id="application-menu"');
+    expect(shellPage).toContain('How should WiFiPicoDMX exit?');
+    expect(shellPage).toContain('Exit and stop server');
+    expect(main).toContain('controllerView?.setVisible(false)');
+    expect(main).toContain('controllerView?.setVisible(true)');
+    expect(main).toContain("ipcMain.on('shell:menu-state'");
+    expect(shellPage).toContain('window.picoShell.setMenuOpen(opening)');
     expect(launcher).toContain('EXIT_KEEP_SERVER=20');
     expect(launcher).toContain('EXIT_STOP_SERVER=21');
     expect(launcher).toContain('systemctl stop pico-dmx-controller.service');
     expect(desktop).toContain('Name=WiFiPicoDMX');
     expect(builder).toContain('wifi-pico-dmx_${version}_${architecture}.deb');
+    expect(builder).toContain('command -v wget');
+    expect(read('installer/ubuntu/package/pico-dmx-config')).toContain("config_temp_file=''");
+    expect(read('installer/ubuntu/package/pico-dmx-config')).not.toContain("trap 'rm -f -- \"$temp_file\"' EXIT");
+    expect(read('installer/ubuntu/package/pico-dmx-config')).toContain('hostname -I');
+    expect(read('installer/ubuntu/package/pico-dmx-config')).not.toContain('http://<this-computer-ip>:8090/');
     expect(ignore).toContain('release/v*/wifi-pico-dmx_*_amd64.deb');
+  });
+
+  test('Ubuntu customer runtime can update and import the full OFL fixture library', () => {
+    const service = read('installer/ubuntu/package/pico-dmx-controller.service');
+
+    expect(service).toContain('-d memory_limit=512M');
+    expect(service).toContain('-d max_execution_time=120');
+    expect(service).toContain('-d post_max_size=128M');
+    expect(service).toContain('-d upload_max_filesize=128M');
+  });
+
+  test('Ubuntu customer package includes the guarded guided firmware updater', () => {
+    const main = read('installer/ubuntu/shell/main.js');
+    const firmwarePage = read('installer/ubuntu/shell/firmware.html');
+    const helper = read('installer/ubuntu/package/flash_firmware.sh');
+    const builder = read('installer/ubuntu/build_package.sh');
+    const udev = read('installer/ubuntu/package/60-pico-dmx-controller.rules');
+
+    expect(main).toContain("'firmware:run'");
+    expect(main).toContain('firmwareBusy');
+    expect(main).not.toContain('modal: true');
+    expect(main).toContain('firmwareViewOpen');
+    expect(main).toContain('restoreControllerShell');
+    expect(main).not.toContain('firmwareWindow = new BrowserWindow');
+    expect(firmwarePage).toContain('Flash application + Wi-Fi firmware');
+    expect(firmwarePage).toContain("confirm('Flash the application and Wi-Fi firmware now?");
+    expect(helper).toContain('sha256sum --check --status');
+    expect(helper).toContain('target[[:space:]]chip:[[:space:]]+RP2350');
+    expect(helper).toContain('"$picotool" load -v "$application"');
+    expect(helper).toContain('"$picotool" reboot -u');
+    expect(helper).toContain('"$picotool" load -u -v -x "$wifi_firmware"');
+    expect(builder).toContain('firmware-manifest.json');
+    expect(builder).toContain('PICO_DMX_APPLICATION_UF2');
+    expect(udev).toContain('TAG+="uaccess"');
   });
 
   test('motion slot response exposes target count without a duplicate fixture count', () => {
@@ -282,6 +345,12 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
   });
 
+  test('release documentation generation stays local and never deploys to live XAMPP', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+
+    expect(releaseScript).toContain('$manualArgs = @{ LocalOnly = $true }');
+  });
+
   test('Windows release preparation builds and records the customer installer', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
 
@@ -291,6 +360,22 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('installer\\windows\\build_installer.ps1');
     expect(releaseScript).toContain('windowsInstaller = $windowsInstaller');
     expect(releaseScript).toContain('Authenticode signed:');
+  });
+
+  test('Windows release preparation can build and record the Debian installer through WSL', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+    const wslBuilder = read('installer/ubuntu/build_package_wsl.ps1');
+
+    expect(releaseScript).toContain('[switch]$SkipDebianInstaller');
+    expect(releaseScript).toContain('[string]$WslDistribution');
+    expect(releaseScript).toContain('Build Debian customer installer through WSL');
+    expect(releaseScript).toContain('installer\\ubuntu\\build_package_wsl.ps1');
+    expect(releaseScript).toContain('debianInstaller = $debianInstaller');
+    expect(wslBuilder).toContain('wsl.exe');
+    expect(wslBuilder).toContain('wslpath');
+    expect(wslBuilder).toContain('PICO_DMX_PICOTOOL');
+    expect(wslBuilder).toContain('PICO_DMX_UBUNTU_BUILD_ROOT');
+    expect(wslBuilder).toContain('build_package.sh');
   });
 
   test('README presents the stable Windows installer before the overview and requires release-link verification', () => {

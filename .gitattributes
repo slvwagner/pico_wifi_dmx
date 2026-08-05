@@ -1,1 +1,4 @@
 *.pdf binary
+*.sh text eol=lf
+installer/ubuntu/package/** text eol=lf
+installer/ubuntu/shell/*.env text eol=lf

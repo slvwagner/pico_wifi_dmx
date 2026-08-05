@@ -1,0 +1,62 @@
+{
+  "version": "1.1.0",
+  "branch": "1.1.0",
+  "commit": "e4bf234",
+  "createdAt": "2026-08-05T14:56:47Z",
+  "tests": {
+    "hardware": false
+  },
+  "docsGenerated": true,
+  "firmware": {
+    "file": "pico_wifi_dmx-v1.1.0.uf2",
+    "sizeBytes": 483328,
+    "sha256": "c94d4156d7b24af9c49969707c6bc2236fd2b9e7022aefcc3e540ca81a2be19f"
+  },
+  "wifiFirmware": {
+    "file": "pico_wifi_dmx-wifi-firmware-v1.1.0.uf2",
+    "sizeBytes": 465920,
+    "sha256": "8c1d2387cd77a487b0858e1c87ac471df4d5ef8318856fba8764ac09070bda79"
+  },
+  "wifiFirmwareTbyb": {
+    "file": "pico_wifi_dmx-wifi-firmware-tbyb-v1.1.0.uf2",
+    "sizeBytes": 465920,
+    "sha256": "dbdccd8f1c5f9d763b362e8b789bd0438c4b7eaca7cf9b9aa814d1063564d42d"
+  },
+  "windowsInstaller": {
+    "file": "wifi-pico-dmx-1.1.0-windows-x64.exe",
+    "sizeBytes": 112976867,
+    "sha256": "afe456d1cd956e439dff13e0c14a75fe3e4392c2fab2e7596f953caa872329f7",
+    "signed": false
+  },
+  "debianInstaller": {
+    "file": "wifi-pico-dmx_1.1.0_amd64.deb",
+    "architecture": "amd64",
+    "sizeBytes": 107964462,
+    "sha256": "6e29bfb9623c598c71dedf111db419729ddbfbcaf6f0f87e42df74ea5497996c"
+  },
+  "docs": {
+    "user-manual.md": {
+      "sizeBytes": 173989,
+      "sha256": "598d31c0fab2af097931f1bdc6044b7f32000b7ac55c2dade326faea4fd5b9f3"
+    },
+    "user-manual.html": {
+      "sizeBytes": 303909,
+      "sha256": "5e490dbd7ec5b39186e4386a57882d264f28e6d3f21eaa12846a196e873caaa4"
+    },
+    "user-manual-print.html": {
+      "sizeBytes": 303869,
+      "sha256": "7486c0103720eed8d3eef9b7558c9834250cf5655c4a808941c5d3c89340d3c2"
+    },
+    "user-manual.pdf": {
+      "sizeBytes": 4597637,
+      "sha256": "c124118e339dde01ad8c803e6a4ae20e9050fc3ef6d4eb7eabd7d80539ea31dc"
+    },
+    "user-manual-navigation.pdf": {
+      "sizeBytes": 5799514,
+      "sha256": "ed290a7b74905eda42cbe0ecc19685844a62b74c991f86a5ce0b386f041a1440"
+    },
+    "screenshots": {
+      "count": 75
+    }
+  }
+}

@@ -55,7 +55,10 @@ test.describe('DMX Buffer Monitor established rules', () => {
     await page.locator('#refreshBtn').click();
     await expect(page.locator('.dmx-val').first()).toHaveText('22');
     await expect(page.locator('#frameCount')).toHaveText('22');
+    const rearClearRequest = page.waitForRequest('http://192.0.2.32/dmx/clear');
     await page.locator('#clearAllBtn').click();
+    await rearClearRequest;
+    await expect.poll(() => requests.includes('http://192.0.2.32/dmx/clear')).toBe(true);
 
     expect(requests).toContain('http://192.0.2.32/dmx/output.json');
     expect(requests).toContain('http://192.0.2.32/dmx/clear');

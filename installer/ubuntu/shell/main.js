@@ -3,7 +3,6 @@
 const {
   app,
   BrowserWindow,
-  dialog,
   Menu,
   Tray,
   WebContentsView,
@@ -15,8 +14,9 @@ const {
   shell,
 } = require('electron');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 
-const SHELL_TOP_NORMAL = 80;
+const SHELL_TOP_NORMAL = 76;
 const SHELL_TOP_FULLSCREEN = 44;
 const SHELL_BOTTOM_NORMAL = 28;
 const CONTROLLER_FALLBACK = 'http://127.0.0.1:8090/';
@@ -29,8 +29,12 @@ let mainWindow = null;
 let controllerView = null;
 let tray = null;
 let controllerUrl = normalizeControllerUrl(readArgument('--url'));
+const openFirmwareOnStart = process.argv.includes('--firmware');
 let fullscreen = false;
 let exitChoiceOpen = false;
+let exitChoiceResolver = null;
+let firmwareViewOpen = false;
+let firmwareBusy = false;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -48,6 +52,7 @@ app.whenReady().then(async () => {
   createTray();
   registerShellActions();
   await openController();
+  if (openFirmwareOnStart) openFirmwareUpdater();
 });
 
 app.on('window-all-closed', () => {
@@ -98,6 +103,9 @@ function createWindow() {
     },
   });
   mainWindow.contentView.addChildView(controllerView);
+  controllerView.webContents.session.clearCache().catch((error) => {
+    console.error(`Could not clear the controller disk cache: ${error.message}`);
+  });
   mainWindow.loadFile(path.join(__dirname, 'shell.html'));
   mainWindow.once('ready-to-show', () => mainWindow?.show());
   mainWindow.on('resize', layoutController);
@@ -105,6 +113,14 @@ function createWindow() {
   mainWindow.on('leave-full-screen', () => setFullscreenState(false));
   mainWindow.on('close', (event) => {
     event.preventDefault();
+    if (firmwareViewOpen) {
+      if (firmwareBusy) {
+        mainWindow?.webContents.send('firmware:close-blocked');
+      } else {
+        restoreControllerShell();
+      }
+      return;
+    }
     void requestExit();
   });
   mainWindow.on('closed', () => {
@@ -153,6 +169,7 @@ function createWindow() {
     }
     return { action: 'deny' };
   });
+  controllerView.webContents.on('context-menu', (event) => event.preventDefault());
   controllerView.webContents.on('will-navigate', (event, url) => {
     if (isControllerUrl(url)) return;
     event.preventDefault();
@@ -189,6 +206,78 @@ function registerShellActions() {
   });
   ipcMain.on('shell:close', () => void requestExit());
   ipcMain.on('shell:browser', () => void shell.openExternal(controllerUrl));
+  ipcMain.on('shell:firmware', openFirmwareUpdater);
+  ipcMain.on('shell:menu-state', (_event, open) => {
+    if (open) {
+      controllerView?.setVisible(false);
+    } else if (!exitChoiceOpen) {
+      controllerView?.setVisible(true);
+    }
+  });
+  ipcMain.on('shell:exit-choice', (_event, choice) => {
+    if (!exitChoiceResolver || !['keep', 'stop', 'cancel'].includes(choice)) return;
+    const resolve = exitChoiceResolver;
+    exitChoiceResolver = null;
+    controllerView?.setVisible(true);
+    resolve(choice);
+  });
+  ipcMain.handle('firmware:run', (_event, operation) => runFirmwareHelper(operation));
+  ipcMain.on('firmware:close', () => {
+    if (!firmwareBusy) restoreControllerShell();
+  });
+  ipcMain.handle('firmware:discovery', async () => {
+    const response = await net.fetch(new URL('pico_discovery.php', controllerUrl), {
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!response.ok) throw new Error(`Controller returned HTTP ${response.status}.`);
+    return response.json();
+  });
+}
+
+function openFirmwareUpdater() {
+  if (!mainWindow || firmwareViewOpen) return;
+  firmwareViewOpen = true;
+  controllerView?.setVisible(false);
+  void mainWindow.loadFile(path.join(__dirname, 'firmware.html'));
+}
+
+function restoreControllerShell() {
+  if (!mainWindow || !firmwareViewOpen) return;
+  firmwareViewOpen = false;
+  void mainWindow.loadFile(path.join(__dirname, 'shell.html')).then(() => {
+    controllerView?.setVisible(true);
+    layoutController();
+    sendStatus('Ready — when closing, choose whether the server should keep running.');
+  });
+}
+
+function runFirmwareHelper(operation) {
+  const argumentsByOperation = {
+    validate: '--validate-only',
+    probe: '--probe-only',
+    flash: '--flash',
+  };
+  const argument = argumentsByOperation[operation];
+  if (!argument) return Promise.reject(new Error('Unknown firmware operation.'));
+  if (firmwareBusy) return Promise.reject(new Error('Firmware work is already running.'));
+  firmwareBusy = true;
+  return new Promise((resolve) => {
+    const helper = path.join(process.resourcesPath, '..', '..', 'support', 'flash_firmware.sh');
+    const child = spawn(helper, [argument], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    const append = (chunk) => {
+      const text = chunk.toString();
+      output += text;
+      mainWindow?.webContents.send('firmware:output', text);
+    };
+    child.stdout.on('data', append);
+    child.stderr.on('data', append);
+    child.on('error', (error) => append(`Error: ${error.message}\n`));
+    child.on('close', (code) => {
+      firmwareBusy = false;
+      resolve({ exitCode: Number.isInteger(code) ? code : -1, output });
+    });
+  });
 }
 
 async function openController() {
@@ -204,26 +293,25 @@ async function requestExit() {
   if (exitChoiceOpen) return;
   exitChoiceOpen = true;
   try {
-    const { response } = await dialog.showMessageBox(mainWindow, {
-      type: 'question',
-      title: 'Exit WiFiPicoDMX',
-      message: 'How should WiFiPicoDMX exit?',
-      detail:
-        'Exit only keeps the server running for iPads and other operator devices.\n\n' +
-        'Exit and stop server disconnects those devices.',
-      buttons: ['Exit only', 'Exit and stop server', 'Cancel'],
-      defaultId: 0,
-      cancelId: 2,
-      noLink: true,
-    });
-    if (response === 0) {
+    const choice = await showExitChoice();
+    if (choice === 'keep') {
       app.exit(EXIT_KEEP_SERVER);
-    } else if (response === 1) {
+    } else if (choice === 'stop') {
       app.exit(EXIT_STOP_SERVER);
     }
   } finally {
     exitChoiceOpen = false;
   }
+}
+
+function showExitChoice() {
+  if (!mainWindow || mainWindow.isDestroyed()) return Promise.resolve('cancel');
+  restoreWindow();
+  return new Promise((resolve) => {
+    exitChoiceResolver = resolve;
+    controllerView?.setVisible(false);
+    mainWindow.webContents.send('shell:show-exit-choice');
+  });
 }
 
 async function waitForServer(url, timeoutMs) {

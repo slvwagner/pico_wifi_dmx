@@ -993,7 +993,7 @@ test.describe('Project versioning rules', () => {
     });
     await openDmxPage(page, '');
     await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
-    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded 1 custom library fixtures', { timeout: 15000 });
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded 1 active library fixtures', { timeout: 15000 });
 
     await page.evaluate(() => {
       profiles.splice(0, profiles.length, {
@@ -1064,7 +1064,7 @@ test.describe('Project versioning rules', () => {
     });
     await openDmxPage(page, '');
     await page.evaluate(() => setSectionCollapsed('profilesCollapseBtn', 'profilesBody', 'profilesCollapsed', false));
-    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded 1 custom library fixtures', { timeout: 15000 });
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('Loaded 1 active library fixtures', { timeout: 15000 });
 
     await page.evaluate(() => {
       profiles.splice(0, profiles.length, {

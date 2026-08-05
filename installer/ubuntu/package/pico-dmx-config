@@ -3,6 +3,14 @@ set -euo pipefail
 
 config_file=/etc/default/pico-dmx-controller
 service_name=pico-dmx-controller.service
+config_temp_file=''
+
+cleanup() {
+    if [[ -n "${config_temp_file:-}" ]]; then
+        rm -f -- "$config_temp_file"
+    fi
+}
+trap cleanup EXIT
 
 usage() {
     cat <<'EOF'
@@ -34,19 +42,39 @@ remove_ufw_rule() {
     ufw --force delete allow 'Pico DMX Controller' >/dev/null
 }
 
+print_lan_urls() {
+    local address
+    local found=0
+    if command -v hostname >/dev/null 2>&1; then
+        while IFS= read -r address; do
+            [[ -n "$address" ]] || continue
+            case "$address" in
+                *:*|127.*|169.254.*) continue ;;
+                *.*.*.*)
+                    printf '  http://%s:8090/\n' "$address"
+                    found=1
+                    ;;
+            esac
+        done < <(hostname -I 2>/dev/null | tr ' ' '\n')
+    fi
+    if [[ "$found" == 0 ]]; then
+        printf '%s\n' '  No LAN IPv4 address is currently available. Connect this computer to the trusted network and run --status again.'
+    fi
+}
+
 write_config() {
     local address="$1"
     local always_on="$2"
-    local temp_file
-    temp_file="$(mktemp)"
-    trap 'rm -f -- "$temp_file"' EXIT
+    config_temp_file="$(mktemp)"
     {
         printf '%s\n' '# Managed by pico-dmx-config.'
         printf 'PICO_DMX_LISTEN_ADDRESS=%s\n' "$address"
         printf '%s\n' 'PICO_DMX_PORT=8090'
         printf 'PICO_DMX_ALWAYS_ON=%s\n' "$always_on"
-    } > "$temp_file"
-    install -o root -g root -m 0644 "$temp_file" "$config_file"
+    } > "$config_temp_file"
+    install -o root -g root -m 0644 "$config_temp_file" "$config_file"
+    rm -f -- "$config_temp_file"
+    config_temp_file=''
 }
 
 case "${1:-}" in
@@ -83,7 +111,8 @@ case "${1:-}" in
         if systemctl is-active --quiet "$service_name"; then
             systemctl restart "$service_name"
         fi
-        printf 'Trusted LAN devices can connect at http://<this-computer-ip>:8090/\n'
+        printf 'Trusted LAN devices can connect at:\n'
+        print_lan_urls
         ;;
     --always-on)
         [[ "${EUID:-$(id -u)}" -eq 0 ]] || {
@@ -113,6 +142,8 @@ case "${1:-}" in
         address="$(read_setting PICO_DMX_LISTEN_ADDRESS)"
         if [[ "$address" == 0.0.0.0 ]]; then
             printf 'Access mode: trusted LAN (TCP 8090)\n'
+            printf 'Controller addresses:\n'
+            print_lan_urls
         else
             printf 'Access mode: local only (TCP 8090)\n'
         fi

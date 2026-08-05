@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Room Plane</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.1-15">
-<script src="assets/dmx-common.js?v=1.0.1-15"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.1.0-15">
+<script src="assets/dmx-common.js?v=1.1.0-15"></script>
 <style>
 body{min-height:100vh}
 .room-titlebar{padding:10px 14px;background:var(--bg);display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
@@ -96,11 +96,11 @@ canvas{display:none}
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_chaser.html">Chaser</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=1.0.1">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.1.0">GPIO</a>
     <a class="nav" href="dmx_monitor.html">Monitor</a>
     <a class="nav" href="test/">Performance</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=1.0.1#10-room-plane" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.1.0#10-room-plane" target="_blank">Manual</a>
   </div>
   </div>
 </header>
@@ -868,10 +868,7 @@ function cloneValue(value){
 function defaultValueForControl(c){
   if(c?.type==='panTilt16')return {pan:32768,tilt:32768};
   if(c?.type==='panTilt8')return {pan:128,tilt:128};
-  if(c?.type==='rgb'||c?.type==='cmy')return {a:0,b:0,c:0};
-  if(c?.type==='rgbw')return {a:0,b:0,c:0,w:0};
-  if(c?.type==='rgbwa')return {a:0,b:0,c:0,w:0,amber:0};
-  if(c?.type==='cmyk')return {a:0,b:0,c:0,k:0};
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c?.type))return DmxCommon.colorControlDefault(c);
   if(c?.type==='slider16')return 0;
   return 0;
 }
@@ -968,8 +965,7 @@ function recalledControlDmxRows(f,c,value){
     add(absolute(f.start,c.channel),bytes.coarse,c.label+' coarse');
     add(absolute(f.start,c.fine??c.channel+1),bytes.fine,c.label+' fine');
   }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:c.type==='cmyk'?['a','b','c','k']:['a','b','c'];
-    parts.forEach(part=>{if(c[part]!=null)add(absolute(f.start,c[part]),value?.[part]??0,c.label);});
+    DmxCommon.colorControlParts(c).forEach(part=>add(absolute(f.start,part.channel),value?.[part.part]??0,c.label+' '+part.label));
   }else if(c.type==='matrixRgb'){
     const pixels=Array.isArray(value?.pixels)?value.pixels:[];
     const count=Math.max(1,Math.min(170,parseInt(c.width,10)*parseInt(c.height,10)||pixels.length||1));
@@ -1727,8 +1723,7 @@ function roomGroupDmxRows(f,c){
     rows.push({fixture:f,channel:absolute(f.start,c.channel),value:b.coarse,param:c.label+' coarse'});
     rows.push({fixture:f,channel:absolute(f.start,c.fine??c.channel+1),value:b.fine,param:c.label+' fine'});
   }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(part=>rows.push({fixture:f,channel:absolute(f.start,c[part]),value:Math.max(0,Math.min(255,Number(value?.[part])||0)),param:c.label+' '+part}));
+    DmxCommon.colorControlParts(c).forEach(part=>rows.push({fixture:f,channel:absolute(f.start,part.channel),value:Math.max(0,Math.min(255,Number(value?.[part.part])||0)),param:c.label+' '+part.label}));
   }else{
     rows.push({fixture:f,channel:absolute(f.start,c.channel),value:Math.max(0,Math.min(255,Number(value)||0)),param:c.label});
   }
@@ -1787,10 +1782,9 @@ function updateRoomGroupControlDisplay(c){
     return;
   }
   if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(part=>{
-      document.querySelectorAll(`[data-room-gc-part="${CSS.escape(key)}"][data-part="${CSS.escape(part)}"]`).forEach(el=>el.textContent=Number(v?.[part])||0);
-      document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-part="${CSS.escape(part)}"]`).forEach(el=>{if(el.value!=Number(v?.[part])||0)el.value=Number(v?.[part])||0;});
+    DmxCommon.colorControlParts(c).forEach(part=>{
+      document.querySelectorAll(`[data-room-gc-part="${CSS.escape(key)}"][data-part="${CSS.escape(part.part)}"]`).forEach(el=>el.textContent=Number(v?.[part.part])||0);
+      document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-part="${CSS.escape(part.part)}"]`).forEach(el=>{if(el.value!=Number(v?.[part.part])||0)el.value=Number(v?.[part.part])||0;});
     });
     const color=c.type.startsWith('rgb')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     document.querySelectorAll(`input[data-room-gc="${CSS.escape(key)}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});

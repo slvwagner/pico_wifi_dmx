@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Chaser</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.0.1-15">
-<script src="assets/dmx-common.js?v=1.0.1-15"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.1.0-15">
+<script src="assets/dmx-common.js?v=1.1.0-15"></script>
 <style>
 input[type=range]{width:120px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -81,9 +81,9 @@ input[type=color]{width:44px;height:36px;padding:2px;background:#0a0d10;border:1
     <a class="nav" href="index.html">Controller</a>
     <a class="nav" href="dmx_show.html">Show</a>
     <a class="nav" href="dmx_motion.html">Effects</a>
-    <a class="nav" href="dmx_gpio.html?v=1.0.1">GPIO</a>
+    <a class="nav" href="dmx_gpio.html?v=1.1.0">GPIO</a>
     <a class="nav" href="dmx_room_plane.html">Plane</a>
-    <a class="nav" href="user-manual.html?v=1.0.1#5-chaser" target="_blank">Manual</a>
+    <a class="nav" href="user-manual.html?v=1.1.0#5-chaser" target="_blank">Manual</a>
   </div>
 </header>
 
@@ -548,8 +548,7 @@ function collectChannels(f,c,val,map){
   }else if(c.type==='panTilt8'){
     DmxCommon.panTiltDmxRows(c,val,rel=>absolute(f.start,rel)).forEach(row=>{map[row.ch]=row.val;});
   }else if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(p=>{map[absolute(f.start,c[p])]=val[p]??0;});
+    DmxCommon.colorControlParts(c).forEach(part=>{map[absolute(f.start,part.channel)]=val[part.part]??0;});
   }else if(c.type==='slider16'){
     const b=bytes16(val??0);
     map[absolute(f.start,c.channel)]=b.coarse;
@@ -568,10 +567,7 @@ function collectChannels(f,c,val,map){
 function defaultValue(c){
   if(c.type==='panTilt16')return{pan:32768,tilt:32768};
   if(c.type==='panTilt8')return{pan:128,tilt:128};
-  if(c.type==='cmyk')return{a:0,b:0,c:0,k:0};
-  if(c.type==='rgbw')return{a:0,b:0,c:0,w:0};
-  if(c.type==='rgbwa')return{a:0,b:0,c:0,w:0,amber:0};
-  if(c.type==='rgb'||c.type==='cmy')return{a:0,b:0,c:0};
+  if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type))return DmxCommon.colorControlDefault(c);
   if(c.type==='matrixRgb')return matrixDefaultValue(c);
   return 0;
 }
@@ -901,10 +897,9 @@ function updateChaserGroupControlDisplay(c){
     return;
   }
   if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(part=>{
-      document.querySelectorAll(`[data-cg-part="${key}"][data-part="${part}"]`).forEach(el=>el.textContent=Math.round(v[part]??0));
-      document.querySelectorAll(`input[data-cg="${key}"][data-part="${part}"]`).forEach(el=>{if(el.value!=v[part])el.value=Math.round(v[part]??0);});
+    DmxCommon.colorControlParts(c).forEach(part=>{
+      document.querySelectorAll(`[data-cg-part="${key}"][data-part="${part.part}"]`).forEach(el=>el.textContent=Math.round(v[part.part]??0));
+      document.querySelectorAll(`input[data-cg="${key}"][data-part="${part.part}"]`).forEach(el=>{if(el.value!=v[part.part])el.value=Math.round(v[part.part]??0);});
     });
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     document.querySelectorAll(`input[data-cg="${key}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
@@ -1988,10 +1983,9 @@ function updateStepDisplay(f,c,overrideValue){
     return;
   }
   if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
-    parts.forEach(pt=>{
-      document.querySelectorAll(`[data-fi="${fi}"][data-ci="${ci}"][data-cv="${pt}"]`).forEach(el=>el.textContent=Math.round(v[pt]??0));
-      document.querySelectorAll(`input[data-fi="${fi}"][data-ci="${ci}"][data-part="${pt}"]`).forEach(el=>{if(el.value!=v[pt])el.value=Math.round(v[pt]??0);});
+    DmxCommon.colorControlParts(c).forEach(part=>{
+      document.querySelectorAll(`[data-fi="${fi}"][data-ci="${ci}"][data-cv="${part.part}"]`).forEach(el=>el.textContent=Math.round(v[part.part]??0));
+      document.querySelectorAll(`input[data-fi="${fi}"][data-ci="${ci}"][data-part="${part.part}"]`).forEach(el=>{if(el.value!=v[part.part])el.value=Math.round(v[part.part]??0);});
     });
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
     document.querySelectorAll(`input[data-fi="${fi}"][data-ci="${ci}"][data-color-picker]`).forEach(el=>{if(el.value!==color)el.value=color;});
@@ -2065,12 +2059,11 @@ function renderStepControl(f,c){
       <label>Tilt<div class="value-row"><input type="range" min="0" max="255" value="${Math.round(v.tilt??128)}" data-fi="${fi}" data-ci="${ci}" data-axis="tilt"><input type="number" min="0" max="255" step="1" value="${Math.round(v.tilt??128)}" data-fi="${fi}" data-ci="${ci}" data-axis="tilt"></div></label></div>`;
   }
   if(['rgb','rgbw','rgbwa','cmy','cmyk'].includes(c.type)){
-    const names=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?['Red','Green','Blue','White','Amber']:c.type==='cmy'?['Cyan','Magenta','Yellow']:['Cyan','Magenta','Yellow','Key'];
-    const parts=c.type==='cmyk'?['a','b','c','k']:c.type==='rgbw'?['a','b','c','w']:c.type==='rgbwa'?['a','b','c','w','amber']:['a','b','c'];
+    const definitions=DmxCommon.colorControlParts(c);
     const color=(c.type==='rgb'||c.type==='rgbw'||c.type==='rgbwa')?rgbHex(v):(c.type==='cmy'?cmyHex(v):cmykHex(v));
-    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${parts.map(p=>absolute(f.start,c[p])).join('/')}</span></div>
+    return `<div class="control"><div class="control-head"><h3>${c.label}</h3><span class="bytes">CH ${definitions.map(part=>absolute(f.start,part.channel)).join('/')}</span></div>
       <label>Color<input type="color" value="${color}" data-fi="${fi}" data-ci="${ci}" data-color-picker="1"></label>
-      ${parts.map((pt,i)=>`<label>${names[i]} <span data-fi="${fi}" data-ci="${ci}" data-cv="${pt}">${Math.round(v[pt]??0)}</span><div class="value-row"><input type="range" min="0" max="255" value="${Math.round(v[pt]??0)}" data-fi="${fi}" data-ci="${ci}" data-part="${pt}"><input type="number" min="0" max="255" step="1" value="${Math.round(v[pt]??0)}" data-fi="${fi}" data-ci="${ci}" data-part="${pt}"></div></label>`).join('')}
+      ${definitions.map(part=>`<label>${escAttr(part.label)} <span data-fi="${fi}" data-ci="${ci}" data-cv="${part.part}">${Math.round(v[part.part]??0)}</span><div class="value-row"><input type="range" min="0" max="255" value="${Math.round(v[part.part]??0)}" data-fi="${fi}" data-ci="${ci}" data-part="${part.part}"><input type="number" min="0" max="255" step="1" value="${Math.round(v[part.part]??0)}" data-fi="${fi}" data-ci="${ci}" data-part="${part.part}"></div></label>`).join('')}
       <div class="swatches"><button class="swatch" style="background:#fff" data-color="#ffffff" data-fi="${fi}" data-ci="${ci}"></button><button class="swatch" style="background:#f00" data-color="#ff0000" data-fi="${fi}" data-ci="${ci}"></button><button class="swatch" style="background:#0f0" data-color="#00ff00" data-fi="${fi}" data-ci="${ci}"></button><button class="swatch" style="background:#00f" data-color="#0000ff" data-fi="${fi}" data-ci="${ci}"></button></div></div>`;
   }
   if(c.type==='matrixRgb'){
