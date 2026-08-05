@@ -269,6 +269,8 @@ test.describe('Code safety regression rules', () => {
     expect(shellPage).toContain('id="application-menu"');
     expect(shellPage).toContain('How should WiFiPicoDMX exit?');
     expect(shellPage).toContain('Exit and stop server');
+    expect(main).toContain('controllerView?.setVisible(false)');
+    expect(main).toContain('controllerView?.setVisible(true)');
     expect(launcher).toContain('EXIT_KEEP_SERVER=20');
     expect(launcher).toContain('EXIT_STOP_SERVER=21');
     expect(launcher).toContain('systemctl stop pico-dmx-controller.service');
@@ -285,6 +287,27 @@ test.describe('Code safety regression rules', () => {
     expect(service).toContain('-d max_execution_time=120');
     expect(service).toContain('-d post_max_size=128M');
     expect(service).toContain('-d upload_max_filesize=128M');
+  });
+
+  test('Ubuntu customer package includes the guarded guided firmware updater', () => {
+    const main = read('installer/ubuntu/shell/main.js');
+    const firmwarePage = read('installer/ubuntu/shell/firmware.html');
+    const helper = read('installer/ubuntu/package/flash_firmware.sh');
+    const builder = read('installer/ubuntu/build_package.sh');
+    const udev = read('installer/ubuntu/package/60-pico-dmx-controller.rules');
+
+    expect(main).toContain("'firmware:run'");
+    expect(main).toContain('firmwareBusy');
+    expect(firmwarePage).toContain('Flash application + Wi-Fi firmware');
+    expect(firmwarePage).toContain("confirm('Flash the application and Wi-Fi firmware now?");
+    expect(helper).toContain('sha256sum --check --status');
+    expect(helper).toContain('target[[:space:]]chip:[[:space:]]+RP2350');
+    expect(helper).toContain('"$picotool" load -v "$application"');
+    expect(helper).toContain('"$picotool" reboot -u');
+    expect(helper).toContain('"$picotool" load -u -v -x "$wifi_firmware"');
+    expect(builder).toContain('firmware-manifest.json');
+    expect(builder).toContain('PICO_DMX_APPLICATION_UF2');
+    expect(udev).toContain('TAG+="uaccess"');
   });
 
   test('motion slot response exposes target count without a duplicate fixture count', () => {

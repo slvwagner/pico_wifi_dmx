@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('picoShell', {
   close: () => ipcRenderer.send('shell:close'),
   exitFullscreen: () => ipcRenderer.send('shell:exit-fullscreen'),
   home: () => ipcRenderer.send('shell:home'),
+  openFirmware: () => ipcRenderer.send('shell:firmware'),
   openBrowser: () => ipcRenderer.send('shell:browser'),
   reload: () => ipcRenderer.send('shell:reload'),
   toggleFullscreen: () => ipcRenderer.send('shell:fullscreen'),

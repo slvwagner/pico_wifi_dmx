@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=WiFiPicoDMX Firmware Update
+Comment=Install WiFiPicoDMX firmware on a Pico 2 W
+Exec=pico-dmx-controller --firmware
+Icon=pico-dmx-controller
+Terminal=false
+Categories=AudioVideo;Utility;
+StartupNotify=true
+StartupWMClass=pico-dmx-controller

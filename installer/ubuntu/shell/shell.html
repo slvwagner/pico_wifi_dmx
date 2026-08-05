@@ -34,6 +34,7 @@ body.fullscreen #titlebar,body.fullscreen #menubar,body.fullscreen #status{displ
   <div class="menu" id="application-menu" role="menu">
     <button data-action="home" role="menuitem">Open controller</button>
     <button data-action="reload" role="menuitem">Reload</button><hr>
+    <button data-action="firmware" role="menuitem">Firmware update…</button><hr>
     <button data-action="browser" role="menuitem">Open in browser</button><hr>
     <button data-action="close" role="menuitem">Exit…</button>
   </div>
@@ -49,7 +50,7 @@ body.fullscreen #titlebar,body.fullscreen #menubar,body.fullscreen #status{displ
 </section></div>
 <script>
 'use strict';
-const actions={browser:()=>window.picoShell.openBrowser(),close:()=>window.picoShell.close(),'exit-fullscreen':()=>window.picoShell.exitFullscreen(),fullscreen:()=>window.picoShell.toggleFullscreen(),home:()=>window.picoShell.home(),reload:()=>window.picoShell.reload()};
+const actions={browser:()=>window.picoShell.openBrowser(),close:()=>window.picoShell.close(),'exit-fullscreen':()=>window.picoShell.exitFullscreen(),firmware:()=>window.picoShell.openFirmware(),fullscreen:()=>window.picoShell.toggleFullscreen(),home:()=>window.picoShell.home(),reload:()=>window.picoShell.reload()};
 const closeMenus=()=>{document.querySelectorAll('.menu.open').forEach((menu)=>menu.classList.remove('open'));document.querySelectorAll('[data-menu]').forEach((button)=>button.setAttribute('aria-expanded','false'));};
 document.addEventListener('click',(event)=>{const menuButton=event.target.closest('[data-menu]');if(menuButton){const menu=document.getElementById(menuButton.dataset.menu);const opening=!menu.classList.contains('open');closeMenus();if(opening){menu.classList.add('open');menuButton.setAttribute('aria-expanded','true');}return;}const exit=event.target.closest('[data-exit]')?.dataset.exit;if(exit){document.getElementById('exit-overlay').classList.remove('open');window.picoShell.chooseExit(exit);return;}const action=event.target.closest('[data-action]')?.dataset.action;if(action&&actions[action]){closeMenus();actions[action]();}else closeMenus();});
 document.addEventListener('keydown',(event)=>{if(event.key==='Escape'&&document.getElementById('exit-overlay').classList.contains('open')){document.getElementById('exit-overlay').classList.remove('open');window.picoShell.chooseExit('cancel');}});

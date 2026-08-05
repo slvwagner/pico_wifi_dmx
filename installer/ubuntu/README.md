@@ -39,6 +39,12 @@ The architecture-specific `.deb` package and its SHA-256 file are written to
 `release/v<VERSION>/`. The first build downloads the official Electron archive
 pinned in `shell/electron-runtime.env` and refuses it if its SHA-256 differs;
 later builds reuse the verified download.
+The package build also requires current Release-mode
+`build/pico_wifi_dmx.uf2` and `build/pico_wifi_dmx_wifi_firmware.uf2` files plus
+Raspberry Pi `picotool` 2.3.0. It refuses stale versions and invalid RP2350,
+partition-table, or Wi-Fi images. Nonstandard locations can be supplied with
+`PICO_DMX_APPLICATION_UF2`, `PICO_DMX_WIFI_FIRMWARE_UF2`, and
+`PICO_DMX_PICOTOOL`.
 Pass a different output directory as the first argument when needed:
 
 ```bash
@@ -56,6 +62,12 @@ sudo apt install ./wifi-pico-dmx_<VERSION>_amd64.deb
 
 Open **WiFiPicoDMX** from the Applications menu. The controller is
 available locally at `http://127.0.0.1:8090/`.
+
+The package also installs **WiFiPicoDMX Firmware Update**. The same guided
+updater is available from **Application > Firmware update…** in the main
+window. It validates the bundled version-matched application and Wi-Fi images,
+checks installed Pico versions over the network, guides BOOTSEL connection,
+and requires final confirmation before writing either firmware partition.
 
 The installer also creates **WiFiPicoDMX** on each normal user's
 configured XDG desktop. It never replaces an unrelated file with the same name.

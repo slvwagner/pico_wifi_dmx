@@ -14,6 +14,7 @@ const {
   shell,
 } = require('electron');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 
 const SHELL_TOP_NORMAL = 76;
 const SHELL_TOP_FULLSCREEN = 44;
@@ -28,9 +29,12 @@ let mainWindow = null;
 let controllerView = null;
 let tray = null;
 let controllerUrl = normalizeControllerUrl(readArgument('--url'));
+const openFirmwareOnStart = process.argv.includes('--firmware');
 let fullscreen = false;
 let exitChoiceOpen = false;
 let exitChoiceResolver = null;
+let firmwareWindow = null;
+let firmwareBusy = false;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -48,6 +52,7 @@ app.whenReady().then(async () => {
   createTray();
   registerShellActions();
   await openController();
+  if (openFirmwareOnStart) openFirmwareUpdater();
 });
 
 app.on('window-all-closed', () => {
@@ -193,11 +198,87 @@ function registerShellActions() {
   });
   ipcMain.on('shell:close', () => void requestExit());
   ipcMain.on('shell:browser', () => void shell.openExternal(controllerUrl));
+  ipcMain.on('shell:firmware', openFirmwareUpdater);
   ipcMain.on('shell:exit-choice', (_event, choice) => {
     if (!exitChoiceResolver || !['keep', 'stop', 'cancel'].includes(choice)) return;
     const resolve = exitChoiceResolver;
     exitChoiceResolver = null;
+    controllerView?.setVisible(true);
     resolve(choice);
+  });
+  ipcMain.handle('firmware:run', (_event, operation) => runFirmwareHelper(operation));
+  ipcMain.handle('firmware:discovery', async () => {
+    const response = await net.fetch(new URL('pico_discovery.php', controllerUrl), {
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!response.ok) throw new Error(`Controller returned HTTP ${response.status}.`);
+    return response.json();
+  });
+}
+
+function openFirmwareUpdater() {
+  if (firmwareWindow && !firmwareWindow.isDestroyed()) {
+    firmwareWindow.show();
+    firmwareWindow.focus();
+    return;
+  }
+  firmwareWindow = new BrowserWindow({
+    parent: mainWindow,
+    modal: true,
+    title: 'WiFiPicoDMX Firmware',
+    width: 850,
+    height: 780,
+    minWidth: 760,
+    minHeight: 690,
+    backgroundColor: DARK_BACKGROUND,
+    icon: path.join(__dirname, 'icon.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'firmware-preload.js'),
+      contextIsolation: true,
+      devTools: false,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  firmwareWindow.setMenuBarVisibility(false);
+  firmwareWindow.loadFile(path.join(__dirname, 'firmware.html'));
+  firmwareWindow.on('close', (event) => {
+    if (!firmwareBusy) return;
+    event.preventDefault();
+    firmwareWindow?.webContents.send('firmware:close-blocked');
+  });
+  firmwareWindow.on('closed', () => {
+    firmwareWindow = null;
+    firmwareBusy = false;
+  });
+}
+
+function runFirmwareHelper(operation) {
+  const argumentsByOperation = {
+    validate: '--validate-only',
+    probe: '--probe-only',
+    flash: '--flash',
+  };
+  const argument = argumentsByOperation[operation];
+  if (!argument) return Promise.reject(new Error('Unknown firmware operation.'));
+  if (firmwareBusy) return Promise.reject(new Error('Firmware work is already running.'));
+  firmwareBusy = true;
+  return new Promise((resolve) => {
+    const helper = path.join(process.resourcesPath, '..', '..', 'support', 'flash_firmware.sh');
+    const child = spawn(helper, [argument], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    const append = (chunk) => {
+      const text = chunk.toString();
+      output += text;
+      firmwareWindow?.webContents.send('firmware:output', text);
+    };
+    child.stdout.on('data', append);
+    child.stderr.on('data', append);
+    child.on('error', (error) => append(`Error: ${error.message}\n`));
+    child.on('close', (code) => {
+      firmwareBusy = false;
+      resolve({ exitCode: Number.isInteger(code) ? code : -1, output });
+    });
   });
 }
 
@@ -230,6 +311,7 @@ function showExitChoice() {
   restoreWindow();
   return new Promise((resolve) => {
     exitChoiceResolver = resolve;
+    controllerView?.setVisible(false);
     mainWindow.webContents.send('shell:show-exit-choice');
   });
 }
