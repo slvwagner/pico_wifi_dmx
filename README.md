@@ -3,7 +3,7 @@
 WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). Each Pico drives one full 512-channel DMX universe, and one show can combine multiple named Picos as separate DMX outputs/universes. Fixtures are assigned to their output, so the same DMX address can be reused in different universes. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the involved Picos so show playback does not depend on browser timing or WiFi latency.
 
 - **Latest stable release:** `1.1.0`
-- **Current development version:** `1.1.0`
+- **Current development version:** `1.1.1`
 
 See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
