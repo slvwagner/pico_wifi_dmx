@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 - Unreleased
+
+Changed:
+
+- Started the 1.1.1 development branch.
+- Added a guarded GitHub Release publisher that verifies a clean synchronized `main`, manifest and checksum integrity, documentation generation, both platform installers, and explicit acceptance of unsigned Windows builds before creating the annotated tag and latest public release. Interrupted publications can be resumed by reusing the matching tag and uploading only missing assets, while mismatched remote assets are never overwritten.
+- Clarified the Windows release output so the WSL stage reports that it assembles the Debian package from the already generated Windows manuals and firmware rather than implying that those artifacts are rebuilt under Linux.
+
 ## 1.1.0 - 2026-08-05
 
 Changed:

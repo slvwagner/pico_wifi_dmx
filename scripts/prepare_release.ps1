@@ -330,7 +330,7 @@ if ($isWindowsHost -and -not $SkipWindowsInstaller) {
 
 $debianInstaller = $null
 if ($isWindowsHost -and -not $SkipDebianInstaller) {
-    Invoke-Step "Build Debian customer installer through WSL" {
+    Invoke-Step "Assemble Debian package from Windows-built artifacts" {
         $debianArgs = @{
             OutputDir = $releaseDir
             ApplicationUf2 = (Join-Path $BuildDir "pico_wifi_dmx.uf2")

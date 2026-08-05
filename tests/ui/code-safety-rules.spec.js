@@ -368,7 +368,7 @@ test.describe('Code safety regression rules', () => {
 
     expect(releaseScript).toContain('[switch]$SkipDebianInstaller');
     expect(releaseScript).toContain('[string]$WslDistribution');
-    expect(releaseScript).toContain('Build Debian customer installer through WSL');
+    expect(releaseScript).toContain('Assemble Debian package from Windows-built artifacts');
     expect(releaseScript).toContain('installer\\ubuntu\\build_package_wsl.ps1');
     expect(releaseScript).toContain('debianInstaller = $debianInstaller');
     expect(wslBuilder).toContain('wsl.exe');
@@ -378,8 +378,24 @@ test.describe('Code safety regression rules', () => {
     expect(wslBuilder).toContain('build_package.sh');
   });
 
+  test('GitHub release publication is explicit, verified, and resumable', () => {
+    const publisher = read('scripts/publish_github_release.ps1');
+
+    expect(publisher).toContain('[switch]$AllowUnsignedWindowsInstaller');
+    expect(publisher).toContain("$branch -ne 'main'");
+    expect(publisher).toContain('git status --porcelain');
+    expect(publisher).toContain('origin/main');
+    expect(publisher).toContain('Get-FileHash -Algorithm SHA256');
+    expect(publisher).toContain('$manifest.windowsInstaller');
+    expect(publisher).toContain('$manifest.debianInstaller');
+    expect(publisher).toContain('gh release create');
+    expect(publisher).toContain('gh release upload');
+    expect(publisher).toContain('--latest');
+  });
+
   test('README presents the stable Windows installer before the overview and requires release-link verification', () => {
     const readme = read('README.md');
+    const publisher = read('scripts/publish_github_release.ps1');
     const localPathsExample = read('config/local-paths.example.json');
     const stableVersion = readme.match(/\*\*Latest stable release:\*\* `([^`]+)`/)?.[1];
 
@@ -410,8 +426,10 @@ test.describe('Code safety regression rules', () => {
       `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/user-manual.pdf`
     );
     expect(readme).toContain('Update the README **Getting Started** installer and user-manual labels');
-    expect(readme).toContain('gh release create v<VERSION>');
-    expect(readme).toContain('release/v<VERSION>/docs/user-manual.html');
+    expect(readme).toContain('.\\scripts\\publish_github_release.ps1');
+    expect(readme).toContain('-AllowUnsignedWindowsInstaller');
+    expect(readme).toContain('-WhatIf');
+    expect(publisher).toContain("@('user-manual.html', 'user-manual.pdf', 'user-manual-navigation.pdf')");
     expect(readme).toContain('Open the README installer and user-manual links');
   });
 
