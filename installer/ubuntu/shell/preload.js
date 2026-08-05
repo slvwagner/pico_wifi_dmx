@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('picoShell', {
   openFirmware: () => ipcRenderer.send('shell:firmware'),
   openBrowser: () => ipcRenderer.send('shell:browser'),
   reload: () => ipcRenderer.send('shell:reload'),
+  setMenuOpen: (open) => ipcRenderer.send('shell:menu-state', Boolean(open)),
   toggleFullscreen: () => ipcRenderer.send('shell:fullscreen'),
   chooseExit: (choice) => ipcRenderer.send('shell:exit-choice', choice),
   onFullscreenState: (callback) =>
@@ -17,4 +18,12 @@ contextBridge.exposeInMainWorld('picoShell', {
     ipcRenderer.on('shell:status', (_event, value) => callback(value)),
   onShowExitChoice: (callback) =>
     ipcRenderer.on('shell:show-exit-choice', () => callback()),
+});
+
+contextBridge.exposeInMainWorld('picoFirmware', {
+  close: () => ipcRenderer.send('firmware:close'),
+  discover: () => ipcRenderer.invoke('firmware:discovery'),
+  run: (operation) => ipcRenderer.invoke('firmware:run', operation),
+  onCloseBlocked: (callback) => ipcRenderer.on('firmware:close-blocked', callback),
+  onOutput: (callback) => ipcRenderer.on('firmware:output', (_event, value) => callback(value)),
 });

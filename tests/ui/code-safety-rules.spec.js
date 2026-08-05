@@ -271,6 +271,8 @@ test.describe('Code safety regression rules', () => {
     expect(shellPage).toContain('Exit and stop server');
     expect(main).toContain('controllerView?.setVisible(false)');
     expect(main).toContain('controllerView?.setVisible(true)');
+    expect(main).toContain("ipcMain.on('shell:menu-state'");
+    expect(shellPage).toContain('window.picoShell.setMenuOpen(opening)');
     expect(launcher).toContain('EXIT_KEEP_SERVER=20');
     expect(launcher).toContain('EXIT_STOP_SERVER=21');
     expect(launcher).toContain('systemctl stop pico-dmx-controller.service');
@@ -298,6 +300,10 @@ test.describe('Code safety regression rules', () => {
 
     expect(main).toContain("'firmware:run'");
     expect(main).toContain('firmwareBusy');
+    expect(main).not.toContain('modal: true');
+    expect(main).toContain('firmwareViewOpen');
+    expect(main).toContain('restoreControllerShell');
+    expect(main).not.toContain('firmwareWindow = new BrowserWindow');
     expect(firmwarePage).toContain('Flash application + Wi-Fi firmware');
     expect(firmwarePage).toContain("confirm('Flash the application and Wi-Fi firmware now?");
     expect(helper).toContain('sha256sum --check --status');

@@ -14,6 +14,8 @@ Changed:
 - Fixed **Update from OFL** terminating the Ubuntu customer application by giving its isolated PHP service the same 512 MB memory, 120-second execution, and 128 MB request limits as the Windows customer runtime.
 - Added the Windows-equivalent guided Pico 2 W firmware updater to the Ubuntu customer application and package, including network version checks, checksum and RP2350 metadata validation, single-device BOOTSEL probing, explicit write confirmation, verified application and separate Wi-Fi partition flashing, recovery guidance, USB user-access rules, and version-matched bundled firmware plus picotool.
 - Fixed the Ubuntu application appearing impossible to close because its controller `WebContentsView` covered the custom exit-choice dialog; the controller view is now hidden while the dialog is open and restored when closing is cancelled.
+- Fixed the Ubuntu Application/View dropdowns opening underneath the controller `WebContentsView`, which made **Firmware update…** and other menu actions inaccessible; opening a menu now temporarily yields the content area and restores it on selection or dismissal.
+- Fixed opening **Firmware update…** crashing Electron under Ubuntu/Wayland by presenting the guarded updater in the existing application window instead of creating a second GTK/Chromium window; closing the updater restores the live controller.
 
 ## 1.0.1 - 2026-07-28
 
