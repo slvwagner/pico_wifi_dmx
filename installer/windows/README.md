@@ -17,6 +17,12 @@ Mutable shows and fixture data are stored separately below
 `%ProgramData%\Pico DMX Controller\data` and are preserved by uninstall and
 upgrade.
 
+The packaged PHP runtime is sized for the complete converted OFL catalog:
+`memory_limit` is 512 MB, request processing is allowed 120 seconds, and fixture
+library uploads may be up to 128 MB. These limits are required because PHP's
+decoded arrays occupy substantially more memory than the catalog's JSON file;
+reducing them can make **Update from OFL** return a non-JSON fatal-error page.
+
 The desktop and Start Menu shortcuts open `WiFiPicoDMX.exe`. It supplies
 normal window controls, F11 fullscreen, Escape restore, a fullscreen exit/close
 bar, and a tray menu. The supported Windows DWM dark-frame attribute and custom

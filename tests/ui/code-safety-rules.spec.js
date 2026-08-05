@@ -85,6 +85,21 @@ test.describe('Code safety regression rules', () => {
     expect(apache).toContain('Options -Indexes');
   });
 
+  test('Windows customer runtime can update and import the full OFL fixture library', () => {
+    const php = read('installer/windows/runtime/php.ini.template');
+    const setting = name => {
+      const match = php.match(new RegExp(`^${name}\\s*=\\s*(\\d+)([KMG]?)`, 'mi'));
+      expect(match, `${name} must be configured`).not.toBeNull();
+      const multiplier = { '': 1, K: 1024, M: 1024 ** 2, G: 1024 ** 3 }[match[2].toUpperCase()];
+      return Number(match[1]) * multiplier;
+    };
+
+    expect(setting('memory_limit')).toBeGreaterThanOrEqual(512 * 1024 ** 2);
+    expect(setting('max_execution_time')).toBeGreaterThanOrEqual(120);
+    expect(setting('post_max_size')).toBeGreaterThanOrEqual(128 * 1024 ** 2);
+    expect(setting('upload_max_filesize')).toBeGreaterThanOrEqual(128 * 1024 ** 2);
+  });
+
   test('Windows app revalidates browser UI assets after an installer update', () => {
     const apache = read('installer/windows/runtime/httpd.conf.template');
     const form = read('installer/windows/shell/MainForm.cs');

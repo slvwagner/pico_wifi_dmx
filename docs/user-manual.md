@@ -248,9 +248,9 @@ The library loads automatically when the controller page opens. While it is load
 
 Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, **Update Library** changes to **Comparing...** while its merge dialog is open and then **Updated** when the chosen operation is complete.
 
-Use **Export Library** to download the currently loaded fixture catalog as the compressed `pico_dmx_fixture_library.zip`; it contains `pico_dmx_fixture_library.json`. Use **Import Library** to upload that ZIP or an older uncompressed library JSON file to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script `scripts/sync_fixture_library_from_xampp.ps1` can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys. When fixtures differ, the script asks whether to take each XAMPP change or keep the bundled copy; `-AcceptAllChanges`, `-KeepExistingChanges`, and `-DryRun` are available for intentional automated runs.
+Use **Export Library** to download the currently loaded fixture catalog as the compressed `pico_dmx_fixture_library.zip`; it contains `pico_dmx_fixture_library.json`. Use **Import Library** to replace the active catalog with that ZIP or an older uncompressed library JSON file. The server creates and maintains one active catalog rather than hiding updates behind separate standard and custom layers.
 
-Older custom catalogs may not contain Fixture Information, normalized capability data, or OFL wheel-resource links yet. In that case, the Controller overlays matching information from the built-in `fixture-metadata.json`, `fixture-capabilities.json`, and `fixture-resources.json` sidecars in browser memory. The resource sidecar stores each offline SVG/PNG once and maps it to matching fixture wheel slots. This does not save, replace, or otherwise modify the custom catalog on the XAMPP server.
+Use **Update from OFL** to refresh the active catalog from the complete OFL data bundled with the installed application. A timestamped backup is created before the update. Current OFL fixture facts and newly available fixtures are applied while user-added inline wheel/gobo images, explicitly user-modified modes, and fixtures created in the Controller are preserved.
 
 1. Type part of the manufacturer, fixture name, category, or mode in **Search manufacturer or fixture**.
 2. Select the matching fixture from the results list.
@@ -1722,6 +1722,12 @@ Use output-only clear when you want Effects to resume around the same stored cen
 - Confirm that the selected pin is not reserved or already used.
 - Check pull mode and trigger edge.
 - For ADC, use only GPIO26, GPIO27, or GPIO28.
+
+### Update from OFL reports an invalid server response
+
+- Install the latest WiFiPicoDMX application update. Older Windows packages used PHP memory and upload limits that were too small for the complete OFL catalog.
+- Run **Update from OFL** again after the upgrade. The Windows installer preserves the show-data directory and the update endpoint creates a fixture-library backup before changing the active catalog.
+- If it still fails, inspect `%ProgramData%\Pico DMX Controller\logs\php-error.log` and keep the active library and its latest `data\backups` snapshot for diagnosis.
 
 ### A chaser has more than 32 steps
 

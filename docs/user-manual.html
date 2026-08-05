@@ -639,8 +639,8 @@ body.manual-nav-open .manual-nav-backdrop {
 <p>The <strong>Fixture Library</strong> panel imports fixture profiles from an export of the original <a href="https://open-fixture-library.org/">Open Fixture Library</a> project. Use it when you want to start from an existing fixture definition instead of building every channel by hand. Selecting a fixture shows <strong>Fixture Information</strong> when OFL provides it: authors, creation/update dates, dimensions, weight, power, DMX connector, light source, beam angle, and links to the OFL entry, manual, product page, or video. External information links open in a new tab and only HTTP/HTTPS links are accepted.</p>
 <p>The library loads automatically when the controller page opens. While it is loading, the search field is disabled and the panel shows a loading status. If loading fails, the panel shows a <strong>Retry</strong> button.</p>
 <p>Command buttons that save, import, export, or update setup data briefly show their result on the button itself. For example, <strong>Update Library</strong> changes to <strong>Comparing...</strong> while its merge dialog is open and then <strong>Updated</strong> when the chosen operation is complete.</p>
-<p>Use <strong>Export Library</strong> to download the currently loaded fixture catalog as the compressed <code>pico_dmx_fixture_library.zip</code>; it contains <code>pico_dmx_fixture_library.json</code>. Use <strong>Import Library</strong> to upload that ZIP or an older uncompressed library JSON file to the XAMPP server. After import, the controller loads that custom library first; if no custom library is saved, it falls back to the built-in converted library asset. The development script <code>scripts/sync_fixture_library_from_xampp.ps1</code> can refresh that bundled fallback from the current XAMPP catalog after validating the library schema, fixture count, and fixture keys. When fixtures differ, the script asks whether to take each XAMPP change or keep the bundled copy; <code>-AcceptAllChanges</code>, <code>-KeepExistingChanges</code>, and <code>-DryRun</code> are available for intentional automated runs.</p>
-<p>Older custom catalogs may not contain Fixture Information, normalized capability data, or OFL wheel-resource links yet. In that case, the Controller overlays matching information from the built-in <code>fixture-metadata.json</code>, <code>fixture-capabilities.json</code>, and <code>fixture-resources.json</code> sidecars in browser memory. The resource sidecar stores each offline SVG/PNG once and maps it to matching fixture wheel slots. This does not save, replace, or otherwise modify the custom catalog on the XAMPP server.</p>
+<p>Use <strong>Export Library</strong> to download the currently loaded fixture catalog as the compressed <code>pico_dmx_fixture_library.zip</code>; it contains <code>pico_dmx_fixture_library.json</code>. Use <strong>Import Library</strong> to replace the active catalog with that ZIP or an older uncompressed library JSON file. The server creates and maintains one active catalog rather than hiding updates behind separate standard and custom layers.</p>
+<p>Use <strong>Update from OFL</strong> to refresh the active catalog from the complete OFL data bundled with the installed application. A timestamped backup is created before the update. Current OFL fixture facts and newly available fixtures are applied while user-added inline wheel/gobo images, explicitly user-modified modes, and fixtures created in the Controller are preserved.</p>
 <ol>
 <li>Type part of the manufacturer, fixture name, category, or mode in <strong>Search manufacturer or fixture</strong>.</li>
 <li>Select the matching fixture from the results list.</li>
@@ -1677,6 +1677,12 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Check pull mode and trigger edge.</li>
 <li>For ADC, use only GPIO26, GPIO27, or GPIO28.</li>
 </ul>
+<h3 id="update-from-ofl-reports-an-invalid-server-response">Update from OFL reports an invalid server response</h3>
+<ul>
+<li>Install the latest WiFiPicoDMX application update. Older Windows packages used PHP memory and upload limits that were too small for the complete OFL catalog.</li>
+<li>Run <strong>Update from OFL</strong> again after the upgrade. The Windows installer preserves the show-data directory and the update endpoint creates a fixture-library backup before changing the active catalog.</li>
+<li>If it still fails, inspect <code>%ProgramData%\Pico DMX Controller\logs\php-error.log</code> and keep the active library and its latest <code>data\backups</code> snapshot for diagnosis.</li>
+</ul>
 <h3 id="a-chaser-has-more-than-32-steps">A chaser has more than 32 steps</h3>
 <p>The firmware supports 32 steps per chaser slot. Keep the chase within this limit before uploading to the Pico.</p>
 <h2 id="change-log">Change Log</h2>
@@ -1684,6 +1690,16 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>below, with the newest development or release version first. The Markdown</p>
 <p>source remains linked to the canonical <a href="../CHANGELOG.md">project changelog</a>, so</p>
 <p>release information has one maintained source.</p>
+<h3 id="1-1-0-unreleased">1.1.0 - Unreleased</h3>
+<p>Changed:</p>
+<ul>
+<li>Started the 1.1.0 development branch.</li>
+<li>Added full Open Fixture Library regeneration with optional preservation of user-added inline wheel and gobo images from an existing fixture catalog. Preserved images are matched by fixture, mode, control, and DMX option identity, while current OFL names, ranges, metadata, defaults, capabilities, and other generated information remain authoritative.</li>
+<li>Replaced the custom-over-built-in fixture-library layering with one active server catalog. The Controller can now refresh it directly from the bundled OFL catalog after creating a timestamped backup, preserving user wheel images, explicitly user-modified modes, and explicitly user-created fixtures while allowing obsolete unmarked custom entries to disappear.</li>
+<li>Extended OFL color conversion to retain every color in split-color wheel slots, preserve LEE/Rosco filter references alongside their OFL hex previews, and combine RGB fixtures&#39; additional UV, lime, indigo, cyan, magenta, yellow, and warm/cold-white emitters into one advanced color control used consistently by Controller, Chaser, Show Run, and Room Plane.</li>
+<li>Fixed the guided wheel editor showing only the first color of split-color options. It now displays and edits every color, supports adding and removing split colors, updates the gradient preview without discarding the remaining colors, and visually separates every wheel-position row with a divider and additional spacing.</li>
+<li>Fixed <strong>Update from OFL</strong> and large fixture-library imports failing in the Windows customer app by sizing its PHP memory, execution-time, and upload limits for the complete bundled OFL catalog.</li>
+</ul>
 <h3 id="1-0-1-2026-07-28">1.0.1 - 2026-07-28</h3>
 <p>Changed:</p>
 <ul>
