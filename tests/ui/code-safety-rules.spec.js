@@ -345,6 +345,12 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
   });
 
+  test('release documentation generation stays local and never deploys to live XAMPP', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+
+    expect(releaseScript).toContain('$manualArgs = @{ LocalOnly = $true }');
+  });
+
   test('Windows release preparation builds and records the customer installer', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
 

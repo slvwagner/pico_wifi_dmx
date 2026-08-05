@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 - Unreleased
+## 1.1.0 - 2026-08-05
 
 Changed:
 
@@ -10,6 +10,16 @@ Changed:
 - Extended OFL color conversion to retain every color in split-color wheel slots, preserve LEE/Rosco filter references alongside their OFL hex previews, and combine RGB fixtures' additional UV, lime, indigo, cyan, magenta, yellow, and warm/cold-white emitters into one advanced color control used consistently by Controller, Chaser, Show Run, and Room Plane.
 - Fixed the guided wheel editor showing only the first color of split-color options. It now displays and edits every color, supports adding and removing split colors, updates the gradient preview without discarding the remaining colors, and visually separates every wheel-position row with a divider and additional spacing.
 - Fixed **Update from OFL** and large fixture-library imports failing in the Windows customer app by sizing its PHP memory, execution-time, and upload limits for the complete bundled OFL catalog.
+- Brought the Ubuntu desktop shell closer to the Windows application with matching dark Application/View menus, a styled three-choice exit dialog, disabled controller context menus, and startup disk-cache clearing; the checksum-verified `.deb` builder now works with either `curl` or `wget` on a clean build host.
+- Fixed **Update from OFL** terminating the Ubuntu customer application by giving its isolated PHP service the same 512 MB memory, 120-second execution, and 128 MB request limits as the Windows customer runtime.
+- Added the Windows-equivalent guided Pico 2 W firmware updater to the Ubuntu customer application and package, including network version checks, checksum and RP2350 metadata validation, single-device BOOTSEL probing, explicit write confirmation, verified application and separate Wi-Fi partition flashing, recovery guidance, USB user-access rules, and version-matched bundled firmware plus picotool.
+- Fixed the Ubuntu application appearing impossible to close because its controller `WebContentsView` covered the custom exit-choice dialog; the controller view is now hidden while the dialog is open and restored when closing is cancelled.
+- Fixed the Ubuntu Application/View dropdowns opening underneath the controller `WebContentsView`, which made **Firmware update…** and other menu actions inaccessible; opening a menu now temporarily yields the content area and restores it on selection or dismissal.
+- Fixed opening **Firmware update…** crashing Electron under Ubuntu/Wayland by presenting the guarded updater in the existing application window instead of creating a second GTK/Chromium window; closing the updater restores the live controller.
+- Fixed `pico-dmx-config --lan`, `--local`, and lifecycle commands reporting `temp_file: unbound variable` after successfully writing configuration by keeping temporary-file cleanup state valid for the script's full lifetime.
+- Changed Ubuntu `pico-dmx-config --lan` and LAN-mode `--status` to print the computer's concrete IPv4 controller URL instead of the unusable `this-computer-ip` placeholder, with an explicit message when no LAN address is available.
+- Added WSL-based Debian packaging to the Windows release workflow. One release command can now build the native Windows installer and the Debian/Ubuntu package from the same checkout and firmware, record both checksums and architectures in the release manifest, select a WSL distribution, accept an explicit Linux picotool path, and stage Debian metadata on WSL's native filesystem so NTFS mount permissions cannot invalidate the package. The Ubuntu package guide now documents the verified WSL launch and trusted-LAN test workflow, including mirrored networking, narrowly scoped TCP 8090 firewall access, Windows `localhost` access, and the separate LAN URL used by other devices.
+- Fixed release preparation deploying regenerated manuals and application source into the protected live XAMPP controller. Documentation generation is now always local-only; the release test application continues to be synchronized exclusively to the isolated `dmx-test` playground.
 
 ## 1.0.1 - 2026-07-28
 

@@ -2,7 +2,7 @@
 
 WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). Each Pico drives one full 512-channel DMX universe, and one show can combine multiple named Picos as separate DMX outputs/universes. Fixtures are assigned to their output, so the same DMX address can be reused in different universes. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the involved Picos so show playback does not depend on browser timing or WiFi latency.
 
-- **Latest stable release:** `1.0.1`
+- **Latest stable release:** `1.1.0`
 - **Current development version:** `1.1.0`
 
 See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
@@ -10,13 +10,17 @@ See [Versioning](#versioning) for the version-number and branch policy and [CHAN
 ## Getting Started
 
 For a customer PC running 64-bit Windows, download and run the current
-**[WiFiPicoDMX 1.0.1 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.1/wifi-pico-dmx-1.0.1-windows-x64.exe)**.
+**[WiFiPicoDMX 1.1.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.1.0/wifi-pico-dmx-1.1.0-windows-x64.exe)**.
 The installer includes the customer application, local web server, manual, and
 guided Pico firmware updater. Because the current installer is unsigned,
 Windows can display a SmartScreen publisher warning.
 
+For a 64-bit Ubuntu or Debian computer, download the
+**[WiFiPicoDMX 1.1.0 Debian package](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.1.0/wifi-pico-dmx_1.1.0_amd64.deb)**
+and install it with `sudo apt install ./wifi-pico-dmx_1.1.0_amd64.deb`.
+
 Read the matching
-**[WiFiPicoDMX 1.0.1 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.0.1/user-manual.pdf)**
+**[WiFiPicoDMX 1.1.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.1.0/user-manual.pdf)**
 for installation, firmware flashing, show setup, and operation instructions.
 
 The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
@@ -1116,12 +1120,13 @@ release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2
 release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2
 release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2
 release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe  # Windows host
+release/v<VERSION>/wifi-pico-dmx_<VERSION>_amd64.deb        # Windows host through WSL
 ```
 
-It writes a SHA256 checksum for every UF2 and for the Windows installer when
-created. `release-manifest.json` records all three firmware artifacts and the
-optional Windows installer—including its size, SHA-256, and whether the build
-was Authenticode-signed—together with the version, branch, and commit. Windows
+It writes a SHA256 checksum for every UF2 and for each installer when created.
+`release-manifest.json` records all three firmware artifacts and the optional
+Windows and Debian installers—including size, SHA-256, Windows signing state,
+and Debian architecture—together with the version, branch, and commit. Windows
 installer executables and checksum files remain ignored so large local builds
 and signing outputs are not accidentally committed. The remaining `release/`
 content can be committed if desired, although public binary distribution is
@@ -1148,6 +1153,8 @@ gh release create v<VERSION> `
   --generate-notes --latest `
   release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe `
   release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe.sha256 `
+  release/v<VERSION>/wifi-pico-dmx_<VERSION>_amd64.deb `
+  release/v<VERSION>/wifi-pico-dmx_<VERSION>_amd64.deb.sha256 `
   release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2 `
   release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2.sha256 `
   release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2 `

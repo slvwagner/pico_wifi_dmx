@@ -178,7 +178,9 @@ if ($cmake -notmatch 'pico_set_program_version\s*\(\s*pico_wifi_dmx\s+"\$\{PICO_
 
 if (-not $SkipManual) {
     Invoke-Step "Regenerate manual, PDF, and screenshots" {
-        $manualArgs = @{}
+        # Release preparation must never deploy generated documentation or source
+        # files into the user's protected live XAMPP application.
+        $manualArgs = @{ LocalOnly = $true }
         if ($XamppHtdocs) { $manualArgs.XamppHtdocs = $XamppHtdocs }
         if ($AppFolder) { $manualArgs.AppFolder = $AppFolder }
         if ($BaseUrl) { $manualArgs.BaseUrl = $BaseUrl }

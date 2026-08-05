@@ -560,7 +560,7 @@ body.manual-nav-open .manual-nav-backdrop {
 <ol>
 <li>Install <code>wifi-pico-dmx_&lt;VERSION&gt;_&lt;ARCHITECTURE&gt;.deb</code> through Ubuntu App Center or with <code>sudo apt install ./wifi-pico-dmx_&lt;VERSION&gt;_amd64.deb</code>.</li>
 <li>Start <strong>WiFiPicoDMX</strong> from Applications or its installer-owned desktop shortcut.</li>
-<li>Use <code>sudo pico-dmx-config --lan</code> only when trusted iPads or other PCs need access. The default remains local-only on port <code>8090</code>.</li>
+<li>Use <code>sudo pico-dmx-config --lan</code> only when trusted iPads or other PCs need access. The default remains local-only on port <code>8090</code>. The command detects and prints this computer&#39;s current DHCP-assigned controller URL; enter that URL in Safari on an iPad connected to the same trusted network. Run <code>pico-dmx-config --status</code> to detect and display the current URL again after any address change, or <code>sudo pico-dmx-config --local</code> to return to local-only access.</li>
 <li>Configure the hardware in <strong>DMX Outputs</strong>, then use <strong>Export Show</strong> to keep a portable backup.</li>
 </ol>
 <p>Closing WiFiPicoDMX offers <strong>Exit only</strong>, <strong>Exit and stop server</strong>, and <strong>Cancel</strong>. Exit only closes the Electron/Chromium application but leaves the <code>pico-dmx-controller.service</code> server available. Exit and stop server waits until no other local WiFiPicoDMX window is using the service, then stops it. Cancel returns to the application. Use <code>sudo pico-dmx-config --always-on</code> when the server must also start automatically at boot; use <code>sudo pico-dmx-config --application-managed</code> to restore application-managed startup.</p>
@@ -1690,7 +1690,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>below, with the newest development or release version first. The Markdown</p>
 <p>source remains linked to the canonical <a href="../CHANGELOG.md">project changelog</a>, so</p>
 <p>release information has one maintained source.</p>
-<h3 id="1-1-0-unreleased">1.1.0 - Unreleased</h3>
+<h3 id="1-1-0-2026-08-05">1.1.0 - 2026-08-05</h3>
 <p>Changed:</p>
 <ul>
 <li>Started the 1.1.0 development branch.</li>
@@ -1699,6 +1699,16 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Extended OFL color conversion to retain every color in split-color wheel slots, preserve LEE/Rosco filter references alongside their OFL hex previews, and combine RGB fixtures&#39; additional UV, lime, indigo, cyan, magenta, yellow, and warm/cold-white emitters into one advanced color control used consistently by Controller, Chaser, Show Run, and Room Plane.</li>
 <li>Fixed the guided wheel editor showing only the first color of split-color options. It now displays and edits every color, supports adding and removing split colors, updates the gradient preview without discarding the remaining colors, and visually separates every wheel-position row with a divider and additional spacing.</li>
 <li>Fixed <strong>Update from OFL</strong> and large fixture-library imports failing in the Windows customer app by sizing its PHP memory, execution-time, and upload limits for the complete bundled OFL catalog.</li>
+<li>Brought the Ubuntu desktop shell closer to the Windows application with matching dark Application/View menus, a styled three-choice exit dialog, disabled controller context menus, and startup disk-cache clearing; the checksum-verified <code>.deb</code> builder now works with either <code>curl</code> or <code>wget</code> on a clean build host.</li>
+<li>Fixed <strong>Update from OFL</strong> terminating the Ubuntu customer application by giving its isolated PHP service the same 512 MB memory, 120-second execution, and 128 MB request limits as the Windows customer runtime.</li>
+<li>Added the Windows-equivalent guided Pico 2 W firmware updater to the Ubuntu customer application and package, including network version checks, checksum and RP2350 metadata validation, single-device BOOTSEL probing, explicit write confirmation, verified application and separate Wi-Fi partition flashing, recovery guidance, USB user-access rules, and version-matched bundled firmware plus picotool.</li>
+<li>Fixed the Ubuntu application appearing impossible to close because its controller <code>WebContentsView</code> covered the custom exit-choice dialog; the controller view is now hidden while the dialog is open and restored when closing is cancelled.</li>
+<li>Fixed the Ubuntu Application/View dropdowns opening underneath the controller <code>WebContentsView</code>, which made <strong>Firmware update…</strong> and other menu actions inaccessible; opening a menu now temporarily yields the content area and restores it on selection or dismissal.</li>
+<li>Fixed opening <strong>Firmware update…</strong> crashing Electron under Ubuntu/Wayland by presenting the guarded updater in the existing application window instead of creating a second GTK/Chromium window; closing the updater restores the live controller.</li>
+<li>Fixed <code>pico-dmx-config --lan</code>, <code>--local</code>, and lifecycle commands reporting <code>temp_file: unbound variable</code> after successfully writing configuration by keeping temporary-file cleanup state valid for the script&#39;s full lifetime.</li>
+<li>Changed Ubuntu <code>pico-dmx-config --lan</code> and LAN-mode <code>--status</code> to print the computer&#39;s concrete IPv4 controller URL instead of the unusable <code>this-computer-ip</code> placeholder, with an explicit message when no LAN address is available.</li>
+<li>Added WSL-based Debian packaging to the Windows release workflow. One release command can now build the native Windows installer and the Debian/Ubuntu package from the same checkout and firmware, record both checksums and architectures in the release manifest, select a WSL distribution, accept an explicit Linux picotool path, and stage Debian metadata on WSL&#39;s native filesystem so NTFS mount permissions cannot invalidate the package. The Ubuntu package guide now documents the verified WSL launch and trusted-LAN test workflow, including mirrored networking, narrowly scoped TCP 8090 firewall access, Windows <code>localhost</code> access, and the separate LAN URL used by other devices.</li>
+<li>Fixed release preparation deploying regenerated manuals and application source into the protected live XAMPP controller. Documentation generation is now always local-only; the release test application continues to be synchronized exclusively to the isolated <code>dmx-test</code> playground.</li>
 </ul>
 <h3 id="1-0-1-2026-07-28">1.0.1 - 2026-07-28</h3>
 <p>Changed:</p>

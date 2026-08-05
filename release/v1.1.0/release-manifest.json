@@ -1,12 +1,12 @@
 {
   "version": "1.1.0",
   "branch": "1.1.0",
-  "commit": "16b52f1",
-  "createdAt": "2026-08-05T12:52:21Z",
+  "commit": "e4bf234",
+  "createdAt": "2026-08-05T14:56:47Z",
   "tests": {
     "hardware": false
   },
-  "docsGenerated": false,
+  "docsGenerated": true,
   "firmware": {
     "file": "pico_wifi_dmx-v1.1.0.uf2",
     "sizeBytes": 483328,
@@ -24,30 +24,36 @@
   },
   "windowsInstaller": {
     "file": "wifi-pico-dmx-1.1.0-windows-x64.exe",
-    "sizeBytes": 112947663,
-    "sha256": "3324499b98f7bbb510d5071a88b1787ba83a12a6250d43cce38928b2652685ac",
+    "sizeBytes": 112976867,
+    "sha256": "afe456d1cd956e439dff13e0c14a75fe3e4392c2fab2e7596f953caa872329f7",
     "signed": false
+  },
+  "debianInstaller": {
+    "file": "wifi-pico-dmx_1.1.0_amd64.deb",
+    "architecture": "amd64",
+    "sizeBytes": 107964462,
+    "sha256": "6e29bfb9623c598c71dedf111db419729ddbfbcaf6f0f87e42df74ea5497996c"
   },
   "docs": {
     "user-manual.md": {
-      "sizeBytes": 173651,
-      "sha256": "f311906c7a4e3cff853c47fd6c84a29cfacf009d467c255116eaac5d3955a681"
+      "sizeBytes": 173989,
+      "sha256": "598d31c0fab2af097931f1bdc6044b7f32000b7ac55c2dade326faea4fd5b9f3"
     },
     "user-manual.html": {
-      "sizeBytes": 300185,
-      "sha256": "e5fc831fab3809f8475116b19ed0620bbfddb6225313793cb9976a075c5ec4f2"
+      "sizeBytes": 303909,
+      "sha256": "5e490dbd7ec5b39186e4386a57882d264f28e6d3f21eaa12846a196e873caaa4"
     },
     "user-manual-print.html": {
-      "sizeBytes": 300145,
-      "sha256": "5b77dfdf5dbfe2bbb32a9e14dae49101c3bd4094be1fa96e8964364baaa194dd"
+      "sizeBytes": 303869,
+      "sha256": "7486c0103720eed8d3eef9b7558c9834250cf5655c4a808941c5d3c89340d3c2"
     },
     "user-manual.pdf": {
-      "sizeBytes": 4577245,
-      "sha256": "cbb39ffa9fe7a4e3d491ea52976930d8aa05bd0a440ea69c08d50814f9917050"
+      "sizeBytes": 4597637,
+      "sha256": "c124118e339dde01ad8c803e6a4ae20e9050fc3ef6d4eb7eabd7d80539ea31dc"
     },
     "user-manual-navigation.pdf": {
-      "sizeBytes": 5771212,
-      "sha256": "fef77830b53f8d11825dc57d5a65f4dbd650751d0345f09ba4f881ca88e8bd32"
+      "sizeBytes": 5799514,
+      "sha256": "ed290a7b74905eda42cbe0ecc19685844a62b74c991f86a5ce0b386f041a1440"
     },
     "screenshots": {
       "count": 75

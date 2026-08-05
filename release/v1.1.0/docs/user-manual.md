@@ -140,7 +140,7 @@ Do not forward the selected controller port from the internet router. Direct cus
 
 1. Install `wifi-pico-dmx_<VERSION>_<ARCHITECTURE>.deb` through Ubuntu App Center or with `sudo apt install ./wifi-pico-dmx_<VERSION>_amd64.deb`.
 2. Start **WiFiPicoDMX** from Applications or its installer-owned desktop shortcut.
-3. Use `sudo pico-dmx-config --lan` only when trusted iPads or other PCs need access. The default remains local-only on port `8090`.
+3. Use `sudo pico-dmx-config --lan` only when trusted iPads or other PCs need access. The default remains local-only on port `8090`. The command detects and prints this computer's current DHCP-assigned controller URL; enter that URL in Safari on an iPad connected to the same trusted network. Run `pico-dmx-config --status` to detect and display the current URL again after any address change, or `sudo pico-dmx-config --local` to return to local-only access.
 4. Configure the hardware in **DMX Outputs**, then use **Export Show** to keep a portable backup.
 
 Closing WiFiPicoDMX offers **Exit only**, **Exit and stop server**, and **Cancel**. Exit only closes the Electron/Chromium application but leaves the `pico-dmx-controller.service` server available. Exit and stop server waits until no other local WiFiPicoDMX window is using the service, then stops it. Cancel returns to the application. Use `sudo pico-dmx-config --always-on` when the server must also start automatically at boot; use `sudo pico-dmx-config --application-managed` to restore application-managed startup.
