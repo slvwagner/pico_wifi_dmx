@@ -1476,12 +1476,16 @@ All persistent data is stored as JSON files in the PHP web server's `data/` fold
 | `motion_setup.php` | `data/motion_setup.json` | Effects browser setup, saved effect recipes, and saved Pico slot payloads |
 | `gpio_setup.php` | `data/gpio_setup.json` | Selected DMX Output and independent GPIO/ADC mapping configuration for every output |
 | `room_plane_setup.php` | `data/room_plane_setup.json` | Room Plane A/B/C points, target/view state, saved planes, fixture mount positions, and fixture calibration |
-| `fixture_library.php` | `data/fixture_library.json` | Optional custom converted fixture library catalog |
+| `fixture_library.php` | `data/fixture_library.json` | Single active fixture library catalog, initialized and refreshed from the bundled OFL catalog |
 | `ui_state.php` | `data/ui_state.json` | UI state such as section collapse flags, toolbox order, shared sidebar width, toolbox collapse state, and Show Run card/tile/live-control/MIDI mapping configuration |
 
 All handlers accept `GET` (read) and `POST` (write). `ui_state.php` merges partial state — posting `{page, state}` only touches the keys provided and leaves the rest intact.
 
 The controller's **Export Show** action reads these same endpoints and writes a show-name-specific JSON file, embedding only the catalog entries and modes the show uses. Importing it restores the stored show name and posts each show subsystem back to its existing endpoint, so the pages continue to use the normal autosave files after restore. **Export Library** downloads the complete catalog as `pico_dmx_fixture_library.zip` with `pico_dmx_fixture_library.json` inside; **Import Library** accepts the ZIP and legacy uncompressed JSON catalogs.
+
+The Controller uses one runtime fixture catalog: `data/fixture_library.json`. On first use, the server initializes that active catalog from `assets/fixture-library.json`. The bundled asset is therefore an installation seed and OFL update source, not a competing library that can be hidden by a custom snapshot. Use **Update from OFL** in the Fixture Library panel to refresh the active catalog. The server creates a timestamped backup under `data/backups/` before changing it, takes current fixture facts and new fixtures from the bundled OFL catalog, and preserves user-added inline wheel/gobo images, modes explicitly saved from a show, and fixtures explicitly created in the Controller. Old unmarked `custom/...` fixtures are not retained by the refresh.
+
+When **Use show in library** saves a mode, the Controller marks that mode as user-modified so later OFL refreshes keep the complete user version. Newly created Controller fixtures are similarly marked as user fixtures. An imported complete library becomes the active catalog; it does not create a second runtime layer.
 
 To rebuild the complete catalog from the bundled Open Fixture Library export while retaining user-drawn or uploaded wheel images from an existing catalog, pass that catalog explicitly as the preservation source:
 

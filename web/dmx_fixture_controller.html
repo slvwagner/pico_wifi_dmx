@@ -232,6 +232,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="fixtureLibraryBody">
 <div class="fixture-library-controls">
 <label>Search manufacturer or fixture<input id="fixtureLibrarySearch" type="text" placeholder="American DJ Inno Pocket" disabled></label>
+<button id="updateFixtureLibrary" title="Refresh the active library from the bundled Open Fixture Library catalog while preserving user-owned data">Update from OFL</button>
 <button id="retryFixtureLibrary" style="display:none">Retry</button>
 </div>
 <div class="small" id="fixtureLibraryStatus">Loading fixture library...</div>
@@ -1434,15 +1435,16 @@ function upsertProfileIntoFixtureLibrary(library,profile){
   let fixture=libraryFixtureAndModeForProfile(library,profile).fixture;
   if(!fixture){
     const key='custom/'+fixtureLibraryKeyFromName(fixtureName);
-    fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],modes:[]};
+    fixture={key,manufacturerName:'Custom',name:fixtureName,categories:['Custom'],userFixture:true,modes:[]};
     library.fixtures.push(fixture);
   }
+  if(String(fixture.key||'').startsWith('custom/'))fixture.userFixture=true;
   cleanProfile.name=canonicalLibraryProfileName(fixture,cleanProfile.name);
   const modeIndex=(fixture.modes||[]).findIndex(candidate=>libraryModeMatchesProfile(candidate,profile));
   if(!Array.isArray(fixture.modes))fixture.modes=[];
   const existingMode=modeIndex>=0?fixture.modes[modeIndex]:null;
   const profileWithMetadata=mergeLibraryModeProfileMetadata(existingMode,cleanProfile);
-  const mode={...(existingMode||{}),name:cleanProfile.mode,channels:cleanProfile.channels,profile:profileWithMetadata,warnings:existingMode?.warnings||[]};
+  const mode={...(existingMode||{}),name:cleanProfile.mode,channels:cleanProfile.channels,profile:profileWithMetadata,warnings:existingMode?.warnings||[],userModified:true,modifiedAt:new Date().toISOString()};
   if(modeIndex>=0)fixture.modes[modeIndex]=mode;
   else fixture.modes.push(mode);
   fixture.modes.sort((a,b)=>(a.channels||0)-(b.channels||0)||String(a.name||'').localeCompare(String(b.name||'')));
@@ -2043,7 +2045,7 @@ async function loadFixtureLibrary(options={}){
   document.getElementById('fixtureLibraryResults').innerHTML='<div class="small">Loading fixture library...</div>';
   document.getElementById('fixtureLibraryPreview').innerHTML='<div class="small">Select a fixture to preview modes and controls.</div>';
   try{
-    let loadedFrom='built-in';
+    let loadedFrom='active';
     let informationCount=0;
     let capabilityControlCount=0;
     let resourceImageCount=0;
@@ -2052,7 +2054,7 @@ async function loadFixtureLibrary(options={}){
       const serverJson=await serverResponse.json();
       if(serverResponse.ok&&serverJson.ok&&serverJson.exists&&serverJson.library?.fixtures?.length){
         fixtureLibraryState.data=normalizeFixtureLibrary(serverJson.library);
-        loadedFrom='custom';
+        loadedFrom='active';
         try{
           const metadataResponse=await fetch('assets/fixture-metadata.json',{cache:'no-store'});
           if(metadataResponse.ok){
@@ -2066,6 +2068,7 @@ async function loadFixtureLibrary(options={}){
       const r=await fetch('assets/fixture-library.json',{cache:'no-store'});
       if(!r.ok)throw new Error('HTTP '+r.status);
       fixtureLibraryState.data=normalizeFixtureLibrary(await r.json());
+      loadedFrom='offline fallback';
     }
     try{
       const capabilityResponse=await fetch('assets/fixture-capabilities.json',{cache:'no-store'});
@@ -2097,6 +2100,7 @@ async function loadFixtureLibrary(options={}){
 function normalizeFixtureLibrary(data){
   if(!data||typeof data!=='object'||!Array.isArray(data.fixtures))throw new Error('Expected fixture library JSON with a fixtures array');
   return {
+    ...data,
     schemaVersion:data.schemaVersion||1,
     source:data.source||'Imported fixture library',
     generatedAt:data.generatedAt||new Date().toISOString(),
@@ -2108,6 +2112,17 @@ async function saveFixtureLibraryToServer(library){
   const r=await fetch('fixture_library.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(library)});
   const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
   if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+}
+async function updateFixtureLibraryFromOfl(){
+  if(!confirm('Update the active fixture library from the bundled OFL catalog? A backup is created first. User-added wheel images, user-created fixtures, and modes saved from a show are preserved.'))return false;
+  const status=document.getElementById('fixtureLibraryStatus');
+  status.textContent='Updating active fixture library from OFL...';
+  const r=await fetch('fixture_library.php?action=update-standard',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  const j=await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
+  if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));
+  await loadFixtureLibrary({force:true});
+  setStatus('Fixture library updated from OFL. Preserved '+j.preservedImages+' wheel images, '+j.preservedModes+' user-modified modes, and '+j.preservedFixtures+' user-created fixtures. Backup: '+j.backup);
+  return true;
 }
 function openFixtureProfilesSection(){
   setSectionCollapsed('profilesCollapseBtn','profilesBody','profilesCollapsed',false);
@@ -3373,6 +3388,7 @@ document.getElementById('openControlDetails').onclick=openControlDetailsModal;
 document.getElementById('closeControlDetailsModal').onclick=closeControlDetailsModal;
 document.getElementById('closeControlDetailsModal2').onclick=closeControlDetailsModal;
 document.getElementById('retryFixtureLibrary').onclick=()=>loadFixtureLibrary({force:true});
+document.getElementById('updateFixtureLibrary').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Updating...',success:'Updated',error:'Failed'},()=>updateFixtureLibraryFromOfl()).catch(err=>showError('Fixture library update failed: '+err.message));
 document.getElementById('exportFixtureLibrary').onclick=e=>DmxCommon.withButtonFeedback(e.currentTarget,{busy:'Exporting...',success:'Exported',error:'Failed'},async()=>exportCurrentFixtureLibrary()).catch(err=>showError('Fixture library export failed: '+err.message));
 document.getElementById('importFixtureLibrary').onclick=()=>document.getElementById('importFixtureLibraryFile').click();
 document.getElementById('importFixtureLibraryFile').onchange=e=>{

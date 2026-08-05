@@ -37,6 +37,7 @@ $paletteApiSource = Join-Path $apiDir "palette_setup.php"
 $gpioApiSource    = Join-Path $apiDir "gpio_setup.php"
 $roomPlaneApiSource = Join-Path $apiDir "room_plane_setup.php"
 $fixtureLibraryApiSource = Join-Path $apiDir "fixture_library.php"
+$fixtureLibraryMergeSource = Join-Path $apiDir "fixture_library_merge.php"
 $uiStateSource   = Join-Path $apiDir "ui_state.php"
 $appPathsSource  = Join-Path $apiDir "app_paths.php"
 $jsonStoreSource = Join-Path $apiDir "json_store.php"
@@ -68,6 +69,7 @@ $paletteApiTarget = Join-Path $targetDir "palette_setup.php"
 $gpioApiTarget    = Join-Path $targetDir "gpio_setup.php"
 $roomPlaneApiTarget = Join-Path $targetDir "room_plane_setup.php"
 $fixtureLibraryApiTarget = Join-Path $targetDir "fixture_library.php"
+$fixtureLibraryMergeTarget = Join-Path $targetDir "fixture_library_merge.php"
 $uiStateTarget   = Join-Path $targetDir "ui_state.php"
 $appPathsTarget  = Join-Path $targetDir "app_paths.php"
 $jsonStoreTarget = Join-Path $targetDir "json_store.php"
@@ -160,6 +162,10 @@ if (Test-Path -LiteralPath $roomPlaneApiSource) {
 if (Test-Path -LiteralPath $fixtureLibraryApiSource) {
     Copy-Item -LiteralPath $fixtureLibraryApiSource -Destination $fixtureLibraryApiTarget -Force
     Write-Host "Copied fixture library API to $fixtureLibraryApiTarget"
+}
+if (Test-Path -LiteralPath $fixtureLibraryMergeSource) {
+    Copy-Item -LiteralPath $fixtureLibraryMergeSource -Destination $fixtureLibraryMergeTarget -Force
+    Write-Host "Copied fixture library merge helper to $fixtureLibraryMergeTarget"
 }
 if (Test-Path -LiteralPath $uiStateSource) {
     Copy-Item -LiteralPath $uiStateSource -Destination $uiStateTarget -Force

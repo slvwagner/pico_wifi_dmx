@@ -793,6 +793,50 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.exportedUserImage).toBe('data:image/png;base64,dXNlci1nb2Jv');
   });
 
+  test('saving a show profile marks its library mode and new fixture as user-owned', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const library = { schemaVersion: 1, fixtures: [] };
+      const saved = upsertProfileIntoFixtureLibrary(library, {
+        name: 'My Spot', mode: '16-channel', channels: 16,
+        controls: [{ id: 1, type: 'slider8', label: 'Dimmer', channel: 1 }]
+      });
+      return {
+        fixtureKey: saved.fixture.key,
+        userFixture: saved.fixture.userFixture,
+        userModified: saved.mode.userModified,
+        modifiedAt: saved.mode.modifiedAt
+      };
+    });
+
+    expect(result.fixtureKey).toBe('custom/my-spot');
+    expect(result.userFixture).toBe(true);
+    expect(result.userModified).toBe(true);
+    expect(Number.isNaN(Date.parse(result.modifiedAt))).toBe(false);
+  });
+
+  test('updates the single active library through the server-side OFL refresh action', async ({ page }) => {
+    const requests = [];
+    await page.route('**/fixture_library.php**', async route => {
+      requests.push({ method: route.request().method(), url: route.request().url() });
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+          ok: true, fixtureCount: 623, preservedImages: 7, preservedModes: 1,
+          preservedFixtures: 1, backup: 'backups/fixture-library-test.json'
+        }) });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        ok: true, exists: true, library: { schemaVersion: 1, source: 'Active fixture library', fixtureCount: 1, fixtures: [{ key: 'test/fixture', name: 'Test fixture', modes: [] }] }
+      }) });
+    });
+    await page.evaluate(() => { window.confirm = () => true; });
+
+    await page.getByRole('button', { name: 'Update from OFL' }).click();
+
+    await expect.poll(() => requests.some(request => request.method === 'POST' && request.url.includes('action=update-standard'))).toBe(true);
+    await expect(page.locator('#fixtureLibraryStatus')).toContainText('active library fixture');
+  });
+
   test('Group Edit is available for controls shared by at least two selected fixtures', async ({ page }) => {
     const state = await page.evaluate(() => {
       selectedFixtureIds = new Set([101, 102, 103]);
@@ -2724,7 +2768,8 @@ test.describe('Fixture Controller established rules', () => {
     });
     await page.locator('#fixtureLibrarySearch').fill('fun generation picospot 20 led');
     await page.locator('[data-library-key="fun-generation/picospot-20-led"]').click();
-    await page.locator('#fixtureLibraryMode').selectOption('2');
+    const picoSpotModeIndex = await page.locator('#fixtureLibraryMode option').evaluateAll(options => options.findIndex(option => option.textContent.startsWith('11-channel')));
+    await page.locator('#fixtureLibraryMode').selectOption(String(picoSpotModeIndex));
     await page.locator('#importFixtureLibraryProfile').click();
 
     const state = await page.evaluate(() => {
