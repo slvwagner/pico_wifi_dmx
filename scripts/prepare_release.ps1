@@ -251,7 +251,6 @@ if ($RunHardwareTests -and -not $SkipTests) {
             $env:DMX_PICO_BASE_URL = $PicoBaseUrl
             Write-Host "Using Pico base URL from -PicoBaseUrl: $PicoBaseUrl"
         }
-        $env:DMX_RUN_HARDWARE_TESTS = "true"
 
         $config = Get-Content -LiteralPath $localConfig -Raw | ConvertFrom-Json
         $effectivePicoBaseUrl = if ($PicoBaseUrl) { $PicoBaseUrl } else { [string]$config.picoBaseUrl }
@@ -274,7 +273,22 @@ if (-not $SkipTests) {
     }
 
     Invoke-Step "Run UI regression tests" {
+        # Keep real hardware out of the parallel browser suite. Running it in a
+        # dedicated serial step prevents unrelated UI workers from disturbing
+        # playback state and timing measurements on the physical Pico.
+        $env:DMX_RUN_HARDWARE_TESTS = "false"
         Invoke-Native "UI regression tests" { npm run test:ui }
+    }
+
+    if ($RunHardwareTests) {
+        Invoke-Step "Run real Pico hardware tests" {
+            $env:DMX_RUN_HARDWARE_TESTS = "true"
+            try {
+                Invoke-Native "Pico hardware tests" { npm run test:pico }
+            } finally {
+                $env:DMX_RUN_HARDWARE_TESTS = "false"
+            }
+        }
     }
 }
 

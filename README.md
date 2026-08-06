@@ -636,10 +636,10 @@ minimum/maximum interval, late intervals, and doubled intervals.
 The firmware build reads its version from the repository `VERSION` file and
 publishes it as `firmware_version` in both `/status.json` and
 `/perf/status.json`. The Performance Test reads the deployed application's
-`VERSION` and requires an exact match for every tested Pico. Matching versions
-pass; a different or missing firmware version fails with the installed and
-expected values and a prompt to flash the current application firmware. The
-result is also stored in the per-Pico Timing History.
+embedded version and requires an exact match for every tested Pico. Matching
+versions pass; a different or missing firmware version fails with the installed
+and expected values and a prompt to flash the current application firmware.
+The result is also stored in the per-Pico Timing History.
 
 The Controller and other operating pages use the same field in the shared Pico
 fleet indicator. The header shows both online coverage and whether every online
@@ -653,8 +653,11 @@ run enforce the same installed-versus-expected version contract.
 When **Run Full Test** targets multiple configured Picos, it first performs a
 bounded `/status.json` availability check for each output. An unavailable Pico
 is skipped and reported by name, universe, URL, and failure reason; available
-Picos continue through the full test. Pico requests and repeated write errors
-are bounded so one offline output cannot leave the button disabled.
+Picos continue through the full test. Each available Pico also runs the
+**Playback + Palette Stress** workload before its final telemetry snapshot.
+Temporary chaser and effect data uses only empty slots and is cleared after the
+workload. Pico requests and repeated write errors are bounded so one offline
+output cannot leave the button disabled.
 
 MIDI receive diagnostics:
 
@@ -1179,7 +1182,10 @@ After the package passes validation, complete these publication steps:
 | **Core 0** | DMX engine (continuous 250 kbaud frames), chaser sequencer tick, motion FX oscillator tick — runs at 100 Hz |
 | **Core 1** | WiFi (CYW43), lwIP TCP/IP stack, lwIP httpd (HTTP/1.0 API server) |
 
-Cross-core data access is protected by `critical_section_t` hardware spinlocks. DMX buffer writes from the HTTP handler (Core 1) and from the playback engines (Core 0) are coordinated so neither blocks the other.
+Cross-core playback state is protected by Pico SDK mutexes. They coordinate
+Core 0 playback with Core 1 HTTP requests without disabling Core 0's DMX
+frame-start interrupt. Short critical sections remain where interrupt masking
+is required for DMX buffer state.
 
 The firmware HTTP layer also isolates overlapping network requests. Each POST upload owns its request body until that connection finishes, and every dynamically generated response is copied into connection-owned storage until lwIP closes the file. This prevents simultaneous browser polling, control writes, and slot uploads from overwriting one another's in-flight data.
 

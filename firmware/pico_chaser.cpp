@@ -39,7 +39,7 @@ typedef struct {
 
 static chaser_play_state_t play_state[CHASER_MAX_SLOTS];
 
-static critical_section_t chaser_lock;
+static mutex_t chaser_lock;
 
 static uint16_t start_step_for_slot(const chaser_slot_data_t *sd)
 {
@@ -57,7 +57,7 @@ static int8_t start_direction_for_slot(const chaser_slot_data_t *sd)
 
 void chaser_init(void)
 {
-    critical_section_init(&chaser_lock);
+    mutex_init(&chaser_lock);
     memset(slot_data,  0, sizeof(slot_data));
     memset(play_state, 0, sizeof(play_state));
     for (int i = 0; i < CHASER_MAX_SLOTS; i++)
@@ -154,13 +154,13 @@ bool chaser_load_slot(uint8_t slot, const char *body, size_t len)
     if (tmp.step_count == 0) return false;
     tmp.loaded = true;
 
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     memcpy(&slot_data[slot], &tmp, sizeof(chaser_slot_data_t));
     slot_speed[slot] = tmp_speed;
     /* if this slot was playing, reset it */
     if (play_state[slot].playing)
         play_state[slot].playing = false;
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 
     return true;
 }
@@ -170,7 +170,7 @@ bool chaser_load_slot(uint8_t slot, const char *body, size_t len)
 void chaser_play(uint8_t slot)
 {
     if (slot >= CHASER_MAX_SLOTS) return;
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     if (slot_data[slot].loaded && slot_data[slot].step_count > 0) {
         play_state[slot].current_step    = start_step_for_slot(&slot_data[slot]);
         play_state[slot].direction_step  = start_direction_for_slot(&slot_data[slot]);
@@ -187,14 +187,14 @@ void chaser_play(uint8_t slot)
         play_state[slot].paused          = false;
         play_state[slot].playing         = true;
     }
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_pause(uint8_t slot)
 {
     if (slot >= CHASER_MAX_SLOTS) return;
     uint32_t now_us = time_us_32();
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     if (play_state[slot].playing) {
         if (play_state[slot].step_entered_us != 0)
             play_state[slot].paused_elapsed_us = now_us - play_state[slot].step_entered_us;
@@ -203,28 +203,28 @@ void chaser_pause(uint8_t slot)
         play_state[slot].playing = false;
         play_state[slot].paused = true;
     }
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_resume(uint8_t slot)
 {
     if (slot >= CHASER_MAX_SLOTS) return;
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     if (slot_data[slot].loaded && play_state[slot].paused) {
         play_state[slot].step_entered_us = 0;
         play_state[slot].playing = true;
         play_state[slot].paused = false;
     }
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_pause_toggle(uint8_t slot)
 {
     if (slot >= CHASER_MAX_SLOTS) return;
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     bool playing = play_state[slot].playing;
     bool paused = play_state[slot].paused;
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
     if (playing) chaser_pause(slot);
     else if (paused) chaser_resume(slot);
     else chaser_play(slot);
@@ -232,7 +232,7 @@ void chaser_pause_toggle(uint8_t slot)
 
 void chaser_stop(void)
 {
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     for (uint8_t i = 0; i < CHASER_MAX_SLOTS; i++) {
         play_state[i].playing = false;
         play_state[i].paused = false;
@@ -243,13 +243,13 @@ void chaser_stop(void)
         play_state[i].completed_loops = 0;
         play_state[i].advance_after_first_output = false;
     }
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_stop_slot(uint8_t slot)
 {
     if (slot >= CHASER_MAX_SLOTS) return;
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     play_state[slot].playing = false;
     play_state[slot].paused = false;
     play_state[slot].current_step = start_step_for_slot(&slot_data[slot]);
@@ -258,17 +258,17 @@ void chaser_stop_slot(uint8_t slot)
     play_state[slot].paused_elapsed_us = 0;
     play_state[slot].completed_loops = 0;
     play_state[slot].advance_after_first_output = false;
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_clear_slot(uint8_t slot)
 {
     if (slot >= CHASER_MAX_SLOTS) return;
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     memset(&slot_data[slot], 0, sizeof(slot_data[slot]));
     memset(&play_state[slot], 0, sizeof(play_state[slot]));
     slot_speed[slot] = 1.0f;
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_set_speed(uint8_t slot, float mult)
@@ -276,9 +276,9 @@ void chaser_set_speed(uint8_t slot, float mult)
     if (slot >= CHASER_MAX_SLOTS) return;
     if (mult < 0.1f) mult = 0.1f;
     if (mult > 10.0f) mult = 10.0f;
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     slot_speed[slot] = mult;
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_set_tap_interval(uint8_t slot, uint32_t interval_ms, uint8_t beat_div)
@@ -286,7 +286,7 @@ void chaser_set_tap_interval(uint8_t slot, uint32_t interval_ms, uint8_t beat_di
     if (slot >= CHASER_MAX_SLOTS || interval_ms == 0) return;
     if (beat_div < 1) beat_div = 1;
     if (beat_div > 16) beat_div = 16;
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     if (slot_data[slot].loaded && slot_data[slot].step_count > 0) {
         uint16_t step_idx = play_state[slot].playing ? play_state[slot].current_step : start_step_for_slot(&slot_data[slot]);
         if (step_idx >= slot_data[slot].step_count) step_idx = 0;
@@ -299,7 +299,7 @@ void chaser_set_tap_interval(uint8_t slot, uint32_t interval_ms, uint8_t beat_di
             slot_speed[slot] = mult;
         }
     }
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 /* ---------- tick (called from core0 at ~100 Hz) ------------------------- */
@@ -314,7 +314,7 @@ static inline uint8_t lerp8(uint8_t a, uint8_t b, float t)
 
 void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 {
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
 
     /* Build bigger-wins merged output for all active slots */
     /* NOTE: caller owns scratch/touched; do NOT clear them here — other
@@ -389,7 +389,7 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
         ps->last_elapsed_ms = elapsed / 1000;
     }
 
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
     /* DMX writes are done by the caller after all ticks accumulate. */
 }
 
@@ -397,7 +397,7 @@ void chaser_tick(uint32_t now_us, uint8_t *scratch, bool *touched)
 
 void chaser_get_status(chaser_status_t *out)
 {
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     memset(out, 0, sizeof(*out));
     for (uint8_t i = 0; i < CHASER_MAX_SLOTS; i++) {
         if (slot_data[i].loaded)
@@ -413,13 +413,13 @@ void chaser_get_status(chaser_status_t *out)
         if (play_state[i].paused)
             out->paused_mask |= (uint32_t)(1u << i);
     }
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }
 
 void chaser_get_slot_info(uint8_t slot, chaser_slot_info_t *out)
 {
     if (slot >= CHASER_MAX_SLOTS) { memset(out, 0, sizeof(*out)); return; }
-    critical_section_enter_blocking(&chaser_lock);
+    mutex_enter_blocking(&chaser_lock);
     out->loaded     = slot_data[slot].loaded;
     out->active     = play_state[slot].playing;
     out->paused     = play_state[slot].paused;
@@ -431,5 +431,5 @@ void chaser_get_slot_info(uint8_t slot, chaser_slot_info_t *out)
     out->current_step = play_state[slot].current_step;
     out->step_count = slot_data[slot].step_count;
     out->speed_mult = slot_speed[slot];
-    critical_section_exit(&chaser_lock);
+    mutex_exit(&chaser_lock);
 }

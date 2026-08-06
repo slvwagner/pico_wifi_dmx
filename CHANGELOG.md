@@ -10,10 +10,15 @@ Changed:
 - Added an automatic Windows application startup check that compares every discovered Pico with the bundled firmware version. Incompatible or version-less Picos trigger an update prompt, and accepting it opens the firmware update page with the detailed installed-firmware check already running.
 - Replaced the Windows shell's native light message boxes with shared dark dialogs for firmware prompts, flash confirmation and completion, server lifecycle warnings, WebView fallback, and shutdown errors.
 - Removed SSID and password compilation from the Pico application. Windows, Ubuntu, and the developer flash workflow now provision credentials through a dedicated persistent RP2350 data partition using a locally generated temporary UF2. Normal application updates preserve it, network changes can replace it, temporary credentials are not logged, and release preparation rejects legacy credential-bearing CMake caches or compiler commands. Legacy `SSID` and `SSID_PW` environment variables are explicitly ignored instead of silently repopulating the updater or firmware build.
+- Included **Playback + Palette Stress** in **Run Full Test** for every available Pico, with its result folded into the Full Test's single consolidated timing record per device.
 
 Fixed:
 
 - Made documentation captures report deterministic current-release Pico firmware without contacting configured physical controllers, so release screenshots cannot show stale firmware warnings or depend on which devices happen to be online.
+- Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone `VERSION` file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.
+- Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the **Playback + Palette Stress** workload to delay DMX frame starts while calculating many active slots.
+- Ran real Pico release tests as a dedicated serial stage after the isolated parallel UI suite, preventing browser-test concurrency from disturbing physical playback state and timing measurements.
+- Made the Show Run hold-button documentation capture clear asynchronous MIDI mapping state and reapply its Button/Hold toolbar after rendering, keeping the complete screenshot and generated manual PDFs reproducible across release runs.
 
 ## 1.1.0 - 2026-08-05
 

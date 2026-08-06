@@ -150,7 +150,7 @@ Application files remain below `/opt/pico-dmx-controller`, while customer shows 
 ## Main Pages
 
 | Page | Purpose |
-|------|---------|
+| --- | --- |
 | [Fixture Controller](#1-fixture-controller) | Fixture profiles, patching, live control, groups, scenes, default and blackout values |
 | [Show Run](#4-show-run) | Operator page for recalling saved groups, scenes, palettes, and Pico chaser/effect slots without editing setup |
 | [MIDI Emulator](#midi-controller-card) | Launch Control XL-style browser controls for testing Show Run MIDI Learn without hardware |
@@ -975,7 +975,7 @@ The **Chase Steps** toolbox uses shared action buttons instead of per-step butto
 - You can also drag a step card with mouse or touch and drop it before or after another step card to reorder the chase. A short click still selects the step. The selected step and the currently playing step stay attached to the same step data after the move.
 - **Delete** removes the selected step. If another step remains, it becomes the selected step.
 
-### Participating Controls
+### Effects Participating Controls
 
 Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.
 
@@ -1366,7 +1366,18 @@ Use **MIDI-to-DMX Latency** to measure a controller event through the browser an
 
 The primary result is **MIDI → POST**: time from the MIDI event until the browser starts the `/dmx/b` request to the Pico. This intentionally includes the 30 ms coalescing queue for faders and knobs. Fader/knob p95 is PASS at no more than 35 ms, WARN through 50 ms, and FAIL above 50 ms. An immediate button is PASS at no more than 5 ms, WARN through 15 ms, and FAIL above 15 ms. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and conservative confirmed-following-frame time are reported separately as diagnostics and do not determine the primary MIDI status. The page restores the original base value of the test channel when the measurement completes or is stopped. Do not use a channel currently controlled by playback, blackout, or a master.
 
-**Run Full Test** runs status/telemetry, buffer readback, DMX write load, MIDI latency, and a final telemetry snapshot for the selected target. With **All configured Picos**, that complete sequence runs once per Pico. It needs no manual MIDI movement when the emulator is used. If no MIDI input is connected, the Performance page loads the emulator invisibly inside itself, keeps browser focus on the Performance page, and commands it to generate every configured sample through the normal emulator message path. No extra tab opens. If a physical USB MIDI input is already connected, Full Test uses it and waits for you to move the hardware control for each target. If neither source can connect, the other checks still finish and the MIDI result shows a warning. The dedicated **MIDI-to-DMX timing** card and Timing History store the MIDI-to-POST median and p95.
+**Run Full Test** runs status/telemetry, buffer readback, DMX write load, MIDI
+latency, **Playback + Palette Stress**, and a final telemetry snapshot for the
+selected target. With **All configured Picos**, that complete sequence runs
+once per Pico. It needs no manual MIDI movement when the emulator is used. If
+no MIDI input is connected, the Performance page loads the emulator invisibly
+inside itself, keeps browser focus on the Performance page, and commands it to
+generate every configured sample through the normal emulator message path. No
+extra tab opens. If a physical USB MIDI input is already connected, Full Test
+uses it and waits for you to move the hardware control for each target. If
+neither source can connect, the other checks still finish and the MIDI result
+shows a warning. The dedicated **MIDI-to-DMX timing** card and Timing History
+store the MIDI-to-POST median and p95.
 
 Use **DMX Write Test** to compare:
 
@@ -1387,11 +1398,21 @@ The write-test result panel shows:
 - Jitter
 - Errors
 
-Use **Run Full Test** to run the Pico status/performance check, buffer readback, write test, automatic emulated MIDI-to-DMX samples (or interactive physical USB samples), and a final timing check in one sequence.
+Use **Run Full Test** to run the Pico status/performance check, buffer readback,
+write test, automatic emulated MIDI-to-DMX samples (or interactive physical USB
+samples), the playback/palette workload, and a final timing check in one
+sequence.
 
 Use **Playback + Palette Stress** to stress playback without overwriting saved Pico slots. The page starts chaser/effect slots that are already loaded, adds temporary demo data only to slots that are currently empty, stores those temporary slot numbers in the server UI state, then sends repeated full 512-channel palette-style `/dmx/b` recalls while playback is running. When the run finishes, the page stops playback, clears only the temporary demo slots, and removes the temporary-slot marker from the server. If a browser session is interrupted, the next stress run first reads the marker and clears the previously recorded temporary slots.
 
-The **Timing History** table records each Pico timing check. A manual **Check Pico** adds one row immediately. **Run Full Test** and **Playback + Palette Stress** record a final timing sample, so the row reflects Core0/Core1 slack after the selected checks have run. Full Test also records the latest MIDI-to-POST median and p95 in the MIDI column. The 100 Hz and Core1 columns use the same wording as the status cards, for example "Minimum 9419us left before missing the 10ms update budget".
+The **Timing History** table records each Pico timing check. A manual **Check
+Pico** adds one row immediately. A standalone **Playback + Palette Stress** run
+adds its own final timing row. **Run Full Test** includes that workload and
+records one consolidated final row per Pico, so it does not add a duplicate
+stress-test row. Full Test also records the latest MIDI-to-POST median and p95
+in the MIDI column. The 100 Hz and Core1 columns use the same wording as the
+status cards, for example "Minimum 9419us left before missing the 10ms update
+budget".
 
 Timing History and Write History keep the latest results for the current page session. Their separate **Clear** buttons erase only the displayed history; they do not clear Pico data or DMX output.
 
@@ -1450,7 +1471,7 @@ The target can be moved by dragging the red dot, by clicking in the plane, or by
 The **Room Plane** toolbox contains the measured A/B/C points and the current target controls.
 
 | Field | Meaning |
-|-------|---------|
+| --- | --- |
 | A, B, C X/Y/Z | Known physical points in the room. Use one consistent unit, for example meters. |
 | Target X/Y | Numeric target position in the plane. |
 | Reset calibration | Marks all fixture A/B/C calibration points as missing. |
@@ -1467,7 +1488,7 @@ Use **-- all** in the Room Plane, Planes, or Fixtures toolbox header to collapse
 The **Planes** toolbox stores complete plane definitions as tiles, using the same visual language as scene, palette, group, and chase tiles.
 
 | Field | Meaning |
-|-------|---------|
+| --- | --- |
 | Filled plane tile | Recalls that saved plane, including A/B/C points, target, view, fixtures, mount positions, and fixture calibration. |
 | Empty `+ Save current plane` tile | Saves the current plane into that tile and opens **Edit Plane Tile** so it can be named and styled. |
 | Pencil | Opens **Edit Plane Tile** for the selected plane tile name, background color, uploaded icon, or drawn icon. |
@@ -1492,7 +1513,7 @@ The **Fixtures** toolbox stores the relationship between each moving light and t
 **Load patched moving lights** is the normal production workflow: it rebuilds the list from compatible patched fixture profiles while retaining matching saved calibration where possible. **Add fixture** appends a standalone demonstration/calibration row and opens its editor; it is not associated with a patched fixture and therefore cannot send to a physical DMX Output until replaced by patched data. **Remove last** removes only the final row and always leaves at least one fixture row.
 
 | Column | Meaning |
-|--------|---------|
+| --- | --- |
 | Edit | Opens the pan/tilt/dimmer editor for this fixture. Only one fixture is edited at a time. |
 | Select | Includes the fixture when the target point is applied. |
 | Calibration | Shows whether A, B, and C have been stored. |
@@ -1689,7 +1710,7 @@ When you expand the last toolbox on an iPad or another narrow portrait display, 
 There are two different clear actions:
 
 | Action | What it clears | When to use |
-|--------|----------------|-------------|
+| --- | --- | --- |
 | DMX clear | Live DMX output and the motion base buffer | Full reset of output and base position |
 | Output-only clear | Live DMX output only | Black out output while keeping the stored motion center |
 

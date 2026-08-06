@@ -1118,25 +1118,61 @@ try {
     live.style.minHeight='0';
     live.style.alignSelf='start';
   }
-  const widget=document.getElementById('liveWidgetSelect');
-  const mode=document.getElementById('liveButtonMode');
-  const value=document.getElementById('liveButtonValue');
-  const on=document.getElementById('liveTimerOn');
-  const off=document.getElementById('liveTimerOff');
+  const widget=live?.querySelector('.live-widget-select');
+  const mode=live?.querySelector('.live-button-mode');
+  const value=live?.querySelector('.live-button-value');
+  const modeWrap=live?.querySelector('.live-button-mode-wrap');
+  const valueWrap=live?.querySelector('.live-button-value-wrap');
+  const on=live?.querySelector('.live-timer-on');
+  const off=live?.querySelector('.live-timer-off');
+  const onWrap=live?.querySelector('.live-timer-on-wrap');
+  const offWrap=live?.querySelector('.live-timer-off-wrap');
   const hiddenModal=document.getElementById('hiddenTileModal');
   if(hiddenModal)hiddenModal.style.display='none';
   if(typeof hiddenTileModalDismissed!=='undefined')hiddenTileModalDismissed=true;
   if(widget)widget.value='button';
   if(mode)mode.value='hold';
   if(value)value.value='255';
+  midiMappings=[];
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_hold',fixtureId:990101,controlId:990011,part:'value',widget:'button',buttonMode:'hold',buttonValue:255,label:'Fog Burst'}
   );
   if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof updateLiveControlSelects==='function')updateLiveControlSelects();
+  if(widget){
+    widget.value='button';
+    widget.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  if(mode)mode.value='hold';
+  if(value)value.value='255';
+  if(modeWrap)modeWrap.style.display='grid';
+  if(valueWrap)valueWrap.style.display='grid';
+  if(onWrap)onWrap.style.display='none';
+  if(offWrap)offWrap.style.display='none';
   live?.scrollIntoView({block:'start',inline:'nearest'});
   window.scrollBy(0,-120);
   await wait(400);
+})()
+"@
+    # Final synchronous normalization immediately before capture keeps pending
+    # page initialization from hiding the button-specific toolbar fields.
+    Eval-Js @"
+(()=>{
+  const live=document.getElementById('cardLive');
+  const widget=live?.querySelector('.live-widget-select');
+  const mode=live?.querySelector('.live-button-mode');
+  const value=live?.querySelector('.live-button-value');
+  if(widget)widget.value='button';
+  if(mode)mode.value='hold';
+  if(value)value.value='255';
+  const modeWrap=live?.querySelector('.live-button-mode-wrap');
+  const valueWrap=live?.querySelector('.live-button-value-wrap');
+  const onWrap=live?.querySelector('.live-timer-on-wrap');
+  const offWrap=live?.querySelector('.live-timer-off-wrap');
+  if(modeWrap)modeWrap.style.display='grid';
+  if(valueWrap)valueWrap.style.display='grid';
+  if(onWrap)onWrap.style.display='none';
+  if(offWrap)offWrap.style.display='none';
 })()
 "@
     Save-ElementScreenshot "#cardLive" "show-run-live-hold-button.png"
