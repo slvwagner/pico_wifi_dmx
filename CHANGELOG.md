@@ -7,6 +7,10 @@ Changed:
 - Started the 1.2.1 development branch.
 - Removed the easily stale **Current development version** banner from the README. `VERSION` remains the canonical application and development version, and the version-branch helper no longer edits the source branch solely to maintain that duplicate label.
 
+Fixed:
+
+- Kept a newly created show completely empty instead of automatically adding the legacy **Generic Moving Head** profile. Reloading that saved empty show now also preserves its empty profile list; the starter profile remains limited to first-run recovery when no setup can be loaded.
+
 ## 1.2.0 - 2026-08-06
 
 Changed:

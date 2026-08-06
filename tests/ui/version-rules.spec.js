@@ -686,7 +686,7 @@ test.describe('Project versioning rules', () => {
     });
   });
 
-  test('New Show clears show data and Pico playback slots but keeps fixture library separate', async ({ page }) => {
+  test('New Show clears profiles, show data, and Pico playback slots but keeps fixture library separate', async ({ page }) => {
     await openDmxPage(page, '');
 
     const result = await page.evaluate(async () => {
@@ -730,8 +730,23 @@ test.describe('Project versioning rules', () => {
 
         const findPost = part => posts.find(post => post.url.includes(part));
         const countPosts = part => posts.filter(post => post.url.includes(part)).length;
+        const localState = {
+          showName,
+          showNameInput: document.getElementById('showNameInput')?.value,
+          profiles: profiles.length,
+          fixtures: fixtures.length,
+          values: Object.keys(values).length,
+          groups: savedGroups.length,
+          scenes: scenes.length,
+          palettes: palettes.length,
+          selectedFixtures: selectedFixtureIds.size,
+          selectedGroups: activeSavedGroupIds.size,
+          status: document.getElementById('status').textContent
+        };
+        const fixtureSetup = findPost('fixture_setup.php')?.body;
+        applyData(fixtureSetup);
         return {
-          fixture: findPost('fixture_setup.php')?.body,
+          fixture: fixtureSetup,
           liveValues: findPost('fixture_setup.php?livevalues')?.body,
           groups: findPost('group_setup.php')?.body,
           scenes: findPost('scene_setup.php')?.body,
@@ -745,19 +760,8 @@ test.describe('Project versioning rules', () => {
           motionShowResets: countPosts('motion_setup.php?reset_show'),
           motionSlotDeletes: countPosts('motion_setup.php?delete_slot='),
           fixtureLibraryPosts: countPosts('fixture_library.php'),
-          local: {
-            showName,
-            showNameInput: document.getElementById('showNameInput')?.value,
-            profiles: profiles.length,
-            fixtures: fixtures.length,
-            values: Object.keys(values).length,
-            groups: savedGroups.length,
-            scenes: scenes.length,
-            palettes: palettes.length,
-            selectedFixtures: selectedFixtureIds.size,
-            selectedGroups: activeSavedGroupIds.size,
-            status: document.getElementById('status').textContent
-          }
+          local: localState,
+          reloadedProfileCount: profiles.length
         };
       } finally {
         window.fetch = originalFetch;
@@ -768,8 +772,7 @@ test.describe('Project versioning rules', () => {
 
     expect(result.fixture.fixtures).toEqual([]);
     expect(result.fixture.showName).toBe('Summer Gala');
-    expect(result.fixture.profiles).toHaveLength(1);
-    expect(result.fixture.profiles[0].name).toBe('Generic Moving Head');
+    expect(result.fixture.profiles).toEqual([]);
     expect(result.liveValues).toEqual({});
     expect(result.groups.groups).toEqual([]);
     expect(result.scenes.scenes).toEqual([]);
@@ -794,7 +797,7 @@ test.describe('Project versioning rules', () => {
     expect(result.local).toMatchObject({
       showName: 'Summer Gala',
       showNameInput: 'Summer Gala',
-      profiles: 1,
+      profiles: 0,
       fixtures: 0,
       values: 0,
       groups: 0,
@@ -804,6 +807,7 @@ test.describe('Project versioning rules', () => {
       selectedGroups: 0,
       status: 'New show started: Summer Gala'
     });
+    expect(result.reloadedProfileCount).toBe(0);
   });
 
   test('Effects setup reset clears saved effects and Pico slots atomically', async ({ page }) => {
