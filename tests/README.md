@@ -107,7 +107,10 @@ npm run test:pico
 
 The basic upload/play tests overwrite the configured `chaserSlot` and `motionSlot`. The playback stress checks use empty Pico slots for temporary demo data and clear those temporary slots afterward.
 
-The release script can also enable the hardware tests for a full release run:
+The release script can also enable the hardware tests for a full release run.
+It completes the parallel isolated UI suite first, then runs the real Pico
+tests serially so browser workers cannot interfere with hardware playback state
+or timing measurements:
 
 ```powershell
 .\scripts\prepare_release.ps1 -Build -RunHardwareTests

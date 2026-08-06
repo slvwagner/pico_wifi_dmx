@@ -345,6 +345,17 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript).toContain('$env:DMX_RUN_HARDWARE_TESTS = "true"');
   });
 
+  test('release preparation runs real Pico tests after the isolated UI suite', () => {
+    const releaseScript = read('scripts/prepare_release.ps1');
+    const uiSuite = releaseScript.indexOf('Invoke-Step "Run UI regression tests"');
+    const hardwareSuite = releaseScript.indexOf('Invoke-Step "Run real Pico hardware tests"');
+
+    expect(uiSuite).toBeGreaterThan(-1);
+    expect(hardwareSuite).toBeGreaterThan(uiSuite);
+    expect(releaseScript.slice(uiSuite, hardwareSuite)).toContain('$env:DMX_RUN_HARDWARE_TESTS = "false"');
+    expect(releaseScript.slice(hardwareSuite)).toContain('npm run test:pico');
+  });
+
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
 

@@ -17,6 +17,7 @@ Fixed:
 - Made documentation captures report deterministic current-release Pico firmware without contacting configured physical controllers, so release screenshots cannot show stale firmware warnings or depend on which devices happen to be online.
 - Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone `VERSION` file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.
 - Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the **Playback + Palette Stress** workload to delay DMX frame starts while calculating many active slots.
+- Ran real Pico release tests as a dedicated serial stage after the isolated parallel UI suite, preventing browser-test concurrency from disturbing physical playback state and timing measurements.
 
 ## 1.1.0 - 2026-08-05
 
