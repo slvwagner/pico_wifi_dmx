@@ -366,7 +366,7 @@ test.describe('Chaser established rules', () => {
     expect(texts[1]).toContain('Fade 10–60%');
   });
 
-  test('uploads one linked chase payload per involved Pico and reserves an empty peer slot', async ({ page }) => {
+  test('uploads one linked chase payload per involved Pico to the same logical slot', async ({ page }) => {
     const picoCalls = [];
     let savedPlayback = null;
     const routePico = async (route, outputId) => {
@@ -408,24 +408,96 @@ test.describe('Chaser established rules', () => {
 
     expect(picoCalls).toEqual(expect.arrayContaining([
       expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/chaser/load/3' }),
-      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/load/1' })
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/load/3' })
     ]));
     const frontBody = picoCalls.find(call => call.url.endsWith('/chaser/load/3')).body;
-    const rearBody = picoCalls.find(call => call.url.endsWith('/chaser/load/1')).body;
+    const rearBody = picoCalls.find(call => call.outputId === 'rear' && call.url.endsWith('/chaser/load/3')).body;
     expect(frontBody).toContain('CH 1 75');
     expect(frontBody).not.toContain('CH 21 125');
     expect(rearBody).toContain('CH 21 125');
     expect(rearBody).not.toContain('CH 1 75');
     expect(savedPlayback.members.map(member => ({ outputId: member.outputId, slot: member.slot }))).toEqual([
       { outputId: 'front', slot: 3 },
-      { outputId: 'rear', slot: 1 }
+      { outputId: 'rear', slot: 3 }
     ]);
 
     picoCalls.length = 0;
     await page.locator('#btnPicoPlaySlot').click();
     await expect.poll(() => picoCalls.map(call => call.url)).toEqual(expect.arrayContaining([
       'http://front-pico.test/chaser/play/3',
-      'http://rear-pico.test/chaser/play/1'
+      'http://rear-pico.test/chaser/play/3'
+    ]));
+  });
+
+  test('deletes one logical chaser slot from every configured Pico', async ({ page }) => {
+    const calls = [];
+    await page.route('http://front-pico.test/**', async route => {
+      calls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://rear-pico.test/**', async route => {
+      calls.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('**/chaser_setup.php?delete_slot=3', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    page.on('dialog', dialog => dialog.accept());
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      linkedChaserPlaybacks = [];
+      return deleteChaserSlot(3);
+    });
+    expect(calls).toEqual(expect.arrayContaining([
+      'http://front-pico.test/chaser/clear/3',
+      'http://rear-pico.test/chaser/clear/3'
+    ]));
+  });
+
+  test('synchronizes saved chases and clears stale physical slots across the Pico fleet', async ({ page }) => {
+    const calls = [];
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/chaser/slots')) {
+        const slots = Array.from({ length: 32 }, (_, slot) => ({
+          slot,
+          loaded: outputId === 'rear' && (slot === 4 || slot === 11)
+        }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      calls.push({ outputId, url, body: route.request().postData() || '' });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/chaser_setup.php?slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        pico_slots: Array(32).fill(null),
+        pico_playbacks: [{
+          id: 'chase-4',
+          logicalSlot: 4,
+          members: [{ outputId: 'front', baseUrl: 'http://front-pico.test/', slot: 4, payload: 'STEP 500 0\nEND' }]
+        }]
+      })
+    }));
+    page.on('dialog', dialog => dialog.accept());
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      baseUrlEl.value = 'http://front-pico.test';
+      return restoreAllChaserSlots();
+    });
+    expect(calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ outputId: 'front', url: 'http://front-pico.test/chaser/load/4', body: 'STEP 500 0\nEND' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/clear/4' }),
+      expect.objectContaining({ outputId: 'rear', url: 'http://rear-pico.test/chaser/clear/11' })
     ]));
   });
 

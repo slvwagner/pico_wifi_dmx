@@ -117,7 +117,8 @@ main{max-width:none;width:100%;margin:0}
     <button id="btnPicoMotionSetBpm">&#x266A; Set BPM</button>
     <button id="btnPicoMotionStopSlot">&#x25A1; Stop Slot</button>
     <button class="stop"    id="btnPicoMotionStop">&#x25A0; Stop All</button>
-    <button id="btnPicoMotionRestoreAll">&#x21BA; Restore Saved Slots to Pico</button>
+    <button id="btnPicoMotionRestoreAll">&#x21BA; Synchronize Saved Slots to Picos</button>
+    <button id="btnPicoMotionMigrateSlots" style="display:none">Normalize Legacy Slots</button>
   </div>
   <div class="pico-actions">
     <span class="pico-slots-label">Pico slots:</span>
@@ -1405,12 +1406,33 @@ let _lastPausedMask=0;
 let _lastMotionReportedSlotCount=PICO_SLOT_COUNT;
 let linkedMotionPlaybacks=[];
 
+function updateMotionSlotMigrationButton(){
+  const button=document.getElementById('btnPicoMotionMigrateSlots');
+  const count=DmxCommon.legacyLinkedPicoPlaybacks(linkedMotionPlaybacks).length;
+  button.style.display=count?'':'none';
+  button.textContent=count?'Normalize '+count+' Legacy Effect Slot'+(count===1?'':'s'):'Normalize Legacy Slots';
+}
+
+async function migrateLegacyMotionSlots(){
+  const legacy=DmxCommon.legacyLinkedPicoPlaybacks(linkedMotionPlaybacks);
+  if(!legacy.length){updateMotionSlotMigrationButton();return;}
+  if(!confirm('Normalize '+legacy.length+' legacy linked effect slot'+(legacy.length===1?'':'s')+'?\n\nA server backup will be created first. Each linked effect will then use its logical slot number on every Pico. Conflicts with unmanaged Pico data cancel the migration.'))return;
+  setPicoMotionStatus('Backing up and normalizing legacy effect slots…','var(--warn)');
+  try{
+    const result=await DmxCommon.migrateLinkedPicoPlaybacks({kind:'motion',playbacks:linkedMotionPlaybacks,serverEndpoint:'motion_setup.php'});
+    linkedMotionPlaybacks=result.playbacks;
+    updateMotionSlotMigrationButton();
+    setPicoMotionStatus('Normalized '+result.count+' linked effect slot'+(result.count===1?'':'s')+' · backup '+(result.backup||'created'),'var(--accent)');
+    pollPicoMotionStatus();
+  }catch(error){setPicoMotionStatus('Migration error: '+error.message,'var(--bad)');}
+}
+
 function linkedMotionPlaybackForSlot(slot){
   const preferredRoot=baseUrlEl.value.replace(/\/+$/,'');
   return linkedMotionPlaybacks.find(playback=>{
     const members=Array.isArray(playback?.members)?playback.members:[];
     const coordinator=members.find(member=>String(member.baseUrl||'').replace(/\/+$/,'')===preferredRoot)||members[0];
-    return Number(coordinator?.slot)===Number(slot);
+    return Number(playback?.logicalSlot??coordinator?.slot)===Number(slot);
   })||null;
 }
 
@@ -1434,7 +1456,7 @@ function updatePicoMotionPauseResumeButton(){
 }
 
 function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
-  _lastMotionReportedSlotCount=slots.length;
+  if(!slots.some(slot=>slot?.fleetState))_lastMotionReportedSlotCount=slots.length;
   slots=Array.from({length:PICO_SLOT_COUNT},(_,i)=>slots[i]||{slot:i,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0,unsupported:i>=_lastMotionReportedSlotCount});
   _lastSlots=slots; _lastActiveMask=activeMask; _lastPausedMask=pausedMask;
   const strip=document.getElementById('motionSlotStrip');
@@ -1446,6 +1468,9 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
     const loaded=s.loaded;
     const selected=s.slot===sel;
     const unsupported=!!s.unsupported;
+    const fleetState=s.fleetState||null;
+    const uncertain=fleetState==='unknown';
+    const partial=fleetState==='partial';
     const d=document.createElement('div');
     d.style.cssText=[
       'background:#0a0d10',
@@ -1460,7 +1485,7 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
       'transition:border-color .15s,box-shadow .15s',
       'user-select:none'
     ].filter(Boolean).join(';');
-    const typeName=unsupported?'FW old':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
+    const typeName=unsupported?'FW old':uncertain?'Fleet unknown':partial?'Mixed occupancy':loaded?(MFX_TYPE_NAMES[s.type]||('Type '+s.type)):'\u2014';
     const linkedPlayback=linkedMotionPlaybackForSlot(s.slot);
     const linkedLine=linkedPlayback&&linkedPlayback.members?.length>1
       ? '<div style="font-size:10px;color:var(--accent);margin-top:2px">LINKED · '+linkedPlayback.members.length+' PICOS</div>'
@@ -1476,10 +1501,11 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
       (loaded?'<div style="font-size:11px;color:var(--muted)">'+(s.target_count??s.fixture_count??0)+' tgt</div>'+linkedLine:'') +
       '<div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:3px">'+
         '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'"></span>'+
-        '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':alive?'LIVE':paused?'PAUSED':loaded?'READY':'EMPTY')+'</span>'+
+         '<span style="font-size:10px;font-weight:600;letter-spacing:.03em;color:'+(unsupported||uncertain||partial?'var(--warn)':alive?'var(--accent)':paused?'var(--warn)':loaded?'var(--muted)':'rgba(255,255,255,.25)')+'">'+(unsupported?'NEEDS FW':uncertain?'UNKNOWN':partial?'PARTIAL':alive?'LIVE':paused?'PAUSED':loaded?'READY':'EMPTY')+'</span>'+
       '</div>';
     d.onclick=()=>{
       if(unsupported){setPicoMotionStatus('Flash the current firmware before using slot '+s.slot,'var(--warn)');return;}
+      if(uncertain){setPicoMotionStatus('Slot '+s.slot+' cannot be changed because not every configured Pico responded','var(--warn)');return;}
       const wasSelected=selectedMotionSlot()===s.slot;
       document.getElementById('picoMotionSlot').value=s.slot;
       renderMotionSlotStrip(_lastSlots,_lastActiveMask,_lastPausedMask);
@@ -1501,26 +1527,22 @@ function renderMotionSlotStrip(slots, activeMask, pausedMask=0){
 
 async function deleteMotionSlot(slot){
   const linked=linkedMotionPlaybackForSlot(slot);
-  if(!confirm(linked?'Delete linked effect from all '+linked.members.length+' Picos?':'Delete effect slot '+slot+'?'))return;
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value).filter(output=>DmxCommon.dmxOutputEndpoint(output));
+  if(!confirm('Delete logical effect slot '+slot+' from all '+outputs.length+' configured Pico'+(outputs.length===1?'':'s')+'?'))return;
   try{
+    if(!outputs.length)throw new Error('No configured Pico URLs');
+    await DmxCommon.requestDmxOutputs(outputs,'/motion/clear/'+slot,{legacyBaseUrl:setup.baseUrl||baseUrlEl.value});
     if(linked){
-      await DmxCommon.commandLinkedPicoPlayback(linked,member=>'/motion/clear/'+member.slot);
       const response=await fetch('motion_setup.php?delete_playback='+encodeURIComponent(linked.id),{method:'POST'});
       const data=await response.json();
       if(!response.ok||!data.ok)throw new Error(data.error||'Delete failed');
       linkedMotionPlaybacks=linkedMotionPlaybacks.filter(playback=>playback.id!==linked.id);
-      setPicoMotionStatus('Deleted linked effect from '+linked.members.length+' Picos','var(--accent)');
+      setPicoMotionStatus('Deleted logical effect slot '+slot+' from '+outputs.length+' Picos','var(--accent)');
     }else{
     const r=await fetch('motion_setup.php?delete_slot='+slot,{method:'POST'});
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||'Delete failed');
-    const root=baseUrlEl.value.replace(/\/+$/,'');
-    if(root){
-      try{await fetch(root+'/motion/clear/'+slot,{cache:'no-store'});}catch(_){}
-      setPicoMotionStatus('Deleted slot '+slot,'var(--accent)');
-    }else{
-      setPicoMotionStatus('Deleted saved slot '+slot+' (set Pico URL to clear Pico memory too)','var(--warn)');
-    }
+    setPicoMotionStatus('Deleted logical effect slot '+slot+' from '+outputs.length+' Picos','var(--accent)');
     }
     if(_lastSlots){
       _lastSlots[slot]={slot:slot,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0};
@@ -1549,14 +1571,17 @@ async function pollPicoMotionStatus(){
     const st=await fetch(root+'/motion/status').then(r=>r.json());
     if(st.ok){
       /* fetch slot details sequentially to avoid overwhelming the Pico */
-      const sl=await fetch(root+'/motion/slots').then(r=>r.json());
-      const activeSlots=(sl?.slots||[]).filter(s=>s.active).map(s=>s.slot);
-      const pausedSlots=(sl?.slots||[]).filter(s=>s.paused).map(s=>s.slot);
+      const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+      const fleet=await DmxCommon.fetchFleetPicoSlots('motion',outputs,{slotCount:PICO_SLOT_COUNT,legacyBaseUrl:setup.baseUrl||baseUrlEl.value,playbacks:linkedMotionPlaybacks});
+      const activeSlots=fleet.slots.filter(s=>s.active).map(s=>s.slot);
+      const pausedSlots=fleet.slots.filter(s=>s.paused).map(s=>s.slot);
       const s=activeSlots.length>0
         ?'Slots '+activeSlots.join(',')+' running \u00b7 '+st.elapsed_s.toFixed(1)+'s'
         :pausedSlots.length>0?'Slots '+pausedSlots.join(',')+' paused \u00b7 '+st.elapsed_s.toFixed(1)+'s':'Stopped';
       setPicoMotionStatus(s,activeSlots.length>0?'var(--accent)':pausedSlots.length>0?'var(--warn)':'var(--muted)');
-      if(sl.ok) renderMotionSlotStrip(sl.slots,st.active_mask,st.paused_mask||0);
+      const supportedCounts=fleet.reports.filter(report=>report.ok).map(report=>report.slots.length);
+      _lastMotionReportedSlotCount=supportedCounts.length?Math.min(...supportedCounts):0;
+      renderMotionSlotStrip(fleet.slots,st.active_mask,st.paused_mask||0);
     }
   }catch(e){setPicoMotionStatus('No response','var(--bad)');}
 }
@@ -1570,40 +1595,35 @@ async function saveMotionSlotToServer(slot, body){
   try{await fetch('motion_setup.php?'+params,{method:'POST',body,headers:{'Content-Type':'text/plain'}});}catch(_){}
 }
 async function restoreAllMotionSlots(){
-  const root=baseUrlEl.value.replace(/\/+$/,'');
   let j;
-  try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setPicoMotionStatus('Restore error: '+e.message,'var(--bad)');return;}
-  if(!j.ok){setPicoMotionStatus('Restore error','var(--bad)');return;}
+  setPicoMotionStatus('Inspecting every Pico before synchronization…','var(--warn)');
+  try{const r=await fetch('motion_setup.php?slots');j=await r.json();}catch(e){setPicoMotionStatus('Synchronization error: '+e.message,'var(--bad)');return;}
+  if(!j.ok){setPicoMotionStatus('Synchronization error','var(--bad)');return;}
   const slots=j.pico_slots||[];
   linkedMotionPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
-  let count=0;
-  if(linkedMotionPlaybacks.length){
-    for(const playback of linkedMotionPlaybacks){
-      for(const member of playback.members||[]){
-        const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
-        if(!memberRoot||!member.payload)continue;
-        try{
-          const response=await fetch(memberRoot+'/motion/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});
-          const data=await response.json();
-          if(data.ok)count++;
-        }catch(_){}
-      }
-    }
-    setPicoMotionStatus(count+' linked slot member(s) restored','var(--accent)');
+  updateMotionSlotMigrationButton();
+  if(DmxCommon.legacyLinkedPicoPlaybacks(linkedMotionPlaybacks).length){setPicoMotionStatus('Normalize legacy effect slots before synchronizing them','var(--warn)');return;}
+  try{
+    const result=await DmxCommon.synchronizeSavedPicoSlots({
+      kind:'motion',
+      slotCount:PICO_SLOT_COUNT,
+      outputs:setup.dmxOutputs,
+      legacyBaseUrl:setup.baseUrl||baseUrlEl.value,
+      legacyPicoUrl:j.pico_url||baseUrlEl.value,
+      legacySlots:slots,
+      playbacks:linkedMotionPlaybacks,
+      confirmPlan:summary=>confirm(
+        'Synchronize saved Effects slots with all '+summary.outputCount+' configured Picos?\n\n'+
+        'Saved logical slots: '+summary.logicalSlotCount+'\n'+
+        'Payloads to upload: '+summary.uploadCount+'\n'+
+        'Stale loaded slots to clear: '+summary.clearCount+'\n\n'+
+        'Cleared Pico-only slot data cannot be recovered from XAMPP.'
+      )
+    });
+    if(result.cancelled){setPicoMotionStatus('Synchronization cancelled; no slots were changed','var(--muted)');return;}
+    setPicoMotionStatus('Synchronized '+result.logicalSlotCount+' logical effect slots across '+result.outputCount+' Picos · cleared '+result.clearCount+' stale slot'+(result.clearCount===1?'':'s'),'var(--accent)');
     pollPicoMotionStatus();
-    return;
-  }
-  if(!root){setPicoMotionStatus('No linked playbacks and no primary Pico URL configured','var(--warn)');return;}
-  for(let i=0;i<slots.length;i++){
-    if(!slots[i])continue;
-    try{
-      const r=await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});
-      const rj=await r.json();
-      if(rj.ok)count++;
-    }catch(_){}
-  }
-  setPicoMotionStatus(count+' slot(s) restored to Pico','var(--accent)');
-  pollPicoMotionStatus();
+  }catch(error){setPicoMotionStatus('Synchronization error: '+error.message,'var(--bad)');}
 }
 
 async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
@@ -1622,24 +1642,25 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
     output=>serializeMotionForPico(output.id),
     {legacyBaseUrl:setup.baseUrl||baseUrlEl.value,preferredBaseUrl:baseUrlEl.value}
   );
-  setPicoMotionStatus('Checking empty slots on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
+  setPicoMotionStatus('Checking logical slot '+slot+' on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
-    const upload=allowPeerPreferredSlotOverwrite=>DmxCommon.uploadLinkedPicoPlayback({
+    const existing=linkedMotionPlaybackForSlot(slot);
+    const upload=allowOverwrite=>DmxCommon.uploadLinkedPicoPlayback({
       kind:'motion',
       members,
       preferredSlot:slot,
       slotCount:PICO_SLOT_COUNT,
-      allowCoordinatorOverwrite:!!confirmOverwrite,
-      allowPeerPreferredSlotOverwrite,
+      allowOverwrite,
+      id:existing?.id,
       label:'Effect '+(document.getElementById('effectType')?.selectedOptions?.[0]?.textContent||('slot '+slot)),
       serverEndpoint:'motion_setup.php'
     });
     let playback;
     try{
-      playback=await upload(false);
+      playback=await upload(!!confirmOverwrite);
     }catch(e){
-      if(e?.code!=='NO_EMPTY_PEER_SLOT'||!confirm(
-        e.outputName+' has no empty effect slots. Overwrite slot '+slot+' on each full linked Pico?\n\nExisting effects in that slot will be replaced.'
+      if(e?.code!=='LOGICAL_SLOT_OCCUPIED'||!confirm(
+        e.outputName+' already contains effect slot '+slot+'. Overwrite logical slot '+slot+' on every involved Pico?\n\nExisting effects in that slot will be replaced.'
       ))throw e;
       playback=await upload(true);
     }
@@ -1651,6 +1672,7 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
   }catch(e){setPicoMotionStatus('Error: '+e.message,'var(--bad)');}
 }
 document.getElementById('btnPicoMotionRestoreAll').onclick=restoreAllMotionSlots;
+document.getElementById('btnPicoMotionMigrateSlots').onclick=migrateLegacyMotionSlots;
 
 async function commandSelectedMotionSlot(action,slot,suffix=''){
   const playback=linkedMotionPlaybackForSlot(slot);
@@ -2187,33 +2209,15 @@ if(!new URLSearchParams(location.search).has('docshot_overview')){
     await loadMotionEffectCatalogFromServer();
     const restoredWorkingState=!isHardPageReload()&&restoreMotionWorkingState();
     if(!restoredWorkingState)await loadMotionFromServer();
-    // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
+    // Load saved slot metadata only. Physical Pico memory changes require explicit synchronization.
     const root=baseUrlEl.value.replace(/\/+$/,'');
     try{
       const r=await fetch('motion_setup.php?slots');
       const j=await r.json();
       if(j.ok){
         linkedMotionPlaybacks=Array.isArray(j.pico_playbacks)?j.pico_playbacks:[];
-        if(linkedMotionPlaybacks.length){
-          for(const playback of linkedMotionPlaybacks){
-            for(const member of playback.members||[]){
-              const memberRoot=String(member.baseUrl||'').replace(/\/+$/,'');
-              if(!memberRoot||!member.payload)continue;
-              try{await fetch(memberRoot+'/motion/load/'+member.slot,{method:'POST',body:member.payload,headers:{'Content-Type':'text/plain'}});}catch(_){}
-            }
-          }
-          pollPicoMotionStatus();
-        }else if(root){
-          const savedUrl=(j.pico_url||'').replace(/\/+$/,'');
-          if(!savedUrl||savedUrl===root){
-            const slots=j.pico_slots||[];
-            for(let i=0;i<slots.length;i++){
-              if(!slots[i])continue;
-              try{await fetch(root+'/motion/load/'+i,{method:'POST',body:slots[i],headers:{'Content-Type':'text/plain'}});}catch(_){}
-            }
-            pollPicoMotionStatus();
-          }
-        }
+        updateMotionSlotMigrationButton();
+        if(root)pollPicoMotionStatus();
       }
     }catch(_){}
   });

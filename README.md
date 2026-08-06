@@ -654,9 +654,12 @@ bounded `/status.json` availability check for each output. An unavailable Pico
 is skipped and reported by name, universe, URL, and failure reason; available
 Picos continue through the full test. Each available Pico also runs the
 **Playback + Palette Stress** workload before its final telemetry snapshot.
-Temporary chaser and effect data uses only empty slots and is cleared after the
-workload. Pico requests and repeated write errors are bounded so one offline
-output cannot leave the button disabled.
+Temporary chaser and effect data uses only empty slots. Cleanup remains bound to
+the Pico where each temporary slot was created, verifies that those slots are
+empty, paces the clear requests so the Pico can process large slot sets, and
+retries transient failures before deleting its recovery record. The test remains
+busy until cleanup finishes. Pico requests and repeated write errors are bounded
+so one offline output cannot leave the button disabled.
 
 MIDI receive diagnostics:
 
@@ -1198,7 +1201,7 @@ The Chaser and Effects browser playback engines connect directly to the show's p
 
 ### Pico Autonomous Playback
 
-Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.
+Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. Logical slot N always uses physical slot N on each involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.
 
 Starting browser Chase Playback stops Chaser and Effects playback on the primary Pico before previewing there. Starting autonomous Pico playback stops the browser preview on that page. Linked member control is coordinated by the autonomous playback actions, not by the primary-output browser-preview handoff.
 
@@ -1228,7 +1231,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 
 ### Pico chaser
 
-Each Pico provides **32 physical chaser slots** that can be loaded and played simultaneously. Each physical slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 32 logical chaser slots; a linked multi-output chase reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
+Each Pico provides **32 physical chaser slots** that can be loaded and played simultaneously. Each physical slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents the same 32 slots as fleet-wide logical slots: logical slot N uses physical slot N on every involved Pico.
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
@@ -1268,7 +1271,7 @@ Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforc
 
 ### Pico Effects
 
-Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 64 logical effect slots; its slot strip shows the coordinator Pico, while a linked multi-output effect reserves one physical slot on every involved Pico. Peer Picos normally receive any available physical slot, so their slot numbers may differ from the logical/coordinator slot. If a peer has no empty effect slots, upload asks before replacing the selected coordinator slot number on each full peer; cancellation leaves every existing slot unchanged.
+Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents the same 64 slots as fleet-wide logical slots: logical slot N uses physical slot N on every involved Pico. Upload asks before replacing occupied slot N; cancellation leaves every existing slot unchanged.
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
@@ -1328,10 +1331,11 @@ The playback pages separate browser editing from the autonomous Pico slot memory
 
 - **Chaser Chases toolbox** — stores reusable editable chases on the XAMPP server. Recalling a chase loads its steps, selects Step 1, rebuilds Participating Controls and Edit Step, and a newly opened Chaser page starts with no working steps until a chase is recalled or created.
 - **Effects Save Preset / Load Preset** — stores and restores the editable Effects page setup on the XAMPP server JSON file.
-- **Pico slot click upload** — click an empty Pico slot to send the current editable chase or Effects preset to that slot and mirror the payload on the XAMPP server. Click a loaded slot once to select it for playback controls; click the selected loaded slot again to replace it after confirmation.
+- **Pico slot click upload** — click an `EMPTY` logical slot to send the current editable chase or Effects preset to physical slot N on every involved Pico and mirror the linked payload on the XAMPP server. `EMPTY` is only shown after every configured Pico responds consistently. `PARTIAL` identifies missing linked members or unexpected occupancy; `UNKNOWN` prevents changes while any configured Pico cannot be inspected. Click a loaded slot once to select it for playback controls; click the selected loaded slot again to replace it after confirmation.
 - **Play Slot / Start Slot** — starts the already-loaded physical slot, or every physical member of a linked logical slot.
-- **Restore Saved Slots to Pico** — re-sends every mirrored payload after reboot or firmware upload. A linked logical slot restores its member payload to every involved Pico.
-- **Delete slot** — loaded slots show a small `×` button in the top-right corner. It deletes the mirrored XAMPP payload and clears every physical Pico slot belonging to that logical slot.
+- **Synchronize Saved Slots to Picos** — treats the saved XAMPP slot state as authoritative. It first inspects every configured Pico and cancels without writes if one is unreachable or has insufficient firmware capacity. The confirmation reports the number of saved logical slots, payload uploads, and stale physical slots that will be cleared. Continuing re-uploads every saved member to physical slot N and clears every loaded Pico slot absent from the saved logical state, including unexpected copies on uninvolved Picos. Pico-only slot data being cleared cannot be recovered from XAMPP. Opening Chaser or Effects only reads slot metadata; it never performs this synchronization automatically.
+- **Delete slot** — loaded slots show a small `×` button in the top-right corner. After confirmation it deletes the mirrored XAMPP payload and clears physical slot N on every configured Pico, keeping the fleet consistent.
+- **Normalize Legacy Slots** — appears when an older linked manifest maps one logical slot to different physical member slots. The action creates a timestamped JSON backup, checks every target for unmanaged data, moves the saved Pico payloads to the common slot number, and restores the previous physical layout if migration fails. Legacy linked manifests are not silently auto-restored before normalization.
 
 On the Chaser page, each uploaded logical slot also stores its playback mode (`Single`, `Loop`, `Loop N`, or `Ping Pong`), loop count, direction, speed, and fade-in percentage. `Stop` resets all linked members, while `Pause`/`Resume` keeps their current step and fade position. The logical capacity remains 32 chaser slots and 64 effect slots even when fewer Picos are involved; each linked member consumes one physical slot on its own Pico.
 

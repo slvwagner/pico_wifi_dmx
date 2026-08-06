@@ -845,4 +845,97 @@ test.describe('Pico Performance Test established rules', () => {
       'http://127.0.0.1:18992/motion/clear/1'
     ]);
   });
+
+  test('cleans temporary stress slots on the recorded second Pico and retries a transient failure', async ({ page }) => {
+    const clearRequests = [];
+    let secondPicoChaserAttempts = 0;
+    const secondPicoSlots = {
+      chaser: [{ slot: 1, loaded: true }],
+      motion: [{ slot: 1, loaded: true }]
+    };
+
+    await page.route(/http:\/\/(127\.0\.0\.1:18992|second-pico\.test)\/(chaser|motion)\/clear\/1/, route => {
+      const url = route.request().url();
+      clearRequests.push(url);
+      if (url === 'http://second-pico.test/chaser/clear/1') {
+        secondPicoChaserAttempts += 1;
+        if (secondPicoChaserAttempts === 1) {
+          return route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false}' });
+        }
+      }
+      const kind = url.includes('/chaser/') ? 'chaser' : 'motion';
+      secondPicoSlots[kind][0].loaded = false;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route(/http:\/\/second-pico\.test\/(chaser|motion)\/slots/, route => {
+      const kind = route.request().url().includes('/chaser/') ? 'chaser' : 'motion';
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, slots: secondPicoSlots[kind] })
+      });
+    });
+    await page.route('**/ui_state.php', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: route.request().method() === 'POST' ? '{"ok":true}' : '{"ok":true,"exists":false,"state":{}}'
+    }));
+
+    await openDmxPage(page, 'test/');
+    await page.evaluate(() => clearRecordedStressSlots({
+      picoBaseUrl: 'http://second-pico.test/',
+      chaserSlots: [1],
+      motionSlots: [1]
+    }));
+
+    expect(clearRequests).toEqual([
+      'http://second-pico.test/chaser/clear/1',
+      'http://second-pico.test/motion/clear/1',
+      'http://second-pico.test/chaser/clear/1'
+    ]);
+  });
+
+  test('paces a large temporary-slot cleanup so the Pico can process every clear', async ({ page }) => {
+    const slots = {
+      chaser: [{ slot: 1, loaded: true }, { slot: 2, loaded: true }],
+      motion: [{ slot: 1, loaded: true }, { slot: 2, loaded: true }]
+    };
+    let lastAcceptedClearAt = 0;
+
+    await page.route(/http:\/\/paced-pico\.test\/(chaser|motion)\/clear\/[12]/, route => {
+      const now = Date.now();
+      if (now - lastAcceptedClearAt < 20) {
+        return route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false}' });
+      }
+      lastAcceptedClearAt = now;
+      const url = route.request().url();
+      const kind = url.includes('/chaser/') ? 'chaser' : 'motion';
+      const slot = Number(url.split('/').at(-1));
+      slots[kind].find(candidate => candidate.slot === slot).loaded = false;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route(/http:\/\/paced-pico\.test\/(chaser|motion)\/slots/, route => {
+      const kind = route.request().url().includes('/chaser/') ? 'chaser' : 'motion';
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, slots: slots[kind] })
+      });
+    });
+    await page.route('**/ui_state.php', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: route.request().method() === 'POST' ? '{"ok":true}' : '{"ok":true,"exists":false,"state":{}}'
+    }));
+
+    await openDmxPage(page, 'test/');
+    await page.evaluate(() => clearRecordedStressSlots({
+      picoBaseUrl: 'http://paced-pico.test/',
+      chaserSlots: [1, 2],
+      motionSlots: [1, 2]
+    }));
+
+    expect(slots.chaser.every(slot => !slot.loaded)).toBe(true);
+    expect(slots.motion.every(slot => !slot.loaded)).toBe(true);
+  });
 });

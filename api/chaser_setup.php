@@ -53,6 +53,23 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    if (isset($_GET['backup_playbacks'])) {
+        if (!is_file($dataFile)) {
+            echo json_encode(['ok' => true, 'backup' => null]);
+            exit;
+        }
+        $backupDir = $dataDir . DIRECTORY_SEPARATOR . 'backups';
+        if (!is_dir($backupDir)) mkdir($backupDir, 0775, true);
+        $backupFile = $backupDir . DIRECTORY_SEPARATOR . 'chaser-setup.before-slot-migration.' . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(3)) . '.json';
+        if (!copy($dataFile, $backupFile)) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not create the chaser slot migration backup']);
+            exit;
+        }
+        echo json_encode(['ok' => true, 'backup' => 'backups/' . basename($backupFile)]);
+        exit;
+    }
+
     if (isset($_GET['delete_playback'])) {
         $playbackId = trim((string)$_GET['delete_playback']);
         $deleted = null;

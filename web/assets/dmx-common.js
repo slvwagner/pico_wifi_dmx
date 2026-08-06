@@ -162,7 +162,7 @@
     const preferredSlot=Math.max(0,Math.round(Number(options.preferredSlot)||0));
     const slotCount=Math.max(1,Math.round(Number(options.slotCount)||(kind==='motion'?64:32)));
 
-    const snapshots=await Promise.all(members.map(async(member,index)=>{
+    const snapshots=await Promise.all(members.map(async member=>{
       const root=dmxOutputEndpoint(member.output);
       if(!root)throw new Error('Set the Pico URL for '+(member.output.name||'DMX output'));
       const response=await fetch(root+slotPath,{cache:'no-store'});
@@ -170,28 +170,16 @@
       const data=await response.json();
       if(!data?.ok||!Array.isArray(data.slots))throw new Error((member.output.name||'DMX output')+': invalid slot response');
       const reportedCount=Math.min(slotCount,data.slots.length||slotCount);
-      let slot=-1;
-      if(index===0){
-        if(preferredSlot>=reportedCount)throw new Error((member.output.name||'DMX output')+' supports only '+reportedCount+' slots');
-        const occupied=!!data.slots[preferredSlot]?.loaded;
-        if(occupied&&!options.allowCoordinatorOverwrite){
-          throw new Error((member.output.name||'DMX output')+' slot '+preferredSlot+' is already occupied');
-        }
-        slot=preferredSlot;
-      }else{
-        for(let candidate=0;candidate<reportedCount;candidate++){
-          if(!data.slots[candidate]?.loaded){slot=candidate;break;}
-        }
-        if(slot<0&&options.allowPeerPreferredSlotOverwrite&&preferredSlot<reportedCount){
-          slot=preferredSlot;
-        }else if(slot<0){
-          const error=new Error('No empty '+kind+' slot is available on '+(member.output.name||'DMX output'));
-          error.code='NO_EMPTY_PEER_SLOT';
-          error.outputName=member.output.name||'DMX output';
-          throw error;
-        }
+      if(preferredSlot>=reportedCount)throw new Error((member.output.name||'DMX output')+' supports only '+reportedCount+' slots');
+      const occupied=!!data.slots[preferredSlot]?.loaded;
+      if(occupied&&!options.allowOverwrite){
+        const error=new Error((member.output.name||'DMX output')+' slot '+preferredSlot+' is already occupied');
+        error.code='LOGICAL_SLOT_OCCUPIED';
+        error.outputName=member.output.name||'DMX output';
+        error.slot=preferredSlot;
+        throw error;
       }
-      return{...member,root,slot};
+      return{...member,root,slot:preferredSlot,wasOccupied:occupied};
     }));
 
     const uploaded=[];
@@ -209,6 +197,7 @@
       const playback={
         id:options.id||('playback_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8)),
         kind,
+        logicalSlot:preferredSlot,
         label:String(options.label||((kind==='motion'?'Effect':'Chase')+' slot '+preferredSlot)),
         createdAt:new Date().toISOString(),
         members:snapshots.map(member=>({
@@ -231,9 +220,227 @@
       }
       return playback;
     }catch(error){
-      await Promise.allSettled(uploaded.map(member=>fetch(member.root+clearPath+member.slot,{cache:'no-store'})));
+      await Promise.allSettled(uploaded.filter(member=>!member.wasOccupied).map(member=>fetch(member.root+clearPath+member.slot,{cache:'no-store'})));
       throw error;
     }
+  }
+
+  async function fetchFleetPicoSlots(kind,outputs,options={}){
+    const normalizedKind=kind==='motion'?'motion':'chaser';
+    const slotCount=Math.max(1,Math.round(Number(options.slotCount)||(normalizedKind==='motion'?64:32)));
+    const path=normalizedKind==='motion'?'/motion/slots':'/chaser/slots';
+    const unique=new Map();
+    normalizeDmxOutputs(outputs,options.legacyBaseUrl||'').forEach(output=>{
+      const root=dmxOutputEndpoint(output);
+      if(root)unique.set(output.id,{output,root});
+    });
+    const reports=await Promise.all([...unique.values()].map(async item=>{
+      try{
+        const response=await fetch(item.root+path,{cache:'no-store'});
+        const data=await response.json().catch(()=>null);
+        if(!response.ok||!data?.ok||!Array.isArray(data.slots))throw new Error('invalid slot response');
+        return{...item,ok:true,slots:data.slots};
+      }catch(error){
+        return{...item,ok:false,slots:[],error:error?.message||String(error)};
+      }
+    }));
+    const reachable=reports.filter(report=>report.ok);
+    const expectedBySlot=new Map();
+    (options.playbacks||[]).forEach(playback=>{
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      const roots=new Set((playback.members||[]).map(member=>String(member.baseUrl||'').trim().replace(/\/+$/,'')).filter(Boolean));
+      if(roots.size)expectedBySlot.set(logicalSlot,roots);
+    });
+    const slots=Array.from({length:slotCount},(_,slot)=>{
+      const slotReports=reachable.map(report=>({report,sample:report.slots[slot]})).filter(item=>item.sample);
+      const samples=slotReports.map(item=>item.sample);
+      const loadedReports=slotReports.filter(item=>item.sample.loaded);
+      const loadedCount=loadedReports.length;
+      const allReachable=reports.length>0&&reachable.length===reports.length;
+      const supported=samples.length===reachable.length&&samples.length>0;
+      const representative=samples.find(sample=>sample.loaded)||samples[0]||{slot,loaded:false,active:false,paused:false};
+      let fleetState='unknown';
+      if(allReachable&&supported){
+        const expected=expectedBySlot.get(slot);
+        if(expected){
+          const loadedRoots=new Set(loadedReports.map(item=>item.report.root));
+          const expectedLoaded=[...expected].every(root=>loadedRoots.has(root));
+          const unexpectedLoaded=[...loadedRoots].some(root=>!expected.has(root));
+          fleetState=expectedLoaded&&!unexpectedLoaded?'ready':'partial';
+        }else{
+          fleetState=loadedCount===0?'empty':loadedCount===reports.length?'ready':'partial';
+        }
+      }
+      return Object.assign({},representative,{
+        slot,
+        loaded:loadedCount>0,
+        active:samples.some(sample=>sample.active),
+        paused:samples.some(sample=>sample.paused),
+        fleetState,
+        fleetLoadedCount:loadedCount,
+        fleetOutputCount:reports.length,
+        unsupported:reachable.length>0&&!supported
+      });
+    });
+    return{slots,reports,reachableCount:reachable.length,outputCount:reports.length};
+  }
+
+  function linkedPlaybackLogicalSlot(playback){
+    const first=Array.isArray(playback?.members)?playback.members[0]:null;
+    return Math.max(0,Math.round(Number(playback?.logicalSlot??first?.slot)||0));
+  }
+
+  function legacyLinkedPicoPlaybacks(playbacks){
+    return(playbacks||[]).filter(playback=>{
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      return(playback.members||[]).some(member=>Number(member.slot)!==logicalSlot);
+    });
+  }
+
+  async function migrateLinkedPicoPlaybacks(options){
+    const kind=options.kind==='motion'?'motion':'chaser';
+    const slotPath=kind==='motion'?'/motion/slots':'/chaser/slots';
+    const loadPath=kind==='motion'?'/motion/load/':'/chaser/load/';
+    const clearPath=kind==='motion'?'/motion/clear/':'/chaser/clear/';
+    const playbacks=legacyLinkedPicoPlaybacks(options.playbacks);
+    if(!playbacks.length)return{count:0,backup:null,playbacks:options.playbacks||[]};
+    const entries=[];
+    const targets=new Set();
+    const oldKeys=new Set();
+    for(const playback of playbacks){
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      for(const member of playback.members||[]){
+        const root=String(member.baseUrl||'').trim().replace(/\/+$/,'');
+        const payload=String(member.payload||'');
+        if(!root||!payload)throw new Error('Legacy playback '+(playback.label||playback.id||'')+' is missing a Pico URL or saved payload');
+        const targetKey=root+'|'+logicalSlot;
+        if(targets.has(targetKey))throw new Error('Two saved playbacks would use '+root+' slot '+logicalSlot);
+        targets.add(targetKey);
+        oldKeys.add(root+'|'+Number(member.slot));
+        entries.push({playback,member,root,payload,oldSlot:Number(member.slot),logicalSlot,targetKey});
+      }
+    }
+    const roots=[...new Set(entries.map(entry=>entry.root))];
+    const reports=new Map();
+    for(const root of roots){
+      const response=await fetch(root+slotPath,{cache:'no-store'});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok||!data?.ok||!Array.isArray(data.slots))throw new Error(root+': could not inspect slots before migration');
+      reports.set(root,data.slots);
+    }
+    for(const entry of entries){
+      const target=reports.get(entry.root)?.[entry.logicalSlot];
+      if(!target)throw new Error(entry.root+' does not support slot '+entry.logicalSlot);
+      if(target.loaded&&entry.oldSlot!==entry.logicalSlot&&!oldKeys.has(entry.targetKey)){
+        throw new Error(entry.root+' slot '+entry.logicalSlot+' contains data not managed by the saved linked playbacks');
+      }
+    }
+    const backupResponse=await fetch(options.serverEndpoint+'?backup_playbacks',{method:'POST'});
+    const backupData=await backupResponse.json().catch(()=>null);
+    if(!backupResponse.ok||!backupData?.ok)throw new Error(backupData?.error||'Could not create the migration backup');
+    const request=async(url,init={})=>{
+      const response=await fetch(url,Object.assign({cache:'no-store'},init));
+      const data=await response.json().catch(()=>null);
+      if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+    };
+    const oldLocations=[...new Map(entries.filter(entry=>entry.oldSlot!==entry.logicalSlot).map(entry=>[entry.root+'|'+entry.oldSlot,entry])).values()];
+    const targetLocations=[...new Map(entries.map(entry=>[entry.targetKey,entry])).values()];
+    try{
+      for(const entry of oldLocations)await request(entry.root+clearPath+entry.oldSlot);
+      for(const entry of entries)await request(entry.root+loadPath+entry.logicalSlot,{method:'POST',body:entry.payload,headers:{'Content-Type':'text/plain'}});
+      const migrated=(options.playbacks||[]).map(playback=>{
+        if(!playbacks.includes(playback))return playback;
+        const logicalSlot=linkedPlaybackLogicalSlot(playback);
+        return Object.assign({},playback,{logicalSlot,migratedAt:new Date().toISOString(),members:(playback.members||[]).map(member=>Object.assign({},member,{slot:logicalSlot}))});
+      });
+      for(const playback of migrated.filter(item=>playbacks.some(old=>old.id===item.id))){
+        await request(options.serverEndpoint+'?playback',{method:'POST',body:JSON.stringify(playback),headers:{'Content-Type':'application/json'}});
+      }
+      return{count:playbacks.length,backup:backupData.backup||null,playbacks:migrated};
+    }catch(error){
+      await Promise.allSettled(targetLocations.map(entry=>fetch(entry.root+clearPath+entry.logicalSlot,{cache:'no-store'})));
+      await Promise.allSettled(entries.map(entry=>fetch(entry.root+loadPath+entry.oldSlot,{method:'POST',body:entry.payload,headers:{'Content-Type':'text/plain'}})));
+      throw new Error('Slot migration failed and the previous Pico layout was restored: '+error.message);
+    }
+  }
+
+  async function synchronizeSavedPicoSlots(options){
+    const kind=options.kind==='motion'?'motion':'chaser';
+    const slotCount=Math.max(1,Math.round(Number(options.slotCount)||(kind==='motion'?64:32)));
+    const loadPath=kind==='motion'?'/motion/load/':'/chaser/load/';
+    const clearPath=kind==='motion'?'/motion/clear/':'/chaser/clear/';
+    const outputs=normalizeDmxOutputs(options.outputs,options.legacyBaseUrl||'').filter(output=>dmxOutputEndpoint(output));
+    if(!outputs.length)throw new Error('No configured Pico URLs');
+    const fleet=await fetchFleetPicoSlots(kind,outputs,{slotCount,legacyBaseUrl:options.legacyBaseUrl||''});
+    const failed=fleet.reports.filter(report=>!report.ok);
+    if(failed.length)throw new Error('Synchronization cancelled before changes because these Picos did not respond: '+failed.map(report=>report.output.name||report.root).join(', '));
+    const short=fleet.reports.filter(report=>report.slots.length<slotCount);
+    if(short.length)throw new Error('Synchronization cancelled before changes because these Picos support fewer than '+slotCount+' '+kind+' slots: '+short.map(report=>report.output.name||report.root).join(', '));
+
+    const configuredRoots=new Map(fleet.reports.map(report=>[report.root,report]));
+    const desired=new Map();
+    const logicalSlots=new Set();
+    const playbacks=Array.isArray(options.playbacks)?options.playbacks:[];
+    const playbackSlots=new Set(playbacks.map(linkedPlaybackLogicalSlot));
+    const addDesired=(root,slot,payload,label)=>{
+      const normalizedRoot=String(root||'').trim().replace(/\/+$/,'');
+      const report=configuredRoots.get(normalizedRoot);
+      if(!report)throw new Error((label||'Saved playback')+' refers to a Pico that is not in the current DMX Outputs: '+normalizedRoot);
+      if(slot<0||slot>=slotCount)throw new Error((label||'Saved playback')+' uses unsupported slot '+slot);
+      const key=normalizedRoot+'|'+slot;
+      if(desired.has(key))throw new Error('More than one saved payload targets '+(report.output.name||normalizedRoot)+' slot '+slot);
+      desired.set(key,{root:normalizedRoot,slot,payload:String(payload||''),output:report.output});
+      logicalSlots.add(slot);
+    };
+    for(const playback of playbacks){
+      const logicalSlot=linkedPlaybackLogicalSlot(playback);
+      for(const member of playback.members||[]){
+        if(Number(member.slot)!==logicalSlot)throw new Error('Normalize legacy slot mappings before synchronizing saved slots');
+        if(!String(member.payload||''))throw new Error((playback.label||playback.id||'Saved playback')+' has no saved payload');
+        addDesired(member.baseUrl,logicalSlot,member.payload,playback.label||playback.id);
+      }
+    }
+    const legacySlots=Array.isArray(options.legacySlots)?options.legacySlots:[];
+    const legacyRoot=String(options.legacyPicoUrl||options.legacyBaseUrl||'').trim().replace(/\/+$/,'');
+    for(let slot=0;slot<Math.min(slotCount,legacySlots.length);slot++){
+      const payload=legacySlots[slot];
+      if(!payload||playbackSlots.has(slot))continue;
+      if(!legacyRoot)throw new Error('Saved single-Pico slot '+slot+' has no Pico URL');
+      addDesired(legacyRoot,slot,payload,'Saved single-Pico slot '+slot);
+    }
+
+    const clears=[];
+    for(const report of fleet.reports){
+      report.slots.slice(0,slotCount).forEach((slotInfo,slot)=>{
+        if(slotInfo?.loaded&&!desired.has(report.root+'|'+slot))clears.push({root:report.root,slot,output:report.output});
+      });
+    }
+    const uploads=[...desired.values()];
+    const summary={
+      outputCount:fleet.reports.length,
+      logicalSlotCount:logicalSlots.size,
+      uploadCount:uploads.length,
+      clearCount:clears.length
+    };
+    if(typeof options.confirmPlan==='function'&&!options.confirmPlan(summary))return Object.assign({cancelled:true},summary);
+
+    const errors=[];
+    for(const upload of uploads){
+      try{
+        const response=await fetch(upload.root+loadPath+upload.slot,{method:'POST',body:upload.payload,headers:{'Content-Type':'text/plain'}});
+        const data=await response.json().catch(()=>null);
+        if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+      }catch(error){errors.push((upload.output.name||upload.root)+' slot '+upload.slot+' upload: '+(error?.message||String(error)));}
+    }
+    for(const stale of clears){
+      try{
+        const response=await fetch(stale.root+clearPath+stale.slot,{cache:'no-store'});
+        const data=await response.json().catch(()=>null);
+        if(!response.ok||data?.ok===false)throw new Error(data?.error||('HTTP '+response.status));
+      }catch(error){errors.push((stale.output.name||stale.root)+' slot '+stale.slot+' clear: '+(error?.message||String(error)));}
+    }
+    if(errors.length)throw new Error('Synchronization was incomplete; rerun it after resolving: '+errors.join(' · '));
+    return Object.assign({cancelled:false},summary);
   }
 
   async function commandLinkedPicoPlayback(playback,pathForMember,options={}){
@@ -4160,6 +4367,11 @@
     linkedPlaybackMembersForFixtures,
     uploadLinkedPicoPlayback,
     commandLinkedPicoPlayback,
+    fetchFleetPicoSlots,
+    linkedPlaybackLogicalSlot,
+    legacyLinkedPicoPlaybacks,
+    migrateLinkedPicoPlaybacks,
+    synchronizeSavedPicoSlots,
     showUsedDmxOutputs,
     checkPicoFleetOutput,
     refreshPicoFleetStatus,
