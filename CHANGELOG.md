@@ -4,6 +4,9 @@
 
 Changed:
 
+- Added a fast solid-zlib profile for local Windows installer builds while
+  retaining solid LZMA as the official release default. Release timing runs can
+  opt into the fast profile with `-WindowsInstallerCompression Fast`.
 - Added stage and total runtime reporting to the Windows installer build so dependency
   validation, cleanup, .NET restore/publish, runtime extraction, staging, NSIS
   compilation, and finalization bottlenecks are visible in every installer run.

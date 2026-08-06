@@ -104,6 +104,20 @@ test.describe('Code safety regression rules', () => {
     }
   });
 
+  test('Windows installer uses fast local compression and small release compression', () => {
+    const installer = read('installer/windows/pico-dmx-controller.nsi');
+    const builder = read('installer/windows/build_installer.ps1');
+
+    expect(installer).toContain('SetCompressor /SOLID zlib');
+    expect(installer).toContain('SetCompressor /SOLID lzma');
+    expect(builder).toContain('[ValidateSet("Fast", "Small")]');
+    expect(builder).toContain('[string]$Compression = "Fast"');
+    expect(builder).toContain('/DUSE_LZMA_COMPRESSION=1');
+    const release = read('scripts/prepare_release.ps1');
+    expect(release).toContain('[string]$WindowsInstallerCompression = "Small"');
+    expect(release).toContain('Compression = $WindowsInstallerCompression');
+  });
+
   test('WSL and Linux package builds report stage and total timings', () => {
     const wslBuilder = read('installer/ubuntu/build_package_wsl.ps1');
     const linuxBuilder = read('installer/ubuntu/build_package.sh');

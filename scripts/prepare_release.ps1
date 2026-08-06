@@ -21,7 +21,9 @@ param(
     [string]$WslDistribution = "",
     [string]$WslPicotoolPath = "",
     [string]$WindowsSigningCertificateThumbprint = "",
-    [string]$WindowsSignToolPath = ""
+    [string]$WindowsSignToolPath = "",
+    [ValidateSet("Fast", "Small")]
+    [string]$WindowsInstallerCompression = "Small"
 )
 
 $ErrorActionPreference = "Stop"
@@ -330,6 +332,7 @@ if ($isWindowsHost -and -not $SkipWindowsInstaller) {
             OutputDir = $releaseDir
             ApplicationUf2 = (Join-Path $BuildDir "pico_wifi_dmx.uf2")
             WifiFirmwareUf2 = (Join-Path $BuildDir "pico_wifi_dmx_wifi_firmware.uf2")
+            Compression = $WindowsInstallerCompression
         }
         if ($WindowsSigningCertificateThumbprint) {
             $installerArgs.SigningCertificateThumbprint = $WindowsSigningCertificateThumbprint

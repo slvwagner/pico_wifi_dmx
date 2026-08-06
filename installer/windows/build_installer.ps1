@@ -10,6 +10,8 @@ param(
     [string]$ApplicationUf2 = "",
     [string]$WifiFirmwareUf2 = "",
     [string]$PicotoolPath = "",
+    [ValidateSet("Fast", "Small")]
+    [string]$Compression = "Fast",
     [switch]$PrepareOnly
 )
 
@@ -285,12 +287,19 @@ New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 $outputFile = Join-Path ([System.IO.Path]::GetFullPath($OutputDir)) "wifi-pico-dmx-$version-windows-x64.exe"
 $nsiScript = Join-Path $installerDir "pico-dmx-controller.nsi"
 
-& $MakensisPath `
-    "/WX" `
-    "/DSTAGE_DIR=$stageDir" `
-    "/DPRODUCT_VERSION=$version" `
-    "/DOUTPUT_FILE=$outputFile" `
-    $nsiScript
+$makensisArgs = @(
+    "/WX"
+    "/DSTAGE_DIR=$stageDir"
+    "/DPRODUCT_VERSION=$version"
+    "/DOUTPUT_FILE=$outputFile"
+)
+if ($Compression -eq "Small") {
+    $makensisArgs += "/DUSE_LZMA_COMPRESSION=1"
+}
+$makensisArgs += $nsiScript
+
+Write-Host "NSIS compression profile: $Compression"
+& $MakensisPath @makensisArgs
 if ($LASTEXITCODE -ne 0) {
     throw "NSIS compilation failed with exit code $LASTEXITCODE."
 }

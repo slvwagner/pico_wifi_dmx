@@ -52,6 +52,13 @@ Browser tests are destructive by design: they can save mock groups, palettes, ch
 
 1. Document everything.
 2. Run the release scripts for the current platform.
-3. Create a GitHub Release with the installer.
+3. Keep the default `Small` Windows installer compression for an official
+   release. This uses solid LZMA and prioritizes download size.
+4. Use `-WindowsInstallerCompression Fast` only for local release testing and
+   timing work. Direct `installer/windows/build_installer.ps1` calls also use
+   the fast solid-zlib profile by default.
+5. Never publish a fast-profile test installer as the official release asset;
+   rebuild it with the `Small` profile first.
+6. Create a GitHub Release with the installer.
 
 Before an authorized data recovery, make a recoverable snapshot and restore only the approved files. Deployment authorization does not imply authorization to modify user data.

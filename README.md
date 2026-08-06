@@ -1048,7 +1048,11 @@ Before tagging or publishing a release:
 `-Build` explicitly configures `CMAKE_BUILD_TYPE=Release` before compiling.
 The Windows installer accepts only a matching RP2350 Release UF2 and receives
 the exact artifacts from the selected `-BuildDir`, preventing a stale Debug
-image from entering a customer package.
+image from entering a customer package. Official release preparation uses the
+smaller solid-LZMA NSIS profile. Pass `-WindowsInstallerCompression Fast` for
+faster solid-zlib packaging during local release tests. Direct calls to
+`installer/windows/build_installer.ps1` use the fast profile by default and
+accept `-Compression Small` when a compact installer is required.
 
 For a signed Windows customer release, pass the non-secret certificate-store
 thumbprint:
