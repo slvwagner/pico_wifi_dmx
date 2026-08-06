@@ -110,6 +110,38 @@ test.describe('Adaptive sticky application header', () => {
     expect(Math.abs(positions.fleetCenter - positions.outputsCenter)).toBeLessThanOrEqual(1);
   });
 
+  test('documentation captures show current firmware without contacting configured Picos', async ({ page }) => {
+    let picoStatusRequests = 0;
+    await page.unroute('http://pico-one.invalid/status.json');
+    await page.unroute('http://pico-two.invalid/status.json');
+    await page.route('http://pico-one.invalid/status.json', route => {
+      picoStatusRequests++;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ firmware_version: '0.1.0', dmx: { channels: 512, frame_count: 10 } })
+      });
+    });
+    await page.route('http://pico-two.invalid/status.json', route => {
+      picoStatusRequests++;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ firmware_version: '0.1.0', dmx: { channels: 512, frame_count: 11 } })
+      });
+    });
+
+    await openDmxPage(page, 'dmx_chaser.html?docshot=firmware-regression');
+
+    const fleet = page.locator('header [data-pico-fleet-status]');
+    await expect(fleet).toHaveText(`2/2 Picos online · firmware ${appVersion}`);
+    await expect(fleet).toHaveAttribute('data-state', 'online');
+    await expect(page.locator('style[data-dmx-docshot-stability]')).toHaveCount(1);
+    expect(picoStatusRequests).toBe(0);
+  });
+
   test('warns in the Controller header when an online Pico firmware version is not current', async ({ page }) => {
     await page.unroute('http://pico-one.invalid/status.json');
     await page.unroute('http://pico-two.invalid/status.json');

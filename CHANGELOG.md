@@ -11,6 +11,10 @@ Changed:
 - Replaced the Windows shell's native light message boxes with shared dark dialogs for firmware prompts, flash confirmation and completion, server lifecycle warnings, WebView fallback, and shutdown errors.
 - Removed SSID and password compilation from the Pico application. Windows, Ubuntu, and the developer flash workflow now provision credentials through a dedicated persistent RP2350 data partition using a locally generated temporary UF2. Normal application updates preserve it, network changes can replace it, temporary credentials are not logged, and release preparation rejects legacy credential-bearing CMake caches or compiler commands. Legacy `SSID` and `SSID_PW` environment variables are explicitly ignored instead of silently repopulating the updater or firmware build.
 
+Fixed:
+
+- Made documentation captures report deterministic current-release Pico firmware without contacting configured physical controllers, so release screenshots cannot show stale firmware warnings or depend on which devices happen to be online.
+
 ## 1.1.0 - 2026-08-05
 
 Changed:
