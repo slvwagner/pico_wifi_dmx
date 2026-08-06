@@ -363,6 +363,9 @@ test.describe('Code safety regression rules', () => {
     expect(holdCapture).not.toBeNull();
     expect(holdCapture[0]).toContain('midiMappings=[];');
     expect(holdCapture[0].indexOf('midiMappings=[];')).toBeLessThan(holdCapture[0].indexOf("renderLiveControls();"));
+    const postRender = holdCapture[0].slice(holdCapture[0].indexOf("renderLiveControls();"));
+    expect(postRender).toContain("widget.dispatchEvent(new Event('change',{bubbles:true}));");
+    expect(postRender).toContain("if(mode)mode.value='hold';");
   });
 
   test('release documentation generation stays local and never deploys to live XAMPP', () => {

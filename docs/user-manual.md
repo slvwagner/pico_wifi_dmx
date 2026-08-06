@@ -150,7 +150,7 @@ Application files remain below `/opt/pico-dmx-controller`, while customer shows 
 ## Main Pages
 
 | Page | Purpose |
-|------|---------|
+| --- | --- |
 | [Fixture Controller](#1-fixture-controller) | Fixture profiles, patching, live control, groups, scenes, default and blackout values |
 | [Show Run](#4-show-run) | Operator page for recalling saved groups, scenes, palettes, and Pico chaser/effect slots without editing setup |
 | [MIDI Emulator](#midi-controller-card) | Launch Control XL-style browser controls for testing Show Run MIDI Learn without hardware |
@@ -975,7 +975,7 @@ The **Chase Steps** toolbox uses shared action buttons instead of per-step butto
 - You can also drag a step card with mouse or touch and drop it before or after another step card to reorder the chase. A short click still selects the step. The selected step and the currently playing step stay attached to the same step data after the move.
 - **Delete** removes the selected step. If another step remains, it becomes the selected step.
 
-### Participating Controls
+### Effects Participating Controls
 
 Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.
 
@@ -1471,7 +1471,7 @@ The target can be moved by dragging the red dot, by clicking in the plane, or by
 The **Room Plane** toolbox contains the measured A/B/C points and the current target controls.
 
 | Field | Meaning |
-|-------|---------|
+| --- | --- |
 | A, B, C X/Y/Z | Known physical points in the room. Use one consistent unit, for example meters. |
 | Target X/Y | Numeric target position in the plane. |
 | Reset calibration | Marks all fixture A/B/C calibration points as missing. |
@@ -1488,7 +1488,7 @@ Use **-- all** in the Room Plane, Planes, or Fixtures toolbox header to collapse
 The **Planes** toolbox stores complete plane definitions as tiles, using the same visual language as scene, palette, group, and chase tiles.
 
 | Field | Meaning |
-|-------|---------|
+| --- | --- |
 | Filled plane tile | Recalls that saved plane, including A/B/C points, target, view, fixtures, mount positions, and fixture calibration. |
 | Empty `+ Save current plane` tile | Saves the current plane into that tile and opens **Edit Plane Tile** so it can be named and styled. |
 | Pencil | Opens **Edit Plane Tile** for the selected plane tile name, background color, uploaded icon, or drawn icon. |
@@ -1513,7 +1513,7 @@ The **Fixtures** toolbox stores the relationship between each moving light and t
 **Load patched moving lights** is the normal production workflow: it rebuilds the list from compatible patched fixture profiles while retaining matching saved calibration where possible. **Add fixture** appends a standalone demonstration/calibration row and opens its editor; it is not associated with a patched fixture and therefore cannot send to a physical DMX Output until replaced by patched data. **Remove last** removes only the final row and always leaves at least one fixture row.
 
 | Column | Meaning |
-|--------|---------|
+| --- | --- |
 | Edit | Opens the pan/tilt/dimmer editor for this fixture. Only one fixture is edited at a time. |
 | Select | Includes the fixture when the target point is applied. |
 | Calibration | Shows whether A, B, and C have been stored. |
@@ -1710,7 +1710,7 @@ When you expand the last toolbox on an iPad or another narrow portrait display, 
 There are two different clear actions:
 
 | Action | What it clears | When to use |
-|--------|----------------|-------------|
+| --- | --- | --- |
 | DMX clear | Live DMX output and the motion base buffer | Full reset of output and base position |
 | Output-only clear | Live DMX output only | Black out output while keeping the stored motion center |
 

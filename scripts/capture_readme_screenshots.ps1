@@ -1135,6 +1135,12 @@ try {
   );
   if(typeof renderLiveControls==='function')renderLiveControls();
   if(typeof updateLiveControlSelects==='function')updateLiveControlSelects();
+  if(widget){
+    widget.value='button';
+    widget.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  if(mode)mode.value='hold';
+  if(value)value.value='255';
   live?.scrollIntoView({block:'start',inline:'nearest'});
   window.scrollBy(0,-120);
   await wait(400);
