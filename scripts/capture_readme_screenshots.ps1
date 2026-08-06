@@ -1118,11 +1118,15 @@ try {
     live.style.minHeight='0';
     live.style.alignSelf='start';
   }
-  const widget=document.getElementById('liveWidgetSelect');
-  const mode=document.getElementById('liveButtonMode');
-  const value=document.getElementById('liveButtonValue');
-  const on=document.getElementById('liveTimerOn');
-  const off=document.getElementById('liveTimerOff');
+  const widget=live?.querySelector('.live-widget-select');
+  const mode=live?.querySelector('.live-button-mode');
+  const value=live?.querySelector('.live-button-value');
+  const modeWrap=live?.querySelector('.live-button-mode-wrap');
+  const valueWrap=live?.querySelector('.live-button-value-wrap');
+  const on=live?.querySelector('.live-timer-on');
+  const off=live?.querySelector('.live-timer-off');
+  const onWrap=live?.querySelector('.live-timer-on-wrap');
+  const offWrap=live?.querySelector('.live-timer-off-wrap');
   const hiddenModal=document.getElementById('hiddenTileModal');
   if(hiddenModal)hiddenModal.style.display='none';
   if(typeof hiddenTileModalDismissed!=='undefined')hiddenTileModalDismissed=true;
@@ -1141,9 +1145,34 @@ try {
   }
   if(mode)mode.value='hold';
   if(value)value.value='255';
+  if(modeWrap)modeWrap.style.display='grid';
+  if(valueWrap)valueWrap.style.display='grid';
+  if(onWrap)onWrap.style.display='none';
+  if(offWrap)offWrap.style.display='none';
   live?.scrollIntoView({block:'start',inline:'nearest'});
   window.scrollBy(0,-120);
   await wait(400);
+})()
+"@
+    # Final synchronous normalization immediately before capture keeps pending
+    # page initialization from hiding the button-specific toolbar fields.
+    Eval-Js @"
+(()=>{
+  const live=document.getElementById('cardLive');
+  const widget=live?.querySelector('.live-widget-select');
+  const mode=live?.querySelector('.live-button-mode');
+  const value=live?.querySelector('.live-button-value');
+  if(widget)widget.value='button';
+  if(mode)mode.value='hold';
+  if(value)value.value='255';
+  const modeWrap=live?.querySelector('.live-button-mode-wrap');
+  const valueWrap=live?.querySelector('.live-button-value-wrap');
+  const onWrap=live?.querySelector('.live-timer-on-wrap');
+  const offWrap=live?.querySelector('.live-timer-off-wrap');
+  if(modeWrap)modeWrap.style.display='grid';
+  if(valueWrap)valueWrap.style.display='grid';
+  if(onWrap)onWrap.style.display='none';
+  if(offWrap)offWrap.style.display='none';
 })()
 "@
     Save-ElementScreenshot "#cardLive" "show-run-live-hold-button.png"

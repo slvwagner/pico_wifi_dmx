@@ -358,7 +358,7 @@ test.describe('Code safety regression rules', () => {
 
   test('manual live-control screenshots clear asynchronous MIDI mapping state', () => {
     const captureScript = read('scripts/capture_readme_screenshots.ps1');
-    const holdCapture = captureScript.match(/if\(mode\)mode\.value='hold';[\s\S]*?show-run-live-hold-button\.png/);
+    const holdCapture = captureScript.match(/cardOrder=\['live'\];[\s\S]*?show-run-live-hold-button\.png/);
 
     expect(holdCapture).not.toBeNull();
     expect(holdCapture[0]).toContain('midiMappings=[];');
@@ -366,6 +366,11 @@ test.describe('Code safety regression rules', () => {
     const postRender = holdCapture[0].slice(holdCapture[0].indexOf("renderLiveControls();"));
     expect(postRender).toContain("widget.dispatchEvent(new Event('change',{bubbles:true}));");
     expect(postRender).toContain("if(mode)mode.value='hold';");
+    expect(postRender).toContain("modeWrap.style.display='grid';");
+    expect(postRender).toContain("valueWrap.style.display='grid';");
+    expect(holdCapture[0]).toContain("live?.querySelector('.live-widget-select')");
+    expect(holdCapture[0]).toContain("live?.querySelector('.live-button-mode-wrap')");
+    expect(holdCapture[0]).toContain('Final synchronous normalization immediately before capture');
   });
 
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
