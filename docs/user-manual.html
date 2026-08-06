@@ -1711,17 +1711,6 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>below, with the newest development or release version first. The Markdown</p>
 <p>source remains linked to the canonical <a href="../CHANGELOG.md">project changelog</a>, so</p>
 <p>release information has one maintained source.</p>
-<h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
-<p>Changed:</p>
-<ul>
-<li>Started the 1.2.1 development branch.</li>
-<li>Included <strong>Playback + Palette Stress</strong> in <strong>Run Full Test</strong> for every available Pico, with its result folded into the Full Test&#39;s single consolidated timing record per device.</li>
-</ul>
-<p>Fixed:</p>
-<ul>
-<li>Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone <code>VERSION</code> file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.</li>
-<li>Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the <strong>Playback + Palette Stress</strong> workload to delay DMX frame starts while calculating many active slots.</li>
-</ul>
 <h3 id="1-2-0-2026-08-06">1.2.0 - 2026-08-06</h3>
 <p>Changed:</p>
 <ul>
@@ -1731,10 +1720,13 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Added an automatic Windows application startup check that compares every discovered Pico with the bundled firmware version. Incompatible or version-less Picos trigger an update prompt, and accepting it opens the firmware update page with the detailed installed-firmware check already running.</li>
 <li>Replaced the Windows shell&#39;s native light message boxes with shared dark dialogs for firmware prompts, flash confirmation and completion, server lifecycle warnings, WebView fallback, and shutdown errors.</li>
 <li>Removed SSID and password compilation from the Pico application. Windows, Ubuntu, and the developer flash workflow now provision credentials through a dedicated persistent RP2350 data partition using a locally generated temporary UF2. Normal application updates preserve it, network changes can replace it, temporary credentials are not logged, and release preparation rejects legacy credential-bearing CMake caches or compiler commands. Legacy <code>SSID</code> and <code>SSID_PW</code> environment variables are explicitly ignored instead of silently repopulating the updater or firmware build.</li>
+<li>Included <strong>Playback + Palette Stress</strong> in <strong>Run Full Test</strong> for every available Pico, with its result folded into the Full Test&#39;s single consolidated timing record per device.</li>
 </ul>
 <p>Fixed:</p>
 <ul>
 <li>Made documentation captures report deterministic current-release Pico firmware without contacting configured physical controllers, so release screenshots cannot show stale firmware warnings or depend on which devices happen to be online.</li>
+<li>Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone <code>VERSION</code> file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.</li>
+<li>Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the <strong>Playback + Palette Stress</strong> workload to delay DMX frame starts while calculating many active slots.</li>
 </ul>
 <h3 id="1-1-0-2026-08-05">1.1.0 - 2026-08-05</h3>
 <p>Changed:</p>
