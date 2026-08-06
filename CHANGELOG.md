@@ -4,6 +4,11 @@
 
 Changed:
 
+- Renamed the manual-generation scripts by responsibility and extracted the page
+  overview capture from the main builder. Every build, capture, and render script
+  reports its total runtime. The builder also reports every orchestration stage, so
+  slow scripts and individual screenshots can be identified while retaining the
+  shared browser capture session.
 - Added per-image timing to manual screenshot generation. Each capture now reports its own PNG capture/write duration and full pipeline interval including preparation waits, followed by a slowest-first summary for the Controller/Effects, Chaser, and page-overview capture stages.
 - Started the 1.2.1 development branch.
 - Removed the easily stale **Current development version** banner from the README. `VERSION` remains the canonical application and development version, and the version-branch helper no longer edits the source branch solely to maintain that duplicate label.

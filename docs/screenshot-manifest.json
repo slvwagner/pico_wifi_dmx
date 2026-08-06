@@ -2,387 +2,387 @@
   "screenshots": [
     {
       "file": "fixture-controller.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "README and manual controller overview"
     },
     {
       "file": "fixture-controller-expanded.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller expanded reference"
     },
     {
       "file": "fixture-controller-dmx-output-discovery.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "DMX Outputs modal listing all discovered Pico controllers"
     },
     {
       "file": "fixture-controller-dmx-outputs.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "DMX Outputs modal with two configured Pico universes"
     },
     {
       "file": "fixture-controller-profile-controls.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "fixture profiles and add/edit control"
     },
     {
       "file": "fixture-controller-fixture-library.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "fixture library search and mode preview"
     },
     {
       "file": "fixture-controller-saved-groups.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "saved groups matrix"
     },
     {
       "file": "fixture-controller-scene-box.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller scene area"
     },
     {
       "file": "fixture-controller-toolbox-groups.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller groups toolbox"
     },
     {
       "file": "fixture-controller-toolbox-scenes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller scenes toolbox"
     },
     {
       "file": "fixture-controller-toolbox-palettes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller palettes toolbox"
     },
     {
       "file": "fixture-controller-toolbox-fanout.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller fan out toolbox"
     },
     {
       "file": "fixture-controller-toolbox-pixel-matrices.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller Pixel Matrices toolbox with a saved matrix"
     },
     {
       "file": "fixture-controller-pixel-matrix-editor.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Pixel Matrix editor with converted colors and sequential fixture mapping"
     },
     {
       "file": "toolbox-reorder-locked.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "shared Toolboxes header with reordering locked"
     },
     {
       "file": "toolbox-reorder-editing.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "shared Toolboxes header with Edit mode active"
     },
     {
       "file": "fixture-controller-edit-tile.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "shared visual edit modal"
     },
     {
       "file": "fixture-controller-live-controls.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "controller live control surface"
     },
     {
       "file": "fixture-controller-ofl-wheel-range.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "fixture library OFL wheel range control"
     },
     {
       "file": "fixture-controller-group-modal.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "group edit modal"
     },
     {
       "file": "show-run.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run operator overview"
     },
     {
       "file": "show-run-card-master.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Master card"
     },
     {
       "file": "show-run-card-groups.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Groups card"
     },
     {
       "file": "show-run-card-fixtures.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Fixtures card"
     },
     {
       "file": "show-run-card-scenes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Scenes card"
     },
     {
       "file": "show-run-card-palettes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Palettes card"
     },
     {
       "file": "show-run-card-pixel-matrices.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Pixel Matrices card"
     },
     {
       "file": "show-run-card-planes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Planes card"
     },
     {
       "file": "show-run-plane-modal.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run saved room plane recall modal"
     },
     {
       "file": "show-run-card-chaser.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Pico Chaser Playback card"
     },
     {
       "file": "show-run-card-effects.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Pico Effects Playback card"
     },
     {
       "file": "show-run-card-live-controls.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Live Controls card"
     },
     {
       "file": "show-run-card-midi.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run MIDI Input card"
     },
     {
       "file": "show-run-midi-scene-mapping.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run scene tile MIDI mapping editor"
     },
     {
       "file": "show-run-midi-playback-mapping.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Pico playback MIDI action mapping"
     },
     {
       "file": "show-run-midi-fader-mapping.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run continuous MIDI mapping with soft takeover"
     },
     {
       "file": "midi-emulator.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Launch Control XL MIDI emulator control surface"
     },
     {
       "file": "show-run-add-card.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Add Card modal with repeatable card types"
     },
     {
       "file": "show-run-layout-edit.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run layout editing with repeated cards and empty positions"
     },
     {
       "file": "show-run-tile-actions.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run tile edit and non-destructive remove actions"
     },
     {
       "file": "show-run-live-controls.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run Live Controls in layout edit mode"
     },
     {
       "file": "show-run-live-hold-button.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run momentary Hold button setup"
     },
     {
       "file": "show-run-live-timer-button.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Show Run fog and haze Timer button setup"
     },
     {
       "file": "chaser-readme.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "README chaser overview without toolbox focus"
     },
     {
       "file": "chaser-toolbox-planes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "chaser saved room planes toolbox"
     },
     {
       "file": "motion-participating-controls-collapsed.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion collapsed participating controls"
     },
     {
       "file": "motion-participating-controls.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion expanded participating controls with enabled fixtures"
     },
     {
       "file": "motion-pico-slots.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion Pico Effects panel with occupied playback slots"
     },
     {
       "file": "motion-toolbox-groups.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion groups toolbox"
     },
     {
       "file": "motion-toolbox-effect-parameters.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion effect parameters toolbox"
     },
     {
       "file": "motion-toolbox-effects.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion effects toolbox"
     },
     {
       "file": "motion-toolbox-scenes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion scenes toolbox"
     },
     {
       "file": "motion-toolbox-palettes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion palettes toolbox"
     },
     {
       "file": "motion-toolbox-planes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion saved room planes toolbox"
     },
     {
       "file": "motion-edit-tile.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "motion visual edit modal"
     },
     {
       "file": "chaser.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "manual chaser overview with toolbox sidebar"
     },
     {
       "file": "chaser-toolbox-groups.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser groups toolbox"
     },
     {
       "file": "chaser-toolbox-chases.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser chases toolbox"
     },
     {
       "file": "chaser-toolbox-steps.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser steps toolbox"
     },
     {
       "file": "chaser-toolbox-palettes.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser palettes toolbox"
     },
     {
       "file": "chaser-toolbox-fanout.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser fan out toolbox"
     },
     {
       "file": "chaser-toolbox-browser-playback.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser playback toolbox"
     },
     {
       "file": "chaser-edit-tile.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser visual edit modal"
     },
     {
       "file": "chaser-participating-controls.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser participating controls"
     },
     {
       "file": "chaser-edit-step.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser edit step"
     },
     {
       "file": "chaser-collapsed-work-area.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser collapsed work area"
     },
     {
       "file": "chaser-pico-playback.png",
-      "owner": "scripts/capture_chaser_screenshot.ps1",
+      "owner": "scripts/capture_chaser_manual_screenshots.ps1",
       "purpose": "chaser pico playback"
     },
     {
       "file": "motion-fx.png",
-      "owner": "scripts/update_user_manual.ps1",
+      "owner": "scripts/capture_manual_page_overviews.ps1",
       "purpose": "motion page overview"
     },
     {
       "file": "gpio-control.png",
-      "owner": "scripts/update_user_manual.ps1",
+      "owner": "scripts/capture_manual_page_overviews.ps1",
       "purpose": "GPIO page overview"
     },
     {
       "file": "dmx-monitor.png",
-      "owner": "scripts/update_user_manual.ps1",
+      "owner": "scripts/capture_manual_page_overviews.ps1",
       "purpose": "DMX buffer monitor overview"
     },
     {
       "file": "benchmark.png",
-      "owner": "scripts/update_user_manual.ps1",
+      "owner": "scripts/capture_manual_page_overviews.ps1",
       "purpose": "Pico performance test overview"
     },
     {
       "file": "room-plane.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane calibrated moving-light overview"
     },
     {
       "file": "room-plane-toolbox-plane.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane A/B/C points and target controls"
     },
     {
       "file": "room-plane-toolbox-saved-planes.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane saved plane management"
     },
     {
       "file": "room-plane-edit-plane-tile.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane saved plane tile visual editor"
     },
     {
       "file": "room-plane-toolbox-fixtures.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane fixture table with mount and calibration values"
     },
     {
       "file": "room-plane-fixture-editor.png",
-      "owner": "scripts/capture_readme_screenshots.ps1",
+      "owner": "scripts/capture_manual_ui_screenshots.ps1",
       "purpose": "Room Plane fixture calibration editor with Recall and Store buttons"
     }
   ]

@@ -15,7 +15,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "local_path_config.ps1")
-. (Join-Path $PSScriptRoot "screenshot_file_helpers.ps1")
+. (Join-Path $PSScriptRoot "manual_screenshot_helpers.ps1")
+$scriptTiming = Start-ManualScriptTiming -Name "build_user_manual.ps1"
 $localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
 if (-not $XamppHtdocs) { $XamppHtdocs = $localPaths.xamppHtdocs }
 if (-not $AppFolder) { $AppFolder = $localPaths.appFolder }
@@ -23,8 +24,6 @@ if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
 if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 if ($LocalOnly) { $SkipFinalSync = $true }
 
-$screenshotsDir = Join-Path $repoRoot "docs\screenshots"
-$chrome = $ChromePath
 $manualDataPath = Join-Path $repoRoot $ManualDataDir
 $xamppDataPath = Join-Path (Join-Path $XamppHtdocs $AppFolder) "data"
 $localApiDataPath = Join-Path (Join-Path $repoRoot "api") "data"
@@ -36,41 +35,14 @@ function Invoke-Step {
     )
     Write-Host ""
     Write-Host "== $Name ==" -ForegroundColor Cyan
-    & $Action
-}
-
-function Save-PageScreenshot {
-    param(
-        [string]$Name,
-        [string]$Url,
-        [int]$Width = 1440,
-        [int]$Height = 1100
-    )
-    $timing = Start-ScreenshotTiming -Name $Name
-    if (-not (Test-Path -LiteralPath $chrome)) {
-        throw "Chrome not found: $chrome"
-    }
-    New-Item -ItemType Directory -Force -Path $screenshotsDir | Out-Null
-    $out = Join-Path $screenshotsDir $Name
-    $tempOut = Join-Path $screenshotsDir (".tmp-" + [IO.Path]::GetFileName($Name))
-    $profileDir = Get-PicoDmxTempPath ("pico-dmx-page-shot-" + [System.Guid]::NewGuid().ToString("N"))
-    New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
-    $shotUrl = $Url
-    $separator = if ($shotUrl.Contains("?")) { "&" } else { "?" }
-    $shotUrl = $shotUrl + $separator + "docshot=" + ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+    $stepClock = [Diagnostics.Stopwatch]::StartNew()
     try {
-        & $chrome --headless=new --disable-gpu --disable-background-networking --disable-component-update --disable-default-apps --disable-extensions --disable-sync "--disable-features=MediaRouter,OptimizationHints" --hide-scrollbars --no-sandbox --no-first-run "--user-data-dir=$profileDir" "--window-size=$Width,$Height" "--screenshot=$tempOut" $shotUrl | Out-Null
-        if (-not (Test-Path -LiteralPath $tempOut)) {
-            throw "Screenshot was not created: $tempOut"
-        }
-        $bytes = [IO.File]::ReadAllBytes($tempOut)
+        & $Action
     }
     finally {
-        Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+        $stepClock.Stop()
+        Write-Host ("Step timing: {0} | total {1:N1} ms" -f $Name, $stepClock.Elapsed.TotalMilliseconds) -ForegroundColor DarkCyan
     }
-    Write-PngIfChanged -Path $out -Bytes $bytes
-    Complete-ScreenshotTiming -Timing $timing
 }
 
 function Copy-JsonFiles {
@@ -227,18 +199,13 @@ try {
             }
 
             Invoke-Step "Capture deterministic controller screenshots" {
-                & (Join-Path $PSScriptRoot "capture_readme_screenshots.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath -Port 0
-                & (Join-Path $PSScriptRoot "capture_chaser_screenshot.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -XamppDataDir $localApiDataPath -ChromePath $ChromePath -Port 0
+                & (Join-Path $PSScriptRoot "capture_manual_ui_screenshots.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath -Port 0
+                & (Join-Path $PSScriptRoot "capture_chaser_manual_screenshots.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -XamppDataDir $localApiDataPath -ChromePath $ChromePath -Port 0
             }
 
             Invoke-Step "Capture page overview screenshots" {
-                Initialize-ScreenshotTiming -Scope "page overview captures"
                 Copy-JsonFiles -SourceDir $manualDataPath -DestinationDir $localApiDataPath
-                Save-PageScreenshot "motion-fx.png" ($script:screenshotServer.BaseUrl + "/dmx_motion.html?docshot_overview=1")
-                Save-PageScreenshot "gpio-control.png" ($script:screenshotServer.BaseUrl + "/dmx_gpio.html")
-                Save-PageScreenshot "dmx-monitor.png" ($script:screenshotServer.BaseUrl + "/dmx_monitor.html")
-                Save-PageScreenshot "benchmark.png" ($script:screenshotServer.BaseUrl + "/test/")
-                Write-ScreenshotTimingSummary
+                & (Join-Path $PSScriptRoot "capture_manual_page_overviews.ps1") -BaseUrl $script:screenshotServer.BaseUrl -OutDir "docs/screenshots" -ChromePath $ChromePath
             }
         }
         finally {
@@ -256,11 +223,11 @@ try {
     }
 
     Invoke-Step "Build dark-mode user manual HTML and navigable PDF" {
-        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual.html" -PdfPath "docs/user-manual-navigation.pdf" -ChromePath $ChromePath -PdfWithNavigation
+        & (Join-Path $PSScriptRoot "render_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual.html" -PdfPath "docs/user-manual-navigation.pdf" -ChromePath $ChromePath -PdfWithNavigation
     }
 
     Invoke-Step "Build companion print HTML and clean PDF" {
-        & (Join-Path $PSScriptRoot "build_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual-print.html" -PdfPath "docs/user-manual.pdf" -ChromePath $ChromePath
+        & (Join-Path $PSScriptRoot "render_user_manual_pdf.ps1") -MarkdownPath "docs/user-manual.md" -HtmlPath "docs/user-manual-print.html" -PdfPath "docs/user-manual.pdf" -ChromePath $ChromePath
     }
 
     Invoke-Step "Wait for generated PDFs to finish writing" {
@@ -300,4 +267,5 @@ try {
 }
 finally {
     Pop-Location
+    Complete-ManualScriptTiming -Timing $scriptTiming
 }

@@ -11,7 +11,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "local_path_config.ps1")
-. (Join-Path $PSScriptRoot "screenshot_file_helpers.ps1")
+. (Join-Path $PSScriptRoot "manual_screenshot_helpers.ps1")
+$scriptTiming = Start-ManualScriptTiming -Name "capture_chaser_manual_screenshots.ps1"
 $localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
 if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
 if (-not $XamppDataDir) { $XamppDataDir = Join-Path (Join-Path $localPaths.xamppHtdocs $localPaths.appFolder) "data" }
@@ -468,4 +469,5 @@ finally {
         Copy-Item -Path (Join-Path $backupDataDir "*.json") -Destination $XamppDataDir -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $backupDataDir -Recurse -Force -ErrorAction SilentlyContinue
     }
+    Complete-ManualScriptTiming -Timing $scriptTiming
 }

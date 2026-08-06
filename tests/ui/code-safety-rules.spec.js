@@ -357,7 +357,7 @@ test.describe('Code safety regression rules', () => {
   });
 
   test('manual live-control screenshots clear asynchronous MIDI mapping state', () => {
-    const captureScript = read('scripts/capture_readme_screenshots.ps1');
+    const captureScript = read('scripts/capture_manual_ui_screenshots.ps1');
     const holdCapture = captureScript.match(/cardOrder=\['live'\];[\s\S]*?show-run-live-hold-button\.png/);
 
     expect(holdCapture).not.toBeNull();
@@ -374,8 +374,8 @@ test.describe('Code safety regression rules', () => {
   });
 
   test('manual Chaser and Effects screenshots show deterministic occupied Pico slots', () => {
-    const chaserCapture = read('scripts/capture_chaser_screenshot.ps1');
-    const effectsCapture = read('scripts/capture_readme_screenshots.ps1');
+    const chaserCapture = read('scripts/capture_chaser_manual_screenshots.ps1');
+    const effectsCapture = read('scripts/capture_manual_ui_screenshots.ps1');
     const effectsPage = read('web/dmx_motion.html');
     const manual = read('docs/user-manual.md');
 
@@ -394,21 +394,39 @@ test.describe('Code safety regression rules', () => {
   });
 
   test('manual screenshot capture reports per-image timings and slowest-first summaries', () => {
-    const helpers = read('scripts/screenshot_file_helpers.ps1');
-    const readmeCapture = read('scripts/capture_readme_screenshots.ps1');
-    const chaserCapture = read('scripts/capture_chaser_screenshot.ps1');
-    const manualUpdate = read('scripts/update_user_manual.ps1');
+    const helpers = read('scripts/manual_screenshot_helpers.ps1');
+    const readmeCapture = read('scripts/capture_manual_ui_screenshots.ps1');
+    const chaserCapture = read('scripts/capture_chaser_manual_screenshots.ps1');
+    const pageOverviews = read('scripts/capture_manual_page_overviews.ps1');
 
     expect(helpers).toContain('Screenshot timing:');
     expect(helpers).toContain('pipeline');
     expect(helpers).toContain('capture');
     expect(helpers).toContain('Slowest screenshots');
-    for (const script of [readmeCapture, chaserCapture, manualUpdate]) {
+    for (const script of [readmeCapture, chaserCapture, pageOverviews]) {
       expect(script).toContain('Initialize-ScreenshotTiming');
       expect(script).toContain('Start-ScreenshotTiming');
       expect(script).toContain('Complete-ScreenshotTiming');
       expect(script).toContain('Write-ScreenshotTimingSummary');
     }
+  });
+
+  test('every manual generation script reports its total duration', () => {
+    const helpers = read('scripts/manual_screenshot_helpers.ps1');
+    const scripts = [
+      read('scripts/build_user_manual.ps1'),
+      read('scripts/capture_manual_ui_screenshots.ps1'),
+      read('scripts/capture_chaser_manual_screenshots.ps1'),
+      read('scripts/capture_manual_page_overviews.ps1'),
+      read('scripts/render_user_manual_pdf.ps1')
+    ];
+
+    expect(helpers).toContain('Script timing:');
+    for (const script of scripts) {
+      expect(script).toContain('Start-ManualScriptTiming');
+      expect(script).toContain('Complete-ManualScriptTiming');
+    }
+    expect(scripts[0]).toContain('Step timing:');
   });
 
   test('manual documentation capture blocks every hardware request', () => {
@@ -438,6 +456,32 @@ test.describe('Code safety regression rules', () => {
 
     expect(message).toContain('Documentation capture blocked cross-origin request');
     expect(hardwareRequests).toEqual([]);
+  });
+
+  test('manual build scripts use responsibility-based names', () => {
+    const expected = [
+      'scripts/build_user_manual.ps1',
+      'scripts/capture_manual_ui_screenshots.ps1',
+      'scripts/capture_chaser_manual_screenshots.ps1',
+      'scripts/capture_manual_page_overviews.ps1',
+      'scripts/manual_screenshot_helpers.ps1',
+      'scripts/render_user_manual_pdf.ps1'
+    ];
+    const obsolete = [
+      'scripts/update_user_manual.ps1',
+      'scripts/capture_readme_screenshots.ps1',
+      'scripts/capture_chaser_screenshot.ps1',
+      'scripts/screenshot_file_helpers.ps1',
+      'scripts/build_user_manual_pdf.ps1'
+    ];
+
+    expected.forEach(relative => expect(fs.existsSync(path.join(root, relative)), relative).toBe(true));
+    obsolete.forEach(relative => expect(fs.existsSync(path.join(root, relative)), relative).toBe(false));
+    const builder = read('scripts/build_user_manual.ps1');
+    expect(builder).toContain('capture_manual_ui_screenshots.ps1');
+    expect(builder).toContain('capture_chaser_manual_screenshots.ps1');
+    expect(builder).toContain('capture_manual_page_overviews.ps1');
+    expect(builder).toContain('render_user_manual_pdf.ps1');
   });
 
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
@@ -533,7 +577,7 @@ test.describe('Code safety regression rules', () => {
 
   test('generated user manuals start with linked contents and end with the canonical project changelog', () => {
     const manual = read('docs/user-manual.md');
-    const builder = read('scripts/build_user_manual_pdf.ps1');
+    const builder = read('scripts/render_user_manual_pdf.ps1');
 
     expect(manual.indexOf('## Table of Contents')).toBeLessThan(manual.indexOf('## Introduction'));
     expect(manual).toContain('- [1. Fixture Controller](#1-fixture-controller)');
@@ -554,8 +598,8 @@ test.describe('Code safety regression rules', () => {
   });
 
   test('manual generation, deployment, installers, and releases keep clean and navigable PDF variants', () => {
-    const builder = read('scripts/build_user_manual_pdf.ps1');
-    const updater = read('scripts/update_user_manual.ps1');
+    const builder = read('scripts/render_user_manual_pdf.ps1');
+    const updater = read('scripts/build_user_manual.ps1');
     const sync = read('scripts/sync_fixture_controller_to_xampp.ps1');
     const release = read('scripts/prepare_release.ps1');
     const windowsInstaller = read('installer/windows/build_installer.ps1');

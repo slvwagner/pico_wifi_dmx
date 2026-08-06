@@ -9,7 +9,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "local_path_config.ps1")
-. (Join-Path $PSScriptRoot "screenshot_file_helpers.ps1")
+. (Join-Path $PSScriptRoot "manual_screenshot_helpers.ps1")
+$scriptTiming = Start-ManualScriptTiming -Name "capture_manual_ui_screenshots.ps1"
 $localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
 if (-not $BaseUrl) { $BaseUrl = $localPaths.baseUrl }
 if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
@@ -1652,4 +1653,5 @@ finally {
     if ($socket) { $socket.Dispose() }
     if ($chromeProcess -and -not $chromeProcess.HasExited) { Stop-Process -Id $chromeProcess.Id -Force }
     Stop-PicoDmxChromeProfileProcesses -ProfileDir $profileDir
+    Complete-ManualScriptTiming -Timing $scriptTiming
 }

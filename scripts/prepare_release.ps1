@@ -199,7 +199,7 @@ if (-not $SkipManual) {
         if ($BaseUrl) { $manualArgs.BaseUrl = $BaseUrl }
         if ($ChromePath) { $manualArgs.ChromePath = $ChromePath }
         if ($ScreenshotBaseUrl) { $manualArgs.ScreenshotBaseUrl = $ScreenshotBaseUrl }
-        & (Join-Path $PSScriptRoot "update_user_manual.ps1") @manualArgs
+        & (Join-Path $PSScriptRoot "build_user_manual.ps1") @manualArgs
     }
 }
 

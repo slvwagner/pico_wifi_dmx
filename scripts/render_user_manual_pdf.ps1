@@ -11,6 +11,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "local_path_config.ps1")
+. (Join-Path $PSScriptRoot "manual_screenshot_helpers.ps1")
+$scriptTiming = Start-ManualScriptTiming -Name "render_user_manual_pdf.ps1"
 $localPaths = Get-LocalPathConfig -RepoRoot $repoRoot
 if (-not $ChromePath) { $ChromePath = $localPaths.chromePath }
 
@@ -834,6 +836,7 @@ try {
     Normalize-PdfMetadata -Path $pdfFull
 } finally {
     Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
+    Complete-ManualScriptTiming -Timing $scriptTiming
 }
 Write-Host "Wrote $htmlFull"
 Write-Host "Wrote $pdfFull"

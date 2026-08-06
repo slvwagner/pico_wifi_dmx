@@ -1,5 +1,22 @@
 $ErrorActionPreference = "Stop"
 
+function Start-ManualScriptTiming {
+    param([string]$Name)
+
+    return [pscustomobject]@{
+        Name = $Name
+        Clock = [Diagnostics.Stopwatch]::StartNew()
+    }
+}
+
+function Complete-ManualScriptTiming {
+    param([pscustomobject]$Timing)
+
+    if (-not $Timing) { return }
+    $Timing.Clock.Stop()
+    Write-Host ("Script timing: {0} | total {1:N1} ms" -f $Timing.Name, $Timing.Clock.Elapsed.TotalMilliseconds) -ForegroundColor Cyan
+}
+
 function Initialize-ScreenshotTiming {
     param([string]$Scope)
 

@@ -111,7 +111,7 @@ These rules are mandatory for developers, scripts, and AI agents:
 3. **Before starting any browser automation, verify that the target URL path is `/dmx-test/` or a repository-local development server. Stop immediately if it resolves to `/dmx/`.** Do not rely on hostname differences such as `localhost` versus the XAMPP computer's LAN address; the URL path determines the environment.
 4. **Deploy source changes to `/dmx/` only with `scripts/update_xampp_server.ps1`.** Do not directly copy, edit, delete, or replace files under `<xampp-htdocs>\dmx`. Use the script with `-AppFolder dmx -BaseUrl http://<xampp-host>/dmx/`, then verify the page manually or with read-only HTTP GET requests.
 5. **Use `/dmx-test/` for regression testing.** Synchronize it through `scripts/update_xampp_server.ps1 -AppFolder dmx-test -BaseUrl http://<xampp-host>/dmx-test/` before running tests. Test failures caused by test data must be resolved inside this isolated environment, never by switching the suite to `/dmx/`.
-6. **Generate manuals and screenshots outside the user's environment.** Use `scripts/update_user_manual.ps1 -LocalOnly` and the repository's deterministic manual data, or an explicitly isolated test app. Never capture them from `/dmx/`.
+6. **Generate manuals and screenshots outside the user's environment.** Use `scripts/build_user_manual.ps1 -LocalOnly` and the repository's deterministic manual data, or an explicitly isolated test app. Never capture them from `/dmx/`.
 7. **Treat XAMPP `data/*.json` as irreplaceable user data.** Do not write, restore, migrate, or import it without explicit user authorization. Before an authorized recovery, snapshot the current files and restore only the files the user approved.
 8. **For bug fixes, add and run a failing regression test in the isolated environment before changing implementation code.** After the fix, rerun the focused browser tests there. Run real hardware tests only for firmware changes or when the user explicitly requests them.
 
@@ -736,7 +736,7 @@ The playback stress checks fill only empty Pico playback slots with temporary de
 After UI/manual changes, you can regenerate the deterministic documentation screenshots and dark-mode manual directly:
 
 ```powershell
-.\scripts\update_user_manual.ps1
+.\scripts\build_user_manual.ps1
 ```
 
 The release script runs this manual/screenshot step automatically unless `-SkipManual` is passed.
@@ -932,7 +932,7 @@ pico_wifi_dmx/
 │  ├─ sync_fixture_controller_to_xampp.ps1
 │  ├─ sync_test_app_to_xampp.ps1
 │  ├─ update_xampp_server.ps1
-│  ├─ update_user_manual.ps1
+│  ├─ build_user_manual.ps1
 │  ├─ build_fixture_library.ps1
 │  ├─ sync_fixture_library_from_xampp.ps1
 │  ├─ flash_firmware.ps1
@@ -942,9 +942,11 @@ pico_wifi_dmx/
 │  ├─ start_version_branch.ps1
 │  ├─ prepare_release.ps1
 │  ├─ dev-router.php         PHP built-in-server router for local development
-│  ├─ capture_readme_screenshots.ps1
-│  ├─ capture_chaser_screenshot.ps1
-│  └─ build_user_manual_pdf.ps1
+│  ├─ capture_manual_ui_screenshots.ps1
+│  ├─ capture_chaser_manual_screenshots.ps1
+│  ├─ capture_manual_page_overviews.ps1
+│  ├─ manual_screenshot_helpers.ps1
+│  └─ render_user_manual_pdf.ps1
 ├─ tests/                    Automated regression tests
 │  ├─ ui/                    Browser workflow tests against the served UI
 │  ├─ unit/                  Pure rule/helper tests
