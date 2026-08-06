@@ -711,6 +711,73 @@ test.describe('Pico Performance Test established rules', () => {
     });
   });
 
+  test('runs playback plus palette stress with fully occupied slots without replacing show data', async ({ page }) => {
+    const loadedRequests = [];
+    const playbackRequests = [];
+    const clearRequests = [];
+    const uiStatePosts = [];
+    const state = {
+      chaserSlots: [
+        { slot: 0, loaded: true, active: true, step_count: 2 },
+        { slot: 1, loaded: true, active: true, step_count: 3 }
+      ],
+      motionSlots: [
+        { slot: 0, loaded: true, active: true, target_count: 8 },
+        { slot: 1, loaded: true, active: true, target_count: 4 }
+      ]
+    };
+    await page.route('**/ui_state.php', async route => {
+      if (route.request().method() === 'POST') {
+        uiStatePosts.push(route.request().postDataJSON());
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"ok":true,"exists":false,"state":{}}'
+      });
+    });
+    await page.route('http://127.0.0.1:18992/chaser/slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, slots: state.chaserSlots })
+    }));
+    await page.route('http://127.0.0.1:18992/motion/slots', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, slots: state.motionSlots })
+    }));
+    await page.route(/http:\/\/127\.0\.0\.1:18992\/(chaser|motion)\/(load|play|start|stop).*/, route => {
+      const url = route.request().url();
+      if (/\/load\//.test(url)) loadedRequests.push(url);
+      if (/\/(play|start)\//.test(url)) playbackRequests.push(url);
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route(/http:\/\/127\.0\.0\.1:18992\/(chaser|motion)\/clear\/.*/, route => {
+      clearRequests.push(route.request().url());
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.route('http://127.0.0.1:18992/dmx/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    await page.route('http://127.0.0.1:18992/dmx/master/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    await page.route('http://127.0.0.1:18992/dmx/blackout/clear', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+
+    await openDmxPage(page, 'test/');
+    await page.locator('#btnRunPlaybackPaletteStress').click();
+
+    await expect(page.locator('#btnRunPlaybackPaletteStress')).toBeEnabled({ timeout: 15000 });
+    await expect(page.locator('#checkWrite .check-state')).toHaveText('Pass');
+    await expect(page.locator('#checkWrite .check-detail')).toContainText('2 chaser and 2 effect slots');
+    expect(loadedRequests).toEqual([]);
+    expect(clearRequests).toEqual([]);
+    expect(uiStatePosts).toEqual([]);
+    expect(playbackRequests).toEqual([
+      'http://127.0.0.1:18992/chaser/play/0',
+      'http://127.0.0.1:18992/chaser/play/1',
+      'http://127.0.0.1:18992/motion/start/0',
+      'http://127.0.0.1:18992/motion/start/1'
+    ]);
+  });
+
   test('clears recorded temporary stress slots before starting a new stress run', async ({ page }) => {
     const clearRequests = [];
     const uiStatePosts = [];

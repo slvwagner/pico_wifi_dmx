@@ -1268,7 +1268,7 @@ Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforc
 
 ### Pico Effects
 
-Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 64 logical effect slots; a linked multi-output effect reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
+Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 64 logical effect slots; its slot strip shows the coordinator Pico, while a linked multi-output effect reserves one physical slot on every involved Pico. Peer Picos normally receive any available physical slot, so their slot numbers may differ from the logical/coordinator slot. If a peer has no empty effect slots, upload asks before replacing the selected coordinator slot number on each full peer; cancellation leaves every existing slot unchanged.
 
 | Endpoint | Method | Description |
 | --- | --- | --- |

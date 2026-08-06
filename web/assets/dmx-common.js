@@ -182,7 +182,14 @@
         for(let candidate=0;candidate<reportedCount;candidate++){
           if(!data.slots[candidate]?.loaded){slot=candidate;break;}
         }
-        if(slot<0)throw new Error('No empty '+kind+' slot is available on '+(member.output.name||'DMX output'));
+        if(slot<0&&options.allowPeerPreferredSlotOverwrite&&preferredSlot<reportedCount){
+          slot=preferredSlot;
+        }else if(slot<0){
+          const error=new Error('No empty '+kind+' slot is available on '+(member.output.name||'DMX output'));
+          error.code='NO_EMPTY_PEER_SLOT';
+          error.outputName=member.output.name||'DMX output';
+          throw error;
+        }
       }
       return{...member,root,slot};
     }));

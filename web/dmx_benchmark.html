@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pico Performance Test</title>
-<link rel="stylesheet" href="../assets/dmx-ui.css?v=1.2.1-16">
-<script src="../assets/dmx-common.js?v=1.2.1-16"></script>
+<link rel="stylesheet" href="../assets/dmx-ui.css?v=1.2.1-17">
+<script src="../assets/dmx-common.js?v=1.2.1-17"></script>
 <style>
 h2{font-size:16px}
 input[type=number]{width:100px}input[type=url]{min-width:220px}
@@ -1573,7 +1573,9 @@ async function startPlaybackWithTemporaryDemoSlots(){
   const existingMotionSlots=motionSnapshot.filter(s=>s.loaded).map(s=>Number(s.slot));
   const tempChaserSlots=emptyPicoSlotIndexes(chaserSnapshot);
   const tempMotionSlots=emptyPicoSlotIndexes(motionSnapshot);
-  if(!tempChaserSlots.length&&!tempMotionSlots.length)throw new Error('No empty Pico playback slots available for temporary stress data.');
+  if(!existingChaserSlots.length&&!existingMotionSlots.length&&!tempChaserSlots.length&&!tempMotionSlots.length){
+    throw new Error('The Pico did not report any playback slots for the stress test.');
+  }
 
   const record={
     createdAt:new Date().toISOString(),
@@ -1585,7 +1587,7 @@ async function startPlaybackWithTemporaryDemoSlots(){
       motion:motionSnapshot.filter(s=>tempMotionSlots.includes(Number(s.slot)))
     }
   };
-  await saveTemporaryStressRecord(record);
+  if(tempChaserSlots.length||tempMotionSlots.length)await saveTemporaryStressRecord(record);
 
   for(const slot of tempChaserSlots)await postPicoText('/chaser/load/'+slot,demoChaserBody(128,slot));
   for(const slot of tempMotionSlots)await postPicoText('/motion/load/'+slot,demoMotionBody(slot));
@@ -1607,7 +1609,7 @@ async function runPlaybackPaletteStress({recordTiming=true}={}){
   const paletteCount=80;
   let slotInfo={chaserSlots:[],motionSlots:[],tempChaserSlots:[],tempMotionSlots:[]};
   try{
-    setStatus('Adding temporary demo data to empty playback slots for palette stress...');
+    setStatus('Preparing Pico playback slots for palette stress...');
     await fetchPicoJson('/chaser/stop').catch(()=>{});
     await fetchPicoJson('/motion/stop').catch(()=>{});
     await fetchPicoJson('/dmx/master/clear').catch(()=>{});
@@ -1665,8 +1667,12 @@ async function runPlaybackPaletteStress({recordTiming=true}={}){
     historyRow.midiLatencyLabel=shortMidiLatencyLabel(lastMidiLatencySnapshot);
     historyRow.overall=overallTimingState(historyRow);
     if(recordTiming)addTimingHistory(historyRow);
-    setCheck('checkWrite',errors?'warn':'pass','Playback + palette stress',paletteCount+' palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots played; temporary slots will be cleared'+(errors?' · '+errors+' errors':''));
-    setStatus('Playback + palette stress complete: '+paletteCount+' palette recalls. Temporary slots are being cleared.');
+    const temporarySlotCount=slotInfo.tempChaserSlots.length+slotInfo.tempMotionSlots.length;
+    const cleanupDetail=temporarySlotCount
+      ? '; '+temporarySlotCount+' temporary slot'+(temporarySlotCount===1?'':'s')+' will be cleared'
+      : '; all playback slots were already occupied, so no show data was replaced';
+    setCheck('checkWrite',errors?'warn':'pass','Playback + palette stress',paletteCount+' palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots played'+cleanupDetail+(errors?' · '+errors+' errors':''));
+    setStatus('Playback + palette stress complete: '+paletteCount+' palette recalls.'+(temporarySlotCount?' Temporary slots are being cleared.':' Existing playback data was left unchanged.'));
   }catch(e){
     setStatus(e.message,true);
     setCheck('checkWrite','bad','Playback + palette stress',e.message);

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DMX Effects</title>
-<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-16">
-<script src="assets/dmx-common.js?v=1.2.1-16"></script>
+<link rel="stylesheet" href="assets/dmx-ui.css?v=1.2.1-17">
+<script src="assets/dmx-common.js?v=1.2.1-17"></script>
 <style>
 input[type=range]{width:150px;accent-color:var(--accent)}
 main{max-width:none;width:100%;margin:0}
@@ -1624,15 +1624,25 @@ async function uploadCurrentMotionToSlot(slot,confirmOverwrite){
   );
   setPicoMotionStatus('Checking empty slots on '+members.length+' Pico'+(members.length===1?'':'s')+'…','var(--warn)');
   try{
-    const playback=await DmxCommon.uploadLinkedPicoPlayback({
+    const upload=allowPeerPreferredSlotOverwrite=>DmxCommon.uploadLinkedPicoPlayback({
       kind:'motion',
       members,
       preferredSlot:slot,
       slotCount:PICO_SLOT_COUNT,
       allowCoordinatorOverwrite:!!confirmOverwrite,
+      allowPeerPreferredSlotOverwrite,
       label:'Effect '+(document.getElementById('effectType')?.selectedOptions?.[0]?.textContent||('slot '+slot)),
       serverEndpoint:'motion_setup.php'
     });
+    let playback;
+    try{
+      playback=await upload(false);
+    }catch(e){
+      if(e?.code!=='NO_EMPTY_PEER_SLOT'||!confirm(
+        e.outputName+' has no empty effect slots. Overwrite slot '+slot+' on each full linked Pico?\n\nExisting effects in that slot will be replaced.'
+      ))throw e;
+      playback=await upload(true);
+    }
     linkedMotionPlaybacks=linkedMotionPlaybacks.filter(item=>item.id!==playback.id);
     linkedMotionPlaybacks.push(playback);
     const locations=playback.members.map(member=>'U'+member.universe+' S'+member.slot).join(' · ');
@@ -2175,7 +2185,8 @@ if(!new URLSearchParams(location.search).has('docshot_overview')){
       renderMotionSlotStrip(dummy,0);
     }catch(e){console.warn('slot strip init error',e);}
     await loadMotionEffectCatalogFromServer();
-    if(!isHardPageReload())restoreMotionWorkingState();
+    const restoredWorkingState=!isHardPageReload()&&restoreMotionWorkingState();
+    if(!restoredWorkingState)await loadMotionFromServer();
     // auto-restore saved pico slots to Pico on page load (silent — skip if no URL or URL mismatch)
     const root=baseUrlEl.value.replace(/\/+$/,'');
     try{

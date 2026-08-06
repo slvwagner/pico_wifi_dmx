@@ -9,6 +9,9 @@ Changed:
 
 Fixed:
 
+- Let linked Effects uploads recover when a secondary Pico has no empty motion slots by asking before overwriting the selected slot number on each full peer, instead of failing while the primary Pico's selected slot appears empty.
+- Restored the saved Effects target and participating fixtures when the page is opened or hard-reloaded, preventing Pico slot uploads from incorrectly reporting **No enabled targets for upload** after a valid Effects setup was saved.
+- Allowed **Run Full Test** and **Playback + Palette Stress** to use fully occupied Pico playback slots as the existing stress load. When no empty slots are available, the test now loads and clears no temporary data instead of failing, and reports that the saved show playback data was left unchanged.
 - Re-clamped a saved wide toolbox rail whenever the browser viewport changes and made the **Show** name row and Fixture Library respond to the actual Controller workspace width. Narrowing the window no longer clips the Show card beneath a large toolbox rail.
 - Kept a newly created show completely empty instead of automatically adding the legacy **Generic Moving Head** profile. Reloading that saved empty show now also preserves its empty profile list; the starter profile remains limited to first-run recovery when no setup can be loaded.
 

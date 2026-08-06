@@ -135,6 +135,49 @@ test.describe('Effects established rules', () => {
     ]));
   });
 
+  test('offers to overwrite the matching peer slot when a linked Pico has no empty slots', async ({ page }) => {
+    const picoCalls = [];
+    const routePico = async (route, outputId) => {
+      const url = route.request().url();
+      if (url.endsWith('/motion/slots')) {
+        const slots = Array.from({ length: 64 }, (_, slot) => ({
+          slot,
+          loaded: outputId === 'rear',
+          active: false,
+          paused: false
+        }));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, slots }) });
+        return;
+      }
+      picoCalls.push({ outputId, url });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    };
+    await page.route('http://front-pico.test/**', route => routePico(route, 'front'));
+    await page.route('http://rear-pico.test/**', route => routePico(route, 'rear'));
+    await page.route('**/motion_setup.php?playback', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+    page.on('dialog', dialog => dialog.accept());
+
+    await page.evaluate(() => {
+      setup.dmxOutputs = [
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://front-pico.test/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://rear-pico.test/' }
+      ];
+      setup.fixtures.find(f => f.id === 101).outputId = 'front';
+      setup.fixtures.find(f => f.id === 102).outputId = 'rear';
+      baseUrlEl.value = 'http://front-pico.test';
+      const dimmers = motionFixtures.filter(mf => mf.control.label === 'Dimmer');
+      selectedMotionTargetKey = motionControlKey(dimmers[0].control);
+      motionFixtures.forEach(mf => mf.enabled = dimmers.includes(mf));
+    });
+
+    await page.evaluate(() => uploadCurrentMotionToSlot(24, false));
+
+    expect(picoCalls).toEqual(expect.arrayContaining([
+      { outputId: 'front', url: 'http://front-pico.test/motion/load/24' },
+      { outputId: 'rear', url: 'http://rear-pico.test/motion/load/24' }
+    ]));
+  });
+
   test('recalling an Effect tile restores its preview parameters after changing target family', async ({ page }) => {
     const beforePreview = await page.evaluate(() => {
       const scalar = motionFixtures.find(mf => mf.kind !== 'panTilt' && mf.control.label === 'Dimmer');
@@ -1016,7 +1059,7 @@ test.describe('Effects navigation rules', () => {
     expect(state.groupEditDisabled).toBe(false);
   });
 
-  test('hard reload resets Effect Target to None even when a saved Effects setup exists', async ({ page }) => {
+  test('hard reload restores the saved Effect Target and participating fixtures', async ({ page }) => {
     const profiles = [{
       id: 1,
       name: 'Profile A',
@@ -1080,7 +1123,10 @@ test.describe('Effects navigation rules', () => {
     await page.locator('#btnMotionLoad').click();
     await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.locator('#motionControlFilter')).toHaveValue('');
+    await expect(page.locator('#motionControlFilter')).toHaveValue(targetKey);
     await expect(page.locator('#motionEffectMatrix .slot.filled')).toHaveCount(1);
+    await expect.poll(() => page.evaluate(() =>
+      motionFixtures.filter(mf => mf.enabled && motionControlKey(mf.control) === selectedMotionTargetKey).length
+    )).toBe(2);
   });
 });

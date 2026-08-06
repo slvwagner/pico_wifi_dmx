@@ -1,5 +1,5 @@
 <!doctype html>
-<html class="manual-pdf-navigation" lang="en">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Pico WiFi DMX User Manual</title>
@@ -15,7 +15,7 @@
   --accent: #37c4a4;
   --warn: #ffbc6b;
 }
-@page { size: A4 landscape; margin: 0; }
+@page { size: A4; margin: 0; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -1316,12 +1316,13 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p><img src="screenshots/motion-edit-tile.png" alt="Effects Edit Tile modal" style="--manual-image-width: 54.1667%" data-native-width="780"></p>
 <p><strong>Effect Parameters</strong> and <strong>Effects</strong> share one toolbox color and collapse together. Use <strong>-- all</strong> on either box to collapse the whole effect group, and <strong>+ all</strong> to reopen it.</p>
 <h3 id="pico-effects-slots">Pico Effects Slots</h3>
-<p>The Pico effect slot upload uses the same selected <strong>Effect target</strong> as the browser page. When enabled target fixtures use several DMX Outputs, the effect is split into a linked payload for each involved Pico. The selected slot is used by the coordinator, other Picos receive an automatically selected empty physical slot, and all member slots are subsequently controlled together.</p>
+<p>The Pico effect slot upload uses the same selected <strong>Effect target</strong> as the browser page. When enabled target fixtures use several DMX Outputs, the effect is split into a linked payload for each involved Pico. The visible slot strip reports the coordinator Pico: the selected slot is used there, while other Picos normally receive an automatically selected empty physical slot. Their physical slot numbers may therefore differ, and all member slots are subsequently controlled together.</p>
 <ul>
 <li>If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.</li>
 <li>If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses <code>AMP1</code> and zero <code>AMP2</code>; Tilt Swing uses zero <code>AMP1</code> and <code>AMP2</code>.</li>
 <li>If the target is scalar, the uploaded slot stores that one control&#39;s DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use <code>AMP1</code> for <strong>Amplitude</strong> and force <code>AMP2</code> to zero.</li>
 <li>Click an empty Pico slot to upload the current effect to that slot.</li>
+<li>If a linked peer Pico has no empty physical effect slots, the page identifies that Pico and asks before replacing the selected coordinator slot number on every full peer. Choose <strong>Cancel</strong> to preserve all existing slots; no partial upload is performed before this decision.</li>
 <li>Click a loaded slot once to select it for start, stop, or BPM changes.</li>
 <li>Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.</li>
 <li><strong>Pause/Resume</strong> changes state without discarding the loaded slot, and <strong>Set BPM</strong> changes the selected slot&#39;s tempo without re-uploading its targets.</li>
@@ -1333,12 +1334,12 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Up to 64 physical effect slots can be loaded on one Pico.</li>
 </ul>
 <h4 id="linked-effect-slot-capacity">Linked Effect Slot Capacity</h4>
-<p>The current Effects interface can address a maximum of <strong>64 logical Pico effect playbacks</strong>. Each linked effect consumes one physical effect slot on every Pico used by its participating fixtures. If every effect uses the same Picos, the fleet can therefore hold at most 64 linked effects. Member slot numbers may differ between Picos, and the linked tile records their universe/slot mapping. As with Chaser, additional disjoint capacity on otherwise unused Picos is not exposed as extra logical positions by the current coordinator-based interface.</p>
+<p>The current Effects interface can address a maximum of <strong>64 logical Pico effect playbacks</strong>. Each linked effect consumes one physical effect slot on every Pico used by its participating fixtures. If every effect uses the same Picos, the fleet can therefore hold at most 64 linked effects. Member slot numbers may differ between Picos, and the linked tile records their universe/slot mapping. A coordinator may still show empty slots when a peer is already full; in that case the overwrite confirmation described above is required. As with Chaser, additional disjoint capacity on otherwise unused Picos is not exposed as extra logical positions by the current coordinator-based interface.</p>
 <p>For scalar targets, set the current value first, then upload/start the slot. For example, set a dimmer to its desired base brightness and use Sine if you want the Pico to pulse above and below that base value.</p>
 <h3 id="effects-toolboxes">Effects Toolboxes</h3>
 <p>The Effects page uses five toolboxes in the shared sidebar.</p>
 <p><img src="screenshots/motion-toolbox-groups.png" alt="Effects Groups toolbox" style="--manual-image-width: 44.4444%" data-native-width="640"></p>
-<p><strong>Groups</strong> filters the fixture matrix for the selected effect target. When <strong>Effect target</strong> is <strong>None</strong>, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available as soon as at least one fixture has that target. For example, after a hard reload, choosing <strong>Dimmer</strong> lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Choosing <strong>Pan/Tilt</strong> can also open Group Edit for a single moving light. Pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.</p>
+<p><strong>Groups</strong> filters the fixture matrix for the selected effect target. When <strong>Effect target</strong> is <strong>None</strong>, Group Edit is disabled. A saved Effects setup restores its target and participating fixtures when the page is opened or hard-reloaded. Choosing a different target does not automatically enable fixtures for playback, but it does make Group Edit available as soon as at least one fixture has that target. For example, choosing <strong>Dimmer</strong> lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off until fixtures are selected. Choosing <strong>Pan/Tilt</strong> can also open Group Edit for a single moving light. Pressing <strong>All</strong> clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.</p>
 <p>The Effects fixture grid marks the current <strong>Source</strong> fixture with the same highlighted selection language used by the Controller. The Source fixture supplies the values shown in the Group Edit modal. Click another enabled fixture tile to make it the Source; click the current Source tile again when you want to remove that fixture from participation.</p>
 <p>Effects Group Edit uses the Controller-style controls: pan/tilt edits use the XY pad for absolute center placement and relative nudge rows for movement from the current values. The modal no longer exposes separate absolute Pan/Tilt sliders. Use <strong>Pan coarse relative</strong>, <strong>Pan fine relative</strong>, <strong>Tilt coarse relative</strong>, and <strong>Tilt fine relative</strong> for 16-bit moving lights when you want to move one fixture or a selected group without forcing every fixture to the same absolute value. Relative nudges keep each fixture offset from its own current center, then preview the changed center values on the primary show output.</p>
 <p><img src="screenshots/motion-toolbox-effect-parameters.png" alt="Effects Parameters toolbox" style="--manual-image-width: 44.4444%" data-native-width="640"></p>
@@ -1715,12 +1716,15 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>Changed:</p>
 <ul>
 <li>Started the 1.2.1 development branch.</li>
-<li>Included <strong>Playback + Palette Stress</strong> in <strong>Run Full Test</strong> for every available Pico, with its result folded into the Full Test&#39;s single consolidated timing record per device.</li>
+<li>Removed the easily stale <strong>Current development version</strong> banner from the README. <code>VERSION</code> remains the canonical application and development version, and the version-branch helper no longer edits the source branch solely to maintain that duplicate label.</li>
 </ul>
 <p>Fixed:</p>
 <ul>
-<li>Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone <code>VERSION</code> file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.</li>
-<li>Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the <strong>Playback + Palette Stress</strong> workload to delay DMX frame starts while calculating many active slots.</li>
+<li>Let linked Effects uploads recover when a secondary Pico has no empty motion slots by asking before overwriting the selected slot number on each full peer, instead of failing while the primary Pico&#39;s selected slot appears empty.</li>
+<li>Restored the saved Effects target and participating fixtures when the page is opened or hard-reloaded, preventing Pico slot uploads from incorrectly reporting <strong>No enabled targets for upload</strong> after a valid Effects setup was saved.</li>
+<li>Allowed <strong>Run Full Test</strong> and <strong>Playback + Palette Stress</strong> to use fully occupied Pico playback slots as the existing stress load. When no empty slots are available, the test now loads and clears no temporary data instead of failing, and reports that the saved show playback data was left unchanged.</li>
+<li>Re-clamped a saved wide toolbox rail whenever the browser viewport changes and made the <strong>Show</strong> name row and Fixture Library respond to the actual Controller workspace width. Narrowing the window no longer clips the Show card beneath a large toolbox rail.</li>
+<li>Kept a newly created show completely empty instead of automatically adding the legacy <strong>Generic Moving Head</strong> profile. Reloading that saved empty show now also preserves its empty profile list; the starter profile remains limited to first-run recovery when no setup can be loaded.</li>
 </ul>
 <h3 id="1-2-0-2026-08-06">1.2.0 - 2026-08-06</h3>
 <p>Changed:</p>

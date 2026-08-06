@@ -1193,12 +1193,13 @@ The **Effects** toolbox stores reusable effect recipes. Click an empty effect sl
 
 ### Pico Effects Slots
 
-The Pico effect slot upload uses the same selected **Effect target** as the browser page. When enabled target fixtures use several DMX Outputs, the effect is split into a linked payload for each involved Pico. The selected slot is used by the coordinator, other Picos receive an automatically selected empty physical slot, and all member slots are subsequently controlled together.
+The Pico effect slot upload uses the same selected **Effect target** as the browser page. When enabled target fixtures use several DMX Outputs, the effect is split into a linked payload for each involved Pico. The visible slot strip reports the coordinator Pico: the selected slot is used there, while other Picos normally receive an automatically selected empty physical slot. Their physical slot numbers may therefore differ, and all member slots are subsequently controlled together.
 
 - If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
 - If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses `AMP1` and zero `AMP2`; Tilt Swing uses zero `AMP1` and `AMP2`.
 - If the target is scalar, the uploaded slot stores that one control's DMX channel address and plays one-axis effects such as sine or pulse. Scalar uploads use `AMP1` for **Amplitude** and force `AMP2` to zero.
 - Click an empty Pico slot to upload the current effect to that slot.
+- If a linked peer Pico has no empty physical effect slots, the page identifies that Pico and asks before replacing the selected coordinator slot number on every full peer. Choose **Cancel** to preserve all existing slots; no partial upload is performed before this decision.
 - Click a loaded slot once to select it for start, stop, or BPM changes.
 - Click the selected loaded slot again to replace it with the current effect; the page asks before overwriting.
 - **Pause/Resume** changes state without discarding the loaded slot, and **Set BPM** changes the selected slot's tempo without re-uploading its targets.
@@ -1211,7 +1212,7 @@ The Pico effect slot upload uses the same selected **Effect target** as the brow
 
 #### Linked Effect Slot Capacity
 
-The current Effects interface can address a maximum of **64 logical Pico effect playbacks**. Each linked effect consumes one physical effect slot on every Pico used by its participating fixtures. If every effect uses the same Picos, the fleet can therefore hold at most 64 linked effects. Member slot numbers may differ between Picos, and the linked tile records their universe/slot mapping. As with Chaser, additional disjoint capacity on otherwise unused Picos is not exposed as extra logical positions by the current coordinator-based interface.
+The current Effects interface can address a maximum of **64 logical Pico effect playbacks**. Each linked effect consumes one physical effect slot on every Pico used by its participating fixtures. If every effect uses the same Picos, the fleet can therefore hold at most 64 linked effects. Member slot numbers may differ between Picos, and the linked tile records their universe/slot mapping. A coordinator may still show empty slots when a peer is already full; in that case the overwrite confirmation described above is required. As with Chaser, additional disjoint capacity on otherwise unused Picos is not exposed as extra logical positions by the current coordinator-based interface.
 
 For scalar targets, set the current value first, then upload/start the slot. For example, set a dimmer to its desired base brightness and use Sine if you want the Pico to pulse above and below that base value.
 
@@ -1221,7 +1222,7 @@ The Effects page uses five toolboxes in the shared sidebar.
 
 ![Effects Groups toolbox](screenshots/motion-toolbox-groups.png)
 
-**Groups** filters the fixture matrix for the selected effect target. When **Effect target** is **None**, Group Edit is disabled. Choosing a real target does not automatically enable fixtures for playback, but it does make Group Edit available as soon as at least one fixture has that target. For example, after a hard reload, choosing **Dimmer** lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off. Choosing **Pan/Tilt** can also open Group Edit for a single moving light. Pressing **All** clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.
+**Groups** filters the fixture matrix for the selected effect target. When **Effect target** is **None**, Group Edit is disabled. A saved Effects setup restores its target and participating fixtures when the page is opened or hard-reloaded. Choosing a different target does not automatically enable fixtures for playback, but it does make Group Edit available as soon as at least one fixture has that target. For example, choosing **Dimmer** lets Group Edit work across every MAC and RGB Spot fixture that has a Dimmer control while playback participation remains off until fixtures are selected. Choosing **Pan/Tilt** can also open Group Edit for a single moving light. Pressing **All** clears the group filter and enables every fixture available for the current target. Selecting one or more groups enables compatible fixtures inside those groups. If some fixtures are already enabled, Group Edit uses that enabled subset; if none are enabled yet, Group Edit uses all fixtures compatible with the selected target.
 
 The Effects fixture grid marks the current **Source** fixture with the same highlighted selection language used by the Controller. The Source fixture supplies the values shown in the Group Edit modal. Click another enabled fixture tile to make it the Source; click the current Source tile again when you want to remove that fixture from participation.
 
