@@ -1,12 +1,22 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 const { openDmxPage } = require('./helpers/dmx-page');
+
+const appVersion = fs.readFileSync(path.join(__dirname, '..', '..', 'VERSION'), 'utf8').trim();
+
+async function stubPlaybackPaletteStress(page) {
+  await page.evaluate(() => {
+    window.runPlaybackPaletteStress = async () => {};
+  });
+}
 
 test.describe('Pico Performance Test established rules', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/VERSION', route => route.fulfill({
       status: 200,
       contentType: 'text/plain',
-      body: '1.0.1\n'
+      body: `${appVersion}\n`
     }));
     await page.route('**/fixture_setup.php**', route => route.fulfill({
       status: 200,
@@ -25,7 +35,7 @@ test.describe('Pico Performance Test established rules', () => {
     await page.route('http://127.0.0.1:18992/status.json', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ok: true, firmware_version: '1.0.1', dmx: { running: true, channels: 512, frame_count: 1234 } })
+      body: JSON.stringify({ ok: true, firmware_version: appVersion, dmx: { running: true, channels: 512, frame_count: 1234 } })
     }));
     await page.route('http://127.0.0.1:18992/logs.txt', route => route.fulfill({
       status: 200,
@@ -92,7 +102,7 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#btnCheckPico').click();
     await expect(page.locator('#checkFirmwareVersion .check-state')).toHaveText('Pass');
-    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText('Installed 1.0.1');
+    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText(`Installed ${appVersion}`);
     await expect(page.locator('#checkMemory .check-state')).toHaveText('Pass');
     await expect(page.locator('#checkMemory .check-detail')).toContainText('96 KB');
     await expect(page.locator('#checkHeadroom .check-state')).toHaveText('Pass');
@@ -133,8 +143,29 @@ test.describe('Pico Performance Test established rules', () => {
 
     await expect(page.locator('#checkFirmwareVersion .check-state')).toHaveText('Fail');
     await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText('Installed 1.0.0');
-    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText('expected 1.0.1');
-    await expect(page.locator('#timingHistoryBody tr').first()).toContainText('FAIL Installed 1.0.0; expected 1.0.1');
+    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText(`expected ${appVersion}`);
+    await expect(page.locator('#timingHistoryBody tr').first()).toContainText(`FAIL Installed 1.0.0; expected ${appVersion}`);
+  });
+
+  test('uses the embedded application version when the deployed VERSION URL is unavailable', async ({ page }) => {
+    await page.unroute('**/VERSION');
+    await page.route('**/VERSION', route => route.fulfill({ status: 404, body: 'Not Found' }));
+    await page.unroute('http://127.0.0.1:18992/status.json');
+    await page.route('http://127.0.0.1:18992/status.json', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        firmware_version: appVersion,
+        dmx: { running: true, channels: 512, frame_count: 1234 }
+      })
+    }));
+
+    await openDmxPage(page, 'test/');
+    await page.locator('#btnCheckPico').click();
+
+    await expect(page.locator('#checkFirmwareVersion .check-state')).toHaveText('Pass');
+    await expect(page.locator('#checkFirmwareVersion .check-detail')).toContainText(`Installed ${appVersion}`);
   });
 
   test('fails the DMX interval check when firmware reports a doubled frame gap', async ({ page }) => {
@@ -231,6 +262,13 @@ test.describe('Pico Performance Test established rules', () => {
     await page.locator('#chPerReq').fill('16');
     await page.locator('#reqCount').fill('1');
     await page.locator('#midiLatencySamples').fill('1');
+    await page.evaluate(() => {
+      window.__fullPlaybackPaletteStressCalls = 0;
+      window.runPlaybackPaletteStress = async options => {
+        window.__fullPlaybackPaletteStressCalls++;
+        window.__fullPlaybackPaletteStressOptions = options;
+      };
+    });
     await page.locator('#btnRunFull').click();
 
     await expect(page.locator('#btnRunFull')).toBeEnabled({ timeout: 15000 });
@@ -242,6 +280,8 @@ test.describe('Pico Performance Test established rules', () => {
     await expect(page.locator('#historyBody tr')).toHaveCount(2);
     await expect(page.locator('#historyBody tr').nth(0)).toContainText('Front Pico');
     await expect(page.locator('#historyBody tr').nth(1)).toContainText('Pixel Pico');
+    expect(await page.evaluate(() => window.__fullPlaybackPaletteStressCalls)).toBe(2);
+    expect(await page.evaluate(() => window.__fullPlaybackPaletteStressOptions)).toEqual({ recordTiming: false });
     for (const paths of requests.values()) {
       expect(paths).toContain('/perf/status.json');
       expect(paths).toContain('/dmx/output.json');
@@ -296,6 +336,7 @@ test.describe('Pico Performance Test established rules', () => {
     });
 
     await openDmxPage(page, 'test/');
+    await stubPlaybackPaletteStress(page);
     await page.locator('#chPerReq').fill('16');
     await page.locator('#reqCount').fill('1');
     await page.locator('#midiLatencySamples').fill('1');
@@ -377,6 +418,7 @@ test.describe('Pico Performance Test established rules', () => {
     });
 
     await openDmxPage(page, 'test/');
+    await stubPlaybackPaletteStress(page);
     await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
 
     await page.locator('#btnMidiLatencyConnect').click();
@@ -437,6 +479,7 @@ test.describe('Pico Performance Test established rules', () => {
     });
 
     await openDmxPage(page, 'test/');
+    await stubPlaybackPaletteStress(page);
     await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#chPerReq').fill('16');
     await page.locator('#reqCount').fill('1');
@@ -495,6 +538,7 @@ test.describe('Pico Performance Test established rules', () => {
     });
 
     await openDmxPage(page, 'test/');
+    await stubPlaybackPaletteStress(page);
     await page.evaluate(() => {
       const originalFetchPicoJson = window.fetchPicoJson;
       window.__benchmarkStatusCalls = 0;
@@ -543,6 +587,7 @@ test.describe('Pico Performance Test established rules', () => {
     }));
 
     await openDmxPage(page, 'test/');
+    await stubPlaybackPaletteStress(page);
     await expect(page.locator('#baseUrl')).toHaveValue('http://127.0.0.1:18992/');
     await page.locator('#chPerReq').fill('16');
     await page.locator('#reqCount').fill('10');
