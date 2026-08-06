@@ -1724,6 +1724,11 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
 <p>Changed:</p>
 <ul>
+<li>Moved the repo-local PHP development router from the automation-script directory to</li>
+</ul>
+<p>  <code>tools/local-server/router.php</code>, separating server support from executable build and</p>
+<p>  release workflows while preserving the same local application routes.</p>
+<ul>
 <li>Renamed the manual-generation scripts by responsibility and extracted the page</li>
 </ul>
 <p>  overview capture from the main builder. Every build, capture, and render script</p>

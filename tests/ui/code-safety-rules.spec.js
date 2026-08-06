@@ -484,6 +484,15 @@ test.describe('Code safety regression rules', () => {
     expect(builder).toContain('render_user_manual_pdf.ps1');
   });
 
+  test('the local PHP development router is server tooling, not an automation script', () => {
+    const router = 'tools/local-server/router.php';
+
+    expect(fs.existsSync(path.join(root, router)), router).toBe(true);
+    expect(fs.existsSync(path.join(root, 'scripts/dev-router.php'))).toBe(false);
+    expect(read(router)).toContain('$root = dirname(__DIR__, 2);');
+    expect(read('scripts/build_user_manual.ps1')).toContain('tools\\local-server\\router.php');
+  });
+
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
 

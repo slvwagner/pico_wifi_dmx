@@ -340,7 +340,7 @@ On Ubuntu, you can run the browser UI directly from the repository without XAMPP
 
 ```bash
 cd ~/pico_wifi_dmx
-php -S 127.0.0.1:8000 scripts/dev-router.php
+php -S 127.0.0.1:8000 tools/local-server/router.php
 ```
 
 Then open:
@@ -816,7 +816,7 @@ On Ubuntu, point the tests at the PHP dev server instead of the default XAMPP UR
 
 ```bash
 cd ~/pico_wifi_dmx
-php -S 127.0.0.1:8002 scripts/dev-router.php
+php -S 127.0.0.1:8002 tools/local-server/router.php
 ```
 
 Create `tests/pathconfig.local.json`:
@@ -926,6 +926,8 @@ pico_wifi_dmx/
 ├─ hardware/
 │  └─ fusion/                Generated Rev. A schematic, PCB, used library, and net lists
 ├─ tools/                    Source material used by repository tooling
+│  ├─ local-server/          Router for the repo-local PHP development server
+│  │  └─ router.php
 │  └─ fixture-library/       Open Fixture Library export used by the converter
 │     └─ ofl_export_ofl.zip
 ├─ scripts/                  XAMPP sync, test, documentation, and release automation
@@ -941,7 +943,6 @@ pico_wifi_dmx/
 │  ├─ generate_fusion_board.mjs
 │  ├─ start_version_branch.ps1
 │  ├─ prepare_release.ps1
-│  ├─ dev-router.php         PHP built-in-server router for local development
 │  ├─ capture_manual_ui_screenshots.ps1
 │  ├─ capture_chaser_manual_screenshots.ps1
 │  ├─ capture_manual_page_overviews.ps1

@@ -130,7 +130,7 @@ function Start-ScreenshotServer {
 
     $port = Get-FreeTcpPort
     $base = "http://127.0.0.1:$port"
-    $router = Join-Path $PSScriptRoot "dev-router.php"
+    $router = Join-Path $repoRoot "tools\local-server\router.php"
     $process = Start-PicoDmxProcess -FilePath $phpPath -ArgumentList @("-S", "127.0.0.1:$port", $router) -WorkingDirectory $repoRoot
     $ready = $false
     for ($i = 0; $i -lt 40; $i++) {

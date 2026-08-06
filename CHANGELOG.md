@@ -4,6 +4,9 @@
 
 Changed:
 
+- Moved the repo-local PHP development router from the automation-script directory to
+  `tools/local-server/router.php`, separating server support from executable build and
+  release workflows while preserving the same local application routes.
 - Renamed the manual-generation scripts by responsibility and extracted the page
   overview capture from the main builder. Every build, capture, and render script
   reports its total runtime. The builder also reports every orchestration stage, so
