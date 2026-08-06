@@ -9,6 +9,7 @@ Changed:
 
 Fixed:
 
+- Re-clamped a saved wide toolbox rail whenever the browser viewport changes and made the **Show** name row and Fixture Library respond to the actual Controller workspace width. Narrowing the window no longer clips the Show card beneath a large toolbox rail.
 - Kept a newly created show completely empty instead of automatically adding the legacy **Generic Moving Head** profile. Reloading that saved empty show now also preserves its empty profile list; the starter profile remains limited to first-run recovery when no setup can be loaded.
 
 ## 1.2.0 - 2026-08-06

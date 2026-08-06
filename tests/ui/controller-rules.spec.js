@@ -1728,6 +1728,56 @@ test.describe('Fixture Controller established rules', () => {
     await expect(page.locator('#patchBody')).toBeVisible();
   });
 
+  test('wide toolbox is re-clamped after viewport resize so the Show card is not clipped', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDmxPage(page, '');
+    await page.evaluate(() => {
+      localStorage.removeItem('toolboxRailWidth');
+      document.documentElement.style.removeProperty('--toolbox-rail-width');
+    });
+    const resizer = page.locator('#fixtureToolboxRail .toolbox-rail-resizer');
+    const resizerBox = await resizer.boundingBox();
+    await page.mouse.move(resizerBox.x + resizerBox.width / 2, resizerBox.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(540, resizerBox.y + 100, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(() => page.locator('#fixtureToolboxRail').evaluate(rail => Math.round(rail.getBoundingClientRect().width))).toBeGreaterThanOrEqual(890);
+
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.waitForTimeout(50);
+
+    const layout = await page.evaluate(() => {
+      const main = document.querySelector('main');
+      const rail = document.getElementById('fixtureToolboxRail');
+      const show = document.querySelector('main > .setup-files-card');
+      const mainRect = main.getBoundingClientRect();
+      const railRect = rail.getBoundingClientRect();
+      const showRect = show.getBoundingClientRect();
+      return {
+        mainWidth: mainRect.width,
+        mainRight: mainRect.right,
+        railLeft: railRect.left,
+        showLeft: showRect.left,
+        showRight: showRect.right,
+        showClientWidth: show.clientWidth,
+        showScrollWidth: show.scrollWidth,
+        overflowing: Array.from(show.querySelectorAll('*')).map(element => ({
+          tag: element.tagName,
+          id: element.id,
+          className: typeof element.className === 'string' ? element.className : '',
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth
+        })).filter(element => element.scrollWidth > element.clientWidth + 1)
+      };
+    });
+
+    expect(layout.mainWidth).toBeGreaterThanOrEqual(360);
+    expect(layout.mainRight).toBeLessThanOrEqual(layout.railLeft + 1);
+    expect(layout.showLeft).toBeGreaterThanOrEqual(0);
+    expect(layout.showRight).toBeLessThanOrEqual(layout.mainRight + 1);
+    expect(layout.showScrollWidth, JSON.stringify(layout.overflowing)).toBeLessThanOrEqual(layout.showClientWidth + 1);
+  });
+
   test('DMX Outputs opens while the Show card remains collapsed', async ({ page }) => {
     await page.evaluate(() => {
       setSectionCollapsed('showCollapseBtn', 'showBody', 'showCollapsed', true);

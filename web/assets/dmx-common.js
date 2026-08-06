@@ -2145,6 +2145,10 @@
       document.documentElement.style.removeProperty('--toolbox-rail-width');
       saveUiState('toolboxes',TOOLBOX_WIDTH_KEY,null);
     });
+    window.addEventListener('resize',()=>{
+      const preferred=parseInt(localStorage.getItem(TOOLBOX_WIDTH_KEY)||'',10);
+      if(preferred)setToolboxRailWidth(preferred);
+    });
   }
 
   function initToolboxRailScrollHost(rail){
