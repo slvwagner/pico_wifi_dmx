@@ -1724,6 +1724,11 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
 <p>Changed:</p>
 <ul>
+<li>Added a fast solid-zlib profile for local Windows installer builds while</li>
+</ul>
+<p>  retaining solid LZMA as the official release default. Release timing runs can</p>
+<p>  opt into the fast profile with <code>-WindowsInstallerCompression Fast</code>.</p>
+<ul>
 <li>Added stage and total runtime reporting to the Windows installer build so dependency</li>
 </ul>
 <p>  validation, cleanup, .NET restore/publish, runtime extraction, staging, NSIS</p>
