@@ -437,6 +437,21 @@ try {
 '@
     Invoke-PageScript $expression | Out-Null
     Save-ElementScreenshot ".chaser-card-rows" "chaser-collapsed-work-area.png"
+    $expression = @'
+(()=>{
+  const docPicoSlots=Array.from({length:PICO_SLOT_COUNT},(_,slot)=>({
+    slot,loaded:false,active:false,paused:false,loop:false,mode:1,direction:0,
+    loop_count:0,step_count:0,fade_min:null,fade_max:null,speed_mult:1.0
+  }));
+  Object.assign(docPicoSlots[0],{loaded:true,active:true,loop:true,mode:1,step_count:4,fade_min:20,fade_max:50,speed_mult:1.0});
+  Object.assign(docPicoSlots[3],{loaded:true,loop:true,mode:2,loop_count:4,direction:1,step_count:6,fade_min:35,fade_max:35,speed_mult:1.25});
+  Object.assign(docPicoSlots[6],{loaded:true,paused:true,loop:true,mode:3,step_count:8,fade_min:10,fade_max:60,speed_mult:0.75});
+  renderChaserSlotStrip(docPicoSlots,1<<0);
+  setPicoStatus('Slot 0 running · slot 6 paused','var(--accent)');
+  return true;
+})()
+'@
+    Invoke-PageScript $expression | Out-Null
     Save-ElementScreenshot "#picoPanel" "chaser-pico-playback.png"
 }
 finally {

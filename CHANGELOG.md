@@ -10,6 +10,7 @@ Changed:
 
 Fixed:
 
+- Updated the deterministic Chaser and Effects manual captures to show representative occupied Pico playback slots in live, ready, and paused states. The Effects overview capture now initializes its documentation data without displaying a saved-plane error or an unstarted slot strip.
 - Made **Playback + Palette Stress** cleanup use the Pico URL recorded when its temporary slots were created, pace large clear batches, verify that every temporary Chaser and Effects slot is empty, and retry transient failures. The test now remains busy until cleanup completes. Multi-Pico runs no longer silently leave temporary playback data behind; incomplete cleanup retains its recovery record and reports the affected Pico and slots.
 - Let linked Effects uploads recover when a secondary Pico has no empty motion slots by asking before overwriting the selected slot number on each full peer, instead of failing while the primary Pico's selected slot appears empty.
 - Restored the saved Effects target and participating fixtures when the page is opened or hard-reloaded, preventing Pico slot uploads from incorrectly reporting **No enabled targets for upload** after a valid Effects setup was saved.

@@ -373,6 +373,19 @@ test.describe('Code safety regression rules', () => {
     expect(holdCapture[0]).toContain('Final synchronous normalization immediately before capture');
   });
 
+  test('manual Chaser and Effects screenshots show deterministic occupied Pico slots', () => {
+    const chaserCapture = read('scripts/capture_chaser_screenshot.ps1');
+    const effectsPage = read('web/dmx_motion.html');
+
+    expect(chaserCapture).toContain('renderChaserSlotStrip(docPicoSlots');
+    expect(chaserCapture).toContain('loaded:true');
+    expect(chaserCapture).toContain('paused:true');
+    expect(effectsPage).toContain('renderMotionSlotStrip(docPicoSlots');
+    expect(effectsPage).toContain('docshot_overview');
+    expect(effectsPage).toContain('loaded:true');
+    expect(effectsPage).toContain('paused:true');
+  });
+
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
 

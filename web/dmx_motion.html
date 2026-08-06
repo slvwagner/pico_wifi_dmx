@@ -2200,7 +2200,8 @@ if(document.getElementById('exportMotionEffectsBtn'))document.getElementById('ex
 if(document.getElementById('importMotionEffectsBtn'))document.getElementById('importMotionEffectsBtn').onclick=()=>document.getElementById('importMotionEffectsFile')?.click();
 if(document.getElementById('importMotionEffectsFile'))document.getElementById('importMotionEffectsFile').onchange=e=>{if(e.target.files[0])importMotionEffectsJson(e.target.files[0]);e.target.value='';};
 
-if(!new URLSearchParams(location.search).has('docshot_overview')){
+const motionDocshotOverview=new URLSearchParams(location.search).has('docshot_overview');
+if(!motionDocshotOverview){
   loadSetup().finally(async()=>{
     try{
       const dummy=Array.from({length:PICO_SLOT_COUNT},(_,i)=>({slot:i,loaded:false,active:false,type:0,bpm:30,target_count:0,fixture_count:0}));
@@ -2221,6 +2222,25 @@ if(!new URLSearchParams(location.search).has('docshot_overview')){
       }
     }catch(_){}
   });
+}else{
+  const applyMotionDocshotSlots=()=>{
+    const participationPanel=document.getElementById('fxPanel');
+    const participationToggle=document.querySelector('[data-panel-toggle="fxPanel"]');
+    if(participationPanel)participationPanel.classList.add('collapsed-panel');
+    if(participationToggle)participationToggle.textContent='+';
+    const docPicoSlots=Array.from({length:PICO_SLOT_COUNT},(_,slot)=>({
+      slot,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0
+    }));
+    Object.assign(docPicoSlots[0],{loaded:true,active:true,type:0,bpm:120,target_count:6});
+    Object.assign(docPicoSlots[4],{loaded:true,type:1,bpm:90,target_count:4});
+    Object.assign(docPicoSlots[8],{loaded:true,paused:true,type:4,bpm:60,target_count:8});
+    renderMotionSlotStrip(docPicoSlots,1<<0,1<<8);
+    setPicoMotionStatus('Slot 0 running · slot 8 paused','var(--accent)');
+    setStatus('Documentation example with occupied Pico effect slots');
+  };
+  applyMotionDocshotSlots();
+  setTimeout(applyMotionDocshotSlots,500);
+  setTimeout(applyMotionDocshotSlots,1500);
 }
 // ── Scene Recall Panel (read-only) ─────────────────────────────────────
 let motionScenes=[];let motionSlotCols=4,motionSlotRows=4;
@@ -2894,7 +2914,7 @@ const motionPlanesToolbox=DmxCommon.initFloatingToolbox({
 });
 loadMotionScenesServer();
 loadMotionPalettesServer();
-motionPlanesMatrix.load();
+if(!motionDocshotOverview)motionPlanesMatrix.load();
 // ── UI State persistence ─────────────────────────────────────────────────────────
 function saveUiStateServer(key,val){
   DmxCommon.saveUiState('motion',key,val);
@@ -2916,7 +2936,7 @@ function saveUiStateServer(key,val){
 })();
 
 // After setup loads (and baseUrl is restored from localStorage), auto-poll once
-setTimeout(()=>{ if(baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
+setTimeout(()=>{ if(!motionDocshotOverview&&baseUrlEl.value.trim()) pollPicoMotionStatus(); }, 700);
 // Auto-reload when Fixture Controller saves to localStorage in another tab
 window.addEventListener('storage',e=>{if(e.key==='dmxFixtureController')loadSetup(true);});
 // Poll server every 3 seconds for changes saved from the Fixture Controller
