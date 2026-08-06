@@ -1129,6 +1129,7 @@ try {
   if(widget)widget.value='button';
   if(mode)mode.value='hold';
   if(value)value.value='255';
+  midiMappings=[];
   liveControls.splice(0,liveControls.length,
     {id:'doc_live_hold',fixtureId:990101,controlId:990011,part:'value',widget:'button',buttonMode:'hold',buttonValue:255,label:'Fog Burst'}
   );

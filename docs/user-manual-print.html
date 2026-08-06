@@ -1728,6 +1728,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone <code>VERSION</code> file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.</li>
 <li>Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the <strong>Playback + Palette Stress</strong> workload to delay DMX frame starts while calculating many active slots.</li>
 <li>Ran real Pico release tests as a dedicated serial stage after the isolated parallel UI suite, preventing browser-test concurrency from disturbing physical playback state and timing measurements.</li>
+<li>Made the Show Run hold-button documentation capture clear asynchronous MIDI mapping state before rendering, keeping its screenshot and generated manual PDFs reproducible across release runs.</li>
 </ul>
 <h3 id="1-1-0-2026-08-05">1.1.0 - 2026-08-05</h3>
 <p>Changed:</p>

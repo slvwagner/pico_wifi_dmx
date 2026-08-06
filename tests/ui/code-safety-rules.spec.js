@@ -356,6 +356,15 @@ test.describe('Code safety regression rules', () => {
     expect(releaseScript.slice(hardwareSuite)).toContain('npm run test:pico');
   });
 
+  test('manual live-control screenshots clear asynchronous MIDI mapping state', () => {
+    const captureScript = read('scripts/capture_readme_screenshots.ps1');
+    const holdCapture = captureScript.match(/if\(mode\)mode\.value='hold';[\s\S]*?show-run-live-hold-button\.png/);
+
+    expect(holdCapture).not.toBeNull();
+    expect(holdCapture[0]).toContain('midiMappings=[];');
+    expect(holdCapture[0].indexOf('midiMappings=[];')).toBeLessThan(holdCapture[0].indexOf("renderLiveControls();"));
+  });
+
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
 
