@@ -1,16 +1,16 @@
 {
   "version": "1.2.0",
   "branch": "main",
-  "commit": "4b1ad8e",
-  "createdAt": "2026-08-06T13:32:48Z",
+  "commit": "75f51b4",
+  "createdAt": "2026-08-06T15:21:30Z",
   "tests": {
-    "hardware": false
+    "hardware": true
   },
   "docsGenerated": true,
   "firmware": {
     "file": "pico_wifi_dmx-v1.2.0.uf2",
-    "sizeBytes": 483840,
-    "sha256": "674e1025c72b4a66ca1b4e3156ad4e66b4397f805c99ce11643ad9a36f54d856"
+    "sizeBytes": 481792,
+    "sha256": "5cb9f816cbc250f0943e1980f30f8ca65c2cd8bff397c8ef4e340cfe1b7e221e"
   },
   "wifiFirmware": {
     "file": "pico_wifi_dmx-wifi-firmware-v1.2.0.uf2",
@@ -24,36 +24,36 @@
   },
   "windowsInstaller": {
     "file": "wifi-pico-dmx-1.2.0-windows-x64.exe",
-    "sizeBytes": 113015289,
-    "sha256": "f998fc3f8c8e5a516f74b9920f7571687965c3be01e3785f50e7500f9567b472",
+    "sizeBytes": 113021614,
+    "sha256": "ead2a5de8ebd41be416b33bb16cab5455bd733f9aa96889cd364b1f37d5d942c",
     "signed": false
   },
   "debianInstaller": {
     "file": "wifi-pico-dmx_1.2.0_amd64.deb",
     "architecture": "amd64",
-    "sizeBytes": 107995652,
-    "sha256": "a6cba385d17edd2df4de6d2f89faef483620e2b978708e9fed8976fb782da1cd"
+    "sizeBytes": 108011176,
+    "sha256": "5e6c627e11892eca0ff994ce762c8353d566d95e115bd5a7abe50d8b523dbaac"
   },
   "docs": {
     "user-manual.md": {
-      "sizeBytes": 173989,
-      "sha256": "598d31c0fab2af097931f1bdc6044b7f32000b7ac55c2dade326faea4fd5b9f3"
+      "sizeBytes": 174094,
+      "sha256": "905767ec888d944008c8dacba96edece302faf8a89c035926cc4bbc9d136ceb4"
     },
     "user-manual.html": {
-      "sizeBytes": 306119,
-      "sha256": "8be8e8f18814c02179c584ef6185b654eaad93cc3684f9e0c8a93848dea76d2d"
+      "sizeBytes": 309437,
+      "sha256": "e8a80ff9cc66af8008c472999450357912746f62fa09965efa4c378c05f34987"
     },
     "user-manual-print.html": {
-      "sizeBytes": 306079,
-      "sha256": "4ab0d5978d8f88925acf9c92c8c4a1f672e4d874d506952be6ae0e9116d9c6b5"
+      "sizeBytes": 309397,
+      "sha256": "76f06a2b49353784e84602c6af2b166da56dfe90e97a7ae13aa4091bffdb3ef8"
     },
     "user-manual.pdf": {
-      "sizeBytes": 4616776,
-      "sha256": "e9073182657e930817b1bb5e1e5a50f1fafd506da2996cc62bae5b7c6d7e8f24"
+      "sizeBytes": 4629332,
+      "sha256": "6acaeb19cf9c722bd031ce9d4c0515677b8a86aa98ef87717df1b2858b5a7cbe"
     },
     "user-manual-navigation.pdf": {
-      "sizeBytes": 5818805,
-      "sha256": "ee72150bea6bdef424a5b5bde2b0b03fa3712902f9eed5d6409ad6da8c0358c3"
+      "sizeBytes": 5839552,
+      "sha256": "8587c532e0916bcadfd8d5ac5eb61bcc3b6d1dc0da5ec30844c8e346f9fa5a2b"
     },
     "screenshots": {
       "count": 75

@@ -1153,7 +1153,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>You can also drag a step card with mouse or touch and drop it before or after another step card to reorder the chase. A short click still selects the step. The selected step and the currently playing step stay attached to the same step data after the move.</li>
 <li><strong>Delete</strong> removes the selected step. If another step remains, it becomes the selected step.</li>
 </ul>
-<h3 id="participating-controls">Participating Controls</h3>
+<h3 id="effects-participating-controls">Effects Participating Controls</h3>
 <p>Participating controls define which fixture controls belong to the chase. This keeps the chaser from editing unrelated channels.</p>
 <p><img src="screenshots/chaser-participating-controls.png" alt="Chaser Participating Controls" style="--manual-image-width: 93.125%" data-native-width="1341"></p>
 <p>For example, a dimmer chase might include only dimmer controls. A color chase might include only RGB or RGBWA controls.</p>
@@ -1291,7 +1291,7 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Scalar targets: Sine, Pulse</li>
 </ul>
 <p>Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relative to the current scene position, so the effect moves around the position that was last written into the Pico base buffer. Scalar controls are one-axis targets and use their displayed center value plus the <strong>Amplitude</strong> slider as the effect depth. Browser playback is only an overlay for testing; when you press <strong>Stop</strong>, Effects restores the stored base values to the output so the last moving effect position does not become the next center.</p>
-<h3 id="participating-controls-2">Participating Controls</h3>
+<h3 id="participating-controls">Participating Controls</h3>
 <p>The <strong>Participating Controls</strong> panel uses an <strong>Effect target</strong> dropdown. The default target is <strong>None</strong>. With <strong>None</strong> selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.</p>
 <p>Hard reload, including Ctrl+F5, resets <strong>Effect target</strong> to <strong>None</strong> and clears playback participation. Normal navigation away from Effects and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use <strong>Load</strong> or recall a saved <strong>Effect</strong> tile when you want to explicitly restore saved target and participant data.</p>
 <p><strong>Save</strong> in Participating Controls writes the complete current Effects working setup to the server: target, enabled fixtures, effect parameters, and saved effect recipes. <strong>Load</strong> explicitly replaces the current working setup with that server copy. Normal parameter changes also preserve the current tab&#39;s working state for navigation, but they do not automatically invoke the explicit server Load operation after a hard reload.</p>
@@ -1731,10 +1731,15 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Added an automatic Windows application startup check that compares every discovered Pico with the bundled firmware version. Incompatible or version-less Picos trigger an update prompt, and accepting it opens the firmware update page with the detailed installed-firmware check already running.</li>
 <li>Replaced the Windows shell&#39;s native light message boxes with shared dark dialogs for firmware prompts, flash confirmation and completion, server lifecycle warnings, WebView fallback, and shutdown errors.</li>
 <li>Removed SSID and password compilation from the Pico application. Windows, Ubuntu, and the developer flash workflow now provision credentials through a dedicated persistent RP2350 data partition using a locally generated temporary UF2. Normal application updates preserve it, network changes can replace it, temporary credentials are not logged, and release preparation rejects legacy credential-bearing CMake caches or compiler commands. Legacy <code>SSID</code> and <code>SSID_PW</code> environment variables are explicitly ignored instead of silently repopulating the updater or firmware build.</li>
+<li>Included <strong>Playback + Palette Stress</strong> in <strong>Run Full Test</strong> for every available Pico, with its result folded into the Full Test&#39;s single consolidated timing record per device.</li>
 </ul>
 <p>Fixed:</p>
 <ul>
 <li>Made documentation captures report deterministic current-release Pico firmware without contacting configured physical controllers, so release screenshots cannot show stale firmware warnings or depend on which devices happen to be online.</li>
+<li>Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone <code>VERSION</code> file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.</li>
+<li>Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the <strong>Playback + Palette Stress</strong> workload to delay DMX frame starts while calculating many active slots.</li>
+<li>Ran real Pico release tests as a dedicated serial stage after the isolated parallel UI suite, preventing browser-test concurrency from disturbing physical playback state and timing measurements.</li>
+<li>Made the Show Run hold-button documentation capture clear asynchronous MIDI mapping state and reapply its Button/Hold toolbar after rendering, keeping the complete screenshot and generated manual PDFs reproducible across release runs.</li>
 </ul>
 <h3 id="1-1-0-2026-08-05">1.1.0 - 2026-08-05</h3>
 <p>Changed:</p>
