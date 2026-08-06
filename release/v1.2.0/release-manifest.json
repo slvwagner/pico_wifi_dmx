@@ -1,8 +1,8 @@
 {
   "version": "1.2.0",
-  "branch": "1.2.0",
-  "commit": "9e56a80",
-  "createdAt": "2026-08-06T13:23:36Z",
+  "branch": "main",
+  "commit": "4b1ad8e",
+  "createdAt": "2026-08-06T13:32:48Z",
   "tests": {
     "hardware": false
   },
@@ -24,15 +24,15 @@
   },
   "windowsInstaller": {
     "file": "wifi-pico-dmx-1.2.0-windows-x64.exe",
-    "sizeBytes": 113005817,
-    "sha256": "7495768e41d7cc447fc4471d59f0e3d5c0cba7e84398a2aa958e0bc5d0bab0f0",
+    "sizeBytes": 113015289,
+    "sha256": "f998fc3f8c8e5a516f74b9920f7571687965c3be01e3785f50e7500f9567b472",
     "signed": false
   },
   "debianInstaller": {
     "file": "wifi-pico-dmx_1.2.0_amd64.deb",
     "architecture": "amd64",
-    "sizeBytes": 107996028,
-    "sha256": "00574992e2df39510c1b6e046f2883e93bf5300f6c7d2e8c7a94bff9d44e9357"
+    "sizeBytes": 107995652,
+    "sha256": "a6cba385d17edd2df4de6d2f89faef483620e2b978708e9fed8976fb782da1cd"
   },
   "docs": {
     "user-manual.md": {
