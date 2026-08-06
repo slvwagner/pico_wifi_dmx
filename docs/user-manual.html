@@ -1724,6 +1724,16 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
 <p>Changed:</p>
 <ul>
+<li>Added stage and total runtime reporting to the Windows installer build so dependency</li>
+</ul>
+<p>  validation, cleanup, .NET restore/publish, runtime extraction, staging, NSIS</p>
+<p>  compilation, and finalization bottlenecks are visible in every installer run.</p>
+<ul>
+<li>Added matching timing to the WSL bridge and native Debian package builder, separating</li>
+</ul>
+<p>  Windows/WSL path setup from Linux validation, cache acquisition, Electron extraction,</p>
+<p>  firmware/application staging, and final <code>dpkg-deb</code> assembly.</p>
+<ul>
 <li>Moved the repo-local PHP development router from the automation-script directory to</li>
 </ul>
 <p>  <code>tools/local-server/router.php</code>, separating server support from executable build and</p>
