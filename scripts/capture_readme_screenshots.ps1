@@ -19,6 +19,7 @@ $outPath = Join-Path $repoRoot $OutDir
 $profileDir = $null
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
+Initialize-ScreenshotTiming -Scope "controller/effects captures"
 
 $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 $startUrl = $BaseUrl
@@ -149,13 +150,16 @@ try {
 
     function Save-Screenshot {
         param([string]$Name)
+        $timing = Start-ScreenshotTiming -Name $Name
         $result = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
         $file = Join-Path $outPath $Name
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+        Complete-ScreenshotTiming -Timing $timing
     }
 
     function Save-ToolboxEditScreenshot {
         param([string]$Name)
+        $timing = Start-ScreenshotTiming -Name $Name
         $rect = Invoke-PageScript @"
 (async()=>{
   const rail=document.querySelector('.toolbox-rail');
@@ -193,6 +197,7 @@ try {
         if (-not $result.result.data) { throw "Chrome returned an empty toolbox Edit-mode screenshot" }
         $file = Join-Path $outPath $Name
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+        Complete-ScreenshotTiming -Timing $timing
     }
 
     function Save-ElementScreenshot {
@@ -200,6 +205,7 @@ try {
             [string]$Selector,
             [string]$Name
         )
+        $timing = Start-ScreenshotTiming -Name $Name
         $selectorJson = $Selector | ConvertTo-Json -Compress
         if ($Selector -match '(Box|Toolbox)$') {
             Invoke-PageScript @"
@@ -304,6 +310,7 @@ try {
         }
         $file = Join-Path $outPath $Name
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+        Complete-ScreenshotTiming -Timing $timing
     }
 
     function Save-ExactElementScreenshot {
@@ -311,6 +318,7 @@ try {
             [string]$Selector,
             [string]$Name
         )
+        $timing = Start-ScreenshotTiming -Name $Name
         $selectorJson = $Selector | ConvertTo-Json -Compress
         $rect = Invoke-PageScript @"
 (async()=>{
@@ -354,6 +362,7 @@ try {
         if (-not $result.result.data) { throw "Chrome returned an empty exact screenshot for $Selector" }
         $file = Join-Path $outPath $Name
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($result.result.data))
+        Complete-ScreenshotTiming -Timing $timing
     }
 
     Send-Cdp "Page.enable" | Out-Null
@@ -1598,8 +1607,48 @@ try {
 })()
 "@
     Save-ElementScreenshot "#motionEffectVisualModal .modal-card" "motion-edit-tile.png"
+
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  const modal=document.getElementById('motionEffectVisualModal');
+  if(modal)modal.style.display='none';
+  const docTarget=motionControlOptions().find(option=>/dimmer/i.test(option.label||''))||motionControlOptions()[0];
+  if(docTarget)setMotionTarget(docTarget.key,{enableMatches:true});
+  const panel=document.getElementById('fxPanel');
+  const btn=document.querySelector('[data-panel-toggle="fxPanel"]');
+  if(panel&&panel.classList.contains('collapsed-panel')&&btn)btn.click();
+  const pageHeader=document.querySelector('body>main>header');
+  if(pageHeader)pageHeader.style.display='none';
+  document.querySelectorAll('#fixtureList .motion-fixture-tile').forEach((tile,index)=>{
+    if(index>=8)tile.style.display='none';
+  });
+  setStatus('Documentation example with enabled Dimmer fixtures');
+  await wait();
+})()
+"@
+    Save-ElementScreenshot "#fxPanel" "motion-participating-controls.png"
+    Eval-Js @"
+(async()=>{
+  const wait=(ms=300)=>new Promise(r=>setTimeout(r,ms));
+  const panel=document.getElementById('picoMotionPanel');
+  const btn=document.querySelector('[data-panel-toggle="picoMotionPanel"]');
+  if(panel&&panel.classList.contains('collapsed-panel')&&btn)btn.click();
+  const docPicoSlots=Array.from({length:PICO_SLOT_COUNT},(_,slot)=>({
+    slot,loaded:false,active:false,paused:false,type:0,bpm:30,target_count:0,fixture_count:0
+  }));
+  Object.assign(docPicoSlots[0],{loaded:true,active:true,type:0,bpm:120,target_count:6});
+  Object.assign(docPicoSlots[4],{loaded:true,type:1,bpm:90,target_count:4});
+  Object.assign(docPicoSlots[8],{loaded:true,paused:true,type:4,bpm:60,target_count:8});
+  renderMotionSlotStrip(docPicoSlots,1<<0,1<<8);
+  setPicoMotionStatus('Slot 0 running · slot 8 paused','var(--accent)');
+  await wait();
+})()
+"@
+    Save-ElementScreenshot "#picoMotionPanel" "motion-pico-slots.png"
 }
 finally {
+    Write-ScreenshotTimingSummary
     if ($socket) { $socket.Dispose() }
     if ($chromeProcess -and -not $chromeProcess.HasExited) { Stop-Process -Id $chromeProcess.Id -Force }
     Stop-PicoDmxChromeProfileProcesses -ProfileDir $profileDir

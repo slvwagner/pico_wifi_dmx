@@ -25,6 +25,7 @@ $backupDataDir = Get-PicoDmxTempPath ("pico-dmx-manual-data-backup-" + [DateTime
 $url = $BaseUrl.TrimEnd("/") + "/dmx_chaser.html?docshot=" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
+Initialize-ScreenshotTiming -Scope "chaser captures"
 
 if (-not (Test-Path -LiteralPath $manualDataPath)) {
     throw "Manual data baseline not found: $manualDataPath"
@@ -148,6 +149,7 @@ try {
             [string]$Selector,
             [string]$Name
         )
+        $timing = Start-ScreenshotTiming -Name $Name
         $selectorJson = $Selector | ConvertTo-Json -Compress
         if ($Selector -match '(Box|Toolbox)$') {
             Invoke-PageScript @"
@@ -255,6 +257,7 @@ try {
         }
         $file = Join-Path $outPath $Name
         Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($shot.result.data))
+        Complete-ScreenshotTiming -Timing $timing
     }
 
     Send-Cdp "Page.enable" | Out-Null
@@ -327,9 +330,11 @@ try {
         throw "Chaser docshot did not reach recalled-step state."
     }
 
-    $shot = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
     $file = Join-Path $outPath "chaser.png"
+    $timing = Start-ScreenshotTiming -Name ([IO.Path]::GetFileName($file))
+    $shot = Send-Cdp "Page.captureScreenshot" @{ format = "png"; fromSurface = $true }
     Write-PngIfChanged -Path $file -Bytes ([Convert]::FromBase64String($shot.result.data))
+    Complete-ScreenshotTiming -Timing $timing
 
     Save-ElementScreenshot "#chaserGroupsBox" "chaser-toolbox-groups.png"
     Save-ElementScreenshot "#chaseBox" "chaser-toolbox-chases.png"
@@ -455,6 +460,7 @@ try {
     Save-ElementScreenshot "#picoPanel" "chaser-pico-playback.png"
 }
 finally {
+    Write-ScreenshotTimingSummary
     if ($socket) { $socket.Dispose() }
     if ($chromeProcess -and -not $chromeProcess.HasExited) { Stop-Process -Id $chromeProcess.Id -Force }
     Stop-PicoDmxChromeProfileProcesses -ProfileDir $profileDir

@@ -46,6 +46,7 @@ function Save-PageScreenshot {
         [int]$Width = 1440,
         [int]$Height = 1100
     )
+    $timing = Start-ScreenshotTiming -Name $Name
     if (-not (Test-Path -LiteralPath $chrome)) {
         throw "Chrome not found: $chrome"
     }
@@ -69,6 +70,7 @@ function Save-PageScreenshot {
         Remove-Item -LiteralPath $profileDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     Write-PngIfChanged -Path $out -Bytes $bytes
+    Complete-ScreenshotTiming -Timing $timing
 }
 
 function Copy-JsonFiles {
@@ -230,11 +232,13 @@ try {
             }
 
             Invoke-Step "Capture page overview screenshots" {
+                Initialize-ScreenshotTiming -Scope "page overview captures"
                 Copy-JsonFiles -SourceDir $manualDataPath -DestinationDir $localApiDataPath
                 Save-PageScreenshot "motion-fx.png" ($script:screenshotServer.BaseUrl + "/dmx_motion.html?docshot_overview=1")
                 Save-PageScreenshot "gpio-control.png" ($script:screenshotServer.BaseUrl + "/dmx_gpio.html")
                 Save-PageScreenshot "dmx-monitor.png" ($script:screenshotServer.BaseUrl + "/dmx_monitor.html")
                 Save-PageScreenshot "benchmark.png" ($script:screenshotServer.BaseUrl + "/test/")
+                Write-ScreenshotTimingSummary
             }
         }
         finally {

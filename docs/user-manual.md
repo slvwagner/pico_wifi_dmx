@@ -1156,6 +1156,8 @@ Pan/tilt is treated as one combined two-axis target. Pan/tilt effects are relati
 
 The **Participating Controls** panel uses an **Effect target** dropdown. The default target is **None**. With **None** selected, no fixture tiles are enabled, Group Edit is disabled, and no effect can be played or uploaded.
 
+![Effects Participating Controls](screenshots/motion-participating-controls.png)
+
 Hard reload, including Ctrl+F5, resets **Effect target** to **None** and clears playback participation. Normal navigation away from Effects and back in the same browser tab restores the current working target, fixture participation, and parameters from session state. The saved server preset is not auto-applied on page load; use **Load** or recall a saved **Effect** tile when you want to explicitly restore saved target and participant data.
 
 **Save** in Participating Controls writes the complete current Effects working setup to the server: target, enabled fixtures, effect parameters, and saved effect recipes. **Load** explicitly replaces the current working setup with that server copy. Normal parameter changes also preserve the current tab's working state for navigation, but they do not automatically invoke the explicit server Load operation after a hard reload.
@@ -1194,6 +1196,8 @@ The **Effects** toolbox stores reusable effect recipes. Click an empty effect sl
 ### Pico Effects Slots
 
 The Pico effect slot upload uses the same selected **Effect target** as the browser page. When enabled target fixtures use several DMX Outputs, the effect is split into a linked payload for each involved Pico. Logical effect slot N uses physical motion slot N on every involved Pico. The strip uses the same `EMPTY`, `READY`, `PARTIAL`, and `UNKNOWN` fleet states as Chaser so it never describes a slot as empty when another configured Pico still contains data there.
+
+![Occupied Pico Effects slots](screenshots/motion-pico-slots.png)
 
 - If the target is pan/tilt, the uploaded slot stores pan and tilt channel addresses and plays two-axis effects.
 - If the target is pan/tilt, one-axis effects still store the pan/tilt channel addresses, but unused amplitude axes are uploaded as zero: Pan Swing uses `AMP1` and zero `AMP2`; Tilt Swing uses zero `AMP1` and `AMP2`.

@@ -231,6 +231,16 @@
       "purpose": "motion collapsed participating controls"
     },
     {
+      "file": "motion-participating-controls.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion expanded participating controls with enabled fixtures"
+    },
+    {
+      "file": "motion-pico-slots.png",
+      "owner": "scripts/capture_readme_screenshots.ps1",
+      "purpose": "motion Pico Effects panel with occupied playback slots"
+    },
+    {
       "file": "motion-toolbox-groups.png",
       "owner": "scripts/capture_readme_screenshots.ps1",
       "purpose": "motion groups toolbox"

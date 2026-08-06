@@ -4,12 +4,14 @@
 
 Changed:
 
+- Added per-image timing to manual screenshot generation. Each capture now reports its own PNG capture/write duration and full pipeline interval including preparation waits, followed by a slowest-first summary for the Controller/Effects, Chaser, and page-overview capture stages.
 - Started the 1.2.1 development branch.
 - Removed the easily stale **Current development version** banner from the README. `VERSION` remains the canonical application and development version, and the version-branch helper no longer edits the source branch solely to maintain that duplicate label.
 - Unified autonomous Chaser and Effects playback around fleet-wide logical slot numbers. Logical Chaser slot N now uses physical Chaser slot N on every involved Pico, and Effects follows the same rule across its 64 slots. Slot status distinguishes consistent `EMPTY`/`READY` state from `PARTIAL` occupancy and `UNKNOWN` unreachable outputs; deletion clears N on every configured Pico. Existing linked manifests with differing member slots are not silently restored and can be normalized from either playback page after a timestamped server backup and conflict check. Replaced the incomplete restore action with an explicit fleet synchronization that preflights every configured Pico, re-uploads all saved payloads, and clears stale loaded slots after showing an exact destructive-change summary; opening a playback page no longer writes Pico slot memory automatically.
 
 Fixed:
 
+- Added dedicated manual screenshots for the expanded Effects **Participating Controls** panel and the occupied **Pico Effects Slots** panel, placing each image directly in its corresponding manual section.
 - Updated the deterministic Chaser and Effects manual captures to show representative occupied Pico playback slots in live, ready, and paused states. The Effects overview capture now initializes its documentation data without displaying a saved-plane error or an unstarted slot strip.
 - Made **Playback + Palette Stress** cleanup use the Pico URL recorded when its temporary slots were created, pace large clear batches, verify that every temporary Chaser and Effects slot is empty, and retry transient failures. The test now remains busy until cleanup completes. Multi-Pico runs no longer silently leave temporary playback data behind; incomplete cleanup retains its recovery record and reports the affected Pico and slots.
 - Let linked Effects uploads recover when a secondary Pico has no empty motion slots by asking before overwriting the selected slot number on each full peer, instead of failing while the primary Pico's selected slot appears empty.

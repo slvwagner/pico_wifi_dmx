@@ -1,5 +1,53 @@
 $ErrorActionPreference = "Stop"
 
+function Initialize-ScreenshotTiming {
+    param([string]$Scope)
+
+    $script:screenshotTimingScope = $Scope
+    $script:screenshotTimingClock = [Diagnostics.Stopwatch]::StartNew()
+    $script:screenshotTimingLastMs = 0.0
+    $script:screenshotTimingRows = [Collections.Generic.List[object]]::new()
+}
+
+function Start-ScreenshotTiming {
+    param([string]$Name)
+
+    if (-not $script:screenshotTimingClock) { Initialize-ScreenshotTiming -Scope "screenshots" }
+    return [pscustomobject]@{
+        Name = $Name
+        PipelineStartMs = [double]$script:screenshotTimingLastMs
+        CaptureStartMs = [double]$script:screenshotTimingClock.Elapsed.TotalMilliseconds
+    }
+}
+
+function Complete-ScreenshotTiming {
+    param([pscustomobject]$Timing)
+
+    $completedMs = [double]$script:screenshotTimingClock.Elapsed.TotalMilliseconds
+    $row = [pscustomobject]@{
+        Name = $Timing.Name
+        PipelineMs = [Math]::Round($completedMs - $Timing.PipelineStartMs, 1)
+        CaptureMs = [Math]::Round($completedMs - $Timing.CaptureStartMs, 1)
+    }
+    $script:screenshotTimingRows.Add($row)
+    $script:screenshotTimingLastMs = $completedMs
+    Write-Host ("Screenshot timing: {0} | pipeline {1:N1} ms | capture {2:N1} ms" -f $row.Name, $row.PipelineMs, $row.CaptureMs)
+}
+
+function Write-ScreenshotTimingSummary {
+    if (-not $script:screenshotTimingRows -or -not $script:screenshotTimingRows.Count) { return }
+
+    Write-Host ""
+    Write-Host ("Slowest screenshots ({0})" -f $script:screenshotTimingScope) -ForegroundColor Cyan
+    $rank = 0
+    foreach ($row in ($script:screenshotTimingRows | Sort-Object PipelineMs -Descending)) {
+        $rank++
+        Write-Host ("{0,2}. {1,-48} pipeline {2,8:N1} ms | capture {3,8:N1} ms" -f $rank, $row.Name, $row.PipelineMs, $row.CaptureMs)
+    }
+    $totalMs = [Math]::Round($script:screenshotTimingClock.Elapsed.TotalMilliseconds, 1)
+    Write-Host ("Measured {0} screenshots in {1:N1} ms." -f $script:screenshotTimingRows.Count, $totalMs)
+}
+
 function Get-PicoDmxTempPath {
     param([string]$Name)
 

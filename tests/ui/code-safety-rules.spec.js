@@ -375,15 +375,40 @@ test.describe('Code safety regression rules', () => {
 
   test('manual Chaser and Effects screenshots show deterministic occupied Pico slots', () => {
     const chaserCapture = read('scripts/capture_chaser_screenshot.ps1');
+    const effectsCapture = read('scripts/capture_readme_screenshots.ps1');
     const effectsPage = read('web/dmx_motion.html');
+    const manual = read('docs/user-manual.md');
 
     expect(chaserCapture).toContain('renderChaserSlotStrip(docPicoSlots');
     expect(chaserCapture).toContain('loaded:true');
     expect(chaserCapture).toContain('paused:true');
+    expect(effectsCapture).toContain('motion-participating-controls.png');
+    expect(effectsCapture).toContain('motion-pico-slots.png');
+    expect(effectsCapture).toContain('renderMotionSlotStrip(docPicoSlots');
     expect(effectsPage).toContain('renderMotionSlotStrip(docPicoSlots');
     expect(effectsPage).toContain('docshot_overview');
     expect(effectsPage).toContain('loaded:true');
     expect(effectsPage).toContain('paused:true');
+    expect(manual).toContain('![Effects Participating Controls](screenshots/motion-participating-controls.png)');
+    expect(manual).toContain('![Occupied Pico Effects slots](screenshots/motion-pico-slots.png)');
+  });
+
+  test('manual screenshot capture reports per-image timings and slowest-first summaries', () => {
+    const helpers = read('scripts/screenshot_file_helpers.ps1');
+    const readmeCapture = read('scripts/capture_readme_screenshots.ps1');
+    const chaserCapture = read('scripts/capture_chaser_screenshot.ps1');
+    const manualUpdate = read('scripts/update_user_manual.ps1');
+
+    expect(helpers).toContain('Screenshot timing:');
+    expect(helpers).toContain('pipeline');
+    expect(helpers).toContain('capture');
+    expect(helpers).toContain('Slowest screenshots');
+    for (const script of [readmeCapture, chaserCapture, manualUpdate]) {
+      expect(script).toContain('Initialize-ScreenshotTiming');
+      expect(script).toContain('Start-ScreenshotTiming');
+      expect(script).toContain('Complete-ScreenshotTiming');
+      expect(script).toContain('Write-ScreenshotTimingSummary');
+    }
   });
 
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
