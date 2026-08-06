@@ -33,6 +33,7 @@ $apiRoutes = [
     '/scene_setup.php' => "$root/api/scene_setup.php",
     '/palette_setup.php' => "$root/api/palette_setup.php",
     '/gpio_setup.php' => "$root/api/gpio_setup.php",
+    '/room_plane_setup.php' => "$root/api/room_plane_setup.php",
     '/fixture_library.php' => "$root/api/fixture_library.php",
     '/ui_state.php' => "$root/api/ui_state.php",
     '/pico_discovery.php' => "$root/api/pico_discovery.php",

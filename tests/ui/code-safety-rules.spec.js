@@ -490,6 +490,7 @@ test.describe('Code safety regression rules', () => {
     expect(fs.existsSync(path.join(root, router)), router).toBe(true);
     expect(fs.existsSync(path.join(root, 'scripts/dev-router.php'))).toBe(false);
     expect(read(router)).toContain('$root = dirname(__DIR__, 2);');
+    expect(read(router)).toContain("'/room_plane_setup.php' => \"$root/api/room_plane_setup.php\"");
     expect(read('scripts/build_user_manual.ps1')).toContain('tools\\local-server\\router.php');
   });
 

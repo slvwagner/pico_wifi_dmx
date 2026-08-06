@@ -19,6 +19,10 @@ Changed:
 
 Fixed:
 
+- Added the missing Room Plane API route to the repo-local PHP server. Effects manual
+  captures no longer race a successful setup message against a Room Plane `404`, which
+  made the collapsed Participating Controls screenshot alternate between valid and
+  error states across otherwise identical manual builds.
 - Made documentation capture fully hardware-independent by blocking every cross-origin browser request while `docshot` mode is active. Manual generation continues to use its local API server, but saved Pico URLs can no longer cause DMX writes, playback commands, status polling, or network timeout delays.
 - Added dedicated manual screenshots for the expanded Effects **Participating Controls** panel and the occupied **Pico Effects Slots** panel, placing each image directly in its corresponding manual section.
 - Updated the deterministic Chaser and Effects manual captures to show representative occupied Pico playback slots in live, ready, and paused states. The Effects overview capture now initializes its documentation data without displaying a saved-plane error or an unstarted slot strip.
