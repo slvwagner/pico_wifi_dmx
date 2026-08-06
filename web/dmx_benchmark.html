@@ -359,8 +359,6 @@ const PICO_REQUEST_TIMEOUT_MS=5000;
 const PICO_PREFLIGHT_TIMEOUT_MS=2500;
 const PICO_WRITE_TIMEOUT_MS=2000;
 const PICO_WRITE_MAX_CONSECUTIVE_ERRORS=3;
-let expectedFirmwareVersionPromise=null;
-
 async function fetchPico(path,options={},timeoutMs=PICO_REQUEST_TIMEOUT_MS){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -387,19 +385,9 @@ async function fetchPicoJson(path){
 }
 
 function expectedFirmwareVersion(){
-  if(!expectedFirmwareVersionPromise){
-    expectedFirmwareVersionPromise=fetch('../VERSION',{cache:'no-store'})
-      .then(response=>{
-        if(!response.ok)throw new Error('VERSION HTTP '+response.status);
-        return response.text();
-      })
-      .then(version=>{
-        const value=String(version||'').trim();
-        if(!value)throw new Error('VERSION is empty');
-        return value;
-      });
-  }
-  return expectedFirmwareVersionPromise;
+  const value=String(DmxCommon.appVersion()||'').trim();
+  if(!value)return Promise.reject(new Error('Application version is empty'));
+  return Promise.resolve(value);
 }
 
 async function checkFirmwareVersion(status){
@@ -1424,6 +1412,7 @@ async function runFullPerformanceTestForActivePico(){
     setStatus(midiLatencyEmulatorSelected()?'Automated checks complete. Generating '+samples+' MIDI emulator timing sample'+(samples===1?'':'s')+'...':'Automated checks complete. Move a MIDI control and pause for each of '+samples+' timing sample'+(samples===1?'':'s')+'.');
     await startMidiLatencyTest({waitForCompletion:true,automated:midiLatencyEmulatorSelected()});
   }
+  await runPlaybackPaletteStress({recordTiming:false});
   await Promise.race([
     checkPico(),
     new Promise(resolve=>setTimeout(()=>resolve(false),PICO_REQUEST_TIMEOUT_MS))
@@ -1612,7 +1601,7 @@ async function startPlaybackWithTemporaryDemoSlots(){
   return {chaserSlots,motionSlots,tempChaserSlots,tempMotionSlots};
 }
 
-async function runPlaybackPaletteStress(){
+async function runPlaybackPaletteStress({recordTiming=true}={}){
   const btn=document.getElementById('btnRunPlaybackPaletteStress');
   btn.disabled=true;
   const paletteCount=80;
@@ -1675,7 +1664,7 @@ async function runPlaybackPaletteStress(){
     historyRow.midiLatency=lastMidiLatencySnapshot.detail;
     historyRow.midiLatencyLabel=shortMidiLatencyLabel(lastMidiLatencySnapshot);
     historyRow.overall=overallTimingState(historyRow);
-    addTimingHistory(historyRow);
+    if(recordTiming)addTimingHistory(historyRow);
     setCheck('checkWrite',errors?'warn':'pass','Playback + palette stress',paletteCount+' palette recalls while '+slotInfo.chaserSlots.length+' chaser and '+slotInfo.motionSlots.length+' effect slots played; temporary slots will be cleared'+(errors?' · '+errors+' errors':''));
     setStatus('Playback + palette stress complete: '+paletteCount+' palette recalls. Temporary slots are being cleared.');
   }catch(e){

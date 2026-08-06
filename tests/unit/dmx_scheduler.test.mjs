@@ -4,6 +4,8 @@ import test from "node:test";
 
 const source = readFileSync("firmware/dmx_engine.cpp", "utf8");
 const pioSource = readFileSync("firmware/dmx_native.pio", "utf8");
+const chaserSource = readFileSync("firmware/pico_chaser.cpp", "utf8");
+const motionSource = readFileSync("firmware/pico_motion.cpp", "utf8");
 
 function functionBody(name) {
   const signature = source.indexOf(`${name}(`);
@@ -133,4 +135,22 @@ test("a late timer callback cannot compress or discard the following frame", () 
     /timer_period_us\s*=\s*-\s*\(int64_t\)dmx_state\.frame_period_us/,
     "the next deadline must be relative to the completed callback, not an absolute catch-up phase",
   );
+});
+
+test("playback processing leaves the Core0 DMX timer interrupt enabled", () => {
+  for (const [label, playbackSource] of [
+    ["chaser", chaserSource],
+    ["motion", motionSource],
+  ]) {
+    assert.match(
+      playbackSource,
+      /mutex_t\s+\w+_lock\s*;/,
+      `${label} state must use a cross-core mutex`,
+    );
+    assert.doesNotMatch(
+      playbackSource,
+      /critical_section_(?:init|enter_blocking|exit)\s*\(/,
+      `${label} work must not mask the Core0 DMX frame-start interrupt`,
+    );
+  }
 });
