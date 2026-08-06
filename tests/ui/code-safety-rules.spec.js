@@ -424,10 +424,13 @@ test.describe('Code safety regression rules', () => {
   test('README presents the stable Windows installer before the overview and requires release-link verification', () => {
     const readme = read('README.md');
     const publisher = read('scripts/publish_github_release.ps1');
+    const versionBranchScript = read('scripts/start_version_branch.ps1');
     const localPathsExample = read('config/local-paths.example.json');
     const stableVersion = readme.match(/\*\*Latest stable release:\*\* `([^`]+)`/)?.[1];
 
     expect(stableVersion).toBeTruthy();
+    expect(readme).not.toContain('**Current development version:**');
+    expect(versionBranchScript).not.toContain('Current development version:');
     const gettingStartedIndex = readme.indexOf('## Getting Started');
     const contentsIndex = readme.indexOf('## Table of Contents');
     const overviewIndex = readme.indexOf('## Overview');

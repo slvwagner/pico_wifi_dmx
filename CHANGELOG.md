@@ -5,12 +5,7 @@
 Changed:
 
 - Started the 1.2.1 development branch.
-- Included **Playback + Palette Stress** in **Run Full Test** for every available Pico, with its result folded into the Full Test's single consolidated timing record per device.
-
-Fixed:
-
-- Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone `VERSION` file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.
-- Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the **Playback + Palette Stress** workload to delay DMX frame starts while calculating many active slots.
+- Removed the easily stale **Current development version** banner from the README. `VERSION` remains the canonical application and development version, and the version-branch helper no longer edits the source branch solely to maintain that duplicate label.
 
 ## 1.2.0 - 2026-08-06
 
