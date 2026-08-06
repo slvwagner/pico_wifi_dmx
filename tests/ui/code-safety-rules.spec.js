@@ -104,6 +104,30 @@ test.describe('Code safety regression rules', () => {
     }
   });
 
+  test('WSL and Linux package builds report stage and total timings', () => {
+    const wslBuilder = read('installer/ubuntu/build_package_wsl.ps1');
+    const linuxBuilder = read('installer/ubuntu/build_package.sh');
+
+    expect(wslBuilder).toContain('WSL package step timing:');
+    expect(wslBuilder).toContain('WSL package build timing:');
+    expect(wslBuilder).toContain('Resolve WSL paths');
+    expect(wslBuilder).toContain('Run Linux package builder');
+    expect(linuxBuilder).toContain('Linux package step timing:');
+    expect(linuxBuilder).toContain('Linux package build timing:');
+    for (const stage of [
+      'Validate inputs and firmware',
+      'Reset build directories',
+      'Acquire Electron runtime',
+      'Assemble package metadata',
+      'Extract Electron runtime',
+      'Stage firmware',
+      'Stage application and documentation',
+      'Build Debian package'
+    ]) {
+      expect(linuxBuilder).toContain(stage);
+    }
+  });
+
   test('Windows customer runtime can update and import the full OFL fixture library', () => {
     const php = read('installer/windows/runtime/php.ini.template');
     const setting = name => {

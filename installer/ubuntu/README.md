@@ -39,6 +39,11 @@ repository wrapper:
 .\installer\ubuntu\build_package_wsl.ps1 -Distribution Ubuntu-24.04
 ```
 
+Both entry points report stage and total runtimes. The WSL wrapper measures path
+resolution and the complete Linux invocation; the native builder separately measures
+validation, cleanup, Electron cache/download handling, package metadata, Electron
+extraction, firmware and application staging, and `dpkg-deb` assembly.
+
 The wrapper converts the checkout, firmware, and output paths with `wslpath`
 and passes them as separate arguments to the Linux builder. It never attempts
 to package the Windows `picotool.exe`. WSL therefore needs a Linux picotool

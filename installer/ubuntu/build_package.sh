@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+build_start_ns="$(date +%s%N)"
+step_start_ns="$build_start_ns"
+
+complete_step() {
+    local name="$1"
+    local now_ns elapsed_ms
+    now_ns="$(date +%s%N)"
+    elapsed_ms=$(((now_ns - step_start_ns) / 1000000))
+    printf 'Linux package step timing: %s | total %d ms\n' "$name" "$elapsed_ms"
+    step_start_ns="$now_ns"
+}
+
+complete_build_timing() {
+    local now_ns elapsed_ms
+    now_ns="$(date +%s%N)"
+    elapsed_ms=$(((now_ns - build_start_ns) / 1000000))
+    printf 'Linux package build timing: total %d ms\n' "$elapsed_ms"
+}
+
 installer_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # Keep this script and Debian maintainer scripts LF-only via .gitattributes so
 # the package can be built directly from a Windows checkout mounted into WSL.
@@ -115,9 +134,11 @@ case "$build_root" in
         exit 1
         ;;
 esac
+complete_step "Validate inputs and firmware"
 
 rm -rf -- "$package_root" "$electron_build_root"
 install -d "$download_root"
+complete_step "Reset build directories"
 if [[ ! -f "$electron_archive" ]] ||
     ! printf '%s  %s\n' "$electron_hash" "$electron_archive" | sha256sum --check --status
 then
@@ -127,6 +148,7 @@ then
         sha256sum --check --status
     mv "$partial_archive" "$electron_archive"
 fi
+complete_step "Acquire Electron runtime"
 
 install -d \
     "$package_root/DEBIAN" \
@@ -188,6 +210,7 @@ install -m 0755 "$installer_dir/package/flash_firmware.sh" \
     "$package_root/opt/pico-dmx-controller/support/flash_firmware.sh"
 install -m 0644 "$installer_dir/package/create_wifi_config_uf2.php" \
     "$package_root/opt/pico-dmx-controller/support/create_wifi_config_uf2.php"
+complete_step "Assemble package metadata"
 
 shell_root="$package_root/opt/pico-dmx-controller/shell"
 shell_app_root="$shell_root/resources/app"
@@ -204,6 +227,7 @@ render_template "$installer_dir/shell/package.json" "$shell_app_root/package.jso
 chmod 0644 "$shell_app_root/package.json"
 chmod 0755 "$shell_root/pico-dmx-controller-shell"
 chmod 4755 "$shell_root/chrome-sandbox"
+complete_step "Extract Electron runtime"
 
 firmware_root="$package_root/opt/pico-dmx-controller/firmware"
 picotool_root="$package_root/opt/pico-dmx-controller/tools/picotool"
@@ -228,6 +252,7 @@ wifi_firmware_hash="$(sha256sum "$wifi_firmware_uf2" | awk '{print $1}')"
     printf '}\n'
 } > "$firmware_root/firmware-manifest.json"
 chmod 0644 "$firmware_root/firmware-manifest.json"
+complete_step "Stage firmware"
 
 app_root="$package_root/opt/pico-dmx-controller/app"
 install -m 0644 "$repo_root/web/dmx_fixture_controller.html" "$app_root/index.html"
@@ -259,6 +284,7 @@ install -m 0644 "$repo_root/web/assets/app-icon-512.png" \
 
 find "$package_root/opt/pico-dmx-controller" -type d -exec chmod 0755 '{}' +
 find "$package_root/opt/pico-dmx-controller/app" -type f -exec chmod 0644 '{}' +
+complete_step "Stage application and documentation"
 
 installed_size="$(du -sk "$package_root" | awk '{print $1}')"
 printf 'Installed-Size: %s\n' "$installed_size" >> "$package_root/DEBIAN/control"
@@ -270,6 +296,8 @@ dpkg-deb --root-owner-group --build "$package_root" "$output_file"
     cd -- "$output_dir"
     sha256sum "$package_name" > "$package_name.sha256"
 )
+complete_step "Build Debian package"
 
 printf 'Built %s\n' "$output_file"
 printf 'SHA-256 %s\n' "$(awk '{print $1}' "$output_file.sha256")"
+complete_build_timing
