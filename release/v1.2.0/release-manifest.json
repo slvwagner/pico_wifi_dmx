@@ -36,16 +36,16 @@
   },
   "docs": {
     "user-manual.md": {
-      "sizeBytes": 174088,
-      "sha256": "5e5d821eedd32bc1c09c4ab343a7ef0ddb66f625927c2c1772394b9b43c5dd7a"
+      "sizeBytes": 174094,
+      "sha256": "905767ec888d944008c8dacba96edece302faf8a89c035926cc4bbc9d136ceb4"
     },
     "user-manual.html": {
-      "sizeBytes": 307648,
-      "sha256": "e0af2a050c0e22958a3740d17c419d91694da31b424d014350be1b262b3de816"
+      "sizeBytes": 309437,
+      "sha256": "e8a80ff9cc66af8008c472999450357912746f62fa09965efa4c378c05f34987"
     },
     "user-manual-print.html": {
-      "sizeBytes": 307608,
-      "sha256": "0da4f094b664121bac3fb18201eff4ae407a8f605c09e761f30bd48371209cbe"
+      "sizeBytes": 309397,
+      "sha256": "76f06a2b49353784e84602c6af2b166da56dfe90e97a7ae13aa4091bffdb3ef8"
     },
     "user-manual.pdf": {
       "sizeBytes": 4629332,
