@@ -1442,7 +1442,18 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <p>Set its <strong>Start channel</strong>, number of <strong>Channels</strong>, and test <strong>Value</strong>, then click <strong>Read Back</strong>. The requested channel range is clipped to the 512-channel universe. Because the operation writes real output before reading it, use an unused range or disconnect fixtures when the test value must not be visible on stage.</p>
 <p>Use <strong>MIDI-to-DMX Latency</strong> to measure a controller event through the browser and the selected Pico output. Configure and verify the outputs in Controller → <strong>DMX Outputs</strong>, then click <strong>Connect MIDI</strong> for USB hardware or open the visible <strong>MIDI Emulator</strong> when you want to perform a standalone manual test. Select whether the Show Run target behaves as a <strong>Fader / knob (30 ms)</strong> or an immediate <strong>Button</strong>, choose an unused DMX test channel and sample count, then start the measurement. For a manual test, move one control and pause until <strong>Move again</strong> appears for each sample. USB and emulator events use the same measurement handler after ingestion; the emulator substitutes a same-origin <code>BroadcastChannel</code> hop for the physical USB/driver hop.</p>
 <p>The primary result is <strong>MIDI → POST</strong>: time from the MIDI event until the browser starts the <code>/dmx/b</code> request to the Pico. This intentionally includes the 30 ms coalescing queue for faders and knobs. Fader/knob p95 is PASS at no more than 35 ms, WARN through 50 ms, and FAIL above 50 ms. An immediate button is PASS at no more than 5 ms, WARN through 15 ms, and FAIL above 15 ms. Post-coalescing transport, Pico acknowledgement, output-buffer visibility, and conservative confirmed-following-frame time are reported separately as diagnostics and do not determine the primary MIDI status. The page restores the original base value of the test channel when the measurement completes or is stopped. Do not use a channel currently controlled by playback, blackout, or a master.</p>
-<p><strong>Run Full Test</strong> runs status/telemetry, buffer readback, DMX write load, MIDI latency, and a final telemetry snapshot for the selected target. With <strong>All configured Picos</strong>, that complete sequence runs once per Pico. It needs no manual MIDI movement when the emulator is used. If no MIDI input is connected, the Performance page loads the emulator invisibly inside itself, keeps browser focus on the Performance page, and commands it to generate every configured sample through the normal emulator message path. No extra tab opens. If a physical USB MIDI input is already connected, Full Test uses it and waits for you to move the hardware control for each target. If neither source can connect, the other checks still finish and the MIDI result shows a warning. The dedicated <strong>MIDI-to-DMX timing</strong> card and Timing History store the MIDI-to-POST median and p95.</p>
+<p><strong>Run Full Test</strong> runs status/telemetry, buffer readback, DMX write load, MIDI</p>
+<p>latency, <strong>Playback + Palette Stress</strong>, and a final telemetry snapshot for the</p>
+<p>selected target. With <strong>All configured Picos</strong>, that complete sequence runs</p>
+<p>once per Pico. It needs no manual MIDI movement when the emulator is used. If</p>
+<p>no MIDI input is connected, the Performance page loads the emulator invisibly</p>
+<p>inside itself, keeps browser focus on the Performance page, and commands it to</p>
+<p>generate every configured sample through the normal emulator message path. No</p>
+<p>extra tab opens. If a physical USB MIDI input is already connected, Full Test</p>
+<p>uses it and waits for you to move the hardware control for each target. If</p>
+<p>neither source can connect, the other checks still finish and the MIDI result</p>
+<p>shows a warning. The dedicated <strong>MIDI-to-DMX timing</strong> card and Timing History</p>
+<p>store the MIDI-to-POST median and p95.</p>
 <p>Use <strong>DMX Write Test</strong> to compare:</p>
 <ul>
 <li>Single-channel updates</li>
@@ -1461,9 +1472,19 @@ offset position = fixture position / (fixture count - 1)</code></pre>
 <li>Jitter</li>
 <li>Errors</li>
 </ul>
-<p>Use <strong>Run Full Test</strong> to run the Pico status/performance check, buffer readback, write test, automatic emulated MIDI-to-DMX samples (or interactive physical USB samples), and a final timing check in one sequence.</p>
+<p>Use <strong>Run Full Test</strong> to run the Pico status/performance check, buffer readback,</p>
+<p>write test, automatic emulated MIDI-to-DMX samples (or interactive physical USB</p>
+<p>samples), the playback/palette workload, and a final timing check in one</p>
+<p>sequence.</p>
 <p>Use <strong>Playback + Palette Stress</strong> to stress playback without overwriting saved Pico slots. The page starts chaser/effect slots that are already loaded, adds temporary demo data only to slots that are currently empty, stores those temporary slot numbers in the server UI state, then sends repeated full 512-channel palette-style <code>/dmx/b</code> recalls while playback is running. When the run finishes, the page stops playback, clears only the temporary demo slots, and removes the temporary-slot marker from the server. If a browser session is interrupted, the next stress run first reads the marker and clears the previously recorded temporary slots.</p>
-<p>The <strong>Timing History</strong> table records each Pico timing check. A manual <strong>Check Pico</strong> adds one row immediately. <strong>Run Full Test</strong> and <strong>Playback + Palette Stress</strong> record a final timing sample, so the row reflects Core0/Core1 slack after the selected checks have run. Full Test also records the latest MIDI-to-POST median and p95 in the MIDI column. The 100 Hz and Core1 columns use the same wording as the status cards, for example &quot;Minimum 9419us left before missing the 10ms update budget&quot;.</p>
+<p>The <strong>Timing History</strong> table records each Pico timing check. A manual **Check</p>
+<p>Pico<strong> adds one row immediately. A standalone </strong>Playback + Palette Stress** run</p>
+<p>adds its own final timing row. <strong>Run Full Test</strong> includes that workload and</p>
+<p>records one consolidated final row per Pico, so it does not add a duplicate</p>
+<p>stress-test row. Full Test also records the latest MIDI-to-POST median and p95</p>
+<p>in the MIDI column. The 100 Hz and Core1 columns use the same wording as the</p>
+<p>status cards, for example &quot;Minimum 9419us left before missing the 10ms update</p>
+<p>budget&quot;.</p>
 <p>Timing History and Write History keep the latest results for the current page session. Their separate <strong>Clear</strong> buttons erase only the displayed history; they do not clear Pico data or DMX output.</p>
 <p>Use <strong>Export CSV</strong> to save results for later comparison.</p>
 <p>Pico Performance Test and GPIO Control link to the <strong>DMX Buffer Monitor</strong>.</p>
@@ -1690,6 +1711,17 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <p>below, with the newest development or release version first. The Markdown</p>
 <p>source remains linked to the canonical <a href="../CHANGELOG.md">project changelog</a>, so</p>
 <p>release information has one maintained source.</p>
+<h3 id="1-2-1-unreleased">1.2.1 - Unreleased</h3>
+<p>Changed:</p>
+<ul>
+<li>Started the 1.2.1 development branch.</li>
+<li>Included <strong>Playback + Palette Stress</strong> in <strong>Run Full Test</strong> for every available Pico, with its result folded into the Full Test&#39;s single consolidated timing record per device.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>Prevented the Pico Performance firmware check from showing a false warning when an installer does not expose the standalone <code>VERSION</code> file over HTTP. The check now uses the canonical version embedded in the deployed application, matching the startup compatibility check.</li>
+<li>Kept the Core0 DMX frame-start interrupt enabled during heavy chaser and motion playback processing. Playback state remains protected across cores without allowing the <strong>Playback + Palette Stress</strong> workload to delay DMX frame starts while calculating many active slots.</li>
+</ul>
 <h3 id="1-2-0-2026-08-06">1.2.0 - 2026-08-06</h3>
 <p>Changed:</p>
 <ul>
