@@ -14,6 +14,23 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$installerBuildClock = [Diagnostics.Stopwatch]::StartNew()
+
+function Start-InstallerStep {
+    return [Diagnostics.Stopwatch]::StartNew()
+}
+
+function Complete-InstallerStep {
+    param([string]$Name, [Diagnostics.Stopwatch]$Clock)
+
+    $Clock.Stop()
+    Write-Host ("Installer step timing: {0} | total {1:N1} ms" -f $Name, $Clock.Elapsed.TotalMilliseconds) -ForegroundColor DarkCyan
+}
+
+function Complete-InstallerBuildTiming {
+    $installerBuildClock.Stop()
+    Write-Host ("Installer build timing: total {0:N1} ms" -f $installerBuildClock.Elapsed.TotalMilliseconds) -ForegroundColor Cyan
+}
 
 $installerDir = $PSScriptRoot
 $repoRoot = Split-Path -Parent (Split-Path -Parent $installerDir)
@@ -77,6 +94,7 @@ function Reset-BuildDirectory {
     New-Item -ItemType Directory -Path $resolvedPath -Force | Out-Null
 }
 
+$stepClock = Start-InstallerStep
 $ApacheArchive = Assert-File $ApacheArchive "Apache archive"
 $PhpArchive = Assert-File $PhpArchive "PHP archive"
 if ($VcRedistPath) {
@@ -103,15 +121,22 @@ if ($LASTEXITCODE -ne 0 -or
     $wifiInfo -notmatch "hash:\s+verified") {
     throw "Wi-Fi firmware UF2 is not a verified RP2350 CYW43 firmware image."
 }
+Complete-InstallerStep -Name "Validate inputs and firmware" -Clock $stepClock
 
+$stepClock = Start-InstallerStep
 Reset-BuildDirectory $stageDir
 Reset-BuildDirectory $extractDir
 Reset-BuildDirectory $shellPublishDir
+Complete-InstallerStep -Name "Reset build directories" -Clock $stepClock
 
+$stepClock = Start-InstallerStep
 & dotnet restore $shellProject -r win-x64 --locked-mode
 if ($LASTEXITCODE -ne 0) {
     throw "The locked Windows shell package restore failed with exit code $LASTEXITCODE."
 }
+Complete-InstallerStep -Name "Restore Windows shell" -Clock $stepClock
+
+$stepClock = Start-InstallerStep
 & dotnet publish $shellProject `
     -c Release `
     -r win-x64 `
@@ -121,7 +146,9 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     throw "The Windows application shell publish failed with exit code $LASTEXITCODE."
 }
+Complete-InstallerStep -Name "Publish Windows shell" -Clock $stepClock
 
+$stepClock = Start-InstallerStep
 $apacheExtract = Join-Path $extractDir "apache"
 $phpExtract = Join-Path $extractDir "php"
 New-Item -ItemType Directory -Path $apacheExtract, $phpExtract -Force | Out-Null
@@ -138,7 +165,9 @@ if (-not $phpDll) {
     throw "The PHP archive is not an x64 Thread Safe Apache build (php8apache2_4.dll is missing)."
 }
 $phpRoot = $phpDll.Directory.FullName
+Complete-InstallerStep -Name "Extract Apache and PHP" -Clock $stepClock
 
+$stepClock = Start-InstallerStep
 $stageApp = Join-Path $stageDir "app"
 $stageRuntime = Join-Path $stageDir "runtime"
 $stageSupport = Join-Path $stageDir "support"
@@ -236,10 +265,13 @@ Copy-Item -LiteralPath (Join-Path $repoRoot "LICENSE") -Destination $stageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "VERSION") -Destination $stageDir
 
 Write-Host "Prepared Windows installer staging tree at $stageDir"
+Complete-InstallerStep -Name "Assemble staging tree" -Clock $stepClock
 if ($PrepareOnly) {
+    Complete-InstallerBuildTiming
     return
 }
 
+$stepClock = Start-InstallerStep
 if (-not $MakensisPath) {
     $candidates = @(
         (Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"),
@@ -262,7 +294,9 @@ $nsiScript = Join-Path $installerDir "pico-dmx-controller.nsi"
 if ($LASTEXITCODE -ne 0) {
     throw "NSIS compilation failed with exit code $LASTEXITCODE."
 }
+Complete-InstallerStep -Name "Compile NSIS installer" -Clock $stepClock
 
+$stepClock = Start-InstallerStep
 $hash = (Get-FileHash -LiteralPath $outputFile -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($SigningCertificateThumbprint) {
     if (-not $SignToolPath) {
@@ -291,5 +325,7 @@ if ($SigningCertificateThumbprint) {
     Write-Warning "The installer is unsigned. Supply -SigningCertificateThumbprint for a customer release."
 }
 "$hash  $(Split-Path -Leaf $outputFile)" | Set-Content -LiteralPath "$outputFile.sha256" -Encoding ASCII
+Complete-InstallerStep -Name "Finalize installer" -Clock $stepClock
 Write-Host "Built $outputFile"
 Write-Host "SHA-256 $hash"
+Complete-InstallerBuildTiming

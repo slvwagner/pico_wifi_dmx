@@ -85,6 +85,25 @@ test.describe('Code safety regression rules', () => {
     expect(apache).toContain('Options -Indexes');
   });
 
+  test('Windows installer build reports stage and total timings', () => {
+    const installer = read('installer/windows/build_installer.ps1');
+
+    expect(installer).toContain('Installer step timing:');
+    expect(installer).toContain('Installer build timing:');
+    for (const stage of [
+      'Validate inputs and firmware',
+      'Reset build directories',
+      'Restore Windows shell',
+      'Publish Windows shell',
+      'Extract Apache and PHP',
+      'Assemble staging tree',
+      'Compile NSIS installer',
+      'Finalize installer'
+    ]) {
+      expect(installer).toContain(stage);
+    }
+  });
+
   test('Windows customer runtime can update and import the full OFL fixture library', () => {
     const php = read('installer/windows/runtime/php.ini.template');
     const setting = name => {

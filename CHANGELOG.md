@@ -4,6 +4,9 @@
 
 Changed:
 
+- Added stage and total runtime reporting to the Windows installer build so dependency
+  validation, cleanup, .NET restore/publish, runtime extraction, staging, NSIS
+  compilation, and finalization bottlenecks are visible in every installer run.
 - Moved the repo-local PHP development router from the automation-script directory to
   `tools/local-server/router.php`, separating server support from executable build and
   release workflows while preserving the same local application routes.
