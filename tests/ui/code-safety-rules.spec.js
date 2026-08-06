@@ -411,6 +411,35 @@ test.describe('Code safety regression rules', () => {
     }
   });
 
+  test('manual documentation capture blocks every hardware request', () => {
+    const common = read('web/assets/dmx-common.js');
+
+    expect(common).toContain('nativeDocumentationFetch');
+    expect(common).toContain('requestUrl.origin!==location.origin');
+    expect(common).toContain('Documentation capture blocked cross-origin request');
+    expect(common).toContain('window.fetch=(input,init)');
+  });
+
+  test('manual documentation browser never sends a hardware request', async ({ page }) => {
+    const hardwareRequests = [];
+    page.on('request', request => {
+      if (new URL(request.url()).hostname === '192.0.2.1') hardwareRequests.push(request.url());
+    });
+
+    await page.goto('dmx_chaser.html?docshot=hardware-isolation');
+    const message = await page.evaluate(async () => {
+      try {
+        await fetch('http://192.0.2.1/status.json');
+        return 'request unexpectedly succeeded';
+      } catch (error) {
+        return error.message;
+      }
+    });
+
+    expect(message).toContain('Documentation capture blocked cross-origin request');
+    expect(hardwareRequests).toEqual([]);
+  });
+
   test('release documentation generation stays local and never deploys to live XAMPP', () => {
     const releaseScript = read('scripts/prepare_release.ps1');
 

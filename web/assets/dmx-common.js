@@ -22,6 +22,14 @@
   }
 
   if(isDocumentationCapture()){
+    const nativeDocumentationFetch=window.fetch.bind(window);
+    window.fetch=(input,init)=>{
+      const requestUrl=new URL(input instanceof Request?input.url:String(input),location.href);
+      if(requestUrl.origin!==location.origin){
+        return Promise.reject(new TypeError('Documentation capture blocked cross-origin request: '+requestUrl.origin));
+      }
+      return nativeDocumentationFetch(input,init);
+    };
     const style=document.createElement('style');
     style.dataset.dmxDocshotStability='';
     style.textContent='*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}';

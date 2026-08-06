@@ -11,6 +11,7 @@ Changed:
 
 Fixed:
 
+- Made documentation capture fully hardware-independent by blocking every cross-origin browser request while `docshot` mode is active. Manual generation continues to use its local API server, but saved Pico URLs can no longer cause DMX writes, playback commands, status polling, or network timeout delays.
 - Added dedicated manual screenshots for the expanded Effects **Participating Controls** panel and the occupied **Pico Effects Slots** panel, placing each image directly in its corresponding manual section.
 - Updated the deterministic Chaser and Effects manual captures to show representative occupied Pico playback slots in live, ready, and paused states. The Effects overview capture now initializes its documentation data without displaying a saved-plane error or an unstarted slot strip.
 - Made **Playback + Palette Stress** cleanup use the Pico URL recorded when its temporary slots were created, pace large clear batches, verify that every temporary Chaser and Effects slot is empty, and retry transient failures. The test now remains busy until cleanup completes. Multi-Pico runs no longer silently leave temporary playback data behind; incomplete cleanup retains its recovery record and reports the affected Pico and slots.
