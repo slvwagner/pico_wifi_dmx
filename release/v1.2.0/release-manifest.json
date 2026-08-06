@@ -1,8 +1,8 @@
 {
   "version": "1.2.0",
-  "branch": "1.2.0",
-  "commit": "4a4391c",
-  "createdAt": "2026-08-06T15:20:15Z",
+  "branch": "main",
+  "commit": "75f51b4",
+  "createdAt": "2026-08-06T15:21:30Z",
   "tests": {
     "hardware": true
   },
