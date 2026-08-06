@@ -30,18 +30,6 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 set(PICO_BOARD pico2_w CACHE STRING "Board type")
-if(DEFINED ENV{SSID} AND NOT DEFINED WIFI_SSID)
-    set(WIFI_SSID "$ENV{SSID}" CACHE STRING "Wi-Fi SSID")
-else()
-    set(WIFI_SSID "" CACHE STRING "Wi-Fi SSID")
-endif()
-
-if(DEFINED ENV{SSID_PW} AND NOT DEFINED WIFI_PASSWORD)
-    set(WIFI_PASSWORD "$ENV{SSID_PW}" CACHE STRING "Wi-Fi password")
-else()
-    set(WIFI_PASSWORD "" CACHE STRING "Wi-Fi password")
-endif()
-
 set(DMX_TX_PIN "2" CACHE STRING "DMX output GPIO")
 set(DMX_TRIGGER_PIN "3" CACHE STRING "Optional DMX frame trigger/debug GPIO")
 set(DMX_CHANNELS "512" CACHE STRING "Number of DMX channels to transmit")
@@ -50,14 +38,6 @@ set(MIDI_ENABLED "1" CACHE STRING "Enable DIN/TRS MIDI UART input")
 set(MIDI_RX_PIN "5" CACHE STRING "MIDI UART RX GPIO")
 set(MIDI_UART_ID "1" CACHE STRING "MIDI UART block, 0 or 1")
 set(MIDI_BAUD "31250" CACHE STRING "MIDI serial baud rate")
-
-if(DEFINED ENV{SSID})
-    set(WIFI_SSID "$ENV{SSID}" CACHE STRING "Wi-Fi SSID" FORCE)
-endif()
-
-if(DEFINED ENV{SSID_PW})
-    set(WIFI_PASSWORD "$ENV{SSID_PW}" CACHE STRING "Wi-Fi password" FORCE)
-endif()
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -81,8 +61,6 @@ add_executable(pico_wifi_dmx
 pico_generate_pio_header(pico_wifi_dmx ${CMAKE_CURRENT_LIST_DIR}/firmware/dmx_native.pio)
 
 target_compile_definitions(pico_wifi_dmx PRIVATE
-        WIFI_SSID="${WIFI_SSID}"
-        WIFI_PASSWORD="${WIFI_PASSWORD}"
         DMX_TX_PIN=${DMX_TX_PIN}
         DMX_TRIGGER_PIN=${DMX_TRIGGER_PIN}
         DMX_CHANNELS=${DMX_CHANNELS}
@@ -125,6 +103,7 @@ target_link_libraries(pico_wifi_dmx
 # Keep the CYW43 firmware in its own RP2350 flash partition. New devices must
 # receive the generated Wi-Fi firmware UF2 once; normal application updates can
 # then use the smaller pico_wifi_dmx UF2 without rewriting the Wi-Fi blob.
+pico_embed_pt_in_binary(pico_wifi_dmx "${CMAKE_CURRENT_LIST_DIR}/firmware/wifi_pt.json")
 pico_use_wifi_firmware_partition(pico_wifi_dmx)
 
 pico_add_extra_outputs(pico_wifi_dmx)

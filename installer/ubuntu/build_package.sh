@@ -45,6 +45,7 @@ done
 application_info="$("$picotool_path" info -a "$application_uf2" 2>&1)"
 [[ "$application_info" =~ target[[:space:]]chip:[[:space:]]+RP2350 ]] &&
     [[ "$application_info" =~ block[[:space:]]type:[[:space:]]+partition[[:space:]]table ]] &&
+    [[ "$application_info" =~ \"Wi-Fi[[:space:]]+Configuration\" ]] &&
     [[ "$application_info" =~ \"Wi-Fi[[:space:]]+Firmware\" ]] &&
     [[ "$application_info" =~ version:[[:space:]]+$version ]] &&
     [[ "$application_info" =~ build[[:space:]]attributes:[[:space:]]+Release ]] || {
@@ -185,6 +186,8 @@ install -m 0644 "$installer_dir/package/router.php" \
     "$package_root/opt/pico-dmx-controller/support/router.php"
 install -m 0755 "$installer_dir/package/flash_firmware.sh" \
     "$package_root/opt/pico-dmx-controller/support/flash_firmware.sh"
+install -m 0644 "$installer_dir/package/create_wifi_config_uf2.php" \
+    "$package_root/opt/pico-dmx-controller/support/create_wifi_config_uf2.php"
 
 shell_root="$package_root/opt/pico-dmx-controller/shell"
 shell_app_root="$shell_root/resources/app"

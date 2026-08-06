@@ -164,7 +164,10 @@ Controller's Pico discovery service to find every running Pico on the network
 and compare its reported version with the validated bundled firmware. The
 guide then explains how to connect exactly one Pico 2 W in BOOTSEL mode,
 validates the bundled files and target, asks again before writing, prevents
-closing during the flash, and reports recovery steps. It can also be opened
+closing during the flash, and reports recovery steps. The guide can set or
+change the Pico's Wi-Fi network name and password without storing them in the
+installer or application firmware; later firmware-only updates preserve that
+separate configuration. It can also be opened
 later through **Application > Firmware update…** or the Start Menu **Firmware
 Update** shortcut.
 
@@ -457,27 +460,32 @@ Install [Visual Studio Code](https://code.visualstudio.com/) and open the reposi
 
 The repository configuration supplies the matching environment paths on Windows, Linux, and macOS. It also provides VS Code tasks for **Compile Project**, picotool **Run Project**, OpenOCD **Flash**, **Rescue Reset**, and **RISC-V Reset (RP2350)**. The Raspberry Pi Pico extension is the simplest way to install or locate the pinned SDK, compiler, CMake, Ninja, picotool, and OpenOCD versions; if prompted by CMake Tools, select the supplied **Pico** kit.
 
-Configure WiFi and build:
+Configure and build:
 
 ```powershell
 cd <path-to-your-checkout>\pico_wifi_dmx
-cmake -S . -B build -G Ninja `
-  -DWIFI_SSID="your_ssid" `
-  -DWIFI_PASSWORD="your_password"
-
+cmake -S . -B build -G Ninja
 cmake --build build
 ```
 
-On Ubuntu, use the same CMake options with shell quoting:
+On Ubuntu, use the same commands:
 
 ```bash
 cd ~/pico_wifi_dmx
-cmake -S . -B build -G Ninja \
-  -DWIFI_SSID="your_ssid" \
-  -DWIFI_PASSWORD="your_password"
-
+cmake -S . -B build -G Ninja
 cmake --build build
 ```
+
+Wi-Fi credentials are intentionally not accepted as CMake options or compiled
+into the application UF2. Set them while flashing with the Windows/Ubuntu
+firmware updater. They are written to a dedicated 16 KB data partition, which
+normal application updates leave intact.
+
+Legacy `SSID` and `SSID_PW` environment variables are ignored by both the
+firmware build and the Windows application. The updater uses the values entered
+in its Wi-Fi fields and passes them to the flashing helper through temporary
+`PICO_DMX_WIFI_*` child-process variables. Those internal variables are cleared
+before `picotool` starts and are not a supported configuration interface.
 
 If CMake cannot find the Pico SDK, install the Raspberry Pi Pico VS Code extension on Ubuntu or point CMake at an SDK checkout:
 
@@ -1579,10 +1587,14 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 ## Configure
 
 ```powershell
-cmake -S . -B build -G Ninja `
-  -DWIFI_SSID="your_ssid" `
-  -DWIFI_PASSWORD="your_password"
+cmake -S . -B build -G Ninja
 ```
+
+The build is generic and contains no Wi-Fi network name or password. Provision
+those values separately during the first flash or whenever the network changes.
+Existing `SSID`, `SSID_PW`, `WIFI_SSID`, and `WIFI_PASSWORD` environment or
+CMake values are not consumed. Release preparation also removes legacy cache
+entries and rejects compiler commands that still contain credential definitions.
 
 Optional overrides:
 
@@ -1619,28 +1631,31 @@ build/pico_wifi_dmx_wifi_firmware_tbyb.uf2
 
 ## Flash
 
-For a new device or the first upgrade from firmware 0.9.10 or older, put the Pico 2 W into BOOTSEL mode and run the validated two-stage flashing script:
+For a new device or the first upgrade from firmware that compiled credentials
+into the application, put the Pico 2 W into BOOTSEL mode and run the validated
+flashing script with Wi-Fi provisioning enabled:
 
 ```powershell
-.\scripts\flash_firmware.ps1
+.\scripts\flash_firmware.ps1 -ConfigureWifi
 ```
 
-The script verifies the RP2350 partition table and CYW43 UF2 family before writing anything. It then loads the application, returns the Pico to BOOTSEL mode, loads the Wi-Fi partition, verifies both writes, and starts the application. To select release-package files instead of `build/` outputs, pass `-ApplicationUf2` and `-WifiFirmwareUf2`.
+The script prompts for the SSID and a masked password, creates a temporary
+`data`-family UF2, and deletes it after use. It verifies the RP2350 partition
+table and CYW43 UF2 family before writing anything, then loads the application,
+private configuration, and Wi-Fi firmware partitions. To select release-package
+files instead of `build/` outputs, pass `-ApplicationUf2` and
+`-WifiFirmwareUf2`.
 
-For subsequent application-only updates, leave the Wi-Fi partition intact:
+For subsequent application-only updates, leave both Wi-Fi partitions intact:
 
 ```powershell
 .\scripts\flash_firmware.ps1 -ApplicationOnly
 ```
 
-The equivalent initial provisioning commands are:
-
-```powershell
-$Picotool = "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe"
-& $Picotool load build/pico_wifi_dmx.uf2
-& $Picotool reboot -u
-& $Picotool load -u -v -x build/pico_wifi_dmx_wifi_firmware.uf2
-```
+The Windows and Ubuntu customer applications provide the same choice: check
+**Set or change this Pico's Wi-Fi credentials** for a new Pico, the first
+upgrade to this partitioned format, or a network change. Clear it for a normal
+firmware update so the existing credentials remain untouched.
 
 Using OpenOCD + Picoprobe/CMSIS-DAP for subsequent application updates after the Wi-Fi partition has been provisioned:
 

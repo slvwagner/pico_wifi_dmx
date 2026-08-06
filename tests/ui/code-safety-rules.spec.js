@@ -499,6 +499,51 @@ test.describe('Code safety regression rules', () => {
     expect(flashScript).toContain('Invoke-Picotool (@("load", "-u", "-v", "-x", $wifiFirmware)');
   });
 
+  test('firmware credentials are provisioned separately and survive application updates', () => {
+    const cmake = read('CMakeLists.txt');
+    const partitionTable = read('firmware/wifi_pt.json');
+    const firmware = read('firmware/main.cpp');
+    const windowsForm = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const windowsHelper = read('installer/windows/scripts/flash_firmware.ps1');
+    const windowsGenerator = read('installer/windows/scripts/wifi_config_uf2.ps1');
+    const windowsBuilder = read('installer/windows/build_installer.ps1');
+    const developerFlasher = read('scripts/flash_firmware.ps1');
+    const ubuntuPage = read('installer/ubuntu/shell/firmware.html');
+    const ubuntuMain = read('installer/ubuntu/shell/main.js');
+    const ubuntuHelper = read('installer/ubuntu/package/flash_firmware.sh');
+    const releaseScript = read('scripts/prepare_release.ps1');
+    const readme = read('README.md');
+
+    expect(cmake).not.toContain('WIFI_SSID="${WIFI_SSID}"');
+    expect(cmake).not.toContain('WIFI_PASSWORD="${WIFI_PASSWORD}"');
+    expect(cmake).toContain('pico_embed_pt_in_binary(pico_wifi_dmx');
+    expect(partitionTable).toContain('"name": "Wi-Fi Configuration"');
+    expect(partitionTable).toContain('"families": ["data"]');
+    expect(firmware).toContain('PICO_DMX_WIFI_CONFIG_OFFSET');
+    expect(firmware).toContain('load_wifi_credentials');
+
+    expect(windowsForm).toContain('PICO_DMX_WIFI_SSID');
+    expect(windowsForm).toContain('PICO_DMX_WIFI_PASSWORD');
+    expect(windowsHelper).toContain('New-WifiConfigurationUf2');
+    expect(windowsHelper).toContain('$env:PICO_DMX_WIFI_PASSWORD = $null');
+    expect(windowsHelper).toContain('Remove-Item -LiteralPath $wifiConfigUf2');
+    expect(windowsGenerator).toContain('0xe48bff58u');
+    expect(windowsBuilder).toContain('scripts\\wifi_config_uf2.ps1');
+    expect(windowsBuilder).toContain('"Wi-Fi\\s+Configuration"');
+    expect(developerFlasher).toContain('[switch]$ConfigureWifi');
+    expect(developerFlasher).toContain('Read-Host "Wi-Fi password" -AsSecureString');
+    expect(ubuntuPage).toContain('Wi-Fi network name (SSID)');
+    expect(ubuntuMain).toContain('PICO_DMX_WIFI_SSID');
+    expect(ubuntuMain).toContain('PICO_DMX_WIFI_PASSWORD');
+    expect(ubuntuHelper).toContain('create_wifi_config_uf2.php');
+    expect(ubuntuHelper).toContain('unset PICO_DMX_WIFI_PROVISION PICO_DMX_WIFI_SSID PICO_DMX_WIFI_PASSWORD');
+    expect(ubuntuHelper).toContain('rm -f -- "$wifi_config_uf2"');
+    expect(read('installer/ubuntu/build_package.sh')).toContain('Wi-Fi[[:space:]]+Configuration');
+    expect(releaseScript).toContain('compile-time Wi-Fi credentials');
+    expect(readme).toContain('Legacy `SSID` and `SSID_PW` environment variables are ignored');
+    expect(readme).toContain('not a supported configuration interface');
+  });
+
   test('Windows firmware installer checks discovered Pico versions against its bundle', () => {
     const checker = read('installer/windows/shell/FirmwareCompatibilityChecker.cs');
     const form = read('installer/windows/shell/FirmwareFlashForm.cs');

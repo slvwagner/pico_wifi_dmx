@@ -175,6 +175,19 @@ if ($cmake -notmatch 'file\s*\(\s*READ\s+"\$\{CMAKE_CURRENT_LIST_DIR\}/VERSION"\
 if ($cmake -notmatch 'pico_set_program_version\s*\(\s*pico_wifi_dmx\s+"\$\{PICO_DMX_VERSION\}"\s*\)') {
     throw "CMakeLists.txt must use PICO_DMX_VERSION as the Pico program version."
 }
+if ($cmake -match 'WIFI_(?:SSID|PASSWORD)') {
+    throw "CMakeLists.txt must not contain compile-time Wi-Fi credentials. Provision them through the dedicated data partition."
+}
+$compileCommandsPath = Join-Path $repoRoot (Join-Path $BuildDir "compile_commands.json")
+$cmakeCachePath = Join-Path $repoRoot (Join-Path $BuildDir "CMakeCache.txt")
+if ((-not $Build) -and (Test-Path -LiteralPath $cmakeCachePath) -and
+    ((Get-Content -LiteralPath $cmakeCachePath -Raw) -match '(?m)^WIFI_(?:SSID|PASSWORD):')) {
+    throw "The selected build cache still stores legacy compile-time Wi-Fi credentials. Reconfigure it before preparing a release."
+}
+if ((-not $Build) -and (Test-Path -LiteralPath $compileCommandsPath) -and
+    ((Get-Content -LiteralPath $compileCommandsPath -Raw) -match '(?:-D|/D)WIFI_(?:SSID|PASSWORD)=')) {
+    throw "The selected build directory contains compile-time Wi-Fi credentials. Reconfigure it before preparing a release."
+}
 
 if (-not $SkipManual) {
     Invoke-Step "Regenerate manual, PDF, and screenshots" {
@@ -200,8 +213,11 @@ if (-not $AllowDirty) {
 if ($Build) {
     Invoke-Step "Configure release firmware" {
         Invoke-Native "Firmware release configuration" {
-            & $cmakeExe -S $repoRoot -B $BuildDir -DCMAKE_BUILD_TYPE=Release
+            & $cmakeExe -U WIFI_SSID -U WIFI_PASSWORD -S $repoRoot -B $BuildDir -DCMAKE_BUILD_TYPE=Release
         }
+    }
+    if ((Get-Content -LiteralPath $compileCommandsPath -Raw) -match '(?:-D|/D)WIFI_(?:SSID|PASSWORD)=') {
+        throw "The configured firmware still contains compile-time Wi-Fi credentials."
     }
     Invoke-Step "Build release firmware" {
         Invoke-Native "Firmware release build" {

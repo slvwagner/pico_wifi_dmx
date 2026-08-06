@@ -7,6 +7,7 @@ firmware_dir="$install_root/firmware"
 manifest="$firmware_dir/firmware-manifest.json"
 application="$firmware_dir/pico_wifi_dmx.uf2"
 wifi_firmware="$firmware_dir/pico_wifi_dmx_wifi_firmware.uf2"
+wifi_config_generator="$install_root/support/create_wifi_config_uf2.php"
 
 fail() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 for file in "$picotool" "$manifest" "$application" "$wifi_firmware"; do
@@ -25,6 +26,7 @@ printf '%s  %s\n' "$wifi_hash" "$wifi_firmware" | sha256sum --check --status || 
 application_info="$($picotool info -a "$application" 2>&1)" || fail "$application_info"
 [[ "$application_info" =~ target[[:space:]]chip:[[:space:]]+RP2350 ]] || fail "Application firmware does not target RP2350."
 [[ "$application_info" =~ block[[:space:]]type:[[:space:]]+partition[[:space:]]table ]] || fail 'Application partition table is missing.'
+[[ "$application_info" =~ \"Wi-Fi[[:space:]]+Configuration\" ]] || fail 'Application Wi-Fi configuration partition metadata is missing.'
 [[ "$application_info" =~ \"Wi-Fi[[:space:]]+Firmware\" ]] || fail 'Application Wi-Fi partition metadata is missing.'
 [[ "$application_info" =~ version:[[:space:]]+$version ]] || fail "Application firmware version is not $version."
 [[ "$application_info" =~ build[[:space:]]attributes:[[:space:]]+Release ]] || fail 'Application is not a Release build.'
@@ -52,5 +54,22 @@ until "$picotool" info >/dev/null 2>&1; do
     sleep 1
 done
 printf 'Loading the separate CYW43 Wi-Fi firmware partition…\n'
+wifi_config_uf2=''
+cleanup_wifi_config() {
+    if [[ -n "$wifi_config_uf2" ]]; then
+        rm -f -- "$wifi_config_uf2"
+    fi
+}
+trap cleanup_wifi_config EXIT
+if [[ "${PICO_DMX_WIFI_PROVISION:-}" == 1 ]]; then
+    [[ -n "${PICO_DMX_WIFI_SSID:-}" && -n "${PICO_DMX_WIFI_PASSWORD:-}" ]] || \
+        fail 'Wi-Fi provisioning was requested without both credentials.'
+    [[ -f "$wifi_config_generator" ]] || fail 'The Wi-Fi configuration generator is missing.'
+    wifi_config_uf2="$(mktemp --tmpdir pico-dmx-wifi-XXXXXX.uf2)"
+    php "$wifi_config_generator" "$wifi_config_uf2"
+    unset PICO_DMX_WIFI_PROVISION PICO_DMX_WIFI_SSID PICO_DMX_WIFI_PASSWORD
+    printf 'Loading the private Wi-Fi configuration partition…\n'
+    "$picotool" load -u -v "$wifi_config_uf2"
+fi
 "$picotool" load -u -v -x "$wifi_firmware"
 printf 'Application and Wi-Fi firmware installation completed.\n'

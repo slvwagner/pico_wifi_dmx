@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('picoShell', {
 contextBridge.exposeInMainWorld('picoFirmware', {
   close: () => ipcRenderer.send('firmware:close'),
   discover: () => ipcRenderer.invoke('firmware:discovery'),
-  run: (operation) => ipcRenderer.invoke('firmware:run', operation),
+  run: (operation, options = {}) => ipcRenderer.invoke('firmware:run', operation, options),
   onCloseBlocked: (callback) => ipcRenderer.on('firmware:close-blocked', callback),
   onOutput: (callback) => ipcRenderer.on('firmware:output', (_event, value) => callback(value)),
 });

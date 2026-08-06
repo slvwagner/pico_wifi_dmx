@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
@@ -9,6 +10,7 @@
 #include "pico/multicore.h"
 #include "pico/unique_id.h"
 #include "pico/cyw43_arch.h"
+#include "hardware/regs/addressmap.h"
 #include "lwip/apps/fs.h"
 #include "lwip/apps/httpd.h"
 #include "lwip/netif.h"
@@ -22,14 +24,6 @@
 #include "pico_motion.h"
 #include "gpio_control.h"
 #include "midi_input.h"
-
-#ifndef WIFI_SSID
-#define WIFI_SSID ""
-#endif
-
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD ""
-#endif
 
 #ifndef DMX_TX_PIN
 #define DMX_TX_PIN 2
@@ -71,6 +65,8 @@
 #define CORE0_PLAYBACK_PERIOD_US 10000u
 #define CORE1_SERVICE_PERIOD_US 2000000u
 #define PICO_DISCOVERY_PORT 64540u
+#define PICO_DMX_WIFI_CONFIG_OFFSET (3484u * 1024u)
+#define PICO_DMX_WIFI_CONFIG_VERSION 1u
 
 #ifndef PICO_DMX_VERSION
 #define PICO_DMX_VERSION "0.9.6"
@@ -95,6 +91,59 @@ static uint8_t dmx_ui_values[513];
 static volatile bool application_running = true;
 static struct udp_pcb *discovery_udp;
 static char pico_unique_id[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
+
+typedef struct wifi_config_t {
+    uint8_t magic[8];
+    uint32_t version;
+    uint32_t ssid_length;
+    uint32_t password_length;
+    char ssid[33];
+    uint8_t ssid_padding[3];
+    char password[65];
+    uint8_t password_padding[3];
+    uint32_t crc32;
+} wifi_config_t;
+
+static_assert(sizeof(wifi_config_t) == 128, "Wi-Fi configuration layout changed");
+
+static uint32_t wifi_config_crc32(const uint8_t *data, size_t length)
+{
+    uint32_t crc = 0xffffffffu;
+    for (size_t index = 0; index < length; ++index) {
+        crc ^= data[index];
+        for (unsigned bit = 0; bit < 8; ++bit) {
+            crc = (crc >> 1) ^ (0xedb88320u & (uint32_t)-(int32_t)(crc & 1u));
+        }
+    }
+    return crc ^ 0xffffffffu;
+}
+
+static bool load_wifi_credentials(char *ssid, size_t ssid_size,
+                                  char *password, size_t password_size)
+{
+    static const uint8_t expected_magic[8] = {'P', 'D', 'M', 'X', 'W', 'I', 'F', 'I'};
+    wifi_config_t config;
+    const void *stored_config = (const void *)(XIP_BASE + PICO_DMX_WIFI_CONFIG_OFFSET);
+    memcpy(&config, stored_config, sizeof(config));
+
+    if (memcmp(config.magic, expected_magic, sizeof(expected_magic)) != 0 ||
+        config.version != PICO_DMX_WIFI_CONFIG_VERSION ||
+        config.ssid_length == 0 || config.ssid_length > 32 ||
+        config.password_length < 8 || config.password_length > 64 ||
+        config.ssid_length >= ssid_size || config.password_length >= password_size ||
+        config.ssid[config.ssid_length] != '\0' ||
+        config.password[config.password_length] != '\0' ||
+        strnlen(config.ssid, sizeof(config.ssid)) != config.ssid_length ||
+        strnlen(config.password, sizeof(config.password)) != config.password_length ||
+        wifi_config_crc32((const uint8_t *)&config, offsetof(wifi_config_t, crc32)) != config.crc32) {
+        return false;
+    }
+
+    memcpy(ssid, config.ssid, config.ssid_length + 1);
+    memcpy(password, config.password, config.password_length + 1);
+    memset(&config, 0, sizeof(config));
+    return true;
+}
 
 /* POST receive state. Bodies are owned by the individual HTTP connection. */
 #define POST_BUFFER_MAX (12 * 1024)
@@ -2249,8 +2298,11 @@ static void core1_network_log_server()
 {
     log_printf("Core1 network/log server starting\n");
 
-    if (WIFI_SSID[0] == '\0') {
-        stay_alive_with_message("WIFI_SSID is not set. Reconfigure CMake with -DWIFI_SSID=your_ssid -DWIFI_PASSWORD=your_password");
+    char wifi_ssid[33];
+    char wifi_password[65];
+    if (!load_wifi_credentials(wifi_ssid, sizeof(wifi_ssid),
+                               wifi_password, sizeof(wifi_password))) {
+        stay_alive_with_message("Wi-Fi is not configured. Use the desktop firmware updater to set the network credentials.");
     }
 
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_SWITZERLAND)) {
@@ -2259,13 +2311,14 @@ static void core1_network_log_server()
 
     cyw43_arch_enable_sta_mode();
 
-    log_printf("Connecting to Wi-Fi SSID '%s'...\n", WIFI_SSID);
+    log_printf("Connecting to configured Wi-Fi network...\n");
     int result = cyw43_arch_wifi_connect_timeout_ms(
-        WIFI_SSID,
-        WIFI_PASSWORD,
+        wifi_ssid,
+        wifi_password,
         CYW43_AUTH_WPA2_MIXED_PSK,
         30000
     );
+    memset(wifi_password, 0, sizeof(wifi_password));
 
     if (result) {
         stay_alive_with_wifi_status("Wi-Fi connection failed", result);

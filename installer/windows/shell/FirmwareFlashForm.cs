@@ -20,6 +20,9 @@ internal sealed class FirmwareFlashForm : Form
     private readonly Button flashButton = new();
     private readonly Button closeButton = new();
     private readonly CheckBox singlePicoConfirmation = new();
+    private readonly CheckBox provisionWifi = new() { Checked = true };
+    private readonly TextBox wifiSsid = new();
+    private readonly TextBox wifiPassword = new();
     private readonly Uri controllerUri;
     private readonly bool checkInstalledFirmwareOnStart;
     private bool busy;
@@ -36,8 +39,8 @@ internal sealed class FirmwareFlashForm : Form
         this.checkInstalledFirmwareOnStart = checkInstalledFirmwareOnStart;
         Text = "WiFiPicoDMX Firmware";
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(760, 690);
-        ClientSize = new Size(820, 740);
+        MinimumSize = new Size(760, 760);
+        ClientSize = new Size(820, 840);
         BackColor = Background;
         ForeColor = Foreground;
         Icon = icon;
@@ -75,10 +78,11 @@ internal sealed class FirmwareFlashForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(24),
             ColumnCount = 1,
-            RowCount = 10,
+            RowCount = 11,
             AutoScroll = true
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -150,6 +154,64 @@ internal sealed class FirmwareFlashForm : Form
         };
         instructions.Controls.Add(instructionText);
 
+        var wifiConfiguration = CreateSurfacePanel();
+        var wifiLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            RowCount = 4,
+            Margin = new Padding(0)
+        };
+        wifiLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        wifiLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        provisionWifi.Text = "Set or change this Pico's Wi-Fi credentials";
+        provisionWifi.AutoSize = true;
+        provisionWifi.ForeColor = Foreground;
+        provisionWifi.Margin = new Padding(0, 0, 0, 8);
+        provisionWifi.CheckedChanged += (_, _) => UpdateWifiFields();
+        wifiLayout.Controls.Add(provisionWifi, 0, 0);
+        wifiLayout.SetColumnSpan(provisionWifi, 2);
+        var wifiExplanation = new Label
+        {
+            Text = "Required once when upgrading from firmware that embedded credentials. " +
+                   "Later firmware-only updates preserve this separate configuration.",
+            AutoSize = true,
+            MaximumSize = new Size(700, 0),
+            ForeColor = Muted,
+            Margin = new Padding(0, 0, 0, 10)
+        };
+        wifiLayout.Controls.Add(wifiExplanation, 0, 1);
+        wifiLayout.SetColumnSpan(wifiExplanation, 2);
+        var ssidLabel = new Label
+        {
+            Text = "Wi-Fi network name (SSID)",
+            AutoSize = true,
+            ForeColor = Foreground,
+            Margin = new Padding(0, 7, 14, 5)
+        };
+        wifiSsid.Dock = DockStyle.Top;
+        wifiSsid.MaxLength = 32;
+        wifiSsid.BackColor = Color.FromArgb(10, 13, 16);
+        wifiSsid.ForeColor = Foreground;
+        wifiLayout.Controls.Add(ssidLabel, 0, 2);
+        wifiLayout.Controls.Add(wifiSsid, 1, 2);
+        var passwordLabel = new Label
+        {
+            Text = "Wi-Fi password",
+            AutoSize = true,
+            ForeColor = Foreground,
+            Margin = new Padding(0, 7, 14, 0)
+        };
+        wifiPassword.Dock = DockStyle.Top;
+        wifiPassword.MaxLength = 64;
+        wifiPassword.UseSystemPasswordChar = true;
+        wifiPassword.BackColor = Color.FromArgb(10, 13, 16);
+        wifiPassword.ForeColor = Foreground;
+        wifiLayout.Controls.Add(passwordLabel, 0, 3);
+        wifiLayout.Controls.Add(wifiPassword, 1, 3);
+        wifiConfiguration.Controls.Add(wifiLayout);
+
         singlePicoConfirmation.Text =
             "I have disconnected all other Picos and the target Pico is in BOOTSEL mode.";
         singlePicoConfirmation.AutoSize = true;
@@ -217,6 +279,7 @@ internal sealed class FirmwareFlashForm : Form
         page.Controls.Add(introduction);
         page.Controls.Add(installedFirmware);
         page.Controls.Add(instructions);
+        page.Controls.Add(wifiConfiguration);
         page.Controls.Add(singlePicoConfirmation);
         page.Controls.Add(actions);
         page.Controls.Add(status);
@@ -346,6 +409,14 @@ internal sealed class FirmwareFlashForm : Form
 
     private async Task FlashAsync()
     {
+        string? ssid = null;
+        string? password = null;
+        if (provisionWifi.Checked && !TryGetWifiCredentials(out ssid, out password, out var validationError))
+        {
+            status.Text = validationError;
+            status.ForeColor = Color.IndianRed;
+            return;
+        }
         var answer = DarkMessageBox.Show(
             this,
             "Flash the application and Wi-Fi firmware now?\r\n\r\n" +
@@ -361,7 +432,8 @@ internal sealed class FirmwareFlashForm : Form
 
         picoDetected = false;
         SetBusy(true, "Flashing firmware. Do not disconnect the Pico…");
-        var result = await RunFirmwareHelperAsync("-Flash");
+        var result = await RunFirmwareHelperAsync("-Flash", ssid, password);
+        password = null;
         AppendLog(result.Output);
         SetBusy(false, result.ExitCode == 0
             ? "Firmware installation completed. The Pico has restarted."
@@ -369,6 +441,7 @@ internal sealed class FirmwareFlashForm : Form
         status.ForeColor = result.ExitCode == 0 ? Accent : Color.IndianRed;
         if (result.ExitCode == 0)
         {
+            wifiPassword.Clear();
             DarkMessageBox.Show(
                 this,
                 "Application and Wi-Fi firmware were installed successfully.\r\n\r\n" +
@@ -389,7 +462,43 @@ internal sealed class FirmwareFlashForm : Form
         checkButton.Enabled = !value && singlePicoConfirmation.Checked;
         closeButton.Enabled = !value;
         singlePicoConfirmation.Enabled = !value && bundleValidated;
+        provisionWifi.Enabled = !value;
+        UpdateWifiFields();
         UpdateFlashButton();
+    }
+
+    private void UpdateWifiFields()
+    {
+        wifiSsid.Enabled = !busy && provisionWifi.Checked;
+        wifiPassword.Enabled = !busy && provisionWifi.Checked;
+    }
+
+    private bool TryGetWifiCredentials(
+        out string? ssid,
+        out string? password,
+        out string validationError)
+    {
+        ssid = wifiSsid.Text;
+        password = wifiPassword.Text;
+        var ssidBytes = Encoding.UTF8.GetByteCount(ssid);
+        var passwordBytes = Encoding.UTF8.GetByteCount(password);
+        if (ssidBytes is < 1 or > 32)
+        {
+            validationError = "The Wi-Fi network name must contain 1 to 32 UTF-8 bytes.";
+            return false;
+        }
+        if (passwordBytes is < 8 or > 64)
+        {
+            validationError = "The Wi-Fi password must contain 8 to 64 UTF-8 bytes.";
+            return false;
+        }
+        if (passwordBytes == 64 && !password.All(Uri.IsHexDigit))
+        {
+            validationError = "A 64-byte Wi-Fi password must be hexadecimal.";
+            return false;
+        }
+        validationError = "";
+        return true;
     }
 
     private void UpdateFlashButton()
@@ -408,7 +517,10 @@ internal sealed class FirmwareFlashForm : Form
         log.ScrollToCaret();
     }
 
-    private static async Task<FirmwareHelperResult> RunFirmwareHelperAsync(string operation)
+    private static async Task<FirmwareHelperResult> RunFirmwareHelperAsync(
+        string operation,
+        string? ssid = null,
+        string? password = null)
     {
         var script = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
@@ -441,6 +553,15 @@ internal sealed class FirmwareFlashForm : Form
         startInfo.ArgumentList.Add("-File");
         startInfo.ArgumentList.Add(script);
         startInfo.ArgumentList.Add(operation);
+        startInfo.Environment.Remove("PICO_DMX_WIFI_PROVISION");
+        startInfo.Environment.Remove("PICO_DMX_WIFI_SSID");
+        startInfo.Environment.Remove("PICO_DMX_WIFI_PASSWORD");
+        if (ssid is not null && password is not null)
+        {
+            startInfo.Environment["PICO_DMX_WIFI_PROVISION"] = "1";
+            startInfo.Environment["PICO_DMX_WIFI_SSID"] = ssid;
+            startInfo.Environment["PICO_DMX_WIFI_PASSWORD"] = password;
+        }
 
         using var process = new Process { StartInfo = startInfo };
         var output = new StringBuilder();

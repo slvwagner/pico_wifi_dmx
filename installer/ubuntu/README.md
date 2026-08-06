@@ -119,7 +119,15 @@ The package also installs **WiFiPicoDMX Firmware Update**. The same guided
 updater is available from **Application > Firmware update…** in the main
 window. It validates the bundled version-matched application and Wi-Fi images,
 checks installed Pico versions over the network, guides BOOTSEL connection,
-and requires final confirmation before writing either firmware partition.
+and requires final confirmation before writing firmware. The guide can set or
+change Wi-Fi credentials in a dedicated data partition, or preserve that
+partition during later updates. Credentials exist only in the updater process
+and a permission-restricted temporary UF2 that is deleted after flashing; they
+are not part of the packaged application firmware.
+
+Legacy `SSID` and `SSID_PW` environment variables are not imported. The
+`PICO_DMX_WIFI_*` variables used between the Electron shell and flashing helper
+are internal, short-lived, and cleared before `picotool` runs.
 
 The installer also creates **WiFiPicoDMX** on each normal user's
 configured XDG desktop. It never replaces an unrelated file with the same name.
