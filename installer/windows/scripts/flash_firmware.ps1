@@ -51,6 +51,8 @@ function Wait-ForBootsel([int]$TimeoutSeconds = 20) {
     throw "The Pico did not return to BOOTSEL mode within $TimeoutSeconds seconds."
 }
 
+. (Join-Path $PSScriptRoot "wifi_config_uf2.ps1")
+
 Assert-File $picotool "Bundled picotool"
 Assert-File $manifestPath "Firmware manifest"
 Assert-File $application "Application firmware"
@@ -69,6 +71,7 @@ if ($wifiHash -ne [string]$manifest.wifiFirmware.sha256) {
 $applicationInfo = Invoke-Picotool @("info", "-a", $application) -Capture
 if ($applicationInfo -notmatch "target chip:\s+RP2350" -or
     $applicationInfo -notmatch "block type:\s+partition table" -or
+    $applicationInfo -notmatch '"Wi-Fi\s+Configuration"' -or
     $applicationInfo -notmatch '"Wi-Fi\s+Firmware"' -or
     $applicationInfo -notmatch "version:\s+$([regex]::Escape([string]$manifest.version))" -or
     $applicationInfo -notmatch "build attributes:\s+Release(?: build)?") {
@@ -109,6 +112,28 @@ Invoke-Picotool @("reboot", "-u")
 Wait-ForBootsel
 
 Write-Output "Loading the separate CYW43 Wi-Fi firmware partition..."
-Invoke-Picotool @("load", "-u", "-v", "-x", $wifiFirmware)
+$wifiConfigUf2 = $null
+try {
+    if ($env:PICO_DMX_WIFI_PROVISION -eq "1") {
+        if (-not $env:PICO_DMX_WIFI_SSID -or -not $env:PICO_DMX_WIFI_PASSWORD) {
+            throw "Wi-Fi provisioning was requested without both credentials."
+        }
+        $wifiConfigUf2 = Join-Path ([IO.Path]::GetTempPath()) ("pico-dmx-wifi-{0}.uf2" -f [guid]::NewGuid())
+        New-WifiConfigurationUf2 $wifiConfigUf2 $env:PICO_DMX_WIFI_SSID $env:PICO_DMX_WIFI_PASSWORD
+        $env:PICO_DMX_WIFI_PROVISION = $null
+        $env:PICO_DMX_WIFI_SSID = $null
+        $env:PICO_DMX_WIFI_PASSWORD = $null
+        Write-Output "Loading the private Wi-Fi configuration partition..."
+        Invoke-Picotool @("load", "-u", "-v", $wifiConfigUf2)
+    }
+    Invoke-Picotool @("load", "-u", "-v", "-x", $wifiFirmware)
+} finally {
+    $env:PICO_DMX_WIFI_PROVISION = $null
+    $env:PICO_DMX_WIFI_SSID = $null
+    $env:PICO_DMX_WIFI_PASSWORD = $null
+    if ($wifiConfigUf2 -and (Test-Path -LiteralPath $wifiConfigUf2)) {
+        Remove-Item -LiteralPath $wifiConfigUf2 -Force
+    }
+}
 
 Write-Output "Application and Wi-Fi firmware installation completed."

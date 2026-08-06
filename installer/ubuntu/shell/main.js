@@ -221,7 +221,7 @@ function registerShellActions() {
     controllerView?.setVisible(true);
     resolve(choice);
   });
-  ipcMain.handle('firmware:run', (_event, operation) => runFirmwareHelper(operation));
+  ipcMain.handle('firmware:run', (_event, operation, options) => runFirmwareHelper(operation, options));
   ipcMain.on('firmware:close', () => {
     if (!firmwareBusy) restoreControllerShell();
   });
@@ -251,7 +251,7 @@ function restoreControllerShell() {
   });
 }
 
-function runFirmwareHelper(operation) {
+function runFirmwareHelper(operation, options = {}) {
   const argumentsByOperation = {
     validate: '--validate-only',
     probe: '--probe-only',
@@ -260,10 +260,29 @@ function runFirmwareHelper(operation) {
   const argument = argumentsByOperation[operation];
   if (!argument) return Promise.reject(new Error('Unknown firmware operation.'));
   if (firmwareBusy) return Promise.reject(new Error('Firmware work is already running.'));
+  const provisionWifi = operation === 'flash' && options?.provisionWifi === true;
+  const ssid = typeof options?.ssid === 'string' ? options.ssid : '';
+  const password = typeof options?.password === 'string' ? options.password : '';
+  if (provisionWifi && (!ssid || !password)) {
+    return Promise.reject(new Error('Enter both the Wi-Fi network name and password.'));
+  }
   firmwareBusy = true;
   return new Promise((resolve) => {
     const helper = path.join(process.resourcesPath, '..', '..', 'support', 'flash_firmware.sh');
-    const child = spawn(helper, [argument], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const helperEnvironment = { ...process.env };
+    if (provisionWifi) {
+      helperEnvironment.PICO_DMX_WIFI_PROVISION = '1';
+      helperEnvironment.PICO_DMX_WIFI_SSID = ssid;
+      helperEnvironment.PICO_DMX_WIFI_PASSWORD = password;
+    } else {
+      delete helperEnvironment.PICO_DMX_WIFI_PROVISION;
+      delete helperEnvironment.PICO_DMX_WIFI_SSID;
+      delete helperEnvironment.PICO_DMX_WIFI_PASSWORD;
+    }
+    const child = spawn(helper, [argument], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: helperEnvironment,
+    });
     let output = '';
     const append = (chunk) => {
       const text = chunk.toString();

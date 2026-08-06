@@ -5,12 +5,15 @@ param(
     [string]$WifiFirmwareUf2 = "",
     [string]$PicotoolPath = "",
     [string]$Serial = "",
+    [switch]$ConfigureWifi,
+    [string]$WifiSsid = "",
     [switch]$ApplicationOnly,
     [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+. (Join-Path $repoRoot "installer\windows\scripts\wifi_config_uf2.ps1")
 
 function Resolve-InputPath([string]$ExplicitPath, [string]$DefaultName) {
     $candidate = if ($ExplicitPath) {
@@ -110,8 +113,9 @@ Write-Host "Validating application UF2: $application"
 $applicationInfo = Invoke-PicotoolCapture @("info", "-a", $application)
 if ($applicationInfo -notmatch "target chip:\s+RP2350" -or
     $applicationInfo -notmatch "block type:\s+partition table" -or
+    $applicationInfo -notmatch '"Wi-Fi\s+Configuration"' -or
     $applicationInfo -notmatch '"Wi-Fi\s+Firmware"') {
-    throw "Application UF2 is not an RP2350 image with the expected Wi-Fi firmware partition table."
+    throw "Application UF2 is not an RP2350 image with the expected Wi-Fi configuration and firmware partitions."
 }
 
 if ($wifiFirmware) {
@@ -140,6 +144,9 @@ if (-not (Test-BootselDevice)) {
 
 $deviceArgs = Get-DeviceArgs
 if ($ApplicationOnly) {
+    if ($ConfigureWifi) {
+        throw "-ConfigureWifi cannot be combined with -ApplicationOnly."
+    }
     Write-Host "Loading application update..." -ForegroundColor Cyan
     Invoke-Picotool (@("load", "-u", "-v", "-x", $application) + $deviceArgs)
     Write-Host "Application update complete." -ForegroundColor Green
@@ -154,6 +161,32 @@ Invoke-Picotool (@("reboot", "-u") + $deviceArgs)
 Wait-BootselDevice
 
 Write-Host "Loading CYW43 Wi-Fi firmware partition..." -ForegroundColor Cyan
-Invoke-Picotool (@("load", "-u", "-v", "-x", $wifiFirmware) + $deviceArgs)
+$wifiConfigUf2 = $null
+$plainPassword = $null
+try {
+    if ($ConfigureWifi) {
+        if (-not $WifiSsid) {
+            $WifiSsid = Read-Host "Wi-Fi network name (SSID)"
+        }
+        $securePassword = Read-Host "Wi-Fi password" -AsSecureString
+        $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+        try {
+            $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+        } finally {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
+        }
+        $wifiConfigUf2 = Join-Path ([IO.Path]::GetTempPath()) ("pico-dmx-wifi-{0}.uf2" -f [guid]::NewGuid())
+        New-WifiConfigurationUf2 $wifiConfigUf2 $WifiSsid $plainPassword
+        $plainPassword = $null
+        Write-Host "Loading private Wi-Fi configuration partition..." -ForegroundColor Cyan
+        Invoke-Picotool (@("load", "-u", "-v", $wifiConfigUf2) + $deviceArgs)
+    }
+    Invoke-Picotool (@("load", "-u", "-v", "-x", $wifiFirmware) + $deviceArgs)
+} finally {
+    $plainPassword = $null
+    if ($wifiConfigUf2 -and (Test-Path -LiteralPath $wifiConfigUf2)) {
+        Remove-Item -LiteralPath $wifiConfigUf2 -Force
+    }
+}
 
 Write-Host "Application and Wi-Fi firmware provisioning complete." -ForegroundColor Green

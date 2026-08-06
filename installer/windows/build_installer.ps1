@@ -90,6 +90,7 @@ $applicationInfo = & $PicotoolPath info -a $ApplicationUf2 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0 -or
     $applicationInfo -notmatch "target chip:\s+RP2350" -or
     $applicationInfo -notmatch "block type:\s+partition table" -or
+    $applicationInfo -notmatch '"Wi-Fi\s+Configuration"' -or
     $applicationInfo -notmatch '"Wi-Fi\s+Firmware"' -or
     $applicationInfo -notmatch "version:\s+$([regex]::Escape($version))" -or
     $applicationInfo -notmatch "build attributes:\s+Release(?: build)?") {
@@ -194,6 +195,7 @@ Copy-Item -LiteralPath (Join-Path $installerDir "scripts\open_controller.ps1") -
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\test_port.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\port_owner.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $installerDir "scripts\flash_firmware.ps1") -Destination $stageSupport
+Copy-Item -LiteralPath (Join-Path $installerDir "scripts\wifi_config_uf2.ps1") -Destination $stageSupport
 Copy-Item -LiteralPath (Join-Path $shellPublishDir "WiFiPicoDMX.exe") -Destination $stageShell
 Copy-Item -LiteralPath $ApplicationUf2 -Destination (Join-Path $stageFirmware "pico_wifi_dmx.uf2")
 Copy-Item -LiteralPath $WifiFirmwareUf2 -Destination (Join-Path $stageFirmware "pico_wifi_dmx_wifi_firmware.uf2")

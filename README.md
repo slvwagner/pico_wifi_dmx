@@ -2,25 +2,25 @@
 
 WiFi-controlled DMX512 controller firmware and browser UI for the Raspberry Pi Pico 2 W (RP2350). Each Pico drives one full 512-channel DMX universe, and one show can combine multiple named Picos as separate DMX outputs/universes. Fixtures are assigned to their output, so the same DMX address can be reused in different universes. The browser can be used for setup and live editing, while chases and effects can also run autonomously on the involved Picos so show playback does not depend on browser timing or WiFi latency.
 
-- **Latest stable release:** `1.1.0`
-- **Current development version:** `1.1.1`
+- **Latest stable release:** `1.2.0`
+- **Current development version:** `1.2.0`
 
 See [Versioning](#versioning) for the version-number and branch policy and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Getting Started
 
 For a customer PC running 64-bit Windows, download and run the current
-**[WiFiPicoDMX 1.1.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.1.0/wifi-pico-dmx-1.1.0-windows-x64.exe)**.
+**[WiFiPicoDMX 1.2.0 Windows installer](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.2.0/wifi-pico-dmx-1.2.0-windows-x64.exe)**.
 The installer includes the customer application, local web server, manual, and
 guided Pico firmware updater. Because the current installer is unsigned,
 Windows can display a SmartScreen publisher warning.
 
 For a 64-bit Ubuntu or Debian computer, download the
-**[WiFiPicoDMX 1.1.0 Debian package](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.1.0/wifi-pico-dmx_1.1.0_amd64.deb)**
-and install it with `sudo apt install ./wifi-pico-dmx_1.1.0_amd64.deb`.
+**[WiFiPicoDMX 1.2.0 Debian package](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.2.0/wifi-pico-dmx_1.2.0_amd64.deb)**
+and install it with `sudo apt install ./wifi-pico-dmx_1.2.0_amd64.deb`.
 
 Read the matching
-**[WiFiPicoDMX 1.1.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.1.0/user-manual.pdf)**
+**[WiFiPicoDMX 1.2.0 user manual (PDF)](https://github.com/slvwagner/pico_wifi_dmx/releases/download/v1.2.0/user-manual.pdf)**
 for installation, firmware flashing, show setup, and operation instructions.
 
 The [latest GitHub Release](https://github.com/slvwagner/pico_wifi_dmx/releases/latest)
@@ -164,7 +164,10 @@ Controller's Pico discovery service to find every running Pico on the network
 and compare its reported version with the validated bundled firmware. The
 guide then explains how to connect exactly one Pico 2 W in BOOTSEL mode,
 validates the bundled files and target, asks again before writing, prevents
-closing during the flash, and reports recovery steps. It can also be opened
+closing during the flash, and reports recovery steps. The guide can set or
+change the Pico's Wi-Fi network name and password without storing them in the
+installer or application firmware; later firmware-only updates preserve that
+separate configuration. It can also be opened
 later through **Application > Firmware update…** or the Start Menu **Firmware
 Update** shortcut.
 
@@ -457,27 +460,32 @@ Install [Visual Studio Code](https://code.visualstudio.com/) and open the reposi
 
 The repository configuration supplies the matching environment paths on Windows, Linux, and macOS. It also provides VS Code tasks for **Compile Project**, picotool **Run Project**, OpenOCD **Flash**, **Rescue Reset**, and **RISC-V Reset (RP2350)**. The Raspberry Pi Pico extension is the simplest way to install or locate the pinned SDK, compiler, CMake, Ninja, picotool, and OpenOCD versions; if prompted by CMake Tools, select the supplied **Pico** kit.
 
-Configure WiFi and build:
+Configure and build:
 
 ```powershell
 cd <path-to-your-checkout>\pico_wifi_dmx
-cmake -S . -B build -G Ninja `
-  -DWIFI_SSID="your_ssid" `
-  -DWIFI_PASSWORD="your_password"
-
+cmake -S . -B build -G Ninja
 cmake --build build
 ```
 
-On Ubuntu, use the same CMake options with shell quoting:
+On Ubuntu, use the same commands:
 
 ```bash
 cd ~/pico_wifi_dmx
-cmake -S . -B build -G Ninja \
-  -DWIFI_SSID="your_ssid" \
-  -DWIFI_PASSWORD="your_password"
-
+cmake -S . -B build -G Ninja
 cmake --build build
 ```
+
+Wi-Fi credentials are intentionally not accepted as CMake options or compiled
+into the application UF2. Set them while flashing with the Windows/Ubuntu
+firmware updater. They are written to a dedicated 16 KB data partition, which
+normal application updates leave intact.
+
+Legacy `SSID` and `SSID_PW` environment variables are ignored by both the
+firmware build and the Windows application. The updater uses the values entered
+in its Wi-Fi fields and passes them to the flashing helper through temporary
+`PICO_DMX_WIFI_*` child-process variables. Those internal variables are cleared
+before `picotool` starts and are not a supported configuration interface.
 
 If CMake cannot find the Pico SDK, install the Raspberry Pi Pico VS Code extension on Ubuntu or point CMake at an SDK checkout:
 
@@ -559,7 +567,7 @@ requirements.
 DMX signal generation and timing:
 
 | Signal part | Value |
-|-------------|-------|
+| --- | --- |
 | Output method | PIO control state machine + PIO data state machine + DMA |
 | Line rate | 250 kbaud DMX, 4 us per bit |
 | Break | about 92 us |
@@ -963,7 +971,7 @@ The project uses `MAJOR.MINOR.PATCH` versions following Semantic Versioning conv
 - `MINOR` introduces a new backward-compatible feature set.
 - `PATCH` contains compatible fixes and smaller improvements.
 
-The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.1.0`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
+The `main` branch represents the latest completed release. Development takes place on a branch named for the next version, such as `1.2.0`, with a matching `Unreleased` section in `CHANGELOG.md`. When that version is ready, the changelog receives its release date, `scripts/prepare_release.ps1` creates `release/v<VERSION>/`, and the completed version branch is merged into `main`. A new version branch is then created for subsequent work.
 
 After merging a release into `main`, preview and create the next version branch with:
 
@@ -982,7 +990,7 @@ All application-facing version sources must agree:
 - Page and manual query strings use the application version for browser cache invalidation.
 - `CHANGELOG.md` records user-visible changes under the matching version.
 
-An asset suffix such as `?v=1.1.0-11` is a browser-cache revision within application version `1.1.0`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
+An asset suffix such as `?v=1.2.0-11` is a browser-cache revision within application version `1.2.0`; `-11` is not an additional release number. Incrementing it forces browsers and iPad Home Screen installations to load changed shared CSS or JavaScript.
 
 Application versions are independent from data-format versions. `schemaVersion` and `setupFormatVersion` change only when a stored JSON format requires a migration or compatibility decision.
 
@@ -990,7 +998,7 @@ Stored/exported JSON files include:
 
 ```json
 {
-  "appVersion": "1.1.0",
+  "appVersion": "1.2.0",
   "schemaVersion": 1
 }
 ```
@@ -1012,22 +1020,22 @@ Before tagging or publishing a release:
 3. Move the matching section in `CHANGELOG.md` from `Unreleased` to the release date.
 4. Build and test the firmware/UI:
 
-```powershell
-cmake --build build
-npm run test:ui
-```
+   ```powershell
+   cmake --build build
+   npm run test:ui
+   ```
 
 5. Optional, when a Pico is connected and safe test channels/slots are configured:
 
-```powershell
-npm run test:pico
-```
+   ```powershell
+   npm run test:pico
+   ```
 
 6. Create the release package. This regenerates the manual, PDF, and deterministic screenshots before packaging. On Windows it also builds the Windows x64 customer installer:
 
-```powershell
-.\scripts\prepare_release.ps1 -Build
-```
+   ```powershell
+   .\scripts\prepare_release.ps1 -Build
+   ```
 
 `-Build` explicitly configures `CMAKE_BUILD_TYPE=Release` before compiling.
 The Windows installer accepts only a matching RP2350 Release UF2 and receives
@@ -1136,47 +1144,38 @@ The release package also includes `docs/user-manual.md`, the generated manual HT
 
 After the package passes validation, complete these publication steps:
 
-8. Commit the generated release package, merge the completed version branch
+1. Commit the generated release package, merge the completed version branch
    into `main`, and mark the released version as the latest stable release.
-9. Update the README **Getting Started** installer and user-manual labels and
+2. Update the README **Getting Started** installer and user-manual labels and
    direct URLs so they contain the released version and exact GitHub Release
    asset names.
-10. Create and push the annotated `v<VERSION>` tag from the final `main`
-    release commit.
-11. Create the public GitHub Release and attach the Windows installer, its
-    checksum, all three UF2/checksum pairs, `release-manifest.json`, the HTML
-    manual, and both PDF user-manual variants. For example:
+3. Preview the guarded GitHub publication step from the final, clean, and
+   pushed `main` release commit:
 
-```powershell
-gh release create v<VERSION> `
-  --title "WiFiPicoDMX <VERSION>" `
-  --generate-notes --latest `
-  release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe `
-  release/v<VERSION>/wifi-pico-dmx-<VERSION>-windows-x64.exe.sha256 `
-  release/v<VERSION>/wifi-pico-dmx_<VERSION>_amd64.deb `
-  release/v<VERSION>/wifi-pico-dmx_<VERSION>_amd64.deb.sha256 `
-  release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2 `
-  release/v<VERSION>/pico_wifi_dmx-v<VERSION>.uf2.sha256 `
-  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2 `
-  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-v<VERSION>.uf2.sha256 `
-  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2 `
-  release/v<VERSION>/pico_wifi_dmx-wifi-firmware-tbyb-v<VERSION>.uf2.sha256 `
-  release/v<VERSION>/release-manifest.json `
-  release/v<VERSION>/docs/user-manual.html `
-  release/v<VERSION>/docs/user-manual.pdf `
-  release/v<VERSION>/docs/user-manual-navigation.pdf
-```
+   ```powershell
+   .\scripts\publish_github_release.ps1 `
+     -Version <VERSION> `
+     -AllowUnsignedWindowsInstaller `
+     -WhatIf
+   ```
 
-12. Open the README installer and user-manual links from GitHub and verify that
-    the installer plus HTML and both PDF manuals download without requiring
-    repository knowledge or authentication.
+4. Remove `-WhatIf` to create and push the annotated tag, create the public
+   latest GitHub Release, and upload both installers/checksums, all three
+   UF2/checksum pairs, `release-manifest.json`, the HTML manual, and both PDF
+   manuals. Omit `-AllowUnsignedWindowsInstaller` once signing is configured.
+   The script verifies every manifest checksum, requires `main` to be clean
+   and synchronized with `origin/main`, refuses mismatched existing assets,
+   and resumes an interrupted publication by uploading only missing assets.
+5. Open the README installer and user-manual links from GitHub and verify that
+   the installer plus HTML and both PDF manuals download without requiring
+   repository knowledge or authentication.
 
 ---
 
 ## Architecture
 
 | Core | Responsibility |
-|------|----------------|
+| --- | --- |
 | **Core 0** | DMX engine (continuous 250 kbaud frames), chaser sequencer tick, motion FX oscillator tick — runs at 100 Hz |
 | **Core 1** | WiFi (CYW43), lwIP TCP/IP stack, lwIP httpd (HTTP/1.0 API server) |
 
@@ -1189,9 +1188,11 @@ The firmware HTTP layer also isolates overlapping network requests. Each POST up
 ## Playback Modes
 
 ### Browser Playback
+
 The Chaser and Effects browser playback engines connect directly to the show's primary Pico HTTP API. On every tick the browser computes the next DMX values and sends only the **changed channels** in one batch request. Two browser tabs can run simultaneously (for example, Chaser on dimmer channels and Effects on pan/tilt) without interfering because each page tracks its own sent state and never overwrites channels it does not own. Browser playback and the Chaser/Effects live editor previews are currently primary-output workflows; use autonomous linked Pico playback when one chase or effect must span several DMX Outputs.
 
 ### Pico Autonomous Playback
+
 Chaser and Effects configurations are uploaded via HTTP POST. A single-output playback uses one Pico; a multi-output playback is split into linked member payloads and uploaded to every involved Pico. After upload, each Pico plays its member entirely on Core 0—no continuous browser traffic is needed. This removes WiFi latency jitter from each controller's DMX output, although starting linked members through separate HTTP requests is not a firmware-level synchronized start.
 
 Starting browser Chase Playback stops Chaser and Effects playback on the primary Pico before previewing there. Starting autonomous Pico playback stops the browser preview on that page. Linked member control is coordinated by the autonomous playback actions, not by the primary-output browser-preview handoff.
@@ -1207,7 +1208,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 ### DMX channel control
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/dmx/set/<ch>/<val>` | GET | Set a single channel (ch 1-based, val 0–255) |
 | `/dmx/b/<ch>:<val>,<ch>:<val>,…` | GET | Batch set with channel:value pairs in the URL path. Data is path-encoded rather than query-string encoded because lwIP httpd strips query strings before calling `fs_open`. |
 | `/dmx/b` | POST | Batch set with comma-separated `channel:value` pairs in the request body; this is the form used by current browser playback and multi-channel UI writes. |
@@ -1225,7 +1226,7 @@ All endpoints return JSON with `Access-Control-Allow-Origin: *`.
 Each Pico provides **32 physical chaser slots** that can be loaded and played simultaneously. Each physical slot has its own step list, playmode, direction, loop count, and speed multiplier. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 32 logical chaser slots; a linked multi-output chase reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/chaser/load/<N>` | POST | Upload chaser config to slot N (0–31) |
 | `/chaser/play/<N>` | GET | Start slot N from the beginning |
 | `/chaser/pause/<N>` | GET | Pause slot N at the current step/fade position |
@@ -1241,7 +1242,8 @@ Each Pico provides **32 physical chaser slots** that can be loaded and played si
 `active_mask` and `loaded_mask` are bitmasks — bit *i* set means slot *i* is active/loaded.
 
 Chaser text protocol (POST body):
-```
+
+```text
 LOOP 1
 MODE loop
 LOOPS 1
@@ -1264,7 +1266,7 @@ Each chaser slot supports up to **32 steps** in firmware. The Chaser page enforc
 Each Pico provides **64 physical effect slots** that can be loaded and played simultaneously. Each physical slot has its own effect type, BPM, target list, and phase offsets. Targets can be pan/tilt pairs or scalar controls such as dimmer, zoom, iris, prism, or gobo. When multiple physical slots on one Pico control the same DMX channel, the **bigger-wins** rule applies (highest raw value written). The browser presents 64 logical effect slots; a linked multi-output effect reserves one physical slot on every involved Pico, and those physical slot numbers may differ between Picos.
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/motion/load` | POST | Upload effect config to slot 0 |
 | `/motion/load/<N>` | POST | Upload effect config to slot N (0–63) |
 | `/motion/start` | GET | Start slot 0 |
@@ -1279,7 +1281,8 @@ Each Pico provides **64 physical effect slots** that can be loaded and played si
 `active_mask` and `loaded_mask` are bitmasks — bit *i* set means slot *i* is active/loaded.
 
 Effects text protocol (POST body):
-```
+
+```text
 FX 1
 TYPE <0=circle|1=figure8|2=panSwing|3=tiltSwing|4=sine|5=pulse>
 BPM <float>
@@ -1301,7 +1304,7 @@ The UI is served from a separate web server (XAMPP in development). Pages talk d
 Server-side Chaser, Effects, and UI-state updates hold an exclusive lock across the complete JSON read-modify-write operation. Multiple open browsers can therefore update different mirrored Pico slots or UI-state keys without a later request silently restoring an older copy of the file.
 
 | Page | File | Description |
-|------|------|-------------|
+| --- | --- | --- |
 | Fixture Controller | `web/dmx_fixture_controller.html` (served as `index.html`) | Define fixture profiles, patch fixtures, set individual channels, manage groups, save/recall scenes |
 | Show Run | `web/dmx_show.html` | Run a show from saved groups, fixtures, scenes, palettes, saved room planes, live fixture-control faders/knobs/buttons, and Pico chaser/effect playback slots without editing setup data |
 | MIDI Emulator | `web/dmx_midi_emulator.html` | Emulate Launch Control XL knobs, faders, and buttons in a second browser tab for Show Run MIDI Learn testing without hardware |
@@ -1401,7 +1404,7 @@ The firmware maintains a dedicated `dmx_base_frame[513]` buffer (indices 1–512
 **What writes to `dmx_base_frame`:**
 
 | Source | Updates base buffer? |
-|--------|----------------------|
+| --- | --- |
 | `/dmx/set/<ch>/<val>` GET | ✅ yes |
 | `/dmx/b/<ch>:<val>,…` GET or POST batch | ✅ yes |
 | Chaser tick output (Core 0) | ✅ yes |
@@ -1410,6 +1413,7 @@ The firmware maintains a dedicated `dmx_base_frame[513]` buffer (indices 1–512
 Because motion FX never writes back to the base buffer, the oscillation center stays fixed at whatever position was set last. There is no accumulation error even after hours of continuous playback.
 
 **Practical workflow:**
+
 1. Position the fixture using the Fixture Controller, or recall a scene.
 2. On the Effects page, click that same scene in the Scene Toolbox—this updates the Effects center values and previews them on the primary show output, updating that Pico's `dmx_base_frame`.
 3. Start motion (browser `▶ Start` or Pico `/motion/start`) — the effect orbits the position set in step 1/2.
@@ -1456,7 +1460,7 @@ Use `dmx_clear` when the button should clear both output and the effect base buf
 Firmware endpoints:
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/gpio/config` | GET | Return current volatile GPIO config as JSON |
 | `/gpio/config` | POST | Replace current GPIO config using the line-based protocol |
 | `/gpio/status` | GET | Return input states, ADC raw values/mapped speed, event count, and last fired action |
@@ -1478,7 +1482,7 @@ The Pico firmware can receive classic DIN/TRS MIDI through a UART input. The def
 The Pico UART implementation remains deliberately a diagnostics layer: it receives bytes, handles channel voice messages and running status, counts realtime bytes, and exposes the last parsed message. It is separate from the computer USB MIDI mapping path and does not trigger show actions yet.
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/midi/status.json` | GET | Return MIDI enable/init state, UART/pin settings, byte/message counters, parse errors, and the last parsed message |
 
 The MIDI status object is also included inside `/status.json` beside the DMX status. Use this endpoint first after wiring the receiver circuit: moving a fader or pressing a button on the MIDI controller should increase `byte_count` and usually `message_count`, with `last_channel`, `last_data1`, and `last_data2` showing the decoded control data.
@@ -1488,7 +1492,7 @@ The MIDI status object is also included inside `/status.json` beside the DMX sta
 All persistent data is stored as JSON files in the PHP web server's `data/` folder. No database is required. The sync script migrates existing root-level JSON files into `data/` and writes a `.htaccess` file that denies direct browser access to the folder.
 
 | PHP handler | JSON file | Contents |
-|-------------|-----------|----------|
+| --- | --- | --- |
 | `fixture_setup.php` | `data/fixture_setup.json` | Show name, DMX Outputs/universes/device identities, fixture profiles, patched fixtures, and Pixel Matrices |
 | `fixture_setup.php?livevalues` | `data/fixture_live_values.json` | Snapshot of every control's current live value; written by the Fixture Controller whenever a control is moved or a scene is recalled; read by the Chaser page to capture FC state into steps |
 | `scene_setup.php` | `data/scene_setup.json` | Named scene snapshots, slot grid dimensions |
@@ -1547,7 +1551,7 @@ Use `.\scripts\update_xampp_server.ps1` when you also want a quick HTTP verifica
 The root `CMakeLists.txt` is the Pico build entry point and references sources under `firmware/`.
 
 | File | Description |
-|------|-------------|
+| --- | --- |
 | `firmware/main.cpp` | Core 0/1 entry points, HTTP endpoint handlers, custom lwIP fs callbacks, DMX UI lock, POST callbacks for chaser/motion upload |
 | `firmware/dmx_engine.cpp` / `.h` | Continuous DMX512 PIO output engine, channel buffer, start-code encoding, DMA scheduling, thread-safe set/get. Also owns `dmx_base_frame` — the scene base buffer (see below) |
 | `firmware/dmx_native.pio` | PIO program for 250 kbaud DMX framing: Break, Mark After Break, slot timing, and bit serialization |
@@ -1583,10 +1587,14 @@ The root `CMakeLists.txt` is the Pico build entry point and references sources u
 ## Configure
 
 ```powershell
-cmake -S . -B build -G Ninja `
-  -DWIFI_SSID="your_ssid" `
-  -DWIFI_PASSWORD="your_password"
+cmake -S . -B build -G Ninja
 ```
+
+The build is generic and contains no Wi-Fi network name or password. Provision
+those values separately during the first flash or whenever the network changes.
+Existing `SSID`, `SSID_PW`, `WIFI_SSID`, and `WIFI_PASSWORD` environment or
+CMake values are not consumed. Release preparation also removes legacy cache
+entries and rejects compiler commands that still contain credential definitions.
 
 Optional overrides:
 
@@ -1623,28 +1631,31 @@ build/pico_wifi_dmx_wifi_firmware_tbyb.uf2
 
 ## Flash
 
-For a new device or the first upgrade from firmware 0.9.10 or older, put the Pico 2 W into BOOTSEL mode and run the validated two-stage flashing script:
+For a new device or the first upgrade from firmware that compiled credentials
+into the application, put the Pico 2 W into BOOTSEL mode and run the validated
+flashing script with Wi-Fi provisioning enabled:
 
 ```powershell
-.\scripts\flash_firmware.ps1
+.\scripts\flash_firmware.ps1 -ConfigureWifi
 ```
 
-The script verifies the RP2350 partition table and CYW43 UF2 family before writing anything. It then loads the application, returns the Pico to BOOTSEL mode, loads the Wi-Fi partition, verifies both writes, and starts the application. To select release-package files instead of `build/` outputs, pass `-ApplicationUf2` and `-WifiFirmwareUf2`.
+The script prompts for the SSID and a masked password, creates a temporary
+`data`-family UF2, and deletes it after use. It verifies the RP2350 partition
+table and CYW43 UF2 family before writing anything, then loads the application,
+private configuration, and Wi-Fi firmware partitions. To select release-package
+files instead of `build/` outputs, pass `-ApplicationUf2` and
+`-WifiFirmwareUf2`.
 
-For subsequent application-only updates, leave the Wi-Fi partition intact:
+For subsequent application-only updates, leave both Wi-Fi partitions intact:
 
 ```powershell
 .\scripts\flash_firmware.ps1 -ApplicationOnly
 ```
 
-The equivalent initial provisioning commands are:
-
-```powershell
-$Picotool = "$env:USERPROFILE/.pico-sdk/picotool/2.3.0/picotool/picotool.exe"
-& $Picotool load build/pico_wifi_dmx.uf2
-& $Picotool reboot -u
-& $Picotool load -u -v -x build/pico_wifi_dmx_wifi_firmware.uf2
-```
+The Windows and Ubuntu customer applications provide the same choice: check
+**Set or change this Pico's Wi-Fi credentials** for a new Pico, the first
+upgrade to this partitioned format, or a network change. Clear it for a normal
+firmware update so the existing credentials remain untouched.
 
 Using OpenOCD + Picoprobe/CMSIS-DAP for subsequent application updates after the Wi-Fi partition has been provisioned:
 
@@ -1660,8 +1671,8 @@ Using OpenOCD + Picoprobe/CMSIS-DAP for subsequent application updates after the
 ## Resource Usage
 
 | Resource | Value |
-|----------|-------|
-| Free RAM (stable, measured at runtime) | **385 024 bytes** (~195 KB) |
+| --- | --- |
+| Free RAM (stable, measured at runtime) | **180,224 bytes** (176 KB) |
 | Total SRAM (RP2350) | 520 KB |
 
 ## Notes

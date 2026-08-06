@@ -2,7 +2,7 @@
   'use strict';
 
   const BASE_URL_KEY='dmxPicoBaseUrl';
-  const APP_VERSION='1.1.0';
+  const APP_VERSION='1.2.0';
   const DEFAULT_SCHEMA_VERSION=1;
 
   function isHttp(){
@@ -15,6 +15,17 @@
 
   function appVersion(){
     return window.DMX_APP_VERSION||APP_VERSION;
+  }
+
+  function isDocumentationCapture(){
+    return new URLSearchParams(location.search).has('docshot');
+  }
+
+  if(isDocumentationCapture()){
+    const style=document.createElement('style');
+    style.dataset.dmxDocshotStability='';
+    style.textContent='*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}';
+    (document.head||document.documentElement).appendChild(style);
   }
 
   function versionedPayload(data,schemaVersion){
@@ -251,6 +262,11 @@
   }
 
   async function checkPicoFleetOutput(output,timeoutMs=1800){
+    if(isDocumentationCapture()){
+      const expectedFirmware=appVersion();
+      const status={firmware_version:expectedFirmware,dmx:{channels:512,frame_count:1}};
+      return{output,online:true,status,installedFirmware:expectedFirmware,expectedFirmware,firmwareState:'current'};
+    }
     const root=dmxOutputEndpoint(output);
     if(!root)return{output,online:false,error:'URL not configured'};
     const controller=typeof AbortController!=='undefined'?new AbortController():null;

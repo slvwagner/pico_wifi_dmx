@@ -50,9 +50,18 @@ Start Menu. It validates the bundled UF2 checksums and RP2350 metadata, asks
 the customer to disconnect other Picos, explains the BOOTSEL connection steps,
 checks that a Pico 2 W is accessible, and asks for final confirmation before
 writing anything. Full provisioning writes the application/partition table,
-reboots back into BOOTSEL, writes the separate CYW43 Wi-Fi firmware partition,
-and verifies each `picotool` load. The window cannot be closed while a flash is
-running and explains how to recover by repeating the BOOTSEL procedure.
+reboots back into BOOTSEL, optionally writes a temporary locally generated
+Wi-Fi configuration UF2, writes the separate CYW43 Wi-Fi firmware partition,
+and verifies each `picotool` load. Credentials are passed to the helper only
+through its child-process environment, are never logged or bundled, and the
+temporary UF2 is deleted immediately. The configuration partition is required
+once for new devices and upgrades from compile-time credentials; it can be
+preserved during later firmware updates or replaced when the network changes.
+The application does not read legacy `SSID` or `SSID_PW` environment variables.
+Its `PICO_DMX_WIFI_*` variables are a private, short-lived interface between the
+updater window and its child helper, not a customer configuration mechanism.
+The window cannot be closed while a flash is running and explains how to
+recover by repeating the BOOTSEL procedure.
 
 At startup, the native shell clears only WebView2's disk cache before
 navigating to the controller. The packaged Apache configuration also marks

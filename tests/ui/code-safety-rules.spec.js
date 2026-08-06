@@ -368,7 +368,7 @@ test.describe('Code safety regression rules', () => {
 
     expect(releaseScript).toContain('[switch]$SkipDebianInstaller');
     expect(releaseScript).toContain('[string]$WslDistribution');
-    expect(releaseScript).toContain('Build Debian customer installer through WSL');
+    expect(releaseScript).toContain('Assemble Debian package from Windows-built artifacts');
     expect(releaseScript).toContain('installer\\ubuntu\\build_package_wsl.ps1');
     expect(releaseScript).toContain('debianInstaller = $debianInstaller');
     expect(wslBuilder).toContain('wsl.exe');
@@ -378,8 +378,24 @@ test.describe('Code safety regression rules', () => {
     expect(wslBuilder).toContain('build_package.sh');
   });
 
+  test('GitHub release publication is explicit, verified, and resumable', () => {
+    const publisher = read('scripts/publish_github_release.ps1');
+
+    expect(publisher).toContain('[switch]$AllowUnsignedWindowsInstaller');
+    expect(publisher).toContain("$branch -ne 'main'");
+    expect(publisher).toContain('git status --porcelain');
+    expect(publisher).toContain('origin/main');
+    expect(publisher).toContain('Get-FileHash -Algorithm SHA256');
+    expect(publisher).toContain('$manifest.windowsInstaller');
+    expect(publisher).toContain('$manifest.debianInstaller');
+    expect(publisher).toContain('gh release create');
+    expect(publisher).toContain('gh release upload');
+    expect(publisher).toContain('--latest');
+  });
+
   test('README presents the stable Windows installer before the overview and requires release-link verification', () => {
     const readme = read('README.md');
+    const publisher = read('scripts/publish_github_release.ps1');
     const localPathsExample = read('config/local-paths.example.json');
     const stableVersion = readme.match(/\*\*Latest stable release:\*\* `([^`]+)`/)?.[1];
 
@@ -410,8 +426,10 @@ test.describe('Code safety regression rules', () => {
       `https://github.com/slvwagner/pico_wifi_dmx/releases/download/v${stableVersion}/user-manual.pdf`
     );
     expect(readme).toContain('Update the README **Getting Started** installer and user-manual labels');
-    expect(readme).toContain('gh release create v<VERSION>');
-    expect(readme).toContain('release/v<VERSION>/docs/user-manual.html');
+    expect(readme).toContain('.\\scripts\\publish_github_release.ps1');
+    expect(readme).toContain('-AllowUnsignedWindowsInstaller');
+    expect(readme).toContain('-WhatIf');
+    expect(publisher).toContain("@('user-manual.html', 'user-manual.pdf', 'user-manual-navigation.pdf')");
     expect(readme).toContain('Open the README installer and user-manual links');
   });
 
@@ -481,17 +499,78 @@ test.describe('Code safety regression rules', () => {
     expect(flashScript).toContain('Invoke-Picotool (@("load", "-u", "-v", "-x", $wifiFirmware)');
   });
 
+  test('firmware credentials are provisioned separately and survive application updates', () => {
+    const cmake = read('CMakeLists.txt');
+    const partitionTable = read('firmware/wifi_pt.json');
+    const firmware = read('firmware/main.cpp');
+    const windowsForm = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const windowsHelper = read('installer/windows/scripts/flash_firmware.ps1');
+    const windowsGenerator = read('installer/windows/scripts/wifi_config_uf2.ps1');
+    const windowsBuilder = read('installer/windows/build_installer.ps1');
+    const developerFlasher = read('scripts/flash_firmware.ps1');
+    const ubuntuPage = read('installer/ubuntu/shell/firmware.html');
+    const ubuntuMain = read('installer/ubuntu/shell/main.js');
+    const ubuntuHelper = read('installer/ubuntu/package/flash_firmware.sh');
+    const releaseScript = read('scripts/prepare_release.ps1');
+    const readme = read('README.md');
+
+    expect(cmake).not.toContain('WIFI_SSID="${WIFI_SSID}"');
+    expect(cmake).not.toContain('WIFI_PASSWORD="${WIFI_PASSWORD}"');
+    expect(cmake).toContain('pico_embed_pt_in_binary(pico_wifi_dmx');
+    expect(partitionTable).toContain('"name": "Wi-Fi Configuration"');
+    expect(partitionTable).toContain('"families": ["data"]');
+    expect(firmware).toContain('PICO_DMX_WIFI_CONFIG_OFFSET');
+    expect(firmware).toContain('load_wifi_credentials');
+
+    expect(windowsForm).toContain('PICO_DMX_WIFI_SSID');
+    expect(windowsForm).toContain('PICO_DMX_WIFI_PASSWORD');
+    expect(windowsHelper).toContain('New-WifiConfigurationUf2');
+    expect(windowsHelper).toContain('$env:PICO_DMX_WIFI_PASSWORD = $null');
+    expect(windowsHelper).toContain('Remove-Item -LiteralPath $wifiConfigUf2');
+    expect(windowsGenerator).toContain('0xe48bff58u');
+    expect(windowsBuilder).toContain('scripts\\wifi_config_uf2.ps1');
+    expect(windowsBuilder).toContain('"Wi-Fi\\s+Configuration"');
+    expect(developerFlasher).toContain('[switch]$ConfigureWifi');
+    expect(developerFlasher).toContain('Read-Host "Wi-Fi password" -AsSecureString');
+    expect(ubuntuPage).toContain('Wi-Fi network name (SSID)');
+    expect(ubuntuMain).toContain('PICO_DMX_WIFI_SSID');
+    expect(ubuntuMain).toContain('PICO_DMX_WIFI_PASSWORD');
+    expect(ubuntuHelper).toContain('create_wifi_config_uf2.php');
+    expect(ubuntuHelper).toContain('unset PICO_DMX_WIFI_PROVISION PICO_DMX_WIFI_SSID PICO_DMX_WIFI_PASSWORD');
+    expect(ubuntuHelper).toContain('rm -f -- "$wifi_config_uf2"');
+    expect(read('installer/ubuntu/build_package.sh')).toContain('Wi-Fi[[:space:]]+Configuration');
+    expect(releaseScript).toContain('compile-time Wi-Fi credentials');
+    expect(readme).toContain('Legacy `SSID` and `SSID_PW` environment variables are ignored');
+    expect(readme).toContain('not a supported configuration interface');
+  });
+
   test('Windows firmware installer checks discovered Pico versions against its bundle', () => {
+    const checker = read('installer/windows/shell/FirmwareCompatibilityChecker.cs');
     const form = read('installer/windows/shell/FirmwareFlashForm.cs');
     const mainForm = read('installer/windows/shell/MainForm.cs');
 
-    expect(mainForm).toContain('new FirmwareFlashForm(Icon, controllerUri)');
+    expect(mainForm).toContain('new FirmwareFlashForm(');
     expect(form).toContain('Check installed firmware');
-    expect(form).toContain('pico_discovery.php?timeoutMs=');
-    expect(form).toContain('firmware-manifest.json');
-    expect(form).toContain('device.Version == bundledFirmwareVersion');
+    expect(checker).toContain('pico_discovery.php?timeoutMs=');
+    expect(checker).toContain('firmware-manifest.json');
+    expect(checker).toContain('device.Version == bundledFirmwareVersion');
     expect(form).toContain('Update needed');
     expect(form).toContain('Firmware current');
+  });
+
+  test('Windows application checks firmware compatibility on startup and offers the updater', () => {
+    const checker = read('installer/windows/shell/FirmwareCompatibilityChecker.cs');
+    const form = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const mainForm = read('installer/windows/shell/MainForm.cs');
+
+    expect(mainForm).toContain('await CheckFirmwareCompatibilityOnStartupAsync()');
+    expect(mainForm).toContain('Firmware update required');
+    expect(mainForm).toContain('OpenFirmwareUpdater(checkInstalledFirmwareOnStart: true)');
+    expect(checker).toContain('pico_discovery.php?timeoutMs=');
+    expect(checker).toContain('device.Version == bundledFirmwareVersion');
+    expect(checker).toContain('UpdateCount');
+    expect(form).toContain('checkInstalledFirmwareOnStart');
+    expect(form).toContain('await CheckInstalledFirmwareAsync()');
   });
 
   test('every Windows application form receives the shared dark title bar', () => {
@@ -504,5 +583,19 @@ test.describe('Code safety regression rules', () => {
     expect(mainForm).toContain('WindowsTheme.ApplyDarkTitleBar(this)');
     expect(mainForm.match(/WindowsTheme\.ApplyDarkTitleBar\(dialog\)/g)).toHaveLength(2);
     expect(form).toContain('WindowsTheme.ApplyDarkTitleBar(this)');
+  });
+
+  test('Windows shell uses dark application dialogs instead of native light message boxes', () => {
+    const dialog = read('installer/windows/shell/DarkMessageBox.cs');
+    const form = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const mainForm = read('installer/windows/shell/MainForm.cs');
+
+    expect(dialog).toContain('WindowsTheme.ApplyDarkTitleBar(dialog)');
+    expect(dialog).toContain('MessageBoxButtons.YesNo');
+    expect(dialog).toContain('MessageBoxButtons.OKCancel');
+    expect(form).not.toMatch(/(^|[^A-Za-z])MessageBox\.Show\(/m);
+    expect(mainForm).not.toMatch(/(^|[^A-Za-z])MessageBox\.Show\(/m);
+    expect(form).toContain('DarkMessageBox.Show(');
+    expect(mainForm).toContain('DarkMessageBox.Show(');
   });
 });
