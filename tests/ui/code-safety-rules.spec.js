@@ -500,16 +500,32 @@ test.describe('Code safety regression rules', () => {
   });
 
   test('Windows firmware installer checks discovered Pico versions against its bundle', () => {
+    const checker = read('installer/windows/shell/FirmwareCompatibilityChecker.cs');
     const form = read('installer/windows/shell/FirmwareFlashForm.cs');
     const mainForm = read('installer/windows/shell/MainForm.cs');
 
-    expect(mainForm).toContain('new FirmwareFlashForm(Icon, controllerUri)');
+    expect(mainForm).toContain('new FirmwareFlashForm(');
     expect(form).toContain('Check installed firmware');
-    expect(form).toContain('pico_discovery.php?timeoutMs=');
-    expect(form).toContain('firmware-manifest.json');
-    expect(form).toContain('device.Version == bundledFirmwareVersion');
+    expect(checker).toContain('pico_discovery.php?timeoutMs=');
+    expect(checker).toContain('firmware-manifest.json');
+    expect(checker).toContain('device.Version == bundledFirmwareVersion');
     expect(form).toContain('Update needed');
     expect(form).toContain('Firmware current');
+  });
+
+  test('Windows application checks firmware compatibility on startup and offers the updater', () => {
+    const checker = read('installer/windows/shell/FirmwareCompatibilityChecker.cs');
+    const form = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const mainForm = read('installer/windows/shell/MainForm.cs');
+
+    expect(mainForm).toContain('await CheckFirmwareCompatibilityOnStartupAsync()');
+    expect(mainForm).toContain('Firmware update required');
+    expect(mainForm).toContain('OpenFirmwareUpdater(checkInstalledFirmwareOnStart: true)');
+    expect(checker).toContain('pico_discovery.php?timeoutMs=');
+    expect(checker).toContain('device.Version == bundledFirmwareVersion');
+    expect(checker).toContain('UpdateCount');
+    expect(form).toContain('checkInstalledFirmwareOnStart');
+    expect(form).toContain('await CheckInstalledFirmwareAsync()');
   });
 
   test('every Windows application form receives the shared dark title bar', () => {
@@ -522,5 +538,19 @@ test.describe('Code safety regression rules', () => {
     expect(mainForm).toContain('WindowsTheme.ApplyDarkTitleBar(this)');
     expect(mainForm.match(/WindowsTheme\.ApplyDarkTitleBar\(dialog\)/g)).toHaveLength(2);
     expect(form).toContain('WindowsTheme.ApplyDarkTitleBar(this)');
+  });
+
+  test('Windows shell uses dark application dialogs instead of native light message boxes', () => {
+    const dialog = read('installer/windows/shell/DarkMessageBox.cs');
+    const form = read('installer/windows/shell/FirmwareFlashForm.cs');
+    const mainForm = read('installer/windows/shell/MainForm.cs');
+
+    expect(dialog).toContain('WindowsTheme.ApplyDarkTitleBar(dialog)');
+    expect(dialog).toContain('MessageBoxButtons.YesNo');
+    expect(dialog).toContain('MessageBoxButtons.OKCancel');
+    expect(form).not.toMatch(/(^|[^A-Za-z])MessageBox\.Show\(/m);
+    expect(mainForm).not.toMatch(/(^|[^A-Za-z])MessageBox\.Show\(/m);
+    expect(form).toContain('DarkMessageBox.Show(');
+    expect(mainForm).toContain('DarkMessageBox.Show(');
   });
 });

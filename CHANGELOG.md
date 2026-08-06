@@ -7,6 +7,8 @@ Changed:
 - Started the 1.1.1 development branch.
 - Added a guarded GitHub Release publisher that verifies a clean synchronized `main`, manifest and checksum integrity, documentation generation, both platform installers, and explicit acceptance of unsigned Windows builds before creating the annotated tag and latest public release. Interrupted publications can be resumed by reusing the matching tag and uploading only missing assets, while mismatched remote assets are never overwritten.
 - Clarified the Windows release output so the WSL stage reports that it assembles the Debian package from the already generated Windows manuals and firmware rather than implying that those artifacts are rebuilt under Linux.
+- Added an automatic Windows application startup check that compares every discovered Pico with the bundled firmware version. Incompatible or version-less Picos trigger an update prompt, and accepting it opens the firmware update page with the detailed installed-firmware check already running.
+- Replaced the Windows shell's native light message boxes with shared dark dialogs for firmware prompts, flash confirmation and completion, server lifecycle warnings, WebView fallback, and shutdown errors.
 
 ## 1.1.0 - 2026-08-05
 

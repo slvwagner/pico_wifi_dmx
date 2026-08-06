@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json;
 
 namespace PicoDmxShell;
 
@@ -22,14 +21,19 @@ internal sealed class FirmwareFlashForm : Form
     private readonly Button closeButton = new();
     private readonly CheckBox singlePicoConfirmation = new();
     private readonly Uri controllerUri;
+    private readonly bool checkInstalledFirmwareOnStart;
     private bool busy;
     private bool bundleValidated;
     private bool picoDetected;
     private string bundledFirmwareVersion = "";
 
-    public FirmwareFlashForm(Icon? icon, Uri controllerUri)
+    public FirmwareFlashForm(
+        Icon? icon,
+        Uri controllerUri,
+        bool checkInstalledFirmwareOnStart = false)
     {
         this.controllerUri = controllerUri;
+        this.checkInstalledFirmwareOnStart = checkInstalledFirmwareOnStart;
         Text = "WiFiPicoDMX Firmware";
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(760, 690);
@@ -40,7 +44,14 @@ internal sealed class FirmwareFlashForm : Form
         WindowsTheme.ApplyDarkTitleBar(this);
 
         BuildContent();
-        Shown += async (_, _) => await ValidateBundleAsync();
+        Shown += async (_, _) =>
+        {
+            await ValidateBundleAsync();
+            if (bundleValidated && this.checkInstalledFirmwareOnStart)
+            {
+                await CheckInstalledFirmwareAsync();
+            }
+        };
         FormClosing += (_, eventArgs) =>
         {
             if (!busy)
@@ -48,7 +59,7 @@ internal sealed class FirmwareFlashForm : Form
                 return;
             }
             eventArgs.Cancel = true;
-            MessageBox.Show(
+            DarkMessageBox.Show(
                 this,
                 "Firmware work is still running. Keep the Pico connected and wait for completion.",
                 "WiFiPicoDMX Firmware",
@@ -250,7 +261,7 @@ internal sealed class FirmwareFlashForm : Form
         {
             try
             {
-                bundledFirmwareVersion = ReadBundledFirmwareVersion();
+                bundledFirmwareVersion = FirmwareCompatibilityChecker.ReadBundledFirmwareVersion();
             }
             catch (Exception exception)
             {
@@ -270,23 +281,10 @@ internal sealed class FirmwareFlashForm : Form
         AppendLog($"Checking for firmware {bundledFirmwareVersion} with the Controller's Pico discovery service...");
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
-            var discoveryUri = new Uri(controllerUri, "pico_discovery.php?timeoutMs=3200");
-            using var response = await client.GetAsync(discoveryUri);
-            var payload = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException($"Discovery returned HTTP {(int)response.StatusCode}.");
-            }
-
-            var discovery = JsonSerializer.Deserialize<DiscoveryResponse>(
-                payload,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (discovery is null || !discovery.Ok)
-            {
-                throw new InvalidOperationException(discovery?.Error ?? "Discovery returned an invalid response.");
-            }
-            if (discovery.Devices.Count == 0)
+            var compatibility = await FirmwareCompatibilityChecker.CheckAsync(
+                controllerUri,
+                bundledFirmwareVersion);
+            if (compatibility.TotalCount == 0)
             {
                 SetBusy(false, "No running Pico was found. Check power and Wi-Fi, then try again.");
                 status.ForeColor = Warning;
@@ -294,18 +292,14 @@ internal sealed class FirmwareFlashForm : Form
                 return;
             }
 
-            var currentCount = 0;
-            foreach (var device in discovery.Devices)
+            foreach (var device in compatibility.Devices)
             {
-                var name = string.IsNullOrWhiteSpace(device.Name) ? "Pico" : device.Name.Trim();
-                var address = string.IsNullOrWhiteSpace(device.Ip) ? device.Url : device.Ip;
                 string result;
-                if (device.Version == bundledFirmwareVersion)
+                if (device.IsCurrent)
                 {
-                    currentCount++;
                     result = "Firmware current";
                 }
-                else if (string.IsNullOrWhiteSpace(device.Version))
+                else if (string.IsNullOrWhiteSpace(device.InstalledVersion))
                 {
                     result = "Version not reported";
                 }
@@ -313,12 +307,15 @@ internal sealed class FirmwareFlashForm : Form
                 {
                     result = "Update needed";
                 }
-                var installed = string.IsNullOrWhiteSpace(device.Version) ? "not reported" : device.Version;
-                AppendLog($"{name} · {address} · installed {installed} · bundled {bundledFirmwareVersion} · {result}");
+                var installed = string.IsNullOrWhiteSpace(device.InstalledVersion)
+                    ? "not reported"
+                    : device.InstalledVersion;
+                AppendLog($"{device.Name} · {device.Address} · installed {installed} · " +
+                          $"bundled {bundledFirmwareVersion} · {result}");
             }
 
-            var total = discovery.Devices.Count;
-            var updateCount = total - currentCount;
+            var total = compatibility.TotalCount;
+            var updateCount = compatibility.UpdateCount;
             SetBusy(false, updateCount == 0
                 ? $"Firmware current on all {total} discovered Pico{(total == 1 ? "" : "s")} ({bundledFirmwareVersion})."
                 : $"{updateCount} of {total} discovered Pico{(total == 1 ? "" : "s")} need attention. See the details below.");
@@ -349,7 +346,7 @@ internal sealed class FirmwareFlashForm : Form
 
     private async Task FlashAsync()
     {
-        var answer = MessageBox.Show(
+        var answer = DarkMessageBox.Show(
             this,
             "Flash the application and Wi-Fi firmware now?\r\n\r\n" +
             "DMX output will stop. Keep USB connected until WiFiPicoDMX reports completion.",
@@ -372,7 +369,7 @@ internal sealed class FirmwareFlashForm : Form
         status.ForeColor = result.ExitCode == 0 ? Accent : Color.IndianRed;
         if (result.ExitCode == 0)
         {
-            MessageBox.Show(
+            DarkMessageBox.Show(
                 this,
                 "Application and Wi-Fi firmware were installed successfully.\r\n\r\n" +
                 "You can disconnect the Pico or close this window.",
@@ -458,37 +455,6 @@ internal sealed class FirmwareFlashForm : Form
             output.AppendLine(error);
         }
         return new FirmwareHelperResult(process.ExitCode, output.ToString());
-    }
-
-    private static string ReadBundledFirmwareVersion()
-    {
-        var manifestPath = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
-            "..",
-            "firmware",
-            "firmware-manifest.json"));
-        using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
-        var version = document.RootElement.GetProperty("version").GetString()?.Trim();
-        if (string.IsNullOrWhiteSpace(version))
-        {
-            throw new InvalidOperationException("firmware-manifest.json does not contain a version.");
-        }
-        return version;
-    }
-
-    private sealed class DiscoveryResponse
-    {
-        public bool Ok { get; set; }
-        public string? Error { get; set; }
-        public List<DiscoveredPico> Devices { get; set; } = [];
-    }
-
-    private sealed class DiscoveredPico
-    {
-        public string Name { get; set; } = "";
-        public string Version { get; set; } = "";
-        public string Ip { get; set; } = "";
-        public string Url { get; set; } = "";
     }
 
     private sealed record FirmwareHelperResult(int ExitCode, string Output);

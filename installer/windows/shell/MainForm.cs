@@ -84,7 +84,11 @@ internal sealed class MainForm : Form
             await InitializeBrowserAsync();
             if (this.openFirmwareOnStart)
             {
-                OpenFirmwareUpdater();
+                OpenFirmwareUpdater(checkInstalledFirmwareOnStart: true);
+            }
+            else
+            {
+                await CheckFirmwareCompatibilityOnStartupAsync();
             }
         };
         KeyDown += HandleWindowKeyDown;
@@ -278,7 +282,7 @@ internal sealed class MainForm : Form
         {
             statusLabel.Text = "WebView2 is unavailable; opening the default browser.";
             LaunchFallbackBrowser();
-            MessageBox.Show(
+            DarkMessageBox.Show(
                 this,
                 "The native application window could not start WebView2, so the controller was opened in your default browser.\r\n\r\n" +
                 exception.Message,
@@ -298,7 +302,7 @@ internal sealed class MainForm : Form
 
         if (state == ControllerServiceState.Missing)
         {
-            MessageBox.Show(
+            DarkMessageBox.Show(
                 this,
                 "The WiFiPicoDMX service is not installed. Repair or reinstall the application.",
                 "WiFiPicoDMX",
@@ -307,7 +311,7 @@ internal sealed class MainForm : Form
             return false;
         }
 
-        var answer = MessageBox.Show(
+        var answer = DarkMessageBox.Show(
             this,
             "The Pico DMX server is stopped.\r\n\r\n" +
             "Starting the controller server requires Windows administrator approval.",
@@ -351,7 +355,7 @@ internal sealed class MainForm : Form
             await Task.Delay(250);
         }
 
-        MessageBox.Show(
+        DarkMessageBox.Show(
             this,
             "The Pico DMX server could not be started, or administrator approval was cancelled.",
             "WiFiPicoDMX",
@@ -368,9 +372,55 @@ internal sealed class MainForm : Form
         }
     }
 
-    private void OpenFirmwareUpdater()
+    private async Task CheckFirmwareCompatibilityOnStartupAsync()
     {
-        using var updater = new FirmwareFlashForm(Icon, controllerUri);
+        try
+        {
+            statusLabel.Text = "Checking Pico firmware compatibility…";
+            var bundledVersion = FirmwareCompatibilityChecker.ReadBundledFirmwareVersion();
+            var compatibility = await FirmwareCompatibilityChecker.CheckAsync(
+                controllerUri,
+                bundledVersion);
+            if (compatibility.TotalCount == 0 || compatibility.UpdateCount == 0)
+            {
+                statusLabel.Text = compatibility.TotalCount == 0
+                    ? "Ready — no network Pico was discovered for the firmware check."
+                    : $"Ready — firmware {bundledVersion} is current on all discovered Picos.";
+                return;
+            }
+
+            statusLabel.Text = $"Firmware update recommended for {compatibility.UpdateCount} discovered Pico(s).";
+            var picoLabel = compatibility.TotalCount == 1 ? "Pico" : "Picos";
+            var reportVerb = compatibility.UpdateCount == 1 ? "does" : "do";
+            var answer = DarkMessageBox.Show(
+                this,
+                $"{compatibility.UpdateCount} of {compatibility.TotalCount} discovered {picoLabel} " +
+                $"{reportVerb} not report the bundled firmware " +
+                $"version {bundledVersion}.\r\n\r\n" +
+                "The firmware needs to be updated for full compatibility with this application. " +
+                "Open the firmware update page now?",
+                "Firmware update required",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button1);
+            if (answer == DialogResult.Yes)
+            {
+                OpenFirmwareUpdater(checkInstalledFirmwareOnStart: true);
+            }
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Automatic firmware compatibility check failed: {exception}");
+            statusLabel.Text = "Ready — firmware compatibility could not be checked automatically.";
+        }
+    }
+
+    private void OpenFirmwareUpdater(bool checkInstalledFirmwareOnStart = false)
+    {
+        using var updater = new FirmwareFlashForm(
+            Icon,
+            controllerUri,
+            checkInstalledFirmwareOnStart);
         updater.ShowDialog(this);
     }
 
@@ -533,7 +583,7 @@ internal sealed class MainForm : Form
             closeInProgress = false;
             Enabled = true;
             statusLabel.Text = "The server is still running.";
-            MessageBox.Show(
+            DarkMessageBox.Show(
                 this,
                 "The Pico DMX server could not be stopped, or administrator approval was cancelled.\r\n\r\n" +
                 "The application will remain open.",
