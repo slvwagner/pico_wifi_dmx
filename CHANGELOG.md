@@ -28,6 +28,10 @@ Changed:
 
 Fixed:
 
+- Made ranged split-color wheel slots adjustable with a **Split position**
+  slider. They can now retain the correct `WheelSlot` function while exposing
+  the full DMX range used to balance both colors; single-color slots remain
+  fixed and genuine wheel rotation ranges remain speed controls.
 - Added the missing Room Plane API route to the repo-local PHP server. Effects manual
   captures no longer race a successful setup message against a Room Plane `404`, which
   made the collapsed Participating Controls screenshot alternate between valid and

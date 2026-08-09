@@ -2556,6 +2556,51 @@ test.describe('Fixture Controller established rules', () => {
     expect(state.activeTitle).toBe('DMX 11-21 · WheelSlot');
   });
 
+  test('split-color wheel slots expose an adjustable split-position slider', async ({ page }) => {
+    const state = await page.evaluate(() => {
+      const wheel = {
+        id: 8871,
+        type: 'wheel',
+        label: 'Color Wheel',
+        channel: 1,
+        options: [
+          { name: 'Red', value: 16, range: [11, 21], kind: 'WheelSlot', colors: ['#ff0000'] },
+          { name: 'Red / Orange', value: 104, range: [99, 109], kind: 'WheelSlot', colors: ['#ff0000', '#ff9900'] },
+          { name: 'Rotation', value: 216, range: [176, 255], kind: 'WheelRotation', speedStart: 'slow', speedEnd: 'fast' }
+        ]
+      };
+      profiles.splice(0, profiles.length, { id: 8870, name: 'Split color wheel', mode: 'test', channels: 1, controls: [wheel] });
+      fixtures.splice(0, fixtures.length, { id: 8872, name: 'Split color fixture', profileId: 8870, start: 1 });
+      Object.keys(values).forEach(key => delete values[key]);
+      values['8872:8871'] = 104;
+      drawSurface();
+
+      const sliderState = () => {
+        const host = document.querySelector('[data-wheel-range-host="8872:8871"]');
+        const slider = host?.querySelector('input[type="range"]');
+        return {
+          min: slider?.getAttribute('min'),
+          max: slider?.getAttribute('max'),
+          label: host?.textContent || ''
+        };
+      };
+      const split = sliderState();
+      values['8872:8871'] = 16;
+      updateControlDisplay(fixtures[0], wheel);
+      const single = sliderState();
+      values['8872:8871'] = 216;
+      updateControlDisplay(fixtures[0], wheel);
+      const rotation = sliderState();
+      return { split, single, rotation };
+    });
+
+    expect(state.split.min).toBe('99');
+    expect(state.split.max).toBe('109');
+    expect(state.split.label).toContain('Split position');
+    expect(state.single.min).toBeUndefined();
+    expect(state.rotation.label).toContain('Rotation speed');
+  });
+
   test('manual wheel option editor supports ranges and OFL-style metadata', async ({ page }) => {
     const state = await page.evaluate(() => {
       const text = [

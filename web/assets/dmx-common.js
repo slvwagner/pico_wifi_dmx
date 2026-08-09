@@ -1722,16 +1722,23 @@
     return details.join(' · ');
   }
 
+  function wheelOptionIsSplitColor(option){
+    if(String(option&&option.kind||'')!=='WheelSlot')return false;
+    const colors=Array.isArray(option&&option.colors)?option.colors:[];
+    return colors.filter(color=>/^#[0-9a-f]{6}$/i.test(String(color))).length>1;
+  }
+
   function wheelOptionIsAdjustable(option){
     const range=wheelOptionRange(option);
     if(!range||range[0]===range[1])return false;
     const kind=String(option&&option.kind||'');
-    return kind==='WheelShake'||kind==='WheelRotation'||kind==='WheelSlotRotation'||
+    return wheelOptionIsSplitColor(option)||kind==='WheelShake'||kind==='WheelRotation'||kind==='WheelSlotRotation'||
       !!(option&&(option.speedStart||option.speedEnd||option.shakeSpeedStart||option.shakeSpeedEnd));
   }
 
   function wheelOptionRangeLabel(option){
     const kind=String(option&&option.kind||'');
+    if(wheelOptionIsSplitColor(option))return 'Split position';
     if(kind==='WheelShake')return 'Shake speed';
     if(kind==='WheelRotation')return 'Rotation speed';
     if(kind==='WheelSlotRotation')return 'Slot rotation';
