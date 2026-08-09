@@ -438,6 +438,94 @@ test.describe('Project versioning rules', () => {
     expect(result.importedShowRun).toMatchObject(result.exportedShowRun);
   });
 
+  test('Show Import rejects a setup that requires a newer application version before writing data', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    const result = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      const originalConfirm = window.confirm;
+      const originalSetTimeout = window.setTimeout;
+      const posts = [];
+      try {
+        window.confirm = () => true;
+        window.setTimeout = () => 0;
+        window.fetch = async (url, options = {}) => {
+          if (String(options.method || 'GET').toUpperCase() === 'POST') {
+            posts.push(String(url));
+          }
+          return { ok: true, json: async () => ({ ok: true, exists: false }) };
+        };
+        const setup = {
+          type: 'pico_wifi_dmx_full_setup',
+          setupFormatVersion: FULL_SETUP_FORMAT_VERSION,
+          minimumAppVersion: '99.0.0',
+          project: { id: 'pico_wifi_dmx', name: 'Pico WiFi DMX', version: '99.0.0' },
+          fixture: { showName: 'Future Show', profiles: [], fixtures: [] },
+          liveValues: {},
+          groups: { groups: [] },
+          scenes: { scenes: [] },
+          palettes: { palettes: [] },
+          chaser: {},
+          motion: {},
+          gpio: { mappings: [], adcMappings: [] },
+          roomPlane: {},
+          uiState: {}
+        };
+        let error = '';
+        try {
+          await importFullSetup(setup);
+        } catch (caught) {
+          error = caught?.message || String(caught);
+        }
+        return { error, posts, currentVersion: DmxCommon.appVersion() };
+      } finally {
+        window.fetch = originalFetch;
+        window.confirm = originalConfirm;
+        window.setTimeout = originalSetTimeout;
+      }
+    });
+
+    expect(result.posts).toEqual([]);
+    expect(result.error).toContain('requires Pico WiFi DMX 99.0.0 or newer');
+    expect(result.error).toContain(`installed version is ${result.currentVersion}`);
+  });
+
+  test('Show Import compares release and prerelease application versions semantically', async ({ page }) => {
+    await openDmxPage(page, '');
+
+    const comparisons = await page.evaluate(() => {
+      let malformedMinimumError = '';
+      try {
+        assertFullSetupAppCompatibility({ minimumAppVersion: 'development' });
+      } catch (caught) {
+        malformedMinimumError = caught?.message || String(caught);
+      }
+      return {
+        equal: compareSemanticVersions('1.2.1', '1.2.1'),
+        newerPatch: compareSemanticVersions('1.2.2', '1.2.1'),
+        olderMinor: compareSemanticVersions('1.1.9', '1.2.0'),
+        releaseAfterPrerelease: compareSemanticVersions('1.2.1', '1.2.1-rc.1'),
+        prereleaseBeforeRelease: compareSemanticVersions('1.2.1-rc.1', '1.2.1'),
+        numericPrerelease: compareSemanticVersions('1.2.1-rc.2', '1.2.1-rc.10'),
+        buildMetadataIgnored: compareSemanticVersions('1.2.1+windows', '1.2.1+linux'),
+        malformed: compareSemanticVersions('development', '1.2.1'),
+        malformedMinimumError
+      };
+    });
+
+    expect(comparisons).toEqual({
+      equal: 0,
+      newerPatch: 1,
+      olderMinor: -1,
+      releaseAfterPrerelease: 1,
+      prereleaseBeforeRelease: -1,
+      numericPrerelease: -1,
+      buildMetadataIgnored: 0,
+      malformed: null,
+      malformedMinimumError: 'Setup file has an invalid minimum application version: development.'
+    });
+  });
+
   test('setup import maps changed show fixtures to library versions without removing unrelated catalog entries', async ({ page }) => {
     await openDmxPage(page, '');
 

@@ -1658,7 +1658,7 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>GPIO mappings</li>
 <li>Toolbox layout, collapse state, grid sizes, and other saved UI state</li>
 </ul>
-<p>The file also stores the project name, project version, export time, and setup format version. During import, the controller checks the setup format before writing anything to the server. Older supported formats are upgraded automatically to the current format. If a future setup file uses a newer format than the installed software understands, import stops and asks you to update the controller software first.</p>
+<p>The file also stores the project name, project version, minimum compatible application version, export time, and setup format version. Before showing the confirmation or writing anything to the server, the controller checks both compatibility versions. Older supported setup formats are upgraded automatically to the current format. Import stops and asks you to update the controller software when either the setup format is newer than the installed software understands or the show requires a newer application release. A malformed minimum-version value is also rejected instead of importing without a reliable compatibility check.</p>
 <p>Use <strong>Import Show</strong> on the Fixture Controller to restore a show backup. Any <code>.json</code> filename is accepted, including renamed files and names containing spaces such as <code>xampp setup.json</code>; the importer validates the JSON content, not the filename. Before replacing data, the confirmation identifies the embedded show name, for example <strong>Import xyz_show?</strong> Its saved show name, Controller profiles, patched fixtures, DMX Outputs/universes, fixture-to-output assignments, per-output GPIO mappings, and embedded used definitions are sufficient to operate the restored show. Older backups without a show name load as <strong>Untitled Show</strong>.</p>
 <p>Before the restore writes any data, <strong>Resolve Fixture Updates</strong> appears when a show fixture definition is missing from or differs from the current server library. Each table row shows the show fixture, the difference, and a library fixture/mode selector:</p>
 <ul>
@@ -1758,6 +1758,12 @@ screenY = offsetY + (maxY - roomY) * scale</code></pre>
 <li>Unified autonomous Chaser and Effects playback around fleet-wide logical slot numbers. Logical Chaser slot N now uses physical Chaser slot N on every involved Pico, and Effects follows the same rule across its 64 slots. Slot status distinguishes consistent <code>EMPTY</code>/<code>READY</code> state from <code>PARTIAL</code> occupancy and <code>UNKNOWN</code> unreachable outputs; deletion clears N on every configured Pico. Existing linked manifests with differing member slots are not silently restored and can be normalized from either playback page after a timestamped server backup and conflict check. Replaced the incomplete restore action with an explicit fleet synchronization that preflights every configured Pico, re-uploads all saved payloads, and clears stale loaded slots after showing an exact destructive-change summary; opening a playback page no longer writes Pico slot memory automatically.</li>
 </ul>
 <p>Fixed:</p>
+<ul>
+<li>Enforced the <code>minimumAppVersion</code> recorded in complete Show exports before</li>
+</ul>
+<p>  importing any data. Show Import now compares semantic release and prerelease</p>
+<p>  versions, rejects malformed compatibility metadata, and directs users to</p>
+<p>  update the application when a show requires a newer version.</p>
 <ul>
 <li>Made ranged split-color wheel slots adjustable with a <strong>Split position</strong></li>
 </ul>

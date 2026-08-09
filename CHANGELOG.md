@@ -28,6 +28,10 @@ Changed:
 
 Fixed:
 
+- Enforced the `minimumAppVersion` recorded in complete Show exports before
+  importing any data. Show Import now compares semantic release and prerelease
+  versions, rejects malformed compatibility metadata, and directs users to
+  update the application when a show requires a newer version.
 - Made ranged split-color wheel slots adjustable with a **Split position**
   slider. They can now retain the correct `WheelSlot` function while exposing
   the full DMX range used to balance both colors; single-color slots remain

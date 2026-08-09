@@ -3523,6 +3523,51 @@ function normalizeFullSetupPayload(data){
 function fullSetupFormatVersion(data){
   return parseInt(data?.setupFormatVersion??data?.schemaVersion??1,10)||1;
 }
+function parseSemanticVersion(value){
+  const match=String(value??'').trim().match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
+  if(!match)return null;
+  const prerelease=match[4]?match[4].split('.'):[];
+  if(prerelease.some(identifier=>!identifier||(/^\d+$/.test(identifier)&&identifier.length>1&&identifier.startsWith('0'))))return null;
+  return {major:Number(match[1]),minor:Number(match[2]),patch:Number(match[3]),prerelease};
+}
+function compareSemanticVersions(leftValue,rightValue){
+  const left=parseSemanticVersion(leftValue);
+  const right=parseSemanticVersion(rightValue);
+  if(!left||!right)return null;
+  for(const key of ['major','minor','patch']){
+    if(left[key]!==right[key])return left[key]<right[key]?-1:1;
+  }
+  if(!left.prerelease.length&&!right.prerelease.length)return 0;
+  if(!left.prerelease.length)return 1;
+  if(!right.prerelease.length)return -1;
+  const length=Math.max(left.prerelease.length,right.prerelease.length);
+  for(let index=0;index<length;index++){
+    const leftIdentifier=left.prerelease[index];
+    const rightIdentifier=right.prerelease[index];
+    if(leftIdentifier===undefined)return -1;
+    if(rightIdentifier===undefined)return 1;
+    if(leftIdentifier===rightIdentifier)continue;
+    const leftNumeric=/^\d+$/.test(leftIdentifier);
+    const rightNumeric=/^\d+$/.test(rightIdentifier);
+    if(leftNumeric&&rightNumeric)return Number(leftIdentifier)<Number(rightIdentifier)?-1:1;
+    if(leftNumeric!==rightNumeric)return leftNumeric?-1:1;
+    return leftIdentifier<rightIdentifier?-1:1;
+  }
+  return 0;
+}
+function assertFullSetupAppCompatibility(setup){
+  const requiredVersion=String(setup?.minimumAppVersion??'').trim();
+  const installedVersion=String(DmxCommon.appVersion()??'').trim();
+  if(!parseSemanticVersion(requiredVersion)){
+    throw new Error('Setup file has an invalid minimum application version: '+(requiredVersion||'(missing)')+'.');
+  }
+  if(!parseSemanticVersion(installedVersion)){
+    throw new Error('Could not verify Show Import compatibility because the installed application version is invalid: '+(installedVersion||'(missing)')+'.');
+  }
+  if(compareSemanticVersions(installedVersion,requiredVersion)<0){
+    throw new Error('This show requires Pico WiFi DMX '+requiredVersion+' or newer; the installed version is '+installedVersion+'. Please update the application before importing.');
+  }
+}
 function fullSetupMetadata(){
   return {
     type:FULL_SETUP_TYPE,
@@ -3983,6 +4028,7 @@ async function importFullSetup(data){
     return;
   }
   const migrated=validateFullSetupPayload(migrateFullSetupPayload(full));
+  assertFullSetupAppCompatibility(migrated);
   const importedShowName=normalizeShowName(migrated.fixture?.showName||migrated.showName);
   if(!confirm('Import '+importedShowName+'?\n\nThis replaces fixture setup, groups, scenes, palettes, chases, effects, GPIO mappings, live values, and saved UI layout.'))return;
   let fixtureSetup={...migrated.fixture,showName:importedShowName};
