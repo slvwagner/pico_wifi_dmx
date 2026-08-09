@@ -822,7 +822,10 @@ function closeMotionGroupModal(){
   drawFixtureList();
   drawPathPreview();
 }
-function recallMotionGroupFixtureValues(which){
+async function recallMotionGroupFixtureValues(which){
+  const selectedFixtures=[...new Map(motionGroupEditFixtures().map(item=>[String(item.fixture.id),item.fixture])).values()];
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  await DmxCommon.stopPlaybackForFixtures(selectedFixtures,outputs,{legacyBaseUrl:setup.baseUrl||baseUrlEl.value});
   const controls=getMotionGroupCommonControls();
   let changed=0;
   controls.forEach(control=>{
@@ -874,8 +877,8 @@ function handleMotionGroupInput(target){
 }
 document.getElementById('closeMotionGroupModal').onclick=closeMotionGroupModal;
 document.getElementById('closeMotionGroupModal2').onclick=closeMotionGroupModal;
-document.getElementById('defaultMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('defaultValue');
-document.getElementById('blackoutMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('blackoutValue');
+document.getElementById('defaultMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
+document.getElementById('blackoutMotionGroupBtn').onclick=()=>recallMotionGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 const motionGroupModalBody=document.getElementById('motionGroupModalBody');
 motionGroupModalBody.oninput=e=>handleMotionGroupInput(e.target);
 motionGroupModalBody.addEventListener('click',e=>{

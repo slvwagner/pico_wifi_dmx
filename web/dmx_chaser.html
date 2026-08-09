@@ -939,7 +939,10 @@ function openChaserGroupModal(){
   DmxCommon.showModal('chaserGroupModal');
 }
 function closeChaserGroupModal(){DmxCommon.hideModal('chaserGroupModal');drawParticipation();drawStepList();drawStepEditor();refreshFanBasesFromStep();}
-function recallChaserGroupFixtureValues(which){
+async function recallChaserGroupFixtureValues(which){
+  const selectedFixtures=chaserGroupEditState().fixtures;
+  const outputs=DmxCommon.normalizeDmxOutputs(setup.dmxOutputs,setup.baseUrl||baseUrlEl.value);
+  await DmxCommon.stopPlaybackForFixtures(selectedFixtures,outputs,{legacyBaseUrl:setup.baseUrl||baseUrlEl.value});
   const controls=getChaserGroupEditableControls();
   let changed=0;
   ensureChaserGroupStep();
@@ -1948,8 +1951,8 @@ function setChaserGroupXY(e,pad){
 
 document.getElementById('closeChaserGroupModal').onclick=closeChaserGroupModal;
 document.getElementById('closeChaserGroupModal2').onclick=closeChaserGroupModal;
-document.getElementById('defaultChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('defaultValue');
-document.getElementById('blackoutChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('blackoutValue');
+document.getElementById('defaultChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
+document.getElementById('blackoutChaserGroupBtn').onclick=()=>recallChaserGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 const chaserGroupModalBody=document.getElementById('chaserGroupModalBody');
 chaserGroupModalBody.oninput=handleChaserGroupInput;
 chaserGroupModalBody.onclick=handleChaserGroupClick;

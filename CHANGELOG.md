@@ -28,6 +28,10 @@ Changed:
 
 Fixed:
 
+- Made Group Edit **Default** and **Blackout** recalls take manual control on
+  the Controller, Chaser, Effects, and Room Plane pages. Both playback engines
+  are stopped on every Pico assigned to the selected fixtures before values
+  are changed; Show Run retains its live-operation behavior.
 - Enforced the `minimumAppVersion` recorded in complete Show exports before
   importing any data. Show Import now compares semantic release and prerelease
   versions, rejects malformed compatibility metadata, and directs users to

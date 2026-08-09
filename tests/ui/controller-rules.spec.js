@@ -912,6 +912,51 @@ test.describe('Fixture Controller established rules', () => {
     expect(result.afterC).toBe(result.beforeC);
   });
 
+  test('Group Edit Default and Blackout stop playback on every selected fixture output before recalling DMX', async ({ page }) => {
+    const requests = [];
+    await page.route(/http:\/\/127\.0\.0\.1:1899[12]\/.*$/, async route => {
+      requests.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await page.evaluate(() => {
+      const fixtureA = fixtures.find(fixture => fixture.id === 101);
+      const fixtureB = fixtures.find(fixture => fixture.id === 102);
+      const controlA = fixtureProfile(fixtureA).controls.find(control => control.label === 'Dimmer');
+      const controlB = fixtureProfile(fixtureB).controls.find(control => control.label === 'Dimmer');
+      controlA.defaultValue = 80;
+      controlA.blackoutValue = 0;
+      controlB.defaultValue = 90;
+      controlB.blackoutValue = 0;
+      dmxOutputs = DmxCommon.normalizeDmxOutputs([
+        { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+        { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+      ]);
+      fixtureA.outputId = 'front';
+      fixtureB.outputId = 'rear';
+      selectedFixtureIds = new Set([101, 102]);
+      activeSavedGroupIds.clear();
+      drawSurface();
+      openGroupModal();
+    });
+
+    const expectedStops = [
+      'http://127.0.0.1:18991/chaser/stop',
+      'http://127.0.0.1:18991/motion/stop',
+      'http://127.0.0.1:18992/chaser/stop',
+      'http://127.0.0.1:18992/motion/stop'
+    ];
+    await page.locator('#defaultGroupBtn').click();
+    await expect.poll(() => page.evaluate(() => [values['101:11'], values['102:21']])).toEqual([80, 90]);
+    expect(requests).toEqual(expect.arrayContaining(expectedStops));
+    const firstDmx = requests.findIndex(url => url.includes('/dmx/set/'));
+    expectedStops.forEach(url => expect(requests.indexOf(url)).toBeLessThan(firstDmx));
+
+    requests.length = 0;
+    await page.locator('#blackoutGroupBtn').click();
+    await expect.poll(() => page.evaluate(() => [values['101:11'], values['102:21']])).toEqual([0, 0]);
+    expect(requests).toEqual(expect.arrayContaining(expectedStops));
+  });
+
   test('Group Edit can edit a single selected fixture', async ({ page }) => {
     await page.locator('[data-fixture-card="101"] .fixture-head').click();
     await expect(page.locator('#editSelectedGroups')).toBeEnabled();

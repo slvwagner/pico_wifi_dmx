@@ -628,7 +628,7 @@ Group Edit remembers the relative step-size fields you set, for example **Pan fi
 
 If the controller is currently scoped by a recalled scene, recalled palette, or Fan Out result, **Group Edit** uses that scope. In that case it shows only controls that are part of the active scope and exist in the selected fixture scope. Editing a scoped control writes only to matching fixtures.
 
-Use **Default** or **Blackout** to recall the stored default or blackout values for every fixture in the selected group.
+Use **Default** or **Blackout** to recall the stored default or blackout values for every fixture in the selected group. On the Controller, Chaser, Effects, and Room Plane programming pages, either button first stops both chaser and effect playback on every Pico assigned to the selected fixtures and waits for those requests before applying values. If a Pico cannot be stopped, the recall is cancelled and the page reports the failed output. Show Run is the exception: its Group Edit recalls do not automatically stop playback, preserving live-operation behavior.
 
 ### Group Edit Contract
 

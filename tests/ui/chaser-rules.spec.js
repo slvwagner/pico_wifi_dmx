@@ -900,6 +900,11 @@ test.describe('Chaser established rules', () => {
   });
 
   test('Chaser Group Edit follows the Controller modal visual language and step semantics', async ({ page }) => {
+    const playbackStops = [];
+    await page.route(/http:\/\/127\.0\.0\.1:1899[12]\/.*\/(?:stop)$/, async route => {
+      playbackStops.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
     await page.evaluate(() => {
       const controlsA = [
         { id: 11, type: 'slider8', label: 'Dimmer', channel: 1, defaultValue: 80, blackoutValue: 0 },
@@ -924,13 +929,17 @@ test.describe('Chaser established rules', () => {
       }));
       setup = {
         baseUrl: '',
+        dmxOutputs: [
+          { id: 'front', name: 'Front Pico', universe: 1, baseUrl: 'http://127.0.0.1:18991/' },
+          { id: 'rear', name: 'Rear Pico', universe: 2, baseUrl: 'http://127.0.0.1:18992/' }
+        ],
         profiles: [
           { id: 10, name: 'Profile A', mode: 'test', channels: 16, controls: controlsA },
           { id: 20, name: 'Profile B', mode: 'test', channels: 16, controls: controlsB }
         ],
         fixtures: [
-          { id: 201, name: 'Spot A', profileId: 10, start: 1 },
-          { id: 202, name: 'Spot B', profileId: 20, start: 21 }
+          { id: 201, name: 'Spot A', profileId: 10, start: 1, outputId: 'front' },
+          { id: 202, name: 'Spot B', profileId: 20, start: 21, outputId: 'rear' }
         ]
       };
       participating = {};
@@ -979,9 +988,22 @@ test.describe('Chaser established rules', () => {
     expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([15, 25]);
 
     await page.locator('#defaultChaserGroupBtn').click();
-    expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([80, 90]);
+    await expect.poll(() => page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([80, 90]);
+    await expect.poll(() => playbackStops).toEqual(expect.arrayContaining([
+      'http://127.0.0.1:18991/chaser/stop',
+      'http://127.0.0.1:18991/motion/stop',
+      'http://127.0.0.1:18992/chaser/stop',
+      'http://127.0.0.1:18992/motion/stop'
+    ]));
+    playbackStops.length = 0;
     await page.locator('#blackoutChaserGroupBtn').click();
-    expect(await page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([0, 0]);
+    await expect.poll(() => page.evaluate(() => [steps[0].values['201:11'], steps[0].values['202:21']])).toEqual([0, 0]);
+    await expect.poll(() => playbackStops).toEqual(expect.arrayContaining([
+      'http://127.0.0.1:18991/chaser/stop',
+      'http://127.0.0.1:18991/motion/stop',
+      'http://127.0.0.1:18992/chaser/stop',
+      'http://127.0.0.1:18992/motion/stop'
+    ]));
   });
 
   test('Only selects one control type without reducing the fixture scope when no group filter is active', async ({ page }) => {

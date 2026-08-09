@@ -4690,6 +4690,8 @@ document.getElementById('closeGroupModal').onclick=closeGroupModal;
 document.getElementById('closeGroupModal2').onclick=closeGroupModal;
 async function recallGroupFixtureValues(which){
   const ids=[...selectedFixtureIds];
+  const selectedFixtures=ids.map(id=>fixtures.find(fixture=>fixture.id===id)).filter(Boolean);
+  await DmxCommon.stopPlaybackForFixtures(selectedFixtures,dmxOutputs,{legacyBaseUrl:baseUrl.value});
   const editableKeys=new Set(getGroupEditableControls().map(c=>groupKey(c)));
   const errors=[];
   let controls=0;
@@ -4715,8 +4717,8 @@ async function recallGroupFixtureValues(which){
   if(errors.length)setStatus(errors.slice(0,3).join(', ')+(errors.length>3?' ...':''),true);
   else setStatus('Group '+label+' recalled for '+ids.length+' fixture'+(ids.length===1?'':'s'));
 }
-document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue');
-document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue');
+document.getElementById('defaultGroupBtn').onclick=()=>recallGroupFixtureValues('defaultValue').catch(error=>setStatus(error.message,true));
+document.getElementById('blackoutGroupBtn').onclick=()=>recallGroupFixtureValues('blackoutValue').catch(error=>setStatus(error.message,true));
 const groupModalBody=document.getElementById('groupModalBody');
 groupModalBody.oninput=e=>{
   if(e.target.dataset.relativeStep&&e.target.dataset.relativeGc){

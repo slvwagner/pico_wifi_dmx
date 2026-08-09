@@ -92,6 +92,30 @@
     return [...selected.values()];
   }
 
+  async function stopPlaybackForFixtures(fixtures,outputs,options={}){
+    const list=normalizeDmxOutputs(outputs,options.legacyBaseUrl||'');
+    const affected=dmxOutputsForFixtures(fixtures,list).filter(output=>dmxOutputEndpoint(output));
+    const requests=[];
+    affected.forEach(output=>{
+      const root=dmxOutputEndpoint(output);
+      ['chaser','motion'].forEach(kind=>requests.push({
+        output,
+        kind,
+        request:fetch(root+'/'+kind+'/stop',{cache:'no-store'})
+      }));
+    });
+    const results=await Promise.allSettled(requests.map(item=>item.request));
+    const failures=[];
+    results.forEach((result,index)=>{
+      const item=requests[index];
+      if(result.status==='rejected'||!result.value?.ok){
+        failures.push((item.output.name||'Pico')+' '+item.kind);
+      }
+    });
+    if(failures.length)throw new Error('Could not stop playback on '+failures.join(', '));
+    return affected;
+  }
+
   async function sendFixtureDmxRows(entries,outputs,options={}){
     const list=normalizeDmxOutputs(outputs,options.legacyBaseUrl||'');
     const path=String(options.path||'/dmx/b');
@@ -4377,6 +4401,7 @@
     dmxOutputForFixture,
     dmxOutputEndpoint,
     dmxOutputsForFixtures,
+    stopPlaybackForFixtures,
     sendFixtureDmxRows,
     requestDmxOutputs,
     linkedPlaybackMembersForFixtures,

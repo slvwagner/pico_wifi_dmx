@@ -1822,6 +1822,8 @@ function openRoomControllerGroupModal(){
 }
 function closeRoomGroupModal(){DmxCommon.hideModal('groupModal');renderFixtureRows();render();}
 async function recallRoomGroupFixtureValues(which){
+  const selectedFixtures=selectedRoomFixtures();
+  await DmxCommon.stopPlaybackForFixtures(selectedFixtures,dmxOutputs,{legacyBaseUrl:baseUrl.value});
   const controls=roomGroupEditableControls();
   let changed=0;
   for(const control of controls){

@@ -6,6 +6,22 @@ const root = path.join(__dirname, '..', '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
 test.describe('Code safety regression rules', () => {
+  test('programming-page Group Edit recalls stop affected Pico playback but Show Run does not', () => {
+    const common = read('web/assets/dmx-common.js');
+    expect(common).toContain('async function stopPlaybackForFixtures');
+    expect(common).toContain("['chaser','motion'].forEach");
+
+    for (const page of [
+      'web/dmx_fixture_controller.html',
+      'web/dmx_chaser.html',
+      'web/dmx_motion.html',
+      'web/dmx_room_plane.html'
+    ]) {
+      expect(read(page), page).toContain('await DmxCommon.stopPlaybackForFixtures');
+    }
+    expect(read('web/dmx_show.html')).not.toContain('DmxCommon.stopPlaybackForFixtures');
+  });
+
   test('firmware owns generated responses and POST bodies per connection', () => {
     const main = read('firmware/main.cpp');
     const lwip = read('firmware/lwipopts.h');
